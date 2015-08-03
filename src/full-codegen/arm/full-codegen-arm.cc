@@ -3431,6 +3431,33 @@ void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitIsSimdObject(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false, &if_true,
+                         &if_false, &fall_through);
+
+  __ JumpIfSmi(r0, if_false);
+  Register map = r1;
+  Register type_reg = r2;
+  __ ldr(map, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ sub(type_reg, type_reg, Operand(FIRST_SIMD_VALUE_TYPE));
+  __ cmp(type_reg, Operand(LAST_SIMD_VALUE_TYPE - FIRST_SIMD_VALUE_TYPE));
+  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+  Split(ls, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
+}
+
+
 void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);
@@ -5075,6 +5102,30 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   } else if (String::Equals(check, factory->float32x4_string())) {
     __ JumpIfSmi(r0, if_false);
     __ CompareObjectType(r0, r0, r1, FLOAT32X4_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->int32x4_string())) {
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r0, r1, INT32X4_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->bool32x4_string())) {
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r0, r1, BOOL32X4_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->int16x8_string())) {
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r0, r1, INT16X8_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->bool16x8_string())) {
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r0, r1, BOOL16X8_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->int8x16_string())) {
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r0, r1, INT8X16_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->bool8x16_string())) {
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r0, r1, BOOL8X16_TYPE);
     Split(eq, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->boolean_string())) {
     __ CompareRoot(r0, Heap::kTrueValueRootIndex);

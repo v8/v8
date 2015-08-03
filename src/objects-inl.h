@@ -168,8 +168,24 @@ bool Object::IsHeapObject() const {
 
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
-TYPE_CHECKER(Float32x4, FLOAT32X4_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
+
+
+bool Object::IsSimd128Value() const {
+  if (!Object::IsHeapObject()) return false;
+  InstanceType instance_type = HeapObject::cast(this)->map()->instance_type();
+  return (instance_type >= FIRST_SIMD_VALUE_TYPE &&
+          instance_type <= LAST_SIMD_VALUE_TYPE);
+}
+
+
+TYPE_CHECKER(Float32x4, FLOAT32X4_TYPE)
+TYPE_CHECKER(Int32x4, INT32X4_TYPE)
+TYPE_CHECKER(Bool32x4, BOOL32X4_TYPE)
+TYPE_CHECKER(Int16x8, INT16X8_TYPE)
+TYPE_CHECKER(Bool16x8, BOOL16X8_TYPE)
+TYPE_CHECKER(Int8x16, INT8X16_TYPE)
+TYPE_CHECKER(Bool8x16, BOOL8X16_TYPE)
 
 
 bool Object::IsString() const {
@@ -1243,6 +1259,18 @@ MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<Object> object,
 #define WRITE_INTPTR_FIELD(p, offset, value) \
   (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)) = value)
 
+#define READ_UINT16_FIELD(p, offset) \
+  (*reinterpret_cast<const uint16_t*>(FIELD_ADDR_CONST(p, offset)))
+
+#define WRITE_UINT16_FIELD(p, offset, value) \
+  (*reinterpret_cast<uint16_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define READ_INT16_FIELD(p, offset) \
+  (*reinterpret_cast<const int16_t*>(FIELD_ADDR_CONST(p, offset)))
+
+#define WRITE_INT16_FIELD(p, offset, value) \
+  (*reinterpret_cast<int16_t*>(FIELD_ADDR(p, offset)) = value)
+
 #define READ_UINT32_FIELD(p, offset) \
   (*reinterpret_cast<const uint32_t*>(FIELD_ADDR_CONST(p, offset)))
 
@@ -1272,12 +1300,6 @@ MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<Object> object,
 
 #define WRITE_INT64_FIELD(p, offset, value) \
   (*reinterpret_cast<int64_t*>(FIELD_ADDR(p, offset)) = value)
-
-#define READ_SHORT_FIELD(p, offset) \
-  (*reinterpret_cast<const uint16_t*>(FIELD_ADDR_CONST(p, offset)))
-
-#define WRITE_SHORT_FIELD(p, offset, value) \
-  (*reinterpret_cast<uint16_t*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_BYTE_FIELD(p, offset) \
   (*reinterpret_cast<const byte*>(FIELD_ADDR_CONST(p, offset)))
@@ -1554,6 +1576,162 @@ void Float32x4::set_lane(int lane, float value) {
   WRITE_FLOAT_FIELD(this, kValueOffset + lane * kFloatSize, value);
 #elif defined(V8_TARGET_BIG_ENDIAN)
   WRITE_FLOAT_FIELD(this, kValueOffset + (3 - lane) * kFloatSize, value);
+#else
+#error Unknown byte ordering
+#endif
+}
+
+
+int32_t Int32x4::get_lane(int lane) const {
+  DCHECK(lane < 4 && lane >= 0);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  return READ_INT32_FIELD(this, kValueOffset + lane * kInt32Size);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  return READ_INT32_FIELD(this, kValueOffset + (3 - lane) * kInt32Size);
+#else
+#error Unknown byte ordering
+#endif
+}
+
+
+void Int32x4::set_lane(int lane, int32_t value) {
+  DCHECK(lane < 4 && lane >= 0);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  WRITE_INT32_FIELD(this, kValueOffset + lane * kInt32Size, value);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  WRITE_INT32_FIELD(this, kValueOffset + (3 - lane) * kInt32Size, value);
+#else
+#error Unknown byte ordering
+#endif
+}
+
+
+bool Bool32x4::get_lane(int lane) const {
+  DCHECK(lane < 4 && lane >= 0);
+  int32_t value;
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  value = READ_INT32_FIELD(this, kValueOffset + lane * kInt32Size);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  value = READ_INT32_FIELD(this, kValueOffset + (3 - lane) * kInt32Size);
+#else
+#error Unknown byte ordering
+#endif
+  DCHECK(value == 0 || value == -1);
+  return value != 0;
+}
+
+
+void Bool32x4::set_lane(int lane, bool value) {
+  DCHECK(lane < 4 && lane >= 0);
+  int32_t int_val = value ? -1 : 0;
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  WRITE_INT32_FIELD(this, kValueOffset + lane * kInt32Size, int_val);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  WRITE_INT32_FIELD(this, kValueOffset + (3 - lane) * kInt32Size, int_val);
+#else
+#error Unknown byte ordering
+#endif
+}
+
+
+int16_t Int16x8::get_lane(int lane) const {
+  DCHECK(lane < 8 && lane >= 0);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  return READ_INT16_FIELD(this, kValueOffset + lane * kShortSize);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  return READ_INT16_FIELD(this, kValueOffset + (7 - lane) * kShortSize);
+#else
+#error Unknown byte ordering
+#endif
+}
+
+
+void Int16x8::set_lane(int lane, int16_t value) {
+  DCHECK(lane < 8 && lane >= 0);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  WRITE_INT16_FIELD(this, kValueOffset + lane * kShortSize, value);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  WRITE_INT16_FIELD(this, kValueOffset + (7 - lane) * kShortSize, value);
+#else
+#error Unknown byte ordering
+#endif
+}
+
+
+bool Bool16x8::get_lane(int lane) const {
+  DCHECK(lane < 8 && lane >= 0);
+  int16_t value;
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  return READ_INT16_FIELD(this, kValueOffset + lane * kShortSize);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  return READ_INT16_FIELD(this, kValueOffset + (7 - lane) * kShortSize);
+#else
+#error Unknown byte ordering
+#endif
+  DCHECK(value == 0 || value == -1);
+  return value != 0;
+}
+
+
+void Bool16x8::set_lane(int lane, bool value) {
+  DCHECK(lane < 8 && lane >= 0);
+  int16_t int_val = value ? -1 : 0;
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  WRITE_INT16_FIELD(this, kValueOffset + lane * kShortSize, int_val);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  WRITE_INT16_FIELD(this, kValueOffset + (7 - lane) * kShortSize, int_val);
+#else
+#error Unknown byte ordering
+#endif
+}
+
+
+int8_t Int8x16::get_lane(int lane) const {
+  DCHECK(lane < 16 && lane >= 0);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  return READ_BYTE_FIELD(this, kValueOffset + lane * kCharSize);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  return READ_BYTE_FIELD(this, kValueOffset + (15 - lane) * kCharSize);
+#else
+#error Unknown byte ordering
+#endif
+}
+
+
+void Int8x16::set_lane(int lane, int8_t value) {
+  DCHECK(lane < 16 && lane >= 0);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  WRITE_BYTE_FIELD(this, kValueOffset + lane * kCharSize, value);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  WRITE_BYTE_FIELD(this, kValueOffset + (15 - lane) * kCharSize, value);
+#else
+#error Unknown byte ordering
+#endif
+}
+
+
+bool Bool8x16::get_lane(int lane) const {
+  DCHECK(lane < 16 && lane >= 0);
+  int8_t value;
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  value = READ_BYTE_FIELD(this, kValueOffset + lane * kCharSize);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  value = READ_BYTE_FIELD(this, kValueOffset + (15 - lane) * kCharSize);
+#else
+#error Unknown byte ordering
+#endif
+  DCHECK(value == 0 || value == -1);
+  return value != 0;
+}
+
+
+void Bool8x16::set_lane(int lane, bool value) {
+  DCHECK(lane < 16 && lane >= 0);
+  int8_t int_val = value ? -1 : 0;
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  WRITE_BYTE_FIELD(this, kValueOffset + lane * kCharSize, int_val);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  WRITE_BYTE_FIELD(this, kValueOffset + (15 - lane) * kCharSize, int_val);
 #else
 #error Unknown byte ordering
 #endif
@@ -2204,7 +2382,7 @@ bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
 void Object::VerifyApiCallResultType() {
 #if DEBUG
   if (!(IsSmi() || IsString() || IsSymbol() || IsSpecObject() ||
-        IsHeapNumber() || IsFloat32x4() || IsUndefined() || IsTrue() ||
+        IsHeapNumber() || IsSimd128Value() || IsUndefined() || IsTrue() ||
         IsFalse() || IsNull())) {
     FATAL("API call returned invalid object");
   }
@@ -2396,7 +2574,7 @@ AllocationAlignment HeapObject::RequiredAlignment() {
     return kDoubleAligned;
   }
   if (IsHeapNumber()) return kDoubleUnaligned;
-  if (IsFloat32x4()) return kSimd128Unaligned;
+  if (IsSimd128Value()) return kSimd128Unaligned;
 #endif  // V8_HOST_ARCH_32_BIT
   return kWordAligned;
 }
@@ -2908,6 +3086,9 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 
 CAST_ACCESSOR(AccessorInfo)
 CAST_ACCESSOR(ArrayList)
+CAST_ACCESSOR(Bool16x8)
+CAST_ACCESSOR(Bool32x4)
+CAST_ACCESSOR(Bool8x16)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(BytecodeArray)
 CAST_ACCESSOR(Cell)
@@ -2932,6 +3113,9 @@ CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(GlobalObject)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)
+CAST_ACCESSOR(Int16x8)
+CAST_ACCESSOR(Int32x4)
+CAST_ACCESSOR(Int8x16)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
@@ -2976,6 +3160,7 @@ CAST_ACCESSOR(SeqOneByteString)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(SeqTwoByteString)
 CAST_ACCESSOR(SharedFunctionInfo)
+CAST_ACCESSOR(Simd128Value)
 CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(String)
@@ -3311,13 +3496,13 @@ uc16* SeqTwoByteString::GetChars() {
 
 uint16_t SeqTwoByteString::SeqTwoByteStringGet(int index) {
   DCHECK(index >= 0 && index < length());
-  return READ_SHORT_FIELD(this, kHeaderSize + index * kShortSize);
+  return READ_UINT16_FIELD(this, kHeaderSize + index * kShortSize);
 }
 
 
 void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
   DCHECK(index >= 0 && index < length());
-  WRITE_SHORT_FIELD(this, kHeaderSize + index * kShortSize, value);
+  WRITE_UINT16_FIELD(this, kHeaderSize + index * kShortSize, value);
 }
 
 
@@ -7088,10 +7273,20 @@ String::SubStringRange::iterator String::SubStringRange::end() {
 #undef WRITE_INT_FIELD
 #undef READ_INTPTR_FIELD
 #undef WRITE_INTPTR_FIELD
+#undef READ_UINT16_FIELD
+#undef WRITE_UINT16_FIELD
+#undef READ_INT16_FIELD
+#undef WRITE_INT16_FIELD
 #undef READ_UINT32_FIELD
 #undef WRITE_UINT32_FIELD
-#undef READ_SHORT_FIELD
-#undef WRITE_SHORT_FIELD
+#undef READ_INT32_FIELD
+#undef WRITE_INT32_FIELD
+#undef READ_FLOAT_FIELD
+#undef WRITE_FLOAT_FIELD
+#undef READ_UINT64_FIELD
+#undef WRITE_UINT64_FIELD
+#undef READ_INT64_FIELD
+#undef WRITE_INT64_FIELD
 #undef READ_BYTE_FIELD
 #undef WRITE_BYTE_FIELD
 #undef NOBARRIER_READ_BYTE_FIELD

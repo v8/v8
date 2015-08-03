@@ -139,6 +139,12 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FLOAT32X4_TYPE:
+    case INT32X4_TYPE:
+    case BOOL32X4_TYPE:
+    case INT16X8_TYPE:
+    case BOOL16X8_TYPE:
+    case INT8X16_TYPE:
+    case BOOL8X16_TYPE:
       return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
                                  instance_size, has_unboxed_fields);
 

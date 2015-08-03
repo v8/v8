@@ -48,6 +48,12 @@ namespace internal {
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, float32x4_map, Float32x4Map)                                          \
+  V(Map, int32x4_map, Int32x4Map)                                              \
+  V(Map, bool32x4_map, Bool32x4Map)                                            \
+  V(Map, int16x8_map, Int16x8Map)                                              \
+  V(Map, bool16x8_map, Bool16x8Map)                                            \
+  V(Map, int8x16_map, Int8x16Map)                                              \
+  V(Map, bool8x16_map, Bool8x16Map)                                            \
   V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, code_map, CodeMap)                                                    \
@@ -213,6 +219,18 @@ namespace internal {
   V(eval_string, "eval")                                       \
   V(float32x4_string, "float32x4")                             \
   V(Float32x4_string, "Float32x4")                             \
+  V(int32x4_string, "int32x4")                                 \
+  V(Int32x4_string, "Int32x4")                                 \
+  V(bool32x4_string, "bool32x4")                               \
+  V(Bool32x4_string, "Bool32x4")                               \
+  V(int16x8_string, "int16x8")                                 \
+  V(Int16x8_string, "Int16x8")                                 \
+  V(bool16x8_string, "bool16x8")                               \
+  V(Bool16x8_string, "Bool16x8")                               \
+  V(int8x16_string, "int8x16")                                 \
+  V(Int8x16_string, "Int8x16")                                 \
+  V(bool8x16_string, "bool8x16")                               \
+  V(Bool8x16_string, "Bool8x16")                               \
   V(function_string, "function")                               \
   V(Function_string, "Function")                               \
   V(length_string, "length")                                   \
@@ -338,6 +356,12 @@ namespace internal {
   V(HeapNumberMap)                      \
   V(MutableHeapNumberMap)               \
   V(Float32x4Map)                       \
+  V(Int32x4Map)                         \
+  V(Bool32x4Map)                        \
+  V(Int16x8Map)                         \
+  V(Bool16x8Map)                        \
+  V(Int8x16Map)                         \
+  V(Bool8x16Map)                        \
   V(NativeContextMap)                   \
   V(FixedArrayMap)                      \
   V(CodeMap)                            \
@@ -1647,10 +1671,12 @@ class Heap {
       AllocateHeapNumber(double value, MutableMode mode = IMMUTABLE,
                          PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocates a Float32x4 from the given lane values.
-  MUST_USE_RESULT AllocationResult
-  AllocateFloat32x4(float w, float x, float y, float z,
-                    PretenureFlag pretenure = NOT_TENURED);
+// Allocates SIMD values from the given lane values.
+#define SIMD_ALLOCATE_DECLARATION(type, type_name, lane_count, lane_type) \
+  AllocationResult Allocate##type(lane_type lanes[lane_count],            \
+                                  PretenureFlag pretenure = NOT_TENURED);
+
+  SIMD128_TYPES(SIMD_ALLOCATE_DECLARATION)
 
   // Allocates a byte array of the specified length
   MUST_USE_RESULT AllocationResult

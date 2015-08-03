@@ -482,20 +482,31 @@ TEST(HeapSnapshotSymbol) {
 }
 
 
-TEST(HeapSnapshotFloat32x4) {
+void CheckSimdSnapshot(const char* program, const char* var_name) {
   i::FLAG_harmony_simd = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
-  CompileRun("a = SIMD.Float32x4(1, 2, 3, 4);\n");
+  CompileRun(program);
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* a =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, "a");
-  CHECK(a);
-  CHECK_EQ(a->GetType(), v8::HeapGraphNode::kSimdValue);
+  const v8::HeapGraphNode* var =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, var_name);
+  CHECK(var);
+  CHECK_EQ(var->GetType(), v8::HeapGraphNode::kSimdValue);
+}
+
+
+TEST(HeapSnapshotSimd) {
+  CheckSimdSnapshot("a = SIMD.Float32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Int32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Bool32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Int16x8();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Bool16x8();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Int8x16();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Bool8x16();\n", "a");
 }
 
 

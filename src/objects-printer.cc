@@ -64,6 +64,24 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FLOAT32X4_TYPE:
       Float32x4::cast(this)->Float32x4Print(os);
       break;
+    case INT32X4_TYPE:
+      Int32x4::cast(this)->Int32x4Print(os);
+      break;
+    case BOOL32X4_TYPE:
+      Bool32x4::cast(this)->Bool32x4Print(os);
+      break;
+    case INT16X8_TYPE:
+      Int16x8::cast(this)->Int16x8Print(os);
+      break;
+    case BOOL16X8_TYPE:
+      Bool16x8::cast(this)->Bool16x8Print(os);
+      break;
+    case INT8X16_TYPE:
+      Int16x8::cast(this)->Int16x8Print(os);
+      break;
+    case BOOL8X16_TYPE:
+      Bool16x8::cast(this)->Bool16x8Print(os);
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
@@ -188,6 +206,74 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       os << "UNKNOWN TYPE " << map()->instance_type();
       UNREACHABLE();
       break;
+  }
+}
+
+
+void Float32x4::Float32x4Print(std::ostream& os) {  // NOLINT
+  char arr[100];
+  Vector<char> buffer(arr, arraysize(arr));
+  os << std::string(DoubleToCString(get_lane(0), buffer)) << ", "
+     << std::string(DoubleToCString(get_lane(1), buffer)) << ", "
+     << std::string(DoubleToCString(get_lane(2), buffer)) << ", "
+     << std::string(DoubleToCString(get_lane(3), buffer));
+}
+
+
+void Int32x4::Int32x4Print(std::ostream& os) {  // NOLINT
+  char arr[100];
+  Vector<char> buffer(arr, arraysize(arr));
+  os << std::string(IntToCString(get_lane(0), buffer)) << ", "
+     << std::string(IntToCString(get_lane(1), buffer)) << ", "
+     << std::string(IntToCString(get_lane(2), buffer)) << ", "
+     << std::string(IntToCString(get_lane(3), buffer));
+}
+
+
+void Bool32x4::Bool32x4Print(std::ostream& os) {  // NOLINT
+  os << std::string(get_lane(0) ? "true" : "false") << ", "
+     << std::string(get_lane(1) ? "true" : "false") << ", "
+     << std::string(get_lane(2) ? "true" : "false") << ", "
+     << std::string(get_lane(3) ? "true" : "false");
+}
+
+
+void Int16x8::Int16x8Print(std::ostream& os) {  // NOLINT
+  char arr[100];
+  Vector<char> buffer(arr, arraysize(arr));
+  os << std::string(IntToCString(get_lane(0), buffer));
+  for (int i = 1; i < 8; i++) {
+    os << ", " << std::string(IntToCString(get_lane(i), buffer));
+  }
+}
+
+
+void Bool16x8::Bool16x8Print(std::ostream& os) {  // NOLINT
+  char arr[100];
+  Vector<char> buffer(arr, arraysize(arr));
+  os << std::string(get_lane(0) ? "true" : "false");
+  for (int i = 1; i < 8; i++) {
+    os << ", " << std::string(get_lane(i) ? "true" : "false");
+  }
+}
+
+
+void Int8x16::Int8x16Print(std::ostream& os) {  // NOLINT
+  char arr[100];
+  Vector<char> buffer(arr, arraysize(arr));
+  os << std::string(IntToCString(get_lane(0), buffer));
+  for (int i = 1; i < 16; i++) {
+    os << ", " << std::string(IntToCString(get_lane(i), buffer));
+  }
+}
+
+
+void Bool8x16::Bool8x16Print(std::ostream& os) {  // NOLINT
+  char arr[100];
+  Vector<char> buffer(arr, arraysize(arr));
+  os << std::string(get_lane(0) ? "true" : "false");
+  for (int i = 1; i < 16; i++) {
+    os << ", " << std::string(get_lane(i) ? "true" : "false");
   }
 }
 

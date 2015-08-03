@@ -249,6 +249,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
   // They are both equal and they are not both Smis so both of them are not
   // Smis.  If it's not a heap number, then return equal.
   if (cond == lt || cond == gt) {
+    Label not_simd;
     // Call runtime on identical JSObjects.
     __ CompareObjectType(r0, r4, r4, FIRST_SPEC_OBJECT_TYPE);
     __ b(ge, slow);
@@ -256,8 +257,11 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ cmp(r4, Operand(SYMBOL_TYPE));
     __ b(eq, slow);
     // Call runtime on identical SIMD values since we must throw a TypeError.
-    __ cmp(r4, Operand(FLOAT32X4_TYPE));
-    __ b(eq, slow);
+    __ cmp(r4, Operand(FIRST_SIMD_VALUE_TYPE));
+    __ b(lt, &not_simd);
+    __ cmp(r4, Operand(LAST_SIMD_VALUE_TYPE));
+    __ b(le, slow);
+    __ bind(&not_simd);
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics, since
       // we need to throw a TypeError. Smis have already been ruled out.
@@ -271,14 +275,18 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ b(eq, &heap_number);
     // Comparing JS objects with <=, >= is complicated.
     if (cond != eq) {
+      Label not_simd;
       __ cmp(r4, Operand(FIRST_SPEC_OBJECT_TYPE));
       __ b(ge, slow);
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ cmp(r4, Operand(SYMBOL_TYPE));
       __ b(eq, slow);
       // Call runtime on identical SIMD values since we must throw a TypeError.
-      __ cmp(r4, Operand(FLOAT32X4_TYPE));
-      __ b(eq, slow);
+      __ cmp(r4, Operand(FIRST_SIMD_VALUE_TYPE));
+      __ b(lt, &not_simd);
+      __ cmp(r4, Operand(LAST_SIMD_VALUE_TYPE));
+      __ b(le, slow);
+      __ bind(&not_simd);
       if (is_strong(strength)) {
         // Call the runtime on anything that is converted in the semantics,
         // since we need to throw a TypeError. Smis and heap numbers have

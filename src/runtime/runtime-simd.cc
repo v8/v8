@@ -13,24 +13,31 @@
 // the SIMD.js draft spec:
 // http://littledan.github.io/simd.html
 
-#define NumberToFloat32x4Component NumberToFloat
-
 #define CONVERT_SIMD_LANE_ARG_CHECKED(name, index, lanes) \
-  RUNTIME_ASSERT(args[index]->IsSmi());                   \
-  int name = args.smi_at(index);                          \
+  CONVERT_INT32_ARG_CHECKED(name, index);                 \
   RUNTIME_ASSERT(name >= 0 && name < lanes);
 
-#define SIMD4_CREATE_FUNCTION(type)                                    \
-  RUNTIME_FUNCTION(Runtime_Create##type) {                             \
-    HandleScope scope(isolate);                                        \
-    DCHECK(args.length() == 4);                                        \
-    CONVERT_NUMBER_ARG_HANDLE_CHECKED(w, 0);                           \
-    CONVERT_NUMBER_ARG_HANDLE_CHECKED(x, 1);                           \
-    CONVERT_NUMBER_ARG_HANDLE_CHECKED(y, 2);                           \
-    CONVERT_NUMBER_ARG_HANDLE_CHECKED(z, 3);                           \
-    return *isolate->factory()->NewFloat32x4(                          \
-        NumberTo##type##Component(*w), NumberTo##type##Component(*x),  \
-        NumberTo##type##Component(*y), NumberTo##type##Component(*z)); \
+#define SIMD_CREATE_NUMERIC_FUNCTION(type, lane_type, lane_count) \
+  RUNTIME_FUNCTION(Runtime_Create##type) {                        \
+    HandleScope scope(isolate);                                   \
+    DCHECK(args.length() == lane_count);                          \
+    lane_type lanes[lane_count];                                  \
+    for (int i = 0; i < lane_count; i++) {                        \
+      CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, i);               \
+      lanes[i] = ConvertNumber<lane_type>(number->Number());      \
+    }                                                             \
+    return *isolate->factory()->New##type(lanes);                 \
+  }
+
+#define SIMD_CREATE_BOOLEAN_FUNCTION(type, lane_count) \
+  RUNTIME_FUNCTION(Runtime_Create##type) {             \
+    HandleScope scope(isolate);                        \
+    DCHECK(args.length() == lane_count);               \
+    bool lanes[lane_count];                            \
+    for (int i = 0; i < lane_count; i++) {             \
+      lanes[i] = args[i]->BooleanValue();              \
+    }                                                  \
+    return *isolate->factory()->New##type(lanes);      \
   }
 
 #define SIMD_CHECK_FUNCTION(type)           \
@@ -40,64 +47,45 @@
     return *a;                              \
   }
 
-#define SIMD_EXTRACT_LANE_FUNCTION(type, lanes)               \
-  RUNTIME_FUNCTION(Runtime_##type##ExtractLane) {             \
-    HandleScope scope(isolate);                               \
-    DCHECK(args.length() == 2);                               \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                   \
-    CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, lanes);            \
-    return *isolate->factory()->NewNumber(a->get_lane(lane)); \
+#define SIMD_EXTRACT_LANE_FUNCTION(type, lanes, extract_fn)    \
+  RUNTIME_FUNCTION(Runtime_##type##ExtractLane) {              \
+    HandleScope scope(isolate);                                \
+    DCHECK(args.length() == 2);                                \
+    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                    \
+    CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, lanes);             \
+    return *isolate->factory()->extract_fn(a->get_lane(lane)); \
   }
 
-#define SIMD4_EQUALS_FUNCTION(type)                          \
-  RUNTIME_FUNCTION(Runtime_##type##Equals) {                 \
-    HandleScope scope(isolate);                              \
-    DCHECK(args.length() == 2);                              \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                  \
-    CONVERT_ARG_HANDLE_CHECKED(type, b, 1);                  \
-    return Equals(a->get_lane(0), b->get_lane(0)) &&         \
-                   Equals(a->get_lane(1), b->get_lane(1)) && \
-                   Equals(a->get_lane(2), b->get_lane(2)) && \
-                   Equals(a->get_lane(3), b->get_lane(3))    \
-               ? Smi::FromInt(EQUAL)                         \
-               : Smi::FromInt(NOT_EQUAL);                    \
+#define SIMD_REPLACE_NUMERIC_LANE_FUNCTION(type, lane_type, lane_count) \
+  RUNTIME_FUNCTION(Runtime_##type##ReplaceLane) {                       \
+    HandleScope scope(isolate);                                         \
+    DCHECK(args.length() == 3);                                         \
+    CONVERT_ARG_HANDLE_CHECKED(type, simd, 0);                          \
+    CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, lane_count);                 \
+    CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 2);                       \
+    lane_type lanes[lane_count];                                        \
+    for (int i = 0; i < lane_count; i++) {                              \
+      lanes[i] = simd->get_lane(i);                                     \
+    }                                                                   \
+    lanes[lane] = ConvertNumber<lane_type>(number->Number());           \
+    Handle<type> result = isolate->factory()->New##type(lanes);         \
+    return *result;                                                     \
   }
 
-#define SIMD4_SAME_VALUE_FUNCTION(type)              \
-  RUNTIME_FUNCTION(Runtime_##type##SameValue) {      \
-    HandleScope scope(isolate);                      \
-    DCHECK(args.length() == 2);                      \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);          \
-    CONVERT_ARG_HANDLE_CHECKED(type, b, 1);          \
-    return isolate->heap()->ToBoolean(               \
-        SameValue(a->get_lane(0), b->get_lane(0)) && \
-        SameValue(a->get_lane(1), b->get_lane(1)) && \
-        SameValue(a->get_lane(2), b->get_lane(2)) && \
-        SameValue(a->get_lane(3), b->get_lane(3)));  \
+#define SIMD_REPLACE_BOOLEAN_LANE_FUNCTION(type, lane_count)    \
+  RUNTIME_FUNCTION(Runtime_##type##ReplaceLane) {               \
+    HandleScope scope(isolate);                                 \
+    DCHECK(args.length() == 3);                                 \
+    CONVERT_ARG_HANDLE_CHECKED(type, simd, 0);                  \
+    CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, lane_count);         \
+    bool lanes[lane_count];                                     \
+    for (int i = 0; i < lane_count; i++) {                      \
+      lanes[i] = simd->get_lane(i);                             \
+    }                                                           \
+    lanes[lane] = args[2]->BooleanValue();                      \
+    Handle<type> result = isolate->factory()->New##type(lanes); \
+    return *result;                                             \
   }
-
-#define SIMD4_SAME_VALUE_ZERO_FUNCTION(type)             \
-  RUNTIME_FUNCTION(Runtime_##type##SameValueZero) {      \
-    HandleScope scope(isolate);                          \
-    DCHECK(args.length() == 2);                          \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);              \
-    CONVERT_ARG_HANDLE_CHECKED(type, b, 1);              \
-    return isolate->heap()->ToBoolean(                   \
-        SameValueZero(a->get_lane(0), b->get_lane(0)) && \
-        SameValueZero(a->get_lane(1), b->get_lane(1)) && \
-        SameValueZero(a->get_lane(2), b->get_lane(2)) && \
-        SameValueZero(a->get_lane(3), b->get_lane(3)));  \
-  }
-
-#define SIMD4_EXTRACT_LANE_FUNCTION(type) SIMD_EXTRACT_LANE_FUNCTION(type, 4)
-
-#define SIMD4_FUNCTIONS(type)        \
-  SIMD4_CREATE_FUNCTION(type)        \
-  SIMD_CHECK_FUNCTION(type)          \
-  SIMD4_EXTRACT_LANE_FUNCTION(type)  \
-  SIMD4_EQUALS_FUNCTION(type)        \
-  SIMD4_SAME_VALUE_FUNCTION(type)    \
-  SIMD4_SAME_VALUE_ZERO_FUNCTION(type)
 
 
 namespace v8 {
@@ -105,17 +93,172 @@ namespace internal {
 
 namespace {
 
-// Convert from Number object to float.
-inline float NumberToFloat(Object* number) {
-  return DoubleToFloat32(number->Number());
+// Functions to convert Numbers to SIMD component types.
+
+template <typename T>
+static T ConvertNumber(double number);
+
+
+template <>
+float ConvertNumber<float>(double number) {
+  return DoubleToFloat32(number);
 }
 
 
-inline bool Equals(float x, float y) { return x == y; }
+template <>
+int32_t ConvertNumber<int32_t>(double number) {
+  return DoubleToInt32(number);
+}
+
+
+template <>
+int16_t ConvertNumber<int16_t>(double number) {
+  return static_cast<int16_t>(DoubleToInt32(number));
+}
+
+
+template <>
+int8_t ConvertNumber<int8_t>(double number) {
+  return static_cast<int8_t>(DoubleToInt32(number));
+}
+
+
+bool Equals(Float32x4* a, Float32x4* b) {
+  for (int i = 0; i < 4; i++) {
+    if (a->get_lane(i) != b->get_lane(i)) return false;
+  }
+  return true;
+}
 
 }  // namespace
 
-SIMD4_FUNCTIONS(Float32x4)
 
+RUNTIME_FUNCTION(Runtime_IsSimdObject) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  return isolate->heap()->ToBoolean(args[0]->IsSimd128Value());
+}
+
+
+RUNTIME_FUNCTION(Runtime_SimdToObject) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Simd128Value, value, 0);
+  return *Object::ToObject(isolate, value).ToHandleChecked();
+}
+
+
+RUNTIME_FUNCTION(Runtime_SimdEquals) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Simd128Value, a, 0);
+  bool result = false;
+  // args[1] is of unknown type.
+  if (args[1]->IsSimd128Value()) {
+    Simd128Value* b = Simd128Value::cast(args[1]);
+    if (a->map()->instance_type() == b->map()->instance_type()) {
+      if (a->IsFloat32x4()) {
+        result = Equals(Float32x4::cast(*a), Float32x4::cast(b));
+      } else {
+        result = a->BitwiseEquals(b);
+      }
+    }
+  }
+  return Smi::FromInt(result ? EQUAL : NOT_EQUAL);
+}
+
+
+RUNTIME_FUNCTION(Runtime_SimdSameValue) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Simd128Value, a, 0);
+  bool result = false;
+  // args[1] is of unknown type.
+  if (args[1]->IsSimd128Value()) {
+    Simd128Value* b = Simd128Value::cast(args[1]);
+    if (a->map()->instance_type() == b->map()->instance_type()) {
+      if (a->IsFloat32x4()) {
+        result = Float32x4::cast(*a)->SameValue(Float32x4::cast(b));
+      } else {
+        result = a->BitwiseEquals(b);
+      }
+    }
+  }
+  return isolate->heap()->ToBoolean(result);
+}
+
+
+RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Simd128Value, a, 0);
+  bool result = false;
+  // args[1] is of unknown type.
+  if (args[1]->IsSimd128Value()) {
+    Simd128Value* b = Simd128Value::cast(args[1]);
+    if (a->map()->instance_type() == b->map()->instance_type()) {
+      if (a->IsFloat32x4()) {
+        result = Float32x4::cast(*a)->SameValueZero(Float32x4::cast(b));
+      } else {
+        result = a->BitwiseEquals(b);
+      }
+    }
+  }
+  return isolate->heap()->ToBoolean(result);
+}
+
+
+SIMD_CREATE_NUMERIC_FUNCTION(Float32x4, float, 4)
+SIMD_CREATE_NUMERIC_FUNCTION(Int32x4, int32_t, 4)
+SIMD_CREATE_BOOLEAN_FUNCTION(Bool32x4, 4)
+SIMD_CREATE_NUMERIC_FUNCTION(Int16x8, int16_t, 8)
+SIMD_CREATE_BOOLEAN_FUNCTION(Bool16x8, 8)
+SIMD_CREATE_NUMERIC_FUNCTION(Int8x16, int8_t, 16)
+SIMD_CREATE_BOOLEAN_FUNCTION(Bool8x16, 16)
+
+
+SIMD_CHECK_FUNCTION(Float32x4)
+SIMD_CHECK_FUNCTION(Int32x4)
+SIMD_CHECK_FUNCTION(Bool32x4)
+SIMD_CHECK_FUNCTION(Int16x8)
+SIMD_CHECK_FUNCTION(Bool16x8)
+SIMD_CHECK_FUNCTION(Int8x16)
+SIMD_CHECK_FUNCTION(Bool8x16)
+
+
+SIMD_EXTRACT_LANE_FUNCTION(Float32x4, 4, NewNumber)
+SIMD_EXTRACT_LANE_FUNCTION(Int32x4, 4, NewNumber)
+SIMD_EXTRACT_LANE_FUNCTION(Bool32x4, 4, ToBoolean)
+SIMD_EXTRACT_LANE_FUNCTION(Int16x8, 8, NewNumber)
+SIMD_EXTRACT_LANE_FUNCTION(Bool16x8, 8, ToBoolean)
+SIMD_EXTRACT_LANE_FUNCTION(Int8x16, 16, NewNumber)
+SIMD_EXTRACT_LANE_FUNCTION(Bool8x16, 16, ToBoolean)
+
+
+RUNTIME_FUNCTION(Runtime_Int16x8UnsignedExtractLane) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Int16x8, a, 0);
+  CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, 8);
+  return *isolate->factory()->NewNumber(bit_cast<uint16_t>(a->get_lane(lane)));
+}
+
+
+RUNTIME_FUNCTION(Runtime_Int8x16UnsignedExtractLane) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Int8x16, a, 0);
+  CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, 16);
+  return *isolate->factory()->NewNumber(bit_cast<uint8_t>(a->get_lane(lane)));
+}
+
+
+SIMD_REPLACE_NUMERIC_LANE_FUNCTION(Float32x4, float, 4)
+SIMD_REPLACE_NUMERIC_LANE_FUNCTION(Int32x4, int32_t, 4)
+SIMD_REPLACE_BOOLEAN_LANE_FUNCTION(Bool32x4, 4)
+SIMD_REPLACE_NUMERIC_LANE_FUNCTION(Int16x8, int16_t, 8)
+SIMD_REPLACE_BOOLEAN_LANE_FUNCTION(Bool16x8, 8)
+SIMD_REPLACE_NUMERIC_LANE_FUNCTION(Int8x16, int8_t, 16)
+SIMD_REPLACE_BOOLEAN_LANE_FUNCTION(Bool8x16, 16)
 }  // namespace internal
 }  // namespace v8

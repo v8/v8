@@ -861,7 +861,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     return AddEntry(object, HeapEntry::kArray, "");
   } else if (object->IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "number");
-  } else if (object->IsFloat32x4()) {
+  } else if (object->IsSimd128Value()) {
     return AddEntry(object, HeapEntry::kSimdValue, "simd");
   }
   return AddEntry(object, HeapEntry::kHidden, GetSystemEntryName(object));

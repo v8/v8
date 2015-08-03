@@ -82,6 +82,12 @@ enum BindingFlags {
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   V(FLOAT32X4_FUNCTION_INDEX, JSFunction, float32x4_function)                  \
+  V(INT32X4_FUNCTION_INDEX, JSFunction, int32x4_function)                      \
+  V(BOOL32X4_FUNCTION_INDEX, JSFunction, bool32x4_function)                    \
+  V(INT16X8_FUNCTION_INDEX, JSFunction, int16x8_function)                      \
+  V(BOOL16X8_FUNCTION_INDEX, JSFunction, bool16x8_function)                    \
+  V(INT8X16_FUNCTION_INDEX, JSFunction, int8x16_function)                      \
+  V(BOOL8X16_FUNCTION_INDEX, JSFunction, bool8x16_function)                    \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
   V(JS_OBJECT_STRONG_MAP_INDEX, Map, js_object_strong_map)                     \
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function)        \
@@ -349,6 +355,12 @@ class Context: public FixedArray {
     STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
     SYMBOL_FUNCTION_INDEX,
     FLOAT32X4_FUNCTION_INDEX,
+    INT32X4_FUNCTION_INDEX,
+    BOOL32X4_FUNCTION_INDEX,
+    INT16X8_FUNCTION_INDEX,
+    BOOL16X8_FUNCTION_INDEX,
+    INT8X16_FUNCTION_INDEX,
+    BOOL8X16_FUNCTION_INDEX,
     OBJECT_FUNCTION_INDEX,
     JS_OBJECT_STRONG_MAP_INDEX,
     INTERNAL_ARRAY_FUNCTION_INDEX,

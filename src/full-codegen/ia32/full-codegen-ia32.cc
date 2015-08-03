@@ -3322,6 +3322,32 @@ void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitIsSimdObject(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false, &if_true,
+                         &if_false, &fall_through);
+
+  __ JumpIfSmi(eax, if_false);
+  Register map = ebx;
+  __ mov(map, FieldOperand(eax, HeapObject::kMapOffset));
+  __ CmpInstanceType(map, FIRST_SIMD_VALUE_TYPE);
+  __ j(less, if_false);
+  __ CmpInstanceType(map, LAST_SIMD_VALUE_TYPE);
+  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+  Split(less_equal, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
+}
+
+
 void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);
@@ -5014,6 +5040,30 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   } else if (String::Equals(check, factory->float32x4_string())) {
     __ JumpIfSmi(eax, if_false);
     __ CmpObjectType(eax, FLOAT32X4_TYPE, edx);
+    Split(equal, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->int32x4_string())) {
+    __ JumpIfSmi(eax, if_false);
+    __ CmpObjectType(eax, INT32X4_TYPE, edx);
+    Split(equal, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->bool32x4_string())) {
+    __ JumpIfSmi(eax, if_false);
+    __ CmpObjectType(eax, BOOL32X4_TYPE, edx);
+    Split(equal, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->int16x8_string())) {
+    __ JumpIfSmi(eax, if_false);
+    __ CmpObjectType(eax, INT16X8_TYPE, edx);
+    Split(equal, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->bool16x8_string())) {
+    __ JumpIfSmi(eax, if_false);
+    __ CmpObjectType(eax, BOOL16X8_TYPE, edx);
+    Split(equal, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->int8x16_string())) {
+    __ JumpIfSmi(eax, if_false);
+    __ CmpObjectType(eax, INT8X16_TYPE, edx);
+    Split(equal, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->bool8x16_string())) {
+    __ JumpIfSmi(eax, if_false);
+    __ CmpObjectType(eax, BOOL8X16_TYPE, edx);
     Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->boolean_string())) {
     __ cmp(eax, isolate()->factory()->true_value());

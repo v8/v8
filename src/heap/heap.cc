@@ -2974,6 +2974,12 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
                  mutable_heap_number)
     ALLOCATE_MAP(FLOAT32X4_TYPE, Float32x4::kSize, float32x4)
+    ALLOCATE_MAP(INT32X4_TYPE, Int32x4::kSize, int32x4)
+    ALLOCATE_MAP(BOOL32X4_TYPE, Bool32x4::kSize, bool32x4)
+    ALLOCATE_MAP(INT16X8_TYPE, Int16x8::kSize, int16x8)
+    ALLOCATE_MAP(BOOL16X8_TYPE, Bool16x8::kSize, bool16x8)
+    ALLOCATE_MAP(INT8X16_TYPE, Int8x16::kSize, int8x16)
+    ALLOCATE_MAP(BOOL8X16_TYPE, Bool8x16::kSize, bool8x16)
     ALLOCATE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol)
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
 
@@ -3113,31 +3119,30 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
   return result;
 }
 
-
-AllocationResult Heap::AllocateFloat32x4(float w, float x, float y, float z,
-                                         PretenureFlag pretenure) {
-  // Statically ensure that it is safe to allocate SIMD values in paged
-  // spaces.
-  int size = Float32x4::kSize;
-  STATIC_ASSERT(Float32x4::kSize <= Page::kMaxRegularHeapObjectSize);
-
-  AllocationSpace space = SelectSpace(size, pretenure);
-
-  HeapObject* result;
-  {
-    AllocationResult allocation =
-        AllocateRaw(size, space, OLD_SPACE, kSimd128Unaligned);
-    if (!allocation.To(&result)) return allocation;
+#define SIMD_ALLOCATE_DEFINITION(type, type_name, lane_count, lane_type) \
+  AllocationResult Heap::Allocate##type(lane_type lanes[lane_count],     \
+                                        PretenureFlag pretenure) {       \
+    int size = type::kSize;                                              \
+    STATIC_ASSERT(type::kSize <= Page::kMaxRegularHeapObjectSize);       \
+                                                                         \
+    AllocationSpace space = SelectSpace(size, pretenure);                \
+                                                                         \
+    HeapObject* result;                                                  \
+    {                                                                    \
+      AllocationResult allocation =                                      \
+          AllocateRaw(size, space, OLD_SPACE, kSimd128Unaligned);        \
+      if (!allocation.To(&result)) return allocation;                    \
+    }                                                                    \
+                                                                         \
+    result->set_map_no_write_barrier(type_name##_map());                 \
+    type* instance = type::cast(result);                                 \
+    for (int i = 0; i < lane_count; i++) {                               \
+      instance->set_lane(i, lanes[i]);                                   \
+    }                                                                    \
+    return result;                                                       \
   }
 
-  result->set_map_no_write_barrier(float32x4_map());
-  Float32x4* float32x4 = Float32x4::cast(result);
-  float32x4->set_lane(0, w);
-  float32x4->set_lane(1, x);
-  float32x4->set_lane(2, y);
-  float32x4->set_lane(3, z);
-  return result;
-}
+SIMD128_TYPES(SIMD_ALLOCATE_DEFINITION)
 
 
 AllocationResult Heap::AllocateCell(Object* value) {

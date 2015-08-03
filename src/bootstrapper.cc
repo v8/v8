@@ -1991,13 +1991,16 @@ void Genesis::InitializeGlobal_harmony_simd() {
   DCHECK(simd_object->IsJSObject());
   JSObject::AddProperty(global, name, simd_object, DONT_ENUM);
 
-  Handle<JSFunction> float32x4_function =
-      InstallFunction(simd_object, "Float32x4", JS_VALUE_TYPE, JSValue::kSize,
-                      isolate->initial_object_prototype(), Builtins::kIllegal);
-  // Set the instance class name since InstallFunction only does this when
-  // we install on the GlobalObject.
-  float32x4_function->SetInstanceClassName(*factory->Float32x4_string());
-  native_context()->set_float32x4_function(*float32x4_function);
+// Install SIMD type functions. Set the instance class names since
+// InstallFunction only does this when we install on the GlobalObject.
+#define SIMD128_INSTALL_FUNCTION(name, type, lane_count, lane_type) \
+  Handle<JSFunction> type##_function = InstallFunction(             \
+      simd_object, #name, JS_VALUE_TYPE, JSValue::kSize,            \
+      isolate->initial_object_prototype(), Builtins::kIllegal);     \
+  native_context()->set_##type##_function(*type##_function);        \
+  type##_function->SetInstanceClassName(*factory->name##_string());
+
+  SIMD128_TYPES(SIMD128_INSTALL_FUNCTION)
 }
 
 

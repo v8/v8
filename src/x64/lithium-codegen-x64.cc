@@ -2215,8 +2215,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
         // SIMD value -> true.
-        __ CmpInstanceType(map, FLOAT32X4_TYPE);
-        __ j(equal, instr->TrueLabel(chunk_));
+        Label not_simd;
+        __ CmpInstanceType(map, FIRST_SIMD_VALUE_TYPE);
+        __ j(less, &not_simd, Label::kNear);
+        __ CmpInstanceType(map, LAST_SIMD_VALUE_TYPE);
+        __ j(less_equal, instr->TrueLabel(chunk_));
+        __ bind(&not_simd);
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -5747,6 +5751,36 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
   } else if (String::Equals(type_name, factory->float32x4_string())) {
     __ JumpIfSmi(input, false_label, false_distance);
     __ CmpObjectType(input, FLOAT32X4_TYPE, input);
+    final_branch_condition = equal;
+
+  } else if (String::Equals(type_name, factory->int32x4_string())) {
+    __ JumpIfSmi(input, false_label, false_distance);
+    __ CmpObjectType(input, INT32X4_TYPE, input);
+    final_branch_condition = equal;
+
+  } else if (String::Equals(type_name, factory->bool32x4_string())) {
+    __ JumpIfSmi(input, false_label, false_distance);
+    __ CmpObjectType(input, BOOL32X4_TYPE, input);
+    final_branch_condition = equal;
+
+  } else if (String::Equals(type_name, factory->int16x8_string())) {
+    __ JumpIfSmi(input, false_label, false_distance);
+    __ CmpObjectType(input, INT16X8_TYPE, input);
+    final_branch_condition = equal;
+
+  } else if (String::Equals(type_name, factory->bool16x8_string())) {
+    __ JumpIfSmi(input, false_label, false_distance);
+    __ CmpObjectType(input, BOOL16X8_TYPE, input);
+    final_branch_condition = equal;
+
+  } else if (String::Equals(type_name, factory->int8x16_string())) {
+    __ JumpIfSmi(input, false_label, false_distance);
+    __ CmpObjectType(input, INT8X16_TYPE, input);
+    final_branch_condition = equal;
+
+  } else if (String::Equals(type_name, factory->bool8x16_string())) {
+    __ JumpIfSmi(input, false_label, false_distance);
+    __ CmpObjectType(input, BOOL8X16_TYPE, input);
     final_branch_condition = equal;
 
   } else {

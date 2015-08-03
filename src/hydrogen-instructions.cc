@@ -1328,6 +1328,18 @@ static String* TypeOfString(HConstant* constant, Isolate* isolate) {
       return heap->symbol_string();
     case FLOAT32X4_TYPE:
       return heap->float32x4_string();
+    case INT32X4_TYPE:
+      return heap->int32x4_string();
+    case BOOL32X4_TYPE:
+      return heap->bool32x4_string();
+    case INT16X8_TYPE:
+      return heap->int16x8_string();
+    case BOOL16X8_TYPE:
+      return heap->bool16x8_string();
+    case INT8X16_TYPE:
+      return heap->int8x16_string();
+    case BOOL8X16_TYPE:
+      return heap->bool8x16_string();
     case JS_FUNCTION_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
       return heap->function_string();

@@ -287,12 +287,15 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
   // Smis. If it's not a heap number, then return equal.
   __ GetObjectType(a0, t0, t0);
   if (cc == less || cc == greater) {
+    Label not_simd;
     // Call runtime on identical JSObjects.
     __ Branch(slow, greater, t0, Operand(FIRST_SPEC_OBJECT_TYPE));
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Branch(slow, eq, t0, Operand(SYMBOL_TYPE));
     // Call runtime on identical SIMD values since we must throw a TypeError.
-    __ Branch(slow, eq, t0, Operand(FLOAT32X4_TYPE));
+    __ Branch(&not_simd, lt, t0, Operand(FIRST_SIMD_VALUE_TYPE));
+    __ Branch(slow, le, t0, Operand(LAST_SIMD_VALUE_TYPE));
+    __ bind(&not_simd);
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics, since
       // we need to throw a TypeError. Smis have already been ruled out.
@@ -304,18 +307,21 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ Branch(&heap_number, eq, t0, Operand(HEAP_NUMBER_TYPE));
     // Comparing JS objects with <=, >= is complicated.
     if (cc != eq) {
-    __ Branch(slow, greater, t0, Operand(FIRST_SPEC_OBJECT_TYPE));
-    // Call runtime on identical symbols since we need to throw a TypeError.
-    __ Branch(slow, eq, t0, Operand(SYMBOL_TYPE));
-    // Call runtime on identical SIMD values since we must throw a TypeError.
-    __ Branch(slow, eq, t0, Operand(FLOAT32X4_TYPE));
-    if (is_strong(strength)) {
-      // Call the runtime on anything that is converted in the semantics,
-      // since we need to throw a TypeError. Smis and heap numbers have
-      // already been ruled out.
-      __ And(t0, t0, Operand(kIsNotStringMask));
-      __ Branch(slow, ne, t0, Operand(zero_reg));
-    }
+      Label not_simd;
+      __ Branch(slow, greater, t0, Operand(FIRST_SPEC_OBJECT_TYPE));
+      // Call runtime on identical symbols since we need to throw a TypeError.
+      __ Branch(slow, eq, t0, Operand(SYMBOL_TYPE));
+      // Call runtime on identical SIMD values since we must throw a TypeError.
+      __ Branch(&not_simd, lt, t0, Operand(FIRST_SIMD_VALUE_TYPE));
+      __ Branch(slow, le, t0, Operand(LAST_SIMD_VALUE_TYPE));
+      __ bind(&not_simd);
+      if (is_strong(strength)) {
+        // Call the runtime on anything that is converted in the semantics,
+        // since we need to throw a TypeError. Smis and heap numbers have
+        // already been ruled out.
+        __ And(t0, t0, Operand(kIsNotStringMask));
+        __ Branch(slow, ne, t0, Operand(zero_reg));
+      }
       // Normally here we fall through to return_equal, but undefined is
       // special: (undefined == undefined) == true, but
       // (undefined <= undefined) == false!  See ECMAScript 11.8.5.

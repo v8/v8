@@ -2270,8 +2270,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
         // SIMD value -> true.
-        __ CompareInstanceType(map, ip, FLOAT32X4_TYPE);
-        __ b(eq, instr->TrueLabel(chunk_));
+        Label not_simd;
+        __ CompareInstanceType(map, ip, FIRST_SIMD_VALUE_TYPE);
+        __ b(lt, &not_simd);
+        __ CompareInstanceType(map, ip, LAST_SIMD_VALUE_TYPE);
+        __ b(le, instr->TrueLabel(chunk_));
+        __ bind(&not_simd);
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -5705,6 +5709,36 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   } else if (String::Equals(type_name, factory->float32x4_string())) {
     __ JumpIfSmi(input, false_label);
     __ CompareObjectType(input, scratch, no_reg, FLOAT32X4_TYPE);
+    final_branch_condition = eq;
+
+  } else if (String::Equals(type_name, factory->int32x4_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, scratch, no_reg, INT32X4_TYPE);
+    final_branch_condition = eq;
+
+  } else if (String::Equals(type_name, factory->bool32x4_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, scratch, no_reg, BOOL32X4_TYPE);
+    final_branch_condition = eq;
+
+  } else if (String::Equals(type_name, factory->int16x8_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, scratch, no_reg, INT16X8_TYPE);
+    final_branch_condition = eq;
+
+  } else if (String::Equals(type_name, factory->bool16x8_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, scratch, no_reg, BOOL16X8_TYPE);
+    final_branch_condition = eq;
+
+  } else if (String::Equals(type_name, factory->int8x16_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, scratch, no_reg, INT8X16_TYPE);
+    final_branch_condition = eq;
+
+  } else if (String::Equals(type_name, factory->bool8x16_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, scratch, no_reg, BOOL8X16_TYPE);
     final_branch_condition = eq;
 
   } else {

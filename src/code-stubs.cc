@@ -994,7 +994,7 @@ bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
     Add(HEAP_NUMBER);
     double value = HeapNumber::cast(*object)->value();
     return value != 0 && !std::isnan(value);
-  } else if (object->IsFloat32x4()) {
+  } else if (object->IsSimd128Value()) {
     Add(SIMD_VALUE);
     return true;
   } else {

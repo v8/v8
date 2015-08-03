@@ -109,6 +109,18 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
     function_index = Context::NUMBER_FUNCTION_INDEX;
   } else if (map()->instance_type() == FLOAT32X4_TYPE) {
     function_index = Context::FLOAT32X4_FUNCTION_INDEX;
+  } else if (map()->instance_type() == INT32X4_TYPE) {
+    function_index = Context::INT32X4_FUNCTION_INDEX;
+  } else if (map()->instance_type() == BOOL32X4_TYPE) {
+    function_index = Context::BOOL32X4_FUNCTION_INDEX;
+  } else if (map()->instance_type() == INT16X8_TYPE) {
+    function_index = Context::INT16X8_FUNCTION_INDEX;
+  } else if (map()->instance_type() == BOOL16X8_TYPE) {
+    function_index = Context::BOOL16X8_FUNCTION_INDEX;
+  } else if (map()->instance_type() == INT8X16_TYPE) {
+    function_index = Context::INT8X16_FUNCTION_INDEX;
+  } else if (map()->instance_type() == BOOL8X16_TYPE) {
+    function_index = Context::BOOL8X16_FUNCTION_INDEX;
   } else if (*map() == isolate()->heap()->boolean_map()) {
     function_index = Context::BOOLEAN_FUNCTION_INDEX;
   } else {

@@ -82,8 +82,24 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
     constructor = handle(native_context->string_function(), isolate);
   } else if (object->IsSymbol()) {
     constructor = handle(native_context->symbol_function(), isolate);
-  } else if (object->IsFloat32x4()) {
-    constructor = handle(native_context->float32x4_function(), isolate);
+  } else if (object->IsSimd128Value()) {
+    if (object->IsFloat32x4()) {
+      constructor = handle(native_context->float32x4_function(), isolate);
+    } else if (object->IsInt32x4()) {
+      constructor = handle(native_context->int32x4_function(), isolate);
+    } else if (object->IsBool32x4()) {
+      constructor = handle(native_context->bool32x4_function(), isolate);
+    } else if (object->IsInt16x8()) {
+      constructor = handle(native_context->int16x8_function(), isolate);
+    } else if (object->IsBool16x8()) {
+      constructor = handle(native_context->bool16x8_function(), isolate);
+    } else if (object->IsInt8x16()) {
+      constructor = handle(native_context->int8x16_function(), isolate);
+    } else if (object->IsBool8x16()) {
+      constructor = handle(native_context->bool8x16_function(), isolate);
+    } else {
+      UNREACHABLE();
+    }
   } else {
     return MaybeHandle<JSReceiver>();
   }
@@ -100,7 +116,7 @@ bool Object::BooleanValue() {
   if (IsUndetectableObject()) return false;   // Undetectable object is false.
   if (IsString()) return String::cast(this)->length() != 0;
   if (IsHeapNumber()) return HeapNumber::cast(this)->HeapNumberBooleanValue();
-  if (IsFloat32x4()) return true;  // Simd value types always evaluate to true.
+  if (IsSimd128Value()) return true;  // Simd value types evaluate to true.
   return true;
 }
 
@@ -629,8 +645,24 @@ Map* Object::GetRootMap(Isolate* isolate) {
   if (heap_object->IsBoolean()) {
     return context->boolean_function()->initial_map();
   }
-  if (heap_object->IsFloat32x4()) {
-    return context->float32x4_function()->initial_map();
+  if (heap_object->IsSimd128Value()) {
+    if (heap_object->IsFloat32x4()) {
+      return context->float32x4_function()->initial_map();
+    } else if (heap_object->IsInt32x4()) {
+      return context->int32x4_function()->initial_map();
+    } else if (heap_object->IsBool32x4()) {
+      return context->bool32x4_function()->initial_map();
+    } else if (heap_object->IsInt16x8()) {
+      return context->int16x8_function()->initial_map();
+    } else if (heap_object->IsBool16x8()) {
+      return context->bool16x8_function()->initial_map();
+    } else if (heap_object->IsInt8x16()) {
+      return context->int8x16_function()->initial_map();
+    } else if (heap_object->IsBool8x16()) {
+      return context->bool8x16_function()->initial_map();
+    } else {
+      UNREACHABLE();
+    }
   }
   return isolate->heap()->null_value()->map();
 }
@@ -670,14 +702,8 @@ Object* Object::GetSimpleHash() {
     uint32_t hash = Oddball::cast(this)->to_string()->Hash();
     return Smi::FromInt(hash);
   }
-  if (IsFloat32x4()) {
-    Float32x4* simd = Float32x4::cast(this);
-    uint32_t seed = v8::internal::kZeroHashSeed;
-    uint32_t hash;
-    hash = ComputeIntegerHash(bit_cast<uint32_t>(simd->get_lane(0)), seed);
-    hash = ComputeIntegerHash(bit_cast<uint32_t>(simd->get_lane(1)), hash * 31);
-    hash = ComputeIntegerHash(bit_cast<uint32_t>(simd->get_lane(2)), hash * 31);
-    hash = ComputeIntegerHash(bit_cast<uint32_t>(simd->get_lane(3)), hash * 31);
+  if (IsSimd128Value()) {
+    uint32_t hash = Simd128Value::cast(this)->Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   DCHECK(IsJSReceiver());
@@ -701,18 +727,37 @@ bool Object::SameValue(Object* other) {
   // The object is either a number, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsNumber() && other->IsNumber()) {
-    return v8::internal::SameValue(Number(), other->Number());
+    double this_value = Number();
+    double other_value = other->Number();
+    // SameValue(NaN, NaN) is true.
+    if (this_value != other_value) {
+      return std::isnan(this_value) && std::isnan(other_value);
+    }
+    // SameValue(0.0, -0.0) is false.
+    return (std::signbit(this_value) == std::signbit(other_value));
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
   }
-  if (IsFloat32x4() && other->IsFloat32x4()) {
-    Float32x4* x = Float32x4::cast(this);
-    Float32x4* y = Float32x4::cast(other);
-    return v8::internal::SameValue(x->get_lane(0), y->get_lane(0)) &&
-           v8::internal::SameValue(x->get_lane(1), y->get_lane(1)) &&
-           v8::internal::SameValue(x->get_lane(2), y->get_lane(2)) &&
-           v8::internal::SameValue(x->get_lane(3), y->get_lane(3));
+  if (IsSimd128Value() && other->IsSimd128Value()) {
+    if (IsFloat32x4() && other->IsFloat32x4()) {
+      Float32x4* a = Float32x4::cast(this);
+      Float32x4* b = Float32x4::cast(other);
+      for (int i = 0; i < 4; i++) {
+        float x = a->get_lane(i);
+        float y = b->get_lane(i);
+        // Implements the ES5 SameValue operation for floating point types.
+        // http://www.ecma-international.org/ecma-262/6.0/#sec-samevalue
+        if (x != y && !(std::isnan(x) && std::isnan(y))) return false;
+        if (std::signbit(x) != std::signbit(y)) return false;
+      }
+      return true;
+    } else {
+      Simd128Value* a = Simd128Value::cast(this);
+      Simd128Value* b = Simd128Value::cast(other);
+      return a->map()->instance_type() == b->map()->instance_type() &&
+             a->BitwiseEquals(b);
+    }
   }
   return false;
 }
@@ -724,18 +769,34 @@ bool Object::SameValueZero(Object* other) {
   // The object is either a number, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsNumber() && other->IsNumber()) {
-    return v8::internal::SameValueZero(Number(), other->Number());
+    double this_value = Number();
+    double other_value = other->Number();
+    // +0 == -0 is true
+    return this_value == other_value ||
+           (std::isnan(this_value) && std::isnan(other_value));
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
   }
-  if (IsFloat32x4() && other->IsFloat32x4()) {
-    Float32x4* x = Float32x4::cast(this);
-    Float32x4* y = Float32x4::cast(other);
-    return v8::internal::SameValueZero(x->get_lane(0), y->get_lane(0)) &&
-           v8::internal::SameValueZero(x->get_lane(1), y->get_lane(1)) &&
-           v8::internal::SameValueZero(x->get_lane(2), y->get_lane(2)) &&
-           v8::internal::SameValueZero(x->get_lane(3), y->get_lane(3));
+  if (IsSimd128Value() && other->IsSimd128Value()) {
+    if (IsFloat32x4() && other->IsFloat32x4()) {
+      Float32x4* a = Float32x4::cast(this);
+      Float32x4* b = Float32x4::cast(other);
+      for (int i = 0; i < 4; i++) {
+        float x = a->get_lane(i);
+        float y = b->get_lane(i);
+        // Implements the ES6 SameValueZero operation for floating point types.
+        // http://www.ecma-international.org/ecma-262/6.0/#sec-samevaluezero
+        if (x != y && !(std::isnan(x) && std::isnan(y))) return false;
+        // SameValueZero doesn't distinguish between 0 and -0.
+      }
+      return true;
+    } else {
+      Simd128Value* a = Simd128Value::cast(this);
+      Simd128Value* b = Simd128Value::cast(other);
+      return a->map()->instance_type() == b->map()->instance_type() &&
+             a->BitwiseEquals(b);
+    }
   }
   return false;
 }
@@ -1347,12 +1408,27 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << '>';
       break;
     }
-    case FLOAT32X4_TYPE: {
-      os << "<Float32x4: ";
-      Float32x4::cast(this)->Float32x4Print(os);
-      os << ">";
+    case FLOAT32X4_TYPE:
+      os << "<Float32x4>";
       break;
-    }
+    case INT32X4_TYPE:
+      os << "<Int32x4>";
+      break;
+    case BOOL32X4_TYPE:
+      os << "<Bool32x4>";
+      break;
+    case INT16X8_TYPE:
+      os << "<Int16x8>";
+      break;
+    case BOOL16X8_TYPE:
+      os << "<Bool16x8>";
+      break;
+    case INT8X16_TYPE:
+      os << "<Int8x16>";
+      break;
+    case BOOL8X16_TYPE:
+      os << "<Bool8x16>";
+      break;
     case JS_PROXY_TYPE:
       os << "<JSProxy>";
       break;
@@ -1497,6 +1573,12 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FLOAT32X4_TYPE:
+    case INT32X4_TYPE:
+    case BOOL32X4_TYPE:
+    case INT16X8_TYPE:
+    case BOOL16X8_TYPE:
+    case INT8X16_TYPE:
+    case BOOL8X16_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
@@ -1545,13 +1627,35 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void Float32x4::Float32x4Print(std::ostream& os) {  // NOLINT
-  char arr[100];
-  Vector<char> buffer(arr, arraysize(arr));
-  os << std::string(DoubleToCString(get_lane(0), buffer)) << ", "
-     << std::string(DoubleToCString(get_lane(1), buffer)) << ", "
-     << std::string(DoubleToCString(get_lane(2), buffer)) << ", "
-     << std::string(DoubleToCString(get_lane(3), buffer));
+#define FIELD_ADDR_CONST(p, offset) \
+  (reinterpret_cast<const byte*>(p) + offset - kHeapObjectTag)
+
+#define READ_INT32_FIELD(p, offset) \
+  (*reinterpret_cast<const int32_t*>(FIELD_ADDR_CONST(p, offset)))
+
+#define READ_INT64_FIELD(p, offset) \
+  (*reinterpret_cast<const int64_t*>(FIELD_ADDR_CONST(p, offset)))
+
+
+bool Simd128Value::BitwiseEquals(const Simd128Value* other) const {
+  return READ_INT64_FIELD(this, kValueOffset) ==
+             READ_INT64_FIELD(other, kValueOffset) &&
+         READ_INT64_FIELD(this, kValueOffset + kInt64Size) ==
+             READ_INT64_FIELD(other, kValueOffset + kInt64Size);
+}
+
+
+uint32_t Simd128Value::Hash() const {
+  uint32_t seed = v8::internal::kZeroHashSeed;
+  uint32_t hash;
+  hash = ComputeIntegerHash(READ_INT32_FIELD(this, kValueOffset), seed);
+  hash = ComputeIntegerHash(
+      READ_INT32_FIELD(this, kValueOffset + 1 * kInt32Size), hash * 31);
+  hash = ComputeIntegerHash(
+      READ_INT32_FIELD(this, kValueOffset + 2 * kInt32Size), hash * 31);
+  hash = ComputeIntegerHash(
+      READ_INT32_FIELD(this, kValueOffset + 3 * kInt32Size), hash * 31);
+  return hash;
 }
 
 

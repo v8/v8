@@ -86,7 +86,17 @@ function NoSideEffectToString(obj) {
     return str;
   }
   if (IS_SYMBOL(obj)) return %_CallFunction(obj, $symbolToString);
-  if (IS_FLOAT32X4(obj)) return %_CallFunction(obj, $float32x4ToString);
+  if (IS_SIMD_OBJECT(obj)) {
+    switch (typeof(obj)) {
+      case 'float32x4': return %_CallFunction(obj, $float32x4ToString);
+      case 'int32x4':   return %_CallFunction(obj, $int32x4ToString);
+      case 'bool32x4':  return %_CallFunction(obj, $bool32x4ToString);
+      case 'int16x8':   return %_CallFunction(obj, $int16x8ToString);
+      case 'bool16x8':  return %_CallFunction(obj, $bool16x8ToString);
+      case 'int16x8':   return %_CallFunction(obj, $int16x8ToString);
+      case 'bool16x8':  return %_CallFunction(obj, $bool16x8ToString);
+    }
+  }
   if (IS_OBJECT(obj)
       && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");

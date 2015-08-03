@@ -215,20 +215,24 @@ TEST(HeapObjects) {
 
 
 template <typename T, typename LANE_TYPE, int LANES>
-static void CheckSimdLanes(T* value) {
-  // Get the original values, and check that all lanes can be set to new values
-  // without disturbing the other lanes.
-  LANE_TYPE lane_values[LANES];
+static void CheckSimdValue(T* value, LANE_TYPE lane_values[LANES],
+                           LANE_TYPE other_value) {
+  // Check against lane_values, and check that all lanes can be set to
+  // other_value without disturbing the other lanes.
   for (int i = 0; i < LANES; i++) {
-    lane_values[i] = value->get_lane(i);
+    CHECK_EQ(lane_values[i], value->get_lane(i));
   }
   for (int i = 0; i < LANES; i++) {
-    lane_values[i] += 1;
-    value->set_lane(i, lane_values[i]);
+    value->set_lane(i, other_value);  // change the value
     for (int j = 0; j < LANES; j++) {
-      CHECK_EQ(lane_values[j], value->get_lane(j));
+      if (i != j)
+        CHECK_EQ(lane_values[j], value->get_lane(j));
+      else
+        CHECK_EQ(other_value, value->get_lane(j));
     }
+    value->set_lane(i, lane_values[i]);  // restore the lane
   }
+  CHECK(value->BooleanValue());  // SIMD values are 'true'.
 }
 
 
@@ -239,42 +243,131 @@ TEST(SimdObjects) {
 
   HandleScope sc(isolate);
 
-  Handle<Float32x4> value = factory->NewFloat32x4(1, 2, 3, 4);
-  CHECK(value->IsFloat32x4());
-  CHECK(value->BooleanValue());  // SIMD values map to true.
-  CHECK_EQ(value->get_lane(0), 1);
-  CHECK_EQ(value->get_lane(1), 2);
-  CHECK_EQ(value->get_lane(2), 3);
-  CHECK_EQ(value->get_lane(3), 4);
-
-  CheckSimdLanes<Float32x4, float, 4>(*value);
-
-  // Check all lanes, and special lane values.
-  value->set_lane(0, 0);
-  CHECK_EQ(0, value->get_lane(0));
-  value->set_lane(1, -0.0);
-  CHECK_EQ(-0.0, value->get_lane(1));
-  CHECK(std::signbit(value->get_lane(1)));  // Sign bit is preserved.
-  float quiet_NaN = std::numeric_limits<float>::quiet_NaN();
-  float signaling_NaN = std::numeric_limits<float>::signaling_NaN();
-  value->set_lane(2, quiet_NaN);
-  CHECK(std::isnan(value->get_lane(2)));
-  value->set_lane(3, signaling_NaN);
-  CHECK(std::isnan(value->get_lane(3)));
-
-  // Check SIMD value printing.
+  // Float32x4
   {
-    value = factory->NewFloat32x4(1, 2, 3, 4);
-    std::ostringstream os;
-    value->Float32x4Print(os);
-    CHECK_EQ("1, 2, 3, 4", os.str());
+    float lanes[4] = {1, 2, 3, 4};
+    float quiet_NaN = std::numeric_limits<float>::quiet_NaN();
+    float signaling_NaN = std::numeric_limits<float>::signaling_NaN();
+
+    Handle<Float32x4> value = factory->NewFloat32x4(lanes);
+    CHECK(value->IsFloat32x4());
+    CheckSimdValue<Float32x4, float, 4>(*value, lanes, 3.14f);
+
+    // Check special lane values.
+    value->set_lane(1, -0.0);
+    CHECK_EQ(-0.0, value->get_lane(1));
+    CHECK(std::signbit(value->get_lane(1)));  // Sign bit should be preserved.
+    value->set_lane(2, quiet_NaN);
+    CHECK(std::isnan(value->get_lane(2)));
+    value->set_lane(3, signaling_NaN);
+    CHECK(std::isnan(value->get_lane(3)));
+
+#ifdef OBJECT_PRINT
+    // Check value printing.
+    {
+      value = factory->NewFloat32x4(lanes);
+      std::ostringstream os;
+      value->Float32x4Print(os);
+      CHECK_EQ("1, 2, 3, 4", os.str());
+    }
+    {
+      float special_lanes[4] = {0, -0.0, quiet_NaN, signaling_NaN};
+      value = factory->NewFloat32x4(special_lanes);
+      std::ostringstream os;
+      value->Float32x4Print(os);
+      // Value printing doesn't preserve signed zeroes.
+      CHECK_EQ("0, 0, NaN, NaN", os.str());
+    }
+#endif  // OBJECT_PRINT
   }
+  // Int32x4
   {
-    value = factory->NewFloat32x4(0, -0.0, quiet_NaN, signaling_NaN);
+    int32_t lanes[4] = {-1, 0, 1, 2};
+
+    Handle<Int32x4> value = factory->NewInt32x4(lanes);
+    CHECK(value->IsInt32x4());
+    CheckSimdValue<Int32x4, int32_t, 4>(*value, lanes, 3);
+
+#ifdef OBJECT_PRINT
     std::ostringstream os;
-    value->Float32x4Print(os);
-    // Value printing doesn't preserve signed zeroes.
-    CHECK_EQ("0, 0, NaN, NaN", os.str());
+    value->Int32x4Print(os);
+    CHECK_EQ("-1, 0, 1, 2", os.str());
+#endif  // OBJECT_PRINT
+  }
+  // Bool32x4
+  {
+    bool lanes[4] = {true, true, true, false};
+
+    Handle<Bool32x4> value = factory->NewBool32x4(lanes);
+    CHECK(value->IsBool32x4());
+    CheckSimdValue<Bool32x4, bool, 4>(*value, lanes, false);
+
+#ifdef OBJECT_PRINT
+    std::ostringstream os;
+    value->Bool32x4Print(os);
+    CHECK_EQ("true, true, true, false", os.str());
+#endif  // OBJECT_PRINT
+  }
+  // Int16x8
+  {
+    int16_t lanes[8] = {-1, 0, 1, 2, 3, 4, 5, -32768};
+
+    Handle<Int16x8> value = factory->NewInt16x8(lanes);
+    CHECK(value->IsInt16x8());
+    CheckSimdValue<Int16x8, int16_t, 8>(*value, lanes, 32767);
+
+#ifdef OBJECT_PRINT
+    std::ostringstream os;
+    value->Int16x8Print(os);
+    CHECK_EQ("-1, 0, 1, 2, 3, 4, 5, -32768", os.str());
+#endif  // OBJECT_PRINT
+  }
+  // Bool16x8
+  {
+    bool lanes[8] = {true, true, true, true, true, true, true, false};
+
+    Handle<Bool16x8> value = factory->NewBool16x8(lanes);
+    CHECK(value->IsBool16x8());
+    CheckSimdValue<Bool16x8, bool, 8>(*value, lanes, false);
+
+#ifdef OBJECT_PRINT
+    std::ostringstream os;
+    value->Bool16x8Print(os);
+    CHECK_EQ("true, true, true, true, true, true, true, false", os.str());
+#endif  // OBJECT_PRINT
+  }
+  // Int8x16
+  {
+    int8_t lanes[16] = {-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, -128};
+
+    Handle<Int8x16> value = factory->NewInt8x16(lanes);
+    CHECK(value->IsInt8x16());
+    CheckSimdValue<Int8x16, int8_t, 16>(*value, lanes, 127);
+
+#ifdef OBJECT_PRINT
+    std::ostringstream os;
+    value->Int8x16Print(os);
+    CHECK_EQ("-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, -128",
+             os.str());
+#endif  // OBJECT_PRINT
+  }
+  // Bool8x16
+  {
+    bool lanes[16] = {true, true, true, true, true, true, true, false,
+                      true, true, true, true, true, true, true, false};
+
+    Handle<Bool8x16> value = factory->NewBool8x16(lanes);
+    CHECK(value->IsBool8x16());
+    CheckSimdValue<Bool8x16, bool, 16>(*value, lanes, false);
+
+#ifdef OBJECT_PRINT
+    std::ostringstream os;
+    value->Bool8x16Print(os);
+    CHECK_EQ(
+        "true, true, true, true, true, true, true, false, true, true, true, "
+        "true, true, true, true, false",
+        os.str());
+#endif  // OBJECT_PRINT
   }
 }
 

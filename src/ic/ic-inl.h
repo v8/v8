@@ -138,6 +138,18 @@ JSFunction* IC::GetRootConstructor(Map* receiver_map, Context* native_context) {
     return native_context->symbol_function();
   } else if (receiver_map->instance_type() == FLOAT32X4_TYPE) {
     return native_context->float32x4_function();
+  } else if (receiver_map->instance_type() == INT32X4_TYPE) {
+    return native_context->int32x4_function();
+  } else if (receiver_map->instance_type() == BOOL32X4_TYPE) {
+    return native_context->bool32x4_function();
+  } else if (receiver_map->instance_type() == INT16X8_TYPE) {
+    return native_context->int16x8_function();
+  } else if (receiver_map->instance_type() == BOOL16X8_TYPE) {
+    return native_context->bool16x8_function();
+  } else if (receiver_map->instance_type() == INT8X16_TYPE) {
+    return native_context->int8x16_function();
+  } else if (receiver_map->instance_type() == BOOL8X16_TYPE) {
+    return native_context->bool8x16_function();
   } else {
     return NULL;
   }

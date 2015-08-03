@@ -101,8 +101,8 @@ EQUALS = function EQUALS(y) {
       while (true) {
         if (IS_NUMBER(y)) return %NumberEquals(x, y);
         if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
-        if (IS_SYMBOL(y) || IS_FLOAT32X4(y)) return 1;  // not equal
         if (!IS_SPEC_OBJECT(y)) {
+          if (IS_SYMBOL(y) || IS_SIMD_OBJECT(y)) return 1;  // not equal
           // String or boolean.
           return %NumberEquals(x, %$toNumber(y));
         }
@@ -111,10 +111,10 @@ EQUALS = function EQUALS(y) {
     } else if (IS_STRING(x)) {
       while (true) {
         if (IS_STRING(y)) return %StringEquals(x, y);
-        if (IS_SYMBOL(y) || IS_FLOAT32X4(y)) return 1;  // not equal
         if (IS_NUMBER(y)) return %NumberEquals(%$toNumber(x), y);
         if (IS_BOOLEAN(y)) return %NumberEquals(%$toNumber(x), %$toNumber(y));
         if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+        if (IS_SYMBOL(y) || IS_SIMD_OBJECT(y)) return 1;  // not equal
         y = %$toPrimitive(y, NO_HINT);
       }
     } else if (IS_SYMBOL(x)) {
@@ -125,24 +125,23 @@ EQUALS = function EQUALS(y) {
       if (IS_NULL_OR_UNDEFINED(y)) return 1;
       if (IS_NUMBER(y)) return %NumberEquals(%$toNumber(x), y);
       if (IS_STRING(y)) return %NumberEquals(%$toNumber(x), %$toNumber(y));
-      if (IS_SYMBOL(y) || IS_FLOAT32X4(y)) return 1;  // not equal
+      if (IS_SYMBOL(y) || IS_SIMD_OBJECT(y)) return 1;  // not equal
       // y is object.
       x = %$toNumber(x);
       y = %$toPrimitive(y, NO_HINT);
     } else if (IS_NULL_OR_UNDEFINED(x)) {
       return IS_NULL_OR_UNDEFINED(y) ? 0 : 1;
-    } else if (IS_FLOAT32X4(x)) {
-      if (IS_FLOAT32X4(y))
-        return %Float32x4Equals(x, y);
-      return 1;  // not equal
+    } else if (IS_SIMD_OBJECT(x)) {
+       return %SimdEquals(x, y);
     } else {
       // x is an object.
-      if (IS_SPEC_OBJECT(y)) {
-        return %_ObjectEquals(x, y) ? 0 : 1;
-      }
+      if (IS_SPEC_OBJECT(y)) return %_ObjectEquals(x, y) ? 0 : 1;
       if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
-      if (IS_SYMBOL(y) || IS_FLOAT32X4(y)) return 1;  // not equal
-      if (IS_BOOLEAN(y)) y = %$toNumber(y);
+      if (IS_BOOLEAN(y)) {
+        y = %$toNumber(y);
+      } else if (IS_SYMBOL(y) || IS_SIMD_OBJECT(y)) {
+        return 1;  // not equal
+      }
       x = %$toPrimitive(x, NO_HINT);
     }
   }
@@ -160,8 +159,7 @@ STRICT_EQUALS = function STRICT_EQUALS(x) {
     return %NumberEquals(this, x);
   }
 
-  if (IS_FLOAT32X4(this) && IS_FLOAT32X4(x))
-    return %Float32x4Equals(this, x);
+  if (IS_SIMD_OBJECT(this)) return %SimdEquals(this, x);
 
   // If anything else gets here, we just do simple identity check.
   // Objects (including functions), null, undefined and booleans were
@@ -758,7 +756,7 @@ function ToPrimitive(x, hint) {
   if (IS_STRING(x)) return x;
   // Normal behavior.
   if (!IS_SPEC_OBJECT(x)) return x;
-  if (IS_FLOAT32X4(x)) return x;
+  if (IS_SIMD_OBJECT(x)) return x;
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
   return (hint == NUMBER_HINT) ? DefaultNumber(x) : DefaultString(x);
 }
@@ -864,9 +862,7 @@ function SameValue(x, y) {
       return false;
     }
   }
-  if (IS_FLOAT32X4(x)) {
-    return %Float32x4SameValue(x, y);
-  }
+  if (IS_SIMD_OBJECT(x)) return %SimdSameValue(x, y);
   return x === y;
 }
 
@@ -877,9 +873,7 @@ function SameValueZero(x, y) {
   if (IS_NUMBER(x)) {
     if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
   }
-  if (IS_FLOAT32X4(x)) {
-    return %Float32x4SameValueZero(x, y);
-  }
+  if (IS_SIMD_OBJECT(x)) return %SimdSameValueZero(x, y);
   return x === y;
 }
 
@@ -923,7 +917,7 @@ function DefaultNumber(x) {
   if (IS_SPEC_FUNCTION(valueOf)) {
     var v = %_CallFunction(x, valueOf);
     if (IS_SYMBOL(v)) throw MakeTypeError(kSymbolToNumber);
-    if (IS_FLOAT32X4(v)) throw MakeTypeError(kSimdToNumber);
+    if (IS_SIMD_OBJECT(x)) throw MakeTypeError(kSimdToNumber);
     if (IsPrimitive(v)) return v;
   }
   var toString = x.toString;

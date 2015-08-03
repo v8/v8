@@ -1933,8 +1933,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
         // SIMD value -> true.
-        __ CompareInstanceType(map, scratch, FLOAT32X4_TYPE);
-        __ B(eq, true_label);
+        Label not_simd;
+        __ CompareInstanceType(map, scratch, FIRST_SIMD_VALUE_TYPE);
+        __ B(lt, &not_simd);
+        __ CompareInstanceType(map, scratch, LAST_SIMD_VALUE_TYPE);
+        __ B(le, true_label);
+        __ Bind(&not_simd);
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -6000,6 +6004,60 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
 
     __ JumpIfSmi(value, false_label);
     __ CompareObjectType(value, map, scratch, FLOAT32X4_TYPE);
+    EmitBranch(instr, eq);
+
+  } else if (String::Equals(type_name, factory->int32x4_string())) {
+    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
+    Register map = ToRegister(instr->temp1());
+    Register scratch = ToRegister(instr->temp2());
+
+    __ JumpIfSmi(value, false_label);
+    __ CompareObjectType(value, map, scratch, INT32X4_TYPE);
+    EmitBranch(instr, eq);
+
+  } else if (String::Equals(type_name, factory->bool32x4_string())) {
+    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
+    Register map = ToRegister(instr->temp1());
+    Register scratch = ToRegister(instr->temp2());
+
+    __ JumpIfSmi(value, false_label);
+    __ CompareObjectType(value, map, scratch, BOOL32X4_TYPE);
+    EmitBranch(instr, eq);
+
+  } else if (String::Equals(type_name, factory->int16x8_string())) {
+    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
+    Register map = ToRegister(instr->temp1());
+    Register scratch = ToRegister(instr->temp2());
+
+    __ JumpIfSmi(value, false_label);
+    __ CompareObjectType(value, map, scratch, INT16X8_TYPE);
+    EmitBranch(instr, eq);
+
+  } else if (String::Equals(type_name, factory->bool16x8_string())) {
+    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
+    Register map = ToRegister(instr->temp1());
+    Register scratch = ToRegister(instr->temp2());
+
+    __ JumpIfSmi(value, false_label);
+    __ CompareObjectType(value, map, scratch, BOOL16X8_TYPE);
+    EmitBranch(instr, eq);
+
+  } else if (String::Equals(type_name, factory->int8x16_string())) {
+    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
+    Register map = ToRegister(instr->temp1());
+    Register scratch = ToRegister(instr->temp2());
+
+    __ JumpIfSmi(value, false_label);
+    __ CompareObjectType(value, map, scratch, INT8X16_TYPE);
+    EmitBranch(instr, eq);
+
+  } else if (String::Equals(type_name, factory->bool8x16_string())) {
+    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
+    Register map = ToRegister(instr->temp1());
+    Register scratch = ToRegister(instr->temp2());
+
+    __ JumpIfSmi(value, false_label);
+    __ CompareObjectType(value, map, scratch, BOOL8X16_TYPE);
     EmitBranch(instr, eq);
 
   } else {

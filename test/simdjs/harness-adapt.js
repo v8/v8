@@ -33,6 +33,7 @@ var console = {
   log: function(x) { print(x); },
 };
 
-// Disable value type tests for now, since the polyfill can't pass them.
-// TODO(bbudge): Drop when polyfill is not needed.
+
+// Disable value type tests for now. The value semantics tests are incorrect.
+// TODO(bbudge): Drop when tests are fixed.
 var skipValueTests = true;

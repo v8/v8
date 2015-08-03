@@ -3121,6 +3121,33 @@ void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitIsSimdObject(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false, &if_true,
+                         &if_false, &fall_through);
+
+  __ JumpIfSmi(x0, if_false);
+  Register map = x10;
+  Register type_reg = x11;
+  __ Ldr(map, FieldMemOperand(x0, HeapObject::kMapOffset));
+  __ Ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ Sub(type_reg, type_reg, Operand(FIRST_SIMD_VALUE_TYPE));
+  __ Cmp(type_reg, Operand(LAST_SIMD_VALUE_TYPE - FIRST_SIMD_VALUE_TYPE));
+  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+  Split(ls, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
+}
+
+
 void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitIsUndetectableObject");
   ZoneList<Expression*>* args = expr->arguments();
@@ -4772,6 +4799,36 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
         "FullCodeGenerator::EmitLiteralCompareTypeof float32x4_string");
     __ JumpIfSmi(x0, if_false);
     __ CompareObjectType(x0, x0, x1, FLOAT32X4_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->int32x4_string())) {
+    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof int32x4_string");
+    __ JumpIfSmi(x0, if_false);
+    __ CompareObjectType(x0, x0, x1, INT32X4_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->bool32x4_string())) {
+    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof bool32x4_string");
+    __ JumpIfSmi(x0, if_false);
+    __ CompareObjectType(x0, x0, x1, BOOL32X4_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->int16x8_string())) {
+    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof int16x8_string");
+    __ JumpIfSmi(x0, if_false);
+    __ CompareObjectType(x0, x0, x1, INT16X8_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->bool16x8_string())) {
+    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof bool16x8_string");
+    __ JumpIfSmi(x0, if_false);
+    __ CompareObjectType(x0, x0, x1, BOOL16X8_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->int8x16_string())) {
+    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof int8x16_string");
+    __ JumpIfSmi(x0, if_false);
+    __ CompareObjectType(x0, x0, x1, INT8X16_TYPE);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (String::Equals(check, factory->bool8x16_string())) {
+    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof bool8x16_string");
+    __ JumpIfSmi(x0, if_false);
+    __ CompareObjectType(x0, x0, x1, BOOL8X16_TYPE);
     Split(eq, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->boolean_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof boolean_string");
