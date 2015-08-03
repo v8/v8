@@ -338,7 +338,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ jmp(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
-        __ jmp(Operand(reg, Code::kHeaderSize - kHeapObjectTag));
+        __ add(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
+        __ jmp(reg);
       }
       break;
     }
