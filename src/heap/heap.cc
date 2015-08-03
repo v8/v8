@@ -4787,6 +4787,24 @@ GCIdleTimeHandler::HeapState Heap::ComputeHeapState() {
 }
 
 
+double Heap::AdvanceIncrementalMarking(
+    intptr_t step_size_in_bytes, double deadline_in_ms,
+    IncrementalMarking::ForceCompletionAction completion) {
+  DCHECK(!incremental_marking()->IsStopped());
+  double remaining_time_in_ms = 0.0;
+  do {
+    incremental_marking()->Step(step_size_in_bytes,
+                                IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                                IncrementalMarking::FORCE_MARKING, completion);
+    remaining_time_in_ms = deadline_in_ms - MonotonicallyIncreasingTimeInMs();
+  } while (remaining_time_in_ms >=
+               2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
+           !incremental_marking()->IsComplete() &&
+           !mark_compact_collector_.marking_deque()->IsEmpty());
+  return remaining_time_in_ms;
+}
+
+
 bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
                                  GCIdleTimeHandler::HeapState heap_state,
                                  double deadline_in_ms) {
@@ -4796,19 +4814,9 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       result = true;
       break;
     case DO_INCREMENTAL_MARKING: {
-      DCHECK(!incremental_marking()->IsStopped());
-      double remaining_idle_time_in_ms = 0.0;
-      do {
-        incremental_marking()->Step(
-            action.parameter, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-            IncrementalMarking::FORCE_MARKING,
-            IncrementalMarking::DO_NOT_FORCE_COMPLETION);
-        remaining_idle_time_in_ms =
-            deadline_in_ms - MonotonicallyIncreasingTimeInMs();
-      } while (remaining_idle_time_in_ms >=
-                   2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
-               !incremental_marking()->IsComplete() &&
-               !mark_compact_collector_.marking_deque()->IsEmpty());
+      const double remaining_idle_time_in_ms = AdvanceIncrementalMarking(
+          action.parameter, deadline_in_ms,
+          IncrementalMarking::DO_NOT_FORCE_COMPLETION);
       if (remaining_idle_time_in_ms > 0.0) {
         action.additional_work = TryFinalizeIdleIncrementalMarking(
             remaining_idle_time_in_ms, heap_state.size_of_objects,

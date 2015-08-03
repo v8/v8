@@ -2228,6 +2228,10 @@ class Heap {
 
   GCIdleTimeHandler::HeapState ComputeHeapState();
 
+  double AdvanceIncrementalMarking(
+      intptr_t step_size_in_bytes, double deadline_in_ms,
+      IncrementalMarking::ForceCompletionAction completion);
+
   bool PerformIdleTimeAction(GCIdleTimeAction action,
                              GCIdleTimeHandler::HeapState heap_state,
                              double deadline_in_ms);
