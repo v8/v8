@@ -10,6 +10,9 @@ var $observeNativeObjectObserve;
 var $observeNativeObjectGetNotifier;
 var $observeNativeObjectNotifierPerformChange;
 
+var $observeObjectMethods;
+var $observeArrayMethods;
+
 (function(global, utils) {
 
 "use strict";
@@ -676,20 +679,29 @@ function ObserveMicrotaskRunner() {
 
 // -------------------------------------------------------------------
 
-utils.InstallFunctions(GlobalObject, DONT_ENUM, [
-  "deliverChangeRecords", ObjectDeliverChangeRecords,
-  "getNotifier", ObjectGetNotifier,
-  "observe", ObjectObserve,
-  "unobserve", ObjectUnobserve
-]);
-utils.InstallFunctions(GlobalArray, DONT_ENUM, [
-  "observe", ArrayObserve,
-  "unobserve", ArrayUnobserve
-]);
 utils.InstallFunctions(notifierPrototype, DONT_ENUM, [
   "notify", ObjectNotifierNotify,
   "performChange", ObjectNotifierPerformChange
 ]);
+
+$observeObjectMethods = [
+  "deliverChangeRecords", ObjectDeliverChangeRecords,
+  "getNotifier", ObjectGetNotifier,
+  "observe", ObjectObserve,
+  "unobserve", ObjectUnobserve
+];
+$observeArrayMethods = [
+  "observe", ArrayObserve,
+  "unobserve", ArrayUnobserve
+];
+
+// TODO(adamk): Figure out why this prototype removal has to
+// happen as part of initial snapshotting.
+var removePrototypeFn = function(f, i) {
+  if (i % 2 === 1) %FunctionRemovePrototype(f);
+};
+$observeObjectMethods.forEach(removePrototypeFn);
+$observeArrayMethods.forEach(removePrototypeFn);
 
 $observeNotifyChange = NotifyChange;
 $observeEnqueueSpliceRecord = EnqueueSpliceRecord;

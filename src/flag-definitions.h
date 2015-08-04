@@ -210,6 +210,7 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_arrow_functions, "harmony arrow functions")                 \
   V(harmony_computed_property_names, "harmony computed property names") \
   V(harmony_new_target, "harmony new.target")                           \
+  V(harmony_object_observe, "harmony Object.observe")                   \
   V(harmony_spreadcalls, "harmony spread-calls")                        \
   V(harmony_spread_arrays, "harmony spread in array literals")          \
   V(harmony_unicode, "harmony unicode escapes")                         \

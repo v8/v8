@@ -1821,6 +1821,7 @@
           '../../src/harmony-reflect.js',
           '../../src/harmony-spread.js',
           '../../src/harmony-object.js',
+          '../../src/harmony-object-observe.js',
           '../../src/harmony-sharedarraybuffer.js',
           '../../src/harmony-simd.js',
         ],
