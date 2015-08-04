@@ -699,6 +699,11 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
+  if (!args.IsConstructCall()) {
+    Throw(args.GetIsolate(), "Worker must be constructed with new");
+    return;
+  }
+
   {
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
     // Initialize the internal field to NULL; if we return early without
