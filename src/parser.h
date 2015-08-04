@@ -1317,8 +1317,9 @@ void ParserTraits::DeclareFormalParameter(
   const AstRawString* name = is_simple
                                  ? pattern->AsVariableProxy()->raw_name()
                                  : parser_->ast_value_factory()->empty_string();
+  VariableMode mode = is_simple ? VAR : TEMPORARY;
   Variable* var =
-      parameters->scope->DeclareParameter(name, VAR, is_rest, &is_duplicate);
+      parameters->scope->DeclareParameter(name, mode, is_rest, &is_duplicate);
   parameters->AddParameter(var, is_simple ? nullptr : pattern);
   if (is_duplicate) {
     classifier->RecordDuplicateFormalParameterError(

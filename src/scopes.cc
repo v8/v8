@@ -465,16 +465,14 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
                                   bool is_rest, bool* is_duplicate) {
   DCHECK(!already_resolved());
   DCHECK(is_function_scope());
-
   Variable* var;
-  if (!name->IsEmpty()) {
+  if (mode == TEMPORARY) {
+    var = NewTemporary(name);
+  } else {
     var = variables_.Declare(this, name, mode, Variable::NORMAL,
                              kCreatedInitialized);
     // TODO(wingo): Avoid O(n^2) check.
     *is_duplicate = IsDeclaredParameter(name);
-  } else {
-    var = new (zone())
-        Variable(this, name, TEMPORARY, Variable::NORMAL, kCreatedInitialized);
   }
   if (is_rest) {
     DCHECK_NULL(rest_parameter_);
@@ -620,9 +618,10 @@ void Scope::CollectStackAndContextLocals(
       if (var->IsContextSlot()) {
         DCHECK(has_forced_context_allocation());
         context_locals->Add(var, zone());
-      } else {
-        DCHECK(var->IsStackLocal());
+      } else if (var->IsStackLocal()) {
         stack_locals->Add(var, zone());
+      } else {
+        DCHECK(var->IsParameter());
       }
     }
   }
@@ -863,7 +862,10 @@ static void PrintVar(int indent, Variable* var) {
   if (var->is_used() || !var->IsUnallocated()) {
     Indent(indent, Variable::Mode2String(var->mode()));
     PrintF(" ");
-    PrintName(var->raw_name());
+    if (var->raw_name()->IsEmpty())
+      PrintF(".%p", var);
+    else
+      PrintName(var->raw_name());
     PrintF(";  // ");
     PrintLocation(var);
     bool comma = !var->IsUnallocated();
@@ -909,7 +911,11 @@ void Scope::Print(int n) {
     PrintF(" (");
     for (int i = 0; i < params_.length(); i++) {
       if (i > 0) PrintF(", ");
-      PrintName(params_[i]->raw_name());
+      const AstRawString* name = params_[i]->raw_name();
+      if (name->IsEmpty())
+        PrintF(".%p", params_[i]);
+      else
+        PrintName(name);
     }
     PrintF(")");
   }
