@@ -1201,41 +1201,6 @@ MarkCompactCollector::~MarkCompactCollector() {
 }
 
 
-static inline HeapObject* ShortCircuitConsString(Object** p) {
-  // Optimization: If the heap object pointed to by p is a non-internalized
-  // cons string whose right substring is HEAP->empty_string, update
-  // it in place to its left substring.  Return the updated value.
-  //
-  // Here we assume that if we change *p, we replace it with a heap object
-  // (i.e., the left substring of a cons string is always a heap object).
-  //
-  // The check performed is:
-  //   object->IsConsString() && !object->IsInternalizedString() &&
-  //   (ConsString::cast(object)->second() == HEAP->empty_string())
-  // except the maps for the object and its possible substrings might be
-  // marked.
-  HeapObject* object = HeapObject::cast(*p);
-  Map* map = object->map();
-  InstanceType type = map->instance_type();
-  if (!IsShortcutCandidate(type)) return object;
-
-  Object* second = reinterpret_cast<ConsString*>(object)->second();
-  Heap* heap = map->GetHeap();
-  if (second != heap->empty_string()) {
-    return object;
-  }
-
-  // Since we don't have the object's start, it is impossible to update the
-  // page dirty marks. Therefore, we only replace the string with its left
-  // substring when page dirty marks do not change.
-  Object* first = reinterpret_cast<ConsString*>(object)->first();
-  if (!heap->InNewSpace(object) && heap->InNewSpace(first)) return object;
-
-  *p = first;
-  return HeapObject::cast(first);
-}
-
-
 class MarkCompactMarkingVisitor
     : public StaticMarkingVisitor<MarkCompactMarkingVisitor> {
  public:
@@ -1293,7 +1258,7 @@ class MarkCompactMarkingVisitor
   INLINE(static void MarkObjectByPointer(MarkCompactCollector* collector,
                                          HeapObject* object, Object** p)) {
     if (!(*p)->IsHeapObject()) return;
-    HeapObject* target_object = ShortCircuitConsString(p);
+    HeapObject* target_object = HeapObject::cast(*p);
     collector->RecordSlot(object, p, target_object);
     MarkBit mark = Marking::MarkBitFrom(target_object);
     collector->MarkObject(target_object, mark);
@@ -1671,7 +1636,7 @@ class RootMarkingVisitor : public ObjectVisitor {
     if (!(*p)->IsHeapObject()) return;
 
     // Replace flat cons strings in place.
-    HeapObject* object = ShortCircuitConsString(p);
+    HeapObject* object = HeapObject::cast(*p);
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (Marking::IsBlackOrGrey(mark_bit)) return;
 
