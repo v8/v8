@@ -769,7 +769,8 @@ void Heap::PreprocessStackTraces() {
 void Heap::HandleGCRequest() {
   if (incremental_marking()->request_type() ==
       IncrementalMarking::COMPLETE_MARKING) {
-    CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt");
+    CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt",
+                      incremental_marking()->CallbackFlags());
     return;
   }
   DCHECK(FLAG_overapproximate_weak_closure);
@@ -979,7 +980,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   if (!mark_compact_collector()->abort_incremental_marking() &&
       incremental_marking()->IsStopped() &&
       incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
-    incremental_marking()->Start(kNoGCFlags);
+    incremental_marking()->Start(kNoGCFlags, kNoGCCallbackFlags, "GC epilogue");
   }
 
   return next_gc_likely_to_collect_more;
@@ -1006,9 +1007,18 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
 }
 
 
+void Heap::StartIncrementalMarking(int gc_flags,
+                                   const GCCallbackFlags gc_callback_flags,
+                                   const char* reason) {
+  DCHECK(incremental_marking()->IsStopped());
+  incremental_marking()->Start(gc_flags, gc_callback_flags, reason);
+}
+
+
 void Heap::StartIdleIncrementalMarking() {
   gc_idle_time_handler_.ResetNoProgressCounter();
-  incremental_marking()->Start(kReduceMemoryFootprintMask);
+  StartIncrementalMarking(kReduceMemoryFootprintMask, kNoGCCallbackFlags,
+                          "idle");
 }
 
 
@@ -4791,13 +4801,21 @@ GCIdleTimeHandler::HeapState Heap::ComputeHeapState() {
 
 double Heap::AdvanceIncrementalMarking(
     intptr_t step_size_in_bytes, double deadline_in_ms,
-    IncrementalMarking::ForceCompletionAction completion) {
+    IncrementalMarking::StepActions step_actions) {
   DCHECK(!incremental_marking()->IsStopped());
+
+  if (step_size_in_bytes == 0) {
+    step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
+        static_cast<size_t>(GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs),
+        static_cast<size_t>(
+            tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()));
+  }
+
   double remaining_time_in_ms = 0.0;
   do {
-    incremental_marking()->Step(step_size_in_bytes,
-                                IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                                IncrementalMarking::FORCE_MARKING, completion);
+    incremental_marking()->Step(
+        step_size_in_bytes, step_actions.completion_action,
+        step_actions.force_marking, step_actions.force_completion);
     remaining_time_in_ms = deadline_in_ms - MonotonicallyIncreasingTimeInMs();
   } while (remaining_time_in_ms >=
                2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
@@ -4816,9 +4834,9 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       result = true;
       break;
     case DO_INCREMENTAL_MARKING: {
-      const double remaining_idle_time_in_ms = AdvanceIncrementalMarking(
-          action.parameter, deadline_in_ms,
-          IncrementalMarking::DO_NOT_FORCE_COMPLETION);
+      const double remaining_idle_time_in_ms =
+          AdvanceIncrementalMarking(action.parameter, deadline_in_ms,
+                                    IncrementalMarking::NoForcedStepActions());
       if (remaining_idle_time_in_ms > 0.0) {
         action.additional_work = TryFinalizeIdleIncrementalMarking(
             remaining_idle_time_in_ms, heap_state.size_of_objects,
