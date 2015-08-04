@@ -913,7 +913,7 @@ void Scope::Print(int n) {
       if (i > 0) PrintF(", ");
       const AstRawString* name = params_[i]->raw_name();
       if (name->IsEmpty())
-        PrintF(".%p", params_[i]);
+        PrintF(".%p", reinterpret_cast<void*>(params_[i]));
       else
         PrintName(name);
     }
