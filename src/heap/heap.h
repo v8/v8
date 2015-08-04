@@ -852,6 +852,21 @@ class Heap {
   // incremental steps.
   void StartIdleIncrementalMarking();
 
+  // Starts incremental marking assuming incremental marking is currently
+  // stopped.
+  void StartIncrementalMarking(int gc_flags,
+                               const GCCallbackFlags gc_callback_flags,
+                               const char* reason = nullptr);
+
+  // Performs incremental marking steps of step_size_in_bytes as long as
+  // deadline_ins_ms is not reached. step_size_in_bytes can be 0 to compute
+  // an estimate increment. Returns the remaining time that cannot be used
+  // for incremental marking anymore because a single step would exceed the
+  // deadline.
+  double AdvanceIncrementalMarking(
+      intptr_t step_size_in_bytes, double deadline_in_ms,
+      IncrementalMarking::StepActions step_actions);
+
   inline void increment_scan_on_scavenge_pages() {
     scan_on_scavenge_pages_++;
     if (FLAG_gc_verbose) {
@@ -2231,10 +2246,6 @@ class Heap {
       size_t mark_compact_speed_in_bytes_per_ms);
 
   GCIdleTimeHandler::HeapState ComputeHeapState();
-
-  double AdvanceIncrementalMarking(
-      intptr_t step_size_in_bytes, double deadline_in_ms,
-      IncrementalMarking::ForceCompletionAction completion);
 
   bool PerformIdleTimeAction(GCIdleTimeAction action,
                              GCIdleTimeHandler::HeapState heap_state,
