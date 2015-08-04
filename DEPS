@@ -12,7 +12,7 @@ deps = {
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "508e9274baaa5caa8de9cf4c26a24e926a15ccf0",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "f0b8022601cf9c3c1a2f7efcea48e2fe81d3b143",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "565d04e8741429fb1b4f26d102f2c6c3b849edeb",
   "v8/testing/gtest":
     Var("git_url") + "/external/googletest.git" + "@" + "9855a87157778d39b95eccfb201a9dc90f6d61c6",
   "v8/testing/gmock":
