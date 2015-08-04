@@ -83,7 +83,6 @@ typedef void* ExternalReferenceRedirectorPointer();
 
 
 class Debug;
-class Debugger;
 class PromiseOnStack;
 class Redirection;
 class Simulator;

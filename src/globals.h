@@ -423,7 +423,6 @@ class CodeGenerator;
 class CodeStub;
 class Context;
 class Debug;
-class Debugger;
 class DebugInfo;
 class Descriptor;
 class DescriptorArray;

@@ -3965,12 +3965,6 @@ class ScopeInfo : public FixedArray {
 
   FunctionKind function_kind();
 
-  // Copies all the context locals into an object used to materialize a scope.
-  static void CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
-                                             Handle<Context> context,
-                                             Handle<JSObject> scope_object);
-
-
   static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
@@ -4106,6 +4100,8 @@ class ScopeInfo : public FixedArray {
   class ContextLocalInitFlag:  public BitField<InitializationFlag,   3, 1> {};
   class ContextLocalMaybeAssignedFlag
       : public BitField<MaybeAssignedFlag, 4, 1> {};
+
+  friend class ScopeIterator;
 };
 
 

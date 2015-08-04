@@ -52,7 +52,6 @@ using ::v8::internal::Heap;
 using ::v8::internal::JSGlobalProxy;
 using ::v8::internal::Code;
 using ::v8::internal::Debug;
-using ::v8::internal::Debugger;
 using ::v8::internal::CommandMessage;
 using ::v8::internal::CommandMessageQueue;
 using ::v8::internal::StackFrame;

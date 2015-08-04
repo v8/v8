@@ -626,30 +626,6 @@ FunctionKind ScopeInfo::function_kind() {
 }
 
 
-void ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
-                                               Handle<Context> context,
-                                               Handle<JSObject> scope_object) {
-  Isolate* isolate = scope_info->GetIsolate();
-  int local_count = scope_info->ContextLocalCount();
-  if (local_count == 0) return;
-  // Fill all context locals to the context extension.
-  int first_context_var = scope_info->StackLocalCount();
-  int start = scope_info->ContextLocalNameEntriesIndex();
-  for (int i = 0; i < local_count; ++i) {
-    if (scope_info->LocalIsSynthetic(first_context_var + i)) continue;
-    int context_index = Context::MIN_CONTEXT_SLOTS + i;
-    Handle<Object> value = Handle<Object>(context->get(context_index), isolate);
-    // Reflect variables under TDZ as undefined in scope object.
-    if (value->IsTheHole()) continue;
-    // This should always succeed.
-    // TODO(verwaest): Use AddDataProperty instead.
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        scope_object, handle(String::cast(scope_info->get(i + start))), value,
-        ::NONE).Check();
-  }
-}
-
-
 int ScopeInfo::ParameterEntriesIndex() {
   DCHECK(length() > 0);
   return kVariablePartIndex;

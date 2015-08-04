@@ -929,8 +929,6 @@ class Runtime : public AllStatic {
 
   static void NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer);
 
-  static int FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index);
-
   enum TypedArrayId {
     // arrayIds below should be synchromized with typedarray.js natives.
     ARRAY_ID_UINT8 = 1,

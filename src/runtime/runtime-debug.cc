@@ -4,12 +4,11 @@
 
 #include "src/v8.h"
 
-#include "src/accessors.h"
 #include "src/arguments.h"
-#include "src/compiler.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer.h"
-#include "src/parser.h"
+#include "src/debug/debug-evaluate.h"
+#include "src/debug/debug-frames.h"
+#include "src/debug/debug-scopes.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -32,18 +31,6 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   DCHECK(args.length() == 0);
   isolate->debug()->HandleDebugBreak();
   return isolate->heap()->undefined_value();
-}
-
-
-// Helper functions for wrapping and unwrapping stack frame ids.
-static Smi* WrapFrameId(StackFrame::Id id) {
-  DCHECK(IsAligned(OffsetFrom(id), static_cast<intptr_t>(4)));
-  return Smi::FromInt(id >> 2);
-}
-
-
-static StackFrame::Id UnwrapFrameId(int wrapped) {
-  return static_cast<StackFrame::Id>(wrapped << 2);
 }
 
 
@@ -475,94 +462,6 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
 }
 
 
-class FrameInspector {
- public:
-  FrameInspector(JavaScriptFrame* frame, int inlined_jsframe_index,
-                 Isolate* isolate)
-      : frame_(frame), deoptimized_frame_(NULL), isolate_(isolate) {
-    has_adapted_arguments_ = frame_->has_adapted_arguments();
-    is_bottommost_ = inlined_jsframe_index == 0;
-    is_optimized_ = frame_->is_optimized();
-    // Calculate the deoptimized frame.
-    if (frame->is_optimized()) {
-      // TODO(turbofan): Revisit once we support deoptimization.
-      if (frame->LookupCode()->is_turbofanned() &&
-          frame->function()->shared()->asm_function() &&
-          !FLAG_turbo_asm_deoptimization) {
-        is_optimized_ = false;
-        return;
-      }
-
-      deoptimized_frame_ = Deoptimizer::DebuggerInspectableFrame(
-          frame, inlined_jsframe_index, isolate);
-    }
-  }
-
-  ~FrameInspector() {
-    // Get rid of the calculated deoptimized frame if any.
-    if (deoptimized_frame_ != NULL) {
-      Deoptimizer::DeleteDebuggerInspectableFrame(deoptimized_frame_, isolate_);
-    }
-  }
-
-  int GetParametersCount() {
-    return is_optimized_ ? deoptimized_frame_->parameters_count()
-                         : frame_->ComputeParametersCount();
-  }
-  int expression_count() { return deoptimized_frame_->expression_count(); }
-  Object* GetFunction() {
-    return is_optimized_ ? deoptimized_frame_->GetFunction()
-                         : frame_->function();
-  }
-  Object* GetParameter(int index) {
-    return is_optimized_ ? deoptimized_frame_->GetParameter(index)
-                         : frame_->GetParameter(index);
-  }
-  Object* GetExpression(int index) {
-    // TODO(turbofan): Revisit once we support deoptimization.
-    if (frame_->LookupCode()->is_turbofanned() &&
-        frame_->function()->shared()->asm_function() &&
-        !FLAG_turbo_asm_deoptimization) {
-      return isolate_->heap()->undefined_value();
-    }
-    return is_optimized_ ? deoptimized_frame_->GetExpression(index)
-                         : frame_->GetExpression(index);
-  }
-  int GetSourcePosition() {
-    return is_optimized_ ? deoptimized_frame_->GetSourcePosition()
-                         : frame_->LookupCode()->SourcePosition(frame_->pc());
-  }
-  bool IsConstructor() {
-    return is_optimized_ && !is_bottommost_
-               ? deoptimized_frame_->HasConstructStub()
-               : frame_->IsConstructor();
-  }
-  Object* GetContext() {
-    return is_optimized_ ? deoptimized_frame_->GetContext() : frame_->context();
-  }
-  JavaScriptFrame* GetArgumentsFrame() { return frame_; }
-
-  // To inspect all the provided arguments the frame might need to be
-  // replaced with the arguments frame.
-  void SetArgumentsFrame(JavaScriptFrame* frame) {
-    DCHECK(has_adapted_arguments_);
-    frame_ = frame;
-    is_optimized_ = frame_->is_optimized();
-    DCHECK(!is_optimized_);
-  }
-
- private:
-  JavaScriptFrame* frame_;
-  DeoptimizedFrameInfo* deoptimized_frame_;
-  Isolate* isolate_;
-  bool is_optimized_;
-  bool is_bottommost_;
-  bool has_adapted_arguments_;
-
-  DISALLOW_COPY_AND_ASSIGN(FrameInspector);
-};
-
-
 static const int kFrameDetailsFrameIdIndex = 0;
 static const int kFrameDetailsReceiverIndex = 1;
 static const int kFrameDetailsFunctionIndex = 2;
@@ -573,34 +472,6 @@ static const int kFrameDetailsConstructCallIndex = 6;
 static const int kFrameDetailsAtReturnIndex = 7;
 static const int kFrameDetailsFlagsIndex = 8;
 static const int kFrameDetailsFirstDynamicIndex = 9;
-
-
-static SaveContext* FindSavedContextForFrame(Isolate* isolate,
-                                             JavaScriptFrame* frame) {
-  SaveContext* save = isolate->save_context();
-  while (save != NULL && !save->IsBelowFrame(frame)) {
-    save = save->prev();
-  }
-  DCHECK(save != NULL);
-  return save;
-}
-
-
-// Advances the iterator to the frame that matches the index and returns the
-// inlined frame index, or -1 if not found.  Skips native JS functions.
-int Runtime::FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index) {
-  int count = -1;
-  for (; !it->done(); it->Advance()) {
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    it->frame()->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0; i--) {
-      // Omit functions from native and extension scripts.
-      if (!frames[i].function()->IsSubjectToDebugging()) continue;
-      if (++count == index) return i;
-    }
-  }
-  return -1;
-}
 
 
 // Return an array with frame details
@@ -638,7 +509,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   JavaScriptFrameIterator it(isolate, id);
   // Inlined frame index in optimized frame, starting from outer function.
-  int inlined_jsframe_index = Runtime::FindIndexedNonNativeFrame(&it, index);
+  int inlined_jsframe_index =
+      DebugFrameHelper::FindIndexedNonNativeFrame(&it, index);
   if (inlined_jsframe_index == -1) return heap->undefined_value();
 
   FrameInspector frame_inspector(it.frame(), inlined_jsframe_index, isolate);
@@ -646,10 +518,12 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
-  SaveContext* save = FindSavedContextForFrame(isolate, it.frame());
+  SaveContext* save =
+      DebugFrameHelper::FindSavedContextForFrame(isolate, it.frame());
 
   // Get the frame id.
-  Handle<Object> frame_id(WrapFrameId(it.frame()->id()), isolate);
+  Handle<Object> frame_id(DebugFrameHelper::WrapFrameId(it.frame()->id()),
+                          isolate);
 
   // Find source position in unoptimized code.
   int position = frame_inspector.GetSourcePosition();
@@ -866,929 +740,6 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 }
 
 
-static bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
-                                              Handle<String> parameter_name) {
-  VariableMode mode;
-  VariableLocation location;
-  InitializationFlag init_flag;
-  MaybeAssignedFlag maybe_assigned_flag;
-  return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &location,
-                                     &init_flag, &maybe_assigned_flag) != -1;
-}
-
-
-static Handle<Context> MaterializeReceiver(Isolate* isolate,
-                                           Handle<Context> target,
-                                           Handle<JSFunction> function,
-                                           JavaScriptFrame* frame) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-  Handle<Object> receiver;
-  switch (scope_info->scope_type()) {
-    case FUNCTION_SCOPE: {
-      VariableMode mode;
-      VariableLocation location;
-      InitializationFlag init_flag;
-      MaybeAssignedFlag maybe_assigned_flag;
-
-      // Don't bother creating a fake context node if "this" is in the context
-      // already.
-      if (ScopeInfo::ContextSlotIndex(
-              scope_info, isolate->factory()->this_string(), &mode, &location,
-              &init_flag, &maybe_assigned_flag) >= 0) {
-        return target;
-      }
-      receiver = handle(frame->receiver(), isolate);
-      break;
-    }
-    case MODULE_SCOPE:
-      receiver = isolate->factory()->undefined_value();
-      break;
-    case SCRIPT_SCOPE:
-      receiver = handle(function->global_proxy(), isolate);
-      break;
-    default:
-      // For eval code, arrow functions, and the like, there's no "this" binding
-      // to materialize.
-      return target;
-  }
-
-  return isolate->factory()->NewCatchContext(
-      function, target, isolate->factory()->this_string(), receiver);
-}
-
-
-// Create a plain JSObject which materializes the local scope for the specified
-// frame.
-static void MaterializeStackLocalsWithFrameInspector(
-    Isolate* isolate, Handle<JSObject> target, Handle<ScopeInfo> scope_info,
-    FrameInspector* frame_inspector) {
-  // First fill all parameters.
-  for (int i = 0; i < scope_info->ParameterCount(); ++i) {
-    // Do not materialize the parameter if it is shadowed by a context local.
-    Handle<String> name(scope_info->ParameterName(i));
-    if (ParameterIsShadowedByContextLocal(scope_info, name)) continue;
-
-    DCHECK_NOT_NULL(frame_inspector);
-
-    HandleScope scope(isolate);
-    Handle<Object> value(i < frame_inspector->GetParametersCount()
-                             ? frame_inspector->GetParameter(i)
-                             : isolate->heap()->undefined_value(),
-                         isolate);
-    DCHECK(!value->IsTheHole());
-
-    JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
-  }
-
-  // Second fill all stack locals.
-  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    if (scope_info->LocalIsSynthetic(i)) continue;
-    Handle<String> name(scope_info->StackLocalName(i));
-    Handle<Object> value(
-        frame_inspector->GetExpression(scope_info->StackLocalIndex(i)),
-        isolate);
-    if (value->IsTheHole()) {
-      value = isolate->factory()->undefined_value();
-    }
-
-    JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
-  }
-}
-
-static void MaterializeStackLocalsWithFrameInspector(
-    Isolate* isolate, Handle<JSObject> target, Handle<JSFunction> function,
-    FrameInspector* frame_inspector) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-
-  MaterializeStackLocalsWithFrameInspector(isolate, target, scope_info,
-                                           frame_inspector);
-}
-
-
-static void UpdateStackLocalsFromMaterializedObject(
-    Isolate* isolate, Handle<JSObject> target, Handle<ScopeInfo> scope_info,
-    JavaScriptFrame* frame, int inlined_jsframe_index) {
-  if (inlined_jsframe_index != 0 || frame->is_optimized()) {
-    // Optimized frames are not supported. Simply give up.
-    return;
-  }
-
-  // Parameters.
-  for (int i = 0; i < scope_info->ParameterCount(); ++i) {
-    // Shadowed parameters were not materialized.
-    Handle<String> name(scope_info->ParameterName(i));
-    if (ParameterIsShadowedByContextLocal(scope_info, name)) continue;
-
-    DCHECK(!frame->GetParameter(i)->IsTheHole());
-    HandleScope scope(isolate);
-    Handle<Object> value =
-        Object::GetPropertyOrElement(target, name).ToHandleChecked();
-    frame->SetParameterValue(i, *value);
-  }
-
-  // Stack locals.
-  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    if (scope_info->LocalIsSynthetic(i)) continue;
-    int index = scope_info->StackLocalIndex(i);
-    if (frame->GetExpression(index)->IsTheHole()) continue;
-    HandleScope scope(isolate);
-    Handle<Object> value = Object::GetPropertyOrElement(
-                               target, handle(scope_info->StackLocalName(i),
-                                              isolate)).ToHandleChecked();
-    frame->SetExpression(index, *value);
-  }
-}
-
-
-MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeLocalContext(
-    Isolate* isolate, Handle<JSObject> target, Handle<JSFunction> function,
-    Handle<Context> frame_context) {
-  HandleScope scope(isolate);
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-
-  if (!scope_info->HasContext()) return target;
-
-  // Third fill all context locals.
-  Handle<Context> function_context(frame_context->declaration_context());
-  ScopeInfo::CopyContextLocalsToScopeObject(scope_info, function_context,
-                                            target);
-
-  // Finally copy any properties from the function context extension.
-  // These will be variables introduced by eval.
-  if (function_context->closure() == *function) {
-    if (function_context->has_extension() &&
-        !function_context->IsNativeContext()) {
-      Handle<JSObject> ext(JSObject::cast(function_context->extension()));
-      Handle<FixedArray> keys;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, keys, JSReceiver::GetKeys(ext, JSReceiver::INCLUDE_PROTOS),
-          JSObject);
-
-      for (int i = 0; i < keys->length(); i++) {
-        // Names of variables introduced by eval are strings.
-        DCHECK(keys->get(i)->IsString());
-        Handle<String> key(String::cast(keys->get(i)));
-        Handle<Object> value;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, value, Object::GetPropertyOrElement(ext, key), JSObject);
-        RETURN_ON_EXCEPTION(isolate, Runtime::SetObjectProperty(
-                                         isolate, target, key, value, SLOPPY),
-                            JSObject);
-      }
-    }
-  }
-
-  return target;
-}
-
-
-MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeScriptScope(
-    Handle<GlobalObject> global) {
-  Isolate* isolate = global->GetIsolate();
-  Handle<ScriptContextTable> script_contexts(
-      global->native_context()->script_context_table());
-
-  Handle<JSObject> script_scope =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  for (int context_index = 0; context_index < script_contexts->used();
-       context_index++) {
-    Handle<Context> context =
-        ScriptContextTable::GetContext(script_contexts, context_index);
-    Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
-    ScopeInfo::CopyContextLocalsToScopeObject(scope_info, context,
-                                              script_scope);
-  }
-  return script_scope;
-}
-
-
-MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeLocalScope(
-    Isolate* isolate, FrameInspector* frame_inspector) {
-  Handle<JSFunction> function(JSFunction::cast(frame_inspector->GetFunction()));
-
-  Handle<JSObject> local_scope =
-      isolate->factory()->NewJSObject(isolate->object_function());
-  MaterializeStackLocalsWithFrameInspector(isolate, local_scope, function,
-                                           frame_inspector);
-
-  Handle<Context> frame_context(Context::cast(frame_inspector->GetContext()));
-
-  return MaterializeLocalContext(isolate, local_scope, function, frame_context);
-}
-
-
-// Set the context local variable value.
-static bool SetContextLocalValue(Isolate* isolate, Handle<ScopeInfo> scope_info,
-                                 Handle<Context> context,
-                                 Handle<String> variable_name,
-                                 Handle<Object> new_value) {
-  for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
-    Handle<String> next_name(scope_info->ContextLocalName(i));
-    if (String::Equals(variable_name, next_name)) {
-      VariableMode mode;
-      VariableLocation location;
-      InitializationFlag init_flag;
-      MaybeAssignedFlag maybe_assigned_flag;
-      int context_index =
-          ScopeInfo::ContextSlotIndex(scope_info, next_name, &mode, &location,
-                                      &init_flag, &maybe_assigned_flag);
-      context->set(context_index, *new_value);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-static bool SetLocalVariableValue(Isolate* isolate, JavaScriptFrame* frame,
-                                  Handle<String> variable_name,
-                                  Handle<Object> new_value) {
-  // Optimized frames are not supported.
-  if (frame->is_optimized()) return false;
-
-  Handle<JSFunction> function(frame->function());
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-
-  bool default_result = false;
-
-  // Parameters.
-  for (int i = 0; i < scope_info->ParameterCount(); ++i) {
-    HandleScope scope(isolate);
-    if (String::Equals(handle(scope_info->ParameterName(i)), variable_name)) {
-      frame->SetParameterValue(i, *new_value);
-      // Argument might be shadowed in heap context, don't stop here.
-      default_result = true;
-    }
-  }
-
-  // Stack locals.
-  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    HandleScope scope(isolate);
-    if (String::Equals(handle(scope_info->StackLocalName(i)), variable_name)) {
-      frame->SetExpression(scope_info->StackLocalIndex(i), *new_value);
-      return true;
-    }
-  }
-
-  if (scope_info->HasContext()) {
-    // Context locals.
-    Handle<Context> frame_context(Context::cast(frame->context()));
-    Handle<Context> function_context(frame_context->declaration_context());
-    if (SetContextLocalValue(isolate, scope_info, function_context,
-                             variable_name, new_value)) {
-      return true;
-    }
-
-    // Function context extension. These are variables introduced by eval.
-    if (function_context->closure() == *function) {
-      if (function_context->has_extension() &&
-          !function_context->IsNativeContext()) {
-        Handle<JSObject> ext(JSObject::cast(function_context->extension()));
-
-        Maybe<bool> maybe = JSReceiver::HasProperty(ext, variable_name);
-        DCHECK(maybe.IsJust());
-        if (maybe.FromJust()) {
-          // We don't expect this to do anything except replacing
-          // property value.
-          Runtime::SetObjectProperty(isolate, ext, variable_name, new_value,
-                                     SLOPPY).Assert();
-          return true;
-        }
-      }
-    }
-  }
-
-  return default_result;
-}
-
-
-static bool SetBlockVariableValue(Isolate* isolate,
-                                  Handle<Context> block_context,
-                                  Handle<ScopeInfo> scope_info,
-                                  JavaScriptFrame* frame,
-                                  Handle<String> variable_name,
-                                  Handle<Object> new_value) {
-  if (frame != nullptr) {
-    for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-      HandleScope scope(isolate);
-      if (String::Equals(handle(scope_info->StackLocalName(i)),
-                         variable_name)) {
-        frame->SetExpression(scope_info->StackLocalIndex(i), *new_value);
-        return true;
-      }
-    }
-  }
-  if (!block_context.is_null()) {
-    return SetContextLocalValue(block_context->GetIsolate(), scope_info,
-                                block_context, variable_name, new_value);
-  }
-  return false;
-}
-
-
-// Create a plain JSObject which materializes the closure content for the
-// context.
-static Handle<JSObject> MaterializeClosure(Isolate* isolate,
-                                           Handle<Context> context) {
-  DCHECK(context->IsFunctionContext());
-
-  Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-
-  // Allocate and initialize a JSObject with all the content of this function
-  // closure.
-  Handle<JSObject> closure_scope =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  // Fill all context locals to the context extension.
-  ScopeInfo::CopyContextLocalsToScopeObject(scope_info, context, closure_scope);
-
-  // Finally copy any properties from the function context extension. This will
-  // be variables introduced by eval.
-  if (context->has_extension()) {
-    Handle<JSObject> ext(JSObject::cast(context->extension()));
-    DCHECK(ext->IsJSContextExtensionObject());
-    Handle<FixedArray> keys =
-        JSReceiver::GetKeys(ext, JSReceiver::OWN_ONLY).ToHandleChecked();
-
-    for (int i = 0; i < keys->length(); i++) {
-      HandleScope scope(isolate);
-      // Names of variables introduced by eval are strings.
-      DCHECK(keys->get(i)->IsString());
-      Handle<String> key(String::cast(keys->get(i)));
-      Handle<Object> value = Object::GetProperty(ext, key).ToHandleChecked();
-      JSObject::SetOwnPropertyIgnoreAttributes(closure_scope, key, value, NONE)
-          .Check();
-    }
-  }
-
-  return closure_scope;
-}
-
-
-// This method copies structure of MaterializeClosure method above.
-static bool SetClosureVariableValue(Isolate* isolate, Handle<Context> context,
-                                    Handle<String> variable_name,
-                                    Handle<Object> new_value) {
-  DCHECK(context->IsFunctionContext());
-
-  Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-
-  // Context locals to the context extension.
-  if (SetContextLocalValue(isolate, scope_info, context, variable_name,
-                           new_value)) {
-    return true;
-  }
-
-  // Properties from the function context extension. This will
-  // be variables introduced by eval.
-  if (context->has_extension()) {
-    Handle<JSObject> ext(JSObject::cast(context->extension()));
-    DCHECK(ext->IsJSContextExtensionObject());
-    Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
-    DCHECK(maybe.IsJust());
-    if (maybe.FromJust()) {
-      // We don't expect this to do anything except replacing property value.
-      JSObject::SetOwnPropertyIgnoreAttributes(ext, variable_name, new_value,
-                                               NONE).Check();
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-static bool SetScriptVariableValue(Handle<Context> context,
-                                   Handle<String> variable_name,
-                                   Handle<Object> new_value) {
-  Handle<ScriptContextTable> script_contexts(
-      context->global_object()->native_context()->script_context_table());
-  ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(script_contexts, variable_name,
-                                 &lookup_result)) {
-    Handle<Context> script_context = ScriptContextTable::GetContext(
-        script_contexts, lookup_result.context_index);
-    script_context->set(lookup_result.slot_index, *new_value);
-    return true;
-  }
-
-  return false;
-}
-
-
-// Create a plain JSObject which materializes the scope for the specified
-// catch context.
-static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
-                                              Handle<Context> context) {
-  DCHECK(context->IsCatchContext());
-  Handle<String> name(String::cast(context->extension()));
-  Handle<Object> thrown_object(context->get(Context::THROWN_OBJECT_INDEX),
-                               isolate);
-  Handle<JSObject> catch_scope =
-      isolate->factory()->NewJSObject(isolate->object_function());
-  JSObject::SetOwnPropertyIgnoreAttributes(catch_scope, name, thrown_object,
-                                           NONE).Check();
-  return catch_scope;
-}
-
-
-static bool SetCatchVariableValue(Isolate* isolate, Handle<Context> context,
-                                  Handle<String> variable_name,
-                                  Handle<Object> new_value) {
-  DCHECK(context->IsCatchContext());
-  Handle<String> name(String::cast(context->extension()));
-  if (!String::Equals(name, variable_name)) {
-    return false;
-  }
-  context->set(Context::THROWN_OBJECT_INDEX, *new_value);
-  return true;
-}
-
-
-// Create a plain JSObject which materializes the block scope for the specified
-// block context.
-static Handle<JSObject> MaterializeBlockScope(Isolate* isolate,
-                                              Handle<ScopeInfo> scope_info,
-                                              Handle<Context> context,
-                                              FrameInspector* frame_inspector) {
-  Handle<JSObject> block_scope =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  if (frame_inspector != nullptr) {
-    MaterializeStackLocalsWithFrameInspector(isolate, block_scope, scope_info,
-                                             frame_inspector);
-  }
-
-  if (!context.is_null()) {
-    Handle<ScopeInfo> scope_info_from_context(
-        ScopeInfo::cast(context->extension()));
-    // Fill all context locals.
-    ScopeInfo::CopyContextLocalsToScopeObject(scope_info_from_context, context,
-                                              block_scope);
-  }
-
-  return block_scope;
-}
-
-
-// Create a plain JSObject which materializes the module scope for the specified
-// module context.
-MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeModuleScope(
-    Isolate* isolate, Handle<Context> context) {
-  DCHECK(context->IsModuleContext());
-  Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
-
-  // Allocate and initialize a JSObject with all the members of the debugged
-  // module.
-  Handle<JSObject> module_scope =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  // Fill all context locals.
-  ScopeInfo::CopyContextLocalsToScopeObject(scope_info, context, module_scope);
-
-  return module_scope;
-}
-
-
-// Iterate over the actual scopes visible from a stack frame or from a closure.
-// The iteration proceeds from the innermost visible nested scope outwards.
-// All scopes are backed by an actual context except the local scope,
-// which is inserted "artificially" in the context chain.
-class ScopeIterator {
- public:
-  enum ScopeType {
-    ScopeTypeGlobal = 0,
-    ScopeTypeLocal,
-    ScopeTypeWith,
-    ScopeTypeClosure,
-    ScopeTypeCatch,
-    ScopeTypeBlock,
-    ScopeTypeScript,
-    ScopeTypeModule
-  };
-
-  ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
-                bool ignore_nested_scopes = false)
-      : isolate_(isolate),
-        frame_inspector_(frame_inspector),
-        nested_scope_chain_(4),
-        seen_script_scope_(false),
-        failed_(false) {
-    if (!frame_inspector->GetContext()->IsContext() ||
-        !frame_inspector->GetFunction()->IsJSFunction()) {
-      // Optimized frame, context or function cannot be materialized. Give up.
-      return;
-    }
-
-    context_ = Handle<Context>(Context::cast(frame_inspector->GetContext()));
-
-    // Catch the case when the debugger stops in an internal function.
-    Handle<SharedFunctionInfo> shared_info(function()->shared());
-    Handle<ScopeInfo> scope_info(shared_info->scope_info());
-    if (shared_info->script() == isolate->heap()->undefined_value()) {
-      while (context_->closure() == function()) {
-        context_ = Handle<Context>(context_->previous(), isolate_);
-      }
-      return;
-    }
-
-    // Currently it takes too much time to find nested scopes due to script
-    // parsing. Sometimes we want to run the ScopeIterator as fast as possible
-    // (for example, while collecting async call stacks on every
-    // addEventListener call), even if we drop some nested scopes.
-    // Later we may optimize getting the nested scopes (cache the result?)
-    // and include nested scopes into the "fast" iteration case as well.
-
-    if (!ignore_nested_scopes && shared_info->HasDebugInfo()) {
-      // The source position at return is always the end of the function,
-      // which is not consistent with the current scope chain. Therefore all
-      // nested with, catch and block contexts are skipped, and we can only
-      // inspect the function scope.
-      // This can only happen if we set a break point inside right before the
-      // return, which requires a debug info to be available.
-      Handle<DebugInfo> debug_info(shared_info->GetDebugInfo());
-
-      // PC points to the instruction after the current one, possibly a break
-      // location as well. So the "- 1" to exclude it from the search.
-      Address call_pc = frame()->pc() - 1;
-
-      // Find the break point where execution has stopped.
-      BreakLocation location =
-          BreakLocation::FromAddress(debug_info, ALL_BREAK_LOCATIONS, call_pc);
-
-      ignore_nested_scopes = location.IsReturn();
-    }
-
-    if (ignore_nested_scopes) {
-      if (scope_info->HasContext()) {
-        context_ = Handle<Context>(context_->declaration_context(), isolate_);
-      } else {
-        while (context_->closure() == function()) {
-          context_ = Handle<Context>(context_->previous(), isolate_);
-        }
-      }
-      if (scope_info->scope_type() == FUNCTION_SCOPE ||
-          scope_info->scope_type() == ARROW_SCOPE) {
-        nested_scope_chain_.Add(scope_info);
-      }
-    } else {
-      // Reparse the code and analyze the scopes.
-      Handle<Script> script(Script::cast(shared_info->script()));
-      Scope* scope = NULL;
-
-      // Check whether we are in global, eval or function code.
-      Handle<ScopeInfo> scope_info(shared_info->scope_info());
-      Zone zone;
-      if (scope_info->scope_type() != FUNCTION_SCOPE &&
-          scope_info->scope_type() != ARROW_SCOPE) {
-        // Global or eval code.
-        ParseInfo info(&zone, script);
-        if (scope_info->scope_type() == SCRIPT_SCOPE) {
-          info.set_global();
-        } else {
-          DCHECK(scope_info->scope_type() == EVAL_SCOPE);
-          info.set_eval();
-          info.set_context(Handle<Context>(function()->context()));
-        }
-        if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
-          scope = info.function()->scope();
-        }
-        RetrieveScopeChain(scope, shared_info);
-      } else {
-        // Function code
-        ParseInfo info(&zone, Handle<JSFunction>(function()));
-        if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
-          scope = info.function()->scope();
-        }
-        RetrieveScopeChain(scope, shared_info);
-      }
-    }
-  }
-
-  ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
-      : isolate_(isolate),
-        frame_inspector_(NULL),
-        context_(function->context()),
-        seen_script_scope_(false),
-        failed_(false) {
-    if (function->IsBuiltin()) context_ = Handle<Context>();
-  }
-
-  // More scopes?
-  bool Done() {
-    DCHECK(!failed_);
-    return context_.is_null();
-  }
-
-  bool Failed() { return failed_; }
-
-  // Move to the next scope.
-  void Next() {
-    DCHECK(!failed_);
-    ScopeType scope_type = Type();
-    if (scope_type == ScopeTypeGlobal) {
-      // The global scope is always the last in the chain.
-      DCHECK(context_->IsNativeContext());
-      context_ = Handle<Context>();
-      return;
-    }
-    if (scope_type == ScopeTypeScript) {
-      seen_script_scope_ = true;
-      if (context_->IsScriptContext()) {
-        context_ = Handle<Context>(context_->previous(), isolate_);
-      }
-      if (!nested_scope_chain_.is_empty()) {
-        DCHECK_EQ(nested_scope_chain_.last()->scope_type(), SCRIPT_SCOPE);
-        nested_scope_chain_.RemoveLast();
-        DCHECK(nested_scope_chain_.is_empty());
-      }
-      CHECK(context_->IsNativeContext());
-      return;
-    }
-    if (nested_scope_chain_.is_empty()) {
-      context_ = Handle<Context>(context_->previous(), isolate_);
-    } else {
-      if (nested_scope_chain_.last()->HasContext()) {
-        DCHECK(context_->previous() != NULL);
-        context_ = Handle<Context>(context_->previous(), isolate_);
-      }
-      nested_scope_chain_.RemoveLast();
-    }
-  }
-
-  // Return the type of the current scope.
-  ScopeType Type() {
-    DCHECK(!failed_);
-    if (!nested_scope_chain_.is_empty()) {
-      Handle<ScopeInfo> scope_info = nested_scope_chain_.last();
-      switch (scope_info->scope_type()) {
-        case FUNCTION_SCOPE:
-        case ARROW_SCOPE:
-          DCHECK(context_->IsFunctionContext() || !scope_info->HasContext());
-          return ScopeTypeLocal;
-        case MODULE_SCOPE:
-          DCHECK(context_->IsModuleContext());
-          return ScopeTypeModule;
-        case SCRIPT_SCOPE:
-          DCHECK(context_->IsScriptContext() || context_->IsNativeContext());
-          return ScopeTypeScript;
-        case WITH_SCOPE:
-          DCHECK(context_->IsWithContext());
-          return ScopeTypeWith;
-        case CATCH_SCOPE:
-          DCHECK(context_->IsCatchContext());
-          return ScopeTypeCatch;
-        case BLOCK_SCOPE:
-          DCHECK(!scope_info->HasContext() || context_->IsBlockContext());
-          return ScopeTypeBlock;
-        case EVAL_SCOPE:
-          UNREACHABLE();
-      }
-    }
-    if (context_->IsNativeContext()) {
-      DCHECK(context_->global_object()->IsGlobalObject());
-      // If we are at the native context and have not yet seen script scope,
-      // fake it.
-      return seen_script_scope_ ? ScopeTypeGlobal : ScopeTypeScript;
-    }
-    if (context_->IsFunctionContext()) {
-      return ScopeTypeClosure;
-    }
-    if (context_->IsCatchContext()) {
-      return ScopeTypeCatch;
-    }
-    if (context_->IsBlockContext()) {
-      return ScopeTypeBlock;
-    }
-    if (context_->IsModuleContext()) {
-      return ScopeTypeModule;
-    }
-    if (context_->IsScriptContext()) {
-      return ScopeTypeScript;
-    }
-    DCHECK(context_->IsWithContext());
-    return ScopeTypeWith;
-  }
-
-  // Return the JavaScript object with the content of the current scope.
-  MaybeHandle<JSObject> ScopeObject() {
-    DCHECK(!failed_);
-    switch (Type()) {
-      case ScopeIterator::ScopeTypeGlobal:
-        return Handle<JSObject>(CurrentContext()->global_object());
-      case ScopeIterator::ScopeTypeScript:
-        return MaterializeScriptScope(
-            Handle<GlobalObject>(CurrentContext()->global_object()));
-      case ScopeIterator::ScopeTypeLocal:
-        // Materialize the content of the local scope into a JSObject.
-        DCHECK(nested_scope_chain_.length() == 1);
-        return MaterializeLocalScope(isolate_, frame_inspector_);
-      case ScopeIterator::ScopeTypeWith:
-        // Return the with object.
-        return Handle<JSObject>(JSObject::cast(CurrentContext()->extension()));
-      case ScopeIterator::ScopeTypeCatch:
-        return MaterializeCatchScope(isolate_, CurrentContext());
-      case ScopeIterator::ScopeTypeClosure:
-        // Materialize the content of the closure scope into a JSObject.
-        return MaterializeClosure(isolate_, CurrentContext());
-      case ScopeIterator::ScopeTypeBlock: {
-        if (!nested_scope_chain_.is_empty()) {
-          // this is a block scope on the stack.
-          Handle<ScopeInfo> scope_info = nested_scope_chain_.last();
-          Handle<Context> context = scope_info->HasContext()
-                                        ? CurrentContext()
-                                        : Handle<Context>::null();
-          return MaterializeBlockScope(isolate_, scope_info, context,
-                                       frame_inspector_);
-        } else {
-          return MaterializeBlockScope(isolate_, Handle<ScopeInfo>::null(),
-                                       CurrentContext(), nullptr);
-        }
-      }
-      case ScopeIterator::ScopeTypeModule:
-        return MaterializeModuleScope(isolate_, CurrentContext());
-    }
-    UNREACHABLE();
-    return Handle<JSObject>();
-  }
-
-  bool HasContext() {
-    ScopeType type = Type();
-    if (type == ScopeTypeBlock || type == ScopeTypeLocal) {
-      if (!nested_scope_chain_.is_empty()) {
-        return nested_scope_chain_.last()->HasContext();
-      }
-    }
-    return true;
-  }
-
-  bool SetVariableValue(Handle<String> variable_name,
-                        Handle<Object> new_value) {
-    DCHECK(!failed_);
-    switch (Type()) {
-      case ScopeIterator::ScopeTypeGlobal:
-        break;
-      case ScopeIterator::ScopeTypeLocal:
-        return SetLocalVariableValue(isolate_, frame(), variable_name,
-                                     new_value);
-      case ScopeIterator::ScopeTypeWith:
-        break;
-      case ScopeIterator::ScopeTypeCatch:
-        return SetCatchVariableValue(isolate_, CurrentContext(), variable_name,
-                                     new_value);
-      case ScopeIterator::ScopeTypeClosure:
-        return SetClosureVariableValue(isolate_, CurrentContext(),
-                                       variable_name, new_value);
-      case ScopeIterator::ScopeTypeScript:
-        return SetScriptVariableValue(CurrentContext(), variable_name,
-                                      new_value);
-      case ScopeIterator::ScopeTypeBlock:
-        return SetBlockVariableValue(
-            isolate_, HasContext() ? CurrentContext() : Handle<Context>::null(),
-            CurrentScopeInfo(), frame(), variable_name, new_value);
-      case ScopeIterator::ScopeTypeModule:
-        // TODO(2399): should we implement it?
-        break;
-    }
-    return false;
-  }
-
-  Handle<ScopeInfo> CurrentScopeInfo() {
-    DCHECK(!failed_);
-    if (!nested_scope_chain_.is_empty()) {
-      return nested_scope_chain_.last();
-    } else if (context_->IsBlockContext()) {
-      return Handle<ScopeInfo>(ScopeInfo::cast(context_->extension()));
-    } else if (context_->IsFunctionContext()) {
-      return Handle<ScopeInfo>(context_->closure()->shared()->scope_info());
-    }
-    return Handle<ScopeInfo>::null();
-  }
-
-  // Return the context for this scope. For the local context there might not
-  // be an actual context.
-  Handle<Context> CurrentContext() {
-    DCHECK(!failed_);
-    if (Type() == ScopeTypeGlobal || Type() == ScopeTypeScript ||
-        nested_scope_chain_.is_empty()) {
-      return context_;
-    } else if (nested_scope_chain_.last()->HasContext()) {
-      return context_;
-    } else {
-      return Handle<Context>();
-    }
-  }
-
-#ifdef DEBUG
-  // Debug print of the content of the current scope.
-  void DebugPrint() {
-    OFStream os(stdout);
-    DCHECK(!failed_);
-    switch (Type()) {
-      case ScopeIterator::ScopeTypeGlobal:
-        os << "Global:\n";
-        CurrentContext()->Print(os);
-        break;
-
-      case ScopeIterator::ScopeTypeLocal: {
-        os << "Local:\n";
-        function()->shared()->scope_info()->Print();
-        if (!CurrentContext().is_null()) {
-          CurrentContext()->Print(os);
-          if (CurrentContext()->has_extension()) {
-            Handle<Object> extension(CurrentContext()->extension(), isolate_);
-            if (extension->IsJSContextExtensionObject()) {
-              extension->Print(os);
-            }
-          }
-        }
-        break;
-      }
-
-      case ScopeIterator::ScopeTypeWith:
-        os << "With:\n";
-        CurrentContext()->extension()->Print(os);
-        break;
-
-      case ScopeIterator::ScopeTypeCatch:
-        os << "Catch:\n";
-        CurrentContext()->extension()->Print(os);
-        CurrentContext()->get(Context::THROWN_OBJECT_INDEX)->Print(os);
-        break;
-
-      case ScopeIterator::ScopeTypeClosure:
-        os << "Closure:\n";
-        CurrentContext()->Print(os);
-        if (CurrentContext()->has_extension()) {
-          Handle<Object> extension(CurrentContext()->extension(), isolate_);
-          if (extension->IsJSContextExtensionObject()) {
-            extension->Print(os);
-          }
-        }
-        break;
-
-      case ScopeIterator::ScopeTypeScript:
-        os << "Script:\n";
-        CurrentContext()
-            ->global_object()
-            ->native_context()
-            ->script_context_table()
-            ->Print(os);
-        break;
-
-      default:
-        UNREACHABLE();
-    }
-    PrintF("\n");
-  }
-#endif
-
- private:
-  Isolate* isolate_;
-  FrameInspector* const frame_inspector_;
-  Handle<Context> context_;
-  List<Handle<ScopeInfo> > nested_scope_chain_;
-  bool seen_script_scope_;
-  bool failed_;
-
-  inline JavaScriptFrame* frame() {
-    return frame_inspector_->GetArgumentsFrame();
-  }
-
-  inline JSFunction* function() {
-    return JSFunction::cast(frame_inspector_->GetFunction());
-  }
-
-  void RetrieveScopeChain(Scope* scope,
-                          Handle<SharedFunctionInfo> shared_info) {
-    if (scope != NULL) {
-      int source_position = frame_inspector_->GetSourcePosition();
-      scope->GetNestedScopeChain(isolate_, &nested_scope_chain_,
-                                 source_position);
-    } else {
-      // A failed reparse indicates that the preparser has diverged from the
-      // parser or that the preparse data given to the initial parse has been
-      // faulty. We fail in debug mode but in release mode we only provide the
-      // information we get from the context chain but nothing about
-      // completely stack allocated scopes or stack allocated locals.
-      // Or it could be due to stack overflow.
-      DCHECK(isolate_->has_pending_exception());
-      failed_ = true;
-    }
-  }
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);
-};
-
-
 RUNTIME_FUNCTION(Runtime_GetScopeCount) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -1798,7 +749,7 @@ RUNTIME_FUNCTION(Runtime_GetScopeCount) {
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
 
   // Get the frame where the debugging is performed.
-  StackFrame::Id id = UnwrapFrameId(wrapped_id);
+  StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator it(isolate, id);
   JavaScriptFrame* frame = it.frame();
   FrameInspector frame_inspector(frame, 0, isolate);
@@ -1825,7 +776,7 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
 
   // Get the frame where the debugging is performed.
-  StackFrame::Id id = UnwrapFrameId(wrapped_id);
+  StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator frame_it(isolate, id);
   RUNTIME_ASSERT(!frame_it.done());
 
@@ -1837,28 +788,6 @@ RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
     array->set(i, Smi::FromInt(positions[i]));
   }
   return *factory->NewJSArrayWithElements(array, FAST_SMI_ELEMENTS);
-}
-
-
-static const int kScopeDetailsTypeIndex = 0;
-static const int kScopeDetailsObjectIndex = 1;
-static const int kScopeDetailsSize = 2;
-
-
-MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeScopeDetails(
-    Isolate* isolate, ScopeIterator* it) {
-  // Calculate the size of the result.
-  int details_size = kScopeDetailsSize;
-  Handle<FixedArray> details = isolate->factory()->NewFixedArray(details_size);
-
-  // Fill in scope details.
-  details->set(kScopeDetailsTypeIndex, Smi::FromInt(it->Type()));
-  Handle<JSObject> scope_object;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, scope_object, it->ScopeObject(),
-                             JSObject);
-  details->set(kScopeDetailsObjectIndex, *scope_object);
-
-  return isolate->factory()->NewJSArrayWithElements(details);
 }
 
 
@@ -1882,7 +811,7 @@ RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[3]);
 
   // Get the frame where the debugging is performed.
-  StackFrame::Id id = UnwrapFrameId(wrapped_id);
+  StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator frame_it(isolate, id);
   JavaScriptFrame* frame = frame_it.frame();
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
@@ -1898,7 +827,7 @@ RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
   }
   Handle<JSObject> details;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
-                                     MaterializeScopeDetails(isolate, &it));
+                                     it.MaterializeScopeDetails());
   return *details;
 }
 
@@ -1928,7 +857,7 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   }
 
   // Get the frame where the debugging is performed.
-  StackFrame::Id id = UnwrapFrameId(wrapped_id);
+  StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
   JavaScriptFrameIterator frame_it(isolate, id);
   JavaScriptFrame* frame = frame_it.frame();
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
@@ -1938,7 +867,7 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   for (; !it.Done(); it.Next()) {
     Handle<JSObject> details;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
-                                       MaterializeScopeDetails(isolate, &it));
+                                       it.MaterializeScopeDetails());
     result.Add(details);
   }
 
@@ -1987,7 +916,7 @@ RUNTIME_FUNCTION(Runtime_GetFunctionScopeDetails) {
 
   Handle<JSObject> details;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
-                                     MaterializeScopeDetails(isolate, &it));
+                                     it.MaterializeScopeDetails());
   return *details;
 }
 
@@ -2032,7 +961,7 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
     CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
 
     // Get the frame where the debugging is performed.
-    StackFrame::Id id = UnwrapFrameId(wrapped_id);
+    StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
     JavaScriptFrameIterator frame_it(isolate, id);
     JavaScriptFrame* frame = frame_it.frame();
     FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
@@ -2305,7 +1234,7 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
   if (wrapped_frame_id == 0) {
     frame_id = StackFrame::NO_ID;
   } else {
-    frame_id = UnwrapFrameId(wrapped_frame_id);
+    frame_id = DebugFrameHelper::UnwrapFrameId(wrapped_frame_id);
   }
 
   // Get the step action and check validity.
@@ -2347,254 +1276,6 @@ RUNTIME_FUNCTION(Runtime_ClearStepping) {
 }
 
 
-// Helper function to find or create the arguments object for
-// Runtime_DebugEvaluate.
-static void MaterializeArgumentsObject(Isolate* isolate,
-                                       Handle<JSObject> target,
-                                       Handle<JSFunction> function) {
-  // Do not materialize the arguments object for eval or top-level code.
-  // Skip if "arguments" is already taken.
-  if (!function->shared()->is_function()) return;
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(
-      target, isolate->factory()->arguments_string());
-  DCHECK(maybe.IsJust());
-  if (maybe.FromJust()) return;
-
-  // FunctionGetArguments can't throw an exception.
-  Handle<JSObject> arguments =
-      Handle<JSObject>::cast(Accessors::FunctionGetArguments(function));
-  Handle<String> arguments_str = isolate->factory()->arguments_string();
-  JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
-                                           NONE).Check();
-}
-
-
-// Compile and evaluate source for the given context.
-static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
-                                         Handle<SharedFunctionInfo> outer_info,
-                                         Handle<Context> context,
-                                         Handle<Object> context_extension,
-                                         Handle<Object> receiver,
-                                         Handle<String> source) {
-  if (context_extension->IsJSObject()) {
-    Handle<JSObject> extension = Handle<JSObject>::cast(context_extension);
-    Handle<JSFunction> closure(context->closure(), isolate);
-    context = isolate->factory()->NewWithContext(closure, context, extension);
-  }
-
-  Handle<JSFunction> eval_fun;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, eval_fun,
-                             Compiler::GetFunctionFromEval(
-                                 source, outer_info, context, SLOPPY,
-                                 NO_PARSE_RESTRICTION, RelocInfo::kNoPosition),
-                             Object);
-
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result, Execution::Call(isolate, eval_fun, receiver, 0, NULL),
-      Object);
-
-  // Skip the global proxy as it has no properties and always delegates to the
-  // real global object.
-  if (result->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, result);
-    // TODO(verwaest): This will crash when the global proxy is detached.
-    result = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-  }
-
-  return result;
-}
-
-
-static Handle<JSObject> NewJSObjectWithNullProto(Isolate* isolate) {
-  Handle<JSObject> result =
-      isolate->factory()->NewJSObject(isolate->object_function());
-  Handle<Map> new_map =
-      Map::Copy(Handle<Map>(result->map()), "ObjectWithNullProto");
-  Map::SetPrototype(new_map, isolate->factory()->null_value());
-  JSObject::MigrateToMap(result, new_map);
-  return result;
-}
-
-
-namespace {
-
-// This class builds a context chain for evaluation of expressions
-// in debugger.
-// The scope chain leading up to a breakpoint where evaluation occurs
-// looks like:
-// - [a mix of with, catch and block scopes]
-//    - [function stack + context]
-//      - [outer context]
-// The builder materializes all stack variables into properties of objects;
-// the expression is then evaluated as if it is inside a series of 'with'
-// statements using those objects. To this end, the builder builds a new
-// context chain, based on a scope chain:
-//   - every With and Catch scope begets a cloned context
-//   - Block scope begets one or two contexts:
-//       - if a block has context-allocated varaibles, its context is cloned
-//       - stack locals are materizalized as a With context
-//   - Local scope begets a With context for materizalized locals, chained to
-//     original function context. Original function context is the end of
-//     the chain.
-class EvaluationContextBuilder {
- public:
-  EvaluationContextBuilder(Isolate* isolate, JavaScriptFrame* frame,
-                           int inlined_jsframe_index)
-      : isolate_(isolate),
-        frame_(frame),
-        inlined_jsframe_index_(inlined_jsframe_index) {
-    FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
-    Handle<JSFunction> function =
-        handle(JSFunction::cast(frame_inspector.GetFunction()));
-    Handle<Context> outer_context = handle(function->context(), isolate);
-    outer_info_ = handle(function->shared());
-    Handle<Context> inner_context;
-
-    bool stop = false;
-    for (ScopeIterator it(isolate, &frame_inspector);
-         !it.Failed() && !it.Done() && !stop; it.Next()) {
-      ScopeIterator::ScopeType scope_type = it.Type();
-
-      if (scope_type == ScopeIterator::ScopeTypeLocal) {
-        Handle<Context> parent_context =
-            it.HasContext() ? it.CurrentContext() : outer_context;
-
-        // The "this" binding, if any, can't be bound via "with".  If we need
-        // to, add another node onto the outer context to bind "this".
-        parent_context =
-            MaterializeReceiver(isolate, parent_context, function, frame);
-
-        Handle<JSObject> materialized_function =
-            NewJSObjectWithNullProto(isolate);
-
-        MaterializeStackLocalsWithFrameInspector(isolate, materialized_function,
-                                                 function, &frame_inspector);
-
-        MaterializeArgumentsObject(isolate, materialized_function, function);
-
-        Handle<Context> with_context = isolate->factory()->NewWithContext(
-            function, parent_context, materialized_function);
-
-        ContextChainElement context_chain_element;
-        context_chain_element.original_context = it.CurrentContext();
-        context_chain_element.materialized_object = materialized_function;
-        context_chain_element.scope_info = it.CurrentScopeInfo();
-        context_chain_.Add(context_chain_element);
-
-        stop = true;
-        RecordContextsInChain(&inner_context, with_context, with_context);
-      } else if (scope_type == ScopeIterator::ScopeTypeCatch ||
-                 scope_type == ScopeIterator::ScopeTypeWith) {
-        Handle<Context> cloned_context =
-            Handle<Context>::cast(FixedArray::CopySize(
-                it.CurrentContext(), it.CurrentContext()->length()));
-
-        ContextChainElement context_chain_element;
-        context_chain_element.original_context = it.CurrentContext();
-        context_chain_element.cloned_context = cloned_context;
-        context_chain_.Add(context_chain_element);
-
-        RecordContextsInChain(&inner_context, cloned_context, cloned_context);
-      } else if (scope_type == ScopeIterator::ScopeTypeBlock) {
-        Handle<JSObject> materialized_object =
-            NewJSObjectWithNullProto(isolate);
-        MaterializeStackLocalsWithFrameInspector(isolate, materialized_object,
-                                                 it.CurrentScopeInfo(),
-                                                 &frame_inspector);
-        if (it.HasContext()) {
-          Handle<Context> cloned_context =
-              Handle<Context>::cast(FixedArray::CopySize(
-                  it.CurrentContext(), it.CurrentContext()->length()));
-          Handle<Context> with_context = isolate->factory()->NewWithContext(
-              function, cloned_context, materialized_object);
-
-          ContextChainElement context_chain_element;
-          context_chain_element.original_context = it.CurrentContext();
-          context_chain_element.cloned_context = cloned_context;
-          context_chain_element.materialized_object = materialized_object;
-          context_chain_element.scope_info = it.CurrentScopeInfo();
-          context_chain_.Add(context_chain_element);
-
-          RecordContextsInChain(&inner_context, cloned_context, with_context);
-        } else {
-          Handle<Context> with_context = isolate->factory()->NewWithContext(
-              function, outer_context, materialized_object);
-
-          ContextChainElement context_chain_element;
-          context_chain_element.materialized_object = materialized_object;
-          context_chain_element.scope_info = it.CurrentScopeInfo();
-          context_chain_.Add(context_chain_element);
-
-          RecordContextsInChain(&inner_context, with_context, with_context);
-        }
-      } else {
-        stop = true;
-      }
-    }
-    if (innermost_context_.is_null()) {
-      innermost_context_ = outer_context;
-    }
-    DCHECK(!innermost_context_.is_null());
-  }
-
-  void UpdateVariables() {
-    for (int i = 0; i < context_chain_.length(); i++) {
-      ContextChainElement element = context_chain_[i];
-      if (!element.original_context.is_null() &&
-          !element.cloned_context.is_null()) {
-        Handle<Context> cloned_context = element.cloned_context;
-        cloned_context->CopyTo(
-            Context::MIN_CONTEXT_SLOTS, *element.original_context,
-            Context::MIN_CONTEXT_SLOTS,
-            cloned_context->length() - Context::MIN_CONTEXT_SLOTS);
-      }
-      if (!element.materialized_object.is_null()) {
-        // Write back potential changes to materialized stack locals to the
-        // stack.
-        UpdateStackLocalsFromMaterializedObject(
-            isolate_, element.materialized_object, element.scope_info, frame_,
-            inlined_jsframe_index_);
-      }
-    }
-  }
-
-  Handle<Context> innermost_context() const { return innermost_context_; }
-  Handle<SharedFunctionInfo> outer_info() const { return outer_info_; }
-
- private:
-  struct ContextChainElement {
-    Handle<Context> original_context;
-    Handle<Context> cloned_context;
-    Handle<JSObject> materialized_object;
-    Handle<ScopeInfo> scope_info;
-  };
-
-  void RecordContextsInChain(Handle<Context>* inner_context,
-                             Handle<Context> first, Handle<Context> last) {
-    if (!inner_context->is_null()) {
-      (*inner_context)->set_previous(*last);
-    } else {
-      innermost_context_ = last;
-    }
-    *inner_context = first;
-  }
-
-  Handle<SharedFunctionInfo> outer_info_;
-  Handle<Context> innermost_context_;
-  List<ContextChainElement> context_chain_;
-  Isolate* isolate_;
-  JavaScriptFrame* frame_;
-  int inlined_jsframe_index_;
-};
-}
-
-
-// Evaluate a piece of JavaScript in the context of a stack frame for
-// debugging.  Things that need special attention are:
-// - Parameters and stack-allocated locals need to be materialized.  Altered
-//   values need to be written back to the stack afterwards.
-// - The arguments object needs to materialized.
 RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   HandleScope scope(isolate);
 
@@ -2610,47 +1291,14 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 4);
   CONVERT_ARG_HANDLE_CHECKED(Object, context_extension, 5);
 
-  // Handle the processing of break.
-  DisableBreak disable_break_scope(isolate->debug(), disable_break);
-
-  // Get the frame where the debugging is performed.
-  StackFrame::Id id = UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator it(isolate, id);
-  JavaScriptFrame* frame = it.frame();
-
-  // Traverse the saved contexts chain to find the active context for the
-  // selected frame.
-  SaveContext* save = FindSavedContextForFrame(isolate, frame);
-
-  SaveContext savex(isolate);
-  isolate->set_context(*(save->context()));
-
-  // Materialize stack locals and the arguments object.
-
-  EvaluationContextBuilder context_builder(isolate, frame,
-                                           inlined_jsframe_index);
-  if (isolate->has_pending_exception()) {
-    return isolate->heap()->exception();
-  }
-
-
-  Handle<Object> receiver(frame->receiver(), isolate);
-  MaybeHandle<Object> maybe_result = DebugEvaluate(
-      isolate, context_builder.outer_info(),
-      context_builder.innermost_context(), context_extension, receiver, source);
+  StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
 
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, maybe_result);
-  context_builder.UpdateVariables();
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
+                           disable_break, context_extension));
   return *result;
-}
-
-
-static inline bool IsDebugContext(Isolate* isolate, Context* context) {
-  // Try to unwrap script context if it exist.
-  if (context->IsScriptContext()) context = context->previous();
-  DCHECK_NOT_NULL(context);
-  return context == *isolate->debug()->debug_context();
 }
 
 
@@ -2667,28 +1315,10 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
   CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, context_extension, 3);
 
-  // Handle the processing of break.
-  DisableBreak disable_break_scope(isolate->debug(), disable_break);
-
-  // Enter the top context from before the debugger was invoked.
-  SaveContext save(isolate);
-  SaveContext* top = &save;
-  while (top != NULL && IsDebugContext(isolate, *top->context())) {
-    top = top->prev();
-  }
-  if (top != NULL) {
-    isolate->set_context(*top->context());
-  }
-
-  // Get the native context now set to the top context from before the
-  // debugger was invoked.
-  Handle<Context> context = isolate->native_context();
-  Handle<JSObject> receiver(context->global_proxy());
-  Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, DebugEvaluate(isolate, outer_info, context,
-                                     context_extension, receiver, source));
+      isolate, result,
+      DebugEvaluate::Global(isolate, source, disable_break, context_extension));
   return *result;
 }
 
