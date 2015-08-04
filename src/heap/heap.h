@@ -1202,8 +1202,7 @@ class Heap {
 
   // Sets the allocation limit to trigger the next full garbage collection.
   void SetOldGenerationAllocationLimit(intptr_t old_gen_size, double gc_speed,
-                                       double mutator_speed,
-                                       int freed_global_handles);
+                                       double mutator_speed);
 
   // Decrease the allocation limit if the new limit based on the given
   // parameters is lower than the current limit.

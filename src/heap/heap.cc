@@ -1273,8 +1273,7 @@ bool Heap::PerformGarbageCollection(
     // Register the amount of external allocated memory.
     amount_of_external_allocated_memory_at_last_global_gc_ =
         amount_of_external_allocated_memory_;
-    SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed,
-                                    freed_global_handles);
+    SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_size_configured_) {
     DampenOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
@@ -5584,9 +5583,7 @@ intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
 
 void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
                                            double gc_speed,
-                                           double mutator_speed,
-                                           int freed_global_handles) {
-  const int kFreedGlobalHandlesThreshold = 700;
+                                           double mutator_speed) {
   const double kConservativeHeapGrowingFactor = 1.3;
 
   double factor = HeapGrowingFactor(gc_speed, mutator_speed);
@@ -5606,8 +5603,7 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
     factor = Min(factor, kMaxHeapGrowingFactorMemoryConstrained);
   }
 
-  if (freed_global_handles >= kFreedGlobalHandlesThreshold ||
-      memory_reducer_.ShouldGrowHeapSlowly() || optimize_for_memory_usage_) {
+  if (memory_reducer_.ShouldGrowHeapSlowly() || optimize_for_memory_usage_) {
     factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 
