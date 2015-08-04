@@ -1000,9 +1000,13 @@ void InstructionSelector::VisitGoto(BasicBlock* target) {
 void InstructionSelector::VisitReturn(Node* value) {
   DCHECK_NOT_NULL(value);
   OperandGenerator g(this);
-  Emit(kArchRet, g.NoOutput(),
-       g.UseLocation(value, linkage()->GetReturnLocation(),
-                     linkage()->GetReturnType()));
+  if (linkage()->GetIncomingDescriptor()->ReturnCount() == 0) {
+    Emit(kArchRet, g.NoOutput());
+  } else {
+    Emit(kArchRet, g.NoOutput(),
+         g.UseLocation(value, linkage()->GetReturnLocation(),
+                       linkage()->GetReturnType()));
+  }
 }
 
 

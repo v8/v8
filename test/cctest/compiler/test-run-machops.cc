@@ -82,6 +82,13 @@ TEST(CodeGenInt32Binop) {
 }
 
 
+TEST(CodeGenNop) {
+  RawMachineAssemblerTester<void> m;
+  m.Return(m.Int32Constant(0));
+  m.GenerateCode();
+}
+
+
 #if V8_TURBOFAN_BACKEND_64
 static Node* Int64Input(RawMachineAssemblerTester<int64_t>* m, int index) {
   switch (index) {
