@@ -522,11 +522,11 @@ class MemoryChunk {
            progress_bar();
   }
 
-  static void IncrementLiveBytesFromGC(Address address, int by) {
-    MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
+  static void IncrementLiveBytesFromGC(HeapObject* object, int by) {
+    MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
   }
 
-  static void IncrementLiveBytesFromMutator(Address address, int by);
+  static void IncrementLiveBytesFromMutator(HeapObject* object, int by);
 
   static const intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);

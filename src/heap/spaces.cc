@@ -922,8 +922,8 @@ bool MemoryAllocator::CommitExecutableMemory(base::VirtualMemory* vm,
 // -----------------------------------------------------------------------------
 // MemoryChunk implementation
 
-void MemoryChunk::IncrementLiveBytesFromMutator(Address address, int by) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(address);
+void MemoryChunk::IncrementLiveBytesFromMutator(HeapObject* object, int by) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
   if (!chunk->InNewSpace() && !static_cast<Page*>(chunk)->WasSwept()) {
     static_cast<PagedSpace*>(chunk->owner())->IncrementUnsweptFreeBytes(-by);
   }

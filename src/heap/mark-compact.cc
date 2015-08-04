@@ -1770,7 +1770,7 @@ static void DiscoverGreyObjectsWithIterator(Heap* heap,
     MarkBit markbit = Marking::MarkBitFrom(object);
     if ((object->map() != filler_map) && Marking::IsGrey(markbit)) {
       Marking::GreyToBlack(markbit);
-      MemoryChunk::IncrementLiveBytesFromGC(object->address(), object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(object, object->Size());
       marking_deque->PushBlack(object);
       if (marking_deque->IsFull()) return;
     }
@@ -1815,7 +1815,7 @@ static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque,
       Marking::GreyToBlack(markbit);
       Address addr = cell_base + offset * kPointerSize;
       HeapObject* object = HeapObject::FromAddress(addr);
-      MemoryChunk::IncrementLiveBytesFromGC(object->address(), object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(object, object->Size());
       marking_deque->PushBlack(object);
       if (marking_deque->IsFull()) return;
       offset += 2;

@@ -643,7 +643,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   if (!heap->lo_space()->Contains(*answer)) {
     heap->CreateFillerObjectAt(end_of_string, delta);
   }
-  heap->AdjustLiveBytes(answer->address(), -delta, Heap::CONCURRENT_TO_SWEEPER);
+  heap->AdjustLiveBytes(*answer, -delta, Heap::CONCURRENT_TO_SWEEPER);
   return *answer;
 }
 

@@ -2307,7 +2307,7 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     if (marks_handling == TRANSFER_MARKS) {
       if (Marking::TransferColor(source, target)) {
-        MemoryChunk::IncrementLiveBytesFromGC(target->address(), size);
+        MemoryChunk::IncrementLiveBytesFromGC(target, size);
       }
     }
   }
@@ -3723,13 +3723,13 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
 }
 
 
-void Heap::AdjustLiveBytes(Address address, int by, InvocationMode mode) {
+void Heap::AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode) {
   if (incremental_marking()->IsMarking() &&
-      Marking::IsBlack(Marking::MarkBitFrom(address))) {
+      Marking::IsBlack(Marking::MarkBitFrom(object->address()))) {
     if (mode == SEQUENTIAL_TO_SWEEPER) {
-      MemoryChunk::IncrementLiveBytesFromGC(address, by);
+      MemoryChunk::IncrementLiveBytesFromGC(object, by);
     } else {
-      MemoryChunk::IncrementLiveBytesFromMutator(address, by);
+      MemoryChunk::IncrementLiveBytesFromMutator(object, by);
     }
   }
 }
@@ -3776,7 +3776,7 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
 
   // Maintain consistency of live bytes during incremental marking
   marking()->TransferMark(object->address(), new_start);
-  AdjustLiveBytes(new_start, -bytes_to_trim, Heap::CONCURRENT_TO_SWEEPER);
+  AdjustLiveBytes(new_object, -bytes_to_trim, Heap::CONCURRENT_TO_SWEEPER);
 
   // Notify the heap profiler of change in object layout.
   OnMoveEvent(new_object, object, new_object->Size());
@@ -3837,7 +3837,7 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   object->synchronized_set_length(len - elements_to_trim);
 
   // Maintain consistency of live bytes during incremental marking
-  AdjustLiveBytes(object->address(), -bytes_to_trim, mode);
+  AdjustLiveBytes(object, -bytes_to_trim, mode);
 
   // Notify the heap profiler of change in object layout. The array may not be
   // moved during GC, and size has to be adjusted nevertheless.

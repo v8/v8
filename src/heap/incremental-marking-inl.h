@@ -85,7 +85,7 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
   DCHECK(IsMarking());
   Marking::BlackToGrey(mark_bit);
   int obj_size = obj->Size();
-  MemoryChunk::IncrementLiveBytesFromGC(obj->address(), -obj_size);
+  MemoryChunk::IncrementLiveBytesFromGC(obj, -obj_size);
   bytes_scanned_ -= obj_size;
   int64_t old_bytes_rescanned = bytes_rescanned_;
   bytes_rescanned_ = old_bytes_rescanned + obj_size;

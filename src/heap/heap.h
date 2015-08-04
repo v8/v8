@@ -795,7 +795,7 @@ class Heap {
   enum InvocationMode { SEQUENTIAL_TO_SWEEPER, CONCURRENT_TO_SWEEPER };
 
   // Maintain consistency of live bytes during incremental marking.
-  void AdjustLiveBytes(Address address, int by, InvocationMode mode);
+  void AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode);
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.

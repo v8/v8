@@ -127,8 +127,7 @@ static void MarkObjectGreyDoNotEnqueue(Object* obj) {
     HeapObject* heap_obj = HeapObject::cast(obj);
     MarkBit mark_bit = Marking::MarkBitFrom(HeapObject::cast(obj));
     if (Marking::IsBlack(mark_bit)) {
-      MemoryChunk::IncrementLiveBytesFromGC(heap_obj->address(),
-                                            -heap_obj->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(heap_obj, -heap_obj->Size());
     }
     Marking::AnyToGrey(mark_bit);
   }
@@ -140,7 +139,7 @@ static inline void MarkBlackOrKeepBlack(HeapObject* heap_object,
   DCHECK(!Marking::IsImpossible(mark_bit));
   if (Marking::IsBlack(mark_bit)) return;
   Marking::MarkBlack(mark_bit);
-  MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(), size);
+  MemoryChunk::IncrementLiveBytesFromGC(heap_object, size);
 }
 
 
@@ -256,8 +255,7 @@ class IncrementalMarkingMarkingVisitor
     MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
     if (Marking::IsWhite(mark_bit)) {
       Marking::MarkBlack(mark_bit);
-      MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(),
-                                            heap_object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(heap_object, heap_object->Size());
       return true;
     }
     return false;
@@ -720,7 +718,7 @@ void IncrementalMarking::Hurry() {
   if (FLAG_cleanup_code_caches_at_gc) {
     PolymorphicCodeCache* poly_cache = heap_->polymorphic_code_cache();
     Marking::GreyToBlack(Marking::MarkBitFrom(poly_cache));
-    MemoryChunk::IncrementLiveBytesFromGC(poly_cache->address(),
+    MemoryChunk::IncrementLiveBytesFromGC(poly_cache,
                                           PolymorphicCodeCache::kSize);
   }
 
@@ -734,7 +732,7 @@ void IncrementalMarking::Hurry() {
       MarkBit mark_bit = Marking::MarkBitFrom(cache);
       if (Marking::IsGrey(mark_bit)) {
         Marking::GreyToBlack(mark_bit);
-        MemoryChunk::IncrementLiveBytesFromGC(cache->address(), cache->Size());
+        MemoryChunk::IncrementLiveBytesFromGC(cache, cache->Size());
       }
     }
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
