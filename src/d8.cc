@@ -1435,6 +1435,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       Local<String> source =
           String::NewFromUtf8(isolate, argv_[i + 1], NewStringType::kNormal)
               .ToLocalChecked();
+      Shell::options.script_executed = true;
       if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
         exception_was_thrown = true;
         break;
@@ -1460,6 +1461,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       printf("Error reading '%s'\n", arg);
       Shell::Exit(1);
     }
+    Shell::options.script_executed = true;
     if (!Shell::ExecuteString(isolate, source, file_name, false, true,
                               source_type)) {
       exception_was_thrown = true;
