@@ -109,6 +109,7 @@ Heap::Heap()
 #endif  // DEBUG
       old_generation_allocation_limit_(initial_old_generation_size_),
       old_gen_exhausted_(false),
+      optimize_for_memory_usage_(false),
       inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
       hidden_string_(NULL),
@@ -4906,6 +4907,9 @@ void Heap::CheckAndNotifyBackgroundIdleNotification(double idle_time_in_ms,
     event.can_start_incremental_gc = incremental_marking()->IsStopped() &&
                                      incremental_marking()->CanBeActivated();
     memory_reducer_.NotifyBackgroundIdleNotification(event);
+    optimize_for_memory_usage_ = true;
+  } else {
+    optimize_for_memory_usage_ = false;
   }
 }
 
@@ -5601,7 +5605,7 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
   }
 
   if (freed_global_handles >= kFreedGlobalHandlesThreshold ||
-      memory_reducer_.ShouldGrowHeapSlowly()) {
+      memory_reducer_.ShouldGrowHeapSlowly() || optimize_for_memory_usage_) {
     factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 
