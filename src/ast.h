@@ -2827,7 +2827,7 @@ class SuperCallReference final : public Expression {
         new_target_var_(new_target_var),
         this_function_var_(this_function_var) {
     DCHECK(this_var->is_this());
-    DCHECK(new_target_var->raw_name()->IsOneByteEqualTo("new.target"));
+    DCHECK(new_target_var->raw_name()->IsOneByteEqualTo(".new.target"));
     DCHECK(this_function_var->raw_name()->IsOneByteEqualTo(".this_function"));
   }
 

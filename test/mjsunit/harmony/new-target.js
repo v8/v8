@@ -381,4 +381,6 @@
   assertSame(f4, new f4);
   function f5() { 'use strict'; { let x; return new.target } }
   assertSame(f5, new f5);
+  function f6() { with ({'new.target': 42}) return new.target }
+  assertSame(f6, new f6);
 })();
