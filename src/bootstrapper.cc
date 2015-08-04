@@ -317,13 +317,6 @@ class Genesis BASE_EMBEDDED {
                                            FunctionMode function_mode);
   void SetStrongFunctionInstanceDescriptor(Handle<Map> map);
 
-  static bool CompileBuiltin(Isolate* isolate, int index);
-  static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
-  static bool CompileExtraBuiltin(Isolate* isolate, int index);
-  static bool CompileNative(Isolate* isolate, Vector<const char> name,
-                            Handle<String> source, int argc,
-                            Handle<Object> argv[]);
-
   static bool CallUtilsFunction(Isolate* isolate, const char* name);
 
   static bool CompileExtension(Isolate* isolate, v8::Extension* extension);

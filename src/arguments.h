@@ -283,9 +283,6 @@ static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name) \
     RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, Name)
 
-#define RUNTIME_ARGUMENTS(isolate, args) \
-  args.length(), args.arguments(), isolate
-
 } }  // namespace v8::internal
 
 #endif  // V8_ARGUMENTS_H_
