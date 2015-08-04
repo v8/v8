@@ -863,7 +863,7 @@ static void PrintVar(int indent, Variable* var) {
     Indent(indent, Variable::Mode2String(var->mode()));
     PrintF(" ");
     if (var->raw_name()->IsEmpty())
-      PrintF(".%p", var);
+      PrintF(".%p", reinterpret_cast<void*>(var));
     else
       PrintName(var->raw_name());
     PrintF(";  // ");
