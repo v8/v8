@@ -575,6 +575,8 @@
         '../../src/compiler/pipeline.h',
         '../../src/compiler/pipeline-statistics.cc',
         '../../src/compiler/pipeline-statistics.h',
+        '../../src/compiler/preprocess-live-ranges.cc',
+        '../../src/compiler/preprocess-live-ranges.h',
         '../../src/compiler/raw-machine-assembler.cc',
         '../../src/compiler/raw-machine-assembler.h',
         '../../src/compiler/register-allocator.cc',

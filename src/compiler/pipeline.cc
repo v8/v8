@@ -42,6 +42,7 @@
 #include "src/compiler/move-optimizer.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline-statistics.h"
+#include "src/compiler/preprocess-live-ranges.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/register-allocator-verifier.h"
 #include "src/compiler/schedule.h"
@@ -785,6 +786,17 @@ struct BuildLiveRangesPhase {
 };
 
 
+struct PreprocessLiveRangesPhase {
+  static const char* phase_name() { return "preprocess live ranges"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    PreprocessLiveRanges live_range_preprocessor(
+        data->register_allocation_data(), temp_zone);
+    live_range_preprocessor.PreprocessRanges();
+  }
+};
+
+
 template <typename RegAllocator>
 struct AllocateGeneralRegistersPhase {
   static const char* phase_name() { return "allocate general registers"; }
@@ -1320,6 +1332,11 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   if (verifier != nullptr) {
     CHECK(!data->register_allocation_data()->ExistsUseWithoutDefinition());
   }
+
+  if (FLAG_turbo_preprocess_ranges) {
+    Run<PreprocessLiveRangesPhase>();
+  }
+
   if (FLAG_turbo_greedy_regalloc) {
     Run<AllocateGeneralRegistersPhase<GreedyAllocator>>();
     Run<AllocateDoubleRegistersPhase<GreedyAllocator>>();
