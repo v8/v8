@@ -4501,6 +4501,61 @@ TEST(Regress173458) {
 }
 
 
+#ifdef DEBUG
+TEST(Regress513507) {
+  i::FLAG_flush_optimized_code_cache = false;
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_gc_global = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+
+  // Prepare function whose optimized code map we can use.
+  Handle<SharedFunctionInfo> shared;
+  {
+    HandleScope inner_scope(isolate);
+    CompileRun("function f() { return 1 }"
+               "f(); %OptimizeFunctionOnNextCall(f); f();");
+
+    Handle<JSFunction> f =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("f"))));
+    shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
+    CompileRun("f = null");
+  }
+
+  // Prepare optimized code that we can use.
+  Handle<Code> code;
+  {
+    HandleScope inner_scope(isolate);
+    CompileRun("function g() { return 2 }"
+               "g(); %OptimizeFunctionOnNextCall(g); g();");
+
+    Handle<JSFunction> g =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("g"))));
+    code = inner_scope.CloseAndEscape(handle(g->code(), isolate));
+    if (!code->is_optimized_code()) return;
+  }
+
+  Handle<FixedArray> lit = isolate->factory()->empty_fixed_array();
+  Handle<Context> context(isolate->context());
+
+  // Add the new code several times to the optimized code map and also set an
+  // allocation timeout so that expanding the code map will trigger a GC.
+  heap->set_allocation_timeout(5);
+  FLAG_gc_interval = 1000;
+  for (int i = 0; i < 10; ++i) {
+    BailoutId id = BailoutId(i);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+  }
+}
+#endif  // DEBUG
+
+
 class DummyVisitor : public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object** end) { }

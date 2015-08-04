@@ -4428,7 +4428,7 @@ AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
 
-  // Copy the content
+  // Copy the content.
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
@@ -4444,6 +4444,27 @@ AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
 AllocationResult Heap::AllocateEmptyFixedTypedArray(
     ExternalArrayType array_type) {
   return AllocateFixedTypedArray(0, array_type, false, TENURED);
+}
+
+
+AllocationResult Heap::CopyFixedArrayAndGrow(FixedArray* src, int grow_by) {
+  int old_len = src->length();
+  int new_len = old_len + grow_by;
+  HeapObject* obj;
+  {
+    AllocationResult allocation = AllocateRawFixedArray(new_len, NOT_TENURED);
+    if (!allocation.To(&obj)) return allocation;
+  }
+  obj->set_map_no_write_barrier(fixed_array_map());
+  FixedArray* result = FixedArray::cast(obj);
+  result->set_length(new_len);
+
+  // Copy the content.
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  for (int i = 0; i < old_len; i++) result->set(i, src->get(i), mode);
+  MemsetPointer(result->data_start() + old_len, undefined_value(), grow_by);
+  return result;
 }
 
 
@@ -4464,7 +4485,7 @@ AllocationResult Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
 
-  // Copy the content
+  // Copy the content.
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);

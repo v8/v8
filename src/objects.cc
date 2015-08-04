@@ -9539,9 +9539,9 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     // Copy old map and append one new entry.
     Handle<FixedArray> old_code_map = Handle<FixedArray>::cast(value);
     DCHECK(!shared->SearchOptimizedCodeMap(*native_context, osr_ast_id).code);
+    new_code_map =
+        isolate->factory()->CopyFixedArrayAndGrow(old_code_map, kEntryLength);
     old_length = old_code_map->length();
-    new_code_map = FixedArray::CopySize(
-        old_code_map, old_length + kEntryLength);
     // Zap the old map for the sake of the heap verifier.
     if (Heap::ShouldZapGarbage()) {
       Object** data = old_code_map->data_start();

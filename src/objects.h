@@ -2399,6 +2399,7 @@ class FixedArray: public FixedArrayBase {
   void Shrink(int length);
 
   // Copy operation.
+  // TODO(mstarzinger): Deprecated, use Factory::CopyFixedArrayAndGrow!
   static Handle<FixedArray> CopySize(Handle<FixedArray> array,
                                      int new_length,
                                      PretenureFlag pretenure = NOT_TENURED);
