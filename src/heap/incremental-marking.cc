@@ -40,8 +40,7 @@ void IncrementalMarking::RecordWriteSlow(HeapObject* obj, Object** slot,
     MarkBit obj_bit = Marking::MarkBitFrom(obj);
     if (Marking::IsBlack(obj_bit)) {
       // Object is not going to be rescanned we need to record the slot.
-      heap_->mark_compact_collector()->RecordSlot(HeapObject::RawField(obj, 0),
-                                                  slot, value);
+      heap_->mark_compact_collector()->RecordSlot(obj, slot, value);
     }
   }
 }
@@ -92,7 +91,7 @@ void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
   if (BaseRecordWrite(host, slot, value)) {
     DCHECK(slot != NULL);
     heap_->mark_compact_collector()->RecordCodeEntrySlot(
-        reinterpret_cast<Address>(slot), value);
+        host, reinterpret_cast<Address>(slot), value);
   }
 }
 
@@ -177,9 +176,8 @@ class IncrementalMarkingMarkingVisitor
       int already_scanned_offset = start_offset;
       bool scan_until_end = false;
       do {
-        VisitPointersWithAnchor(heap, HeapObject::RawField(object, 0),
-                                HeapObject::RawField(object, start_offset),
-                                HeapObject::RawField(object, end_offset));
+        VisitPointers(heap, object, HeapObject::RawField(object, start_offset),
+                      HeapObject::RawField(object, end_offset));
         start_offset = end_offset;
         end_offset = Min(object_size, end_offset + kProgressBarScanningChunk);
         scan_until_end =
@@ -214,31 +212,21 @@ class IncrementalMarkingMarkingVisitor
     VisitNativeContext(map, context);
   }
 
-  INLINE(static void VisitPointer(Heap* heap, Object** p)) {
-    Object* obj = *p;
-    if (obj->IsHeapObject()) {
-      heap->mark_compact_collector()->RecordSlot(p, p, obj);
-      MarkObject(heap, obj);
+  INLINE(static void VisitPointer(Heap* heap, HeapObject* object, Object** p)) {
+    Object* target = *p;
+    if (target->IsHeapObject()) {
+      heap->mark_compact_collector()->RecordSlot(object, p, target);
+      MarkObject(heap, target);
     }
   }
 
-  INLINE(static void VisitPointers(Heap* heap, Object** start, Object** end)) {
+  INLINE(static void VisitPointers(Heap* heap, HeapObject* object,
+                                   Object** start, Object** end)) {
     for (Object** p = start; p < end; p++) {
-      Object* obj = *p;
-      if (obj->IsHeapObject()) {
-        heap->mark_compact_collector()->RecordSlot(start, p, obj);
-        MarkObject(heap, obj);
-      }
-    }
-  }
-
-  INLINE(static void VisitPointersWithAnchor(Heap* heap, Object** anchor,
-                                             Object** start, Object** end)) {
-    for (Object** p = start; p < end; p++) {
-      Object* obj = *p;
-      if (obj->IsHeapObject()) {
-        heap->mark_compact_collector()->RecordSlot(anchor, p, obj);
-        MarkObject(heap, obj);
+      Object* target = *p;
+      if (target->IsHeapObject()) {
+        heap->mark_compact_collector()->RecordSlot(object, p, target);
+        MarkObject(heap, target);
       }
     }
   }

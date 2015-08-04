@@ -215,7 +215,7 @@ class BodyVisitorBase : public AllStatic {
  private:
   INLINE(static void IterateRawPointers(Heap* heap, HeapObject* object,
                                         int start_offset, int end_offset)) {
-    StaticVisitor::VisitPointers(heap,
+    StaticVisitor::VisitPointers(heap, object,
                                  HeapObject::RawField(object, start_offset),
                                  HeapObject::RawField(object, end_offset));
   }
@@ -297,22 +297,23 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return table_.GetVisitor(map)(map, obj);
   }
 
-  INLINE(static void VisitPointers(Heap* heap, Object** start, Object** end)) {
+  INLINE(static void VisitPointers(Heap* heap, HeapObject* object,
+                                   Object** start, Object** end)) {
     for (Object** p = start; p < end; p++) StaticVisitor::VisitPointer(heap, p);
   }
 
  private:
   INLINE(static int VisitJSFunction(Map* map, HeapObject* object)) {
     Heap* heap = map->GetHeap();
-    VisitPointers(heap,
+    VisitPointers(heap, object,
                   HeapObject::RawField(object, JSFunction::kPropertiesOffset),
                   HeapObject::RawField(object, JSFunction::kCodeEntryOffset));
 
     // Don't visit code entry. We are using this visitor only during scavenges.
 
     VisitPointers(
-        heap, HeapObject::RawField(object,
-                                   JSFunction::kCodeEntryOffset + kPointerSize),
+        heap, object, HeapObject::RawField(
+                          object, JSFunction::kCodeEntryOffset + kPointerSize),
         HeapObject::RawField(object, JSFunction::kNonWeakFieldsEndOffset));
     return JSFunction::kSize;
   }
@@ -410,7 +411,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   INLINE(static void VisitPropertyCell(Map* map, HeapObject* object));
   INLINE(static void VisitWeakCell(Map* map, HeapObject* object));
-  INLINE(static void VisitCodeEntry(Heap* heap, Address entry_address));
+  INLINE(static void VisitCodeEntry(Heap* heap, HeapObject* object,
+                                    Address entry_address));
   INLINE(static void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitCell(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitDebugTarget(Heap* heap, RelocInfo* rinfo));

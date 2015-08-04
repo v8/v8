@@ -2084,15 +2084,17 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
             int end_of_region_offset;
             if (helper.IsTagged(offset, size, &end_of_region_offset)) {
               IterateAndMarkPointersToFromSpace(
-                  record_slots, obj_address + offset,
-                  obj_address + end_of_region_offset, &ScavengeObject);
+                  target, obj_address + offset,
+                  obj_address + end_of_region_offset, record_slots,
+                  &ScavengeObject);
             }
             offset = end_of_region_offset;
           }
         } else {
 #endif
-          IterateAndMarkPointersToFromSpace(
-              record_slots, obj_address, obj_address + size, &ScavengeObject);
+          IterateAndMarkPointersToFromSpace(target, obj_address,
+                                            obj_address + size, record_slots,
+                                            &ScavengeObject);
 #if V8_DOUBLE_FIELDS_UNBOXING
         }
 #endif
@@ -2418,7 +2420,7 @@ class ScavengingVisitor : public StaticVisitorBase {
           target->address() + JSFunction::kCodeEntryOffset;
       Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
       map->GetHeap()->mark_compact_collector()->RecordCodeEntrySlot(
-          code_entry_slot, code);
+          target, code_entry_slot, code);
     }
   }
 
@@ -3582,8 +3584,8 @@ void Heap::AddAllocationSiteToScratchpad(AllocationSite* site,
       // candidates are not part of the global list of old space pages and
       // releasing an evacuation candidate due to a slots buffer overflow
       // results in lost pages.
-      mark_compact_collector()->RecordSlot(slot, slot, *slot,
-                                           SlotsBuffer::IGNORE_OVERFLOW);
+      mark_compact_collector()->RecordSlot(allocation_sites_scratchpad(), slot,
+                                           *slot, SlotsBuffer::IGNORE_OVERFLOW);
     }
     allocation_sites_scratchpad_length_++;
   }
@@ -5132,33 +5134,33 @@ void Heap::ZapFromSpace() {
 }
 
 
-void Heap::IterateAndMarkPointersToFromSpace(bool record_slots, Address start,
-                                             Address end,
+void Heap::IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
+                                             Address end, bool record_slots,
                                              ObjectSlotCallback callback) {
   Address slot_address = start;
 
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
-    Object* object = *slot;
+    Object* target = *slot;
     // If the store buffer becomes overfull we mark pages as being exempt from
     // the store buffer.  These pages are scanned to find pointers that point
     // to the new space.  In that case we may hit newly promoted objects and
     // fix the pointers before the promotion queue gets to them.  Thus the 'if'.
-    if (object->IsHeapObject()) {
-      if (Heap::InFromSpace(object)) {
+    if (target->IsHeapObject()) {
+      if (Heap::InFromSpace(target)) {
         callback(reinterpret_cast<HeapObject**>(slot),
-                 HeapObject::cast(object));
-        Object* new_object = *slot;
-        if (InNewSpace(new_object)) {
-          SLOW_DCHECK(Heap::InToSpace(new_object));
-          SLOW_DCHECK(new_object->IsHeapObject());
+                 HeapObject::cast(target));
+        Object* new_target = *slot;
+        if (InNewSpace(new_target)) {
+          SLOW_DCHECK(Heap::InToSpace(new_target));
+          SLOW_DCHECK(new_target->IsHeapObject());
           store_buffer_.EnterDirectlyIntoStoreBuffer(
               reinterpret_cast<Address>(slot));
         }
-        SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_object));
+        SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_target));
       } else if (record_slots &&
-                 MarkCompactCollector::IsOnEvacuationCandidate(object)) {
-        mark_compact_collector()->RecordSlot(slot, slot, object);
+                 MarkCompactCollector::IsOnEvacuationCandidate(target)) {
+        mark_compact_collector()->RecordSlot(object, slot, target);
       }
     }
     slot_address += kPointerSize;

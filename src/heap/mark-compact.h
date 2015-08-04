@@ -640,11 +640,6 @@ class MarkCompactCollector {
   void VerifyOmittedMapChecks();
 #endif
 
-  INLINE(static bool ShouldSkipEvacuationSlotRecording(Object** anchor)) {
-    return Page::FromAddress(reinterpret_cast<Address>(anchor))
-        ->ShouldSkipEvacuationSlotRecording();
-  }
-
   INLINE(static bool ShouldSkipEvacuationSlotRecording(Object* host)) {
     return Page::FromAddress(reinterpret_cast<Address>(host))
         ->ShouldSkipEvacuationSlotRecording();
@@ -656,11 +651,11 @@ class MarkCompactCollector {
   }
 
   void RecordRelocSlot(RelocInfo* rinfo, Object* target);
-  void RecordCodeEntrySlot(Address slot, Code* target);
+  void RecordCodeEntrySlot(HeapObject* object, Address slot, Code* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
 
   INLINE(void RecordSlot(
-      Object** anchor_slot, Object** slot, Object* object,
+      HeapObject* object, Object** slot, Object* target,
       SlotsBuffer::AdditionMode mode = SlotsBuffer::FAIL_ON_OVERFLOW));
 
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
