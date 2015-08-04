@@ -16,13 +16,6 @@ namespace v8 {
 namespace internal {
 
 
-IncrementalMarking::StepActions IncrementalMarking::NoForcedStepActions() {
-  return StepActions(IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                     IncrementalMarking::DO_NOT_FORCE_MARKING,
-                     IncrementalMarking::DO_NOT_FORCE_COMPLETION);
-}
-
-
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
       state_(STOPPED),
@@ -465,12 +458,9 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 }
 
 
-void IncrementalMarking::Start(int mark_compact_flags,
-                               const GCCallbackFlags gc_callback_flags,
-                               const char* reason) {
+void IncrementalMarking::Start(int mark_compact_flags) {
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Start (%s)\n",
-           (reason == nullptr) ? "unknown reason" : reason);
+    PrintF("[IncrementalMarking] Start\n");
   }
   DCHECK(FLAG_incremental_marking);
   DCHECK(FLAG_incremental_marking_steps);
@@ -480,7 +470,6 @@ void IncrementalMarking::Start(int mark_compact_flags,
 
   ResetStepCounters();
 
-  gc_callback_flags_ = gc_callback_flags;
   was_activated_ = true;
 
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
@@ -823,7 +812,7 @@ void IncrementalMarking::Epilogue() {
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
   if (IsStopped() && ShouldActivateEvenWithoutIdleNotification()) {
-    Start(Heap::kNoGCFlags, kNoGCCallbackFlags, "old space step");
+    Start(Heap::kNoGCFlags);
   } else {
     Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
   }

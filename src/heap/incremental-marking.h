@@ -26,21 +26,6 @@ class IncrementalMarking {
 
   enum GCRequestType { COMPLETE_MARKING, OVERAPPROXIMATION };
 
-  struct StepActions {
-    StepActions(CompletionAction complete_action_,
-                ForceMarkingAction force_marking_,
-                ForceCompletionAction force_completion_)
-        : completion_action(complete_action_),
-          force_marking(force_marking_),
-          force_completion(force_completion_) {}
-
-    CompletionAction completion_action;
-    ForceMarkingAction force_marking;
-    ForceCompletionAction force_completion;
-  };
-
-  static StepActions NoForcedStepActions();
-
   explicit IncrementalMarking(Heap* heap);
 
   static void Initialize();
@@ -82,9 +67,7 @@ class IncrementalMarking {
 
   bool WasActivated();
 
-  void Start(int mark_compact_flags,
-             const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
-             const char* reason = nullptr);
+  void Start(int mark_compact_flags);
 
   void Stop();
 
@@ -202,8 +185,6 @@ class IncrementalMarking {
 
   Heap* heap() const { return heap_; }
 
-  GCCallbackFlags CallbackFlags() const { return gc_callback_flags_; }
-
  private:
   int64_t SpaceLeftInOldSpace();
 
@@ -261,8 +242,6 @@ class IncrementalMarking {
   int weak_closure_approximation_rounds_;
 
   GCRequestType request_type_;
-
-  GCCallbackFlags gc_callback_flags_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };
