@@ -513,7 +513,7 @@ class FullCodeGenerator: public AstVisitor {
   F(IsFunction)                           \
   F(IsUndetectableObject)                 \
   F(IsSpecObject)                         \
-  F(IsSimdObject)                         \
+  F(IsSimdValue)                          \
   F(IsStringWrapperSafeForDefaultValueOf) \
   F(MathPow)                              \
   F(IsMinusZero)                          \

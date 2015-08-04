@@ -98,7 +98,7 @@ macro IS_ARRAY(arg)             = (%_IsArray(arg));
 macro IS_DATE(arg)              = (%_IsDate(arg));
 macro IS_FUNCTION(arg)          = (%_IsFunction(arg));
 macro IS_REGEXP(arg)            = (%_IsRegExp(arg));
-macro IS_SIMD_OBJECT(arg)       = (%_IsSimdObject(arg));
+macro IS_SIMD_VALUE(arg)        = (%_IsSimdValue(arg));
 macro IS_SET(arg)               = (%_ClassOf(arg) === 'Set');
 macro IS_MAP(arg)               = (%_ClassOf(arg) === 'Map');
 macro IS_WEAKMAP(arg)           = (%_ClassOf(arg) === 'WeakMap');

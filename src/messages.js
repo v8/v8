@@ -86,7 +86,7 @@ function NoSideEffectToString(obj) {
     return str;
   }
   if (IS_SYMBOL(obj)) return %_CallFunction(obj, $symbolToString);
-  if (IS_SIMD_OBJECT(obj)) {
+  if (IS_SIMD_VALUE(obj)) {
     switch (typeof(obj)) {
       case 'float32x4': return %_CallFunction(obj, $float32x4ToString);
       case 'int32x4':   return %_CallFunction(obj, $int32x4ToString);

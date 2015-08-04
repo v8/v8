@@ -3315,7 +3315,7 @@ void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsSimdObject(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsSimdValue(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);
 

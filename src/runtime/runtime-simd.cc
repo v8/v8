@@ -137,7 +137,7 @@ bool Equals(Float32x4* a, Float32x4* b) {
 }  // namespace
 
 
-RUNTIME_FUNCTION(Runtime_IsSimdObject) {
+RUNTIME_FUNCTION(Runtime_IsSimdValue) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   return isolate->heap()->ToBoolean(args[0]->IsSimd128Value());

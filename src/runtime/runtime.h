@@ -568,7 +568,7 @@ namespace internal {
 
 
 #define FOR_EACH_INTRINSIC_SIMD(F)    \
-  F(IsSimdObject, 1, 1)               \
+  F(IsSimdValue, 1, 1)                \
   F(SimdToObject, 1, 1)               \
   F(SimdEquals, 2, 1)                 \
   F(SimdSameValue, 2, 1)              \
