@@ -2413,7 +2413,8 @@ bool Genesis::InstallNatives(ContextType context_type) {
   InstallNativeFunctions();
 
   auto function_cache =
-      ObjectHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize);
+      ObjectHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize,
+                           USE_CUSTOM_MINIMUM_CAPACITY);
   native_context()->set_function_cache(*function_cache);
 
   // Store the map for the string prototype after the natives has been compiled

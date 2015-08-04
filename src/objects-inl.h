@@ -2996,13 +2996,6 @@ int HashTableBase::ComputeCapacity(int at_least_space_for) {
 }
 
 
-int HashTableBase::ComputeCapacityForSerialization(int at_least_space_for) {
-  const int kMinCapacity = 1;
-  int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for);
-  return Max(capacity, kMinCapacity);
-}
-
-
 template <typename Derived, typename Shape, typename Key>
 int HashTable<Derived, Shape, Key>::FindEntry(Key key) {
   return FindEntry(GetIsolate(), key);

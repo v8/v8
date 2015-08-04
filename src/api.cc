@@ -367,14 +367,12 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
     base::ElapsedTimer timer;
     timer.Start();
     Isolate::Scope isolate_scope(isolate);
-    internal_isolate->set_creating_default_snapshot(true);
     internal_isolate->Init(NULL);
     Persistent<Context> context;
     i::Snapshot::Metadata metadata;
     {
       HandleScope handle_scope(isolate);
       Local<Context> new_context = Context::New(isolate);
-      internal_isolate->set_creating_default_snapshot(false);
       context.Reset(isolate, new_context);
       if (custom_source != NULL) {
         metadata.set_embeds_script(true);
