@@ -541,10 +541,11 @@ class SingletonLogger;
 
 struct ParserFormalParameters : public PreParserFormalParameters {
   struct Parameter {
-    Parameter(Variable* var, Expression* pattern)
-        : var(var), pattern(pattern) {}
-    Variable* var;
+    Parameter(const AstRawString* name, Expression* pattern, bool is_rest)
+        : name(name), pattern(pattern), is_rest(is_rest) {}
+    const AstRawString* name;
     Expression* pattern;
+    bool is_rest;
   };
 
   explicit ParserFormalParameters(Scope* scope)
@@ -552,8 +553,10 @@ struct ParserFormalParameters : public PreParserFormalParameters {
 
   ZoneList<Parameter> params;
 
-  void AddParameter(Variable* var, Expression* pattern) {
-    params.Add(Parameter(var, pattern), scope->zone());
+  void AddParameter(
+      const AstRawString* name, Expression* pattern, bool is_rest) {
+    params.Add(Parameter(name, pattern, is_rest), scope->zone());
+    DCHECK_EQ(arity, params.length());
   }
 };
 
@@ -579,7 +582,7 @@ class ParserTraits {
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
-    typedef const v8::internal::AstRawString* FormalParameter;
+    typedef ParserFormalParameters::Parameter FormalParameter;
     typedef ParserFormalParameters FormalParameters;
     typedef ZoneList<v8::internal::Statement*>* StatementList;
 
@@ -1320,7 +1323,7 @@ void ParserTraits::DeclareFormalParameter(
   VariableMode mode = is_simple ? VAR : TEMPORARY;
   Variable* var =
       parameters->scope->DeclareParameter(name, mode, is_rest, &is_duplicate);
-  parameters->AddParameter(var, is_simple ? nullptr : pattern);
+  parameters->AddParameter(name, is_simple ? nullptr : pattern, is_rest);
   if (is_duplicate) {
     classifier->RecordDuplicateFormalParameterError(
         parser_->scanner()->location());

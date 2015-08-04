@@ -1457,7 +1457,7 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_modules(flags.Contains(kAllowHarmonyModules));
   parser->set_allow_harmony_arrow_functions(
       flags.Contains(kAllowHarmonyArrowFunctions));
-  parser->set_allow_harmony_rest_params(
+  parser->set_allow_harmony_rest_parameters(
       flags.Contains(kAllowHarmonyRestParameters));
   parser->set_allow_harmony_spreadcalls(
       flags.Contains(kAllowHarmonySpreadCalls));

@@ -917,7 +917,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_unicode(FLAG_harmony_unicode);
   set_allow_harmony_computed_property_names(
       FLAG_harmony_computed_property_names);
-  set_allow_harmony_rest_params(FLAG_harmony_rest_parameters);
+  set_allow_harmony_rest_parameters(FLAG_harmony_rest_parameters);
   set_allow_harmony_spreadcalls(FLAG_harmony_spreadcalls);
   set_allow_harmony_destructuring(FLAG_harmony_destructuring);
   set_allow_harmony_spread_arrays(FLAG_harmony_spread_arrays);
@@ -3854,7 +3854,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr,
     const Scanner::Location& params_loc,
     Scanner::Location* duplicate_loc, bool* ok) {
-  if (parameters->scope->num_parameters() >= Code::kMaxArguments) {
+  if (parameters->arity >= Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     *ok = false;
     return;
@@ -3908,6 +3908,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     parser_->scope_->RemoveUnresolved(expr->AsVariableProxy());
   }
 
+  ++parameters->arity;
   ExpressionClassifier classifier;
   DeclareFormalParameter(parameters, expr, is_rest, &classifier);
   if (!duplicate_loc->IsValid()) {
@@ -3996,7 +3997,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                      : NewScope(scope_, FUNCTION_SCOPE, kind);
   scope->SetLanguageMode(language_mode);
   ZoneList<Statement*>* body = NULL;
-  int arity = 0;
+  int arity = -1;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
@@ -4030,7 +4031,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     int start_position = scanner()->location().beg_pos;
     scope_->set_start_position(start_position);
     ParserFormalParameters formals(scope);
-    arity = ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
+    ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
+    arity = formals.arity;
+    DCHECK(arity == formals.params.length());
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;
 
@@ -4294,7 +4297,8 @@ Block* Parser::BuildParameterInitializationBlock(
   DCHECK(scope_->is_function_scope());
   Block* init_block =
       factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
-  for (auto parameter : parameters.params) {
+  for (int i = 0; i < parameters.params.length(); ++i) {
+    auto parameter = parameters.params[i];
     if (parameter.pattern == nullptr) continue;
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
@@ -4309,7 +4313,7 @@ Block* Parser::BuildParameterInitializationBlock(
     descriptor.init_op = Token::INIT_LET;
     DeclarationParsingResult::Declaration decl(
         parameter.pattern, parameter.pattern->position(),
-        factory()->NewVariableProxy(parameter.var));
+        factory()->NewVariableProxy(parameters.scope->parameter(i)));
     PatternRewriter::DeclareAndInitializeVariables(init_block, &descriptor,
                                                    &decl, nullptr, CHECK_OK);
   }
@@ -4477,7 +4481,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_sloppy_let);
     SET_ALLOW(harmony_unicode);
     SET_ALLOW(harmony_computed_property_names);
-    SET_ALLOW(harmony_rest_params);
+    SET_ALLOW(harmony_rest_parameters);
     SET_ALLOW(harmony_spreadcalls);
     SET_ALLOW(harmony_destructuring);
     SET_ALLOW(harmony_spread_arrays);

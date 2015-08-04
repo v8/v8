@@ -1053,11 +1053,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int start_position = scanner()->location().beg_pos;
   function_scope->set_start_position(start_position);
   PreParserFormalParameters formals(nullptr);
-  int arity = ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
+  ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
 
-  CheckArityRestrictions(arity, arity_restriction,
+  CheckArityRestrictions(formals.arity, arity_restriction,
                          formals.has_rest, start_position,
                          formals_end_position, CHECK_OK);
 
