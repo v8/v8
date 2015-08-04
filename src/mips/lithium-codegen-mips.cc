@@ -2186,7 +2186,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         Label not_simd;
         const Register scratch = scratch1();
         __ lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-        __ Branch(&not_simd, lt, at, Operand(FIRST_SIMD_VALUE_TYPE));
+        __ Branch(&not_simd, lt, scratch, Operand(FIRST_SIMD_VALUE_TYPE));
         __ Branch(instr->TrueLabel(chunk_), le, scratch,
                   Operand(LAST_SIMD_VALUE_TYPE));
         __ bind(&not_simd);
