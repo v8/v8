@@ -95,13 +95,20 @@ void MemoryReducer::NotifyBackgroundIdleNotification(const Event& event) {
   if (old_action == kWait && state_.action == kWait &&
       old_started_gcs + 1 == state_.started_gcs) {
     DCHECK(heap()->incremental_marking()->IsStopped());
-    DCHECK(FLAG_incremental_marking);
-    heap()->StartIdleIncrementalMarking();
-    if (FLAG_trace_gc_verbose) {
-      PrintIsolate(heap()->isolate(),
-                   "Memory reducer: started GC #%d"
-                   " (background idle)\n",
-                   state_.started_gcs);
+    // TODO(ulan): Replace it with incremental marking GC once
+    // chromium:490559 is fixed.
+    if (event.time_ms > state_.last_gc_time_ms + kLongDelayMs) {
+      heap()->CollectAllGarbage(Heap::kReduceMemoryFootprintMask,
+                                "memory reducer background GC");
+    } else {
+      DCHECK(FLAG_incremental_marking);
+      heap()->StartIdleIncrementalMarking();
+      if (FLAG_trace_gc_verbose) {
+        PrintIsolate(heap()->isolate(),
+                     "Memory reducer: started GC #%d"
+                     " (background idle)\n",
+                     state_.started_gcs);
+      }
     }
   }
 }
