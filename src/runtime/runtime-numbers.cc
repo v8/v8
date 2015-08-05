@@ -231,7 +231,7 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberToStringRT) {
+RUNTIME_FUNCTION(Runtime_NumberToString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
@@ -555,12 +555,6 @@ RUNTIME_FUNCTION(Runtime_MaxSmi) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
   return Smi::FromInt(Smi::kMaxValue);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToString) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_NumberToStringRT(args, isolate);
 }
 
 

@@ -1082,7 +1082,16 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetArgumentsProperty) {
+RUNTIME_FUNCTION(Runtime_ArgumentsLength) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  return Smi::FromInt(frame->GetArgumentsLength());
+}
+
+
+RUNTIME_FUNCTION(Runtime_Arguments) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, raw_key, 0);
@@ -1156,21 +1165,6 @@ RUNTIME_FUNCTION(Runtime_GetArgumentsProperty) {
       isolate, result,
       Object::GetProperty(isolate->initial_object_prototype(), key));
   return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ArgumentsLength) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  return Smi::FromInt(frame->GetArgumentsLength());
-}
-
-
-RUNTIME_FUNCTION(Runtime_Arguments) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_GetArgumentsProperty(args, isolate);
 }
 }  // namespace internal
 }  // namespace v8

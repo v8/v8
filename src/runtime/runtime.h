@@ -384,12 +384,11 @@ namespace internal {
   F(MathExpRT, 1, 1)                \
   F(MathClz32, 1, 1)                \
   F(MathFloor, 1, 1)                \
-  F(MathPowSlow, 2, 1)              \
+  F(MathPow, 2, 1)                  \
   F(MathPowRT, 2, 1)                \
   F(RoundNumber, 1, 1)              \
   F(MathSqrt, 1, 1)                 \
   F(MathFround, 1, 1)               \
-  F(MathPow, 2, 1)                  \
   F(IsMinusZero, 1, 1)
 
 
@@ -402,7 +401,7 @@ namespace internal {
   F(StringToNumber, 1, 1)              \
   F(StringParseInt, 2, 1)              \
   F(StringParseFloat, 1, 1)            \
-  F(NumberToStringRT, 1, 1)            \
+  F(NumberToString, 1, 1)              \
   F(NumberToStringSkipCache, 1, 1)     \
   F(NumberToInteger, 1, 1)             \
   F(NumberToIntegerMapMinusZero, 1, 1) \
@@ -426,7 +425,6 @@ namespace internal {
   F(NumberCompare, 3, 1)               \
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
-  F(NumberToString, 1, 1)              \
   F(IsSmi, 1, 1)                       \
   F(IsNonNegativeSmi, 1, 1)            \
   F(GetRootNaN, 0, 1)
@@ -528,7 +526,6 @@ namespace internal {
   F(StringReplaceGlobalRegExpWithString, 4, 1) \
   F(StringSplit, 3, 1)                         \
   F(RegExpExec, 4, 1)                          \
-  F(RegExpConstructResultRT, 3, 1)             \
   F(RegExpConstructResult, 3, 1)               \
   F(RegExpInitializeAndCompile, 3, 1)          \
   F(MaterializeRegExpLiteral, 4, 1)            \
@@ -562,7 +559,6 @@ namespace internal {
   F(DeclareModules, 1, 1)                                    \
   F(DeleteLookupSlot, 2, 1)                                  \
   F(StoreLookupSlot, 4, 1)                                   \
-  F(GetArgumentsProperty, 1, 1)                              \
   F(ArgumentsLength, 0, 1)                                   \
   F(Arguments, 1, 1)
 
@@ -610,15 +606,12 @@ namespace internal {
   F(StringIndexOf, 3, 1)                        \
   F(StringLastIndexOf, 3, 1)                    \
   F(StringLocaleCompare, 2, 1)                  \
-  F(SubStringRT, 3, 1)                          \
   F(SubString, 3, 1)                            \
-  F(StringAddRT, 2, 1)                          \
   F(StringAdd, 2, 1)                            \
   F(InternalizeString, 1, 1)                    \
   F(StringMatch, 3, 1)                          \
   F(StringCharCodeAtRT, 2, 1)                   \
   F(CharFromCode, 1, 1)                         \
-  F(StringCompareRT, 2, 1)                      \
   F(StringCompare, 2, 1)                        \
   F(StringBuilderConcat, 3, 1)                  \
   F(StringBuilderJoin, 3, 1)                    \

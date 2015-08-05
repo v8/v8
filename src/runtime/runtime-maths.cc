@@ -135,7 +135,7 @@ RUNTIME_FUNCTION(Runtime_MathFloor) {
 
 // Slow version of Math.pow.  We check for fast paths for special cases.
 // Used if VFP3 is not available.
-RUNTIME_FUNCTION(Runtime_MathPowSlow) {
+RUNTIME_FUNCTION(Runtime_MathPow) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   isolate->counters()->math_pow()->Increment();
@@ -235,12 +235,6 @@ RUNTIME_FUNCTION(Runtime_MathFround) {
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   float xf = DoubleToFloat32(x);
   return *isolate->factory()->NewNumber(xf);
-}
-
-
-RUNTIME_FUNCTION(Runtime_MathPow) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_MathPowSlow(args, isolate);
 }
 
 

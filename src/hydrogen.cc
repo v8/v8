@@ -2505,7 +2505,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
       // Fallback to the runtime to add the two strings.
       Add<HPushArguments>(left, right);
       Push(Add<HCallRuntime>(isolate()->factory()->empty_string(),
-                             Runtime::FunctionForId(Runtime::kStringAddRT), 2));
+                             Runtime::FunctionForId(Runtime::kStringAdd), 2));
     }
     if_sameencodingandsequential.End();
   }
