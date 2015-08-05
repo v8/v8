@@ -139,10 +139,8 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(legacy_const);
 #undef ALLOW_ACCESSORS
 
-  bool allow_harmony_modules() const { return scanner()->HarmonyModules(); }
   bool allow_harmony_unicode() const { return scanner()->HarmonyUnicode(); }
 
-  void set_allow_harmony_modules(bool a) { scanner()->SetHarmonyModules(a); }
   void set_allow_harmony_unicode(bool a) { scanner()->SetHarmonyUnicode(a); }
 
  protected:
@@ -322,7 +320,7 @@ class ParserBase : public Traits {
 
   Scope* NewScope(Scope* parent, ScopeType scope_type, FunctionKind kind) {
     DCHECK(ast_value_factory());
-    DCHECK(scope_type != MODULE_SCOPE || allow_harmony_modules());
+    DCHECK(scope_type != MODULE_SCOPE || FLAG_harmony_modules);
     DCHECK(!IsArrowFunction(kind) || scope_type == ARROW_SCOPE);
     Scope* result = new (zone())
         Scope(zone(), parent, scope_type, ast_value_factory(), kind);

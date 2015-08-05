@@ -478,13 +478,6 @@ class Scanner {
   // tokens, which is what it is used for.
   void SeekForward(int pos);
 
-  bool HarmonyModules() const {
-    return harmony_modules_;
-  }
-  void SetHarmonyModules(bool modules) {
-    harmony_modules_ = modules;
-  }
-
   bool HarmonyUnicode() const { return harmony_unicode_; }
   void SetHarmonyUnicode(bool unicode) { harmony_unicode_ = unicode; }
 
@@ -797,8 +790,6 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
-  // Whether we scan 'module', 'import', 'export' as keywords.
-  bool harmony_modules_;
   // Whether we allow \u{xxxxx}.
   bool harmony_unicode_;
 };

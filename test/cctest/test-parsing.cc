@@ -71,8 +71,6 @@ TEST(ScanKeywords) {
     {
       i::Utf8ToUtf16CharacterStream stream(keyword, length);
       i::Scanner scanner(&unicode_cache);
-      // The scanner should parse Harmony keywords for this test.
-      scanner.SetHarmonyModules(true);
       scanner.Initialize(&stream);
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -1427,7 +1425,6 @@ i::Handle<i::String> FormatMessage(i::Vector<unsigned> data) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyModules,
   kAllowHarmonyArrowFunctions,
   kAllowHarmonyRestParameters,
   kAllowHarmonySloppy,
@@ -1454,7 +1451,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
                     i::EnumSet<ParserFlag> flags) {
   parser->set_allow_lazy(flags.Contains(kAllowLazy));
   parser->set_allow_natives(flags.Contains(kAllowNatives));
-  parser->set_allow_harmony_modules(flags.Contains(kAllowHarmonyModules));
   parser->set_allow_harmony_arrow_functions(
       flags.Contains(kAllowHarmonyArrowFunctions));
   parser->set_allow_harmony_rest_parameters(
@@ -5312,6 +5308,8 @@ TEST(ComputedPropertyNameShorthandError) {
 
 
 TEST(BasicImportExportParsing) {
+  i::FLAG_harmony_modules = true;
+
   const char* kSources[] = {
       "export let x = 0;",
       "export var y = 0;",
@@ -5371,7 +5369,6 @@ TEST(BasicImportExportParsing) {
       i::Zone zone;
       i::ParseInfo info(&zone, script);
       i::Parser parser(&info);
-      parser.set_allow_harmony_modules(true);
       info.set_module();
       if (!parser.Parse(&info)) {
         i::Handle<i::JSObject> exception_handle(
@@ -5397,7 +5394,6 @@ TEST(BasicImportExportParsing) {
       i::Zone zone;
       i::ParseInfo info(&zone, script);
       i::Parser parser(&info);
-      parser.set_allow_harmony_modules(true);
       info.set_global();
       CHECK(!parser.Parse(&info));
     }
@@ -5406,6 +5402,8 @@ TEST(BasicImportExportParsing) {
 
 
 TEST(ImportExportParsingErrors) {
+  i::FLAG_harmony_modules = true;
+
   const char* kErrorSources[] = {
       "export {",
       "var a; export { a",
@@ -5486,7 +5484,6 @@ TEST(ImportExportParsingErrors) {
     i::Zone zone;
     i::ParseInfo info(&zone, script);
     i::Parser parser(&info);
-    parser.set_allow_harmony_modules(true);
     info.set_module();
     CHECK(!parser.Parse(&info));
   }
@@ -5517,7 +5514,6 @@ TEST(ModuleParsingInternals) {
   i::Zone zone;
   i::ParseInfo info(&zone, script);
   i::Parser parser(&info);
-  parser.set_allow_harmony_modules(true);
   info.set_module();
   CHECK(parser.Parse(&info));
   CHECK(i::Compiler::Analyze(&info));
