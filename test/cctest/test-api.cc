@@ -523,7 +523,7 @@ TEST(MakingExternalStringConditions) {
       String::NewFromTwoByte(env->GetIsolate(), two_byte_string);
   i::DeleteArray(two_byte_string);
 
-  // We should refuse to externalize newly created small string.
+  // We should refuse to externalize small strings.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
@@ -534,14 +534,6 @@ TEST(MakingExternalStringConditions) {
   two_byte_string = AsciiToTwoByteString("small string 2");
   small_string = String::NewFromTwoByte(env->GetIsolate(), two_byte_string);
   i::DeleteArray(two_byte_string);
-
-  // We should refuse externalizing newly created small string.
-  CHECK(!small_string->CanMakeExternal());
-  for (int i = 0; i < 100; i++) {
-    String::Value value(small_string);
-  }
-  // Frequently used strings should be accepted.
-  CHECK(small_string->CanMakeExternal());
 
   const int buf_size = 10 * 1024;
   char* buf = i::NewArray<char>(buf_size);
@@ -567,21 +559,12 @@ TEST(MakingExternalOneByteStringConditions) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 
   Local<String> small_string = String::NewFromUtf8(env->GetIsolate(), "s1");
-  // We should refuse to externalize newly created small string.
+  // We should refuse to externalize small strings.
   CHECK(!small_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
   // Old space strings should be accepted.
-  CHECK(small_string->CanMakeExternal());
-
-  small_string = String::NewFromUtf8(env->GetIsolate(), "small string 2");
-  // We should refuse externalizing newly created small string.
-  CHECK(!small_string->CanMakeExternal());
-  for (int i = 0; i < 100; i++) {
-    String::Value value(small_string);
-  }
-  // Frequently used strings should be accepted.
   CHECK(small_string->CanMakeExternal());
 
   const int buf_size = 10 * 1024;
