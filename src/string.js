@@ -189,10 +189,11 @@ function StringMatchJS(regexp) {
 // For now we do nothing, as proper normalization requires big tables.
 // If Intl is enabled, then i18n.js will override it and provide the the
 // proper functionality.
-function StringNormalizeJS(form) {
+function StringNormalizeJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
 
-  var form = IS_UNDEFINED(form) ? 'NFC' : TO_STRING_INLINE(form);
+  var formArg = %_Arguments(0);
+  var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING_INLINE(formArg);
 
   var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
   var normalizationForm =

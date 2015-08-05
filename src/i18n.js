@@ -1995,14 +1995,16 @@ OverrideFunction(GlobalString.prototype, 'localeCompare', function(that) {
  * If the form is not one of "NFC", "NFD", "NFKC", or "NFKD", then throw
  * a RangeError Exception.
  */
-OverrideFunction(GlobalString.prototype, 'normalize', function(form) {
+
+OverrideFunction(GlobalString.prototype, 'normalize', function() {
     if (%_IsConstructCall()) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
     CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
 
-    form = IS_UNDEFINED(form) ? 'NFC' : form;
+    var formArg = %_Arguments(0);
+    var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING_INLINE(formArg);
 
     var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 
