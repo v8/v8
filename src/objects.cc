@@ -13438,9 +13438,7 @@ Handle<Derived> HashTable<Derived, Shape, Key>::New(
 
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for
-                     : isolate->creating_default_snapshot()
-                           ? ComputeCapacityForSerialization(at_least_space_for)
-                           : ComputeCapacity(at_least_space_for);
+                     : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
   }
