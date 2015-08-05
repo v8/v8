@@ -111,7 +111,6 @@ class ParserBase : public Traits {
         allow_harmony_arrow_functions_(false),
         allow_harmony_sloppy_(false),
         allow_harmony_sloppy_let_(false),
-        allow_harmony_computed_property_names_(false),
         allow_harmony_rest_parameters_(false),
         allow_harmony_spreadcalls_(false),
         allow_harmony_destructuring_(false),
@@ -129,7 +128,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_arrow_functions);
   ALLOW_ACCESSORS(harmony_sloppy);
   ALLOW_ACCESSORS(harmony_sloppy_let);
-  ALLOW_ACCESSORS(harmony_computed_property_names);
   ALLOW_ACCESSORS(harmony_rest_parameters);
   ALLOW_ACCESSORS(harmony_spreadcalls);
   ALLOW_ACCESSORS(harmony_destructuring);
@@ -803,7 +801,6 @@ class ParserBase : public Traits {
   bool allow_harmony_arrow_functions_;
   bool allow_harmony_sloppy_;
   bool allow_harmony_sloppy_let_;
-  bool allow_harmony_computed_property_names_;
   bool allow_harmony_rest_parameters_;
   bool allow_harmony_spreadcalls_;
   bool allow_harmony_destructuring_;
@@ -2503,19 +2500,17 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
       *name = this->GetNumberAsSymbol(scanner());
       break;
 
-    case Token::LBRACK:
-      if (allow_harmony_computed_property_names_) {
-        *is_computed_name = true;
-        Consume(Token::LBRACK);
-        ExpressionClassifier computed_name_classifier;
-        ExpressionT expression = ParseAssignmentExpression(
-            true, &computed_name_classifier, CHECK_OK);
-        classifier->AccumulateReclassifyingAsPattern(computed_name_classifier);
-        Expect(Token::RBRACK, CHECK_OK);
-        return expression;
-      }
+    case Token::LBRACK: {
+      *is_computed_name = true;
+      Consume(Token::LBRACK);
+      ExpressionClassifier computed_name_classifier;
+      ExpressionT expression =
+          ParseAssignmentExpression(true, &computed_name_classifier, CHECK_OK);
+      classifier->AccumulateReclassifyingAsPattern(computed_name_classifier);
+      Expect(Token::RBRACK, CHECK_OK);
+      return expression;
+    }
 
-    // Fall through.
     case Token::STATIC:
       *is_static = true;
 

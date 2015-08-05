@@ -208,7 +208,6 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                             \
   V(harmony_arrow_functions, "harmony arrow functions")                 \
-  V(harmony_computed_property_names, "harmony computed property names") \
   V(harmony_new_target, "harmony new.target")                           \
   V(harmony_object_observe, "harmony Object.observe")                   \
   V(harmony_spreadcalls, "harmony spread-calls")                        \
