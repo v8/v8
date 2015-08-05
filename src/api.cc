@@ -6884,8 +6884,20 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
 
 
 void Isolate::CollectAllGarbage(const char* gc_reason) {
-  reinterpret_cast<i::Isolate*>(this)->heap()->CollectAllGarbage(
-      i::Heap::kNoGCFlags, gc_reason, v8::kGCCallbackFlagForced);
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
+  if (heap->incremental_marking()->IsStopped()) {
+    heap->StartIncrementalMarking(i::Heap::kNoGCFlags, kGCCallbackFlagForced,
+                                  gc_reason);
+  }
+  // TODO(mlippautz): Compute the time slice for incremental marking based on
+  // memory pressure.
+  double deadline = heap->MonotonicallyIncreasingTimeInMs() +
+                    i::FLAG_external_allocation_limit_incremental_time;
+  heap->AdvanceIncrementalMarking(0, deadline,
+                                  i::IncrementalMarking::StepActions(
+                                      i::IncrementalMarking::GC_VIA_STACK_GUARD,
+                                      i::IncrementalMarking::FORCE_MARKING,
+                                      i::IncrementalMarking::FORCE_COMPLETION));
 }
 
 
