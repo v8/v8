@@ -309,8 +309,6 @@
 
   # Issue 3723.
   'regress/regress-3717': [SKIP],
-  # Issue 478788.
-  'es7/object-observe': [SKIP],
 
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
@@ -658,7 +656,6 @@
   'assert-opt-and-deopt': [SKIP],
   'never-optimize': [SKIP],
   'regress/regress-2185-2': [SKIP],
-  'harmony/object-observe': [SKIP],
   'readonly': [SKIP],
   'array-feedback': [SKIP],
 
