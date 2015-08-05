@@ -436,6 +436,9 @@
   'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
 
+  # This should work as soon as rest parameters are re-implemented via desaguring.
+  'language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-rest': [PASS, FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=2160
   'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-1': [FAIL],
   'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-2': [FAIL],

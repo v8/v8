@@ -806,16 +806,70 @@
   assertEquals(1, g20({a: 1, b: 2}));
   // var g21 = ({[eval('y')]: x}) => { var y = 'b'; return x; };
   // assertEquals(1, g21({a: 1, b: 2}));
+})();
+
+
+(function TestParameterTDZ() {
+  function f1({a = x}, x) { return a }
+  assertThrows(() => f1({}, 4), ReferenceError);
+  assertEquals(4, f1({a: 4}, 5));
+  // TODO(rossberg): eval in default expressions is not working yet.
+  // function f2({a = eval("x")}, x) { return a }
+  // assertThrows(() => f2({}, 4), ReferenceError);
+  // assertEquals(4, f2({a: 4}, 5));
+  // function f3({a = eval("x")}, x) { 'use strict'; return a }
+  // assertThrows(() => f3({}, 4), ReferenceError);
+  // assertEquals(4, f3({a: 4}, 5));
+  // function f4({a = eval("'use strict'; x")}, x) { return a }
+  // assertThrows(() => f4({}, 4), ReferenceError);
+  // assertEquals(4, f4({a: 4}, 5));
+
+  function f5({a = () => x}, x) { return a() }
+  assertEquals(4, f5({a: () => 4}, 5));
+  // TODO(rossberg): eval in default expressions is not working yet.
+  // function f6({a = () => eval("x")}, x) { return a() }
+  // assertEquals(4, f6({a: () => 4}, 5));
+  // function f7({a = () => eval("x")}, x) { 'use strict'; return a() }
+  // assertEquals(4, f7({a: () => 4}, 5));
+  // function f8({a = () => eval("'use strict'; x")}, x) { return a() }
+  // assertEquals(4, f8({a: () => 4}, 5));
+
+  function f11({a = b}, {b}) { return a }
+  assertThrows(() => f11({}, {b: 4}), ReferenceError);
+  assertEquals(4, f11({a: 4}, {b: 5}));
+  // function f12({a = eval("b")}, {b}) { return a }
+  // assertThrows(() => f12({}, {b: 4}), ReferenceError);
+  // assertEquals(4, f12({a: 4}, {b: 5}));
+  // function f13({a = eval("b")}, {b}) { 'use strict'; return a }
+  // assertThrows(() => f13({}, {b: 4}), ReferenceError);
+  // assertEquals(4, f13({a: 4}, {b: 5}));
+  // function f14({a = eval("'use strict'; b")}, {b}) { return a }
+  // assertThrows(() => f14({}, {b: 4}), ReferenceError);
+  // assertEquals(4, f14({a: 4}, {b: 5}));
+
+  function f15({a = () => b}, {b}) { return a() }
+  assertEquals(4, f15({a: () => 4}, {b: 5}));
+  // function f16({a = () => eval("b")}, {b}) { return a() }
+  // assertEquals(4, f16({a: () => 4}, {b: 5}));
+  // function f17({a = () => eval("b")}, {b}) { 'use strict'; return a() }
+  // assertEquals(4, f17({a: () => 4}, {b: 5}));
+  // function f18({a = () => eval("'use strict'; b")}, {b}) { return a() }
+  // assertEquals(4, f18({a: () => 4}, {b: 5}));
 
   // TODO(caitp): TDZ for rest parameters is not working yet.
-  // function f30({x = a}, ...a) {}
+  // function f30({x = a}, ...a) { return x[0] }
   // assertThrows(() => f30({}), ReferenceError);
-  // function f31({x = eval("a")}, ...a) {}
+  // assertEquals(4, f30({a: [4]}, 5));
+  // function f31({x = eval("a")}, ...a) { return x[0] }
   // assertThrows(() => f31({}), ReferenceError);
-  // function f32({x = eval("a")}, ...a) { 'use strict'; }
+  // assertEquals(4, f31({a: [4]}, 5));
+  // function f32({x = eval("a")}, ...a) { 'use strict'; return x[0] }
   // assertThrows(() => f32({}), ReferenceError);
-  // function f33({x = eval("'use strict'; a")}, ...a) {}
+  // assertEquals(4, f32({a: [4]}, 5));
+  // function f33({x = eval("'use strict'; a")}, ...a) { return x[0] }
   // assertThrows(() => f33({}), ReferenceError);
+  // assertEquals(4, f33({a: [4]}, 5));
+
   function f34({x = function() { return a }}, ...a) { return x()[0] }
   assertEquals(4, f34({}, 4));
   function f35({x = () => a}, ...a) { return x()[0] }

@@ -1203,6 +1203,11 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
           // BindingIdentifier
           const bool is_rest = false;
           ParseFormalParameter(is_rest, &formals, &formals_classifier, &ok);
+          if (ok) {
+            DeclareFormalParameter(
+                formals.scope, formals.at(0), formals.is_simple,
+                &formals_classifier);
+          }
         }
       }
 
@@ -2223,10 +2228,7 @@ Statement* Parser::ParseFunctionDeclaration(
       is_strong(language_mode())
           ? CONST
           : (is_strict(language_mode()) || allow_harmony_sloppy()) &&
-                    !(scope_->is_script_scope() || scope_->is_eval_scope() ||
-                      scope_->is_function_scope())
-                ? LET
-                : VAR;
+              !scope_->is_declaration_scope() ? LET : VAR;
   VariableProxy* proxy = NewUnresolved(name, mode);
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope_, pos);
@@ -3854,7 +3856,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr,
     const Scanner::Location& params_loc,
     Scanner::Location* duplicate_loc, bool* ok) {
-  if (parameters->arity >= Code::kMaxArguments) {
+  if (parameters->Arity() >= Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     *ok = false;
     return;
@@ -3908,11 +3910,26 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     parser_->scope_->RemoveUnresolved(expr->AsVariableProxy());
   }
 
-  ++parameters->arity;
-  ExpressionClassifier classifier;
-  DeclareFormalParameter(parameters, expr, is_rest, &classifier);
-  if (!duplicate_loc->IsValid()) {
-    *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
+  AddFormalParameter(parameters, expr, is_rest);
+}
+
+
+void ParserTraits::ParseArrowFunctionFormalParameterList(
+    ParserFormalParameters* parameters, Expression* expr,
+    const Scanner::Location& params_loc,
+    Scanner::Location* duplicate_loc, bool* ok) {
+  ParseArrowFunctionFormalParameters(parameters, expr, params_loc,
+                                     duplicate_loc, ok);
+  if (!*ok) return;
+
+  for (int i = 0; i < parameters->Arity(); ++i) {
+    auto parameter = parameters->at(i);
+    ExpressionClassifier classifier;
+    DeclareFormalParameter(
+        parameters->scope, parameter, parameters->is_simple, &classifier);
+    if (!duplicate_loc->IsValid()) {
+      *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
+    }
   }
 }
 
@@ -4032,8 +4049,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     scope_->set_start_position(start_position);
     ParserFormalParameters formals(scope);
     ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
-    arity = formals.arity;
-    DCHECK(arity == formals.params.length());
+    arity = formals.Arity();
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;
 
@@ -4299,7 +4315,8 @@ Block* Parser::BuildParameterInitializationBlock(
       factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
   for (int i = 0; i < parameters.params.length(); ++i) {
     auto parameter = parameters.params[i];
-    if (parameter.pattern == nullptr) continue;
+    // TODO(caitp,rossberg): Remove special handling for rest once desugared.
+    if (parameter.is_rest) break;
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
     descriptor.parser = this;

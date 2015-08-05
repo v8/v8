@@ -539,7 +539,7 @@ class Parser;
 class SingletonLogger;
 
 
-struct ParserFormalParameters : public PreParserFormalParameters {
+struct ParserFormalParameters : FormalParametersBase {
   struct Parameter {
     Parameter(const AstRawString* name, Expression* pattern, bool is_rest)
         : name(name), pattern(pattern), is_rest(is_rest) {}
@@ -549,15 +549,11 @@ struct ParserFormalParameters : public PreParserFormalParameters {
   };
 
   explicit ParserFormalParameters(Scope* scope)
-      : PreParserFormalParameters(scope), params(4, scope->zone()) {}
-
+      : FormalParametersBase(scope), params(4, scope->zone()) {}
   ZoneList<Parameter> params;
 
-  void AddParameter(
-      const AstRawString* name, Expression* pattern, bool is_rest) {
-    params.Add(Parameter(name, pattern, is_rest), scope->zone());
-    DCHECK_EQ(arity, params.length());
-  }
+  int Arity() const { return params.length(); }
+  const Parameter& at(int i) const { return params[i]; }
 };
 
 
@@ -782,10 +778,16 @@ class ParserTraits {
   V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
                             FunctionKind kind = kNormalFunction);
 
+  V8_INLINE void AddFormalParameter(
+      ParserFormalParameters* parameters, Expression* pattern, bool is_rest);
   V8_INLINE void DeclareFormalParameter(
-      ParserFormalParameters* parameters, Expression* pattern, bool is_rest,
-      ExpressionClassifier* classifier);
+      Scope* scope, const ParserFormalParameters::Parameter& parameter,
+      bool is_simple, ExpressionClassifier* classifier);
   void ParseArrowFunctionFormalParameters(
+      ParserFormalParameters* parameters, Expression* params,
+      const Scanner::Location& params_loc,
+      Scanner::Location* duplicate_loc, bool* ok);
+  void ParseArrowFunctionFormalParameterList(
       ParserFormalParameters* parameters, Expression* params,
       const Scanner::Location& params_loc,
       Scanner::Location* duplicate_loc, bool* ok);
@@ -1310,25 +1312,35 @@ Expression* ParserTraits::SpreadCallNew(
 }
 
 
-void ParserTraits::DeclareFormalParameter(
-    ParserFormalParameters* parameters, Expression* pattern, bool is_rest,
-    ExpressionClassifier* classifier) {
-  bool is_duplicate = false;
+void ParserTraits::AddFormalParameter(
+    ParserFormalParameters* parameters, Expression* pattern, bool is_rest) {
   bool is_simple = pattern->IsVariableProxy();
-  DCHECK(parser_->allow_harmony_destructuring() || is_simple);
-
+  DCHECK(parser_->allow_harmony_destructuring() ||
+         parser_->allow_harmony_rest_parameters() || is_simple);
   const AstRawString* name = is_simple
                                  ? pattern->AsVariableProxy()->raw_name()
                                  : parser_->ast_value_factory()->empty_string();
-  VariableMode mode = is_simple ? VAR : TEMPORARY;
+  parameters->params.Add(
+      ParserFormalParameters::Parameter(name, pattern, is_rest),
+      parameters->scope->zone());
+}
+
+
+void ParserTraits::DeclareFormalParameter(
+    Scope* scope, const ParserFormalParameters::Parameter& parameter,
+    bool is_simple, ExpressionClassifier* classifier) {
+  bool is_duplicate = false;
+  // TODO(caitp): Remove special handling for rest once desugaring is in.
+  auto name = is_simple || parameter.is_rest
+      ? parameter.name : parser_->ast_value_factory()->empty_string();
+  auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
   Variable* var =
-      parameters->scope->DeclareParameter(name, mode, is_rest, &is_duplicate);
-  parameters->AddParameter(name, is_simple ? nullptr : pattern, is_rest);
+      scope->DeclareParameter(name, mode, parameter.is_rest, &is_duplicate);
   if (is_duplicate) {
     classifier->RecordDuplicateFormalParameterError(
         parser_->scanner()->location());
   }
-  if (is_sloppy(parameters->scope->language_mode())) {
+  if (is_sloppy(scope->language_mode())) {
     // TODO(sigurds) Mark every parameter as maybe assigned. This is a
     // conservative approximation necessary to account for parameters
     // that are assigned via the arguments array.

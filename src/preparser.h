@@ -27,6 +27,15 @@ enum FunctionNameValidity {
 };
 
 
+struct FormalParametersBase {
+  explicit FormalParametersBase(Scope* scope) : scope(scope) {}
+  Scope* scope;
+  bool has_rest = false;
+  bool is_simple = true;
+  int materialized_literals_count = 0;
+};
+
+
 // Common base class shared between parser and pre-parser. Traits encapsulate
 // the differences between Parser and PreParser:
 
@@ -1312,18 +1321,13 @@ class PreParserFactory {
 };
 
 
-struct PreParserFormalParameters {
+struct PreParserFormalParameters : FormalParametersBase {
   explicit PreParserFormalParameters(Scope* scope)
-      : scope(scope),
-        arity(0),
-        has_rest(false),
-        is_simple(true),
-        materialized_literals_count(0) {}
-  Scope* scope;
-  int arity;
-  bool has_rest;
-  bool is_simple;
-  int materialized_literals_count;
+      : FormalParametersBase(scope) {}
+  int arity = 0;
+
+  int Arity() const { return arity; }
+  PreParserIdentifier at(int i) { return PreParserIdentifier(); }  // Dummy
 };
 
 
@@ -1606,7 +1610,7 @@ class PreParserTraits {
       const PreParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
-  V8_INLINE void ParseArrowFunctionFormalParameters(
+  V8_INLINE void ParseArrowFunctionFormalParameterList(
       PreParserFormalParameters* parameters,
       PreParserExpression expression, const Scanner::Location& params_loc,
       Scanner::Location* duplicate_loc, bool* ok);
@@ -1637,8 +1641,13 @@ class PreParserTraits {
     return !tag.IsNoTemplateTag();
   }
 
-  void DeclareFormalParameter(PreParserFormalParameters* parameters,
-                              PreParserExpression pattern, bool is_rest,
+  void AddFormalParameter(
+      PreParserFormalParameters* parameters, PreParserExpression pattern,
+      bool is_rest) {
+    ++parameters->arity;
+  }
+  void DeclareFormalParameter(Scope* scope, PreParserIdentifier parameter,
+                              bool is_simple,
                               ExpressionClassifier* classifier) {}
 
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
@@ -1835,7 +1844,7 @@ PreParserExpression PreParserTraits::SpreadCallNew(PreParserExpression function,
 }
 
 
-void PreParserTraits::ParseArrowFunctionFormalParameters(
+void PreParserTraits::ParseArrowFunctionFormalParameterList(
     PreParserFormalParameters* parameters,
     PreParserExpression params, const Scanner::Location& params_loc,
     Scanner::Location* duplicate_loc, bool* ok) {
@@ -2280,12 +2289,15 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         // (...x) => y
         Scope* scope =
             this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
-        FormalParametersT parameters(scope);
+        FormalParametersT formals(scope);
         scope->set_start_position(beg_pos);
-        ExpressionClassifier args_classifier;
+        ExpressionClassifier formals_classifier;
         const bool is_rest = true;
-        this->ParseFormalParameter(is_rest, &parameters, &args_classifier,
+        this->ParseFormalParameter(is_rest, &formals, &formals_classifier,
                                    CHECK_OK);
+        Traits::DeclareFormalParameter(
+            formals.scope, formals.at(0), formals.is_simple,
+            &formals_classifier);
         if (peek() == Token::COMMA) {
           ReportMessageAt(scanner()->peek_location(),
                           MessageTemplate::kParamAfterRest);
@@ -2293,7 +2305,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
           return this->EmptyExpression();
         }
         Expect(Token::RPAREN, CHECK_OK);
-        result = this->ParseArrowFunctionLiteral(parameters, args_classifier,
+        result = this->ParseArrowFunctionLiteral(formals, formals_classifier,
                                                  CHECK_OK);
       } else {
         // Heuristically try to detect immediately called functions before
@@ -2845,8 +2857,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
 
     scope->set_start_position(lhs_location.beg_pos);
     Scanner::Location duplicate_loc = Scanner::Location::invalid();
-    this->ParseArrowFunctionFormalParameters(&parameters, expression, loc,
-                                             &duplicate_loc, CHECK_OK);
+    this->ParseArrowFunctionFormalParameterList(&parameters, expression, loc,
+                                                &duplicate_loc, CHECK_OK);
     if (duplicate_loc.IsValid()) {
       arrow_formals_classifier.RecordDuplicateFormalParameterError(
           duplicate_loc);
@@ -3647,8 +3659,7 @@ void ParserBase<Traits>::ParseFormalParameter(
     *ok = false;
     return;
   }
-  ++parameters->arity;
-  Traits::DeclareFormalParameter(parameters, pattern, is_rest, classifier);
+  Traits::AddFormalParameter(parameters, pattern, is_rest);
 }
 
 
@@ -3669,11 +3680,11 @@ void ParserBase<Traits>::ParseFormalParameterList(
   //   FormalsList[?Yield, ?GeneratorParameter] ,
   //     FormalParameter[?Yield,?GeneratorParameter]
 
-  DCHECK_EQ(0, parameters->arity);
+  DCHECK_EQ(0, parameters->Arity());
 
   if (peek() != Token::RPAREN) {
     do {
-      if (parameters->arity > Code::kMaxArguments) {
+      if (parameters->Arity() > Code::kMaxArguments) {
         ReportMessage(MessageTemplate::kTooManyParameters);
         *ok = false;
         return;
@@ -3687,7 +3698,14 @@ void ParserBase<Traits>::ParseFormalParameterList(
       ReportMessageAt(scanner()->peek_location(),
                       MessageTemplate::kParamAfterRest);
       *ok = false;
+      return;
     }
+  }
+
+  for (int i = 0; i < parameters->Arity(); ++i) {
+    auto parameter = parameters->at(i);
+    Traits::DeclareFormalParameter(
+        parameters->scope, parameter, parameters->is_simple, classifier);
   }
 }
 
