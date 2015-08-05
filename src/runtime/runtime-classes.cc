@@ -137,6 +137,9 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
 
   Handle<Map> map =
       isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  if (constructor->map()->is_strong()) {
+    map->set_is_strong();
+  }
   Map::SetPrototype(map, prototype_parent);
   map->SetConstructor(*constructor);
   Handle<JSObject> prototype = isolate->factory()->NewJSObjectFromMap(map);
