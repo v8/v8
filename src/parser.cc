@@ -913,7 +913,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_arrow_functions(FLAG_harmony_arrow_functions);
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
   set_allow_harmony_sloppy_let(FLAG_harmony_sloppy_let);
-  set_allow_harmony_unicode(FLAG_harmony_unicode);
   set_allow_harmony_computed_property_names(
       FLAG_harmony_computed_property_names);
   set_allow_harmony_rest_parameters(FLAG_harmony_rest_parameters);
@@ -4493,7 +4492,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_arrow_functions);
     SET_ALLOW(harmony_sloppy);
     SET_ALLOW(harmony_sloppy_let);
-    SET_ALLOW(harmony_unicode);
     SET_ALLOW(harmony_computed_property_names);
     SET_ALLOW(harmony_rest_parameters);
     SET_ALLOW(harmony_spreadcalls);

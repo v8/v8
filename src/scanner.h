@@ -478,9 +478,6 @@ class Scanner {
   // tokens, which is what it is used for.
   void SeekForward(int pos);
 
-  bool HarmonyUnicode() const { return harmony_unicode_; }
-  void SetHarmonyUnicode(bool unicode) { harmony_unicode_ = unicode; }
-
   // Returns true if there was a line terminator before the peek'ed token,
   // possibly inside a multi-line comment.
   bool HasAnyLineTerminatorBeforeNext() const {
@@ -790,8 +787,6 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
-  // Whether we allow \u{xxxxx}.
-  bool harmony_unicode_;
 };
 
 } }  // namespace v8::internal

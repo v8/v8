@@ -4,8 +4,6 @@
 
 // ES6 extends the \uxxxx escape and also allows \u{xxxxx}.
 
-// Flags: --harmony-unicode
-
 // Unicode escapes in variable names.
 
 (function TestVariableNames1() {

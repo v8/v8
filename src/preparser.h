@@ -139,10 +139,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(legacy_const);
 #undef ALLOW_ACCESSORS
 
-  bool allow_harmony_unicode() const { return scanner()->HarmonyUnicode(); }
-
-  void set_allow_harmony_unicode(bool a) { scanner()->SetHarmonyUnicode(a); }
-
  protected:
   enum AllowRestrictedIdentifiers {
     kAllowRestrictedIdentifiers,

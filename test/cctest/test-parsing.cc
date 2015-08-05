@@ -1429,7 +1429,6 @@ enum ParserFlag {
   kAllowHarmonyRestParameters,
   kAllowHarmonySloppy,
   kAllowHarmonySloppyLet,
-  kAllowHarmonyUnicode,
   kAllowHarmonyComputedPropertyNames,
   kAllowHarmonySpreadCalls,
   kAllowHarmonyDestructuring,
@@ -1459,7 +1458,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonySpreadCalls));
   parser->set_allow_harmony_sloppy(flags.Contains(kAllowHarmonySloppy));
   parser->set_allow_harmony_sloppy_let(flags.Contains(kAllowHarmonySloppyLet));
-  parser->set_allow_harmony_unicode(flags.Contains(kAllowHarmonyUnicode));
   parser->set_allow_harmony_computed_property_names(
       flags.Contains(kAllowHarmonyComputedPropertyNames));
   parser->set_allow_harmony_destructuring(
@@ -4861,9 +4859,7 @@ TEST(InvalidUnicodeEscapes) {
     "var foob\\v{1234}r = 0;",
     "var foob\\U{1234}r = 0;",
     NULL};
-  static const ParserFlag always_flags[] = {kAllowHarmonyUnicode};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kError);
 }
 
 
@@ -4889,9 +4885,7 @@ TEST(UnicodeEscapes) {
     // Max value for the unicode escape
     "\"\\u{10ffff}\"",
     NULL};
-  static const ParserFlag always_flags[] = {kAllowHarmonyUnicode};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess);
 }
 
 

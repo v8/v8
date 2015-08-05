@@ -40,8 +40,7 @@ void Utf16CharacterStream::ResetToBookmark() { UNREACHABLE(); }
 Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       bookmark_c0_(kNoBookmark),
-      octal_pos_(Location::invalid()),
-      harmony_unicode_(false) {
+      octal_pos_(Location::invalid()) {
   bookmark_current_.literal_chars = &bookmark_current_literal_;
   bookmark_current_.raw_literal_chars = &bookmark_current_raw_literal_;
   bookmark_next_.literal_chars = &bookmark_next_literal_;
@@ -1075,10 +1074,9 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
 
 template <bool capture_raw>
 uc32 Scanner::ScanUnicodeEscape() {
-  // Accept both \uxxxx and \u{xxxxxx} (if harmony unicode escapes are
-  // allowed). In the latter case, the number of hex digits between { } is
-  // arbitrary. \ and u have already been read.
-  if (c0_ == '{' && HarmonyUnicode()) {
+  // Accept both \uxxxx and \u{xxxxxx}. In the latter case, the number of
+  // hex digits between { } is arbitrary. \ and u have already been read.
+  if (c0_ == '{') {
     Advance<capture_raw>();
     uc32 cp = ScanUnlimitedLengthHexNumber<capture_raw>(0x10ffff);
     if (cp < 0) {

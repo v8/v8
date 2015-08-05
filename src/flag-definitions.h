@@ -213,7 +213,6 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_object_observe, "harmony Object.observe")                   \
   V(harmony_spreadcalls, "harmony spread-calls")                        \
   V(harmony_spread_arrays, "harmony spread in array literals")          \
-  V(harmony_unicode, "harmony unicode escapes")                         \
   V(harmony_object, "harmony Object methods")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
@@ -241,7 +240,6 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 
 
 // Feature dependencies.
-DEFINE_IMPLICATION(harmony_unicode_regexps, harmony_unicode)
 DEFINE_IMPLICATION(harmony_sloppy_let, harmony_sloppy)
 
 
