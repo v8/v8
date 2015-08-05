@@ -2956,9 +2956,6 @@ class HashTableBase : public FixedArray {
   // number of elements. May be more than HashTable::kMaxCapacity.
   static inline int ComputeCapacity(int at_least_space_for);
 
-  // Use a different heuristic to compute capacity when serializing.
-  static inline int ComputeCapacityForSerialization(int at_least_space_for);
-
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
   bool IsKey(Object* k) {
