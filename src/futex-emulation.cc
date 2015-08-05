@@ -101,18 +101,25 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     }
   }
 
-  base::TimeDelta rel_time_left = rel_timeout;
+  base::Time start_time = base::Time::NowFromSystemTime();
+  base::Time timeout_time = start_time + rel_timeout;
 
   wait_list_.Pointer()->AddNode(node);
 
   Object* result;
 
   while (true) {
-    base::TimeDelta time_to_wait = (use_timeout && rel_time_left < kMaxWaitTime)
-                                       ? rel_time_left
-                                       : kMaxWaitTime;
+    base::Time current_time = base::Time::NowFromSystemTime();
+    if (use_timeout && current_time > timeout_time) {
+      result = Smi::FromInt(Result::kTimedOut);
+      break;
+    }
 
-    base::Time start_time = base::Time::NowFromSystemTime();
+    base::TimeDelta time_until_timeout = timeout_time - current_time;
+    base::TimeDelta time_to_wait =
+        (use_timeout && time_until_timeout < kMaxWaitTime) ? time_until_timeout
+                                                           : kMaxWaitTime;
+
     bool wait_for_result = node->cond_.WaitFor(mutex_.Pointer(), time_to_wait);
     USE(wait_for_result);
 
@@ -121,17 +128,8 @@ Object* FutexEmulation::Wait(Isolate* isolate,
       break;
     }
 
-    // Spurious wakeup or timeout.
-    base::Time end_time = base::Time::NowFromSystemTime();
-    base::TimeDelta waited_for = end_time - start_time;
-    rel_time_left -= waited_for;
-
-    if (use_timeout && rel_time_left < base::TimeDelta::FromMicroseconds(0)) {
-      result = Smi::FromInt(Result::kTimedOut);
-      break;
-    }
-
-    // Potentially handle interrupts before continuing to wait.
+    // Spurious wakeup or timeout. Potentially handle interrupts before
+    // continuing to wait.
     Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
     if (interrupt_object->IsException()) {
       result = interrupt_object;
