@@ -244,7 +244,7 @@ class GCIdleTimeHandler {
   Mode NextMode(const HeapState& heap_state);
   GCIdleTimeAction Action(double idle_time_in_ms, const HeapState& heap_state,
                           bool reduce_memory);
-  GCIdleTimeAction NothingOrDone();
+  GCIdleTimeAction NothingOrDone(double idle_time_in_ms);
 
   int idle_mark_compacts_;
   int mark_compacts_;
