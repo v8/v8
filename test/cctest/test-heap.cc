@@ -31,6 +31,7 @@
 #include "src/v8.h"
 
 #include "src/compilation-cache.h"
+#include "src/context-measure.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/factory.h"
@@ -6267,4 +6268,31 @@ TEST(SlotsBufferObjectSlotsRemoval) {
         HeapObject::RawField(heap->empty_fixed_array(),
                              FixedArrayBase::kLengthOffset));
   delete buffer;
+}
+
+
+TEST(ContextMeasure) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  LocalContext context;
+
+  int size_upper_limit = 0;
+  int count_upper_limit = 0;
+  HeapIterator it(CcTest::heap());
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+    size_upper_limit += obj->Size();
+    count_upper_limit++;
+  }
+
+  ContextMeasure measure(*isolate->native_context());
+
+  PrintF("Context size        : %d bytes\n", measure.Size());
+  PrintF("Context object count: %d\n", measure.Count());
+
+  CHECK_LE(1000, measure.Count());
+  CHECK_LE(50000, measure.Size());
+
+  CHECK_LE(measure.Count(), count_upper_limit);
+  CHECK_LE(measure.Size(), size_upper_limit);
 }

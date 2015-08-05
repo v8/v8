@@ -6,7 +6,6 @@
 #define V8_SNAPSHOT_SERIALIZE_H_
 
 #include "src/hashmap.h"
-#include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
@@ -156,6 +155,8 @@ class BackReference {
                          ChunkOffsetBits::encode(index));
   }
 
+  static BackReference DummyReference() { return BackReference(kDummyValue); }
+
   static BackReference Reference(AllocationSpace space, uint32_t chunk_index,
                                  uint32_t chunk_offset) {
     DCHECK(IsAligned(chunk_offset, kObjectAlignment));
@@ -201,6 +202,7 @@ class BackReference {
   static const uint32_t kInvalidValue = 0xFFFFFFFF;
   static const uint32_t kSourceValue = 0xFFFFFFFE;
   static const uint32_t kGlobalProxyValue = 0xFFFFFFFD;
+  static const uint32_t kDummyValue = 0xFFFFFFFC;
   static const int kChunkOffsetSize = kPageSizeBits - kObjectAlignmentBits;
   static const int kChunkIndexSize = 32 - kChunkOffsetSize - kSpaceTagSize;
 

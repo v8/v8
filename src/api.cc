@@ -22,6 +22,7 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
+#include "src/context-measure.h"
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
@@ -5572,6 +5573,12 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(Local<String> error) {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Handle<i::String> error_handle = Utils::OpenHandle(*error);
   context->set_error_message_for_code_gen_from_strings(*error_handle);
+}
+
+
+size_t Context::EstimatedSize() {
+  return static_cast<size_t>(
+      i::ContextMeasure(*Utils::OpenHandle(this)).Size());
 }
 
 

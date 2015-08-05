@@ -6662,6 +6662,11 @@ class V8_EXPORT Context {
   void SetErrorMessageForCodeGenerationFromStrings(Local<String> message);
 
   /**
+   * Estimate the memory in bytes retained by this context.
+   */
+  size_t EstimatedSize();
+
+  /**
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.
    */

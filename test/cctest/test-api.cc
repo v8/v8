@@ -21827,3 +21827,11 @@ TEST(FutexInterruption) {
       "Atomics.futexWait(i32a, 0, 0);");
   CHECK(try_catch.HasTerminated());
 }
+
+
+TEST(EstimatedContextSize) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  CHECK(50000 < env->EstimatedSize());
+}
