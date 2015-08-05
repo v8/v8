@@ -1643,10 +1643,8 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   // freeze them in strong mode.
   environment()->Pop();  // proto
   environment()->Pop();  // literal
-  const Operator* op = javascript()->CallRuntime(
-      is_strong(language_mode()) ? Runtime::kFinalizeClassDefinitionStrong
-                                 : Runtime::kFinalizeClassDefinition,
-      2);
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kFinalizeClassDefinition, 2);
   literal = NewNode(op, literal, proto);
 
   // Assign to class variable.

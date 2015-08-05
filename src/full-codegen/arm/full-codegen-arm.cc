@@ -2574,10 +2574,7 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit,
 
   // Set both the prototype and constructor to have fast properties, and also
   // freeze them in strong mode.
-  __ CallRuntime(is_strong(language_mode())
-                     ? Runtime::kFinalizeClassDefinitionStrong
-                     : Runtime::kFinalizeClassDefinition,
-                 2);
+  __ CallRuntime(Runtime::kFinalizeClassDefinition, 2);
 }
 
 

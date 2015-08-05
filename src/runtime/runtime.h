@@ -85,7 +85,6 @@ namespace internal {
   F(DefineClass, 6, 1)                        \
   F(DefineClassStrong, 6, 1)                  \
   F(FinalizeClassDefinition, 2, 1)            \
-  F(FinalizeClassDefinitionStrong, 2, 1)      \
   F(DefineClassMethod, 3, 1)                  \
   F(ClassGetSourceCode, 1, 1)                 \
   F(LoadFromSuper, 4, 1)                      \

@@ -265,24 +265,15 @@ RUNTIME_FUNCTION(Runtime_FinalizeClassDefinition) {
   JSObject::MigrateSlowToFast(prototype, 0, "RuntimeToFastProperties");
   JSObject::MigrateSlowToFast(constructor, 0, "RuntimeToFastProperties");
 
+  if (constructor->map()->is_strong()) {
+    DCHECK(prototype->map()->is_strong());
+    RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::Freeze(prototype));
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                       JSObject::Freeze(constructor));
+    return *result;
+  }
   return *constructor;
-}
-
-
-RUNTIME_FUNCTION(Runtime_FinalizeClassDefinitionStrong) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, prototype, 1);
-
-  JSObject::MigrateSlowToFast(prototype, 0, "RuntimeToFastProperties");
-  JSObject::MigrateSlowToFast(constructor, 0, "RuntimeToFastProperties");
-
-  RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::Freeze(prototype));
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::Freeze(constructor));
-  return *result;
 }
 
 
