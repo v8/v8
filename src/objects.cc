@@ -3292,6 +3292,12 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
       ASSIGN_RETURN_ON_EXCEPTION(it->isolate(), to_assign,
                                  Execution::ToNumber(it->isolate(), value),
                                  Object);
+      // ToNumber above might modify the receiver, causing the cached
+      // holder_map to mismatch the actual holder->map() after this point.
+      // Reload the map to be in consistent state. Other cached state cannot
+      // have been invalidated since typed array elements cannot be reconfigured
+      // in any way.
+      it->ReloadHolderMap();
     }
   }
 
