@@ -977,6 +977,7 @@ class MarkCompactCollector {
 
   base::SmartPointer<FreeList> free_list_old_space_;
   base::SmartPointer<FreeList> free_list_code_space_;
+  base::SmartPointer<FreeList> free_list_map_space_;
 
   friend class Heap;
 };

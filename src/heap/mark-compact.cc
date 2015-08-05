@@ -227,6 +227,7 @@ static void VerifyEvacuation(Heap* heap) {
 void MarkCompactCollector::SetUp() {
   free_list_old_space_.Reset(new FreeList(heap_->old_space()));
   free_list_code_space_.Reset(new FreeList(heap_->code_space()));
+  free_list_map_space_.Reset(new FreeList(heap_->map_space()));
   EnsureMarkingDequeIsReserved();
   EnsureMarkingDequeIsCommitted(kMinMarkingDequeSize);
 }
@@ -496,11 +497,15 @@ class MarkCompactCollector::SweeperTask : public v8::Task {
 void MarkCompactCollector::StartSweeperThreads() {
   DCHECK(free_list_old_space_.get()->IsEmpty());
   DCHECK(free_list_code_space_.get()->IsEmpty());
+  DCHECK(free_list_map_space_.get()->IsEmpty());
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
       new SweeperTask(heap(), heap()->old_space()),
       v8::Platform::kShortRunningTask);
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
       new SweeperTask(heap(), heap()->code_space()),
+      v8::Platform::kShortRunningTask);
+  V8::GetCurrentPlatform()->CallOnBackgroundThread(
+      new SweeperTask(heap(), heap()->map_space()),
       v8::Platform::kShortRunningTask);
 }
 
@@ -527,9 +532,11 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   if (!heap()->concurrent_sweeping_enabled() || !IsSweepingCompleted()) {
     SweepInParallel(heap()->paged_space(OLD_SPACE), 0);
     SweepInParallel(heap()->paged_space(CODE_SPACE), 0);
+    SweepInParallel(heap()->paged_space(MAP_SPACE), 0);
   }
   // Wait twice for both jobs.
   if (heap()->concurrent_sweeping_enabled()) {
+    pending_sweeper_jobs_semaphore_.Wait();
     pending_sweeper_jobs_semaphore_.Wait();
     pending_sweeper_jobs_semaphore_.Wait();
   }
@@ -537,8 +544,10 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   sweeping_in_progress_ = false;
   RefillFreeList(heap()->paged_space(OLD_SPACE));
   RefillFreeList(heap()->paged_space(CODE_SPACE));
+  RefillFreeList(heap()->paged_space(MAP_SPACE));
   heap()->paged_space(OLD_SPACE)->ResetUnsweptFreeBytes();
   heap()->paged_space(CODE_SPACE)->ResetUnsweptFreeBytes();
+  heap()->paged_space(MAP_SPACE)->ResetUnsweptFreeBytes();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !evacuation()) {
@@ -565,6 +574,8 @@ void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
     free_list = free_list_old_space_.get();
   } else if (space == heap()->code_space()) {
     free_list = free_list_code_space_.get();
+  } else if (space == heap()->map_space()) {
+    free_list = free_list_map_space_.get();
   } else {
     // Any PagedSpace might invoke RefillFreeLists, so we need to make sure
     // to only refill them for the old space.
@@ -4235,13 +4246,18 @@ int MarkCompactCollector::SweepInParallel(Page* page, PagedSpace* space) {
     page->set_parallel_sweeping(MemoryChunk::SWEEPING_IN_PROGRESS);
     FreeList* free_list;
     FreeList private_free_list(space);
-    if (space->identity() == CODE_SPACE) {
+    if (space->identity() == OLD_SPACE) {
+      free_list = free_list_old_space_.get();
+      max_freed =
+          Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
+                IGNORE_FREE_SPACE>(space, &private_free_list, page, NULL);
+    } else if (space->identity() == CODE_SPACE) {
       free_list = free_list_code_space_.get();
       max_freed =
           Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, REBUILD_SKIP_LIST,
                 IGNORE_FREE_SPACE>(space, &private_free_list, page, NULL);
     } else {
-      free_list = free_list_old_space_.get();
+      free_list = free_list_map_space_.get();
       max_freed =
           Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
                 IGNORE_FREE_SPACE>(space, &private_free_list, page, NULL);
@@ -4312,7 +4328,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
                     IGNORE_FREE_SPACE>(space, NULL, p, NULL);
             }
           } else {
-            DCHECK(space->identity() == OLD_SPACE);
             Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
                   IGNORE_FREE_SPACE>(space, NULL, p, NULL);
           }
@@ -4341,8 +4356,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
                   IGNORE_FREE_SPACE>(space, NULL, p, NULL);
           }
         } else {
-          DCHECK(space->identity() == OLD_SPACE ||
-                 space->identity() == MAP_SPACE);
           Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
                 IGNORE_FREE_SPACE>(space, NULL, p, NULL);
         }
@@ -4392,7 +4405,11 @@ void MarkCompactCollector::SweepSpaces() {
                                   GCTracer::Scope::MC_SWEEP_CODE);
       SweepSpace(heap()->code_space(), CONCURRENT_SWEEPING);
     }
-
+    {
+      GCTracer::Scope sweep_scope(heap()->tracer(),
+                                  GCTracer::Scope::MC_SWEEP_MAP);
+      SweepSpace(heap()->map_space(), CONCURRENT_SWEEPING);
+    }
     sweeping_in_progress_ = true;
     if (heap()->concurrent_sweeping_enabled()) {
       StartSweeperThreads();
@@ -4404,15 +4421,6 @@ void MarkCompactCollector::SweepSpaces() {
   EvacuateNewSpaceAndCandidates();
 
   heap()->FreeDeadArrayBuffers(false);
-
-  // ClearNonLiveReferences depends on precise sweeping of map space to
-  // detect whether unmarked map became dead in this collection or in one
-  // of the previous ones.
-  {
-    GCTracer::Scope sweep_scope(heap()->tracer(),
-                                GCTracer::Scope::MC_SWEEP_MAP);
-    SweepSpace(heap()->map_space(), SEQUENTIAL_SWEEPING);
-  }
 
   // Deallocate unmarked objects and clear marked bits for marked objects.
   heap_->lo_space()->FreeUnmarkedObjects();
@@ -4453,6 +4461,7 @@ void MarkCompactCollector::ParallelSweepSpaceComplete(PagedSpace* space) {
 void MarkCompactCollector::ParallelSweepSpacesComplete() {
   ParallelSweepSpaceComplete(heap()->old_space());
   ParallelSweepSpaceComplete(heap()->code_space());
+  ParallelSweepSpaceComplete(heap()->map_space());
 }
 
 
