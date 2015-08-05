@@ -2042,7 +2042,7 @@ class Heap {
 
   // Make a copy of src, also grow the copy, and return the copy.
   MUST_USE_RESULT AllocationResult
-      CopyFixedArrayAndGrow(FixedArray* src, int grow_by);
+  CopyFixedArrayAndGrow(FixedArray* src, int grow_by, PretenureFlag pretenure);
 
   // Make a copy of src, set the map, and return the copy.
   MUST_USE_RESULT AllocationResult

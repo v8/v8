@@ -322,8 +322,9 @@ class Factory final {
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
 
-  Handle<FixedArray> CopyFixedArrayAndGrow(Handle<FixedArray> array,
-                                           int grow_by);
+  Handle<FixedArray> CopyFixedArrayAndGrow(
+      Handle<FixedArray> array, int grow_by,
+      PretenureFlag pretenure = NOT_TENURED);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 

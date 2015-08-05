@@ -255,8 +255,10 @@ void TransitionArray::PutPrototypeTransition(Handle<Map> map,
     // Grow array by factor 2 up to MaxCachedPrototypeTransitions.
     int new_capacity = Min(kMaxCachedPrototypeTransitions, transitions * 2);
     if (new_capacity == capacity) return;
+    int grow_by = new_capacity - capacity;
 
-    cache = FixedArray::CopySize(cache, header + new_capacity);
+    Isolate* isolate = map->GetIsolate();
+    cache = isolate->factory()->CopyFixedArrayAndGrow(cache, grow_by);
     if (capacity < 0) {
       // There was no prototype transitions array before, so the size
       // couldn't be copied. Initialize it explicitly.

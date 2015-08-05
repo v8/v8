@@ -2398,12 +2398,6 @@ class FixedArray: public FixedArrayBase {
   // Shrink length and insert filler objects.
   void Shrink(int length);
 
-  // Copy operation.
-  // TODO(mstarzinger): Deprecated, use Factory::CopyFixedArrayAndGrow!
-  static Handle<FixedArray> CopySize(Handle<FixedArray> array,
-                                     int new_length,
-                                     PretenureFlag pretenure = NOT_TENURED);
-
   enum KeyFilter { ALL_KEYS, NON_SYMBOL_KEYS };
 
   // Add the elements of a JSArray to this FixedArray.

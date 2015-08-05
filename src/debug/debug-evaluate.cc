@@ -161,9 +161,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       RecordContextsInChain(&inner_context, with_context, with_context);
     } else if (scope_type == ScopeIterator::ScopeTypeCatch ||
                scope_type == ScopeIterator::ScopeTypeWith) {
-      Handle<Context> cloned_context =
-          Handle<Context>::cast(FixedArray::CopySize(
-              it.CurrentContext(), it.CurrentContext()->length()));
+      Handle<Context> cloned_context = Handle<Context>::cast(
+          isolate->factory()->CopyFixedArray(it.CurrentContext()));
 
       ContextChainElement context_chain_element;
       context_chain_element.original_context = it.CurrentContext();
@@ -176,9 +175,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       frame_inspector.MaterializeStackLocals(materialized_object,
                                              it.CurrentScopeInfo());
       if (it.HasContext()) {
-        Handle<Context> cloned_context =
-            Handle<Context>::cast(FixedArray::CopySize(
-                it.CurrentContext(), it.CurrentContext()->length()));
+        Handle<Context> cloned_context = Handle<Context>::cast(
+            isolate->factory()->CopyFixedArray(it.CurrentContext()));
         Handle<Context> with_context = isolate->factory()->NewWithContext(
             function, cloned_context, materialized_object);
 

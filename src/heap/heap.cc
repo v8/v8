@@ -4457,12 +4457,14 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
 }
 
 
-AllocationResult Heap::CopyFixedArrayAndGrow(FixedArray* src, int grow_by) {
+AllocationResult Heap::CopyFixedArrayAndGrow(FixedArray* src, int grow_by,
+                                             PretenureFlag pretenure) {
   int old_len = src->length();
   int new_len = old_len + grow_by;
+  DCHECK(new_len >= old_len);
   HeapObject* obj;
   {
-    AllocationResult allocation = AllocateRawFixedArray(new_len, NOT_TENURED);
+    AllocationResult allocation = AllocateRawFixedArray(new_len, pretenure);
     if (!allocation.To(&obj)) return allocation;
   }
   obj->set_map_no_write_barrier(fixed_array_map());

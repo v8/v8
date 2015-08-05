@@ -20,8 +20,11 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   CHECK(used >= 0 && length > 0 && used < length);
   if (used + 1 == length) {
     CHECK(length < Smi::kMaxValue / 2);
-    result = Handle<ScriptContextTable>::cast(
-        FixedArray::CopySize(table, length * 2));
+    Isolate* isolate = table->GetIsolate();
+    Handle<FixedArray> copy =
+        isolate->factory()->CopyFixedArrayAndGrow(table, length);
+    copy->set_map(isolate->heap()->script_context_table_map());
+    result = Handle<ScriptContextTable>::cast(copy);
   } else {
     result = table;
   }
