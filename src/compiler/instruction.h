@@ -1085,6 +1085,9 @@ class InstructionSequence final : public ZoneObject {
   const_iterator begin() const { return instructions_.begin(); }
   const_iterator end() const { return instructions_.end(); }
   const InstructionDeque& instructions() const { return instructions_; }
+  int LastInstructionIndex() const {
+    return static_cast<int>(instructions().size()) - 1;
+  }
 
   Instruction* InstructionAt(int index) const {
     DCHECK(index >= 0);

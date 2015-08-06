@@ -1337,13 +1337,9 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     Run<PreprocessLiveRangesPhase>();
   }
 
-  if (FLAG_turbo_greedy_regalloc) {
-    Run<AllocateGeneralRegistersPhase<GreedyAllocator>>();
-    Run<AllocateDoubleRegistersPhase<GreedyAllocator>>();
-  } else {
-    Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-    Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
-  }
+  // TODO(mtrofin): re-enable greedy once we have bots for range preprocessing.
+  Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
+  Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
 
   if (FLAG_turbo_frame_elision) {
     Run<LocateSpillSlotsPhase>();
