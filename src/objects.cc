@@ -9508,6 +9508,7 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<FixedArray> literals,
     BailoutId osr_ast_id) {
   Isolate* isolate = shared->GetIsolate();
+  DCHECK(!shared->SearchOptimizedCodeMap(*native_context, osr_ast_id).code);
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(native_context->IsNativeContext());
   STATIC_ASSERT(kEntryLength == 4);
@@ -9517,20 +9518,18 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   if (value->IsSmi()) {
     // No optimized code map.
     DCHECK_EQ(0, Smi::cast(*value)->value());
-    new_code_map = isolate->factory()->NewFixedArray(kInitialLength);
+    new_code_map = isolate->factory()->NewFixedArray(kInitialLength, TENURED);
     old_length = kEntriesStart;
   } else {
-    // Copy old map and append one new entry.
+    // Copy old optimized code map and append one new entry.
     Handle<FixedArray> old_code_map = Handle<FixedArray>::cast(value);
-    DCHECK(!shared->SearchOptimizedCodeMap(*native_context, osr_ast_id).code);
-    new_code_map =
-        isolate->factory()->CopyFixedArrayAndGrow(old_code_map, kEntryLength);
+    new_code_map = isolate->factory()->CopyFixedArrayAndGrow(
+        old_code_map, kEntryLength, TENURED);
     old_length = old_code_map->length();
-    // Zap the old map for the sake of the heap verifier.
-    if (Heap::ShouldZapGarbage()) {
-      Object** data = old_code_map->data_start();
-      MemsetPointer(data, isolate->heap()->the_hole_value(), old_length);
-    }
+    // Zap the old map to avoid any stale entries. Note that this is required
+    // for correctness because entries are being treated weakly by the GC.
+    MemsetPointer(old_code_map->data_start(), isolate->heap()->the_hole_value(),
+                  old_length);
   }
   new_code_map->set(old_length + kContextOffset, *native_context);
   new_code_map->set(old_length + kCachedCodeOffset, *code);

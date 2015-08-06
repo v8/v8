@@ -4557,6 +4557,94 @@ TEST(Regress513507) {
 #endif  // DEBUG
 
 
+TEST(Regress514122) {
+  i::FLAG_flush_optimized_code_cache = false;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+
+  // Perfrom one initial GC to enable code flushing.
+  CcTest::heap()->CollectAllGarbage();
+
+  // Prepare function whose optimized code map we can use.
+  Handle<SharedFunctionInfo> shared;
+  {
+    HandleScope inner_scope(isolate);
+    CompileRun("function f() { return 1 }"
+               "f(); %OptimizeFunctionOnNextCall(f); f();");
+
+    Handle<JSFunction> f =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("f"))));
+    shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
+    CompileRun("f = null");
+  }
+
+  // Prepare optimized code that we can use.
+  Handle<Code> code;
+  {
+    HandleScope inner_scope(isolate);
+    CompileRun("function g() { return 2 }"
+               "g(); %OptimizeFunctionOnNextCall(g); g();");
+
+    Handle<JSFunction> g =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                CcTest::global()->Get(v8_str("g"))));
+    code = inner_scope.CloseAndEscape(handle(g->code(), isolate));
+    if (!code->is_optimized_code()) return;
+  }
+
+  Handle<FixedArray> lit = isolate->factory()->empty_fixed_array();
+  Handle<Context> context(isolate->context());
+
+  // Add the code several times to the optimized code map.
+  for (int i = 0; i < 3; ++i) {
+    HandleScope inner_scope(isolate);
+    BailoutId id = BailoutId(i);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+  }
+  shared->optimized_code_map()->Print();
+
+  // Add the code with a literals array to be evacuated.
+  Page* evac_page;
+  {
+    HandleScope inner_scope(isolate);
+    AlwaysAllocateScope always_allocate(isolate);
+    // Make sure literal is placed on an old-space evacuation candidate.
+    SimulateFullSpace(heap->old_space());
+    Handle<FixedArray> lit = isolate->factory()->NewFixedArray(23, TENURED);
+    evac_page = Page::FromAddress(lit->address());
+    BailoutId id = BailoutId(100);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+  }
+
+  // Heap is ready, force {lit_page} to become an evacuation candidate and
+  // simulate incremental marking to enqueue optimized code map.
+  FLAG_manual_evacuation_candidates_selection = true;
+  evac_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  SimulateIncrementalMarking(heap);
+
+  // No matter whether reachable or not, {boomer} is doomed.
+  Handle<Object> boomer(shared->optimized_code_map(), isolate);
+
+  // Add the code several times to the optimized code map. This will leave old
+  // copies of the optimized code map unreachable but still marked.
+  for (int i = 3; i < 6; ++i) {
+    HandleScope inner_scope(isolate);
+    BailoutId id = BailoutId(i);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+  }
+
+  // Trigger a GC to flush out the bug.
+  heap->CollectGarbage(i::OLD_SPACE, "fire in the hole");
+  boomer->Print();
+}
+
+
 class DummyVisitor : public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object** end) { }
