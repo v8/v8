@@ -6887,18 +6887,26 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
 void Isolate::CollectAllGarbage(const char* gc_reason) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
   if (heap->incremental_marking()->IsStopped()) {
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags, kGCCallbackFlagForced,
-                                  gc_reason);
+    if (heap->incremental_marking()->CanBeActivated()) {
+      heap->StartIncrementalMarking(i::Heap::kNoGCFlags, kGCCallbackFlagForced,
+                                    gc_reason);
+    } else {
+      heap->CollectAllGarbage(i::Heap::kNoGCFlags, gc_reason,
+                              kGCCallbackFlagForced);
+    }
+  } else {
+    // Incremental marking is turned on an has already been started.
+
+    // TODO(mlippautz): Compute the time slice for incremental marking based on
+    // memory pressure.
+    double deadline = heap->MonotonicallyIncreasingTimeInMs() +
+                      i::FLAG_external_allocation_limit_incremental_time;
+    heap->AdvanceIncrementalMarking(
+        0, deadline, i::IncrementalMarking::StepActions(
+                         i::IncrementalMarking::GC_VIA_STACK_GUARD,
+                         i::IncrementalMarking::FORCE_MARKING,
+                         i::IncrementalMarking::FORCE_COMPLETION));
   }
-  // TODO(mlippautz): Compute the time slice for incremental marking based on
-  // memory pressure.
-  double deadline = heap->MonotonicallyIncreasingTimeInMs() +
-                    i::FLAG_external_allocation_limit_incremental_time;
-  heap->AdvanceIncrementalMarking(0, deadline,
-                                  i::IncrementalMarking::StepActions(
-                                      i::IncrementalMarking::GC_VIA_STACK_GUARD,
-                                      i::IncrementalMarking::FORCE_MARKING,
-                                      i::IncrementalMarking::FORCE_COMPLETION));
 }
 
 

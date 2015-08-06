@@ -12574,6 +12574,17 @@ THREADED_TEST(ExternalAllocatedMemory) {
 }
 
 
+TEST(Regress51719) {
+  i::FLAG_incremental_marking = false;
+  CcTest::InitializeVM();
+
+  const int64_t kTriggerGCSize =
+      v8::internal::Internals::kExternalAllocationLimit + 1;
+  v8::Isolate* isolate = CcTest::isolate();
+  isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize);
+}
+
+
 // Regression test for issue 54, object templates with internal fields
 // but no accessors or interceptors did not get their internal field
 // count set on instances.
