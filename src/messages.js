@@ -45,12 +45,28 @@ var StringCharAt;
 var StringIndexOf;
 var StringSubstring;
 
+var Float32x4ToString;
+var Int32x4ToString;
+var Bool32x4ToString;
+var Int16x8ToString;
+var Bool16x8ToString;
+var Int8x16ToString;
+var Bool8x16ToString;
+
+
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
   ObjectToString = from.ObjectToString;
   StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
+  Float32x4ToString = from.Float32x4ToString;
+  Int32x4ToString = from.Int32x4ToString;
+  Bool32x4ToString = from.Bool32x4ToString;
+  Int16x8ToString = from.Int16x8ToString;
+  Bool16x8ToString = from.Bool16x8ToString;
+  Int8x16ToString = from.Int8x16ToString;
+  Bool8x16ToString = from.Bool8x16ToString;
 });
 
 // -------------------------------------------------------------------
@@ -88,13 +104,13 @@ function NoSideEffectToString(obj) {
   if (IS_SYMBOL(obj)) return %_CallFunction(obj, $symbolToString);
   if (IS_SIMD_VALUE(obj)) {
     switch (typeof(obj)) {
-      case 'float32x4': return %_CallFunction(obj, $float32x4ToString);
-      case 'int32x4':   return %_CallFunction(obj, $int32x4ToString);
-      case 'bool32x4':  return %_CallFunction(obj, $bool32x4ToString);
-      case 'int16x8':   return %_CallFunction(obj, $int16x8ToString);
-      case 'bool16x8':  return %_CallFunction(obj, $bool16x8ToString);
-      case 'int16x8':   return %_CallFunction(obj, $int16x8ToString);
-      case 'bool16x8':  return %_CallFunction(obj, $bool16x8ToString);
+      case 'float32x4': return %_CallFunction(obj, Float32x4ToString);
+      case 'int32x4':   return %_CallFunction(obj, Int32x4ToString);
+      case 'bool32x4':  return %_CallFunction(obj, Bool32x4ToString);
+      case 'int16x8':   return %_CallFunction(obj, Int16x8ToString);
+      case 'bool16x8':  return %_CallFunction(obj, Bool16x8ToString);
+      case 'int16x8':   return %_CallFunction(obj, Int16x8ToString);
+      case 'bool16x8':  return %_CallFunction(obj, Bool16x8ToString);
     }
   }
   if (IS_OBJECT(obj)

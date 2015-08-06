@@ -1611,6 +1611,8 @@ class Simd128Value : public HeapObject {
   bool BitwiseEquals(const Simd128Value* other) const;
   // Computes a hash from the 128 bit value, viewed as 4 32-bit integers.
   uint32_t Hash() const;
+  // Copies the 16 bytes of SIMD data to the destination address.
+  void CopyBits(void* destination) const;
 
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;

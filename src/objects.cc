@@ -1634,6 +1634,9 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
 #define READ_INT64_FIELD(p, offset) \
   (*reinterpret_cast<const int64_t*>(FIELD_ADDR_CONST(p, offset)))
 
+#define READ_BYTE_FIELD(p, offset) \
+  (*reinterpret_cast<const byte*>(FIELD_ADDR_CONST(p, offset)))
+
 
 bool Simd128Value::BitwiseEquals(const Simd128Value* other) const {
   return READ_INT64_FIELD(this, kValueOffset) ==
@@ -1654,6 +1657,11 @@ uint32_t Simd128Value::Hash() const {
   hash = ComputeIntegerHash(
       READ_INT32_FIELD(this, kValueOffset + 3 * kInt32Size), hash * 31);
   return hash;
+}
+
+
+void Simd128Value::CopyBits(void* destination) const {
+  memcpy(destination, &READ_BYTE_FIELD(this, kValueOffset), kSimd128Size);
 }
 
 
