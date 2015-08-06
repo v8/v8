@@ -4859,7 +4859,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
     case DO_INCREMENTAL_MARKING: {
       const double remaining_idle_time_in_ms =
           AdvanceIncrementalMarking(action.parameter, deadline_in_ms,
-                                    IncrementalMarking::NoForcedStepActions());
+                                    IncrementalMarking::IdleStepActions());
       if (remaining_idle_time_in_ms > 0.0) {
         action.additional_work = TryFinalizeIdleIncrementalMarking(
             remaining_idle_time_in_ms, heap_state.size_of_objects,

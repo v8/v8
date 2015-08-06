@@ -16,9 +16,9 @@ namespace v8 {
 namespace internal {
 
 
-IncrementalMarking::StepActions IncrementalMarking::NoForcedStepActions() {
+IncrementalMarking::StepActions IncrementalMarking::IdleStepActions() {
   return StepActions(IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                     IncrementalMarking::DO_NOT_FORCE_MARKING,
+                     IncrementalMarking::FORCE_MARKING,
                      IncrementalMarking::DO_NOT_FORCE_COMPLETION);
 }
 

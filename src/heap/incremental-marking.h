@@ -39,7 +39,7 @@ class IncrementalMarking {
     ForceCompletionAction force_completion;
   };
 
-  static StepActions NoForcedStepActions();
+  static StepActions IdleStepActions();
 
   explicit IncrementalMarking(Heap* heap);
 
