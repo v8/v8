@@ -133,7 +133,7 @@ class ArrayConcatVisitor {
   ~ArrayConcatVisitor() { clear_storage(); }
 
   void visit(uint32_t i, Handle<Object> elm) {
-    if (i > JSObject::kMaxElementCount - index_offset_) {
+    if (i >= JSObject::kMaxElementCount - index_offset_) {
       set_exceeds_array_limit(true);
       return;
     }
