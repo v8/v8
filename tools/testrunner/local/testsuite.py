@@ -221,7 +221,7 @@ class TestSuite(object):
     globs = []
     exact_matches = []
     for a in args:
-      argpath = a.split(os.path.sep)
+      argpath = a.split('/')
       if argpath[0] != self.name:
         continue
       if len(argpath) == 1 or (len(argpath) == 2 and argpath[1] == '*'):

@@ -505,7 +505,7 @@ def Main():
   else:
     args_suites = OrderedDict() # Used as set
     for arg in args:
-      args_suites[arg.split(os.path.sep)[0]] = True
+      args_suites[arg.split('/')[0]] = True
     suite_paths = [ s for s in args_suites if s in suite_paths ]
 
   suites = []
