@@ -4763,7 +4763,13 @@ bool Heap::HasHighFragmentation(intptr_t used, intptr_t committed) {
 
 
 void Heap::ReduceNewSpaceSize() {
-  if (!FLAG_predictable && HasLowAllocationRate()) {
+  // TODO(ulan): Unify this constant with the similar constant in
+  // GCIdleTimeHandler once the change is merged to 4.5.
+  static const size_t kLowAllocationThroughput = 1000;
+  size_t allocation_throughput =
+      tracer()->CurrentAllocationThroughputInBytesPerMillisecond();
+  if (FLAG_predictable || allocation_throughput == 0) return;
+  if (allocation_throughput < kLowAllocationThroughput) {
     new_space_.Shrink();
     UncommitFromSpace();
   }

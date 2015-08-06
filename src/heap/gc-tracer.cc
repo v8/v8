@@ -702,11 +702,15 @@ size_t GCTracer::AllocationThroughputInBytesPerMillisecond(
 }
 
 
+size_t GCTracer::CurrentAllocationThroughputInBytesPerMillisecond() const {
+  return AllocationThroughputInBytesPerMillisecond(kThroughputTimeFrameMs);
+}
+
+
 size_t GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
     const {
-  static const double kThroughputTimeFrame = 5000;
   return OldGenerationAllocationThroughputInBytesPerMillisecond(
-      kThroughputTimeFrame);
+      kThroughputTimeFrameMs);
 }
 
 
