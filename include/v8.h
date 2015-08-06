@@ -6606,10 +6606,12 @@ class V8_EXPORT Context {
   V8_INLINE Local<Value> GetEmbedderData(int index);
 
   /**
-   * Gets the exports object used by V8 extras. Extra natives get a reference
-   * to this object and can use it to export functionality.
+   * Gets the binding object used by V8 extras. Extra natives get a reference
+   * to this object and can use it to "export" functionality by adding
+   * properties. Extra natives can also "import" functionality by accessing
+   * properties added by the embedder using the V8 API.
    */
-  Local<Object> GetExtrasExportsObject();
+  Local<Object> GetExtrasBindingObject();
 
   /**
    * Sets the embedder data with the given index, growing the data as

@@ -1550,8 +1550,8 @@ bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
   Handle<String> source_code =
       isolate->bootstrapper()->SourceLookup<ExtraNatives>(index);
   Handle<Object> global = isolate->global_object();
-  Handle<Object> exports = isolate->extras_exports_object();
-  Handle<Object> args[] = {global, exports};
+  Handle<Object> binding = isolate->extras_binding_object();
+  Handle<Object> args[] = {global, binding};
   return Bootstrapper::CompileNative(
       isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
       source_code, arraysize(args), args);
@@ -2099,11 +2099,11 @@ bool Genesis::InstallNatives(ContextType context_type) {
                                 "utils container for native scripts");
   native_context()->set_natives_utils_object(*utils);
 
-  Handle<JSObject> extras_exports =
+  Handle<JSObject> extras_binding =
       factory()->NewJSObject(isolate()->object_function());
-  JSObject::NormalizeProperties(extras_exports, CLEAR_INOBJECT_PROPERTIES, 2,
-                                "container to export to extra natives");
-  native_context()->set_extras_exports_object(*extras_exports);
+  JSObject::NormalizeProperties(extras_binding, CLEAR_INOBJECT_PROPERTIES, 2,
+                                "container for binding to/from extra natives");
+  native_context()->set_extras_binding_object(*extras_binding);
 
   if (FLAG_expose_natives_as != NULL) {
     Handle<String> utils_key = factory()->NewStringFromAsciiChecked("utils");

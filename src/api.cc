@@ -5545,11 +5545,11 @@ void Context::DetachGlobal() {
 }
 
 
-Local<v8::Object> Context::GetExtrasExportsObject() {
+Local<v8::Object> Context::GetExtrasBindingObject() {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Isolate* isolate = context->GetIsolate();
-  i::Handle<i::JSObject> exports(context->extras_exports_object(), isolate);
-  return Utils::ToLocal(exports);
+  i::Handle<i::JSObject> binding(context->extras_binding_object(), isolate);
+  return Utils::ToLocal(binding);
 }
 
 

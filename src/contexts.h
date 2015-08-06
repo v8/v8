@@ -201,7 +201,7 @@ enum BindingFlags {
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)            \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(NATIVES_UTILS_OBJECT_INDEX, Object, natives_utils_object)                  \
-  V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_exports_object)
+  V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_binding_object)
 
 
 // A table of all script contexts. Every loaded top-level script with top-level
