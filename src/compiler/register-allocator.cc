@@ -1087,6 +1087,57 @@ bool RegisterAllocationData::IsBlockBoundary(LifetimePosition pos) const {
 }
 
 
+void RegisterAllocationData::Print(
+    const InstructionSequence* instructionSequence) {
+  OFStream os(stdout);
+  PrintableInstructionSequence wrapper;
+  wrapper.register_configuration_ = config();
+  wrapper.sequence_ = instructionSequence;
+  os << wrapper << std::endl;
+}
+
+
+void RegisterAllocationData::Print(const Instruction* instruction) {
+  OFStream os(stdout);
+  PrintableInstruction wrapper;
+  wrapper.instr_ = instruction;
+  wrapper.register_configuration_ = config();
+  os << wrapper << std::endl;
+}
+
+
+void RegisterAllocationData::Print(const LiveRange* range, bool with_children) {
+  OFStream os(stdout);
+  PrintableLiveRange wrapper;
+  wrapper.register_configuration_ = config();
+  for (const LiveRange* i = range; i != nullptr; i = i->next()) {
+    wrapper.range_ = i;
+    os << wrapper << std::endl;
+    if (!with_children) break;
+  }
+}
+
+
+void RegisterAllocationData::Print(const InstructionOperand& op) {
+  OFStream os(stdout);
+  PrintableInstructionOperand wrapper;
+  wrapper.register_configuration_ = config();
+  wrapper.op_ = op;
+  os << wrapper << std::endl;
+}
+
+
+void RegisterAllocationData::Print(const MoveOperands* move) {
+  OFStream os(stdout);
+  PrintableInstructionOperand wrapper;
+  wrapper.register_configuration_ = config();
+  wrapper.op_ = move->destination();
+  os << wrapper << " = ";
+  wrapper.op_ = move->source();
+  os << wrapper << std::endl;
+}
+
+
 ConstraintBuilder::ConstraintBuilder(RegisterAllocationData* data)
     : data_(data) {}
 
