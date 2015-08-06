@@ -39,8 +39,8 @@ from testrunner.local import utils
 from testrunner.objects import testcase
 
 # The revision hash needs to be 7 characters?
-TEST_262_ARCHIVE_REVISION = "c6ac390"  # This is the 2015-07-06 revision.
-TEST_262_ARCHIVE_MD5 = "e1393ef330f38e9cb1bfa4e3eada5ba8"
+TEST_262_ARCHIVE_REVISION = "258d212"  # This is the 2015-07-31 revision.
+TEST_262_ARCHIVE_MD5 = "a9b26e19ce582492642af973c8cee826"
 TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
