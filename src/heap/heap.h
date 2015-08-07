@@ -867,6 +867,8 @@ class Heap {
       intptr_t step_size_in_bytes, double deadline_in_ms,
       IncrementalMarking::StepActions step_actions);
 
+  void FinalizeIncrementalMarkingIfComplete(const char* comment);
+
   inline void increment_scan_on_scavenge_pages() {
     scan_on_scavenge_pages_++;
     if (FLAG_gc_verbose) {
@@ -1649,6 +1651,8 @@ class Heap {
   bool HasLowAllocationRate();
   bool HasHighFragmentation();
   bool HasHighFragmentation(intptr_t used, intptr_t committed);
+
+  bool ShouldOptimizeForMemoryUsage() { return optimize_for_memory_usage_; }
 
  protected:
   // Methods made available to tests.
