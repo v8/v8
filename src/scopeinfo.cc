@@ -34,9 +34,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   DCHECK_EQ(scope->ContextLocalCount(), context_local_count);
   DCHECK_EQ(scope->ContextGlobalCount(), context_global_count);
 
-  bool simple_parameter_list =
-      scope->is_function_scope() ? scope->is_simple_parameter_list() : true;
-
   // Determine use and location of the "this" binding if it is present.
   VariableAllocationInfo receiver_info;
   if (scope->has_this_declaration()) {
@@ -85,6 +82,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
+  bool has_simple_parameters =
+      scope->is_function_scope() && scope->has_simple_parameters();
+
   // Encode the flags.
   int flags = ScopeTypeField::encode(scope->scope_type()) |
               CallsEvalField::encode(scope->calls_eval()) |
@@ -94,7 +94,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(scope->asm_module()) |
               AsmFunctionField::encode(scope->asm_function()) |
-              IsSimpleParameterListField::encode(simple_parameter_list) |
+              HasSimpleParametersField::encode(has_simple_parameters) |
               FunctionKindField::encode(scope->function_kind());
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
@@ -224,7 +224,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   const int context_local_count = 1;
   const int context_global_count = 0;
   const int strong_mode_free_variable_count = 0;
-  const bool simple_parameter_list = true;
+  const bool has_simple_parameters = true;
   const VariableAllocationInfo receiver_info = CONTEXT;
   const VariableAllocationInfo function_name_info = NONE;
   const VariableMode function_variable_mode = VAR;
@@ -248,7 +248,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
               FunctionVariableField::encode(function_name_info) |
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(false) | AsmFunctionField::encode(false) |
-              IsSimpleParameterListField::encode(simple_parameter_list) |
+              HasSimpleParametersField::encode(has_simple_parameters) |
               FunctionKindField::encode(FunctionKind::kNormalFunction);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);

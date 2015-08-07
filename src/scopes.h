@@ -389,10 +389,9 @@ class Scope: public ZoneObject {
     return rest_index_ >= 0;
   }
 
-  bool is_simple_parameter_list() const {
+  bool has_simple_parameters() const {
     DCHECK(is_function_scope());
-    if (rest_index_ >= 0) return false;
-    return true;
+    return has_simple_parameters_;
   }
 
   // The local variable 'arguments' if we need to allocate it; NULL otherwise.
@@ -632,7 +631,8 @@ class Scope: public ZoneObject {
   // For module scopes, the host scope's temporary variable binding this module.
   Variable* module_var_;
 
-  // Rest parameter
+  // Info about the parameter list of a function.
+  bool has_simple_parameters_;
   Variable* rest_parameter_;
   int rest_index_;
 

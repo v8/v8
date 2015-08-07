@@ -180,7 +180,8 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   num_heap_slots_ = 0;
   num_global_slots_ = 0;
   num_modules_ = 0;
-  module_var_ = NULL,
+  module_var_ = NULL;
+  has_simple_parameters_ = true;
   rest_parameter_ = NULL;
   rest_index_ = -1;
   scope_info_ = scope_info;
@@ -468,6 +469,7 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
   Variable* var;
   if (mode == TEMPORARY) {
     var = NewTemporary(name);
+    has_simple_parameters_ = false;
   } else {
     var = variables_.Declare(this, name, mode, Variable::NORMAL,
                              kCreatedInitialized);
@@ -478,6 +480,7 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
     DCHECK_NULL(rest_parameter_);
     rest_parameter_ = var;
     rest_index_ = num_parameters();
+    has_simple_parameters_ = false;
   }
   params_.Add(var, zone());
   return var;
@@ -1399,7 +1402,9 @@ void Scope::AllocateParameterLocals(Isolate* isolate) {
     // In strict mode 'arguments' does not alias formal parameters.
     // Therefore in strict mode we allocate parameters as if 'arguments'
     // were not used.
-    uses_sloppy_arguments = is_sloppy(language_mode());
+    // If the parameter list is not simple, arguments isn't sloppy either.
+    uses_sloppy_arguments =
+        is_sloppy(language_mode()) && has_simple_parameters();
   }
 
   if (rest_parameter_ && !MustAllocate(rest_parameter_)) {

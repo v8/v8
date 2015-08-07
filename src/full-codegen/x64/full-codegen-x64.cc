@@ -319,7 +319,7 @@ void FullCodeGenerator::Generate() {
     // stack frame was an arguments adapter frame.
 
     ArgumentsAccessStub::Type type;
-    if (is_strict(language_mode()) || !is_simple_parameter_list()) {
+    if (is_strict(language_mode()) || !has_simple_parameters()) {
       type = ArgumentsAccessStub::NEW_STRICT;
     } else if (function()->has_duplicate_parameters()) {
       type = ArgumentsAccessStub::NEW_SLOPPY_SLOW;

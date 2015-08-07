@@ -3926,6 +3926,7 @@ void ParserTraits::ParseArrowFunctionFormalParameterList(
       *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
     }
   }
+  DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
 }
 
 

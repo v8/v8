@@ -397,7 +397,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
                                            Object** parameters,
                                            int argument_count) {
   CHECK(!IsSubclassConstructor(callee->shared()->kind()));
-  DCHECK(callee->is_simple_parameter_list());
+  DCHECK(callee->has_simple_parameters());
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
@@ -518,7 +518,7 @@ RUNTIME_FUNCTION(Runtime_NewArguments) {
   Object** parameters = reinterpret_cast<Object**>(frame->GetParameterSlot(-1));
 
   return (is_strict(callee->shared()->language_mode()) ||
-             !callee->is_simple_parameter_list())
+             !callee->has_simple_parameters())
              ? *NewStrictArguments(isolate, callee, parameters, argument_count)
              : *NewSloppyArguments(isolate, callee, parameters, argument_count);
 }

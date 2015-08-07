@@ -222,8 +222,8 @@ void CompilationInfo::EnsureFeedbackVector() {
 }
 
 
-bool CompilationInfo::is_simple_parameter_list() {
-  return scope()->is_simple_parameter_list();
+bool CompilationInfo::has_simple_parameters() {
+  return scope()->has_simple_parameters();
 }
 
 

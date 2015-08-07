@@ -5378,8 +5378,8 @@ bool SharedFunctionInfo::is_compiled() {
 }
 
 
-bool SharedFunctionInfo::is_simple_parameter_list() {
-  return scope_info()->IsSimpleParameterList();
+bool SharedFunctionInfo::has_simple_parameters() {
+  return scope_info()->HasSimpleParameters();
 }
 
 
@@ -5685,8 +5685,8 @@ bool JSFunction::is_compiled() {
 }
 
 
-bool JSFunction::is_simple_parameter_list() {
-  return shared()->is_simple_parameter_list();
+bool JSFunction::has_simple_parameters() {
+  return shared()->has_simple_parameters();
 }
 
 

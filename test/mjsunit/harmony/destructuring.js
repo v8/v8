@@ -918,6 +918,27 @@
 }());
 
 
+(function TestArgumentsForNonSimpleParameters() {
+  function f1({}, x) { arguments[1] = 0; return x }
+  assertEquals(6, f1({}, 6));
+  function f2({}, x) { x = 2; return arguments[1] }
+  assertEquals(7, f2({}, 7));
+  function f3(x, {}) { arguments[0] = 0; return x }
+  assertEquals(6, f3(6, {}));
+  function f4(x, {}) { x = 2; return arguments[0] }
+  assertEquals(7, f4(7, {}));
+  function f5(x, ...a) { arguments[0] = 0; return x }
+  assertEquals(6, f5(6, {}));
+  function f6(x, ...a) { x = 2; return arguments[0] }
+  assertEquals(6, f6(6, {}));
+  function f7({a: x}) { x = 2; return arguments[0].a }
+  assertEquals(5, f7({a: 5}));
+  function f8(x, ...a) { a = []; return arguments[1] }
+  assertEquals(6, f8(5, 6));
+  // TODO(caitp, rossberg): add cases for default parameters.
+}());
+
+
 (function TestForInOfTDZ() {
   assertThrows("'use strict'; let x = {}; for (let [x, y] of {x});", ReferenceError);
   assertThrows("'use strict'; let x = {}; for (let [y, x] of {x});", ReferenceError);

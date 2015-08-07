@@ -2348,10 +2348,9 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
   bool strict_mode_callee = is_strict(callee->shared()->language_mode()) ||
-                            !callee->is_simple_parameter_list();
+                            !callee->has_simple_parameters();
   Handle<Map> map = strict_mode_callee ? isolate()->strict_arguments_map()
                                        : isolate()->sloppy_arguments_map();
-
   AllocationSiteUsageContext context(isolate(), Handle<AllocationSite>(),
                                      false);
   DCHECK(!isolate()->has_pending_exception());

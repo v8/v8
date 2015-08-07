@@ -400,7 +400,7 @@ class CompilationInfo {
   void PrintAstForTesting();
 #endif
 
-  bool is_simple_parameter_list();
+  bool has_simple_parameters();
 
   Handle<Code> GenerateCodeStub();
 
