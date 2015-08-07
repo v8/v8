@@ -88,8 +88,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
         IsWord32Shl(target_bytecode_matcher,
                     IsInt32Constant(kPointerSizeLog2)));
 
-    EXPECT_EQ(CallDescriptor::kInterpreterDispatch,
-              m.call_descriptor()->kind());
+    EXPECT_EQ(CallDescriptor::kCallCodeObject, m.call_descriptor()->kind());
+    EXPECT_TRUE(m.call_descriptor()->flags() & CallDescriptor::kCanUseRoots);
     EXPECT_THAT(
         tail_call_node,
         IsTailCall(m.call_descriptor(), code_target_matcher,
@@ -111,8 +111,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, Return) {
     EXPECT_EQ(1, end->InputCount());
     Node* tail_call_node = end->InputAt(0);
 
-    EXPECT_EQ(CallDescriptor::kInterpreterDispatch,
-              m.call_descriptor()->kind());
+    EXPECT_EQ(CallDescriptor::kCallCodeObject, m.call_descriptor()->kind());
+    EXPECT_TRUE(m.call_descriptor()->flags() & CallDescriptor::kCanUseRoots);
     Matcher<Unique<HeapObject>> exit_trampoline(
         Unique<HeapObject>::CreateImmovable(
             isolate()->builtins()->InterpreterExitTrampoline()));

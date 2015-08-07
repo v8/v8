@@ -62,9 +62,6 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallAddress:
       os << "Addr";
       break;
-    case CallDescriptor::kInterpreterDispatch:
-      os << "InterpreterDispatch";
-      break;
   }
   return os;
 }
@@ -390,7 +387,8 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       Operator::kNoProperties,          // properties
       kNoCalleeSaved,                   // callee-saved
       kNoCalleeSaved,                   // callee-saved fp
-      flags,                            // flags
+      CallDescriptor::kCanUseRoots |    // flags
+          flags,                        // flags
       "js-call");
 }
 
@@ -413,17 +411,18 @@ CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
   locations.AddParam(regloc(kInterpreterDispatchTableRegister));
 
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
-  return new (zone) CallDescriptor(          // --
-      CallDescriptor::kInterpreterDispatch,  // kind
-      kMachNone,                             // target MachineType
-      target_loc,                            // target location
-      types.Build(),                         // machine_sig
-      locations.Build(),                     // location_sig
-      0,                                     // stack_parameter_count
-      Operator::kNoProperties,               // properties
-      kNoCalleeSaved,                        // callee-saved registers
-      kNoCalleeSaved,                        // callee-saved fp regs
-      CallDescriptor::kSupportsTailCalls,    // flags
+  return new (zone) CallDescriptor(         // --
+      CallDescriptor::kCallCodeObject,      // kind
+      kMachNone,                            // target MachineType
+      target_loc,                           // target location
+      types.Build(),                        // machine_sig
+      locations.Build(),                    // location_sig
+      0,                                    // stack_parameter_count
+      Operator::kNoProperties,              // properties
+      kNoCalleeSaved,                       // callee-saved registers
+      kNoCalleeSaved,                       // callee-saved fp regs
+      CallDescriptor::kSupportsTailCalls |  // flags
+          CallDescriptor::kCanUseRoots,     // flags
       "interpreter-dispatch");
 }
 

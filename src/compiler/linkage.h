@@ -112,7 +112,6 @@ class CallDescriptor final : public ZoneObject {
     kCallCodeObject,      // target is a Code object
     kCallJSFunction,      // target is a JSFunction object
     kCallAddress,         // target is a machine pointer
-    kInterpreterDispatch  // target is an interpreter bytecode handler
   };
 
   enum Flag {
@@ -123,6 +122,7 @@ class CallDescriptor final : public ZoneObject {
     kHasExceptionHandler = 1u << 3,
     kHasLocalCatchHandler = 1u << 4,
     kSupportsTailCalls = 1u << 5,
+    kCanUseRoots = 1u << 6,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;
@@ -157,8 +157,6 @@ class CallDescriptor final : public ZoneObject {
 
   // Returns {true} if this descriptor is a call to a JSFunction.
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
-
-  bool IsInterpreterDispatch() const { return kind_ == kInterpreterDispatch; }
 
   // The number of return values from this call.
   size_t ReturnCount() const { return machine_sig_->return_count(); }

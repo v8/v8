@@ -247,8 +247,7 @@ bool CodeGenerator::IsMaterializableFromRoot(
     Handle<HeapObject> object, Heap::RootListIndex* index_return) {
   const CallDescriptor* incoming_descriptor =
       linkage()->GetIncomingDescriptor();
-  if (incoming_descriptor->IsJSFunctionCall() ||
-      incoming_descriptor->IsInterpreterDispatch()) {
+  if (incoming_descriptor->flags() & CallDescriptor::kCanUseRoots) {
     RootIndexMap map(isolate());
     int root_index = map.Lookup(*object);
     if (root_index != RootIndexMap::kInvalidRootIndex) {

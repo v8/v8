@@ -1492,7 +1492,6 @@ void InstructionSelector::VisitTailCall(Node* node) {
     InstructionCode opcode;
     switch (descriptor->kind()) {
       case CallDescriptor::kCallCodeObject:
-      case CallDescriptor::kInterpreterDispatch:
         opcode = kArchTailCallCodeObject;
         break;
       case CallDescriptor::kCallJSFunction:
