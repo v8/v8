@@ -4735,7 +4735,8 @@ bool Code::IsWeakObjectInOptimizedCode(Object* object) {
   } else if (object->IsPropertyCell()) {
     object = PropertyCell::cast(object)->value();
   }
-  if (object->IsJSObject()) {
+  if (object->IsJSObject() || object->IsJSProxy()) {
+    // JSProxy is handled like JSObject because it can morph into one.
     return FLAG_weak_embedded_objects_in_optimized_code;
   }
   if (object->IsFixedArray()) {
