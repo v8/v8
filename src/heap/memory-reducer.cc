@@ -25,8 +25,11 @@ MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
 void MemoryReducer::TimerTask::RunInternal() {
   Heap* heap = memory_reducer_->heap();
   Event event;
+  double time_ms = heap->MonotonicallyIncreasingTimeInMs();
+  heap->tracer()->SampleAllocation(time_ms, heap->NewSpaceAllocationCounter(),
+                                   heap->OldGenerationAllocationCounter());
   event.type = kTimer;
-  event.time_ms = heap->MonotonicallyIncreasingTimeInMs();
+  event.time_ms = time_ms;
   event.low_allocation_rate = heap->HasLowAllocationRate();
   event.can_start_incremental_gc =
       heap->incremental_marking()->IsStopped() &&
