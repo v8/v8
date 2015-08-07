@@ -956,8 +956,9 @@ class DictionaryElementsAccessor
             ? JSObject::NormalizeElements(object)
             : handle(SeededNumberDictionary::cast(object->elements()));
     Handle<SeededNumberDictionary> new_dictionary =
-        SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
-                                               details);
+        SeededNumberDictionary::AddNumberEntry(
+            dictionary, index, value, details,
+            object->map()->is_prototype_map());
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (dictionary.is_identical_to(new_dictionary)) return;
     object->set_elements(*new_dictionary);
@@ -1639,8 +1640,9 @@ class SlowSloppyArgumentsElementsAccessor
             : JSObject::NormalizeElements(object);
     PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
     Handle<SeededNumberDictionary> new_dictionary =
-        SeededNumberDictionary::AddNumberEntry(dictionary, index, value,
-                                               details);
+        SeededNumberDictionary::AddNumberEntry(
+            dictionary, index, value, details,
+            object->map()->is_prototype_map());
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (*dictionary != *new_dictionary) {
       FixedArray::cast(object->elements())->set(1, *new_dictionary);
@@ -1672,8 +1674,8 @@ class SlowSloppyArgumentsElementsAccessor
       PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
       Handle<SeededNumberDictionary> arguments(
           SeededNumberDictionary::cast(parameter_map->get(1)));
-      arguments = SeededNumberDictionary::AddNumberEntry(arguments, entry,
-                                                         value, details);
+      arguments = SeededNumberDictionary::AddNumberEntry(
+          arguments, entry, value, details, object->map()->is_prototype_map());
       // If the attributes were NONE, we would have called set rather than
       // reconfigure.
       DCHECK_NE(NONE, attributes);

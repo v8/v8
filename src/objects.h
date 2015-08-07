@@ -3448,24 +3448,19 @@ class SeededNumberDictionary
 
   // Type specific at put (default NONE attributes is used when adding).
   MUST_USE_RESULT static Handle<SeededNumberDictionary> AtNumberPut(
-      Handle<SeededNumberDictionary> dictionary,
-      uint32_t key,
-      Handle<Object> value);
+      Handle<SeededNumberDictionary> dictionary, uint32_t key,
+      Handle<Object> value, bool used_as_prototype);
   MUST_USE_RESULT static Handle<SeededNumberDictionary> AddNumberEntry(
-      Handle<SeededNumberDictionary> dictionary,
-      uint32_t key,
-      Handle<Object> value,
-      PropertyDetails details);
+      Handle<SeededNumberDictionary> dictionary, uint32_t key,
+      Handle<Object> value, PropertyDetails details, bool used_as_prototype);
 
   // Set an existing entry or add a new one if needed.
   // Return the updated dictionary.
   MUST_USE_RESULT static Handle<SeededNumberDictionary> Set(
-      Handle<SeededNumberDictionary> dictionary,
-      uint32_t key,
-      Handle<Object> value,
-      PropertyDetails details);
+      Handle<SeededNumberDictionary> dictionary, uint32_t key,
+      Handle<Object> value, PropertyDetails details, bool used_as_prototype);
 
-  void UpdateMaxNumberKey(uint32_t key);
+  void UpdateMaxNumberKey(uint32_t key, bool used_as_prototype);
 
   // If slow elements are required we will never go back to fast-case
   // for the elements kept in this dictionary.  We require slow

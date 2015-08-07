@@ -306,7 +306,11 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
     Handle<SeededNumberDictionary> dictionary =
         JSObject::NormalizeElements(receiver);
 
-    dictionary = SeededNumberDictionary::Set(dictionary, index_, pair, details);
+    // We unconditionally pass used_as_prototype=false here because the call
+    // to RequireSlowElements takes care of the required IC clearing and
+    // we don't want to walk the heap twice.
+    dictionary =
+        SeededNumberDictionary::Set(dictionary, index_, pair, details, false);
     receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements()) {

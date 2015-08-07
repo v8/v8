@@ -4909,9 +4909,8 @@ void JSObject::ResetElements(Handle<JSObject> object) {
 
 
 static Handle<SeededNumberDictionary> CopyFastElementsToDictionary(
-    Handle<FixedArrayBase> array,
-    int length,
-    Handle<SeededNumberDictionary> dictionary) {
+    Handle<FixedArrayBase> array, int length,
+    Handle<SeededNumberDictionary> dictionary, bool used_as_prototype) {
   Isolate* isolate = array->GetIsolate();
   Factory* factory = isolate->factory();
   bool has_double_elements = array->IsFixedDoubleArray();
@@ -4930,8 +4929,8 @@ static Handle<SeededNumberDictionary> CopyFastElementsToDictionary(
     }
     if (!value->IsTheHole()) {
       PropertyDetails details = PropertyDetails::Empty();
-      dictionary =
-          SeededNumberDictionary::AddNumberEntry(dictionary, i, value, details);
+      dictionary = SeededNumberDictionary::AddNumberEntry(
+          dictionary, i, value, details, used_as_prototype);
     }
   }
   return dictionary;
@@ -4962,7 +4961,8 @@ Handle<SeededNumberDictionary> JSObject::GetNormalizedElementDictionary(
   int used = object->GetFastElementsUsage();
   Handle<SeededNumberDictionary> dictionary =
       SeededNumberDictionary::New(isolate, used);
-  return CopyFastElementsToDictionary(elements, length, dictionary);
+  return CopyFastElementsToDictionary(elements, length, dictionary,
+                                      object->map()->is_prototype_map());
 }
 
 
@@ -13867,7 +13867,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
         return bailout;
       } else {
         Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
-            new_dict, pos, value, details);
+            new_dict, pos, value, details, object->map()->is_prototype_map());
         DCHECK(result.is_identical_to(new_dict));
         USE(result);
         pos++;
@@ -13878,7 +13878,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
       return bailout;
     } else {
       Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
-          new_dict, key, value, details);
+          new_dict, key, value, details, object->map()->is_prototype_map());
       DCHECK(result.is_identical_to(new_dict));
       USE(result);
     }
@@ -13894,7 +13894,8 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
     }
     HandleScope scope(isolate);
     Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
-        new_dict, pos, isolate->factory()->undefined_value(), no_details);
+        new_dict, pos, isolate->factory()->undefined_value(), no_details,
+        object->map()->is_prototype_map());
     DCHECK(result.is_identical_to(new_dict));
     USE(result);
     pos++;
@@ -14633,7 +14634,8 @@ void Dictionary<Derived, Shape, Key>::AddEntry(
 }
 
 
-void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key) {
+void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key,
+                                                bool used_as_prototype) {
   DisallowHeapAllocation no_allocation;
   // If the dictionary requires slow elements an element has already
   // been added at a high index.
@@ -14641,8 +14643,10 @@ void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key) {
   // Check if this index is high enough that we should require slow
   // elements.
   if (key > kRequiresSlowElementsLimit) {
-    // TODO(verwaest): Remove this hack.
-    GetHeap()->ClearAllICsByKind(Code::KEYED_STORE_IC);
+    if (used_as_prototype) {
+      // TODO(verwaest): Remove this hack.
+      GetHeap()->ClearAllICsByKind(Code::KEYED_STORE_IC);
+    }
     set_requires_slow_elements();
     return;
   }
@@ -14656,11 +14660,9 @@ void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key) {
 
 
 Handle<SeededNumberDictionary> SeededNumberDictionary::AddNumberEntry(
-    Handle<SeededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value,
-    PropertyDetails details) {
-  dictionary->UpdateMaxNumberKey(key);
+    Handle<SeededNumberDictionary> dictionary, uint32_t key,
+    Handle<Object> value, PropertyDetails details, bool used_as_prototype) {
+  dictionary->UpdateMaxNumberKey(key, used_as_prototype);
   SLOW_DCHECK(dictionary->FindEntry(key) == kNotFound);
   return Add(dictionary, key, value, details);
 }
@@ -14676,10 +14678,9 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::AddNumberEntry(
 
 
 Handle<SeededNumberDictionary> SeededNumberDictionary::AtNumberPut(
-    Handle<SeededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value) {
-  dictionary->UpdateMaxNumberKey(key);
+    Handle<SeededNumberDictionary> dictionary, uint32_t key,
+    Handle<Object> value, bool used_as_prototype) {
+  dictionary->UpdateMaxNumberKey(key, used_as_prototype);
   return AtPut(dictionary, key, value);
 }
 
@@ -14693,13 +14694,11 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::AtNumberPut(
 
 
 Handle<SeededNumberDictionary> SeededNumberDictionary::Set(
-    Handle<SeededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value,
-    PropertyDetails details) {
+    Handle<SeededNumberDictionary> dictionary, uint32_t key,
+    Handle<Object> value, PropertyDetails details, bool used_as_prototype) {
   int entry = dictionary->FindEntry(key);
   if (entry == kNotFound) {
-    return AddNumberEntry(dictionary, key, value, details);
+    return AddNumberEntry(dictionary, key, value, details, used_as_prototype);
   }
   // Preserve enumeration index.
   details = details.set_index(dictionary->DetailsAt(entry).dictionary_index());
