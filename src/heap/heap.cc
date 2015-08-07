@@ -4685,7 +4685,9 @@ void Heap::MakeHeapIterable() {
 
 static double ComputeMutatorUtilization(double mutator_speed, double gc_speed) {
   const double kMinMutatorUtilization = 0.0;
-  if (mutator_speed == 0 || gc_speed == 0) return kMinMutatorUtilization;
+  const double kConservativeGcSpeedInBytesPerMillisecond = 200000;
+  if (mutator_speed == 0) return kMinMutatorUtilization;
+  if (gc_speed == 0) gc_speed = kConservativeGcSpeedInBytesPerMillisecond;
   // Derivation:
   // mutator_utilization = mutator_time / (mutator_time + gc_time)
   // mutator_time = 1 / mutator_speed
