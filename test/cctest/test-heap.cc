@@ -2584,7 +2584,7 @@ TEST(InstanceOfStubWriteBarrier) {
   }
 
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Abort();
+  marking->Stop();
   marking->Start(Heap::kNoGCFlags);
 
   Handle<JSFunction> f =
@@ -2712,7 +2712,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
   CHECK(f->IsOptimized());
 
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Abort();
+  marking->Stop();
   marking->Start(Heap::kNoGCFlags);
   // The following calls will increment CcTest::heap()->global_ic_age().
   CcTest::isolate()->ContextDisposedNotification();
@@ -2753,7 +2753,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
               CcTest::global()->Get(v8_str("f"))));
   CHECK(f->IsOptimized());
 
-  CcTest::heap()->incremental_marking()->Abort();
+  CcTest::heap()->incremental_marking()->Stop();
 
   // The following two calls will increment CcTest::heap()->global_ic_age().
   CcTest::isolate()->ContextDisposedNotification();
@@ -2770,7 +2770,7 @@ TEST(IdleNotificationFinishMarking) {
   CcTest::InitializeVM();
   SimulateFullSpace(CcTest::heap()->old_space());
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Abort();
+  marking->Stop();
   marking->Start(Heap::kNoGCFlags);
 
   CHECK_EQ(CcTest::heap()->gc_count(), 0);
@@ -5701,7 +5701,7 @@ TEST(Regress388880) {
   // Enable incremental marking to trigger actions in Heap::AdjustLiveBytes()
   // that would cause crash.
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Abort();
+  marking->Stop();
   marking->Start(Heap::kNoGCFlags);
   CHECK(marking->IsMarking());
 

@@ -86,8 +86,6 @@ class IncrementalMarking {
              const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
              const char* reason = nullptr);
 
-  void Stop();
-
   void MarkObjectGroups();
 
   void UpdateMarkingDequeAfterScavenge();
@@ -96,7 +94,7 @@ class IncrementalMarking {
 
   void Finalize();
 
-  void Abort();
+  void Stop();
 
   void OverApproximateWeakClosure(CompletionAction action);
 

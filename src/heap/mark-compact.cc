@@ -803,7 +803,7 @@ void MarkCompactCollector::Prepare() {
 
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && abort_incremental_marking_) {
-    heap()->incremental_marking()->Abort();
+    heap()->incremental_marking()->Stop();
     ClearMarkbits();
     AbortWeakCollections();
     AbortWeakCells();
@@ -2242,7 +2242,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     incremental_marking->Finalize();
   } else {
     // Abort any pending incremental activities e.g. incremental sweeping.
-    incremental_marking->Abort();
+    incremental_marking->Stop();
     if (marking_deque_.in_use()) {
       marking_deque_.Uninitialize(true);
     }

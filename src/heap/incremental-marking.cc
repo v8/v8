@@ -744,10 +744,10 @@ void IncrementalMarking::Hurry() {
 }
 
 
-void IncrementalMarking::Abort() {
+void IncrementalMarking::Stop() {
   if (IsStopped()) return;
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Aborting.\n");
+    PrintF("[IncrementalMarking] Stopping.\n");
   }
   heap_->new_space()->LowerInlineAllocationLimit(0);
   IncrementalMarking::set_should_hurry(false);
