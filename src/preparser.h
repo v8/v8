@@ -2506,7 +2506,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
       ExpressionClassifier computed_name_classifier;
       ExpressionT expression =
           ParseAssignmentExpression(true, &computed_name_classifier, CHECK_OK);
-      classifier->AccumulateReclassifyingAsPattern(computed_name_classifier);
+      classifier->Accumulate(computed_name_classifier,
+                             ExpressionClassifier::ExpressionProduction);
       Expect(Token::RBRACK, CHECK_OK);
       return expression;
     }
@@ -2651,7 +2652,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
       ExpressionClassifier rhs_classifier;
       ExpressionT rhs = this->ParseAssignmentExpression(
           true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-      classifier->AccumulateReclassifyingAsPattern(rhs_classifier);
+      classifier->Accumulate(rhs_classifier,
+                             ExpressionClassifier::ExpressionProduction);
       value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
                                        RelocInfo::kNoPosition);
     } else {
@@ -2889,7 +2891,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   ExpressionClassifier rhs_classifier;
   ExpressionT right =
       this->ParseAssignmentExpression(accept_IN, &rhs_classifier, CHECK_OK);
-  classifier->AccumulateReclassifyingAsPattern(rhs_classifier);
+  classifier->Accumulate(rhs_classifier,
+                         ExpressionClassifier::ExpressionProduction);
 
   // TODO(1231235): We try to estimate the set of properties set by
   // constructors. We define a new property whenever there is an

@@ -225,18 +225,6 @@ class ExpressionClassifier {
     }
   }
 
-  void AccumulateReclassifyingAsPattern(const ExpressionClassifier& inner) {
-    Accumulate(inner, AllProductions & ~PatternProductions);
-    if (!inner.is_valid_expression()) {
-      if (is_valid_binding_pattern()) {
-        binding_pattern_error_ = inner.expression_error();
-      }
-      if (is_valid_assignment_pattern()) {
-        assignment_pattern_error_ = inner.expression_error();
-      }
-    }
-  }
-
  private:
   unsigned invalid_productions_;
   Error expression_error_;
