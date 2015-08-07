@@ -622,7 +622,7 @@ def Execute(arch, mode, args, options, suites, workspace):
       verbose.PrintTestSource(s.tests)
       continue
     variant_gen = s.CreateVariantGenerator(VARIANTS)
-    variant_tests = [ t.CopyAddingFlags(flags)
+    variant_tests = [ t.CopyAddingFlags(v, flags)
                       for t in s.tests
                       for v in variant_gen.FilterVariantsByTest(t)
                       for flags in variant_gen.GetFlagSets(t, v) ]
@@ -638,7 +638,7 @@ def Execute(arch, mode, args, options, suites, workspace):
           else:
             yield ["--random-seed=%d" % RandomSeed()]
       s.tests = [
-        t.CopyAddingFlags(flags)
+        t.CopyAddingFlags(t.variant, flags)
         for t in variant_tests
         for flags in iter_seed_flags()
       ]
@@ -663,7 +663,8 @@ def Execute(arch, mode, args, options, suites, workspace):
         options.junitout, options.junittestsuite))
   if options.json_test_results:
     progress_indicator.Register(progress.JsonTestProgressIndicator(
-        options.json_test_results, arch, MODES[mode]["execution_mode"]))
+        options.json_test_results, arch, MODES[mode]["execution_mode"],
+        ctx.random_seed))
 
   run_networked = not options.no_network
   if not run_networked:
