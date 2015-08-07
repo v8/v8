@@ -24,40 +24,27 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space) {
   // just an anchor for the double linked page list.  Initialize as if we have
   // reached the end of the anchor page, then the first iteration will move on
   // to the first page.
-  Initialize(space, NULL, NULL, kAllPagesInSpace, NULL);
+  Initialize(space, NULL, NULL, kAllPagesInSpace);
 }
 
 
-HeapObjectIterator::HeapObjectIterator(PagedSpace* space,
-                                       HeapObjectCallback size_func) {
-  // You can't actually iterate over the anchor page.  It is not a real page,
-  // just an anchor for the double linked page list.  Initialize the current
-  // address and end as NULL, then the first iteration will move on
-  // to the first page.
-  Initialize(space, NULL, NULL, kAllPagesInSpace, size_func);
-}
-
-
-HeapObjectIterator::HeapObjectIterator(Page* page,
-                                       HeapObjectCallback size_func) {
+HeapObjectIterator::HeapObjectIterator(Page* page) {
   Space* owner = page->owner();
   DCHECK(owner == page->heap()->old_space() ||
          owner == page->heap()->map_space() ||
          owner == page->heap()->code_space());
   Initialize(reinterpret_cast<PagedSpace*>(owner), page->area_start(),
-             page->area_end(), kOnePageOnly, size_func);
+             page->area_end(), kOnePageOnly);
   DCHECK(page->WasSwept() || page->SweepingCompleted());
 }
 
 
 void HeapObjectIterator::Initialize(PagedSpace* space, Address cur, Address end,
-                                    HeapObjectIterator::PageMode mode,
-                                    HeapObjectCallback size_f) {
+                                    HeapObjectIterator::PageMode mode) {
   space_ = space;
   cur_addr_ = cur;
   cur_end_ = end;
   page_mode_ = mode;
-  size_func_ = size_f;
 }
 
 
@@ -1009,7 +996,7 @@ Object* PagedSpace::FindObject(Address addr) {
   if (!Contains(addr)) return Smi::FromInt(0);  // Signaling not found.
 
   Page* p = Page::FromAddress(addr);
-  HeapObjectIterator it(p, NULL);
+  HeapObjectIterator it(p);
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     Address cur = obj->address();
     Address next = cur + obj->Size();
@@ -1186,7 +1173,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->WasSwept());
-    HeapObjectIterator it(page, NULL);
+    HeapObjectIterator it(page);
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
     int black_size = 0;
@@ -1860,32 +1847,24 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 // -----------------------------------------------------------------------------
 // SemiSpaceIterator implementation.
 SemiSpaceIterator::SemiSpaceIterator(NewSpace* space) {
-  Initialize(space->bottom(), space->top(), NULL);
-}
-
-
-SemiSpaceIterator::SemiSpaceIterator(NewSpace* space,
-                                     HeapObjectCallback size_func) {
-  Initialize(space->bottom(), space->top(), size_func);
+  Initialize(space->bottom(), space->top());
 }
 
 
 SemiSpaceIterator::SemiSpaceIterator(NewSpace* space, Address start) {
-  Initialize(start, space->top(), NULL);
+  Initialize(start, space->top());
 }
 
 
 SemiSpaceIterator::SemiSpaceIterator(Address from, Address to) {
-  Initialize(from, to, NULL);
+  Initialize(from, to);
 }
 
 
-void SemiSpaceIterator::Initialize(Address start, Address end,
-                                   HeapObjectCallback size_func) {
+void SemiSpaceIterator::Initialize(Address start, Address end) {
   SemiSpace::AssertValidRange(start, end);
   current_ = start;
   limit_ = end;
-  size_func_ = size_func;
 }
 
 
@@ -2821,14 +2800,6 @@ void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
 
 LargeObjectIterator::LargeObjectIterator(LargeObjectSpace* space) {
   current_ = space->first_page_;
-  size_func_ = NULL;
-}
-
-
-LargeObjectIterator::LargeObjectIterator(LargeObjectSpace* space,
-                                         HeapObjectCallback size_func) {
-  current_ = space->first_page_;
-  size_func_ = size_func;
 }
 
 
@@ -3140,7 +3111,7 @@ void Page::Print() {
   PrintF("Page@%p in %s\n", this->address(),
          AllocationSpaceName(this->owner()->identity()));
   printf(" --------------------------------------\n");
-  HeapObjectIterator objects(this, nullptr);
+  HeapObjectIterator objects(this);
   unsigned mark_size = 0;
   for (HeapObject* object = objects.Next(); object != NULL;
        object = objects.Next()) {

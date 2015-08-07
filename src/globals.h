@@ -572,11 +572,6 @@ struct CodeDesc {
 };
 
 
-// Callback function used for iterating objects in heap spaces,
-// for example, scanning heap objects.
-typedef int (*HeapObjectCallback)(HeapObject* obj);
-
-
 // Callback function used for checking constraints when copying/relocating
 // objects. Returns true if an object can be copied/relocated from its
 // old_addr to a new_addr.

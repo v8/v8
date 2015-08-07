@@ -88,7 +88,7 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
       continue;
     }
     HeapObject* obj = HeapObject::FromAddress(cur_addr_);
-    int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
+    int obj_size = obj->Size();
     cur_addr_ += obj_size;
     DCHECK(cur_addr_ <= cur_end_);
     // TODO(hpayer): Remove the debugging code.

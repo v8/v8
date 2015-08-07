@@ -6115,17 +6115,7 @@ OldSpace* OldSpaces::next() {
 
 
 SpaceIterator::SpaceIterator(Heap* heap)
-    : heap_(heap),
-      current_space_(FIRST_SPACE),
-      iterator_(NULL),
-      size_func_(NULL) {}
-
-
-SpaceIterator::SpaceIterator(Heap* heap, HeapObjectCallback size_func)
-    : heap_(heap),
-      current_space_(FIRST_SPACE),
-      iterator_(NULL),
-      size_func_(size_func) {}
+    : heap_(heap), current_space_(FIRST_SPACE), iterator_(NULL) {}
 
 
 SpaceIterator::~SpaceIterator() {
@@ -6162,19 +6152,19 @@ ObjectIterator* SpaceIterator::CreateIterator() {
 
   switch (current_space_) {
     case NEW_SPACE:
-      iterator_ = new SemiSpaceIterator(heap_->new_space(), size_func_);
+      iterator_ = new SemiSpaceIterator(heap_->new_space());
       break;
     case OLD_SPACE:
-      iterator_ = new HeapObjectIterator(heap_->old_space(), size_func_);
+      iterator_ = new HeapObjectIterator(heap_->old_space());
       break;
     case CODE_SPACE:
-      iterator_ = new HeapObjectIterator(heap_->code_space(), size_func_);
+      iterator_ = new HeapObjectIterator(heap_->code_space());
       break;
     case MAP_SPACE:
-      iterator_ = new HeapObjectIterator(heap_->map_space(), size_func_);
+      iterator_ = new HeapObjectIterator(heap_->map_space());
       break;
     case LO_SPACE:
-      iterator_ = new LargeObjectIterator(heap_->lo_space(), size_func_);
+      iterator_ = new LargeObjectIterator(heap_->lo_space());
       break;
   }
 

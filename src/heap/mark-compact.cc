@@ -169,7 +169,7 @@ class VerifyEvacuationVisitor : public ObjectVisitor {
 
 static void VerifyEvacuation(Page* page) {
   VerifyEvacuationVisitor visitor;
-  HeapObjectIterator iterator(page, NULL);
+  HeapObjectIterator iterator(page);
   for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
        heap_object = iterator.Next()) {
     // We skip free space objects.

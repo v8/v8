@@ -1240,11 +1240,8 @@ class ObjectIterator : public Malloced {
 class HeapObjectIterator : public ObjectIterator {
  public:
   // Creates a new object iterator in a given space.
-  // If the size function is not given, the iterator calls the default
-  // Object::Size().
   explicit HeapObjectIterator(PagedSpace* space);
-  HeapObjectIterator(PagedSpace* space, HeapObjectCallback size_func);
-  HeapObjectIterator(Page* page, HeapObjectCallback size_func);
+  explicit HeapObjectIterator(Page* page);
 
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
@@ -1264,7 +1261,6 @@ class HeapObjectIterator : public ObjectIterator {
 
   Address cur_addr_;              // Current iteration point.
   Address cur_end_;               // End iteration point.
-  HeapObjectCallback size_func_;  // Size function or NULL.
   PagedSpace* space_;
   PageMode page_mode_;
 
@@ -1277,7 +1273,7 @@ class HeapObjectIterator : public ObjectIterator {
 
   // Initializes fields.
   inline void Initialize(PagedSpace* owner, Address start, Address end,
-                         PageMode mode, HeapObjectCallback size_func);
+                         PageMode mode);
 };
 
 
@@ -2279,13 +2275,10 @@ class SemiSpace : public Space {
 class SemiSpaceIterator : public ObjectIterator {
  public:
   // Create an iterator over the objects in the given space.  If no start
-  // address is given, the iterator starts from the bottom of the space.  If
-  // no size function is given, the iterator calls Object::Size().
+  // address is given, the iterator starts from the bottom of the space.
 
   // Iterate over all of allocated to-space.
   explicit SemiSpaceIterator(NewSpace* space);
-  // Iterate over all of allocated to-space, with a custome size function.
-  SemiSpaceIterator(NewSpace* space, HeapObjectCallback size_func);
   // Iterate over part of allocated to-space, from start to the end
   // of allocation.
   SemiSpaceIterator(NewSpace* space, Address start);
@@ -2303,7 +2296,7 @@ class SemiSpaceIterator : public ObjectIterator {
     }
 
     HeapObject* object = HeapObject::FromAddress(current_);
-    int size = (size_func_ == NULL) ? object->Size() : size_func_(object);
+    int size = object->Size();
 
     current_ += size;
     return object;
@@ -2313,14 +2306,12 @@ class SemiSpaceIterator : public ObjectIterator {
   virtual HeapObject* next_object() { return Next(); }
 
  private:
-  void Initialize(Address start, Address end, HeapObjectCallback size_func);
+  void Initialize(Address start, Address end);
 
   // The current iteration point.
   Address current_;
   // The end of iteration.
   Address limit_;
-  // The callback function.
-  HeapObjectCallback size_func_;
 };
 
 
@@ -2818,7 +2809,6 @@ class LargeObjectSpace : public Space {
 class LargeObjectIterator : public ObjectIterator {
  public:
   explicit LargeObjectIterator(LargeObjectSpace* space);
-  LargeObjectIterator(LargeObjectSpace* space, HeapObjectCallback size_func);
 
   HeapObject* Next();
 
@@ -2827,7 +2817,6 @@ class LargeObjectIterator : public ObjectIterator {
 
  private:
   LargePage* current_;
-  HeapObjectCallback size_func_;
 };
 
 

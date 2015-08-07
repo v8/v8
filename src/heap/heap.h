@@ -2505,7 +2505,6 @@ class PagedSpaces BASE_EMBEDDED {
 class SpaceIterator : public Malloced {
  public:
   explicit SpaceIterator(Heap* heap);
-  SpaceIterator(Heap* heap, HeapObjectCallback size_func);
   virtual ~SpaceIterator();
 
   bool has_next();
@@ -2517,7 +2516,6 @@ class SpaceIterator : public Malloced {
   Heap* heap_;
   int current_space_;         // from enum AllocationSpace.
   ObjectIterator* iterator_;  // object iterator for the current space.
-  HeapObjectCallback size_func_;
 };
 
 

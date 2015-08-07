@@ -455,7 +455,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
           PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
           if (owner == heap_->map_space()) {
             DCHECK(page->WasSwept());
-            HeapObjectIterator iterator(page, NULL);
+            HeapObjectIterator iterator(page);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
               // We skip free space objects.
@@ -470,7 +470,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
           } else {
             heap_->mark_compact_collector()->SweepOrWaitUntilSweepingCompleted(
                 page);
-            HeapObjectIterator iterator(page, NULL);
+            HeapObjectIterator iterator(page);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
               // We iterate over objects that contain new space pointers only.
