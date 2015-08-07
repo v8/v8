@@ -136,7 +136,6 @@ Heap::Heap()
       last_gc_time_(0.0),
       mark_compact_collector_(this),
       store_buffer_(this),
-      marking_(this),
       incremental_marking_(this),
       memory_reducer_(this),
       full_codegen_bytes_generated_(0),
@@ -3787,7 +3786,7 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
 
   // Maintain consistency of live bytes during incremental marking
-  marking()->TransferMark(object->address(), new_start);
+  Marking::TransferMark(this, object->address(), new_start);
   AdjustLiveBytes(new_object, -bytes_to_trim, Heap::CONCURRENT_TO_SWEEPER);
 
   // Notify the heap profiler of change in object layout.

@@ -1428,8 +1428,6 @@ class Heap {
 
   StoreBuffer* store_buffer() { return &store_buffer_; }
 
-  Marking* marking() { return &marking_; }
-
   IncrementalMarking* incremental_marking() { return &incremental_marking_; }
 
   ExternalStringTable* external_string_table() {
@@ -2303,8 +2301,6 @@ class Heap {
   MarkCompactCollector mark_compact_collector_;
 
   StoreBuffer store_buffer_;
-
-  Marking marking_;
 
   IncrementalMarking incremental_marking_;
 

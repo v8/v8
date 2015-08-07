@@ -26,10 +26,8 @@ class MarkingVisitor;
 class RootMarkingVisitor;
 
 
-class Marking {
+class Marking : public AllStatic {
  public:
-  explicit Marking(Heap* heap) : heap_(heap) {}
-
   INLINE(static MarkBit MarkBitFrom(Address addr));
 
   INLINE(static MarkBit MarkBitFrom(HeapObject* obj)) {
@@ -120,7 +118,7 @@ class Marking {
   static void ClearAllMarkBitsOfCellsContainedInRange(MarkBit start,
                                                       MarkBit end);
 
-  void TransferMark(Address old_start, Address new_start);
+  static void TransferMark(Heap* heap, Address old_start, Address new_start);
 
 #ifdef DEBUG
   enum ObjectColor {
@@ -174,7 +172,7 @@ class Marking {
   }
 
  private:
-  Heap* heap_;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Marking);
 };
 
 // ----------------------------------------------------------------------------

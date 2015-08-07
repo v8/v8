@@ -588,12 +588,12 @@ void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
 }
 
 
-void Marking::TransferMark(Address old_start, Address new_start) {
+void Marking::TransferMark(Heap* heap, Address old_start, Address new_start) {
   // This is only used when resizing an object.
   DCHECK(MemoryChunk::FromAddress(old_start) ==
          MemoryChunk::FromAddress(new_start));
 
-  if (!heap_->incremental_marking()->IsMarking()) return;
+  if (!heap->incremental_marking()->IsMarking()) return;
 
   // If the mark doesn't move, we don't check the color of the object.
   // It doesn't matter whether the object is black, since it hasn't changed
@@ -613,9 +613,9 @@ void Marking::TransferMark(Address old_start, Address new_start) {
     return;
   } else if (Marking::IsGrey(old_mark_bit)) {
     Marking::GreyToWhite(old_mark_bit);
-    heap_->incremental_marking()->WhiteToGreyAndPush(
+    heap->incremental_marking()->WhiteToGreyAndPush(
         HeapObject::FromAddress(new_start), new_mark_bit);
-    heap_->incremental_marking()->RestartIfNotMarking();
+    heap->incremental_marking()->RestartIfNotMarking();
   }
 
 #ifdef DEBUG
