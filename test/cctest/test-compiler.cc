@@ -376,7 +376,7 @@ TEST(OptimizedCodeSharing1) {
   FLAG_cache_optimized_code = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 3; i++) {
     LocalContext env;
     env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
                        v8::Integer::New(CcTest::isolate(), i));
@@ -432,7 +432,7 @@ TEST(OptimizedCodeSharing2) {
     CHECK(fun0->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     reference_code = handle(fun0->code());
   }
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 3; i++) {
     LocalContext env;
     env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
                        v8::Integer::New(CcTest::isolate(), i));
@@ -490,7 +490,7 @@ TEST(OptimizedCodeSharing3) {
     // leaves it in a state where only the context-independent entry exists.
     fun0->shared()->TrimOptimizedCodeMap(SharedFunctionInfo::kEntryLength);
   }
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 3; i++) {
     LocalContext env;
     env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
                        v8::Integer::New(CcTest::isolate(), i));
