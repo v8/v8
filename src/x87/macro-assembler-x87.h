@@ -13,6 +13,17 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {kRegister_eax_Code};
+const Register kReturnRegister1 = {kRegister_edx_Code};
+const Register kJSFunctionRegister = {kRegister_edi_Code};
+const Register kContextRegister = {kRegister_esi_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_ecx_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_edi_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_ebx_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_ebx_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_eax_Code};
+
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;

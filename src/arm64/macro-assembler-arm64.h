@@ -34,6 +34,18 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+// TODO(titzer): arm64 is a pain for aliasing; get rid of these macros
+#define kReturnRegister0 x0
+#define kReturnRegister1 x1
+#define kJSFunctionRegister x1
+#define kContextRegister cp
+#define kInterpreterBytecodeOffsetRegister x19
+#define kInterpreterBytecodeArrayRegister x20
+#define kInterpreterDispatchTableRegister x21
+#define kRuntimeCallFunctionRegister x1
+#define kRuntimeCallArgCountRegister x0
+
 #define LS_MACRO_LIST(V)                                      \
   V(Ldrb, Register&, rt, LDRB_w)                              \
   V(Strb, Register&, rt, STRB_w)                              \

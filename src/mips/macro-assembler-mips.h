@@ -12,6 +12,17 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {kRegister_v0_Code};
+const Register kReturnRegister1 = {kRegister_v1_Code};
+const Register kJSFunctionRegister = {kRegister_a1_Code};
+const Register kContextRegister = {Register::kCpRegister};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_t4_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_t5_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_t6_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_a1_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_a0_Code};
+
 // Forward declaration.
 class JumpTarget;
 

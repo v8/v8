@@ -20,6 +20,8 @@ class CallInterfaceDescriptor;
 
 namespace compiler {
 
+const RegList kNoCalleeSaved = 0;
+
 class Node;
 class OsrHelper;
 

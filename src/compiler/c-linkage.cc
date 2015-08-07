@@ -14,32 +14,22 @@ namespace internal {
 namespace compiler {
 
 namespace {
-// Platform-specific configuration for C calling convention.
 LinkageLocation regloc(Register reg) {
   return LinkageLocation::ForRegister(Register::ToAllocationIndex(reg));
 }
 
 
-LinkageLocation stackloc(int i) {
-  DCHECK_LT(i, 0);
-  return LinkageLocation::ForCallerFrameSlot(i);
-}
-
-
+// Platform-specific configuration for C calling convention.
 #if V8_TARGET_ARCH_IA32
 // ===========================================================================
 // == ia32 ===================================================================
 // ===========================================================================
-#define RETURN_REGISTER_0 eax
-#define RETURN_REGISTER_1 edx
 #define CALLEE_SAVE_REGISTERS esi.bit() | edi.bit() | ebx.bit()
 
 #elif V8_TARGET_ARCH_X64
 // ===========================================================================
 // == x64 ====================================================================
 // ===========================================================================
-#define RETURN_REGISTER_0 rax
-#define RETURN_REGISTER_1 rdx
 
 #ifdef _WIN64
 // == x64 windows ============================================================
@@ -64,8 +54,6 @@ LinkageLocation stackloc(int i) {
 // ===========================================================================
 // == x87 ====================================================================
 // ===========================================================================
-#define RETURN_REGISTER_0 eax
-#define RETURN_REGISTER_1 edx
 #define CALLEE_SAVE_REGISTERS esi.bit() | edi.bit() | ebx.bit()
 
 #elif V8_TARGET_ARCH_ARM
@@ -73,8 +61,6 @@ LinkageLocation stackloc(int i) {
 // == arm ====================================================================
 // ===========================================================================
 #define PARAM_REGISTERS r0, r1, r2, r3
-#define RETURN_REGISTER_0 r0
-#define RETURN_REGISTER_1 r1
 #define CALLEE_SAVE_REGISTERS \
   r4.bit() | r5.bit() | r6.bit() | r7.bit() | r8.bit() | r9.bit() | r10.bit()
 #define CALLEE_SAVE_FP_REGISTERS                                  \
@@ -88,8 +74,6 @@ LinkageLocation stackloc(int i) {
 // == arm64 ====================================================================
 // ===========================================================================
 #define PARAM_REGISTERS x0, x1, x2, x3, x4, x5, x6, x7
-#define RETURN_REGISTER_0 x0
-#define RETURN_REGISTER_1 x1
 #define CALLEE_SAVE_REGISTERS                                     \
   (1 << x19.code()) | (1 << x20.code()) | (1 << x21.code()) |     \
       (1 << x22.code()) | (1 << x23.code()) | (1 << x24.code()) | \
@@ -107,8 +91,6 @@ LinkageLocation stackloc(int i) {
 // == mips ===================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3
-#define RETURN_REGISTER_0 v0
-#define RETURN_REGISTER_1 v1
 #define CALLEE_SAVE_REGISTERS                                                  \
   s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
       s7.bit()
@@ -120,8 +102,6 @@ LinkageLocation stackloc(int i) {
 // == mips64 =================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
-#define RETURN_REGISTER_0 v0
-#define RETURN_REGISTER_1 v1
 #define CALLEE_SAVE_REGISTERS                                                  \
   s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
       s7.bit()
@@ -133,8 +113,6 @@ LinkageLocation stackloc(int i) {
 // == ppc & ppc64 ============================================================
 // ===========================================================================
 #define PARAM_REGISTERS r3, r4, r5, r6, r7, r8, r9, r10
-#define RETURN_REGISTER_0 r3
-#define RETURN_REGISTER_1 r4
 #define CALLEE_SAVE_REGISTERS                                                 \
   r14.bit() | r15.bit() | r16.bit() | r17.bit() | r18.bit() | r19.bit() |     \
       r20.bit() | r21.bit() | r22.bit() | r23.bit() | r24.bit() | r25.bit() | \
@@ -148,7 +126,7 @@ LinkageLocation stackloc(int i) {
 // ===========================================================================
 // == unknown ================================================================
 // ===========================================================================
-// Don't define anything. The below code will dynamically fail.
+#define UNSUPPORTED_C_LINKAGE 1
 #endif
 }  // namespace
 
@@ -173,22 +151,22 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   }
 #endif
 
-#ifdef RETURN_REGISTER_0
-  // Add return location(s).
-  CHECK(locations.return_count_ <= 2);
-
-  if (locations.return_count_ > 0) {
-    locations.AddReturn(regloc(RETURN_REGISTER_0));
-  }
-  if (locations.return_count_ > 1) {
-    locations.AddReturn(regloc(RETURN_REGISTER_1));
-  }
-#else
+#ifdef UNSUPPORTED_C_LINKAGE
   // This method should not be called on unknown architectures.
   V8_Fatal(__FILE__, __LINE__,
            "requested C call descriptor on unsupported architecture");
   return nullptr;
 #endif
+
+  // Add return location(s).
+  CHECK(locations.return_count_ <= 2);
+
+  if (locations.return_count_ > 0) {
+    locations.AddReturn(regloc(kReturnRegister0));
+  }
+  if (locations.return_count_ > 1) {
+    locations.AddReturn(regloc(kReturnRegister1));
+  }
 
   const int parameter_count = static_cast<int>(msig->parameter_count());
 
@@ -211,7 +189,8 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
     if (i < kParamRegisterCount) {
       locations.AddParam(regloc(kParamRegisters[i]));
     } else {
-      locations.AddParam(stackloc(-1 - stack_offset));
+      locations.AddParam(
+          LinkageLocation::ForCallerFrameSlot(-1 - stack_offset));
       stack_offset++;
     }
   }

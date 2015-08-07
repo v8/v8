@@ -292,15 +292,6 @@ const Register fp = {kRegister_fp_Code};
 const Register cp = {kRegister_r30_Code};  // JavaScript context pointer
 const Register kRootRegister = {kRegister_r29_Code};  // Roots array pointer.
 const Register kConstantPoolRegister = {kRegister_r28_Code};  // Constant pool
-const Register kInterpreterBytecodeOffsetRegister = {
-    kRegister_r14_Code  // Interpreter bytecode offset.
-};
-const Register kInterpreterBytecodeArrayRegister = {
-    kRegister_r15_Code  // Interpreter bytecode array pointer.
-};
-const Register kInterpreterDispatchTableRegister = {
-    kRegister_r16_Code  // Interpreter dispatch table.
-};
 
 // Double word FP register.
 struct DoubleRegister {

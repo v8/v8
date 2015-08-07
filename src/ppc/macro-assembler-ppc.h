@@ -13,6 +13,17 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {kRegister_r3_Code};
+const Register kReturnRegister1 = {kRegister_r4_Code};
+const Register kJSFunctionRegister = {kRegister_r4_Code};
+const Register kContextRegister = {kRegister_r30_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_r14_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_r15_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_r16_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_r4_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_r3_Code};
+
 // ----------------------------------------------------------------------------
 // Static helper functions
 

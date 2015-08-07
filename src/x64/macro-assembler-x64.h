@@ -14,6 +14,17 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {kRegister_rax_Code};
+const Register kReturnRegister1 = {kRegister_rdx_Code};
+const Register kJSFunctionRegister = {kRegister_rdi_Code};
+const Register kContextRegister = {kRegister_rsi_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_r12_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_r14_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_r15_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_rbx_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_rax_Code};
+
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
