@@ -152,23 +152,27 @@ class FeedbackVectorRequirements {
 };
 
 
-class VariableICSlotPair final {
+class ICSlotCache {
  public:
-  VariableICSlotPair(Variable* variable, FeedbackVectorICSlot slot)
-      : variable_(variable), slot_(slot) {}
-  VariableICSlotPair()
-      : variable_(NULL), slot_(FeedbackVectorICSlot::Invalid()) {}
+  explicit ICSlotCache(Zone* zone)
+      : zone_(zone),
+        hash_map_(HashMap::PointersMatch, ZoneHashMap::kDefaultHashMapCapacity,
+                  ZoneAllocationPolicy(zone)) {}
 
-  Variable* variable() const { return variable_; }
-  FeedbackVectorICSlot slot() const { return slot_; }
+  void Put(Variable* variable, FeedbackVectorICSlot slot) {
+    ZoneHashMap::Entry* entry = hash_map_.LookupOrInsert(
+        variable, ComputePointerHash(variable), ZoneAllocationPolicy(zone_));
+    entry->value = reinterpret_cast<void*>(slot.ToInt());
+  }
+
+  ZoneHashMap::Entry* Get(Variable* variable) const {
+    return hash_map_.Lookup(variable, ComputePointerHash(variable));
+  }
 
  private:
-  Variable* variable_;
-  FeedbackVectorICSlot slot_;
+  Zone* zone_;
+  ZoneHashMap hash_map_;
 };
-
-
-typedef List<VariableICSlotPair> ICSlotCache;
 
 
 class AstProperties final BASE_EMBEDDED {
