@@ -5954,7 +5954,7 @@ TEST(WeakFixedArray) {
   Handle<HeapNumber> number = CcTest::i_isolate()->factory()->NewHeapNumber(1);
   Handle<WeakFixedArray> array = WeakFixedArray::Add(Handle<Object>(), number);
   array->Remove(number);
-  array->Compact();
+  array->Compact<WeakFixedArray::NullCallback>();
   WeakFixedArray::Add(array, number);
 }
 

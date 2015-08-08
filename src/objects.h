@@ -1906,12 +1906,14 @@ class JSObject: public JSReceiver {
                                   PrototypeOptimizationMode mode);
   static void ReoptimizeIfPrototype(Handle<JSObject> object);
   static void LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate);
-  static bool RegisterPrototypeUserIfNotRegistered(Handle<JSObject> prototype,
-                                                   Handle<HeapObject> user,
-                                                   Isolate* isolate);
-  static bool UnregisterPrototypeUser(Handle<JSObject> prototype,
-                                      Handle<HeapObject> user);
+  static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
   static void InvalidatePrototypeChains(Map* map);
+
+  // Alternative implementation of WeakFixedArray::NullCallback.
+  class PrototypeRegistryCompactionCallback {
+   public:
+    static void Callback(Object* value, int old_index, int new_index);
+  };
 
   // Retrieve interceptors.
   InterceptorInfo* GetNamedInterceptor();
@@ -2531,17 +2533,22 @@ class FixedDoubleArray: public FixedArrayBase {
 
 class WeakFixedArray : public FixedArray {
  public:
-  enum SearchForDuplicates { kAlwaysAdd, kAddIfNotFound };
-
   // If |maybe_array| is not a WeakFixedArray, a fresh one will be allocated.
-  static Handle<WeakFixedArray> Add(
-      Handle<Object> maybe_array, Handle<HeapObject> value,
-      SearchForDuplicates search_for_duplicates = kAlwaysAdd,
-      bool* was_present = NULL);
+  // This function does not check if the value exists already, callers must
+  // ensure this themselves if necessary.
+  static Handle<WeakFixedArray> Add(Handle<Object> maybe_array,
+                                    Handle<HeapObject> value,
+                                    int* assigned_index = NULL);
 
   // Returns true if an entry was found and removed.
   bool Remove(Handle<HeapObject> value);
 
+  class NullCallback {
+   public:
+    static void Callback(Object* value, int old_index, int new_index) {}
+  };
+
+  template <class CompactionCallback>
   void Compact();
 
   inline Object* Get(int index) const;
@@ -5467,6 +5474,8 @@ class Map: public HeapObject {
   // the given prototype's map).
   static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
       Handle<JSObject> prototype, Isolate* isolate);
+  static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
+      Handle<Map> prototype_map, Isolate* isolate);
 
   // [prototype chain validity cell]: Associated with a prototype object,
   // stored in that object's map's PrototypeInfo, indicates that prototype
@@ -6036,9 +6045,15 @@ class Box : public Struct {
 // Container for metadata stored on each prototype map.
 class PrototypeInfo : public Struct {
  public:
+  static const int UNREGISTERED = -1;
+
   // [prototype_users]: WeakFixedArray containing maps using this prototype,
   // or Smi(0) if uninitialized.
   DECL_ACCESSORS(prototype_users, Object)
+  // [registry_slot]: Slot in prototype's user registry where this user
+  // is stored. Returns UNREGISTERED if this prototype has not been registered.
+  inline int registry_slot() const;
+  inline void set_registry_slot(int slot);
   // [validity_cell]: Cell containing the validity bit for prototype chains
   // going through this object, or Smi(0) if uninitialized.
   DECL_ACCESSORS(validity_cell, Object)
@@ -6052,7 +6067,8 @@ class PrototypeInfo : public Struct {
   DECLARE_VERIFIER(PrototypeInfo)
 
   static const int kPrototypeUsersOffset = HeapObject::kHeaderSize;
-  static const int kValidityCellOffset = kPrototypeUsersOffset + kPointerSize;
+  static const int kRegistrySlotOffset = kPrototypeUsersOffset + kPointerSize;
+  static const int kValidityCellOffset = kRegistrySlotOffset + kPointerSize;
   static const int kConstructorNameOffset = kValidityCellOffset + kPointerSize;
   static const int kSize = kConstructorNameOffset + kPointerSize;
 
