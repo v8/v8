@@ -109,6 +109,7 @@ Heap::Heap()
 #endif  // DEBUG
       old_generation_allocation_limit_(initial_old_generation_size_),
       old_gen_exhausted_(false),
+      optimize_for_memory_usage_(false),
       inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
       hidden_string_(NULL),
@@ -4967,6 +4968,9 @@ void Heap::CheckAndNotifyBackgroundIdleNotification(double idle_time_in_ms,
     event.can_start_incremental_gc = incremental_marking()->IsStopped() &&
                                      incremental_marking()->CanBeActivated();
     memory_reducer_.NotifyBackgroundIdleNotification(event);
+    optimize_for_memory_usage_ = true;
+  } else {
+    optimize_for_memory_usage_ = false;
   }
 }
 
@@ -5627,6 +5631,8 @@ intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
 void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
                                            double gc_speed,
                                            double mutator_speed) {
+  const double kConservativeHeapGrowingFactor = 1.3;
+
   double factor = HeapGrowingFactor(gc_speed, mutator_speed);
 
   if (FLAG_trace_gc_verbose) {
@@ -5642,6 +5648,10 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
   if (max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice ||
       FLAG_optimize_for_size) {
     factor = Min(factor, kMaxHeapGrowingFactorMemoryConstrained);
+  }
+
+  if (memory_reducer_.ShouldGrowHeapSlowly() || optimize_for_memory_usage_) {
+    factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 
   if (FLAG_stress_compaction ||

@@ -1791,6 +1791,10 @@ class Heap {
   // last GC.
   bool old_gen_exhausted_;
 
+  // Indicates that memory usage is more important than latency.
+  // TODO(ulan): Merge it with memory reducer once chromium:490559 is fixed.
+  bool optimize_for_memory_usage_;
+
   // Indicates that inline bump-pointer allocation has been globally disabled
   // for all spaces. This is used to disable allocations in generated code.
   bool inline_allocation_disabled_;
