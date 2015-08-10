@@ -750,11 +750,7 @@ TO_NAME = function TO_NAME() {
 // ECMA-262, section 9.1, page 30. Use null/undefined for no hint,
 // (1) for number hint, and (2) for string hint.
 function ToPrimitive(x, hint) {
-  // Fast case check.
-  if (IS_STRING(x)) return x;
-  // Normal behavior.
   if (!IS_SPEC_OBJECT(x)) return x;
-  if (IS_SIMD_VALUE(x)) return x;
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
   return (hint == NUMBER_HINT) ? DefaultNumber(x) : DefaultString(x);
 }
