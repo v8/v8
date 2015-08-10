@@ -794,26 +794,10 @@ RUNTIME_FUNCTION(Runtime_IsPropertyEnumerable) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetPropertyNames) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-  Handle<JSArray> result;
-
-  isolate->counters()->for_in()->Increment();
-  Handle<FixedArray> elements;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, elements,
-      JSReceiver::GetKeys(object, JSReceiver::INCLUDE_PROTOS));
-  return *isolate->factory()->NewJSArrayWithElements(elements);
-}
-
-
-// Returns either a FixedArray as Runtime_GetPropertyNames,
-// or, if the given object has an enum cache that contains
-// all enumerable properties of the object and its prototypes
-// have none, the map of the object. This is used to speed up
-// the check for deletions during a for-in.
+// Returns either a FixedArray or, if the given object has an enum cache that
+// contains all enumerable properties of the object and its prototypes have
+// none, the map of the object. This is used to speed up the check for
+// deletions during a for-in.
 RUNTIME_FUNCTION(Runtime_GetPropertyNamesFast) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
