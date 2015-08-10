@@ -13,12 +13,6 @@ namespace v8 {
 namespace internal {
 
 
-MarkBit Marking::MarkBitFrom(Address addr) {
-  MemoryChunk* p = MemoryChunk::FromAddress(addr);
-  return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
-}
-
-
 void MarkCompactCollector::SetFlags(int flags) {
   reduce_memory_footprint_ = ((flags & Heap::kReduceMemoryFootprintMask) != 0);
   abort_incremental_marking_ =

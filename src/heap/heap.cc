@@ -19,6 +19,7 @@
 #include "src/global-handles.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/objects-visiting-inl.h"

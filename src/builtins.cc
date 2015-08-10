@@ -13,7 +13,6 @@
 #include "src/cpu-profiler.h"
 #include "src/elements.h"
 #include "src/gdb-jit.h"
-#include "src/heap/mark-compact.h"
 #include "src/heap-profiler.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"

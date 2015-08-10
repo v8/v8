@@ -6,7 +6,6 @@
 
 #include "src/api.h"
 #include "src/execution.h"
-#include "src/heap/spaces-inl.h"
 #include "src/messages.h"
 #include "src/string-builder.h"
 

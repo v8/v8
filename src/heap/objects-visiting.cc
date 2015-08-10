@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting.h"
 
 namespace v8 {

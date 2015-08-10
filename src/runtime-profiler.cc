@@ -14,7 +14,6 @@
 #include "src/execution.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
-#include "src/heap/mark-compact.h"
 #include "src/scopeinfo.h"
 
 namespace v8 {
