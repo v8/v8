@@ -2274,16 +2274,8 @@ class SemiSpace : public Space {
 // iterator is created are not iterated.
 class SemiSpaceIterator : public ObjectIterator {
  public:
-  // Create an iterator over the objects in the given space.  If no start
-  // address is given, the iterator starts from the bottom of the space.
-
-  // Iterate over all of allocated to-space.
+  // Create an iterator over the allocated objects in the given to-space.
   explicit SemiSpaceIterator(NewSpace* space);
-  // Iterate over part of allocated to-space, from start to the end
-  // of allocation.
-  SemiSpaceIterator(NewSpace* space, Address start);
-  // Iterate from one address to another in the same semi-space.
-  SemiSpaceIterator(Address from, Address to);
 
   HeapObject* Next() {
     if (current_ == limit_) return NULL;

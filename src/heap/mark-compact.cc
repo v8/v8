@@ -3622,8 +3622,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_UPDATE_NEW_TO_NEW_POINTERS);
     // Update pointers in to space.
-    SemiSpaceIterator to_it(heap()->new_space()->bottom(),
-                            heap()->new_space()->top());
+    SemiSpaceIterator to_it(heap()->new_space());
     for (HeapObject* object = to_it.Next(); object != NULL;
          object = to_it.Next()) {
       Map* map = object->map();
