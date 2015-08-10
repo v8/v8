@@ -1076,9 +1076,6 @@ Handle<Code> Pipeline::GenerateCode() {
     GraphReplayPrinter::PrintReplay(data.graph());
   }
 
-  // Bailout here in case target architecture is not supported.
-  if (!SupportedTarget()) return Handle<Code>::null();
-
   base::SmartPointer<Typer> typer;
   if (info()->is_typing_enabled()) {
     // Type the graph.
@@ -1203,7 +1200,6 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   PipelineData* data = this->data_;
 
   DCHECK_NOT_NULL(data->graph());
-  CHECK(SupportedBackend());
 
   if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();
   TraceSchedule(data->info(), data->schedule());

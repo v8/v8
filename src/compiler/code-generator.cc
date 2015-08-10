@@ -654,61 +654,6 @@ void CodeGenerator::MarkLazyDeoptSite() {
   last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
-#if !V8_TURBOFAN_BACKEND
-
-void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
-  UNIMPLEMENTED();
-}
-
-
-void CodeGenerator::AssembleArchBranch(Instruction* instr,
-                                       BranchInfo* branch) {
-  UNIMPLEMENTED();
-}
-
-
-void CodeGenerator::AssembleArchBoolean(Instruction* instr,
-                                        FlagsCondition condition) {
-  UNIMPLEMENTED();
-}
-
-
-void CodeGenerator::AssembleArchJump(RpoNumber target) { UNIMPLEMENTED(); }
-
-
-void CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
-  UNIMPLEMENTED();
-}
-
-
-void CodeGenerator::AssemblePrologue() { UNIMPLEMENTED(); }
-
-
-void CodeGenerator::AssembleReturn() { UNIMPLEMENTED(); }
-
-
-void CodeGenerator::AssembleMove(InstructionOperand* source,
-                                 InstructionOperand* destination) {
-  UNIMPLEMENTED();
-}
-
-
-void CodeGenerator::AssembleSwap(InstructionOperand* source,
-                                 InstructionOperand* destination) {
-  UNIMPLEMENTED();
-}
-
-
-void CodeGenerator::AddNopForSmiCodeInlining() { UNIMPLEMENTED(); }
-
-
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
-  UNIMPLEMENTED();
-}
-
-#endif  // !V8_TURBOFAN_BACKEND
-
 
 OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
     : masm_(gen->masm()), next_(gen->ools_) {

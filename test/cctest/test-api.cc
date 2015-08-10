@@ -21178,11 +21178,7 @@ TEST(TurboAsmDisablesNeuter) {
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
-#if V8_TURBOFAN_TARGET
   bool should_be_neuterable = !i::FLAG_turbo_asm;
-#else
-  bool should_be_neuterable = true;
-#endif
   const char* load =
       "function Module(stdlib, foreign, heap) {"
       "  'use asm';"

@@ -20,8 +20,6 @@
 #include "src/rewriter.h"
 #include "src/scopes.h"
 
-#define USE_CRANKSHAFT 0
-
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -156,7 +154,6 @@ class FunctionTester : public InitializedHandleScope {
 
   Handle<JSFunction> Compile(Handle<JSFunction> function) {
 // TODO(titzer): make this method private.
-#if V8_TURBOFAN_TARGET
     Zone zone;
     ParseInfo parse_info(&zone, function);
     CompilationInfo info(&parse_info);
@@ -181,19 +178,6 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(!code.is_null());
     info.context()->native_context()->AddOptimizedCode(*code);
     function->ReplaceCode(*code);
-#elif USE_CRANKSHAFT
-    Handle<Code> unoptimized = Handle<Code>(function->code());
-    Handle<Code> code = Compiler::GetOptimizedCode(function, unoptimized,
-                                                   Compiler::NOT_CONCURRENT);
-    CHECK(!code.is_null());
-#if ENABLE_DISASSEMBLER
-    if (FLAG_print_opt_code) {
-      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-      code->Disassemble("test code", tracing_scope.file());
-    }
-#endif
-    function->ReplaceCode(*code);
-#endif
     return function;
   }
 
@@ -212,7 +196,6 @@ class FunctionTester : public InitializedHandleScope {
   // Compile the given machine graph instead of the source of the function
   // and replace the JSFunction's code with the result.
   Handle<JSFunction> CompileGraph(Graph* graph) {
-    CHECK(Pipeline::SupportedTarget());
     Zone zone;
     ParseInfo parse_info(&zone, function);
     CompilationInfo info(&parse_info);

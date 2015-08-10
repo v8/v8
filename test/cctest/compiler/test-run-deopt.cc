@@ -10,8 +10,6 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
-#if V8_TURBOFAN_TARGET
-
 static void IsOptimized(const v8::FunctionCallbackInfo<v8::Value>& args) {
   JavaScriptFrameIterator it(CcTest::i_isolate());
   JavaScriptFrame* frame = it.frame();
@@ -103,7 +101,6 @@ TEST(DeoptExceptionHandlerFinally) {
 #endif
 }
 
-#endif
 
 TEST(DeoptTrivial) {
   FLAG_allow_natives_syntax = true;

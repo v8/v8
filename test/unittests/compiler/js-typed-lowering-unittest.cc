@@ -1004,7 +1004,6 @@ TEST_F(JSTypedLoweringTest, JSLoadDynamicContext) {
   }
 }
 
-#if V8_TURBOFAN_TARGET
 
 // -----------------------------------------------------------------------------
 // JSAdd
@@ -1103,8 +1102,6 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
                     CodeFactory::FastCloneShallowObject(isolate(), 6).code())),
              input0, input1, input2, _, context, frame_state, effect, control));
 }
-
-#endif  // V8_TURBOFAN_TARGET
 
 
 // -----------------------------------------------------------------------------

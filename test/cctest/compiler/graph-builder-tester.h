@@ -268,7 +268,6 @@ class GraphBuilderTester : public HandleAndZoneScope,
   }
 
   virtual byte* Generate() {
-    if (!Pipeline::SupportedBackend()) return NULL;
     if (code_.is_null()) {
       Zone* zone = graph()->zone();
       CallDescriptor* desc =

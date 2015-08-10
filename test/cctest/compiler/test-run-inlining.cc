@@ -6,8 +6,6 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-#if V8_TURBOFAN_TARGET
-
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
@@ -574,5 +572,3 @@ TEST(InlineMutuallyRecursive) {
   InstallAssertInlineCountHelper(CcTest::isolate());
   T.CheckCall(T.Val(42), T.Val(1));
 }
-
-#endif  // V8_TURBOFAN_TARGET

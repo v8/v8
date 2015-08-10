@@ -14,8 +14,6 @@
 #include "src/parser.h"
 #include "test/cctest/compiler/function-tester.h"
 
-#if V8_TURBOFAN_TARGET
-
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
@@ -146,5 +144,3 @@ TEST(RunStringAddTFStub) {
   Handle<Object> result = ft.Call(leftArg, rightArg).ToHandleChecked();
   CHECK(String::Equals(ft.Val("linksrechts"), Handle<String>::cast(result)));
 }
-
-#endif  // V8_TURBOFAN_TARGET
