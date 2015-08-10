@@ -896,8 +896,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
       !mark_compact_collector()->finalize_incremental_marking() &&
       !mark_compact_collector()->abort_incremental_marking() &&
       !incremental_marking()->IsStopped() &&
-      !incremental_marking()->should_hurry() &&
-      FLAG_incremental_marking_steps) {
+      !incremental_marking()->should_hurry() && FLAG_incremental_marking) {
     // Make progress in incremental marking.
     const intptr_t kStepSizeWhenDelayedByScavenge = 1 * MB;
     incremental_marking()->Step(kStepSizeWhenDelayedByScavenge,

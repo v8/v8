@@ -411,8 +411,7 @@ bool IncrementalMarking::CanBeActivated() {
   // marking is turned on, 2) when we are currently not in a GC, and
   // 3) when we are currently not serializing or deserializing the heap.
   // Don't switch on for very small heaps.
-  return FLAG_incremental_marking && FLAG_incremental_marking_steps &&
-         heap_->gc_state() == Heap::NOT_IN_GC &&
+  return FLAG_incremental_marking && heap_->gc_state() == Heap::NOT_IN_GC &&
          heap_->deserialization_complete() &&
          !heap_->isolate()->serializer_enabled() &&
          heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold;
@@ -478,7 +477,6 @@ void IncrementalMarking::Start(int mark_compact_flags,
            (reason == nullptr) ? "unknown reason" : reason);
   }
   DCHECK(FLAG_incremental_marking);
-  DCHECK(FLAG_incremental_marking_steps);
   DCHECK(state_ == STOPPED);
   DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
   DCHECK(!heap_->isolate()->serializer_enabled());
@@ -912,7 +910,6 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
                                   ForceMarkingAction marking,
                                   ForceCompletionAction completion) {
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
-      !FLAG_incremental_marking_steps ||
       (state_ != SWEEPING && state_ != MARKING)) {
     return 0;
   }
