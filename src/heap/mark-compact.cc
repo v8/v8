@@ -294,8 +294,6 @@ void MarkCompactCollector::ClearInvalidSlotsBufferEntries(PagedSpace* space) {
 void MarkCompactCollector::ClearInvalidStoreAndSlotsBufferEntries() {
   heap_->store_buffer()->ClearInvalidStoreBufferEntries();
 
-  RemoveDeoptimizedCodeSlots();
-
   ClearInvalidSlotsBufferEntries(heap_->old_space());
   ClearInvalidSlotsBufferEntries(heap_->code_space());
   ClearInvalidSlotsBufferEntries(heap_->map_space());
@@ -780,7 +778,6 @@ void MarkCompactCollector::AbortCompaction() {
     }
     compacting_ = false;
     evacuation_candidates_.Rewind(0);
-    invalidated_code_.Rewind(0);
   }
   DCHECK_EQ(0, evacuation_candidates_.length());
 }
@@ -3569,7 +3566,11 @@ void MarkCompactCollector::InvalidateCode(Code* code) {
     MarkBit mark_bit = Marking::MarkBitFrom(code);
     if (Marking::IsWhite(mark_bit)) return;
 
-    invalidated_code_.Add(code);
+    // Ignore all slots that might have been recorded in the body of the
+    // deoptimized code object. Assumption: no slots will be recorded for
+    // this object after invalidating it.
+    RemoveObjectSlots(code->instruction_start(),
+                      code->address() + code->Size());
   }
 }
 
@@ -3577,42 +3578,6 @@ void MarkCompactCollector::InvalidateCode(Code* code) {
 // Return true if the given code is deoptimized or will be deoptimized.
 bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
   return code->is_optimized_code() && code->marked_for_deoptimization();
-}
-
-
-void MarkCompactCollector::RemoveDeoptimizedCodeSlots() {
-  int length = invalidated_code_.length();
-  for (int i = 0; i < length; i++) {
-    Code* code = invalidated_code_[i];
-    Page* p = Page::FromAddress(code->address());
-    if (!p->IsEvacuationCandidate() &&
-        !p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
-      // Ignore all slots that might have been recorded in the body of the
-      // deoptimized code object.
-      RemoveObjectSlots(code->instruction_start(),
-                        code->address() + code->Size());
-    }
-  }
-}
-
-
-void MarkCompactCollector::RemoveDeadInvalidatedCode() {
-  int length = invalidated_code_.length();
-  for (int i = 0; i < length; i++) {
-    if (!IsMarked(invalidated_code_[i])) invalidated_code_[i] = NULL;
-  }
-}
-
-
-void MarkCompactCollector::ProcessInvalidatedCode(ObjectVisitor* visitor) {
-  int length = invalidated_code_.length();
-  for (int i = 0; i < length; i++) {
-    Code* code = invalidated_code_[i];
-    if (code != NULL) {
-      code->Iterate(visitor);
-    }
-  }
-  invalidated_code_.Rewind(0);
 }
 
 
@@ -3776,10 +3741,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   EvacuationWeakObjectRetainer evacuation_object_retainer;
   heap()->ProcessAllWeakReferences(&evacuation_object_retainer);
-
-  // Visit invalidated code (we ignored all slots on it) and clear mark-bits
-  // under it.
-  ProcessInvalidatedCode(&updating_visitor);
 
   heap_->isolate()->inner_pointer_to_code_cache()->Flush();
 
@@ -4415,8 +4376,6 @@ void MarkCompactCollector::SweepSpaces() {
       StartSweeperThreads();
     }
   }
-
-  RemoveDeadInvalidatedCode();
 
   EvacuateNewSpaceAndCandidates();
 

@@ -751,10 +751,7 @@ class MarkCompactCollector {
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
 
-  void RemoveDeoptimizedCodeSlots();
   bool WillBeDeoptimized(Code* code);
-  void RemoveDeadInvalidatedCode();
-  void ProcessInvalidatedCode(ObjectVisitor* visitor);
   void EvictPopularEvacuationCandidate(Page* page);
   void ClearInvalidSlotsBufferEntries(PagedSpace* space);
   void ClearInvalidStoreAndSlotsBufferEntries();
@@ -971,7 +968,6 @@ class MarkCompactCollector {
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;
-  List<Code*> invalidated_code_;
 
   base::SmartPointer<FreeList> free_list_old_space_;
   base::SmartPointer<FreeList> free_list_code_space_;
