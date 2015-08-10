@@ -668,7 +668,8 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   run_networked = not options.no_network
   if not run_networked:
-    print("Network distribution disabled, running tests locally.")
+    if verbose_output:
+      print("Network distribution disabled, running tests locally.")
   elif utils.GuessOS() != "linux":
     print("Network distribution is only supported on Linux, sorry!")
     run_networked = False
