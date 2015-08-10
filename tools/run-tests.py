@@ -532,8 +532,6 @@ def Main():
 
 
 def Execute(arch, mode, args, options, suites, workspace):
-  print(">>> Running tests for %s.%s" % (arch, mode))
-
   shell_dir = options.shell_dir
   if not shell_dir:
     if options.buildbot:
@@ -650,6 +648,14 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   if options.cat:
     return 0  # We're done here.
+
+  if num_tests == 0:
+    print("No tests selected for running!")
+    if len(all_tests) > 0:
+      verbose.PrintReport(all_tests)
+    return 0
+
+  print(">>> Running tests for %s.%s" % (arch, mode))
 
   if options.report:
     verbose.PrintReport(all_tests)
