@@ -1048,15 +1048,6 @@ RUNTIME_FUNCTION(Runtime_ToFastProperties) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ToBool) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, object, 0);
-
-  return isolate->heap()->ToBoolean(object->BooleanValue());
-}
-
-
 RUNTIME_FUNCTION(Runtime_NewStringWrapper) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
