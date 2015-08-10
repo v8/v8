@@ -1138,6 +1138,8 @@ class Isolate {
   void RegisterCancelableTask(Cancelable* task);
   void RemoveCancelableTask(Cancelable* task);
 
+  interpreter::Interpreter* interpreter() const { return interpreter_; }
+
  protected:
   explicit Isolate(bool enable_serializer);
 
