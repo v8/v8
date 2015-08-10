@@ -12100,6 +12100,15 @@ void HOptimizedGraphBuilder::GenerateIsObject(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateToObject(CallRuntime* call) {
+  DCHECK_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  HValue* result = BuildToObject(value);
+  return ast_context()->ReturnValue(result);
+}
+
+
 void HOptimizedGraphBuilder::GenerateIsJSProxy(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

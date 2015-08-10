@@ -2197,6 +2197,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(TwoByteSeqStringSetChar)           \
   F(ObjectEquals)                      \
   F(IsObject)                          \
+  F(ToObject)                          \
   F(IsFunction)                        \
   F(IsUndetectableObject)              \
   F(IsSpecObject)                      \
