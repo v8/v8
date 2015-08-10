@@ -18,33 +18,52 @@ using compiler::Node;
 #define __ assembler->
 
 
-Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {}
+Interpreter::Interpreter(Isolate* isolate)
+    : isolate_(isolate) {}
 
 
-void Interpreter::Initialize(bool create_heap_objects) {
+// static
+Handle<FixedArray> Interpreter::CreateUninitializedInterpreterTable(
+    Isolate* isolate) {
+  Handle<FixedArray> handler_table = isolate->factory()->NewFixedArray(
+      static_cast<int>(Bytecode::kLast) + 1, TENURED);
+  // We rely on the interpreter handler table being immovable, so check that
+  // it was allocated on the first page (which is always immovable).
+  DCHECK(isolate->heap()->old_space()->FirstPage()->Contains(
+      handler_table->address()));
+  for (int i = 0; i < static_cast<int>(Bytecode::kLast); i++) {
+    handler_table->set(i, isolate->builtins()->builtin(Builtins::kIllegal));
+  }
+  return handler_table;
+}
+
+
+void Interpreter::Initialize() {
   DCHECK(FLAG_ignition);
-  if (create_heap_objects) {
+  Handle<FixedArray> handler_table = isolate_->factory()->interpreter_table();
+  if (!IsInterpreterTableInitialized(handler_table)) {
     Zone zone;
     HandleScope scope(isolate_);
-    Handle<FixedArray> handler_table = isolate_->factory()->NewFixedArray(
-        static_cast<int>(Bytecode::kLast) + 1, TENURED);
-    // We rely on the interpreter handler table being immovable, so check that
-    // it was allocated on the first page (which is always immovable).
-    DCHECK(isolate_->heap()->old_space()->FirstPage()->Contains(
-        handler_table->address()));
-    isolate_->heap()->public_set_interpreter_table(*handler_table);
 
-#define GENERATE_CODE(Name, ...)                                    \
-  {                                                                 \
-    compiler::InterpreterAssembler assembler(isolate_, &zone,       \
-                                             Bytecode::k##Name);    \
-    Do##Name(&assembler);                                           \
-    Handle<Code> code = assembler.GenerateCode();                   \
-    handler_table->set(static_cast<int>(Bytecode::k##Name), *code); \
-  }
+#define GENERATE_CODE(Name, ...)                                      \
+    {                                                                 \
+      compiler::InterpreterAssembler assembler(isolate_, &zone,       \
+                                               Bytecode::k##Name);    \
+      Do##Name(&assembler);                                           \
+      Handle<Code> code = assembler.GenerateCode();                   \
+      handler_table->set(static_cast<int>(Bytecode::k##Name), *code); \
+    }
     BYTECODE_LIST(GENERATE_CODE)
 #undef GENERATE_CODE
   }
+}
+
+
+bool Interpreter::IsInterpreterTableInitialized(
+    Handle<FixedArray> handler_table) {
+  DCHECK(handler_table->length() == static_cast<int>(Bytecode::kLast) + 1);
+  return handler_table->get(0) ==
+         isolate_->builtins()->builtin(Builtins::kIllegal);
 }
 
 

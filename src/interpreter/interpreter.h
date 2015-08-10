@@ -28,7 +28,13 @@ class Interpreter {
   explicit Interpreter(Isolate* isolate);
   virtual ~Interpreter() {}
 
-  void Initialize(bool create_heap_objects);
+  // Creates an uninitialized interpreter handler table, where each handler
+  // points to the Illegal builtin.
+  static Handle<FixedArray> CreateUninitializedInterpreterTable(
+      Isolate* isolate);
+
+  // Initializes the interpreter.
+  void Initialize();
 
  private:
 // Bytecode handler generator functions.
@@ -36,6 +42,8 @@ class Interpreter {
   void Do##Name(compiler::InterpreterAssembler* assembler);
   BYTECODE_LIST(DECLARE_BYTECODE_HANDLER_GENERATOR)
 #undef DECLARE_BYTECODE_HANDLER_GENERATOR
+
+  bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);
 
   Isolate* isolate_;
 

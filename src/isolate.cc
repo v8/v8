@@ -2167,7 +2167,7 @@ bool Isolate::Init(Deserializer* des) {
   builtins_.SetUp(this, create_heap_objects);
 
   if (FLAG_ignition) {
-    interpreter_->Initialize(create_heap_objects);
+    interpreter_->Initialize();
   }
 
   if (FLAG_log_internal_timer_events) {

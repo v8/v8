@@ -35,13 +35,8 @@ class InterpreterTester {
   InterpreterTester(Isolate* isolate, Handle<BytecodeArray> bytecode)
       : isolate_(isolate), function_(GetBytecodeFunction(isolate, bytecode)) {
     i::FLAG_ignition = true;
-    Handle<FixedArray> empty_array = isolate->factory()->empty_fixed_array();
-    Handle<FixedArray> interpreter_table =
-        isolate->factory()->interpreter_table();
-    if (interpreter_table.is_identical_to(empty_array)) {
-      // Ensure handler table is generated.
-      isolate->interpreter()->Initialize(true);
-    }
+    // Ensure handler table is generated.
+    isolate->interpreter()->Initialize();
   }
   virtual ~InterpreterTester() {}
 

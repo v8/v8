@@ -26,6 +26,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/store-buffer.h"
 #include "src/heap-profiler.h"
+#include "src/interpreter/interpreter.h"
 #include "src/runtime-profiler.h"
 #include "src/scopeinfo.h"
 #include "src/snapshot/natives.h"
@@ -3363,7 +3364,9 @@ void Heap::CreateInitialObjects() {
   set_weak_stack_trace_list(Smi::FromInt(0));
 
   // Will be filled in by Interpreter::Initialize().
-  set_interpreter_table(empty_fixed_array());
+  set_interpreter_table(
+      *interpreter::Interpreter::CreateUninitializedInterpreterTable(
+          isolate()));
 
   set_allocation_sites_scratchpad(
       *factory->NewFixedArray(kAllocationSiteScratchpadSize, TENURED));
@@ -3415,7 +3418,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kWeakObjectToCodeTableRootIndex:
     case kRetainedMapsRootIndex:
     case kWeakStackTraceListRootIndex:
-    case kInterpreterTableRootIndex:
 // Smi values
 #define SMI_ENTRY(type, name, Name) case k##Name##RootIndex:
       SMI_ROOT_LIST(SMI_ENTRY)

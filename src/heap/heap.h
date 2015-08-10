@@ -1024,10 +1024,6 @@ class Heap {
     roots_[kMaterializedObjectsRootIndex] = objects;
   }
 
-  void public_set_interpreter_table(FixedArray* table) {
-    roots_[kInterpreterTableRootIndex] = table;
-  }
-
   // Generated code can embed this address to get access to the roots.
   Object** roots_array_start() { return roots_; }
 
