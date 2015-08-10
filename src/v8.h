@@ -35,10 +35,8 @@
 #include "src/flags.h"  // NOLINT
 #include "src/globals.h"  // NOLINT
 
-// Objects & heap
+// Objects
 #include "src/objects-inl.h"  // NOLINT
-#include "src/heap/spaces-inl.h"               // NOLINT
-#include "src/heap/incremental-marking-inl.h"  // NOLINT
 #include "src/log-inl.h"  // NOLINT
 #include "src/handles-inl.h"  // NOLINT
 #include "src/types-inl.h"  // NOLINT

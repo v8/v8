@@ -16,11 +16,6 @@ specific_include_rules = {
   "d8\.cc": [
     "+include/libplatform/libplatform.h",
   ],
-  # TODO(mstarzinger): Get rid of grab-bag includes from heap in v8.h soon.
-  "v8\.h": [
-    "+src/heap/spaces-inl.h",
-    "+src/heap/incremental-marking-inl.h",
-  ],
   # TODO(mstarzinger): Only needed because of Code::CodeIterateBody cyclicity.
   "objects\.cc": [
     "+src/heap/objects-visiting-inl.h",
