@@ -28,6 +28,12 @@ class GraphAndBuilders {
         main_machine_(zone),
         main_simplified_(zone) {}
 
+  Graph* graph() const { return main_graph_; }
+  Zone* zone() const { return graph()->zone(); }
+  CommonOperatorBuilder* common() { return &main_common_; }
+  MachineOperatorBuilder* machine() { return &main_machine_; }
+  SimplifiedOperatorBuilder* simplified() { return &main_simplified_; }
+
  protected:
   // Prefixed with main_ to avoid naming conflicts.
   Graph* main_graph_;
@@ -39,7 +45,7 @@ class GraphAndBuilders {
 
 template <typename ReturnType>
 class GraphBuilderTester : public HandleAndZoneScope,
-                           private GraphAndBuilders,
+                           public GraphAndBuilders,
                            public CallHelper<ReturnType> {
  public:
   explicit GraphBuilderTester(MachineType p0 = kMachNone,
@@ -67,12 +73,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
   }
 
   Isolate* isolate() { return main_isolate(); }
-  Graph* graph() const { return main_graph_; }
-  Zone* zone() const { return graph()->zone(); }
   Factory* factory() { return isolate()->factory(); }
-  CommonOperatorBuilder* common() { return &main_common_; }
-  MachineOperatorBuilder* machine() { return &main_machine_; }
-  SimplifiedOperatorBuilder* simplified() { return &main_simplified_; }
 
   // Initialize graph and builder.
   void Begin(int num_parameters) {

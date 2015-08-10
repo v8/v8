@@ -48,10 +48,10 @@ class X64OperandConverter : public InstructionOperandConverter {
 
   Operand ToOperand(InstructionOperand* op, int extra = 0) {
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
-    // The linkage computes where all spill slots are located.
-    FrameOffset offset = linkage()->GetFrameOffset(
-        AllocatedOperand::cast(op)->index(), frame(), extra);
-    return Operand(offset.from_stack_pointer() ? rsp : rbp, offset.offset());
+    FrameOffset offset =
+        linkage()->GetFrameOffset(AllocatedOperand::cast(op)->index(), frame());
+    return Operand(offset.from_stack_pointer() ? rsp : rbp,
+                   offset.offset() + extra);
   }
 
   static size_t NextOffset(size_t* offset) {
@@ -1219,6 +1219,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         if (instr->InputAt(0)->IsRegister()) {
           __ pushq(i.InputRegister(0));
+        } else if (instr->InputAt(0)->IsDoubleRegister()) {
+          // TODO(titzer): use another machine instruction?
+          __ subq(rsp, Immediate(kDoubleSize));
+          __ movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
         } else {
           __ pushq(i.InputOperand(0));
         }
@@ -1554,31 +1558,26 @@ void CodeGenerator::AssembleReturn() {
         }
       }
       __ popq(rbp);  // Pop caller's frame pointer.
-      __ ret(0);
     } else {
       // No saved registers.
       __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
       __ popq(rbp);       // Pop caller's frame pointer.
-      __ ret(0);
     }
   } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
       __ jmp(&return_label_);
+      return;
     } else {
       __ bind(&return_label_);
       __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
       __ popq(rbp);       // Pop caller's frame pointer.
-      int pop_count = static_cast<int>(descriptor->StackParameterCount());
-      if (pop_count == 0) {
-        __ Ret();
-      } else {
-        __ Ret(pop_count * kPointerSize, rbx);
-      }
     }
-  } else {
-    __ Ret();
   }
+  size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
+  // Might need rcx for scratch if pop_size is too big.
+  DCHECK_EQ(0, descriptor->CalleeSavedRegisters() & rcx.bit());
+  __ Ret(static_cast<int>(pop_size), rcx);
 }
 
 
