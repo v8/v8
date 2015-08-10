@@ -803,7 +803,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
 function DefineArrayProperty(obj, p, desc, should_throw) {
   // Step 3 - Special handling for array index.
   if (!IS_SYMBOL(p)) {
-    var index = $toUint32(p);
+    var index = TO_UINT32(p);
     var emit_splice = false;
     if ($toString(index) == p && index != 4294967295) {
       var length = obj.length;
@@ -899,7 +899,7 @@ function ToNameArray(obj, trap, includeSymbols) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError(kProxyNonObjectPropNames, trap, obj);
   }
-  var n = $toUint32(obj.length);
+  var n = TO_UINT32(obj.length);
   var array = new GlobalArray(n);
   var realLength = 0;
   var names = { __proto__: null };  // TODO(rossberg): use sets once ready.

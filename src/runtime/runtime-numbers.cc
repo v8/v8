@@ -271,24 +271,6 @@ RUNTIME_FUNCTION(Runtime_NumberToIntegerMapMinusZero) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberToJSUint32) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_NUMBER_CHECKED(int32_t, number, Uint32, args[0]);
-  return *isolate->factory()->NewNumberFromUint(number);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToJSInt32) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
-  return *isolate->factory()->NewNumberFromInt(DoubleToInt32(number));
-}
-
-
 // Converts a Number to a Smi, if possible. Returns NaN if the number is not
 // a small integer.
 RUNTIME_FUNCTION(Runtime_NumberToSmi) {

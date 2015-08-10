@@ -104,8 +104,6 @@ enum BindingFlags {
   V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)                            \
   V(TO_DETAIL_STRING_FUN_INDEX, JSFunction, to_detail_string_fun)              \
   V(TO_INTEGER_FUN_INDEX, JSFunction, to_integer_fun)                          \
-  V(TO_UINT32_FUN_INDEX, JSFunction, to_uint32_fun)                            \
-  V(TO_INT32_FUN_INDEX, JSFunction, to_int32_fun)                              \
   V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                            \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                        \
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
@@ -378,9 +376,6 @@ class Context: public FixedArray {
     TO_STRING_FUN_INDEX,
     TO_DETAIL_STRING_FUN_INDEX,
     TO_INTEGER_FUN_INDEX,
-    TO_UINT32_FUN_INDEX,
-    TO_INT32_FUN_INDEX,
-    TO_BOOLEAN_FUN_INDEX,
     GLOBAL_EVAL_FUN_INDEX,
     ARRAY_BUFFER_FUN_INDEX,
     ARRAY_BUFFER_MAP_INDEX,

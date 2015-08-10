@@ -1232,7 +1232,7 @@ function ArrayFilter(f, receiver) {
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
-  var length = $toUint32(array.length);
+  var length = TO_UINT32(array.length);
   var accumulator = InnerArrayFilter(f, receiver, array, length);
   var result = new GlobalArray();
   %MoveArrayContents(accumulator, result);
@@ -1543,7 +1543,7 @@ function ArrayReduce(callback, current) {
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
-  var length = $toUint32(array.length);
+  var length = TO_UINT32(array.length);
   return InnerArrayReduce(callback, current, array, length,
                           %_ArgumentsLength());
 }
@@ -1586,7 +1586,7 @@ function ArrayReduceRight(callback, current) {
   // Pull out the length so that side effects are visible before the
   // callback function is checked.
   var array = TO_OBJECT(this);
-  var length = $toUint32(array.length);
+  var length = TO_UINT32(array.length);
   return InnerArrayReduceRight(callback, current, array, length,
                                %_ArgumentsLength());
 }

@@ -172,7 +172,7 @@ function AtomicsFutexWakeOrRequeueJS(ia, index1, count, value, index2) {
   CheckSharedInteger32TypedArray(ia);
   index1 = $toInteger(index1);
   count = MathMax(0, $toInteger(count));
-  value = $toInt32(value);
+  value = TO_INT32(value);
   index2 = $toInteger(index2);
   if (index1 < 0 || index1 >= %_TypedArrayGetLength(ia) ||
       index2 < 0 || index2 >= %_TypedArrayGetLength(ia)) {

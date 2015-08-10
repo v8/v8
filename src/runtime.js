@@ -70,7 +70,6 @@ var $nonStringToString;
 var $sameValue;
 var $sameValueZero;
 var $toBoolean;
-var $toInt32;
 var $toInteger;
 var $toLength;
 var $toName;
@@ -78,7 +77,6 @@ var $toNumber;
 var $toPositiveInteger;
 var $toPrimitive;
 var $toString;
-var $toUint32;
 
 (function(global, utils) {
 
@@ -610,7 +608,7 @@ APPLY_PREPARE = function APPLY_PREPARE(args) {
     }
   }
 
-  length = (args == null) ? 0 : %$toUint32(args.length);
+  length = (args == null) ? 0 : TO_UINT32(args.length);
 
   // We can handle any number of apply arguments if the stack is
   // big enough, but sanity check the value to avoid overflow when
@@ -838,20 +836,6 @@ function ToLength(arg) {
 }
 
 
-// ECMA-262, section 9.6, page 34.
-function ToUint32(x) {
-  if (%_IsSmi(x) && x >= 0) return x;
-  return %NumberToJSUint32(ToNumber(x));
-}
-
-
-// ECMA-262, section 9.5, page 34
-function ToInt32(x) {
-  if (%_IsSmi(x)) return x;
-  return %NumberToJSInt32(ToNumber(x));
-}
-
-
 // ES5, section 9.12
 function SameValue(x, y) {
   if (typeof x != typeof y) return false;
@@ -973,7 +957,6 @@ $nonStringToString = NonStringToString;
 $sameValue = SameValue;
 $sameValueZero = SameValueZero;
 $toBoolean = ToBoolean;
-$toInt32 = ToInt32;
 $toInteger = ToInteger;
 $toLength = ToLength;
 $toName = ToName;
@@ -981,6 +964,5 @@ $toNumber = ToNumber;
 $toPositiveInteger = ToPositiveInteger;
 $toPrimitive = ToPrimitive;
 $toString = ToString;
-$toUint32 = ToUint32;
 
 })
