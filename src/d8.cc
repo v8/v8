@@ -1144,6 +1144,7 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   worker_fun_template->SetClassName(
       String::NewFromUtf8(isolate, "Worker", NewStringType::kNormal)
           .ToLocalChecked());
+  worker_fun_template->ReadOnlyPrototype();
   worker_fun_template->PrototypeTemplate()->Set(
       String::NewFromUtf8(isolate, "terminate", NewStringType::kNormal)
           .ToLocalChecked(),
