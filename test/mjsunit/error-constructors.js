@@ -69,26 +69,53 @@ assertTrue(e.hasOwnProperty('stack'));
 // compiler errors. This is not specified, but allowing interception
 // through a getter can leak error objects from different
 // script tags in the same context in a browser setting.
-var errors = [SyntaxError, ReferenceError, TypeError];
+var errors = [SyntaxError, ReferenceError, TypeError, RangeError, URIError];
+var error_triggers = ["syntax error",
+                      "var error = reference",
+                      "undefined()",
+                      "String.fromCodePoint(0xFFFFFF)",
+                      "decodeURI('%F')"];
 for (var i in errors) {
-  var name = errors[i].prototype.toString();
+  var name = errors[i].name;
+
   // Monkey-patch prototype.
   var props = ["name", "message", "stack"];
   for (var j in props) {
     errors[i].prototype.__defineGetter__(props[j], fail);
   }
   // String conversion should not invoke monkey-patched getters on prototype.
-  var e = new errors[i];
-  assertEquals(name, e.toString());
+  var error;
+  try {
+    eval(error_triggers[i]);
+  } catch (e) {
+    error = e;
+  }
+  assertTrue(error.toString().startsWith(name));
+
+  // Deleting message on the error (exposing the getter) is fine.
+  delete error.message;
+  assertEquals(name, error.toString());
+
+  // Custom properties shadowing the name are fine.
+  var myerror = { name: "myerror", message: "mymessage"};
+  myerror.__proto__ = error;
+  assertEquals("myerror: mymessage", myerror.toString());
+
   // Custom getters in actual objects are welcome.
-  e.__defineGetter__("name", function() { return "mine"; });
-  assertEquals("mine", e.toString());
+  error.__defineGetter__("name", function() { return "mine"; });
+  assertEquals("mine", error.toString());
+
+  // Custom properties shadowing the name are fine.
+  var myerror2 = { message: "mymessage"};
+  myerror2.__proto__ = error;
+  assertEquals("mine: mymessage", myerror2.toString());
 }
 
-// Monkey-patching non-static errors should still be observable.
+// Monkey-patching non-internal errors should still be observable.
 function MyError() {}
 MyError.prototype = new Error;
-var errors = [Error, RangeError, EvalError, URIError, MyError];
+var errors = [Error, RangeError, EvalError, URIError,
+              SyntaxError, ReferenceError, TypeError, MyError];
 for (var i in errors) {
   errors[i].prototype.__defineGetter__("name", function() { return "my"; });
   errors[i].prototype.__defineGetter__("message", function() { return "moo"; });

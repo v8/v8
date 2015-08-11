@@ -322,6 +322,7 @@ namespace internal {
   F(RenderCallSite, 0, 1)                     \
   F(MessageGetStartPosition, 1, 1)            \
   F(MessageGetScript, 1, 1)                   \
+  F(ErrorToStringRT, 1, 1)                    \
   F(FormatMessageString, 4, 1)                \
   F(CallSiteGetFileNameRT, 3, 1)              \
   F(CallSiteGetFunctionNameRT, 3, 1)          \

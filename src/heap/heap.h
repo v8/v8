@@ -324,7 +324,8 @@ namespace internal {
   V(class_end_position_symbol)      \
   V(error_start_pos_symbol)         \
   V(error_end_pos_symbol)           \
-  V(error_script_symbol)
+  V(error_script_symbol)            \
+  V(internal_error_symbol)
 
 #define PUBLIC_SYMBOL_LIST(V)                                    \
   V(has_instance_symbol, symbolHasInstance, Symbol.hasInstance)  \

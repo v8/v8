@@ -6,6 +6,7 @@
 
 var $errorToString;
 var $getStackTraceLine;
+var $internalErrorSymbol;
 var $messageGetPositionInLine;
 var $messageGetLineNumber;
 var $messageGetSourceLine;
@@ -181,7 +182,9 @@ function ToDetailString(obj) {
 
 function MakeGenericError(constructor, type, arg0, arg1, arg2) {
   if (IS_UNDEFINED(arg0) && IS_STRING(type)) arg0 = [];
-  return new constructor(FormatMessage(type, arg0, arg1, arg2));
+  var error = new constructor(FormatMessage(type, arg0, arg1, arg2));
+  error[$internalErrorSymbol] = true;
+  return error;
 }
 
 
@@ -1000,66 +1003,12 @@ GlobalURIError = DefineError(global, function URIError() { });
 
 %AddNamedProperty(GlobalError.prototype, 'message', '', DONT_ENUM);
 
-// Global list of error objects visited during ErrorToString. This is
-// used to detect cycles in error toString formatting.
-var visited_errors = new InternalArray();
-var cyclic_error_marker = new GlobalObject();
-
-function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
-  var current = error;
-  // Climb the prototype chain until we find the holder.
-  while (current && !%HasOwnProperty(current, name)) {
-    current = %_GetPrototype(current);
-  }
-  if (IS_NULL(current)) return UNDEFINED;
-  if (!IS_OBJECT(current)) return error[name];
-  // If the property is an accessor on one of the predefined errors that can be
-  // generated statically by the compiler, don't touch it. This is to address
-  // http://code.google.com/p/chromium/issues/detail?id=69187
-  var desc = %GetOwnProperty(current, name);
-  if (desc && desc[IS_ACCESSOR_INDEX]) {
-    var isName = name === "name";
-    if (current === GlobalReferenceError.prototype)
-      return isName ? "ReferenceError" : UNDEFINED;
-    if (current === GlobalSyntaxError.prototype)
-      return isName ? "SyntaxError" : UNDEFINED;
-    if (current === GlobalTypeError.prototype)
-      return isName ? "TypeError" : UNDEFINED;
-  }
-  // Otherwise, read normally.
-  return error[name];
-}
-
-function ErrorToStringDetectCycle(error) {
-  if (!%PushIfAbsent(visited_errors, error)) throw cyclic_error_marker;
-  try {
-    var name = GetPropertyWithoutInvokingMonkeyGetters(error, "name");
-    name = IS_UNDEFINED(name) ? "Error" : TO_STRING_INLINE(name);
-    var message = GetPropertyWithoutInvokingMonkeyGetters(error, "message");
-    message = IS_UNDEFINED(message) ? "" : TO_STRING_INLINE(message);
-    if (name === "") return message;
-    if (message === "") return name;
-    return name + ": " + message;
-  } finally {
-    visited_errors.length = visited_errors.length - 1;
-  }
-}
-
 function ErrorToString() {
   if (!IS_SPEC_OBJECT(this)) {
     throw MakeTypeError(kCalledOnNonObject, "Error.prototype.toString");
   }
 
-  try {
-    return ErrorToStringDetectCycle(this);
-  } catch(e) {
-    // If this error message was encountered already return the empty
-    // string for it instead of recursively formatting it.
-    if (e === cyclic_error_marker) {
-      return '';
-    }
-    throw e;
-  }
+  return %ErrorToStringRT(this);
 }
 
 utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,

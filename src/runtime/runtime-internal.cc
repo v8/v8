@@ -253,6 +253,18 @@ RUNTIME_FUNCTION(Runtime_MessageGetScript) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ErrorToStringRT) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, error, 0);
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->error_tostring_helper()->Stringify(isolate, error));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_FormatMessageString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
