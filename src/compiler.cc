@@ -1017,11 +1017,16 @@ bool CompileForDebugging(CompilationInfo* info) {
 }
 
 
+static inline bool IsEvalToplevel(Handle<SharedFunctionInfo> shared) {
+  return shared->is_toplevel() && shared->script()->IsScript() &&
+         Script::cast(shared->script())->compilation_type() ==
+             Script::COMPILATION_TYPE_EVAL;
+}
+
+
 bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
-  if (shared->is_toplevel() && shared->script()->IsScript() &&
-      Script::cast(shared->script())->compilation_type() ==
-          Script::COMPILATION_TYPE_EVAL) {
+  if (IsEvalToplevel(shared)) {
     return CompileEvalForDebugging(function, shared);
   } else {
     CompilationInfoWithZone info(function);
@@ -1032,6 +1037,7 @@ bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
 
 bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   DCHECK(shared->allows_lazy_compilation_without_context());
+  DCHECK(!IsEvalToplevel(shared));
   Zone zone;
   ParseInfo parse_info(&zone, shared);
   CompilationInfo info(&parse_info);
@@ -1142,6 +1148,10 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     SharedFunctionInfo::InitFromFunctionLiteral(result, lit);
     SharedFunctionInfo::SetScript(result, script);
     result->set_is_toplevel(true);
+    if (info->is_eval()) {
+      // Eval scripts cannot be (re-)compiled without context.
+      result->set_allows_lazy_compilation_without_context(false);
+    }
 
     Handle<String> script_name = script->name()->IsString()
         ? Handle<String>(String::cast(script->name()))

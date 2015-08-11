@@ -1528,10 +1528,12 @@ class SharedFunctionInfoFinder {
     if (current_candidate_ != NULL) {
       if (current_start_position_ == start_position &&
           shared->end_position() == current_candidate_->end_position()) {
+        // If we already have a matching closure, do not throw it away.
+        if (current_candidate_closure_ != NULL && closure == NULL) return;
         // If a top-level function contains only one function
         // declaration the source for the top-level and the function
         // is the same. In that case prefer the non top-level function.
-        if (shared->is_toplevel()) return;
+        if (!current_candidate_->is_toplevel() && shared->is_toplevel()) return;
       } else if (start_position < current_start_position_ ||
                  current_candidate_->end_position() < shared->end_position()) {
         return;
