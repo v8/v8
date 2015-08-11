@@ -1995,6 +1995,7 @@ void JSObject::initialize_elements() {
 
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
+ACCESSORS(Oddball, type_of, String, kTypeOfOffset)
 
 
 byte Oddball::kind() const {

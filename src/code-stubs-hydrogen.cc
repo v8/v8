@@ -322,7 +322,6 @@ Handle<Code> NumberToStringStub::GenerateCode() {
 
 
 // Returns the type string of a value; see ECMA-262, 11.4.3 (p 47).
-// Possible optimizations: put the type string into the oddballs.
 template <>
 HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
@@ -341,7 +340,6 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
     { Push(number_string); }
     is_number.Else();
     {
-      HConstant* undefined_string = Add<HConstant>(factory->undefined_string());
       HValue* map = AddLoadMap(object, smi_check);
       HValue* instance_type = Add<HLoadNamedField>(
           map, nullptr, HObjectAccess::ForMapInstanceType());
@@ -358,24 +356,8 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
             instance_type, Add<HConstant>(ODDBALL_TYPE), Token::EQ);
         is_oddball.Then();
         {
-          IfBuilder is_true_or_false(this);
-          is_true_or_false.If<HCompareObjectEqAndBranch>(
-              object, graph()->GetConstantTrue());
-          is_true_or_false.OrIf<HCompareObjectEqAndBranch>(
-              object, graph()->GetConstantFalse());
-          is_true_or_false.Then();
-          { Push(Add<HConstant>(factory->boolean_string())); }
-          is_true_or_false.Else();
-          {
-            IfBuilder is_null(this);
-            is_null.If<HCompareObjectEqAndBranch>(object,
-                                                  graph()->GetConstantNull());
-            is_null.Then();
-            { Push(object_string); }
-            is_null.Else();
-            { Push(undefined_string); }
-          }
-          is_true_or_false.End();
+          Push(Add<HLoadNamedField>(object, nullptr,
+                                    HObjectAccess::ForOddballTypeOf()));
         }
         is_oddball.Else();
         {
@@ -454,7 +436,7 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
                             is_undetectable.Then();
                             {
                               // typeof an undetectable object is 'undefined'.
-                              Push(undefined_string);
+                              Push(Add<HConstant>(factory->undefined_string()));
                             }
                             is_undetectable.Else();
                             {

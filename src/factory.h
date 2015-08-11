@@ -16,9 +16,8 @@ class FeedbackVectorSpec;
 // Interface for handle based allocation.
 class Factory final {
  public:
-  Handle<Oddball> NewOddball(Handle<Map> map,
-                             const char* to_string,
-                             Handle<Object> to_number,
+  Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
+                             Handle<Object> to_number, const char* type_of,
                              byte kind);
 
   // Allocates a fixed array initialized with undefined values.

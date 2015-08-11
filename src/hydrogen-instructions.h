@@ -5987,6 +5987,11 @@ class HObjectAccess final {
                          Representation::Integer32());
   }
 
+  static HObjectAccess ForOddballTypeOf() {
+    return HObjectAccess(kInobject, Oddball::kTypeOfOffset,
+                         Representation::HeapObject());
+  }
+
   static HObjectAccess ForElementsPointer() {
     return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
   }

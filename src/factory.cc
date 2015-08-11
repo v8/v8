@@ -62,12 +62,11 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
 }
 
 
-Handle<Oddball> Factory::NewOddball(Handle<Map> map,
-                                    const char* to_string,
+Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
-                                    byte kind) {
+                                    const char* type_of, byte kind) {
   Handle<Oddball> oddball = New<Oddball>(map, OLD_SPACE);
-  Oddball::Initialize(isolate(), oddball, to_string, to_number, kind);
+  Oddball::Initialize(isolate(), oddball, to_string, to_number, type_of, kind);
   return oddball;
 }
 

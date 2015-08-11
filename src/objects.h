@@ -9204,6 +9204,9 @@ class Oddball: public HeapObject {
   // [to_number]: Cached to_number computed at startup.
   DECL_ACCESSORS(to_number, Object)
 
+  // [typeof]: Cached type_of computed at startup.
+  DECL_ACCESSORS(type_of, String)
+
   inline byte kind() const;
   inline void set_kind(byte kind);
 
@@ -9213,16 +9216,15 @@ class Oddball: public HeapObject {
   DECLARE_VERIFIER(Oddball)
 
   // Initialize the fields.
-  static void Initialize(Isolate* isolate,
-                         Handle<Oddball> oddball,
-                         const char* to_string,
-                         Handle<Object> to_number,
-                         byte kind);
+  static void Initialize(Isolate* isolate, Handle<Oddball> oddball,
+                         const char* to_string, Handle<Object> to_number,
+                         const char* type_of, byte kind);
 
   // Layout description.
   static const int kToStringOffset = HeapObject::kHeaderSize;
   static const int kToNumberOffset = kToStringOffset + kPointerSize;
-  static const int kKindOffset = kToNumberOffset + kPointerSize;
+  static const int kTypeOfOffset = kToNumberOffset + kPointerSize;
+  static const int kKindOffset = kTypeOfOffset + kPointerSize;
   static const int kSize = kKindOffset + kPointerSize;
 
   static const byte kFalse = 0;
@@ -9236,8 +9238,7 @@ class Oddball: public HeapObject {
   static const byte kOther = 7;
   static const byte kException = 8;
 
-  typedef FixedBodyDescriptor<kToStringOffset,
-                              kToNumberOffset + kPointerSize,
+  typedef FixedBodyDescriptor<kToStringOffset, kTypeOfOffset + kPointerSize,
                               kSize> BodyDescriptor;
 
   STATIC_ASSERT(kKindOffset == Internals::kOddballKindOffset);
