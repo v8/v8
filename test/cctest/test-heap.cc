@@ -128,7 +128,7 @@ TEST(HandleNull) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
   LocalContext context;
-  Handle<Object> n(reinterpret_cast<Object*>(NULL), isolate);
+  Handle<Object> n(static_cast<Object*>(nullptr), isolate);
   CHECK(!n.is_null());
 }
 
@@ -1986,7 +1986,7 @@ TEST(TestAlignmentCalculations) {
       Heap::GetMaximumFillToAlign(kSimd128Unaligned);
   CHECK_EQ(maximum_simd128_misalignment, max_simd128_unaligned_fill);
 
-  Address base = reinterpret_cast<Address>(NULL);
+  Address base = static_cast<Address>(NULL);
   int fill = 0;
 
   // Word alignment never requires fill.
