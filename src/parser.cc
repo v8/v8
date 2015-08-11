@@ -2008,15 +2008,17 @@ Variable* Parser::Declare(Declaration* declaration,
   // variable and also set its mode. In any case, a Declaration node
   // will be added to the scope so that the declaration can be added
   // to the corresponding activation frame at runtime if necessary.
-  // For instance declarations inside an eval scope need to be added
-  // to the calling function context.
-  // Similarly, strict mode eval scope does not leak variable declarations to
-  // the caller's scope so we declare all locals, too.
+  // For instance, var declarations inside a sloppy eval scope need
+  // to be added to the calling function context. Similarly, strict
+  // mode eval scope and lexical eval bindings do not leak variable
+  // declarations to the caller's scope so we declare all locals, too.
   if (declaration_scope->is_function_scope() ||
-      declaration_scope->is_strict_eval_scope() ||
       declaration_scope->is_block_scope() ||
       declaration_scope->is_module_scope() ||
-      declaration_scope->is_script_scope()) {
+      declaration_scope->is_script_scope() ||
+      (declaration_scope->is_eval_scope() &&
+       (is_strict(declaration_scope->language_mode()) ||
+        IsLexicalVariableMode(mode)))) {
     // Declare the variable in the declaration scope.
     var = declaration_scope->LookupLocal(name);
     if (var == NULL) {
@@ -2069,7 +2071,21 @@ Variable* Parser::Declare(Declaration* declaration,
     } else if (mode == VAR) {
       var->set_maybe_assigned();
     }
+  } else if (declaration_scope->is_eval_scope() &&
+             is_sloppy(declaration_scope->language_mode()) &&
+             !IsLexicalVariableMode(mode)) {
+    // In a var binding in a sloppy direct eval, pollute the enclosing scope
+    // with this new binding by doing the following:
+    // The proxy is bound to a lookup variable to force a dynamic declaration
+    // using the DeclareLookupSlot runtime function.
+    Variable::Kind kind = Variable::NORMAL;
+    // TODO(sigurds) figure out if kNotAssigned is OK here
+    var = new (zone()) Variable(declaration_scope, name, mode, kind,
+                                declaration->initialization(), kNotAssigned);
+    var->AllocateTo(VariableLocation::LOOKUP, -1);
+    resolve = true;
   }
+
 
   // We add a declaration node for every declaration. The compiler
   // will only generate code if necessary. In particular, declarations
@@ -2095,17 +2111,6 @@ Variable* Parser::Declare(Declaration* declaration,
     Variable::Kind kind = Variable::NORMAL;
     var = new (zone()) Variable(declaration_scope, name, mode, kind,
                                 kNeedsInitialization, kNotAssigned);
-  } else if (declaration_scope->is_eval_scope() &&
-             is_sloppy(declaration_scope->language_mode())) {
-    // For variable declarations in a sloppy eval scope the proxy is bound
-    // to a lookup variable to force a dynamic declaration using the
-    // DeclareLookupSlot runtime function.
-    Variable::Kind kind = Variable::NORMAL;
-    // TODO(sigurds) figure out if kNotAssigned is OK here
-    var = new (zone()) Variable(declaration_scope, name, mode, kind,
-                                declaration->initialization(), kNotAssigned);
-    var->AllocateTo(VariableLocation::LOOKUP, -1);
-    resolve = true;
   }
 
   // If requested and we have a local variable, bind the proxy to the variable

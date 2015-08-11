@@ -279,9 +279,6 @@ class Scope: public ZoneObject {
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_arrow_scope() const { return scope_type_ == ARROW_SCOPE; }
   bool is_declaration_scope() const { return is_declaration_scope_; }
-  bool is_strict_eval_scope() const {
-    return is_eval_scope() && is_strict(language_mode_);
-  }
 
   void set_is_declaration_scope() { is_declaration_scope_ = true; }
 

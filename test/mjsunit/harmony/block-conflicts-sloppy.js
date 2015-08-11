@@ -44,12 +44,10 @@ function TestAll(expected,s,opt_e) {
   var e = "";
   var msg = s;
   if (opt_e) { e = opt_e; msg += opt_e; }
-  // TODO(littledan): https://code.google.com/p/v8/issues/detail?id=4288
-  // It is also not clear whether these tests makes sense in sloppy mode.
   // TODO(littledan): Add tests using Realm.eval to ensure that global eval
   // works as expected.
-  // assertEquals(expected === 'LocalConflict' ? 'NoConflict' : expected,
-  //     TestGlobal(s,e), "global:'" + msg + "'");
+  assertEquals(expected === 'LocalConflict' ? 'NoConflict' : expected,
+      TestGlobal(s,e), "global:'" + msg + "'");
   assertEquals(expected === 'LocalConflict' ? 'NoConflict' : expected,
       TestFunction(s,e), "function:'" + msg + "'");
   assertEquals(expected === 'LocalConflict' ? 'Conflict' : expected,
@@ -59,22 +57,17 @@ function TestAll(expected,s,opt_e) {
 
 function TestConflict(s) {
   TestAll('Conflict', s);
-  // TODO(littledan): https://code.google.com/p/v8/issues/detail?id=4288
-  // It is also not clear whether these tests makes sense in sloppy mode.
-  // TestAll('Conflict', 'eval("' + s + '");');
+  TestAll('Conflict', 'eval("' + s + '");');
 }
 
 function TestNoConflict(s) {
   TestAll('NoConflict', s, "'NoConflict'");
-  // TODO(littledan): https://code.google.com/p/v8/issues/detail?id=4288
-  // TestAll('NoConflict', 'eval("' + s + '");', "'NoConflict'");
+  TestAll('NoConflict', 'eval("' + s + '");', "'NoConflict'");
 }
 
 function TestLocalConflict(s) {
   TestAll('LocalConflict', s, "'NoConflict'");
-  // TODO(littledan): https://code.google.com/p/v8/issues/detail?id=4288
-  // It is also not clear whether these tests makes sense in sloppy mode.
-  // TestAll('NoConflict', 'eval("' + s + '");', "'NoConflict'");
+  TestAll('NoConflict', 'eval("' + s + '");', "'NoConflict'");
 }
 
 var letbinds = [ "let x;",
