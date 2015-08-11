@@ -697,6 +697,10 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   if options.time:
     verbose.PrintTestDurations(suites, overall_duration)
+
+  if num_tests == 0:
+    print("Warning: no tests were run!")
+
   return exit_code
 
 
