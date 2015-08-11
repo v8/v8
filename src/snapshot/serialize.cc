@@ -1854,7 +1854,23 @@ void Serializer::ObjectSerializer::Serialize() {
   if (object_->IsPrototypeInfo()) {
     Object* prototype_users = PrototypeInfo::cast(object_)->prototype_users();
     if (prototype_users->IsWeakFixedArray()) {
-      WeakFixedArray::cast(prototype_users)->Compact();
+      WeakFixedArray* array = WeakFixedArray::cast(prototype_users);
+      array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
+    }
+  }
+  // Compaction of a prototype users list can require the registered users
+  // to update their remembered slots. That doesn't work if those users
+  // have already been serialized themselves. So if this object is a
+  // registered user, compact its prototype's user list now.
+  if (object_->IsMap()) {
+    Map* map = Map::cast(object_);
+    if (map->is_prototype_map() && map->prototype_info()->IsPrototypeInfo() &&
+        PrototypeInfo::cast(map->prototype_info())->registry_slot() !=
+            PrototypeInfo::UNREGISTERED) {
+      JSObject* proto = JSObject::cast(map->prototype());
+      PrototypeInfo* info = PrototypeInfo::cast(proto->map()->prototype_info());
+      WeakFixedArray* array = WeakFixedArray::cast(info->prototype_users());
+      array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
     }
   }
 

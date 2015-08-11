@@ -55,6 +55,7 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   Handle<PrototypeInfo> result =
       Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE));
   result->set_prototype_users(WeakFixedArray::Empty());
+  result->set_registry_slot(PrototypeInfo::UNREGISTERED);
   result->set_validity_cell(Smi::FromInt(0));
   result->set_constructor_name(Smi::FromInt(0));
   return result;

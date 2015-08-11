@@ -96,7 +96,7 @@ void VariableProxy::SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
                                            ICSlotCache* cache) {
   variable_feedback_slot_ = slot;
   if (var()->IsUnallocated()) {
-    cache->Add(VariableICSlotPair(var(), slot));
+    cache->Put(var(), slot);
   }
 }
 
@@ -107,12 +107,11 @@ FeedbackVectorRequirements VariableProxy::ComputeFeedbackRequirements(
     // VariableProxies that point to the same Variable within a function can
     // make their loads from the same IC slot.
     if (var()->IsUnallocated()) {
-      for (int i = 0; i < cache->length(); i++) {
-        VariableICSlotPair& pair = cache->at(i);
-        if (pair.variable() == var()) {
-          variable_feedback_slot_ = pair.slot();
-          return FeedbackVectorRequirements(0, 0);
-        }
+      ZoneHashMap::Entry* entry = cache->Get(var());
+      if (entry != NULL) {
+        variable_feedback_slot_ = FeedbackVectorICSlot(
+            static_cast<int>(reinterpret_cast<intptr_t>(entry->value)));
+        return FeedbackVectorRequirements(0, 0);
       }
     }
     return FeedbackVectorRequirements(0, 1);

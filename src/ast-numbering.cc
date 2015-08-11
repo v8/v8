@@ -18,7 +18,7 @@ class AstNumberingVisitor final : public AstVisitor {
       : AstVisitor(),
         next_id_(BailoutId::FirstUsable().ToInt()),
         properties_(zone),
-        ic_slot_cache_(FLAG_vector_ics ? 4 : 0),
+        ic_slot_cache_(zone),
         dont_optimize_reason_(kNoReason) {
     InitializeAstVisitor(isolate, zone);
   }
