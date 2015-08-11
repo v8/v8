@@ -2002,6 +2002,7 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
     }
 
     CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
+    var s = TO_STRING_INLINE(this);
 
     var formArg = %_Arguments(0);
     var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING_INLINE(formArg);
@@ -2015,7 +2016,7 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
           %_CallFunction(NORMALIZATION_FORMS, ', ', ArrayJoin));
     }
 
-    return %StringNormalize(this, normalizationForm);
+    return %StringNormalize(s, normalizationForm);
   }
 );
 

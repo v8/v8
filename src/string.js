@@ -191,6 +191,7 @@ function StringMatchJS(regexp) {
 // proper functionality.
 function StringNormalizeJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
+  var s = TO_STRING_INLINE(this);
 
   var formArg = %_Arguments(0);
   var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING_INLINE(formArg);
@@ -203,7 +204,7 @@ function StringNormalizeJS() {
                          %_CallFunction(NORMALIZATION_FORMS, ', ', ArrayJoin));
   }
 
-  return %_ValueOf(this);
+  return s;
 }
 
 

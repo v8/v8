@@ -737,14 +737,6 @@
   'built-ins/RegExp/prototype/source/name': [FAIL],
   'built-ins/RegExp/prototype/sticky/name': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4350
-  # Some of these pass when i18n.js is not loaded and fail when it is
-  'built-ins/String/prototype/normalize/return-abrupt-from-form': [PASS, FAIL],
-  'built-ins/String/prototype/normalize/return-abrupt-from-form-as-symbol': [PASS, FAIL],
-  'built-ins/String/prototype/normalize/return-abrupt-from-this': [FAIL],
-  'built-ins/String/prototype/normalize/return-abrupt-from-this-as-symbol': [FAIL],
-  'built-ins/String/prototype/normalize/return-normalized-string-from-coerced-form': [PASS, FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],
   'intl402/DateTimeFormat/12.1.1_1': [FAIL],
