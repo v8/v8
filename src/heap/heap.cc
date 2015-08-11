@@ -1069,7 +1069,7 @@ bool Heap::ReserveSpace(Reservation* reservations) {
       bool perform_gc = false;
       if (space == LO_SPACE) {
         DCHECK_EQ(1, reservation->length());
-        perform_gc = !lo_space()->CanAllocateSize(reservation->at(0).size);
+        perform_gc = !CanExpandOldGeneration(reservation->at(0).size);
       } else {
         for (auto& chunk : *reservation) {
           AllocationResult allocation;
@@ -5763,8 +5763,7 @@ bool Heap::SetUp() {
   new_space_top_after_last_gc_ = new_space()->top();
 
   // Initialize old space.
-  old_space_ =
-      new OldSpace(this, max_old_generation_size_, OLD_SPACE, NOT_EXECUTABLE);
+  old_space_ = new OldSpace(this, OLD_SPACE, NOT_EXECUTABLE);
   if (old_space_ == NULL) return false;
   if (!old_space_->SetUp()) return false;
 
@@ -5772,20 +5771,19 @@ bool Heap::SetUp() {
 
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
-  code_space_ =
-      new OldSpace(this, max_old_generation_size_, CODE_SPACE, EXECUTABLE);
+  code_space_ = new OldSpace(this, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
   if (!code_space_->SetUp()) return false;
 
   // Initialize map space.
-  map_space_ = new MapSpace(this, max_old_generation_size_, MAP_SPACE);
+  map_space_ = new MapSpace(this, MAP_SPACE);
   if (map_space_ == NULL) return false;
   if (!map_space_->SetUp()) return false;
 
   // The large object code space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it
   // explicitly when allocating large code objects.
-  lo_space_ = new LargeObjectSpace(this, max_old_generation_size_, LO_SPACE);
+  lo_space_ = new LargeObjectSpace(this, LO_SPACE);
   if (lo_space_ == NULL) return false;
   if (!lo_space_->SetUp()) return false;
 

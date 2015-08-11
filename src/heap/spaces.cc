@@ -931,7 +931,7 @@ STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
               ObjectSpace::kObjectSpaceMapSpace);
 
 
-PagedSpace::PagedSpace(Heap* heap, intptr_t max_capacity, AllocationSpace space,
+PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
     : Space(heap, space, executable),
       free_list_(this),
@@ -939,8 +939,6 @@ PagedSpace::PagedSpace(Heap* heap, intptr_t max_capacity, AllocationSpace space,
       end_of_unswept_pages_(NULL),
       emergency_memory_(NULL) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
-  max_capacity_ =
-      (RoundDown(max_capacity, Page::kPageSize) / Page::kPageSize) * AreaSize();
   accounting_stats_.Clear();
 
   allocation_info_.set_top(NULL);
@@ -1009,7 +1007,6 @@ Object* PagedSpace::FindObject(Address addr) {
 
 
 bool PagedSpace::CanExpand() {
-  DCHECK(max_capacity_ % AreaSize() == 0);
   DCHECK(heap()->mark_compact_collector()->is_compacting() ||
          Capacity() <= heap()->MaxOldGenerationSize());
   DCHECK(heap()->CommittedOldGenerationMemory() <=
@@ -2808,10 +2805,8 @@ HeapObject* LargeObjectIterator::Next() {
 static bool ComparePointers(void* key1, void* key2) { return key1 == key2; }
 
 
-LargeObjectSpace::LargeObjectSpace(Heap* heap, intptr_t max_capacity,
-                                   AllocationSpace id)
+LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
     : Space(heap, id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
-      max_capacity_(max_capacity),
       first_page_(NULL),
       size_(0),
       page_count_(0),
@@ -2850,11 +2845,9 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->always_allocate() &&
-      heap()->OldGenerationAllocationLimitReached()) {
+      !heap()->CanExpandOldGeneration(object_size)) {
     return AllocationResult::Retry(identity());
   }
-
-  if (!CanAllocateSize(object_size)) return AllocationResult::Retry(identity());
 
   LargePage* page = heap()->isolate()->memory_allocator()->AllocateLargePage(
       object_size, this, executable);

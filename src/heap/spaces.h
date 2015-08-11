@@ -1663,9 +1663,8 @@ STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
 
 class PagedSpace : public Space {
  public:
-  // Creates a space with a maximum capacity, and an id.
-  PagedSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id,
-             Executability executable);
+  // Creates a space with an id.
+  PagedSpace(Heap* heap, AllocationSpace id, Executability executable);
 
   virtual ~PagedSpace() {}
 
@@ -1901,9 +1900,6 @@ class PagedSpace : public Space {
   FreeList* free_list() { return &free_list_; }
 
   int area_size_;
-
-  // Maximum capacity of this space.
-  intptr_t max_capacity_;
 
   // Accounting information for this space.
   AllocationStats accounting_stats_;
@@ -2652,11 +2648,10 @@ class NewSpace : public Space {
 
 class OldSpace : public PagedSpace {
  public:
-  // Creates an old space object with a given maximum capacity.
-  // The constructor does not allocate pages from OS.
-  OldSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id,
-           Executability executable)
-      : PagedSpace(heap, max_capacity, id, executable) {}
+  // Creates an old space object. The constructor does not allocate pages
+  // from OS.
+  OldSpace(Heap* heap, AllocationSpace id, Executability executable)
+      : PagedSpace(heap, id, executable) {}
 };
 
 
@@ -2673,9 +2668,9 @@ class OldSpace : public PagedSpace {
 
 class MapSpace : public PagedSpace {
  public:
-  // Creates a map space object with a maximum capacity.
-  MapSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
+  // Creates a map space object.
+  MapSpace(Heap* heap, AllocationSpace id)
+      : PagedSpace(heap, id, NOT_EXECUTABLE),
         max_map_space_pages_(kMaxMapPageIndex - 1) {}
 
   // Given an index, returns the page address.
@@ -2714,7 +2709,7 @@ class MapSpace : public PagedSpace {
 
 class LargeObjectSpace : public Space {
  public:
-  LargeObjectSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id);
+  LargeObjectSpace(Heap* heap, AllocationSpace id);
   virtual ~LargeObjectSpace() {}
 
   // Initializes internal data structures.
@@ -2732,8 +2727,6 @@ class LargeObjectSpace : public Space {
   // AllocateRawFixedArray.
   MUST_USE_RESULT AllocationResult
       AllocateRaw(int object_size, Executability executable);
-
-  bool CanAllocateSize(int size) { return Size() + size <= max_capacity_; }
 
   // Available bytes for objects in this space.
   inline intptr_t Available() override;
@@ -2784,7 +2777,6 @@ class LargeObjectSpace : public Space {
   bool SlowContains(Address addr) { return FindObject(addr)->IsHeapObject(); }
 
  private:
-  intptr_t max_capacity_;
   intptr_t maximum_committed_;
   // The head of the linked list of large object chunks.
   LargePage* first_page_;
