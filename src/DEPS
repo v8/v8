@@ -22,8 +22,4 @@ specific_include_rules = {
   "d8\.cc": [
     "+include/libplatform/libplatform.h",
   ],
-  # TODO(mstarzinger): Only needed because of Code::CodeIterateBody cyclicity.
-  "objects\.cc": [
-    "+src/heap/objects-visiting-inl.h",
-  ],
 }
