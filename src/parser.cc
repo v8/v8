@@ -1337,10 +1337,7 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
           // Because declarations in strict eval code don't leak into the scope
           // of the eval call, it is likely that functions declared in strict
           // eval code will be used within the eval code, so lazy parsing is
-          // probably not a win.  Also, resolution of "var" bindings defined in
-          // strict eval code from within nested functions is currently broken
-          // with the pre-parser; lazy parsing of strict eval code causes
-          // regress/regress-crbug-135066.js to fail.
+          // probably not a win.
           if (scope_->is_eval_scope()) mode_ = PARSE_EAGERLY;
         } else if (literal->raw_value()->AsString() ==
                        ast_value_factory()->use_asm_string() &&
