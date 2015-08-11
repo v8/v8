@@ -1054,7 +1054,6 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   VMState<COMPILER> state(info.isolate());
 
   // Get rid of old list of shared function infos.
-  script->set_shared_function_infos(Smi::FromInt(0));
   info.MarkAsFirstCompile();
   info.parse_info()->set_global();
   if (!Parser::ParseStatic(info.parse_info())) return;
