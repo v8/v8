@@ -5,8 +5,6 @@
 #ifndef V8_PREPARSER_H
 #define V8_PREPARSER_H
 
-#include "src/v8.h"
-
 #include "src/bailout-reason.h"
 #include "src/expression-classifier.h"
 #include "src/func-name-inferrer.h"

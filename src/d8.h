@@ -9,7 +9,7 @@
 #include "src/allocation.h"
 #include "src/hashmap.h"
 #include "src/list.h"
-#include "src/v8.h"
+#include "src/objects-inl.h"
 #else
 #include "include/v8.h"
 #include "src/base/compiler-specific.h"

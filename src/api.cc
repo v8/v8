@@ -50,6 +50,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/unicode-inl.h"
+#include "src/v8.h"
 #include "src/v8threads.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"

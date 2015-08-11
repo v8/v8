@@ -8,8 +8,6 @@
 #include <cstring>
 #include <iosfwd>
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/base/bits.h"
 #include "src/bit-vector.h"

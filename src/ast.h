@@ -5,8 +5,6 @@
 #ifndef V8_AST_H_
 #define V8_AST_H_
 
-#include "src/v8.h"
-
 #include "src/assembler.h"
 #include "src/ast-value-factory.h"
 #include "src/bailout-reason.h"

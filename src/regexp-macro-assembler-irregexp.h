@@ -12,6 +12,7 @@ namespace internal {
 
 #ifdef V8_INTERPRETED_REGEXP
 
+// A light-weight assembler for the Irregexp byte code.
 class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
  public:
   // Create an assembler. Instructions and relocation information are emitted

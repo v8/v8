@@ -5,6 +5,8 @@
 #ifndef V8_ARM64_CONSTANTS_ARM64_H_
 #define V8_ARM64_CONSTANTS_ARM64_H_
 
+#include "src/base/macros.h"
+#include "src/globals.h"
 
 // Assert that this is an LP64 system.
 STATIC_ASSERT(sizeof(int) == sizeof(int32_t));     // NOLINT(runtime/sizeof)

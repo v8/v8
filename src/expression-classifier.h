@@ -5,8 +5,6 @@
 #ifndef V8_EXPRESSION_CLASSIFIER_H
 #define V8_EXPRESSION_CLASSIFIER_H
 
-#include "src/v8.h"
-
 #include "src/messages.h"
 #include "src/scanner.h"
 #include "src/token.h"

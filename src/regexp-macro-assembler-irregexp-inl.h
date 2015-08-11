@@ -2,16 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// A light-weight assembler for the Irregexp byte code.
-
-
-#include "src/v8.h"
+#ifndef V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
+#define V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 
 #include "src/ast.h"
 #include "src/bytecodes-irregexp.h"
-
-#ifndef V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
-#define V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 
 namespace v8 {
 namespace internal {

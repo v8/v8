@@ -5,6 +5,9 @@
 
 #include "src/i18n.h"
 
+#include "src/api.h"
+#include "src/factory.h"
+#include "src/isolate.h"
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"

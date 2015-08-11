@@ -28,6 +28,7 @@
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
 #include "src/type-feedback-vector-inl.h"
+#include "src/types-inl.h"
 #include "src/v8memory.h"
 
 namespace v8 {

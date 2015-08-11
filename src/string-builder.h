@@ -5,7 +5,8 @@
 #ifndef V8_STRING_BUILDER_H_
 #define V8_STRING_BUILDER_H_
 
-#include "src/v8.h"
+#include "src/objects-inl.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

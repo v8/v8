@@ -5,8 +5,6 @@
 #ifndef V8_FULL_CODEGEN_FULL_CODEGEN_H_
 #define V8_FULL_CODEGEN_FULL_CODEGEN_H_
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/ast.h"

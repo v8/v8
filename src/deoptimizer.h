@@ -5,8 +5,6 @@
 #ifndef V8_DEOPTIMIZER_H_
 #define V8_DEOPTIMIZER_H_
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/macro-assembler.h"
 

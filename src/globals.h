@@ -515,6 +515,8 @@ enum VisitMode {
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };
 
+// JavaScript defines two kinds of 'nil'.
+enum NilValue { kNullValue, kUndefinedValue };
 
 // ParseRestriction is used to restrict the set of valid statements in a
 // unit of compilation.  Restriction violations cause a syntax error.

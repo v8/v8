@@ -5,8 +5,6 @@
 #ifndef V8_HYDROGEN_H_
 #define V8_HYDROGEN_H_
 
-#include "src/v8.h"
-
 #include "src/accessors.h"
 #include "src/allocation.h"
 #include "src/ast.h"

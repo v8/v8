@@ -8,8 +8,6 @@
 #include <stdarg.h>
 #include <vector>
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64.h"
