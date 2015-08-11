@@ -2284,13 +2284,10 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
         // SIMD value -> true.
-        Label not_simd;
         const Register scratch = scratch1();
         __ lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-        __ Branch(&not_simd, lt, scratch, Operand(FIRST_SIMD_VALUE_TYPE));
-        __ Branch(instr->TrueLabel(chunk_), le, scratch,
-                  Operand(LAST_SIMD_VALUE_TYPE));
-        __ bind(&not_simd);
+        __ Branch(instr->TrueLabel(chunk_), eq, scratch,
+                  Operand(SIMD128_VALUE_TYPE));
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -5878,55 +5875,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     *cmp2 = Operand(SYMBOL_TYPE);
     final_branch_condition = eq;
 
-  } else if (String::Equals(type_name, factory->float32x4_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ GetObjectType(input, input, scratch);
-    *cmp1 = scratch;
-    *cmp2 = Operand(FLOAT32X4_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->int32x4_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ GetObjectType(input, input, scratch);
-    *cmp1 = scratch;
-    *cmp2 = Operand(INT32X4_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->bool32x4_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ GetObjectType(input, input, scratch);
-    *cmp1 = scratch;
-    *cmp2 = Operand(BOOL32X4_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->int16x8_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ GetObjectType(input, input, scratch);
-    *cmp1 = scratch;
-    *cmp2 = Operand(INT16X8_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->bool16x8_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ GetObjectType(input, input, scratch);
-    *cmp1 = scratch;
-    *cmp2 = Operand(BOOL16X8_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->int8x16_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ GetObjectType(input, input, scratch);
-    *cmp1 = scratch;
-    *cmp2 = Operand(INT8X16_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->bool8x16_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ GetObjectType(input, input, scratch);
-    *cmp1 = scratch;
-    *cmp2 = Operand(BOOL8X16_TYPE);
-    final_branch_condition = eq;
-
   } else if (String::Equals(type_name, factory->boolean_string())) {
     __ LoadRoot(at, Heap::kTrueValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
@@ -5975,6 +5923,20 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     *cmp1 = at;
     *cmp2 = Operand(zero_reg);
     final_branch_condition = eq;
+
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)        \
+  } else if (String::Equals(type_name, factory->type##_string())) {  \
+    __ JumpIfSmi(input, false_label);                                \
+    __ ld(input, FieldMemOperand(input, HeapObject::kMapOffset));    \
+    __ LoadRoot(at, Heap::k##Type##MapRootIndex);                    \
+    *cmp1 = input;                                                   \
+    *cmp2 = Operand(at);                                             \
+    final_branch_condition = eq;
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
+
 
   } else {
     *cmp1 = at;

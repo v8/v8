@@ -399,53 +399,50 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
             is_function.Else();
             {
               IfBuilder is_float32x4(this);
-              is_float32x4.If<HCompareNumericAndBranch>(
-                  instance_type, Add<HConstant>(FLOAT32X4_TYPE), Token::EQ);
+              is_float32x4.If<HCompareObjectEqAndBranch>(
+                  map, Add<HConstant>(factory->float32x4_map()));
               is_float32x4.Then();
               { Push(Add<HConstant>(factory->float32x4_string())); }
               is_float32x4.Else();
               {
                 IfBuilder is_int32x4(this);
-                is_int32x4.If<HCompareNumericAndBranch>(
-                    instance_type, Add<HConstant>(INT32X4_TYPE), Token::EQ);
+                is_int32x4.If<HCompareObjectEqAndBranch>(
+                    map, Add<HConstant>(factory->int32x4_map()));
                 is_int32x4.Then();
                 { Push(Add<HConstant>(factory->int32x4_string())); }
                 is_int32x4.Else();
                 {
                   IfBuilder is_bool32x4(this);
-                  is_bool32x4.If<HCompareNumericAndBranch>(
-                      instance_type, Add<HConstant>(BOOL32X4_TYPE), Token::EQ);
+                  is_bool32x4.If<HCompareObjectEqAndBranch>(
+                      map, Add<HConstant>(factory->bool32x4_map()));
                   is_bool32x4.Then();
                   { Push(Add<HConstant>(factory->bool32x4_string())); }
                   is_bool32x4.Else();
                   {
                     IfBuilder is_int16x8(this);
-                    is_int16x8.If<HCompareNumericAndBranch>(
-                        instance_type, Add<HConstant>(INT16X8_TYPE), Token::EQ);
+                    is_int16x8.If<HCompareObjectEqAndBranch>(
+                        map, Add<HConstant>(factory->int16x8_map()));
                     is_int16x8.Then();
                     { Push(Add<HConstant>(factory->int16x8_string())); }
                     is_int16x8.Else();
                     {
                       IfBuilder is_bool16x8(this);
-                      is_bool16x8.If<HCompareNumericAndBranch>(
-                          instance_type, Add<HConstant>(BOOL16X8_TYPE),
-                          Token::EQ);
+                      is_bool16x8.If<HCompareObjectEqAndBranch>(
+                          map, Add<HConstant>(factory->bool16x8_map()));
                       is_bool16x8.Then();
                       { Push(Add<HConstant>(factory->bool16x8_string())); }
                       is_bool16x8.Else();
                       {
                         IfBuilder is_int8x16(this);
-                        is_int8x16.If<HCompareNumericAndBranch>(
-                            instance_type, Add<HConstant>(INT8X16_TYPE),
-                            Token::EQ);
+                        is_int8x16.If<HCompareObjectEqAndBranch>(
+                            map, Add<HConstant>(factory->int8x16_map()));
                         is_int8x16.Then();
                         { Push(Add<HConstant>(factory->int8x16_string())); }
                         is_int8x16.Else();
                         {
                           IfBuilder is_bool8x16(this);
-                          is_bool8x16.If<HCompareNumericAndBranch>(
-                              instance_type, Add<HConstant>(BOOL8X16_TYPE),
-                              Token::EQ);
+                          is_bool8x16.If<HCompareObjectEqAndBranch>(
+                              map, Add<HConstant>(factory->bool8x16_map()));
                           is_bool8x16.Then();
                           { Push(Add<HConstant>(factory->bool8x16_string())); }
                           is_bool8x16.Else();

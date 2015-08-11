@@ -1565,7 +1565,6 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
            factory->heap_number_map());
     __ j(equal, &heap_number, Label::kNear);
     if (cc != equal) {
-      Label not_simd;
       __ movp(rcx, FieldOperand(rax, HeapObject::kMapOffset));
       __ movzxbl(rcx, FieldOperand(rcx, Map::kInstanceTypeOffset));
       // Call runtime on identical objects.  Otherwise return equal.
@@ -1575,11 +1574,8 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       __ cmpb(rcx, Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
       __ j(equal, &runtime_call, Label::kFar);
       // Call runtime on identical SIMD values since we must throw a TypeError.
-      __ cmpb(rcx, Immediate(static_cast<uint8_t>(FIRST_SIMD_VALUE_TYPE)));
-      __ j(less, &not_simd, Label::kFar);
-      __ cmpb(rcx, Immediate(static_cast<uint8_t>(LAST_SIMD_VALUE_TYPE)));
-      __ j(less_equal, &runtime_call, Label::kFar);
-      __ bind(&not_simd);
+      __ cmpb(rcx, Immediate(static_cast<uint8_t>(SIMD128_VALUE_TYPE)));
+      __ j(equal, &runtime_call, Label::kFar);
       if (is_strong(strength())) {
         // We have already tested for smis and heap numbers, so if both
         // arguments are not strings we must proceed to the slow case.

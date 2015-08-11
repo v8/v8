@@ -166,23 +166,17 @@ bool Object::IsHeapObject() const {
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
+TYPE_CHECKER(Simd128Value, SIMD128_VALUE_TYPE)
 
 
-bool Object::IsSimd128Value() const {
-  if (!Object::IsHeapObject()) return false;
-  InstanceType instance_type = HeapObject::cast(this)->map()->instance_type();
-  return (instance_type >= FIRST_SIMD_VALUE_TYPE &&
-          instance_type <= LAST_SIMD_VALUE_TYPE);
-}
-
-
-TYPE_CHECKER(Float32x4, FLOAT32X4_TYPE)
-TYPE_CHECKER(Int32x4, INT32X4_TYPE)
-TYPE_CHECKER(Bool32x4, BOOL32X4_TYPE)
-TYPE_CHECKER(Int16x8, INT16X8_TYPE)
-TYPE_CHECKER(Bool16x8, BOOL16X8_TYPE)
-TYPE_CHECKER(Int8x16, INT8X16_TYPE)
-TYPE_CHECKER(Bool8x16, BOOL8X16_TYPE)
+#define SIMD128_TYPE_CHECKER(TYPE, Type, type, lane_count, lane_type) \
+  bool Object::Is##Type() const {                                     \
+    return Object::IsHeapObject() &&                                  \
+           HeapObject::cast(this)->map() ==                           \
+               HeapObject::cast(this)->GetHeap()->type##_map();       \
+  }
+SIMD128_TYPES(SIMD128_TYPE_CHECKER)
+#undef SIMD128_TYPE_CHECKER
 
 
 bool Object::IsString() const {

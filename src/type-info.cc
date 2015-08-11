@@ -83,7 +83,7 @@ Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorICSlot slot) {
   }
 
   if (obj->IsJSFunction() || obj->IsAllocationSite() || obj->IsSymbol() ||
-      obj->IsFloat32x4()) {
+      obj->IsSimd128Value()) {
     return Handle<Object>(obj, isolate());
   }
 

@@ -1326,20 +1326,17 @@ static String* TypeOfString(HConstant* constant, Isolate* isolate) {
     }
     case SYMBOL_TYPE:
       return heap->symbol_string();
-    case FLOAT32X4_TYPE:
-      return heap->float32x4_string();
-    case INT32X4_TYPE:
-      return heap->int32x4_string();
-    case BOOL32X4_TYPE:
-      return heap->bool32x4_string();
-    case INT16X8_TYPE:
-      return heap->int16x8_string();
-    case BOOL16X8_TYPE:
-      return heap->bool16x8_string();
-    case INT8X16_TYPE:
-      return heap->int8x16_string();
-    case BOOL8X16_TYPE:
-      return heap->bool8x16_string();
+    case SIMD128_VALUE_TYPE: {
+      Unique<Map> map = constant->ObjectMap();
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
+  if (map.IsKnownGlobal(heap->type##_map())) {                \
+    return heap->type##_string();                             \
+  }
+      SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+      UNREACHABLE();
+      return nullptr;
+    }
     case JS_FUNCTION_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
       return heap->function_string();

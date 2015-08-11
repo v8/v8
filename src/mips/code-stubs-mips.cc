@@ -291,15 +291,12 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
   // Smis. If it's not a heap number, then return equal.
   __ GetObjectType(a0, t4, t4);
   if (cc == less || cc == greater) {
-    Label not_simd;
     // Call runtime on identical JSObjects.
     __ Branch(slow, greater, t4, Operand(FIRST_SPEC_OBJECT_TYPE));
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
     // Call runtime on identical SIMD values since we must throw a TypeError.
-    __ Branch(&not_simd, lt, t4, Operand(FIRST_SIMD_VALUE_TYPE));
-    __ Branch(slow, le, t4, Operand(LAST_SIMD_VALUE_TYPE));
-    __ bind(&not_simd);
+    __ Branch(slow, eq, t4, Operand(SIMD128_VALUE_TYPE));
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics, since
       // we need to throw a TypeError. Smis have already been ruled out.
@@ -308,7 +305,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
       __ Branch(slow, ne, t4, Operand(zero_reg));
     }
   } else {
-    Label not_simd;
     __ Branch(&heap_number, eq, t4, Operand(HEAP_NUMBER_TYPE));
     // Comparing JS objects with <=, >= is complicated.
     if (cc != eq) {
@@ -316,9 +312,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
     // Call runtime on identical SIMD values since we must throw a TypeError.
-    __ Branch(&not_simd, lt, t4, Operand(FIRST_SIMD_VALUE_TYPE));
-    __ Branch(slow, le, t4, Operand(LAST_SIMD_VALUE_TYPE));
-    __ bind(&not_simd);
+    __ Branch(slow, eq, t4, Operand(SIMD128_VALUE_TYPE));
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics,
       // since we need to throw a TypeError. Smis and heap numbers have

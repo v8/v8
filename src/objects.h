@@ -375,13 +375,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE) \
                                                                 \
   V(SYMBOL_TYPE)                                                \
-  V(FLOAT32X4_TYPE)                                             \
-  V(INT32X4_TYPE)                                               \
-  V(BOOL32X4_TYPE)                                              \
-  V(INT16X8_TYPE)                                               \
-  V(BOOL16X8_TYPE)                                              \
-  V(INT8X16_TYPE)                                               \
-  V(BOOL8X16_TYPE)                                              \
+  V(SIMD128_VALUE_TYPE)                                         \
                                                                 \
   V(MAP_TYPE)                                                   \
   V(CODE_TYPE)                                                  \
@@ -675,13 +669,7 @@ enum InstanceType {
   // objects.
   HEAP_NUMBER_TYPE,
   MUTABLE_HEAP_NUMBER_TYPE,
-  FLOAT32X4_TYPE,  // FIRST_SIMD_VALUE_TYPE
-  INT32X4_TYPE,
-  BOOL32X4_TYPE,
-  INT16X8_TYPE,
-  BOOL16X8_TYPE,
-  INT8X16_TYPE,
-  BOOL8X16_TYPE,  // LAST_SIMD_VALUE_TYPE
+  SIMD128_VALUE_TYPE,
   FOREIGN_TYPE,
   BYTE_ARRAY_TYPE,
   BYTECODE_ARRAY_TYPE,
@@ -765,9 +753,6 @@ enum InstanceType {
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_STRING_TYPE,
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
-  // Boundaries for testing for a SIMD types.
-  FIRST_SIMD_VALUE_TYPE = FLOAT32X4_TYPE,
-  LAST_SIMD_VALUE_TYPE = BOOL8X16_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
@@ -1602,10 +1587,13 @@ class HeapNumber: public HeapObject {
 };
 
 
-// The SimdValue128 class describes heap allocated 128 bit SIMD values.
+// The Simd128Value class describes heap allocated 128 bit SIMD values.
 class Simd128Value : public HeapObject {
  public:
   DECLARE_CAST(Simd128Value)
+
+  DECLARE_PRINTER(Simd128Value)
+  DECLARE_VERIFIER(Simd128Value)
 
   // Checks that another instance is bit-wise equal.
   bool BitwiseEquals(const Simd128Value* other) const;
@@ -1623,31 +1611,31 @@ class Simd128Value : public HeapObject {
 };
 
 
-#define SIMD128_TYPES(V)            \
-  V(Float32x4, float32x4, 4, float) \
-  V(Int32x4, int32x4, 4, int32_t)   \
-  V(Bool32x4, bool32x4, 4, bool)    \
-  V(Int16x8, int16x8, 8, int16_t)   \
-  V(Bool16x8, bool16x8, 8, bool)    \
-  V(Int8x16, int8x16, 16, int8_t)   \
-  V(Bool8x16, bool8x16, 16, bool)
+// V has parameters (TYPE, Type, type, lane count, lane type)
+#define SIMD128_TYPES(V)                       \
+  V(FLOAT32X4, Float32x4, float32x4, 4, float) \
+  V(INT32X4, Int32x4, int32x4, 4, int32_t)     \
+  V(BOOL32X4, Bool32x4, bool32x4, 4, bool)     \
+  V(INT16X8, Int16x8, int16x8, 8, int16_t)     \
+  V(BOOL16X8, Bool16x8, bool16x8, 8, bool)     \
+  V(INT8X16, Int8x16, int8x16, 16, int8_t)     \
+  V(BOOL8X16, Bool8x16, bool8x16, 16, bool)
 
-#define SIMD128_VALUE_CLASS(name, type, lane_count, lane_type) \
-  class name : public Simd128Value {                           \
-   public:                                                     \
-    inline lane_type get_lane(int lane) const;                 \
-    inline void set_lane(int lane, lane_type value);           \
-                                                               \
-    DECLARE_CAST(name)                                         \
-                                                               \
-    DECLARE_PRINTER(name)                                      \
-    DECLARE_VERIFIER(name)                                     \
-                                                               \
-   private:                                                    \
-    DISALLOW_IMPLICIT_CONSTRUCTORS(name);                      \
+#define SIMD128_VALUE_CLASS(TYPE, Type, type, lane_count, lane_type) \
+  class Type final : public Simd128Value {                           \
+   public:                                                           \
+    inline lane_type get_lane(int lane) const;                       \
+    inline void set_lane(int lane, lane_type value);                 \
+                                                                     \
+    DECLARE_CAST(Type)                                               \
+                                                                     \
+    DECLARE_PRINTER(Type)                                            \
+                                                                     \
+   private:                                                          \
+    DISALLOW_IMPLICIT_CONSTRUCTORS(Type);                            \
   };
-
 SIMD128_TYPES(SIMD128_VALUE_CLASS)
+#undef SIMD128_VALUE_CLASS
 
 
 enum EnsureElementsMode {

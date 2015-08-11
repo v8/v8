@@ -2877,14 +2877,11 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number)
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
                  mutable_heap_number)
-    ALLOCATE_MAP(FLOAT32X4_TYPE, Float32x4::kSize, float32x4)
-    ALLOCATE_MAP(INT32X4_TYPE, Int32x4::kSize, int32x4)
-    ALLOCATE_MAP(BOOL32X4_TYPE, Bool32x4::kSize, bool32x4)
-    ALLOCATE_MAP(INT16X8_TYPE, Int16x8::kSize, int16x8)
-    ALLOCATE_MAP(BOOL16X8_TYPE, Bool16x8::kSize, bool16x8)
-    ALLOCATE_MAP(INT8X16_TYPE, Int8x16::kSize, int8x16)
-    ALLOCATE_MAP(BOOL8X16_TYPE, Bool8x16::kSize, bool8x16)
     ALLOCATE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol)
+#define ALLOCATE_SIMD128_MAP(TYPE, Type, type, lane_count, lane_type) \
+  ALLOCATE_MAP(SIMD128_VALUE_TYPE, Type::kSize, type)
+    SIMD128_TYPES(ALLOCATE_SIMD128_MAP)
+#undef ALLOCATE_SIMD128_MAP
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
 
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
@@ -3023,30 +3020,30 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
   return result;
 }
 
-#define SIMD_ALLOCATE_DEFINITION(type, type_name, lane_count, lane_type) \
-  AllocationResult Heap::Allocate##type(lane_type lanes[lane_count],     \
-                                        PretenureFlag pretenure) {       \
-    int size = type::kSize;                                              \
-    STATIC_ASSERT(type::kSize <= Page::kMaxRegularHeapObjectSize);       \
-                                                                         \
-    AllocationSpace space = SelectSpace(size, pretenure);                \
-                                                                         \
-    HeapObject* result;                                                  \
-    {                                                                    \
-      AllocationResult allocation =                                      \
-          AllocateRaw(size, space, OLD_SPACE, kSimd128Unaligned);        \
-      if (!allocation.To(&result)) return allocation;                    \
-    }                                                                    \
-                                                                         \
-    result->set_map_no_write_barrier(type_name##_map());                 \
-    type* instance = type::cast(result);                                 \
-    for (int i = 0; i < lane_count; i++) {                               \
-      instance->set_lane(i, lanes[i]);                                   \
-    }                                                                    \
-    return result;                                                       \
+#define SIMD_ALLOCATE_DEFINITION(TYPE, Type, type, lane_count, lane_type) \
+  AllocationResult Heap::Allocate##Type(lane_type lanes[lane_count],      \
+                                        PretenureFlag pretenure) {        \
+    int size = Type::kSize;                                               \
+    STATIC_ASSERT(Type::kSize <= Page::kMaxRegularHeapObjectSize);        \
+                                                                          \
+    AllocationSpace space = SelectSpace(size, pretenure);                 \
+                                                                          \
+    HeapObject* result;                                                   \
+    {                                                                     \
+      AllocationResult allocation =                                       \
+          AllocateRaw(size, space, OLD_SPACE, kSimd128Unaligned);         \
+      if (!allocation.To(&result)) return allocation;                     \
+    }                                                                     \
+                                                                          \
+    result->set_map_no_write_barrier(type##_map());                       \
+    Type* instance = Type::cast(result);                                  \
+    for (int i = 0; i < lane_count; i++) {                                \
+      instance->set_lane(i, lanes[i]);                                    \
+    }                                                                     \
+    return result;                                                        \
   }
-
 SIMD128_TYPES(SIMD_ALLOCATE_DEFINITION)
+#undef SIMD_ALLOCATE_DEFINITION
 
 
 AllocationResult Heap::AllocateCell(Object* value) {

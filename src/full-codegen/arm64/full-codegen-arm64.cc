@@ -3132,14 +3132,9 @@ void FullCodeGenerator::EmitIsSimdValue(CallRuntime* expr) {
                          &if_false, &fall_through);
 
   __ JumpIfSmi(x0, if_false);
-  Register map = x10;
-  Register type_reg = x11;
-  __ Ldr(map, FieldMemOperand(x0, HeapObject::kMapOffset));
-  __ Ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ Sub(type_reg, type_reg, Operand(FIRST_SIMD_VALUE_TYPE));
-  __ Cmp(type_reg, Operand(LAST_SIMD_VALUE_TYPE - FIRST_SIMD_VALUE_TYPE));
+  __ CompareObjectType(x0, x10, x11, SIMD128_VALUE_TYPE);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(ls, if_true, if_false, fall_through);
+  Split(eq, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }
@@ -4743,42 +4738,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(x0, if_false);
     __ CompareObjectType(x0, x0, x1, SYMBOL_TYPE);
     Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->float32x4_string())) {
-    ASM_LOCATION(
-        "FullCodeGenerator::EmitLiteralCompareTypeof float32x4_string");
-    __ JumpIfSmi(x0, if_false);
-    __ CompareObjectType(x0, x0, x1, FLOAT32X4_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->int32x4_string())) {
-    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof int32x4_string");
-    __ JumpIfSmi(x0, if_false);
-    __ CompareObjectType(x0, x0, x1, INT32X4_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->bool32x4_string())) {
-    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof bool32x4_string");
-    __ JumpIfSmi(x0, if_false);
-    __ CompareObjectType(x0, x0, x1, BOOL32X4_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->int16x8_string())) {
-    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof int16x8_string");
-    __ JumpIfSmi(x0, if_false);
-    __ CompareObjectType(x0, x0, x1, INT16X8_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->bool16x8_string())) {
-    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof bool16x8_string");
-    __ JumpIfSmi(x0, if_false);
-    __ CompareObjectType(x0, x0, x1, BOOL16X8_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->int8x16_string())) {
-    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof int8x16_string");
-    __ JumpIfSmi(x0, if_false);
-    __ CompareObjectType(x0, x0, x1, INT8X16_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->bool8x16_string())) {
-    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof bool8x16_string");
-    __ JumpIfSmi(x0, if_false);
-    __ CompareObjectType(x0, x0, x1, BOOL8X16_TYPE);
-    Split(eq, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->boolean_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof boolean_string");
     __ JumpIfRoot(x0, Heap::kTrueValueRootIndex, if_true);
@@ -4801,7 +4760,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfObjectType(x0, x10, x11, JS_FUNCTION_TYPE, if_true);
     __ CompareAndSplit(x11, JS_FUNCTION_PROXY_TYPE, eq, if_true, if_false,
                        fall_through);
-
   } else if (String::Equals(check, factory->object_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof object_string");
     __ JumpIfSmi(x0, if_false);
@@ -4817,7 +4775,18 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
 
     __ TestAndSplit(x10, 1 << Map::kIsUndetectable, if_true, if_false,
                     fall_through);
-
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)   \
+  } else if (String::Equals(check, factory->type##_string())) { \
+    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof " \
+                 #type "_string");                              \
+    __ JumpIfSmi(x0, if_true);                                  \
+    __ Ldr(x0, FieldMemOperand(x0, HeapObject::kMapOffset));    \
+    __ CompareRoot(x0, Heap::k##Type##MapRootIndex);            \
+    Split(eq, if_true, if_false, fall_through);
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
   } else {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof other");
     if (if_false != fall_through) __ B(if_false);

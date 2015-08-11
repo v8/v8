@@ -228,13 +228,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     }
     case HEAP_NUMBER_TYPE:
       return kNumber & kTaggedPointer;
-    case FLOAT32X4_TYPE:
-    case INT32X4_TYPE:
-    case BOOL32X4_TYPE:
-    case INT16X8_TYPE:
-    case BOOL16X8_TYPE:
-    case INT8X16_TYPE:
-    case BOOL8X16_TYPE:
+    case SIMD128_VALUE_TYPE:
       // TODO(bbudge): Add type bits for SIMD value types.
       return kAny;
     case JS_VALUE_TYPE:

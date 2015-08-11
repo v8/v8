@@ -1405,27 +1405,17 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << '>';
       break;
     }
-    case FLOAT32X4_TYPE:
-      os << "<Float32x4>";
+    case SIMD128_VALUE_TYPE: {
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
+  if (Is##Type()) {                                           \
+    os << "<" #Type ">";                                      \
+    break;                                                    \
+  }
+      SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+      UNREACHABLE();
       break;
-    case INT32X4_TYPE:
-      os << "<Int32x4>";
-      break;
-    case BOOL32X4_TYPE:
-      os << "<Bool32x4>";
-      break;
-    case INT16X8_TYPE:
-      os << "<Int16x8>";
-      break;
-    case BOOL16X8_TYPE:
-      os << "<Bool16x8>";
-      break;
-    case INT8X16_TYPE:
-      os << "<Int8x16>";
-      break;
-    case BOOL8X16_TYPE:
-      os << "<Bool8x16>";
-      break;
+    }
     case JS_PROXY_TYPE:
       os << "<JSProxy>";
       break;
@@ -1569,13 +1559,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
 
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
-    case FLOAT32X4_TYPE:
-    case INT32X4_TYPE:
-    case BOOL32X4_TYPE:
-    case INT16X8_TYPE:
-    case BOOL16X8_TYPE:
-    case INT8X16_TYPE:
-    case BOOL8X16_TYPE:
+    case SIMD128_VALUE_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:

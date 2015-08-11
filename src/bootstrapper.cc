@@ -1981,14 +1981,14 @@ void Genesis::InitializeGlobal_harmony_simd() {
 
 // Install SIMD type functions. Set the instance class names since
 // InstallFunction only does this when we install on the GlobalObject.
-#define SIMD128_INSTALL_FUNCTION(name, type, lane_count, lane_type) \
-  Handle<JSFunction> type##_function = InstallFunction(             \
-      simd_object, #name, JS_VALUE_TYPE, JSValue::kSize,            \
-      isolate->initial_object_prototype(), Builtins::kIllegal);     \
-  native_context()->set_##type##_function(*type##_function);        \
-  type##_function->SetInstanceClassName(*factory->name##_string());
-
+#define SIMD128_INSTALL_FUNCTION(TYPE, Type, type, lane_count, lane_type) \
+  Handle<JSFunction> type##_function = InstallFunction(                   \
+      simd_object, #Type, JS_VALUE_TYPE, JSValue::kSize,                  \
+      isolate->initial_object_prototype(), Builtins::kIllegal);           \
+  native_context()->set_##type##_function(*type##_function);              \
+  type##_function->SetInstanceClassName(*factory->Type##_string());
   SIMD128_TYPES(SIMD128_INSTALL_FUNCTION)
+#undef SIMD128_INSTALL_FUNCTION
 }
 
 

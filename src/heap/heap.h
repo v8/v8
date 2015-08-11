@@ -1672,11 +1672,11 @@ class Heap {
                          PretenureFlag pretenure = NOT_TENURED);
 
 // Allocates SIMD values from the given lane values.
-#define SIMD_ALLOCATE_DECLARATION(type, type_name, lane_count, lane_type) \
-  AllocationResult Allocate##type(lane_type lanes[lane_count],            \
+#define SIMD_ALLOCATE_DECLARATION(TYPE, Type, type, lane_count, lane_type) \
+  AllocationResult Allocate##Type(lane_type lanes[lane_count],             \
                                   PretenureFlag pretenure = NOT_TENURED);
-
   SIMD128_TYPES(SIMD_ALLOCATE_DECLARATION)
+#undef SIMD_ALLOCATE_DECLARATION
 
   // Allocates a byte array of the specified length
   MUST_USE_RESULT AllocationResult

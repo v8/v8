@@ -1933,12 +1933,8 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
         // SIMD value -> true.
-        Label not_simd;
-        __ CompareInstanceType(map, scratch, FIRST_SIMD_VALUE_TYPE);
-        __ B(lt, &not_simd);
-        __ CompareInstanceType(map, scratch, LAST_SIMD_VALUE_TYPE);
-        __ B(le, true_label);
-        __ Bind(&not_simd);
+        __ CompareInstanceType(map, scratch, SIMD128_VALUE_TYPE);
+        __ B(eq, true_label);
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -5997,68 +5993,19 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
     EmitTestAndBranch(instr, eq, scratch, 1 << Map::kIsUndetectable);
 
-  } else if (String::Equals(type_name, factory->float32x4_string())) {
-    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
-    Register map = ToRegister(instr->temp1());
-    Register scratch = ToRegister(instr->temp2());
-
-    __ JumpIfSmi(value, false_label);
-    __ CompareObjectType(value, map, scratch, FLOAT32X4_TYPE);
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)       \
+  } else if (String::Equals(type_name, factory->type##_string())) { \
+    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));   \
+    Register map = ToRegister(instr->temp1());                      \
+                                                                    \
+    __ JumpIfSmi(value, false_label);                               \
+    __ Ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));    \
+    __ CompareRoot(map, Heap::k##Type##MapRootIndex);               \
     EmitBranch(instr, eq);
-
-  } else if (String::Equals(type_name, factory->int32x4_string())) {
-    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
-    Register map = ToRegister(instr->temp1());
-    Register scratch = ToRegister(instr->temp2());
-
-    __ JumpIfSmi(value, false_label);
-    __ CompareObjectType(value, map, scratch, INT32X4_TYPE);
-    EmitBranch(instr, eq);
-
-  } else if (String::Equals(type_name, factory->bool32x4_string())) {
-    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
-    Register map = ToRegister(instr->temp1());
-    Register scratch = ToRegister(instr->temp2());
-
-    __ JumpIfSmi(value, false_label);
-    __ CompareObjectType(value, map, scratch, BOOL32X4_TYPE);
-    EmitBranch(instr, eq);
-
-  } else if (String::Equals(type_name, factory->int16x8_string())) {
-    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
-    Register map = ToRegister(instr->temp1());
-    Register scratch = ToRegister(instr->temp2());
-
-    __ JumpIfSmi(value, false_label);
-    __ CompareObjectType(value, map, scratch, INT16X8_TYPE);
-    EmitBranch(instr, eq);
-
-  } else if (String::Equals(type_name, factory->bool16x8_string())) {
-    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
-    Register map = ToRegister(instr->temp1());
-    Register scratch = ToRegister(instr->temp2());
-
-    __ JumpIfSmi(value, false_label);
-    __ CompareObjectType(value, map, scratch, BOOL16X8_TYPE);
-    EmitBranch(instr, eq);
-
-  } else if (String::Equals(type_name, factory->int8x16_string())) {
-    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
-    Register map = ToRegister(instr->temp1());
-    Register scratch = ToRegister(instr->temp2());
-
-    __ JumpIfSmi(value, false_label);
-    __ CompareObjectType(value, map, scratch, INT8X16_TYPE);
-    EmitBranch(instr, eq);
-
-  } else if (String::Equals(type_name, factory->bool8x16_string())) {
-    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
-    Register map = ToRegister(instr->temp1());
-    Register scratch = ToRegister(instr->temp2());
-
-    __ JumpIfSmi(value, false_label);
-    __ CompareObjectType(value, map, scratch, BOOL8X16_TYPE);
-    EmitBranch(instr, eq);
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
 
   } else {
     __ B(false_label);

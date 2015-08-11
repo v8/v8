@@ -2215,12 +2215,8 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
         // SIMD value -> true.
-        Label not_simd;
-        __ CmpInstanceType(map, FIRST_SIMD_VALUE_TYPE);
-        __ j(less, &not_simd, Label::kNear);
-        __ CmpInstanceType(map, LAST_SIMD_VALUE_TYPE);
-        __ j(less_equal, instr->TrueLabel(chunk_));
-        __ bind(&not_simd);
+        __ CmpInstanceType(map, SIMD128_VALUE_TYPE);
+        __ j(equal, instr->TrueLabel(chunk_));
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -5748,40 +5744,16 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = zero;
 
-  } else if (String::Equals(type_name, factory->float32x4_string())) {
-    __ JumpIfSmi(input, false_label, false_distance);
-    __ CmpObjectType(input, FLOAT32X4_TYPE, input);
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)       \
+  } else if (String::Equals(type_name, factory->type##_string())) { \
+    __ JumpIfSmi(input, false_label, false_distance);               \
+    __ movp(input, FieldOperand(input, HeapObject::kMapOffset));    \
+    __ CompareRoot(input, Heap::k##Type##MapRootIndex);             \
     final_branch_condition = equal;
-
-  } else if (String::Equals(type_name, factory->int32x4_string())) {
-    __ JumpIfSmi(input, false_label, false_distance);
-    __ CmpObjectType(input, INT32X4_TYPE, input);
-    final_branch_condition = equal;
-
-  } else if (String::Equals(type_name, factory->bool32x4_string())) {
-    __ JumpIfSmi(input, false_label, false_distance);
-    __ CmpObjectType(input, BOOL32X4_TYPE, input);
-    final_branch_condition = equal;
-
-  } else if (String::Equals(type_name, factory->int16x8_string())) {
-    __ JumpIfSmi(input, false_label, false_distance);
-    __ CmpObjectType(input, INT16X8_TYPE, input);
-    final_branch_condition = equal;
-
-  } else if (String::Equals(type_name, factory->bool16x8_string())) {
-    __ JumpIfSmi(input, false_label, false_distance);
-    __ CmpObjectType(input, BOOL16X8_TYPE, input);
-    final_branch_condition = equal;
-
-  } else if (String::Equals(type_name, factory->int8x16_string())) {
-    __ JumpIfSmi(input, false_label, false_distance);
-    __ CmpObjectType(input, INT8X16_TYPE, input);
-    final_branch_condition = equal;
-
-  } else if (String::Equals(type_name, factory->bool8x16_string())) {
-    __ JumpIfSmi(input, false_label, false_distance);
-    __ CmpObjectType(input, BOOL8X16_TYPE, input);
-    final_branch_condition = equal;
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
 
   } else {
     __ jmp(false_label, false_distance);

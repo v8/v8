@@ -60,7 +60,10 @@ TEST(HeapMaps) {
   Heap* heap = CcTest::heap();
   CheckMap(heap->meta_map(), MAP_TYPE, Map::kSize);
   CheckMap(heap->heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
-  CheckMap(heap->float32x4_map(), FLOAT32X4_TYPE, Float32x4::kSize);
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
+  CheckMap(heap->type##_map(), SIMD128_VALUE_TYPE, Type::kSize);
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
   CheckMap(heap->fixed_array_map(), FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   CheckMap(heap->string_map(), STRING_TYPE, kVariableSizeSentinel);
 }

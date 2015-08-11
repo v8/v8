@@ -155,7 +155,7 @@ RUNTIME_FUNCTION(Runtime_SimdEquals) {
   // args[1] is of unknown type.
   if (args[1]->IsSimd128Value()) {
     Simd128Value* b = Simd128Value::cast(args[1]);
-    if (a->map()->instance_type() == b->map()->instance_type()) {
+    if (a->map() == b->map()) {
       if (a->IsFloat32x4()) {
         result = Equals(Float32x4::cast(*a), Float32x4::cast(b));
       } else {
@@ -175,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_SimdSameValue) {
   // args[1] is of unknown type.
   if (args[1]->IsSimd128Value()) {
     Simd128Value* b = Simd128Value::cast(args[1]);
-    if (a->map()->instance_type() == b->map()->instance_type()) {
+    if (a->map() == b->map()) {
       if (a->IsFloat32x4()) {
         result = Float32x4::cast(*a)->SameValue(Float32x4::cast(b));
       } else {
@@ -195,7 +195,7 @@ RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
   // args[1] is of unknown type.
   if (args[1]->IsSimd128Value()) {
     Simd128Value* b = Simd128Value::cast(args[1]);
-    if (a->map()->instance_type() == b->map()->instance_type()) {
+    if (a->map() == b->map()) {
       if (a->IsFloat32x4()) {
         result = Float32x4::cast(*a)->SameValueZero(Float32x4::cast(b));
       } else {

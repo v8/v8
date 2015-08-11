@@ -57,26 +57,8 @@ void HeapObject::HeapObjectVerify() {
     case MUTABLE_HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberVerify();
       break;
-    case FLOAT32X4_TYPE:
-      Float32x4::cast(this)->Float32x4Verify();
-      break;
-    case INT32X4_TYPE:
-      Int32x4::cast(this)->Int32x4Verify();
-      break;
-    case BOOL32X4_TYPE:
-      Bool32x4::cast(this)->Bool32x4Verify();
-      break;
-    case INT16X8_TYPE:
-      Int16x8::cast(this)->Int16x8Verify();
-      break;
-    case BOOL16X8_TYPE:
-      Bool16x8::cast(this)->Bool16x8Verify();
-      break;
-    case INT8X16_TYPE:
-      Int8x16::cast(this)->Int8x16Verify();
-      break;
-    case BOOL8X16_TYPE:
-      Bool8x16::cast(this)->Bool8x16Verify();
+    case SIMD128_VALUE_TYPE:
+      Simd128Value::cast(this)->Simd128ValueVerify();
       break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
@@ -231,25 +213,7 @@ void HeapNumber::HeapNumberVerify() {
 }
 
 
-void Float32x4::Float32x4Verify() { CHECK(IsFloat32x4()); }
-
-
-void Int32x4::Int32x4Verify() { CHECK(IsInt32x4()); }
-
-
-void Bool32x4::Bool32x4Verify() { CHECK(IsBool32x4()); }
-
-
-void Int16x8::Int16x8Verify() { CHECK(IsInt16x8()); }
-
-
-void Bool16x8::Bool16x8Verify() { CHECK(IsBool16x8()); }
-
-
-void Int8x16::Int8x16Verify() { CHECK(IsInt8x16()); }
-
-
-void Bool8x16::Bool8x16Verify() { CHECK(IsBool8x16()); }
+void Simd128Value::Simd128ValueVerify() { CHECK(IsSimd128Value()); }
 
 
 void ByteArray::ByteArrayVerify() {

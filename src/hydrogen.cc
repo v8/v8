@@ -2129,25 +2129,10 @@ HValue* HGraphBuilder::BuildToObject(HValue* receiver) {
                                                Context::SYMBOL_FUNCTION_INDEX));
               Push(constructor);
             }
-            receiver_is_symbol.Else();
-            {
-              IfBuilder receiver_is_float32x4(this);
-              receiver_is_float32x4.If<HCompareNumericAndBranch>(
-                  receiver_instance_type, Add<HConstant>(FLOAT32X4_TYPE),
-                  Token::EQ);
-              receiver_is_float32x4.Then();
-              {
-                // Load global Float32x4 function.
-                HValue* constructor = Add<HLoadNamedField>(
-                    native_context, nullptr,
-                    HObjectAccess::ForContextSlot(
-                        Context::FLOAT32X4_FUNCTION_INDEX));
-                Push(constructor);
-              }
-              receiver_is_float32x4.ElseDeopt(
-                  Deoptimizer::kUndefinedOrNullInToObject);
-              receiver_is_float32x4.JoinContinuation(&wrap);
-            }
+            // TODO(bmeurer): Don't inline this into crankshaft code, as it will
+            // deoptimize on all SIMD128 objects.
+            receiver_is_symbol.ElseDeopt(
+                Deoptimizer::kUndefinedOrNullInToObject);
             receiver_is_symbol.JoinContinuation(&wrap);
           }
           receiver_is_string.JoinContinuation(&wrap);

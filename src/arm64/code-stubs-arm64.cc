@@ -221,7 +221,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
   // Smis.  If it's not a heap number, then return equal.
   Register right_type = scratch;
   if ((cond == lt) || (cond == gt)) {
-    Label not_simd;
     // Call runtime on identical JSObjects.  Otherwise return equal.
     __ JumpIfObjectType(right, right_type, right_type, FIRST_SPEC_OBJECT_TYPE,
                         slow, ge);
@@ -229,11 +228,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
     __ Cmp(right_type, SYMBOL_TYPE);
     __ B(eq, slow);
     // Call runtime on identical SIMD values since we must throw a TypeError.
-    __ Cmp(right_type, FIRST_SIMD_VALUE_TYPE);
-    __ B(lt, &not_simd);
-    __ Cmp(right_type, LAST_SIMD_VALUE_TYPE);
-    __ B(le, slow);
-    __ Bind(&not_simd);
+    __ Cmp(right_type, SIMD128_VALUE_TYPE);
+    __ B(eq, slow);
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics, since
       // we need to throw a TypeError. Smis have already been ruled out.
@@ -245,7 +241,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
   } else if (cond == eq) {
     __ JumpIfHeapNumber(right, &heap_number);
   } else {
-    Label not_simd;
     __ JumpIfObjectType(right, right_type, right_type, HEAP_NUMBER_TYPE,
                         &heap_number);
     // Comparing JS objects with <=, >= is complicated.
@@ -255,11 +250,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
     __ Cmp(right_type, SYMBOL_TYPE);
     __ B(eq, slow);
     // Call runtime on identical SIMD values since we must throw a TypeError.
-    __ Cmp(right_type, FIRST_SIMD_VALUE_TYPE);
-    __ B(lt, &not_simd);
-    __ Cmp(right_type, LAST_SIMD_VALUE_TYPE);
-    __ B(le, slow);
-    __ Bind(&not_simd);
+    __ Cmp(right_type, SIMD128_VALUE_TYPE);
+    __ B(eq, slow);
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics,
       // since we need to throw a TypeError. Smis and heap numbers have
