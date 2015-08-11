@@ -83,7 +83,6 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     Scope* scope = NULL;
 
     // Check whether we are in global, eval or function code.
-    Handle<ScopeInfo> scope_info(shared_info->scope_info());
     Zone zone;
     if (scope_info->scope_type() != FUNCTION_SCOPE &&
         scope_info->scope_type() != ARROW_SCOPE) {
