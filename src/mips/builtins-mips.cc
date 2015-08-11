@@ -440,7 +440,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                   Operand(Map::kSlackTrackingCounterEnd));
 
         // Allocate object with a slack.
-        __ lbu(a0, FieldMemOperand(a2, Map::kInObjectPropertiesOffset));
+        __ lbu(
+            a0,
+            FieldMemOperand(
+                a2, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset));
         __ lbu(a2, FieldMemOperand(a2, Map::kUnusedPropertyFieldsOffset));
         __ subu(a0, a0, a2);
         __ sll(at, a0, kPointerSizeLog2);

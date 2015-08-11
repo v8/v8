@@ -186,7 +186,9 @@ bool Object::IsString() const {
 
 
 bool Object::IsName() const {
-  return IsString() || IsSymbol();
+  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
+  return Object::IsHeapObject() &&
+         HeapObject::cast(this)->map()->instance_type() <= LAST_NAME_TYPE;
 }
 
 
@@ -985,7 +987,7 @@ bool Object::IsOrderedHashMap() const {
 
 
 bool Object::IsPrimitive() const {
-  return IsOddball() || IsNumber() || IsString();
+  return IsSmi() || HeapObject::cast(this)->map()->IsPrimitiveMap();
 }
 
 
@@ -2117,7 +2119,7 @@ int JSObject::GetInternalFieldCount() {
   // Make sure to adjust for the number of in-object properties. These
   // properties do contribute to the size, but are not internal fields.
   return ((Size() - GetHeaderSize()) >> kPointerSizeLog2) -
-         map()->inobject_properties();
+         map()->GetInObjectProperties();
 }
 
 
@@ -2274,7 +2276,7 @@ void JSObject::InitializeBody(Map* map,
   int offset = kHeaderSize;
   if (filler_value != pre_allocated_value) {
     int pre_allocated =
-        map->inobject_properties() - map->unused_property_fields();
+        map->GetInObjectProperties() - map->unused_property_fields();
     DCHECK(pre_allocated * kPointerSize + kHeaderSize <= size);
     for (int i = 0; i < pre_allocated; i++) {
       WRITE_FIELD(this, offset, pre_allocated_value);
@@ -2298,8 +2300,8 @@ bool Map::TooManyFastProperties(StoreFromKeyed store_mode) {
   if (unused_property_fields() != 0) return false;
   if (is_prototype_map()) return false;
   int minimum = store_mode == CERTAINLY_NOT_STORE_FROM_KEYED ? 128 : 12;
-  int limit = Max(minimum, inobject_properties());
-  int external = NumberOfFields() - inobject_properties();
+  int limit = Max(minimum, GetInObjectProperties());
+  int external = NumberOfFields() - GetInObjectProperties();
   return external > limit;
 }
 
@@ -3986,14 +3988,46 @@ int Map::instance_size() {
 }
 
 
-int Map::inobject_properties() {
-  return READ_BYTE_FIELD(this, kInObjectPropertiesOffset);
+int Map::inobject_properties_or_constructor_function_index() {
+  return READ_BYTE_FIELD(this,
+                         kInObjectPropertiesOrConstructorFunctionIndexOffset);
+}
+
+
+void Map::set_inobject_properties_or_constructor_function_index(int value) {
+  DCHECK(0 <= value && value < 256);
+  WRITE_BYTE_FIELD(this, kInObjectPropertiesOrConstructorFunctionIndexOffset,
+                   static_cast<byte>(value));
+}
+
+
+int Map::GetInObjectProperties() {
+  DCHECK(IsJSObjectMap());
+  return inobject_properties_or_constructor_function_index();
+}
+
+
+void Map::SetInObjectProperties(int value) {
+  DCHECK(IsJSObjectMap());
+  set_inobject_properties_or_constructor_function_index(value);
+}
+
+
+int Map::GetConstructorFunctionIndex() {
+  DCHECK(IsPrimitiveMap());
+  return inobject_properties_or_constructor_function_index();
+}
+
+
+void Map::SetConstructorFunctionIndex(int value) {
+  DCHECK(IsPrimitiveMap());
+  set_inobject_properties_or_constructor_function_index(value);
 }
 
 
 int Map::GetInObjectPropertyOffset(int index) {
   // Adjust for the number of properties stored in the object.
-  index -= inobject_properties();
+  index -= GetInObjectProperties();
   DCHECK(index <= 0);
   return instance_size() + (index * kPointerSize);
 }
@@ -4058,12 +4092,6 @@ void Map::set_instance_size(int value) {
   DCHECK(0 <= value && value < 256);
   NOBARRIER_WRITE_BYTE_FIELD(
       this, kInstanceSizeOffset, static_cast<byte>(value));
-}
-
-
-void Map::set_inobject_properties(int value) {
-  DCHECK(0 <= value && value < 256);
-  WRITE_BYTE_FIELD(this, kInObjectPropertiesOffset, static_cast<byte>(value));
 }
 
 

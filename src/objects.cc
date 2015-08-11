@@ -72,34 +72,17 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
                                          Handle<Context> native_context) {
   if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
   Handle<JSFunction> constructor;
-  if (object->IsNumber()) {
+  if (object->IsSmi()) {
     constructor = handle(native_context->number_function(), isolate);
-  } else if (object->IsBoolean()) {
-    constructor = handle(native_context->boolean_function(), isolate);
-  } else if (object->IsString()) {
-    constructor = handle(native_context->string_function(), isolate);
-  } else if (object->IsSymbol()) {
-    constructor = handle(native_context->symbol_function(), isolate);
-  } else if (object->IsSimd128Value()) {
-    if (object->IsFloat32x4()) {
-      constructor = handle(native_context->float32x4_function(), isolate);
-    } else if (object->IsInt32x4()) {
-      constructor = handle(native_context->int32x4_function(), isolate);
-    } else if (object->IsBool32x4()) {
-      constructor = handle(native_context->bool32x4_function(), isolate);
-    } else if (object->IsInt16x8()) {
-      constructor = handle(native_context->int16x8_function(), isolate);
-    } else if (object->IsBool16x8()) {
-      constructor = handle(native_context->bool16x8_function(), isolate);
-    } else if (object->IsInt8x16()) {
-      constructor = handle(native_context->int8x16_function(), isolate);
-    } else if (object->IsBool8x16()) {
-      constructor = handle(native_context->bool8x16_function(), isolate);
-    } else {
-      UNREACHABLE();
-    }
   } else {
-    return MaybeHandle<JSReceiver>();
+    int constructor_function_index =
+        Handle<HeapObject>::cast(object)->map()->GetConstructorFunctionIndex();
+    if (constructor_function_index == Map::kNoConstructorFunctionIndex) {
+      return MaybeHandle<JSReceiver>();
+    }
+    constructor = handle(
+        JSFunction::cast(native_context->get(constructor_function_index)),
+        isolate);
   }
   Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
   Handle<JSValue>::cast(result)->set_value(*object);
@@ -618,49 +601,23 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
 Map* Object::GetRootMap(Isolate* isolate) {
   DisallowHeapAllocation no_alloc;
   if (IsSmi()) {
-    Context* context = isolate->context()->native_context();
-    return context->number_function()->initial_map();
+    Context* native_context = isolate->context()->native_context();
+    return native_context->number_function()->initial_map();
   }
-
-  HeapObject* heap_object = HeapObject::cast(this);
 
   // The object is either a number, a string, a symbol, a boolean, a SIMD value,
   // a real JS object, or a Harmony proxy.
+  HeapObject* heap_object = HeapObject::cast(this);
   if (heap_object->IsJSReceiver()) {
     return heap_object->map();
   }
-  Context* context = isolate->context()->native_context();
-
-  if (heap_object->IsHeapNumber()) {
-    return context->number_function()->initial_map();
-  }
-  if (heap_object->IsString()) {
-    return context->string_function()->initial_map();
-  }
-  if (heap_object->IsSymbol()) {
-    return context->symbol_function()->initial_map();
-  }
-  if (heap_object->IsBoolean()) {
-    return context->boolean_function()->initial_map();
-  }
-  if (heap_object->IsSimd128Value()) {
-    if (heap_object->IsFloat32x4()) {
-      return context->float32x4_function()->initial_map();
-    } else if (heap_object->IsInt32x4()) {
-      return context->int32x4_function()->initial_map();
-    } else if (heap_object->IsBool32x4()) {
-      return context->bool32x4_function()->initial_map();
-    } else if (heap_object->IsInt16x8()) {
-      return context->int16x8_function()->initial_map();
-    } else if (heap_object->IsBool16x8()) {
-      return context->bool16x8_function()->initial_map();
-    } else if (heap_object->IsInt8x16()) {
-      return context->int8x16_function()->initial_map();
-    } else if (heap_object->IsBool8x16()) {
-      return context->bool8x16_function()->initial_map();
-    } else {
-      UNREACHABLE();
-    }
+  int constructor_function_index =
+      heap_object->map()->GetConstructorFunctionIndex();
+  if (constructor_function_index != Map::kNoConstructorFunctionIndex) {
+    Context* native_context = isolate->context()->native_context();
+    JSFunction* constructor_function =
+        JSFunction::cast(native_context->get(constructor_function_index));
+    return constructor_function->initial_map();
   }
   return isolate->heap()->null_value()->map();
 }
@@ -1731,11 +1688,11 @@ bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
 
   // If no fields were added, and no inobject properties were removed, setting
   // the map is sufficient.
-  if (target_inobject == inobject_properties()) return false;
+  if (target_inobject == GetInObjectProperties()) return false;
   // In-object slack tracking may have reduced the object size of the new map.
   // In that case, succeed if all existing fields were inobject, and they still
   // fit within the new inobject size.
-  DCHECK(target_inobject < inobject_properties());
+  DCHECK(target_inobject < GetInObjectProperties());
   if (target_number_of_fields <= target_inobject) {
     DCHECK(target_number_of_fields + target_unused == target_inobject);
     return false;
@@ -1842,7 +1799,7 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   Handle<Map> old_map(object->map());
   int old_number_of_fields;
   int number_of_fields = new_map->NumberOfFields();
-  int inobject = new_map->inobject_properties();
+  int inobject = new_map->GetInObjectProperties();
   int unused = new_map->unused_property_fields();
 
   // Nothing to do if no functions were converted to fields and no smis were
@@ -4049,7 +4006,8 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
 
 
 void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
-  DCHECK(object->map()->inobject_properties() == map->inobject_properties());
+  DCHECK(object->map()->GetInObjectProperties() ==
+         map->GetInObjectProperties());
   ElementsKind obj_kind = object->map()->elements_kind();
   ElementsKind map_kind = map->elements_kind();
   if (map_kind != obj_kind) {
@@ -4561,7 +4519,7 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
 
   // Ensure that in-object space of slow-mode object does not contain random
   // garbage.
-  int inobject_properties = new_map->inobject_properties();
+  int inobject_properties = new_map->GetInObjectProperties();
   for (int i = 0; i < inobject_properties; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
     object->RawFastPropertyAtPut(index, Smi::FromInt(0));
@@ -4618,7 +4576,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   Handle<Map> old_map(object->map(), isolate);
 
-  int inobject_props = old_map->inobject_properties();
+  int inobject_props = old_map->GetInObjectProperties();
 
   // Allocate new map.
   Handle<Map> new_map = Map::CopyDropDescriptors(old_map);
@@ -6506,13 +6464,13 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
                                 PropertyNormalizationMode mode) {
   int new_instance_size = map->instance_size();
   if (mode == CLEAR_INOBJECT_PROPERTIES) {
-    new_instance_size -= map->inobject_properties() * kPointerSize;
+    new_instance_size -= map->GetInObjectProperties() * kPointerSize;
   }
 
   Handle<Map> result = RawCopy(map, new_instance_size);
 
   if (mode != CLEAR_INOBJECT_PROPERTIES) {
-    result->set_inobject_properties(map->inobject_properties());
+    result->SetInObjectProperties(map->GetInObjectProperties());
   }
 
   result->set_dictionary_map(true);
@@ -6530,7 +6488,7 @@ Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
   Handle<Map> result = RawCopy(map, map->instance_size());
 
   // Please note instance_type and instance_size are set when allocated.
-  result->set_inobject_properties(map->inobject_properties());
+  result->SetInObjectProperties(map->GetInObjectProperties());
   result->set_unused_property_fields(map->unused_property_fields());
 
   result->ClearCodeCache(map->GetHeap());
@@ -6842,7 +6800,7 @@ Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
       JSObject::kHeaderSize + kPointerSize * inobject_properties;
 
   // Adjust the map with the extra inobject properties.
-  copy->set_inobject_properties(inobject_properties);
+  copy->SetInObjectProperties(inobject_properties);
   copy->set_unused_property_fields(inobject_properties);
   copy->set_instance_size(new_instance_size);
   copy->set_visitor_id(StaticVisitorBase::GetVisitorId(*copy));
@@ -9236,10 +9194,10 @@ bool Map::EquivalentToForTransition(Map* other) {
 
 bool Map::EquivalentToForNormalization(Map* other,
                                        PropertyNormalizationMode mode) {
-  int properties = mode == CLEAR_INOBJECT_PROPERTIES
-      ? 0 : other->inobject_properties();
+  int properties =
+      mode == CLEAR_INOBJECT_PROPERTIES ? 0 : other->GetInObjectProperties();
   return CheckEquivalent(this, other) && bit_field2() == other->bit_field2() &&
-         inobject_properties() == properties;
+         GetInObjectProperties() == properties;
 }
 
 
@@ -9497,7 +9455,7 @@ static void GetMinInobjectSlack(Map* map, void* data) {
 
 static void ShrinkInstanceSize(Map* map, void* data) {
   int slack = *reinterpret_cast<int*>(data);
-  map->set_inobject_properties(map->inobject_properties() - slack);
+  map->SetInObjectProperties(map->GetInObjectProperties() - slack);
   map->set_unused_property_fields(map->unused_property_fields() - slack);
   map->set_instance_size(map->instance_size() - slack * kPointerSize);
 
@@ -9979,7 +9937,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   } else {
     prototype = isolate->factory()->NewFunctionPrototype(function);
   }
-  map->set_inobject_properties(in_object_properties);
+  map->SetInObjectProperties(in_object_properties);
   map->set_unused_property_fields(in_object_properties);
   DCHECK(map->has_fast_object_elements());
 

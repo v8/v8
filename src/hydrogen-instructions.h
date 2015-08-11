@@ -6106,10 +6106,10 @@ class HObjectAccess final {
                          Representation::Integer32());
   }
 
-  static HObjectAccess ForMapInObjectProperties() {
-    return HObjectAccess(kInobject,
-                         Map::kInObjectPropertiesOffset,
-                         Representation::UInteger8());
+  static HObjectAccess ForMapInObjectPropertiesOrConstructorFunctionIndex() {
+    return HObjectAccess(
+        kInobject, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
+        Representation::UInteger8());
   }
 
   static HObjectAccess ForMapInstanceType() {

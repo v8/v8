@@ -127,25 +127,14 @@ void IC::UpdateTarget() { target_ = handle(raw_target(), isolate_); }
 
 
 JSFunction* IC::GetRootConstructor(Map* receiver_map, Context* native_context) {
-  Isolate* isolate = receiver_map->GetIsolate();
-  if (receiver_map == isolate->heap()->boolean_map()) {
-    return native_context->boolean_function();
+  DisallowHeapAllocation no_alloc;
+  if (receiver_map->IsPrimitiveMap()) {
+    int constructor_function_index =
+        receiver_map->GetConstructorFunctionIndex();
+    if (constructor_function_index != Map::kNoConstructorFunctionIndex) {
+      return JSFunction::cast(native_context->get(constructor_function_index));
+    }
   }
-  if (receiver_map->instance_type() == HEAP_NUMBER_TYPE) {
-    return native_context->number_function();
-  }
-  if (receiver_map->instance_type() < FIRST_NONSTRING_TYPE) {
-    return native_context->string_function();
-  }
-  if (receiver_map->instance_type() == SYMBOL_TYPE) {
-    return native_context->symbol_function();
-  }
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
-  if (receiver_map == isolate->heap()->type##_map()) {        \
-    return native_context->type##_function();                 \
-  }
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
   return nullptr;
 }
 

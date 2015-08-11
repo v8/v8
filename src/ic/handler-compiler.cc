@@ -99,28 +99,11 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Handle<Name> name,
                                                   Label* miss,
                                                   ReturnHolder return_what) {
-  PrototypeCheckType check_type = CHECK_ALL_MAPS;
-  int function_index = -1;
-  if (map()->instance_type() < FIRST_NONSTRING_TYPE) {
-    function_index = Context::STRING_FUNCTION_INDEX;
-  } else if (map()->instance_type() == SYMBOL_TYPE) {
-    function_index = Context::SYMBOL_FUNCTION_INDEX;
-  } else if (map()->instance_type() == HEAP_NUMBER_TYPE) {
-    function_index = Context::NUMBER_FUNCTION_INDEX;
-  } else if (*map() == isolate()->heap()->boolean_map()) {
-    function_index = Context::BOOLEAN_FUNCTION_INDEX;
-// clang-format off
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)           \
-  } else if (map().is_identical_to(isolate()->factory()->type##_map())) { \
-    function_index = Context::TYPE##_FUNCTION_INDEX;
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
-    // clang-format on
-  } else {
-    check_type = SKIP_RECEIVER;
-  }
-
-  if (check_type == CHECK_ALL_MAPS) {
+  PrototypeCheckType check_type = SKIP_RECEIVER;
+  int function_index = map()->IsPrimitiveMap()
+                           ? map()->GetConstructorFunctionIndex()
+                           : Map::kNoConstructorFunctionIndex;
+  if (function_index != Map::kNoConstructorFunctionIndex) {
     GenerateDirectLoadGlobalFunctionPrototype(masm(), function_index,
                                               scratch1(), miss);
     Object* function = isolate()->native_context()->get(function_index);
@@ -128,6 +111,7 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
     Handle<Map> map(JSObject::cast(prototype)->map());
     set_map(map);
     object_reg = scratch1();
+    check_type = CHECK_ALL_MAPS;
   }
 
   // Check that the maps starting from the prototype haven't changed.

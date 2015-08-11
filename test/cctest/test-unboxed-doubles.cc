@@ -634,7 +634,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
       descriptors->Append(&f);
 
       int field_index = f.GetDetails().field_index();
-      bool is_inobject = field_index < map->inobject_properties();
+      bool is_inobject = field_index < map->GetInObjectProperties();
       for (int bit = 0; bit < field_width_in_words; bit++) {
         CHECK_EQ(is_inobject && (kind == PROP_DOUBLE),
                  !layout_descriptor->IsTagged(field_index + bit));
@@ -763,7 +763,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
         int field_index = details.field_index();
         int field_width_in_words = details.field_width_in_words();
 
-        bool is_inobject = field_index < map->inobject_properties();
+        bool is_inobject = field_index < map->GetInObjectProperties();
         for (int bit = 0; bit < field_width_in_words; bit++) {
           CHECK_EQ(is_inobject && details.representation().IsDouble(),
                    !layout_desc->IsTagged(field_index + bit));

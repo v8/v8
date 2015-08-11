@@ -2637,7 +2637,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
              lookup_type_ == TRANSITION_TYPE);
       DCHECK(number_ < map->NumberOfOwnDescriptors());
       int field_index = map->instance_descriptors()->GetFieldIndex(number_);
-      return field_index - map->inobject_properties();
+      return field_index - map->GetInObjectProperties();
     }
 
     void LookupDescriptor(Map* map, Name* name) {

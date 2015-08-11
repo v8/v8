@@ -1144,7 +1144,7 @@ TEST(Regression39128) {
   // Step 1: prepare a map for the object.  We add 1 inobject property to it.
   // Create a map with single inobject property.
   Handle<Map> my_map = Map::Create(CcTest::i_isolate(), 1);
-  int n_properties = my_map->inobject_properties();
+  int n_properties = my_map->GetInObjectProperties();
   CHECK_GT(n_properties, 0);
 
   int object_size = my_map->instance_size();

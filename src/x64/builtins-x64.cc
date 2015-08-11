@@ -225,7 +225,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ j(less, &no_inobject_slack_tracking);
 
         // Allocate object with a slack.
-        __ movzxbp(rsi, FieldOperand(rax, Map::kInObjectPropertiesOffset));
+        __ movzxbp(
+            rsi,
+            FieldOperand(
+                rax, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset));
         __ movzxbp(rax, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
         __ subp(rsi, rax);
         __ leap(rsi,

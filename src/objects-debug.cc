@@ -264,7 +264,7 @@ void JSObject::JSObjectVerify() {
   }
 
   if (HasFastProperties()) {
-    int actual_unused_property_fields = map()->inobject_properties() +
+    int actual_unused_property_fields = map()->GetInObjectProperties() +
                                         properties()->length() -
                                         map()->NextFreePropertyIndex();
     if (map()->unused_property_fields() != actual_unused_property_fields) {

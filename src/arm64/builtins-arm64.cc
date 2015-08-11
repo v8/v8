@@ -436,8 +436,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
               Map::kUnusedPropertyFieldsByte * kBitsPerByte, kBitsPerByte);
       __ Ldr(inst_sizes_or_attrs,
              FieldMemOperand(init_map, Map::kInstanceSizesOffset));
-      __ Ubfx(inobject_props, inst_sizes_or_attrs,
-              Map::kInObjectPropertiesByte * kBitsPerByte, kBitsPerByte);
+      __ Ubfx(
+          inobject_props, inst_sizes_or_attrs,
+          Map::kInObjectPropertiesOrConstructorFunctionIndexByte * kBitsPerByte,
+          kBitsPerByte);
       __ Sub(prealloc_fields, inobject_props, unused_props);
 
       // Calculate number of property fields in the object.

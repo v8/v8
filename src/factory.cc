@@ -1601,7 +1601,7 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
   // Make sure we don't have a ton of pre-allocated slots in the
   // global objects. They will be unused once we normalize the object.
   DCHECK(map->unused_property_fields() == 0);
-  DCHECK(map->inobject_properties() == 0);
+  DCHECK(map->GetInObjectProperties() == 0);
 
   // Initial size of the backing store to avoid resize of the storage during
   // bootstrapping. The size differs between the JS global object ad the

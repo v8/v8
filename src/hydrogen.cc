@@ -2047,14 +2047,8 @@ HValue* HGraphBuilder::BuildToObject(HValue* receiver) {
   receiver_is_smi.If<HIsSmiAndBranch>(receiver);
   receiver_is_smi.Then();
   {
-    // Load native context.
-    HValue* native_context = BuildGetNativeContext();
-
-    // Load global Number function.
-    HValue* constructor = Add<HLoadNamedField>(
-        native_context, nullptr,
-        HObjectAccess::ForContextSlot(Context::NUMBER_FUNCTION_INDEX));
-    Push(constructor);
+    // Use global Number function.
+    Push(Add<HConstant>(Context::NUMBER_FUNCTION_INDEX));
   }
   receiver_is_smi.Else();
   {
@@ -2071,75 +2065,23 @@ HValue* HGraphBuilder::BuildToObject(HValue* receiver) {
         Token::LT);
     receiver_is_not_spec_object.Then();
     {
-      // Load native context.
-      HValue* native_context = BuildGetNativeContext();
+      // Load the constructor function index from the {receiver} map.
+      HValue* constructor_function_index = Add<HLoadNamedField>(
+          receiver_map, nullptr,
+          HObjectAccess::ForMapInObjectPropertiesOrConstructorFunctionIndex());
 
-      IfBuilder receiver_is_heap_number(this);
-      receiver_is_heap_number.If<HCompareNumericAndBranch>(
-          receiver_instance_type, Add<HConstant>(HEAP_NUMBER_TYPE), Token::EQ);
-      receiver_is_heap_number.Then();
-      {
-        // Load global Number function.
-        HValue* constructor = Add<HLoadNamedField>(
-            native_context, nullptr,
-            HObjectAccess::ForContextSlot(Context::NUMBER_FUNCTION_INDEX));
-        Push(constructor);
-      }
-      receiver_is_heap_number.Else();
-      {
-        // Load boolean map (we cannot decide based on instance type, because
-        // it's ODDBALL_TYPE, which would also include null and undefined).
-        HValue* boolean_map = Add<HLoadRoot>(Heap::kBooleanMapRootIndex);
+      // Check if {receiver} has a constructor (null and undefined have no
+      // constructors, so we deoptimize to the runtime to throw an exception).
+      IfBuilder constructor_function_index_is_invalid(this);
+      constructor_function_index_is_invalid.If<HCompareNumericAndBranch>(
+          constructor_function_index,
+          Add<HConstant>(Map::kNoConstructorFunctionIndex), Token::EQ);
+      constructor_function_index_is_invalid.ThenDeopt(
+          Deoptimizer::kUndefinedOrNullInToObject);
+      constructor_function_index_is_invalid.End();
 
-        IfBuilder receiver_is_boolean(this);
-        receiver_is_boolean.If<HCompareObjectEqAndBranch>(receiver_map,
-                                                          boolean_map);
-        receiver_is_boolean.Then();
-        {
-          // Load global Boolean function.
-          HValue* constructor = Add<HLoadNamedField>(
-              native_context, nullptr,
-              HObjectAccess::ForContextSlot(Context::BOOLEAN_FUNCTION_INDEX));
-          Push(constructor);
-        }
-        receiver_is_boolean.Else();
-        {
-          IfBuilder receiver_is_string(this);
-          receiver_is_string.If<HCompareNumericAndBranch>(
-              receiver_instance_type, Add<HConstant>(FIRST_NONSTRING_TYPE),
-              Token::LT);
-          receiver_is_string.Then();
-          {
-            // Load global String function.
-            HValue* constructor = Add<HLoadNamedField>(
-                native_context, nullptr,
-                HObjectAccess::ForContextSlot(Context::STRING_FUNCTION_INDEX));
-            Push(constructor);
-          }
-          receiver_is_string.Else();
-          {
-            IfBuilder receiver_is_symbol(this);
-            receiver_is_symbol.If<HCompareNumericAndBranch>(
-                receiver_instance_type, Add<HConstant>(SYMBOL_TYPE), Token::EQ);
-            receiver_is_symbol.Then();
-            {
-              // Load global Symbol function.
-              HValue* constructor = Add<HLoadNamedField>(
-                  native_context, nullptr, HObjectAccess::ForContextSlot(
-                                               Context::SYMBOL_FUNCTION_INDEX));
-              Push(constructor);
-            }
-            // TODO(bmeurer): Don't inline this into crankshaft code, as it will
-            // deoptimize on all SIMD128 objects.
-            receiver_is_symbol.ElseDeopt(
-                Deoptimizer::kUndefinedOrNullInToObject);
-            receiver_is_symbol.JoinContinuation(&wrap);
-          }
-          receiver_is_string.JoinContinuation(&wrap);
-        }
-        receiver_is_boolean.JoinContinuation(&wrap);
-      }
-      receiver_is_heap_number.JoinContinuation(&wrap);
+      // Use the global constructor function.
+      Push(constructor_function_index);
     }
     receiver_is_not_spec_object.JoinContinuation(&wrap);
   }
@@ -2149,8 +2091,15 @@ HValue* HGraphBuilder::BuildToObject(HValue* receiver) {
   IfBuilder if_wrap(this, &wrap);
   if_wrap.Then();
   {
+    // Grab the constructor function index.
+    HValue* constructor_index = Pop();
+
+    // Load native context.
+    HValue* native_context = BuildGetNativeContext();
+
     // Determine the initial map for the global constructor.
-    HValue* constructor = Pop();
+    HValue* constructor = Add<HLoadKeyed>(native_context, constructor_index,
+                                          nullptr, FAST_ELEMENTS);
     HValue* constructor_initial_map = Add<HLoadNamedField>(
         constructor, nullptr, HObjectAccess::ForPrototypeOrInitialMap());
     // Allocate and initialize a JSValue wrapper.
@@ -6443,7 +6392,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
     int descriptor = transition()->LastAdded();
     int index =
         transition()->instance_descriptors()->GetFieldIndex(descriptor) -
-        map_->inobject_properties();
+        map_->GetInObjectProperties();
     PropertyDetails details =
         transition()->instance_descriptors()->GetDetails(descriptor);
     Representation representation = details.representation();
@@ -9963,9 +9912,9 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
 
 void HOptimizedGraphBuilder::BuildInitializeInobjectProperties(
     HValue* receiver, Handle<Map> initial_map) {
-  if (initial_map->inobject_properties() != 0) {
+  if (initial_map->GetInObjectProperties() != 0) {
     HConstant* undefined = graph()->GetConstantUndefined();
-    for (int i = 0; i < initial_map->inobject_properties(); i++) {
+    for (int i = 0; i < initial_map->GetInObjectProperties(); i++) {
       int property_offset = initial_map->GetInObjectPropertyOffset(i);
       Add<HStoreNamedField>(receiver, HObjectAccess::ForMapAndOffset(
                                           initial_map, property_offset),
@@ -11778,7 +11727,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
     }
   }
 
-  int inobject_properties = boilerplate_object->map()->inobject_properties();
+  int inobject_properties = boilerplate_object->map()->GetInObjectProperties();
   HInstruction* value_instruction =
       Add<HConstant>(isolate()->factory()->one_pointer_filler_map());
   for (int i = copied_fields; i < inobject_properties; i++) {

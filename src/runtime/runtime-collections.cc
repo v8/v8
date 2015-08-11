@@ -299,7 +299,7 @@ RUNTIME_FUNCTION(Runtime_MapIteratorNext) {
 
 void Runtime::WeakCollectionInitialize(
     Isolate* isolate, Handle<JSWeakCollection> weak_collection) {
-  DCHECK(weak_collection->map()->inobject_properties() == 0);
+  DCHECK_EQ(0, weak_collection->map()->GetInObjectProperties());
   Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 0);
   weak_collection->set_table(*table);
 }

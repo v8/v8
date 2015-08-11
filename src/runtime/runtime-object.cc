@@ -1193,7 +1193,7 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
       FieldIndex::ForLoadByFieldIndex(object->map(), index->value());
   if (field_index.is_inobject()) {
     RUNTIME_ASSERT(field_index.property_index() <
-                   object->map()->inobject_properties());
+                   object->map()->GetInObjectProperties());
   } else {
     RUNTIME_ASSERT(field_index.outobject_array_index() <
                    object->properties()->length());

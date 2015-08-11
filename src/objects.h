@@ -612,8 +612,8 @@ static inline bool IsShortcutCandidate(int type) {
 
 enum InstanceType {
   // String types.
-  INTERNALIZED_STRING_TYPE =
-      kTwoByteStringTag | kSeqStringTag | kInternalizedTag,
+  INTERNALIZED_STRING_TYPE = kTwoByteStringTag | kSeqStringTag |
+                             kInternalizedTag,  // FIRST_PRIMITIVE_TYPE
   ONE_BYTE_INTERNALIZED_STRING_TYPE =
       kOneByteStringTag | kSeqStringTag | kInternalizedTag,
   EXTERNAL_INTERNALIZED_STRING_TYPE =
@@ -660,16 +660,18 @@ enum InstanceType {
   // Non-string names
   SYMBOL_TYPE = kNotStringTag,  // FIRST_NONSTRING_TYPE, LAST_NAME_TYPE
 
+  // Other primitives (cannot contain non-map-word pointers to heap objects).
+  HEAP_NUMBER_TYPE,
+  SIMD128_VALUE_TYPE,
+  ODDBALL_TYPE,  // LAST_PRIMITIVE_TYPE
+
   // Objects allocated in their own spaces (never in new space).
   MAP_TYPE,
   CODE_TYPE,
-  ODDBALL_TYPE,
 
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
-  HEAP_NUMBER_TYPE,
   MUTABLE_HEAP_NUMBER_TYPE,
-  SIMD128_VALUE_TYPE,
   FOREIGN_TYPE,
   BYTE_ARRAY_TYPE,
   BYTECODE_ARRAY_TYPE,
@@ -753,6 +755,8 @@ enum InstanceType {
   FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_STRING_TYPE,
   LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
+  FIRST_PRIMITIVE_TYPE = FIRST_NAME_TYPE,
+  LAST_PRIMITIVE_TYPE = ODDBALL_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
@@ -5273,9 +5277,20 @@ class Map: public HeapObject {
   // Only to clear an unused byte, remove once byte is used.
   inline void clear_unused();
 
-  // Count of properties allocated in the object.
-  inline int inobject_properties();
-  inline void set_inobject_properties(int value);
+  // [inobject_properties_or_constructor_function_index]: Provides access
+  // to the inobject properties in case of JSObject maps, or the constructor
+  // function index in case of primitive maps.
+  inline int inobject_properties_or_constructor_function_index();
+  inline void set_inobject_properties_or_constructor_function_index(int value);
+  // Count of properties allocated in the object (JSObject only).
+  inline int GetInObjectProperties();
+  inline void SetInObjectProperties(int value);
+  // Index of the constructor function in the native context (primitives only),
+  // or the special sentinel value to indicate that there is no object wrapper
+  // for the primitive (i.e. in case of null or undefined).
+  static const int kNoConstructorFunctionIndex = 0;
+  inline int GetConstructorFunctionIndex();
+  inline void SetConstructorFunctionIndex(int value);
 
   // Instance type.
   inline InstanceType instance_type();
@@ -5766,7 +5781,12 @@ class Map: public HeapObject {
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
   }
 
+  bool IsPrimitiveMap() {
+    STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
+    return instance_type() <= LAST_PRIMITIVE_TYPE;
+  }
   bool IsJSObjectMap() {
+    STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
   }
   bool IsJSArrayMap() { return instance_type() == JS_ARRAY_TYPE; }
@@ -5847,9 +5867,9 @@ class Map: public HeapObject {
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
-  static const int kInObjectPropertiesByte = 1;
-  static const int kInObjectPropertiesOffset =
-      kInstanceSizesOffset + kInObjectPropertiesByte;
+  static const int kInObjectPropertiesOrConstructorFunctionIndexByte = 1;
+  static const int kInObjectPropertiesOrConstructorFunctionIndexOffset =
+      kInstanceSizesOffset + kInObjectPropertiesOrConstructorFunctionIndexByte;
   // Note there is one byte available for use here.
   static const int kUnusedByte = 2;
   static const int kUnusedOffset = kInstanceSizesOffset + kUnusedByte;

@@ -442,7 +442,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
         // Allocate object with a slack.
         __ ldr(r0, FieldMemOperand(r2, Map::kInstanceSizesOffset));
-        __ Ubfx(r0, r0, Map::kInObjectPropertiesByte * kBitsPerByte,
+        __ Ubfx(r0, r0, Map::kInObjectPropertiesOrConstructorFunctionIndexByte *
+                            kBitsPerByte,
                 kBitsPerByte);
         __ ldr(r2, FieldMemOperand(r2, Map::kInstanceAttributesOffset));
         __ Ubfx(r2, r2, Map::kUnusedPropertyFieldsByte * kBitsPerByte,

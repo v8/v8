@@ -465,7 +465,9 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Map");
   os << " - type: " << TypeToString(instance_type()) << "\n";
   os << " - instance size: " << instance_size() << "\n";
-  os << " - inobject properties: " << inobject_properties() << "\n";
+  if (IsJSObjectMap()) {
+    os << " - inobject properties: " << GetInObjectProperties() << "\n";
+  }
   os << " - elements kind: " << ElementsKindToString(elements_kind()) << "\n";
   os << " - unused property fields: " << unused_property_fields() << "\n";
   if (is_deprecated()) os << " - deprecated_map\n";

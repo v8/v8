@@ -2654,7 +2654,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
         ->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
   }
   reinterpret_cast<Map*>(result)->clear_unused();
-  reinterpret_cast<Map*>(result)->set_inobject_properties(0);
+  reinterpret_cast<Map*>(result)
+      ->set_inobject_properties_or_constructor_function_index(0);
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
@@ -2681,7 +2682,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_constructor_or_backpointer(null_value(), SKIP_WRITE_BARRIER);
   map->set_instance_size(instance_size);
   map->clear_unused();
-  map->set_inobject_properties(0);
+  map->set_inobject_properties_or_constructor_function_index(0);
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
   map->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                           SKIP_WRITE_BARRIER);
@@ -2870,22 +2871,34 @@ bool Heap::CreateInitialMaps() {
 #define ALLOCATE_VARSIZE_MAP(instance_type, field_name) \
   ALLOCATE_MAP(instance_type, kVariableSizeSentinel, field_name)
 
+#define ALLOCATE_PRIMITIVE_MAP(instance_type, size, field_name, \
+                               constructor_function_index)      \
+  {                                                             \
+    ALLOCATE_MAP((instance_type), (size), field_name);          \
+    field_name##_map()->SetConstructorFunctionIndex(            \
+        (constructor_function_index));                          \
+  }
+
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, fixed_cow_array)
     DCHECK(fixed_array_map() != fixed_cow_array_map());
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
-    ALLOCATE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number)
+    ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
+                           Context::NUMBER_FUNCTION_INDEX)
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
                  mutable_heap_number)
-    ALLOCATE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol)
+    ALLOCATE_PRIMITIVE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol,
+                           Context::SYMBOL_FUNCTION_INDEX)
 #define ALLOCATE_SIMD128_MAP(TYPE, Type, type, lane_count, lane_type) \
-  ALLOCATE_MAP(SIMD128_VALUE_TYPE, Type::kSize, type)
+  ALLOCATE_PRIMITIVE_MAP(SIMD128_VALUE_TYPE, Type::kSize, type,       \
+                         Context::TYPE##_FUNCTION_INDEX)
     SIMD128_TYPES(ALLOCATE_SIMD128_MAP)
 #undef ALLOCATE_SIMD128_MAP
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
 
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, boolean);
+    ALLOCATE_PRIMITIVE_MAP(ODDBALL_TYPE, Oddball::kSize, boolean,
+                           Context::BOOLEAN_FUNCTION_INDEX);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, uninitialized);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, arguments_marker);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, no_interceptor_result_sentinel);
@@ -2898,9 +2911,10 @@ bool Heap::CreateInitialMaps() {
         AllocationResult allocation = AllocateMap(entry.type, entry.size);
         if (!allocation.To(&obj)) return false;
       }
+      Map* map = Map::cast(obj);
+      map->SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
       // Mark cons string maps as unstable, because their objects can change
       // maps during GC.
-      Map* map = Map::cast(obj);
       if (StringShape(entry.type).IsCons()) map->mark_unstable();
       roots_[entry.index] = map;
     }
@@ -2909,7 +2923,9 @@ bool Heap::CreateInitialMaps() {
       AllocationResult allocation = AllocateMap(EXTERNAL_ONE_BYTE_STRING_TYPE,
                                                 ExternalOneByteString::kSize);
       if (!allocation.To(&obj)) return false;
-      set_native_source_string_map(Map::cast(obj));
+      Map* map = Map::cast(obj);
+      map->SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
+      set_native_source_string_map(map);
     }
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
@@ -2963,6 +2979,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kSize, message_object)
     ALLOCATE_MAP(JS_OBJECT_TYPE, JSObject::kHeaderSize + kPointerSize, external)
     external_map()->set_is_extensible(false);
+#undef ALLOCATE_PRIMITIVE_MAP
 #undef ALLOCATE_VARSIZE_MAP
 #undef ALLOCATE_MAP
   }

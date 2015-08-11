@@ -533,7 +533,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     int instance_size = JSObject::kHeaderSize + kPointerSize * unused;
     Handle<Map> object_function_map =
         factory->NewMap(JS_OBJECT_TYPE, instance_size);
-    object_function_map->set_inobject_properties(unused);
+    object_function_map->SetInObjectProperties(unused);
     JSFunction::SetInitialMap(object_fun, object_function_map,
                               isolate->factory()->null_value());
     object_function_map->set_unused_property_fields(unused);
@@ -1172,7 +1172,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     DCHECK(regexp_fun->has_initial_map());
     Handle<Map> initial_map(regexp_fun->initial_map());
 
-    DCHECK_EQ(0, initial_map->inobject_properties());
+    DCHECK_EQ(0, initial_map->GetInObjectProperties());
 
     PropertyAttributes final =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -1217,7 +1217,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     }
 
     static const int num_fields = JSRegExp::kInObjectFieldCount;
-    initial_map->set_inobject_properties(num_fields);
+    initial_map->SetInObjectProperties(num_fields);
     initial_map->set_unused_property_fields(0);
     initial_map->set_instance_size(initial_map->instance_size() +
                                    num_fields * kPointerSize);
@@ -1313,7 +1313,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     DCHECK_EQ(JSGeneratorObject::kResultSize,
               iterator_result_map->instance_size());
     DCHECK_EQ(JSGeneratorObject::kResultPropertyCount,
-              iterator_result_map->inobject_properties());
+              iterator_result_map->GetInObjectProperties());
     Map::EnsureDescriptorSlack(iterator_result_map,
                                JSGeneratorObject::kResultPropertyCount);
 
@@ -1368,15 +1368,15 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     // @@iterator method is added later.
 
     map->set_function_with_prototype(true);
-    map->set_inobject_properties(2);
+    map->SetInObjectProperties(2);
     native_context()->set_sloppy_arguments_map(*map);
 
     DCHECK(!function->has_initial_map());
     JSFunction::SetInitialMap(function, map,
                               isolate->initial_object_prototype());
 
-    DCHECK(map->inobject_properties() > Heap::kArgumentsCalleeIndex);
-    DCHECK(map->inobject_properties() > Heap::kArgumentsLengthIndex);
+    DCHECK(map->GetInObjectProperties() > Heap::kArgumentsCalleeIndex);
+    DCHECK(map->GetInObjectProperties() > Heap::kArgumentsLengthIndex);
     DCHECK(!map->is_dictionary_map());
     DCHECK(IsFastObjectElementsKind(map->elements_kind()));
   }
@@ -1385,12 +1385,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Handle<Map> map = isolate->sloppy_arguments_map();
     map = Map::Copy(map, "FastAliasedArguments");
     map->set_elements_kind(FAST_SLOPPY_ARGUMENTS_ELEMENTS);
-    DCHECK_EQ(2, map->inobject_properties());
+    DCHECK_EQ(2, map->GetInObjectProperties());
     native_context()->set_fast_aliased_arguments_map(*map);
 
     map = Map::Copy(map, "SlowAliasedArguments");
     map->set_elements_kind(SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
-    DCHECK_EQ(2, map->inobject_properties());
+    DCHECK_EQ(2, map->GetInObjectProperties());
     native_context()->set_slow_aliased_arguments_map(*map);
   }
 
@@ -1437,7 +1437,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     DCHECK_EQ(native_context()->object_function()->prototype(),
               *isolate->initial_object_prototype());
     Map::SetPrototype(map, isolate->initial_object_prototype());
-    map->set_inobject_properties(1);
+    map->SetInObjectProperties(1);
 
     // Copy constructor from the sloppy arguments boilerplate.
     map->SetConstructor(
@@ -1445,7 +1445,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 
     native_context()->set_strict_arguments_map(*map);
 
-    DCHECK(map->inobject_properties() > Heap::kArgumentsLengthIndex);
+    DCHECK(map->GetInObjectProperties() > Heap::kArgumentsLengthIndex);
     DCHECK(!map->is_dictionary_map());
     DCHECK(IsFastObjectElementsKind(map->elements_kind()));
   }
@@ -2496,7 +2496,7 @@ bool Genesis::InstallNatives(ContextType context_type) {
       initial_map->AppendDescriptor(&input_field);
     }
 
-    initial_map->set_inobject_properties(2);
+    initial_map->SetInObjectProperties(2);
     initial_map->set_unused_property_fields(0);
 
     native_context()->set_regexp_result_map(*initial_map);
