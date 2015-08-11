@@ -100,22 +100,6 @@ void RawMachineAssembler::Return(Node* value) {
 }
 
 
-Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
-                                 Node** args) {
-  int param_count =
-      static_cast<int>(desc->GetMachineSignature()->parameter_count());
-  Node** buffer = zone()->NewArray<Node*>(param_count + 1);
-  int index = 0;
-  buffer[index++] = function;
-  for (int i = 0; i < param_count; i++) {
-    buffer[index++] = args[i];
-  }
-  Node* call = graph()->NewNode(common()->Call(desc), param_count + 1, buffer);
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
-}
-
-
 Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
                                              Node* context, Node* frame_state,
                                              CallFunctionFlags flags) {

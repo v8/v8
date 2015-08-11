@@ -116,11 +116,6 @@ inline int ElementSizeOf(MachineType machine_type) {
   return 1 << shift;
 }
 
-inline bool IsFloatingPoint(MachineType type) {
-  MachineType rep = RepresentationOf(type);
-  return rep == kRepFloat32 || rep == kRepFloat64;
-}
-
 typedef Signature<MachineType> MachineSignature;
 
 }  // namespace compiler

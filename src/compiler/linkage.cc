@@ -70,7 +70,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
 std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
   // TODO(svenpanne) Output properties etc. and be less cryptic.
   return os << d.kind() << ":" << d.debug_name() << ":r" << d.ReturnCount()
-            << "s" << d.StackParameterCount() << "i" << d.InputCount() << "f"
+            << "j" << d.JSParameterCount() << "i" << d.InputCount() << "f"
             << d.FrameStateCount() << "t" << d.SupportsTailCalls();
 }
 
@@ -189,7 +189,8 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
 }
 
 
-FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame) const {
+FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame,
+                                    int extra) const {
   if (frame->GetSpillSlotCount() > 0 || incoming_->IsJSFunctionCall() ||
       incoming_->kind() == CallDescriptor::kCallAddress) {
     int offset;
@@ -197,11 +198,12 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame) const {
     if (spill_slot >= 0) {
       // Local or spill slot. Skip the frame pointer, function, and
       // context in the fixed part of the frame.
-      offset = -(spill_slot + 1) * kPointerSize - register_save_area_size;
+      offset =
+          -(spill_slot + 1) * kPointerSize - register_save_area_size + extra;
     } else {
       // Incoming parameter. Skip the return address.
       offset = -(spill_slot + 1) * kPointerSize + kFPOnStackSize +
-               frame->PCOnStackSize();
+               kPCOnStackSize + extra;
     }
     return FrameOffset::FromFramePointer(offset);
   } else {
@@ -209,7 +211,7 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame) const {
     DCHECK(spill_slot < 0);  // Must be a parameter.
     int register_save_area_size = frame->GetRegisterSaveAreaSize();
     int offset = register_save_area_size - (spill_slot + 1) * kPointerSize +
-                 frame->PCOnStackSize();
+                 kPCOnStackSize + extra;
     return FrameOffset::FromStackPointer(offset);
   }
 }

@@ -147,9 +147,12 @@ class ArmOperandConverter final : public InstructionOperandConverter {
 
   MemOperand ToMemOperand(InstructionOperand* op) const {
     DCHECK(op != NULL);
+    DCHECK(!op->IsRegister());
+    DCHECK(!op->IsDoubleRegister());
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
-    FrameOffset offset =
-        linkage()->GetFrameOffset(AllocatedOperand::cast(op)->index(), frame());
+    // The linkage computes where all spill slots are located.
+    FrameOffset offset = linkage()->GetFrameOffset(
+        AllocatedOperand::cast(op)->index(), frame(), 0);
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
 };
@@ -989,8 +992,6 @@ void CodeGenerator::AssemblePrologue() {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else {
-    frame()->SetPCOnStack(false);
   }
 
   if (info()->is_osr()) {
@@ -1018,7 +1019,6 @@ void CodeGenerator::AssemblePrologue() {
 void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int stack_slots = frame()->GetSpillSlotCount();
-  int pop_count = static_cast<int>(descriptor->StackParameterCount());
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     if (frame()->GetRegisterSaveAreaSize() > 0) {
       // Remove this frame's spill slots first.
@@ -1041,17 +1041,23 @@ void CodeGenerator::AssembleReturn() {
       }
     }
     __ LeaveFrame(StackFrame::MANUAL);
+    __ Ret();
   } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
       __ b(&return_label_);
-      return;
     } else {
       __ bind(&return_label_);
       __ LeaveFrame(StackFrame::MANUAL);
+      int pop_count = static_cast<int>(descriptor->StackParameterCount());
+      if (pop_count != 0) {
+        __ Drop(pop_count);
+      }
+      __ Ret();
     }
+  } else {
+    __ Ret();
   }
-  __ Ret(pop_count);
 }
 
 

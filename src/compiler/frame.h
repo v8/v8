@@ -22,8 +22,7 @@ class Frame : public ZoneObject {
         spill_slot_count_(0),
         osr_stack_slot_count_(0),
         allocated_registers_(NULL),
-        allocated_double_registers_(NULL),
-        pc_on_stack_(true) {}
+        allocated_double_registers_(NULL) {}
 
   inline int GetSpillSlotCount() { return spill_slot_count_; }
 
@@ -72,17 +71,12 @@ class Frame : public ZoneObject {
     spill_slot_count_ = static_cast<int>(slot_count);
   }
 
-  void SetPCOnStack(bool val) { pc_on_stack_ = val; }
-
-  int PCOnStackSize() { return pc_on_stack_ ? kRegisterSize : 0; }
-
  private:
   int register_save_area_size_;
   int spill_slot_count_;
   int osr_stack_slot_count_;
   BitVector* allocated_registers_;
   BitVector* allocated_double_registers_;
-  bool pc_on_stack_;
 
   DISALLOW_COPY_AND_ASSIGN(Frame);
 };

@@ -1242,11 +1242,8 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
     machine_type = data()->MachineTypeFor(virtual_register);
   }
   if (operand->HasFixedSlotPolicy()) {
-    AllocatedOperand::AllocatedKind kind =
-        IsFloatingPoint(machine_type) ? AllocatedOperand::DOUBLE_STACK_SLOT
-                                      : AllocatedOperand::STACK_SLOT;
-    allocated =
-        AllocatedOperand(kind, machine_type, operand->fixed_slot_index());
+    allocated = AllocatedOperand(AllocatedOperand::STACK_SLOT, machine_type,
+                                 operand->fixed_slot_index());
   } else if (operand->HasFixedRegisterPolicy()) {
     allocated = AllocatedOperand(AllocatedOperand::REGISTER, machine_type,
                                  operand->fixed_register_index());
