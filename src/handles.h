@@ -5,7 +5,10 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
-#include "src/objects.h"
+#include "include/v8.h"
+#include "src/base/macros.h"
+#include "src/checks.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -13,6 +16,8 @@ namespace internal {
 // Forward declarations.
 class DeferredHandles;
 class HandleScopeImplementer;
+class Isolate;
+class Object;
 
 
 // ----------------------------------------------------------------------------
@@ -25,9 +30,9 @@ class HandleBase {
   // Check if this handle refers to the exact same object as the other handle.
   V8_INLINE bool is_identical_to(const HandleBase that) const {
     // Dereferencing deferred handles to check object equality is safe.
-    SLOW_DCHECK((this->location_ == NULL ||
+    SLOW_DCHECK((this->location_ == nullptr ||
                  this->IsDereferenceAllowed(NO_DEFERRED_CHECK)) &&
-                (that.location_ == NULL ||
+                (that.location_ == nullptr ||
                  that.IsDereferenceAllowed(NO_DEFERRED_CHECK)));
     if (this->location_ == that.location_) return true;
     if (this->location_ == NULL || that.location_ == NULL) return false;
@@ -45,7 +50,7 @@ class HandleBase {
 
   // Returns the address to where the raw pointer is stored.
   V8_INLINE Object** location() const {
-    SLOW_DCHECK(location_ == NULL ||
+    SLOW_DCHECK(location_ == nullptr ||
                 IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
     return location_;
   }

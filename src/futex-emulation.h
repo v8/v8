@@ -31,6 +31,7 @@ class TimeDelta;
 namespace internal {
 
 class Isolate;
+class JSArrayBuffer;
 
 class FutexWaitListNode {
  public:

@@ -14,6 +14,9 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class ExecutableAccessorInfo;
+
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
 #define ACCESSOR_INFO_LIST(V)     \

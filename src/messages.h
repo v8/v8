@@ -10,33 +10,15 @@
 #ifndef V8_MESSAGES_H_
 #define V8_MESSAGES_H_
 
-// Forward declaration of MessageLocation.
-namespace v8 {
-namespace internal {
-class MessageLocation;
-} }  // namespace v8::internal
-
-
-class V8Message {
- public:
-  V8Message(char* type,
-            v8::internal::Handle<v8::internal::JSArray> args,
-            const v8::internal::MessageLocation* loc) :
-      type_(type), args_(args), loc_(loc) { }
-  char* type() const { return type_; }
-  v8::internal::Handle<v8::internal::JSArray> args() const { return args_; }
-  const v8::internal::MessageLocation* loc() const { return loc_; }
- private:
-  char* type_;
-  v8::internal::Handle<v8::internal::JSArray> const args_;
-  const v8::internal::MessageLocation* loc_;
-};
-
+#include "src/base/smart-pointers.h"
+#include "src/list.h"
 
 namespace v8 {
 namespace internal {
 
-struct Language;
+// Forward declarations.
+class JSMessageObject;
+class LookupIterator;
 class SourceInfo;
 
 class MessageLocation {

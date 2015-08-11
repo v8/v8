@@ -19,6 +19,9 @@ class SimpleDateFormat;
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class ObjectTemplateInfo;
+
 class I18N {
  public:
   // Creates an ObjectTemplate with one internal field.

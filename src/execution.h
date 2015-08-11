@@ -5,10 +5,16 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
+#include "src/allocation.h"
+#include "src/base/atomicops.h"
 #include "src/handles.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class JSRegExp;
 
 class Execution final : public AllStatic {
  public:
