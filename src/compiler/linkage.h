@@ -313,9 +313,8 @@ class Linkage : public ZoneObject {
   // Get the frame offset for a given spill slot. The location depends on the
   // calling convention and the specific frame layout, and may thus be
   // architecture-specific. Negative spill slots indicate arguments on the
-  // caller's frame. The {extra} parameter indicates an additional offset from
-  // the frame offset, e.g. to index into part of a double slot.
-  FrameOffset GetFrameOffset(int spill_slot, Frame* frame, int extra = 0) const;
+  // caller's frame.
+  FrameOffset GetFrameOffset(int spill_slot, Frame* frame) const;
 
   static int FrameStateInputCount(Runtime::FunctionId function);
 

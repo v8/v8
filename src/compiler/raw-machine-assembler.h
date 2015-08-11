@@ -479,25 +479,28 @@ class RawMachineAssembler {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
   }
 
+  // Call a given call descriptor and the given arguments.
+  Node* CallN(CallDescriptor* desc, Node* function, Node** args);
+
   // Call through CallFunctionStub with lazy deopt and frame-state.
   Node* CallFunctionStub0(Node* function, Node* receiver, Node* context,
                           Node* frame_state, CallFunctionFlags flags);
-  // Call to a JS function with zero parameters.
+  // Call to a JS function with zero arguments.
   Node* CallJS0(Node* function, Node* receiver, Node* context,
                 Node* frame_state);
-  // Call to a runtime function with zero parameters.
+  // Call to a runtime function with zero arguments.
   Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context,
                      Node* frame_state);
-  // Call to a C function with zero parameters.
+  // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
   // Call to a C function with one parameter.
   Node* CallCFunction1(MachineType return_type, MachineType arg0_type,
                        Node* function, Node* arg0);
-  // Call to a C function with two parameters.
+  // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
                        Node* arg1);
-  // Call to a C function with eight parameters.
+  // Call to a C function with eight arguments.
   Node* CallCFunction8(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, MachineType arg2_type,
                        MachineType arg3_type, MachineType arg4_type,
