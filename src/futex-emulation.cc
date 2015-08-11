@@ -101,15 +101,15 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     }
   }
 
-  base::Time start_time = base::Time::NowFromSystemTime();
-  base::Time timeout_time = start_time + rel_timeout;
+  base::TimeTicks start_time = base::TimeTicks::Now();
+  base::TimeTicks timeout_time = start_time + rel_timeout;
 
   wait_list_.Pointer()->AddNode(node);
 
   Object* result;
 
   while (true) {
-    base::Time current_time = base::Time::NowFromSystemTime();
+    base::TimeTicks current_time = base::TimeTicks::Now();
     if (use_timeout && current_time > timeout_time) {
       result = Smi::FromInt(Result::kTimedOut);
       break;
