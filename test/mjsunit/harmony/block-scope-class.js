@@ -4,7 +4,7 @@
 
 // Test for conflicting variable bindings.
 
-// Flags: --harmony-sloppy
+// Flags: --harmony-sloppy --harmony-sloppy-function
 
 function AssertEqualsStrictAndSloppy(value, code) {
   assertEquals(value, eval("(function() {" + code + "})()"));
