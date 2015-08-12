@@ -1562,14 +1562,13 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   Node* constructor = environment()->Pop();
   Node* extends = environment()->Pop();
   Node* name = environment()->Pop();
-  Node* script = jsgraph()->Constant(info()->script());
   Node* start = jsgraph()->Constant(expr->start_position());
   Node* end = jsgraph()->Constant(expr->end_position());
   const Operator* opc = javascript()->CallRuntime(
       is_strong(language_mode()) ? Runtime::kDefineClassStrong
                                  : Runtime::kDefineClass,
-      6);
-  Node* literal = NewNode(opc, name, extends, constructor, script, start, end);
+      5);
+  Node* literal = NewNode(opc, name, extends, constructor, start, end);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 
