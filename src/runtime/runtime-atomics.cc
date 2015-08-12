@@ -113,17 +113,33 @@ inline void StoreSeqCst(uint64_t* p, uint64_t value) {
 #define InterlockedCompareExchange8 _InterlockedCompareExchange8
 #define InterlockedExchangeAdd8 _InterlockedExchangeAdd8
 
-#define INTEGER_TYPES(V)                           \
-  V(int8_t, 8, char)                               \
-  V(uint8_t, 8, char)                              \
-  V(int16_t, 16, short)  /* NOLINT(runtime/int) */ \
-  V(uint16_t, 16, short) /* NOLINT(runtime/int) */ \
-  V(int32_t, 32, long)   /* NOLINT(runtime/int) */ \
-  V(uint32_t, 32, long)  /* NOLINT(runtime/int) */ \
-  V(int64_t, 64, LONGLONG)                         \
-  V(uint64_t, 64, LONGLONG)
+#define ATOMIC_OPS_INTEGER(type, suffix, vctype)                        \
+  inline type AddSeqCst(type* p, type value) {                          \
+    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p), \
+                                          bit_cast<vctype>(value));     \
+  }                                                                     \
+  inline type SubSeqCst(type* p, type value) {                          \
+    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p), \
+                                          -bit_cast<vctype>(value));    \
+  }                                                                     \
+  inline type AndSeqCst(type* p, type value) {                          \
+    return InterlockedAnd##suffix(reinterpret_cast<vctype*>(p),         \
+                                  bit_cast<vctype>(value));             \
+  }                                                                     \
+  inline type OrSeqCst(type* p, type value) {                           \
+    return InterlockedOr##suffix(reinterpret_cast<vctype*>(p),          \
+                                 bit_cast<vctype>(value));              \
+  }                                                                     \
+  inline type XorSeqCst(type* p, type value) {                          \
+    return InterlockedXor##suffix(reinterpret_cast<vctype*>(p),         \
+                                  bit_cast<vctype>(value));             \
+  }                                                                     \
+  inline type ExchangeSeqCst(type* p, type value) {                     \
+    return InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),    \
+                                       bit_cast<vctype>(value));        \
+  }
 
-#define ATOMIC_OPS(type, suffix, vctype)                                    \
+#define ATOMIC_OPS_FLOAT(type, suffix, vctype)                              \
   inline type CompareExchangeSeqCst(type* p, type oldval, type newval) {    \
     return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p), \
                                               bit_cast<vctype>(newval),     \
@@ -133,35 +149,24 @@ inline void StoreSeqCst(uint64_t* p, uint64_t value) {
   inline void StoreSeqCst(type* p, type value) {                            \
     InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),               \
                                 bit_cast<vctype>(value));                   \
-  }                                                                         \
-  inline type AddSeqCst(type* p, type value) {                              \
-    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),     \
-                                          bit_cast<vctype>(value));         \
-  }                                                                         \
-  inline type SubSeqCst(type* p, type value) {                              \
-    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),     \
-                                          -bit_cast<vctype>(value));        \
-  }                                                                         \
-  inline type AndSeqCst(type* p, type value) {                              \
-    return InterlockedAnd##suffix(reinterpret_cast<vctype*>(p),             \
-                                  bit_cast<vctype>(value));                 \
-  }                                                                         \
-  inline type OrSeqCst(type* p, type value) {                               \
-    return InterlockedOr##suffix(reinterpret_cast<vctype*>(p),              \
-                                 bit_cast<vctype>(value));                  \
-  }                                                                         \
-  inline type XorSeqCst(type* p, type value) {                              \
-    return InterlockedXor##suffix(reinterpret_cast<vctype*>(p),             \
-                                  bit_cast<vctype>(value));                 \
-  }                                                                         \
-  inline type ExchangeSeqCst(type* p, type value) {                         \
-    return InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),        \
-                                       bit_cast<vctype>(value));            \
   }
-INTEGER_TYPES(ATOMIC_OPS)
+
+#define ATOMIC_OPS(type, suffix, vctype)   \
+  ATOMIC_OPS_INTEGER(type, suffix, vctype) \
+  ATOMIC_OPS_FLOAT(type, suffix, vctype)
+
+ATOMIC_OPS(int8_t, 8, char)
+ATOMIC_OPS(uint8_t, 8, char)
+ATOMIC_OPS(int16_t, 16, short)  /* NOLINT(runtime/int) */
+ATOMIC_OPS(uint16_t, 16, short) /* NOLINT(runtime/int) */
+ATOMIC_OPS(int32_t, 32, long)   /* NOLINT(runtime/int) */
+ATOMIC_OPS(uint32_t, 32, long)  /* NOLINT(runtime/int) */
+ATOMIC_OPS_FLOAT(uint64_t, 64, LONGLONG)
+
+#undef ATOMIC_OPS_INTEGER
+#undef ATOMIC_OPS_FLOAT
 #undef ATOMIC_OPS
 
-#undef INTEGER_TYPES
 #undef InterlockedCompareExchange32
 #undef InterlockedExchange32
 #undef InterlockedExchangeAdd32
