@@ -5939,10 +5939,8 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     Register scratch = ToRegister(instr->temp2());
 
     __ JumpIfSmi(value, false_label);
-    __ JumpIfObjectType(
-        value, map, scratch, FIRST_NONSTRING_TYPE, false_label, ge);
-    __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-    EmitTestAndBranch(instr, eq, scratch, 1 << Map::kIsUndetectable);
+    __ CompareObjectType(value, map, scratch, FIRST_NONSTRING_TYPE);
+    EmitBranch(instr, lt);
 
   } else if (String::Equals(type_name, factory->symbol_string())) {
     DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));

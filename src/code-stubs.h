@@ -2873,7 +2873,9 @@ class ToBooleanStub: public HydrogenCodeStub {
 
     bool UpdateStatus(Handle<Object> object);
     bool NeedsMap() const;
-    bool CanBeUndetectable() const;
+    bool CanBeUndetectable() const {
+      return Contains(ToBooleanStub::SPEC_OBJECT);
+    }
     bool IsGeneric() const { return ToIntegral() == Generic().ToIntegral(); }
 
     static Types Generic() { return Types((1 << NUMBER_OF_TYPES) - 1); }

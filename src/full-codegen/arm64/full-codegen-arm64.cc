@@ -4727,11 +4727,8 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   } else if (String::Equals(check, factory->string_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof string_string");
     __ JumpIfSmi(x0, if_false);
-    // Check for undetectable objects => false.
-    __ JumpIfObjectType(x0, x0, x1, FIRST_NONSTRING_TYPE, if_false, ge);
-    __ Ldrb(x1, FieldMemOperand(x0, Map::kBitFieldOffset));
-    __ TestAndSplit(x1, 1 << Map::kIsUndetectable, if_true, if_false,
-                    fall_through);
+    __ CompareObjectType(x0, x0, x1, FIRST_NONSTRING_TYPE);
+    Split(lt, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->symbol_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof symbol_string");
     __ JumpIfSmi(x0, if_false);

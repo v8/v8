@@ -5858,15 +5858,9 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   } else if (String::Equals(type_name, factory->string_string())) {
     __ JumpIfSmi(input, false_label);
     __ GetObjectType(input, input, scratch);
-    __ Branch(USE_DELAY_SLOT, false_label,
-              ge, scratch, Operand(FIRST_NONSTRING_TYPE));
-    // input is an object so we can load the BitFieldOffset even if we take the
-    // other branch.
-    __ lbu(at, FieldMemOperand(input, Map::kBitFieldOffset));
-    __ And(at, at, 1 << Map::kIsUndetectable);
-    *cmp1 = at;
-    *cmp2 = Operand(zero_reg);
-    final_branch_condition = eq;
+    *cmp1 = scratch;
+    *cmp2 = Operand(FIRST_NONSTRING_TYPE);
+    final_branch_condition = lt;
 
   } else if (String::Equals(type_name, factory->symbol_string())) {
     __ JumpIfSmi(input, false_label);

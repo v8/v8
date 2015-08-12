@@ -1013,12 +1013,6 @@ bool ToBooleanStub::Types::NeedsMap() const {
 }
 
 
-bool ToBooleanStub::Types::CanBeUndetectable() const {
-  return Contains(ToBooleanStub::SPEC_OBJECT)
-      || Contains(ToBooleanStub::STRING);
-}
-
-
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub stub1(isolate, NOT_JS_FUNCTION_STUB_MODE);
   StubFailureTrampolineStub stub2(isolate, JS_FUNCTION_STUB_MODE);
