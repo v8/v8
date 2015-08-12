@@ -189,7 +189,6 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_modules, "harmony modules")                               \
   V(harmony_regexps, "harmony regular expression extensions")         \
   V(harmony_proxies, "harmony proxies")                               \
-  V(harmony_sloppy, "harmony features in sloppy mode")                \
   V(harmony_sloppy_function, "harmony sloppy function block scoping") \
   V(harmony_sloppy_let, "harmony let in sloppy mode")                 \
   V(harmony_unicode_regexps, "harmony unicode regexps")               \
@@ -204,7 +203,8 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_array_includes, "harmony Array.prototype.includes") \
   V(harmony_tostring, "harmony toString")                       \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \
-  V(harmony_rest_parameters, "harmony rest parameters")
+  V(harmony_rest_parameters, "harmony rest parameters")         \
+  V(harmony_sloppy, "harmony features in sloppy mode")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                    \
