@@ -764,20 +764,6 @@ enum LoadStorePairOffsetOp {
   #undef LOAD_STORE_PAIR_OFFSET
 };
 
-enum LoadStorePairNonTemporalOp {
-  LoadStorePairNonTemporalFixed = 0x28000000,
-  LoadStorePairNonTemporalFMask = 0x3B800000,
-  LoadStorePairNonTemporalMask  = 0xFFC00000,
-  STNP_w = LoadStorePairNonTemporalFixed | STP_w,
-  LDNP_w = LoadStorePairNonTemporalFixed | LDP_w,
-  STNP_x = LoadStorePairNonTemporalFixed | STP_x,
-  LDNP_x = LoadStorePairNonTemporalFixed | LDP_x,
-  STNP_s = LoadStorePairNonTemporalFixed | STP_s,
-  LDNP_s = LoadStorePairNonTemporalFixed | LDP_s,
-  STNP_d = LoadStorePairNonTemporalFixed | STP_d,
-  LDNP_d = LoadStorePairNonTemporalFixed | LDP_d
-};
-
 // Load literal.
 enum LoadLiteralOp {
   LoadLiteralFixed = 0x18000000,

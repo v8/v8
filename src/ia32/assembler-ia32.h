@@ -1077,10 +1077,6 @@ class Assembler : public AssemblerBase {
   }
   void pinsrd(XMMRegister dst, const Operand& src, int8_t offset);
 
-  // Parallel XMM operations.
-  void movntdqa(XMMRegister dst, const Operand& src);
-  void movntdq(const Operand& dst, XMMRegister src);
-
   // AVX instructions
   void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vfmadd132sd(dst, src1, Operand(src2));

@@ -962,32 +962,6 @@ LoadStorePairOp Assembler::StorePairOpFor(const CPURegister& rt,
 }
 
 
-LoadStorePairNonTemporalOp Assembler::LoadPairNonTemporalOpFor(
-    const CPURegister& rt, const CPURegister& rt2) {
-  DCHECK(AreSameSizeAndType(rt, rt2));
-  USE(rt2);
-  if (rt.IsRegister()) {
-    return rt.Is64Bits() ? LDNP_x : LDNP_w;
-  } else {
-    DCHECK(rt.IsFPRegister());
-    return rt.Is64Bits() ? LDNP_d : LDNP_s;
-  }
-}
-
-
-LoadStorePairNonTemporalOp Assembler::StorePairNonTemporalOpFor(
-    const CPURegister& rt, const CPURegister& rt2) {
-  DCHECK(AreSameSizeAndType(rt, rt2));
-  USE(rt2);
-  if (rt.IsRegister()) {
-    return rt.Is64Bits() ? STNP_x : STNP_w;
-  } else {
-    DCHECK(rt.IsFPRegister());
-    return rt.Is64Bits() ? STNP_d : STNP_s;
-  }
-}
-
-
 LoadLiteralOp Assembler::LoadLiteralOpFor(const CPURegister& rt) {
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDR_x_lit : LDR_w_lit;

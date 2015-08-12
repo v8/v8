@@ -1676,11 +1676,6 @@ void Simulator::VisitLoadStorePairPostIndex(Instruction* instr) {
 }
 
 
-void Simulator::VisitLoadStorePairNonTemporal(Instruction* instr) {
-  LoadStorePairHelper(instr, Offset);
-}
-
-
 void Simulator::LoadStorePairHelper(Instruction* instr,
                                     AddrMode addrmode) {
   unsigned rt = instr->Rt();

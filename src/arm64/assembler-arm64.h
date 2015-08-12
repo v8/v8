@@ -1492,14 +1492,6 @@ class Assembler : public AssemblerBase {
   // Load word pair with sign extension.
   void ldpsw(const Register& rt, const Register& rt2, const MemOperand& src);
 
-  // Load integer or FP register pair, non-temporal.
-  void ldnp(const CPURegister& rt, const CPURegister& rt2,
-            const MemOperand& src);
-
-  // Store integer or FP register pair, non-temporal.
-  void stnp(const CPURegister& rt, const CPURegister& rt2,
-            const MemOperand& dst);
-
   // Load literal to register from a pc relative address.
   void ldr_pcrel(const CPURegister& rt, int imm19);
 
@@ -2007,10 +1999,6 @@ class Assembler : public AssemblerBase {
   static inline LoadStoreOp StoreOpFor(const CPURegister& rt);
   static inline LoadStorePairOp StorePairOpFor(const CPURegister& rt,
                                                const CPURegister& rt2);
-  static inline LoadStorePairNonTemporalOp LoadPairNonTemporalOpFor(
-    const CPURegister& rt, const CPURegister& rt2);
-  static inline LoadStorePairNonTemporalOp StorePairNonTemporalOpFor(
-    const CPURegister& rt, const CPURegister& rt2);
   static inline LoadLiteralOp LoadLiteralOpFor(const CPURegister& rt);
 
   // Remove the specified branch from the unbound label link chain.
@@ -2036,10 +2024,6 @@ class Assembler : public AssemblerBase {
                                 const Operand& operand,
                                 FlagsUpdate S,
                                 Instr op);
-  void LoadStorePairNonTemporal(const CPURegister& rt,
-                                const CPURegister& rt2,
-                                const MemOperand& addr,
-                                LoadStorePairNonTemporalOp op);
   void ConditionalSelect(const Register& rd,
                          const Register& rn,
                          const Register& rm,

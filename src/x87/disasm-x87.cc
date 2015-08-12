@@ -1284,11 +1284,7 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
               data++;
             } else if (*data == 0x2A) {
               // movntdqa
-              data++;
-              int mod, regop, rm;
-              get_modrm(*data, &mod, &regop, &rm);
-              AppendToBuffer("movntdqa %s,", NameOfXMMRegister(regop));
-              data += PrintRightOperand(data);
+              UnimplementedInstruction();
             } else {
               UnimplementedInstruction();
             }
@@ -1470,9 +1466,8 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             if (mod == 3) {
-              AppendToBuffer("movntdq ");
-              data += PrintRightOperand(data);
-              AppendToBuffer(",%s", NameOfXMMRegister(regop));
+              // movntdq
+              UnimplementedInstruction();
             } else {
               UnimplementedInstruction();
             }

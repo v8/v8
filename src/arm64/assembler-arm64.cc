@@ -1628,37 +1628,6 @@ void Assembler::LoadStorePair(const CPURegister& rt,
 }
 
 
-void Assembler::ldnp(const CPURegister& rt,
-                     const CPURegister& rt2,
-                     const MemOperand& src) {
-  LoadStorePairNonTemporal(rt, rt2, src,
-                           LoadPairNonTemporalOpFor(rt, rt2));
-}
-
-
-void Assembler::stnp(const CPURegister& rt,
-                     const CPURegister& rt2,
-                     const MemOperand& dst) {
-  LoadStorePairNonTemporal(rt, rt2, dst,
-                           StorePairNonTemporalOpFor(rt, rt2));
-}
-
-
-void Assembler::LoadStorePairNonTemporal(const CPURegister& rt,
-                                         const CPURegister& rt2,
-                                         const MemOperand& addr,
-                                         LoadStorePairNonTemporalOp op) {
-  DCHECK(!rt.Is(rt2));
-  DCHECK(AreSameSizeAndType(rt, rt2));
-  DCHECK(addr.IsImmediateOffset());
-  LSDataSize size = CalcLSPairDataSize(
-    static_cast<LoadStorePairOp>(op & LoadStorePairMask));
-  DCHECK(IsImmLSPair(addr.offset(), size));
-  int offset = static_cast<int>(addr.offset());
-  Emit(op | Rt(rt) | Rt2(rt2) | RnSP(addr.base()) | ImmLSPair(offset, size));
-}
-
-
 // Memory instructions.
 void Assembler::ldrb(const Register& rt, const MemOperand& src) {
   LoadStore(rt, src, LDRB_w);

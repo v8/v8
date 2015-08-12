@@ -2325,26 +2325,6 @@ void Assembler::movdqu(XMMRegister dst, const Operand& src) {
 }
 
 
-void Assembler::movntdqa(XMMRegister dst, const Operand& src) {
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x38);
-  EMIT(0x2A);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::movntdq(const Operand& dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0xE7);
-  emit_sse_operand(src, dst);
-}
-
-
 void Assembler::prefetch(const Operand& src, int level) {
   DCHECK(is_uint2(level));
   EnsureSpace ensure_space(this);

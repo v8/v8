@@ -917,25 +917,6 @@ void Disassembler::VisitLoadStorePairOffset(Instruction* instr) {
 }
 
 
-void Disassembler::VisitLoadStorePairNonTemporal(Instruction* instr) {
-  const char *mnemonic = "unimplemented";
-  const char *form;
-
-  switch (instr->Mask(LoadStorePairNonTemporalMask)) {
-    case STNP_w: mnemonic = "stnp"; form = "'Wt, 'Wt2, ['Xns'ILP4]"; break;
-    case LDNP_w: mnemonic = "ldnp"; form = "'Wt, 'Wt2, ['Xns'ILP4]"; break;
-    case STNP_x: mnemonic = "stnp"; form = "'Xt, 'Xt2, ['Xns'ILP8]"; break;
-    case LDNP_x: mnemonic = "ldnp"; form = "'Xt, 'Xt2, ['Xns'ILP8]"; break;
-    case STNP_s: mnemonic = "stnp"; form = "'St, 'St2, ['Xns'ILP4]"; break;
-    case LDNP_s: mnemonic = "ldnp"; form = "'St, 'St2, ['Xns'ILP4]"; break;
-    case STNP_d: mnemonic = "stnp"; form = "'Dt, 'Dt2, ['Xns'ILP8]"; break;
-    case LDNP_d: mnemonic = "ldnp"; form = "'Dt, 'Dt2, ['Xns'ILP8]"; break;
-    default: form = "(LoadStorePairNonTemporal)";
-  }
-  Format(instr, mnemonic, form);
-}
-
-
 void Disassembler::VisitFPCompare(Instruction* instr) {
   const char *mnemonic = "unimplemented";
   const char *form = "'Fn, 'Fm";
