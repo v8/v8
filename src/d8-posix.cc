@@ -15,10 +15,6 @@
 
 #include "src/d8.h"
 
-#ifndef V8_SHARED
-#include "src/list-inl.h"
-#endif
-
 #if !V8_OS_NACL
 #include <sys/select.h>
 #endif

@@ -245,15 +245,6 @@ void List<T, P>::StableSort() {
 }
 
 
-template <typename T, class P>
-void List<T, P>::Initialize(int capacity, P allocator) {
-  DCHECK(capacity >= 0);
-  data_ = (capacity > 0) ? NewData(capacity, allocator) : NULL;
-  capacity_ = capacity;
-  length_ = 0;
-}
-
-
 template <typename T, typename P>
 int SortedListBSearch(const List<T>& list, P cmp) {
   int low = 0;
