@@ -81,7 +81,11 @@ var letbinds = [ "let x;",
                  "const x = function() {};",
                  "const x = 2, y = 3;",
                  "const y = 4, x = 5;",
+                 "class x { }",
                  ];
+function forCompatible(bind) {
+  return !bind.startsWith('class');
+}
 var varbinds = [ "var x;",
                  "var x = 0;",
                  "var x = undefined;",
@@ -103,7 +107,9 @@ for (var l = 0; l < letbinds.length; ++l) {
     TestNoConflict(varbinds[v] + '{' + letbinds[l] + '}');
     TestNoConflict('{' + letbinds[l] + '}' + varbinds[v]);
     // For loop.
-    TestConflict('for (' + letbinds[l] + '0;) {' + varbinds[v] + '}');
+    if (forCompatible(letbinds[l])) {
+      TestConflict('for (' + letbinds[l] + '0;) {' + varbinds[v] + '}');
+    }
     TestNoConflict('for (' + varbinds[v] + '0;) {' + letbinds[l] + '}');
   }
 
@@ -116,8 +122,12 @@ for (var l = 0; l < letbinds.length; ++l) {
     TestNoConflict(letbinds[l] + '{ ' + letbinds[k] + '}');
     TestNoConflict('{' + letbinds[k] +'} ' + letbinds[l]);
     // For loop.
-    TestNoConflict('for (' + letbinds[l] + '0;) {' + letbinds[k] + '}');
-    TestNoConflict('for (' + letbinds[k] + '0;) {' + letbinds[l] + '}');
+    if (forCompatible(letbinds[l])) {
+      TestNoConflict('for (' + letbinds[l] + '0;) {' + letbinds[k] + '}');
+    }
+    if (forCompatible(letbinds[k])) {
+      TestNoConflict('for (' + letbinds[k] + '0;) {' + letbinds[l] + '}');
+    }
   }
 
   // Test conflicting function/let bindings.
@@ -130,7 +140,9 @@ for (var l = 0; l < letbinds.length; ++l) {
   TestNoConflict(funbind + '{' + letbinds[l] + '}');
   TestNoConflict('{' + letbinds[l] + '}' + funbind);
   // For loop.
-  TestNoConflict('for (' + letbinds[l] + '0;) {' + funbind + '}');
+  if (forCompatible(letbinds[l])) {
+    TestNoConflict('for (' + letbinds[l] + '0;) {' + funbind + '}');
+  }
 
   // Test conflicting parameter/let bindings.
   TestConflict('(function(x) {' + letbinds[l] + '})();');
