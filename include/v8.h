@@ -1385,15 +1385,13 @@ class V8_EXPORT ScriptCompiler {
   /**
    * Compile an ES6 module.
    *
-   * This is an experimental feature.
+   * This is an unfinished experimental feature, and is only exposed
+   * here for internal testing purposes.
+   * Only parsing works at the moment. Do not use.
    *
    * TODO(adamk): Script is likely the wrong return value for this;
    * should return some new Module type.
    */
-  static V8_DEPRECATE_SOON(
-      "Use maybe version",
-      Local<Script> CompileModule(Isolate* isolate, Source* source,
-                                  CompileOptions options = kNoCompileOptions));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Script> CompileModule(
       Local<Context> context, Source* source,
       CompileOptions options = kNoCompileOptions);

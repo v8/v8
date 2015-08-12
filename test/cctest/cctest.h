@@ -406,14 +406,6 @@ static inline v8::MaybeLocal<v8::Value> CompileRun(
 }
 
 
-// Compiles source as an ES6 module.
-static inline v8::Local<v8::Value> CompileRunModule(const char* source) {
-  v8::ScriptCompiler::Source script_source(v8_str(source));
-  return v8::ScriptCompiler::CompileModule(v8::Isolate::GetCurrent(),
-                                           &script_source)->Run();
-}
-
-
 static inline v8::Local<v8::Value> CompileRun(v8::Local<v8::String> source) {
   return v8::Script::Compile(source)->Run();
 }
