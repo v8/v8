@@ -239,6 +239,7 @@ class Genesis BASE_EMBEDDED {
                          Handle<JSFunction>* fun);
   bool InstallExperimentalNatives();
   bool InstallExtraNatives();
+  bool InstallDebuggerNatives();
   void InstallBuiltinFunctionIds();
   void InstallExperimentalBuiltinFunctionIds();
   void InitializeNormalizedMapCaches();
@@ -354,7 +355,7 @@ Handle<Context> Bootstrapper::CreateEnvironment(
                   extensions, context_type);
   Handle<Context> env = genesis.result();
   if (env.is_null() ||
-      (context_type == FULL_CONTEXT && !InstallExtensions(env, extensions))) {
+      (context_type != THIN_CONTEXT && !InstallExtensions(env, extensions))) {
     return Handle<Context>();
   }
   return scope.CloseAndEscape(env);
@@ -2622,6 +2623,14 @@ bool Genesis::InstallExtraNatives() {
 }
 
 
+bool Genesis::InstallDebuggerNatives() {
+  for (int i = 0; i < Natives::GetDebuggerCount(); ++i) {
+    if (!Bootstrapper::CompileBuiltin(isolate(), i)) return false;
+  }
+  return CallUtilsFunction(isolate(), "PostDebug");
+}
+
+
 bool Bootstrapper::InstallCodeStubNatives(Isolate* isolate) {
   for (int i = CodeStubNatives::GetDebuggerCount();
        i < CodeStubNatives::GetBuiltinsCount(); i++) {
@@ -2722,9 +2731,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
       factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("stackTraceLimit"));
   Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
   JSObject::AddProperty(Error, name, stack_trace_limit, NONE);
-
-  // By now the utils object is useless and can be removed.
-  native_context->set_natives_utils_object(*factory->undefined_value());
 
   // Expose the natives in global if a name for it is specified.
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
@@ -3215,7 +3221,7 @@ Genesis::Genesis(Isolate* isolate,
 
     MakeFunctionInstancePrototypeWritable();
 
-    if (context_type == FULL_CONTEXT) {
+    if (context_type != THIN_CONTEXT) {
       if (!ConfigureGlobalObjects(global_proxy_template)) return;
     }
     isolate->counters()->contexts_created_from_scratch()->Increment();
@@ -3229,11 +3235,18 @@ Genesis::Genesis(Isolate* isolate,
       InitializeExperimentalGlobal();
       if (!InstallExperimentalNatives()) return;
       if (!InstallExtraNatives()) return;
+      // By now the utils object is useless and can be removed.
+      native_context()->set_natives_utils_object(
+          isolate->heap()->undefined_value());
     }
 
     // The serializer cannot serialize typed arrays. Reset those typed arrays
     // for each new context.
     InitializeBuiltinTypedArrays();
+  } else if (context_type == DEBUG_CONTEXT) {
+    DCHECK(!isolate->serializer_enabled());
+    InitializeExperimentalGlobal();
+    if (!InstallDebuggerNatives()) return;
   }
 
   result_ = native_context();

@@ -429,62 +429,6 @@ DebugInfoListNode::~DebugInfoListNode() {
 }
 
 
-bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
-  Factory* factory = isolate->factory();
-  HandleScope scope(isolate);
-
-  // Bail out if the index is invalid.
-  if (index == -1) return false;
-
-  // Find source and name for the requested script.
-  Handle<String> source_code =
-      isolate->bootstrapper()->SourceLookup<Natives>(index);
-  Vector<const char> name = Natives::GetScriptName(index);
-  Handle<String> script_name =
-      factory->NewStringFromAscii(name).ToHandleChecked();
-  Handle<Context> context = isolate->native_context();
-
-  // Compile the script.
-  Handle<SharedFunctionInfo> function_info;
-  function_info = Compiler::CompileScript(
-      source_code, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
-      context, NULL, NULL, ScriptCompiler::kNoCompileOptions, NATIVES_CODE,
-      false);
-  if (function_info.is_null()) return false;
-
-  // Execute the shared function in the debugger context.
-  Handle<JSFunction> function =
-      factory->NewFunctionFromSharedFunctionInfo(function_info, context);
-
-  MaybeHandle<Object> maybe_exception;
-  MaybeHandle<Object> result = Execution::TryCall(
-      function, handle(context->global_proxy()), 0, NULL, &maybe_exception);
-
-  // Check for caught exceptions.
-  if (result.is_null()) {
-    DCHECK(!isolate->has_pending_exception());
-    MessageLocation computed_location;
-    isolate->ComputeLocation(&computed_location);
-    Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
-        isolate, MessageTemplate::kDebuggerLoading, &computed_location,
-        isolate->factory()->undefined_value(), Handle<JSArray>());
-    DCHECK(!isolate->has_pending_exception());
-    Handle<Object> exception;
-    if (maybe_exception.ToHandle(&exception)) {
-      isolate->set_pending_exception(*exception);
-      MessageHandler::ReportMessage(isolate, NULL, message);
-    }
-    DCHECK(!maybe_exception.is_null());
-    return false;
-  }
-
-  // Mark this script as native and return successfully.
-  Handle<Script> script(Script::cast(function->shared()->script()));
-  script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
-  return true;
-}
-
-
 bool Debug::Load() {
   // Return if debugger is already loaded.
   if (is_loaded()) return true;
@@ -503,37 +447,11 @@ bool Debug::Load() {
   HandleScope scope(isolate_);
   ExtensionConfiguration no_extensions;
   Handle<Context> context = isolate_->bootstrapper()->CreateEnvironment(
-      MaybeHandle<JSGlobalProxy>(), v8::Local<ObjectTemplate>(),
-      &no_extensions);
+      MaybeHandle<JSGlobalProxy>(), v8::Local<ObjectTemplate>(), &no_extensions,
+      DEBUG_CONTEXT);
 
   // Fail if no context could be created.
   if (context.is_null()) return false;
-
-  // Use the debugger context.
-  SaveContext save(isolate_);
-  isolate_->set_context(*context);
-
-  // Expose the builtins object in the debugger context.
-  Handle<String> key = isolate_->factory()->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("builtins"));
-  Handle<GlobalObject> global =
-      Handle<GlobalObject>(context->global_object(), isolate_);
-  Handle<JSBuiltinsObject> builtin =
-      Handle<JSBuiltinsObject>(global->builtins(), isolate_);
-  RETURN_ON_EXCEPTION_VALUE(
-      isolate_, Object::SetProperty(global, key, builtin, SLOPPY), false);
-
-  // Compile the JavaScript for the debugger in the debugger context.
-  bool caught_exception =
-      !CompileDebuggerScript(isolate_, Natives::GetIndex("mirrors")) ||
-      !CompileDebuggerScript(isolate_, Natives::GetIndex("debug"));
-
-  if (FLAG_enable_liveedit) {
-    caught_exception = caught_exception ||
-        !CompileDebuggerScript(isolate_, Natives::GetIndex("liveedit"));
-  }
-  // Check for caught exceptions.
-  if (caught_exception) return false;
 
   debug_context_ = Handle<Context>::cast(
       isolate_->global_handles()->Create(*context));
@@ -727,9 +645,9 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
       factory->InternalizeOneByteString(
           STATIC_CHAR_VECTOR("IsBreakPointTriggered"));
   Handle<GlobalObject> debug_global(debug_context()->global_object());
-  Handle<JSFunction> check_break_point =
-    Handle<JSFunction>::cast(Object::GetProperty(
-        debug_global, is_break_point_triggered_string).ToHandleChecked());
+  Handle<JSFunction> check_break_point = Handle<JSFunction>::cast(
+      Object::GetProperty(debug_utils(), is_break_point_triggered_string)
+          .ToHandleChecked());
 
   // Get the break id as an object.
   Handle<Object> break_id = factory->NewNumberFromInt(Debug::break_id());
@@ -1752,14 +1670,12 @@ void Debug::ClearMirrorCache() {
   PostponeInterruptsScope postpone(isolate_);
   HandleScope scope(isolate_);
   AssertDebugContext();
-  Factory* factory = isolate_->factory();
-  Handle<GlobalObject> global(isolate_->global_object());
-  JSObject::SetProperty(global,
-                        factory->NewStringFromAsciiChecked("next_handle_"),
-                        handle(Smi::FromInt(0), isolate_), SLOPPY).Check();
-  JSObject::SetProperty(global,
-                        factory->NewStringFromAsciiChecked("mirror_cache_"),
-                        factory->NewJSArray(0, FAST_ELEMENTS), SLOPPY).Check();
+
+  Handle<Object> fun =
+      Object::GetProperty(isolate_, debug_utils(), "ClearMirrorCache")
+          .ToHandleChecked();
+  Handle<Object> undefined = isolate_->factory()->undefined_value();
+  Execution::TryCall(Handle<JSFunction>::cast(fun), undefined, 0, NULL);
 }
 
 
@@ -1836,9 +1752,9 @@ MaybeHandle<Object> Debug::MakeJSObject(const char* constructor_name,
                                         Handle<Object> argv[]) {
   AssertDebugContext();
   // Create the execution state object.
-  Handle<GlobalObject> global(isolate_->global_object());
-  Handle<Object> constructor = Object::GetProperty(
-      isolate_, global, constructor_name).ToHandleChecked();
+  Handle<Object> constructor =
+      Object::GetProperty(isolate_, debug_utils(), constructor_name)
+          .ToHandleChecked();
   DCHECK(constructor->IsJSFunction());
   if (!constructor->IsJSFunction()) return MaybeHandle<Object>();
   // We do not handle interrupts here.  In particular, termination interrupts.
@@ -2066,13 +1982,9 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   // script. Make sure that these break points are set.
 
   // Get the function UpdateScriptBreakPoints (defined in debug.js).
-  Handle<String> update_script_break_points_string =
-      isolate_->factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("UpdateScriptBreakPoints"));
-  Handle<GlobalObject> debug_global(debug_context()->global_object());
   Handle<Object> update_script_break_points =
-      Object::GetProperty(
-          debug_global, update_script_break_points_string).ToHandleChecked();
+      Object::GetProperty(isolate_, debug_utils(), "UpdateScriptBreakPoints")
+          .ToHandleChecked();
   if (!update_script_break_points->IsJSFunction()) {
     return;
   }

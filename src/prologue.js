@@ -209,6 +209,22 @@ function PostExperimentals(utils) {
   experimental_exports = UNDEFINED;
 
   utils.PostExperimentals = UNDEFINED;
+  utils.PostDebug = UNDEFINED;
+  utils.Import = UNDEFINED;
+  utils.Export = UNDEFINED;
+};
+
+
+function PostDebug(utils) {
+  for ( ; !IS_UNDEFINED(exports); exports = exports.next) {
+    exports(experimental_exports);
+  }
+  for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
+    imports(experimental_exports);
+  }
+
+  utils.PostDebug = UNDEFINED;
+  utils.PostExperimentals = UNDEFINED;
   utils.Import = UNDEFINED;
   utils.Export = UNDEFINED;
 };
@@ -227,6 +243,7 @@ InstallFunctions(utils, NONE, [
   "SetUpLockedPrototype", SetUpLockedPrototype,
   "PostNatives", PostNatives,
   "PostExperimentals", PostExperimentals,
+  "PostDebug", PostDebug,
 ]);
 
 })

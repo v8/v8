@@ -20,9 +20,23 @@
 //
 // LiveEdit namespace is declared inside a single function constructor.
 
-"use strict";
+(function(global, utils) {
+  "use strict";
 
-Debug.LiveEdit = new function() {
+  // -------------------------------------------------------------------
+  // Imports
+
+  var FindScriptSourcePosition = global.Debug.findScriptSourcePosition;
+  var GetScriptBreakPoints;
+  var GlobalArray = global.Array;
+  var MathFloor = global.Math.floor;
+  var SyntaxError = global.SyntaxError;
+
+  utils.Import(function(from) {
+    GetScriptBreakPoints = from.GetScriptBreakPoints;
+  });
+
+  // -------------------------------------------------------------------
 
   // Forward declaration for minifier.
   var FunctionStatus;
@@ -72,10 +86,10 @@ Debug.LiveEdit = new function() {
     FindCorrespondingFunctions(root_old_node, root_new_node);
 
     // Prepare to-do lists.
-    var replace_code_list = new Array();
-    var link_to_old_script_list = new Array();
-    var link_to_original_script_list = new Array();
-    var update_positions_list = new Array();
+    var replace_code_list = new GlobalArray();
+    var link_to_old_script_list = new GlobalArray();
+    var link_to_original_script_list = new GlobalArray();
+    var update_positions_list = new GlobalArray();
 
     function HarvestTodo(old_node) {
       function CollectDamaged(node) {
@@ -128,7 +142,7 @@ Debug.LiveEdit = new function() {
     HarvestTodo(root_old_node);
 
     // Collect shared infos for functions whose code need to be patched.
-    var replaced_function_infos = new Array();
+    var replaced_function_infos = new GlobalArray();
     for (var i = 0; i < replace_code_list.length; i++) {
       var live_shared_function_infos =
           replace_code_list[i].live_shared_function_infos;
@@ -170,7 +184,7 @@ Debug.LiveEdit = new function() {
       old_script = %LiveEditReplaceScript(script, new_source,
           old_script_name);
 
-      var link_to_old_script_report = new Array();
+      var link_to_old_script_report = new GlobalArray();
       change_log.push( { linked_to_old_script: link_to_old_script_report } );
 
       // We need to link to old script all former nested functions.
@@ -192,7 +206,7 @@ Debug.LiveEdit = new function() {
       PatchFunctionCode(replace_code_list[i], change_log);
     }
 
-    var position_patch_report = new Array();
+    var position_patch_report = new GlobalArray();
     change_log.push( {position_patched: position_patch_report} );
 
     for (var i = 0; i < update_positions_list.length; i++) {
@@ -214,9 +228,6 @@ Debug.LiveEdit = new function() {
     preview_description.updated = true;
     return preview_description;
   }
-  // Function is public.
-  this.ApplyPatchMultiChunk = ApplyPatchMultiChunk;
-
 
   // Fully compiles source string as a script. Returns Array of
   // FunctionCompileInfo -- a descriptions of all functions of the script.
@@ -233,8 +244,8 @@ Debug.LiveEdit = new function() {
     var raw_compile_info = %LiveEditGatherCompileInfo(script, source);
 
     // Sort function infos by start position field.
-    var compile_info = new Array();
-    var old_index_map = new Array();
+    var compile_info = new GlobalArray();
+    var old_index_map = new GlobalArray();
     for (var i = 0; i < raw_compile_info.length; i++) {
       var info = new FunctionCompileInfo(raw_compile_info[i]);
       // Remove all links to the actual script. Breakpoints system and
@@ -367,7 +378,7 @@ Debug.LiveEdit = new function() {
       break_point.clear();
 
       // TODO(LiveEdit): be careful with resource offset here.
-      var break_point_position = Debug.findScriptSourcePosition(original_script,
+      var break_point_position = FindScriptSourcePosition(original_script,
           break_point.line(), break_point.column());
 
       var old_position_description = {
@@ -443,7 +454,7 @@ Debug.LiveEdit = new function() {
   }
 
   function PosTranslator(diff_array) {
-    var chunks = new Array();
+    var chunks = new GlobalArray();
     var current_diff = 0;
     for (var i = 0; i < diff_array.length; i += 3) {
       var pos1_begin = diff_array[i];
@@ -469,7 +480,7 @@ Debug.LiveEdit = new function() {
     var chunk_index2 = array.length - 1;
 
     while (chunk_index1 < chunk_index2) {
-      var middle_index = Math.floor((chunk_index1 + chunk_index2) / 2);
+      var middle_index = MathFloor((chunk_index1 + chunk_index2) / 2);
       if (pos < array[middle_index + 1].pos1) {
         chunk_index2 = middle_index;
       } else {
@@ -550,7 +561,7 @@ Debug.LiveEdit = new function() {
     function BuildNode() {
       var my_index = index;
       index++;
-      var child_array = new Array();
+      var child_array = new GlobalArray();
       while (index < code_info_array.length &&
           code_info_array[index].outer_index == my_index) {
         child_array.push(BuildNode());
@@ -682,7 +693,7 @@ Debug.LiveEdit = new function() {
       var scope_change_description =
           IsFunctionContextLocalsChanged(old_node.info, new_node.info);
       if (scope_change_description) {
-          old_node.status = FunctionStatus.CHANGED;
+        old_node.status = FunctionStatus.CHANGED;
       }
 
       var old_children = old_node.children;
@@ -783,7 +794,7 @@ Debug.LiveEdit = new function() {
   function FindLiveSharedInfos(old_code_tree, script) {
     var shared_raw_list = %LiveEditFindSharedFunctionInfosForScript(script);
 
-    var shared_infos = new Array();
+    var shared_infos = new GlobalArray();
 
     for (var i = 0; i < shared_raw_list.length; i++) {
       shared_infos.push(new SharedInfoWrapper(shared_raw_list[i]));
@@ -900,7 +911,7 @@ Debug.LiveEdit = new function() {
   // have activations on stack (of any thread). Throws a Failure exception
   // if this proves to be false.
   function CheckStackActivations(shared_wrapper_list, change_log) {
-    var shared_list = new Array();
+    var shared_list = new GlobalArray();
     for (var i = 0; i < shared_wrapper_list.length; i++) {
       shared_list[i] = shared_wrapper_list[i].info;
     }
@@ -910,8 +921,8 @@ Debug.LiveEdit = new function() {
       throw new Failure(result[shared_list.length]);
     }
 
-    var problems = new Array();
-    var dropped = new Array();
+    var problems = new GlobalArray();
+    var dropped = new GlobalArray();
     for (var i = 0; i < shared_list.length; i++) {
       var shared = shared_wrapper_list[i];
       if (result[i] == FunctionPatchabilityStatus.REPLACED_ON_ACTIVE_STACK) {
@@ -964,8 +975,6 @@ Debug.LiveEdit = new function() {
   function Failure(message) {
     this.message = message;
   }
-  // Function (constructor) is public.
-  this.Failure = Failure;
 
   Failure.prototype.toString = function() {
     return "LiveEdit Failure: " + this.message;
@@ -1000,8 +1009,6 @@ Debug.LiveEdit = new function() {
   function GetPcFromSourcePos(func, source_pos) {
     return %GetFunctionCodePositionFromSource(func, source_pos);
   }
-  // Function is public.
-  this.GetPcFromSourcePos = GetPcFromSourcePos;
 
   // LiveEdit main entry point: changes a script text to a new string.
   function SetScriptSource(script, new_source, preview_only, change_log) {
@@ -1010,8 +1017,6 @@ Debug.LiveEdit = new function() {
     return ApplyPatchMultiChunk(script, diff, new_source, preview_only,
         change_log);
   }
-  // Function is public.
-  this.SetScriptSource = SetScriptSource;
 
   function CompareStrings(s1, s2) {
     return %LiveEditCompareStrings(s1, s2);
@@ -1098,10 +1103,21 @@ Debug.LiveEdit = new function() {
     return ProcessOldNode(old_code_tree);
   }
 
-  // Functions are public for tests.
-  this.TestApi = {
+  // -------------------------------------------------------------------
+  // Exports
+
+  var LiveEdit = {};
+  LiveEdit.SetScriptSource = SetScriptSource;
+  LiveEdit.ApplyPatchMultiChunk = ApplyPatchMultiChunk;
+  LiveEdit.Failure = Failure;
+  LiveEdit.GetPcFromSourcePos = GetPcFromSourcePos;
+
+  LiveEdit.TestApi = {
     PosTranslator: PosTranslator,
     CompareStrings: CompareStrings,
     ApplySingleChunkPatch: ApplySingleChunkPatch
   };
-};
+
+  global.Debug.LiveEdit = LiveEdit;
+
+})

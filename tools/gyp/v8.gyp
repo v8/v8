@@ -1796,8 +1796,8 @@
           '../../src/templates.js',
           '../../src/harmony-array.js',
           '../../src/harmony-typedarray.js',
-          '../../src/debug/debug.js',
           '../../src/debug/mirrors.js',
+          '../../src/debug/debug.js',
           '../../src/debug/liveedit.js',
         ],
         'experimental_library_files': [

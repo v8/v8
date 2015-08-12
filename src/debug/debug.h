@@ -494,6 +494,11 @@ class Debug {
         base::NoBarrier_Load(&thread_local_.current_debug_scope_));
   }
   inline Handle<Context> debug_context() { return debug_context_; }
+  inline Handle<Object> debug_utils() {
+    AssertDebugContext();
+    return isolate_->natives_utils_object();
+  }
+
   void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
   bool live_edit_enabled() const {
     return FLAG_enable_liveedit && live_edit_enabled_ ;
@@ -587,7 +592,6 @@ class Debug {
                             bool auto_continue);
   void InvokeMessageHandler(MessageImpl message);
 
-  static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
   void ActivateStepIn(StackFrame* frame);
   void ClearStepIn();

@@ -73,6 +73,7 @@ class CallSite {
   /* Error */                                                                  \
   T(None, "")                                                                  \
   T(CyclicProto, "Cyclic __proto__ value")                                     \
+  T(Debugger, "Debugger: %")                                                   \
   T(DebuggerLoading, "Error loading debugger")                                 \
   T(DefaultOptionsMissing, "Internal % error. Default options are missing.")   \
   T(UncaughtException, "Uncaught %")                                           \
@@ -101,6 +102,8 @@ class CallSite {
   T(DataViewNotArrayBuffer,                                                    \
     "First argument to DataView constructor must be an ArrayBuffer")           \
   T(DateType, "this is not a Date object.")                                    \
+  T(DebuggerFrame, "Debugger: Invalid frame index.")                           \
+  T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueGenerator,                                                     \

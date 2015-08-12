@@ -15,12 +15,8 @@
 namespace v8 {
 namespace internal {
 
-
 static inline bool IsDebugContext(Isolate* isolate, Context* context) {
-  // Try to unwrap script context if it exist.
-  if (context->IsScriptContext()) context = context->previous();
-  DCHECK_NOT_NULL(context);
-  return context == *isolate->debug()->debug_context();
+  return context->native_context() == *isolate->debug()->debug_context();
 }
 
 

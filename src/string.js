@@ -1201,6 +1201,7 @@ utils.Export(function(to) {
   to.StringLastIndexOf = StringLastIndexOfJS;
   to.StringMatch = StringMatchJS;
   to.StringReplace = StringReplace;
+  to.StringSlice = StringSlice;
   to.StringSplit = StringSplitJS;
   to.StringSubstr = StringSubstr;
   to.StringSubstring = StringSubstring;
