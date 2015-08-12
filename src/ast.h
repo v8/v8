@@ -13,7 +13,7 @@
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
-#include "src/list-inl.h"
+#include "src/list.h"
 #include "src/modules.h"
 #include "src/runtime/runtime.h"
 #include "src/small-pointer-list.h"

@@ -7,11 +7,10 @@
 
 #include <vector>
 
+#include "src/arm64/assembler-arm64.h"
 #include "src/bailout-reason.h"
-#include "src/globals.h"
-
-#include "src/arm64/assembler-arm64-inl.h"
 #include "src/base/bits.h"
+#include "src/globals.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR

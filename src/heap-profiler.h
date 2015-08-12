@@ -6,13 +6,16 @@
 #define V8_HEAP_PROFILER_H_
 
 #include "src/base/smart-pointers.h"
-#include "src/heap-snapshot-generator-inl.h"
 #include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class AllocationTracker;
+class HeapObjectsMap;
 class HeapSnapshot;
+class StringsStorage;
 
 class HeapProfiler {
  public:
@@ -63,7 +66,7 @@ class HeapProfiler {
   void ClearHeapObjectMap();
 
  private:
-  Heap* heap() const { return ids_->heap(); }
+  Heap* heap() const;
 
   // Mapping from HeapObject addresses to objects' uids.
   base::SmartPointer<HeapObjectsMap> ids_;

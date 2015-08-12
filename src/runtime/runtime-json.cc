@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
+#include "src/char-predicates-inl.h"
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
 #include "src/runtime/runtime-utils.h"

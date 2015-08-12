@@ -38,17 +38,19 @@
 #include "src/allocation.h"
 #include "src/builtins.h"
 #include "src/isolate.h"
-#include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/token.h"
 
 namespace v8 {
 
+// Forward declarations.
 class ApiFunction;
 
 namespace internal {
 
+// Forward declarations.
 class StatsCounter;
+
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 

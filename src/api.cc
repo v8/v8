@@ -20,6 +20,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
+#include "src/char-predicates-inl.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/context-measure.h"

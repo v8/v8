@@ -602,28 +602,6 @@ static inline void EmptyMessageQueues(v8::Isolate* isolate) {
 }
 
 
-// Helper class for new allocations tracking and checking.
-// To use checking of JS allocations tracking in a test,
-// just create an instance of this class.
-class HeapObjectsTracker {
- public:
-  HeapObjectsTracker() {
-    heap_profiler_ = i::Isolate::Current()->heap_profiler();
-    CHECK_NOT_NULL(heap_profiler_);
-    heap_profiler_->StartHeapObjectsTracking(true);
-  }
-
-  ~HeapObjectsTracker() {
-    i::Isolate::Current()->heap()->CollectAllAvailableGarbage();
-    CHECK_EQ(0, heap_profiler_->heap_object_map()->FindUntrackedObjects());
-    heap_profiler_->StopHeapObjectsTracking();
-  }
-
- private:
-  i::HeapProfiler* heap_profiler_;
-};
-
-
 class InitializedHandleScope {
  public:
   InitializedHandleScope()

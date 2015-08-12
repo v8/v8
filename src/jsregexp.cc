@@ -20,6 +20,7 @@
 #include "src/regexp-macro-assembler-tracer.h"
 #include "src/regexp-stack.h"
 #include "src/runtime/runtime.h"
+#include "src/splay-tree-inl.h"
 #include "src/string-search.h"
 #include "src/unicode-decoder.h"
 

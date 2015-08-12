@@ -36,6 +36,7 @@
 #include "src/debug/debug.h"
 #include "src/hashmap.h"
 #include "src/heap-profiler.h"
+#include "src/heap-snapshot-generator-inl.h"
 #include "test/cctest/cctest.h"
 
 using i::AllocationTraceNode;

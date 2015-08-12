@@ -5,7 +5,7 @@
 #ifndef V8_JSON_PARSER_H_
 #define V8_JSON_PARSER_H_
 
-#include "src/char-predicates-inl.h"
+#include "src/char-predicates.h"
 #include "src/conversions.h"
 #include "src/messages.h"
 #include "src/token.h"

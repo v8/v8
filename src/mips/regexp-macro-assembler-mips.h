@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #ifndef V8_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
 #define V8_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
 
 #include "src/macro-assembler.h"
-#include "src/mips/assembler-mips-inl.h"
 #include "src/mips/assembler-mips.h"
 #include "src/mips/macro-assembler-mips.h"
 

@@ -6,7 +6,6 @@
 #define V8_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 
 #include "src/macro-assembler.h"
-#include "src/x64/assembler-x64-inl.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
 

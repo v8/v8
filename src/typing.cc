@@ -9,6 +9,7 @@
 #include "src/ostreams.h"
 #include "src/parser.h"  // for CompileTimeValue; TODO(rossberg): should move
 #include "src/scopes.h"
+#include "src/splay-tree-inl.h"
 
 namespace v8 {
 namespace internal {

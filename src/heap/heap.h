@@ -10,7 +10,6 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
-#include "src/counters.h"
 #include "src/globals.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
@@ -21,7 +20,6 @@
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
 #include "src/list.h"
-#include "src/splay-tree-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -5,7 +5,11 @@
 #ifndef V8_STRING_BUILDER_H_
 #define V8_STRING_BUILDER_H_
 
-#include "src/objects-inl.h"
+#include "src/assert-scope.h"
+#include "src/factory.h"
+#include "src/handles.h"
+#include "src/isolate.h"
+#include "src/objects.h"
 #include "src/utils.h"
 
 namespace v8 {

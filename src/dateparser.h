@@ -6,7 +6,8 @@
 #define V8_DATEPARSER_H_
 
 #include "src/allocation.h"
-#include "src/char-predicates-inl.h"
+#include "src/char-predicates.h"
+#include "src/scanner.h"
 
 namespace v8 {
 namespace internal {

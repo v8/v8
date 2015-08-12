@@ -6,7 +6,6 @@
 #define V8_X87_REGEXP_MACRO_ASSEMBLER_X87_H_
 
 #include "src/macro-assembler.h"
-#include "src/x87/assembler-x87-inl.h"
 #include "src/x87/assembler-x87.h"
 
 namespace v8 {

@@ -5,10 +5,15 @@
 #ifndef V8_COMPILER_FRAME_STATES_H_
 #define V8_COMPILER_FRAME_STATES_H_
 
-#include "src/handles-inl.h"
+#include "src/handles.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class SharedFunctionInfo;
+
 namespace compiler {
 
 // Flag that describes how to combine the current environment with

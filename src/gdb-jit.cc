@@ -16,6 +16,7 @@
 #include "src/objects.h"
 #include "src/ostreams.h"
 #include "src/snapshot/natives.h"
+#include "src/splay-tree-inl.h"
 
 namespace v8 {
 namespace internal {

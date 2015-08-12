@@ -37,6 +37,7 @@
 #include "src/parser.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-macro-assembler-irregexp.h"
+#include "src/splay-tree-inl.h"
 #include "src/string-stream.h"
 #ifdef V8_INTERPRETED_REGEXP
 #include "src/interpreter-irregexp.h"

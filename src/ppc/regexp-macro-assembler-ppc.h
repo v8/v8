@@ -7,7 +7,6 @@
 
 #include "src/macro-assembler.h"
 #include "src/ppc/assembler-ppc.h"
-#include "src/ppc/assembler-ppc-inl.h"
 
 namespace v8 {
 namespace internal {
