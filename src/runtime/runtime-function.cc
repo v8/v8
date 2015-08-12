@@ -9,7 +9,7 @@
 #include "src/compiler.h"
 #include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
-#include "src/frames.h"
+#include "src/frames-inl.h"
 #include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 

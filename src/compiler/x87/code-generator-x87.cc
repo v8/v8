@@ -9,6 +9,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/scopes.h"
 #include "src/x87/assembler-x87.h"
+#include "src/x87/frames-x87.h"
 #include "src/x87/macro-assembler-x87.h"
 
 namespace v8 {

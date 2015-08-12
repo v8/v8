@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/arm64/frames-arm64.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"

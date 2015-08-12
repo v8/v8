@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/arm64/frames-arm64.h"
 #include "src/arm64/lithium-codegen-arm64.h"
 #include "src/arm64/lithium-gap-resolver-arm64.h"
 #include "src/base/bits.h"

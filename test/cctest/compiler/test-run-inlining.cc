@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/frames-inl.h"
 #include "test/cctest/compiler/function-tester.h"
 
 using namespace v8::internal;

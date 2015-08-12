@@ -14,7 +14,7 @@
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/flags.h"
-#include "src/frames-inl.h"
+#include "src/frames.h"
 #include "src/hashmap.h"
 #include "src/runtime/runtime.h"
 #include "src/string-stream.h"

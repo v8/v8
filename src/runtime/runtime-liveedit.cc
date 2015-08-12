@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/liveedit.h"
+#include "src/frames-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 

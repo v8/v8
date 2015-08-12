@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/frames-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"
 

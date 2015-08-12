@@ -33,6 +33,7 @@
 #define ARM64_DEFINE_REG_STATICS
 
 #include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/frames-arm64.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 

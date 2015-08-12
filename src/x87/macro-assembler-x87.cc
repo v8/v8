@@ -13,6 +13,7 @@
 #include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
 #include "src/runtime/runtime.h"
+#include "src/x87/frames-x87.h"
 
 namespace v8 {
 namespace internal {

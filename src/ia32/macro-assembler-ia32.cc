@@ -12,6 +12,7 @@
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
+#include "src/ia32/frames-ia32.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

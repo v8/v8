@@ -8,6 +8,7 @@
 
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
+#include "src/frames-inl.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
 

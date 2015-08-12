@@ -9,6 +9,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/ia32/frames-ia32.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {

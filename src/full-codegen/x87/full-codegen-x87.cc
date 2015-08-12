@@ -15,6 +15,7 @@
 #include "src/ic/ic.h"
 #include "src/parser.h"
 #include "src/scopes.h"
+#include "src/x87/frames-x87.h"
 
 namespace v8 {
 namespace internal {

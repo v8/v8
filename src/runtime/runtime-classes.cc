@@ -9,6 +9,7 @@
 
 #include "src/arguments.h"
 #include "src/debug/debug.h"
+#include "src/frames-inl.h"
 #include "src/messages.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"

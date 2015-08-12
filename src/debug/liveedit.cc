@@ -12,6 +12,7 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/messages.h"
 #include "src/parser.h"

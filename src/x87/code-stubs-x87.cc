@@ -17,6 +17,7 @@
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
+#include "src/x87/frames-x87.h"
 
 namespace v8 {
 namespace internal {

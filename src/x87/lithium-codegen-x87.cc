@@ -15,6 +15,7 @@
 #include "src/hydrogen-osr.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/x87/frames-x87.h"
 #include "src/x87/lithium-codegen-x87.h"
 
 namespace v8 {

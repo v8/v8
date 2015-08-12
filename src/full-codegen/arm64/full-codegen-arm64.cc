@@ -17,6 +17,7 @@
 #include "src/scopes.h"
 
 #include "src/arm64/code-stubs-arm64.h"
+#include "src/arm64/frames-arm64.h"
 #include "src/arm64/macro-assembler-arm64.h"
 
 namespace v8 {

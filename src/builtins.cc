@@ -12,6 +12,7 @@
 #include "src/builtins.h"
 #include "src/cpu-profiler.h"
 #include "src/elements.h"
+#include "src/frames-inl.h"
 #include "src/gdb-jit.h"
 #include "src/heap-profiler.h"
 #include "src/ic/handler-compiler.h"

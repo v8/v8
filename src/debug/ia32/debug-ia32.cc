@@ -8,7 +8,7 @@
 
 #include "src/codegen.h"
 #include "src/debug/debug.h"
-
+#include "src/ia32/frames-ia32.h"
 
 namespace v8 {
 namespace internal {

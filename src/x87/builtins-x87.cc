@@ -10,6 +10,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/x87/frames-x87.h"
 
 namespace v8 {
 namespace internal {
