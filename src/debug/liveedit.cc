@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-#include "src/v8.h"
-
 #include "src/debug/liveedit.h"
 
 #include "src/code-stubs.h"
@@ -18,6 +15,7 @@
 #include "src/parser.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
+#include "src/v8.h"
 #include "src/v8memory.h"
 
 namespace v8 {
