@@ -277,7 +277,7 @@ class LoadGlobalParameters final {
 
   const VectorSlotPair& feedback() const { return feedback_; }
 
-  const int slot_index() const { return slot_index_; }
+  int slot_index() const { return slot_index_; }
 
  private:
   const Unique<Name> name_;
