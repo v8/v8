@@ -12095,15 +12095,6 @@ void HOptimizedGraphBuilder::GenerateHasFastPackedElements(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateIsUndetectableObject(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HIsUndetectableAndBranch* result = New<HIsUndetectableAndBranch>(value);
-  return ast_context()->ReturnControl(result, call->id());
-}
-
-
 // Support for construct call checks.
 void HOptimizedGraphBuilder::GenerateIsConstructCall(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 0);

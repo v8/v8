@@ -484,7 +484,6 @@ namespace internal {
   F(MapGetInstanceType, 1, 1)                        \
   F(ObjectEquals, 2, 1)                              \
   F(IsObject, 1, 1)                                  \
-  F(IsUndetectableObject, 1, 1)                      \
   F(IsSpecObject, 1, 1)                              \
   F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \

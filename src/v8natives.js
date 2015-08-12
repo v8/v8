@@ -139,7 +139,7 @@ utils.InstallFunctions(global, DONT_ENUM, [
 
 // ECMA-262 - 15.2.4.2
 function ObjectToString() {
-  if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
+  if (IS_UNDEFINED(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
   var O = TO_OBJECT(this);
   var builtinTag = %_ClassOf(O);
@@ -213,7 +213,7 @@ function ObjectPropertyIsEnumerable(V) {
 // Extensions for providing property getters and setters.
 function ObjectDefineGetter(name, fun) {
   var receiver = this;
-  if (receiver == null && !IS_UNDETECTABLE(receiver)) {
+  if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
     receiver = %GlobalProxy(ObjectDefineGetter);
   }
   if (!IS_SPEC_FUNCTION(fun)) {
@@ -229,7 +229,7 @@ function ObjectDefineGetter(name, fun) {
 
 function ObjectLookupGetter(name) {
   var receiver = this;
-  if (receiver == null && !IS_UNDETECTABLE(receiver)) {
+  if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
     receiver = %GlobalProxy(ObjectLookupGetter);
   }
   return %LookupAccessor(TO_OBJECT(receiver), $toName(name), GETTER);
@@ -238,7 +238,7 @@ function ObjectLookupGetter(name) {
 
 function ObjectDefineSetter(name, fun) {
   var receiver = this;
-  if (receiver == null && !IS_UNDETECTABLE(receiver)) {
+  if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
     receiver = %GlobalProxy(ObjectDefineSetter);
   }
   if (!IS_SPEC_FUNCTION(fun)) {
@@ -254,7 +254,7 @@ function ObjectDefineSetter(name, fun) {
 
 function ObjectLookupSetter(name) {
   var receiver = this;
-  if (receiver == null && !IS_UNDETECTABLE(receiver)) {
+  if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
     receiver = %GlobalProxy(ObjectLookupSetter);
   }
   return %LookupAccessor(TO_OBJECT(receiver), $toName(name), SETTER);

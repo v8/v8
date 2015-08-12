@@ -3438,30 +3438,6 @@ void FullCodeGenerator::EmitIsSimdValue(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 1);
-
-  VisitForAccumulatorValue(args->at(0));
-
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false,
-                         &if_true, &if_false, &fall_through);
-
-  __ JumpIfSmi(v0, if_false);
-  __ lw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
-  __ lbu(a1, FieldMemOperand(a1, Map::kBitFieldOffset));
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ And(at, a1, Operand(1 << Map::kIsUndetectable));
-  Split(ne, at, Operand(zero_reg), if_true, if_false, fall_through);
-
-  context()->Plug(if_true, if_false);
-}
-
-
 void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
     CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();

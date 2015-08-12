@@ -2197,7 +2197,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(IsObject)                          \
   F(ToObject)                          \
   F(IsFunction)                        \
-  F(IsUndetectableObject)              \
   F(IsSpecObject)                      \
   F(MathPow)                           \
   F(IsMinusZero)                       \

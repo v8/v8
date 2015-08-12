@@ -82,7 +82,7 @@ var GlobalEvalError;
 
 
 function NoSideEffectsObjectToString() {
-  if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
+  if (IS_UNDEFINED(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
   return "[object " + %_ClassOf(TO_OBJECT(this)) + "]";
 }

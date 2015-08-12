@@ -1372,14 +1372,6 @@ RUNTIME_FUNCTION(Runtime_IsObject) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsUndetectableObject) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsUndetectableObject());
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsSpecObject) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

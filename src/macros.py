@@ -117,7 +117,6 @@ macro IS_SHAREDARRAYBUFFER(arg) = (%_ClassOf(arg) === 'SharedArrayBuffer');
 macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
 macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
 macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
-macro IS_UNDETECTABLE(arg)      = (%_IsUndetectableObject(arg));
 macro IS_STRONG(arg)            = (%IsStrong(arg));
 
 # Macro for ECMAScript 5 queries of the type:
