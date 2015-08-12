@@ -580,8 +580,12 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
   PostponeInterruptsScope postpone(isolate_);
 
   // Get the debug info (create it if it does not exist).
-  Handle<SharedFunctionInfo> shared =
-      Handle<SharedFunctionInfo>(frame->function()->shared());
+  Handle<JSFunction> function(frame->function());
+  Handle<SharedFunctionInfo> shared(function->shared());
+  if (!EnsureDebugInfo(shared, function)) {
+    // Return if we failed to retrieve the debug info.
+    return;
+  }
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
 
   // Find the break point where execution has stopped.
