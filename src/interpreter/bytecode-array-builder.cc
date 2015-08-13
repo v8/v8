@@ -39,8 +39,8 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value binop,
-                                                            int reg) {
-  Output(BytecodeForBinaryOperation(binop), reg);
+                                                            Register reg) {
+  Output(BytecodeForBinaryOperation(binop), reg.ToOperand());
   return *this;
 }
 
@@ -91,15 +91,15 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadFalse() {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
-    int reg) {
-  Output(Bytecode::kLdar, reg);
+    Register reg) {
+  Output(Bytecode::kLdar, reg.ToOperand());
   return *this;
 }
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
-    int reg) {
-  Output(Bytecode::kStar, reg);
+    Register reg) {
+  Output(Bytecode::kStar, reg.ToOperand());
   return *this;
 }
 
@@ -112,18 +112,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
 
 int BytecodeArrayBuilder::BorrowTemporaryRegister() {
   DCHECK_GE(local_register_count_, 0);
-  int temporary_register = temporary_register_next_++;
+  int temporary_reg_index = temporary_register_next_++;
   int count = temporary_register_next_ - local_register_count_;
   if (count > temporary_register_count_) {
     temporary_register_count_ = count;
   }
-  return temporary_register;
+  return temporary_reg_index;
 }
 
 
-void BytecodeArrayBuilder::ReturnTemporaryRegister(int reg) {
-  DCHECK_EQ(reg, temporary_register_next_ - 1);
-  temporary_register_next_ = reg;
+void BytecodeArrayBuilder::ReturnTemporaryRegister(int reg_index) {
+  DCHECK_EQ(reg_index, temporary_register_next_ - 1);
+  temporary_register_next_ = reg_index;
 }
 
 
@@ -136,7 +136,8 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
     case OperandType::kImm8:
       return true;
     case OperandType::kReg:
-      return operand_value < temporary_register_next_;
+      return Register::FromOperand(operand_value).index() <
+             temporary_register_next_;
   }
   UNREACHABLE();
   return false;
@@ -200,20 +201,20 @@ Bytecode BytecodeArrayBuilder::BytecodeForBinaryOperation(Token::Value op) {
 
 
 TemporaryRegisterScope::TemporaryRegisterScope(BytecodeArrayBuilder* builder)
-    : builder_(builder), count_(0), register_(-1) {}
+    : builder_(builder), count_(0), last_register_index_(-1) {}
 
 
 TemporaryRegisterScope::~TemporaryRegisterScope() {
   while (count_-- != 0) {
-    builder_->ReturnTemporaryRegister(register_--);
+    builder_->ReturnTemporaryRegister(last_register_index_--);
   }
 }
 
 
-int TemporaryRegisterScope::NewRegister() {
+Register TemporaryRegisterScope::NewRegister() {
   count_++;
-  register_ = builder_->BorrowTemporaryRegister();
-  return register_;
+  last_register_index_ = builder_->BorrowTemporaryRegister();
+  return Register(last_register_index_);
 }
 
 }  // namespace interpreter

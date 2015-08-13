@@ -5,14 +5,21 @@
 #include "src/v8.h"
 
 #include "src/interpreter/bytecode-array-builder.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
-using namespace v8::internal;
-using namespace v8::internal::interpreter;
+namespace v8 {
+namespace internal {
+namespace interpreter {
 
-TEST(AllBytecodesGenerated) {
-  InitializedHandleScope handle_scope;
-  BytecodeArrayBuilder builder(handle_scope.main_isolate());
+class BytecodeArrayBuilderTest : public TestWithIsolate {
+ public:
+  BytecodeArrayBuilderTest() {}
+  ~BytecodeArrayBuilderTest() override {}
+};
+
+
+TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
+  BytecodeArrayBuilder builder(isolate());
 
   builder.set_locals_count(1);
   CHECK_EQ(builder.locals_count(), 1);
@@ -27,13 +34,14 @@ TEST(AllBytecodesGenerated) {
       .LoadFalse();
 
   // Emit accumulator transfers.
-  builder.LoadAccumulatorWithRegister(0).StoreAccumulatorInRegister(0);
+  Register reg(0);
+  builder.LoadAccumulatorWithRegister(reg).StoreAccumulatorInRegister(reg);
 
   // Emit binary operators invocations.
-  builder.BinaryOperation(Token::Value::ADD, 0)
-      .BinaryOperation(Token::Value::SUB, 0)
-      .BinaryOperation(Token::Value::MUL, 0)
-      .BinaryOperation(Token::Value::DIV, 0);
+  builder.BinaryOperation(Token::Value::ADD, reg)
+      .BinaryOperation(Token::Value::SUB, reg)
+      .BinaryOperation(Token::Value::MUL, reg)
+      .BinaryOperation(Token::Value::DIV, reg);
 
   // Emit control flow. Return must be the last instruction.
   builder.Return();
@@ -66,11 +74,10 @@ TEST(AllBytecodesGenerated) {
 }
 
 
-TEST(FrameSizesLookGood) {
+TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
   for (int locals = 0; locals < 5; locals++) {
     for (int temps = 0; temps < 3; temps++) {
-      InitializedHandleScope handle_scope;
-      BytecodeArrayBuilder builder(handle_scope.main_isolate());
+      BytecodeArrayBuilder builder(isolate());
       builder.set_locals_count(locals);
       builder.Return();
 
@@ -87,16 +94,15 @@ TEST(FrameSizesLookGood) {
 }
 
 
-TEST(TemporariesRecycled) {
-  InitializedHandleScope handle_scope;
-  BytecodeArrayBuilder builder(handle_scope.main_isolate());
+TEST_F(BytecodeArrayBuilderTest, TemporariesRecycled) {
+  BytecodeArrayBuilder builder(isolate());
   builder.set_locals_count(0);
   builder.Return();
 
   int first;
   {
     TemporaryRegisterScope temporaries(&builder);
-    first = temporaries.NewRegister();
+    first = temporaries.NewRegister().index();
     temporaries.NewRegister();
     temporaries.NewRegister();
     temporaries.NewRegister();
@@ -105,8 +111,12 @@ TEST(TemporariesRecycled) {
   int second;
   {
     TemporaryRegisterScope temporaries(&builder);
-    second = temporaries.NewRegister();
+    second = temporaries.NewRegister().index();
   }
 
   CHECK_EQ(first, second);
 }
+
+}  // namespace interpreter
+}  // namespace internal
+}  // namespace v8

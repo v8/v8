@@ -17,6 +17,8 @@ class Isolate;
 
 namespace interpreter {
 
+class Register;
+
 class BytecodeArrayBuilder {
  public:
   explicit BytecodeArrayBuilder(Isolate* isolate);
@@ -26,7 +28,7 @@ class BytecodeArrayBuilder {
   void set_locals_count(int number_of_locals);
   int locals_count() const;
 
-  // Constant loads to accumulator
+  // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
   BytecodeArrayBuilder& LoadUndefined();
   BytecodeArrayBuilder& LoadNull();
@@ -34,14 +36,14 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
 
-  // Register-accumulator transfers
-  BytecodeArrayBuilder& LoadAccumulatorWithRegister(int reg);
-  BytecodeArrayBuilder& StoreAccumulatorInRegister(int reg);
+  // Register-accumulator transfers.
+  BytecodeArrayBuilder& LoadAccumulatorWithRegister(Register reg);
+  BytecodeArrayBuilder& StoreAccumulatorInRegister(Register reg);
 
-  // Operators
-  BytecodeArrayBuilder& BinaryOperation(Token::Value binop, int reg);
+  // Operators.
+  BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg);
 
-  // Flow Control
+  // Flow Control.
   BytecodeArrayBuilder& Return();
 
  private:
@@ -56,7 +58,7 @@ class BytecodeArrayBuilder {
                       uint8_t operand_value) const;
 
   int BorrowTemporaryRegister();
-  void ReturnTemporaryRegister(int reg);
+  void ReturnTemporaryRegister(int reg_index);
 
   Isolate* isolate_;
   std::vector<uint8_t> bytecodes_;
@@ -70,13 +72,34 @@ class BytecodeArrayBuilder {
   DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeArrayBuilder);
 };
 
+// An interpreter register which is located in the function's regsiter file
+// in its stack-frame.
+class Register {
+ public:
+  static const int kMaxRegisterIndex = 128;
+
+  explicit Register(int index) : index_(index) {
+    DCHECK_LE(index_, kMaxRegisterIndex);
+  }
+
+  int index() { return index_; }
+  uint8_t ToOperand() { return static_cast<uint8_t>(-index_); }
+  static Register FromOperand(uint8_t operand) { return Register(-operand); }
+
+ private:
+  void* operator new(size_t size);
+  void operator delete(void* p);
+
+  int index_;
+};
+
 // A stack-allocated class than allows the instantiator to allocate
 // temporary registers that are cleaned up when scope is closed.
 class TemporaryRegisterScope {
  public:
   explicit TemporaryRegisterScope(BytecodeArrayBuilder* builder);
   ~TemporaryRegisterScope();
-  int NewRegister();
+  Register NewRegister();
 
  private:
   void* operator new(size_t size);
@@ -84,7 +107,7 @@ class TemporaryRegisterScope {
 
   BytecodeArrayBuilder* builder_;
   int count_;
-  int register_;
+  int last_register_index_;
 
   DISALLOW_COPY_AND_ASSIGN(TemporaryRegisterScope);
 };

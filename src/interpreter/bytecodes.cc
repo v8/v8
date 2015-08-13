@@ -4,6 +4,8 @@
 
 #include "src/interpreter/bytecodes.h"
 
+#include "src/interpreter/bytecode-array-builder.h"
+
 namespace v8 {
 namespace internal {
 namespace interpreter {
@@ -30,6 +32,20 @@ const char* Bytecodes::ToString(Bytecode bytecode) {
   case Bytecode::k##Name: \
     return #Name;
     BYTECODE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+  return "";
+}
+
+
+// static
+const char* Bytecodes::OperandTypeToString(OperandType operand_type) {
+  switch (operand_type) {
+#define CASE(Name)           \
+  case OperandType::k##Name: \
+    return #Name;
+    OPERAND_TYPE_LIST(CASE)
 #undef CASE
   }
   UNREACHABLE();
@@ -114,7 +130,7 @@ std::ostream& Bytecodes::Decode(std::ostream& os,
         os << "#" << static_cast<int>(operand);
         break;
       case interpreter::OperandType::kReg:
-        os << "r" << static_cast<int>(operand);
+        os << "r" << Register::FromOperand(operand).index();
         break;
       case interpreter::OperandType::kNone:
         UNREACHABLE();
@@ -130,6 +146,11 @@ std::ostream& Bytecodes::Decode(std::ostream& os,
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {
   return os << Bytecodes::ToString(bytecode);
+}
+
+
+std::ostream& operator<<(std::ostream& os, const OperandType& operand_type) {
+  return os << Bytecodes::OperandTypeToString(operand_type);
 }
 
 }  // namespace interpreter

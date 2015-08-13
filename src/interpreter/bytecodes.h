@@ -78,6 +78,9 @@ class Bytecodes {
   // Returns string representation of |bytecode|.
   static const char* ToString(Bytecode bytecode);
 
+  // Returns string representation of |operand_type|.
+  static const char* OperandTypeToString(OperandType operand_type);
+
   // Returns byte value of bytecode.
   static uint8_t ToByte(Bytecode bytecode);
 
@@ -107,6 +110,7 @@ class Bytecodes {
 };
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode);
+std::ostream& operator<<(std::ostream& os, const OperandType& operand_type);
 
 }  // namespace interpreter
 }  // namespace internal
