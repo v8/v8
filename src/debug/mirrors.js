@@ -11,6 +11,7 @@
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
+var GlobalMap = global.Map;
 var MathMin = global.Math.min;
 
 // ----------------------------------------------------------------------------
@@ -73,12 +74,12 @@ var next_handle_ = 0;
 var next_transient_handle_ = -1;
 
 // Mirror cache.
-var mirror_cache_ = [];
+var mirror_cache_ = new GlobalMap();
 var mirror_cache_enabled_ = true;
 
 
 function MirrorCacheIsEmpty() {
-  return next_handle_ == 0 && mirror_cache_.length == 0;
+  return mirror_cache_.size === 0;
 }
 
 
@@ -90,7 +91,7 @@ function ToggleMirrorCache(value) {
 
 function ClearMirrorCache(value) {
   next_handle_ = 0;
-  mirror_cache_ = [];
+  mirror_cache_.clear();
 }
 
 
@@ -120,17 +121,7 @@ function MakeMirror(value, opt_transient) {
 
   // Look for non transient mirrors in the mirror cache.
   if (!opt_transient && mirror_cache_enabled_) {
-    for (var id in mirror_cache_) {
-      mirror = mirror_cache_[id];
-      if (mirror.value() === value) {
-        return mirror;
-      }
-      // Special check for NaN as NaN == NaN is false.
-      if (mirror.isNumber() && IsNaN(mirror.value()) &&
-          typeof value == 'number' && IsNaN(value)) {
-        return mirror;
-      }
-    }
+    if (mirror_cache_.has(value)) return mirror_cache_.get(value);
   }
 
   if (IS_UNDEFINED(value)) {
@@ -171,7 +162,7 @@ function MakeMirror(value, opt_transient) {
     mirror = new ObjectMirror(value, MirrorType.OBJECT_TYPE, opt_transient);
   }
 
-  if (mirror_cache_enabled_) mirror_cache_[mirror.handle()] = mirror;
+  if (mirror_cache_enabled_) mirror_cache_.set(value, mirror);
   return mirror;
 }
 
@@ -187,7 +178,10 @@ function LookupMirror(handle) {
   if (!mirror_cache_enabled_) {
     throw MakeError(kDebugger, "Mirror cache is disabled");
   }
-  return mirror_cache_[handle];
+  for (var value of mirror_cache_.values()) {
+    if (value.handle() == handle) return value;
+  }
+  return UNDEFINED;
 }
 
 
