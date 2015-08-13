@@ -56,6 +56,11 @@ bool LayoutDescriptor::GetIndexes(int field_index, int* layout_word_index,
 }
 
 
+LayoutDescriptor* LayoutDescriptor::SetRawData(int field_index) {
+  return SetTagged(field_index, false);
+}
+
+
 LayoutDescriptor* LayoutDescriptor::SetTagged(int field_index, bool tagged) {
   int layout_word_index;
   int layout_bit_index;
