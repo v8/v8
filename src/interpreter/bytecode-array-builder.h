@@ -84,7 +84,9 @@ class Register {
 
   int index() { return index_; }
   uint8_t ToOperand() { return static_cast<uint8_t>(-index_); }
-  static Register FromOperand(uint8_t operand) { return Register(-operand); }
+  static Register FromOperand(uint8_t operand) {
+    return Register(-static_cast<int8_t>(operand));
+  }
 
  private:
   void* operator new(size_t size);

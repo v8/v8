@@ -117,6 +117,21 @@ TEST_F(BytecodeArrayBuilderTest, TemporariesRecycled) {
   CHECK_EQ(first, second);
 }
 
+
+TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
+  int index = 1;
+  uint8_t operand = static_cast<uint8_t>(-index);
+
+  Register the_register(index);
+  CHECK_EQ(the_register.index(), index);
+
+  int actual_operand = the_register.ToOperand();
+  CHECK_EQ(actual_operand, operand);
+
+  int actual_index = Register::FromOperand(actual_operand).index();
+  CHECK_EQ(actual_index, index);
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
