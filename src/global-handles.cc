@@ -883,7 +883,9 @@ int GlobalHandles::PostGarbageCollectionProcessing(
   const int initial_post_gc_processing_count = ++post_gc_processing_count_;
   int freed_nodes = 0;
   bool synchronous_second_pass =
-      (gc_callback_flags & kGCCallbackFlagForced) != 0;
+      (gc_callback_flags &
+       (kGCCallbackFlagForced |
+        kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
   freed_nodes += DispatchPendingPhantomCallbacks(synchronous_second_pass);
   if (initial_post_gc_processing_count != post_gc_processing_count_) {
     // If the callbacks caused a nested GC, then return.  See comment in

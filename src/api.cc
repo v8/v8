@@ -6882,11 +6882,13 @@ void Isolate::CollectAllGarbage(const char* gc_reason) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
   if (heap->incremental_marking()->IsStopped()) {
     if (heap->incremental_marking()->CanBeActivated()) {
-      heap->StartIncrementalMarking(i::Heap::kNoGCFlags, kGCCallbackFlagForced,
-                                    gc_reason);
+      heap->StartIncrementalMarking(
+          i::Heap::kNoGCFlags,
+          kGCCallbackFlagSynchronousPhantomCallbackProcessing, gc_reason);
     } else {
-      heap->CollectAllGarbage(i::Heap::kNoGCFlags, gc_reason,
-                              kGCCallbackFlagForced);
+      heap->CollectAllGarbage(
+          i::Heap::kNoGCFlags, gc_reason,
+          kGCCallbackFlagSynchronousPhantomCallbackProcessing);
     }
   } else {
     // Incremental marking is turned on an has already been started.
