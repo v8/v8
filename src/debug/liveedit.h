@@ -81,8 +81,6 @@ class LiveEdit : AllStatic {
       Handle<Script> script,
       Handle<String> source);
 
-  static void WrapSharedFunctionInfos(Handle<JSArray> array);
-
   static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
                                   Handle<JSArray> shared_info_array);
 

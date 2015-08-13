@@ -598,6 +598,16 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
 }
 
 
+bool Object::HasInPrototypeChain(Isolate* isolate, Object* target) {
+  PrototypeIterator iter(isolate, this, PrototypeIterator::START_AT_RECEIVER);
+  while (true) {
+    iter.AdvanceIgnoringProxies();
+    if (iter.IsAtEnd()) return false;
+    if (iter.IsAtEnd(target)) return true;
+  }
+}
+
+
 Map* Object::GetRootMap(Isolate* isolate) {
   DisallowHeapAllocation no_alloc;
   if (IsSmi()) {

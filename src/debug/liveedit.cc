@@ -900,23 +900,6 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
 }
 
 
-void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
-  Isolate* isolate = array->GetIsolate();
-  HandleScope scope(isolate);
-  int len = GetArrayLength(array);
-  for (int i = 0; i < len; i++) {
-    Handle<SharedFunctionInfo> info(
-        SharedFunctionInfo::cast(
-            *Object::GetElement(isolate, array, i).ToHandleChecked()));
-    SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create(isolate);
-    Handle<String> name_handle(String::cast(info->name()));
-    info_wrapper.SetProperties(name_handle, info->start_position(),
-                               info->end_position(), info);
-    SetElementSloppy(array, i, info_wrapper.GetJSArray());
-  }
-}
-
-
 // Visitor that finds all references to a particular code object,
 // including "CODE_TARGET" references in other code objects and replaces
 // them on the fly.

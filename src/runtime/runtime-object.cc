@@ -264,17 +264,12 @@ RUNTIME_FUNCTION(Runtime_SetPrototype) {
 
 
 RUNTIME_FUNCTION(Runtime_IsInPrototypeChain) {
-  HandleScope shs(isolate);
+  SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   // See ECMA-262, section 15.3.5.3, page 88 (steps 5 - 8).
-  CONVERT_ARG_HANDLE_CHECKED(Object, O, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, V, 1);
-  PrototypeIterator iter(isolate, V, PrototypeIterator::START_AT_RECEIVER);
-  while (true) {
-    iter.AdvanceIgnoringProxies();
-    if (iter.IsAtEnd()) return isolate->heap()->false_value();
-    if (iter.IsAtEnd(O)) return isolate->heap()->true_value();
-  }
+  CONVERT_ARG_CHECKED(Object, O, 0);
+  CONVERT_ARG_CHECKED(Object, V, 1);
+  return isolate->heap()->ToBoolean(V->HasInPrototypeChain(isolate, O));
 }
 
 

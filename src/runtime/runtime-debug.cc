@@ -1360,76 +1360,6 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
 }
 
 
-// Helper function used by Runtime_DebugReferencedBy below.
-static int DebugReferencedBy(HeapIterator* iterator, JSObject* target,
-                             Object* instance_filter, int max_references,
-                             FixedArray* instances, int instances_size,
-                             JSFunction* arguments_function) {
-  Isolate* isolate = target->GetIsolate();
-  SealHandleScope shs(isolate);
-  DisallowHeapAllocation no_allocation;
-
-  // Iterate the heap.
-  int count = 0;
-  JSObject* last = NULL;
-  HeapObject* heap_obj = NULL;
-  while (((heap_obj = iterator->next()) != NULL) &&
-         (max_references == 0 || count < max_references)) {
-    // Only look at all JSObjects.
-    if (heap_obj->IsJSObject()) {
-      // Skip context extension objects and argument arrays as these are
-      // checked in the context of functions using them.
-      JSObject* obj = JSObject::cast(heap_obj);
-      if (obj->IsJSContextExtensionObject() ||
-          obj->map()->GetConstructor() == arguments_function) {
-        continue;
-      }
-
-      // Check if the JS object has a reference to the object looked for.
-      if (obj->ReferencesObject(target)) {
-        // Check instance filter if supplied. This is normally used to avoid
-        // references from mirror objects (see Runtime_IsInPrototypeChain).
-        if (!instance_filter->IsUndefined()) {
-          for (PrototypeIterator iter(isolate, obj); !iter.IsAtEnd();
-               iter.Advance()) {
-            if (iter.GetCurrent() == instance_filter) {
-              obj = NULL;  // Don't add this object.
-              break;
-            }
-          }
-        }
-
-        // Do not expose the global object directly.
-        if (obj->IsJSGlobalObject()) {
-          obj = JSGlobalObject::cast(obj)->global_proxy();
-        }
-
-        if (obj != NULL) {
-          // Valid reference found add to instance array if supplied an update
-          // count.
-          if (instances != NULL && count < instances_size) {
-            instances->set(count, obj);
-          }
-          last = obj;
-          count++;
-        }
-      }
-    }
-  }
-
-  // Check for circular reference only. This can happen when the object is only
-  // referenced from mirrors and has a circular reference in which case the
-  // object is not really alive and would have been garbage collected if not
-  // referenced from the mirror.
-  if (count == 1 && last == target) {
-    count = 0;
-  }
-
-  // Return the number of referencing objects found.
-  return count;
-}
-
-
 // Scan the heap for objects with direct references to an object
 // args[0]: the object to find references to
 // args[1]: constructor function for instances to exclude (Mirror)
@@ -1437,79 +1367,54 @@ static int DebugReferencedBy(HeapIterator* iterator, JSObject* target,
 RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-
-  // Check parameters.
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, instance_filter, 1);
-  RUNTIME_ASSERT(instance_filter->IsUndefined() ||
-                 instance_filter->IsJSObject());
+  CONVERT_ARG_HANDLE_CHECKED(Object, filter, 1);
+  RUNTIME_ASSERT(filter->IsUndefined() || filter->IsJSObject());
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[2]);
   RUNTIME_ASSERT(max_references >= 0);
 
-
-  // Get the constructor function for context extension and arguments array.
-  Handle<JSFunction> arguments_function(
-      JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
-
-  // Get the number of referencing objects.
-  int count;
-  // First perform a full GC in order to avoid dead objects and to make the heap
-  // iterable.
+  List<Handle<JSObject> > instances;
   Heap* heap = isolate->heap();
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask, "%DebugConstructedBy");
   {
-    HeapIterator heap_iterator(heap);
-    count = DebugReferencedBy(&heap_iterator, *target, *instance_filter,
-                              max_references, NULL, 0, *arguments_function);
-  }
-
-  // Allocate an array to hold the result.
-  Handle<FixedArray> instances = isolate->factory()->NewFixedArray(count);
-
-  // Fill the referencing objects.
-  {
-    HeapIterator heap_iterator(heap);
-    count = DebugReferencedBy(&heap_iterator, *target, *instance_filter,
-                              max_references, *instances, count,
-                              *arguments_function);
-  }
-
-  // Return result as JS array.
-  Handle<JSFunction> constructor = isolate->array_function();
-
-  Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
-  JSArray::SetContent(Handle<JSArray>::cast(result), instances);
-  return *result;
-}
-
-
-// Helper function used by Runtime_DebugConstructedBy below.
-static int DebugConstructedBy(HeapIterator* iterator, JSFunction* constructor,
-                              int max_references, FixedArray* instances,
-                              int instances_size) {
-  DisallowHeapAllocation no_allocation;
-
-  // Iterate the heap.
-  int count = 0;
-  HeapObject* heap_obj = NULL;
-  while (((heap_obj = iterator->next()) != NULL) &&
-         (max_references == 0 || count < max_references)) {
-    // Only look at all JSObjects.
-    if (heap_obj->IsJSObject()) {
+    HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
+    // Get the constructor function for context extension and arguments array.
+    Object* arguments_fun = isolate->sloppy_arguments_map()->GetConstructor();
+    HeapObject* heap_obj;
+    while ((heap_obj = iterator.next())) {
+      if (!heap_obj->IsJSObject()) continue;
       JSObject* obj = JSObject::cast(heap_obj);
-      if (obj->map()->GetConstructor() == constructor) {
-        // Valid reference found add to instance array if supplied an update
-        // count.
-        if (instances != NULL && count < instances_size) {
-          instances->set(count, obj);
-        }
-        count++;
+      if (obj->IsJSContextExtensionObject()) continue;
+      if (obj->map()->GetConstructor() == arguments_fun) continue;
+      if (!obj->ReferencesObject(*target)) continue;
+      // Check filter if supplied. This is normally used to avoid
+      // references from mirror objects.
+      if (!filter->IsUndefined() &&
+          obj->HasInPrototypeChain(isolate, *filter)) {
+        continue;
       }
+      if (obj->IsJSGlobalObject()) {
+        obj = JSGlobalObject::cast(obj)->global_proxy();
+      }
+      instances.Add(Handle<JSObject>(obj));
+      if (instances.length() == max_references) break;
+    }
+    // Iterate the rest of the heap to satisfy HeapIterator constraints.
+    while (iterator.next()) {
     }
   }
 
-  // Return the number of referencing objects found.
-  return count;
+  Handle<FixedArray> result;
+  if (instances.length() == 1 && instances.last().is_identical_to(target)) {
+    // Check for circular reference only. This can happen when the object is
+    // only referenced from mirrors and has a circular reference in which case
+    // the object is not really alive and would have been garbage collected if
+    // not referenced from the mirror.
+    result = isolate->factory()->empty_fixed_array();
+  } else {
+    result = isolate->factory()->NewFixedArray(instances.length());
+    for (int i = 0; i < instances.length(); ++i) result->set(i, *instances[i]);
+  }
+  return *isolate->factory()->NewJSArrayWithElements(result);
 }
 
 
@@ -1519,40 +1424,31 @@ static int DebugConstructedBy(HeapIterator* iterator, JSFunction* constructor,
 RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-
-
-  // Check parameters.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[1]);
   RUNTIME_ASSERT(max_references >= 0);
 
-  // Get the number of referencing objects.
-  int count;
-  // First perform a full GC in order to avoid dead objects and to make the heap
-  // iterable.
+  List<Handle<JSObject> > instances;
   Heap* heap = isolate->heap();
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask, "%DebugConstructedBy");
   {
-    HeapIterator heap_iterator(heap);
-    count = DebugConstructedBy(&heap_iterator, *constructor, max_references,
-                               NULL, 0);
+    HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
+    HeapObject* heap_obj;
+    while ((heap_obj = iterator.next())) {
+      if (!heap_obj->IsJSObject()) continue;
+      JSObject* obj = JSObject::cast(heap_obj);
+      if (obj->map()->GetConstructor() != *constructor) continue;
+      instances.Add(Handle<JSObject>(obj));
+      if (instances.length() == max_references) break;
+    }
+    // Iterate the rest of the heap to satisfy HeapIterator constraints.
+    while (iterator.next()) {
+    }
   }
 
-  // Allocate an array to hold the result.
-  Handle<FixedArray> instances = isolate->factory()->NewFixedArray(count);
-
-  // Fill the referencing objects.
-  {
-    HeapIterator heap_iterator2(heap);
-    count = DebugConstructedBy(&heap_iterator2, *constructor, max_references,
-                               *instances, count);
-  }
-
-  // Return result as JS array.
-  Handle<JSFunction> array_function = isolate->array_function();
-  Handle<JSObject> result = isolate->factory()->NewJSObject(array_function);
-  JSArray::SetContent(Handle<JSArray>::cast(result), instances);
-  return *result;
+  Handle<FixedArray> result =
+      isolate->factory()->NewFixedArray(instances.length());
+  for (int i = 0; i < instances.length(); ++i) result->set(i, *instances[i]);
+  return *isolate->factory()->NewJSArrayWithElements(result);
 }
 
 

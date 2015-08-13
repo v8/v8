@@ -1165,6 +1165,8 @@ class Object {
   static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
       Isolate* isolate, Handle<Object> receiver);
 
+  bool HasInPrototypeChain(Isolate* isolate, Object* object);
+
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
   Object* GetHash();
