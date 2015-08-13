@@ -700,8 +700,7 @@ class ParserBase : public Traits {
   ExpressionT ParseStrongSuperCallExpression(ExpressionClassifier* classifier,
                                              bool* ok);
 
-  void ParseFormalParameter(bool is_rest,
-                            FormalParametersT* parameters,
+  void ParseFormalParameter(FormalParametersT* parameters,
                             ExpressionClassifier* classifier, bool* ok);
   void ParseFormalParameterList(FormalParametersT* parameters,
                                 ExpressionClassifier* classifier, bool* ok);
@@ -2284,9 +2283,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         FormalParametersT formals(scope);
         scope->set_start_position(beg_pos);
         ExpressionClassifier formals_classifier;
-        const bool is_rest = true;
-        this->ParseFormalParameter(is_rest, &formals, &formals_classifier,
-                                   CHECK_OK);
+        formals.has_rest = true;
+        this->ParseFormalParameter(&formals, &formals_classifier, CHECK_OK);
         Traits::DeclareFormalParameter(
             formals.scope, formals.at(0), formals.is_simple,
             &formals_classifier);
@@ -3625,10 +3623,10 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
 
 template <class Traits>
 void ParserBase<Traits>::ParseFormalParameter(
-    bool is_rest, FormalParametersT* parameters,
-    ExpressionClassifier* classifier, bool* ok) {
+    FormalParametersT* parameters, ExpressionClassifier* classifier, bool* ok) {
   // FormalParameter[Yield,GeneratorParameter] :
   //   BindingElement[?Yield, ?GeneratorParameter]
+  bool is_rest = parameters->has_rest;
 
   Token::Value next = peek();
   ExpressionT pattern = ParsePrimaryExpression(classifier, ok);
@@ -3682,8 +3680,9 @@ void ParserBase<Traits>::ParseFormalParameterList(
         *ok = false;
         return;
       }
-      bool is_rest = allow_harmony_rest_parameters() && Check(Token::ELLIPSIS);
-      ParseFormalParameter(is_rest, parameters, classifier, ok);
+      parameters->has_rest =
+          allow_harmony_rest_parameters() && Check(Token::ELLIPSIS);
+      ParseFormalParameter(parameters, classifier, ok);
       if (!*ok) return;
     } while (!parameters->has_rest && Check(Token::COMMA));
 

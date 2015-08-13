@@ -1199,8 +1199,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
           if (ok) ok = Check(Token::RPAREN);
         } else {
           // BindingIdentifier
-          const bool is_rest = false;
-          ParseFormalParameter(is_rest, &formals, &formals_classifier, &ok);
+          ParseFormalParameter(&formals, &formals_classifier, &ok);
           if (ok) {
             DeclareFormalParameter(
                 formals.scope, formals.at(0), formals.is_simple,
