@@ -1802,9 +1802,6 @@ Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
 
 
 void Genesis::InitializeBuiltinTypedArrays() {
-  // The serializer cannot serialize typed arrays. Reset those typed arrays
-  // for each new context.
-  DCHECK(!isolate()->serializer_enabled());
   Handle<JSBuiltinsObject> builtins(native_context()->builtins());
   {  // Initially seed the per-context random number generator using the
     // per-isolate random number generator.
@@ -3233,21 +3230,25 @@ Genesis::Genesis(Isolate* isolate,
   // Install experimental and extra natives. Do not include them into the
   // snapshot as we should be able to turn them off at runtime. Re-installing
   // them after they have already been deserialized would also fail.
-  if (!isolate->serializer_enabled() && context_type != THIN_CONTEXT) {
-    InitializeExperimentalGlobal();
-    InitializeBuiltinTypedArrays();
-    if (context_type == FULL_CONTEXT) {
+  if (context_type == FULL_CONTEXT) {
+    if (!isolate->serializer_enabled()) {
+      InitializeExperimentalGlobal();
       if (!InstallExperimentalNatives()) return;
       if (!InstallExtraNatives()) return;
       // By now the utils object is useless and can be removed.
       native_context()->set_natives_utils_object(
           isolate->heap()->undefined_value());
-      InitializeBuiltinTypedArrays();
-    } else {
-      DCHECK_EQ(DEBUG_CONTEXT, context_type);
-      if (!InstallDebuggerNatives()) return;
     }
+
+    // The serializer cannot serialize typed arrays. Reset those typed arrays
+    // for each new context.
+    InitializeBuiltinTypedArrays();
+  } else if (context_type == DEBUG_CONTEXT) {
+    DCHECK(!isolate->serializer_enabled());
+    InitializeExperimentalGlobal();
+    if (!InstallDebuggerNatives()) return;
   }
+
   result_ = native_context();
 }
 
