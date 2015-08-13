@@ -590,7 +590,7 @@ function Delete(obj, p, should_throw) {
   var desc = GetOwnPropertyJS(obj, p);
   if (IS_UNDEFINED(desc)) return true;
   if (desc.isConfigurable()) {
-    %DeleteProperty(obj, p, 0);
+    %DeleteProperty_Sloppy(obj, p);
     return true;
   } else if (should_throw) {
     throw MakeTypeError(kDefineDisallowed, p);

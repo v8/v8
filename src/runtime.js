@@ -44,7 +44,6 @@ var SAR;
 var SAR_STRONG;
 var SHR;
 var SHR_STRONG;
-var DELETE;
 var IN;
 var INSTANCE_OF;
 var CALL_NON_FUNCTION;
@@ -483,12 +482,6 @@ SHR_STRONG = function SHR_STRONG(y) {
    - - -   H e l p e r s   - - -
    -----------------------------
 */
-
-// ECMA-262, section 11.4.1, page 46.
-DELETE = function DELETE(key, language_mode) {
-  return %DeleteProperty(TO_OBJECT(this), key, language_mode);
-}
-
 
 // ECMA-262, section 11.8.7, page 54.
 IN = function IN(x) {

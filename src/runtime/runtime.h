@@ -450,7 +450,8 @@ namespace internal {
   F(SetProperty, 4, 1)                               \
   F(AddElement, 3, 1)                                \
   F(AppendElement, 2, 1)                             \
-  F(DeleteProperty, 3, 1)                            \
+  F(DeleteProperty_Sloppy, 2, 1)                     \
+  F(DeleteProperty_Strict, 2, 1)                     \
   F(HasOwnProperty, 2, 1)                            \
   F(HasProperty, 2, 1)                               \
   F(HasElement, 2, 1)                                \

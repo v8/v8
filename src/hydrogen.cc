@@ -10410,11 +10410,13 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
     CHECK_ALIVE(VisitForValue(prop->key()));
     HValue* key = Pop();
     HValue* obj = Pop();
-    HValue* function = AddLoadJSBuiltin(Builtins::DELETE);
-    Add<HPushArguments>(obj, key, Add<HConstant>(function_language_mode()));
-    // TODO(olivf) InvokeFunction produces a check for the parameter count,
-    // even though we are certain to pass the correct number of arguments here.
-    HInstruction* instr = New<HInvokeFunction>(function, 3);
+    Add<HPushArguments>(obj, key);
+    HInstruction* instr = New<HCallRuntime>(
+        isolate()->factory()->empty_string(),
+        Runtime::FunctionForId(is_strict(function_language_mode())
+                                   ? Runtime::kDeleteProperty_Strict
+                                   : Runtime::kDeleteProperty_Sloppy),
+        2);
     return ast_context()->ReturnInstruction(instr, expr->id());
   } else if (proxy != NULL) {
     Variable* var = proxy->var();

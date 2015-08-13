@@ -4549,8 +4549,10 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       if (property != NULL) {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
-        __ push(Immediate(Smi::FromInt(language_mode())));
-        __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
+        __ CallRuntime(is_strict(language_mode())
+                           ? Runtime::kDeleteProperty_Strict
+                           : Runtime::kDeleteProperty_Sloppy,
+                       2);
         context()->Plug(eax);
       } else if (proxy != NULL) {
         Variable* var = proxy->var();
@@ -4561,8 +4563,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         if (var->IsUnallocatedOrGlobalSlot()) {
           __ push(GlobalObjectOperand());
           __ push(Immediate(var->name()));
-          __ push(Immediate(Smi::FromInt(SLOPPY)));
-          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
+          __ CallRuntime(Runtime::kDeleteProperty_Sloppy, 2);
           context()->Plug(eax);
         } else if (var->IsStackAllocated() || var->IsContextSlot()) {
           // Result of deleting non-global variables is false.  'this' is

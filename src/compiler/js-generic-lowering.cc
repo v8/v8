@@ -430,8 +430,9 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
 
 void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
   LanguageMode language_mode = OpParameter<LanguageMode>(node);
-  ReplaceWithBuiltinCall(node, Builtins::DELETE, 3);
-  node->InsertInput(zone(), 4, jsgraph()->SmiConstant(language_mode));
+  ReplaceWithRuntimeCall(node, is_strict(language_mode)
+                                   ? Runtime::kDeleteProperty_Strict
+                                   : Runtime::kDeleteProperty_Sloppy);
 }
 
 

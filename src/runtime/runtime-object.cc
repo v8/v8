@@ -671,17 +671,41 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_DeleteProperty) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 2);
+namespace {
+
+// ES6 section 12.5.4.
+Object* DeleteProperty(Isolate* isolate, Handle<Object> object,
+                       Handle<Object> key, LanguageMode language_mode) {
+  Handle<JSReceiver> receiver;
+  if (!JSReceiver::ToObject(isolate, object).ToHandle(&receiver)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
+  }
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       Runtime::DeleteObjectProperty(isolate, receiver, key, language_mode));
   return *result;
+}
+
+}  // namespace
+
+
+RUNTIME_FUNCTION(Runtime_DeleteProperty_Sloppy) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  return DeleteProperty(isolate, object, key, SLOPPY);
+}
+
+
+RUNTIME_FUNCTION(Runtime_DeleteProperty_Strict) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  return DeleteProperty(isolate, object, key, STRICT);
 }
 
 
