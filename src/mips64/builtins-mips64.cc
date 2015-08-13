@@ -904,8 +904,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Allocate the local and temporary register file on the stack.
   {
-    // Load frame size from the BytecodeArray object.
-    __ ld(a4, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+    // Load frame size (word) from the BytecodeArray object.
+    __ lw(a4, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                               BytecodeArray::kFrameSizeOffset));
 
     // Do a stack check to ensure we don't go over the limit.
