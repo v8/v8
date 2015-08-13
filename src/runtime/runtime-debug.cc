@@ -1399,6 +1399,11 @@ static int DebugReferencedBy(HeapIterator* iterator, JSObject* target,
           }
         }
 
+        // Do not expose the global object directly.
+        if (obj->IsJSGlobalObject()) {
+          obj = JSGlobalObject::cast(obj)->global_proxy();
+        }
+
         if (obj != NULL) {
           // Valid reference found add to instance array if supplied an update
           // count.

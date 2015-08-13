@@ -228,7 +228,7 @@ MaybeHandle<JSObject> ScopeIterator::ScopeObject() {
   DCHECK(!failed_);
   switch (Type()) {
     case ScopeIterator::ScopeTypeGlobal:
-      return Handle<JSObject>(CurrentContext()->global_object());
+      return Handle<JSObject>(CurrentContext()->global_proxy());
     case ScopeIterator::ScopeTypeScript:
       return MaterializeScriptScope();
     case ScopeIterator::ScopeTypeLocal:
