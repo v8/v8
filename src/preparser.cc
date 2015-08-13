@@ -913,13 +913,16 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         return Statement::Default();
       }
     } else {
+      int lhs_beg_pos = peek_position();
       Expression lhs = ParseExpression(false, CHECK_OK);
+      int lhs_end_pos = scanner()->location().end_pos;
       is_let_identifier_expression =
           lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
       if (CheckInOrOf(lhs.IsIdentifier(), &mode, ok)) {
         if (!*ok) return Statement::Default();
-        // TODO(adamk): Should call CheckAndRewriteReferenceExpression here
-        // to catch early errors if lhs is not a valid reference expression.
+        lhs = CheckAndRewriteReferenceExpression(
+            lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
+            CHECK_OK);
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
         ParseSubStatement(CHECK_OK);
