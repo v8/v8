@@ -415,6 +415,20 @@ TEST(InlineIntrinsicIsSmi) {
 }
 
 
+TEST(InlineIntrinsicIsNonNegativeSmi) {
+  FunctionTester T(
+      "(function () {"
+      "  var x = 42;"
+      "  function bar(s,t) { return %_IsNonNegativeSmi(x); };"
+      "  return bar;"
+      "})();",
+      kInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.true_value(), T.Val(12), T.Val(4));
+}
+
+
 TEST(InlineIntrinsicIsArray) {
   FunctionTester T(
       "(function () {"

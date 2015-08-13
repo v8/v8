@@ -52,6 +52,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
     case Runtime::kInlineIsFunction:
       return ReduceIsInstanceType(node, JS_FUNCTION_TYPE);
+    case Runtime::kInlineIsNonNegativeSmi:
+      return ReduceIsNonNegativeSmi(node);
     case Runtime::kInlineIsRegExp:
       return ReduceIsInstanceType(node, JS_REGEXP_TYPE);
     case Runtime::kInlineIsSmi:
@@ -234,6 +236,11 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
 
   // Turn the {node} into a Phi.
   return Change(node, common()->Phi(type, 2), vtrue, vfalse, merge);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceIsNonNegativeSmi(Node* node) {
+  return Change(node, simplified()->ObjectIsNonNegativeSmi());
 }
 
 

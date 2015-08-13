@@ -175,6 +175,7 @@ enum BuiltinExtraArguments {
   V(SAR_STRONG, 1)                         \
   V(SHR, 1)                                \
   V(SHR_STRONG, 1)                         \
+  V(IN, 1)                                 \
   V(INSTANCE_OF, 1)                        \
   V(CALL_NON_FUNCTION, 0)                  \
   V(CALL_NON_FUNCTION_AS_CONSTRUCTOR, 0)   \

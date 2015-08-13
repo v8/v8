@@ -779,36 +779,25 @@ RUNTIME_FUNCTION(Runtime_HasOwnProperty) {
 }
 
 
-// ES6 section 12.9.3, operator in.
 RUNTIME_FUNCTION(Runtime_HasProperty) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 1);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
 
-  // Check that {object} is actually a receiver.
-  if (!object->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidInOperatorUse, key, object));
-  }
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+  Maybe<bool> maybe = JSReceiver::HasProperty(receiver, key);
+  if (!maybe.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(maybe.FromJust());
+}
 
-  // Check for fast element case.
-  uint32_t index = 0;
-  if (key->ToArrayIndex(&index)) {
-    Maybe<bool> maybe = JSReceiver::HasElement(receiver, index);
-    if (!maybe.IsJust()) return isolate->heap()->exception();
-    return isolate->heap()->ToBoolean(maybe.FromJust());
-  }
 
-  // Convert {key} to a Name first.
-  Handle<Name> name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Runtime::ToName(isolate, key));
+RUNTIME_FUNCTION(Runtime_HasElement) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
 
-  // Lookup property by {name} on {receiver}.
-  Maybe<bool> maybe = JSReceiver::HasProperty(receiver, name);
+  Maybe<bool> maybe = JSReceiver::HasElement(receiver, index);
   if (!maybe.IsJust()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(maybe.FromJust());
 }

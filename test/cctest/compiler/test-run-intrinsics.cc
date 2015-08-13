@@ -128,6 +128,18 @@ TEST(IsMinusZero) {
 }
 
 
+TEST(IsNonNegativeSmi) {
+  FunctionTester T("(function(a) { return %_IsNonNegativeSmi(a); })", flags);
+
+  T.CheckTrue(T.Val(1));
+  T.CheckFalse(T.Val(1.1));
+  T.CheckFalse(T.Val(-0.0));
+  T.CheckFalse(T.Val(-2));
+  T.CheckFalse(T.Val(-2.3));
+  T.CheckFalse(T.undefined());
+}
+
+
 TEST(IsObject) {
   FunctionTester T("(function(a) { return %_IsObject(a); })", flags);
 

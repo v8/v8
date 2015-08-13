@@ -424,6 +424,7 @@ namespace internal {
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
   F(IsSmi, 1, 1)                       \
+  F(IsNonNegativeSmi, 1, 1)            \
   F(GetRootNaN, 0, 1)
 
 
@@ -453,6 +454,7 @@ namespace internal {
   F(DeleteProperty_Strict, 2, 1)                     \
   F(HasOwnProperty, 2, 1)                            \
   F(HasProperty, 2, 1)                               \
+  F(HasElement, 2, 1)                                \
   F(IsPropertyEnumerable, 2, 1)                      \
   F(GetPropertyNamesFast, 1, 1)                      \
   F(GetOwnPropertyNames, 2, 1)                       \
