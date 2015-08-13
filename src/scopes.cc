@@ -596,11 +596,7 @@ class VarAndOrder {
   Variable* var() const { return var_; }
   int order() const { return order_; }
   static int Compare(const VarAndOrder* a, const VarAndOrder* b) {
-    // Sort lexical variables to the end of the list.
-    bool a_is_lexical = IsLexicalVariableMode(a->var()->mode());
-    bool b_is_lexical = IsLexicalVariableMode(b->var()->mode());
-    if (a_is_lexical == b_is_lexical) return a->order_ - b->order_;
-    return a_is_lexical ? 1 : -1;
+    return a->order_ - b->order_;
   }
 
  private:

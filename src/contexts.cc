@@ -56,19 +56,6 @@ bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
 }
 
 
-bool ScriptContextTable::LookupLexical(Handle<ScriptContextTable> table,
-                                       Handle<String> name) {
-  for (int i = 0; i < table->used(); i++) {
-    Handle<Context> context = GetContext(table, i);
-    DCHECK(context->IsScriptContext());
-    Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
-    int slot_index = ScopeInfo::LexicalContextSlotIndex(scope_info, name);
-    if (slot_index >= 0) return true;
-  }
-  return false;
-}
-
-
 Context* Context::declaration_context() {
   Context* current = this;
   while (!current->IsFunctionContext() && !current->IsNativeContext() &&

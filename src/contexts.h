@@ -242,10 +242,6 @@ class ScriptContextTable : public FixedArray {
                      LookupResult* result);
 
   MUST_USE_RESULT
-  static bool LookupLexical(Handle<ScriptContextTable> table,
-                            Handle<String> name);
-
-  MUST_USE_RESULT
   static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,
                                            Handle<Context> script_context);
 

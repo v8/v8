@@ -3935,9 +3935,6 @@ class ScopeInfo : public FixedArray {
                               InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
 
-  static int LexicalContextSlotIndex(Handle<ScopeInfo> scope_info,
-                                     Handle<String> name);
-
   // Lookup the name of a certain context slot by its index.
   String* ContextSlotName(int slot_index);
 
@@ -3982,7 +3979,6 @@ class ScopeInfo : public FixedArray {
   V(ParameterCount)               \
   V(StackLocalCount)              \
   V(ContextLocalCount)            \
-  V(LexicalContextLocalCount)     \
   V(ContextGlobalCount)           \
   V(StrongModeFreeVariableCount)
 

@@ -36,10 +36,9 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<GlobalObject> global,
                               bool is_const, bool is_function) {
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table());
-  // We use LookupLexical to limit lookup to lexical variables. As long as
-  // lexical variables are not used extensively, this is a performance win.
-  // TODO(yangguo): reconsider this shortcut.
-  if (ScriptContextTable::LookupLexical(script_contexts, name)) {
+  ScriptContextTable::LookupResult lookup;
+  if (ScriptContextTable::Lookup(script_contexts, name, &lookup) &&
+      IsLexicalVariableMode(lookup.mode)) {
     return ThrowRedeclarationError(isolate, name);
   }
 
@@ -625,13 +624,9 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
   for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
     Handle<String> name(scope_info->ContextLocalName(var));
     VariableMode mode = scope_info->ContextLocalMode(var);
-    if (IsLexicalVariableMode(mode)) {
-      ScriptContextTable::LookupResult lookup;
-      if (ScriptContextTable::Lookup(script_context, name, &lookup)) {
-        return ThrowRedeclarationError(isolate, name);
-      }
-    } else {
-      if (ScriptContextTable::LookupLexical(script_context, name)) {
+    ScriptContextTable::LookupResult lookup;
+    if (ScriptContextTable::Lookup(script_context, name, &lookup)) {
+      if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
         return ThrowRedeclarationError(isolate, name);
       }
     }

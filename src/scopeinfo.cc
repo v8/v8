@@ -149,8 +149,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   // Add context locals' info.
   DCHECK(index == scope_info->ContextLocalInfoEntriesIndex());
-  bool encountered_lexical = false;
-  int lexical_context_local_count = 0;
   for (int i = 0; i < context_local_count; ++i) {
     Variable* var = context_locals[i];
     uint32_t value =
@@ -158,15 +156,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
         ContextLocalInitFlag::encode(var->initialization_flag()) |
         ContextLocalMaybeAssignedFlag::encode(var->maybe_assigned());
     scope_info->set(index++, Smi::FromInt(value));
-    if (encountered_lexical) {
-      // Check that context locals are sorted so that lexicals are at the end.
-      DCHECK(IsLexicalVariableMode(var->mode()));
-    } else if (IsLexicalVariableMode(var->mode())) {
-      lexical_context_local_count = context_local_count - i;
-    }
   }
-
-  scope_info->SetLexicalContextLocalCount(lexical_context_local_count);
 
   // Add context globals' info.
   DCHECK(index == scope_info->ContextGlobalInfoEntriesIndex());
@@ -232,7 +222,6 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
 
   const int stack_local_count = 0;
   const int context_local_count = 1;
-  const int lexical_context_local_count = 1;
   const int context_global_count = 0;
   const int strong_mode_free_variable_count = 0;
   const bool has_simple_parameters = true;
@@ -265,7 +254,6 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
   scope_info->SetContextLocalCount(context_local_count);
-  scope_info->SetLexicalContextLocalCount(lexical_context_local_count);
   scope_info->SetContextGlobalCount(context_global_count);
   scope_info->SetStrongModeFreeVariableCount(strong_mode_free_variable_count);
 
@@ -579,31 +567,6 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
     context_slot_cache->Update(scope_info, name, TEMPORARY,
                                VariableLocation::CONTEXT, kNeedsInitialization,
                                kNotAssigned, -1);
-  }
-  return -1;
-}
-
-
-int ScopeInfo::LexicalContextSlotIndex(Handle<ScopeInfo> scope_info,
-                                       Handle<String> name) {
-  DCHECK(name->IsInternalizedString());
-  if (scope_info->length() > 0) {
-    // TODO(yangguo): consider using the context slot cache here.
-    int total_count = scope_info->ContextLocalCount();
-    int lexical_count = scope_info->LexicalContextLocalCount();
-    int non_lexical_count = total_count - lexical_count;
-
-    int start = scope_info->ContextLocalNameEntriesIndex();
-    int end = start + total_count;
-    int lexical_start = start + non_lexical_count;
-
-    for (int i = lexical_start; i < end; ++i) {
-      if (*name == scope_info->get(i)) {
-        int var = i - start;
-        DCHECK(IsLexicalVariableMode(scope_info->ContextLocalMode(var)));
-        return Context::MIN_CONTEXT_SLOTS + var;
-      }
-    }
   }
   return -1;
 }
