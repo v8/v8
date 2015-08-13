@@ -1,4 +1,4 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,65 +19,90 @@ using namespace v8::internal::compiler;
 
 typedef RawMachineAssembler::Label MLabel;
 
-#if !V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64
 // TODO(titzer): fix native stack parameters on arm64
-#define NATIVE_STACK_PARAMS_OK
+#define DISABLE_NATIVE_STACK_PARAMS true
+#else
+#define DISABLE_NATIVE_STACK_PARAMS false
 #endif
 
 namespace {
-// Picks a representative set of registers from the allocatable set.
-// If there are less than 100 possible pairs, do them all, otherwise try
+typedef float float32;
+typedef double float64;
+
+// Picks a representative pair of integers from the given range.
+// If there are less than {max_pairs} possible pairs, do them all, otherwise try
 // to select a representative set.
-class RegisterPairs {
+class Pairs {
  public:
-  RegisterPairs()
-      : max_(std::min(100, Register::kMaxNumAllocatableRegisters *
-                               Register::kMaxNumAllocatableRegisters)),
+  Pairs(int max_pairs, int range)
+      : range_(range),
+        max_pairs_(std::min(max_pairs, range_ * range_)),
         counter_(0) {}
 
-  bool More() { return counter_ < max_; }
+  bool More() { return counter_ < max_pairs_; }
 
   void Next(int* r0, int* r1, bool same_is_ok) {
     do {
       // Find the next pair.
       if (exhaustive()) {
-        *r0 = counter_ % Register::kMaxNumAllocatableRegisters;
-        *r1 = counter_ / Register::kMaxNumAllocatableRegisters;
+        *r0 = counter_ % range_;
+        *r1 = counter_ / range_;
       } else {
-        // Try each register at least once for both r0 and r1.
+        // Try each integer at least once for both r0 and r1.
         int index = counter_ / 2;
         if (counter_ & 1) {
-          *r0 = index % Register::kMaxNumAllocatableRegisters;
-          *r1 = index / Register::kMaxNumAllocatableRegisters;
+          *r0 = index % range_;
+          *r1 = index / range_;
         } else {
-          *r1 = index % Register::kMaxNumAllocatableRegisters;
-          *r0 = index / Register::kMaxNumAllocatableRegisters;
+          *r1 = index % range_;
+          *r0 = index / range_;
         }
       }
       counter_++;
       if (same_is_ok) break;
       if (*r0 == *r1) {
-        if (counter_ >= max_) {
+        if (counter_ >= max_pairs_) {
           // For the last hurrah, reg#0 with reg#n-1
           *r0 = 0;
-          *r1 = Register::kMaxNumAllocatableRegisters - 1;
+          *r1 = range_ - 1;
           break;
         }
       }
     } while (true);
 
-    DCHECK(*r0 >= 0 && *r0 < Register::kMaxNumAllocatableRegisters);
-    DCHECK(*r1 >= 0 && *r1 < Register::kMaxNumAllocatableRegisters);
-    printf("pair = %d, %d\n", *r0, *r1);
+    DCHECK(*r0 >= 0 && *r0 < range_);
+    DCHECK(*r1 >= 0 && *r1 < range_);
   }
 
  private:
-  int max_;
+  int range_;
+  int max_pairs_;
   int counter_;
-  bool exhaustive() {
-    return max_ == (Register::kMaxNumAllocatableRegisters *
-                    Register::kMaxNumAllocatableRegisters);
-  }
+  bool exhaustive() { return max_pairs_ == (range_ * range_); }
+};
+
+
+// Pairs of general purpose registers.
+class RegisterPairs : public Pairs {
+ public:
+  RegisterPairs() : Pairs(100, Register::kMaxNumAllocatableRegisters) {}
+};
+
+
+// Pairs of double registers.
+class Float32RegisterPairs : public Pairs {
+ public:
+  Float32RegisterPairs()
+      : Pairs(100, DoubleRegister::NumAllocatableAliasedRegisters()) {}
+};
+
+
+// Pairs of double registers.
+class Float64RegisterPairs : public Pairs {
+ public:
+  Float64RegisterPairs()
+      : Pairs(100, DoubleRegister::NumAllocatableAliasedRegisters()) {}
 };
 
 
@@ -265,6 +290,220 @@ Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
 }
 
 
+template <typename CType>
+class ArgsBuffer {
+ public:
+  static const int kMaxParamCount = 64;
+
+  explicit ArgsBuffer(int count, int seed = 1) : count_(count), seed_(seed) {
+    // initialize the buffer with "seed 0"
+    seed_ = 0;
+    Mutate();
+    seed_ = seed;
+  }
+
+  class Sig : public MachineSignature {
+   public:
+    explicit Sig(int param_count)
+        : MachineSignature(1, param_count, MachTypes()) {
+      CHECK(param_count <= kMaxParamCount);
+    }
+  };
+
+  static MachineType* MachTypes() {
+    MachineType t = MachineTypeForC<CType>();
+    static MachineType kTypes[kMaxParamCount + 1] = {
+        t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t,
+        t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t,
+        t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t};
+    return kTypes;
+  }
+
+  Node* MakeConstant(RawMachineAssembler& raw, int32_t value) {
+    return raw.Int32Constant(value);
+  }
+
+  Node* MakeConstant(RawMachineAssembler& raw, int64_t value) {
+    return raw.Int64Constant(value);
+  }
+
+  Node* MakeConstant(RawMachineAssembler& raw, float32 value) {
+    return raw.Float32Constant(value);
+  }
+
+  Node* MakeConstant(RawMachineAssembler& raw, float64 value) {
+    return raw.Float64Constant(value);
+  }
+
+  Node* LoadInput(RawMachineAssembler& raw, Node* base, int index) {
+    Node* offset = raw.Int32Constant(index * sizeof(CType));
+    return raw.Load(MachineTypeForC<CType>(), base, offset);
+  }
+
+  Node* StoreOutput(RawMachineAssembler& raw, Node* value) {
+    Node* base = raw.PointerConstant(&output);
+    Node* offset = raw.Int32Constant(0);
+    return raw.Store(MachineTypeForC<CType>(), base, offset, value);
+  }
+
+  // Computes the next set of inputs by updating the {input} array.
+  void Mutate();
+
+  void Reset() { memset(input, 0, sizeof(input)); }
+
+  int count_;
+  int seed_;
+  CType input[kMaxParamCount];
+  CType output;
+};
+
+
+template <>
+void ArgsBuffer<int32_t>::Mutate() {
+  uint32_t base = 1111111111u * seed_;
+  for (int j = 0; j < count_; j++) {
+    input[j] = static_cast<int32_t>(256 + base + j + seed_ * 13);
+  }
+  output = -1;
+  seed_++;
+}
+
+
+template <>
+void ArgsBuffer<int64_t>::Mutate() {
+  uint64_t base = 11111111111111111ull * seed_;
+  for (int j = 0; j < count_; j++) {
+    input[j] = static_cast<int64_t>(256 + base + j + seed_ * 13);
+  }
+  output = -1;
+  seed_++;
+}
+
+
+template <>
+void ArgsBuffer<float32>::Mutate() {
+  float64 base = -33.25 * seed_;
+  for (int j = 0; j < count_; j++) {
+    input[j] = 256 + base + j + seed_ * 13;
+  }
+  output = std::numeric_limits<float32>::quiet_NaN();
+  seed_++;
+}
+
+
+template <>
+void ArgsBuffer<float64>::Mutate() {
+  float64 base = -111.25 * seed_;
+  for (int j = 0; j < count_; j++) {
+    input[j] = 256 + base + j + seed_ * 13;
+  }
+  output = std::numeric_limits<float64>::quiet_NaN();
+  seed_++;
+}
+
+
+int ParamCount(CallDescriptor* desc) {
+  return static_cast<int>(desc->GetMachineSignature()->parameter_count());
+}
+
+
+template <typename CType>
+class Computer {
+ public:
+  static void Run(CallDescriptor* desc,
+                  void (*build)(CallDescriptor*, RawMachineAssembler&),
+                  CType (*compute)(CallDescriptor*, CType* inputs),
+                  int seed = 1) {
+    int num_params = ParamCount(desc);
+    CHECK_LE(num_params, kMaxParamCount);
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    Handle<Code> inner = Handle<Code>::null();
+    {
+      // Build the graph for the computation.
+      Zone zone;
+      Graph graph(&zone);
+      RawMachineAssembler raw(isolate, &graph, desc);
+      build(desc, raw);
+      inner = CompileGraph("Compute", desc, &graph, raw.Export());
+    }
+
+    CSignature0<int32_t> csig;
+    ArgsBuffer<CType> io(num_params, seed);
+
+    {
+      // constant mode.
+      Handle<Code> wrapper = Handle<Code>::null();
+      {
+        // Wrap the above code with a callable function that passes constants.
+        Zone zone;
+        Graph graph(&zone);
+        CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
+        RawMachineAssembler raw(isolate, &graph, cdesc);
+        Unique<HeapObject> unique =
+            Unique<HeapObject>::CreateUninitialized(inner);
+        Node* target = raw.HeapConstant(unique);
+        Node** args = zone.NewArray<Node*>(kMaxParamCount);
+        for (int i = 0; i < num_params; i++) {
+          args[i] = io.MakeConstant(raw, io.input[i]);
+        }
+
+        Node* call = raw.CallN(desc, target, args);
+        Node* store = io.StoreOutput(raw, call);
+        USE(store);
+        raw.Return(raw.Int32Constant(seed));
+        wrapper =
+            CompileGraph("Compute-wrapper-const", cdesc, &graph, raw.Export());
+      }
+
+      CodeRunner<int32_t> runnable(isolate, wrapper, &csig);
+
+      // Run the code, checking it against the reference.
+      CType expected = compute(desc, io.input);
+      int32_t check_seed = runnable.Call();
+      CHECK_EQ(seed, check_seed);
+      CHECK_EQ(expected, io.output);
+    }
+
+    {
+      // buffer mode.
+      Handle<Code> wrapper = Handle<Code>::null();
+      {
+        // Wrap the above code with a callable function that loads from {input}.
+        Zone zone;
+        Graph graph(&zone);
+        CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
+        RawMachineAssembler raw(isolate, &graph, cdesc);
+        Node* base = raw.PointerConstant(io.input);
+        Unique<HeapObject> unique =
+            Unique<HeapObject>::CreateUninitialized(inner);
+        Node* target = raw.HeapConstant(unique);
+        Node** args = zone.NewArray<Node*>(kMaxParamCount);
+        for (int i = 0; i < num_params; i++) {
+          args[i] = io.LoadInput(raw, base, i);
+        }
+
+        Node* call = raw.CallN(desc, target, args);
+        Node* store = io.StoreOutput(raw, call);
+        USE(store);
+        raw.Return(raw.Int32Constant(seed));
+        wrapper = CompileGraph("Compute-wrapper", cdesc, &graph, raw.Export());
+      }
+
+      CodeRunner<int32_t> runnable(isolate, wrapper, &csig);
+
+      // Run the code, checking it against the reference.
+      for (int i = 0; i < 5; i++) {
+        CType expected = compute(desc, io.input);
+        int32_t check_seed = runnable.Call();
+        CHECK_EQ(seed, check_seed);
+        CHECK_EQ(expected, io.output);
+        io.Mutate();
+      }
+    }
+  }
+};
+
 }  // namespace
 
 
@@ -303,8 +542,9 @@ static void TestInt32Sub(CallDescriptor* desc) {
 }
 
 
-#ifdef NATIVE_STACK_PARAMS_OK
 static void CopyTwentyInt32(CallDescriptor* desc) {
+  if (DISABLE_NATIVE_STACK_PARAMS) return;
+
   const int kNumParams = 20;
   int32_t input[kNumParams];
   int32_t output[kNumParams];
@@ -365,7 +605,6 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     }
   }
 }
-#endif  // NATIVE_STACK_PARAMS_OK
 
 
 static void Test_RunInt32SubWithRet(int retreg) {
@@ -415,7 +654,7 @@ TEST_INT32_SUB_WITH_RET(19)
 
 
 TEST(Run_Int32Sub_all_allocatable_single) {
-#ifdef NATIVE_STACK_PARAMS_OK
+  if (DISABLE_NATIVE_STACK_PARAMS) return;
   Int32Signature sig(2);
   RegisterPairs pairs;
   while (pairs.More()) {
@@ -429,12 +668,11 @@ TEST(Run_Int32Sub_all_allocatable_single) {
     CallDescriptor* desc = config.Create(&zone, &sig);
     TestInt32Sub(desc);
   }
-#endif  // NATIVE_STACK_PARAMS_OK
 }
 
 
 TEST(Run_CopyTwentyInt32_all_allocatable_pairs) {
-#ifdef NATIVE_STACK_PARAMS_OK
+  if (DISABLE_NATIVE_STACK_PARAMS) return;
   Int32Signature sig(20);
   RegisterPairs pairs;
   while (pairs.More()) {
@@ -448,113 +686,14 @@ TEST(Run_CopyTwentyInt32_all_allocatable_pairs) {
     CallDescriptor* desc = config.Create(&zone, &sig);
     CopyTwentyInt32(desc);
   }
-#endif  // NATIVE_STACK_PARAMS_OK
 }
 
 
-#ifdef NATIVE_STACK_PARAMS_OK
-int ParamCount(CallDescriptor* desc) {
-  return static_cast<int>(desc->GetMachineSignature()->parameter_count());
-}
-
-
-// Super mega helper routine to generate a computation with a given
-// call descriptor, compile the code, wrap the code, and pass various inputs,
-// comparing against a reference implementation.
-static void Run_Int32_Computation(
+template <typename CType>
+static void Run_Computation(
     CallDescriptor* desc, void (*build)(CallDescriptor*, RawMachineAssembler&),
-    int32_t (*compute)(CallDescriptor*, int32_t* inputs), int seed = 1) {
-  int num_params = ParamCount(desc);
-  CHECK_LE(num_params, kMaxParamCount);
-  int32_t input[kMaxParamCount];
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  HandleScope scope(isolate);
-  Handle<Code> inner = Handle<Code>::null();
-  {
-    // Build the graph for the computation.
-    Zone zone;
-    Graph graph(&zone);
-    RawMachineAssembler raw(isolate, &graph, desc);
-    build(desc, raw);
-    inner = CompileGraph("Compute", desc, &graph, raw.Export());
-  }
-
-  CSignature0<int32_t> csig;
-
-  if (false) {
-    // constant mode.
-    Handle<Code> wrapper = Handle<Code>::null();
-    {
-      // Wrap the above code with a callable function that passes constants.
-      Zone zone;
-      Graph graph(&zone);
-      CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
-      RawMachineAssembler raw(isolate, &graph, cdesc);
-      Unique<HeapObject> unique =
-          Unique<HeapObject>::CreateUninitialized(inner);
-      Node* target = raw.HeapConstant(unique);
-      Node** args = zone.NewArray<Node*>(kMaxParamCount);
-      for (int i = 0; i < num_params; i++) {
-        args[i] = raw.Int32Constant(0x100 + i);
-      }
-
-      Node* call = raw.CallN(desc, target, args);
-      raw.Return(call);
-      wrapper = CompileGraph("Compute-wrapper", cdesc, &graph, raw.Export());
-    }
-
-    CodeRunner<int32_t> runnable(isolate, wrapper, &csig);
-
-    // Run the code, checking it against the reference.
-    for (int j = 0; j < kMaxParamCount; j++) {
-      input[j] = 0x100 + j;
-    }
-    int32_t expected = compute(desc, input);
-    int32_t result = runnable.Call();
-
-    CHECK_EQ(expected, result);
-  }
-
-  {
-    // buffer mode.
-    Handle<Code> wrapper = Handle<Code>::null();
-    {
-      // Wrap the above code with a callable function that loads from {input}.
-      Zone zone;
-      Graph graph(&zone);
-      CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
-      RawMachineAssembler raw(isolate, &graph, cdesc);
-      Node* base = raw.PointerConstant(input);
-      Unique<HeapObject> unique =
-          Unique<HeapObject>::CreateUninitialized(inner);
-      Node* target = raw.HeapConstant(unique);
-      Node** args = zone.NewArray<Node*>(kMaxParamCount);
-      for (int i = 0; i < num_params; i++) {
-        Node* offset = raw.Int32Constant(i * sizeof(int32_t));
-        args[i] = raw.Load(kMachInt32, base, offset);
-      }
-
-      Node* call = raw.CallN(desc, target, args);
-      raw.Return(call);
-      wrapper = CompileGraph("Compute-wrapper", cdesc, &graph, raw.Export());
-    }
-
-    CodeRunner<int32_t> runnable(isolate, wrapper, &csig);
-
-    // Run the code, checking it against the reference.
-    for (int i = 0; i < 5; i++) {
-      // Use pseudo-random values for each run, but the first run gets args
-      // 100, 101, 102, 103... for easier diagnosis.
-      uint32_t base = 1111111111u * i * seed;
-      for (int j = 0; j < kMaxParamCount; j++) {
-        input[j] = static_cast<int32_t>(100 + base + j);
-      }
-      int32_t expected = compute(desc, input);
-      int32_t result = runnable.Call();
-
-      CHECK_EQ(expected, result);
-    }
-  }
+    CType (*compute)(CallDescriptor*, CType* inputs), int seed = 1) {
+  Computer<CType>::Run(desc, build, compute, seed);
 }
 
 
@@ -584,6 +723,7 @@ static int32_t Compute_Int32_WeightedSum(CallDescriptor* desc, int32_t* input) {
 
 
 static void Test_Int32_WeightedSum_of_size(int count) {
+  if (DISABLE_NATIVE_STACK_PARAMS) return;
   Int32Signature sig(count);
   for (int p0 = 0; p0 < Register::kMaxNumAllocatableRegisters; p0++) {
     Zone zone;
@@ -594,8 +734,8 @@ static void Test_Int32_WeightedSum_of_size(int count) {
     Allocator rets(rarray, 1, nullptr, 0);
     RegisterConfig config(params, rets);
     CallDescriptor* desc = config.Create(&zone, &sig);
-    Run_Int32_Computation(desc, Build_Int32_WeightedSum,
-                          Compute_Int32_WeightedSum, 257 + count);
+    Run_Computation<int32_t>(desc, Build_Int32_WeightedSum,
+                             Compute_Int32_WeightedSum, 257 + count);
   }
 }
 
@@ -618,19 +758,21 @@ TEST_INT32_WEIGHTEDSUM(19)
 
 
 template <int which>
-static void Build_Int32_Select(CallDescriptor* desc, RawMachineAssembler& raw) {
+static void Build_Select(CallDescriptor* desc, RawMachineAssembler& raw) {
   raw.Return(raw.Parameter(which));
 }
 
 
-template <int which>
-static int32_t Compute_Int32_Select(CallDescriptor* desc, int32_t* inputs) {
+template <typename CType, int which>
+static CType Compute_Select(CallDescriptor* desc, CType* inputs) {
   return inputs[which];
 }
 
 
 template <int which>
 void Test_Int32_Select() {
+  if (DISABLE_NATIVE_STACK_PARAMS) return;
+
   int parray[] = {0};
   int rarray[] = {0};
   Allocator params(parray, 1, nullptr, 0);
@@ -642,8 +784,8 @@ void Test_Int32_Select() {
   for (int i = which + 1; i <= 64; i++) {
     Int32Signature sig(i);
     CallDescriptor* desc = config.Create(&zone, &sig);
-    Run_Int32_Computation(desc, Build_Int32_Select<which>,
-                          Compute_Int32_Select<which>, 1025 + which);
+    Run_Computation<int32_t>(desc, Build_Select<which>,
+                             Compute_Select<int32_t, which>, 1025 + which);
   }
 }
 
@@ -666,9 +808,79 @@ TEST_INT32_SELECT(19)
 TEST_INT32_SELECT(45)
 TEST_INT32_SELECT(62)
 TEST_INT32_SELECT(63)
-#endif  // NATIVE_STACK_PARAMS_OK
 
 
-TEST(TheLastTestForLint) {
-  // Yes, thank you.
+TEST(Int64Select_registers) {
+  if (Register::kMaxNumAllocatableRegisters < 2) return;
+  if (kPointerSize < 8) return;  // TODO(titzer): int64 on 32-bit platforms
+
+  int rarray[] = {0};
+  ArgsBuffer<int64_t>::Sig sig(2);
+
+  RegisterPairs pairs;
+  Zone zone;
+  while (pairs.More()) {
+    int parray[2];
+    pairs.Next(&parray[0], &parray[1], false);
+    Allocator params(parray, 2, nullptr, 0);
+    Allocator rets(rarray, 1, nullptr, 0);
+    RegisterConfig config(params, rets);
+
+    CallDescriptor* desc = config.Create(&zone, &sig);
+    Run_Computation<int64_t>(desc, Build_Select<0>, Compute_Select<int64_t, 0>,
+                             1021);
+
+    Run_Computation<int64_t>(desc, Build_Select<1>, Compute_Select<int64_t, 1>,
+                             1022);
+  }
+}
+
+
+TEST(Float32Select_registers) {
+  if (DoubleRegister::kMaxNumAllocatableRegisters < 2) return;
+
+  int rarray[] = {0};
+  ArgsBuffer<float32>::Sig sig(2);
+
+  Float32RegisterPairs pairs;
+  Zone zone;
+  while (pairs.More()) {
+    int parray[2];
+    pairs.Next(&parray[0], &parray[1], false);
+    Allocator params(nullptr, 0, parray, 2);
+    Allocator rets(nullptr, 0, rarray, 1);
+    RegisterConfig config(params, rets);
+
+    CallDescriptor* desc = config.Create(&zone, &sig);
+    Run_Computation<float32>(desc, Build_Select<0>, Compute_Select<float32, 0>,
+                             1019);
+
+    Run_Computation<float32>(desc, Build_Select<1>, Compute_Select<float32, 1>,
+                             1018);
+  }
+}
+
+
+TEST(Float64Select_registers) {
+  if (DoubleRegister::kMaxNumAllocatableRegisters < 2) return;
+
+  int rarray[] = {0};
+  ArgsBuffer<float64>::Sig sig(2);
+
+  Float64RegisterPairs pairs;
+  Zone zone;
+  while (pairs.More()) {
+    int parray[2];
+    pairs.Next(&parray[0], &parray[1], false);
+    Allocator params(nullptr, 0, parray, 2);
+    Allocator rets(nullptr, 0, rarray, 1);
+    RegisterConfig config(params, rets);
+
+    CallDescriptor* desc = config.Create(&zone, &sig);
+    Run_Computation<float64>(desc, Build_Select<0>, Compute_Select<float64, 0>,
+                             1033);
+
+    Run_Computation<float64>(desc, Build_Select<1>, Compute_Select<float64, 1>,
+                             1034);
+  }
 }
