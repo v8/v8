@@ -186,9 +186,7 @@ enum BuiltinExtraArguments {
   V(TO_STRING, 0)                          \
   V(TO_NAME, 0)                            \
   V(STRING_ADD_LEFT, 1)                    \
-  V(STRING_ADD_LEFT_STRONG, 1)             \
   V(STRING_ADD_RIGHT, 1)                   \
-  V(STRING_ADD_RIGHT_STRONG, 1)            \
   V(APPLY_PREPARE, 1)                      \
   V(REFLECT_APPLY_PREPARE, 1)              \
   V(REFLECT_CONSTRUCT_PREPARE, 2)          \

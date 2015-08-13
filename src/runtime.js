@@ -23,9 +23,7 @@ var COMPARE_STRONG;
 var ADD;
 var ADD_STRONG;
 var STRING_ADD_LEFT;
-var STRING_ADD_LEFT_STRONG;
 var STRING_ADD_RIGHT;
-var STRING_ADD_RIGHT_STRONG;
 var SUB;
 var SUB_STRONG;
 var MUL;
@@ -262,15 +260,6 @@ STRING_ADD_LEFT = function STRING_ADD_LEFT(y) {
 }
 
 
-// Left operand (this) is already a string.
-STRING_ADD_LEFT_STRONG = function STRING_ADD_LEFT_STRONG(y) {
-  if (IS_STRING(y)) {
-    return %_StringAdd(this, y);
-  }
-  throw %MakeTypeError(kStrongImplicitConversion);
-}
-
-
 // Right operand (y) is already a string.
 STRING_ADD_RIGHT = function STRING_ADD_RIGHT(y) {
   var x = this;
@@ -284,15 +273,6 @@ STRING_ADD_RIGHT = function STRING_ADD_RIGHT(y) {
     }
   }
   return %_StringAdd(x, y);
-}
-
-
-// Right operand (y) is already a string.
-STRING_ADD_RIGHT_STRONG = function STRING_ADD_RIGHT_STRONG(y) {
-  if (IS_STRING(this)) {
-    return %_StringAdd(this, y);
-  }
-  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 

@@ -10903,40 +10903,43 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   // Special case for string addition here.
   if (op == Token::ADD &&
       (left_type->Is(Type::String()) || right_type->Is(Type::String()))) {
-    // Validate type feedback for left argument.
-    if (left_type->Is(Type::String())) {
+    if (is_strong(strength)) {
+      // In strong mode, if the one side of an addition is a string,
+      // the other side must be a string too.
       left = BuildCheckString(left);
-    }
-
-    // Validate type feedback for right argument.
-    if (right_type->Is(Type::String())) {
       right = BuildCheckString(right);
-    }
+    } else {
+      // Validate type feedback for left argument.
+      if (left_type->Is(Type::String())) {
+        left = BuildCheckString(left);
+      }
 
-    // Convert left argument as necessary.
-    if (left_type->Is(Type::Number()) && !is_strong(strength)) {
-      DCHECK(right_type->Is(Type::String()));
-      left = BuildNumberToString(left, left_type);
-    } else if (!left_type->Is(Type::String())) {
-      DCHECK(right_type->Is(Type::String()));
-      HValue* function = AddLoadJSBuiltin(
-          is_strong(strength) ? Builtins::STRING_ADD_RIGHT_STRONG
-                              : Builtins::STRING_ADD_RIGHT);
-      Add<HPushArguments>(left, right);
-      return AddUncasted<HInvokeFunction>(function, 2);
-    }
+      // Validate type feedback for right argument.
+      if (right_type->Is(Type::String())) {
+        right = BuildCheckString(right);
+      }
 
-    // Convert right argument as necessary.
-    if (right_type->Is(Type::Number()) && !is_strong(strength)) {
-      DCHECK(left_type->Is(Type::String()));
-      right = BuildNumberToString(right, right_type);
-    } else if (!right_type->Is(Type::String())) {
-      DCHECK(left_type->Is(Type::String()));
-      HValue* function = AddLoadJSBuiltin(is_strong(strength)
-                                              ? Builtins::STRING_ADD_LEFT_STRONG
-                                              : Builtins::STRING_ADD_LEFT);
-      Add<HPushArguments>(left, right);
-      return AddUncasted<HInvokeFunction>(function, 2);
+      // Convert left argument as necessary.
+      if (left_type->Is(Type::Number())) {
+        DCHECK(right_type->Is(Type::String()));
+        left = BuildNumberToString(left, left_type);
+      } else if (!left_type->Is(Type::String())) {
+        DCHECK(right_type->Is(Type::String()));
+        HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_RIGHT);
+        Add<HPushArguments>(left, right);
+        return AddUncasted<HInvokeFunction>(function, 2);
+      }
+
+      // Convert right argument as necessary.
+      if (right_type->Is(Type::Number())) {
+        DCHECK(left_type->Is(Type::String()));
+        right = BuildNumberToString(right, right_type);
+      } else if (!right_type->Is(Type::String())) {
+        DCHECK(left_type->Is(Type::String()));
+        HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_LEFT);
+        Add<HPushArguments>(left, right);
+        return AddUncasted<HInvokeFunction>(function, 2);
+      }
     }
 
     // Fast paths for empty constant strings.
