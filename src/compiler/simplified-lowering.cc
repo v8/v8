@@ -414,6 +414,25 @@ class RepresentationSelector {
     }
   }
 
+  void VisitCall(Node* node, SimplifiedLowering* lowering) {
+    const CallDescriptor* desc = OpParameter<const CallDescriptor*>(node->op());
+    const MachineSignature* sig = desc->GetMachineSignature();
+    int params = static_cast<int>(sig->parameter_count());
+    // Propagate representation information from call descriptor.
+    for (int i = 0; i < node->InputCount(); i++) {
+      if (i == 0) {
+        // The target of the call.
+        ProcessInput(node, i, 0);
+      } else if ((i - 1) < params) {
+        ProcessInput(node, i, sig->GetParam(i - 1));
+      } else {
+        ProcessInput(node, i, 0);
+      }
+    }
+
+    SetOutput(node, desc->GetMachineSignature()->GetReturn());
+  }
+
   void VisitStateValues(Node* node) {
     if (phase_ == PROPAGATE) {
       for (int i = 0; i < node->InputCount(); i++) {
@@ -533,6 +552,8 @@ class RepresentationSelector {
         return VisitSelect(node, use, lowering);
       case IrOpcode::kPhi:
         return VisitPhi(node, use, lowering);
+      case IrOpcode::kCall:
+        return VisitCall(node, lowering);
 
 //------------------------------------------------------------------
 // JavaScript operators.
