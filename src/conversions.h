@@ -89,9 +89,7 @@ inline int32_t DoubleToInt32(double x);
 
 
 // This function should match the exact semantics of ECMA-262 9.6.
-inline uint32_t DoubleToUint32(double x) {
-  return static_cast<uint32_t>(DoubleToInt32(x));
-}
+inline uint32_t DoubleToUint32(double x);
 
 
 // Enumeration for allowing octals and ignoring junk when converting
@@ -156,19 +154,19 @@ static inline bool IsMinusZero(double value) {
 }
 
 
-static inline bool IsSmiDouble(double value);
+inline bool IsSmiDouble(double value);
 
 
 // Integer32 is an integer that can be represented as a signed 32-bit
 // integer. It has to be in the range [-2^31, 2^31 - 1].
 // We also have to check for negative 0 as it is not an Integer32.
-static inline bool IsInt32Double(double value);
+inline bool IsInt32Double(double value);
 
 
 // UInteger32 is an integer that can be represented as an unsigned 32-bit
 // integer. It has to be in the range [0, 2^32 - 1].
 // We also have to check for negative 0 as it is not a UInteger32.
-static inline bool IsUint32Double(double value);
+inline bool IsUint32Double(double value);
 
 
 // Convert from Number object to C integer.

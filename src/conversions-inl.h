@@ -160,6 +160,11 @@ size_t NumberToSize(Isolate* isolate, Object* number) {
 }
 
 
+uint32_t DoubleToUint32(double x) {
+  return static_cast<uint32_t>(DoubleToInt32(x));
+}
+
+
 template <class Iterator, class EndMark>
 bool SubStringEquals(Iterator* current,
                      EndMark end,

@@ -17,6 +17,7 @@ namespace v8 {
 namespace internal {
 
 class CallInterfaceDescriptor;
+class CompilationInfo;
 
 namespace compiler {
 
