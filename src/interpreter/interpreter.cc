@@ -31,9 +31,6 @@ Handle<FixedArray> Interpreter::CreateUninitializedInterpreterTable(
   // it was allocated on the first page (which is always immovable).
   DCHECK(isolate->heap()->old_space()->FirstPage()->Contains(
       handler_table->address()));
-  for (int i = 0; i < static_cast<int>(Bytecode::kLast); i++) {
-    handler_table->set(i, isolate->builtins()->builtin(Builtins::kIllegal));
-  }
   return handler_table;
 }
 
@@ -62,8 +59,7 @@ void Interpreter::Initialize() {
 bool Interpreter::IsInterpreterTableInitialized(
     Handle<FixedArray> handler_table) {
   DCHECK(handler_table->length() == static_cast<int>(Bytecode::kLast) + 1);
-  return handler_table->get(0) ==
-         isolate_->builtins()->builtin(Builtins::kIllegal);
+  return handler_table->get(0) != isolate_->heap()->undefined_value();
 }
 
 
