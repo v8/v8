@@ -789,9 +789,11 @@ Expression* ParserTraits::NewTargetExpression(Scope* scope,
                                               AstNodeFactory* factory,
                                               int pos) {
   static const int kNewTargetStringLength = 10;
-  return scope->NewUnresolved(
+  auto proxy = scope->NewUnresolved(
       factory, parser_->ast_value_factory()->new_target_string(),
       Variable::NORMAL, pos, pos + kNewTargetStringLength);
+  proxy->set_is_new_target();
+  return proxy;
 }
 
 
@@ -3679,8 +3681,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             CHECK_OK);
       }
     } else {
-      Scanner::Location lhs_location = scanner()->peek_location();
+      int lhs_beg_pos = peek_position();
       Expression* expression = ParseExpression(false, CHECK_OK);
+      int lhs_end_pos = scanner()->location().end_pos;
       ForEachStatement::VisitMode mode;
       bool accept_OF = expression->IsVariableProxy();
       is_let_identifier_expression =
@@ -3691,8 +3694,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       if (CheckInOrOf(accept_OF, &mode, ok)) {
         if (!*ok) return nullptr;
         expression = this->CheckAndRewriteReferenceExpression(
-            expression, lhs_location, MessageTemplate::kInvalidLhsInFor,
-            CHECK_OK);
+            expression, lhs_beg_pos, lhs_end_pos,
+            MessageTemplate::kInvalidLhsInFor, CHECK_OK);
 
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
@@ -3711,8 +3714,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         return loop;
 
       } else {
-        init =
-            factory()->NewExpressionStatement(expression, lhs_location.beg_pos);
+        init = factory()->NewExpressionStatement(expression, lhs_beg_pos);
       }
     }
   }

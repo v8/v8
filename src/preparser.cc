@@ -918,6 +918,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
           lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
       if (CheckInOrOf(lhs.IsIdentifier(), &mode, ok)) {
         if (!*ok) return Statement::Default();
+        // TODO(adamk): Should call CheckAndRewriteReferenceExpression here
+        // to catch early errors if lhs is not a valid reference expression.
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
         ParseSubStatement(CHECK_OK);

@@ -713,7 +713,7 @@ class ParserBase : public Traits {
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
   // we allow calls for web compatibility and rewrite them to a runtime throw.
   ExpressionT CheckAndRewriteReferenceExpression(
-      ExpressionT expression, Scanner::Location location,
+      ExpressionT expression, int beg_pos, int end_pos,
       MessageTemplate::Template message, bool* ok);
 
   // Used to validate property names in object literals and class literals
@@ -2821,7 +2821,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
 
-  Scanner::Location lhs_location = scanner()->peek_location();
+  int lhs_beg_pos = peek_position();
 
   if (peek() == Token::YIELD && is_generator()) {
     return this->ParseYieldExpression(classifier, ok);
@@ -2841,13 +2841,13 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     BindingPatternUnexpectedToken(classifier);
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
                                   parenthesized_formals, CHECK_OK);
-    Scanner::Location loc(lhs_location.beg_pos, scanner()->location().end_pos);
+    Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
     Scope* scope =
         this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
     FormalParametersT parameters(scope);
     checkpoint.Restore(&parameters.materialized_literals_count);
 
-    scope->set_start_position(lhs_location.beg_pos);
+    scope->set_start_position(lhs_beg_pos);
     Scanner::Location duplicate_loc = Scanner::Location::invalid();
     this->ParseArrowFunctionFormalParameterList(&parameters, expression, loc,
                                                 &duplicate_loc, CHECK_OK);
@@ -2877,8 +2877,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   }
 
   expression = this->CheckAndRewriteReferenceExpression(
-      expression, lhs_location, MessageTemplate::kInvalidLhsInAssignment,
-      CHECK_OK);
+      expression, lhs_beg_pos, scanner()->location().end_pos,
+      MessageTemplate::kInvalidLhsInAssignment, CHECK_OK);
   expression = this->MarkExpressionAsAssigned(expression);
 
   Token::Value op = Next();  // Get assignment operator.
@@ -3094,11 +3094,11 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
   } else if (Token::IsCountOp(op)) {
     BindingPatternUnexpectedToken(classifier);
     op = Next();
-    Scanner::Location lhs_location = scanner()->peek_location();
+    int beg_pos = peek_position();
     ExpressionT expression = this->ParseUnaryExpression(classifier, CHECK_OK);
     expression = this->CheckAndRewriteReferenceExpression(
-        expression, lhs_location, MessageTemplate::kInvalidLhsInPrefixOp,
-        CHECK_OK);
+        expression, beg_pos, scanner()->location().end_pos,
+        MessageTemplate::kInvalidLhsInPrefixOp, CHECK_OK);
     this->MarkExpressionAsAssigned(expression);
 
     return factory()->NewCountOperation(op,
@@ -3119,7 +3119,7 @@ ParserBase<Traits>::ParsePostfixExpression(ExpressionClassifier* classifier,
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
 
-  Scanner::Location lhs_location = scanner()->peek_location();
+  int lhs_beg_pos = peek_position();
   ExpressionT expression =
       this->ParseLeftHandSideExpression(classifier, CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
@@ -3127,8 +3127,8 @@ ParserBase<Traits>::ParsePostfixExpression(ExpressionClassifier* classifier,
     BindingPatternUnexpectedToken(classifier);
 
     expression = this->CheckAndRewriteReferenceExpression(
-        expression, lhs_location, MessageTemplate::kInvalidLhsInPostfixOp,
-        CHECK_OK);
+        expression, lhs_beg_pos, scanner()->location().end_pos,
+        MessageTemplate::kInvalidLhsInPostfixOp, CHECK_OK);
     expression = this->MarkExpressionAsAssigned(expression);
 
     Token::Value next = Next();
@@ -3936,8 +3936,9 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start,
 template <typename Traits>
 typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::CheckAndRewriteReferenceExpression(
-    ExpressionT expression, Scanner::Location location,
+    ExpressionT expression, int beg_pos, int end_pos,
     MessageTemplate::Template message, bool* ok) {
+  Scanner::Location location(beg_pos, end_pos);
   if (this->IsIdentifier(expression)) {
     if (is_strict(language_mode()) &&
         this->IsEvalOrArguments(this->AsIdentifier(expression))) {

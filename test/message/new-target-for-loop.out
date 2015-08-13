@@ -1,0 +1,4 @@
+*%(basename)s:7: ReferenceError: Invalid left-hand side in for-loop
+function f() { for (new.target in {}); }
+                    ^^^^^^^^^^
+ReferenceError: Invalid left-hand side in for-loop

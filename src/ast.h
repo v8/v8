@@ -1639,7 +1639,9 @@ class VariableProxy final : public Expression {
  public:
   DECLARE_NODE_TYPE(VariableProxy)
 
-  bool IsValidReferenceExpression() const override { return !is_this(); }
+  bool IsValidReferenceExpression() const override {
+    return !is_this() && !is_new_target();
+  }
 
   bool IsArguments() const { return is_resolved() && var()->is_arguments(); }
 
@@ -1668,6 +1670,11 @@ class VariableProxy final : public Expression {
   bool is_resolved() const { return IsResolvedField::decode(bit_field_); }
   void set_is_resolved() {
     bit_field_ = IsResolvedField::update(bit_field_, true);
+  }
+
+  bool is_new_target() const { return IsNewTargetField::decode(bit_field_); }
+  void set_is_new_target() {
+    bit_field_ = IsNewTargetField::update(bit_field_, true);
   }
 
   int end_position() const { return end_position_; }
@@ -1705,6 +1712,7 @@ class VariableProxy final : public Expression {
   class IsThisField : public BitField8<bool, 0, 1> {};
   class IsAssignedField : public BitField8<bool, 1, 1> {};
   class IsResolvedField : public BitField8<bool, 2, 1> {};
+  class IsNewTargetField : public BitField8<bool, 3, 1> {};
 
   // Start with 16-bit (or smaller) field, which should get packed together
   // with Expression's trailing 16-bit field.

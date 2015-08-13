@@ -384,3 +384,15 @@
   function f6() { with ({'new.target': 42}) return new.target }
   assertSame(f6, new f6);
 })();
+
+
+(function TestEarlyErrors() {
+  assertThrows(function() { Function("new.target = 42"); }, ReferenceError);
+  assertThrows(function() { Function("var foo = 1; new.target = foo = 42"); }, ReferenceError);
+  assertThrows(function() { Function("var foo = 1; foo = new.target = 42"); }, ReferenceError);
+  assertThrows(function() { Function("new.target--"); }, ReferenceError);
+  assertThrows(function() { Function("--new.target"); }, ReferenceError);
+  assertThrows(function() { Function("(new.target)++"); }, ReferenceError);
+  assertThrows(function() { Function("++(new.target)"); }, ReferenceError);
+  assertThrows(function() { Function("for (new.target of {});"); }, ReferenceError);
+})();
