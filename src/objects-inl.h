@@ -1107,6 +1107,44 @@ bool Object::IsMinusZero() const {
 }
 
 
+Representation Object::OptimalRepresentation() {
+  if (!FLAG_track_fields) return Representation::Tagged();
+  if (IsSmi()) {
+    return Representation::Smi();
+  } else if (FLAG_track_double_fields && IsHeapNumber()) {
+    return Representation::Double();
+  } else if (FLAG_track_computed_fields && IsUninitialized()) {
+    return Representation::None();
+  } else if (FLAG_track_heap_object_fields) {
+    DCHECK(IsHeapObject());
+    return Representation::HeapObject();
+  } else {
+    return Representation::Tagged();
+  }
+}
+
+
+ElementsKind Object::OptimalElementsKind() {
+  if (IsSmi()) return FAST_SMI_ELEMENTS;
+  if (IsNumber()) return FAST_DOUBLE_ELEMENTS;
+  return FAST_ELEMENTS;
+}
+
+
+bool Object::FitsRepresentation(Representation representation) {
+  if (FLAG_track_fields && representation.IsNone()) {
+    return false;
+  } else if (FLAG_track_fields && representation.IsSmi()) {
+    return IsSmi();
+  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+    return IsMutableHeapNumber() || IsNumber();
+  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+    return IsHeapObject();
+  }
+  return true;
+}
+
+
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
                                          Handle<Object> object) {
   return ToObject(
@@ -1292,31 +1330,6 @@ Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
 }
 
 
-int Smi::value() const {
-  return Internals::SmiValue(this);
-}
-
-
-Smi* Smi::FromInt(int value) {
-  DCHECK(Smi::IsValid(value));
-  return reinterpret_cast<Smi*>(Internals::IntToSmi(value));
-}
-
-
-Smi* Smi::FromIntptr(intptr_t value) {
-  DCHECK(Smi::IsValid(value));
-  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-  return reinterpret_cast<Smi*>((value << smi_shift_bits) | kSmiTag);
-}
-
-
-bool Smi::IsValid(intptr_t value) {
-  bool result = Internals::IsValidSmi(value);
-  DCHECK_EQ(result, value >= kMinValue && value <= kMaxValue);
-  return result;
-}
-
-
 MapWord MapWord::FromMap(const Map* map) {
   return MapWord(reinterpret_cast<uintptr_t>(map));
 }
@@ -1437,17 +1450,6 @@ MapWord HeapObject::synchronized_map_word() const {
 void HeapObject::synchronized_set_map_word(MapWord map_word) {
   RELEASE_WRITE_FIELD(
       this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
-}
-
-
-HeapObject* HeapObject::FromAddress(Address address) {
-  DCHECK_TAG_ALIGNED(address);
-  return reinterpret_cast<HeapObject*>(address + kHeapObjectTag);
-}
-
-
-Address HeapObject::address() {
-  return reinterpret_cast<Address>(this) - kHeapObjectTag;
 }
 
 
@@ -1745,10 +1747,58 @@ void AllocationSite::Initialize() {
 }
 
 
+bool AllocationSite::IsZombie() { return pretenure_decision() == kZombie; }
+
+
+bool AllocationSite::IsMaybeTenure() {
+  return pretenure_decision() == kMaybeTenure;
+}
+
+
+bool AllocationSite::PretenuringDecisionMade() {
+  return pretenure_decision() != kUndecided;
+}
+
+
 void AllocationSite::MarkZombie() {
   DCHECK(!IsZombie());
   Initialize();
   set_pretenure_decision(kZombie);
+}
+
+
+ElementsKind AllocationSite::GetElementsKind() {
+  DCHECK(!SitePointsToLiteral());
+  int value = Smi::cast(transition_info())->value();
+  return ElementsKindBits::decode(value);
+}
+
+
+void AllocationSite::SetElementsKind(ElementsKind kind) {
+  int value = Smi::cast(transition_info())->value();
+  set_transition_info(Smi::FromInt(ElementsKindBits::update(value, kind)),
+                      SKIP_WRITE_BARRIER);
+}
+
+
+bool AllocationSite::CanInlineCall() {
+  int value = Smi::cast(transition_info())->value();
+  return DoNotInlineBit::decode(value) == 0;
+}
+
+
+void AllocationSite::SetDoNotInlineCall() {
+  int value = Smi::cast(transition_info())->value();
+  set_transition_info(Smi::FromInt(DoNotInlineBit::update(value, true)),
+                      SKIP_WRITE_BARRIER);
+}
+
+
+bool AllocationSite::SitePointsToLiteral() {
+  // If transition_info is a smi, then it represents an ElementsKind
+  // for a constructed array. Otherwise, it must be a boilerplate
+  // for an object or array literal.
+  return transition_info()->IsJSArray() || transition_info()->IsJSObject();
 }
 
 
@@ -1787,6 +1837,39 @@ inline bool AllocationSite::CanTrack(InstanceType type) {
 }
 
 
+AllocationSite::PretenureDecision AllocationSite::pretenure_decision() {
+  int value = pretenure_data()->value();
+  return PretenureDecisionBits::decode(value);
+}
+
+
+void AllocationSite::set_pretenure_decision(PretenureDecision decision) {
+  int value = pretenure_data()->value();
+  set_pretenure_data(
+      Smi::FromInt(PretenureDecisionBits::update(value, decision)),
+      SKIP_WRITE_BARRIER);
+}
+
+
+bool AllocationSite::deopt_dependent_code() {
+  int value = pretenure_data()->value();
+  return DeoptDependentCodeBit::decode(value);
+}
+
+
+void AllocationSite::set_deopt_dependent_code(bool deopt) {
+  int value = pretenure_data()->value();
+  set_pretenure_data(Smi::FromInt(DeoptDependentCodeBit::update(value, deopt)),
+                     SKIP_WRITE_BARRIER);
+}
+
+
+int AllocationSite::memento_found_count() {
+  int value = pretenure_data()->value();
+  return MementoFoundCountBits::decode(value);
+}
+
+
 inline void AllocationSite::set_memento_found_count(int count) {
   int value = pretenure_data()->value();
   // Verify that we can count more mementos than we can possibly find in one
@@ -1799,6 +1882,17 @@ inline void AllocationSite::set_memento_found_count(int count) {
       Smi::FromInt(MementoFoundCountBits::update(value, count)),
       SKIP_WRITE_BARRIER);
 }
+
+
+int AllocationSite::memento_create_count() {
+  return pretenure_create_count()->value();
+}
+
+
+void AllocationSite::set_memento_create_count(int count) {
+  set_pretenure_create_count(Smi::FromInt(count), SKIP_WRITE_BARRIER);
+}
+
 
 inline bool AllocationSite::IncrementMementoFoundCount() {
   if (IsZombie()) return false;
@@ -1870,6 +1964,18 @@ inline bool AllocationSite::DigestPretenuringFeedback(
   set_memento_found_count(0);
   set_memento_create_count(0);
   return deopt;
+}
+
+
+bool AllocationMemento::IsValid() {
+  return allocation_site()->IsAllocationSite() &&
+         !AllocationSite::cast(allocation_site())->IsZombie();
+}
+
+
+AllocationSite* AllocationMemento::GetAllocationSite() {
+  DCHECK(IsValid());
+  return AllocationSite::cast(allocation_site());
 }
 
 
@@ -2014,6 +2120,17 @@ ACCESSORS(Cell, value, Object, kValueOffset)
 ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(PropertyCell, property_details_raw, Object, kDetailsOffset)
 ACCESSORS(PropertyCell, value, Object, kValueOffset)
+
+
+PropertyDetails PropertyCell::property_details() {
+  return PropertyDetails(Smi::cast(property_details_raw()));
+}
+
+
+void PropertyCell::set_property_details(PropertyDetails details) {
+  set_property_details_raw(details.AsSmi());
+}
+
 
 Object* WeakCell::value() const { return READ_FIELD(this, kValueOffset); }
 
@@ -2628,6 +2745,11 @@ Object** FixedArray::data_start() {
 }
 
 
+Object** FixedArray::RawFieldOfElementAt(int index) {
+  return HeapObject::RawField(this, OffsetOfElementAt(index));
+}
+
+
 bool DescriptorArray::IsEmpty() {
   DCHECK(length() >= kFirstIndex ||
          this == GetHeap()->empty_descriptor_array());
@@ -2635,9 +2757,72 @@ bool DescriptorArray::IsEmpty() {
 }
 
 
+int DescriptorArray::number_of_descriptors() {
+  DCHECK(length() >= kFirstIndex || IsEmpty());
+  int len = length();
+  return len == 0 ? 0 : Smi::cast(get(kDescriptorLengthIndex))->value();
+}
+
+
+int DescriptorArray::number_of_descriptors_storage() {
+  int len = length();
+  return len == 0 ? 0 : (len - kFirstIndex) / kDescriptorSize;
+}
+
+
+int DescriptorArray::NumberOfSlackDescriptors() {
+  return number_of_descriptors_storage() - number_of_descriptors();
+}
+
+
 void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
   WRITE_FIELD(
       this, kDescriptorLengthOffset, Smi::FromInt(number_of_descriptors));
+}
+
+
+inline int DescriptorArray::number_of_entries() {
+  return number_of_descriptors();
+}
+
+
+bool DescriptorArray::HasEnumCache() {
+  return !IsEmpty() && !get(kEnumCacheIndex)->IsSmi();
+}
+
+
+void DescriptorArray::CopyEnumCacheFrom(DescriptorArray* array) {
+  set(kEnumCacheIndex, array->get(kEnumCacheIndex));
+}
+
+
+FixedArray* DescriptorArray::GetEnumCache() {
+  DCHECK(HasEnumCache());
+  FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
+  return FixedArray::cast(bridge->get(kEnumCacheBridgeCacheIndex));
+}
+
+
+bool DescriptorArray::HasEnumIndicesCache() {
+  if (IsEmpty()) return false;
+  Object* object = get(kEnumCacheIndex);
+  if (object->IsSmi()) return false;
+  FixedArray* bridge = FixedArray::cast(object);
+  return !bridge->get(kEnumCacheBridgeIndicesCacheIndex)->IsSmi();
+}
+
+
+FixedArray* DescriptorArray::GetEnumIndicesCache() {
+  DCHECK(HasEnumIndicesCache());
+  FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
+  return FixedArray::cast(bridge->get(kEnumCacheBridgeIndicesCacheIndex));
+}
+
+
+Object** DescriptorArray::GetEnumCacheSlot() {
+  DCHECK(HasEnumCache());
+  return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
+                              kEnumCacheOffset);
 }
 
 
@@ -2773,6 +2958,37 @@ int DescriptorArray::SearchWithCache(Name* name, Map* map) {
 
 PropertyDetails Map::GetLastDescriptorDetails() {
   return instance_descriptors()->GetDetails(LastAdded());
+}
+
+
+int Map::LastAdded() {
+  int number_of_own_descriptors = NumberOfOwnDescriptors();
+  DCHECK(number_of_own_descriptors > 0);
+  return number_of_own_descriptors - 1;
+}
+
+
+int Map::NumberOfOwnDescriptors() {
+  return NumberOfOwnDescriptorsBits::decode(bit_field3());
+}
+
+
+void Map::SetNumberOfOwnDescriptors(int number) {
+  DCHECK(number <= instance_descriptors()->number_of_descriptors());
+  set_bit_field3(NumberOfOwnDescriptorsBits::update(bit_field3(), number));
+}
+
+
+int Map::EnumLength() { return EnumLengthBits::decode(bit_field3()); }
+
+
+void Map::SetEnumLength(int length) {
+  if (length != kInvalidEnumCacheSentinel) {
+    DCHECK(length >= 0);
+    DCHECK(length == 0 || instance_descriptors()->HasEnumCache());
+    DCHECK(length <= NumberOfOwnDescriptors());
+  }
+  set_bit_field3(EnumLengthBits::update(bit_field3(), length));
 }
 
 
@@ -2983,10 +3199,66 @@ DescriptorArray::WhitenessWitness::~WhitenessWitness() {
 }
 
 
+PropertyType DescriptorArray::Entry::type() { return descs_->GetType(index_); }
+
+
+Object* DescriptorArray::Entry::GetCallbackObject() {
+  return descs_->GetValue(index_);
+}
+
+
+int HashTableBase::NumberOfElements() {
+  return Smi::cast(get(kNumberOfElementsIndex))->value();
+}
+
+
+int HashTableBase::NumberOfDeletedElements() {
+  return Smi::cast(get(kNumberOfDeletedElementsIndex))->value();
+}
+
+
+int HashTableBase::Capacity() {
+  return Smi::cast(get(kCapacityIndex))->value();
+}
+
+
+void HashTableBase::ElementAdded() {
+  SetNumberOfElements(NumberOfElements() + 1);
+}
+
+
+void HashTableBase::ElementRemoved() {
+  SetNumberOfElements(NumberOfElements() - 1);
+  SetNumberOfDeletedElements(NumberOfDeletedElements() + 1);
+}
+
+
+void HashTableBase::ElementsRemoved(int n) {
+  SetNumberOfElements(NumberOfElements() - n);
+  SetNumberOfDeletedElements(NumberOfDeletedElements() + n);
+}
+
+
+// static
 int HashTableBase::ComputeCapacity(int at_least_space_for) {
   const int kMinCapacity = 4;
   int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
   return Max(capacity, kMinCapacity);
+}
+
+
+bool HashTableBase::IsKey(Object* k) {
+  return !k->IsTheHole() && !k->IsUndefined();
+}
+
+
+void HashTableBase::SetNumberOfElements(int nof) {
+  set(kNumberOfElementsIndex, Smi::FromInt(nof));
+}
+
+
+void HashTableBase::SetNumberOfDeletedElements(int nod) {
+  set(kNumberOfDeletedElementsIndex, Smi::FromInt(nod));
 }
 
 
@@ -3163,6 +3435,116 @@ FixedTypedArray<Traits>::cast(const Object* object) {
 }
 
 
+#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)       \
+  type* DeoptimizationInputData::name() {                \
+    return type::cast(get(k##name##Index));              \
+  }                                                      \
+  void DeoptimizationInputData::Set##name(type* value) { \
+    set(k##name##Index, value);                          \
+  }
+
+DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrAstId, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(WeakCellCache, Object)
+
+#undef DEFINE_DEOPT_ELEMENT_ACCESSORS
+
+
+#define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                \
+  type* DeoptimizationInputData::name(int i) {                  \
+    return type::cast(get(IndexForEntry(i) + k##name##Offset)); \
+  }                                                             \
+  void DeoptimizationInputData::Set##name(int i, type* value) { \
+    set(IndexForEntry(i) + k##name##Offset, value);             \
+  }
+
+DEFINE_DEOPT_ENTRY_ACCESSORS(AstIdRaw, Smi)
+DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
+DEFINE_DEOPT_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
+DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
+
+#undef DEFINE_DEOPT_ENTRY_ACCESSORS
+
+
+BailoutId DeoptimizationInputData::AstId(int i) {
+  return BailoutId(AstIdRaw(i)->value());
+}
+
+
+void DeoptimizationInputData::SetAstId(int i, BailoutId value) {
+  SetAstIdRaw(i, Smi::FromInt(value.ToInt()));
+}
+
+
+int DeoptimizationInputData::DeoptCount() {
+  return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
+}
+
+
+int DeoptimizationOutputData::DeoptPoints() { return length() / 2; }
+
+
+BailoutId DeoptimizationOutputData::AstId(int index) {
+  return BailoutId(Smi::cast(get(index * 2))->value());
+}
+
+
+void DeoptimizationOutputData::SetAstId(int index, BailoutId id) {
+  set(index * 2, Smi::FromInt(id.ToInt()));
+}
+
+
+Smi* DeoptimizationOutputData::PcAndState(int index) {
+  return Smi::cast(get(1 + index * 2));
+}
+
+
+void DeoptimizationOutputData::SetPcAndState(int index, Smi* offset) {
+  set(1 + index * 2, offset);
+}
+
+
+void HandlerTable::SetRangeStart(int index, int value) {
+  set(index * kRangeEntrySize + kRangeStartIndex, Smi::FromInt(value));
+}
+
+
+void HandlerTable::SetRangeEnd(int index, int value) {
+  set(index * kRangeEntrySize + kRangeEndIndex, Smi::FromInt(value));
+}
+
+
+void HandlerTable::SetRangeHandler(int index, int offset,
+                                   CatchPrediction prediction) {
+  int value = HandlerOffsetField::encode(offset) |
+              HandlerPredictionField::encode(prediction);
+  set(index * kRangeEntrySize + kRangeHandlerIndex, Smi::FromInt(value));
+}
+
+
+void HandlerTable::SetRangeDepth(int index, int value) {
+  set(index * kRangeEntrySize + kRangeDepthIndex, Smi::FromInt(value));
+}
+
+
+void HandlerTable::SetReturnOffset(int index, int value) {
+  set(index * kReturnEntrySize + kReturnOffsetIndex, Smi::FromInt(value));
+}
+
+
+void HandlerTable::SetReturnHandler(int index, int offset,
+                                    CatchPrediction prediction) {
+  int value = HandlerOffsetField::encode(offset) |
+              HandlerPredictionField::encode(prediction);
+  set(index * kReturnEntrySize + kReturnHandlerIndex, Smi::FromInt(value));
+}
+
+
 #define MAKE_STRUCT_CAST(NAME, Name, name) CAST_ACCESSOR(Name)
   STRUCT_LIST(MAKE_STRUCT_CAST)
 #undef MAKE_STRUCT_CAST
@@ -3192,6 +3574,9 @@ NOBARRIER_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 SMI_ACCESSORS(String, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
+
+
+int FreeSpace::Size() { return size(); }
 
 
 FreeSpace* FreeSpace::next() {
@@ -3685,6 +4070,9 @@ void StringCharacterStream::VisitTwoByteString(
 }
 
 
+int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
+
+
 byte ByteArray::get(int index) {
   DCHECK(index >= 0 && index < this->length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
@@ -3707,6 +4095,9 @@ ByteArray* ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
   return reinterpret_cast<ByteArray*>(address - kHeaderSize + kHeapObjectTag);
 }
+
+
+int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
 
 
 Address ByteArray::GetDataStartAddress() {
@@ -3741,6 +4132,9 @@ int BytecodeArray::frame_size() const {
 Address BytecodeArray::GetFirstBytecodeAddress() {
   return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
 }
+
+
+int BytecodeArray::BytecodeArraySize() { return SizeFor(this->length()); }
 
 
 ACCESSORS(FixedTypedArrayBase, base_pointer, Object, kBasePointerOffset)
@@ -4158,6 +4552,51 @@ bool Map::function_with_prototype() {
 }
 
 
+void Map::set_is_hidden_prototype() {
+  set_bit_field(bit_field() | (1 << kIsHiddenPrototype));
+}
+
+
+bool Map::is_hidden_prototype() {
+  return ((1 << kIsHiddenPrototype) & bit_field()) != 0;
+}
+
+
+void Map::set_has_indexed_interceptor() {
+  set_bit_field(bit_field() | (1 << kHasIndexedInterceptor));
+}
+
+
+bool Map::has_indexed_interceptor() {
+  return ((1 << kHasIndexedInterceptor) & bit_field()) != 0;
+}
+
+
+void Map::set_is_undetectable() {
+  set_bit_field(bit_field() | (1 << kIsUndetectable));
+}
+
+
+bool Map::is_undetectable() {
+  return ((1 << kIsUndetectable) & bit_field()) != 0;
+}
+
+
+void Map::set_is_observed() { set_bit_field(bit_field() | (1 << kIsObserved)); }
+
+bool Map::is_observed() { return ((1 << kIsObserved) & bit_field()) != 0; }
+
+
+void Map::set_has_named_interceptor() {
+  set_bit_field(bit_field() | (1 << kHasNamedInterceptor));
+}
+
+
+bool Map::has_named_interceptor() {
+  return ((1 << kHasNamedInterceptor) & bit_field()) != 0;
+}
+
+
 void Map::set_is_access_check_needed(bool access_check_needed) {
   if (access_check_needed) {
     set_bit_field(bit_field() | (1 << kIsAccessCheckNeeded));
@@ -4191,6 +4630,50 @@ void Map::set_is_prototype_map(bool value) {
 
 bool Map::is_prototype_map() const {
   return IsPrototypeMapBits::decode(bit_field2());
+}
+
+
+void Map::set_elements_kind(ElementsKind elements_kind) {
+  DCHECK(static_cast<int>(elements_kind) < kElementsKindCount);
+  DCHECK(kElementsKindCount <= (1 << Map::ElementsKindBits::kSize));
+  set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
+  DCHECK(this->elements_kind() == elements_kind);
+}
+
+
+ElementsKind Map::elements_kind() {
+  return Map::ElementsKindBits::decode(bit_field2());
+}
+
+
+bool Map::has_fast_smi_elements() {
+  return IsFastSmiElementsKind(elements_kind());
+}
+
+bool Map::has_fast_object_elements() {
+  return IsFastObjectElementsKind(elements_kind());
+}
+
+bool Map::has_fast_smi_or_object_elements() {
+  return IsFastSmiOrObjectElementsKind(elements_kind());
+}
+
+bool Map::has_fast_double_elements() {
+  return IsFastDoubleElementsKind(elements_kind());
+}
+
+bool Map::has_fast_elements() { return IsFastElementsKind(elements_kind()); }
+
+bool Map::has_sloppy_arguments_elements() {
+  return IsSloppyArgumentsElements(elements_kind());
+}
+
+bool Map::has_fixed_typed_array_elements() {
+  return IsFixedTypedArrayElementsKind(elements_kind());
+}
+
+bool Map::has_dictionary_elements() {
+  return IsDictionaryElementsKind(elements_kind());
 }
 
 
@@ -4305,6 +4788,39 @@ void Map::NotifyLeafMapLayoutChange() {
         GetIsolate(),
         DependentCode::kPrototypeCheckGroup);
   }
+}
+
+
+bool Map::CanTransition() {
+  // Only JSObject and subtypes have map transitions and back pointers.
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
+  return instance_type() >= FIRST_JS_OBJECT_TYPE;
+}
+
+
+bool Map::IsPrimitiveMap() {
+  STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
+  return instance_type() <= LAST_PRIMITIVE_TYPE;
+}
+bool Map::IsJSObjectMap() {
+  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
+  return instance_type() >= FIRST_JS_OBJECT_TYPE;
+}
+bool Map::IsJSArrayMap() { return instance_type() == JS_ARRAY_TYPE; }
+bool Map::IsStringMap() { return instance_type() < FIRST_NONSTRING_TYPE; }
+bool Map::IsJSProxyMap() {
+  InstanceType type = instance_type();
+  return FIRST_JS_PROXY_TYPE <= type && type <= LAST_JS_PROXY_TYPE;
+}
+bool Map::IsJSGlobalProxyMap() {
+  return instance_type() == JS_GLOBAL_PROXY_TYPE;
+}
+bool Map::IsJSGlobalObjectMap() {
+  return instance_type() == JS_GLOBAL_OBJECT_TYPE;
+}
+bool Map::IsGlobalObjectMap() {
+  const InstanceType type = instance_type();
+  return type == JS_GLOBAL_OBJECT_TYPE || type == JS_BUILTINS_OBJECT_TYPE;
 }
 
 
@@ -4647,8 +5163,25 @@ bool Code::is_keyed_stub() {
 }
 
 
-bool Code::is_debug_stub() {
-  return ic_state() == DEBUG_STUB;
+bool Code::is_debug_stub() { return ic_state() == DEBUG_STUB; }
+bool Code::is_handler() { return kind() == HANDLER; }
+bool Code::is_load_stub() { return kind() == LOAD_IC; }
+bool Code::is_keyed_load_stub() { return kind() == KEYED_LOAD_IC; }
+bool Code::is_store_stub() { return kind() == STORE_IC; }
+bool Code::is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
+bool Code::is_call_stub() { return kind() == CALL_IC; }
+bool Code::is_binary_op_stub() { return kind() == BINARY_OP_IC; }
+bool Code::is_compare_ic_stub() { return kind() == COMPARE_IC; }
+bool Code::is_compare_nil_ic_stub() { return kind() == COMPARE_NIL_IC; }
+bool Code::is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
+bool Code::is_optimized_code() { return kind() == OPTIMIZED_FUNCTION; }
+
+
+bool Code::embeds_maps_weakly() {
+  Kind k = kind();
+  return (k == LOAD_IC || k == STORE_IC || k == KEYED_LOAD_IC ||
+          k == KEYED_STORE_IC || k == COMPARE_NIL_IC) &&
+         ic_state() == MONOMORPHIC;
 }
 
 
@@ -4742,6 +5275,18 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
 Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
   return HeapObject::
       FromAddress(Memory::Address_at(location_of_address) - Code::kHeaderSize);
+}
+
+
+bool Code::CanContainWeakObjects() {
+  // is_turbofanned() implies !can_have_weak_objects().
+  DCHECK(!is_optimized_code() || !is_turbofanned() || !can_have_weak_objects());
+  return is_optimized_code() && can_have_weak_objects();
+}
+
+
+bool Code::IsWeakObject(Object* object) {
+  return (CanContainWeakObjects() && IsWeakObjectInOptimizedCode(object));
 }
 
 
@@ -5530,6 +6075,12 @@ void SharedFunctionInfo::TryReenableOptimization() {
 }
 
 
+void SharedFunctionInfo::set_disable_optimization_reason(BailoutReason reason) {
+  set_opt_count_and_bailout_reason(DisabledOptimizationReasonBits::update(
+      opt_count_and_bailout_reason(), reason));
+}
+
+
 bool SharedFunctionInfo::IsSubjectToDebugging() {
   Object* script_obj = script();
   if (script_obj->IsUndefined()) return false;
@@ -5958,6 +6509,17 @@ byte* Code::entry() {
 bool Code::contains(byte* inner_pointer) {
   return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
 }
+
+
+int Code::ExecutableSize() {
+  // Check that the assumptions about the layout of the code object holds.
+  DCHECK_EQ(static_cast<int>(instruction_start() - address()),
+            Code::kHeaderSize);
+  return instruction_size() + Code::kHeaderSize;
+}
+
+
+int Code::CodeSize() { return SizeFor(body_size()); }
 
 
 ACCESSORS(JSArray, length, Object, kLengthOffset)
@@ -6414,6 +6976,10 @@ uint32_t StringHasher::HashSequentialString(const schar* chars,
 }
 
 
+IteratingStringHasher::IteratingStringHasher(int len, uint32_t seed)
+    : StringHasher(len, seed) {}
+
+
 uint32_t IteratingStringHasher::Hash(String* string, uint32_t seed) {
   IteratingStringHasher hasher(string->length(), seed);
   // Nothing to do.
@@ -6647,6 +7213,51 @@ bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
 }
 
 
+bool AccessorInfo::HasExpectedReceiverType() {
+  return expected_receiver_type()->IsFunctionTemplateInfo();
+}
+
+
+Object* AccessorPair::get(AccessorComponent component) {
+  return component == ACCESSOR_GETTER ? getter() : setter();
+}
+
+
+void AccessorPair::set(AccessorComponent component, Object* value) {
+  if (component == ACCESSOR_GETTER) {
+    set_getter(value);
+  } else {
+    set_setter(value);
+  }
+}
+
+
+void AccessorPair::SetComponents(Object* getter, Object* setter) {
+  if (!getter->IsNull()) set_getter(getter);
+  if (!setter->IsNull()) set_setter(setter);
+}
+
+
+bool AccessorPair::Equals(AccessorPair* pair) {
+  return (this == pair) || pair->Equals(getter(), setter());
+}
+
+
+bool AccessorPair::Equals(Object* getter_value, Object* setter_value) {
+  return (getter() == getter_value) && (setter() == setter_value);
+}
+
+
+bool AccessorPair::ContainsAccessor() {
+  return IsJSAccessor(getter()) || IsJSAccessor(setter());
+}
+
+
+bool AccessorPair::IsJSAccessor(Object* obj) {
+  return obj->IsSpecFunction() || obj->IsUndefined();
+}
+
+
 template<typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
                                                Handle<Object> key,
@@ -6820,6 +7431,11 @@ Handle<ObjectHashTable> ObjectHashTable::Shrink(
 }
 
 
+Object* OrderedHashMap::ValueAt(int entry) {
+  return get(EntryToIndex(entry) + kValueOffset);
+}
+
+
 template <int entrysize>
 bool WeakHashTableShape<entrysize>::IsMatch(Handle<Object> key, Object* other) {
   if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
@@ -6852,6 +7468,30 @@ Handle<Object> WeakHashTableShape<entrysize>::AsHandle(Isolate* isolate,
                                                        Handle<Object> key) {
   return key;
 }
+
+
+bool ScopeInfo::IsAsmModule() { return AsmModuleField::decode(Flags()); }
+
+
+bool ScopeInfo::IsAsmFunction() { return AsmFunctionField::decode(Flags()); }
+
+
+bool ScopeInfo::HasSimpleParameters() {
+  return HasSimpleParametersField::decode(Flags());
+}
+
+
+#define SCOPE_INFO_FIELD_ACCESSORS(name)                                      \
+  void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
+  int ScopeInfo::name() {                                                     \
+    if (length() > 0) {                                                       \
+      return Smi::cast(get(k##name))->value();                                \
+    } else {                                                                  \
+      return 0;                                                               \
+    }                                                                         \
+  }
+FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(SCOPE_INFO_FIELD_ACCESSORS)
+#undef SCOPE_INFO_FIELD_ACCESSORS
 
 
 void Map::ClearCodeCache(Heap* heap) {
@@ -7024,7 +7664,20 @@ Relocatable::~Relocatable() {
 }
 
 
+// static
 int JSObject::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
+  return map->instance_size();
+}
+
+
+// static
+int FixedArray::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
+  return SizeFor(reinterpret_cast<FixedArray*>(object)->synchronized_length());
+}
+
+
+// static
+int StructBodyDescriptor::SizeOf(Map* map, HeapObject* object) {
   return map->instance_size();
 }
 
@@ -7159,6 +7812,12 @@ Object* JSMapIterator::CurrentValue() {
   DCHECK(!value->IsTheHole());
   return value;
 }
+
+
+String::SubStringRange::SubStringRange(String* string, int first, int length)
+    : string_(string),
+      first_(first),
+      length_(length == -1 ? string->length() : length) {}
 
 
 class String::SubStringRange::iterator final {
