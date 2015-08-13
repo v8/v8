@@ -37,20 +37,20 @@
 #include "src/vm-state-inl.h"
 
 #if V8_TARGET_ARCH_PPC && !V8_INTERPRETED_REGEXP
-#include "src/regexp-macro-assembler.h"          // NOLINT
-#include "src/ppc/regexp-macro-assembler-ppc.h"  // NOLINT
+#include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
+#include "src/regexp/regexp-macro-assembler.h"
 #endif
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-#include "src/regexp-macro-assembler.h"          // NOLINT
-#include "src/arm/regexp-macro-assembler-arm.h"  // NOLINT
+#include "src/regexp/arm/regexp-macro-assembler-arm.h"
+#include "src/regexp/regexp-macro-assembler.h"
 #endif
 #if V8_TARGET_ARCH_MIPS && !V8_INTERPRETED_REGEXP
-#include "src/regexp-macro-assembler.h"            // NOLINT
-#include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
+#include "src/regexp/mips/regexp-macro-assembler-mips.h"
+#include "src/regexp/regexp-macro-assembler.h"
 #endif
 #if V8_TARGET_ARCH_MIPS64 && !V8_INTERPRETED_REGEXP
-#include "src/regexp-macro-assembler.h"
-#include "src/mips64/regexp-macro-assembler-mips64.h"
+#include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
+#include "src/regexp/regexp-macro-assembler.h"
 #endif
 
 namespace v8 {

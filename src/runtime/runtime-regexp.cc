@@ -5,9 +5,9 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
-#include "src/jsregexp-inl.h"
-#include "src/jsregexp.h"
 #include "src/messages.h"
+#include "src/regexp/jsregexp-inl.h"
+#include "src/regexp/jsregexp.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"

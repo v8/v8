@@ -25,7 +25,7 @@
 #include "src/heap/heap.h"
 #include "src/messages.h"
 #include "src/optimizing-compile-dispatcher.h"
-#include "src/regexp-stack.h"
+#include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime-profiler.h"
 #include "src/zone.h"

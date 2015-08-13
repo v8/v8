@@ -30,7 +30,7 @@
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/prototype.h"
-#include "src/regexp-stack.h"
+#include "src/regexp/regexp-stack.h"
 #include "src/runtime-profiler.h"
 #include "src/sampler.h"
 #include "src/scopeinfo.h"

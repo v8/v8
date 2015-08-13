@@ -630,7 +630,6 @@ source_set("v8_base") {
     "src/bootstrapper.h",
     "src/builtins.cc",
     "src/builtins.h",
-    "src/bytecodes-irregexp.h",
     "src/cancelable-task.cc",
     "src/cancelable-task.h",
     "src/cached-powers.cc",
@@ -1007,8 +1006,6 @@ source_set("v8_base") {
     "src/ic/stub-cache.h",
     "src/interface-descriptors.cc",
     "src/interface-descriptors.h",
-    "src/interpreter-irregexp.cc",
-    "src/interpreter-irregexp.h",
     "src/interpreter/bytecodes.cc",
     "src/interpreter/bytecodes.h",
     "src/interpreter/interpreter.cc",
@@ -1017,9 +1014,6 @@ source_set("v8_base") {
     "src/isolate.h",
     "src/json-parser.h",
     "src/json-stringifier.h",
-    "src/jsregexp-inl.h",
-    "src/jsregexp.cc",
-    "src/jsregexp.h",
     "src/layout-descriptor-inl.h",
     "src/layout-descriptor.cc",
     "src/layout-descriptor.h",
@@ -1074,17 +1068,23 @@ source_set("v8_base") {
     "src/property.cc",
     "src/property.h",
     "src/prototype.h",
-    "src/regexp-macro-assembler-irregexp-inl.h",
-    "src/regexp-macro-assembler-irregexp.cc",
-    "src/regexp-macro-assembler-irregexp.h",
-    "src/regexp-macro-assembler-tracer.cc",
-    "src/regexp-macro-assembler-tracer.h",
-    "src/regexp-macro-assembler.cc",
-    "src/regexp-macro-assembler.h",
-    "src/regexp-stack.cc",
-    "src/regexp-stack.h",
     "src/rewriter.cc",
     "src/rewriter.h",
+    "src/regexp/bytecodes-irregexp.h",
+    "src/regexp/interpreter-irregexp.cc",
+    "src/regexp/interpreter-irregexp.h",
+    "src/regexp/jsregexp-inl.h",
+    "src/regexp/jsregexp.cc",
+    "src/regexp/jsregexp.h",
+    "src/regexp/regexp-macro-assembler-irregexp-inl.h",
+    "src/regexp/regexp-macro-assembler-irregexp.cc",
+    "src/regexp/regexp-macro-assembler-irregexp.h",
+    "src/regexp/regexp-macro-assembler-tracer.cc",
+    "src/regexp/regexp-macro-assembler-tracer.h",
+    "src/regexp/regexp-macro-assembler.cc",
+    "src/regexp/regexp-macro-assembler.h",
+    "src/regexp/regexp-stack.cc",
+    "src/regexp/regexp-stack.h",
     "src/runtime-profiler.cc",
     "src/runtime-profiler.h",
     "src/runtime/runtime-array.cc",
@@ -1221,8 +1221,6 @@ source_set("v8_base") {
       "src/ia32/lithium-ia32.h",
       "src/ia32/macro-assembler-ia32.cc",
       "src/ia32/macro-assembler-ia32.h",
-      "src/ia32/regexp-macro-assembler-ia32.cc",
-      "src/ia32/regexp-macro-assembler-ia32.h",
       "src/compiler/ia32/code-generator-ia32.cc",
       "src/compiler/ia32/instruction-codes-ia32.h",
       "src/compiler/ia32/instruction-selector-ia32.cc",
@@ -1233,6 +1231,8 @@ source_set("v8_base") {
       "src/ic/ia32/ic-ia32.cc",
       "src/ic/ia32/ic-compiler-ia32.cc",
       "src/ic/ia32/stub-cache-ia32.cc",
+      "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
+      "src/regexp/ia32/regexp-macro-assembler-ia32.h",
     ]
   } else if (v8_target_arch == "x64") {
     sources += [
@@ -1258,8 +1258,6 @@ source_set("v8_base") {
       "src/x64/lithium-x64.h",
       "src/x64/macro-assembler-x64.cc",
       "src/x64/macro-assembler-x64.h",
-      "src/x64/regexp-macro-assembler-x64.cc",
-      "src/x64/regexp-macro-assembler-x64.h",
       "src/compiler/x64/code-generator-x64.cc",
       "src/compiler/x64/instruction-codes-x64.h",
       "src/compiler/x64/instruction-selector-x64.cc",
@@ -1270,6 +1268,8 @@ source_set("v8_base") {
       "src/ic/x64/ic-x64.cc",
       "src/ic/x64/ic-compiler-x64.cc",
       "src/ic/x64/stub-cache-x64.cc",
+      "src/regexp/x64/regexp-macro-assembler-x64.cc",
+      "src/regexp/x64/regexp-macro-assembler-x64.h",
     ]
   } else if (v8_target_arch == "arm") {
     sources += [
@@ -1298,8 +1298,6 @@ source_set("v8_base") {
       "src/arm/lithium-gap-resolver-arm.h",
       "src/arm/macro-assembler-arm.cc",
       "src/arm/macro-assembler-arm.h",
-      "src/arm/regexp-macro-assembler-arm.cc",
-      "src/arm/regexp-macro-assembler-arm.h",
       "src/arm/simulator-arm.cc",
       "src/arm/simulator-arm.h",
       "src/compiler/arm/code-generator-arm.cc",
@@ -1312,6 +1310,8 @@ source_set("v8_base") {
       "src/ic/arm/ic-arm.cc",
       "src/ic/arm/ic-compiler-arm.cc",
       "src/ic/arm/stub-cache-arm.cc",
+      "src/regexp/arm/regexp-macro-assembler-arm.cc",
+      "src/regexp/arm/regexp-macro-assembler-arm.h",
     ]
   } else if (v8_target_arch == "arm64") {
     sources += [
@@ -1348,8 +1348,6 @@ source_set("v8_base") {
       "src/arm64/macro-assembler-arm64.cc",
       "src/arm64/macro-assembler-arm64.h",
       "src/arm64/macro-assembler-arm64-inl.h",
-      "src/arm64/regexp-macro-assembler-arm64.cc",
-      "src/arm64/regexp-macro-assembler-arm64.h",
       "src/arm64/simulator-arm64.cc",
       "src/arm64/simulator-arm64.h",
       "src/arm64/utils-arm64.cc",
@@ -1364,6 +1362,8 @@ source_set("v8_base") {
       "src/ic/arm64/ic-arm64.cc",
       "src/ic/arm64/ic-compiler-arm64.cc",
       "src/ic/arm64/stub-cache-arm64.cc",
+      "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
+      "src/regexp/arm64/regexp-macro-assembler-arm64.h",
     ]
   } else if (v8_target_arch == "mipsel") {
     sources += [
@@ -1391,8 +1391,6 @@ source_set("v8_base") {
       "src/mips/lithium-mips.h",
       "src/mips/macro-assembler-mips.cc",
       "src/mips/macro-assembler-mips.h",
-      "src/mips/regexp-macro-assembler-mips.cc",
-      "src/mips/regexp-macro-assembler-mips.h",
       "src/mips/simulator-mips.cc",
       "src/mips/simulator-mips.h",
       "src/compiler/mips/code-generator-mips.cc",
@@ -1405,6 +1403,8 @@ source_set("v8_base") {
       "src/ic/mips/ic-mips.cc",
       "src/ic/mips/ic-compiler-mips.cc",
       "src/ic/mips/stub-cache-mips.cc",
+      "src/regexp/mips/regexp-macro-assembler-mips.cc",
+      "src/regexp/mips/regexp-macro-assembler-mips.h",
     ]
   } else if (v8_target_arch == "mips64el") {
     sources += [
@@ -1432,8 +1432,6 @@ source_set("v8_base") {
       "src/mips64/lithium-mips64.h",
       "src/mips64/macro-assembler-mips64.cc",
       "src/mips64/macro-assembler-mips64.h",
-      "src/mips64/regexp-macro-assembler-mips64.cc",
-      "src/mips64/regexp-macro-assembler-mips64.h",
       "src/mips64/simulator-mips64.cc",
       "src/mips64/simulator-mips64.h",
       "src/debug/mips64/debug-mips64.cc",
@@ -1443,6 +1441,8 @@ source_set("v8_base") {
       "src/ic/mips64/ic-mips64.cc",
       "src/ic/mips64/ic-compiler-mips64.cc",
       "src/ic/mips64/stub-cache-mips64.cc",
+      "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
+      "src/regexp/mips64/regexp-macro-assembler-mips64.h",
     ]
   }
 
