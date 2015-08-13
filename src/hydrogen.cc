@@ -11360,11 +11360,10 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnInstruction(result, expr->id());
 
   } else if (op == Token::IN) {
-    HValue* function = AddLoadJSBuiltin(Builtins::IN);
     Add<HPushArguments>(left, right);
-    // TODO(olivf) InvokeFunction produces a check for the parameter count,
-    // even though we are certain to pass the correct number of arguments here.
-    HInstruction* result = New<HInvokeFunction>(function, 2);
+    HInstruction* result =
+        New<HCallRuntime>(isolate()->factory()->empty_string(),
+                          Runtime::FunctionForId(Runtime::kHasProperty), 2);
     return ast_context()->ReturnInstruction(result, expr->id());
   }
 

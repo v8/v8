@@ -44,7 +44,6 @@ var SAR;
 var SAR_STRONG;
 var SHR;
 var SHR_STRONG;
-var IN;
 var INSTANCE_OF;
 var CALL_NON_FUNCTION;
 var CALL_NON_FUNCTION_AS_CONSTRUCTOR;
@@ -482,21 +481,6 @@ SHR_STRONG = function SHR_STRONG(y) {
    - - -   H e l p e r s   - - -
    -----------------------------
 */
-
-// ECMA-262, section 11.8.7, page 54.
-IN = function IN(x) {
-  if (!IS_SPEC_OBJECT(x)) {
-    throw %MakeTypeError(kInvalidInOperatorUse, this, x);
-  }
-  if (%_IsNonNegativeSmi(this)) {
-    if (IS_ARRAY(x) && %_HasFastPackedElements(x)) {
-      return this < x.length;
-    }
-    return %HasElement(x, this);
-  }
-  return %HasProperty(x, %$toName(this));
-}
-
 
 // ECMA-262, section 11.8.6, page 54. To make the implementation more
 // efficient, the return value should be zero if the 'this' is an

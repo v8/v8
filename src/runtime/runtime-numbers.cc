@@ -548,15 +548,6 @@ RUNTIME_FUNCTION(Runtime_IsSmi) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsNonNegativeSmi) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsSmi() &&
-                                    Smi::cast(obj)->value() >= 0);
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetRootNaN) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);

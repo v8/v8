@@ -19298,8 +19298,7 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%DeleteProperty_Sloppy(other, '1')");
   CheckCorrectThrow("%DeleteProperty_Strict(other, '1')");
   CheckCorrectThrow("%HasOwnProperty(other, 'x')");
-  CheckCorrectThrow("%HasProperty(other, 'x')");
-  CheckCorrectThrow("%HasElement(other, 1)");
+  CheckCorrectThrow("%HasProperty('x', other)");
   CheckCorrectThrow("%IsPropertyEnumerable(other, 'x')");
   // PROPERTY_ATTRIBUTES_NONE = 0
   CheckCorrectThrow("%DefineAccessorPropertyUnchecked("

@@ -437,7 +437,7 @@ void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
 
 
 void JSGenericLowering::LowerJSHasProperty(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::IN, 2);
+  ReplaceWithRuntimeCall(node, Runtime::kHasProperty);
 }
 
 
