@@ -332,15 +332,12 @@ static bool IsVisibleInStackTrace(JSFunction* fun,
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
                                                 Handle<Object> caller) {
   // Get stack trace limit.
-  Handle<Object> error = Object::GetProperty(
-      this, js_builtins_object(), "$Error").ToHandleChecked();
-  if (!error->IsJSObject()) return factory()->undefined_value();
-
+  Handle<JSObject> error = error_function();
   Handle<String> stackTraceLimit =
       factory()->InternalizeUtf8String("stackTraceLimit");
   DCHECK(!stackTraceLimit.is_null());
-  Handle<Object> stack_trace_limit = JSReceiver::GetDataProperty(
-      Handle<JSObject>::cast(error), stackTraceLimit);
+  Handle<Object> stack_trace_limit =
+      JSReceiver::GetDataProperty(error, stackTraceLimit);
   if (!stack_trace_limit->IsNumber()) return factory()->undefined_value();
   int limit = FastD2IChecked(stack_trace_limit->Number());
   limit = Max(limit, 0);  // Ensure that limit is not negative.
@@ -1344,12 +1341,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
 // the Error object.
 bool Isolate::IsErrorObject(Handle<Object> obj) {
   if (!obj->IsJSObject()) return false;
-
-  Handle<String> error_key =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("$Error"));
-  Handle<Object> error_constructor = Object::GetProperty(
-      js_builtins_object(), error_key).ToHandleChecked();
-
+  Handle<Object> error_constructor = error_function();
   DisallowHeapAllocation no_gc;
   for (PrototypeIterator iter(this, *obj, PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {

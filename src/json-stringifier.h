@@ -358,16 +358,11 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
     Handle<Object> key,
     bool deferred_comma,
     bool deferred_key) {
-  Handle<JSObject> builtins(isolate_->native_context()->builtins(), isolate_);
-  Handle<JSFunction> builtin = Handle<JSFunction>::cast(
-      Object::GetProperty(isolate_, builtins, "$jsonSerializeAdapter")
-          .ToHandleChecked());
-
+  Handle<JSFunction> fun = isolate_->json_serialize_adapter();
   Handle<Object> argv[] = { key, object };
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, result,
-      Execution::Call(isolate_, builtin, object, 2, argv),
+      isolate_, result, Execution::Call(isolate_, fun, object, 2, argv),
       EXCEPTION);
   if (result->IsUndefined()) return UNCHANGED;
   if (deferred_key) {

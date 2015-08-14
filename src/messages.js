@@ -10,17 +10,8 @@ var $internalErrorSymbol;
 var $messageGetPositionInLine;
 var $messageGetLineNumber;
 var $messageGetSourceLine;
-var $noSideEffectToString;
 var $stackOverflowBoilerplate;
 var $stackTraceSymbol;
-var $toDetailString;
-var $Error;
-var $EvalError;
-var $RangeError;
-var $ReferenceError;
-var $SyntaxError;
-var $TypeError;
-var $URIError;
 var MakeError;
 var MakeEvalError;
 var MakeRangeError;
@@ -1018,16 +1009,6 @@ $errorToString = ErrorToString;
 $messageGetPositionInLine = GetPositionInLine;
 $messageGetLineNumber = GetLineNumber;
 $messageGetSourceLine = GetSourceLine;
-$noSideEffectToString = NoSideEffectToString;
-$toDetailString = ToDetailString;
-
-$Error = GlobalError;
-$EvalError = GlobalEvalError;
-$RangeError = GlobalRangeError;
-$ReferenceError = GlobalReferenceError;
-$SyntaxError = GlobalSyntaxError;
-$TypeError = GlobalTypeError;
-$URIError = GlobalURIError;
 
 MakeError = function(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalError, type, arg0, arg1, arg2);
@@ -1076,7 +1057,16 @@ captureStackTrace = function captureStackTrace(obj, cons_opt) {
 GlobalError.captureStackTrace = captureStackTrace;
 
 utils.ExportToRuntime(function(to) {
+  to.Error = GlobalError;
+  to.EvalError = GlobalEvalError;
+  to.RangeError = GlobalRangeError;
+  to.ReferenceError = GlobalReferenceError;
+  to.SyntaxError = GlobalSyntaxError;
+  to.TypeError = GlobalTypeError;
+  to.URIError = GlobalURIError;
   to.GetStackTraceLine = GetStackTraceLine;
+  to.NoSideEffectToString = NoSideEffectToString;
+  to.ToDetailString = ToDetailString;
 });
 
 });

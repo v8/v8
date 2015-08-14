@@ -380,7 +380,6 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "catch", PromiseCatch
 ]);
 
-$promiseHasUserDefinedRejectHandler = PromiseHasUserDefinedRejectHandler;
 $promiseStatus = promiseStatus;
 $promiseValue = promiseValue;
 
@@ -393,6 +392,7 @@ utils.ExportToRuntime(function(to) {
   to.PromiseChain = PromiseChain;
   to.PromiseCatch = PromiseCatch;
   to.PromiseThen = PromiseThen;
+  to.PromiseHasUserDefinedRejectHandler = PromiseHasUserDefinedRejectHandler;
 });
 
 })

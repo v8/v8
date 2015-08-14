@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $jsonSerializeAdapter;
-
 (function(global, utils) {
 
 "use strict";
@@ -244,11 +242,15 @@ utils.InstallFunctions(GlobalJSON, DONT_ENUM, [
 // -------------------------------------------------------------------
 // JSON Builtins
 
-$jsonSerializeAdapter = function(key, object) {
+function JsonSerializeAdapter(key, object) {
   var holder = {};
   holder[key] = object;
   // No need to pass the actual holder since there is no replacer function.
   return JSONSerialize(key, holder, UNDEFINED, new InternalArray(), "", "");
 }
+
+utils.ExportToRuntime(function(to) {
+  to.JsonSerializeAdapter = JsonSerializeAdapter;
+});
 
 })

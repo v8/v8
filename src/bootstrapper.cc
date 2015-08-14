@@ -1148,12 +1148,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 
   {  // --- D a t e ---
     // Builtin functions for Date.prototype.
-    Handle<JSFunction> date_fun =
-        InstallFunction(global, "Date", JS_DATE_TYPE, JSDate::kSize,
-                        isolate->initial_object_prototype(),
-                        Builtins::kIllegal);
-
-    native_context()->set_date_function(*date_fun);
+    InstallFunction(global, "Date", JS_DATE_TYPE, JSDate::kSize,
+                    isolate->initial_object_prototype(), Builtins::kIllegal);
   }
 
 
@@ -1255,7 +1251,18 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     DCHECK(json_object->IsJSObject());
     JSObject::AddProperty(global, name, json_object, DONT_ENUM);
-    native_context()->set_json_object(*json_object);
+  }
+
+  {  // -- M a t h
+    Handle<String> name = factory->InternalizeUtf8String("Math");
+    Handle<JSFunction> cons = factory->NewFunction(name);
+    JSFunction::SetInstancePrototype(
+        cons,
+        Handle<Object>(native_context()->initial_object_prototype(), isolate));
+    cons->SetInstanceClassName(*name);
+    Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
+    DCHECK(json_object->IsJSObject());
+    JSObject::AddProperty(global, name, json_object, DONT_ENUM);
   }
 
   {  // -- A r r a y B u f f e r
@@ -1766,6 +1773,8 @@ void Bootstrapper::ImportNatives(Isolate* isolate, Handle<JSObject> container) {
   INSTALL_NATIVE(JSFunction, "ToNumber", to_number_fun);
   INSTALL_NATIVE(JSFunction, "ToString", to_string_fun);
   INSTALL_NATIVE(JSFunction, "ToDetailString", to_detail_string_fun);
+  INSTALL_NATIVE(JSFunction, "NoSideEffectToString",
+                 no_side_effect_to_string_fun);
   INSTALL_NATIVE(JSFunction, "ToInteger", to_integer_fun);
   INSTALL_NATIVE(JSFunction, "ToLength", to_length_fun);
 
@@ -1773,6 +1782,15 @@ void Bootstrapper::ImportNatives(Isolate* isolate, Handle<JSObject> container) {
   INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
+  INSTALL_NATIVE(JSFunction, "JsonSerializeAdapter", json_serialize_adapter);
+
+  INSTALL_NATIVE(JSFunction, "Error", error_function);
+  INSTALL_NATIVE(JSFunction, "EvalError", eval_error_function);
+  INSTALL_NATIVE(JSFunction, "RangeError", range_error_function);
+  INSTALL_NATIVE(JSFunction, "ReferenceError", reference_error_function);
+  INSTALL_NATIVE(JSFunction, "SyntaxError", syntax_error_function);
+  INSTALL_NATIVE(JSFunction, "TypeError", type_error_function);
+  INSTALL_NATIVE(JSFunction, "URIError", uri_error_function);
 
   INSTALL_NATIVE(Symbol, "promiseStatus", promise_status);
   INSTALL_NATIVE(Symbol, "promiseValue", promise_value);
@@ -1782,6 +1800,8 @@ void Bootstrapper::ImportNatives(Isolate* isolate, Handle<JSObject> container) {
   INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
   INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
   INSTALL_NATIVE(JSFunction, "PromiseThen", promise_then);
+  INSTALL_NATIVE(JSFunction, "PromiseHasUserDefinedRejectHandler",
+                 promise_has_user_defined_reject_handler);
 
   INSTALL_NATIVE(JSFunction, "ObserveNotifyChange", observers_notify_change);
   INSTALL_NATIVE(JSFunction, "ObserveEnqueueSpliceRecord",

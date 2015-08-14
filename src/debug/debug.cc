@@ -1823,10 +1823,7 @@ void Debug::OnPromiseReject(Handle<JSObject> promise, Handle<Object> value) {
 
 MaybeHandle<Object> Debug::PromiseHasUserDefinedRejectHandler(
     Handle<JSObject> promise) {
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      JSReceiver::GetDataProperty(isolate_->js_builtins_object(),
-                                  isolate_->factory()->NewStringFromStaticChars(
-                                      "$promiseHasUserDefinedRejectHandler")));
+  Handle<JSFunction> fun = isolate_->promise_has_user_defined_reject_handler();
   return Execution::Call(isolate_, fun, promise, 0, NULL);
 }
 

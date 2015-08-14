@@ -270,7 +270,6 @@ InstallFunctions(utils, NONE, [
 ExportToRuntime(function(to) {
   to.ToNumber = $toNumber;
   to.ToString = $toString;
-  to.ToDetailString = $toDetailString;
   to.ToInteger = $toInteger;
   to.ToLength = $toLength;
 });

@@ -81,7 +81,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
     Handle<Object> argument(message->argument(), isolate);
     Handle<Object> args[] = {argument};
     MaybeHandle<Object> maybe_stringified = Execution::TryCall(
-        isolate->to_detail_string_fun(), isolate->js_builtins_object(),
+        isolate->to_detail_string_fun(), isolate->factory()->undefined_value(),
         arraysize(args), args);
     Handle<Object> stringified;
     if (!maybe_stringified.ToHandle(&stringified)) {
@@ -297,11 +297,7 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
   if (arg->IsString()) {
     result_string = Handle<String>::cast(arg);
   } else {
-    Handle<String> fmt_str = factory->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("$noSideEffectToString"));
-    Handle<JSFunction> fun = Handle<JSFunction>::cast(
-        Object::GetProperty(isolate->js_builtins_object(), fmt_str)
-            .ToHandleChecked());
+    Handle<JSFunction> fun = isolate->no_side_effect_to_string_fun();
 
     MaybeHandle<Object> maybe_result =
         Execution::TryCall(fun, factory->undefined_value(), 1, &arg);
