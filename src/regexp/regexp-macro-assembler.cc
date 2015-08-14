@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/regexp/regexp-macro-assembler.h"
 
 #include "src/assembler.h"
 #include "src/ast.h"
-#include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator.h"
 

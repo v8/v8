@@ -4,12 +4,10 @@
 
 // A simple interpreter for the Irregexp byte code.
 
-
-#include "src/v8.h"
+#include "src/regexp/interpreter-irregexp.h"
 
 #include "src/ast.h"
 #include "src/regexp/bytecodes-irregexp.h"
-#include "src/regexp/interpreter-irregexp.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/unicode.h"

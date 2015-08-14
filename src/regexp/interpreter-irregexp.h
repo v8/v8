@@ -7,6 +7,8 @@
 #ifndef V8_REGEXP_INTERPRETER_IRREGEXP_H_
 #define V8_REGEXP_INTERPRETER_IRREGEXP_H_
 
+#include "src/regexp/jsregexp.h"
+
 namespace v8 {
 namespace internal {
 

@@ -5,9 +5,9 @@
 #ifndef V8_REGEXP_REGEXP_STACK_H_
 #define V8_REGEXP_REGEXP_STACK_H_
 
-#include "src/allocation.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/globals.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
