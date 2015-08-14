@@ -5,6 +5,10 @@
 #ifndef  V8_MIPS_CONSTANTS_H_
 #define  V8_MIPS_CONSTANTS_H_
 
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/globals.h"
+
 // UNIMPLEMENTED_ macro for MIPS.
 #ifdef DEBUG
 #define UNIMPLEMENTED_MIPS()                                                  \

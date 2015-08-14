@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/ic/ic-compiler.h"
 
 #include "src/cpu-profiler.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic-inl.h"
-#include "src/ic/ic-compiler.h"
 
 
 namespace v8 {
