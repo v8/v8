@@ -154,6 +154,7 @@ class CompilationInfo {
   Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
+  bool has_context() const;
   // -----------------------------------------------------------
 
   Isolate* isolate() const {

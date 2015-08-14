@@ -102,6 +102,11 @@ bool CompilationInfo::has_shared_info() const {
 }
 
 
+bool CompilationInfo::has_context() const {
+  return parse_info_ && !parse_info_->context().is_null();
+}
+
+
 CompilationInfo::CompilationInfo(ParseInfo* parse_info)
     : CompilationInfo(parse_info, nullptr, BASE, parse_info->isolate(),
                       parse_info->zone()) {

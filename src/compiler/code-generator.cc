@@ -232,7 +232,8 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
 bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
                                               int* offset_return) {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    if (object.is_identical_to(info()->context()) && !info()->is_osr()) {
+    if (info()->has_context() && object.is_identical_to(info()->context()) &&
+        !info()->is_osr()) {
       *offset_return = StandardFrameConstants::kContextOffset;
       return true;
     } else if (object.is_identical_to(info()->closure())) {
@@ -531,6 +532,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
 
   Handle<SharedFunctionInfo> shared_info;
   if (!descriptor->shared_info().ToHandle(&shared_info)) {
+    if (!info()->has_shared_info()) return;  // Stub with no SharedFunctionInfo.
     shared_info = info()->shared_info();
   }
   int shared_info_id = DefineDeoptimizationLiteral(shared_info);
