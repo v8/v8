@@ -25,40 +25,11 @@ Bootstrapper::Bootstrapper(Isolate* isolate)
       nesting_(0),
       extensions_cache_(Script::TYPE_EXTENSION) {}
 
-
-template <class Source>
-inline FixedArray* GetCache(Heap* heap);
-
-
-template <>
-FixedArray* GetCache<Natives>(Heap* heap) {
-  return heap->natives_source_cache();
-}
-
-
-template <>
-FixedArray* GetCache<ExperimentalNatives>(Heap* heap) {
-  return heap->experimental_natives_source_cache();
-}
-
-
-template <>
-FixedArray* GetCache<ExtraNatives>(Heap* heap) {
-  return heap->extra_natives_source_cache();
-}
-
-
-template <>
-FixedArray* GetCache<CodeStubNatives>(Heap* heap) {
-  return heap->code_stub_natives_source_cache();
-}
-
-
 template <class Source>
 Handle<String> Bootstrapper::SourceLookup(int index) {
   DCHECK(0 <= index && index < Source::GetBuiltinsCount());
   Heap* heap = isolate_->heap();
-  if (GetCache<Source>(heap)->get(index)->IsUndefined()) {
+  if (Source::GetSourceCache(heap)->get(index)->IsUndefined()) {
     // We can use external strings for the natives.
     Vector<const char> source = Source::GetScriptSource(index);
     NativesExternalStringResource* resource =
@@ -69,9 +40,10 @@ Handle<String> Bootstrapper::SourceLookup(int index) {
                                      .ToHandleChecked();
     // Mark this external string with a special map.
     source_code->set_map(isolate_->heap()->native_source_string_map());
-    GetCache<Source>(heap)->set(index, *source_code);
+    Source::GetSourceCache(heap)->set(index, *source_code);
   }
-  Handle<Object> cached_source(GetCache<Source>(heap)->get(index), isolate_);
+  Handle<Object> cached_source(Source::GetSourceCache(heap)->get(index),
+                               isolate_);
   return Handle<String>::cast(cached_source);
 }
 
@@ -146,10 +118,10 @@ void DeleteNativeSources(Object* maybe_array) {
 
 
 void Bootstrapper::TearDown() {
-  DeleteNativeSources(isolate_->heap()->natives_source_cache());
-  DeleteNativeSources(isolate_->heap()->experimental_natives_source_cache());
-  DeleteNativeSources(isolate_->heap()->extra_natives_source_cache());
-  DeleteNativeSources(isolate_->heap()->code_stub_natives_source_cache());
+  DeleteNativeSources(Natives::GetSourceCache(isolate_->heap()));
+  DeleteNativeSources(ExperimentalNatives::GetSourceCache(isolate_->heap()));
+  DeleteNativeSources(ExtraNatives::GetSourceCache(isolate_->heap()));
+  DeleteNativeSources(CodeStubNatives::GetSourceCache(isolate_->heap()));
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
 
@@ -2115,12 +2087,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
                                 "utils container for native scripts");
   native_context()->set_natives_utils_object(*utils);
 
-  Handle<JSObject> extras_binding =
-      factory()->NewJSObject(isolate()->object_function());
-  JSObject::NormalizeProperties(extras_binding, CLEAR_INOBJECT_PROPERTIES, 2,
-                                "container for binding to/from extra natives");
-  native_context()->set_extras_binding_object(*extras_binding);
-
   if (FLAG_expose_natives_as != NULL) {
     Handle<String> utils_key = factory()->NewStringFromAsciiChecked("utils");
     JSObject::AddProperty(builtins, utils_key, utils, NONE);
@@ -2626,6 +2592,14 @@ bool Genesis::InstallExperimentalNatives() {
 
 
 bool Genesis::InstallExtraNatives() {
+  HandleScope scope(isolate());
+
+  Handle<JSObject> extras_binding =
+      factory()->NewJSObject(isolate()->object_function());
+  JSObject::NormalizeProperties(extras_binding, CLEAR_INOBJECT_PROPERTIES, 2,
+                                "container for binding to/from extra natives");
+  native_context()->set_extras_binding_object(*extras_binding);
+
   for (int i = ExtraNatives::GetDebuggerCount();
        i < ExtraNatives::GetBuiltinsCount(); i++) {
     if (!Bootstrapper::CompileExtraBuiltin(isolate(), i)) return false;
@@ -3234,19 +3208,19 @@ Genesis::Genesis(Isolate* isolate,
     MakeFunctionInstancePrototypeWritable();
 
     if (context_type != THIN_CONTEXT) {
+      if (!InstallExtraNatives()) return;
       if (!ConfigureGlobalObjects(global_proxy_template)) return;
     }
     isolate->counters()->contexts_created_from_scratch()->Increment();
   }
 
-  // Install experimental and extra natives. Do not include them into the
+  // Install experimental natives. Do not include them into the
   // snapshot as we should be able to turn them off at runtime. Re-installing
   // them after they have already been deserialized would also fail.
   if (context_type == FULL_CONTEXT) {
     if (!isolate->serializer_enabled()) {
       InitializeExperimentalGlobal();
       if (!InstallExperimentalNatives()) return;
-      if (!InstallExtraNatives()) return;
       // By now the utils object is useless and can be removed.
       native_context()->set_natives_utils_object(
           isolate->heap()->undefined_value());

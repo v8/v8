@@ -383,26 +383,29 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNextChunk = 0x3e;
   // Deferring object content.
   static const int kDeferred = 0x3f;
+  // Used for the source code of the natives, which is in the executable, but
+  // is referred to from external strings in the snapshot.
+  static const int kNativesStringResource = 0x5d;
+  // Used for the source code for compiled stubs, which is in the executable,
+  // but is referred to from external strings in the snapshot.
+  static const int kCodeStubNativesStringResource = 0x5e;
+  // Used for the source code for V8 extras, which is in the executable,
+  // but is referred to from external strings in the snapshot.
+  static const int kExtraNativesStringResource = 0x5f;
   // A tag emitted at strategic points in the snapshot to delineate sections.
   // If the deserializer does not find these at the expected moments then it
   // is an indication that the snapshot and the VM do not fit together.
   // Examine the build process for architecture, version or configuration
   // mismatches.
   static const int kSynchronize = 0x17;
-  // Used for the source code of the natives, which is in the executable, but
-  // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x37;
+  // Repeats of variable length.
+  static const int kVariableRepeat = 0x37;
   // Raw data of variable length.
   static const int kVariableRawData = 0x57;
-  // Repeats of variable length.
-  static const int kVariableRepeat = 0x77;
   // Alignment prefixes 0x7d..0x7f
   static const int kAlignmentPrefix = 0x7d;
-  // Used for the source code for compiled stubs, which is in the executable,
-  // but is referred to from external strings in the snapshot.
-  static const int kCodeStubNativesStringResource = 0x5d;
 
-  // 0x5e..0x5f unused
+  // 0x77 unused
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.

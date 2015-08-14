@@ -384,13 +384,6 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
       }
     }
     if (!context.IsEmpty()) {
-      // Make sure all builtin scripts are cached.
-      {
-        HandleScope scope(isolate);
-        for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
-          internal_isolate->bootstrapper()->SourceLookup<i::Natives>(i);
-        }
-      }
       // If we don't do this then we end up with a stray root pointing at the
       // context even after we have disposed of the context.
       internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
