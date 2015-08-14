@@ -6,8 +6,6 @@
 
 #include <sstream>
 
-#include "src/v8.h"
-
 #include "src/ast.h"
 #include "src/base/bits.h"
 #include "src/deoptimizer.h"

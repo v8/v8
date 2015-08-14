@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/parser.h"
 
 #include "src/api.h"
 #include "src/ast.h"
@@ -14,7 +14,6 @@
 #include "src/codegen.h"
 #include "src/compiler.h"
 #include "src/messages.h"
-#include "src/parser.h"
 #include "src/preparser.h"
 #include "src/runtime/runtime.h"
 #include "src/scanner-character-streams.h"

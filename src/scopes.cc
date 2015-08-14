@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/scopes.h"
 
 #include "src/accessors.h"
 #include "src/bootstrapper.h"
 #include "src/messages.h"
 #include "src/parser.h"
 #include "src/scopeinfo.h"
-#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {

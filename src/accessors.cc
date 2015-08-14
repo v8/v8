@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/accessors.h"
+
 #include "src/api.h"
 #include "src/contexts.h"
 #include "src/deoptimizer.h"
