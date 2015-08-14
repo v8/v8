@@ -394,6 +394,28 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
       // If we don't do this then we end up with a stray root pointing at the
       // context even after we have disposed of the context.
       internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
+
+      // GC may have cleared weak cells, so compact any WeakFixedArrays
+      // found on the heap.
+      i::HeapIterator iterator(internal_isolate->heap(),
+                               i::HeapIterator::kFilterUnreachable);
+      for (i::HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
+        if (o->IsPrototypeInfo()) {
+          i::Object* prototype_users =
+              i::PrototypeInfo::cast(o)->prototype_users();
+          if (prototype_users->IsWeakFixedArray()) {
+            i::WeakFixedArray* array = i::WeakFixedArray::cast(prototype_users);
+            array->Compact<i::JSObject::PrototypeRegistryCompactionCallback>();
+          }
+        } else if (o->IsScript()) {
+          i::Object* shared_list = i::Script::cast(o)->shared_function_infos();
+          if (shared_list->IsWeakFixedArray()) {
+            i::WeakFixedArray* array = i::WeakFixedArray::cast(shared_list);
+            array->Compact<i::WeakFixedArray::NullCallback>();
+          }
+        }
+      }
+
       i::Object* raw_context = *v8::Utils::OpenPersistent(context);
       context.Reset();
 

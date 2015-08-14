@@ -1923,38 +1923,10 @@ void Serializer::ObjectSerializer::Serialize() {
   // We don't expect fillers.
   DCHECK(!object_->IsFiller());
 
-  if (object_->IsPrototypeInfo()) {
-    Object* prototype_users = PrototypeInfo::cast(object_)->prototype_users();
-    if (prototype_users->IsWeakFixedArray()) {
-      WeakFixedArray* array = WeakFixedArray::cast(prototype_users);
-      array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
-    }
-  }
-  // Compaction of a prototype users list can require the registered users
-  // to update their remembered slots. That doesn't work if those users
-  // have already been serialized themselves. So if this object is a
-  // registered user, compact its prototype's user list now.
-  if (object_->IsMap()) {
-    Map* map = Map::cast(object_);
-    if (map->is_prototype_map() && map->prototype_info()->IsPrototypeInfo() &&
-        PrototypeInfo::cast(map->prototype_info())->registry_slot() !=
-            PrototypeInfo::UNREGISTERED) {
-      JSObject* proto = JSObject::cast(map->prototype());
-      PrototypeInfo* info = PrototypeInfo::cast(proto->map()->prototype_info());
-      WeakFixedArray* array = WeakFixedArray::cast(info->prototype_users());
-      array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
-    }
-  }
-
   if (object_->IsScript()) {
     // Clear cached line ends.
     Object* undefined = serializer_->isolate()->heap()->undefined_value();
     Script::cast(object_)->set_line_ends(undefined);
-    Object* shared_list = Script::cast(object_)->shared_function_infos();
-    if (shared_list->IsWeakFixedArray()) {
-      WeakFixedArray::cast(shared_list)
-          ->Compact<WeakFixedArray::NullCallback>();
-    }
   }
 
   if (object_->IsExternalString()) {
