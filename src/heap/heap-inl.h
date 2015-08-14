@@ -17,6 +17,7 @@
 #include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
+#include "src/log.h"
 #include "src/msan.h"
 #include "src/objects.h"
 
@@ -629,6 +630,27 @@ void ExternalStringTable::ShrinkNewStrings(int position) {
     Verify();
   }
 #endif
+}
+
+
+int DescriptorLookupCache::Lookup(Map* source, Name* name) {
+  if (!name->IsUniqueName()) return kAbsent;
+  int index = Hash(source, name);
+  Key& key = keys_[index];
+  if ((key.source == source) && (key.name == name)) return results_[index];
+  return kAbsent;
+}
+
+
+void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
+  DCHECK(result != kAbsent);
+  if (name->IsUniqueName()) {
+    int index = Hash(source, name);
+    Key& key = keys_[index];
+    key.source = source;
+    key.name = name;
+    results_[index] = result;
+  }
 }
 
 

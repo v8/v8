@@ -12,6 +12,12 @@ namespace v8 {
 namespace internal {
 
 
+StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(Map* map) {
+  return GetVisitorId(map->instance_type(), map->instance_size(),
+                      FLAG_unbox_double_fields && !map->HasFastPointerLayout());
+}
+
+
 StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     int instance_type, int instance_size, bool has_unboxed_fields) {
   if (instance_type < FIRST_NONSTRING_TYPE) {

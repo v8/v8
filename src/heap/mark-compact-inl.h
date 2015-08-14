@@ -61,7 +61,95 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
     }
   }
 }
+
+
+void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
+  if (GetNextCandidate(shared_info) == NULL) {
+    SetNextCandidate(shared_info, shared_function_info_candidates_head_);
+    shared_function_info_candidates_head_ = shared_info;
+  }
 }
-}  // namespace v8::internal
+
+
+void CodeFlusher::AddCandidate(JSFunction* function) {
+  DCHECK(function->code() == function->shared()->code());
+  if (GetNextCandidate(function)->IsUndefined()) {
+    SetNextCandidate(function, jsfunction_candidates_head_);
+    jsfunction_candidates_head_ = function;
+  }
+}
+
+
+void CodeFlusher::AddOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
+  if (GetNextCodeMap(code_map_holder)->IsUndefined()) {
+    SetNextCodeMap(code_map_holder, optimized_code_map_holder_head_);
+    optimized_code_map_holder_head_ = code_map_holder;
+  }
+}
+
+
+JSFunction** CodeFlusher::GetNextCandidateSlot(JSFunction* candidate) {
+  return reinterpret_cast<JSFunction**>(
+      HeapObject::RawField(candidate, JSFunction::kNextFunctionLinkOffset));
+}
+
+
+JSFunction* CodeFlusher::GetNextCandidate(JSFunction* candidate) {
+  Object* next_candidate = candidate->next_function_link();
+  return reinterpret_cast<JSFunction*>(next_candidate);
+}
+
+
+void CodeFlusher::SetNextCandidate(JSFunction* candidate,
+                                   JSFunction* next_candidate) {
+  candidate->set_next_function_link(next_candidate, UPDATE_WEAK_WRITE_BARRIER);
+}
+
+
+void CodeFlusher::ClearNextCandidate(JSFunction* candidate, Object* undefined) {
+  DCHECK(undefined->IsUndefined());
+  candidate->set_next_function_link(undefined, SKIP_WRITE_BARRIER);
+}
+
+
+SharedFunctionInfo* CodeFlusher::GetNextCandidate(
+    SharedFunctionInfo* candidate) {
+  Object* next_candidate = candidate->code()->gc_metadata();
+  return reinterpret_cast<SharedFunctionInfo*>(next_candidate);
+}
+
+
+void CodeFlusher::SetNextCandidate(SharedFunctionInfo* candidate,
+                                   SharedFunctionInfo* next_candidate) {
+  candidate->code()->set_gc_metadata(next_candidate);
+}
+
+
+void CodeFlusher::ClearNextCandidate(SharedFunctionInfo* candidate) {
+  candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
+}
+
+
+SharedFunctionInfo* CodeFlusher::GetNextCodeMap(SharedFunctionInfo* holder) {
+  FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
+  Object* next_map = code_map->get(SharedFunctionInfo::kNextMapIndex);
+  return reinterpret_cast<SharedFunctionInfo*>(next_map);
+}
+
+
+void CodeFlusher::SetNextCodeMap(SharedFunctionInfo* holder,
+                                 SharedFunctionInfo* next_holder) {
+  FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
+  code_map->set(SharedFunctionInfo::kNextMapIndex, next_holder);
+}
+
+
+void CodeFlusher::ClearNextCodeMap(SharedFunctionInfo* holder) {
+  FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
+  code_map->set_undefined(SharedFunctionInfo::kNextMapIndex);
+}
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_MARK_COMPACT_INL_H_

@@ -153,16 +153,6 @@ bool Object::IsExternal() const {
 bool Object::IsAccessorInfo() const { return IsExecutableAccessorInfo(); }
 
 
-bool Object::IsSmi() const {
-  return HAS_SMI_TAG(this);
-}
-
-
-bool Object::IsHeapObject() const {
-  return Internals::HasHeapObjectTag(this);
-}
-
-
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)

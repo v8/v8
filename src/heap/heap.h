@@ -2629,25 +2629,10 @@ class DescriptorLookupCache {
  public:
   // Lookup descriptor index for (map, name).
   // If absent, kAbsent is returned.
-  int Lookup(Map* source, Name* name) {
-    if (!name->IsUniqueName()) return kAbsent;
-    int index = Hash(source, name);
-    Key& key = keys_[index];
-    if ((key.source == source) && (key.name == name)) return results_[index];
-    return kAbsent;
-  }
+  inline int Lookup(Map* source, Name* name);
 
   // Update an element in the cache.
-  void Update(Map* source, Name* name, int result) {
-    DCHECK(result != kAbsent);
-    if (name->IsUniqueName()) {
-      int index = Hash(source, name);
-      Key& key = keys_[index];
-      key.source = source;
-      key.name = name;
-      results_[index] = result;
-    }
-  }
+  inline void Update(Map* source, Name* name, int result);
 
   // Clear the cache.
   void Clear();

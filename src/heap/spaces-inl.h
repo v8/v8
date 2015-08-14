@@ -28,7 +28,6 @@ void Bitmap::Clear(MemoryChunk* chunk) {
 // -----------------------------------------------------------------------------
 // PageIterator
 
-
 PageIterator::PageIterator(PagedSpace* space)
     : space_(space),
       prev_page_(&space->anchor_),
@@ -47,8 +46,31 @@ Page* PageIterator::next() {
 
 
 // -----------------------------------------------------------------------------
-// NewSpacePageIterator
+// SemiSpaceIterator
 
+HeapObject* SemiSpaceIterator::Next() {
+  if (current_ == limit_) return NULL;
+  if (NewSpacePage::IsAtEnd(current_)) {
+    NewSpacePage* page = NewSpacePage::FromLimit(current_);
+    page = page->next_page();
+    DCHECK(!page->is_anchor());
+    current_ = page->area_start();
+    if (current_ == limit_) return NULL;
+  }
+
+  HeapObject* object = HeapObject::FromAddress(current_);
+  int size = object->Size();
+
+  current_ += size;
+  return object;
+}
+
+
+HeapObject* SemiSpaceIterator::next_object() { return Next(); }
+
+
+// -----------------------------------------------------------------------------
+// NewSpacePageIterator
 
 NewSpacePageIterator::NewSpacePageIterator(NewSpace* space)
     : prev_page_(NewSpacePage::FromAddress(space->ToSpaceStart())->prev_page()),
@@ -81,6 +103,19 @@ NewSpacePage* NewSpacePageIterator::next() {
 
 // -----------------------------------------------------------------------------
 // HeapObjectIterator
+
+HeapObject* HeapObjectIterator::Next() {
+  do {
+    HeapObject* next_obj = FromCurrentPage();
+    if (next_obj != NULL) return next_obj;
+  } while (AdvanceToNextPage());
+  return NULL;
+}
+
+
+HeapObject* HeapObjectIterator::next_object() { return Next(); }
+
+
 HeapObject* HeapObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
     if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
@@ -138,7 +173,17 @@ void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
 
 
 // --------------------------------------------------------------------------
+// AllocationResult
+
+AllocationSpace AllocationResult::RetrySpace() {
+  DCHECK(IsRetry());
+  return static_cast<AllocationSpace>(Smi::cast(object_)->value());
+}
+
+
+// --------------------------------------------------------------------------
 // PagedSpace
+
 Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
@@ -159,6 +204,9 @@ bool PagedSpace::Contains(Address addr) {
   if (!p->is_valid()) return false;
   return p->owner() == this;
 }
+
+
+bool PagedSpace::Contains(HeapObject* o) { return Contains(o->address()); }
 
 
 void MemoryChunk::set_scan_on_scavenge(bool scan) {
@@ -193,19 +241,6 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
 }
 
 
-void MemoryChunk::UpdateHighWaterMark(Address mark) {
-  if (mark == NULL) return;
-  // Need to subtract one from the mark because when a chunk is full the
-  // top points to the next address after the chunk, which effectively belongs
-  // to another chunk. See the comment to Page::FromAllocationTop.
-  MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
-  int new_mark = static_cast<int>(mark - chunk->address());
-  if (new_mark > chunk->high_water_mark_) {
-    chunk->high_water_mark_ = new_mark;
-  }
-}
-
-
 PointerChunkIterator::PointerChunkIterator(Heap* heap)
     : state_(kOldSpaceState),
       old_iterator_(heap->old_space()),
@@ -213,15 +248,43 @@ PointerChunkIterator::PointerChunkIterator(Heap* heap)
       lo_iterator_(heap->lo_space()) {}
 
 
-Page* Page::next_page() {
-  DCHECK(next_chunk()->owner() == owner());
-  return static_cast<Page*>(next_chunk());
-}
-
-
-Page* Page::prev_page() {
-  DCHECK(prev_chunk()->owner() == owner());
-  return static_cast<Page*>(prev_chunk());
+MemoryChunk* PointerChunkIterator::next() {
+  switch (state_) {
+    case kOldSpaceState: {
+      if (old_iterator_.has_next()) {
+        return old_iterator_.next();
+      }
+      state_ = kMapState;
+      // Fall through.
+    }
+    case kMapState: {
+      if (map_iterator_.has_next()) {
+        return map_iterator_.next();
+      }
+      state_ = kLargeObjectState;
+      // Fall through.
+    }
+    case kLargeObjectState: {
+      HeapObject* heap_object;
+      do {
+        heap_object = lo_iterator_.Next();
+        if (heap_object == NULL) {
+          state_ = kFinishedState;
+          return NULL;
+        }
+        // Fixed arrays are the only pointer-containing objects in large
+        // object space.
+      } while (!heap_object->IsFixedArray());
+      MemoryChunk* answer = MemoryChunk::FromAddress(heap_object->address());
+      return answer;
+    }
+    case kFinishedState:
+      return NULL;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return NULL;
 }
 
 
