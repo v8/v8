@@ -24,6 +24,26 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ImportToRuntime) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  Bootstrapper::ImportNatives(isolate, container);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_ImportExperimentalToRuntime) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  Bootstrapper::ImportExperimentalNatives(isolate, container);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

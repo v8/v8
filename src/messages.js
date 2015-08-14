@@ -1015,7 +1015,6 @@ utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
                        ['toString', ErrorToString]);
 
 $errorToString = ErrorToString;
-$getStackTraceLine = GetStackTraceLine;
 $messageGetPositionInLine = GetPositionInLine;
 $messageGetLineNumber = GetLineNumber;
 $messageGetSourceLine = GetSourceLine;
@@ -1075,5 +1074,9 @@ captureStackTrace = function captureStackTrace(obj, cons_opt) {
 };
 
 GlobalError.captureStackTrace = captureStackTrace;
+
+utils.ExportToRuntime(function(to) {
+  to.GetStackTraceLine = GetStackTraceLine;
+});
 
 });

@@ -14,7 +14,7 @@
 var imports = UNDEFINED;
 var exports = UNDEFINED;
 var imports_from_experimental = UNDEFINED;
-
+var exports_to_runtime = UNDEFINED;
 
 // Export to other scripts.
 // In normal natives, this exports functions to other normal natives.
@@ -25,6 +25,12 @@ function Export(f) {
   exports = f;
 };
 
+
+// Export to the native context for calls from the runtime.
+function ExportToRuntime(f) {
+  f.next = exports_to_runtime;
+  exports_to_runtime = f;
+}
 
 // Import from other scripts.
 // In normal natives, this imports from other normal natives.
@@ -152,6 +158,13 @@ function PostNatives(utils) {
   for ( ; !IS_UNDEFINED(exports); exports = exports.next) exports(container);
   for ( ; !IS_UNDEFINED(imports); imports = imports.next) imports(container);
 
+  var runtime_container = {};
+  for ( ; !IS_UNDEFINED(exports_to_runtime);
+          exports_to_runtime = exports_to_runtime.next) {
+    exports_to_runtime(runtime_container);
+  }
+  %ImportToRuntime(runtime_container);
+
   // Whitelist of exports from normal natives to experimental natives.
   var expose_to_experimental = [
     "ArrayToString",
@@ -205,6 +218,12 @@ function PostExperimentals(utils) {
           imports_from_experimental = imports_from_experimental.next) {
     imports_from_experimental(experimental_exports);
   }
+  var runtime_container = {};
+  for ( ; !IS_UNDEFINED(exports_to_runtime);
+          exports_to_runtime = exports_to_runtime.next) {
+    exports_to_runtime(runtime_container);
+  }
+  %ImportExperimentalToRuntime(runtime_container);
 
   experimental_exports = UNDEFINED;
 
@@ -234,6 +253,7 @@ function PostDebug(utils) {
 InstallFunctions(utils, NONE, [
   "Import", Import,
   "Export", Export,
+  "ExportToRuntime", ExportToRuntime,
   "ImportFromExperimental", ImportFromExperimental,
   "SetFunctionName", SetFunctionName,
   "InstallConstants", InstallConstants,
@@ -245,5 +265,14 @@ InstallFunctions(utils, NONE, [
   "PostExperimentals", PostExperimentals,
   "PostDebug", PostDebug,
 ]);
+
+// TODO(yangguo): run prologue.js before runtime.js
+ExportToRuntime(function(to) {
+  to.ToNumber = $toNumber;
+  to.ToString = $toString;
+  to.ToDetailString = $toDetailString;
+  to.ToInteger = $toInteger;
+  to.ToLength = $toLength;
+});
 
 })

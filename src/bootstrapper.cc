@@ -214,15 +214,10 @@ class Genesis BASE_EMBEDDED {
                         Handle<JSFunction> empty_function,
                         ContextType context_type);
   void InitializeExperimentalGlobal();
-  // Installs the contents of the native .js files on the global objects.
-  // Used for creating a context from scratch.
-  void InstallNativeFunctions();
-  void InstallExperimentalNativeFunctions();
   // Typed arrays are not serializable and have to initialized afterwards.
   void InitializeBuiltinTypedArrays();
 
 #define DECLARE_FEATURE_INITIALIZATION(id, descr) \
-  void InstallNativeFunctions_##id();             \
   void InitializeGlobal_##id();
 
   HARMONY_INPROGRESS(DECLARE_FEATURE_INITIALIZATION)
@@ -1701,81 +1696,6 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
 }
 
 
-#define INSTALL_NATIVE(Type, name, var)                                     \
-  Handle<String> var##_name =                                               \
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR(name));        \
-  Handle<Object> var##_native =                                             \
-      Object::GetProperty(handle(native_context()->builtins()), var##_name) \
-          .ToHandleChecked();                                               \
-  native_context()->set_##var(Type::cast(*var##_native));
-
-
-void Genesis::InstallNativeFunctions() {
-  HandleScope scope(isolate());
-  INSTALL_NATIVE(JSFunction, "$createDate", create_date_fun);
-
-  INSTALL_NATIVE(JSFunction, "$toNumber", to_number_fun);
-  INSTALL_NATIVE(JSFunction, "$toString", to_string_fun);
-  INSTALL_NATIVE(JSFunction, "$toDetailString", to_detail_string_fun);
-  INSTALL_NATIVE(JSFunction, "$toInteger", to_integer_fun);
-  INSTALL_NATIVE(JSFunction, "$toLength", to_length_fun);
-
-  INSTALL_NATIVE(JSFunction, "$globalEval", global_eval_fun);
-  INSTALL_NATIVE(JSFunction, "$getStackTraceLine", get_stack_trace_line_fun);
-  INSTALL_NATIVE(JSFunction, "$toCompletePropertyDescriptor",
-                 to_complete_property_descriptor);
-
-  INSTALL_NATIVE(Symbol, "$promiseStatus", promise_status);
-  INSTALL_NATIVE(Symbol, "$promiseValue", promise_value);
-  INSTALL_NATIVE(JSFunction, "$promiseCreate", promise_create);
-  INSTALL_NATIVE(JSFunction, "$promiseResolve", promise_resolve);
-  INSTALL_NATIVE(JSFunction, "$promiseReject", promise_reject);
-  INSTALL_NATIVE(JSFunction, "$promiseChain", promise_chain);
-  INSTALL_NATIVE(JSFunction, "$promiseCatch", promise_catch);
-  INSTALL_NATIVE(JSFunction, "$promiseThen", promise_then);
-
-  INSTALL_NATIVE(JSFunction, "$observeNotifyChange", observers_notify_change);
-  INSTALL_NATIVE(JSFunction, "$observeEnqueueSpliceRecord",
-                 observers_enqueue_splice);
-  INSTALL_NATIVE(JSFunction, "$observeBeginPerformSplice",
-                 observers_begin_perform_splice);
-  INSTALL_NATIVE(JSFunction, "$observeEndPerformSplice",
-                 observers_end_perform_splice);
-  INSTALL_NATIVE(JSFunction, "$observeNativeObjectObserve",
-                 native_object_observe);
-  INSTALL_NATIVE(JSFunction, "$observeNativeObjectGetNotifier",
-                 native_object_get_notifier);
-  INSTALL_NATIVE(JSFunction, "$observeNativeObjectNotifierPerformChange",
-                 native_object_notifier_perform_change);
-  INSTALL_NATIVE(JSFunction, "$arrayValues", array_values_iterator);
-  INSTALL_NATIVE(JSFunction, "$mapGet", map_get);
-  INSTALL_NATIVE(JSFunction, "$mapSet", map_set);
-  INSTALL_NATIVE(JSFunction, "$mapHas", map_has);
-  INSTALL_NATIVE(JSFunction, "$mapDelete", map_delete);
-  INSTALL_NATIVE(JSFunction, "$setAdd", set_add);
-  INSTALL_NATIVE(JSFunction, "$setHas", set_has);
-  INSTALL_NATIVE(JSFunction, "$setDelete", set_delete);
-  INSTALL_NATIVE(JSFunction, "$mapFromArray", map_from_array);
-  INSTALL_NATIVE(JSFunction, "$setFromArray", set_from_array);
-}
-
-
-void Genesis::InstallExperimentalNativeFunctions() {
-  if (FLAG_harmony_proxies) {
-    INSTALL_NATIVE(JSFunction, "$proxyDerivedHasTrap", derived_has_trap);
-    INSTALL_NATIVE(JSFunction, "$proxyDerivedGetTrap", derived_get_trap);
-    INSTALL_NATIVE(JSFunction, "$proxyDerivedSetTrap", derived_set_trap);
-    INSTALL_NATIVE(JSFunction, "$proxyEnumerate", proxy_enumerate);
-  }
-
-#define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) InstallNativeFunctions_##id();
-  HARMONY_INPROGRESS(INSTALL_NATIVE_FUNCTIONS_FOR)
-  HARMONY_STAGED(INSTALL_NATIVE_FUNCTIONS_FOR)
-  HARMONY_SHIPPING(INSTALL_NATIVE_FUNCTIONS_FOR)
-#undef INSTALL_NATIVE_FUNCTIONS_FOR
-}
-
-
 template <typename Data>
 Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
                            ExternalArrayType type, Data* data,
@@ -1832,8 +1752,68 @@ void Genesis::InitializeBuiltinTypedArrays() {
 }
 
 
-#define EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(id) \
-  void Genesis::InstallNativeFunctions_##id() {}
+#define INSTALL_NATIVE(Type, name, var)                                        \
+  Handle<Object> var##_native =                                                \
+      Object::GetProperty(isolate, container, name, STRICT).ToHandleChecked(); \
+  DCHECK(var##_native->Is##Type());                                            \
+  native_context->set_##var(Type::cast(*var##_native));
+
+
+void Bootstrapper::ImportNatives(Isolate* isolate, Handle<JSObject> container) {
+  HandleScope scope(isolate);
+  Handle<Context> native_context = isolate->native_context();
+  INSTALL_NATIVE(JSFunction, "CreateDate", create_date_fun);
+  INSTALL_NATIVE(JSFunction, "ToNumber", to_number_fun);
+  INSTALL_NATIVE(JSFunction, "ToString", to_string_fun);
+  INSTALL_NATIVE(JSFunction, "ToDetailString", to_detail_string_fun);
+  INSTALL_NATIVE(JSFunction, "ToInteger", to_integer_fun);
+  INSTALL_NATIVE(JSFunction, "ToLength", to_length_fun);
+
+  INSTALL_NATIVE(JSFunction, "GlobalEval", global_eval_fun);
+  INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
+  INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
+                 to_complete_property_descriptor);
+
+  INSTALL_NATIVE(Symbol, "promiseStatus", promise_status);
+  INSTALL_NATIVE(Symbol, "promiseValue", promise_value);
+  INSTALL_NATIVE(JSFunction, "PromiseCreate", promise_create);
+  INSTALL_NATIVE(JSFunction, "PromiseResolve", promise_resolve);
+  INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
+  INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
+  INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
+  INSTALL_NATIVE(JSFunction, "PromiseThen", promise_then);
+
+  INSTALL_NATIVE(JSFunction, "ObserveNotifyChange", observers_notify_change);
+  INSTALL_NATIVE(JSFunction, "ObserveEnqueueSpliceRecord",
+                 observers_enqueue_splice);
+  INSTALL_NATIVE(JSFunction, "ObserveBeginPerformSplice",
+                 observers_begin_perform_splice);
+  INSTALL_NATIVE(JSFunction, "ObserveEndPerformSplice",
+                 observers_end_perform_splice);
+  INSTALL_NATIVE(JSFunction, "ObserveNativeObjectObserve",
+                 native_object_observe);
+  INSTALL_NATIVE(JSFunction, "ObserveNativeObjectGetNotifier",
+                 native_object_get_notifier);
+  INSTALL_NATIVE(JSFunction, "ObserveNativeObjectNotifierPerformChange",
+                 native_object_notifier_perform_change);
+
+  INSTALL_NATIVE(JSFunction, "ArrayValues", array_values_iterator);
+  INSTALL_NATIVE(JSFunction, "MapGet", map_get);
+  INSTALL_NATIVE(JSFunction, "MapSet", map_set);
+  INSTALL_NATIVE(JSFunction, "MapHas", map_has);
+  INSTALL_NATIVE(JSFunction, "MapDelete", map_delete);
+  INSTALL_NATIVE(JSFunction, "SetAdd", set_add);
+  INSTALL_NATIVE(JSFunction, "SetHas", set_has);
+  INSTALL_NATIVE(JSFunction, "SetDelete", set_delete);
+  INSTALL_NATIVE(JSFunction, "MapFromArray", map_from_array);
+  INSTALL_NATIVE(JSFunction, "SetFromArray", set_from_array);
+}
+
+
+#define EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(id)                                \
+  static void InstallExperimentalNatives_##id(Isolate* isolate,               \
+                                              Handle<Context> native_context, \
+                                              Handle<JSObject> container) {}
 
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_modules)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_array_includes)
@@ -1858,15 +1838,30 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_concat_spreadable)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_simd)
 
 
-void Genesis::InstallNativeFunctions_harmony_proxies() {
+static void InstallExperimentalNatives_harmony_proxies(
+    Isolate* isolate, Handle<Context> native_context,
+    Handle<JSObject> container) {
   if (FLAG_harmony_proxies) {
-    INSTALL_NATIVE(JSFunction, "$proxyDerivedHasTrap", derived_has_trap);
-    INSTALL_NATIVE(JSFunction, "$proxyDerivedGetTrap", derived_get_trap);
-    INSTALL_NATIVE(JSFunction, "$proxyDerivedSetTrap", derived_set_trap);
-    INSTALL_NATIVE(JSFunction, "$proxyEnumerate", proxy_enumerate);
+    INSTALL_NATIVE(JSFunction, "ProxyDerivedGetTrap", derived_get_trap);
+    INSTALL_NATIVE(JSFunction, "ProxyDerivedHasTrap", derived_has_trap);
+    INSTALL_NATIVE(JSFunction, "ProxyDerivedSetTrap", derived_set_trap);
+    INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
   }
 }
 
+
+void Bootstrapper::ImportExperimentalNatives(Isolate* isolate,
+                                             Handle<JSObject> container) {
+  HandleScope scope(isolate);
+  Handle<Context> native_context = isolate->native_context();
+#define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) \
+  InstallExperimentalNatives_##id(isolate, native_context, container);
+
+  HARMONY_INPROGRESS(INSTALL_NATIVE_FUNCTIONS_FOR)
+  HARMONY_STAGED(INSTALL_NATIVE_FUNCTIONS_FOR)
+  HARMONY_SHIPPING(INSTALL_NATIVE_FUNCTIONS_FOR)
+#undef INSTALL_NATIVE_FUNCTIONS_FOR
+}
 
 #undef INSTALL_NATIVE
 
@@ -2402,8 +2397,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
 
   if (!CallUtilsFunction(isolate(), "PostNatives")) return false;
 
-  InstallNativeFunctions();
-
   auto function_cache =
       ObjectHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize,
                            USE_CUSTOM_MINIMUM_CAPACITY);
@@ -2607,7 +2600,6 @@ bool Genesis::InstallExperimentalNatives() {
 
   if (!CallUtilsFunction(isolate(), "PostExperimentals")) return false;
 
-  InstallExperimentalNativeFunctions();
   InstallExperimentalBuiltinFunctionIds();
   return true;
 }

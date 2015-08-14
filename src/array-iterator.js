@@ -164,4 +164,8 @@ utils.Export(function(to) {
 
 $arrayValues = ArrayValues;
 
+utils.ExportToRuntime(function(to) {
+  to.ArrayValues = ArrayValues;
+});
+
 })

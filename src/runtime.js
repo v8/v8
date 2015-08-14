@@ -915,7 +915,7 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 // boilerplate gets the right prototype.
 %FunctionSetPrototype(GlobalArray, new GlobalArray(0));
 
-//----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 $concatIterableToArray = ConcatIterableToArray;
 $defaultNumber = DefaultNumber;

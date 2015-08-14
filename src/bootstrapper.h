@@ -118,6 +118,10 @@ class Bootstrapper final {
   static bool CompileCodeStubBuiltin(Isolate* isolate, int index);
   static bool InstallCodeStubNatives(Isolate* isolate);
 
+  static void ImportNatives(Isolate* isolate, Handle<JSObject> container);
+  static void ImportExperimentalNatives(Isolate* isolate,
+                                        Handle<JSObject> container);
+
  private:
   Isolate* isolate_;
   typedef int NestingCounterType;

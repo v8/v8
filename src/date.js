@@ -880,7 +880,8 @@ utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
   "toJSON", DateToJSON
 ]);
 
-// Expose to the global scope.
-$createDate = CreateDate;
+utils.ExportToRuntime(function(to) {
+  to.CreateDate = CreateDate;
+});
 
 })

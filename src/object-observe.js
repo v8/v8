@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $observeNotifyChange;
 var $observeEnqueueSpliceRecord;
 var $observeBeginPerformSplice;
 var $observeEndPerformSplice;
-var $observeNativeObjectObserve;
-var $observeNativeObjectGetNotifier;
-var $observeNativeObjectNotifierPerformChange;
 
 var $observeObjectMethods;
 var $observeArrayMethods;
@@ -703,12 +699,19 @@ var removePrototypeFn = function(f, i) {
 $observeObjectMethods.forEach(removePrototypeFn);
 $observeArrayMethods.forEach(removePrototypeFn);
 
-$observeNotifyChange = NotifyChange;
 $observeEnqueueSpliceRecord = EnqueueSpliceRecord;
 $observeBeginPerformSplice = BeginPerformSplice;
 $observeEndPerformSplice = EndPerformSplice;
-$observeNativeObjectObserve = NativeObjectObserve;
-$observeNativeObjectGetNotifier = NativeObjectGetNotifier;
-$observeNativeObjectNotifierPerformChange = NativeObjectNotifierPerformChange;
+
+utils.ExportToRuntime(function(to) {
+  to.ObserveNotifyChange = NotifyChange;
+  to.ObserveEnqueueSpliceRecord = EnqueueSpliceRecord;
+  to.ObserveBeginPerformSplice = BeginPerformSplice;
+  to.ObserveEndPerformSplice = EndPerformSplice;
+  to.ObserveNativeObjectObserve = NativeObjectObserve;
+  to.ObserveNativeObjectGetNotifier = NativeObjectGetNotifier;
+  to.ObserveNativeObjectNotifierPerformChange =
+      NativeObjectNotifierPerformChange;
+});
 
 })
