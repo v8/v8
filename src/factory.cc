@@ -1239,11 +1239,9 @@ Handle<Object> Factory::NewError(const char* maker, const char* message,
   // running the factory method, use the exception as the result.
   Handle<Object> result;
   MaybeHandle<Object> exception;
-  if (!Execution::TryCall(fun,
-                          isolate()->js_builtins_object(),
-                          arraysize(argv),
-                          argv,
-                          &exception).ToHandle(&result)) {
+  if (!Execution::TryCall(fun, undefined_value(), arraysize(argv), argv,
+                          &exception)
+           .ToHandle(&result)) {
     Handle<Object> exception_obj;
     if (exception.ToHandle(&exception_obj)) return exception_obj;
     return undefined_value();
@@ -1263,11 +1261,9 @@ Handle<Object> Factory::NewError(const char* constructor,
   // running the factory method, use the exception as the result.
   Handle<Object> result;
   MaybeHandle<Object> exception;
-  if (!Execution::TryCall(fun,
-                          isolate()->js_builtins_object(),
-                          arraysize(argv),
-                          argv,
-                          &exception).ToHandle(&result)) {
+  if (!Execution::TryCall(fun, undefined_value(), arraysize(argv), argv,
+                          &exception)
+           .ToHandle(&result)) {
     Handle<Object> exception_obj;
     if (exception.ToHandle(&exception_obj)) return exception_obj;
     return undefined_value();

@@ -304,7 +304,7 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
             .ToHandleChecked());
 
     MaybeHandle<Object> maybe_result =
-        Execution::TryCall(fun, isolate->js_builtins_object(), 1, &arg);
+        Execution::TryCall(fun, factory->undefined_value(), 1, &arg);
     Handle<Object> result;
     if (!maybe_result.ToHandle(&result) || !result->IsString()) {
       return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));

@@ -520,13 +520,11 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 
 // --- C a l l s   t o   n a t i v e s ---
 
-#define RETURN_NATIVE_CALL(name, args)                                  \
-  do {                                                                  \
-    Handle<Object> argv[] = args;                                       \
-    return Call(isolate,                                                \
-                isolate->name##_fun(),                                  \
-                isolate->js_builtins_object(),                          \
-                arraysize(argv), argv);                                \
+#define RETURN_NATIVE_CALL(name, args)                                         \
+  do {                                                                         \
+    Handle<Object> argv[] = args;                                              \
+    return Call(isolate, isolate->name##_fun(),                                \
+                isolate->factory()->undefined_value(), arraysize(argv), argv); \
   } while (false)
 
 
@@ -615,9 +613,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
   Handle<Object> args[] = { recv, fun, pos, is_global };
   MaybeHandle<Object> maybe_result =
       TryCall(isolate->get_stack_trace_line_fun(),
-              isolate->js_builtins_object(),
-              arraysize(args),
-              args);
+              isolate->factory()->undefined_value(), arraysize(args), args);
   Handle<Object> result;
   if (!maybe_result.ToHandle(&result) || !result->IsString()) {
     return isolate->factory()->empty_string();
