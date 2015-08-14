@@ -632,6 +632,18 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
 }
 
 
+MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
+                                        Handle<Object> args[]) {
+  PostponeInterruptsScope no_interrupts(isolate_);
+  AssertDebugContext();
+  Handle<Object> holder = isolate_->natives_utils_object();
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(
+      Object::GetProperty(isolate_, holder, name, STRICT).ToHandleChecked());
+  Handle<Object> undefined = isolate_->factory()->undefined_value();
+  return Execution::TryCall(fun, undefined, argc, args);
+}
+
+
 // Check whether a single break point object is triggered.
 bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   Factory* factory = isolate_->factory();
@@ -640,25 +652,14 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   // Ignore check if break point object is not a JSObject.
   if (!break_point_object->IsJSObject()) return true;
 
-  // Get the function IsBreakPointTriggered (defined in debug.js).
-  Handle<String> is_break_point_triggered_string =
-      factory->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("IsBreakPointTriggered"));
-  Handle<GlobalObject> debug_global(debug_context()->global_object());
-  Handle<JSFunction> check_break_point = Handle<JSFunction>::cast(
-      Object::GetProperty(debug_utils(), is_break_point_triggered_string)
-          .ToHandleChecked());
-
   // Get the break id as an object.
   Handle<Object> break_id = factory->NewNumberFromInt(Debug::break_id());
 
-  // Call HandleBreakPointx.
+  // Call IsBreakPointTriggered.
   Handle<Object> argv[] = { break_id, break_point_object };
   Handle<Object> result;
-  if (!Execution::TryCall(check_break_point,
-                          isolate_->js_builtins_object(),
-                          arraysize(argv),
-                          argv).ToHandle(&result)) {
+  if (!CallFunction("IsBreakPointTriggered", arraysize(argv), argv)
+           .ToHandle(&result)) {
     return false;
   }
 
@@ -1669,13 +1670,7 @@ bool Debug::IsDebugGlobal(GlobalObject* global) {
 void Debug::ClearMirrorCache() {
   PostponeInterruptsScope postpone(isolate_);
   HandleScope scope(isolate_);
-  AssertDebugContext();
-
-  Handle<Object> fun =
-      Object::GetProperty(isolate_, debug_utils(), "ClearMirrorCache")
-          .ToHandleChecked();
-  Handle<Object> undefined = isolate_->factory()->undefined_value();
-  Execution::TryCall(Handle<JSFunction>::cast(fun), undefined, 0, NULL);
+  CallFunction("ClearMirrorCache", 0, NULL);
 }
 
 
@@ -1747,29 +1742,10 @@ void Debug::RecordEvalCaller(Handle<Script> script) {
 }
 
 
-MaybeHandle<Object> Debug::MakeJSObject(const char* constructor_name,
-                                        int argc,
-                                        Handle<Object> argv[]) {
-  AssertDebugContext();
-  // Create the execution state object.
-  Handle<Object> constructor =
-      Object::GetProperty(isolate_, debug_utils(), constructor_name)
-          .ToHandleChecked();
-  DCHECK(constructor->IsJSFunction());
-  if (!constructor->IsJSFunction()) return MaybeHandle<Object>();
-  // We do not handle interrupts here.  In particular, termination interrupts.
-  PostponeInterruptsScope no_interrupts(isolate_);
-  return Execution::TryCall(Handle<JSFunction>::cast(constructor),
-                            handle(debug_context()->global_proxy()),
-                            argc,
-                            argv);
-}
-
-
 MaybeHandle<Object> Debug::MakeExecutionState() {
   // Create the execution state object.
   Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()) };
-  return MakeJSObject("MakeExecutionState", arraysize(argv), argv);
+  return CallFunction("MakeExecutionState", arraysize(argv), argv);
 }
 
 
@@ -1777,7 +1753,7 @@ MaybeHandle<Object> Debug::MakeBreakEvent(Handle<Object> break_points_hit) {
   // Create the new break event object.
   Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()),
                             break_points_hit };
-  return MakeJSObject("MakeBreakEvent", arraysize(argv), argv);
+  return CallFunction("MakeBreakEvent", arraysize(argv), argv);
 }
 
 
@@ -1789,7 +1765,7 @@ MaybeHandle<Object> Debug::MakeExceptionEvent(Handle<Object> exception,
                             exception,
                             isolate_->factory()->ToBoolean(uncaught),
                             promise };
-  return MakeJSObject("MakeExceptionEvent", arraysize(argv), argv);
+  return CallFunction("MakeExceptionEvent", arraysize(argv), argv);
 }
 
 
@@ -1799,21 +1775,21 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
   Handle<Object> script_wrapper = Script::GetWrapper(script);
   Handle<Object> argv[] = { script_wrapper,
                             isolate_->factory()->NewNumberFromInt(type) };
-  return MakeJSObject("MakeCompileEvent", arraysize(argv), argv);
+  return CallFunction("MakeCompileEvent", arraysize(argv), argv);
 }
 
 
 MaybeHandle<Object> Debug::MakePromiseEvent(Handle<JSObject> event_data) {
   // Create the promise event object.
   Handle<Object> argv[] = { event_data };
-  return MakeJSObject("MakePromiseEvent", arraysize(argv), argv);
+  return CallFunction("MakePromiseEvent", arraysize(argv), argv);
 }
 
 
 MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
   // Create the async task event object.
   Handle<Object> argv[] = { task_event };
-  return MakeJSObject("MakeAsyncTaskEvent", arraysize(argv), argv);
+  return CallFunction("MakeAsyncTaskEvent", arraysize(argv), argv);
 }
 
 
@@ -1980,26 +1956,9 @@ void Debug::OnAfterCompile(Handle<Script> script) {
 
   // If debugging there might be script break points registered for this
   // script. Make sure that these break points are set.
-
-  // Get the function UpdateScriptBreakPoints (defined in debug.js).
-  Handle<Object> update_script_break_points =
-      Object::GetProperty(isolate_, debug_utils(), "UpdateScriptBreakPoints")
-          .ToHandleChecked();
-  if (!update_script_break_points->IsJSFunction()) {
-    return;
-  }
-  DCHECK(update_script_break_points->IsJSFunction());
-
-  // Wrap the script object in a proper JS object before passing it
-  // to JavaScript.
-  Handle<Object> wrapper = Script::GetWrapper(script);
-
-  // Call UpdateScriptBreakPoints expect no exceptions.
-  Handle<Object> argv[] = { wrapper };
-  if (Execution::TryCall(Handle<JSFunction>::cast(update_script_break_points),
-                         isolate_->js_builtins_object(),
-                         arraysize(argv),
-                         argv).is_null()) {
+  Handle<Object> argv[] = {Script::GetWrapper(script)};
+  if (CallFunction("UpdateScriptBreakPoints", arraysize(argv), argv)
+          .is_null()) {
     return;
   }
 
