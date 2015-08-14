@@ -43,10 +43,6 @@
 #include "src/preparse-data.h"
 #include "src/preparser.h"
 
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-#include "src/startup-data-util.h"
-#endif  // V8_USE_EXTERNAL_STARTUP_DATA
-
 using namespace v8::internal;
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
@@ -150,9 +146,8 @@ int main(int argc, char* argv[]) {
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  v8::StartupDataHandler startup_data(argv[0], NULL, NULL);
-#endif  // V8_USE_EXTERNAL_STARTUP_DATA
+  v8::V8::InitializeExternalStartupData(argv[0]);
+
   Encoding encoding = LATIN1;
   std::vector<std::string> fnames;
   std::string benchmark;

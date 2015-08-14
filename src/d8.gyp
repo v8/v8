@@ -49,8 +49,6 @@
       'sources': [
         'd8.h',
         'd8.cc',
-        'startup-data-util.h',
-        'startup-data-util.cc'
       ],
       'defines': [
         # TODO(jochen): Remove again after this is globally turned on.

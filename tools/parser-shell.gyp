@@ -57,8 +57,6 @@
       'sources': [
         'parser-shell.cc',
         'shell-utils.h',
-        '../src/startup-data-util.h',
-        '../src/startup-data-util.cc',
       ],
     },
   ],
