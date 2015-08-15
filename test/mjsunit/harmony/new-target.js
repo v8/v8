@@ -394,5 +394,5 @@
   assertThrows(function() { Function("--new.target"); }, ReferenceError);
   assertThrows(function() { Function("(new.target)++"); }, ReferenceError);
   assertThrows(function() { Function("++(new.target)"); }, ReferenceError);
-  assertThrows(function() { Function("for (new.target of {});"); }, ReferenceError);
+  assertThrows(function() { Function("for (new.target of {});"); }, SyntaxError);
 })();

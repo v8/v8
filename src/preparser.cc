@@ -922,7 +922,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         if (!*ok) return Statement::Default();
         lhs = CheckAndRewriteReferenceExpression(
             lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
-            CHECK_OK);
+            kSyntaxError, CHECK_OK);
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
         ParseSubStatement(CHECK_OK);

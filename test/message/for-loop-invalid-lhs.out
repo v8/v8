@@ -1,5 +1,5 @@
-*%(basename)s:9: ReferenceError: Invalid left-hand side in for-loop
+*%(basename)s:9: SyntaxError: Invalid left-hand side in for-loop
 function f() { for ("unassignable" in {}); }
                     ^^^^^^^^^^^^^^
-ReferenceError: Invalid left-hand side in for-loop
+SyntaxError: Invalid left-hand side in for-loop
 

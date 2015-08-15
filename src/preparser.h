@@ -714,6 +714,9 @@ class ParserBase : public Traits {
   ExpressionT CheckAndRewriteReferenceExpression(
       ExpressionT expression, int beg_pos, int end_pos,
       MessageTemplate::Template message, bool* ok);
+  ExpressionT CheckAndRewriteReferenceExpression(
+      ExpressionT expression, int beg_pos, int end_pos,
+      MessageTemplate::Template message, ParseErrorType type, bool* ok);
 
   // Used to validate property names in object literals and class literals
   enum PropertyKind {
@@ -3937,6 +3940,16 @@ typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::CheckAndRewriteReferenceExpression(
     ExpressionT expression, int beg_pos, int end_pos,
     MessageTemplate::Template message, bool* ok) {
+  return this->CheckAndRewriteReferenceExpression(expression, beg_pos, end_pos,
+                                                  message, kReferenceError, ok);
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::CheckAndRewriteReferenceExpression(
+    ExpressionT expression, int beg_pos, int end_pos,
+    MessageTemplate::Template message, ParseErrorType type, bool* ok) {
   Scanner::Location location(beg_pos, end_pos);
   if (this->IsIdentifier(expression)) {
     if (is_strict(language_mode()) &&
@@ -3963,7 +3976,7 @@ ParserBase<Traits>::CheckAndRewriteReferenceExpression(
     ExpressionT error = this->NewThrowReferenceError(message, pos);
     return factory()->NewProperty(expression, error, pos);
   } else {
-    this->ReportMessageAt(location, message, kReferenceError);
+    this->ReportMessageAt(location, message, type);
     *ok = false;
     return this->EmptyExpression();
   }

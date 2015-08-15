@@ -3693,7 +3693,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         if (!*ok) return nullptr;
         expression = this->CheckAndRewriteReferenceExpression(
             expression, lhs_beg_pos, lhs_end_pos,
-            MessageTemplate::kInvalidLhsInFor, CHECK_OK);
+            MessageTemplate::kInvalidLhsInFor, kSyntaxError, CHECK_OK);
 
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
