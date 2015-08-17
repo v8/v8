@@ -542,7 +542,7 @@
   'language/expressions/object/method-definition/generator-name-prop-symbol': [FAIL],
   'language/expressions/object/method-definition/name-name-prop-symbol': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4289
+  # https://code.google.com/p/v8/issues/detail?id=4317
   'built-ins/Array/prototype/concat/is-concat-spreadable-val-falsey': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=2952
