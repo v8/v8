@@ -23,13 +23,29 @@ void MarkCompactCollector::SetFlags(int flags) {
 }
 
 
+void MarkCompactCollector::PushBlack(HeapObject* obj) {
+  if (marking_deque_.PushBlack(obj)) {
+    MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
+  } else {
+    Marking::BlackToGrey(obj);
+  }
+}
+
+
+void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
+  if (!marking_deque_.UnshiftBlack(obj)) {
+    MemoryChunk::IncrementLiveBytesFromGC(obj, -obj->Size());
+    Marking::BlackToGrey(obj);
+  }
+}
+
+
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
   if (Marking::IsWhite(mark_bit)) {
     Marking::WhiteToBlack(mark_bit);
-    MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
     DCHECK(obj->GetIsolate()->heap()->Contains(obj));
-    marking_deque_.PushBlack(obj);
+    PushBlack(obj);
   }
 }
 

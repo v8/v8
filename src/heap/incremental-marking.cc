@@ -202,7 +202,7 @@ class IncrementalMarkingMarkingVisitor
           heap->mark_compact_collector()->marking_deque()->UnshiftGrey(object);
         } else {
           DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
-          heap->mark_compact_collector()->marking_deque()->UnshiftBlack(object);
+          heap->mark_compact_collector()->UnshiftBlack(object);
         }
         heap->incremental_marking()->NotifyIncompleteScanOfObject(
             object_size - (start_offset - already_scanned_offset));

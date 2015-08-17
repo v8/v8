@@ -205,18 +205,17 @@ class MarkingDeque {
 
   void SetOverflowed() { overflowed_ = true; }
 
-  // Push the (marked) object on the marking stack if there is room,
-  // otherwise mark the object as overflowed and wait for a rescan of the
-  // heap.
-  INLINE(void PushBlack(HeapObject* object)) {
+  // Push the (marked) object on the marking stack if there is room, otherwise
+  // mark the deque as overflowed and wait for a rescan of the heap.
+  INLINE(bool PushBlack(HeapObject* object)) {
     DCHECK(object->IsHeapObject());
     if (IsFull()) {
-      Marking::BlackToGrey(object);
-      MemoryChunk::IncrementLiveBytesFromGC(object, -object->Size());
       SetOverflowed();
+      return false;
     } else {
       array_[top_] = object;
       top_ = ((top_ + 1) & mask_);
+      return true;
     }
   }
 
@@ -248,16 +247,16 @@ class MarkingDeque {
     }
   }
 
-  INLINE(void UnshiftBlack(HeapObject* object)) {
+  INLINE(bool UnshiftBlack(HeapObject* object)) {
     DCHECK(object->IsHeapObject());
     DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
     if (IsFull()) {
-      Marking::BlackToGrey(object);
-      MemoryChunk::IncrementLiveBytesFromGC(object, -object->Size());
       SetOverflowed();
+      return false;
     } else {
       bottom_ = ((bottom_ - 1) & mask_);
       array_[bottom_] = object;
+      return true;
     }
   }
 
@@ -761,11 +760,12 @@ class MarkCompactCollector {
   //
   //   After: Live objects are marked and non-live objects are unmarked.
 
-  friend class RootMarkingVisitor;
-  friend class MarkingVisitor;
-  friend class MarkCompactMarkingVisitor;
   friend class CodeMarkingVisitor;
+  friend class MarkCompactMarkingVisitor;
+  friend class MarkingVisitor;
+  friend class RootMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
+  friend class IncrementalMarkingMarkingVisitor;
 
   // Mark code objects that are active on the stack to prevent them
   // from being flushed.
@@ -777,6 +777,14 @@ class MarkCompactCollector {
   void MarkLiveObjects();
 
   void AfterMarking();
+
+  // Pushes a black object onto the marking stack and accounts for live bytes.
+  // Note that this assumes live bytes have not yet been counted.
+  INLINE(void PushBlack(HeapObject* obj));
+
+  // Unshifts a black object into the marking stack and accounts for live bytes.
+  // Note that this assumes lives bytes have already been counted.
+  INLINE(void UnshiftBlack(HeapObject* obj));
 
   // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
@@ -825,6 +833,14 @@ class MarkCompactCollector {
   // function either leaves the marking stack full or clears the overflow
   // flag on the marking stack.
   void RefillMarkingDeque();
+
+  // Helper methods for refilling the marking stack by discovering grey objects
+  // on various pages of the heap. Used by {RefillMarkingDeque} only.
+  template <class T>
+  void DiscoverGreyObjectsWithIterator(T* it);
+  void DiscoverGreyObjectsOnPage(MemoryChunk* p);
+  void DiscoverGreyObjectsInSpace(PagedSpace* space);
+  void DiscoverGreyObjectsInNewSpace();
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
