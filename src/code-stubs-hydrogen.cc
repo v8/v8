@@ -380,78 +380,32 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
             { Push(Add<HConstant>(factory->function_string())); }
             is_function.Else();
             {
-              IfBuilder is_float32x4(this);
-              is_float32x4.If<HCompareObjectEqAndBranch>(
-                  map, Add<HConstant>(factory->float32x4_map()));
-              is_float32x4.Then();
-              { Push(Add<HConstant>(factory->float32x4_string())); }
-              is_float32x4.Else();
+#define SIMD128_BUILDER_OPEN(TYPE, Type, type, lane_count, lane_type) \
+  IfBuilder is_##type(this);                                          \
+  is_##type.If<HCompareObjectEqAndBranch>(                            \
+      map, Add<HConstant>(factory->type##_map()));                    \
+  is_##type.Then();                                                   \
+  { Push(Add<HConstant>(factory->type##_string())); }                 \
+  is_##type.Else(); {
+              SIMD128_TYPES(SIMD128_BUILDER_OPEN)
+#undef SIMD128_BUILDER_OPEN
+              // Is it an undetectable object?
+              IfBuilder is_undetectable(this);
+              is_undetectable.If<HIsUndetectableAndBranch>(object);
+              is_undetectable.Then();
               {
-                IfBuilder is_int32x4(this);
-                is_int32x4.If<HCompareObjectEqAndBranch>(
-                    map, Add<HConstant>(factory->int32x4_map()));
-                is_int32x4.Then();
-                { Push(Add<HConstant>(factory->int32x4_string())); }
-                is_int32x4.Else();
-                {
-                  IfBuilder is_bool32x4(this);
-                  is_bool32x4.If<HCompareObjectEqAndBranch>(
-                      map, Add<HConstant>(factory->bool32x4_map()));
-                  is_bool32x4.Then();
-                  { Push(Add<HConstant>(factory->bool32x4_string())); }
-                  is_bool32x4.Else();
-                  {
-                    IfBuilder is_int16x8(this);
-                    is_int16x8.If<HCompareObjectEqAndBranch>(
-                        map, Add<HConstant>(factory->int16x8_map()));
-                    is_int16x8.Then();
-                    { Push(Add<HConstant>(factory->int16x8_string())); }
-                    is_int16x8.Else();
-                    {
-                      IfBuilder is_bool16x8(this);
-                      is_bool16x8.If<HCompareObjectEqAndBranch>(
-                          map, Add<HConstant>(factory->bool16x8_map()));
-                      is_bool16x8.Then();
-                      { Push(Add<HConstant>(factory->bool16x8_string())); }
-                      is_bool16x8.Else();
-                      {
-                        IfBuilder is_int8x16(this);
-                        is_int8x16.If<HCompareObjectEqAndBranch>(
-                            map, Add<HConstant>(factory->int8x16_map()));
-                        is_int8x16.Then();
-                        { Push(Add<HConstant>(factory->int8x16_string())); }
-                        is_int8x16.Else();
-                        {
-                          IfBuilder is_bool8x16(this);
-                          is_bool8x16.If<HCompareObjectEqAndBranch>(
-                              map, Add<HConstant>(factory->bool8x16_map()));
-                          is_bool8x16.Then();
-                          { Push(Add<HConstant>(factory->bool8x16_string())); }
-                          is_bool8x16.Else();
-                          {
-                            // Is it an undetectable object?
-                            IfBuilder is_undetectable(this);
-                            is_undetectable.If<HIsUndetectableAndBranch>(
-                                object);
-                            is_undetectable.Then();
-                            {
-                              // typeof an undetectable object is 'undefined'.
-                              Push(Add<HConstant>(factory->undefined_string()));
-                            }
-                            is_undetectable.Else();
-                            {
-                              // For any kind of object not handled above, the
-                              // spec rule for host objects gives that it is
-                              // okay to return "object".
-                              Push(object_string);
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
+                // typeof an undetectable object is 'undefined'.
+                Push(Add<HConstant>(factory->undefined_string()));
               }
+              is_undetectable.Else();
+              {
+                // For any kind of object not handled above, the spec rule for
+                // host objects gives that it is okay to return "object".
+                Push(object_string);
+              }
+#define SIMD128_BUILDER_CLOSE(TYPE, Type, type, lane_count, lane_type) }
+              SIMD128_TYPES(SIMD128_BUILDER_CLOSE)
+#undef SIMD128_BUILDER_CLOSE
             }
             is_function.End();
           }
