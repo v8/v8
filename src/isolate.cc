@@ -2159,10 +2159,6 @@ bool Isolate::Init(Deserializer* des) {
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
 
-  if (FLAG_ignition) {
-    interpreter_->Initialize();
-  }
-
   if (FLAG_log_internal_timer_events) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);
   }
@@ -2188,6 +2184,10 @@ bool Isolate::Init(Deserializer* des) {
     des->Deserialize(this);
   }
   stub_cache_->Initialize();
+
+  if (FLAG_ignition) {
+    interpreter_->Initialize();
+  }
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();
