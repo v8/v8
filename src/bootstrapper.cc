@@ -3225,7 +3225,6 @@ Genesis::Genesis(Isolate* isolate,
       native_context()->set_natives_utils_object(
           isolate->heap()->undefined_value());
     }
-
     // The serializer cannot serialize typed arrays. Reset those typed arrays
     // for each new context.
     InitializeBuiltinTypedArrays();
@@ -3234,6 +3233,10 @@ Genesis::Genesis(Isolate* isolate,
     InitializeExperimentalGlobal();
     if (!InstallDebuggerNatives()) return;
   }
+
+  // Check that the script context table is empty except for the 'this' binding.
+  // We do not need script contexts for native scripts.
+  DCHECK_EQ(1, native_context()->script_context_table()->used());
 
   result_ = native_context();
 }
