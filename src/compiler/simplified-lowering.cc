@@ -430,7 +430,11 @@ class RepresentationSelector {
       }
     }
 
-    SetOutput(node, desc->GetMachineSignature()->GetReturn());
+    if (sig->return_count() > 0) {
+      SetOutput(node, desc->GetMachineSignature()->GetReturn());
+    } else {
+      SetOutput(node, kMachAnyTagged);
+    }
   }
 
   void VisitStateValues(Node* node) {
