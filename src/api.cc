@@ -3405,33 +3405,9 @@ bool Value::Equals(Local<Value> that) const {
 
 
 bool Value::StrictEquals(Local<Value> that) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> other = Utils::OpenHandle(*that);
-  if (obj->IsSmi()) {
-    return other->IsNumber() && obj->Number() == other->Number();
-  }
-  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  LOG_API(isolate, "StrictEquals");
-  // Must check HeapNumber first, since NaN !== NaN.
-  if (obj->IsHeapNumber()) {
-    if (!other->IsNumber()) return false;
-    double x = obj->Number();
-    double y = other->Number();
-    // Must check explicitly for NaN:s on Windows, but -0 works fine.
-    return x == y && !std::isnan(x) && !std::isnan(y);
-  } else if (*obj == *other) {  // Also covers Booleans.
-    return true;
-  } else if (obj->IsSmi()) {
-    return other->IsNumber() && obj->Number() == other->Number();
-  } else if (obj->IsString()) {
-    return other->IsString() &&
-        i::String::Equals(i::Handle<i::String>::cast(obj),
-                          i::Handle<i::String>::cast(other));
-  } else if (obj->IsUndefined() || obj->IsUndetectableObject()) {
-    return other->IsUndefined() || other->IsUndetectableObject();
-  } else {
-    return false;
-  }
+  auto self = Utils::OpenHandle(this);
+  auto other = Utils::OpenHandle(*that);
+  return self->StrictEquals(*other);
 }
 
 

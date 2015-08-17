@@ -492,7 +492,8 @@ namespace internal {
   F(ClassOf, 1, 1)                                   \
   F(DefineGetterPropertyUnchecked, 4, 1)             \
   F(DefineSetterPropertyUnchecked, 4, 1)             \
-  F(ToObject, 1, 1)
+  F(ToObject, 1, 1)                                  \
+  F(StrictEquals, 2, 1)
 
 
 #define FOR_EACH_INTRINSIC_OBSERVE(F)            \

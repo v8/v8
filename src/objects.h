@@ -1088,6 +1088,9 @@ class Object {
 
   bool BooleanValue();                                      // ECMA-262 9.2.
 
+  // ES6 section 7.2.13 Strict Equality Comparison
+  bool StrictEquals(Object* that);
+
   // Convert to a JSObject if needed.
   // native_context is used when creating wrapper object.
   static inline MaybeHandle<JSReceiver> ToObject(Isolate* isolate,
@@ -1593,6 +1596,9 @@ class Simd128Value : public HeapObject {
   DECLARE_PRINTER(Simd128Value)
   DECLARE_VERIFIER(Simd128Value)
 
+  // Equality operations.
+  inline bool Equals(Simd128Value* that);
+
   // Checks that another instance is bit-wise equal.
   bool BitwiseEquals(const Simd128Value* other) const;
   // Computes a hash from the 128 bit value, viewed as 4 32-bit integers.
@@ -1628,6 +1634,8 @@ class Simd128Value : public HeapObject {
     DECLARE_CAST(Type)                                               \
                                                                      \
     DECLARE_PRINTER(Type)                                            \
+                                                                     \
+    inline bool Equals(Type* that);                                  \
                                                                      \
    private:                                                          \
     DISALLOW_IMPLICIT_CONSTRUCTORS(Type);                            \

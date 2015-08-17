@@ -1763,20 +1763,25 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   __ Push(rax);
 
   // Figure out which native to call and setup the arguments.
-  Builtins::JavaScript builtin;
-  if (cc == equal) {
-    builtin = strict() ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
+  if (cc == equal && strict()) {
+    __ PushReturnAddressFrom(rcx);
+    __ TailCallRuntime(Runtime::kStrictEquals, 2, 1);
   } else {
-    builtin =
-        is_strong(strength()) ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
-    __ Push(Smi::FromInt(NegativeComparisonResult(cc)));
+    Builtins::JavaScript builtin;
+    if (cc == equal) {
+      builtin = Builtins::EQUALS;
+    } else {
+      builtin =
+          is_strong(strength()) ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
+      __ Push(Smi::FromInt(NegativeComparisonResult(cc)));
+    }
+
+    __ PushReturnAddressFrom(rcx);
+
+    // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
+    // tagged as a small integer.
+    __ InvokeBuiltin(builtin, JUMP_FUNCTION);
   }
-
-  __ PushReturnAddressFrom(rcx);
-
-  // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
-  // tagged as a small integer.
-  __ InvokeBuiltin(builtin, JUMP_FUNCTION);
 
   __ bind(&miss);
   GenerateMiss(masm);

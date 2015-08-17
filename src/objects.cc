@@ -102,6 +102,24 @@ bool Object::BooleanValue() {
 }
 
 
+bool Object::StrictEquals(Object* that) {
+  if (this->IsNumber()) {
+    if (!that->IsNumber()) return false;
+    double const x = this->Number();
+    double const y = that->Number();
+    // Must check explicitly for NaN:s on Windows, but -0 works fine.
+    return x == y && !std::isnan(x) && !std::isnan(y);
+  } else if (this->IsString()) {
+    if (!that->IsString()) return false;
+    return String::cast(this)->Equals(String::cast(that));
+  } else if (this->IsSimd128Value()) {
+    if (!that->IsSimd128Value()) return false;
+    return Simd128Value::cast(this)->Equals(Simd128Value::cast(that));
+  }
+  return this == that;
+}
+
+
 bool Object::IsCallable() const {
   const Object* fun = this;
   while (fun->IsJSFunctionProxy()) {

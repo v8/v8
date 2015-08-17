@@ -127,6 +127,7 @@ EQUALS = function EQUALS(y) {
     } else if (IS_NULL_OR_UNDEFINED(x)) {
       return IS_NULL_OR_UNDEFINED(y) ? 0 : 1;
     } else if (IS_SIMD_VALUE(x)) {
+      if (!IS_SIMD_VALUE(y)) return 1;  // not equal
        return %SimdEquals(x, y);
     } else {
       // x is an object.
@@ -140,26 +141,6 @@ EQUALS = function EQUALS(y) {
       x = %$toPrimitive(x, NO_HINT);
     }
   }
-}
-
-// ECMA-262, section 11.9.4, page 56.
-STRICT_EQUALS = function STRICT_EQUALS(x) {
-  if (IS_STRING(this)) {
-    if (!IS_STRING(x)) return 1;  // not equal
-    return %StringEquals(this, x);
-  }
-
-  if (IS_NUMBER(this)) {
-    if (!IS_NUMBER(x)) return 1;  // not equal
-    return %NumberEquals(this, x);
-  }
-
-  if (IS_SIMD_VALUE(this)) return %SimdEquals(this, x);
-
-  // If anything else gets here, we just do simple identity check.
-  // Objects (including functions), null, undefined and booleans were
-  // checked in the CompareStub, so there should be nothing left.
-  return %_ObjectEquals(this, x) ? 0 : 1;
 }
 
 

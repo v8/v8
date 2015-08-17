@@ -1461,5 +1461,15 @@ RUNTIME_FUNCTION(Runtime_ToObject) {
       isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
 }
 
+
+RUNTIME_FUNCTION(Runtime_StrictEquals) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  CONVERT_ARG_CHECKED(Object, y, 1);
+  // TODO(bmeurer): Change this at some point to return true/false instead.
+  return Smi::FromInt(x->StrictEquals(y) ? EQUAL : NOT_EQUAL);
+}
+
 }  // namespace internal
 }  // namespace v8

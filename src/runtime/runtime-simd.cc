@@ -48,14 +48,6 @@ int8_t ConvertNumber<int8_t>(double number) {
 }
 
 
-bool Equals(Float32x4* a, Float32x4* b) {
-  for (int i = 0; i < 4; i++) {
-    if (a->get_lane(i) != b->get_lane(i)) return false;
-  }
-  return true;
-}
-
-
 // TODO(bbudge): Make this consistent with SIMD instruction results.
 inline float RecipApprox(float a) { return 1.0f / a; }
 
@@ -148,22 +140,11 @@ RUNTIME_FUNCTION(Runtime_SimdToObject) {
 
 
 RUNTIME_FUNCTION(Runtime_SimdEquals) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(Simd128Value, a, 0);
-  bool result = false;
-  // args[1] is of unknown type.
-  if (args[1]->IsSimd128Value()) {
-    Simd128Value* b = Simd128Value::cast(args[1]);
-    if (a->map() == b->map()) {
-      if (a->IsFloat32x4()) {
-        result = Equals(Float32x4::cast(*a), Float32x4::cast(b));
-      } else {
-        result = a->BitwiseEquals(b);
-      }
-    }
-  }
-  return Smi::FromInt(result ? EQUAL : NOT_EQUAL);
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Simd128Value, x, 0);
+  CONVERT_ARG_CHECKED(Simd128Value, y, 1);
+  return Smi::FromInt(x->Equals(y) ? EQUAL : NOT_EQUAL);
 }
 
 

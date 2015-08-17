@@ -1521,6 +1521,29 @@ int HeapNumber::get_sign() {
 }
 
 
+bool Simd128Value::Equals(Simd128Value* that) {
+#define SIMD128_VALUE(TYPE, Type, type, lane_count, lane_type) \
+  if (this->Is##Type()) {                                      \
+    if (!that->Is##Type()) return false;                       \
+    return Type::cast(this)->Equals(Type::cast(that));         \
+  }
+  SIMD128_TYPES(SIMD128_VALUE)
+#undef SIMD128_VALUE
+  return false;
+}
+
+
+#define SIMD128_VALUE_EQUALS(TYPE, Type, type, lane_count, lane_type) \
+  bool Type::Equals(Type* that) {                                     \
+    for (int lane = 0; lane < lane_count; ++lane) {                   \
+      if (this->get_lane(lane) != that->get_lane(lane)) return false; \
+    }                                                                 \
+    return true;                                                      \
+  }
+SIMD128_TYPES(SIMD128_VALUE_EQUALS)
+#undef SIMD128_VALUE_EQUALS
+
+
 float Float32x4::get_lane(int lane) const {
   DCHECK(lane < 4 && lane >= 0);
 #if defined(V8_TARGET_LITTLE_ENDIAN)

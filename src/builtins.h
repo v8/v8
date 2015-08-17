@@ -150,7 +150,6 @@ enum BuiltinExtraArguments {
 // Define list of builtins implemented in JavaScript.
 #define BUILTINS_LIST_JS(V)                \
   V(EQUALS, 1)                             \
-  V(STRICT_EQUALS, 1)                      \
   V(COMPARE, 2)                            \
   V(COMPARE_STRONG, 2)                     \
   V(ADD, 1)                                \

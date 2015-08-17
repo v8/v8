@@ -723,26 +723,30 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // a1 (rhs) second.
   __ Push(lhs, rhs);
   // Figure out which native to call and setup the arguments.
-  Builtins::JavaScript native;
-  if (cc == eq) {
-    native = strict() ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
+  if (cc == eq && strict()) {
+    __ TailCallRuntime(Runtime::kStrictEquals, 2, 1);
   } else {
-    native =
-        is_strong(strength()) ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
-    int ncr;  // NaN compare result.
-    if (cc == lt || cc == le) {
-      ncr = GREATER;
+    Builtins::JavaScript native;
+    if (cc == eq) {
+      native = Builtins::EQUALS;
     } else {
-      DCHECK(cc == gt || cc == ge);  // Remaining cases.
-      ncr = LESS;
+      native =
+          is_strong(strength()) ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
+      int ncr;  // NaN compare result.
+      if (cc == lt || cc == le) {
+        ncr = GREATER;
+      } else {
+        DCHECK(cc == gt || cc == ge);  // Remaining cases.
+        ncr = LESS;
+      }
+      __ li(a0, Operand(Smi::FromInt(ncr)));
+      __ push(a0);
     }
-    __ li(a0, Operand(Smi::FromInt(ncr)));
-    __ push(a0);
-  }
 
-  // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
-  // tagged as a small integer.
-  __ InvokeBuiltin(native, JUMP_FUNCTION);
+    // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
+    // tagged as a small integer.
+    __ InvokeBuiltin(native, JUMP_FUNCTION);
+  }
 
   __ bind(&miss);
   GenerateMiss(masm);
