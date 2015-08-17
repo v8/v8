@@ -1763,6 +1763,7 @@ void Bootstrapper::ImportNatives(Isolate* isolate, Handle<JSObject> container) {
   INSTALL_NATIVE(JSFunction, "SyntaxError", syntax_error_function);
   INSTALL_NATIVE(JSFunction, "TypeError", type_error_function);
   INSTALL_NATIVE(JSFunction, "URIError", uri_error_function);
+  INSTALL_NATIVE(JSFunction, "MakeError", make_error_function);
 
   INSTALL_NATIVE(Symbol, "promiseStatus", promise_status);
   INSTALL_NATIVE(Symbol, "promiseValue", promise_value);

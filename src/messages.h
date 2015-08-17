@@ -413,6 +413,8 @@ class MessageTemplate {
         kLastMessage
   };
 
+  static const char* TemplateString(int template_index);
+
   static MaybeHandle<String> FormatMessage(int template_index,
                                            Handle<String> arg0,
                                            Handle<String> arg1,

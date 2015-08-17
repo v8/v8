@@ -1103,137 +1103,23 @@ Handle<Bool8x16> Factory::NewBool8x16(bool lanes[16], PretenureFlag pretenure) {
 }
 
 
-Handle<Object> Factory::NewError(const char* maker,
+Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
                                  MessageTemplate::Template template_index,
                                  Handle<Object> arg0, Handle<Object> arg1,
                                  Handle<Object> arg2) {
   HandleScope scope(isolate());
-  Handle<String> error_maker = InternalizeUtf8String(maker);
   if (isolate()->bootstrapper()->IsActive()) {
-    // If this exception is being thrown during bootstrapping,
-    // js_builtins_object is unavailable. We return the error maker
-    // name's string as the exception since we have nothing better
-    // to do.
-    return scope.CloseAndEscape(error_maker);
+    // During bootstrapping we cannot construct error objects.
+    return scope.CloseAndEscape(NewStringFromAsciiChecked(
+        MessageTemplate::TemplateString(template_index)));
   }
-  Handle<Object> fun_obj = Object::GetProperty(isolate()->js_builtins_object(),
-                                               error_maker).ToHandleChecked();
 
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
+  Handle<JSFunction> fun = isolate()->make_error_function();
   Handle<Object> message_type(Smi::FromInt(template_index), isolate());
   if (arg0.is_null()) arg0 = undefined_value();
   if (arg1.is_null()) arg1 = undefined_value();
   if (arg2.is_null()) arg2 = undefined_value();
-  Handle<Object> argv[] = {message_type, arg0, arg1, arg2};
-
-  // Invoke the JavaScript factory method. If an exception is thrown while
-  // running the factory method, use the exception as the result.
-  Handle<Object> result;
-  MaybeHandle<Object> exception;
-  if (!Execution::TryCall(fun, isolate()->js_builtins_object(), arraysize(argv),
-                          argv, &exception).ToHandle(&result)) {
-    Handle<Object> exception_obj;
-    if (exception.ToHandle(&exception_obj)) {
-      result = exception_obj;
-    } else {
-      result = undefined_value();
-    }
-  }
-  return scope.CloseAndEscape(result);
-}
-
-
-Handle<Object> Factory::NewError(MessageTemplate::Template template_index,
-                                 Handle<Object> arg0, Handle<Object> arg1,
-                                 Handle<Object> arg2) {
-  return NewError("MakeError", template_index, arg0, arg1, arg2);
-}
-
-
-Handle<Object> Factory::NewTypeError(MessageTemplate::Template template_index,
-                                     Handle<Object> arg0, Handle<Object> arg1,
-                                     Handle<Object> arg2) {
-  return NewError("MakeTypeError", template_index, arg0, arg1, arg2);
-}
-
-
-Handle<Object> Factory::NewSyntaxError(MessageTemplate::Template template_index,
-                                       Handle<Object> arg0, Handle<Object> arg1,
-                                       Handle<Object> arg2) {
-  return NewError("MakeSyntaxError", template_index, arg0, arg1, arg2);
-}
-
-
-Handle<Object> Factory::NewReferenceError(
-    MessageTemplate::Template template_index, Handle<Object> arg0,
-    Handle<Object> arg1, Handle<Object> arg2) {
-  return NewError("MakeReferenceError", template_index, arg0, arg1, arg2);
-}
-
-
-Handle<Object> Factory::NewRangeError(MessageTemplate::Template template_index,
-                                      Handle<Object> arg0, Handle<Object> arg1,
-                                      Handle<Object> arg2) {
-  return NewError("MakeRangeError", template_index, arg0, arg1, arg2);
-}
-
-
-Handle<Object> Factory::NewEvalError(MessageTemplate::Template template_index,
-                                     Handle<Object> arg0, Handle<Object> arg1,
-                                     Handle<Object> arg2) {
-  return NewError("MakeEvalError", template_index, arg0, arg1, arg2);
-}
-
-
-Handle<String> Factory::EmergencyNewError(const char* message,
-                                          Handle<JSArray> args) {
-  const int kBufferSize = 1000;
-  char buffer[kBufferSize];
-  size_t space = kBufferSize;
-  char* p = &buffer[0];
-
-  Vector<char> v(buffer, kBufferSize);
-  StrNCpy(v, message, space);
-  space -= Min(space, strlen(message));
-  p = &buffer[kBufferSize] - space;
-
-  for (int i = 0; i < Smi::cast(args->length())->value(); i++) {
-    if (space > 0) {
-      *p++ = ' ';
-      space--;
-      if (space > 0) {
-        Handle<String> arg_str = Handle<String>::cast(
-            Object::GetElement(isolate(), args, i).ToHandleChecked());
-        base::SmartArrayPointer<char> arg = arg_str->ToCString();
-        Vector<char> v2(p, static_cast<int>(space));
-        StrNCpy(v2, arg.get(), space);
-        space -= Min(space, strlen(arg.get()));
-        p = &buffer[kBufferSize] - space;
-      }
-    }
-  }
-  if (space > 0) {
-    *p = '\0';
-  } else {
-    buffer[kBufferSize - 1] = '\0';
-  }
-  return NewStringFromUtf8(CStrVector(buffer), TENURED).ToHandleChecked();
-}
-
-
-Handle<Object> Factory::NewError(const char* maker, const char* message,
-                                 Handle<JSArray> args) {
-  Handle<String> make_str = InternalizeUtf8String(maker);
-  Handle<Object> fun_obj = Object::GetProperty(
-      isolate()->js_builtins_object(), make_str).ToHandleChecked();
-  // If the builtins haven't been properly configured yet this error
-  // constructor may not have been defined.  Bail out.
-  if (!fun_obj->IsJSFunction()) {
-    return EmergencyNewError(message, args);
-  }
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
-  Handle<Object> message_obj = InternalizeUtf8String(message);
-  Handle<Object> argv[] = { message_obj, args };
+  Handle<Object> argv[] = {constructor, message_type, arg0, arg1, arg2};
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
@@ -1243,10 +1129,13 @@ Handle<Object> Factory::NewError(const char* maker, const char* message,
                           &exception)
            .ToHandle(&result)) {
     Handle<Object> exception_obj;
-    if (exception.ToHandle(&exception_obj)) return exception_obj;
-    return undefined_value();
+    if (exception.ToHandle(&exception_obj)) {
+      result = exception_obj;
+    } else {
+      result = undefined_value();
+    }
   }
-  return result;
+  return scope.CloseAndEscape(result);
 }
 
 

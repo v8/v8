@@ -172,7 +172,6 @@ function ToDetailString(obj) {
 
 
 function MakeGenericError(constructor, type, arg0, arg1, arg2) {
-  if (IS_UNDEFINED(arg0) && IS_STRING(type)) arg0 = [];
   var error = new constructor(FormatMessage(type, arg0, arg1, arg2));
   error[$internalErrorSymbol] = true;
   return error;
@@ -1014,16 +1013,8 @@ MakeError = function(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalError, type, arg0, arg1, arg2);
 }
 
-MakeEvalError = function(type, arg0, arg1, arg2) {
-  return MakeGenericError(GlobalEvalError, type, arg0, arg1, arg2);
-}
-
 MakeRangeError = function(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalRangeError, type, arg0, arg1, arg2);
-}
-
-MakeReferenceError = function(type, arg0, arg1, arg2) {
-  return MakeGenericError(GlobalReferenceError, type, arg0, arg1, arg2);
 }
 
 MakeSyntaxError = function(type, arg0, arg1, arg2) {
@@ -1067,6 +1058,7 @@ utils.ExportToRuntime(function(to) {
   to.GetStackTraceLine = GetStackTraceLine;
   to.NoSideEffectToString = NoSideEffectToString;
   to.ToDetailString = ToDetailString;
+  to.MakeError = MakeGenericError;
 });
 
 });

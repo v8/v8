@@ -159,6 +159,7 @@ enum BindingFlags {
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)            \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)                \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                  \
+  V(MAKE_ERROR_FUNCTION_INDEX, JSFunction, make_error_function)                \
   V(PROMISE_STATUS_INDEX, Symbol, promise_status)                              \
   V(PROMISE_VALUE_INDEX, Symbol, promise_value)                                \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                          \

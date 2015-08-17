@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-
 // Check that message and name are not enumerable on Error objects.
 var desc = Object.getOwnPropertyDescriptor(Error.prototype, 'name');
 assertFalse(desc['enumerable']);
@@ -62,7 +60,12 @@ var e = new ReferenceError('123');
 assertTrue(e.hasOwnProperty('message'));
 assertTrue(e.hasOwnProperty('stack'));
 
-var e = %MakeReferenceError("my_test_error", [0, 1]);
+try {
+  eval("var error = reference");
+} catch (error) {
+  e = error;
+}
+
 assertTrue(e.hasOwnProperty('stack'));
 
 // Check that intercepting property access from toString is prevented for
