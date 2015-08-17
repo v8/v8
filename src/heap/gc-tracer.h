@@ -6,6 +6,7 @@
 #define V8_HEAP_GC_TRACER_H_
 
 #include "src/base/platform/platform.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/heap/heap.h"
 
 #include "src/accessors.h"
 #include "src/api.h"
@@ -33,6 +33,7 @@
 #include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils.h"
+#include "src/v8.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_VISITING_H_
 
 #include "src/allocation.h"
+#include "src/heap/spaces.h"
 #include "src/layout-descriptor.h"
 
 // This file provides base classes and auxiliary methods for defining

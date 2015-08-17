@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/heap/gc-tracer.h"
+
+#include "src/counters.h"
+#include "src/heap/heap.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 
 namespace v8 {
 namespace internal {

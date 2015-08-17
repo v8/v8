@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/flags.h"
 #include "src/heap/gc-idle-time-handler.h"
+
+#include "src/flags.h"
 #include "src/heap/gc-tracer.h"
 #include "src/utils.h"
 

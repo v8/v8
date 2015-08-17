@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/heap/mark-compact.h"
 
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
@@ -15,7 +15,6 @@
 #include "src/gdb-jit.h"
 #include "src/global-handles.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/mark-compact.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -23,6 +22,7 @@
 #include "src/heap-profiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

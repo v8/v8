@@ -8,7 +8,6 @@
 #include "src/heap/mark-compact.h"
 #include "src/isolate.h"
 
-
 namespace v8 {
 namespace internal {
 

@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_H_
 #define V8_HEAP_INCREMENTAL_MARKING_H_
 
-
 #include "src/execution.h"
 #include "src/heap/mark-compact.h"
 #include "src/objects.h"
