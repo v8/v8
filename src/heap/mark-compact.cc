@@ -4497,12 +4497,10 @@ void SlotsBuffer::RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer) {
       ObjectSlot slot = slots[slot_idx];
       if (!IsTypedSlot(slot)) {
         Object* object = *slot;
-        if (object->IsHeapObject()) {
-          if (heap->InNewSpace(object) ||
-              !heap->mark_compact_collector()->IsSlotInLiveObject(
-                  reinterpret_cast<Address>(slot))) {
-            slots[slot_idx] = kRemovedEntry;
-          }
+        if ((object->IsHeapObject() && heap->InNewSpace(object)) ||
+            !heap->mark_compact_collector()->IsSlotInLiveObject(
+                reinterpret_cast<Address>(slot))) {
+          slots[slot_idx] = kRemovedEntry;
         }
       } else {
         ++slot_idx;
