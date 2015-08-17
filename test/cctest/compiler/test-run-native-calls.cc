@@ -134,7 +134,7 @@ struct Allocator {
         return LinkageLocation::ForRegister(fp_regs[fp_offset++]);
       } else {
         int offset = -1 - stack_offset;
-        stack_offset += Words(type);
+        stack_offset += StackWords(type);
         return LinkageLocation::ForCallerFrameSlot(offset);
       }
     } else {
@@ -143,7 +143,7 @@ struct Allocator {
         return LinkageLocation::ForRegister(gp_regs[gp_offset++]);
       } else {
         int offset = -1 - stack_offset;
-        stack_offset += Words(type);
+        stack_offset += StackWords(type);
         return LinkageLocation::ForCallerFrameSlot(offset);
       }
     }
@@ -152,8 +152,12 @@ struct Allocator {
     return RepresentationOf(type) == kRepFloat32 ||
            RepresentationOf(type) == kRepFloat64;
   }
-  int Words(MachineType type) {
-    int size = ElementSizeOf(type);
+  int StackWords(MachineType type) {
+    // TODO(titzer): hack. float32 occupies 8 bytes on stack.
+    int size = (RepresentationOf(type) == kRepFloat32 ||
+                RepresentationOf(type) == kRepFloat64)
+                   ? kDoubleSize
+                   : ElementSizeOf(type);
     return size <= kPointerSize ? 1 : size / kPointerSize;
   }
   void Reset() {
@@ -769,6 +773,16 @@ static CType Compute_Select(CallDescriptor* desc, CType* inputs) {
 }
 
 
+template <typename CType, int which>
+static void RunSelect(CallDescriptor* desc) {
+  int count = ParamCount(desc);
+  if (count <= which) return;
+  Run_Computation<CType>(desc, Build_Select<which>,
+                         Compute_Select<CType, which>,
+                         1044 + which + 3 * sizeof(CType));
+}
+
+
 template <int which>
 void Test_Int32_Select() {
   if (DISABLE_NATIVE_STACK_PARAMS) return;
@@ -784,8 +798,7 @@ void Test_Int32_Select() {
   for (int i = which + 1; i <= 64; i++) {
     Int32Signature sig(i);
     CallDescriptor* desc = config.Create(&zone, &sig);
-    Run_Computation<int32_t>(desc, Build_Select<which>,
-                             Compute_Select<int32_t, which>, 1025 + which);
+    RunSelect<int32_t, which>(desc);
   }
 }
 
@@ -827,11 +840,8 @@ TEST(Int64Select_registers) {
     RegisterConfig config(params, rets);
 
     CallDescriptor* desc = config.Create(&zone, &sig);
-    Run_Computation<int64_t>(desc, Build_Select<0>, Compute_Select<int64_t, 0>,
-                             1021);
-
-    Run_Computation<int64_t>(desc, Build_Select<1>, Compute_Select<int64_t, 1>,
-                             1022);
+    RunSelect<int64_t, 0>(desc);
+    RunSelect<int64_t, 1>(desc);
   }
 }
 
@@ -852,11 +862,8 @@ TEST(Float32Select_registers) {
     RegisterConfig config(params, rets);
 
     CallDescriptor* desc = config.Create(&zone, &sig);
-    Run_Computation<float32>(desc, Build_Select<0>, Compute_Select<float32, 0>,
-                             1019);
-
-    Run_Computation<float32>(desc, Build_Select<1>, Compute_Select<float32, 1>,
-                             1018);
+    RunSelect<float32, 0>(desc);
+    RunSelect<float32, 1>(desc);
   }
 }
 
@@ -877,10 +884,49 @@ TEST(Float64Select_registers) {
     RegisterConfig config(params, rets);
 
     CallDescriptor* desc = config.Create(&zone, &sig);
-    Run_Computation<float64>(desc, Build_Select<0>, Compute_Select<float64, 0>,
-                             1033);
+    RunSelect<float64, 0>(desc);
+    RunSelect<float64, 1>(desc);
+  }
+}
 
-    Run_Computation<float64>(desc, Build_Select<1>, Compute_Select<float64, 1>,
-                             1034);
+
+TEST(Float32Select_stack_params_return_reg) {
+  if (DISABLE_NATIVE_STACK_PARAMS) return;
+  int rarray[] = {0};
+  Allocator params(nullptr, 0, nullptr, 0);
+  Allocator rets(nullptr, 0, rarray, 1);
+  RegisterConfig config(params, rets);
+
+  Zone zone;
+  for (int count = 1; count < 6; count++) {
+    ArgsBuffer<float32>::Sig sig(count);
+    CallDescriptor* desc = config.Create(&zone, &sig);
+    RunSelect<float32, 0>(desc);
+    RunSelect<float32, 1>(desc);
+    RunSelect<float32, 2>(desc);
+    RunSelect<float32, 3>(desc);
+    RunSelect<float32, 4>(desc);
+    RunSelect<float32, 5>(desc);
+  }
+}
+
+
+TEST(Float64Select_stack_params_return_reg) {
+  if (DISABLE_NATIVE_STACK_PARAMS) return;
+  int rarray[] = {0};
+  Allocator params(nullptr, 0, nullptr, 0);
+  Allocator rets(nullptr, 0, rarray, 1);
+  RegisterConfig config(params, rets);
+
+  Zone zone;
+  for (int count = 1; count < 6; count++) {
+    ArgsBuffer<float64>::Sig sig(count);
+    CallDescriptor* desc = config.Create(&zone, &sig);
+    RunSelect<float64, 0>(desc);
+    RunSelect<float64, 1>(desc);
+    RunSelect<float64, 2>(desc);
+    RunSelect<float64, 3>(desc);
+    RunSelect<float64, 4>(desc);
+    RunSelect<float64, 5>(desc);
   }
 }

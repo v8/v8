@@ -972,7 +972,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
 #endif
     case kPPC_Push:
-      __ Push(i.InputRegister(0));
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ stfdu(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
+      } else {
+        __ Push(i.InputRegister(0));
+      }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kPPC_PushFrame: {
@@ -982,7 +986,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kPPC_StoreToStackSlot: {
       int slot = i.InputInt32(1);
-      __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize));
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ stfd(i.InputDoubleRegister(0), MemOperand(sp, slot * kPointerSize));
+      } else {
+        __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize));
+      }
       break;
     }
     case kPPC_ExtendSignWord8:

@@ -814,7 +814,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArmPush:
-      __ Push(i.InputRegister(0));
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ vstr(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
+        __ sub(sp, sp, Operand(kDoubleSize));
+      } else {
+        __ Push(i.InputRegister(0));
+      }
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmPoke: {
