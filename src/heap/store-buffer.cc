@@ -93,9 +93,6 @@ void StoreBuffer::SetUp() {
   hash_sets_are_empty_ = false;
 
   ClearFilteringHashSets();
-
-  heap_->isolate()->set_store_buffer_hash_set_1_address(hash_set_1_);
-  heap_->isolate()->set_store_buffer_hash_set_2_address(hash_set_2_);
 }
 
 
@@ -530,9 +527,6 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
 
 
 void StoreBuffer::Compact() {
-  CHECK(hash_set_1_ == heap_->isolate()->store_buffer_hash_set_1_address());
-  CHECK(hash_set_2_ == heap_->isolate()->store_buffer_hash_set_2_address());
-
   Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
 
   if (top == start_) return;

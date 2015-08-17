@@ -1758,8 +1758,6 @@ Isolate::Isolate(bool enable_serializer)
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
-      store_buffer_hash_set_1_address_(NULL),
-      store_buffer_hash_set_2_address_(NULL),
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
