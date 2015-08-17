@@ -23,7 +23,8 @@ void MarkCompactCollector::SetFlags(int flags) {
 
 
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  if (marking_deque_.PushBlack(obj)) {
+  DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
+  if (marking_deque_.Push(obj)) {
     MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
   } else {
     Marking::BlackToGrey(obj);
@@ -32,7 +33,8 @@ void MarkCompactCollector::PushBlack(HeapObject* obj) {
 
 
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
-  if (!marking_deque_.UnshiftBlack(obj)) {
+  DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
+  if (!marking_deque_.Unshift(obj)) {
     MemoryChunk::IncrementLiveBytesFromGC(obj, -obj->Size());
     Marking::BlackToGrey(obj);
   }

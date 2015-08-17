@@ -197,7 +197,7 @@ class IncrementalMarkingMarkingVisitor
       chunk->set_progress_bar(start_offset);
       if (start_offset < object_size) {
         if (Marking::IsGrey(Marking::MarkBitFrom(object))) {
-          heap->mark_compact_collector()->marking_deque()->UnshiftGrey(object);
+          heap->mark_compact_collector()->marking_deque()->Unshift(object);
         } else {
           DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
           heap->mark_compact_collector()->UnshiftBlack(object);

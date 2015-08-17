@@ -205,9 +205,9 @@ class MarkingDeque {
 
   void SetOverflowed() { overflowed_ = true; }
 
-  // Push the (marked) object on the marking stack if there is room, otherwise
-  // mark the deque as overflowed and wait for a rescan of the heap.
-  INLINE(bool PushBlack(HeapObject* object)) {
+  // Push the object on the marking stack if there is room, otherwise mark the
+  // deque as overflowed and wait for a rescan of the heap.
+  INLINE(bool Push(HeapObject* object)) {
     DCHECK(object->IsHeapObject());
     if (IsFull()) {
       SetOverflowed();
@@ -219,16 +219,6 @@ class MarkingDeque {
     }
   }
 
-  INLINE(void PushGrey(HeapObject* object)) {
-    DCHECK(object->IsHeapObject());
-    if (IsFull()) {
-      SetOverflowed();
-    } else {
-      array_[top_] = object;
-      top_ = ((top_ + 1) & mask_);
-    }
-  }
-
   INLINE(HeapObject* Pop()) {
     DCHECK(!IsEmpty());
     top_ = ((top_ - 1) & mask_);
@@ -237,19 +227,10 @@ class MarkingDeque {
     return object;
   }
 
-  INLINE(void UnshiftGrey(HeapObject* object)) {
+  // Unshift the object into the marking stack if there is room, otherwise mark
+  // the deque as overflowed and wait for a rescan of the heap.
+  INLINE(bool Unshift(HeapObject* object)) {
     DCHECK(object->IsHeapObject());
-    if (IsFull()) {
-      SetOverflowed();
-    } else {
-      bottom_ = ((bottom_ - 1) & mask_);
-      array_[bottom_] = object;
-    }
-  }
-
-  INLINE(bool UnshiftBlack(HeapObject* object)) {
-    DCHECK(object->IsHeapObject());
-    DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
     if (IsFull()) {
       SetOverflowed();
       return false;
