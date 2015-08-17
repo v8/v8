@@ -169,7 +169,7 @@
     # the JS builtins sources and the start snapshot.
     # Embedders that don't use standalone.gypi will need to add
     # their own default value.
-    'v8_use_external_startup_data%': 0,
+    'v8_use_external_startup_data%': 1,
 
     # Relative path to icu.gyp from this file.
     'icu_gyp_path': '../third_party/icu/icu.gyp',
@@ -230,11 +230,6 @@
       }],
       ['cfi_vptr==1', {
         'use_lto%': 1,
-      }],
-      ['OS=="linux"', {
-        # Gradually roll out v8_use_external_startup_data.
-        # Should eventually be default enabled on all platforms.
-        'v8_use_external_startup_data%': 1,
       }],
       ['OS=="android"', {
         # Location of Android NDK.
