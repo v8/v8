@@ -1754,6 +1754,16 @@ void Bootstrapper::ImportNatives(Isolate* isolate, Handle<JSObject> container) {
   INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
+  INSTALL_NATIVE(JSFunction, "ObjectDefineOwnProperty",
+                 object_define_own_property);
+  INSTALL_NATIVE(JSFunction, "ObjectGetOwnPropertyDescriptor",
+                 object_get_own_property_descriptor);
+  INSTALL_NATIVE(JSFunction, "MessageGetLineNumber", message_get_line_number);
+  INSTALL_NATIVE(JSFunction, "MessageGetColumnNumber",
+                 message_get_column_number);
+  INSTALL_NATIVE(JSFunction, "MessageGetSourceLine", message_get_source_line);
+  INSTALL_NATIVE(JSObject, "StackOverflowBoilerplate",
+                 stack_overflow_boilerplate);
   INSTALL_NATIVE(JSFunction, "JsonSerializeAdapter", json_serialize_adapter);
 
   INSTALL_NATIVE(JSFunction, "Error", error_function);
