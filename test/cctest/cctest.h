@@ -108,6 +108,7 @@ class CcTest {
   typedef void (TestFunction)();
   CcTest(TestFunction* callback, const char* file, const char* name,
          const char* dependency, bool enabled, bool initialize);
+  ~CcTest() { i::DeleteArray(file_); }
   void Run();
   static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
