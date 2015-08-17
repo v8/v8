@@ -6,8 +6,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X87
 
 #include "src/disasm.h"

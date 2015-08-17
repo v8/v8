@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/cpu-profiler.h"

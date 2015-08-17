@@ -4,8 +4,6 @@
 
 #include <sstream>
 
-#include "src/v8.h"
-
 #include "src/arm/lithium-codegen-arm.h"
 #include "src/hydrogen-osr.h"
 #include "src/lithium-inl.h"
