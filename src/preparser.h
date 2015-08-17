@@ -111,6 +111,7 @@ class ParserBase : public Traits {
         allow_harmony_sloppy_function_(false),
         allow_harmony_sloppy_let_(false),
         allow_harmony_rest_parameters_(false),
+        allow_harmony_default_parameters_(false),
         allow_harmony_spreadcalls_(false),
         allow_harmony_destructuring_(false),
         allow_harmony_spread_arrays_(false),
@@ -129,6 +130,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_sloppy_function);
   ALLOW_ACCESSORS(harmony_sloppy_let);
   ALLOW_ACCESSORS(harmony_rest_parameters);
+  ALLOW_ACCESSORS(harmony_default_parameters);
   ALLOW_ACCESSORS(harmony_spreadcalls);
   ALLOW_ACCESSORS(harmony_destructuring);
   ALLOW_ACCESSORS(harmony_spread_arrays);
@@ -805,6 +807,7 @@ class ParserBase : public Traits {
   bool allow_harmony_sloppy_function_;
   bool allow_harmony_sloppy_let_;
   bool allow_harmony_rest_parameters_;
+  bool allow_harmony_default_parameters_;
   bool allow_harmony_spreadcalls_;
   bool allow_harmony_destructuring_;
   bool allow_harmony_spread_arrays_;
@@ -1637,7 +1640,7 @@ class PreParserTraits {
 
   void AddFormalParameter(
       PreParserFormalParameters* parameters, PreParserExpression pattern,
-      bool is_rest) {
+      PreParserExpression initializer, bool is_rest) {
     ++parameters->arity;
   }
   void DeclareFormalParameter(Scope* scope, PreParserIdentifier parameter,
@@ -2873,7 +2876,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     return expression;
   }
 
-  if (!allow_harmony_destructuring()) {
+  if (!(allow_harmony_destructuring() || allow_harmony_default_parameters())) {
     BindingPatternUnexpectedToken(classifier);
   }
 
@@ -3638,22 +3641,26 @@ void ParserBase<Traits>::ParseFormalParameter(
   ValidateBindingPattern(classifier, ok);
   if (!*ok) return;
 
-  if (!allow_harmony_destructuring() && !Traits::IsIdentifier(pattern)) {
-    ReportUnexpectedToken(next);
-    *ok = false;
-    return;
+  if (!Traits::IsIdentifier(pattern)) {
+    if (is_rest || !allow_harmony_destructuring()) {
+      ReportUnexpectedToken(next);
+      *ok = false;
+      return;
+    }
+    parameters->is_simple = false;
   }
 
-  if (parameters->is_simple) {
-    parameters->is_simple = !is_rest && Traits::IsIdentifier(pattern);
+  ExpressionT initializer = Traits::EmptyExpression();
+  if (!is_rest && allow_harmony_default_parameters() && Check(Token::ASSIGN)) {
+    ExpressionClassifier init_classifier;
+    initializer = ParseAssignmentExpression(true, &init_classifier, ok);
+    if (!*ok) return;
+    ValidateExpression(&init_classifier, ok);
+    if (!*ok) return;
+    parameters->is_simple = false;
   }
-  parameters->has_rest = is_rest;
-  if (is_rest && !Traits::IsIdentifier(pattern)) {
-    ReportUnexpectedToken(next);
-    *ok = false;
-    return;
-  }
-  Traits::AddFormalParameter(parameters, pattern, is_rest);
+
+  Traits::AddFormalParameter(parameters, pattern, initializer, is_rest);
 }
 
 
@@ -3689,11 +3696,14 @@ void ParserBase<Traits>::ParseFormalParameterList(
       if (!*ok) return;
     } while (!parameters->has_rest && Check(Token::COMMA));
 
-    if (parameters->has_rest && peek() == Token::COMMA) {
-      ReportMessageAt(scanner()->peek_location(),
+    if (parameters->has_rest) {
+      parameters->is_simple = false;
+      if (peek() == Token::COMMA) {
+        ReportMessageAt(scanner()->peek_location(),
                       MessageTemplate::kParamAfterRest);
-      *ok = false;
-      return;
+        *ok = false;
+        return;
+      }
     }
   }
 

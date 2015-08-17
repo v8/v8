@@ -541,10 +541,13 @@ class SingletonLogger;
 
 struct ParserFormalParameters : FormalParametersBase {
   struct Parameter {
-    Parameter(const AstRawString* name, Expression* pattern, bool is_rest)
-        : name(name), pattern(pattern), is_rest(is_rest) {}
+    Parameter(const AstRawString* name, Expression* pattern,
+              Expression* initializer, bool is_rest)
+        : name(name), pattern(pattern), initializer(initializer),
+          is_rest(is_rest) {}
     const AstRawString* name;
     Expression* pattern;
+    Expression* initializer;
     bool is_rest;
   };
 
@@ -779,7 +782,8 @@ class ParserTraits {
                             FunctionKind kind = kNormalFunction);
 
   V8_INLINE void AddFormalParameter(
-      ParserFormalParameters* parameters, Expression* pattern, bool is_rest);
+      ParserFormalParameters* parameters, Expression* pattern,
+      Expression* initializer, bool is_rest);
   V8_INLINE void DeclareFormalParameter(
       Scope* scope, const ParserFormalParameters::Parameter& parameter,
       bool is_simple, ExpressionClassifier* classifier);
@@ -1313,15 +1317,17 @@ Expression* ParserTraits::SpreadCallNew(
 
 
 void ParserTraits::AddFormalParameter(
-    ParserFormalParameters* parameters, Expression* pattern, bool is_rest) {
-  bool is_simple = pattern->IsVariableProxy();
+    ParserFormalParameters* parameters,
+    Expression* pattern, Expression* initializer, bool is_rest) {
+  bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
   DCHECK(parser_->allow_harmony_destructuring() ||
-         parser_->allow_harmony_rest_parameters() || is_simple);
+         parser_->allow_harmony_rest_parameters() ||
+         parser_->allow_harmony_default_parameters() || is_simple);
   const AstRawString* name = is_simple
                                  ? pattern->AsVariableProxy()->raw_name()
                                  : parser_->ast_value_factory()->empty_string();
   parameters->params.Add(
-      ParserFormalParameters::Parameter(name, pattern, is_rest),
+      ParserFormalParameters::Parameter(name, pattern, initializer, is_rest),
       parameters->scope->zone());
 }
 

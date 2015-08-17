@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-destructuring
-// Flags: --harmony-arrow-functions --harmony-rest-parameters
+// Flags: --harmony-destructuring --harmony-arrow-functions
+// Flags: --harmony-default-parameters --harmony-rest-parameters
 
 (function TestObjectLiteralPattern() {
   var { x : x, y : y } = { x : 1, y : 2 };
@@ -723,13 +723,14 @@
 
 
 (function TestExpressionsInParameters() {
+  function f0(x = eval(0)) { return x }
+  assertEquals(0, f0());
   function f1({a = eval(1)}) { return a }
   assertEquals(1, f1({}));
   function f2([x = eval(2)]) { return x }
   assertEquals(2, f2([]));
   function f3({[eval(7)]: x}) { return x }
   assertEquals(3, f3({7: 3}));
-  // TODO(rossberg, caitp): Add tests for default parameters.
 })();
 
 
@@ -819,7 +820,7 @@
 })();
 
 
-(function TestParameterTDZ() {
+(function TestParameterDestructuringTDZ() {
   function f1({a = x}, x) { return a }
   assertThrows(() => f1({}, 4), ReferenceError);
   assertEquals(4, f1({a: 4}, 5));
@@ -943,7 +944,6 @@
   assertEquals(5, f7({a: 5}));
   function f8(x, ...a) { a = []; return arguments[1] }
   assertEquals(6, f8(5, 6));
-  // TODO(rossberg, caitp): Add cases for default parameters.
 }());
 
 
