@@ -132,9 +132,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   DCHECK(frame->function() == *function);
 
-  // Avoid doing too much work when running with --always-opt and keep
-  // the optimized code around.
-  if (FLAG_always_opt || type == Deoptimizer::LAZY) {
+  if (type == Deoptimizer::LAZY) {
     return isolate->heap()->undefined_value();
   }
 
