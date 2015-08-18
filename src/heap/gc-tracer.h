@@ -291,6 +291,8 @@ class GCTracer {
 
   typedef RingBuffer<SurvivalEvent, kRingBufferMaxSize> SurvivalEventBuffer;
 
+  static const int kThroughputTimeFrameMs = 5000;
+
   explicit GCTracer(Heap* heap);
 
   // Start collecting data.
@@ -407,6 +409,11 @@ class GCTracer {
   // milliseconds.
   // Returns 0 if no allocation events have been recorded.
   size_t AllocationThroughputInBytesPerMillisecond(double time_ms) const;
+
+  // Allocation throughput in heap in bytes/milliseconds in
+  // the last five seconds.
+  // Returns 0 if no allocation events have been recorded.
+  size_t CurrentAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in old generation in bytes/milliseconds in
   // the last five seconds.
