@@ -392,19 +392,27 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 
 
 CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
-  MachineSignature::Builder types(zone, 0, 3);
-  LocationSignature::Builder locations(zone, 0, 3);
+  MachineSignature::Builder types(zone, 0, 5);
+  LocationSignature::Builder locations(zone, 0, 5);
 
   // Add registers for fixed parameters passed via interpreter dispatch.
-  STATIC_ASSERT(0 == Linkage::kInterpreterBytecodeOffsetParameter);
+  STATIC_ASSERT(0 == Linkage::kInterpreterAccumulatorParameter);
+  types.AddParam(kMachAnyTagged);
+  locations.AddParam(regloc(kInterpreterAccumulatorRegister));
+
+  STATIC_ASSERT(1 == Linkage::kInterpreterRegisterFileParameter);
+  types.AddParam(kMachPtr);
+  locations.AddParam(regloc(kInterpreterRegisterFileRegister));
+
+  STATIC_ASSERT(2 == Linkage::kInterpreterBytecodeOffsetParameter);
   types.AddParam(kMachIntPtr);
   locations.AddParam(regloc(kInterpreterBytecodeOffsetRegister));
 
-  STATIC_ASSERT(1 == Linkage::kInterpreterBytecodeArrayParameter);
+  STATIC_ASSERT(3 == Linkage::kInterpreterBytecodeArrayParameter);
   types.AddParam(kMachAnyTagged);
   locations.AddParam(regloc(kInterpreterBytecodeArrayRegister));
 
-  STATIC_ASSERT(2 == Linkage::kInterpreterDispatchTableParameter);
+  STATIC_ASSERT(4 == Linkage::kInterpreterDispatchTableParameter);
   types.AddParam(kMachPtr);
   locations.AddParam(regloc(kInterpreterDispatchTableRegister));
 

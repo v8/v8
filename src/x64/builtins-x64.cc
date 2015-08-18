@@ -694,20 +694,23 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into edi (InterpreterBytecodeRegister).
-  __ movp(r14, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(r14, FieldOperand(r14, SharedFunctionInfo::kFunctionDataOffset));
+  __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(kInterpreterBytecodeArrayRegister,
+          FieldOperand(rax, SharedFunctionInfo::kFunctionDataOffset));
 
   if (FLAG_debug_code) {
     // Check function data field is actually a BytecodeArray object.
-    __ AssertNotSmi(r14);
-    __ CmpObjectType(r14, BYTECODE_ARRAY_TYPE, rax);
+    __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
+    __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
+                     rax);
     __ Assert(equal, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
 
   // Allocate the local and temporary register file on the stack.
   {
     // Load frame size from the BytecodeArray object.
-    __ movl(rcx, FieldOperand(r14, BytecodeArray::kFrameSizeOffset));
+    __ movl(rcx, FieldOperand(kInterpreterBytecodeArrayRegister,
+                              BytecodeArray::kFrameSizeOffset));
 
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
@@ -719,16 +722,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ bind(&ok);
 
     // If ok, push undefined as the initial value for all register file entries.
-    // Note: there should always be at least one stack slot for the return
-    // register in the register file.
     Label loop_header;
+    Label loop_check;
     __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+    __ j(always, &loop_check);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
     __ Push(rdx);
     // Continue loop if not done.
+    __ bind(&loop_check);
     __ subp(rcx, Immediate(kPointerSize));
-    __ j(not_equal, &loop_header, Label::kNear);
+    __ j(greater_equal, &loop_header, Label::kNear);
   }
 
   // TODO(rmcilroy): List of things not currently dealt with here but done in
@@ -761,18 +765,29 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ bind(&ok);
   }
 
-  // Load bytecode offset and dispatch table into registers.
-  __ movp(r12, Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ LoadRoot(r15, Heap::kInterpreterTableRootIndex);
-  __ addp(r15, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  // Load accumulator, register file, bytecode offset, dispatch table into
+  // registers.
+  __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
+  __ movp(kInterpreterRegisterFileRegister, rbp);
+  __ subp(
+      kInterpreterRegisterFileRegister,
+      Immediate(kPointerSize + StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ movp(kInterpreterBytecodeOffsetRegister,
+          Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  __ LoadRoot(kInterpreterDispatchTableRegister,
+              Heap::kInterpreterTableRootIndex);
+  __ addp(kInterpreterDispatchTableRegister,
+          Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Dispatch to the first bytecode handler for the function.
-  __ movzxbp(rax, Operand(r14, r12, times_1, 0));
-  __ movp(rax, Operand(r15, rax, times_pointer_size, 0));
+  __ movzxbp(rbx, Operand(kInterpreterBytecodeArrayRegister,
+                          kInterpreterBytecodeOffsetRegister, times_1, 0));
+  __ movp(rbx, Operand(kInterpreterDispatchTableRegister, rbx,
+                       times_pointer_size, 0));
   // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
   // and header removal.
-  __ addp(rax, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ jmp(rax);
+  __ addp(rbx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ call(rbx);
 }
 
 
@@ -783,9 +798,8 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
   //  - Support profiler (specifically decrementing profiling_counter
   //    appropriately and calling out to HandleInterrupts if necessary).
 
-  // Load return value into r0.
-  __ movp(rax, Operand(rbp, -kPointerSize -
-                                StandardFrameConstants::kFixedFrameSizeFromFp));
+  // The return value is in accumulator, which is already in rax.
+
   // Leave the frame (also dropping the register file).
   __ leave();
   // Return droping receiver + arguments.

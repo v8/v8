@@ -330,9 +330,11 @@ class Linkage : public ZoneObject {
 
   // Special parameter indices used to pass fixed register data through
   // interpreter dispatches.
-  static const int kInterpreterBytecodeOffsetParameter = 0;
-  static const int kInterpreterBytecodeArrayParameter = 1;
-  static const int kInterpreterDispatchTableParameter = 2;
+  static const int kInterpreterAccumulatorParameter = 0;
+  static const int kInterpreterRegisterFileParameter = 1;
+  static const int kInterpreterBytecodeOffsetParameter = 2;
+  static const int kInterpreterBytecodeArrayParameter = 3;
+  static const int kInterpreterDispatchTableParameter = 4;
 
  private:
   CallDescriptor* const incoming_;

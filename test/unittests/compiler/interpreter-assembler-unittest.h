@@ -41,8 +41,6 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
 
     using InterpreterAssembler::call_descriptor;
     using InterpreterAssembler::graph;
-    using InterpreterAssembler::kMaxRegisterIndex;
-    using InterpreterAssembler::kFirstRegisterOffsetFromFp;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(InterpreterAssemblerForTest);

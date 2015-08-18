@@ -72,9 +72,7 @@ TEST(TestInterpreterReturn) {
       handles.main_isolate()->factory()->undefined_value();
 
   BytecodeArrayBuilder builder(handles.main_isolate());
-  // TODO(rmcilroy) set to 0 once BytecodeArray update to allow zero size
-  // register file.
-  builder.set_locals_count(1);
+  builder.set_locals_count(0);
   builder.Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 

@@ -913,14 +913,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ bind(&ok);
 
     // If ok, push undefined as the initial value for all register file entries.
-    // Note: there should always be at least one stack slot for the return
-    // register in the register file.
     Label loop_header;
+    Label loop_check;
     __ LoadRoot(a5, Heap::kUndefinedValueRootIndex);
+    __ Branch(&loop_check);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
     __ push(a5);
     // Continue loop if not done.
+    __ bind(&loop_check);
     __ Dsubu(a4, a4, Operand(kPointerSize));
     __ Branch(&loop_header, ge, a4, Operand(zero_reg));
   }
@@ -956,6 +957,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   }
 
   // Load bytecode offset and dispatch table into registers.
+  __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
+  __ Dsubu(
+      kInterpreterRegisterFileRegister, fp,
+      Operand(kPointerSize + StandardFrameConstants::kFixedFrameSizeFromFp));
   __ li(kInterpreterBytecodeOffsetRegister,
         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
   __ LoadRoot(kInterpreterDispatchTableRegister,
@@ -973,7 +978,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
   // and header removal.
   __ Daddu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(at);
+  __ Call(at);
 }
 
 
@@ -984,9 +989,8 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
   //  - Support profiler (specifically decrementing profiling_counter
   //    appropriately and calling out to HandleInterrupts if necessary).
 
-  // Load return value into v0.
-  __ ld(v0, MemOperand(fp, -kPointerSize -
-                               StandardFrameConstants::kFixedFrameSizeFromFp));
+  // The return value is in accumulator, which is already in v0.
+
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::JAVA_SCRIPT);
   // Drop receiver + arguments.

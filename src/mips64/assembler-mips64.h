@@ -75,7 +75,7 @@ namespace internal {
 // Core register.
 struct Register {
   static const int kNumRegisters = v8::internal::kNumRegisters;
-  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t6 and cp.
+  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t2 and cp.
   static const int kSizeInBytes = 8;
   static const int kCpRegister = 23;  // cp (s7) is the 23rd register.
 
