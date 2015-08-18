@@ -23,7 +23,7 @@ var exports_to_runtime = UNDEFINED;
 function Export(f) {
   f.next = exports;
   exports = f;
-};
+}
 
 
 // Export to the native context for calls from the runtime.
@@ -39,7 +39,7 @@ function ExportToRuntime(f) {
 function Import(f) {
   f.next = imports;
   imports = f;
-};
+}
 
 
 // In normal natives, import from experimental natives.
@@ -47,7 +47,7 @@ function Import(f) {
 function ImportFromExperimental(f) {
   f.next = imports_from_experimental;
   imports_from_experimental = f;
-};
+}
 
 
 function SetFunctionName(f, name, prefix) {
@@ -76,7 +76,17 @@ function InstallConstants(object, constants) {
 
 
 function InstallFunctions(object, attributes, functions) {
-  %InstallFunctionsFromArray(object, attributes, functions);
+  %CheckIsBootstrapping();
+  %OptimizeObjectForAddingMultipleProperties(object, functions.length >> 1);
+  for (var i = 0; i < functions.length; i += 2) {
+    var key = functions[i];
+    var f = functions[i + 1];
+    SetFunctionName(f, key);
+    %FunctionRemovePrototype(f);
+    %AddNamedProperty(object, key, f, attributes);
+    %SetNativeFlag(f);
+  }
+  %ToFastProperties(object);
 }
 
 
@@ -192,7 +202,7 @@ function PostNatives(utils) {
 
   utils.PostNatives = UNDEFINED;
   utils.ImportFromExperimental = UNDEFINED;
-};
+}
 
 
 function PostExperimentals(utils) {
@@ -221,7 +231,7 @@ function PostExperimentals(utils) {
   utils.PostDebug = UNDEFINED;
   utils.Import = UNDEFINED;
   utils.Export = UNDEFINED;
-};
+}
 
 
 function PostDebug(utils) {
@@ -236,24 +246,26 @@ function PostDebug(utils) {
   utils.PostExperimentals = UNDEFINED;
   utils.Import = UNDEFINED;
   utils.Export = UNDEFINED;
-};
+}
 
 // -----------------------------------------------------------------------
 
-InstallFunctions(utils, NONE, [
-  "Import", Import,
-  "Export", Export,
-  "ExportToRuntime", ExportToRuntime,
-  "ImportFromExperimental", ImportFromExperimental,
-  "SetFunctionName", SetFunctionName,
-  "InstallConstants", InstallConstants,
-  "InstallFunctions", InstallFunctions,
-  "InstallGetter", InstallGetter,
-  "InstallGetterSetter", InstallGetterSetter,
-  "SetUpLockedPrototype", SetUpLockedPrototype,
-  "PostNatives", PostNatives,
-  "PostExperimentals", PostExperimentals,
-  "PostDebug", PostDebug,
-]);
+%OptimizeObjectForAddingMultipleProperties(utils, 13);
+
+utils.Import = Import;
+utils.Export = Export;
+utils.ExportToRuntime = ExportToRuntime;
+utils.ImportFromExperimental = ImportFromExperimental;
+utils.SetFunctionName = SetFunctionName;
+utils.InstallConstants = InstallConstants;
+utils.InstallFunctions = InstallFunctions;
+utils.InstallGetter = InstallGetter;
+utils.InstallGetterSetter = InstallGetterSetter;
+utils.SetUpLockedPrototype = SetUpLockedPrototype;
+utils.PostNatives = PostNatives;
+utils.PostExperimentals = PostExperimentals;
+utils.PostDebug = PostDebug;
+
+%ToFastProperties(utils);
 
 })
