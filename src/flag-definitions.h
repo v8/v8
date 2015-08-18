@@ -446,6 +446,14 @@ DEFINE_BOOL(turbo_frame_elision, true, "elide frames in TurboFan")
 DEFINE_BOOL(turbo_cache_shared_code, true, "cache context-independent code")
 DEFINE_BOOL(turbo_preserve_shared_code, false, "keep context-independent code")
 
+#if defined(V8_WASM)
+// Flags for native WebAssembly.
+DEFINE_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
+DEFINE_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
+DEFINE_BOOL(wasm_break_on_decoder_error, false,
+            "debug break when wasm decoder encounters an error")
+#endif
+
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")
 

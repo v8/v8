@@ -276,6 +276,11 @@
         }, {
           'dependencies': ['../../tools/gyp/v8.gyp:v8'],
         }],
+        ['v8_wasm!=0', {
+          'dependencies': [
+            '../../third_party/wasm/test/cctest/wasm/wasm.gyp:wasm_cctest'
+          ],
+        }],
       ],
     },
     {

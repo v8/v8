@@ -1397,6 +1397,9 @@
             }],
           ],
         }],
+        ['v8_wasm!=0', {
+          'dependencies': ['../../third_party/wasm/src/wasm/wasm.gyp:wasm'],
+        }],
       ],
     },
     {

@@ -163,6 +163,11 @@
             ],
           },
         }],
+        ['v8_wasm!=0', {
+          'dependencies': [
+            '../../third_party/wasm/test/unittests/wasm/wasm.gyp:wasm_unittests',
+          ],
+        }],
       ],
     },
   ],
