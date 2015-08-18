@@ -1073,7 +1073,7 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
       Format(instr, "jr      'rs");
       break;
     case JALR:
-      Format(instr, "jalr    'rs");
+      Format(instr, "jalr    'rs, 'rd");
       break;
     case SLL:
       if (0x0 == static_cast<int>(instr->InstructionBits()))
