@@ -89,7 +89,8 @@ bool Interpreter::IsInterpreterTableInitialized(
 //
 // Load literal '0' into the accumulator.
 void Interpreter::DoLdaZero(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
+  Node* zero_value = __ NumberConstant(0.0);
+  __ SetAccumulator(zero_value);
   __ Dispatch();
 }
 
@@ -98,7 +99,9 @@ void Interpreter::DoLdaZero(compiler::InterpreterAssembler* assembler) {
 //
 // Load an 8-bit integer literal into the accumulator as a Smi.
 void Interpreter::DoLdaSmi8(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement 8-bit integer to SMI promotion.
+  Node* raw_int = __ BytecodeOperandImm8(0);
+  Node* smi_int = __ SmiTag(raw_int);
+  __ SetAccumulator(smi_int);
   __ Dispatch();
 }
 
@@ -107,7 +110,9 @@ void Interpreter::DoLdaSmi8(compiler::InterpreterAssembler* assembler) {
 //
 // Load Undefined into the accumulator.
 void Interpreter::DoLdaUndefined(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
+  Node* undefined_value = __ HeapConstant(Unique<HeapObject>::CreateImmovable(
+      isolate_->factory()->undefined_value()));
+  __ SetAccumulator(undefined_value);
   __ Dispatch();
 }
 
@@ -116,7 +121,9 @@ void Interpreter::DoLdaUndefined(compiler::InterpreterAssembler* assembler) {
 //
 // Load Null into the accumulator.
 void Interpreter::DoLdaNull(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
+  Node* null_value = __ HeapConstant(
+      Unique<HeapObject>::CreateImmovable(isolate_->factory()->null_value()));
+  __ SetAccumulator(null_value);
   __ Dispatch();
 }
 
@@ -125,7 +132,9 @@ void Interpreter::DoLdaNull(compiler::InterpreterAssembler* assembler) {
 //
 // Load TheHole into the accumulator.
 void Interpreter::DoLdaTheHole(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
+  Node* the_hole_value = __ HeapConstant(Unique<HeapObject>::CreateImmovable(
+      isolate_->factory()->the_hole_value()));
+  __ SetAccumulator(the_hole_value);
   __ Dispatch();
 }
 
@@ -134,7 +143,9 @@ void Interpreter::DoLdaTheHole(compiler::InterpreterAssembler* assembler) {
 //
 // Load True into the accumulator.
 void Interpreter::DoLdaTrue(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
+  Node* true_value = __ HeapConstant(
+      Unique<HeapObject>::CreateImmovable(isolate_->factory()->true_value()));
+  __ SetAccumulator(true_value);
   __ Dispatch();
 }
 
@@ -143,7 +154,9 @@ void Interpreter::DoLdaTrue(compiler::InterpreterAssembler* assembler) {
 //
 // Load False into the accumulator.
 void Interpreter::DoLdaFalse(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
+  Node* false_value = __ HeapConstant(
+      Unique<HeapObject>::CreateImmovable(isolate_->factory()->false_value()));
+  __ SetAccumulator(false_value);
   __ Dispatch();
 }
 
@@ -152,7 +165,8 @@ void Interpreter::DoLdaFalse(compiler::InterpreterAssembler* assembler) {
 //
 // Load accumulator with value from register <src>.
 void Interpreter::DoLdar(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
+  Node* value = __ LoadRegister(__ BytecodeOperandReg(0));
+  __ SetAccumulator(value);
   __ Dispatch();
 }
 
@@ -161,7 +175,9 @@ void Interpreter::DoLdar(compiler::InterpreterAssembler* assembler) {
 //
 // Store accumulator to register <dst>.
 void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* accumulator = __ GetAccumulator();
+  __ StoreRegister(accumulator, reg_index);
   __ Dispatch();
 }
 

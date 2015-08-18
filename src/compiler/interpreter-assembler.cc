@@ -110,24 +110,70 @@ Node* InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
 }
 
 
-Node* InterpreterAssembler::BytecodeOperand(int delta) {
-  DCHECK_LT(delta, interpreter::Bytecodes::NumberOfOperands(bytecode_));
+Node* InterpreterAssembler::BytecodeOperand(int operand_index) {
+  DCHECK_LT(operand_index, interpreter::Bytecodes::NumberOfOperands(bytecode_));
   return raw_assembler_->Load(
       kMachUint8, BytecodeArrayTaggedPointer(),
-      raw_assembler_->IntPtrAdd(BytecodeOffset(), Int32Constant(1 + delta)));
+      raw_assembler_->IntPtrAdd(BytecodeOffset(),
+                                Int32Constant(1 + operand_index)));
 }
 
 
-Node* InterpreterAssembler::BytecodeOperandSignExtended(int delta) {
-  DCHECK_LT(delta, interpreter::Bytecodes::NumberOfOperands(bytecode_));
+Node* InterpreterAssembler::BytecodeOperandSignExtended(int operand_index) {
+  DCHECK_LT(operand_index, interpreter::Bytecodes::NumberOfOperands(bytecode_));
   Node* load = raw_assembler_->Load(
       kMachInt8, BytecodeArrayTaggedPointer(),
-      raw_assembler_->IntPtrAdd(BytecodeOffset(), Int32Constant(1 + delta)));
+      raw_assembler_->IntPtrAdd(BytecodeOffset(),
+                                Int32Constant(1 + operand_index)));
   // Ensure that we sign extend to full pointer size
   if (kPointerSize == 8) {
     load = raw_assembler_->ChangeInt32ToInt64(load);
   }
   return load;
+}
+
+
+Node* InterpreterAssembler::BytecodeOperandImm8(int operand_index) {
+  DCHECK_EQ(interpreter::OperandType::kImm8,
+            interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+  return BytecodeOperandSignExtended(operand_index);
+}
+
+
+Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
+  DCHECK_EQ(interpreter::OperandType::kReg,
+            interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+  return BytecodeOperandSignExtended(operand_index);
+}
+
+
+Node* InterpreterAssembler::Int32Constant(int value) {
+  return raw_assembler_->Int32Constant(value);
+}
+
+
+Node* InterpreterAssembler::NumberConstant(double value) {
+  return raw_assembler_->NumberConstant(value);
+}
+
+
+Node* InterpreterAssembler::HeapConstant(Unique<HeapObject> object) {
+  return raw_assembler_->HeapConstant(object);
+}
+
+
+Node* InterpreterAssembler::SmiShiftBitsConstant() {
+  return Int32Constant(kSmiShiftSize + kSmiTagSize);
+}
+
+
+Node* InterpreterAssembler::SmiTag(Node* value) {
+  return raw_assembler_->WordShl(value, SmiShiftBitsConstant());
+}
+
+
+Node* InterpreterAssembler::SmiUntag(Node* value) {
+  return raw_assembler_->WordSar(value, SmiShiftBitsConstant());
 }
 
 
@@ -213,19 +259,6 @@ Schedule* InterpreterAssembler::schedule() {
 }
 
 
-Node* InterpreterAssembler::Int32Constant(int value) {
-  return raw_assembler_->Int32Constant(value);
-}
-
-
-Node* InterpreterAssembler::NumberConstant(double value) {
-  return raw_assembler_->NumberConstant(value);
-}
-
-
-Node* InterpreterAssembler::HeapConstant(Unique<HeapObject> object) {
-  return raw_assembler_->HeapConstant(object);
-}
 
 }  // namespace interpreter
 }  // namespace internal

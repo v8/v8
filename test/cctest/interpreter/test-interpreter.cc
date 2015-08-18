@@ -12,6 +12,7 @@
 
 namespace v8 {
 namespace internal {
+namespace interpreter {
 
 class InterpreterCallable {
  public:
@@ -60,10 +61,14 @@ class InterpreterTester {
   DISALLOW_COPY_AND_ASSIGN(InterpreterTester);
 };
 
+}  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
 
-using namespace v8::internal;
+using v8::internal::BytecodeArray;
+using v8::internal::Handle;
+using v8::internal::Object;
+using v8::internal::Smi;
 using namespace v8::internal::interpreter;
 
 TEST(TestInterpreterReturn) {
@@ -80,4 +85,124 @@ TEST(TestInterpreterReturn) {
   InterpreterCallable callable(tester.GetCallable());
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK(return_val.is_identical_to(undefined_value));
+}
+
+
+TEST(TestInterpreterLoadUndefined) {
+  InitializedHandleScope handles;
+  Handle<Object> undefined_value =
+      handles.main_isolate()->factory()->undefined_value();
+
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(0);
+  builder.LoadUndefined().Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK(return_val.is_identical_to(undefined_value));
+}
+
+
+TEST(TestInterpreterLoadNull) {
+  InitializedHandleScope handles;
+  Handle<Object> null_value = handles.main_isolate()->factory()->null_value();
+
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(0);
+  builder.LoadNull().Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK(return_val.is_identical_to(null_value));
+}
+
+
+TEST(TestInterpreterLoadTheHole) {
+  InitializedHandleScope handles;
+  Handle<Object> the_hole_value =
+      handles.main_isolate()->factory()->the_hole_value();
+
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(0);
+  builder.LoadTheHole().Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK(return_val.is_identical_to(the_hole_value));
+}
+
+
+TEST(TestInterpreterLoadTrue) {
+  InitializedHandleScope handles;
+  Handle<Object> true_value = handles.main_isolate()->factory()->true_value();
+
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(0);
+  builder.LoadTrue().Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK(return_val.is_identical_to(true_value));
+}
+
+
+TEST(TestInterpreterLoadFalse) {
+  InitializedHandleScope handles;
+  Handle<Object> false_value = handles.main_isolate()->factory()->false_value();
+
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(0);
+  builder.LoadFalse().Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK(return_val.is_identical_to(false_value));
+}
+
+
+TEST(TestInterpreterLoadLiteral) {
+  InitializedHandleScope handles;
+  for (int i = -128; i < 128; i++) {
+    BytecodeArrayBuilder builder(handles.main_isolate());
+    builder.set_locals_count(0);
+    builder.LoadLiteral(Smi::FromInt(i)).Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    InterpreterCallable callable(tester.GetCallable());
+    Handle<Object> return_val = callable().ToHandleChecked();
+    CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(i));
+  }
+}
+
+
+TEST(TestInterpreterLoadStoreRegisters) {
+  InitializedHandleScope handles;
+  Handle<Object> true_value = handles.main_isolate()->factory()->true_value();
+  for (int i = 0; i <= Register::kMaxRegisterIndex; i++) {
+    BytecodeArrayBuilder builder(handles.main_isolate());
+    builder.set_locals_count(i + 1);
+    Register reg(i);
+    builder.LoadTrue()
+        .StoreAccumulatorInRegister(reg)
+        .LoadFalse()
+        .LoadAccumulatorWithRegister(reg)
+        .Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    InterpreterCallable callable(tester.GetCallable());
+    Handle<Object> return_val = callable().ToHandleChecked();
+    CHECK(return_val.is_identical_to(true_value));
+  }
 }

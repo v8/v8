@@ -23,10 +23,31 @@ const interpreter::Bytecode kBytecodes[] = {
 };
 
 
-Graph*
-InterpreterAssemblerTest::InterpreterAssemblerForTest::GetCompletedGraph() {
-  End();
-  return graph();
+Matcher<Node*> IsIntPtrAdd(const Matcher<Node*>& lhs_matcher,
+                           const Matcher<Node*>& rhs_matcher) {
+  return kPointerSize == 8 ? IsInt64Add(lhs_matcher, rhs_matcher)
+                           : IsInt32Add(lhs_matcher, rhs_matcher);
+}
+
+
+Matcher<Node*> IsIntPtrSub(const Matcher<Node*>& lhs_matcher,
+                           const Matcher<Node*>& rhs_matcher) {
+  return kPointerSize == 8 ? IsInt64Sub(lhs_matcher, rhs_matcher)
+                           : IsInt32Sub(lhs_matcher, rhs_matcher);
+}
+
+
+Matcher<Node*> IsWordShl(const Matcher<Node*>& lhs_matcher,
+                         const Matcher<Node*>& rhs_matcher) {
+  return kPointerSize == 8 ? IsWord64Shl(lhs_matcher, rhs_matcher)
+                           : IsWord32Shl(lhs_matcher, rhs_matcher);
+}
+
+
+Matcher<Node*> IsWordSar(const Matcher<Node*>& lhs_matcher,
+                         const Matcher<Node*>& rhs_matcher) {
+  return kPointerSize == 8 ? IsWord64Sar(lhs_matcher, rhs_matcher)
+                           : IsWord32Sar(lhs_matcher, rhs_matcher);
 }
 
 
@@ -48,24 +69,33 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsStore(
 }
 
 
-Matcher<Node*> IsIntPtrAdd(const Matcher<Node*>& lhs_matcher,
-                           const Matcher<Node*>& rhs_matcher) {
-  return kPointerSize == 8 ? IsInt64Add(lhs_matcher, rhs_matcher)
-                           : IsInt32Add(lhs_matcher, rhs_matcher);
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsBytecodeOperand(
+    int operand) {
+  return IsLoad(
+      kMachUint8, IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+      IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
+                  IsInt32Constant(1 + operand)));
 }
 
 
-Matcher<Node*> IsIntPtrSub(const Matcher<Node*>& lhs_matcher,
-                           const Matcher<Node*>& rhs_matcher) {
-  return kPointerSize == 8 ? IsInt64Sub(lhs_matcher, rhs_matcher)
-                           : IsInt32Sub(lhs_matcher, rhs_matcher);
+Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::
+    IsBytecodeOperandSignExtended(int operand) {
+  Matcher<Node*> load_matcher = IsLoad(
+      kMachInt8, IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+      IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
+                  IsInt32Constant(1 + operand)));
+  if (kPointerSize == 8) {
+    load_matcher = IsChangeInt32ToInt64(load_matcher);
+  }
+  return load_matcher;
 }
 
 
-Matcher<Node*> IsWordShl(const Matcher<Node*>& lhs_matcher,
-                         const Matcher<Node*>& rhs_matcher) {
-  return kPointerSize == 8 ? IsWord64Shl(lhs_matcher, rhs_matcher)
-                           : IsWord32Shl(lhs_matcher, rhs_matcher);
+Graph*
+InterpreterAssemblerTest::InterpreterAssemblerForTest::GetCompletedGraph() {
+  End();
+  return graph();
 }
 
 
@@ -138,34 +168,19 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
     InterpreterAssemblerForTest m(this, bytecode);
     int number_of_operands = interpreter::Bytecodes::NumberOfOperands(bytecode);
     for (int i = 0; i < number_of_operands; i++) {
-      Node* load_arg_node = m.BytecodeOperand(i);
-      EXPECT_THAT(
-          load_arg_node,
-          m.IsLoad(
-              kMachUint8,
-              IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
-              IsIntPtrAdd(
-                  IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
-                  IsInt32Constant(1 + i))));
-    }
-  }
-}
-
-
-TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperandSignExtended) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    int number_of_operands = interpreter::Bytecodes::NumberOfOperands(bytecode);
-    for (int i = 0; i < number_of_operands; i++) {
-      Node* load_arg_node = m.BytecodeOperandSignExtended(i);
-      Matcher<Node*> load_matcher = m.IsLoad(
-          kMachInt8, IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
-          IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
-                      IsInt32Constant(1 + i)));
-      if (kPointerSize == 8) {
-        load_matcher = IsChangeInt32ToInt64(load_matcher);
+      switch (interpreter::Bytecodes::GetOperandType(bytecode, i)) {
+        case interpreter::OperandType::kImm8:
+          EXPECT_THAT(m.BytecodeOperandImm8(i),
+                      m.IsBytecodeOperandSignExtended(i));
+          break;
+        case interpreter::OperandType::kReg:
+          EXPECT_THAT(m.BytecodeOperandReg(i),
+                      m.IsBytecodeOperandSignExtended(i));
+          break;
+        case interpreter::OperandType::kNone:
+          UNREACHABLE();
+          break;
       }
-      EXPECT_THAT(load_arg_node, load_matcher);
     }
   }
 }
@@ -227,6 +242,18 @@ TARGET_TEST_F(InterpreterAssemblerTest, StoreRegister) {
                   IsParameter(Linkage::kInterpreterRegisterFileParameter),
                   IsWordShl(reg_index_node, IsInt32Constant(kPointerSizeLog2)),
                   store_value));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* value = m.Int32Constant(44);
+    EXPECT_THAT(m.SmiTag(value),
+                IsWordShl(value, IsInt32Constant(kSmiShiftSize + kSmiTagSize)));
+    EXPECT_THAT(m.SmiUntag(value),
+                IsWordSar(value, IsInt32Constant(kSmiShiftSize + kSmiTagSize)));
   }
 }
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_INTERPRETER_CODEGEN_H_
-#define V8_COMPILER_INTERPRETER_CODEGEN_H_
+#ifndef V8_COMPILER_INTERPRETER_ASSEMBLER_H_
+#define V8_COMPILER_INTERPRETER_ASSEMBLER_H_
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
@@ -36,6 +36,13 @@ class InterpreterAssembler {
 
   Handle<Code> GenerateCode();
 
+  // Returns the Imm8 immediate for bytecode operand |operand_index| in the
+  // current bytecode.
+  Node* BytecodeOperandImm8(int operand_index);
+  // Returns the register index for bytecode operand |operand_index| in the
+  // current bytecode.
+  Node* BytecodeOperandReg(int operand_index);
+
   // Accumulator.
   Node* GetAccumulator();
   void SetAccumulator(Node* value);
@@ -49,14 +56,15 @@ class InterpreterAssembler {
   Node* NumberConstant(double value);
   Node* HeapConstant(Unique<HeapObject> object);
 
+  // Tag and untag Smi values.
+  Node* SmiTag(Node* value);
+  Node* SmiUntag(Node* value);
+
   // Returns from the function.
   void Return();
 
   // Dispatch to the bytecode.
   void Dispatch();
-
-  Node* BytecodeOperand(int index);
-  Node* BytecodeOperandSignExtended(int index);
 
  protected:
   // Close the graph.
@@ -78,6 +86,10 @@ class InterpreterAssembler {
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
   Node* RegisterFrameOffset(Node* index);
+
+  Node* SmiShiftBitsConstant();
+  Node* BytecodeOperand(int operand_index);
+  Node* BytecodeOperandSignExtended(int operand_index);
 
   // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
   // update BytecodeOffset() itself.
@@ -103,4 +115,4 @@ class InterpreterAssembler {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_INTERPRETER_CODEGEN_H_
+#endif  // V8_COMPILER_INTERPRETER_ASSEMBLER_H_

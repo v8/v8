@@ -38,6 +38,8 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
                            const Matcher<Node*>& base_matcher,
                            const Matcher<Node*>& index_matcher,
                            const Matcher<Node*>& value_matcher);
+    Matcher<Node*> IsBytecodeOperand(int operand);
+    Matcher<Node*> IsBytecodeOperandSignExtended(int operand);
 
     using InterpreterAssembler::call_descriptor;
     using InterpreterAssembler::graph;
