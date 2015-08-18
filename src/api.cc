@@ -6983,47 +6983,41 @@ void Isolate::SetReference(internal::Object** parent,
 }
 
 
-void Isolate::AddGCPrologueCallback(GCPrologueCallback callback,
-                                    GCType gc_type) {
+void Isolate::AddGCPrologueCallback(GCCallback callback, GCType gc_type) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->AddGCPrologueCallback(callback, gc_type);
 }
 
 
-void Isolate::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+void Isolate::RemoveGCPrologueCallback(GCCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->RemoveGCPrologueCallback(callback);
 }
 
 
-void Isolate::AddGCEpilogueCallback(GCEpilogueCallback callback,
-                                    GCType gc_type) {
+void Isolate::AddGCEpilogueCallback(GCCallback callback, GCType gc_type) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->AddGCEpilogueCallback(callback, gc_type);
 }
 
 
-void Isolate::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+void Isolate::RemoveGCEpilogueCallback(GCCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->RemoveGCEpilogueCallback(callback);
 }
 
 
-void V8::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
+void V8::AddGCPrologueCallback(GCCallback callback, GCType gc_type) {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->heap()->AddGCPrologueCallback(
-      reinterpret_cast<v8::Isolate::GCPrologueCallback>(callback),
-      gc_type,
-      false);
+      reinterpret_cast<v8::Isolate::GCCallback>(callback), gc_type, false);
 }
 
 
-void V8::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
+void V8::AddGCEpilogueCallback(GCCallback callback, GCType gc_type) {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->heap()->AddGCEpilogueCallback(
-      reinterpret_cast<v8::Isolate::GCEpilogueCallback>(callback),
-      gc_type,
-      false);
+      reinterpret_cast<v8::Isolate::GCCallback>(callback), gc_type, false);
 }
 
 

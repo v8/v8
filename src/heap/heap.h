@@ -882,13 +882,13 @@ class Heap {
 
   PromotionQueue* promotion_queue() { return &promotion_queue_; }
 
-  void AddGCPrologueCallback(v8::Isolate::GCPrologueCallback callback,
+  void AddGCPrologueCallback(v8::Isolate::GCCallback callback,
                              GCType gc_type_filter, bool pass_isolate = true);
-  void RemoveGCPrologueCallback(v8::Isolate::GCPrologueCallback callback);
+  void RemoveGCPrologueCallback(v8::Isolate::GCCallback callback);
 
-  void AddGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback,
+  void AddGCEpilogueCallback(v8::Isolate::GCCallback callback,
                              GCType gc_type_filter, bool pass_isolate = true);
-  void RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback);
+  void RemoveGCEpilogueCallback(v8::Isolate::GCCallback callback);
 
 // Heap root getters.  We have versions with and without type::cast() here.
 // You can't use type::cast during GC because the assert fails.
@@ -1857,35 +1857,22 @@ class Heap {
 
   void AddPrivateGlobalSymbols(Handle<Object> private_intern_table);
 
-  // GC callback function, called before and after mark-compact GC.
-  // Allocations in the callback function are disallowed.
-  struct GCPrologueCallbackPair {
-    GCPrologueCallbackPair(v8::Isolate::GCPrologueCallback callback,
-                           GCType gc_type, bool pass_isolate)
-        : callback(callback), gc_type(gc_type), pass_isolate_(pass_isolate) {}
-    bool operator==(const GCPrologueCallbackPair& pair) const {
-      return pair.callback == callback;
-    }
-    v8::Isolate::GCPrologueCallback callback;
-    GCType gc_type;
-    // TODO(dcarney): remove variable
-    bool pass_isolate_;
-  };
-  List<GCPrologueCallbackPair> gc_prologue_callbacks_;
+  struct GCCallbackPair {
+    GCCallbackPair(v8::Isolate::GCCallback callback, GCType gc_type,
+                   bool pass_isolate)
+        : callback(callback), gc_type(gc_type), pass_isolate(pass_isolate) {}
 
-  struct GCEpilogueCallbackPair {
-    GCEpilogueCallbackPair(v8::Isolate::GCPrologueCallback callback,
-                           GCType gc_type, bool pass_isolate)
-        : callback(callback), gc_type(gc_type), pass_isolate_(pass_isolate) {}
-    bool operator==(const GCEpilogueCallbackPair& pair) const {
-      return pair.callback == callback;
+    bool operator==(const GCCallbackPair& other) const {
+      return other.callback == callback;
     }
-    v8::Isolate::GCPrologueCallback callback;
+
+    v8::Isolate::GCCallback callback;
     GCType gc_type;
-    // TODO(dcarney): remove variable
-    bool pass_isolate_;
+    bool pass_isolate;
   };
-  List<GCEpilogueCallbackPair> gc_epilogue_callbacks_;
+
+  List<GCCallbackPair> gc_epilogue_callbacks_;
+  List<GCCallbackPair> gc_prologue_callbacks_;
 
   // Code that should be run before and after each GC.  Includes some
   // reporting/verification activities when compiled with DEBUG set.

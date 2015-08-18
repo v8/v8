@@ -772,6 +772,8 @@ void Heap::OverApproximateWeakClosure(const char* gc_reason) {
       GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
+      // TODO(mlippautz): Report kGCTypeIncremental once blink updates its
+      // filtering.
       CallGCPrologueCallbacks(kGCTypeMarkSweepCompact, kNoGCCallbackFlags);
     }
   }
@@ -783,6 +785,8 @@ void Heap::OverApproximateWeakClosure(const char* gc_reason) {
       GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
+      // TODO(mlippautz): Report kGCTypeIncremental once blink updates its
+      // filtering.
       CallGCEpilogueCallbacks(kGCTypeMarkSweepCompact, kNoGCCallbackFlags);
     }
   }
@@ -1288,10 +1292,9 @@ bool Heap::PerformGarbageCollection(
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
     if (gc_type & gc_prologue_callbacks_[i].gc_type) {
-      if (!gc_prologue_callbacks_[i].pass_isolate_) {
-        v8::GCPrologueCallback callback =
-            reinterpret_cast<v8::GCPrologueCallback>(
-                gc_prologue_callbacks_[i].callback);
+      if (!gc_prologue_callbacks_[i].pass_isolate) {
+        v8::GCCallback callback = reinterpret_cast<v8::GCCallback>(
+            gc_prologue_callbacks_[i].callback);
         callback(gc_type, flags);
       } else {
         v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
@@ -1306,10 +1309,9 @@ void Heap::CallGCEpilogueCallbacks(GCType gc_type,
                                    GCCallbackFlags gc_callback_flags) {
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
-      if (!gc_epilogue_callbacks_[i].pass_isolate_) {
-        v8::GCPrologueCallback callback =
-            reinterpret_cast<v8::GCPrologueCallback>(
-                gc_epilogue_callbacks_[i].callback);
+      if (!gc_epilogue_callbacks_[i].pass_isolate) {
+        v8::GCCallback callback = reinterpret_cast<v8::GCCallback>(
+            gc_epilogue_callbacks_[i].callback);
         callback(gc_type, gc_callback_flags);
       } else {
         v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
@@ -5951,16 +5953,16 @@ void Heap::TearDown() {
 }
 
 
-void Heap::AddGCPrologueCallback(v8::Isolate::GCPrologueCallback callback,
+void Heap::AddGCPrologueCallback(v8::Isolate::GCCallback callback,
                                  GCType gc_type, bool pass_isolate) {
   DCHECK(callback != NULL);
-  GCPrologueCallbackPair pair(callback, gc_type, pass_isolate);
+  GCCallbackPair pair(callback, gc_type, pass_isolate);
   DCHECK(!gc_prologue_callbacks_.Contains(pair));
   return gc_prologue_callbacks_.Add(pair);
 }
 
 
-void Heap::RemoveGCPrologueCallback(v8::Isolate::GCPrologueCallback callback) {
+void Heap::RemoveGCPrologueCallback(v8::Isolate::GCCallback callback) {
   DCHECK(callback != NULL);
   for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
     if (gc_prologue_callbacks_[i].callback == callback) {
@@ -5972,16 +5974,16 @@ void Heap::RemoveGCPrologueCallback(v8::Isolate::GCPrologueCallback callback) {
 }
 
 
-void Heap::AddGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback,
+void Heap::AddGCEpilogueCallback(v8::Isolate::GCCallback callback,
                                  GCType gc_type, bool pass_isolate) {
   DCHECK(callback != NULL);
-  GCEpilogueCallbackPair pair(callback, gc_type, pass_isolate);
+  GCCallbackPair pair(callback, gc_type, pass_isolate);
   DCHECK(!gc_epilogue_callbacks_.Contains(pair));
   return gc_epilogue_callbacks_.Add(pair);
 }
 
 
-void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback) {
+void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallback callback) {
   DCHECK(callback != NULL);
   for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
     if (gc_epilogue_callbacks_[i].callback == callback) {
