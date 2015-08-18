@@ -303,6 +303,7 @@ namespace internal {
   F(CheckIsBootstrapping, 0, 1)               \
   F(ImportToRuntime, 1, 1)                    \
   F(ImportExperimentalToRuntime, 1, 1)        \
+  F(InstallFunctionsFromArray, 3, 1)          \
   F(Throw, 1, 1)                              \
   F(ReThrow, 1, 1)                            \
   F(UnwindAndFindExceptionHandler, 0, 1)      \

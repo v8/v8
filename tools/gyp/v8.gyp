@@ -1771,8 +1771,8 @@
         'library_files': [
           '../../src/macros.py',
           '../../src/messages.h',
-          '../../src/runtime.js',
           '../../src/prologue.js',
+          '../../src/runtime.js',
           '../../src/v8natives.js',
           '../../src/symbol.js',
           '../../src/array.js',

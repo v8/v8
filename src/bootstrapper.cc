@@ -2086,19 +2086,22 @@ bool Genesis::InstallNatives(ContextType context_type) {
 
   native_context()->set_runtime_context(*context);
 
-  if (context_type == THIN_CONTEXT) {
-    int js_builtins_script_index = Natives::GetDebuggerCount();
-    if (!Bootstrapper::CompileBuiltin(isolate(), js_builtins_script_index))
-      return false;
-    if (!InstallJSBuiltins(builtins)) return false;
-    return true;
-  }
-
   // Set up the utils object as shared container between native scripts.
   Handle<JSObject> utils = factory()->NewJSObject(isolate()->object_function());
   JSObject::NormalizeProperties(utils, CLEAR_INOBJECT_PROPERTIES, 16,
                                 "utils container for native scripts");
   native_context()->set_natives_utils_object(*utils);
+
+  int builtin_index = Natives::GetDebuggerCount();
+  // Only run prologue.js and runtime.js at this point.
+  DCHECK_EQ(builtin_index, Natives::GetIndex("prologue"));
+  if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
+  DCHECK_EQ(builtin_index, Natives::GetIndex("runtime"));
+  if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
+  if (!InstallJSBuiltins(builtins)) return false;
+
+  // A thin context is ready at this point.
+  if (context_type == THIN_CONTEXT) return true;
 
   if (FLAG_expose_natives_as != NULL) {
     Handle<String> utils_key = factory()->NewStringFromAsciiChecked("utils");
@@ -2385,13 +2388,9 @@ bool Genesis::InstallNatives(ContextType context_type) {
 #undef INSTALL_PUBLIC_SYMBOL
   }
 
-  int i = Natives::GetDebuggerCount();
-  if (!Bootstrapper::CompileBuiltin(isolate(), i)) return false;
-
-  if (!InstallJSBuiltins(builtins)) return false;
-
-  for (++i; i < Natives::GetBuiltinsCount(); ++i) {
-    if (!Bootstrapper::CompileBuiltin(isolate(), i)) return false;
+  // Run the rest of the native scripts.
+  while (builtin_index < Natives::GetBuiltinsCount()) {
+    if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
   }
 
   if (!CallUtilsFunction(isolate(), "PostNatives")) return false;

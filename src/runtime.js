@@ -897,6 +897,7 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 %FunctionSetPrototype(GlobalArray, new GlobalArray(0));
 
 // ----------------------------------------------------------------------------
+// Exports
 
 $concatIterableToArray = ConcatIterableToArray;
 $defaultNumber = DefaultNumber;
@@ -914,5 +915,12 @@ $toNumber = ToNumber;
 $toPositiveInteger = ToPositiveInteger;
 $toPrimitive = ToPrimitive;
 $toString = ToString;
+
+utils.ExportToRuntime(function(to) {
+  to.ToNumber = $toNumber;
+  to.ToString = $toString;
+  to.ToInteger = $toInteger;
+  to.ToLength = $toLength;
+});
 
 })

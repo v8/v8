@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/bootstrapper.h"
+#include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/messages.h"
@@ -40,6 +41,42 @@ RUNTIME_FUNCTION(Runtime_ImportExperimentalToRuntime) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   Bootstrapper::ImportExperimentalNatives(isolate, container);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_InstallFunctionsFromArray) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, functions, 2);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+
+  int num_items = NumberToInt32(functions->length()) / 2;
+  if (!object->IsJSGlobalObject() && object->HasFastProperties()) {
+    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, num_items,
+                                  "InstallFunctions");
+  }
+
+  Handle<FixedArray> array(FixedArray::cast(functions->elements()));
+  for (int i = 0; i < num_items; ++i) {
+    RUNTIME_ASSERT(array->get(i * 2)->IsString());
+    RUNTIME_ASSERT(array->get(i * 2 + 1)->IsJSFunction());
+    Handle<String> name(String::cast(array->get(i * 2)));
+    Handle<JSFunction> fun(JSFunction::cast(array->get(i * 2 + 1)));
+    fun->shared()->set_name(*name);
+    RUNTIME_ASSERT(fun->RemovePrototype());
+    fun->shared()->set_native(true);
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate,
+        JSObject::SetOwnPropertyIgnoreAttributes(object, name, fun, attrs));
+  }
+
+  if (!object->IsJSGlobalObject()) {
+    JSObject::MigrateSlowToFast(object, 0, "InstallFunctions");
+  }
+
   return isolate->heap()->undefined_value();
 }
 

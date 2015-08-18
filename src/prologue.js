@@ -76,17 +76,7 @@ function InstallConstants(object, constants) {
 
 
 function InstallFunctions(object, attributes, functions) {
-  %CheckIsBootstrapping();
-  %OptimizeObjectForAddingMultipleProperties(object, functions.length >> 1);
-  for (var i = 0; i < functions.length; i += 2) {
-    var key = functions[i];
-    var f = functions[i + 1];
-    SetFunctionName(f, key);
-    %FunctionRemovePrototype(f);
-    %AddNamedProperty(object, key, f, attributes);
-    %SetNativeFlag(f);
-  }
-  %ToFastProperties(object);
+  %InstallFunctionsFromArray(object, attributes, functions);
 }
 
 
@@ -265,13 +255,5 @@ InstallFunctions(utils, NONE, [
   "PostExperimentals", PostExperimentals,
   "PostDebug", PostDebug,
 ]);
-
-// TODO(yangguo): run prologue.js before runtime.js
-ExportToRuntime(function(to) {
-  to.ToNumber = $toNumber;
-  to.ToString = $toString;
-  to.ToInteger = $toInteger;
-  to.ToLength = $toLength;
-});
 
 })
