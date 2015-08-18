@@ -284,26 +284,13 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
 }
 
 
-void MarkCompactCollector::ClearInvalidSlotsBufferEntries(PagedSpace* space) {
-  PageIterator it(space);
-  while (it.has_next()) {
-    Page* p = it.next();
-    SlotsBuffer::RemoveInvalidSlots(heap_, p->slots_buffer());
-  }
-}
-
-
 void MarkCompactCollector::ClearInvalidStoreAndSlotsBufferEntries() {
   heap_->store_buffer()->ClearInvalidStoreBufferEntries();
 
-  ClearInvalidSlotsBufferEntries(heap_->old_space());
-  ClearInvalidSlotsBufferEntries(heap_->code_space());
-  ClearInvalidSlotsBufferEntries(heap_->map_space());
-
-  LargeObjectIterator it(heap_->lo_space());
-  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
-    MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-    SlotsBuffer::RemoveInvalidSlots(heap_, chunk->slots_buffer());
+  int number_of_pages = evacuation_candidates_.length();
+  for (int i = 0; i < number_of_pages; i++) {
+    Page* p = evacuation_candidates_[i];
+    SlotsBuffer::RemoveInvalidSlots(heap_, p->slots_buffer());
   }
 }
 

@@ -684,7 +684,6 @@ class MarkCompactCollector {
 
   bool WillBeDeoptimized(Code* code);
   void EvictPopularEvacuationCandidate(Page* page);
-  void ClearInvalidSlotsBufferEntries(PagedSpace* space);
   void ClearInvalidStoreAndSlotsBufferEntries();
 
   void StartSweeperThreads();
