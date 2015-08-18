@@ -818,7 +818,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   CleanupWorkers();
 #endif  // !V8_SHARED
   OnExit(args->GetIsolate());
-  exit(exit_code);
+  Exit(exit_code);
 }
 
 
