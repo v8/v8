@@ -2275,31 +2275,15 @@ v8::Local<v8::StackTrace> Message::GetStackTrace() const {
 }
 
 
-MUST_USE_RESULT static i::MaybeHandle<i::Object> CallV8HeapFunction(
-    i::Isolate* isolate, const char* name, i::Handle<i::Object> recv, int argc,
-    i::Handle<i::Object> argv[]) {
-  i::Handle<i::Object> object_fun =
-      i::Object::GetProperty(
-          isolate, isolate->js_builtins_object(), name).ToHandleChecked();
-  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(object_fun);
-  return i::Execution::Call(isolate, fun, recv, argc, argv);
-}
-
-
-MUST_USE_RESULT static i::MaybeHandle<i::Object> CallV8HeapFunction(
-    i::Isolate* isolate, const char* name, i::Handle<i::Object> data) {
-  i::Handle<i::Object> argv[] = { data };
-  return CallV8HeapFunction(isolate, name, isolate->js_builtins_object(),
-                            arraysize(argv), argv);
-}
-
-
 Maybe<int> Message::GetLineNumber(Local<Context> context) const {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetLineNumber()", int);
+  i::Handle<i::JSFunction> fun = isolate->message_get_line_number();
+  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
+  i::Handle<i::Object> args[] = {Utils::OpenHandle(this)};
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "$messageGetLineNumber",
-                          Utils::OpenHandle(this)).ToHandle(&result);
+      !i::Execution::Call(isolate, fun, undefined, arraysize(args), args)
+           .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
   return Just(static_cast<int>(result->Number()));
 }
@@ -2326,13 +2310,15 @@ int Message::GetEndPosition() const {
 Maybe<int> Message::GetStartColumn(Local<Context> context) const {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetStartColumn()",
                                   int);
-  auto self = Utils::OpenHandle(this);
-  i::Handle<i::Object> start_col_obj;
+  i::Handle<i::JSFunction> fun = isolate->message_get_column_number();
+  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
+  i::Handle<i::Object> args[] = {Utils::OpenHandle(this)};
+  i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "$messageGetPositionInLine", self)
-           .ToHandle(&start_col_obj);
+      !i::Execution::Call(isolate, fun, undefined, arraysize(args), args)
+           .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
-  return Just(static_cast<int>(start_col_obj->Number()));
+  return Just(static_cast<int>(result->Number()));
 }
 
 
@@ -2344,16 +2330,19 @@ int Message::GetStartColumn() const {
 
 
 Maybe<int> Message::GetEndColumn(Local<Context> context) const {
-  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetEndColumn()", int);
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::Object> start_col_obj;
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetEndColumn()", int);
+  i::Handle<i::JSFunction> fun = isolate->message_get_column_number();
+  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
+  i::Handle<i::Object> args[] = {self};
+  i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "$messageGetPositionInLine", self)
-           .ToHandle(&start_col_obj);
+      !i::Execution::Call(isolate, fun, undefined, arraysize(args), args)
+           .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
   int start = self->start_position();
   int end = self->end_position();
-  return Just(static_cast<int>(start_col_obj->Number()) + (end - start));
+  return Just(static_cast<int>(result->Number()) + (end - start));
 }
 
 
@@ -2387,10 +2376,13 @@ bool Message::IsOpaque() const {
 
 MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
   PREPARE_FOR_EXECUTION(context, "v8::Message::GetSourceLine()", String);
+  i::Handle<i::JSFunction> fun = isolate->message_get_source_line();
+  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
+  i::Handle<i::Object> args[] = {Utils::OpenHandle(this)};
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "$messageGetSourceLine",
-                          Utils::OpenHandle(this)).ToHandle(&result);
+      !i::Execution::Call(isolate, fun, undefined, arraysize(args), args)
+           .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(String);
   Local<String> str;
   if (result->IsString()) {
@@ -3380,9 +3372,11 @@ Maybe<bool> Value::Equals(Local<Context> context, Local<Value> that) const {
   }
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Value::Equals()", bool);
   i::Handle<i::Object> args[] = { other };
+  i::Handle<i::JSFunction> fun(i::JSFunction::cast(
+      isolate->js_builtins_object()->javascript_builtin(i::Builtins::EQUALS)));
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "EQUALS", self, arraysize(args), args)
+      !i::Execution::Call(isolate, fun, self, arraysize(args), args)
            .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(*result == i::Smi::FromInt(i::EQUAL));
@@ -3512,11 +3506,12 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   i::Handle<i::JSArray> desc_array =
       isolate->factory()->NewJSArrayWithElements(desc, i::FAST_ELEMENTS, 3);
   i::Handle<i::Object> args[] = {self, key_obj, value_obj, desc_array};
+  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
+  i::Handle<i::JSFunction> fun = isolate->object_define_own_property();
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "$objectDefineOwnProperty",
-                          isolate->factory()->undefined_value(),
-                          arraysize(args), args).ToHandle(&result);
+      !i::Execution::Call(isolate, fun, undefined, arraysize(args), args)
+           .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(result->BooleanValue());
 }
@@ -3648,11 +3643,12 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   auto obj = Utils::OpenHandle(this);
   auto key_name = Utils::OpenHandle(*key);
   i::Handle<i::Object> args[] = { obj, key_name };
+  i::Handle<i::JSFunction> fun = isolate->object_get_own_property_descriptor();
+  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "$objectGetOwnPropertyDescriptor",
-                          isolate->factory()->undefined_value(),
-                          arraysize(args), args).ToHandle(&result);
+      !i::Execution::Call(isolate, fun, undefined, arraysize(args), args)
+           .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(Utils::ToLocal(result));
 }

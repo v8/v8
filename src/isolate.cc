@@ -845,17 +845,19 @@ Object* Isolate::StackOverflow() {
   // At this point we cannot create an Error object using its javascript
   // constructor.  Instead, we copy the pre-constructed boilerplate and
   // attach the stack trace as a hidden property.
-  Handle<String> key = factory()->stack_overflow_string();
-  Handle<Object> boilerplate =
-      Object::GetProperty(js_builtins_object(), key).ToHandleChecked();
-  if (boilerplate->IsUndefined()) {
-    return Throw(heap()->undefined_value(), nullptr);
+  Handle<Object> exception;
+  if (bootstrapper()->IsActive()) {
+    // There is no boilerplate to use during bootstrapping.
+    exception = factory()->NewStringFromAsciiChecked(
+        MessageTemplate::TemplateString(MessageTemplate::kStackOverflow));
+  } else {
+    Handle<JSObject> boilerplate = stack_overflow_boilerplate();
+    Handle<JSObject> copy = factory()->CopyJSObject(boilerplate);
+    CaptureAndSetSimpleStackTrace(copy, factory()->undefined_value());
+    exception = copy;
   }
-  Handle<JSObject> exception =
-      factory()->CopyJSObject(Handle<JSObject>::cast(boilerplate));
   Throw(*exception, nullptr);
 
-  CaptureAndSetSimpleStackTrace(exception, factory()->undefined_value());
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && FLAG_stress_compaction) {
     heap()->CollectAllAvailableGarbage("trigger compaction");

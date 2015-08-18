@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 var $functionSourceString;
-var $objectDefineOwnProperty;
-var $objectGetOwnPropertyDescriptor;
 
 (function(global, utils) {
 
@@ -1785,8 +1783,6 @@ function GetIterator(obj, method) {
 // Exports
 
 $functionSourceString = FunctionSourceString;
-$objectDefineOwnProperty = DefineOwnPropertyFromAPI;
-$objectGetOwnPropertyDescriptor = ObjectGetOwnPropertyDescriptor;
 
 utils.ObjectDefineProperties = ObjectDefineProperties;
 utils.ObjectDefineProperty = ObjectDefineProperty;
@@ -1812,6 +1808,8 @@ utils.Export(function(to) {
 
 utils.ExportToRuntime(function(to) {
   to.GlobalEval = GlobalEval;
+  to.ObjectDefineOwnProperty = DefineOwnPropertyFromAPI;
+  to.ObjectGetOwnPropertyDescriptor = ObjectGetOwnPropertyDescriptor;
   to.ToCompletePropertyDescriptor = ToCompletePropertyDescriptor;
 });
 

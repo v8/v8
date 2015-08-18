@@ -5,12 +5,7 @@
 // -------------------------------------------------------------------
 
 var $errorToString;
-var $getStackTraceLine;
 var $internalErrorSymbol;
-var $messageGetPositionInLine;
-var $messageGetLineNumber;
-var $messageGetSourceLine;
-var $stackOverflowBoilerplate;
 var $stackTraceSymbol;
 var MakeError;
 var MakeEvalError;
@@ -213,6 +208,16 @@ function GetLineNumber(message) {
 }
 
 
+//Returns the offset of the given position within the containing line.
+function GetColumnNumber(message) {
+  var script = %MessageGetScript(message);
+  var start_position = %MessageGetStartPosition(message);
+  var location = script.locationFromPosition(start_position, true);
+  if (location == null) return -1;
+  return location.column;
+}
+
+
 // Returns the source code line containing the given source
 // position, or the empty string if the position is invalid.
 function GetSourceLine(message) {
@@ -222,6 +227,7 @@ function GetSourceLine(message) {
   if (location == null) return "";
   return location.sourceText();
 }
+
 
 /**
  * Find a line number given a specific source position.
@@ -554,17 +560,6 @@ utils.SetUpLockedPrototype(SourceSlice,
   ["script", "from_line", "to_line", "from_position", "to_position"],
   ["sourceText", SourceSliceSourceText]
 );
-
-
-// Returns the offset of the given position within the containing
-// line.
-function GetPositionInLine(message) {
-  var script = %MessageGetScript(message);
-  var start_position = %MessageGetStartPosition(message);
-  var location = script.locationFromPosition(start_position, true);
-  if (location == null) return -1;
-  return location.column;
-}
 
 
 function GetStackTraceLine(recv, fun, pos, isGlobal) {
@@ -1005,9 +1000,6 @@ utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
                        ['toString', ErrorToString]);
 
 $errorToString = ErrorToString;
-$messageGetPositionInLine = GetPositionInLine;
-$messageGetLineNumber = GetLineNumber;
-$messageGetSourceLine = GetSourceLine;
 
 MakeError = function(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalError, type, arg0, arg1, arg2);
@@ -1031,8 +1023,8 @@ MakeURIError = function() {
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().
-$stackOverflowBoilerplate = MakeRangeError(kStackOverflow);
-%DefineAccessorPropertyUnchecked($stackOverflowBoilerplate, 'stack',
+var StackOverflowBoilerplate = MakeRangeError(kStackOverflow);
+%DefineAccessorPropertyUnchecked(StackOverflowBoilerplate, 'stack',
                                  StackTraceGetter, StackTraceSetter,
                                  DONT_ENUM);
 
@@ -1059,6 +1051,10 @@ utils.ExportToRuntime(function(to) {
   to.NoSideEffectToString = NoSideEffectToString;
   to.ToDetailString = ToDetailString;
   to.MakeError = MakeGenericError;
+  to.MessageGetLineNumber = GetLineNumber;
+  to.MessageGetColumnNumber = GetColumnNumber;
+  to.MessageGetSourceLine = GetSourceLine;
+  to.StackOverflowBoilerplate = StackOverflowBoilerplate;
 });
 
 });
