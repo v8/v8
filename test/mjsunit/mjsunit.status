@@ -252,6 +252,9 @@
   # BUG(chromium:508074). Remove this once the issue is fixed.
   'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
   'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
+
+  # BUG(v8:4378).
+  'regress/regress-crbug-501711': [PASS, ['isolates', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
