@@ -75,7 +75,9 @@ namespace v8 {
 namespace {
 
 const int MB = 1024 * 1024;
+#ifndef V8_SHARED
 const int kMaxWorkers = 50;
+#endif
 
 
 class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
