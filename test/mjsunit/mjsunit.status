@@ -256,6 +256,9 @@
   # BUG(v8:4378).
   'regress/regress-crbug-501711': [PASS, ['isolates', SKIP]],
   'regress/regress-4279': [PASS, ['isolates', SKIP]],
+
+  # BUG(chromium:518748)
+  'regress/regress-crbug-518748': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
