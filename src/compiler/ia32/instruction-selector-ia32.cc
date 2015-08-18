@@ -857,10 +857,15 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     for (Node* input : base::Reversed(buffer.pushed_nodes)) {
       // Skip any alignment holes in pushed nodes.
       if (input == nullptr) continue;
+      // TODO(titzer): IA32Push cannot handle stack->stack double moves
+      // because there is no way to encode fixed double slots.
       InstructionOperand value =
           g.CanBeImmediate(input)
               ? g.UseImmediate(input)
-              : IsSupported(ATOM) ? g.UseRegister(input) : g.Use(input);
+              : IsSupported(ATOM) ||
+                        sequence()->IsFloat(GetVirtualRegister(input))
+                    ? g.UseRegister(input)
+                    : g.Use(input);
       Emit(kIA32Push, g.NoOutput(), value);
     }
   }

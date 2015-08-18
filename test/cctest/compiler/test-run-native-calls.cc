@@ -447,7 +447,7 @@ class Computer {
         Unique<HeapObject> unique =
             Unique<HeapObject>::CreateUninitialized(inner);
         Node* target = raw.HeapConstant(unique);
-        Node** args = zone.NewArray<Node*>(kMaxParamCount);
+        Node** args = zone.NewArray<Node*>(num_params);
         for (int i = 0; i < num_params; i++) {
           args[i] = io.MakeConstant(raw, io.input[i]);
         }
@@ -929,4 +929,57 @@ TEST(Float64Select_stack_params_return_reg) {
     RunSelect<float64, 4>(desc);
     RunSelect<float64, 5>(desc);
   }
+}
+
+
+template <typename CType, int which>
+static void Build_Select_With_Call(CallDescriptor* desc,
+                                   RawMachineAssembler& raw) {
+  Handle<Code> inner = Handle<Code>::null();
+  int num_params = ParamCount(desc);
+  CHECK_LE(num_params, kMaxParamCount);
+  {
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    // Build the actual select.
+    Zone zone;
+    Graph graph(&zone);
+    RawMachineAssembler raw(isolate, &graph, desc);
+    raw.Return(raw.Parameter(which));
+    inner = CompileGraph("Select-indirection", desc, &graph, raw.Export());
+    CHECK(!inner.is_null());
+    CHECK(inner->IsCode());
+  }
+
+  {
+    // Build a call to the function that does the select.
+    Unique<HeapObject> unique = Unique<HeapObject>::CreateUninitialized(inner);
+    Node* target = raw.HeapConstant(unique);
+    Node** args = raw.zone()->NewArray<Node*>(num_params);
+    for (int i = 0; i < num_params; i++) {
+      args[i] = raw.Parameter(i);
+    }
+
+    Node* call = raw.CallN(desc, target, args);
+    raw.Return(call);
+  }
+}
+
+
+TEST(Float64StackParamsToStackParams) {
+  if (DISABLE_NATIVE_STACK_PARAMS) return;
+
+  int rarray[] = {0};
+  Allocator params(nullptr, 0, nullptr, 0);
+  Allocator rets(nullptr, 0, rarray, 1);
+
+  Zone zone;
+  ArgsBuffer<float64>::Sig sig(2);
+  RegisterConfig config(params, rets);
+  CallDescriptor* desc = config.Create(&zone, &sig);
+
+  Run_Computation<float64>(desc, Build_Select_With_Call<float64, 0>,
+                           Compute_Select<float64, 0>, 1098);
+
+  Run_Computation<float64>(desc, Build_Select_With_Call<float64, 1>,
+                           Compute_Select<float64, 1>, 1099);
 }

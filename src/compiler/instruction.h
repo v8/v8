@@ -1023,7 +1023,6 @@ struct PrintableInstructionSequence;
 
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
-// TODO(titzer): s/IsDouble/IsFloat64/
 class InstructionSequence final : public ZoneObject {
  public:
   static InstructionBlocks* InstructionBlocksFor(Zone* zone,

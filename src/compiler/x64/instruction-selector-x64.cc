@@ -1054,7 +1054,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     // Poke any stack arguments.
     for (size_t n = 0; n < buffer.pushed_nodes.size(); ++n) {
       if (Node* input = buffer.pushed_nodes[n]) {
-        int const slot = static_cast<int>(n);
+        int slot = static_cast<int>(n);
         InstructionOperand value = g.CanBeImmediate(input)
                                        ? g.UseImmediate(input)
                                        : g.UseRegister(input);
@@ -1064,11 +1064,15 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   } else {
     // Push any stack arguments.
     for (Node* input : base::Reversed(buffer.pushed_nodes)) {
-      // TODO(titzer): handle pushing double parameters.
+      // TODO(titzer): X64Push cannot handle stack->stack double moves
+      // because there is no way to encode fixed double slots.
       InstructionOperand value =
           g.CanBeImmediate(input)
               ? g.UseImmediate(input)
-              : IsSupported(ATOM) ? g.UseRegister(input) : g.Use(input);
+              : IsSupported(ATOM) ||
+                        sequence()->IsFloat(GetVirtualRegister(input))
+                    ? g.UseRegister(input)
+                    : g.Use(input);
       Emit(kX64Push, g.NoOutput(), value);
     }
   }
