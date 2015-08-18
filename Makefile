@@ -216,6 +216,12 @@ ifeq ($(arm_test_noprobe), on)
   GYPFLAGS += -Darm_test_noprobe=on
 endif
 
+# Optionally enable wasm prototype.
+# Assume you've placed a link to v8-native-prototype in third_party/wasm.
+ifeq ($(wasm), on)
+  GYPFLAGS += -Dv8_wasm=1
+endif
+
 # ----------------- available targets: --------------------
 # - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
