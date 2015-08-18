@@ -275,6 +275,7 @@ namespace internal {
   V(toJSON_string, "toJSON")                                   \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")       \
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")     \
+  V(stack_overflow_string, "$stackOverflowBoilerplate")        \
   V(illegal_access_string, "illegal access")                   \
   V(cell_value_string, "%cell_value")                          \
   V(illegal_argument_string, "illegal argument")               \
