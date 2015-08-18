@@ -7,6 +7,7 @@
 #include "src/compiler.h"
 #include "src/compiler/interpreter-assembler.h"
 #include "src/factory.h"
+#include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/zone.h"
 
@@ -53,6 +54,27 @@ void Interpreter::Initialize() {
     BYTECODE_LIST(GENERATE_CODE)
 #undef GENERATE_CODE
   }
+}
+
+
+bool Interpreter::MakeBytecode(CompilationInfo* info) {
+  Handle<SharedFunctionInfo> shared_info = info->shared_info();
+
+  BytecodeGenerator generator(info->isolate(), info->zone());
+  Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
+  if (FLAG_print_bytecode) {
+    bytecodes->Print();
+  }
+
+  DCHECK(shared_info->function_data()->IsUndefined());
+  if (!shared_info->function_data()->IsUndefined()) {
+    return false;
+  }
+
+  shared_info->set_function_data(*bytecodes);
+  info->SetCode(info->isolate()->builtins()->InterpreterEntryTrampoline());
+  info->EnsureFeedbackVector();
+  return true;
 }
 
 

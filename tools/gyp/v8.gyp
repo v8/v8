@@ -799,6 +799,8 @@
         '../../src/interface-descriptors.h',
         '../../src/interpreter/bytecodes.cc',
         '../../src/interpreter/bytecodes.h',
+        '../../src/interpreter/bytecode-generator.cc',
+        '../../src/interpreter/bytecode-generator.h',
         '../../src/interpreter/bytecode-array-builder.cc',
         '../../src/interpreter/bytecode-array-builder.h',
         '../../src/interpreter/interpreter.cc',

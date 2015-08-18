@@ -18,6 +18,7 @@
 #include "src/full-codegen/full-codegen.h"
 #include "src/gdb-jit.h"
 #include "src/hydrogen.h"
+#include "src/interpreter/interpreter.h"
 #include "src/lithium.h"
 #include "src/log-inl.h"
 #include "src/messages.h"
@@ -666,6 +667,18 @@ static bool CompileUnoptimizedCode(CompilationInfo* info) {
 }
 
 
+static bool GenerateBytecode(CompilationInfo* info) {
+  DCHECK(AllowCompilation::IsAllowed(info->isolate()));
+  if (!Compiler::Analyze(info->parse_info()) ||
+      !interpreter::Interpreter::MakeBytecode(info)) {
+    Isolate* isolate = info->isolate();
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    return false;
+  }
+  return true;
+}
+
+
 MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
     CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
@@ -679,11 +692,16 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
   MaybeDisableOptimization(shared, lit->dont_optimize_reason());
 
-  // Compile unoptimized code.
-  if (!CompileUnoptimizedCode(info)) return MaybeHandle<Code>();
+  if (FLAG_ignition && info->closure()->PassesFilter(FLAG_ignition_filter)) {
+    // Compile bytecode for the interpreter.
+    if (!GenerateBytecode(info)) return MaybeHandle<Code>();
+  } else {
+    // Compile unoptimized code.
+    if (!CompileUnoptimizedCode(info)) return MaybeHandle<Code>();
 
-  CHECK_EQ(Code::FUNCTION, info->code()->kind());
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
+    CHECK_EQ(Code::FUNCTION, info->code()->kind());
+    RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
+  }
 
   // Update the shared function info with the scope info. Allocating the
   // ScopeInfo object may cause a GC.

@@ -83,6 +83,7 @@
         'compiler/test-run-variables.cc',
         'compiler/test-simplified-lowering.cc',
         'cctest.cc',
+        'interpreter/test-bytecode-generator.cc',
         'interpreter/test-interpreter.cc',
         'gay-fixed.cc',
         'gay-precision.cc',

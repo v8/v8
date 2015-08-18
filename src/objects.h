@@ -4615,6 +4615,7 @@ class Code: public HeapObject {
   inline bool embeds_maps_weakly();
 
   inline bool IsCodeStubOrIC();
+  inline bool IsJavaScriptCode();
 
   inline void set_raw_kind_specific_flags1(int value);
   inline void set_raw_kind_specific_flags2(int value);

@@ -35,8 +35,8 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   Handle<Code> code;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
                                      Compiler::GetLazyCode(function));
-  DCHECK(code->kind() == Code::FUNCTION ||
-         code->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(code->IsJavaScriptCode());
+
   function->ReplaceCode(*code);
   return *code;
 }

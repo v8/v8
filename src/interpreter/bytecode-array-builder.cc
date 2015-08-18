@@ -50,7 +50,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
   int32_t raw_smi = smi->value();
   if (raw_smi == 0) {
     Output(Bytecode::kLdaZero);
-  } else if (raw_smi > -128 && raw_smi <= 128) {
+  } else if (raw_smi >= -128 && raw_smi <= 127) {
     Output(Bytecode::kLdaSmi8, static_cast<uint8_t>(raw_smi));
   } else {
     // TODO(oth): Put Smi in constant pool.

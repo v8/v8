@@ -4903,6 +4903,16 @@ bool Code::IsCodeStubOrIC() {
 }
 
 
+bool Code::IsJavaScriptCode() {
+  if (kind() == FUNCTION || kind() == OPTIMIZED_FUNCTION) {
+    return true;
+  }
+  Handle<Code> interpreter_entry =
+      GetIsolate()->builtins()->InterpreterEntryTrampoline();
+  return interpreter_entry.location() != nullptr && *interpreter_entry == this;
+}
+
+
 InlineCacheState Code::ic_state() {
   InlineCacheState result = ExtractICStateFromFlags(flags());
   // Only allow uninitialized or debugger states for non-IC code

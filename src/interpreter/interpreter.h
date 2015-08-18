@@ -36,6 +36,9 @@ class Interpreter {
   // Initializes the interpreter.
   void Initialize();
 
+  // Generate bytecode for |info|.
+  static bool MakeBytecode(CompilationInfo* info);
+
  private:
 // Bytecode handler generator functions.
 #define DECLARE_BYTECODE_HANDLER_GENERATOR(Name, ...) \
