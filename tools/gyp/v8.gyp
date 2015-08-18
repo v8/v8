@@ -931,6 +931,7 @@
         '../../src/simulator.h',
         '../../src/small-pointer-list.h',
         '../../src/snapshot/natives.h',
+        '../../src/snapshot/natives-common.cc',
         '../../src/snapshot/serialize.cc',
         '../../src/snapshot/serialize.h',
         '../../src/snapshot/snapshot.h',
