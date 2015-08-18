@@ -75,6 +75,7 @@ namespace v8 {
 namespace {
 
 const int MB = 1024 * 1024;
+const int kMaxWorkers = 50;
 
 
 class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
@@ -706,6 +707,11 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   {
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
+    if (workers_.length() >= kMaxWorkers) {
+      Throw(args.GetIsolate(), "Too many workers, I won't let you create more");
+      return;
+    }
+
     // Initialize the internal field to NULL; if we return early without
     // creating a new Worker (because the main thread is terminating) we can
     // early-out from the instance calls.
