@@ -2609,22 +2609,6 @@ int TranslatedValue::GetChildrenCount() const {
 }
 
 
-int TranslatedState::SlotOffsetFp(int slot_index) {
-  if (slot_index >= 0) {
-    const int offset = StandardFrameConstants::kExpressionsOffset;
-    return offset - (slot_index * kPointerSize);
-  } else {
-    const int offset = StandardFrameConstants::kCallerSPOffset;
-    return offset - ((slot_index + 1) * kPointerSize);
-  }
-}
-
-
-Address TranslatedState::SlotAddress(Address fp, int slot_index) {
-  return fp + SlotOffsetFp(slot_index);
-}
-
-
 uint32_t TranslatedState::GetUInt32Slot(Address fp, int slot_offset) {
   Address address = fp + slot_offset;
 #if V8_TARGET_BIG_ENDIAN && V8_HOST_ARCH_64_BIT
@@ -2947,7 +2931,8 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     }
 
     case Translation::STACK_SLOT: {
-      int slot_offset = SlotOffsetFp(iterator->Next());
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
       if (trace_file != nullptr) {
         PrintF(trace_file, "0x%08" V8PRIxPTR " ; [fp %c %d] ", value,
@@ -2958,7 +2943,8 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     }
 
     case Translation::INT32_STACK_SLOT: {
-      int slot_offset = SlotOffsetFp(iterator->Next());
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%d ; (int) [fp %c %d] ",
@@ -2969,7 +2955,8 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     }
 
     case Translation::UINT32_STACK_SLOT: {
-      int slot_offset = SlotOffsetFp(iterator->Next());
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%u ; (uint) [fp %c %d] ", value,
@@ -2979,7 +2966,8 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     }
 
     case Translation::BOOL_STACK_SLOT: {
-      int slot_offset = SlotOffsetFp(iterator->Next());
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       uint32_t value = GetUInt32Slot(fp, slot_offset);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%u ; (bool) [fp %c %d] ", value,
@@ -2989,7 +2977,8 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     }
 
     case Translation::DOUBLE_STACK_SLOT: {
-      int slot_offset = SlotOffsetFp(iterator->Next());
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       double value = ReadDoubleValue(fp + slot_offset);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%e ; (double) [fp %c %d] ", value,

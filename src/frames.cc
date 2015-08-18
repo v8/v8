@@ -1079,18 +1079,14 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
 }
 
 
-Object* OptimizedFrame::StackSlotAt(int index) const {
-  // Positive index means the value is spilled to the locals
-  // area. Negative means it is stored in the incoming parameter
-  // area.
-  if (index >= 0) return GetExpression(index);
+int OptimizedFrame::StackSlotOffsetRelativeToFp(int slot_index) {
+  return StandardFrameConstants::kCallerSPOffset -
+         ((slot_index + 1) * kPointerSize);
+}
 
-  // Index -1 overlaps with last parameter, -n with the first parameter,
-  // (-n - 1) with the receiver with n being the number of parameters
-  // of the outermost, optimized frame.
-  int const parameter_count = ComputeParametersCount();
-  int const parameter_index = index + parameter_count;
-  return (parameter_index == -1) ? receiver() : GetParameter(parameter_index);
+
+Object* OptimizedFrame::StackSlotAt(int index) const {
+  return Memory::Object_at(fp() + StackSlotOffsetRelativeToFp(index));
 }
 
 

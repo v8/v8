@@ -8,6 +8,7 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/osr.h"
 #include "src/scopes.h"
 
 namespace v8 {
@@ -949,55 +950,25 @@ void CodeGenerator::AssembleDeoptimizerCall(
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
-    bool saved_pp;
     if (FLAG_enable_embedded_constant_pool) {
       __ Push(lr, fp, pp);
       // Adjust FP to point to saved FP.
       __ sub(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
-      saved_pp = true;
     } else {
       __ Push(lr, fp);
       __ mov(fp, sp);
-      saved_pp = false;
-    }
-    int register_save_area_size = saved_pp ? kPointerSize : 0;
-    const RegList saves = descriptor->CalleeSavedRegisters();
-    if (saves != 0 || saved_pp) {
-      // Save callee-saved registers.
-      __ stm(db_w, sp, saves);
-      register_save_area_size +=
-          kPointerSize * base::bits::CountPopulation32(saves);
-    }
-    const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
-    if (saves_fp != 0) {
-      // Save callee-saved FP registers.
-      STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
-      uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
-      uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
-      DCHECK_EQ((last - first + 1), base::bits::CountPopulation32(saves_fp));
-
-      __ vstm(db_w, sp, DwVfpRegister::from_code(first),
-              DwVfpRegister::from_code(last));
-      register_save_area_size += 2 * kPointerSize * (last - first + 1);
-    }
-    if (register_save_area_size > 0) {
-      frame()->SetRegisterSaveAreaSize(register_save_area_size);
     }
   } else if (descriptor->IsJSFunctionCall()) {
     CompilationInfo* info = this->info();
     __ Prologue(info->IsCodePreAgingActive());
-    frame()->SetRegisterSaveAreaSize(
-        StandardFrameConstants::kFixedFrameSizeFromFp);
   } else if (needs_frame_) {
     __ StubPrologue();
-    frame()->SetRegisterSaveAreaSize(
-        StandardFrameConstants::kFixedFrameSizeFromFp);
   } else {
-    frame()->SetPCOnStack(false);
+    frame()->SetElidedFrameSizeInSlots(0);
   }
 
+  int stack_shrink_slots = frame()->GetSpillSlotCount();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(kShouldNotDirectlyEnterOsrFunction);
@@ -1010,41 +981,63 @@ void CodeGenerator::AssemblePrologue() {
     osr_pc_offset_ = __ pc_offset();
     // TODO(titzer): cannot address target function == local #-1
     __ ldr(r1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-    DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
-    stack_slots -= frame()->GetOsrStackSlotCount();
+    stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
   }
 
-  if (stack_slots > 0) {
-    __ sub(sp, sp, Operand(stack_slots * kPointerSize));
+  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  if (saves_fp != 0) {
+    stack_shrink_slots += frame()->AlignSavedCalleeRegisterSlots();
+  }
+  if (stack_shrink_slots > 0) {
+    __ sub(sp, sp, Operand(stack_shrink_slots * kPointerSize));
+  }
+
+  if (saves_fp != 0) {
+    // Save callee-saved FP registers.
+    STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
+    uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
+    uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
+    DCHECK_EQ((last - first + 1), base::bits::CountPopulation32(saves_fp));
+    __ vstm(db_w, sp, DwVfpRegister::from_code(first),
+            DwVfpRegister::from_code(last));
+    frame()->AllocateSavedCalleeRegisterSlots((last - first + 1) *
+                                              (kDoubleSize / kPointerSize));
+  }
+  const RegList saves = FLAG_enable_embedded_constant_pool
+                            ? (descriptor->CalleeSavedRegisters() & ~pp.bit())
+                            : descriptor->CalleeSavedRegisters();
+  if (saves != 0) {
+    // Save callee-saved registers.
+    __ stm(db_w, sp, saves);
+    frame()->AllocateSavedCalleeRegisterSlots(
+        base::bits::CountPopulation32(saves));
   }
 }
 
 
 void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int stack_slots = frame()->GetSpillSlotCount();
   int pop_count = static_cast<int>(descriptor->StackParameterCount());
+
+  // Restore registers.
+  const RegList saves = FLAG_enable_embedded_constant_pool
+                            ? (descriptor->CalleeSavedRegisters() & ~pp.bit())
+                            : descriptor->CalleeSavedRegisters();
+  if (saves != 0) {
+    __ ldm(ia_w, sp, saves);
+  }
+
+  // Restore FP registers.
+  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  if (saves_fp != 0) {
+    STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
+    uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
+    uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
+    __ vldm(ia_w, sp, DwVfpRegister::from_code(first),
+            DwVfpRegister::from_code(last));
+  }
+
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
-    if (frame()->GetRegisterSaveAreaSize() > 0) {
-      // Remove this frame's spill slots first.
-      if (stack_slots > 0) {
-        __ add(sp, sp, Operand(stack_slots * kPointerSize));
-      }
-      // Restore FP registers.
-      const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
-      if (saves_fp != 0) {
-        STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
-        uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
-        uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
-        __ vldm(ia_w, sp, DwVfpRegister::from_code(first),
-                DwVfpRegister::from_code(last));
-      }
-      // Restore registers.
-      const RegList saves = descriptor->CalleeSavedRegisters();
-      if (saves != 0) {
-        __ ldm(ia_w, sp, saves);
-      }
-    }
     __ LeaveFrame(StackFrame::MANUAL);
   } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
     // Canonicalize JSFunction return sites for now.

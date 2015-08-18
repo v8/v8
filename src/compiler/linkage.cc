@@ -5,6 +5,7 @@
 #include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/frame.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
 #include "src/compiler/osr.h"
@@ -190,27 +191,21 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
 
 
 FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame) const {
-  if (frame->GetSpillSlotCount() > 0 || incoming_->IsJSFunctionCall() ||
-      incoming_->kind() == CallDescriptor::kCallAddress) {
-    int offset;
-    int register_save_area_size = frame->GetRegisterSaveAreaSize();
-    if (spill_slot >= 0) {
-      // Local or spill slot. Skip the frame pointer, function, and
-      // context in the fixed part of the frame.
-      offset = -(spill_slot + 1) * kPointerSize - register_save_area_size;
-    } else {
-      // Incoming parameter. Skip the return address.
-      offset = -(spill_slot + 1) * kPointerSize + kFPOnStackSize +
-               frame->PCOnStackSize();
-    }
+  bool has_frame = frame->GetSpillSlotCount() > 0 ||
+                   incoming_->IsJSFunctionCall() ||
+                   incoming_->kind() == CallDescriptor::kCallAddress;
+  const int offset =
+      (StandardFrameConstants::kFixedSlotCountAboveFp - spill_slot - 1) *
+      kPointerSize;
+  if (has_frame) {
     return FrameOffset::FromFramePointer(offset);
   } else {
     // No frame. Retrieve all parameters relative to stack pointer.
     DCHECK(spill_slot < 0);  // Must be a parameter.
-    int register_save_area_size = frame->GetRegisterSaveAreaSize();
-    int offset = register_save_area_size - (spill_slot + 1) * kPointerSize +
-                 frame->PCOnStackSize();
-    return FrameOffset::FromStackPointer(offset);
+    int offsetSpToFp =
+        kPointerSize * (StandardFrameConstants::kFixedSlotCountAboveFp -
+                        frame->GetTotalFrameSlotCount());
+    return FrameOffset::FromStackPointer(offset - offsetSpToFp);
   }
 }
 
@@ -505,7 +500,8 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
     return incoming_->GetInputLocation(context_index);
   } else if (index >= first_stack_slot) {
     // Local variable stored in this (callee) stack.
-    int spill_index = index - first_stack_slot;
+    int spill_index =
+        index - first_stack_slot + StandardFrameConstants::kFixedSlotCount;
     return LinkageLocation::ForCalleeFrameSlot(spill_index);
   } else {
     // Parameter. Use the assigned location from the incoming call descriptor.

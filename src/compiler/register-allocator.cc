@@ -1367,7 +1367,7 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
       // This value is produced on the stack, we never need to spill it.
       if (first_output->IsStackSlot()) {
         DCHECK(StackSlotOperand::cast(first_output)->index() <
-               data()->frame()->GetSpillSlotCount());
+               data()->frame()->GetTotalFrameSlotCount());
         range->SetSpillOperand(StackSlotOperand::cast(first_output));
         range->SetSpillStartIndex(instr_index + 1);
         assigned = true;

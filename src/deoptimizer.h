@@ -276,8 +276,6 @@ class TranslatedState {
   Handle<Object> MaterializeObjectAt(int object_index);
   bool GetAdaptedArguments(Handle<JSObject>* result, int frame_index);
 
-  static int SlotOffsetFp(int slot_index);
-  static Address SlotAddress(Address fp, int slot_index);
   static uint32_t GetUInt32Slot(Address fp, int slot_index);
 
   std::vector<TranslatedFrame> frames_;

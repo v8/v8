@@ -478,6 +478,7 @@
         '../../src/compiler/dead-code-elimination.cc',
         '../../src/compiler/dead-code-elimination.h',
         '../../src/compiler/diamond.h',
+        '../../src/compiler/frame.cc',
         '../../src/compiler/frame.h',
         '../../src/compiler/frame-elider.cc',
         '../../src/compiler/frame-elider.h',

@@ -67,7 +67,7 @@ class Pipeline {
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
-                         bool run_verifier);
+                         CallDescriptor* descriptor, bool run_verifier);
 };
 
 }  // namespace compiler
