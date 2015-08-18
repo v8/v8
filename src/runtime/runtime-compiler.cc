@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
 #include "src/compiler.h"
@@ -10,7 +10,6 @@
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/messages.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 

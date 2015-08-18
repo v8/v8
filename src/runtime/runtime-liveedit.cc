@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
 #include "src/debug/debug.h"
@@ -10,7 +10,6 @@
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
 #include "src/runtime/runtime.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {

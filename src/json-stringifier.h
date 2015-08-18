@@ -6,6 +6,7 @@
 #define V8_JSON_STRINGIFIER_H_
 
 #include "src/conversions.h"
+#include "src/lookup.h"
 #include "src/messages.h"
 #include "src/string-builder.h"
 #include "src/utils.h"
