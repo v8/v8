@@ -5927,6 +5927,9 @@ void SharedFunctionInfo::ReplaceCode(Code* value) {
   }
 
   DCHECK(code()->gc_metadata() == NULL && value->gc_metadata() == NULL);
+#ifdef DEBUG
+  Code::VerifyRecompiledCode(code(), value);
+#endif  // DEBUG
 
   set_code(value);
 

@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/bootstrapper.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
@@ -1254,9 +1255,11 @@ void Code::VerifyEmbeddedObjects(VerifyMode mode) {
 void Code::VerifyRecompiledCode(Code* old_code, Code* new_code) {
   if (old_code->kind() != FUNCTION) return;
   if (new_code->kind() != FUNCTION) return;
-  static const int mask = RelocInfo::kCodeTargetMask;
-
   Isolate* isolate = old_code->GetIsolate();
+  // Do not verify during bootstrapping. We may replace code using %SetCode.
+  if (isolate->bootstrapper()->IsActive()) return;
+
+  static const int mask = RelocInfo::kCodeTargetMask;
   RelocIterator old_it(old_code, mask);
   RelocIterator new_it(new_code, mask);
   Code* stack_check = isolate->builtins()->builtin(Builtins::kStackCheck);
@@ -1289,7 +1292,10 @@ void Code::VerifyRecompiledCode(Code* old_code, Code* new_code) {
     Code* new_target =
         Code::GetCodeFromTargetAddress(new_it.rinfo()->target_address());
     CHECK_EQ(old_target->kind(), new_target->kind());
-    if (!old_target->is_handler() && !old_target->is_inline_cache_stub()) {
+    // Check call target for equality unless it's an IC or an interrupt check.
+    // In both cases they may be patched to be something else.
+    if (!old_target->is_handler() && !old_target->is_inline_cache_stub() &&
+        new_target == isolate->builtins()->builtin(Builtins::kInterruptCheck)) {
       CHECK_EQ(old_target, new_target);
     }
     old_it.next();
