@@ -365,7 +365,7 @@ class ArgsBuffer {
 template <>
 void ArgsBuffer<int32_t>::Mutate() {
   uint32_t base = 1111111111u * seed_;
-  for (int j = 0; j < count_; j++) {
+  for (int j = 0; j < count_ && j < kMaxParamCount; j++) {
     input[j] = static_cast<int32_t>(256 + base + j + seed_ * 13);
   }
   output = -1;
@@ -376,7 +376,7 @@ void ArgsBuffer<int32_t>::Mutate() {
 template <>
 void ArgsBuffer<int64_t>::Mutate() {
   uint64_t base = 11111111111111111ull * seed_;
-  for (int j = 0; j < count_; j++) {
+  for (int j = 0; j < count_ && j < kMaxParamCount; j++) {
     input[j] = static_cast<int64_t>(256 + base + j + seed_ * 13);
   }
   output = -1;
@@ -387,7 +387,7 @@ void ArgsBuffer<int64_t>::Mutate() {
 template <>
 void ArgsBuffer<float32>::Mutate() {
   float64 base = -33.25 * seed_;
-  for (int j = 0; j < count_; j++) {
+  for (int j = 0; j < count_ && j < kMaxParamCount; j++) {
     input[j] = 256 + base + j + seed_ * 13;
   }
   output = std::numeric_limits<float32>::quiet_NaN();
@@ -398,7 +398,7 @@ void ArgsBuffer<float32>::Mutate() {
 template <>
 void ArgsBuffer<float64>::Mutate() {
   float64 base = -111.25 * seed_;
-  for (int j = 0; j < count_; j++) {
+  for (int j = 0; j < count_ && j < kMaxParamCount; j++) {
     input[j] = 256 + base + j + seed_ * 13;
   }
   output = std::numeric_limits<float64>::quiet_NaN();
