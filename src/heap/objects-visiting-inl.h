@@ -12,6 +12,13 @@
 namespace v8 {
 namespace internal {
 
+
+template <typename Callback>
+Callback VisitorDispatchTable<Callback>::GetVisitor(Map* map) {
+  return reinterpret_cast<Callback>(callbacks_[map->visitor_id()]);
+}
+
+
 template <typename StaticVisitor>
 void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
   table_.Register(

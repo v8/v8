@@ -148,12 +148,10 @@ class VisitorDispatchTable {
     }
   }
 
+  inline Callback GetVisitor(Map* map);
+
   inline Callback GetVisitorById(StaticVisitorBase::VisitorId id) {
     return reinterpret_cast<Callback>(callbacks_[id]);
-  }
-
-  inline Callback GetVisitor(Map* map) {
-    return reinterpret_cast<Callback>(callbacks_[map->visitor_id()]);
   }
 
   void Register(StaticVisitorBase::VisitorId id, Callback callback) {

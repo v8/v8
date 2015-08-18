@@ -5,7 +5,6 @@
 #include "src/heap/identity-map.h"
 
 #include "src/heap/heap.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/zone-containers.h"
 
 namespace v8 {
