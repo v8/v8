@@ -945,7 +945,6 @@
         '../../src/startup-data-util.h',
         '../../src/string-builder.cc',
         '../../src/string-builder.h',
-        '../../src/string-search.cc',
         '../../src/string-search.h',
         '../../src/string-stream.cc',
         '../../src/string-stream.h',

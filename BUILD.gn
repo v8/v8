@@ -1153,7 +1153,6 @@ source_set("v8_base") {
     "src/startup-data-util.cc",
     "src/string-builder.cc",
     "src/string-builder.h",
-    "src/string-search.cc",
     "src/string-search.h",
     "src/string-stream.cc",
     "src/string-stream.h",
