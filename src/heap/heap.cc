@@ -71,7 +71,6 @@ Heap::Heap()
       maximum_committed_(0),
       survived_since_last_expansion_(0),
       survived_last_scavenge_(0),
-      sweep_generation_(0),
       always_allocate_scope_depth_(0),
       contexts_disposed_(0),
       global_ic_age_(0),
@@ -1208,7 +1207,6 @@ bool Heap::PerformGarbageCollection(
     UpdateOldGenerationAllocationCounter();
     // Perform mark-sweep with optional compaction.
     MarkCompact();
-    sweep_generation_++;
     old_gen_exhausted_ = false;
     old_generation_size_configured_ = true;
     // This should be updated before PostGarbageCollectionProcessing, which can

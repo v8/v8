@@ -949,7 +949,7 @@ class Heap {
   Object* encountered_weak_cells() const { return encountered_weak_cells_; }
 
   // Number of mark-sweeps.
-  unsigned int ms_count() { return ms_count_; }
+  int ms_count() const { return ms_count_; }
 
   // Iterates over all roots in the heap.
   void IterateRoots(ObjectVisitor* v, VisitMode mode);
@@ -1419,9 +1419,6 @@ class Heap {
     return &external_string_table_;
   }
 
-  // Returns the current sweep generation.
-  int sweep_generation() { return sweep_generation_; }
-
   bool concurrent_sweeping_enabled() { return concurrent_sweeping_enabled_; }
 
   inline Isolate* isolate();
@@ -1701,9 +1698,6 @@ class Heap {
 
   // ... and since the last scavenge.
   int survived_last_scavenge_;
-
-  // For keeping track on when to flush RegExp code.
-  int sweep_generation_;
 
   int always_allocate_scope_depth_;
 
