@@ -2702,7 +2702,7 @@ class MapSpace : public PagedSpace {
 class LargeObjectSpace : public Space {
  public:
   LargeObjectSpace(Heap* heap, AllocationSpace id);
-  virtual ~LargeObjectSpace() {}
+  virtual ~LargeObjectSpace();
 
   // Initializes internal data structures.
   bool SetUp();

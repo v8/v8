@@ -2814,6 +2814,9 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
       chunk_map_(ComparePointers, 1024) {}
 
 
+LargeObjectSpace::~LargeObjectSpace() {}
+
+
 bool LargeObjectSpace::SetUp() {
   first_page_ = NULL;
   size_ = 0;
