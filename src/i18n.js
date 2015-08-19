@@ -28,7 +28,6 @@ var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var MathFloor;
 var RegExpTest;
-var SetFunctionName = utils.SetFunctionName;
 var StringIndexOf;
 var StringLastIndexOf;
 var StringMatch;
@@ -221,7 +220,7 @@ function addBoundMethod(obj, methodName, implementation, length) {
           }
         }
       }
-      SetFunctionName(boundMethod, internalName);
+      %FunctionSetName(boundMethod, internalName);
       %FunctionRemovePrototype(boundMethod);
       %SetNativeFlag(boundMethod);
       this[internalName] = boundMethod;
@@ -229,7 +228,7 @@ function addBoundMethod(obj, methodName, implementation, length) {
     return this[internalName];
   }
 
-  SetFunctionName(getter, methodName);
+  %FunctionSetName(getter, methodName);
   %FunctionRemovePrototype(getter);
   %SetNativeFlag(getter);
 
@@ -988,7 +987,7 @@ function initializeCollator(collator, locales, options) {
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.Collator.prototype.resolvedOptions, 'resolvedOptions');
+%FunctionSetName(Intl.Collator.prototype.resolvedOptions, 'resolvedOptions');
 %FunctionRemovePrototype(Intl.Collator.prototype.resolvedOptions);
 %SetNativeFlag(Intl.Collator.prototype.resolvedOptions);
 
@@ -1008,7 +1007,7 @@ SetFunctionName(Intl.Collator.prototype.resolvedOptions, 'resolvedOptions');
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.Collator.supportedLocalesOf, 'supportedLocalesOf');
+%FunctionSetName(Intl.Collator.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.Collator.supportedLocalesOf);
 %SetNativeFlag(Intl.Collator.supportedLocalesOf);
 
@@ -1247,7 +1246,8 @@ function initializeNumberFormat(numberFormat, locales, options) {
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.NumberFormat.prototype.resolvedOptions, 'resolvedOptions');
+%FunctionSetName(Intl.NumberFormat.prototype.resolvedOptions,
+                 'resolvedOptions');
 %FunctionRemovePrototype(Intl.NumberFormat.prototype.resolvedOptions);
 %SetNativeFlag(Intl.NumberFormat.prototype.resolvedOptions);
 
@@ -1267,7 +1267,7 @@ SetFunctionName(Intl.NumberFormat.prototype.resolvedOptions, 'resolvedOptions');
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.NumberFormat.supportedLocalesOf, 'supportedLocalesOf');
+%FunctionSetName(Intl.NumberFormat.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.NumberFormat.supportedLocalesOf);
 %SetNativeFlag(Intl.NumberFormat.supportedLocalesOf);
 
@@ -1668,8 +1668,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.DateTimeFormat.prototype.resolvedOptions,
-                'resolvedOptions');
+%FunctionSetName(Intl.DateTimeFormat.prototype.resolvedOptions,
+                 'resolvedOptions');
 %FunctionRemovePrototype(Intl.DateTimeFormat.prototype.resolvedOptions);
 %SetNativeFlag(Intl.DateTimeFormat.prototype.resolvedOptions);
 
@@ -1689,7 +1689,7 @@ SetFunctionName(Intl.DateTimeFormat.prototype.resolvedOptions,
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.DateTimeFormat.supportedLocalesOf, 'supportedLocalesOf');
+%FunctionSetName(Intl.DateTimeFormat.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.DateTimeFormat.supportedLocalesOf);
 %SetNativeFlag(Intl.DateTimeFormat.supportedLocalesOf);
 
@@ -1847,8 +1847,8 @@ function initializeBreakIterator(iterator, locales, options) {
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.v8BreakIterator.prototype.resolvedOptions,
-                'resolvedOptions');
+%FunctionSetName(Intl.v8BreakIterator.prototype.resolvedOptions,
+                 'resolvedOptions');
 %FunctionRemovePrototype(Intl.v8BreakIterator.prototype.resolvedOptions);
 %SetNativeFlag(Intl.v8BreakIterator.prototype.resolvedOptions);
 
@@ -1869,7 +1869,7 @@ SetFunctionName(Intl.v8BreakIterator.prototype.resolvedOptions,
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.v8BreakIterator.supportedLocalesOf, 'supportedLocalesOf');
+%FunctionSetName(Intl.v8BreakIterator.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.v8BreakIterator.supportedLocalesOf);
 %SetNativeFlag(Intl.v8BreakIterator.supportedLocalesOf);
 
@@ -1965,7 +1965,7 @@ function OverrideFunction(object, name, f) {
                                        writeable: true,
                                        configurable: true,
                                        enumerable: false });
-  SetFunctionName(f, name);
+  %FunctionSetName(f, name);
   %FunctionRemovePrototype(f);
   %SetNativeFlag(f);
 }
