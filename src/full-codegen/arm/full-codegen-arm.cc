@@ -842,8 +842,8 @@ void FullCodeGenerator::VisitVariableDeclaration(
     case VariableLocation::LOCAL:
       if (hole_init) {
         Comment cmnt(masm_, "[ VariableDeclaration");
-        __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-        __ str(ip, StackOperand(variable));
+        __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
+        __ str(r0, StackOperand(variable));
       }
       break;
 
@@ -851,8 +851,8 @@ void FullCodeGenerator::VisitVariableDeclaration(
       if (hole_init) {
         Comment cmnt(masm_, "[ VariableDeclaration");
         EmitDebugCheckDeclarationContext(variable);
-        __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-        __ str(ip, ContextOperand(cp, variable->index()));
+        __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
+        __ str(r0, ContextOperand(cp, variable->index()));
         // No write barrier since the_hole_value is in old space.
         PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       }
