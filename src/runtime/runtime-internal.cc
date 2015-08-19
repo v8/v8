@@ -44,6 +44,16 @@ RUNTIME_FUNCTION(Runtime_ImportExperimentalToRuntime) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_InstallJSBuiltins) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  Bootstrapper::InstallJSBuiltins(isolate, container);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

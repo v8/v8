@@ -242,7 +242,6 @@ class Genesis BASE_EMBEDDED {
                                v8::RegisteredExtension* current,
                                ExtensionStates* extension_states);
   static bool InstallSpecialObjects(Handle<Context> native_context);
-  bool InstallJSBuiltins(Handle<JSBuiltinsObject> builtins);
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
   bool ConfigureGlobalObjects(
@@ -1869,6 +1868,24 @@ void Bootstrapper::ImportExperimentalNatives(Isolate* isolate,
 
 #undef INSTALL_NATIVE
 
+
+bool Bootstrapper::InstallJSBuiltins(Isolate* isolate,
+                                     Handle<JSObject> container) {
+  HandleScope scope(isolate);
+  Handle<JSBuiltinsObject> builtins = isolate->js_builtins_object();
+  for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
+    Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
+    Handle<Object> function_object =
+        Object::GetProperty(isolate, container, Builtins::GetName(id))
+            .ToHandleChecked();
+    DCHECK(function_object->IsJSFunction());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+    builtins->set_javascript_builtin(id, *function);
+  }
+  return true;
+}
+
+
 #define EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(id) \
   void Genesis::InitializeGlobal_##id() {}
 
@@ -2098,7 +2115,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
   if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
   DCHECK_EQ(builtin_index, Natives::GetIndex("runtime"));
   if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
-  if (!InstallJSBuiltins(builtins)) return false;
 
   // A thin context is ready at this point.
   if (context_type == THIN_CONTEXT) return true;
@@ -2905,19 +2921,6 @@ bool Genesis::InstallExtension(Isolate* isolate,
   extension_states->set_state(current, INSTALLED);
   isolate->NotifyExtensionInstalled();
   return result;
-}
-
-
-bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
-  HandleScope scope(isolate());
-  for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
-    Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
-    Handle<Object> function_object = Object::GetProperty(
-        isolate(), builtins, Builtins::GetName(id)).ToHandleChecked();
-    Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-    builtins->set_javascript_builtin(id, *function);
-  }
-  return true;
 }
 
 
