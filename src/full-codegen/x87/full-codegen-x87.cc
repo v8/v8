@@ -3323,13 +3323,9 @@ void FullCodeGenerator::EmitIsSimdValue(CallRuntime* expr) {
                          &if_false, &fall_through);
 
   __ JumpIfSmi(eax, if_false);
-  Register map = ebx;
-  __ mov(map, FieldOperand(eax, HeapObject::kMapOffset));
-  __ CmpInstanceType(map, FIRST_SIMD_VALUE_TYPE);
-  __ j(less, if_false);
-  __ CmpInstanceType(map, LAST_SIMD_VALUE_TYPE);
+  __ CmpObjectType(eax, SIMD128_VALUE_TYPE, ebx);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(less_equal, if_true, if_false, fall_through);
+  Split(equal, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }
@@ -4948,34 +4944,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(eax, if_false);
     __ CmpObjectType(eax, SYMBOL_TYPE, edx);
     Split(equal, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->float32x4_string())) {
-    __ JumpIfSmi(eax, if_false);
-    __ CmpObjectType(eax, FLOAT32X4_TYPE, edx);
-    Split(equal, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->int32x4_string())) {
-    __ JumpIfSmi(eax, if_false);
-    __ CmpObjectType(eax, INT32X4_TYPE, edx);
-    Split(equal, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->bool32x4_string())) {
-    __ JumpIfSmi(eax, if_false);
-    __ CmpObjectType(eax, BOOL32X4_TYPE, edx);
-    Split(equal, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->int16x8_string())) {
-    __ JumpIfSmi(eax, if_false);
-    __ CmpObjectType(eax, INT16X8_TYPE, edx);
-    Split(equal, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->bool16x8_string())) {
-    __ JumpIfSmi(eax, if_false);
-    __ CmpObjectType(eax, BOOL16X8_TYPE, edx);
-    Split(equal, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->int8x16_string())) {
-    __ JumpIfSmi(eax, if_false);
-    __ CmpObjectType(eax, INT8X16_TYPE, edx);
-    Split(equal, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->bool8x16_string())) {
-    __ JumpIfSmi(eax, if_false);
-    __ CmpObjectType(eax, BOOL8X16_TYPE, edx);
-    Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->boolean_string())) {
     __ cmp(eax, isolate()->factory()->true_value());
     __ j(equal, if_true);
@@ -5009,6 +4977,16 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ test_b(FieldOperand(edx, Map::kBitFieldOffset),
               1 << Map::kIsUndetectable);
     Split(zero, if_true, if_false, fall_through);
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)   \
+  } else if (String::Equals(check, factory->type##_string())) { \
+    __ JumpIfSmi(eax, if_false);                                \
+    __ cmp(FieldOperand(eax, HeapObject::kMapOffset),           \
+           isolate()->factory()->type##_map());                 \
+    Split(equal, if_true, if_false, fall_through);
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
   } else {
     if (if_false != fall_through) __ jmp(if_false);
   }
