@@ -4501,7 +4501,7 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Code::Flags code_flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::LOAD_IC, code_flags, false, receiver, name, feedback, no_reg);
+      masm, Code::LOAD_IC, code_flags, receiver, name, feedback, no_reg);
 
   __ bind(&miss);
   LoadIC::GenerateMiss(masm);

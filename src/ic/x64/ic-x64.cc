@@ -353,7 +353,7 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
-                                               false, receiver, key,
+                                               receiver, key,
                                                megamorphic_scratch, no_reg);
   // Cache miss.
   GenerateMiss(masm);
@@ -581,8 +581,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::STORE_IC, flags, false, receiver, key, rbx, no_reg);
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
+                                               receiver, key, rbx, no_reg);
   // Cache miss.
   __ jmp(&miss);
 
@@ -741,7 +741,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::STORE_IC, flags, false, StoreDescriptor::ReceiverRegister(),
+      masm, Code::STORE_IC, flags, StoreDescriptor::ReceiverRegister(),
       StoreDescriptor::NameRegister(), rbx, no_reg);
 
   // Cache miss: Jump to runtime.
