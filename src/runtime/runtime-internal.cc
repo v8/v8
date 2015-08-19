@@ -263,7 +263,7 @@ RUNTIME_FUNCTION(Runtime_RenderCallSite) {
     return isolate->heap()->empty_string();
   }
   CallPrinter printer(isolate, &zone);
-  const char* string = printer.Print(info->function(), location.start_pos());
+  const char* string = printer.Print(info->literal(), location.start_pos());
   return *isolate->factory()->NewStringFromAsciiChecked(string);
 }
 

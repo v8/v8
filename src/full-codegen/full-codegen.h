@@ -42,7 +42,7 @@ class FullCodeGenerator: public AstVisitor {
         globals_(NULL),
         context_(NULL),
         bailout_entries_(info->HasDeoptimizationSupport()
-                             ? info->function()->ast_node_count()
+                             ? info->literal()->ast_node_count()
                              : 0,
                          info->zone()),
         back_edges_(2, info->zone()),
@@ -698,7 +698,8 @@ class FullCodeGenerator: public AstVisitor {
   bool is_native() { return info_->is_native(); }
   LanguageMode language_mode() { return function()->language_mode(); }
   bool has_simple_parameters() { return info_->has_simple_parameters(); }
-  FunctionLiteral* function() { return info_->function(); }
+  // TODO(titzer): rename this to literal().
+  FunctionLiteral* function() { return info_->literal(); }
   Scope* scope() { return scope_; }
 
   static Register result_register();

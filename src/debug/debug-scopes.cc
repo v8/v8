@@ -97,14 +97,14 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
         info.set_context(Handle<Context>(function->context()));
       }
       if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
-        scope = info.function()->scope();
+        scope = info.literal()->scope();
       }
       RetrieveScopeChain(scope, shared_info);
     } else {
       // Function code
       ParseInfo info(&zone, function);
       if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
-        scope = info.function()->scope();
+        scope = info.literal()->scope();
       }
       RetrieveScopeChain(scope, shared_info);
     }

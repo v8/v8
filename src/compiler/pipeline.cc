@@ -359,7 +359,7 @@ base::SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
     return name;
   } else {
     AllowHandleDereference allow_deref;
-    return info->function()->debug_name()->ToCString();
+    return info->literal()->debug_name()->ToCString();
   }
 }
 
@@ -1014,7 +1014,7 @@ Handle<Code> Pipeline::GenerateCode() {
     if (json_file != nullptr) {
       OFStream json_of(json_file);
       Handle<Script> script = info()->script();
-      FunctionLiteral* function = info()->function();
+      FunctionLiteral* function = info()->literal();
       base::SmartArrayPointer<char> function_name =
           info()->shared_info()->DebugName()->ToCString();
       int pos = info()->shared_info()->start_position();

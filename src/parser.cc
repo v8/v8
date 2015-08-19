@@ -5727,7 +5727,7 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
 bool Parser::ParseStatic(ParseInfo* info) {
   Parser parser(info);
   if (parser.Parse(info)) {
-    info->set_language_mode(info->function()->language_mode());
+    info->set_language_mode(info->literal()->language_mode());
     return true;
   }
   return false;
@@ -5735,7 +5735,7 @@ bool Parser::ParseStatic(ParseInfo* info) {
 
 
 bool Parser::Parse(ParseInfo* info) {
-  DCHECK(info->function() == NULL);
+  DCHECK(info->literal() == NULL);
   FunctionLiteral* result = NULL;
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parsing_on_main_thread_);
@@ -5770,7 +5770,7 @@ bool Parser::Parse(ParseInfo* info) {
 void Parser::ParseOnBackground(ParseInfo* info) {
   parsing_on_main_thread_ = false;
 
-  DCHECK(info->function() == NULL);
+  DCHECK(info->literal() == NULL);
   FunctionLiteral* result = NULL;
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 

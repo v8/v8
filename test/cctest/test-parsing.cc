@@ -1070,9 +1070,9 @@ TEST(ScopeUsesArgumentsSuperThis) {
       CHECK(parser.Parse(&info));
       CHECK(i::Rewriter::Rewrite(&info));
       CHECK(i::Scope::Analyze(&info));
-      CHECK(info.function() != NULL);
+      CHECK(info.literal() != NULL);
 
-      i::Scope* script_scope = info.function()->scope();
+      i::Scope* script_scope = info.literal()->scope();
       CHECK(script_scope->is_script_scope());
       CHECK_EQ(1, script_scope->inner_scopes()->length());
 
@@ -1369,10 +1369,10 @@ TEST(ScopePositions) {
     info.set_global();
     info.set_language_mode(source_data[i].language_mode);
     parser.Parse(&info);
-    CHECK(info.function() != NULL);
+    CHECK(info.literal() != NULL);
 
     // Check scope types and positions.
-    i::Scope* scope = info.function()->scope();
+    i::Scope* scope = info.literal()->scope();
     CHECK(scope->is_script_scope());
     CHECK_EQ(scope->start_position(), 0);
     CHECK_EQ(scope->end_position(), kProgramSize);
@@ -1506,7 +1506,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     SetParserFlags(&parser, flags);
     info.set_global();
     parser.Parse(&info);
-    function = info.function();
+    function = info.literal();
     if (function) {
       parser_materialized_literals = function->materialized_literal_count();
     }
@@ -3444,9 +3444,9 @@ TEST(InnerAssignment) {
           i::Parser parser(&info);
           CHECK(parser.Parse(&info));
           CHECK(i::Compiler::Analyze(&info));
-          CHECK(info.function() != NULL);
+          CHECK(info.literal() != NULL);
 
-          i::Scope* scope = info.function()->scope();
+          i::Scope* scope = info.literal()->scope();
           CHECK_EQ(scope->inner_scopes()->length(), 1);
           i::Scope* inner_scope = scope->inner_scopes()->at(0);
           const i::AstRawString* var_name =
@@ -5506,7 +5506,7 @@ TEST(ModuleParsingInternals) {
   info.set_module();
   CHECK(parser.Parse(&info));
   CHECK(i::Compiler::Analyze(&info));
-  i::FunctionLiteral* func = info.function();
+  i::FunctionLiteral* func = info.literal();
   i::Scope* module_scope = func->scope();
   i::Scope* outer_scope = module_scope->outer_scope();
   CHECK(outer_scope->is_script_scope());
@@ -5630,8 +5630,8 @@ void TestLanguageMode(const char* source,
   parser.set_allow_strong_mode(true);
   info.set_global();
   parser.Parse(&info);
-  CHECK(info.function() != NULL);
-  CHECK_EQ(expected_language_mode, info.function()->language_mode());
+  CHECK(info.literal() != NULL);
+  CHECK_EQ(expected_language_mode, info.literal()->language_mode());
 }
 
 

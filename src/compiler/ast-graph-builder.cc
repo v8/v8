@@ -601,7 +601,7 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   }
 
   // Visit statements in the function body.
-  VisitStatements(info()->function()->body());
+  VisitStatements(info()->literal()->body());
 
   // Emit tracing call if requested to do so.
   if (FLAG_trace) {

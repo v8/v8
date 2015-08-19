@@ -148,13 +148,15 @@ class CompilationInfo {
   bool is_module() const;
   LanguageMode language_mode() const;
   Handle<JSFunction> closure() const;
-  FunctionLiteral* function() const;
+  FunctionLiteral* literal() const;
   Scope* scope() const;
   bool MayUseThis() const;
   Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
   bool has_context() const;
+  bool has_literal() const;
+  bool has_scope() const;
   // -----------------------------------------------------------
 
   Isolate* isolate() const {
@@ -172,7 +174,6 @@ class CompilationInfo {
   bool is_this_defined() const;
   int num_heap_slots() const;
   Code::Flags flags() const;
-  bool has_scope() const { return scope() != nullptr; }
 
   void set_parameter_count(int parameter_count) {
     DCHECK(IsStub());

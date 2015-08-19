@@ -210,7 +210,7 @@ EXPRESSION_NODE_LIST(DEF_VISIT)
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(ParseInfo* info) {
-  FunctionLiteral* function = info->function();
+  FunctionLiteral* function = info->literal();
   DCHECK(function != NULL);
   Scope* scope = function->scope();
   DCHECK(scope != NULL);

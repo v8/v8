@@ -171,11 +171,11 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
         info->isolate(), zone, descriptor, stub->GetStackParameterCount(),
         CallDescriptor::kNoFlags, Operator::kNoProperties);
   }
-  if (info->function() != NULL) {
+  if (info->has_literal()) {
     // If we already have the function literal, use the number of parameters
     // plus the receiver.
     return GetJSCallDescriptor(zone, info->is_osr(),
-                               1 + info->function()->parameter_count(),
+                               1 + info->literal()->parameter_count(),
                                CallDescriptor::kNoFlags);
   }
   if (!info->closure().is_null()) {

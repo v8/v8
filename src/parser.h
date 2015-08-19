@@ -104,9 +104,6 @@ class ParseInfo {
     ast_value_factory_ = ast_value_factory;
   }
 
-  FunctionLiteral* function() {  // TODO(titzer): temporary name adapter
-    return literal_;
-  }
   FunctionLiteral* literal() { return literal_; }
   void set_literal(FunctionLiteral* literal) { literal_ = literal; }
 

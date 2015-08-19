@@ -41,7 +41,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   VisitDeclarations(scope()->declarations());
 
   // Visit statements in the function body.
-  VisitStatements(info->function()->body());
+  VisitStatements(info->literal()->body());
 
   set_scope(nullptr);
   return builder_.ToBytecodeArray();

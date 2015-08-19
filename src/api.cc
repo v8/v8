@@ -2002,11 +2002,11 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   // Do the parsing tasks which need to be done on the main thread. This will
   // also handle parse errors.
   source->parser->Internalize(isolate, script,
-                              source->info->function() == nullptr);
+                              source->info->literal() == nullptr);
   source->parser->HandleSourceURLComments(isolate, script);
 
   i::Handle<i::SharedFunctionInfo> result;
-  if (source->info->function() != nullptr) {
+  if (source->info->literal() != nullptr) {
     // Parsing has succeeded.
     result = i::Compiler::CompileStreamedScript(script, source->info.get(),
                                                 str->length());

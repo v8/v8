@@ -101,7 +101,7 @@ void FullCodeGenerator::Generate() {
 
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
-      info->function()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
+      function()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
     __ int3();
   }
 #endif
@@ -139,7 +139,7 @@ void FullCodeGenerator::Generate() {
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
     // Generators allocate locals, if any, in context slots.
-    DCHECK(!IsGeneratorFunction(info->function()->kind()) || locals_count == 0);
+    DCHECK(!IsGeneratorFunction(function()->kind()) || locals_count == 0);
     if (locals_count == 1) {
       __ push(Immediate(isolate()->factory()->undefined_value()));
     } else if (locals_count > 1) {
@@ -1412,8 +1412,8 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
         if (var->scope()->DeclarationScope() != scope()->DeclarationScope()) {
           skip_init_check = false;
         } else if (var->is_this()) {
-          CHECK(info_->function() != nullptr &&
-                (info_->function()->kind() & kSubclassConstructor) != 0);
+          CHECK(function() != nullptr &&
+                (function()->kind() & kSubclassConstructor) != 0);
           // TODO(dslomov): implement 'this' hole check elimination.
           skip_init_check = false;
         } else {

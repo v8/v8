@@ -492,7 +492,7 @@ void GraphC1Visualizer::PrintIntProperty(const char* name, int value) {
 void GraphC1Visualizer::PrintCompilation(const CompilationInfo* info) {
   Tag tag(this, "compilation");
   if (info->IsOptimizing()) {
-    Handle<String> name = info->function()->debug_name();
+    Handle<String> name = info->literal()->debug_name();
     PrintStringProperty("name", name->ToCString().get());
     PrintIndent();
     os_ << "method \"" << name->ToCString().get() << ":"

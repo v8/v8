@@ -258,9 +258,9 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
 
 
 bool Scope::Analyze(ParseInfo* info) {
-  DCHECK(info->function() != NULL);
+  DCHECK(info->literal() != NULL);
   DCHECK(info->scope() == NULL);
-  Scope* scope = info->function()->scope();
+  Scope* scope = info->literal()->scope();
   Scope* top = scope;
 
   // Traverse the scope tree up to the first unresolved scope or the global

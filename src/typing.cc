@@ -38,7 +38,7 @@ void AstTyper::Run(CompilationInfo* info) {
   Scope* scope = info->scope();
 
   RECURSE(visitor->VisitDeclarations(scope->declarations()));
-  RECURSE(visitor->VisitStatements(info->function()->body()));
+  RECURSE(visitor->VisitStatements(info->literal()->body()));
 }
 
 #undef RECURSE
