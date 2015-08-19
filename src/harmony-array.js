@@ -11,15 +11,15 @@
 // -------------------------------------------------------------------
 // Imports
 
-var GlobalArray = global.Array;
-var GlobalSymbol = global.Symbol;
-
 var GetIterator;
 var GetMethod;
+var GlobalArray = global.Array;
+var GlobalSymbol = global.Symbol;
 var MathMax;
 var MathMin;
 var ObjectIsFrozen;
 var ObjectDefineProperty;
+var ToNumber;
 
 utils.Import(function(from) {
   GetIterator = from.GetIterator;
@@ -28,6 +28,7 @@ utils.Import(function(from) {
   MathMin = from.MathMin;
   ObjectIsFrozen = from.ObjectIsFrozen;
   ObjectDefineProperty = from.ObjectDefineProperty;
+  ToNumber = from.ToNumber;
 });
 
 // -------------------------------------------------------------------

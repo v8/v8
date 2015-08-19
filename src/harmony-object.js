@@ -13,7 +13,6 @@
 // Imports
 
 var GlobalObject = global.Object;
-
 var OwnPropertyKeys;
 
 utils.Import(function(from) {

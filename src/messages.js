@@ -22,38 +22,43 @@ var MakeURIError;
 // -------------------------------------------------------------------
 // Imports
 
-var GlobalObject = global.Object;
-var InternalArray = utils.InternalArray;
-var ObjectDefineProperty = utils.ObjectDefineProperty;
-
 var ArrayJoin;
+var Bool16x8ToString;
+var Bool32x4ToString;
+var Bool8x16ToString;
+var Float32x4ToString;
+var FunctionSourceString
+var GlobalObject = global.Object;
+var Int16x8ToString;
+var Int32x4ToString;
+var Int8x16ToString;
+var InternalArray = utils.InternalArray;
+var ObjectDefineProperty;
 var ObjectToString;
 var StringCharAt;
 var StringIndexOf;
 var StringSubstring;
-
-var Float32x4ToString;
-var Int32x4ToString;
-var Bool32x4ToString;
-var Int16x8ToString;
-var Bool16x8ToString;
-var Int8x16ToString;
-var Bool8x16ToString;
-
+var ToString;
 
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
+  Bool16x8ToString = from.Bool16x8ToString;
+  Bool32x4ToString = from.Bool32x4ToString;
+  Bool8x16ToString = from.Bool8x16ToString;
+  Float32x4ToString = from.Float32x4ToString;
+  FunctionSourceString = from.FunctionSourceString;
+  Int16x8ToString = from.Int16x8ToString;
+  Int32x4ToString = from.Int32x4ToString;
+  Int8x16ToString = from.Int8x16ToString;
+  ObjectDefineProperty = from.ObjectDefineProperty;
   ObjectToString = from.ObjectToString;
   StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
-  Float32x4ToString = from.Float32x4ToString;
-  Int32x4ToString = from.Int32x4ToString;
-  Bool32x4ToString = from.Bool32x4ToString;
-  Int16x8ToString = from.Int16x8ToString;
-  Bool16x8ToString = from.Bool16x8ToString;
-  Int8x16ToString = from.Int8x16ToString;
-  Bool8x16ToString = from.Bool8x16ToString;
+});
+
+utils.ImportNow(function(from) {
+  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -81,7 +86,7 @@ function NoSideEffectToString(obj) {
   if (IS_UNDEFINED(obj)) return 'undefined';
   if (IS_NULL(obj)) return 'null';
   if (IS_FUNCTION(obj)) {
-    var str = %_CallFunction(obj, obj, $functionSourceString);
+    var str = %_CallFunction(obj, obj, FunctionSourceString);
     if (str.length > 128) {
       str = %_SubString(str, 0, 111) + "...<omitted>..." +
             %_SubString(str, str.length - 2, str.length);
@@ -147,7 +152,7 @@ function ToStringCheckErrorObject(obj) {
   if (CanBeSafelyTreatedAsAnErrorObject(obj)) {
     return %_CallFunction(obj, ErrorToString);
   } else {
-    return $toString(obj);
+    return ToString(obj);
   }
 }
 
@@ -968,7 +973,7 @@ function DefineError(global, f) {
       // object. This avoids going through getters and setters defined
       // on prototype objects.
       if (!IS_UNDEFINED(m)) {
-        %AddNamedProperty(this, 'message', $toString(m), DONT_ENUM);
+        %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
       }
     } else {
       return new f(m);

@@ -19,16 +19,17 @@ var $arrayUnshift;
 // -------------------------------------------------------------------
 // Imports
 
+var Delete;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
-
-var Delete;
 var MathMin;
 var ObjectHasOwnProperty;
 var ObjectIsFrozen;
 var ObjectIsSealed;
 var ObjectToString;
+var ToNumber;
+var ToString;
 
 utils.Import(function(from) {
   Delete = from.Delete;
@@ -37,6 +38,8 @@ utils.Import(function(from) {
   ObjectIsFrozen = from.ObjectIsFrozen;
   ObjectIsSealed = from.ObjectIsSealed;
   ObjectToString = from.ObjectToString;
+  ToNumber = from.ToNumber;
+  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -216,7 +219,7 @@ function ConvertToString(x) {
   // Assumes x is a non-string.
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
-  return (IS_NULL_OR_UNDEFINED(x)) ? '' : $toString($defaultString(x));
+  return (IS_NULL_OR_UNDEFINED(x)) ? '' : ToString($defaultString(x));
 }
 
 
@@ -228,7 +231,7 @@ function ConvertToLocaleString(e) {
     // must throw a TypeError if ToObject(e).toLocaleString isn't
     // callable.
     var e_obj = TO_OBJECT(e);
-    return $toString(e_obj.toLocaleString());
+    return ToString(e_obj.toLocaleString());
   }
 }
 
@@ -914,8 +917,8 @@ function InnerArraySort(length, comparefn) {
       if (%_IsSmi(x) && %_IsSmi(y)) {
         return %SmiLexicographicCompare(x, y);
       }
-      x = $toString(x);
-      y = $toString(y);
+      x = ToString(x);
+      y = ToString(y);
       if (x == y) return 0;
       else return x < y ? -1 : 1;
     };

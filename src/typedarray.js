@@ -37,10 +37,12 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 
 var MathMax;
 var MathMin;
+var ToNumber;
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
+  ToNumber = from.ToNumber;
 });
 
 var InternalArray = utils.InternalArray;

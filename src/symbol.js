@@ -23,11 +23,12 @@ var $symbolToString;
 
 var GlobalObject = global.Object;
 var GlobalSymbol = global.Symbol;
-
 var ObjectGetOwnPropertyKeys;
+var ToString;
 
 utils.Import(function(from) {
   ObjectGetOwnPropertyKeys = from.ObjectGetOwnPropertyKeys;
+  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -35,7 +36,7 @@ utils.Import(function(from) {
 function SymbolConstructor(x) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Symbol");
   // NOTE: Passing in a Symbol value will throw on ToString().
-  return %CreateSymbol(IS_UNDEFINED(x) ? x : $toString(x));
+  return %CreateSymbol(IS_UNDEFINED(x) ? x : ToString(x));
 }
 
 

@@ -145,9 +145,9 @@ define kBoundArgumentsStartIndex = 2;
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
 macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)));
-macro TO_INTEGER(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToInteger($toNumber(arg)));
-macro TO_INTEGER_FOR_SIDE_EFFECT(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : $toNumber(arg));
-macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero($toNumber(arg)));
+macro TO_INTEGER(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToInteger(ToNumber(arg)));
+macro TO_INTEGER_FOR_SIDE_EFFECT(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : ToNumber(arg));
+macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero(ToNumber(arg)));
 macro TO_INT32(arg) = (arg | 0);
 macro TO_UINT32(arg) = (arg >>> 0);
 macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : $nonStringToString(arg));

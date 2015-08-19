@@ -9,18 +9,19 @@
 // -------------------------------------------------------------------
 // Imports
 
+var ArrayIndexOf;
+var ArrayJoin;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
-
-var ArrayIndexOf;
-var ArrayJoin;
 var MathMax;
 var MathMin;
 var RegExpExec;
 var RegExpExecNoTests;
 var RegExpLastMatchInfo;
+var ToNumber;
+var ToString;
 
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
@@ -30,6 +31,8 @@ utils.Import(function(from) {
   RegExpExec = from.RegExpExec;
   RegExpExecNoTests = from.RegExpExecNoTests;
   RegExpLastMatchInfo = from.RegExpLastMatchInfo;
+  ToNumber = from.ToNumber;
+  ToString = from.ToString;
 });
 
 //-------------------------------------------------------------------
@@ -132,7 +135,7 @@ function StringLastIndexOfJS(pat /* position */) {  // length == 1
   var patLength = pat.length;
   var index = subLength - patLength;
   if (%_ArgumentsLength() > 1) {
-    var position = $toNumber(%_Arguments(1));
+    var position = ToNumber(%_Arguments(1));
     if (!NUMBER_IS_NAN(position)) {
       position = TO_INTEGER(position);
       if (position < 0) {
@@ -823,7 +826,7 @@ function StringTrimRight() {
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
   if (n == 1) {
-    if (!%_IsSmi(code)) code = $toNumber(code);
+    if (!%_IsSmi(code)) code = ToNumber(code);
     return %_StringCharFromCode(code & 0xffff);
   }
 
@@ -831,7 +834,7 @@ function StringFromCharCode(code) {
   var i;
   for (i = 0; i < n; i++) {
     var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = $toNumber(code) & 0xffff;
+    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
     if (code < 0) code = code & 0xffff;
     if (code > 0xff) break;
     %_OneByteSeqStringSetChar(i, code, one_byte);
@@ -842,7 +845,7 @@ function StringFromCharCode(code) {
   var two_byte = %NewString(n - i, NEW_TWO_BYTE_STRING);
   for (var j = 0; i < n; i++, j++) {
     var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = $toNumber(code) & 0xffff;
+    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
     %_TwoByteSeqStringSetChar(j, code, two_byte);
   }
   return one_byte + two_byte;
@@ -1088,7 +1091,7 @@ function StringFromCodePoint(_) {  // length = 1
   for (index = 0; index < length; index++) {
     code = %_Arguments(index);
     if (!%_IsSmi(code)) {
-      code = $toNumber(code);
+      code = ToNumber(code);
     }
     if (code < 0 || code > 0x10FFFF || code !== TO_INTEGER(code)) {
       throw MakeRangeError(kInvalidCodePoint, code);
@@ -1117,13 +1120,13 @@ function StringRaw(callSite) {
   var literalSegments = $toLength(raw.length);
   if (literalSegments <= 0) return "";
 
-  var result = $toString(raw[0]);
+  var result = ToString(raw[0]);
 
   for (var i = 1; i < literalSegments; ++i) {
     if (i < numberOfSubstitutions) {
-      result += $toString(%_Arguments(i));
+      result += ToString(%_Arguments(i));
     }
-    result += $toString(raw[i]);
+    result += ToString(raw[i]);
   }
 
   return result;

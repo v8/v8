@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $functionSourceString;
-
 (function(global, utils) {
 
 %CheckIsBootstrapping();
@@ -17,16 +15,24 @@ var GlobalFunction = global.Function;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
-
 var MathAbs;
 var ProxyDelegateCallAndConstruct;
 var ProxyDerivedHasOwnTrap;
 var ProxyDerivedKeysTrap;
 var StringIndexOf;
+var ToBoolean;
+var ToNumber;
+var ToString;
 
 utils.Import(function(from) {
   MathAbs = from.MathAbs;
   StringIndexOf = from.StringIndexOf;
+  ToString = from.ToString;
+});
+
+utils.ImportNow(function(from) {
+  ToBoolean = from.ToBoolean;
+  ToNumber = from.ToNumber;
 });
 
 utils.ImportFromExperimental(function(from) {
@@ -346,11 +352,11 @@ function ToPropertyDescriptor(obj) {
   var desc = new PropertyDescriptor();
 
   if ("enumerable" in obj) {
-    desc.setEnumerable($toBoolean(obj.enumerable));
+    desc.setEnumerable(ToBoolean(obj.enumerable));
   }
 
   if ("configurable" in obj) {
-    desc.setConfigurable($toBoolean(obj.configurable));
+    desc.setConfigurable(ToBoolean(obj.configurable));
   }
 
   if ("value" in obj) {
@@ -358,7 +364,7 @@ function ToPropertyDescriptor(obj) {
   }
 
   if ("writable" in obj) {
-    desc.setWritable($toBoolean(obj.writable));
+    desc.setWritable(ToBoolean(obj.writable));
   }
 
   if ("get" in obj) {
@@ -612,7 +618,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
   var handler = %GetHandler(obj);
   var result = CallTrap2(handler, "defineProperty", UNDEFINED, p, attributes);
-  if (!$toBoolean(result)) {
+  if (!ToBoolean(result)) {
     if (should_throw) {
       throw MakeTypeError(kProxyHandlerReturned,
                           handler, "false", "defineProperty");
@@ -801,7 +807,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
   if (!IS_SYMBOL(p)) {
     var index = TO_UINT32(p);
     var emit_splice = false;
-    if ($toString(index) == p && index != 4294967295) {
+    if (ToString(index) == p && index != 4294967295) {
       var length = obj.length;
       if (index >= length && %IsObserved(obj)) {
         emit_splice = true;
@@ -969,7 +975,7 @@ function ObjectGetOwnPropertyKeys(obj, filter) {
         }
       } else {
         if (filter & PROPERTY_ATTRIBUTES_STRING) continue;
-        name = $toString(name);
+        name = ToString(name);
       }
       if (seenKeys[name]) continue;
       seenKeys[name] = true;
@@ -1337,9 +1343,9 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
 
 function BooleanConstructor(x) {
   if (%_IsConstructCall()) {
-    %_SetValueOf(this, $toBoolean(x));
+    %_SetValueOf(this, ToBoolean(x));
   } else {
-    return $toBoolean(x);
+    return ToBoolean(x);
   }
 }
 
@@ -1385,7 +1391,7 @@ utils.InstallFunctions(GlobalBoolean.prototype, DONT_ENUM, [
 // Number
 
 function NumberConstructor(x) {
-  var value = %_ArgumentsLength() == 0 ? 0 : $toNumber(x);
+  var value = %_ArgumentsLength() == 0 ? 0 : ToNumber(x);
   if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
@@ -1498,7 +1504,7 @@ function NumberToPrecisionJS(precision) {
     // Get the value of this number in case it's an object.
     x = %_ValueOf(this);
   }
-  if (IS_UNDEFINED(precision)) return $toString(%_ValueOf(this));
+  if (IS_UNDEFINED(precision)) return ToString(%_ValueOf(this));
   var p = TO_INTEGER(precision);
 
   if (NUMBER_IS_NAN(x)) return "NaN";
@@ -1718,9 +1724,9 @@ function NewFunctionString(args, function_token) {
   var n = args.length;
   var p = '';
   if (n > 1) {
-    p = $toString(args[0]);
+    p = ToString(args[0]);
     for (var i = 1; i < n - 1; i++) {
-      p += ',' + $toString(args[i]);
+      p += ',' + ToString(args[i]);
     }
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
@@ -1733,7 +1739,7 @@ function NewFunctionString(args, function_token) {
     // comments we can include a trailing block comment to catch this.
     p += '\n/' + '**/';
   }
-  var body = (n > 0) ? $toString(args[n - 1]) : '';
+  var body = (n > 0) ? ToString(args[n - 1]) : '';
   return '(' + function_token + '(' + p + ') {\n' + body + '\n})';
 }
 
@@ -1782,19 +1788,16 @@ function GetIterator(obj, method) {
 // ----------------------------------------------------------------------------
 // Exports
 
-$functionSourceString = FunctionSourceString;
-
-utils.ObjectDefineProperties = ObjectDefineProperties;
-utils.ObjectDefineProperty = ObjectDefineProperty;
-
 utils.Export(function(to) {
   to.Delete = Delete;
+  to.FunctionSourceString = FunctionSourceString;
   to.GetIterator = GetIterator;
   to.GetMethod = GetMethod;
   to.IsFinite = GlobalIsFinite;
   to.IsNaN = GlobalIsNaN;
   to.NewFunctionString = NewFunctionString;
   to.NumberIsNaN = NumberIsNaN;
+  to.ObjectDefineProperties = ObjectDefineProperties;
   to.ObjectDefineProperty = ObjectDefineProperty;
   to.ObjectFreeze = ObjectFreezeJS;
   to.ObjectGetOwnPropertyKeys = ObjectGetOwnPropertyKeys;

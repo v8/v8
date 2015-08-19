@@ -17,21 +17,18 @@
 // -------------------------------------------------------------------
 // Imports
 
+var ArrayIndexOf;
+var ArrayJoin;
+var IsFinite;
+var IsNaN;
 var GlobalBoolean = global.Boolean;
 var GlobalDate = global.Date;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
-var ObjectDefineProperties = utils.ObjectDefineProperties;
-var ObjectDefineProperty = utils.ObjectDefineProperty;
-var SetFunctionName = utils.SetFunctionName;
-
-var ArrayIndexOf;
-var ArrayJoin;
-var IsFinite;
-var IsNaN;
 var MathFloor;
 var RegExpTest;
+var SetFunctionName = utils.SetFunctionName;
 var StringIndexOf;
 var StringLastIndexOf;
 var StringMatch;
@@ -54,6 +51,12 @@ utils.Import(function(from) {
   StringSplit = from.StringSplit;
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
+  ToNumber = from.ToNumber;
+});
+
+utils.ImportNow(function(from) {
+  ObjectDefineProperties = from.ObjectDefineProperties;
+  ObjectDefineProperty = from.ObjectDefineProperty;
 });
 
 // -------------------------------------------------------------------
@@ -1276,7 +1279,7 @@ SetFunctionName(Intl.NumberFormat.supportedLocalesOf, 'supportedLocalesOf');
  */
 function formatNumber(formatter, value) {
   // Spec treats -0 and +0 as 0.
-  var number = $toNumber(value) + 0;
+  var number = ToNumber(value) + 0;
 
   return %InternalNumberFormat(%GetImplFromInitializedIntlObject(formatter),
                                number);
@@ -1701,7 +1704,7 @@ function formatDate(formatter, dateValue) {
   if (IS_UNDEFINED(dateValue)) {
     dateMs = %DateCurrentTime();
   } else {
-    dateMs = $toNumber(dateValue);
+    dateMs = ToNumber(dateValue);
   }
 
   if (!IsFinite(dateMs)) throw MakeRangeError(kDateRange);

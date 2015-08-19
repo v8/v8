@@ -13,15 +13,18 @@
 
 var GlobalJSON = global.JSON;
 var InternalArray = utils.InternalArray;
-
 var MathMax;
 var MathMin;
 var ObjectHasOwnProperty;
+var ToNumber;
+var ToString;
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
+  ToNumber = from.ToNumber;
+  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -162,10 +165,10 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     if (IS_ARRAY(value)) {
       return SerializeArray(value, replacer, stack, indent, gap);
     } else if (IS_NUMBER_WRAPPER(value)) {
-      value = $toNumber(value);
+      value = ToNumber(value);
       return JSON_NUMBER_TO_STRING(value);
     } else if (IS_STRING_WRAPPER(value)) {
-      return %QuoteJSONString($toString(value));
+      return %QuoteJSONString(ToString(value));
     } else if (IS_BOOLEAN_WRAPPER(value)) {
       return %_ValueOf(value) ? "true" : "false";
     } else {
@@ -194,7 +197,7 @@ function JSONStringify(value, replacer, space) {
       } else if (IS_NUMBER(v)) {
         item = %_NumberToString(v);
       } else if (IS_STRING_WRAPPER(v) || IS_NUMBER_WRAPPER(v)) {
-        item = $toString(v);
+        item = ToString(v);
       } else {
         continue;
       }
@@ -208,9 +211,9 @@ function JSONStringify(value, replacer, space) {
   if (IS_OBJECT(space)) {
     // Unwrap 'space' if it is wrapped
     if (IS_NUMBER_WRAPPER(space)) {
-      space = $toNumber(space);
+      space = ToNumber(space);
     } else if (IS_STRING_WRAPPER(space)) {
-      space = $toString(space);
+      space = ToString(space);
     }
   }
   var gap;

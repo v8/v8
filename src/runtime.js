@@ -66,7 +66,6 @@ var $nonNumberToNumber;
 var $nonStringToString;
 var $sameValue;
 var $sameValueZero;
-var $toBoolean;
 var $toInteger;
 var $toLength;
 var $toName;
@@ -907,7 +906,6 @@ $nonNumberToNumber = NonNumberToNumber;
 $nonStringToString = NonStringToString;
 $sameValue = SameValue;
 $sameValueZero = SameValueZero;
-$toBoolean = ToBoolean;
 $toInteger = ToInteger;
 $toLength = ToLength;
 $toName = ToName;
@@ -917,10 +915,16 @@ $toPrimitive = ToPrimitive;
 $toString = ToString;
 
 utils.ExportToRuntime(function(to) {
-  to.ToNumber = $toNumber;
-  to.ToString = $toString;
-  to.ToInteger = $toInteger;
-  to.ToLength = $toLength;
+  to.ToNumber = ToNumber;
+  to.ToString = ToString;
+  to.ToInteger = ToInteger;
+  to.ToLength = ToLength;
 });
+
+utils.Export(function(to) {
+  to.ToBoolean = ToBoolean;
+  to.ToNumber = ToNumber;
+  to.ToString = ToString;
+})
 
 })

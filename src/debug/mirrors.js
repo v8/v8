@@ -8,10 +8,19 @@
 // ----------------------------------------------------------------------------
 // Imports
 
+var FunctionSourceString;
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
 var MathMin = global.Math.min;
+var ToBoolean;
+var ToString;
+
+utils.Import(function(from) {
+  FunctionSourceString = from.FunctionSourceString;
+  ToBoolean = from.ToBoolean;
+  ToString = from.ToString;
+});
 
 // ----------------------------------------------------------------------------
 
@@ -990,7 +999,7 @@ FunctionMirror.prototype.source = function() {
   // Return source if function is resolved. Otherwise just fall through to
   // return undefined.
   if (this.resolved()) {
-    return builtins.$functionSourceString(this.value_);
+    return FunctionSourceString(this.value_);
   }
 };
 
@@ -1168,7 +1177,7 @@ ArrayMirror.prototype.indexedPropertiesFromRange = function(opt_from_index,
   if (from_index > to_index) return new GlobalArray();
   var values = new GlobalArray(to_index - from_index + 1);
   for (var i = from_index; i <= to_index; i++) {
-    var details = %DebugGetPropertyDetails(this.value_, builtins.$toString(i));
+    var details = %DebugGetPropertyDetails(this.value_, ToString(i));
     var value;
     if (details) {
       value = new PropertyMirror(this, i, details);
@@ -2068,7 +2077,7 @@ FrameMirror.prototype.evaluate = function(source, disable_break,
                                    this.details_.frameId(),
                                    this.details_.inlinedFrameIndex(),
                                    source,
-                                   $toBoolean(disable_break),
+                                   ToBoolean(disable_break),
                                    opt_context_object));
 };
 
