@@ -88,7 +88,6 @@ Heap::Heap()
       ms_count_(0),
       gc_count_(0),
       remembered_unmapped_pages_index_(0),
-      unflattened_strings_length_(0),
 #ifdef DEBUG
       allocation_timeout_(0),
 #endif  // DEBUG
@@ -401,7 +400,6 @@ void Heap::GarbageCollectionPrologue() {
   {
     AllowHeapAllocation for_the_first_part_of_prologue;
     gc_count_++;
-    unflattened_strings_length_ = 0;
 
     if (FLAG_flush_code) {
       mark_compact_collector()->EnableCodeFlushing(true);

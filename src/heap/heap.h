@@ -1743,9 +1743,6 @@ class Heap {
   int remembered_unmapped_pages_index_;
   Address remembered_unmapped_pages_[kRememberedUnmappedPages];
 
-  // Total length of the strings we failed to flatten since the last GC.
-  int unflattened_strings_length_;
-
 #define ROOT_ACCESSOR(type, name, camel_name) \
   inline void set_##name(type* value);
   ROOT_LIST(ROOT_ACCESSOR)
