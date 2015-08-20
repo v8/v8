@@ -3307,6 +3307,9 @@ void Heap::CreateInitialObjects() {
   set_extra_natives_source_cache(
       *factory->NewFixedArray(ExtraNatives::GetBuiltinsCount()));
 
+  set_experimental_extra_natives_source_cache(
+      *factory->NewFixedArray(ExperimentalExtraNatives::GetBuiltinsCount()));
+
   set_code_stub_natives_source_cache(
       *factory->NewFixedArray(CodeStubNatives::GetBuiltinsCount()));
 

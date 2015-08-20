@@ -32,6 +32,7 @@
     'v8_random_seed%': 314159265,
     'embed_script%': "",
     'v8_extra_library_files%': [],
+    'v8_experimental_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
   },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
@@ -182,6 +183,7 @@
         '<(SHARED_INTERMEDIATE_DIR)/code-stub-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
       ],
       'actions': [
@@ -228,6 +230,7 @@
         '<(SHARED_INTERMEDIATE_DIR)/code-stub-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
         '../../src/snapshot/snapshot-empty.cc',
       ],
       'conditions': [
@@ -1714,6 +1717,7 @@
               '<(SHARED_INTERMEDIATE_DIR)/libraries-code-stub.bin',
               '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
               '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
+              '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
             ],
             'conditions': [
               ['want_separate_host_toolset==1', {
@@ -1834,6 +1838,7 @@
         'libraries_code_stub_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-code-stub.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
         'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
+        'libraries_experimental_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
       },
       'actions': [
         {
@@ -1934,6 +1939,31 @@
               'outputs': ['<@(libraries_extras_bin_file)'],
               'action': [
                 '--startup_blob', '<@(libraries_extras_bin_file)',
+              ],
+            }],
+          ],
+        },
+        {
+          'action_name': 'js2c_experimental_extras',
+          'inputs': [
+            '../../tools/js2c.py',
+            '<@(v8_experimental_extra_library_files)',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/js2c.py',
+            '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
+            'EXPERIMENTAL_EXTRAS',
+            '<@(v8_experimental_extra_library_files)',
+          ],
+          'conditions': [
+            [ 'v8_use_external_startup_data==1', {
+              'outputs': ['<@(libraries_experimental_extras_bin_file)'],
+              'action': [
+                '--startup_blob', '<@(libraries_experimental_extras_bin_file)',
               ],
             }],
           ],

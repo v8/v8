@@ -51,6 +51,8 @@ Handle<String> Bootstrapper::SourceLookup(int index) {
 template Handle<String> Bootstrapper::SourceLookup<Natives>(int index);
 template Handle<String> Bootstrapper::SourceLookup<ExperimentalNatives>(
     int index);
+template Handle<String> Bootstrapper::SourceLookup<ExperimentalExtraNatives>(
+    int index);
 template Handle<String> Bootstrapper::SourceLookup<ExtraNatives>(int index);
 template Handle<String> Bootstrapper::SourceLookup<CodeStubNatives>(int index);
 
@@ -121,7 +123,10 @@ void Bootstrapper::TearDown() {
   DeleteNativeSources(Natives::GetSourceCache(isolate_->heap()));
   DeleteNativeSources(ExperimentalNatives::GetSourceCache(isolate_->heap()));
   DeleteNativeSources(ExtraNatives::GetSourceCache(isolate_->heap()));
+  DeleteNativeSources(
+      ExperimentalExtraNatives::GetSourceCache(isolate_->heap()));
   DeleteNativeSources(CodeStubNatives::GetSourceCache(isolate_->heap()));
+
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
 
@@ -206,6 +211,7 @@ class Genesis BASE_EMBEDDED {
                          Handle<JSFunction>* fun);
   bool InstallExperimentalNatives();
   bool InstallExtraNatives();
+  bool InstallExperimentalExtraNatives();
   bool InstallDebuggerNatives();
   void InstallBuiltinFunctionIds();
   void InstallExperimentalBuiltinFunctionIds();
@@ -1532,6 +1538,21 @@ bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
 }
 
 
+bool Bootstrapper::CompileExperimentalExtraBuiltin(Isolate* isolate,
+                                                   int index) {
+  HandleScope scope(isolate);
+  Vector<const char> name = ExperimentalExtraNatives::GetScriptName(index);
+  Handle<String> source_code =
+      isolate->bootstrapper()->SourceLookup<ExperimentalExtraNatives>(index);
+  Handle<Object> global = isolate->global_object();
+  Handle<Object> binding = isolate->extras_binding_object();
+  Handle<Object> args[] = {global, binding};
+  return Bootstrapper::CompileNative(
+      isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
+      source_code, arraysize(args), args);
+}
+
+
 bool Bootstrapper::CompileCodeStubBuiltin(Isolate* isolate, int index) {
   HandleScope scope(isolate);
   Vector<const char> name = CodeStubNatives::GetScriptName(index);
@@ -2638,6 +2659,17 @@ bool Genesis::InstallExtraNatives() {
 }
 
 
+bool Genesis::InstallExperimentalExtraNatives() {
+  for (int i = ExperimentalExtraNatives::GetDebuggerCount();
+       i < ExperimentalExtraNatives::GetBuiltinsCount(); i++) {
+    if (!Bootstrapper::CompileExperimentalExtraBuiltin(isolate(), i))
+      return false;
+  }
+
+  return true;
+}
+
+
 bool Genesis::InstallDebuggerNatives() {
   for (int i = 0; i < Natives::GetDebuggerCount(); ++i) {
     if (!Bootstrapper::CompileBuiltin(isolate(), i)) return false;
@@ -3237,6 +3269,11 @@ Genesis::Genesis(Isolate* isolate,
     if (!isolate->serializer_enabled()) {
       InitializeExperimentalGlobal();
       if (!InstallExperimentalNatives()) return;
+
+      if (FLAG_experimental_extras) {
+        if (!InstallExperimentalExtraNatives()) return;
+      }
+
       // By now the utils object is useless and can be removed.
       native_context()->set_natives_utils_object(
           isolate->heap()->undefined_value());
