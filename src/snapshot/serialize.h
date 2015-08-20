@@ -576,7 +576,7 @@ class Deserializer: public SerializerDeserializer {
 
   void DeserializeDeferredObjects();
 
-  void CommitNewInternalizedStrings(Isolate* isolate);
+  void CommitPostProcessedObjects(Isolate* isolate);
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
@@ -620,6 +620,7 @@ class Deserializer: public SerializerDeserializer {
   List<HeapObject*> deserialized_large_objects_;
   List<Code*> new_code_objects_;
   List<Handle<String> > new_internalized_strings_;
+  List<Handle<Script> > new_scripts_;
 
   bool deserializing_user_code_;
 

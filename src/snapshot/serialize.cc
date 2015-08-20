@@ -633,7 +633,7 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
       DeserializeDeferredObjects();
       result = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
     }
-    CommitNewInternalizedStrings(isolate);
+    CommitPostProcessedObjects(isolate);
     return scope.CloseAndEscape(result);
   }
 }
@@ -726,8 +726,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
         }
       }
     } else if (obj->IsScript()) {
-      // Assign a new script id to avoid collision.
-      Script::cast(obj)->set_id(isolate_->heap()->NextScriptId());
+      new_scripts_.Add(handle(Script::cast(obj)));
     } else {
       DCHECK(CanBeDeferred(obj));
     }
@@ -760,13 +759,22 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
 }
 
 
-void Deserializer::CommitNewInternalizedStrings(Isolate* isolate) {
+void Deserializer::CommitPostProcessedObjects(Isolate* isolate) {
   StringTable::EnsureCapacityForDeserialization(
       isolate, new_internalized_strings_.length());
   for (Handle<String> string : new_internalized_strings_) {
     StringTableInsertionKey key(*string);
     DCHECK_NULL(StringTable::LookupKeyIfExists(isolate, &key));
     StringTable::LookupKey(isolate, &key);
+  }
+
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  for (Handle<Script> script : new_scripts_) {
+    // Assign a new script id to avoid collision.
+    script->set_id(isolate_->heap()->NextScriptId());
+    // Add script to list.
+    heap->set_script_list(*WeakFixedArray::Add(factory->script_list(), script));
   }
 }
 
