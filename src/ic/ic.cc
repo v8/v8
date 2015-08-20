@@ -1972,22 +1972,20 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
 Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
     Handle<Map> map, KeyedAccessStoreMode store_mode) {
   switch (store_mode) {
-    case STORE_TRANSITION_SMI_TO_OBJECT:
-    case STORE_TRANSITION_DOUBLE_TO_OBJECT:
-    case STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT:
-    case STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT:
-      return Map::TransitionElementsTo(map, FAST_ELEMENTS);
-    case STORE_TRANSITION_SMI_TO_DOUBLE:
-    case STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE:
-      return Map::TransitionElementsTo(map, FAST_DOUBLE_ELEMENTS);
-    case STORE_TRANSITION_HOLEY_SMI_TO_OBJECT:
-    case STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
-    case STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT:
-    case STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
-      return Map::TransitionElementsTo(map, FAST_HOLEY_ELEMENTS);
-    case STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE:
-    case STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE:
-      return Map::TransitionElementsTo(map, FAST_HOLEY_DOUBLE_ELEMENTS);
+    case STORE_TRANSITION_TO_OBJECT:
+    case STORE_AND_GROW_TRANSITION_TO_OBJECT: {
+      ElementsKind kind = IsFastHoleyElementsKind(map->elements_kind())
+                              ? FAST_HOLEY_ELEMENTS
+                              : FAST_ELEMENTS;
+      return Map::TransitionElementsTo(map, kind);
+    }
+    case STORE_TRANSITION_TO_DOUBLE:
+    case STORE_AND_GROW_TRANSITION_TO_DOUBLE: {
+      ElementsKind kind = IsFastHoleyElementsKind(map->elements_kind())
+                              ? FAST_HOLEY_DOUBLE_ELEMENTS
+                              : FAST_DOUBLE_ELEMENTS;
+      return Map::TransitionElementsTo(map, kind);
+    }
     case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
       DCHECK(map->has_fixed_typed_array_elements());
     // Fall through
@@ -2023,26 +2021,14 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
     // Handle growing array in stub if necessary.
     if (receiver->HasFastSmiElements()) {
       if (value->IsHeapNumber()) {
-        if (receiver->HasFastHoleyElements()) {
-          return STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE;
-        } else {
-          return STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE;
-        }
+        return STORE_AND_GROW_TRANSITION_TO_DOUBLE;
       }
       if (value->IsHeapObject()) {
-        if (receiver->HasFastHoleyElements()) {
-          return STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT;
-        } else {
-          return STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT;
-        }
+        return STORE_AND_GROW_TRANSITION_TO_OBJECT;
       }
     } else if (receiver->HasFastDoubleElements()) {
       if (!value->IsSmi() && !value->IsHeapNumber()) {
-        if (receiver->HasFastHoleyElements()) {
-          return STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT;
-        } else {
-          return STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT;
-        }
+        return STORE_AND_GROW_TRANSITION_TO_OBJECT;
       }
     }
     return STORE_AND_GROW_NO_TRANSITION;
@@ -2050,25 +2036,13 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
     // Handle only in-bounds elements accesses.
     if (receiver->HasFastSmiElements()) {
       if (value->IsHeapNumber()) {
-        if (receiver->HasFastHoleyElements()) {
-          return STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE;
-        } else {
-          return STORE_TRANSITION_SMI_TO_DOUBLE;
-        }
+        return STORE_TRANSITION_TO_DOUBLE;
       } else if (value->IsHeapObject()) {
-        if (receiver->HasFastHoleyElements()) {
-          return STORE_TRANSITION_HOLEY_SMI_TO_OBJECT;
-        } else {
-          return STORE_TRANSITION_SMI_TO_OBJECT;
-        }
+        return STORE_TRANSITION_TO_OBJECT;
       }
     } else if (receiver->HasFastDoubleElements()) {
       if (!value->IsSmi() && !value->IsHeapNumber()) {
-        if (receiver->HasFastHoleyElements()) {
-          return STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT;
-        } else {
-          return STORE_TRANSITION_DOUBLE_TO_OBJECT;
-        }
+        return STORE_TRANSITION_TO_OBJECT;
       }
     }
     if (!FLAG_trace_external_array_abuse &&

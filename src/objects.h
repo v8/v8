@@ -155,19 +155,11 @@ namespace internal {
 
 enum KeyedAccessStoreMode {
   STANDARD_STORE,
-  STORE_TRANSITION_SMI_TO_OBJECT,
-  STORE_TRANSITION_SMI_TO_DOUBLE,
-  STORE_TRANSITION_DOUBLE_TO_OBJECT,
-  STORE_TRANSITION_HOLEY_SMI_TO_OBJECT,
-  STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE,
-  STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT,
+  STORE_TRANSITION_TO_OBJECT,
+  STORE_TRANSITION_TO_DOUBLE,
   STORE_AND_GROW_NO_TRANSITION,
-  STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT,
-  STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE,
-  STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT,
-  STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT,
-  STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE,
-  STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT,
+  STORE_AND_GROW_TRANSITION_TO_OBJECT,
+  STORE_AND_GROW_TRANSITION_TO_DOUBLE,
   STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS,
   STORE_NO_TRANSITION_HANDLE_COW
 };
@@ -195,34 +187,11 @@ enum ExternalArrayType {
 };
 
 
-static const int kGrowICDelta = STORE_AND_GROW_NO_TRANSITION -
-    STANDARD_STORE;
-STATIC_ASSERT(STANDARD_STORE == 0);
-STATIC_ASSERT(kGrowICDelta ==
-              STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT -
-              STORE_TRANSITION_SMI_TO_OBJECT);
-STATIC_ASSERT(kGrowICDelta ==
-              STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE -
-              STORE_TRANSITION_SMI_TO_DOUBLE);
-STATIC_ASSERT(kGrowICDelta ==
-              STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT -
-              STORE_TRANSITION_DOUBLE_TO_OBJECT);
-
-
-static inline KeyedAccessStoreMode GetGrowStoreMode(
-    KeyedAccessStoreMode store_mode) {
-  if (store_mode < STORE_AND_GROW_NO_TRANSITION) {
-    store_mode = static_cast<KeyedAccessStoreMode>(
-        static_cast<int>(store_mode) + kGrowICDelta);
-  }
-  return store_mode;
-}
-
-
 static inline bool IsTransitionStoreMode(KeyedAccessStoreMode store_mode) {
-  return store_mode > STANDARD_STORE &&
-      store_mode <= STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT &&
-      store_mode != STORE_AND_GROW_NO_TRANSITION;
+  return store_mode == STORE_TRANSITION_TO_OBJECT ||
+         store_mode == STORE_TRANSITION_TO_DOUBLE ||
+         store_mode == STORE_AND_GROW_TRANSITION_TO_OBJECT ||
+         store_mode == STORE_AND_GROW_TRANSITION_TO_DOUBLE;
 }
 
 
@@ -240,7 +209,7 @@ static inline KeyedAccessStoreMode GetNonTransitioningStoreMode(
 
 static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
   return store_mode >= STORE_AND_GROW_NO_TRANSITION &&
-      store_mode <= STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT;
+         store_mode <= STORE_AND_GROW_TRANSITION_TO_DOUBLE;
 }
 
 
