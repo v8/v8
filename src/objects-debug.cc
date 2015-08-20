@@ -1295,7 +1295,7 @@ void Code::VerifyRecompiledCode(Code* old_code, Code* new_code) {
     // Check call target for equality unless it's an IC or an interrupt check.
     // In both cases they may be patched to be something else.
     if (!old_target->is_handler() && !old_target->is_inline_cache_stub() &&
-        new_target == isolate->builtins()->builtin(Builtins::kInterruptCheck)) {
+        new_target != isolate->builtins()->builtin(Builtins::kInterruptCheck)) {
       CHECK_EQ(old_target, new_target);
     }
     old_it.next();
