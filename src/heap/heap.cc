@@ -120,7 +120,7 @@ Heap::Heap()
       mark_compact_collector_(this),
       store_buffer_(this),
       incremental_marking_(this),
-      memory_reducer_(this),
+      memory_reducer_(nullptr),
       full_codegen_bytes_generated_(0),
       crankshaft_codegen_bytes_generated_(0),
       new_space_allocation_counter_(0),
@@ -939,7 +939,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
           HasHighFragmentation(used_memory_after, committed_memory_after) ||
           (detached_contexts()->length() > 0);
       if (deserialization_complete_) {
-        memory_reducer_.NotifyMarkCompact(event);
+        memory_reducer_->NotifyMarkCompact(event);
       }
     }
 
@@ -978,7 +978,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   MemoryReducer::Event event;
   event.type = MemoryReducer::kContextDisposed;
   event.time_ms = MonotonicallyIncreasingTimeInMs();
-  memory_reducer_.NotifyContextDisposed(event);
+  memory_reducer_->NotifyContextDisposed(event);
   return ++contexts_disposed_;
 }
 
@@ -4968,7 +4968,7 @@ void Heap::CheckAndNotifyBackgroundIdleNotification(double idle_time_in_ms,
     event.time_ms = now_ms;
     event.can_start_incremental_gc = incremental_marking()->IsStopped() &&
                                      incremental_marking()->CanBeActivated();
-    memory_reducer_.NotifyBackgroundIdleNotification(event);
+    memory_reducer_->NotifyBackgroundIdleNotification(event);
     optimize_for_memory_usage_ = true;
   } else {
     optimize_for_memory_usage_ = false;
@@ -5661,7 +5661,7 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
     factor = Min(factor, kMaxHeapGrowingFactorMemoryConstrained);
   }
 
-  if (memory_reducer_.ShouldGrowHeapSlowly() || optimize_for_memory_usage_) {
+  if (memory_reducer_->ShouldGrowHeapSlowly() || optimize_for_memory_usage_) {
     factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 
@@ -5809,6 +5809,8 @@ bool Heap::SetUp() {
 
   tracer_ = new GCTracer(this);
 
+  memory_reducer_ = new MemoryReducer(this);
+
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
@@ -5907,7 +5909,11 @@ void Heap::TearDown() {
     PrintAlloctionsHash();
   }
 
-  memory_reducer_.TearDown();
+  if (memory_reducer_ != nullptr) {
+    memory_reducer_->TearDown();
+    delete memory_reducer_;
+    memory_reducer_ = nullptr;
+  }
 
   TearDownArrayBuffers();
 

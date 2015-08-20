@@ -14,7 +14,6 @@
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/memory-reducer.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
@@ -400,6 +399,7 @@ namespace internal {
 // Forward declarations.
 class HeapStats;
 class Isolate;
+class MemoryReducer;
 class WeakObjectRetainer;
 
 
@@ -2216,7 +2216,7 @@ class Heap {
 
   GCIdleTimeHandler gc_idle_time_handler_;
 
-  MemoryReducer memory_reducer_;
+  MemoryReducer* memory_reducer_;
 
   // These two counters are monotomically increasing and never reset.
   size_t full_codegen_bytes_generated_;
