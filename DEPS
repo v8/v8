@@ -18,13 +18,13 @@ deps = {
   "v8/testing/gmock":
     Var("git_url") + "/external/googlemock.git" + "@" + "0421b6f358139f02e102c9c332ce19a33faf75be",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "5b12e334ec0e571a8e1f68d028dc5427b58c17ec",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "1c7f9147c834d78b36787f31ecfc5c47f3c98da8",
 }
 
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("git_url") + "/android_tools.git" + "@" + "9e9b6169a098bc19986e44fbbf65e4c29031e4bd",
+      Var("git_url") + "/android_tools.git" + "@" + "4238a28593b7e6178c95431f91ca8c24e45fa7eb",
   },
   "win": {
     "v8/third_party/cygwin":
