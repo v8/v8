@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-//
-// Top include for all V8 .cc files.
-//
-
 #ifndef V8_V8_H_
 #define V8_V8_H_
+
+#include "include/v8.h"
+#include "src/allocation.h"
 
 #if defined(GOOGLE3) || defined(DCHECK_ALWAYS_ON)
 // Google3 and Chromium special flag handling.
@@ -24,13 +23,6 @@
 #if defined(DEBUG) && defined(NDEBUG)
 #error both DEBUG and NDEBUG are set
 #endif
-
-// Basic includes
-#include "include/v8.h"
-#include "src/allocation.h"
-
-// Objects
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
