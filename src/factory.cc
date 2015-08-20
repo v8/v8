@@ -848,6 +848,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_shared_function_infos(Smi::FromInt(0));
   script->set_flags(Smi::FromInt(0));
 
+  heap->set_script_list(*WeakFixedArray::Add(script_list(), script));
   return script;
 }
 

@@ -40,7 +40,6 @@ Debug::Debug(Isolate* isolate)
       in_debug_event_listener_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
-      script_cache_(NULL),
       debug_info_list_(NULL),
       isolate_(isolate) {
   ThreadInit();
@@ -354,66 +353,6 @@ int Debug::ArchiveSpacePerThread() {
 }
 
 
-ScriptCache::ScriptCache(Isolate* isolate) : isolate_(isolate) {
-  Heap* heap = isolate_->heap();
-  HandleScope scope(isolate_);
-
-  DCHECK(isolate_->debug()->is_active());
-
-  // Perform a GC to get rid of all unreferenced scripts.
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask, "ScriptCache");
-
-  // Scan heap for Script objects.
-  List<Handle<Script> > scripts;
-  {
-    HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
-    DisallowHeapAllocation no_allocation;
-    for (HeapObject* obj = iterator.next(); obj != NULL;
-         obj = iterator.next()) {
-      if (obj->IsScript() && Script::cast(obj)->HasValidSource()) {
-        scripts.Add(Handle<Script>(Script::cast(obj)));
-      }
-    }
-  }
-
-  GlobalHandles* global_handles = isolate_->global_handles();
-  table_ = Handle<WeakValueHashTable>::cast(global_handles->Create(
-      Object::cast(*WeakValueHashTable::New(isolate_, scripts.length()))));
-  for (int i = 0; i < scripts.length(); i++) Add(scripts[i]);
-}
-
-
-void ScriptCache::Add(Handle<Script> script) {
-  HandleScope scope(isolate_);
-  Handle<Smi> id(script->id(), isolate_);
-
-#ifdef DEBUG
-  Handle<Object> lookup(table_->LookupWeak(id), isolate_);
-  if (!lookup->IsTheHole()) {
-    Handle<Script> found = Handle<Script>::cast(lookup);
-    DCHECK(script->id() == found->id());
-    DCHECK(!script->name()->IsString() ||
-           String::cast(script->name())->Equals(String::cast(found->name())));
-  }
-#endif
-
-  Handle<WeakValueHashTable> new_table =
-      WeakValueHashTable::PutWeak(table_, id, script);
-
-  if (new_table.is_identical_to(table_)) return;
-  GlobalHandles* global_handles = isolate_->global_handles();
-  global_handles->Destroy(Handle<Object>::cast(table_).location());
-  table_ = Handle<WeakValueHashTable>::cast(
-      global_handles->Create(Object::cast(*new_table)));
-}
-
-
-ScriptCache::~ScriptCache() {
-  isolate_->global_handles()->Destroy(Handle<Object>::cast(table_).location());
-  table_ = Handle<WeakValueHashTable>();
-}
-
-
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   // Globalize the request debug info object and make it weak.
   GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
@@ -465,12 +404,6 @@ void Debug::Unload() {
 
   // Return debugger is not loaded.
   if (!is_loaded()) return;
-
-  // Clear the script cache.
-  if (script_cache_ != NULL) {
-    delete script_cache_;
-    script_cache_ = NULL;
-  }
 
   // Clear debugger context global handle.
   GlobalHandles::Destroy(Handle<Object>::cast(debug_context_).location());
@@ -1675,17 +1608,24 @@ void Debug::ClearMirrorCache() {
 
 
 Handle<FixedArray> Debug::GetLoadedScripts() {
-  // Create and fill the script cache when the loaded scripts is requested for
-  // the first time.
-  if (script_cache_ == NULL) script_cache_ = new ScriptCache(isolate_);
-
-  // Perform GC to get unreferenced scripts evicted from the cache before
-  // returning the content.
   isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
                                       "Debug::GetLoadedScripts");
-
-  // Get the scripts from the cache.
-  return script_cache_->GetScripts();
+  Factory* factory = isolate_->factory();
+  if (!factory->script_list()->IsWeakFixedArray()) {
+    return factory->empty_fixed_array();
+  }
+  Handle<WeakFixedArray> array =
+      Handle<WeakFixedArray>::cast(factory->script_list());
+  Handle<FixedArray> results = factory->NewFixedArray(array->Length());
+  int length = 0;
+  for (int i = 0; i < array->Length(); ++i) {
+    Object* item = array->Get(i);
+    if (item->IsScript() && Script::cast(item)->HasValidSource()) {
+      results->set(length++, item);
+    }
+  }
+  results->Shrink(length);
+  return results;
 }
 
 
@@ -1937,9 +1877,6 @@ void Debug::OnBeforeCompile(Handle<Script> script) {
 
 // Handle debugger actions when a new script is compiled.
 void Debug::OnAfterCompile(Handle<Script> script) {
-  // Add the newly compiled script to the script cache.
-  if (script_cache_ != NULL) script_cache_->Add(script);
-
   if (ignore_events()) return;
 
   if (in_debug_scope()) {

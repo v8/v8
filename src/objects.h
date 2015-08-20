@@ -991,7 +991,6 @@ template <class C> inline bool Is(Object* obj);
   V(WeakCell)                      \
   V(ObjectHashTable)               \
   V(WeakHashTable)                 \
-  V(WeakValueHashTable)            \
   V(OrderedHashTable)
 
 // Object is the abstract superclass for all classes in the
@@ -3739,26 +3738,6 @@ class WeakHashTable: public HashTable<WeakHashTable,
   static inline int EntryToValueIndex(int entry) {
     return EntryToIndex(entry) + 1;
   }
-};
-
-
-class WeakValueHashTable : public ObjectHashTable {
- public:
-  DECLARE_CAST(WeakValueHashTable)
-
-#ifdef DEBUG
-  // Looks up the value associated with the given key. The hole value is
-  // returned in case the key is not present.
-  Object* LookupWeak(Handle<Object> key);
-#endif  // DEBUG
-
-  // Adds (or overwrites) the value associated with the given key. Mapping a
-  // key to the hole value causes removal of the whole entry.
-  MUST_USE_RESULT static Handle<WeakValueHashTable> PutWeak(
-      Handle<WeakValueHashTable> table, Handle<Object> key,
-      Handle<HeapObject> value);
-
-  static Handle<FixedArray> GetWeakValues(Handle<WeakValueHashTable> table);
 };
 
 

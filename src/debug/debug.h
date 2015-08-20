@@ -186,29 +186,6 @@ class BreakLocation {
 };
 
 
-// Cache of all script objects in the heap. When a script is added a weak handle
-// to it is created and that weak handle is stored in the cache. The weak handle
-// callback takes care of removing the script from the cache. The key used in
-// the cache is the script id.
-class ScriptCache {
- public:
-  explicit ScriptCache(Isolate* isolate);
-  ~ScriptCache();
-
-  // Add script to the cache.
-  void Add(Handle<Script> script);
-
-  // Return the scripts in the cache.
-  Handle<FixedArray> GetScripts() {
-    return WeakValueHashTable::GetWeakValues(table_);
-  }
-
- private:
-  Isolate* isolate_;
-  Handle<WeakValueHashTable> table_;
-};
-
-
 // Linked list holding debug info objects. The debug info objects are kept as
 // weak handles to avoid a debug info object to keep a function alive.
 class DebugInfoListNode {
@@ -622,7 +599,6 @@ class Debug {
   bool break_on_exception_;
   bool break_on_uncaught_exception_;
 
-  ScriptCache* script_cache_;  // Cache of all scripts in the heap.
   DebugInfoListNode* debug_info_list_;  // List of active debug info objects.
 
   // Storage location for jump when exiting debug break calls.
