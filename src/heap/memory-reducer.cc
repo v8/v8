@@ -5,6 +5,7 @@
 #include "src/heap/memory-reducer.h"
 
 #include "src/flags.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
 #include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/utils.h"

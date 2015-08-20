@@ -18,6 +18,7 @@
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/heap/gc-idle-time-handler.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -97,7 +98,7 @@ Heap::Heap()
       inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
       total_regexp_code_generated_(0),
-      tracer_(this),
+      tracer_(nullptr),
       high_survival_rate_period_length_(0),
       promoted_objects_size_(0),
       promotion_ratio_(0),
@@ -5806,6 +5807,7 @@ bool Heap::SetUp() {
     deferred_counters_[i] = 0;
   }
 
+  tracer_ = new GCTracer(this);
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
@@ -5878,8 +5880,9 @@ void Heap::TearDown() {
     PrintF("total_gc_time=%.1f ", total_gc_time_ms_);
     PrintF("min_in_mutator=%.1f ", get_min_in_mutator());
     PrintF("max_alive_after_gc=%" V8_PTR_PREFIX "d ", get_max_alive_after_gc());
-    PrintF("total_marking_time=%.1f ", tracer_.cumulative_marking_duration());
-    PrintF("total_sweeping_time=%.1f ", tracer_.cumulative_sweeping_duration());
+    PrintF("total_marking_time=%.1f ", tracer()->cumulative_marking_duration());
+    PrintF("total_sweeping_time=%.1f ",
+           tracer()->cumulative_sweeping_duration());
     PrintF("\n\n");
   }
 
@@ -5913,6 +5916,9 @@ void Heap::TearDown() {
   external_string_table_.TearDown();
 
   mark_compact_collector()->TearDown();
+
+  delete tracer_;
+  tracer_ = nullptr;
 
   new_space_.TearDown();
 

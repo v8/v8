@@ -12,7 +12,6 @@
 #include "src/assert-scope.h"
 #include "src/globals.h"
 #include "src/heap/gc-idle-time-handler.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-reducer.h"
@@ -1344,7 +1343,7 @@ class Heap {
 
   void ClearNormalizedMapCaches();
 
-  GCTracer* tracer() { return &tracer_; }
+  GCTracer* tracer() { return tracer_; }
 
   // Returns the size of objects residing in non new spaces.
   intptr_t PromotedSpaceSizeOfObjects();
@@ -2098,7 +2097,7 @@ class Heap {
 
   int deferred_counters_[v8::Isolate::kUseCounterFeatureCount];
 
-  GCTracer tracer_;
+  GCTracer* tracer_;
 
   // Creates and installs the full-sized number string cache.
   int FullSizeNumberStringCacheLength();
