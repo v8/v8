@@ -6663,7 +6663,7 @@ void Heap::QueueMemoryChunkForFree(MemoryChunk* chunk) {
 }
 
 
-void Heap::FreeQueuedChunks() {
+void Heap::FilterStoreBufferEntriesOnAboutToBeFreedPages() {
   if (chunks_queued_for_free_ == NULL) return;
   MemoryChunk* next;
   MemoryChunk* chunk;
@@ -6673,6 +6673,12 @@ void Heap::FreeQueuedChunks() {
   }
   isolate_->heap()->store_buffer()->Compact();
   isolate_->heap()->store_buffer()->Filter(MemoryChunk::ABOUT_TO_BE_FREED);
+}
+
+
+void Heap::FreeQueuedChunks() {
+  MemoryChunk* next;
+  MemoryChunk* chunk;
   for (chunk = chunks_queued_for_free_; chunk != NULL; chunk = next) {
     next = chunk->next_chunk();
     isolate_->memory_allocator()->Free(chunk);

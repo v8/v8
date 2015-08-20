@@ -2744,6 +2744,9 @@ class LargeObjectSpace : public Space {
   // if such a page doesn't exist.
   LargePage* FindPage(Address a);
 
+  // Clears the marking state of live objects.
+  void ClearMarkingStateOfLiveObjects();
+
   // Frees unmarked objects.
   void FreeUnmarkedObjects();
 

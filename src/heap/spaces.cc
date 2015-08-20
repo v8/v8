@@ -2933,19 +2933,27 @@ LargePage* LargeObjectSpace::FindPage(Address a) {
 }
 
 
+void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
+  LargePage* current = first_page_;
+  while (current != NULL) {
+    HeapObject* object = current->GetObject();
+    MarkBit mark_bit = Marking::MarkBitFrom(object);
+    DCHECK(Marking::IsBlackOrGrey(mark_bit));
+    Marking::BlackToWhite(mark_bit);
+    Page::FromAddress(object->address())->ResetProgressBar();
+    Page::FromAddress(object->address())->ResetLiveBytes();
+    current = current->next_page();
+  }
+}
+
+
 void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* previous = NULL;
   LargePage* current = first_page_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
-    // Can this large page contain pointers to non-trivial objects.  No other
-    // pointer object is this big.
-    bool is_pointer_object = object->IsFixedArray();
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (Marking::IsBlackOrGrey(mark_bit)) {
-      Marking::BlackToWhite(mark_bit);
-      Page::FromAddress(object->address())->ResetProgressBar();
-      Page::FromAddress(object->address())->ResetLiveBytes();
       previous = current;
       current = current->next_page();
     } else {
@@ -2976,14 +2984,9 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
                           static_cast<uint32_t>(key));
       }
 
-      if (is_pointer_object) {
-        heap()->QueueMemoryChunkForFree(page);
-      } else {
-        heap()->isolate()->memory_allocator()->Free(page);
-      }
+      heap()->QueueMemoryChunkForFree(page);
     }
   }
-  heap()->FreeQueuedChunks();
 }
 
 

@@ -1429,6 +1429,7 @@ class Heap {
   inline bool OldGenerationAllocationLimitReached();
 
   void QueueMemoryChunkForFree(MemoryChunk* chunk);
+  void FilterStoreBufferEntriesOnAboutToBeFreedPages();
   void FreeQueuedChunks();
 
   int gc_count() const { return gc_count_; }

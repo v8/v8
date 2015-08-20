@@ -3760,6 +3760,7 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;
+  heap()->FilterStoreBufferEntriesOnAboutToBeFreedPages();
   heap()->FreeQueuedChunks();
 }
 
@@ -4312,9 +4313,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
     PrintF("SweepSpace: %s (%d pages swept)\n",
            AllocationSpaceName(space->identity()), pages_swept);
   }
-
-  // Give pages that are queued to be freed back to the OS.
-  heap()->FreeQueuedChunks();
 }
 
 
@@ -4331,11 +4329,6 @@ void MarkCompactCollector::SweepSpaces() {
 
   MoveEvacuationCandidatesToEndOfPagesList();
 
-  // Noncompacting collections simply sweep the spaces to clear the mark
-  // bits and free the nonlive blocks (for old and map spaces).  We sweep
-  // the map space last because freeing non-live maps overwrites them and
-  // the other spaces rely on possibly non-live maps to get the sizes for
-  // non-live objects.
   {
     {
       GCTracer::Scope sweep_scope(heap()->tracer(),
@@ -4358,12 +4351,19 @@ void MarkCompactCollector::SweepSpaces() {
     }
   }
 
-  EvacuateNewSpaceAndCandidates();
+  // Deallocate unmarked large objects.
+  heap_->lo_space()->FreeUnmarkedObjects();
+
+  // Give pages that are queued to be freed back to the OS. Invalid store
+  // buffer entries are already filter out. We can just release the memory.
+  heap()->FreeQueuedChunks();
 
   heap()->FreeDeadArrayBuffers(false);
 
-  // Deallocate unmarked objects and clear marked bits for marked objects.
-  heap_->lo_space()->FreeUnmarkedObjects();
+  EvacuateNewSpaceAndCandidates();
+
+  // Clear the marking state of live large objects.
+  heap_->lo_space()->ClearMarkingStateOfLiveObjects();
 
   // Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
