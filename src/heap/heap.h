@@ -38,6 +38,7 @@ namespace internal {
   V(Oddball, true_value, TrueValue)                                            \
   V(Oddball, false_value, FalseValue)                                          \
   V(String, empty_string, empty_string)                                        \
+  V(String, hidden_string, hidden_string)                                      \
   V(Oddball, uninitialized_value, UninitializedValue)                          \
   V(Map, cell_map, CellMap)                                                    \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
@@ -922,10 +923,6 @@ class Heap {
   PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-  // The hidden_string is special because it is the empty string, but does
-  // not match the empty string.
-  String* hidden_string() { return hidden_string_; }
-
   void set_native_contexts_list(Object* object) {
     native_contexts_list_ = object;
   }
@@ -1807,10 +1804,6 @@ class Heap {
   static const StringTypeTable string_type_table[];
   static const ConstantStringTable constant_string_table[];
   static const StructTable struct_table[];
-
-  // The special hidden string which is an empty string, but does not match
-  // any string when looked up in properties.
-  String* hidden_string_;
 
   void AddPrivateGlobalSymbols(Handle<Object> private_intern_table);
 

@@ -96,7 +96,6 @@ Heap::Heap()
       optimize_for_memory_usage_(false),
       inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
-      hidden_string_(NULL),
       total_regexp_code_generated_(0),
       tracer_(this),
       high_survival_rate_period_length_(0),
@@ -3227,14 +3226,16 @@ void Heap::CreateInitialObjects() {
     roots_[constant_string_table[i].index] = *str;
   }
 
+  // The {hidden_string} is special because it is an empty string, but does not
+  // match any string (even the {empty_string}) when looked up in properties.
   // Allocate the hidden string which is used to identify the hidden properties
   // in JSObjects. The hash code has a special value so that it will not match
   // the empty string when searching for the property. It cannot be part of the
   // loop above because it needs to be allocated manually with the special
   // hash code in place. The hash code for the hidden_string is zero to ensure
   // that it will always be at the first entry in property descriptors.
-  hidden_string_ = *factory->NewOneByteInternalizedString(
-      OneByteVector("", 0), String::kEmptyStringHash);
+  set_hidden_string(*factory->NewOneByteInternalizedString(
+      OneByteVector("", 0), String::kEmptyStringHash));
 
   // Create the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
@@ -5254,9 +5255,6 @@ void Heap::IterateSmiRoots(ObjectVisitor* v) {
 void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
-
-  v->VisitPointer(bit_cast<Object**>(&hidden_string_));
-  v->Synchronize(VisitorSynchronization::kInternalizedString);
 
   isolate_->bootstrapper()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kBootstrapper);

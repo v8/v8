@@ -625,10 +625,6 @@ class Factory final {
     isolate()->heap()->set_weak_stack_trace_list(*list);
   }
 
-  Handle<String> hidden_string() {
-    return Handle<String>(&isolate()->heap()->hidden_string_);
-  }
-
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       Handle<String> name, int number_of_literals, FunctionKind kind,
