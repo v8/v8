@@ -151,6 +151,7 @@ function array_natives_test() {
   assertTrue(%HasFastSmiElements(a3));
   assertEquals([1], a3r);
   assertEquals([2, 2, 3], a3);
+
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0);
   assertTrue(%HasFastDoubleElements(a3r));
@@ -165,12 +166,13 @@ function array_natives_test() {
   assertEquals([2, 3], a3);
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0, 2);
-  assertTrue(%HasFastDoubleElements(a3r));
+  // Commented out since handled in js, which takes the best fit.
+  // assertTrue(%HasFastDoubleElements(a3r));
+  assertTrue(%HasFastSmiElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2, 1.1, 2, 3], a3);
   a3 = [1.1,2,3];
-  assertTrue(%HasFastDoubleElements(a3));
   a3r = a3.splice(0, 1, 2);
   assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
@@ -178,7 +180,9 @@ function array_natives_test() {
   assertEquals([2, 2, 3], a3);
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0, 2.1);
-  assertTrue(%HasFastDoubleElements(a3r));
+  // Commented out since handled in js, which takes the best fit.
+  // assertTrue(%HasFastDoubleElements(a3r));
+  assertTrue(%HasFastSmiElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2.1, 1.1, 2, 3], a3);
@@ -190,7 +194,9 @@ function array_natives_test() {
   assertEquals([2.2, 2, 3], a3);
   a3 = [1,2,3];
   a3r = a3.splice(0, 0, 2.1);
-  assertTrue(%HasFastDoubleElements(a3r));
+  // Commented out since handled in js, which takes the best fit.
+  // assertTrue(%HasFastDoubleElements(a3r));
+  assertTrue(%HasFastSmiElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2.1, 1, 2, 3], a3);
@@ -200,6 +206,7 @@ function array_natives_test() {
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([1], a3r);
   assertEquals([2.2, 2, 3], a3);
+
   a3 = [{},2,3];
   a3r = a3.splice(0, 0);
   assertTrue(%HasFastObjectElements(a3r));
@@ -224,6 +231,7 @@ function array_natives_test() {
   assertTrue(%HasFastObjectElements(a3));
   assertEquals([1], a3r);
   assertEquals([{}, 2, 3], a3);
+
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0, {});
   assertTrue(%HasFastObjectElements(a3r));
@@ -236,35 +244,6 @@ function array_natives_test() {
   assertTrue(%HasFastObjectElements(a3));
   assertEquals([1.1], a3r);
   assertEquals([{}, 2, 3], a3);
-  // Splice large objects
-  var a3 = new Array(1024 * 1024);
-  a3[1024*1024-1] = 1;
-  var a3r;
-  a3r = a3.splice(-1, 1);
-  assertTrue(%HasFastSmiElements(a3r));
-  assertTrue(%HasFastSmiElements(a3));
-  assertEquals([1], a3r);
-  assertEquals(new Array(1024 * 1024 - 1), a3);
-  var a3 = new Array(1024 * 1024);
-  a3[0] = 1;
-  var a3r;
-  a3r = a3.splice(0, 1);
-  assertTrue(%HasFastSmiElements(a3r));
-  assertTrue(%HasFastSmiElements(a3));
-  assertEquals([1], a3r);
-  assertEquals(new Array(1024 * 1024 - 1), a3);
-  // Splice array with large enough backing store
-  a3 = [1.1, 2.2, 3.3];
-  a3r = a3.splice(2, 1);
-  assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastDoubleElements(a3));
-  assertEquals([3.3], a3r);
-  assertEquals([1.1, 2.2], a3);
-  a3r = a3.splice(1, 1, 4.4, 5.5);
-  assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastDoubleElements(a3));
-  assertEquals([2.2], a3r);
-  assertEquals([1.1, 4.4, 5.5], a3);
 
   // Pop
   var a4 = [1,2,3];

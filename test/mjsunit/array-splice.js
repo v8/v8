@@ -116,11 +116,6 @@
     assertEquals([1, 2, 3, 4, 5, 6, 7], spliced);
 
     array = [1, 2, 3, 4, 5, 6, 7];
-    spliced = array.splice(-1e100);
-    assertEquals([], array);
-    assertEquals([1, 2, 3, 4, 5, 6, 7], spliced);
-
-    array = [1, 2, 3, 4, 5, 6, 7];
     spliced = array.splice(-3);
     assertEquals([1, 2, 3, 4], array);
     assertEquals([5, 6, 7], spliced);
@@ -151,17 +146,7 @@
     assertEquals([], spliced);
 
     array = [1, 2, 3, 4, 5, 6, 7];
-    spliced = array.splice(1e100);
-    assertEquals([1, 2, 3, 4, 5, 6, 7], array);
-    assertEquals([], spliced);
-
-    array = [1, 2, 3, 4, 5, 6, 7];
     spliced = array.splice(0, -100);
-    assertEquals([1, 2, 3, 4, 5, 6, 7], array);
-    assertEquals([], spliced);
-
-    array = [1, 2, 3, 4, 5, 6, 7];
-    spliced = array.splice(0, -1e100);
     assertEquals([1, 2, 3, 4, 5, 6, 7], array);
     assertEquals([], spliced);
 
@@ -192,11 +177,6 @@
 
     array = [1, 2, 3, 4, 5, 6, 7];
     spliced = array.splice(0, 100);
-    assertEquals([], array);
-    assertEquals([1, 2, 3, 4, 5, 6, 7], spliced);
-
-    array = [1, 2, 3, 4, 5, 6, 7];
-    spliced = array.splice(0, 1e100);
     assertEquals([], array);
     assertEquals([1, 2, 3, 4, 5, 6, 7], spliced);
 

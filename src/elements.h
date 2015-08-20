@@ -131,11 +131,6 @@ class ElementsAccessor {
                         Handle<FixedArrayBase> backing_store, Object** objects,
                         uint32_t start, int direction) = 0;
 
-  virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
-                                 Handle<FixedArrayBase> backing_store,
-                                 uint32_t start, uint32_t delete_count,
-                                 Arguments args, uint32_t add_count) = 0;
-
  protected:
   friend class LookupIterator;
 
