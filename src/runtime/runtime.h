@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/objects.h"
+#include "src/unicode.h"
 #include "src/zone.h"
 
 namespace v8 {

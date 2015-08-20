@@ -25,6 +25,7 @@ namespace internal {
 class AstRawString;
 class AstValueFactory;
 class ParserRecorder;
+class UnicodeCache;
 
 
 // Returns the value (0 .. 15) of a hexadecimal character c.
@@ -105,45 +106,6 @@ class Utf16CharacterStream {
   const uint16_t* buffer_cursor_;
   const uint16_t* buffer_end_;
   size_t pos_;
-};
-
-
-// ---------------------------------------------------------------------
-// Caching predicates used by scanners.
-
-class UnicodeCache {
- public:
-  UnicodeCache() {}
-  typedef unibrow::Utf8Decoder<512> Utf8Decoder;
-
-  StaticResource<Utf8Decoder>* utf8_decoder() {
-    return &utf8_decoder_;
-  }
-
-  bool IsIdentifierStart(unibrow::uchar c) { return kIsIdentifierStart.get(c); }
-  bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
-  bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
-  bool IsLineTerminatorSequence(unibrow::uchar c, unibrow::uchar next) {
-    if (!IsLineTerminator(c)) return false;
-    if (c == 0x000d && next == 0x000a) return false;  // CR with following LF.
-    return true;
-  }
-
-  bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
-  bool IsWhiteSpaceOrLineTerminator(unibrow::uchar c) {
-    return kIsWhiteSpaceOrLineTerminator.get(c);
-  }
-
- private:
-  unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
-  unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
-  unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  unibrow::Predicate<WhiteSpace, 128> kIsWhiteSpace;
-  unibrow::Predicate<WhiteSpaceOrLineTerminator, 128>
-      kIsWhiteSpaceOrLineTerminator;
-  StaticResource<Utf8Decoder> utf8_decoder_;
-
-  DISALLOW_COPY_AND_ASSIGN(UnicodeCache);
 };
 
 

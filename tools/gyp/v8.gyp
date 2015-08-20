@@ -977,6 +977,8 @@
         '../../src/unicode-inl.h',
         '../../src/unicode.cc',
         '../../src/unicode.h',
+        '../../src/unicode-cache-inl.h',
+        '../../src/unicode-cache.h',
         '../../src/unicode-decoder.cc',
         '../../src/unicode-decoder.h',
         '../../src/unique.h',
