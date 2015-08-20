@@ -21,6 +21,13 @@ bool Snapshot::SnapshotIsValid(v8::StartupData* snapshot_blob) {
 #endif  // DEBUG
 
 
+bool Snapshot::HaveASnapshotToStartFrom(Isolate* isolate) {
+  // Do not use snapshots if the isolate is used to create snapshots.
+  return isolate->snapshot_blob() != NULL &&
+         isolate->snapshot_blob()->data != NULL;
+}
+
+
 bool Snapshot::EmbedsScript(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
   return ExtractMetadata(isolate->snapshot_blob()).embeds_script();

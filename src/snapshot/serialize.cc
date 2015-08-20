@@ -1372,6 +1372,66 @@ void Serializer::OutputStatistics(const char* name) {
 }
 
 
+class Serializer::ObjectSerializer : public ObjectVisitor {
+ public:
+  ObjectSerializer(Serializer* serializer, Object* o, SnapshotByteSink* sink,
+                   HowToCode how_to_code, WhereToPoint where_to_point)
+      : serializer_(serializer),
+        object_(HeapObject::cast(o)),
+        sink_(sink),
+        reference_representation_(how_to_code + where_to_point),
+        bytes_processed_so_far_(0),
+        is_code_object_(o->IsCode()),
+        code_has_been_output_(false) {}
+  void Serialize();
+  void SerializeDeferred();
+  void VisitPointers(Object** start, Object** end);
+  void VisitEmbeddedPointer(RelocInfo* target);
+  void VisitExternalReference(Address* p);
+  void VisitExternalReference(RelocInfo* rinfo);
+  void VisitInternalReference(RelocInfo* rinfo);
+  void VisitCodeTarget(RelocInfo* target);
+  void VisitCodeEntry(Address entry_address);
+  void VisitCell(RelocInfo* rinfo);
+  void VisitRuntimeEntry(RelocInfo* reloc);
+  // Used for seralizing the external strings that hold the natives source.
+  void VisitExternalOneByteString(
+      v8::String::ExternalOneByteStringResource** resource);
+  // We can't serialize a heap with external two byte strings.
+  void VisitExternalTwoByteString(
+      v8::String::ExternalStringResource** resource) {
+    UNREACHABLE();
+  }
+
+ private:
+  void SerializePrologue(AllocationSpace space, int size, Map* map);
+
+  bool SerializeExternalNativeSourceString(
+      int builtin_count,
+      v8::String::ExternalOneByteStringResource** resource_pointer,
+      FixedArray* source_cache, int resource_index);
+
+  enum ReturnSkip { kCanReturnSkipInsteadOfSkipping, kIgnoringReturn };
+  // This function outputs or skips the raw data between the last pointer and
+  // up to the current position.  It optionally can just return the number of
+  // bytes to skip instead of performing a skip instruction, in case the skip
+  // can be merged into the next instruction.
+  int OutputRawData(Address up_to, ReturnSkip return_skip = kIgnoringReturn);
+  // External strings are serialized in a way to resemble sequential strings.
+  void SerializeExternalString();
+
+  Address PrepareCode();
+
+  Serializer* serializer_;
+  HeapObject* object_;
+  SnapshotByteSink* sink_;
+  int reference_representation_;
+  int bytes_processed_so_far_;
+  bool is_code_object_;
+  bool code_has_been_output_;
+};
+
+
 void Serializer::SerializeDeferredObjects() {
   while (deferred_objects_.length() > 0) {
     HeapObject* obj = deferred_objects_.RemoveLast();
@@ -1533,6 +1593,11 @@ void SerializerDeserializer::Iterate(Isolate* isolate,
 }
 
 
+bool SerializerDeserializer::CanBeDeferred(HeapObject* o) {
+  return !o->IsString() && !o->IsScript();
+}
+
+
 int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
   Isolate* isolate = this->isolate();
   List<Object*>* cache = isolate->partial_snapshot_cache();
@@ -1550,6 +1615,19 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
     return new_index;
   }
   return index;
+}
+
+
+bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
+  // Scripts should be referred only through shared function infos.  We can't
+  // allow them to be part of the partial snapshot because they contain a
+  // unique ID, and deserializing several partial snapshots containing script
+  // would cause dupes.
+  DCHECK(!o->IsScript());
+  return o->IsName() || o->IsSharedFunctionInfo() || o->IsHeapNumber() ||
+         o->IsCode() || o->IsScopeInfo() || o->IsExecutableAccessorInfo() ||
+         o->map() ==
+             startup_serializer_->isolate()->heap()->fixed_cow_array_map();
 }
 
 
@@ -1633,6 +1711,17 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
     return true;
   }
   return false;
+}
+
+
+StartupSerializer::StartupSerializer(Isolate* isolate, SnapshotByteSink* sink)
+    : Serializer(isolate, sink), root_index_wave_front_(0) {
+  // Clear the cache of objects used by the partial snapshot.  After the
+  // strong roots have been serialized we can create a partial snapshot
+  // which will repopulate the cache with objects needed by that partial
+  // snapshot.
+  isolate->partial_snapshot_cache()->Clear();
+  InitializeCodeAddressMap();
 }
 
 
@@ -2727,6 +2816,11 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
   if (!Checksum(Payload()).Check(c1, c2)) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
+}
+
+
+uint32_t SerializedCodeData::SourceHash(String* source) const {
+  return source->length();
 }
 
 
