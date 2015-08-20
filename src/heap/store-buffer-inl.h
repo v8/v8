@@ -6,6 +6,7 @@
 #define V8_STORE_BUFFER_INL_H_
 
 #include "src/heap/heap.h"
+#include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
 
 namespace v8 {

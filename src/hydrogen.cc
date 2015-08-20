@@ -6,8 +6,6 @@
 
 #include <sstream>
 
-#include "src/v8.h"
-
 #include "src/allocation-site-scopes.h"
 #include "src/ast-numbering.h"
 #include "src/full-codegen/full-codegen.h"

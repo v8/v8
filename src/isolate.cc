@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/isolate.h"
+
 #include <stdlib.h>
 
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
-
-#include "src/v8.h"
 
 #include "src/ast.h"
 #include "src/base/platform/platform.h"
@@ -36,6 +36,7 @@
 #include "src/scopeinfo.h"
 #include "src/simulator.h"
 #include "src/snapshot/serialize.h"
+#include "src/v8.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 

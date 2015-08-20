@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/objects.h"
 
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 

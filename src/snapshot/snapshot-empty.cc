@@ -4,9 +4,9 @@
 
 // Used for building without snapshots.
 
-#include "src/v8.h"
-
 #include "src/snapshot/snapshot.h"
+
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 
 namespace v8 {
 namespace internal {

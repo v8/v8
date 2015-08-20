@@ -5,7 +5,8 @@
 #include "src/extensions/free-buffer-extension.h"
 
 #include "src/base/platform/platform.h"
-#include "src/v8.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 
 namespace v8 {
 namespace internal {

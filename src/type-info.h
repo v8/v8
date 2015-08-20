@@ -6,7 +6,9 @@
 #define V8_TYPE_INFO_H_
 
 #include "src/allocation.h"
+#include "src/contexts.h"
 #include "src/globals.h"
+#include "src/token.h"
 #include "src/types.h"
 #include "src/zone.h"
 

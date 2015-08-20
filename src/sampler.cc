@@ -42,8 +42,6 @@
 
 #endif
 
-#include "src/v8.h"
-
 #include "src/base/platform/platform.h"
 #include "src/cpu-profiler-inl.h"
 #include "src/flags.h"

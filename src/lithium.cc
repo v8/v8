@@ -4,8 +4,6 @@
 
 #include "src/lithium.h"
 
-#include "src/v8.h"
-
 #include "src/scopes.h"
 
 #if V8_TARGET_ARCH_IA32

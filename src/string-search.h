@@ -5,6 +5,9 @@
 #ifndef V8_STRING_SEARCH_H_
 #define V8_STRING_SEARCH_H_
 
+#include "src/isolate.h"
+#include "src/vector.h"
+
 namespace v8 {
 namespace internal {
 

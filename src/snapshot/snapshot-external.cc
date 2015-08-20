@@ -7,6 +7,7 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/base/platform/mutex.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot-source-sink.h"
 #include "src/v8.h"  // for V8::Initialize

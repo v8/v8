@@ -7,6 +7,7 @@
 
 #include "src/base/smart-pointers.h"
 #include "src/isolate.h"
+#include "src/list.h"
 
 namespace v8 {
 namespace internal {

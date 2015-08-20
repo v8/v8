@@ -29,6 +29,7 @@
 #define CCTEST_H_
 
 #include "include/libplatform/libplatform.h"
+#include "src/objects-inl.h"  // TODO(everyone): Make cctest IWYU.
 #include "src/v8.h"
 
 #ifndef TEST

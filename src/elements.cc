@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/elements.h"
 
 #include "src/arguments.h"
 #include "src/conversions.h"
-#include "src/elements.h"
+#include "src/factory.h"
 #include "src/messages.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,

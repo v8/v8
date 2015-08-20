@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdarg.h>
+#include "src/prettyprinter.h"
 
-#include "src/v8.h"
+#include <stdarg.h>
 
 #include "src/ast-value-factory.h"
 #include "src/base/platform/platform.h"
-#include "src/prettyprinter.h"
 #include "src/scopes.h"
 
 namespace v8 {

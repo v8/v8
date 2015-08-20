@@ -6,14 +6,13 @@
 #include <signal.h>
 #include <stdio.h>
 
-#include "src/v8.h"
-
 #include "include/libplatform/libplatform.h"
 #include "src/assembler.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/flags.h"
 #include "src/list.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serialize.h"
 

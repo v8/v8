@@ -11,6 +11,7 @@
 #define V8_MESSAGES_H_
 
 #include "src/base/smart-pointers.h"
+#include "src/handles.h"
 #include "src/list.h"
 
 namespace v8 {

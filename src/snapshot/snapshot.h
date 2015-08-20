@@ -2,14 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/isolate.h"
-#include "src/snapshot/serialize.h"
-
 #ifndef V8_SNAPSHOT_SNAPSHOT_H_
 #define V8_SNAPSHOT_SNAPSHOT_H_
 
+#include "src/isolate.h"
+#include "src/snapshot/serialize.h"
+
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Isolate;
+class PartialSerializer;
+class StartupSerializer;
 
 class Snapshot : public AllStatic {
  public:

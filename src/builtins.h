@@ -5,6 +5,8 @@
 #ifndef V8_BUILTINS_H_
 #define V8_BUILTINS_H_
 
+#include "src/handles.h"
+
 namespace v8 {
 namespace internal {
 

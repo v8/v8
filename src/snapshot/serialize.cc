@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/snapshot/serialize.h"
 
 #include "src/accessors.h"
 #include "src/api.h"
@@ -19,9 +19,9 @@
 #include "src/parser.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/natives.h"
-#include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/snapshot-source-sink.h"
+#include "src/v8.h"
 #include "src/v8threads.h"
 #include "src/version.h"
 

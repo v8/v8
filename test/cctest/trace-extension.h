@@ -33,6 +33,8 @@
 namespace v8 {
 namespace internal {
 
+struct TickSample;
+
 class TraceExtension : public v8::Extension {
  public:
   TraceExtension() : v8::Extension("v8/trace", kSource) { }

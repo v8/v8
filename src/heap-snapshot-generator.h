@@ -5,7 +5,9 @@
 #ifndef V8_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_HEAP_SNAPSHOT_GENERATOR_H_
 
+#include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
+#include "src/objects.h"
 #include "src/strings-storage.h"
 
 namespace v8 {
@@ -14,6 +16,8 @@ namespace internal {
 class AllocationTracker;
 class AllocationTraceNode;
 class HeapEntry;
+class HeapIterator;
+class HeapProfiler;
 class HeapSnapshot;
 class SnapshotFiller;
 

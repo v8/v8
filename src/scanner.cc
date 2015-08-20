@@ -4,18 +4,17 @@
 
 // Features shared by parsing and pre-parsing scanners.
 
+#include "src/scanner.h"
+
 #include <stdint.h>
 
 #include <cmath>
-
-#include "src/v8.h"
 
 #include "src/ast-value-factory.h"
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
 #include "src/list-inl.h"
 #include "src/parser.h"
-#include "src/scanner.h"
 
 namespace v8 {
 namespace internal {

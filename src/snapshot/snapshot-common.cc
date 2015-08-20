@@ -4,12 +4,11 @@
 
 // The common functionality when building with or without snapshots.
 
-#include "src/v8.h"
+#include "src/snapshot/snapshot.h"
 
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/full-codegen/full-codegen.h"
-#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {

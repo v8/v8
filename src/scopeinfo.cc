@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/scopeinfo.h"
+
 #include <stdlib.h>
 
-#include "src/v8.h"
-
 #include "src/bootstrapper.h"
-#include "src/scopeinfo.h"
 #include "src/scopes.h"
 
 namespace v8 {

@@ -2,16 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/flags.h"
+
 #include <cctype>
 #include <cstdlib>
 #include <sstream>
 
-#include "src/v8.h"
-
+#include "src/allocation.h"
 #include "src/assembler.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/ostreams.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

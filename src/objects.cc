@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects.h"
+
 #include <iomanip>
 #include <sstream>
-
-#include "src/v8.h"
 
 #include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
