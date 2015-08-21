@@ -118,7 +118,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
       context_(function->context()),
       seen_script_scope_(false),
       failed_(false) {
-  if (function->IsBuiltin()) context_ = Handle<Context>();
+  if (!function->IsSubjectToDebugging()) context_ = Handle<Context>();
 }
 
 

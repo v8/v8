@@ -192,12 +192,15 @@ RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_FunctionIsBuiltin) {
+RUNTIME_FUNCTION(Runtime_FunctionHidesSource) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
-
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  return isolate->heap()->ToBoolean(f->IsBuiltin());
+
+  SharedFunctionInfo* shared = f->shared();
+  bool hide_source = !shared->script()->IsScript() ||
+                     Script::cast(shared->script())->hide_source();
+  return isolate->heap()->ToBoolean(hide_source);
 }
 
 

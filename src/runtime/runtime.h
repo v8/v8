@@ -236,7 +236,7 @@ namespace internal {
   F(FunctionSetLength, 2, 1)                                \
   F(FunctionSetPrototype, 2, 1)                             \
   F(FunctionIsAPIFunction, 1, 1)                            \
-  F(FunctionIsBuiltin, 1, 1)                                \
+  F(FunctionHidesSource, 1, 1)                              \
   F(SetCode, 2, 1)                                          \
   F(SetNativeFlag, 1, 1)                                    \
   F(ThrowStrongModeTooFewArguments, 0, 1)                   \

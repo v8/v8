@@ -313,18 +313,13 @@ static bool IsVisibleInStackTrace(JSFunction* fun,
   }
   // Skip all frames until we've seen the caller.
   if (!(*seen_caller)) return false;
-  // Also, skip non-visible built-in functions and any call with the builtins
-  // object as receiver, so as to not reveal either the builtins object or
-  // an internal function.
+  // Functions defined in native scripts are not visible unless directly
+  // exposed, in which case the native flag is set.
   // The --builtins-in-stack-traces command line flag allows including
   // internal call sites in the stack trace for debugging purposes.
   if (!FLAG_builtins_in_stack_traces) {
     if (receiver->IsJSBuiltinsObject()) return false;
-    if (fun->IsBuiltin()) {
-      return fun->shared()->native();
-    } else if (!fun->IsSubjectToDebugging()) {
-      return false;
-    }
+    if (fun->IsBuiltin()) return fun->shared()->native();
   }
   return true;
 }

@@ -2277,7 +2277,7 @@ void Debug::HandleDebugBreak() {
     Object* fun = it.frame()->function();
     if (fun && fun->IsJSFunction()) {
       // Don't stop in builtin functions.
-      if (JSFunction::cast(fun)->IsBuiltin()) return;
+      if (!JSFunction::cast(fun)->IsSubjectToDebugging()) return;
       GlobalObject* global = JSFunction::cast(fun)->context()->global_object();
       // Don't stop in debugger functions.
       if (IsDebugGlobal(global)) return;

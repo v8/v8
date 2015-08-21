@@ -5552,6 +5552,10 @@ void Script::set_compilation_type(CompilationType type) {
   set_flags(BooleanBit::set(flags(), kCompilationTypeBit,
       type == COMPILATION_TYPE_EVAL));
 }
+bool Script::hide_source() { return BooleanBit::get(flags(), kHideSourceBit); }
+void Script::set_hide_source(bool value) {
+  set_flags(BooleanBit::set(flags(), kHideSourceBit, value));
+}
 Script::CompilationState Script::compilation_state() {
   return BooleanBit::get(flags(), kCompilationStateBit) ?
       COMPILATION_STATE_COMPILED : COMPILATION_STATE_INITIAL;
@@ -6017,18 +6021,19 @@ void SharedFunctionInfo::set_disable_optimization_reason(BailoutReason reason) {
 }
 
 
-bool SharedFunctionInfo::IsSubjectToDebugging() {
+bool SharedFunctionInfo::IsBuiltin() {
   Object* script_obj = script();
-  if (script_obj->IsUndefined()) return false;
+  if (script_obj->IsUndefined()) return true;
   Script* script = Script::cast(script_obj);
   Script::Type type = static_cast<Script::Type>(script->type()->value());
-  return type == Script::TYPE_NORMAL;
+  return type != Script::TYPE_NORMAL;
 }
 
 
-bool JSFunction::IsBuiltin() {
-  return context()->global_object()->IsJSBuiltinsObject();
-}
+bool SharedFunctionInfo::IsSubjectToDebugging() { return !IsBuiltin(); }
+
+
+bool JSFunction::IsBuiltin() { return shared()->IsBuiltin(); }
 
 
 bool JSFunction::IsSubjectToDebugging() {

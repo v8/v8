@@ -533,6 +533,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
+  RUNTIME_ASSERT(function->IsSubjectToDebugging());
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
   DCHECK(*scope_info != ScopeInfo::Empty(isolate));
@@ -712,8 +713,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // THIS MUST BE DONE LAST SINCE WE MIGHT ADVANCE
   // THE FRAME ITERATOR TO WRAP THE RECEIVER.
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  if (!receiver->IsJSObject() && is_sloppy(shared->language_mode()) &&
-      !function->IsBuiltin()) {
+  DCHECK(!function->IsBuiltin());
+  if (!receiver->IsJSObject() && is_sloppy(shared->language_mode())) {
     // If the receiver is not a JSObject and the function is not a
     // builtin or strict-mode we have hit an optimization where a
     // value object is not converted into a wrapped JS objects. To
@@ -1634,7 +1635,7 @@ RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
   // or not even a function.
   return isolate->heap()->ToBoolean(
       callback->IsJSFunction() &&
-      (!JSFunction::cast(callback)->IsBuiltin() ||
+      (JSFunction::cast(callback)->IsSubjectToDebugging() ||
        JSFunction::cast(callback)->shared()->bound()));
 }
 

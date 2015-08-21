@@ -1622,7 +1622,7 @@ function FunctionSourceString(func) {
     throw MakeTypeError(kNotGeneric, 'Function.prototype.toString');
   }
 
-  if (%FunctionIsBuiltin(func)) {
+  if (%FunctionHidesSource(func)) {
     return NativeCodeFunctionSourceString(func);
   }
 
