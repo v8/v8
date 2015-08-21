@@ -368,6 +368,11 @@ void Parser::PatternRewriter::VisitSpread(Spread* node) {
 }
 
 
+void Parser::PatternRewriter::VisitEmptyParentheses(EmptyParentheses* node) {
+  UNREACHABLE();
+}
+
+
 // =============== UNREACHABLE =============================
 
 void Parser::PatternRewriter::Visit(AstNode* node) { UNREACHABLE(); }

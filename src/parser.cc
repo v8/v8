@@ -3934,6 +3934,8 @@ void ParserTraits::ParseArrowFunctionFormalParameterList(
     ParserFormalParameters* parameters, Expression* expr,
     const Scanner::Location& params_loc,
     Scanner::Location* duplicate_loc, bool* ok) {
+  if (expr->IsEmptyParentheses()) return;
+
   ParseArrowFunctionFormalParameters(parameters, expr, params_loc,
                                      duplicate_loc, ok);
   if (!*ok) return;

@@ -1400,6 +1400,11 @@ void FullCodeGenerator::ExitTryBlock(int handler_index) {
 void FullCodeGenerator::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
 
+void FullCodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
+  UNREACHABLE();
+}
+
+
 FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
     int* stack_depth, int* context_length) {
   // The macros used here must preserve the result register.
