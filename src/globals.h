@@ -431,6 +431,7 @@ class MarkCompactCollector;
 class NewSpace;
 class Object;
 class OldSpace;
+class ParameterCount;
 class Foreign;
 class Scope;
 class ScopeInfo;
