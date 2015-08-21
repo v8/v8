@@ -1455,56 +1455,6 @@ void Heap::ScavengeStoreBufferCallback(Heap* heap, MemoryChunk* page,
 }
 
 
-void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
-  if (event == kStoreBufferStartScanningPagesEvent) {
-    start_of_current_page_ = NULL;
-    current_page_ = NULL;
-  } else if (event == kStoreBufferScanningPageEvent) {
-    if (current_page_ != NULL) {
-      // If this page already overflowed the store buffer during this iteration.
-      if (current_page_->scan_on_scavenge()) {
-        // Then we should wipe out the entries that have been added for it.
-        store_buffer_->SetTop(start_of_current_page_);
-      } else if (store_buffer_->Top() - start_of_current_page_ >=
-                 (store_buffer_->Limit() - store_buffer_->Top()) >> 2) {
-        // Did we find too many pointers in the previous page?  The heuristic is
-        // that no page can take more then 1/5 the remaining slots in the store
-        // buffer.
-        current_page_->set_scan_on_scavenge(true);
-        store_buffer_->SetTop(start_of_current_page_);
-      } else {
-        // In this case the page we scanned took a reasonable number of slots in
-        // the store buffer.  It has now been rehabilitated and is no longer
-        // marked scan_on_scavenge.
-        DCHECK(!current_page_->scan_on_scavenge());
-      }
-    }
-    start_of_current_page_ = store_buffer_->Top();
-    current_page_ = page;
-  } else if (event == kStoreBufferFullEvent) {
-    // The current page overflowed the store buffer again.  Wipe out its entries
-    // in the store buffer and mark it scan-on-scavenge again.  This may happen
-    // several times while scanning.
-    if (current_page_ == NULL) {
-      // Store Buffer overflowed while scanning promoted objects.  These are not
-      // in any particular page, though they are likely to be clustered by the
-      // allocation routines.
-      store_buffer_->EnsureSpace(StoreBuffer::kStoreBufferSize / 2);
-    } else {
-      // Store Buffer overflowed while scanning a particular old space page for
-      // pointers to new space.
-      DCHECK(current_page_ == page);
-      DCHECK(page != NULL);
-      current_page_->set_scan_on_scavenge(true);
-      DCHECK(start_of_current_page_ != store_buffer_->Top());
-      store_buffer_->SetTop(start_of_current_page_);
-    }
-  } else {
-    UNREACHABLE();
-  }
-}
-
-
 void PromotionQueue::Initialize() {
   // The last to-space page may be used for promotion queue. On promotion
   // conflict, we use the emergency stack.

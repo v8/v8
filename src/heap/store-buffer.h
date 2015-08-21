@@ -162,6 +162,26 @@ class StoreBuffer {
 };
 
 
+class StoreBufferRebuilder {
+ public:
+  explicit StoreBufferRebuilder(StoreBuffer* store_buffer)
+      : store_buffer_(store_buffer) {}
+
+  void Callback(MemoryChunk* page, StoreBufferEvent event);
+
+ private:
+  StoreBuffer* store_buffer_;
+
+  // We record in this variable how full the store buffer was when we started
+  // iterating over the current page, finding pointers to new space.  If the
+  // store buffer overflows again we can exempt the page from the store buffer
+  // by rewinding to this point instead of having to search the store buffer.
+  Object*** start_of_current_page_;
+  // The current page we are scanning in the store buffer iterator.
+  MemoryChunk* current_page_;
+};
+
+
 class StoreBufferRebuildScope {
  public:
   explicit StoreBufferRebuildScope(Heap* heap, StoreBuffer* store_buffer,
