@@ -857,7 +857,10 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
       InstructionOperand value =
           g.CanBeImmediate(input)
               ? g.UseImmediate(input)
-              : IsSupported(ATOM) ? g.UseRegister(input) : g.Use(input);
+              : IsSupported(ATOM) ||
+                        sequence()->IsFloat(GetVirtualRegister(input))
+                    ? g.UseRegister(input)
+                    : g.Use(input);
       Emit(kX87Push, g.NoOutput(), value);
     }
   }
