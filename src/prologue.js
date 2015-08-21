@@ -156,6 +156,13 @@ function SetUpLockedPrototype(
   %ToFastProperties(prototype);
 }
 
+
+var private_symbols = %ExportPrivateSymbols({});
+
+function GetPrivateSymbol(name) {
+  return private_symbols[name];
+}
+
 // -----------------------------------------------------------------------
 // To be called by bootstrapper
 
@@ -236,6 +243,7 @@ function PostExperimentals(utils) {
   %ImportExperimentalToRuntime(runtime_container);
 
   exports_container = UNDEFINED;
+  private_symbols = UNDEFINED;
 
   utils.PostExperimentals = UNDEFINED;
   utils.PostDebug = UNDEFINED;
@@ -250,6 +258,7 @@ function PostDebug(utils) {
   }
 
   exports_container = UNDEFINED;
+  private_symbols = UNDEFINED;
 
   utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
@@ -259,13 +268,14 @@ function PostDebug(utils) {
 
 // -----------------------------------------------------------------------
 
-%OptimizeObjectForAddingMultipleProperties(utils, 14);
+%OptimizeObjectForAddingMultipleProperties(utils, 15);
 
 utils.Import = Import;
 utils.ImportNow = ImportNow;
 utils.Export = Export;
 utils.ExportToRuntime = ExportToRuntime;
 utils.ImportFromExperimental = ImportFromExperimental;
+utils.GetPrivateSymbol = GetPrivateSymbol;
 utils.SetFunctionName = SetFunctionName;
 utils.InstallConstants = InstallConstants;
 utils.InstallFunctions = InstallFunctions;

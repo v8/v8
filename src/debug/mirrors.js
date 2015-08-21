@@ -13,6 +13,8 @@ var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
 var MathMin = global.Math.min;
+var promiseStatusSymbol = utils.GetPrivateSymbol("promise_status_symbol");
+var promiseValueSymbol = utils.GetPrivateSymbol("promise_value_symbol");
 var ToBoolean;
 var ToString;
 
@@ -109,7 +111,7 @@ function ClearMirrorCache(value) {
 function ObjectIsPromise(value) {
   try {
     return IS_SPEC_OBJECT(value) &&
-           !IS_UNDEFINED(%DebugGetProperty(value, builtins.$promiseStatus));
+           !IS_UNDEFINED(%DebugGetProperty(value, promiseStatusSymbol));
   } catch (e) {
     return false;
   }
@@ -1326,7 +1328,7 @@ inherits(PromiseMirror, ObjectMirror);
 
 
 function PromiseGetStatus_(value) {
-  var status = %DebugGetProperty(value, builtins.$promiseStatus);
+  var status = %DebugGetProperty(value, promiseStatusSymbol);
   if (status == 0) return "pending";
   if (status == 1) return "resolved";
   return "rejected";
@@ -1334,7 +1336,7 @@ function PromiseGetStatus_(value) {
 
 
 function PromiseGetValue_(value) {
-  return %DebugGetProperty(value, builtins.$promiseValue);
+  return %DebugGetProperty(value, promiseValueSymbol);
 }
 
 

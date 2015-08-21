@@ -11,20 +11,18 @@
 // -------------------------------------------------------------------
 // Imports
 
-var GlobalString = global.String;
-
 var ArrayIteratorCreateResultObject;
+var GlobalString = global.String;
+var stringIteratorIteratedStringSymbol =
+    utils.GetPrivateSymbol("string_iterator_iterated_string_symbol");
+var stringIteratorNextIndexSymbol =
+    utils.GetPrivateSymbol("string_iterator_next_index_symbol");
 
 utils.Import(function(from) {
   ArrayIteratorCreateResultObject = from.ArrayIteratorCreateResultObject;
 });
 
 // -------------------------------------------------------------------
-
-var stringIteratorIteratedStringSymbol =
-    GLOBAL_PRIVATE("StringIterator#iteratedString");
-var stringIteratorNextIndexSymbol = GLOBAL_PRIVATE("StringIterator#next");
-
 
 function StringIterator() {}
 

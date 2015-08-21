@@ -3392,19 +3392,6 @@ void Heap::CreateInitialObjects() {
 }
 
 
-void Heap::AddPrivateGlobalSymbols(Handle<Object> private_intern_table) {
-#define ADD_SYMBOL_TO_PRIVATE_INTERN_TABLE(name_arg)                     \
-  {                                                                      \
-    Handle<Symbol> symbol(Symbol::cast(roots_[k##name_arg##RootIndex])); \
-    Handle<String> name_arg##d(String::cast(symbol->name()));            \
-    JSObject::AddProperty(Handle<JSObject>::cast(private_intern_table),  \
-                          name_arg##d, symbol, NONE);                    \
-  }
-  PRIVATE_SYMBOL_LIST(ADD_SYMBOL_TO_PRIVATE_INTERN_TABLE)
-#undef ADD_SYMBOL_TO_PRIVATE_INTERN_TABLE
-}
-
-
 bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
   switch (root_index) {
     case kStoreBufferTopRootIndex:

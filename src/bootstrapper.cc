@@ -13,6 +13,7 @@
 #include "src/extensions/gc-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
+#include "src/heap/heap.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "third_party/fdlibm/fdlibm.h"
@@ -1795,8 +1796,6 @@ void Bootstrapper::ImportNatives(Isolate* isolate, Handle<JSObject> container) {
   INSTALL_NATIVE(JSFunction, "URIError", uri_error_function);
   INSTALL_NATIVE(JSFunction, "MakeError", make_error_function);
 
-  INSTALL_NATIVE(Symbol, "promiseStatus", promise_status);
-  INSTALL_NATIVE(Symbol, "promiseValue", promise_value);
   INSTALL_NATIVE(JSFunction, "PromiseCreate", promise_create);
   INSTALL_NATIVE(JSFunction, "PromiseResolve", promise_resolve);
   INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
@@ -1904,6 +1903,21 @@ bool Bootstrapper::InstallJSBuiltins(Isolate* isolate,
     builtins->set_javascript_builtin(id, *function);
   }
   return true;
+}
+
+
+void Bootstrapper::ExportPrivateSymbols(Isolate* isolate,
+                                        Handle<JSObject> container) {
+  HandleScope scope(isolate);
+#define EXPORT_PRIVATE_SYMBOL(NAME)                                         \
+  Handle<String> NAME##_name =                                              \
+      isolate->factory()->NewStringFromAsciiChecked(#NAME);                 \
+  JSObject::AddProperty(container, NAME##_name, isolate->factory()->NAME(), \
+                        NONE);
+
+  PRIVATE_SYMBOL_LIST(EXPORT_PRIVATE_SYMBOL)
+
+#undef EXPORT_PRIVATE_SYMBOL
 }
 
 
@@ -2788,24 +2802,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     Handle<JSBuiltinsObject> natives(global->builtins());
     JSObject::AddProperty(global, natives_key, natives, DONT_ENUM);
   }
-
-  // Expose the stack trace symbol to native JS.
-  RETURN_ON_EXCEPTION_VALUE(isolate,
-                            JSObject::SetOwnPropertyIgnoreAttributes(
-                                handle(native_context->builtins(), isolate),
-                                factory->InternalizeOneByteString(
-                                    STATIC_CHAR_VECTOR("$stackTraceSymbol")),
-                                factory->stack_trace_symbol(), NONE),
-                            false);
-
-  // Expose the internal error symbol to native JS
-  RETURN_ON_EXCEPTION_VALUE(isolate,
-                            JSObject::SetOwnPropertyIgnoreAttributes(
-                                handle(native_context->builtins(), isolate),
-                                factory->InternalizeOneByteString(
-                                    STATIC_CHAR_VECTOR("$internalErrorSymbol")),
-                                factory->internal_error_symbol(), NONE),
-                            false);
 
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {

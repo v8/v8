@@ -266,9 +266,6 @@ namespace internal {
   V(WeakSet_string, "WeakSet")                                 \
   V(for_string, "for")                                         \
   V(for_api_string, "for_api")                                 \
-  V(for_intern_string, "for_intern")                           \
-  V(private_api_string, "private_api")                         \
-  V(private_intern_string, "private_intern")                   \
   V(Date_string, "Date")                                       \
   V(char_at_string, "CharAt")                                  \
   V(undefined_string, "undefined")                             \
@@ -299,31 +296,47 @@ namespace internal {
   V(Error_string, "Error")                                     \
   V(RegExp_string, "RegExp")
 
-#define PRIVATE_SYMBOL_LIST(V)      \
-  V(nonextensible_symbol)           \
-  V(sealed_symbol)                  \
-  V(hash_code_symbol)               \
-  V(frozen_symbol)                  \
-  V(nonexistent_symbol)             \
-  V(elements_transition_symbol)     \
-  V(observed_symbol)                \
-  V(uninitialized_symbol)           \
-  V(megamorphic_symbol)             \
-  V(premonomorphic_symbol)          \
-  V(stack_trace_symbol)             \
-  V(detailed_stack_trace_symbol)    \
-  V(normal_ic_symbol)               \
-  V(home_object_symbol)             \
-  V(intl_initialized_marker_symbol) \
-  V(intl_impl_object_symbol)        \
-  V(promise_debug_marker_symbol)    \
-  V(promise_has_handler_symbol)     \
-  V(class_start_position_symbol)    \
-  V(class_end_position_symbol)      \
-  V(error_start_pos_symbol)         \
-  V(error_end_pos_symbol)           \
-  V(error_script_symbol)            \
-  V(internal_error_symbol)
+#define PRIVATE_SYMBOL_LIST(V)              \
+  V(array_iteration_kind_symbol)            \
+  V(array_iterator_next_symbol)             \
+  V(array_iterator_object_symbol)           \
+  V(call_site_function_symbol)              \
+  V(call_site_position_symbol)              \
+  V(call_site_receiver_symbol)              \
+  V(call_site_strict_symbol)                \
+  V(class_end_position_symbol)              \
+  V(class_start_position_symbol)            \
+  V(detailed_stack_trace_symbol)            \
+  V(elements_transition_symbol)             \
+  V(error_end_pos_symbol)                   \
+  V(error_script_symbol)                    \
+  V(error_start_pos_symbol)                 \
+  V(formatted_stack_trace_symbol)           \
+  V(frozen_symbol)                          \
+  V(hash_code_symbol)                       \
+  V(home_object_symbol)                     \
+  V(internal_error_symbol)                  \
+  V(intl_impl_object_symbol)                \
+  V(intl_initialized_marker_symbol)         \
+  V(megamorphic_symbol)                     \
+  V(nonexistent_symbol)                     \
+  V(nonextensible_symbol)                   \
+  V(normal_ic_symbol)                       \
+  V(observed_symbol)                        \
+  V(premonomorphic_symbol)                  \
+  V(promise_debug_marker_symbol)            \
+  V(promise_has_handler_symbol)             \
+  V(promise_on_resolve_symbol)              \
+  V(promise_on_reject_symbol)               \
+  V(promise_raw_symbol)                     \
+  V(promise_status_symbol)                  \
+  V(promise_value_symbol)                   \
+  V(sealed_symbol)                          \
+  V(stack_trace_symbol)                     \
+  V(string_iterator_iterated_string_symbol) \
+  V(string_iterator_next_index_symbol)      \
+  V(uninitialized_symbol)
+
 
 #define PUBLIC_SYMBOL_LIST(V)                                    \
   V(has_instance_symbol, symbolHasInstance, Symbol.hasInstance)  \
@@ -1804,8 +1817,6 @@ class Heap {
   static const StringTypeTable string_type_table[];
   static const ConstantStringTable constant_string_table[];
   static const StructTable struct_table[];
-
-  void AddPrivateGlobalSymbols(Handle<Object> private_intern_table);
 
   struct GCCallbackPair {
     GCCallbackPair(v8::Isolate::GCCallback callback, GCType gc_type,

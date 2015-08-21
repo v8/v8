@@ -16,6 +16,7 @@ var $getExistingHash;
 var GlobalMap = global.Map;
 var GlobalObject = global.Object;
 var GlobalSet = global.Set;
+var hashCodeSymbol = utils.GetPrivateSymbol("hash_code_symbol");
 var IntRandom;
 
 utils.Import(function(from) {
@@ -89,8 +90,6 @@ function ComputeIntegerHash(key, seed) {
   return hash & 0x3fffffff;
 }
 %SetForceInlineFlag(ComputeIntegerHash);
-
-var hashCodeSymbol = GLOBAL_PRIVATE("hash_code_symbol");
 
 function GetExistingHash(key) {
   if (%_IsSmi(key)) {

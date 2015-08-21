@@ -123,6 +123,8 @@ class Bootstrapper final {
   static void ImportExperimentalNatives(Isolate* isolate,
                                         Handle<JSObject> container);
   static bool InstallJSBuiltins(Isolate* isolate, Handle<JSObject> container);
+  static void ExportPrivateSymbols(Isolate* isolate,
+                                   Handle<JSObject> container);
 
  private:
   Isolate* isolate_;

@@ -302,6 +302,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F)        \
   F(CheckIsBootstrapping, 0, 1)               \
+  F(ExportPrivateSymbols, 1, 1)               \
   F(ImportToRuntime, 1, 1)                    \
   F(ImportExperimentalToRuntime, 1, 1)        \
   F(InstallJSBuiltins, 1, 1)                  \
@@ -317,7 +318,6 @@ namespace internal {
   F(ThrowStrongModeImplicitConversion, 0, 1)  \
   F(PromiseRejectEvent, 3, 1)                 \
   F(PromiseRevokeReject, 1, 1)                \
-  F(PromiseHasHandlerSymbol, 0, 1)            \
   F(StackGuard, 0, 1)                         \
   F(Interrupt, 0, 1)                          \
   F(AllocateInNewSpace, 1, 1)                 \
@@ -328,16 +328,16 @@ namespace internal {
   F(MessageGetScript, 1, 1)                   \
   F(ErrorToStringRT, 1, 1)                    \
   F(FormatMessageString, 4, 1)                \
-  F(CallSiteGetFileNameRT, 3, 1)              \
-  F(CallSiteGetFunctionNameRT, 3, 1)          \
-  F(CallSiteGetScriptNameOrSourceUrlRT, 3, 1) \
-  F(CallSiteGetMethodNameRT, 3, 1)            \
-  F(CallSiteGetLineNumberRT, 3, 1)            \
-  F(CallSiteGetColumnNumberRT, 3, 1)          \
-  F(CallSiteIsNativeRT, 3, 1)                 \
-  F(CallSiteIsToplevelRT, 3, 1)               \
-  F(CallSiteIsEvalRT, 3, 1)                   \
-  F(CallSiteIsConstructorRT, 3, 1)            \
+  F(CallSiteGetFileNameRT, 1, 1)              \
+  F(CallSiteGetFunctionNameRT, 1, 1)          \
+  F(CallSiteGetScriptNameOrSourceUrlRT, 1, 1) \
+  F(CallSiteGetMethodNameRT, 1, 1)            \
+  F(CallSiteGetLineNumberRT, 1, 1)            \
+  F(CallSiteGetColumnNumberRT, 1, 1)          \
+  F(CallSiteIsNativeRT, 1, 1)                 \
+  F(CallSiteIsToplevelRT, 1, 1)               \
+  F(CallSiteIsEvalRT, 1, 1)                   \
+  F(CallSiteIsConstructorRT, 1, 1)            \
   F(IS_VAR, 1, 1)                             \
   F(IncrementStatsCounter, 1, 1)              \
   F(Likely, 1, 1)                             \
@@ -776,7 +776,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_SYMBOL(F) \
   F(CreateSymbol, 1, 1)              \
   F(CreatePrivateSymbol, 1, 1)       \
-  F(CreateGlobalPrivateSymbol, 1, 1) \
   F(SymbolDescription, 1, 1)         \
   F(SymbolRegistry, 0, 1)            \
   F(SymbolIsPrivate, 1, 1)

@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $promiseHasUserDefinedRejectHandler;
-var $promiseStatus;
-var $promiseValue;
-
 (function(global, utils) {
 
 "use strict";
@@ -16,20 +12,22 @@ var $promiseValue;
 // Imports
 
 var InternalArray = utils.InternalArray;
+var promiseHasHandlerSymbol =
+    utils.GetPrivateSymbol("promise_has_handler_symbol");
+var promiseOnRejectSymbol = utils.GetPrivateSymbol("promise_on_reject_symbol");
+var promiseOnResolveSymbol =
+    utils.GetPrivateSymbol("promise_on_resolve_symbol");
+var promiseRawSymbol = utils.GetPrivateSymbol("promise_raw_symbol");
+var promiseStatusSymbol = utils.GetPrivateSymbol("promise_status_symbol");
+var promiseValueSymbol = utils.GetPrivateSymbol("promise_value_symbol");
 
 // -------------------------------------------------------------------
 
 // Status values: 0 = pending, +1 = resolved, -1 = rejected
-var promiseStatus = GLOBAL_PRIVATE("Promise#status");
-var promiseValue = GLOBAL_PRIVATE("Promise#value");
-var promiseOnResolve = GLOBAL_PRIVATE("Promise#onResolve");
-var promiseOnReject = GLOBAL_PRIVATE("Promise#onReject");
-var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
-var promiseHasHandler = %PromiseHasHandlerSymbol();
 var lastMicrotaskId = 0;
 
 var GlobalPromise = function Promise(resolver) {
-  if (resolver === promiseRaw) return;
+  if (resolver === promiseRawSymbol) return;
   if (!%_IsConstructCall()) throw MakeTypeError(kNotAPromise, this);
   if (!IS_SPEC_FUNCTION(resolver))
     throw MakeTypeError(kResolverNotAFunction, resolver);
@@ -48,10 +46,10 @@ var GlobalPromise = function Promise(resolver) {
 // Core functionality.
 
 function PromiseSet(promise, status, value, onResolve, onReject) {
-  SET_PRIVATE(promise, promiseStatus, status);
-  SET_PRIVATE(promise, promiseValue, value);
-  SET_PRIVATE(promise, promiseOnResolve, onResolve);
-  SET_PRIVATE(promise, promiseOnReject, onReject);
+  SET_PRIVATE(promise, promiseStatusSymbol, status);
+  SET_PRIVATE(promise, promiseValueSymbol, value);
+  SET_PRIVATE(promise, promiseOnResolveSymbol, onResolve);
+  SET_PRIVATE(promise, promiseOnRejectSymbol, onReject);
   if (DEBUG_IS_ACTIVE) {
     %DebugPromiseEvent({ promise: promise, status: status, value: value });
   }
@@ -59,7 +57,7 @@ function PromiseSet(promise, status, value, onResolve, onReject) {
 }
 
 function PromiseCreateAndSet(status, value) {
-  var promise = new GlobalPromise(promiseRaw);
+  var promise = new GlobalPromise(promiseRawSymbol);
   // If debug is active, notify about the newly created promise first.
   if (DEBUG_IS_ACTIVE) PromiseSet(promise, 0, UNDEFINED);
   return PromiseSet(promise, status, value);
@@ -71,7 +69,7 @@ function PromiseInit(promise) {
 }
 
 function PromiseDone(promise, status, value, promiseQueue) {
-  if (GET_PRIVATE(promise, promiseStatus) === 0) {
+  if (GET_PRIVATE(promise, promiseStatusSymbol) === 0) {
     var tasks = GET_PRIVATE(promise, promiseQueue);
     if (tasks.length) PromiseEnqueue(value, tasks, status);
     PromiseSet(promise, status, value);
@@ -148,7 +146,7 @@ function PromiseNopResolver() {}
 // For bootstrapper.
 
 function IsPromise(x) {
-  return IS_SPEC_OBJECT(x) && HAS_DEFINED_PRIVATE(x, promiseStatus);
+  return IS_SPEC_OBJECT(x) && HAS_DEFINED_PRIVATE(x, promiseStatusSymbol);
 }
 
 function PromiseCreate() {
@@ -156,19 +154,20 @@ function PromiseCreate() {
 }
 
 function PromiseResolve(promise, x) {
-  PromiseDone(promise, +1, x, promiseOnResolve)
+  PromiseDone(promise, +1, x, promiseOnResolveSymbol)
 }
 
 function PromiseReject(promise, r) {
   // Check promise status to confirm that this reject has an effect.
   // Call runtime for callbacks to the debugger or for unhandled reject.
-  if (GET_PRIVATE(promise, promiseStatus) == 0) {
+  if (GET_PRIVATE(promise, promiseStatusSymbol) == 0) {
     var debug_is_active = DEBUG_IS_ACTIVE;
-    if (debug_is_active || !HAS_DEFINED_PRIVATE(promise, promiseHasHandler)) {
+    if (debug_is_active ||
+        !HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
       %PromiseRejectEvent(promise, r, debug_is_active);
     }
   }
-  PromiseDone(promise, -1, r, promiseOnReject)
+  PromiseDone(promise, -1, r, promiseOnRejectSymbol)
 }
 
 // Convenience.
@@ -176,7 +175,7 @@ function PromiseReject(promise, r) {
 function PromiseDeferred() {
   if (this === GlobalPromise) {
     // Optimized case, avoid extra closure.
-    var promise = PromiseInit(new GlobalPromise(promiseRaw));
+    var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
     return {
       promise: promise,
       resolve: function(x) { PromiseResolve(promise, x) },
@@ -221,31 +220,31 @@ function PromiseChain(onResolve, onReject) {  // a.k.a. flatMap
   onResolve = IS_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
   onReject = IS_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
   var deferred = %_CallFunction(this.constructor, PromiseDeferred);
-  switch (GET_PRIVATE(this, promiseStatus)) {
+  switch (GET_PRIVATE(this, promiseStatusSymbol)) {
     case UNDEFINED:
       throw MakeTypeError(kNotAPromise, this);
     case 0:  // Pending
-      GET_PRIVATE(this, promiseOnResolve).push(onResolve, deferred);
-      GET_PRIVATE(this, promiseOnReject).push(onReject, deferred);
+      GET_PRIVATE(this, promiseOnResolveSymbol).push(onResolve, deferred);
+      GET_PRIVATE(this, promiseOnRejectSymbol).push(onReject, deferred);
       break;
     case +1:  // Resolved
-      PromiseEnqueue(GET_PRIVATE(this, promiseValue),
+      PromiseEnqueue(GET_PRIVATE(this, promiseValueSymbol),
                      [onResolve, deferred],
                      +1);
       break;
     case -1:  // Rejected
-      if (!HAS_DEFINED_PRIVATE(this, promiseHasHandler)) {
+      if (!HAS_DEFINED_PRIVATE(this, promiseHasHandlerSymbol)) {
         // Promise has already been rejected, but had no handler.
         // Revoke previously triggered reject event.
         %PromiseRevokeReject(this);
       }
-      PromiseEnqueue(GET_PRIVATE(this, promiseValue),
+      PromiseEnqueue(GET_PRIVATE(this, promiseValueSymbol),
                      [onReject, deferred],
                      -1);
       break;
   }
   // Mark this promise as having handler.
-  SET_PRIVATE(this, promiseHasHandler, true);
+  SET_PRIVATE(this, promiseHasHandlerSymbol, true);
   if (DEBUG_IS_ACTIVE) {
     %DebugPromiseEvent({ promise: deferred.promise, parentPromise: this });
   }
@@ -340,7 +339,7 @@ function PromiseRace(iterable) {
 // Utility for debugger
 
 function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
-  var queue = GET_PRIVATE(promise, promiseOnReject);
+  var queue = GET_PRIVATE(promise, promiseOnRejectSymbol);
   if (IS_UNDEFINED(queue)) return false;
   for (var i = 0; i < queue.length; i += 2) {
     if (queue[i] != PromiseIdRejectHandler) return true;
@@ -380,12 +379,7 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "catch", PromiseCatch
 ]);
 
-$promiseStatus = promiseStatus;
-$promiseValue = promiseValue;
-
 utils.ExportToRuntime(function(to) {
-  to.promiseStatus = promiseStatus;
-  to.promiseValue = promiseValue;
   to.PromiseCreate = PromiseCreate;
   to.PromiseResolve = PromiseResolve;
   to.PromiseReject = PromiseReject;

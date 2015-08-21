@@ -24,6 +24,19 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ExportPrivateSymbols) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
+                                "ExportPrivateSymbols");
+  Bootstrapper::ExportPrivateSymbols(isolate, container);
+  JSObject::MigrateSlowToFast(container, 0, "ExportPrivateSymbols");
+  return *container;
+}
+
+
 RUNTIME_FUNCTION(Runtime_ImportToRuntime) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -172,12 +185,6 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_PromiseHasHandlerSymbol) {
-  DCHECK(args.length() == 0);
-  return isolate->heap()->promise_has_handler_symbol();
-}
-
-
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
@@ -311,16 +318,14 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
 }
 
 
-#define CALLSITE_GET(NAME, RETURN)                   \
-  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {     \
-    HandleScope scope(isolate);                      \
-    DCHECK(args.length() == 3);                      \
-    CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0); \
-    CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 1);  \
-    CONVERT_INT32_ARG_CHECKED(pos, 2);               \
-    Handle<String> result;                           \
-    CallSite call_site(receiver, fun, pos);          \
-    return RETURN(call_site.NAME(isolate), isolate); \
+#define CALLSITE_GET(NAME, RETURN)                          \
+  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {            \
+    HandleScope scope(isolate);                             \
+    DCHECK(args.length() == 1);                             \
+    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
+    Handle<String> result;                                  \
+    CallSite call_site(isolate, call_site_obj);             \
+    return RETURN(call_site.NAME(), isolate);               \
   }
 
 static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
