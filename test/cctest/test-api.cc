@@ -21848,6 +21848,7 @@ TEST(FutexInterruption) {
       "var i32a = new Int32Array(ab);"
       "Atomics.futexWait(i32a, 0, 0);");
   CHECK(try_catch.HasTerminated());
+  timeout_thread.Join();
 }
 
 

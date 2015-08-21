@@ -413,6 +413,9 @@ void StackGuard::RequestInterrupt(InterruptFlag flag) {
   // Not intercepted.  Set as active interrupt flag.
   thread_local_.interrupt_flags_ |= flag;
   set_interrupt_limits(access);
+
+  // If this isolate is waiting in a futex, notify it to wake up.
+  isolate_->futex_wait_list_node()->NotifyWake();
 }
 
 
