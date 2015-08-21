@@ -4701,6 +4701,49 @@ TEST(Regress514122) {
 }
 
 
+TEST(LargeObjectSlotRecording) {
+  FLAG_manual_evacuation_candidates_selection = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+
+  // Create an object on an evacuation candidate.
+  SimulateFullSpace(heap->old_space());
+  Handle<FixedArray> lit = isolate->factory()->NewFixedArray(4, TENURED);
+  Page* evac_page = Page::FromAddress(lit->address());
+  evac_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  FixedArray* old_location = *lit;
+
+  // Allocate a large object.
+  const int kSize = 1000000;
+  Handle<FixedArray> lo = isolate->factory()->NewFixedArray(kSize, TENURED);
+  CHECK(heap->lo_space()->Contains(*lo));
+
+  // Start incremental marking to active write barrier.
+  SimulateIncrementalMarking(heap, false);
+  heap->AdvanceIncrementalMarking(10000000, 10000000,
+                                  IncrementalMarking::IdleStepActions());
+
+  // Create references from the large object to the object on the evacuation
+  // candidate.
+  const int kStep = kSize / 10;
+  for (int i = 0; i < kSize; i += kStep) {
+    lo->set(i, *lit);
+    CHECK(lo->get(i) == old_location);
+  }
+
+  // Move the evaucation candidate object.
+  CcTest::heap()->CollectAllGarbage();
+
+  // Verify that the pointers in the large object got updated.
+  for (int i = 0; i < kSize; i += kStep) {
+    CHECK_EQ(lo->get(i), *lit);
+    CHECK(lo->get(i) != old_location);
+  }
+}
+
+
 class DummyVisitor : public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object** end) { }

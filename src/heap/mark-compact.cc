@@ -3634,24 +3634,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
       PrintF("  migration slots buffer: %d\n",
              SlotsBuffer::SizeOfChain(migration_slots_buffer_));
     }
-
-    if (compacting_ && was_marked_incrementally_) {
-      GCTracer::Scope gc_scope(heap()->tracer(),
-                               GCTracer::Scope::MC_RESCAN_LARGE_OBJECTS);
-      // It's difficult to filter out slots recorded for large objects.
-      LargeObjectIterator it(heap_->lo_space());
-      for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-        // LargeObjectSpace is not swept yet thus we have to skip
-        // dead objects explicitly.
-        if (!IsMarked(obj)) continue;
-
-        Page* p = Page::FromAddress(obj->address());
-        if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
-          obj->Iterate(&updating_visitor);
-          p->ClearFlag(Page::RESCAN_ON_EVACUATION);
-        }
-      }
-    }
   }
 
   int npages = evacuation_candidates_.length();

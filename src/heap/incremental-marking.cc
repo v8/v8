@@ -298,12 +298,6 @@ void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
   if (is_marking) {
     chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-
-    // It's difficult to filter out slots recorded for large objects.
-    if (chunk->owner()->identity() == LO_SPACE &&
-        chunk->size() > static_cast<size_t>(Page::kPageSize) && is_compacting) {
-      chunk->SetFlag(MemoryChunk::RESCAN_ON_EVACUATION);
-    }
   } else {
     chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);

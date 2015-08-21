@@ -556,7 +556,8 @@ static inline void SimulateFullSpace(v8::internal::PagedSpace* space) {
 
 // Helper function that simulates many incremental marking steps until
 // marking is completed.
-static inline void SimulateIncrementalMarking(i::Heap* heap) {
+static inline void SimulateIncrementalMarking(i::Heap* heap,
+                                              bool force_completion = true) {
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (collector->sweeping_in_progress()) {
@@ -567,6 +568,8 @@ static inline void SimulateIncrementalMarking(i::Heap* heap) {
     marking->Start(i::Heap::kNoGCFlags);
   }
   CHECK(marking->IsMarking());
+  if (!force_completion) return;
+
   while (!marking->IsComplete()) {
     marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
