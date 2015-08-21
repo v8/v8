@@ -634,20 +634,23 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into edi (InterpreterBytecodeRegister).
-  __ mov(edi, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(edi, FieldOperand(edi, SharedFunctionInfo::kFunctionDataOffset));
+  __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(kInterpreterBytecodeArrayRegister,
+         FieldOperand(eax, SharedFunctionInfo::kFunctionDataOffset));
 
   if (FLAG_debug_code) {
     // Check function data field is actually a BytecodeArray object.
-    __ AssertNotSmi(edi);
-    __ CmpObjectType(edi, BYTECODE_ARRAY_TYPE, eax);
+    __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
+    __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
+                     eax);
     __ Assert(equal, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
 
   // Allocate the local and temporary register file on the stack.
   {
     // Load frame size from the BytecodeArray object.
-    __ mov(ebx, FieldOperand(edi, BytecodeArray::kFrameSizeOffset));
+    __ mov(ebx, FieldOperand(kInterpreterBytecodeArrayRegister,
+                             BytecodeArray::kFrameSizeOffset));
 
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
@@ -656,21 +659,22 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     ExternalReference stack_limit =
         ExternalReference::address_of_real_stack_limit(masm->isolate());
     __ cmp(ecx, Operand::StaticVariable(stack_limit));
-    __ j(above_equal, &ok, Label::kNear);
+    __ j(above_equal, &ok);
     __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
     __ bind(&ok);
 
     // If ok, push undefined as the initial value for all register file entries.
-    // Note: there should always be at least one stack slot for the return
-    // register in the register file.
     Label loop_header;
+    Label loop_check;
     __ mov(eax, Immediate(masm->isolate()->factory()->undefined_value()));
+    __ jmp(&loop_check);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
     __ push(eax);
     // Continue loop if not done.
+    __ bind(&loop_check);
     __ sub(ebx, Immediate(kPointerSize));
-    __ j(not_equal, &loop_header, Label::kNear);
+    __ j(greater_equal, &loop_header);
   }
 
   // TODO(rmcilroy): List of things not currently dealt with here but done in
@@ -700,25 +704,39 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     ExternalReference stack_limit =
         ExternalReference::address_of_stack_limit(masm->isolate());
     __ cmp(esp, Operand::StaticVariable(stack_limit));
-    __ j(above_equal, &ok, Label::kNear);
+    __ j(above_equal, &ok);
     __ CallRuntime(Runtime::kStackGuard, 0);
     __ bind(&ok);
   }
 
-  // Load bytecode offset and dispatch table into registers.
-  __ mov(ecx, Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  // Load accumulator, register file, bytecode offset, dispatch table into
+  // registers.
+  __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
+  __ mov(kInterpreterRegisterFileRegister, ebp);
+  __ sub(
+      kInterpreterRegisterFileRegister,
+      Immediate(kPointerSize + StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
   // Since the dispatch table root might be set after builtins are generated,
   // load directly from the roots table.
-  __ LoadRoot(ebx, Heap::kInterpreterTableRootIndex);
-  __ add(ebx, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ LoadRoot(kInterpreterDispatchTableRegister,
+              Heap::kInterpreterTableRootIndex);
+  __ add(kInterpreterDispatchTableRegister,
+         Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+
+  // TODO(rmcilroy) Push our context as a stack located parameter of the
+  // bytecode handler.
 
   // Dispatch to the first bytecode handler for the function.
-  __ movzx_b(eax, Operand(edi, ecx, times_1, 0));
-  __ mov(eax, Operand(ebx, eax, times_pointer_size, 0));
+  __ movzx_b(esi, Operand(kInterpreterBytecodeArrayRegister,
+                          kInterpreterBytecodeOffsetRegister, times_1, 0));
+  __ mov(esi, Operand(kInterpreterDispatchTableRegister, esi,
+                      times_pointer_size, 0));
   // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
   // and header removal.
-  __ add(eax, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ jmp(eax);
+  __ add(esi, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ call(esi);
 }
 
 
@@ -729,9 +747,8 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
   //  - Support profiler (specifically decrementing profiling_counter
   //    appropriately and calling out to HandleInterrupts if necessary).
 
-  // Load return value into r0.
-  __ mov(eax, Operand(ebp, -kPointerSize -
-                               StandardFrameConstants::kFixedFrameSizeFromFp));
+  // The return value is in accumulator, which is already in rax.
+
   // Leave the frame (also dropping the register file).
   __ leave();
   // Return droping receiver + arguments.
