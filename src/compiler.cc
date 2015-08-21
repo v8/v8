@@ -468,7 +468,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   }
 
   // Type-check the function.
-  AstTyper::Run(info());
+  AstTyper(info()).Run();
 
   // Optimization could have been disabled by the parser. Note that this check
   // is only needed because the Hydrogen graph builder is missing some bailouts.

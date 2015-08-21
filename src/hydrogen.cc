@@ -8335,7 +8335,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   // Type-check the inlined function.
   DCHECK(target_shared->has_deoptimization_support());
-  AstTyper::Run(&target_info);
+  AstTyper(&target_info).Run();
 
   int inlining_id = 0;
   if (top_info()->is_tracking_positions()) {

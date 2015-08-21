@@ -26,24 +26,6 @@ AstTyper::AstTyper(CompilationInfo* info)
 }
 
 
-#define RECURSE(call)                         \
-  do {                                        \
-    DCHECK(!visitor->HasStackOverflow());     \
-    call;                                     \
-    if (visitor->HasStackOverflow()) return;  \
-  } while (false)
-
-void AstTyper::Run(CompilationInfo* info) {
-  AstTyper* visitor = new(info->zone()) AstTyper(info);
-  Scope* scope = info->scope();
-
-  RECURSE(visitor->VisitDeclarations(scope->declarations()));
-  RECURSE(visitor->VisitStatements(info->literal()->body()));
-}
-
-#undef RECURSE
-
-
 #ifdef OBJECT_PRINT
   static void PrintObserved(Variable* var, Object* value, Type* type) {
     OFStream os(stdout);
@@ -120,6 +102,13 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
     call;                            \
     if (HasStackOverflow()) return;  \
   } while (false)
+
+
+void AstTyper::Run() {
+  Scope* scope = info_->scope();
+  RECURSE(VisitDeclarations(scope->declarations()));
+  RECURSE(VisitStatements(info_->literal()->body()));
+}
 
 
 void AstTyper::VisitStatements(ZoneList<Statement*>* stmts) {
