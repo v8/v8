@@ -1423,9 +1423,7 @@ class Heap {
 
   void QueueMemoryChunkForFree(MemoryChunk* chunk);
   void FilterStoreBufferEntriesOnAboutToBeFreedPages();
-  void FreeQueuedChunks(MemoryChunk* list_head);
   void FreeQueuedChunks();
-  void WaitUntilUnmappingOfFreeChunksCompleted();
 
   int gc_count() const { return gc_count_; }
 
@@ -1602,8 +1600,6 @@ class Heap {
   bool ShouldOptimizeForMemoryUsage() { return optimize_for_memory_usage_; }
 
  private:
-  class UnmapFreeMemoryTask;
-
   static const int kInitialStringTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
   static const int kInitialNumberStringCacheSize = 256;
@@ -2280,8 +2276,6 @@ class Heap {
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 
   MemoryChunk* chunks_queued_for_free_;
-
-  base::Semaphore pending_unmap_job_semaphore_;
 
   base::Mutex relocation_mutex_;
 
