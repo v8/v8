@@ -5337,7 +5337,7 @@ void v8::V8::SetEntropySource(EntropySource entropy_source) {
 
 void v8::V8::SetReturnAddressLocationResolver(
     ReturnAddressLocationResolver return_address_resolver) {
-  i::V8::SetReturnAddressLocationResolver(return_address_resolver);
+  i::StackFrame::SetReturnAddressLocationResolver(return_address_resolver);
 }
 
 

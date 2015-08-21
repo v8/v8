@@ -39,15 +39,6 @@ class V8 : public AllStatic {
   static void FatalProcessOutOfMemory(const char* location,
                                       bool take_snapshot = false);
 
-  // Allows an entropy source to be provided for use in random number
-  // generation.
-  static void SetEntropySource(EntropySource source);
-  // Support for return-address rewriting profilers.
-  static void SetReturnAddressLocationResolver(
-      ReturnAddressLocationResolver resolver);
-  // Support for entry hooking JITed code.
-  static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
-
   static void InitializePlatform(v8::Platform* platform);
   static void ShutdownPlatform();
   static v8::Platform* GetCurrentPlatform();

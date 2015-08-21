@@ -55,12 +55,6 @@ void V8::TearDown() {
 }
 
 
-void V8::SetReturnAddressLocationResolver(
-      ReturnAddressLocationResolver resolver) {
-  StackFrame::SetReturnAddressLocationResolver(resolver);
-}
-
-
 void V8::InitializeOncePerProcessImpl() {
   FlagList::EnforceFlagImplications();
 
