@@ -939,6 +939,15 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 
+void SloppyBlockWithEvalContextExtension::
+    SloppyBlockWithEvalContextExtensionPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "SloppyBlockWithEvalContextExtension");
+  os << "\n - scope_info: " << Brief(scope_info());
+  os << "\n - extension: " << Brief(extension());
+  os << "\n";
+}
+
+
 void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessorPair");
   os << "\n - getter: " << Brief(getter());

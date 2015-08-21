@@ -299,8 +299,11 @@ class ScriptContextTable : public FixedArray {
 //                Dynamically declared variables/functions are also added
 //                to lazily allocated extension object. Context::Lookup
 //                searches the extension object for properties.
-//                For global and block contexts, contains the respective
-//                ScopeInfo.
+//                For script and block contexts, contains the respective
+//                ScopeInfo. For block contexts representing sloppy declaration
+//                block scopes, it may also be a struct being a
+//                SloppyBlockWithEvalContextExtension, pairing the ScopeInfo
+//                with an extension object.
 //                For module contexts, points back to the respective JSModule.
 //
 // [ global_object ]  A pointer to the global object. Provided for quick
@@ -370,9 +373,13 @@ class Context: public FixedArray {
   }
   void set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
 
-  bool has_extension() { return extension() != NULL; }
+  bool has_extension() { return extension() != nullptr; }
   Object* extension() { return get(EXTENSION_INDEX); }
   void set_extension(Object* object) { set(EXTENSION_INDEX, object); }
+  JSObject* extension_object();
+  JSReceiver* extension_receiver();
+  ScopeInfo* scope_info();
+  String* catch_name();
 
   JSModule* module() { return JSModule::cast(get(EXTENSION_INDEX)); }
   void set_module(JSModule* module) { set(EXTENSION_INDEX, module); }
@@ -380,6 +387,7 @@ class Context: public FixedArray {
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
   Context* declaration_context();
+  bool is_declaration_context();
 
   GlobalObject* global_object() {
     Object* result = get(GLOBAL_OBJECT_INDEX);

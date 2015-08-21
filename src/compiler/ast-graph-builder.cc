@@ -1139,7 +1139,7 @@ void AstGraphBuilder::VisitBlock(Block* stmt) {
     VisitStatements(stmt->statements());
   } else {
     // Visit declarations and statements in a block scope.
-    if (stmt->scope()->ContextLocalCount() > 0) {
+    if (stmt->scope()->NeedsContext()) {
       Node* context = BuildLocalBlockContext(stmt->scope());
       ContextScope scope(this, stmt->scope(), context);
       VisitDeclarations(stmt->scope()->declarations());

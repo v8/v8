@@ -1548,7 +1548,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
     needs_block_context_ = false;
   } else {
-    needs_block_context_ = scope->ContextLocalCount() > 0;
+    needs_block_context_ = scope->NeedsContext();
     codegen_->scope_ = scope;
     {
       if (needs_block_context_) {

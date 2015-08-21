@@ -5465,6 +5465,11 @@ SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)
 ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
 ACCESSORS(PrototypeInfo, constructor_name, Object, kConstructorNameOffset)
 
+ACCESSORS(SloppyBlockWithEvalContextExtension, scope_info, ScopeInfo,
+          kScopeInfoOffset)
+ACCESSORS(SloppyBlockWithEvalContextExtension, extension, JSObject,
+          kExtensionOffset)
+
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 

@@ -843,7 +843,7 @@ void Genesis::HookUpGlobalThisBinding(Handle<FixedArray> outdated_contexts) {
   for (int i = 0; i < outdated_contexts->length(); ++i) {
     Context* context = Context::cast(outdated_contexts->get(i));
     if (context->IsScriptContext()) {
-      ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
+      ScopeInfo* scope_info = context->scope_info();
       int slot = scope_info->ReceiverContextSlotIndex();
       if (slot >= 0) {
         DCHECK_EQ(slot, Context::MIN_CONTEXT_SLOTS);

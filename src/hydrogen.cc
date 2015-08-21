@@ -4688,7 +4688,7 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
 
   { BreakAndContinueScope push(&break_info, this);
     if (scope != NULL) {
-      if (scope->ContextLocalCount() > 0) {
+      if (scope->NeedsContext()) {
         // Load the function object.
         Scope* declaration_scope = scope->DeclarationScope();
         HInstruction* function;

@@ -62,6 +62,19 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
 }
 
 
+Handle<SloppyBlockWithEvalContextExtension>
+Factory::NewSloppyBlockWithEvalContextExtension(
+    Handle<ScopeInfo> scope_info, Handle<JSObject> extension) {
+  DCHECK(scope_info->is_declaration_scope());
+  Handle<SloppyBlockWithEvalContextExtension> result =
+      Handle<SloppyBlockWithEvalContextExtension>::cast(
+          NewStruct(SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION_TYPE));
+  result->set_scope_info(*scope_info);
+  result->set_extension(*extension);
+  return result;
+}
+
+
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
                                     const char* type_of, byte kind) {

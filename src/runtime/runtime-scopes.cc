@@ -206,8 +206,9 @@ namespace {
 Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
                           Handle<Object> initial_value,
                           PropertyAttributes attr) {
-  // Declarations are always made in a function, eval or script context. In
-  // the case of eval code, the context passed is the context of the caller,
+  // Declarations are always made in a function, eval or script context, or
+  // a declaration block scope.
+  // In the case of eval code, the context passed is the context of the caller,
   // which may be some nested context and not the declaration context.
   Handle<Context> context_arg(isolate->context(), isolate);
   Handle<Context> context(context_arg->declaration_context(), isolate);
@@ -241,8 +242,7 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
     return DeclareGlobals(isolate, Handle<JSGlobalObject>::cast(holder), name,
                           value, attr, is_var, is_const, is_function);
   }
-  if (context_arg->has_extension() &&
-      context_arg->extension()->IsJSGlobalObject()) {
+  if (context_arg->extension()->IsJSGlobalObject()) {
     Handle<JSGlobalObject> global(
         JSGlobalObject::cast(context_arg->extension()), isolate);
     return DeclareGlobals(isolate, global, name, value, attr, is_var, is_const,
@@ -274,7 +274,19 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
     object = Handle<JSObject>::cast(holder);
 
   } else if (context->has_extension()) {
-    object = handle(JSObject::cast(context->extension()));
+    // Sloppy varblock contexts might not have an extension object yet,
+    // in which case their extension is a ScopeInfo.
+    if (context->extension()->IsScopeInfo()) {
+      DCHECK(context->IsBlockContext());
+      object = isolate->factory()->NewJSObject(
+          isolate->context_extension_function());
+      Handle<Object> extension =
+          isolate->factory()->NewSloppyBlockWithEvalContextExtension(
+              handle(context->scope_info()), object);
+      context->set_extension(*extension);
+    } else {
+      object = handle(context->extension_object(), isolate);
+    }
     DCHECK(object->IsJSContextExtensionObject() || object->IsJSGlobalObject());
   } else {
     DCHECK(context->IsFunctionContext());
@@ -357,8 +369,8 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
     if (declaration_context->IsScriptContext()) {
       holder = handle(declaration_context->global_object(), isolate);
     } else {
-      DCHECK(declaration_context->has_extension());
-      holder = handle(declaration_context->extension(), isolate);
+      holder = handle(declaration_context->extension_object(), isolate);
+      DCHECK(!holder.is_null());
     }
     CHECK(holder->IsJSObject());
   } else {

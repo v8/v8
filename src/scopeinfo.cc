@@ -88,6 +88,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   int flags = ScopeTypeField::encode(scope->scope_type()) |
               CallsEvalField::encode(scope->calls_eval()) |
               LanguageModeField::encode(scope->language_mode()) |
+              DeclarationScopeField::encode(scope->is_declaration_scope()) |
               ReceiverVariableField::encode(receiver_info) |
               FunctionVariableField::encode(function_name_info) |
               FunctionVariableMode::encode(function_variable_mode) |
@@ -243,6 +244,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   int flags = ScopeTypeField::encode(SCRIPT_SCOPE) |
               CallsEvalField::encode(false) |
               LanguageModeField::encode(SLOPPY) |
+              DeclarationScopeField::encode(true) |
               ReceiverVariableField::encode(receiver_info) |
               FunctionVariableField::encode(function_name_info) |
               FunctionVariableMode::encode(function_variable_mode) |
@@ -310,6 +312,11 @@ LanguageMode ScopeInfo::language_mode() {
 }
 
 
+bool ScopeInfo::is_declaration_scope() {
+  return DeclarationScopeField::decode(Flags());
+}
+
+
 int ScopeInfo::LocalCount() {
   return StackLocalCount() + ContextLocalCount();
 }
@@ -334,6 +341,8 @@ int ScopeInfo::ContextLength() {
     bool has_context = context_locals > 0 || context_globals > 0 ||
                        function_name_context_slot ||
                        scope_type() == WITH_SCOPE ||
+                       (scope_type() == BLOCK_SCOPE && CallsSloppyEval() &&
+                           is_declaration_scope()) ||
                        (scope_type() == ARROW_SCOPE && CallsSloppyEval()) ||
                        (scope_type() == FUNCTION_SCOPE && CallsSloppyEval()) ||
                        scope_type() == MODULE_SCOPE;

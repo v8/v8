@@ -974,6 +974,7 @@ class Parser : public ParserBase<ParserTraits> {
     Parser* parser;
     Scope* declaration_scope;
     Scope* scope;
+    Scope* hoist_scope;
     VariableMode mode;
     bool is_const;
     bool needs_init;
@@ -1134,7 +1135,7 @@ class Parser : public ParserBase<ParserTraits> {
   VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind, bool resolve,
-                    bool* ok);
+                    bool* ok, Scope* declaration_scope = nullptr);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);

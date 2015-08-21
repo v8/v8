@@ -284,7 +284,7 @@ class Scope: public ZoneObject {
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
-  bool calls_sloppy_eval() {
+  bool calls_sloppy_eval() const {
     return scope_calls_eval_ && is_sloppy(language_mode_);
   }
   bool outer_scope_calls_sloppy_eval() const {
@@ -304,6 +304,9 @@ class Scope: public ZoneObject {
   bool inner_uses_arguments() const { return inner_scope_uses_arguments_; }
   // Does this scope access "super" property (super.foo).
   bool uses_super_property() const { return scope_uses_super_property_; }
+
+  // Whether this needs to be represented by a runtime context.
+  bool NeedsContext() const { return num_heap_slots() > 0; }
 
   bool NeedsHomeObject() const {
     return scope_uses_super_property_ ||

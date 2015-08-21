@@ -423,8 +423,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
   DCHECK(script_context->get(slot)->IsPropertyCell());
 
   // Lookup the named property on the global object.
-  Handle<ScopeInfo> scope_info(ScopeInfo::cast(script_context->extension()),
-                               isolate);
+  Handle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
   Handle<GlobalObject> global_object(script_context->global_object(), isolate);
   LookupIterator it(global_object, name, LookupIterator::HIDDEN);
@@ -458,8 +457,7 @@ Object* StoreGlobalViaContext(Isolate* isolate, int slot, Handle<Object> value,
   DCHECK(script_context->get(slot)->IsPropertyCell());
 
   // Lookup the named property on the global object.
-  Handle<ScopeInfo> scope_info(ScopeInfo::cast(script_context->extension()),
-                               isolate);
+  Handle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
   Handle<GlobalObject> global_object(script_context->global_object(), isolate);
   LookupIterator it(global_object, name, LookupIterator::HIDDEN);

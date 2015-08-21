@@ -41,7 +41,7 @@ bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
   for (int i = 0; i < table->used(); i++) {
     Handle<Context> context = GetContext(table, i);
     DCHECK(context->IsScriptContext());
-    Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
+    Handle<ScopeInfo> scope_info(context->scope_info());
     int slot_index = ScopeInfo::ContextSlotIndex(
         scope_info, name, &result->mode, &result->location, &result->init_flag,
         &result->maybe_assigned_flag);
@@ -56,14 +56,64 @@ bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
 }
 
 
+bool Context::is_declaration_context() {
+  if (IsFunctionContext() || IsNativeContext() || IsScriptContext()) {
+    return true;
+  }
+  if (!IsBlockContext()) return false;
+  Object* ext = extension();
+  // If we have the special extension, we immediately know it must be a
+  // declaration scope. That's just a small performance shortcut.
+  return ext->IsSloppyBlockWithEvalContextExtension()
+      || ScopeInfo::cast(ext)->is_declaration_scope();
+}
+
+
 Context* Context::declaration_context() {
   Context* current = this;
-  while (!current->IsFunctionContext() && !current->IsNativeContext() &&
-         !current->IsScriptContext()) {
+  while (!current->is_declaration_context()) {
     current = current->previous();
     DCHECK(current->closure() == closure());
   }
   return current;
+}
+
+
+JSObject* Context::extension_object() {
+  DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext());
+  Object* object = extension();
+  if (object == nullptr) return nullptr;
+  if (IsBlockContext()) {
+    if (!object->IsSloppyBlockWithEvalContextExtension()) return nullptr;
+    object = SloppyBlockWithEvalContextExtension::cast(object)->extension();
+  }
+  DCHECK(object->IsJSContextExtensionObject() ||
+         (IsNativeContext() && object->IsJSGlobalObject()));
+  return JSObject::cast(object);
+}
+
+
+JSReceiver* Context::extension_receiver() {
+  DCHECK(IsNativeContext() || IsWithContext() ||
+         IsFunctionContext() || IsBlockContext());
+  return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
+}
+
+
+ScopeInfo* Context::scope_info() {
+  DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext());
+  Object* object = extension();
+  if (object->IsSloppyBlockWithEvalContextExtension()) {
+    DCHECK(IsBlockContext());
+    object = SloppyBlockWithEvalContextExtension::cast(object)->scope_info();
+  }
+  return ScopeInfo::cast(object);
+}
+
+
+String* Context::catch_name() {
+  DCHECK(IsCatchContext());
+  return String::cast(extension());
 }
 
 
@@ -212,13 +262,11 @@ Handle<Object> Context::Lookup(Handle<String> name,
       PrintF("\n");
     }
 
-
     // 1. Check global objects, subjects of with, and extension objects.
-    if (context->IsNativeContext() ||
-        context->IsWithContext() ||
-        (context->IsFunctionContext() && context->has_extension())) {
-      Handle<JSReceiver> object(
-          JSReceiver::cast(context->extension()), isolate);
+    if ((context->IsNativeContext() || context->IsWithContext() ||
+         context->IsFunctionContext() || context->IsBlockContext()) &&
+        context->extension_receiver() != nullptr) {
+      Handle<JSReceiver> object(context->extension_receiver());
 
       if (context->IsNativeContext()) {
         if (FLAG_trace_contexts) {
@@ -280,14 +328,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
         context->IsScriptContext()) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
-      Handle<ScopeInfo> scope_info;
-      if (context->IsFunctionContext()) {
-        scope_info = Handle<ScopeInfo>(
-            context->closure()->shared()->scope_info(), isolate);
-      } else {
-        scope_info = Handle<ScopeInfo>(
-            ScopeInfo::cast(context->extension()), isolate);
-      }
+      Handle<ScopeInfo> scope_info(context->IsFunctionContext()
+          ? context->closure()->shared()->scope_info()
+          : context->scope_info());
       VariableMode mode;
       VariableLocation location;
       InitializationFlag init_flag;
@@ -329,7 +372,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
     } else if (context->IsCatchContext()) {
       // Catch contexts have the variable name in the extension slot.
-      if (String::Equals(name, handle(String::cast(context->extension())))) {
+      if (String::Equals(name, handle(context->catch_name()))) {
         if (FLAG_trace_contexts) {
           PrintF("=> found in catch context\n");
         }
@@ -359,7 +402,7 @@ void Context::InitializeGlobalSlots() {
   DCHECK(IsScriptContext());
   DisallowHeapAllocation no_gc;
 
-  ScopeInfo* scope_info = ScopeInfo::cast(extension());
+  ScopeInfo* scope_info = this->scope_info();
 
   int context_globals = scope_info->ContextGlobalCount();
   if (context_globals > 0) {

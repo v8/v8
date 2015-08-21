@@ -885,6 +885,14 @@ void AccessorInfo::AccessorInfoVerify() {
 }
 
 
+void SloppyBlockWithEvalContextExtension::
+    SloppyBlockWithEvalContextExtensionVerify() {
+  CHECK(IsSloppyBlockWithEvalContextExtension());
+  VerifyObjectField(kScopeInfoOffset);
+  VerifyObjectField(kExtensionOffset);
+}
+
+
 void ExecutableAccessorInfo::ExecutableAccessorInfoVerify() {
   CHECK(IsExecutableAccessorInfo());
   AccessorInfoVerify();
