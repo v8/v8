@@ -696,10 +696,9 @@ class FullCodeGenerator: public AstVisitor {
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }
-  LanguageMode language_mode() { return function()->language_mode(); }
+  LanguageMode language_mode() { return literal()->language_mode(); }
   bool has_simple_parameters() { return info_->has_simple_parameters(); }
-  // TODO(titzer): rename this to literal().
-  FunctionLiteral* function() { return info_->literal(); }
+  FunctionLiteral* literal() { return info_->literal(); }
   Scope* scope() { return scope_; }
 
   static Register result_register();
