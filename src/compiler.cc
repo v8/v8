@@ -215,15 +215,6 @@ int CompilationInfo::num_heap_slots() const {
 }
 
 
-Code::Flags CompilationInfo::flags() const {
-  return code_stub() != nullptr
-             ? Code::ComputeFlags(
-                   code_stub()->GetCodeKind(), code_stub()->GetICState(),
-                   code_stub()->GetExtraICState(), code_stub()->GetStubType())
-             : Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
-}
-
-
 // Primitive functions are unlikely to be picked up by the stack-walking
 // profiler, so they trigger their own optimization when they're called
 // for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.

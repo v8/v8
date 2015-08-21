@@ -167,8 +167,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   safepoints()->Emit(masm(), frame()->GetSpillSlotCount());
 
-  Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
-      masm(), info->flags(), info);
+  Handle<Code> result =
+      v8::internal::CodeGenerator::MakeCodeEpilogue(masm(), info);
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetSpillSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());

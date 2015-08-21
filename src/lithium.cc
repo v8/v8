@@ -520,9 +520,7 @@ Handle<Code> LChunk::Codegen() {
   if (generator.GenerateCode()) {
     generator.CheckEnvironmentUsage();
     CodeGenerator::MakeCodePrologue(info(), "optimized");
-    Code::Flags flags = info()->flags();
-    Handle<Code> code =
-        CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
+    Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&assembler, info());
     generator.FinishCode(code);
     CommitDependencies(code);
     code->set_is_crankshafted(true);

@@ -149,9 +149,17 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 
 
 Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
-                                             Code::Flags flags,
                                              CompilationInfo* info) {
   Isolate* isolate = info->isolate();
+
+  Code::Flags flags =
+      info->code_stub() != nullptr
+          ? Code::ComputeFlags(info->code_stub()->GetCodeKind(),
+                               info->code_stub()->GetICState(),
+                               info->code_stub()->GetExtraICState(),
+                               info->code_stub()->GetStubType())
+          : Code::ComputeFlags(info->IsOptimizing() ? Code::OPTIMIZED_FUNCTION
+                                                    : Code::FUNCTION);
 
   // Allocate and install the code.
   CodeDesc desc;

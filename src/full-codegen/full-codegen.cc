@@ -50,8 +50,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   }
   unsigned table_offset = cgen.EmitBackEdgeTable();
 
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
-  Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
+  Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, info);
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
   cgen.PopulateHandlerTable(code);
