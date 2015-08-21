@@ -292,7 +292,6 @@ class CompilationInfo {
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
-  bool IsOptimizable() const { return mode_ == BASE; }
   bool IsStub() const { return mode_ == STUB; }
   void SetOptimizing(BailoutId osr_ast_id, Handle<Code> unoptimized) {
     DCHECK(!shared_info().is_null());
@@ -317,7 +316,7 @@ class CompilationInfo {
     return GetFlag(kDeoptimizationSupport);
   }
   void EnableDeoptimizationSupport() {
-    DCHECK(IsOptimizable());
+    DCHECK_EQ(BASE, mode_);
     SetFlag(kDeoptimizationSupport);
   }
 
