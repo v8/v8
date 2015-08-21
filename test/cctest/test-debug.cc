@@ -7313,7 +7313,12 @@ TEST(Regress131642) {
 
 
 // Import from test-heap.cc
+namespace v8 {
+namespace internal {
+
 int CountNativeContexts();
+}
+}
 
 
 static void NopListener(const v8::Debug::EventDetails& event_details) {
@@ -7323,15 +7328,15 @@ static void NopListener(const v8::Debug::EventDetails& event_details) {
 TEST(DebuggerCreatesContextIffActive) {
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  CHECK_EQ(1, CountNativeContexts());
+  CHECK_EQ(1, v8::internal::CountNativeContexts());
 
   v8::Debug::SetDebugEventListener(NULL);
   CompileRun("debugger;");
-  CHECK_EQ(1, CountNativeContexts());
+  CHECK_EQ(1, v8::internal::CountNativeContexts());
 
   v8::Debug::SetDebugEventListener(NopListener);
   CompileRun("debugger;");
-  CHECK_EQ(2, CountNativeContexts());
+  CHECK_EQ(2, v8::internal::CountNativeContexts());
 
   v8::Debug::SetDebugEventListener(NULL);
 }

@@ -504,9 +504,6 @@ class ThreadLocalTop;
 // Mark-Compact collector
 class MarkCompactCollector {
  public:
-  // Set the global flags, it must be called before Prepare to take effect.
-  inline void SetFlags(int flags);
-
   static void Initialize();
 
   void SetUp();
@@ -599,12 +596,6 @@ class MarkCompactCollector {
   void InvalidateCode(Code* code);
 
   void ClearMarkbits();
-
-  bool abort_incremental_marking() const { return abort_incremental_marking_; }
-
-  bool finalize_incremental_marking() const {
-    return finalize_incremental_marking_;
-  }
 
   bool is_compacting() const { return compacting_; }
 
@@ -702,12 +693,6 @@ class MarkCompactCollector {
   // The current stage of the collector.
   CollectorState state_;
 #endif
-
-  bool reduce_memory_footprint_;
-
-  bool abort_incremental_marking_;
-
-  bool finalize_incremental_marking_;
 
   MarkingParity marking_parity_;
 

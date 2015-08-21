@@ -40,8 +40,31 @@
 #include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
 using v8::Just;
+
+namespace v8 {
+namespace internal {
+
+// Tests that should have access to private methods of {v8::internal::Heap}.
+// Those tests need to be defined using HEAP_TEST(Name) { ... }.
+#define HEAP_TEST_METHODS(V) \
+  V(GCFlags)
+
+
+#define HEAP_TEST(Name)                                                      \
+  CcTest register_test_##Name(HeapTester::Test##Name, __FILE__, #Name, NULL, \
+                              true, true);                                   \
+  void HeapTester::Test##Name()
+
+
+class HeapTester {
+ public:
+#define DECLARE_STATIC(Name) static void Test##Name();
+
+  HEAP_TEST_METHODS(DECLARE_STATIC)
+#undef HEAP_TEST_METHODS
+};
+
 
 static void CheckMap(Map* map, int type, int instance_size) {
   CHECK(map->IsHeapObject());
@@ -2764,6 +2787,36 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
   CHECK_EQ(0, f->shared()->opt_count());
   CHECK_EQ(0, f->shared()->code()->profiler_ticks());
+}
+
+
+HEAP_TEST(GCFlags) {
+  CcTest::InitializeVM();
+  Heap* heap = CcTest::heap();
+
+  heap->set_current_gc_flags(Heap::kNoGCFlags);
+  CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags());
+
+  // Set the flags to check whether we appropriately resets them after the GC.
+  heap->set_current_gc_flags(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage(Heap::kReduceMemoryFootprintMask);
+  CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags());
+
+  MarkCompactCollector* collector = heap->mark_compact_collector();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+
+  IncrementalMarking* marking = heap->incremental_marking();
+  marking->Stop();
+  marking->Start(Heap::kReduceMemoryFootprintMask);
+  CHECK_NE(0, heap->current_gc_flags() & Heap::kReduceMemoryFootprintMask);
+
+  heap->Scavenge();
+  CHECK_NE(0, heap->current_gc_flags() & Heap::kReduceMemoryFootprintMask);
+
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags());
 }
 
 
@@ -6386,3 +6439,6 @@ TEST(ContextMeasure) {
   CHECK_LE(measure.Count(), count_upper_limit);
   CHECK_LE(measure.Size(), size_upper_limit);
 }
+
+}  // namespace internal
+}  // namespace v8

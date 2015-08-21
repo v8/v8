@@ -469,7 +469,7 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 }
 
 
-void IncrementalMarking::Start(int mark_compact_flags,
+void IncrementalMarking::Start(int flags,
                                const GCCallbackFlags gc_callback_flags,
                                const char* reason) {
   if (FLAG_trace_incremental_marking) {
@@ -487,9 +487,8 @@ void IncrementalMarking::Start(int mark_compact_flags,
   was_activated_ = true;
 
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
-    heap_->mark_compact_collector()->SetFlags(mark_compact_flags);
+    heap_->set_current_gc_flags(flags);
     StartMarking();
-    heap_->mark_compact_collector()->SetFlags(Heap::kNoGCFlags);
   } else {
     if (FLAG_trace_incremental_marking) {
       PrintF("[IncrementalMarking] Start sweeping.\n");
