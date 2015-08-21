@@ -104,13 +104,15 @@ Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
                                  Node** args) {
   int param_count =
       static_cast<int>(desc->GetMachineSignature()->parameter_count());
-  Node** buffer = zone()->NewArray<Node*>(param_count + 1);
+  Node** buffer = zone()->NewArray<Node*>(param_count + 3);
   int index = 0;
   buffer[index++] = function;
   for (int i = 0; i < param_count; i++) {
     buffer[index++] = args[i];
   }
-  Node* call = graph()->NewNode(common()->Call(desc), param_count + 1, buffer);
+  buffer[index++] = graph()->start();
+  buffer[index++] = graph()->start();
+  Node* call = graph()->NewNode(common()->Call(desc), param_count + 3, buffer);
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
@@ -125,7 +127,8 @@ Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
   Node* stub_code = HeapConstant(callable.code());
   Node* call = graph()->NewNode(common()->Call(desc), stub_code, function,
-                                receiver, context, frame_state);
+                                receiver, context, frame_state,
+                                graph()->start(), graph()->start());
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
@@ -135,8 +138,9 @@ Node* RawMachineAssembler::CallJS0(Node* function, Node* receiver,
                                    Node* context, Node* frame_state) {
   CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
       zone(), false, 1, CallDescriptor::kNeedsFrameState);
-  Node* call = graph()->NewNode(common()->Call(descriptor), function, receiver,
-                                context, frame_state);
+  Node* call =
+      graph()->NewNode(common()->Call(descriptor), function, receiver, context,
+                       frame_state, graph()->start(), graph()->start());
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
@@ -154,7 +158,8 @@ Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
   Node* arity = Int32Constant(1);
 
   Node* call = graph()->NewNode(common()->Call(descriptor), centry, arg0, ref,
-                                arity, context, frame_state);
+                                arity, context, frame_state, graph()->start(),
+                                graph()->start());
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
@@ -167,7 +172,8 @@ Node* RawMachineAssembler::CallCFunction0(MachineType return_type,
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
-  Node* call = graph()->NewNode(common()->Call(descriptor), function);
+  Node* call = graph()->NewNode(common()->Call(descriptor), function,
+                                graph()->start(), graph()->start());
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
@@ -182,7 +188,8 @@ Node* RawMachineAssembler::CallCFunction1(MachineType return_type,
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
-  Node* call = graph()->NewNode(common()->Call(descriptor), function, arg0);
+  Node* call = graph()->NewNode(common()->Call(descriptor), function, arg0,
+                                graph()->start(), graph()->start());
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
@@ -199,8 +206,8 @@ Node* RawMachineAssembler::CallCFunction2(MachineType return_type,
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
-  Node* call =
-      graph()->NewNode(common()->Call(descriptor), function, arg0, arg1);
+  Node* call = graph()->NewNode(common()->Call(descriptor), function, arg0,
+                                arg1, graph()->start(), graph()->start());
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
@@ -222,11 +229,21 @@ Node* RawMachineAssembler::CallCFunction8(
   builder.AddParam(arg5_type);
   builder.AddParam(arg6_type);
   builder.AddParam(arg7_type);
+  Node* args[] = {function,
+                  arg0,
+                  arg1,
+                  arg2,
+                  arg3,
+                  arg4,
+                  arg5,
+                  arg6,
+                  arg7,
+                  graph()->start(),
+                  graph()->start()};
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-
-  Node* call = graph()->NewNode(common()->Call(descriptor), function, arg0,
-                                arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+  Node* call =
+      graph()->NewNode(common()->Call(descriptor), arraysize(args), args);
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
