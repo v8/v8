@@ -853,6 +853,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     // Push any stack arguments.
     for (Node* input : base::Reversed(buffer.pushed_nodes)) {
       // TODO(titzer): handle pushing double parameters.
+      if (input == nullptr) continue;
       InstructionOperand value =
           g.CanBeImmediate(input)
               ? g.UseImmediate(input)

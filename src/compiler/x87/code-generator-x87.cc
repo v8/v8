@@ -1104,7 +1104,29 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX87Push:
-      if (HasImmediateInput(instr, 0)) {
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        auto allocated = AllocatedOperand::cast(*instr->InputAt(0));
+        if (allocated.machine_type() == kRepFloat32) {
+          __ sub(esp, Immediate(kDoubleSize));
+          __ fst_s(Operand(esp, 0));
+        } else {
+          DCHECK(allocated.machine_type() == kRepFloat64);
+          __ sub(esp, Immediate(kDoubleSize));
+          __ fst_d(Operand(esp, 0));
+        }
+      } else if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        auto allocated = AllocatedOperand::cast(*instr->InputAt(0));
+        if (allocated.machine_type() == kRepFloat32) {
+          __ sub(esp, Immediate(kDoubleSize));
+          __ fld_s(i.InputOperand(0));
+          __ fstp_s(MemOperand(esp, 0));
+        } else {
+          DCHECK(allocated.machine_type() == kRepFloat64);
+          __ sub(esp, Immediate(kDoubleSize));
+          __ fld_d(i.InputOperand(0));
+          __ fstp_d(MemOperand(esp, 0));
+        }
+      } else if (HasImmediateInput(instr, 0)) {
         __ push(i.InputImmediate(0));
       } else {
         __ push(i.InputOperand(0));
