@@ -740,7 +740,7 @@ void Heap::PreprocessStackTraces() {
 void Heap::HandleGCRequest() {
   if (incremental_marking()->request_type() ==
       IncrementalMarking::COMPLETE_MARKING) {
-    CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt",
+    CollectAllGarbage(current_gc_flags(), "GC interrupt",
                       incremental_marking()->CallbackFlags());
     return;
   }
@@ -4748,10 +4748,14 @@ void Heap::ReduceNewSpaceSize() {
   // TODO(ulan): Unify this constant with the similar constant in
   // GCIdleTimeHandler once the change is merged to 4.5.
   static const size_t kLowAllocationThroughput = 1000;
-  size_t allocation_throughput =
+  const size_t allocation_throughput =
       tracer()->CurrentAllocationThroughputInBytesPerMillisecond();
-  if (FLAG_predictable || allocation_throughput == 0) return;
-  if (allocation_throughput < kLowAllocationThroughput) {
+
+  if (FLAG_predictable) return;
+
+  if (ShouldReduceMemory() ||
+      ((allocation_throughput != 0) &&
+       (allocation_throughput < kLowAllocationThroughput))) {
     new_space_.Shrink();
     UncommitFromSpace();
   }
@@ -4766,7 +4770,7 @@ void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
     OverApproximateWeakClosure(comment);
   } else if (incremental_marking()->IsComplete() ||
              (mark_compact_collector_.marking_deque()->IsEmpty())) {
-    CollectAllGarbage(kNoGCFlags, comment);
+    CollectAllGarbage(current_gc_flags(), comment);
   }
 }
 
@@ -4788,7 +4792,8 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
               gc_idle_time_handler_.ShouldDoFinalIncrementalMarkCompact(
                   static_cast<size_t>(idle_time_in_ms), size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
-    CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
+    CollectAllGarbage(current_gc_flags(),
+                      "idle notification: finalize incremental");
     return true;
   }
   return false;

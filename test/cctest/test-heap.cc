@@ -2812,7 +2812,8 @@ HEAP_TEST(GCFlags) {
   marking->Start(Heap::kReduceMemoryFootprintMask);
   CHECK_NE(0, heap->current_gc_flags() & Heap::kReduceMemoryFootprintMask);
 
-  heap->Scavenge();
+  heap->CollectGarbage(NEW_SPACE);
+  // NewSpace scavenges should not overwrite the flags.
   CHECK_NE(0, heap->current_gc_flags() & Heap::kReduceMemoryFootprintMask);
 
   heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
