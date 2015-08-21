@@ -30,19 +30,20 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "test/cctest/heap-tester.h"
 
 
 using namespace v8::internal;
 
 
-static AllocationResult AllocateAfterFailures() {
+AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   static int attempts = 0;
 
   // The first 4 times we simulate a full heap, by returning retry.
   if (++attempts < 4) return AllocationResult::Retry();
 
   // Expose some private stuff on Heap.
-  TestHeap* heap = CcTest::test_heap();
+  Heap* heap = CcTest::heap();
 
   // Now that we have returned 'retry' 4 times, we are in a last-chance
   // scenario, with always_allocate.  See CALL_AND_RETRY.  Test that all
@@ -97,16 +98,16 @@ static AllocationResult AllocateAfterFailures() {
 }
 
 
-static Handle<Object> Test() {
+Handle<Object> v8::internal::HeapTester::TestAllocateAfterFailures() {
   CALL_HEAP_FUNCTION(CcTest::i_isolate(), AllocateAfterFailures(), Object);
 }
 
 
-TEST(StressHandles) {
+HEAP_TEST(StressHandles) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-  Handle<Object> o = Test();
+  Handle<Object> o = TestAllocateAfterFailures();
   CHECK(o->IsTrue());
   env->Exit();
 }
@@ -117,7 +118,8 @@ void TestGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  info.GetReturnValue().Set(v8::Utils::ToLocal(Test()));
+  info.GetReturnValue().Set(v8::Utils::ToLocal(
+      v8::internal::HeapTester::TestAllocateAfterFailures()));
 }
 
 

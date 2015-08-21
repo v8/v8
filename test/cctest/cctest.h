@@ -89,21 +89,6 @@ typedef v8::internal::EnumSet<CcTestExtensionIds> CcTestExtensionFlags;
 #undef DEFINE_EXTENSION_FLAG
 
 
-// Use this to expose protected methods in i::Heap.
-class TestHeap : public i::Heap {
- public:
-  using i::Heap::AllocateByteArray;
-  using i::Heap::AllocateFixedArray;
-  using i::Heap::AllocateHeapNumber;
-  using i::Heap::AllocateFloat32x4;
-  using i::Heap::AllocateJSObject;
-  using i::Heap::AllocateJSObjectFromMap;
-  using i::Heap::AllocateMap;
-  using i::Heap::CopyCode;
-  using i::Heap::kInitialNumberStringCacheSize;
-};
-
-
 class CcTest {
  public:
   typedef void (TestFunction)();
@@ -135,10 +120,6 @@ class CcTest {
 
   static i::Heap* heap() {
     return i_isolate()->heap();
-  }
-
-  static TestHeap* test_heap() {
-    return reinterpret_cast<TestHeap*>(i_isolate()->heap());
   }
 
   static v8::base::RandomNumberGenerator* random_number_generator() {

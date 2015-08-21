@@ -39,32 +39,12 @@
 #include "src/macro-assembler.h"
 #include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap-tester.h"
 
 using v8::Just;
 
 namespace v8 {
 namespace internal {
-
-// Tests that should have access to private methods of {v8::internal::Heap}.
-// Those tests need to be defined using HEAP_TEST(Name) { ... }.
-#define HEAP_TEST_METHODS(V) \
-  V(GCFlags)
-
-
-#define HEAP_TEST(Name)                                                      \
-  CcTest register_test_##Name(HeapTester::Test##Name, __FILE__, #Name, NULL, \
-                              true, true);                                   \
-  void HeapTester::Test##Name()
-
-
-class HeapTester {
- public:
-#define DECLARE_STATIC(Name) static void Test##Name();
-
-  HEAP_TEST_METHODS(DECLARE_STATIC)
-#undef HEAP_TEST_METHODS
-};
-
 
 static void CheckMap(Map* map, int type, int instance_size) {
   CHECK(map->IsHeapObject());
@@ -1148,11 +1128,11 @@ static int LenFromSize(int size) {
 }
 
 
-TEST(Regression39128) {
+HEAP_TEST(Regression39128) {
   // Test case for crbug.com/39128.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  TestHeap* heap = CcTest::test_heap();
+  Heap* heap = CcTest::heap();
 
   // Increase the chance of 'bump-the-pointer' allocation in old space.
   heap->CollectAllGarbage();
@@ -1952,7 +1932,7 @@ TEST(TestSizeOfRegExpCode) {
 }
 
 
-TEST(TestSizeOfObjects) {
+HEAP_TEST(TestSizeOfObjects) {
   v8::V8::Initialize();
 
   // Get initial heap size after several full GCs, which will stabilize
@@ -1975,7 +1955,7 @@ TEST(TestSizeOfObjects) {
     AlwaysAllocateScope always_allocate(CcTest::i_isolate());
     int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
     for (int i = 1; i <= 100; i++) {
-      CcTest::test_heap()->AllocateFixedArray(8192, TENURED).ToObjectChecked();
+      CcTest::heap()->AllocateFixedArray(8192, TENURED).ToObjectChecked();
       CHECK_EQ(initial_size + i * filler_size,
                static_cast<int>(CcTest::heap()->SizeOfObjects()));
     }
@@ -5867,13 +5847,13 @@ TEST(Regress442710) {
 }
 
 
-TEST(NumberStringCacheSize) {
+HEAP_TEST(NumberStringCacheSize) {
   // Test that the number-string cache has not been resized in the snapshot.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   if (!isolate->snapshot_available()) return;
   Heap* heap = isolate->heap();
-  CHECK_EQ(TestHeap::kInitialNumberStringCacheSize * 2,
+  CHECK_EQ(Heap::kInitialNumberStringCacheSize * 2,
            heap->number_string_cache()->length());
 }
 

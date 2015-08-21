@@ -88,6 +88,7 @@
         'gay-fixed.cc',
         'gay-precision.cc',
         'gay-shortest.cc',
+        'heap-tester.h',
         'print-extension.cc',
         'profiler-extension.cc',
         'test-accessors.cc',

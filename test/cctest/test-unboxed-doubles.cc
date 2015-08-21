@@ -14,6 +14,7 @@
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap-tester.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -1402,11 +1403,11 @@ static int LenFromSize(int size) {
 }
 
 
-TEST(WriteBarriersInCopyJSObject) {
+HEAP_TEST(WriteBarriersInCopyJSObject) {
   FLAG_max_semi_space_size = 1;  // Ensure new space is not growing.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  TestHeap* heap = CcTest::test_heap();
+  Heap* heap = CcTest::heap();
 
   v8::HandleScope scope(CcTest::isolate());
 

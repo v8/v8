@@ -1618,8 +1618,31 @@ class Heap {
 
   bool ShouldOptimizeForMemoryUsage() { return optimize_for_memory_usage_; }
 
- protected:
-  // Methods made available to tests.
+ private:
+  static const int kInitialStringTableSize = 2048;
+  static const int kInitialEvalCacheSize = 64;
+  static const int kInitialNumberStringCacheSize = 256;
+
+  Heap();
+
+  int current_gc_flags() { return current_gc_flags_; }
+  void set_current_gc_flags(int flags) {
+    current_gc_flags_ = flags;
+    DCHECK(!ShouldFinalizeIncrementalMarking() ||
+           !ShouldAbortIncrementalMarking());
+  }
+
+  inline bool ShouldReduceMemory() const {
+    return current_gc_flags_ & kReduceMemoryFootprintMask;
+  }
+
+  inline bool ShouldAbortIncrementalMarking() const {
+    return current_gc_flags_ & kAbortIncrementalMarkingMask;
+  }
+
+  inline bool ShouldFinalizeIncrementalMarking() const {
+    return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
+  }
 
   // Allocates a JS Map in the heap.
   MUST_USE_RESULT AllocationResult
@@ -1673,32 +1696,6 @@ class Heap {
   // Allocates a fixed array initialized with undefined values
   MUST_USE_RESULT AllocationResult
       AllocateFixedArray(int length, PretenureFlag pretenure = NOT_TENURED);
-
-  static const int kInitialStringTableSize = 2048;
-  static const int kInitialEvalCacheSize = 64;
-  static const int kInitialNumberStringCacheSize = 256;
-
- private:
-  Heap();
-
-  int current_gc_flags() { return current_gc_flags_; }
-  void set_current_gc_flags(int flags) {
-    current_gc_flags_ = flags;
-    DCHECK(!ShouldFinalizeIncrementalMarking() ||
-           !ShouldAbortIncrementalMarking());
-  }
-
-  inline bool ShouldReduceMemory() const {
-    return current_gc_flags_ & kReduceMemoryFootprintMask;
-  }
-
-  inline bool ShouldAbortIncrementalMarking() const {
-    return current_gc_flags_ & kAbortIncrementalMarkingMask;
-  }
-
-  inline bool ShouldFinalizeIncrementalMarking() const {
-    return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
-  }
 
   // The amount of external memory registered through the API kept alive
   // by global handles

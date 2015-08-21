@@ -50,6 +50,7 @@
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "src/vm-state.h"
+#include "test/cctest/heap-tester.h"
 
 static const bool kLogThreading = false;
 
@@ -6686,7 +6687,11 @@ static void ResetUseValueAndSetFlag(
 }
 
 
-static void ResetWeakHandle(bool global_gc) {
+void v8::internal::HeapTester::ResetWeakHandle(bool global_gc) {
+  using v8::Context;
+  using v8::Local;
+  using v8::Object;
+
   v8::Isolate* iso = CcTest::isolate();
   v8::HandleScope scope(iso);
   v8::Handle<Context> context = Context::New(iso);
@@ -6701,8 +6706,7 @@ static void ResetWeakHandle(bool global_gc) {
     object_a.handle.Reset(iso, a);
     object_b.handle.Reset(iso, b);
     if (global_gc) {
-      CcTest::heap()->CollectAllGarbage(
-          TestHeap::Heap::kAbortIncrementalMarkingMask);
+      CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
     } else {
       CcTest::heap()->CollectGarbage(i::NEW_SPACE);
     }
@@ -6720,8 +6724,7 @@ static void ResetWeakHandle(bool global_gc) {
     CHECK(object_b.handle.IsIndependent());
   }
   if (global_gc) {
-    CcTest::heap()->CollectAllGarbage(
-        TestHeap::Heap::kAbortIncrementalMarkingMask);
+    CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   } else {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   }
@@ -6730,9 +6733,9 @@ static void ResetWeakHandle(bool global_gc) {
 }
 
 
-THREADED_TEST(ResetWeakHandle) {
-  ResetWeakHandle(false);
-  ResetWeakHandle(true);
+THREADED_HEAP_TEST(ResetWeakHandle) {
+  v8::internal::HeapTester::ResetWeakHandle(false);
+  v8::internal::HeapTester::ResetWeakHandle(true);
 }
 
 
