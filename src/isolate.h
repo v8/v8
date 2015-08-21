@@ -772,7 +772,7 @@ class Isolate {
 
   // Attempts to compute the current source location, storing the
   // result in the target out parameter.
-  void ComputeLocation(MessageLocation* target);
+  bool ComputeLocation(MessageLocation* target);
   bool ComputeLocationFromException(MessageLocation* target,
                                     Handle<Object> exception);
   bool ComputeLocationFromStackTrace(MessageLocation* target,

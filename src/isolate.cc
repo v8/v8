@@ -993,11 +993,10 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
 
   // Generate the message if required.
   if (requires_message && !rethrowing_message) {
-    MessageLocation potential_computed_location;
-    if (location == NULL) {
-      // If no location was specified we use a computed one instead.
-      ComputeLocation(&potential_computed_location);
-      location = &potential_computed_location;
+    MessageLocation computed_location;
+    // If no location was specified we try to use a computed one instead.
+    if (location == NULL && ComputeLocation(&computed_location)) {
+      location = &computed_location;
     }
 
     if (bootstrapper()->IsActive()) {
@@ -1258,8 +1257,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
 }
 
 
-void Isolate::ComputeLocation(MessageLocation* target) {
-  *target = MessageLocation(Handle<Script>(heap_.empty_script()), -1, -1);
+bool Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
   if (!it.done()) {
     JavaScriptFrame* frame = it.frame();
@@ -1271,8 +1269,10 @@ void Isolate::ComputeLocation(MessageLocation* target) {
       // Compute the location from the function and the reloc info.
       Handle<Script> casted_script(Script::cast(script));
       *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
+      return true;
     }
   }
+  return false;
 }
 
 
@@ -1305,8 +1305,6 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
 
 bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
                                             Handle<Object> exception) {
-  *target = MessageLocation(Handle<Script>(heap_.empty_script()), -1, -1);
-
   if (!exception->IsJSObject()) return false;
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> property =
@@ -1356,7 +1354,6 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
 Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
   Handle<JSArray> stack_trace_object;
-  MessageLocation potential_computed_location;
   if (capture_stack_trace_for_uncaught_exceptions_) {
     if (IsErrorObject(exception)) {
       // We fetch the stack trace that corresponds to this error object.
@@ -1373,15 +1370,12 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
           stack_trace_for_uncaught_exceptions_options_);
     }
   }
-  if (!location) {
-    if (!ComputeLocationFromException(&potential_computed_location,
-                                      exception)) {
-      if (!ComputeLocationFromStackTrace(&potential_computed_location,
-                                         exception)) {
-        ComputeLocation(&potential_computed_location);
-      }
-    }
-    location = &potential_computed_location;
+  MessageLocation computed_location;
+  if (location == NULL &&
+      (ComputeLocationFromException(&computed_location, exception) ||
+       ComputeLocationFromStackTrace(&computed_location, exception) ||
+       ComputeLocation(&computed_location))) {
+    location = &computed_location;
   }
 
   return MessageHandler::MakeMessageObject(

@@ -256,8 +256,9 @@ RUNTIME_FUNCTION(Runtime_RenderCallSite) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   MessageLocation location;
-  isolate->ComputeLocation(&location);
-  if (location.start_pos() == -1) return isolate->heap()->empty_string();
+  if (!isolate->ComputeLocation(&location)) {
+    return isolate->heap()->empty_string();
+  }
 
   Zone zone;
   base::SmartPointer<ParseInfo> info(

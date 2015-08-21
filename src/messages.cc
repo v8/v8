@@ -33,17 +33,20 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
 
 
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
-    Isolate* isolate, MessageTemplate::Template message, MessageLocation* loc,
-    Handle<Object> argument, Handle<JSArray> stack_frames) {
+    Isolate* isolate, MessageTemplate::Template message,
+    MessageLocation* location, Handle<Object> argument,
+    Handle<JSArray> stack_frames) {
   Factory* factory = isolate->factory();
 
-  int start = 0;
-  int end = 0;
+  int start = -1;
+  int end = -1;
   Handle<Object> script_handle = factory->undefined_value();
-  if (loc) {
-    start = loc->start_pos();
-    end = loc->end_pos();
-    script_handle = Script::GetWrapper(loc->script());
+  if (location != NULL) {
+    start = location->start_pos();
+    end = location->end_pos();
+    script_handle = Script::GetWrapper(location->script());
+  } else {
+    script_handle = Script::GetWrapper(isolate->factory()->empty_script());
   }
 
   Handle<Object> stack_frames_handle = stack_frames.is_null()

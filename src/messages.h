@@ -430,8 +430,9 @@ class MessageHandler {
  public:
   // Returns a message object for the API to use.
   static Handle<JSMessageObject> MakeMessageObject(
-      Isolate* isolate, MessageTemplate::Template type, MessageLocation* loc,
-      Handle<Object> argument, Handle<JSArray> stack_frames);
+      Isolate* isolate, MessageTemplate::Template type,
+      MessageLocation* location, Handle<Object> argument,
+      Handle<JSArray> stack_frames);
 
   // Report a formatted message (needs JS allocation).
   static void ReportMessage(Isolate* isolate, MessageLocation* loc,
