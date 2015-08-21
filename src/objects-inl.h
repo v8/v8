@@ -2523,6 +2523,21 @@ void WeakFixedArray::set_last_used_index(int index) {
 }
 
 
+template <class T>
+T* WeakFixedArray::Iterator::Next() {
+  if (list_ != NULL) {
+    // Assert that list did not change during iteration.
+    DCHECK_EQ(last_used_index_, list_->last_used_index());
+    while (index_ < list_->Length()) {
+      Object* item = list_->Get(index_++);
+      if (item != Empty()) return T::cast(item);
+    }
+    list_ = NULL;
+  }
+  return NULL;
+}
+
+
 int ArrayList::Length() {
   if (FixedArray::cast(this)->length() == 0) return 0;
   return Smi::cast(FixedArray::cast(this)->get(kLengthIndex))->value();

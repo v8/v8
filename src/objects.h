@@ -2515,6 +2515,24 @@ class WeakFixedArray : public FixedArray {
   inline bool IsEmptySlot(int index) const;
   static Object* Empty() { return Smi::FromInt(0); }
 
+  class Iterator {
+   public:
+    explicit Iterator(Object* maybe_array) : list_(NULL) { Reset(maybe_array); }
+    void Reset(Object* maybe_array);
+
+    template <class T>
+    inline T* Next();
+
+   private:
+    int index_;
+    WeakFixedArray* list_;
+#ifdef DEBUG
+    int last_used_index_;
+    DisallowHeapAllocation no_gc_;
+#endif  // DEBUG
+    DISALLOW_COPY_AND_ASSIGN(Iterator);
+  };
+
   DECLARE_CAST(WeakFixedArray)
 
  private:
@@ -5930,6 +5948,17 @@ class Script: public Struct {
   // that matches the function literal.  Return empty handle if not found.
   MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(FunctionLiteral* fun);
 
+  // Iterate over all script objects on the heap.
+  class Iterator {
+   public:
+    explicit Iterator(Isolate* isolate);
+    Script* Next();
+
+   private:
+    WeakFixedArray::Iterator iterator_;
+    DISALLOW_COPY_AND_ASSIGN(Iterator);
+  };
+
   // Dispatched behavior.
   DECLARE_PRINTER(Script)
   DECLARE_VERIFIER(Script)
@@ -6392,6 +6421,23 @@ class SharedFunctionInfo: public HeapObject {
   DECLARE_VERIFIER(SharedFunctionInfo)
 
   void ResetForNewContext(int new_ic_age);
+
+  // Iterate over all shared function infos that are created from a script.
+  // That excludes shared function infos created for API functions and C++
+  // builtins.
+  class Iterator {
+   public:
+    explicit Iterator(Isolate* isolate);
+    SharedFunctionInfo* Next();
+
+   private:
+    bool NextScript();
+
+    Script::Iterator script_iterator_;
+    WeakFixedArray::Iterator sfi_iterator_;
+    DisallowHeapAllocation no_gc_;
+    DISALLOW_COPY_AND_ASSIGN(Iterator);
+  };
 
   DECLARE_CAST(SharedFunctionInfo)
 

@@ -7816,6 +7816,17 @@ void WeakFixedArray::Compact() {
 }
 
 
+void WeakFixedArray::Iterator::Reset(Object* maybe_array) {
+  if (maybe_array->IsWeakFixedArray()) {
+    list_ = WeakFixedArray::cast(maybe_array);
+    index_ = 0;
+#ifdef DEBUG
+    last_used_index_ = list_->last_used_index();
+#endif  // DEBUG
+  }
+}
+
+
 void JSObject::PrototypeRegistryCompactionCallback::Callback(Object* value,
                                                              int old_index,
                                                              int new_index) {
@@ -9666,16 +9677,10 @@ static void InvalidatePrototypeChainsInternal(Map* map) {
     cell->set_value(Smi::FromInt(Map::kPrototypeChainInvalid));
   }
 
-  Object* maybe_array = proto_info->prototype_users();
-  if (!maybe_array->IsWeakFixedArray()) return;
-
-  WeakFixedArray* users = WeakFixedArray::cast(maybe_array);
-  for (int i = 0; i < users->Length(); ++i) {
-    Object* maybe_user = users->Get(i);
-    if (maybe_user->IsSmi()) continue;
-
-    // For now, only maps register themselves as users.
-    Map* user = Map::cast(maybe_user);
+  WeakFixedArray::Iterator iterator(proto_info->prototype_users());
+  // For now, only maps register themselves as users.
+  Map* user;
+  while ((user = iterator.Next<Map>())) {
     // Walk the prototype chain (backwards, towards leaf objects) if necessary.
     InvalidatePrototypeChainsInternal(user);
   }
@@ -10179,19 +10184,45 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
 
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     FunctionLiteral* fun) {
-  if (shared_function_infos()->IsWeakFixedArray()) {
-    WeakFixedArray* array = WeakFixedArray::cast(shared_function_infos());
-    for (int i = 0; i < array->Length(); i++) {
-      Object* obj = array->Get(i);
-      if (!obj->IsSharedFunctionInfo()) continue;
-      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-      if (fun->function_token_position() == shared->function_token_position() &&
-          fun->start_position() == shared->start_position()) {
-        return Handle<SharedFunctionInfo>(shared);
-      }
+  WeakFixedArray::Iterator iterator(shared_function_infos());
+  SharedFunctionInfo* shared;
+  while ((shared = iterator.Next<SharedFunctionInfo>())) {
+    if (fun->function_token_position() == shared->function_token_position() &&
+        fun->start_position() == shared->start_position()) {
+      return Handle<SharedFunctionInfo>(shared);
     }
   }
   return MaybeHandle<SharedFunctionInfo>();
+}
+
+
+Script::Iterator::Iterator(Isolate* isolate)
+    : iterator_(isolate->heap()->script_list()) {}
+
+
+Script* Script::Iterator::Next() { return iterator_.Next<Script>(); }
+
+
+SharedFunctionInfo::Iterator::Iterator(Isolate* isolate)
+    : script_iterator_(isolate), sfi_iterator_(NULL) {
+  NextScript();
+}
+
+
+bool SharedFunctionInfo::Iterator::NextScript() {
+  Script* script = script_iterator_.Next();
+  if (script == NULL) return false;
+  sfi_iterator_.Reset(script->shared_function_infos());
+  return true;
+}
+
+
+SharedFunctionInfo* SharedFunctionInfo::Iterator::Next() {
+  do {
+    SharedFunctionInfo* next = sfi_iterator_.Next<SharedFunctionInfo>();
+    if (next != NULL) return next;
+  } while (NextScript());
+  return NULL;
 }
 
 
@@ -10212,10 +10243,11 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     Handle<Script> script = Handle<Script>::cast(script_object);
     Handle<Object> list(script->shared_function_infos(), shared->GetIsolate());
 #ifdef DEBUG
-    if (list->IsWeakFixedArray()) {
-      Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(list);
-      for (int i = 0; i < array->Length(); ++i) {
-        DCHECK(array->Get(i) != *shared);
+    {
+      WeakFixedArray::Iterator iterator(*list);
+      SharedFunctionInfo* next;
+      while ((next = iterator.Next<SharedFunctionInfo>())) {
+        DCHECK_NE(next, *shared);
       }
     }
 #endif  // DEBUG

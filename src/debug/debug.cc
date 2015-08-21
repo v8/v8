@@ -1424,17 +1424,17 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
   while (true) {
     // Go through all shared function infos associated with this script to
     // find the inner most function containing this position.
+    // If there is no shared function info for this script at all, there is
+    // no point in looking for it by walking the heap.
     if (!script->shared_function_infos()->IsWeakFixedArray()) break;
-    WeakFixedArray* array =
-        WeakFixedArray::cast(script->shared_function_infos());
 
     SharedFunctionInfo* shared;
     {
       SharedFunctionInfoFinder finder(position);
-      for (int i = 0; i < array->Length(); i++) {
-        Object* item = array->Get(i);
-        if (!item->IsSharedFunctionInfo()) continue;
-        finder.NewCandidate(SharedFunctionInfo::cast(item));
+      WeakFixedArray::Iterator iterator(script->shared_function_infos());
+      SharedFunctionInfo* candidate;
+      while ((candidate = iterator.Next<SharedFunctionInfo>())) {
+        finder.NewCandidate(candidate);
       }
       shared = finder.Result();
       if (shared == NULL) break;
@@ -1608,8 +1608,7 @@ void Debug::ClearMirrorCache() {
 
 
 Handle<FixedArray> Debug::GetLoadedScripts() {
-  isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
-                                      "Debug::GetLoadedScripts");
+  isolate_->heap()->CollectAllGarbage();
   Factory* factory = isolate_->factory();
   if (!factory->script_list()->IsWeakFixedArray()) {
     return factory->empty_fixed_array();
@@ -1618,10 +1617,11 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
       Handle<WeakFixedArray>::cast(factory->script_list());
   Handle<FixedArray> results = factory->NewFixedArray(array->Length());
   int length = 0;
-  for (int i = 0; i < array->Length(); ++i) {
-    Object* item = array->Get(i);
-    if (item->IsScript() && Script::cast(item)->HasValidSource()) {
-      results->set(length++, item);
+  {
+    Script::Iterator iterator(isolate_);
+    Script* script;
+    while ((script = iterator.Next())) {
+      if (script->HasValidSource()) results->set(length++, script);
     }
   }
   results->Shrink(length);

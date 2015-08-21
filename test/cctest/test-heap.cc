@@ -6440,5 +6440,67 @@ TEST(ContextMeasure) {
   CHECK_LE(measure.Size(), size_upper_limit);
 }
 
+
+TEST(ScriptIterator) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = CcTest::heap();
+  LocalContext context;
+
+  heap->CollectAllGarbage();
+
+  int script_count = 0;
+  {
+    HeapIterator it(heap);
+    for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+      if (obj->IsScript()) script_count++;
+    }
+  }
+
+  {
+    Script::Iterator iterator(isolate);
+    while (iterator.Next()) script_count--;
+  }
+
+  CHECK_EQ(0, script_count);
+}
+
+
+TEST(SharedFunctionInfoIterator) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = CcTest::heap();
+  LocalContext context;
+
+  heap->CollectAllGarbage();
+  heap->CollectAllGarbage();
+
+  int sfi_count = 0;
+  {
+    HeapIterator it(heap);
+    for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+      if (!obj->IsSharedFunctionInfo()) continue;
+      // Shared function infos without a script (API functions or C++ builtins)
+      // are not returned by the iterator because they are not created from a
+      // script. They are not interesting for type feedback vector anyways.
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+      if (shared->script()->IsUndefined()) {
+        CHECK_EQ(0, shared->feedback_vector()->ICSlots());
+      } else {
+        sfi_count++;
+      }
+    }
+  }
+
+  {
+    SharedFunctionInfo::Iterator iterator(isolate);
+    while (iterator.Next()) sfi_count--;
+  }
+
+  CHECK_EQ(0, sfi_count);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -1602,13 +1602,10 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
   CONVERT_ARG_HANDLE_CHECKED(String, script_name, 0);
 
   Handle<Script> found;
-  Heap* heap = isolate->heap();
   {
-    HeapIterator iterator(heap);
-    HeapObject* obj = NULL;
-    while ((obj = iterator.next()) != NULL) {
-      if (!obj->IsScript()) continue;
-      Script* script = Script::cast(obj);
+    Script::Iterator iterator(isolate);
+    Script* script = NULL;
+    while ((script = iterator.Next()) != NULL) {
       if (!script->name()->IsString()) continue;
       String* name = String::cast(script->name());
       if (name->Equals(*script_name)) {
@@ -1618,7 +1615,7 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
     }
   }
 
-  if (found.is_null()) return heap->undefined_value();
+  if (found.is_null()) return isolate->heap()->undefined_value();
   return *Script::GetWrapper(found);
 }
 

@@ -715,12 +715,9 @@ void Heap::GarbageCollectionEpilogue() {
 
 
 void Heap::PreprocessStackTraces() {
-  if (!weak_stack_trace_list()->IsWeakFixedArray()) return;
-  WeakFixedArray* array = WeakFixedArray::cast(weak_stack_trace_list());
-  int length = array->Length();
-  for (int i = 0; i < length; i++) {
-    if (array->IsEmptySlot(i)) continue;
-    FixedArray* elements = FixedArray::cast(array->Get(i));
+  WeakFixedArray::Iterator iterator(weak_stack_trace_list());
+  FixedArray* elements;
+  while ((elements = iterator.Next<FixedArray>())) {
     for (int j = 1; j < elements->length(); j += 4) {
       Object* maybe_code = elements->get(j + 2);
       // If GC happens while adding a stack trace to the weak fixed array,
