@@ -155,8 +155,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
                               HParameter::STACK_PARAMETER, r);
     } else {
       param = Add<HParameter>(i, HParameter::REGISTER_PARAMETER, r);
+      start_environment->Bind(i, param);
     }
-    start_environment->Bind(i, param);
     parameters_[i] = param;
     if (i < register_param_count && IsParameterCountRegister(i)) {
       param->set_type(HType::Smi());
@@ -1015,7 +1015,7 @@ Handle<Code> StoreFieldStub::GenerateCode() { return DoGenerateCode(this); }
 
 template <>
 HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
-  HValue* object = GetParameter(StoreTransitionDescriptor::kReceiverIndex);
+  HValue* object = GetParameter(StoreTransitionHelper::ReceiverIndex());
 
   switch (casted_stub()->store_mode()) {
     case StoreTransitionStub::ExtendStorageAndStoreMapAndValue: {
@@ -1046,17 +1046,17 @@ HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
     case StoreTransitionStub::StoreMapAndValue:
       // Store the new value into the "extended" object.
       BuildStoreNamedField(
-          object, GetParameter(StoreTransitionDescriptor::kValueIndex),
+          object, GetParameter(StoreTransitionHelper::ValueIndex()),
           casted_stub()->index(), casted_stub()->representation(), true);
     // Fall through.
 
     case StoreTransitionStub::StoreMapOnly:
       // And finally update the map.
       Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
-                            GetParameter(StoreTransitionDescriptor::kMapIndex));
+                            GetParameter(StoreTransitionHelper::MapIndex()));
       break;
   }
-  return GetParameter(StoreTransitionDescriptor::kValueIndex);
+  return GetParameter(StoreTransitionHelper::ValueIndex());
 }
 
 
@@ -1609,10 +1609,10 @@ Handle<Code> StoreGlobalStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
-  HValue* object = GetParameter(StoreTransitionDescriptor::kReceiverIndex);
-  HValue* key = GetParameter(StoreTransitionDescriptor::kNameIndex);
-  HValue* value = GetParameter(StoreTransitionDescriptor::kValueIndex);
-  HValue* map = GetParameter(StoreTransitionDescriptor::kMapIndex);
+  HValue* object = GetParameter(StoreTransitionHelper::ReceiverIndex());
+  HValue* key = GetParameter(StoreTransitionHelper::NameIndex());
+  HValue* value = GetParameter(StoreTransitionHelper::ValueIndex());
+  HValue* map = GetParameter(StoreTransitionHelper::MapIndex());
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.

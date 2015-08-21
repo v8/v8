@@ -17,6 +17,7 @@ class PlatformInterfaceDescriptor;
   V(Load)                                     \
   V(Store)                                    \
   V(StoreTransition)                          \
+  V(VectorStoreTransition)                    \
   V(VectorStoreICTrampoline)                  \
   V(VectorStoreIC)                            \
   V(Instanceof)                               \
@@ -263,7 +264,29 @@ class StoreTransitionDescriptor : public StoreDescriptor {
     kParameterCount
   };
 
-  // MapRegister() is no_reg on ia32, instead it's on the stack.
+  static const Register MapRegister();
+};
+
+
+class VectorStoreTransitionDescriptor : public StoreDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(VectorStoreTransitionDescriptor,
+                                               StoreDescriptor)
+
+  // Extends StoreDescriptor with Map parameter.
+  enum ParameterIndices {
+    kReceiverIndex,
+    kNameIndex,
+    kValueIndex,
+    kSlotIndex,
+    kVectorIndex,
+    kMapIndex,
+    kParameterCount
+  };
+
+  // These registers are no_reg for ia32, using the stack instead.
+  static const Register SlotRegister();
+  static const Register VectorRegister();
   static const Register MapRegister();
 };
 

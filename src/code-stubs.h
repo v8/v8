@@ -329,8 +329,7 @@ struct FakeStubForTesting : public CodeStub {
   Major MajorKey() const override { return CodeStub::NoCache; }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    UNREACHABLE();
-    return CallInterfaceDescriptor();
+    return ContextOnlyDescriptor(isolate());
   }
 
   Handle<Code> GenerateCode() override {
@@ -1275,6 +1274,69 @@ class StoreFieldStub : public HandlerStub {
   class RepresentationBits : public BitField<uint8_t, 13, 4> {};
 
   DEFINE_HANDLER_CODE_STUB(StoreField, HandlerStub);
+};
+
+
+// Register and parameter access methods are specified here instead of in
+// the CallInterfaceDescriptor because the stub uses a different descriptor
+// if FLAG_vector_stores is on.
+class StoreTransitionHelper {
+ public:
+  static Register ReceiverRegister() {
+    return StoreTransitionDescriptor::ReceiverRegister();
+  }
+
+  static Register NameRegister() {
+    return StoreTransitionDescriptor::NameRegister();
+  }
+
+  static Register ValueRegister() {
+    return StoreTransitionDescriptor::ValueRegister();
+  }
+
+  static Register SlotRegister() {
+    DCHECK(FLAG_vector_stores);
+    return VectorStoreTransitionDescriptor::SlotRegister();
+  }
+
+  static Register VectorRegister() {
+    DCHECK(FLAG_vector_stores);
+    return VectorStoreTransitionDescriptor::VectorRegister();
+  }
+
+  static Register MapRegister() {
+    return FLAG_vector_stores ? VectorStoreTransitionDescriptor::MapRegister()
+                              : StoreTransitionDescriptor::MapRegister();
+  }
+
+  static int ReceiverIndex() {
+    return StoreTransitionDescriptor::kReceiverIndex;
+  }
+
+  static int NameIndex() { return StoreTransitionDescriptor::kReceiverIndex; }
+
+  static int ValueIndex() { return StoreTransitionDescriptor::kValueIndex; }
+
+  static int SlotIndex() {
+    DCHECK(FLAG_vector_stores);
+    return VectorStoreTransitionDescriptor::kSlotIndex;
+  }
+
+  static int VectorIndex() {
+    DCHECK(FLAG_vector_stores);
+    return VectorStoreTransitionDescriptor::kVectorIndex;
+  }
+
+  static int MapIndex() {
+    if (FLAG_vector_stores) {
+      return VectorStoreTransitionDescriptor::kMapIndex;
+    }
+    return StoreTransitionDescriptor::kMapIndex;
+  }
+
+  // Some platforms push Slot, Vector, Map on the stack instead of in
+  // registers.
+  static bool UsesStackArgs() { return MapRegister().is(no_reg); }
 };
 
 
@@ -2606,12 +2668,18 @@ class StoreFastElementStub : public HydrogenCodeStub {
     return StoreModeBits::decode(sub_minor_key());
   }
 
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
+    if (FLAG_vector_stores) {
+      return VectorStoreICDescriptor(isolate());
+    }
+    return StoreDescriptor(isolate());
+  }
+
  private:
   class ElementsKindBits: public BitField<ElementsKind,      0, 8> {};
   class StoreModeBits: public BitField<KeyedAccessStoreMode, 8, 4> {};
   class IsJSArrayBits: public BitField<bool,                12, 1> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
   DEFINE_HYDROGEN_CODE_STUB(StoreFastElement, HydrogenCodeStub);
 };
 
@@ -2829,6 +2897,13 @@ class StoreElementStub : public PlatformCodeStub {
     minor_key_ = ElementsKindBits::encode(elements_kind);
   }
 
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
+    if (FLAG_vector_stores) {
+      return VectorStoreICDescriptor(isolate());
+    }
+    return StoreDescriptor(isolate());
+  }
+
  private:
   ElementsKind elements_kind() const {
     return ElementsKindBits::decode(minor_key_);
@@ -2836,7 +2911,6 @@ class StoreElementStub : public PlatformCodeStub {
 
   class ElementsKindBits : public BitField<ElementsKind, 0, 8> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
   DEFINE_PLATFORM_CODE_STUB(StoreElement, PlatformCodeStub);
 };
 
@@ -2951,13 +3025,14 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
     return StoreModeBits::decode(sub_minor_key());
   }
 
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override;
+
  private:
   class FromBits : public BitField<ElementsKind, 0, 8> {};
   class ToBits : public BitField<ElementsKind, 8, 8> {};
   class IsJSArrayBits : public BitField<bool, 16, 1> {};
   class StoreModeBits : public BitField<KeyedAccessStoreMode, 17, 4> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
   DEFINE_HYDROGEN_CODE_STUB(ElementsTransitionAndStore, HydrogenCodeStub);
 };
 

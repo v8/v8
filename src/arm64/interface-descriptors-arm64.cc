@@ -31,6 +31,11 @@ const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return x4; }
 const Register VectorStoreICDescriptor::VectorRegister() { return x3; }
 
 
+const Register VectorStoreTransitionDescriptor::SlotRegister() { return x4; }
+const Register VectorStoreTransitionDescriptor::VectorRegister() { return x3; }
+const Register VectorStoreTransitionDescriptor::MapRegister() { return x5; }
+
+
 const Register StoreTransitionDescriptor::MapRegister() { return x3; }
 
 
@@ -70,10 +75,10 @@ const Register GrowArrayElementsDescriptor::ObjectRegister() { return x0; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return x3; }
 
 
-void StoreTransitionDescriptor::InitializePlatformSpecific(
+void VectorStoreTransitionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
-                          MapRegister()};
+  Register registers[] = {ReceiverRegister(), NameRegister(),   ValueRegister(),
+                          SlotRegister(),     VectorRegister(), MapRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

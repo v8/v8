@@ -173,7 +173,16 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       parameter_count_(0),
       optimization_id_(-1),
       osr_expr_stack_height_(0),
-      function_type_(nullptr) {}
+      function_type_(nullptr) {
+  // Parameter count is number of stack parameters.
+  if (code_stub_ != NULL) {
+    CodeStubDescriptor descriptor(code_stub_);
+    parameter_count_ = descriptor.GetStackParameterCount();
+    if (descriptor.function_mode() == NOT_JS_FUNCTION_STUB_MODE) {
+      parameter_count_--;
+    }
+  }
+}
 
 
 CompilationInfo::~CompilationInfo() {
