@@ -255,7 +255,6 @@ class AstValue : public ZoneObject {
   F(dot_iterator, ".iterator")                                             \
   F(dot_module, ".module")                                                 \
   F(dot_result, ".result")                                                 \
-  F(dot_switch_tag, ".switch_tag")                                         \
   F(empty, "")                                                             \
   F(eval, "eval")                                                          \
   F(get_template_callsite, "$getTemplateCallSite")                         \
