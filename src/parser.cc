@@ -4067,7 +4067,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   Scope* declaration_scope = scope_->DeclarationScope();
   Scope* original_declaration_scope = original_scope_->DeclarationScope();
   Scope* scope = function_type == FunctionLiteral::DECLARATION &&
-                         is_sloppy(language_mode) && !allow_harmony_sloppy() &&
+                         is_sloppy(language_mode) &&
+                         !allow_harmony_sloppy_function() &&
                          (original_scope_ == original_declaration_scope ||
                           declaration_scope != original_declaration_scope)
                      ? NewScope(declaration_scope, FUNCTION_SCOPE, kind)
