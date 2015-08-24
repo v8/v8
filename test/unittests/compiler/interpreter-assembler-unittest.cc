@@ -23,6 +23,12 @@ const interpreter::Bytecode kBytecodes[] = {
 };
 
 
+Matcher<Node*> IsIntPtrConstant(const intptr_t value) {
+  return kPointerSize == 8 ? IsInt64Constant(static_cast<int64_t>(value))
+                           : IsInt32Constant(static_cast<int32_t>(value));
+}
+
+
 Matcher<Node*> IsIntPtrAdd(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher) {
   return kPointerSize == 8 ? IsInt64Add(lhs_matcher, rhs_matcher)
@@ -130,6 +136,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
                    next_bytecode_offset_matcher,
                    IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
                    IsParameter(Linkage::kInterpreterDispatchTableParameter),
+                   IsParameter(Linkage::kInterpreterContextParameter),
                    graph->start(), graph->start()));
   }
 }
@@ -158,6 +165,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Return) {
                    IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
                    IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
                    IsParameter(Linkage::kInterpreterDispatchTableParameter),
+                   IsParameter(Linkage::kInterpreterContextParameter),
                    graph->start(), graph->start()));
   }
 }
@@ -223,7 +231,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadRegister) {
     Node* load_reg_node = m.LoadRegister(reg_index_node);
     EXPECT_THAT(
         load_reg_node,
-        m.IsLoad(kMachPtr,
+        m.IsLoad(kMachAnyTagged,
                  IsParameter(Linkage::kInterpreterRegisterFileParameter),
                  IsWordShl(reg_index_node, IsInt32Constant(kPointerSizeLog2))));
   }
@@ -238,7 +246,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, StoreRegister) {
     Node* store_reg_node = m.StoreRegister(store_value, reg_index_node);
     EXPECT_THAT(
         store_reg_node,
-        m.IsStore(StoreRepresentation(kMachPtr, kNoWriteBarrier),
+        m.IsStore(StoreRepresentation(kMachAnyTagged, kNoWriteBarrier),
                   IsParameter(Linkage::kInterpreterRegisterFileParameter),
                   IsWordShl(reg_index_node, IsInt32Constant(kPointerSizeLog2)),
                   store_value));
@@ -254,6 +262,18 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
                 IsWordShl(value, IsInt32Constant(kSmiShiftSize + kSmiTagSize)));
     EXPECT_THAT(m.SmiUntag(value),
                 IsWordSar(value, IsInt32Constant(kSmiShiftSize + kSmiTagSize)));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, LoadContextSlot) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* load_context = m.LoadContextSlot(22);
+    EXPECT_THAT(load_context,
+                m.IsLoad(kMachAnyTagged,
+                         IsParameter(Linkage::kInterpreterContextParameter),
+                         IsIntPtrConstant(Context::SlotOffset(22))));
   }
 }
 

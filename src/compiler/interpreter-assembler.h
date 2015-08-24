@@ -53,12 +53,16 @@ class InterpreterAssembler {
 
   // Constants.
   Node* Int32Constant(int value);
+  Node* IntPtrConstant(intptr_t value);
   Node* NumberConstant(double value);
   Node* HeapConstant(Unique<HeapObject> object);
 
   // Tag and untag Smi values.
   Node* SmiTag(Node* value);
   Node* SmiUntag(Node* value);
+
+  // Load |slot_index| from the current context.
+  Node* LoadContextSlot(int slot_index);
 
   // Returns from the function.
   void Return();
@@ -81,8 +85,10 @@ class InterpreterAssembler {
   Node* BytecodeArrayTaggedPointer();
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
   Node* BytecodeOffset();
-  // Returns a pointer to first entry in the interpreter dispatch table.
+  // Returns a raw pointer to first entry in the interpreter dispatch table.
   Node* DispatchTableRawPointer();
+  // Returns a tagged pointer to the current context.
+  Node* ContextTaggedPointer();
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
   Node* RegisterFrameOffset(Node* index);

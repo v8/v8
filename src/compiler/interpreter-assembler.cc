@@ -72,6 +72,11 @@ void InterpreterAssembler::SetAccumulator(Node* value) {
 }
 
 
+Node* InterpreterAssembler::ContextTaggedPointer() {
+  return raw_assembler_->Parameter(Linkage::kInterpreterContextParameter);
+}
+
+
 Node* InterpreterAssembler::RegisterFileRawPointer() {
   return raw_assembler_->Parameter(Linkage::kInterpreterRegisterFileParameter);
 }
@@ -99,13 +104,13 @@ Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
 
 
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
-  return raw_assembler_->Load(kMachPtr, RegisterFileRawPointer(),
+  return raw_assembler_->Load(kMachAnyTagged, RegisterFileRawPointer(),
                               RegisterFrameOffset(reg_index));
 }
 
 
 Node* InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
-  return raw_assembler_->Store(kMachPtr, RegisterFileRawPointer(),
+  return raw_assembler_->Store(kMachAnyTagged, RegisterFileRawPointer(),
                                RegisterFrameOffset(reg_index), value);
 }
 
@@ -152,6 +157,11 @@ Node* InterpreterAssembler::Int32Constant(int value) {
 }
 
 
+Node* InterpreterAssembler::IntPtrConstant(intptr_t value) {
+  return raw_assembler_->IntPtrConstant(value);
+}
+
+
 Node* InterpreterAssembler::NumberConstant(double value) {
   return raw_assembler_->NumberConstant(value);
 }
@@ -177,6 +187,12 @@ Node* InterpreterAssembler::SmiUntag(Node* value) {
 }
 
 
+Node* InterpreterAssembler::LoadContextSlot(int slot_index) {
+  return raw_assembler_->Load(kMachAnyTagged, ContextTaggedPointer(),
+                              IntPtrConstant(Context::SlotOffset(slot_index)));
+}
+
+
 void InterpreterAssembler::Return() {
   Node* exit_trampoline_code_object =
       HeapConstant(Unique<HeapObject>::CreateImmovable(
@@ -187,10 +203,11 @@ void InterpreterAssembler::Return() {
   STATIC_ASSERT(2 == Linkage::kInterpreterBytecodeOffsetParameter);
   STATIC_ASSERT(3 == Linkage::kInterpreterBytecodeArrayParameter);
   STATIC_ASSERT(4 == Linkage::kInterpreterDispatchTableParameter);
+  STATIC_ASSERT(5 == Linkage::kInterpreterContextParameter);
   Node* tail_call = raw_assembler_->TailCallInterpreterDispatch(
       call_descriptor(), exit_trampoline_code_object, GetAccumulator(),
       RegisterFileRawPointer(), BytecodeOffset(), BytecodeArrayTaggedPointer(),
-      DispatchTableRawPointer());
+      DispatchTableRawPointer(), ContextTaggedPointer());
   // This should always be the end node.
   SetEndInput(tail_call);
 }
@@ -219,10 +236,12 @@ void InterpreterAssembler::Dispatch() {
   STATIC_ASSERT(2 == Linkage::kInterpreterBytecodeOffsetParameter);
   STATIC_ASSERT(3 == Linkage::kInterpreterBytecodeArrayParameter);
   STATIC_ASSERT(4 == Linkage::kInterpreterDispatchTableParameter);
+  STATIC_ASSERT(5 == Linkage::kInterpreterContextParameter);
   Node* tail_call = raw_assembler_->TailCallInterpreterDispatch(
       call_descriptor(), target_code_object, GetAccumulator(),
       RegisterFileRawPointer(), new_bytecode_offset,
-      BytecodeArrayTaggedPointer(), DispatchTableRawPointer());
+      BytecodeArrayTaggedPointer(), DispatchTableRawPointer(),
+      ContextTaggedPointer());
   // This should always be the end node.
   SetEndInput(tail_call);
 }

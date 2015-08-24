@@ -335,6 +335,7 @@ class Linkage : public ZoneObject {
   static const int kInterpreterBytecodeOffsetParameter = 2;
   static const int kInterpreterBytecodeArrayParameter = 3;
   static const int kInterpreterDispatchTableParameter = 4;
+  static const int kInterpreterContextParameter = 5;
 
  private:
   CallDescriptor* const incoming_;

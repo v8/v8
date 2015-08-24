@@ -26,6 +26,9 @@ const Register kInterpreterDispatchTableRegister = {kRegister_ebx_Code};
 const Register kRuntimeCallFunctionRegister = {kRegister_ebx_Code};
 const Register kRuntimeCallArgCountRegister = {kRegister_eax_Code};
 
+// Spill slots used by interpreter dispatch calling convention.
+const int kInterpreterContextSpillSlot = -1;
+
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;

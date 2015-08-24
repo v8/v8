@@ -251,10 +251,10 @@ Node* RawMachineAssembler::CallCFunction8(
 
 Node* RawMachineAssembler::TailCallInterpreterDispatch(
     const CallDescriptor* call_descriptor, Node* target, Node* arg1, Node* arg2,
-    Node* arg3, Node* arg4, Node* arg5) {
-  Node* tail_call =
-      graph()->NewNode(common()->TailCall(call_descriptor), target, arg1, arg2,
-                       arg3, arg4, arg5, graph()->start(), graph()->start());
+    Node* arg3, Node* arg4, Node* arg5, Node* arg6) {
+  Node* tail_call = graph()->NewNode(common()->TailCall(call_descriptor),
+                                     target, arg1, arg2, arg3, arg4, arg5, arg6,
+                                     graph()->start(), graph()->start());
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   return tail_call;
 }
