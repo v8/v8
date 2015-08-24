@@ -853,10 +853,14 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     // Push any stack arguments.
     for (Node* input : base::Reversed(buffer.pushed_nodes)) {
       // TODO(titzer): handle pushing double parameters.
+      if (input == nullptr) continue;
       InstructionOperand value =
           g.CanBeImmediate(input)
               ? g.UseImmediate(input)
-              : IsSupported(ATOM) ? g.UseRegister(input) : g.Use(input);
+              : IsSupported(ATOM) ||
+                        sequence()->IsFloat(GetVirtualRegister(input))
+                    ? g.UseRegister(input)
+                    : g.Use(input);
       Emit(kX87Push, g.NoOutput(), value);
     }
   }
