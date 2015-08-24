@@ -30,7 +30,7 @@
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
 
-function array_natives_test() {
+function array_natives_test(optimized) {
 
   // Ensure small array literals start in specific element kind mode.
   assertTrue(%HasFastSmiElements([]));
@@ -151,7 +151,6 @@ function array_natives_test() {
   assertTrue(%HasFastSmiElements(a3));
   assertEquals([1], a3r);
   assertEquals([2, 2, 3], a3);
-
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0);
   assertTrue(%HasFastDoubleElements(a3r));
@@ -166,13 +165,12 @@ function array_natives_test() {
   assertEquals([2, 3], a3);
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0, 2);
-  // Commented out since handled in js, which takes the best fit.
-  // assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastSmiElements(a3r));
+  assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2, 1.1, 2, 3], a3);
   a3 = [1.1,2,3];
+  assertTrue(%HasFastDoubleElements(a3));
   a3r = a3.splice(0, 1, 2);
   assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
@@ -180,9 +178,7 @@ function array_natives_test() {
   assertEquals([2, 2, 3], a3);
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0, 2.1);
-  // Commented out since handled in js, which takes the best fit.
-  // assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastSmiElements(a3r));
+  assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2.1, 1.1, 2, 3], a3);
@@ -194,9 +190,7 @@ function array_natives_test() {
   assertEquals([2.2, 2, 3], a3);
   a3 = [1,2,3];
   a3r = a3.splice(0, 0, 2.1);
-  // Commented out since handled in js, which takes the best fit.
-  // assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastSmiElements(a3r));
+  assertTrue(%HasFastDoubleElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2.1, 1, 2, 3], a3);
@@ -206,7 +200,6 @@ function array_natives_test() {
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([1], a3r);
   assertEquals([2.2, 2, 3], a3);
-
   a3 = [{},2,3];
   a3r = a3.splice(0, 0);
   assertTrue(%HasFastObjectElements(a3r));
@@ -231,7 +224,6 @@ function array_natives_test() {
   assertTrue(%HasFastObjectElements(a3));
   assertEquals([1], a3r);
   assertEquals([{}, 2, 3], a3);
-
   a3 = [1.1,2,3];
   a3r = a3.splice(0, 0, {});
   assertTrue(%HasFastObjectElements(a3r));
@@ -244,6 +236,19 @@ function array_natives_test() {
   assertTrue(%HasFastObjectElements(a3));
   assertEquals([1.1], a3r);
   assertEquals([{}, 2, 3], a3);
+  a3 = [1.1, 2.2, 3.3];
+  a3r = a3.splice(2, 1);
+  assertTrue(%HasFastDoubleElements(a3r));
+  assertTrue(%HasFastDoubleElements(a3));
+  assertEquals([3.3], a3r);
+  //assertTrue(%HasFastDoubleElements(a3r));
+  assertEquals([1.1, 2.2], a3);
+  //assertTrue(%HasFastDoubleElements(a3r));
+  a3r = a3.splice(1, 1, 4.4, 5.5);
+  //assertTrue(%HasFastDoubleElements(a3r));
+  //assertTrue(%HasFastDoubleElements(a3));
+  assertEquals([2.2], a3r);
+  assertEquals([1.1, 4.4, 5.5], a3);
 
   // Pop
   var a4 = [1,2,3];
@@ -291,7 +296,7 @@ function array_natives_test() {
 }
 
 for (var i = 0; i < 3; i++) {
-  array_natives_test();
+  array_natives_test(false);
 }
 %OptimizeFunctionOnNextCall(array_natives_test);
-array_natives_test();
+array_natives_test(true);
