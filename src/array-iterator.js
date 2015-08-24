@@ -171,7 +171,7 @@ utils.Export(function(to) {
 $arrayValues = ArrayValues;
 
 utils.ExportToRuntime(function(to) {
-  to.ArrayValues = ArrayValues;
+  to["array_values_iterator"] = ArrayValues;
 });
 
 })

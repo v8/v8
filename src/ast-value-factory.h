@@ -263,9 +263,6 @@ class AstValue : public ZoneObject {
   F(is_construct_call, "_IsConstructCall")                                 \
   F(is_spec_object, "_IsSpecObject")                                       \
   F(let, "let")                                                            \
-  F(make_reference_error, "MakeReferenceError")                            \
-  F(make_syntax_error, "MakeSyntaxError")                                  \
-  F(make_type_error, "MakeTypeError")                                      \
   F(native, "native")                                                      \
   F(new_target, ".new.target")                                             \
   F(next, "next")                                                          \

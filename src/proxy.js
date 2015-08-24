@@ -201,10 +201,10 @@ utils.Export(function(to) {
 });
 
 utils.ExportToRuntime(function(to) {
-  to.ProxyDerivedGetTrap = DerivedGetTrap;
-  to.ProxyDerivedHasTrap = DerivedHasTrap;
-  to.ProxyDerivedSetTrap = DerivedSetTrap;
-  to.ProxyEnumerate = ProxyEnumerate;
+  to["derived_get_trap"] = DerivedGetTrap;
+  to["derived_has_trap"] = DerivedHasTrap;
+  to["derived_set_trap"] = DerivedSetTrap;
+  to["proxy_enumerate"] = ProxyEnumerate;
 });
 
 })

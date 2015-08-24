@@ -1752,83 +1752,18 @@ void Genesis::InitializeBuiltinTypedArrays() {
 }
 
 
-#define INSTALL_NATIVE(Type, name, var)                                        \
-  Handle<Object> var##_native =                                                \
-      Object::GetProperty(isolate, container, name, STRICT).ToHandleChecked(); \
-  DCHECK(var##_native->Is##Type());                                            \
-  native_context->set_##var(Type::cast(*var##_native));
+#define INSTALL_NATIVE(index, Type, name)                    \
+  Handle<Object> name##_native =                             \
+      Object::GetProperty(isolate, container, #name, STRICT) \
+          .ToHandleChecked();                                \
+  DCHECK(name##_native->Is##Type());                         \
+  native_context->set_##name(Type::cast(*name##_native));
 
 
 void Bootstrapper::ImportNatives(Isolate* isolate, Handle<JSObject> container) {
   HandleScope scope(isolate);
   Handle<Context> native_context = isolate->native_context();
-  INSTALL_NATIVE(JSFunction, "CreateDate", create_date_fun);
-  INSTALL_NATIVE(JSFunction, "ToNumber", to_number_fun);
-  INSTALL_NATIVE(JSFunction, "ToString", to_string_fun);
-  INSTALL_NATIVE(JSFunction, "ToDetailString", to_detail_string_fun);
-  INSTALL_NATIVE(JSFunction, "NoSideEffectToString",
-                 no_side_effect_to_string_fun);
-  INSTALL_NATIVE(JSFunction, "ToInteger", to_integer_fun);
-  INSTALL_NATIVE(JSFunction, "ToLength", to_length_fun);
-
-  INSTALL_NATIVE(JSFunction, "GlobalEval", global_eval_fun);
-  INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
-  INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
-                 to_complete_property_descriptor);
-  INSTALL_NATIVE(JSFunction, "ObjectDefineOwnProperty",
-                 object_define_own_property);
-  INSTALL_NATIVE(JSFunction, "ObjectGetOwnPropertyDescriptor",
-                 object_get_own_property_descriptor);
-  INSTALL_NATIVE(JSFunction, "MessageGetLineNumber", message_get_line_number);
-  INSTALL_NATIVE(JSFunction, "MessageGetColumnNumber",
-                 message_get_column_number);
-  INSTALL_NATIVE(JSFunction, "MessageGetSourceLine", message_get_source_line);
-  INSTALL_NATIVE(JSObject, "StackOverflowBoilerplate",
-                 stack_overflow_boilerplate);
-  INSTALL_NATIVE(JSFunction, "JsonSerializeAdapter", json_serialize_adapter);
-
-  INSTALL_NATIVE(JSFunction, "Error", error_function);
-  INSTALL_NATIVE(JSFunction, "EvalError", eval_error_function);
-  INSTALL_NATIVE(JSFunction, "RangeError", range_error_function);
-  INSTALL_NATIVE(JSFunction, "ReferenceError", reference_error_function);
-  INSTALL_NATIVE(JSFunction, "SyntaxError", syntax_error_function);
-  INSTALL_NATIVE(JSFunction, "TypeError", type_error_function);
-  INSTALL_NATIVE(JSFunction, "URIError", uri_error_function);
-  INSTALL_NATIVE(JSFunction, "MakeError", make_error_function);
-
-  INSTALL_NATIVE(JSFunction, "PromiseCreate", promise_create);
-  INSTALL_NATIVE(JSFunction, "PromiseResolve", promise_resolve);
-  INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
-  INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
-  INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
-  INSTALL_NATIVE(JSFunction, "PromiseThen", promise_then);
-  INSTALL_NATIVE(JSFunction, "PromiseHasUserDefinedRejectHandler",
-                 promise_has_user_defined_reject_handler);
-
-  INSTALL_NATIVE(JSFunction, "ObserveNotifyChange", observers_notify_change);
-  INSTALL_NATIVE(JSFunction, "ObserveEnqueueSpliceRecord",
-                 observers_enqueue_splice);
-  INSTALL_NATIVE(JSFunction, "ObserveBeginPerformSplice",
-                 observers_begin_perform_splice);
-  INSTALL_NATIVE(JSFunction, "ObserveEndPerformSplice",
-                 observers_end_perform_splice);
-  INSTALL_NATIVE(JSFunction, "ObserveNativeObjectObserve",
-                 native_object_observe);
-  INSTALL_NATIVE(JSFunction, "ObserveNativeObjectGetNotifier",
-                 native_object_get_notifier);
-  INSTALL_NATIVE(JSFunction, "ObserveNativeObjectNotifierPerformChange",
-                 native_object_notifier_perform_change);
-
-  INSTALL_NATIVE(JSFunction, "ArrayValues", array_values_iterator);
-  INSTALL_NATIVE(JSFunction, "MapGet", map_get);
-  INSTALL_NATIVE(JSFunction, "MapSet", map_set);
-  INSTALL_NATIVE(JSFunction, "MapHas", map_has);
-  INSTALL_NATIVE(JSFunction, "MapDelete", map_delete);
-  INSTALL_NATIVE(JSFunction, "SetAdd", set_add);
-  INSTALL_NATIVE(JSFunction, "SetHas", set_has);
-  INSTALL_NATIVE(JSFunction, "SetDelete", set_delete);
-  INSTALL_NATIVE(JSFunction, "MapFromArray", map_from_array);
-  INSTALL_NATIVE(JSFunction, "SetFromArray", set_from_array);
+  NATIVE_CONTEXT_IMPORTED_FIELDS(INSTALL_NATIVE)
 }
 
 
@@ -1865,10 +1800,7 @@ static void InstallExperimentalNatives_harmony_proxies(
     Isolate* isolate, Handle<Context> native_context,
     Handle<JSObject> container) {
   if (FLAG_harmony_proxies) {
-    INSTALL_NATIVE(JSFunction, "ProxyDerivedGetTrap", derived_get_trap);
-    INSTALL_NATIVE(JSFunction, "ProxyDerivedHasTrap", derived_has_trap);
-    INSTALL_NATIVE(JSFunction, "ProxyDerivedSetTrap", derived_set_trap);
-    INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
+    NATIVE_CONTEXT_IMPORTED_FIELDS_FOR_PROXY(INSTALL_NATIVE)
   }
 }
 

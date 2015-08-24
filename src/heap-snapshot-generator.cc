@@ -1265,7 +1265,7 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
     TagObject(context->runtime_context(), "(runtime context)");
     TagObject(context->embedder_data(), "(context data)");
-    NATIVE_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD);
+    NATIVE_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD)
     EXTRACT_CONTEXT_FIELD(OPTIMIZED_FUNCTIONS_LIST, unused,
                           optimized_functions_list);
     EXTRACT_CONTEXT_FIELD(OPTIMIZED_CODE_LIST, unused, optimized_code_list);

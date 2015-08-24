@@ -1810,10 +1810,10 @@ utils.Export(function(to) {
 });
 
 utils.ExportToRuntime(function(to) {
-  to.GlobalEval = GlobalEval;
-  to.ObjectDefineOwnProperty = DefineOwnPropertyFromAPI;
-  to.ObjectGetOwnPropertyDescriptor = ObjectGetOwnPropertyDescriptor;
-  to.ToCompletePropertyDescriptor = ToCompletePropertyDescriptor;
+  to["global_eval_fun"] = GlobalEval;
+  to["object_define_own_property"] = DefineOwnPropertyFromAPI;
+  to["object_get_own_property_descriptor"] = ObjectGetOwnPropertyDescriptor;
+  to["to_complete_property_descriptor"] = ToCompletePropertyDescriptor;
 });
 
 })

@@ -915,10 +915,10 @@ $toString = ToString;
 });
 
 utils.ExportToRuntime(function(to) {
-  to.ToNumber = ToNumber;
-  to.ToString = ToString;
-  to.ToInteger = ToInteger;
-  to.ToLength = ToLength;
+  to["to_integer_fun"] = ToInteger;
+  to["to_length_fun"] = ToLength;
+  to["to_number_fun"] = ToNumber;
+  to["to_string_fun"] = ToString;
 });
 
 utils.Export(function(to) {

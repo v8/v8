@@ -704,14 +704,14 @@ $observeBeginPerformSplice = BeginPerformSplice;
 $observeEndPerformSplice = EndPerformSplice;
 
 utils.ExportToRuntime(function(to) {
-  to.ObserveNotifyChange = NotifyChange;
-  to.ObserveEnqueueSpliceRecord = EnqueueSpliceRecord;
-  to.ObserveBeginPerformSplice = BeginPerformSplice;
-  to.ObserveEndPerformSplice = EndPerformSplice;
-  to.ObserveNativeObjectObserve = NativeObjectObserve;
-  to.ObserveNativeObjectGetNotifier = NativeObjectGetNotifier;
-  to.ObserveNativeObjectNotifierPerformChange =
+  to["native_object_get_notifier"] = NativeObjectGetNotifier;
+  to["native_object_notifier_perform_change"] =
       NativeObjectNotifierPerformChange;
+  to["native_object_observe"] = NativeObjectObserve;
+  to["observers_begin_perform_splice"] = BeginPerformSplice;
+  to["observers_end_perform_splice"] = EndPerformSplice;
+  to["observers_enqueue_splice"] = EnqueueSpliceRecord;
+  to["observers_notify_change"] = NotifyChange;
 });
 
 })

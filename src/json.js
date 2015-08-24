@@ -253,7 +253,7 @@ function JsonSerializeAdapter(key, object) {
 }
 
 utils.ExportToRuntime(function(to) {
-  to.JsonSerializeAdapter = JsonSerializeAdapter;
+  to["json_serialize_adapter"] = JsonSerializeAdapter;
 });
 
 })

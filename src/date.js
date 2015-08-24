@@ -884,7 +884,7 @@ utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
 ]);
 
 utils.ExportToRuntime(function(to) {
-  to.CreateDate = CreateDate;
+  to["create_date_fun"] = CreateDate;
 });
 
 })

@@ -380,13 +380,14 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
 ]);
 
 utils.ExportToRuntime(function(to) {
-  to.PromiseCreate = PromiseCreate;
-  to.PromiseResolve = PromiseResolve;
-  to.PromiseReject = PromiseReject;
-  to.PromiseChain = PromiseChain;
-  to.PromiseCatch = PromiseCatch;
-  to.PromiseThen = PromiseThen;
-  to.PromiseHasUserDefinedRejectHandler = PromiseHasUserDefinedRejectHandler;
+  to["promise_catch"] = PromiseCatch;
+  to["promise_chain"] = PromiseChain;
+  to["promise_create"] = PromiseCreate;
+  to["promise_has_user_defined_reject_handler"] =
+      PromiseHasUserDefinedRejectHandler;
+  to["promise_reject"] = PromiseReject;
+  to["promise_resolve"] = PromiseResolve;
+  to["promise_then"] = PromiseThen;
 });
 
 })

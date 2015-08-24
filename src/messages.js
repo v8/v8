@@ -1017,21 +1017,21 @@ captureStackTrace = function captureStackTrace(obj, cons_opt) {
 GlobalError.captureStackTrace = captureStackTrace;
 
 utils.ExportToRuntime(function(to) {
-  to.Error = GlobalError;
-  to.EvalError = GlobalEvalError;
-  to.RangeError = GlobalRangeError;
-  to.ReferenceError = GlobalReferenceError;
-  to.SyntaxError = GlobalSyntaxError;
-  to.TypeError = GlobalTypeError;
-  to.URIError = GlobalURIError;
-  to.GetStackTraceLine = GetStackTraceLine;
-  to.NoSideEffectToString = NoSideEffectToString;
-  to.ToDetailString = ToDetailString;
-  to.MakeError = MakeGenericError;
-  to.MessageGetLineNumber = GetLineNumber;
-  to.MessageGetColumnNumber = GetColumnNumber;
-  to.MessageGetSourceLine = GetSourceLine;
-  to.StackOverflowBoilerplate = StackOverflowBoilerplate;
+  to["error_function"] = GlobalError;
+  to["eval_error_function"] = GlobalEvalError;
+  to["get_stack_trace_line_fun"] = GetStackTraceLine;
+  to["make_error_function"] = MakeGenericError;
+  to["message_get_column_number"] = GetColumnNumber;
+  to["message_get_line_number"] = GetLineNumber;
+  to["message_get_source_line"] = GetSourceLine;
+  to["no_side_effect_to_string_fun"] = NoSideEffectToString;
+  to["range_error_function"] = GlobalRangeError;
+  to["reference_error_function"] = GlobalReferenceError;
+  to["stack_overflow_boilerplate"] = StackOverflowBoilerplate;
+  to["syntax_error_function"] = GlobalSyntaxError;
+  to["to_detail_string_fun"] = ToDetailString;
+  to["type_error_function"] = GlobalTypeError;
+  to["uri_error_function"] = GlobalURIError;
 });
 
 });
