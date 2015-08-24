@@ -6560,7 +6560,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
                                         size_t byte_length,
                                         ArrayBufferCreationMode mode) {
   // Embedders must guarantee that the external backing store is valid.
-  CHECK(data != NULL);
+  CHECK(byte_length == 0 || data != NULL);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "v8::ArrayBuffer::New(void*, size_t)");
   ENTER_V8(i_isolate);
@@ -6759,7 +6759,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
     ArrayBufferCreationMode mode) {
   CHECK(i::FLAG_harmony_sharedarraybuffer);
   // Embedders must guarantee that the external backing store is valid.
-  CHECK(data != NULL);
+  CHECK(byte_length == 0 || data != NULL);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "v8::SharedArrayBuffer::New(void*, size_t)");
   ENTER_V8(i_isolate);
