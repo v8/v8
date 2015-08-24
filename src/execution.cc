@@ -341,14 +341,6 @@ MaybeHandle<Object> Execution::TryGetConstructorDelegate(
 }
 
 
-void StackGuard::EnableInterrupts() {
-  ExecutionAccess access(isolate_);
-  if (has_pending_interrupts(access)) {
-    set_interrupt_limits(access);
-  }
-}
-
-
 void StackGuard::SetStackLimit(uintptr_t limit) {
   ExecutionAccess access(isolate_);
   // If the current limits are special (e.g. due to a pending interrupt) then
@@ -362,6 +354,27 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
   }
   thread_local_.real_climit_ = limit;
   thread_local_.real_jslimit_ = jslimit;
+}
+
+
+void StackGuard::AdjustStackLimitForSimulator() {
+  ExecutionAccess access(isolate_);
+  uintptr_t climit = thread_local_.real_climit_;
+  // If the current limits are special (e.g. due to a pending interrupt) then
+  // leave them alone.
+  uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, climit);
+  if (thread_local_.jslimit() == thread_local_.real_jslimit_) {
+    thread_local_.set_jslimit(jslimit);
+    isolate_->heap()->SetStackLimits();
+  }
+}
+
+
+void StackGuard::EnableInterrupts() {
+  ExecutionAccess access(isolate_);
+  if (has_pending_interrupts(access)) {
+    set_interrupt_limits(access);
+  }
 }
 
 
