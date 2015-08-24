@@ -626,7 +626,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
 }
 
 
-void StackGuard::CheckAndHandleGCInterrupt() {
+void StackGuard::HandleGCInterrupt() {
   if (CheckAndClearInterrupt(GC_REQUEST)) {
     isolate_->heap()->HandleGCRequest();
   }

@@ -195,10 +195,7 @@ class StackGuard final {
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
   Object* HandleInterrupts();
-
-  bool InterruptRequested() { return GetCurrentStackPosition() < climit(); }
-
-  void CheckAndHandleGCInterrupt();
+  void HandleGCInterrupt();
 
  private:
   StackGuard();

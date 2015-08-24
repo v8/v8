@@ -1478,9 +1478,15 @@ class StackLimitCheck BASE_EMBEDDED {
   explicit StackLimitCheck(Isolate* isolate) : isolate_(isolate) { }
 
   // Use this to check for stack-overflows in C++ code.
-  inline bool HasOverflowed() const {
+  bool HasOverflowed() const {
     StackGuard* stack_guard = isolate_->stack_guard();
     return GetCurrentStackPosition() < stack_guard->real_climit();
+  }
+
+  // Use this to check for interrupt request in C++ code.
+  bool InterruptRequested() {
+    StackGuard* stack_guard = isolate_->stack_guard();
+    return GetCurrentStackPosition() < stack_guard->climit();
   }
 
   // Use this to check for stack-overflow when entering runtime from JS code.
