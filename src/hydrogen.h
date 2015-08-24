@@ -1889,6 +1889,9 @@ class HGraphBuilder {
   // the SourcePosition assuming that this position corresponds to the
   // same function as current position_.
   SourcePosition ScriptPositionToSourcePosition(int position) {
+    if (position == RelocInfo::kNoPosition) {
+      return SourcePosition::Unknown();
+    }
     SourcePosition pos = position_;
     pos.set_position(position - start_position_);
     return pos;
