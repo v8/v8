@@ -216,12 +216,9 @@ enum BindingFlags {
   V(STRONG_MAP_CACHE_INDEX, Object, strong_map_cache)                          \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   V(UINT16_ARRAY_FUN_INDEX, JSFunction, uint16_array_fun)                      \
-  V(UINT16X8_FUNCTION_INDEX, JSFunction, uint16x8_function)                    \
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun)                      \
-  V(UINT32X4_FUNCTION_INDEX, JSFunction, uint32x4_function)                    \
   V(UINT8_ARRAY_FUN_INDEX, JSFunction, uint8_array_fun)                        \
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun)        \
-  V(UINT8X16_FUNCTION_INDEX, JSFunction, uint8x16_function)                    \
   NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                            \
   NATIVE_CONTEXT_IMPORTED_FIELDS_FOR_PROXY(V)
 

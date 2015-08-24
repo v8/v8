@@ -46,13 +46,10 @@ namespace internal {
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, float32x4_map, Float32x4Map)                                          \
   V(Map, int32x4_map, Int32x4Map)                                              \
-  V(Map, uint32x4_map, Uint32x4Map)                                            \
   V(Map, bool32x4_map, Bool32x4Map)                                            \
   V(Map, int16x8_map, Int16x8Map)                                              \
-  V(Map, uint16x8_map, Uint16x8Map)                                            \
   V(Map, bool16x8_map, Bool16x8Map)                                            \
   V(Map, int8x16_map, Int8x16Map)                                              \
-  V(Map, uint8x16_map, Uint8x16Map)                                            \
   V(Map, bool8x16_map, Bool8x16Map)                                            \
   V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
@@ -224,20 +221,14 @@ namespace internal {
   V(Float32x4_string, "Float32x4")                             \
   V(int32x4_string, "int32x4")                                 \
   V(Int32x4_string, "Int32x4")                                 \
-  V(uint32x4_string, "uint32x4")                               \
-  V(Uint32x4_string, "Uint32x4")                               \
   V(bool32x4_string, "bool32x4")                               \
   V(Bool32x4_string, "Bool32x4")                               \
   V(int16x8_string, "int16x8")                                 \
   V(Int16x8_string, "Int16x8")                                 \
-  V(uint16x8_string, "uint16x8")                               \
-  V(Uint16x8_string, "Uint16x8")                               \
   V(bool16x8_string, "bool16x8")                               \
   V(Bool16x8_string, "Bool16x8")                               \
   V(int8x16_string, "int8x16")                                 \
   V(Int8x16_string, "Int8x16")                                 \
-  V(uint8x16_string, "uint8x16")                               \
-  V(Uint8x16_string, "Uint8x16")                               \
   V(bool8x16_string, "bool8x16")                               \
   V(Bool8x16_string, "Bool8x16")                               \
   V(function_string, "function")                               \
@@ -378,13 +369,10 @@ namespace internal {
   V(MutableHeapNumberMap)               \
   V(Float32x4Map)                       \
   V(Int32x4Map)                         \
-  V(Uint32x4Map)                        \
   V(Bool32x4Map)                        \
   V(Int16x8Map)                         \
-  V(Uint16x8Map)                        \
   V(Bool16x8Map)                        \
   V(Int8x16Map)                         \
-  V(Uint8x16Map)                        \
   V(Bool8x16Map)                        \
   V(NativeContextMap)                   \
   V(FixedArrayMap)                      \

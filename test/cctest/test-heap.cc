@@ -288,7 +288,7 @@ TEST(SimdObjects) {
   }
   // Int32x4
   {
-    int32_t lanes[4] = {1, 2, 3, 4};
+    int32_t lanes[4] = {-1, 0, 1, 2};
 
     Handle<Int32x4> value = factory->NewInt32x4(lanes);
     CHECK(value->IsInt32x4());
@@ -297,26 +297,12 @@ TEST(SimdObjects) {
 #ifdef OBJECT_PRINT
     std::ostringstream os;
     value->Int32x4Print(os);
-    CHECK_EQ("1, 2, 3, 4", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Uint32x4
-  {
-    uint32_t lanes[4] = {1, 2, 3, 4};
-
-    Handle<Uint32x4> value = factory->NewUint32x4(lanes);
-    CHECK(value->IsUint32x4());
-    CheckSimdValue<Uint32x4, uint32_t, 4>(*value, lanes, 3);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Uint32x4Print(os);
-    CHECK_EQ("1, 2, 3, 4", os.str());
+    CHECK_EQ("-1, 0, 1, 2", os.str());
 #endif  // OBJECT_PRINT
   }
   // Bool32x4
   {
-    bool lanes[4] = {true, false, true, false};
+    bool lanes[4] = {true, true, true, false};
 
     Handle<Bool32x4> value = factory->NewBool32x4(lanes);
     CHECK(value->IsBool32x4());
@@ -325,12 +311,12 @@ TEST(SimdObjects) {
 #ifdef OBJECT_PRINT
     std::ostringstream os;
     value->Bool32x4Print(os);
-    CHECK_EQ("true, false, true, false", os.str());
+    CHECK_EQ("true, true, true, false", os.str());
 #endif  // OBJECT_PRINT
   }
   // Int16x8
   {
-    int16_t lanes[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    int16_t lanes[8] = {-1, 0, 1, 2, 3, 4, 5, -32768};
 
     Handle<Int16x8> value = factory->NewInt16x8(lanes);
     CHECK(value->IsInt16x8());
@@ -339,26 +325,12 @@ TEST(SimdObjects) {
 #ifdef OBJECT_PRINT
     std::ostringstream os;
     value->Int16x8Print(os);
-    CHECK_EQ("1, 2, 3, 4, 5, 6, 7, 8", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Uint16x8
-  {
-    uint16_t lanes[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-
-    Handle<Uint16x8> value = factory->NewUint16x8(lanes);
-    CHECK(value->IsUint16x8());
-    CheckSimdValue<Uint16x8, uint16_t, 8>(*value, lanes, 32767);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Uint16x8Print(os);
-    CHECK_EQ("1, 2, 3, 4, 5, 6, 7, 8", os.str());
+    CHECK_EQ("-1, 0, 1, 2, 3, 4, 5, -32768", os.str());
 #endif  // OBJECT_PRINT
   }
   // Bool16x8
   {
-    bool lanes[8] = {true, false, true, false, true, false, true, false};
+    bool lanes[8] = {true, true, true, true, true, true, true, false};
 
     Handle<Bool16x8> value = factory->NewBool16x8(lanes);
     CHECK(value->IsBool16x8());
@@ -367,12 +339,12 @@ TEST(SimdObjects) {
 #ifdef OBJECT_PRINT
     std::ostringstream os;
     value->Bool16x8Print(os);
-    CHECK_EQ("true, false, true, false, true, false, true, false", os.str());
+    CHECK_EQ("true, true, true, true, true, true, true, false", os.str());
 #endif  // OBJECT_PRINT
   }
   // Int8x16
   {
-    int8_t lanes[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    int8_t lanes[16] = {-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, -128};
 
     Handle<Int8x16> value = factory->NewInt8x16(lanes);
     CHECK(value->IsInt8x16());
@@ -381,27 +353,14 @@ TEST(SimdObjects) {
 #ifdef OBJECT_PRINT
     std::ostringstream os;
     value->Int8x16Print(os);
-    CHECK_EQ("1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Uint8x16
-  {
-    uint8_t lanes[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-
-    Handle<Uint8x16> value = factory->NewUint8x16(lanes);
-    CHECK(value->IsUint8x16());
-    CheckSimdValue<Uint8x16, uint8_t, 16>(*value, lanes, 127);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Uint8x16Print(os);
-    CHECK_EQ("1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16", os.str());
+    CHECK_EQ("-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, -128",
+             os.str());
 #endif  // OBJECT_PRINT
   }
   // Bool8x16
   {
-    bool lanes[16] = {true, false, true, false, true, false, true, false,
-                      true, false, true, false, true, false, true, false};
+    bool lanes[16] = {true, true, true, true, true, true, true, false,
+                      true, true, true, true, true, true, true, false};
 
     Handle<Bool8x16> value = factory->NewBool8x16(lanes);
     CHECK(value->IsBool8x16());
@@ -411,8 +370,8 @@ TEST(SimdObjects) {
     std::ostringstream os;
     value->Bool8x16Print(os);
     CHECK_EQ(
-        "true, false, true, false, true, false, true, false, true, false, "
-        "true, false, true, false, true, false",
+        "true, true, true, true, true, true, true, false, true, true, true, "
+        "true, true, true, true, false",
         os.str());
 #endif  // OBJECT_PRINT
   }
