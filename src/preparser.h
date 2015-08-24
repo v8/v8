@@ -1308,10 +1308,6 @@ class PreParserFactory {
     return PreParserExpression::Spread(expression);
   }
 
-  PreParserExpression NewEmptyParentheses(int pos) {
-    return PreParserExpression::Default();
-  }
-
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }
@@ -2266,35 +2262,38 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       }
       BindingPatternUnexpectedToken(classifier);
       Consume(Token::LPAREN);
-      if (Check(Token::RPAREN)) {
-        // ()=>x.  The continuation that looks for the => is in
-        // ParseAssignmentExpression.
-        classifier->RecordExpressionError(scanner()->location(),
-                                          MessageTemplate::kUnexpectedToken,
-                                          Token::String(Token::RPAREN));
+      if (allow_harmony_arrow_functions() && Check(Token::RPAREN)) {
+        // As a primary expression, the only thing that can follow "()" is "=>".
         classifier->RecordBindingPatternError(scanner()->location(),
                                               MessageTemplate::kUnexpectedToken,
                                               Token::String(Token::RPAREN));
-        result = factory()->NewEmptyParentheses(beg_pos);
-      } else if (allow_harmony_rest_parameters() && Check(Token::ELLIPSIS)) {
-        // (...x)=>x.  The continuation that looks for the => is in
-        // ParseAssignmentExpression.
-        int ellipsis_pos = scanner()->location().beg_pos;
-        classifier->RecordExpressionError(scanner()->location(),
-                                          MessageTemplate::kUnexpectedToken,
-                                          Token::String(Token::ELLIPSIS));
-        Scanner::Location expr_loc = scanner()->peek_location();
-        Token::Value tok = peek();
-        result = this->ParseAssignmentExpression(true, classifier, CHECK_OK);
-        // Patterns are not allowed as rest parameters.  There is no way we can
-        // succeed so go ahead and use the convenient ReportUnexpectedToken
-        // interface.
-        if (!Traits::IsIdentifier(result)) {
-          ReportUnexpectedTokenAt(expr_loc, tok);
+        // Give a good error to the user who might have typed e.g. "return();".
+        if (peek() != Token::ARROW) {
+          ReportUnexpectedTokenAt(scanner_->peek_location(), peek(),
+                                  MessageTemplate::kMissingArrow);
           *ok = false;
           return this->EmptyExpression();
         }
-        result = factory()->NewSpread(result, ellipsis_pos);
+        Scope* scope =
+            this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
+        FormalParametersT parameters(scope);
+        scope->set_start_position(beg_pos);
+        ExpressionClassifier args_classifier;
+        result = this->ParseArrowFunctionLiteral(parameters, args_classifier,
+                                                 CHECK_OK);
+      } else if (allow_harmony_arrow_functions() &&
+                 allow_harmony_rest_parameters() && Check(Token::ELLIPSIS)) {
+        // (...x) => y
+        Scope* scope =
+            this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
+        FormalParametersT formals(scope);
+        scope->set_start_position(beg_pos);
+        ExpressionClassifier formals_classifier;
+        formals.has_rest = true;
+        this->ParseFormalParameter(&formals, &formals_classifier, CHECK_OK);
+        Traits::DeclareFormalParameter(
+            formals.scope, formals.at(0), formals.is_simple,
+            &formals_classifier);
         if (peek() == Token::COMMA) {
           ReportMessageAt(scanner()->peek_location(),
                           MessageTemplate::kParamAfterRest);
@@ -2302,6 +2301,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
           return this->EmptyExpression();
         }
         Expect(Token::RPAREN, CHECK_OK);
+        result = this->ParseArrowFunctionLiteral(formals, formals_classifier,
+                                                 CHECK_OK);
       } else {
         // Heuristically try to detect immediately called functions before
         // seeing the call parentheses.

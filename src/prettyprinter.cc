@@ -360,11 +360,6 @@ void CallPrinter::VisitSpread(Spread* node) {
 }
 
 
-void CallPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
-  UNREACHABLE();
-}
-
-
 void CallPrinter::VisitThisFunction(ThisFunction* node) {}
 
 
@@ -847,11 +842,6 @@ void PrettyPrinter::VisitSpread(Spread* node) {
   Print("(...");
   Visit(node->expression());
   Print(")");
-}
-
-
-void PrettyPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
-  Print("<empty-parentheses>");
 }
 
 
@@ -1572,11 +1562,6 @@ void AstPrinter::VisitCompareOperation(CompareOperation* node) {
 void AstPrinter::VisitSpread(Spread* node) {
   IndentedScope indent(this, "...");
   Visit(node->expression());
-}
-
-
-void AstPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
-  IndentedScope indent(this, "()");
 }
 
 

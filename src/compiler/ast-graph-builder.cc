@@ -2867,12 +2867,6 @@ void AstGraphBuilder::VisitSpread(Spread* expr) {
 }
 
 
-void AstGraphBuilder::VisitEmptyParentheses(EmptyParentheses* expr) {
-  // Handled entirely by the parser itself.
-  UNREACHABLE();
-}
-
-
 void AstGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   Node* value = GetFunctionClosure();
   ast_context()->ProduceValue(value);

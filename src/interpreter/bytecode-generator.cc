@@ -335,11 +335,6 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* node) {
 void BytecodeGenerator::VisitSpread(Spread* node) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* node) {
-  UNIMPLEMENTED();
-}
-
-
 void BytecodeGenerator::VisitThisFunction(ThisFunction* node) {
   UNIMPLEMENTED();
 }

@@ -1,4 +1,4 @@
-*%(basename)s:7: SyntaxError: Unexpected token )
+*%(basename)s:7: SyntaxError: Expected () to start arrow function, but got ';' instead of '=>'
 function foo() { return(); }
-                        ^
-SyntaxError: Unexpected token )
+                         ^
+SyntaxError: Expected () to start arrow function, but got ';' instead of '=>'

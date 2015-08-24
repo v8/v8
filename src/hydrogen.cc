@@ -11525,11 +11525,6 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
 void HOptimizedGraphBuilder::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
 
-void HOptimizedGraphBuilder::VisitEmptyParentheses(EmptyParentheses* expr) {
-  UNREACHABLE();
-}
-
-
 HInstruction* HOptimizedGraphBuilder::BuildThisFunction() {
   // If we share optimized code between different closures, the
   // this-function is not a constant, except inside an inlined body.

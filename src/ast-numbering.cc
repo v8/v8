@@ -371,11 +371,6 @@ void AstNumberingVisitor::VisitSpread(Spread* node) {
 }
 
 
-void AstNumberingVisitor::VisitEmptyParentheses(EmptyParentheses* node) {
-  UNREACHABLE();
-}
-
-
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();

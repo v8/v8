@@ -174,9 +174,6 @@ void AstLiteralReindexer::VisitSpread(Spread* node) {
 }
 
 
-void AstLiteralReindexer::VisitEmptyParentheses(EmptyParentheses* node) {}
-
-
 void AstLiteralReindexer::VisitForInStatement(ForInStatement* node) {
   Visit(node->each());
   Visit(node->enumerable());
