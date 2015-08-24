@@ -1426,6 +1426,7 @@ enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
   kAllowHarmonyArrowFunctions,
+  kAllowHarmonyDefaultParameters,
   kAllowHarmonyRestParameters,
   kAllowHarmonySloppy,
   kAllowHarmonySloppyLet,
@@ -1451,6 +1452,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_arrow_functions(
       flags.Contains(kAllowHarmonyArrowFunctions));
+  parser->set_allow_harmony_default_parameters(
+      flags.Contains(kAllowHarmonyDefaultParameters));
   parser->set_allow_harmony_rest_parameters(
       flags.Contains(kAllowHarmonyRestParameters));
   parser->set_allow_harmony_spreadcalls(
@@ -3730,10 +3733,30 @@ TEST(NoErrorsArrowFunctions) {
 
     // Arrow has more precedence, this is the same as: foo ? bar : (baz = {})
     "foo ? bar : baz => {}",
+
+    // Arrows with non-simple parameters.
+    "({a}) => {}",
+    "(x = 9) => {}",
+    "(x, y = 9) => {}",
+    "(x = 9, y) => {}",
+    "(x, y = 9, z) => {}",
+    "(x, y = 9, z = 8) => {}",
+    "(...a) => {}",
+    "(x, ...a) => {}",
+    "(x = 9, ...a) => {}",
+    "(x, y = 9, ...a) => {}",
+    "(x, y = 9, {b}, z = 8, ...a) => {}",
+    // TODO(wingo, rossberg): This is not accepted right now.
+    // "({a} = {}) => {}",
+    // "([x] = []) => {}",
+    "({a = 42}) => {}",
+    "([x = 0]) => {}",
     NULL
   };
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyArrowFunctions};
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyArrowFunctions, kAllowHarmonyDefaultParameters,
+      kAllowHarmonyRestParameters, kAllowHarmonyDestructuring};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
 }

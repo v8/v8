@@ -3904,6 +3904,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     parameters->is_simple = !is_rest && expr->IsVariableProxy();
   }
 
+  Expression* initializer = nullptr;
   if (expr->IsVariableProxy()) {
     // When the formal parameter was originally seen, it was parsed as a
     // VariableProxy and recorded as unresolved in the scope.  Here we undo that
@@ -3911,18 +3912,12 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     // patterns; for patterns that happens uniformly in
     // PatternRewriter::VisitVariableProxy).
     parser_->scope_->RemoveUnresolved(expr->AsVariableProxy());
-  }
-
-  Expression* initializer = nullptr;
-  if (!is_rest && parser_->allow_harmony_default_parameters() &&
-      parser_->Check(Token::ASSIGN)) {
-    ExpressionClassifier init_classifier;
-    initializer =
-        parser_->ParseAssignmentExpression(true, &init_classifier, ok);
-    if (!*ok) return;
-    parser_->ValidateExpression(&init_classifier, ok);
-    if (!*ok) return;
-    parameters->is_simple = false;
+  } else if (expr->IsAssignment()) {
+    Assignment* assignment = expr->AsAssignment();
+    DCHECK(parser_->allow_harmony_default_parameters());
+    DCHECK(!assignment->is_compound());
+    initializer = assignment->value();
+    expr = assignment->target();
   }
 
   AddFormalParameter(parameters, expr, initializer, is_rest);
