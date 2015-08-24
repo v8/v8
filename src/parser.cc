@@ -3752,9 +3752,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
   Statement* next = NULL;
   if (peek() != Token::RPAREN) {
-    int next_pos = position();
     Expression* exp = ParseExpression(true, CHECK_OK);
-    next = factory()->NewExpressionStatement(exp, next_pos);
+    next = factory()->NewExpressionStatement(exp, exp->position());
   }
   Expect(Token::RPAREN, CHECK_OK);
 
