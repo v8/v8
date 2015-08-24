@@ -48,6 +48,16 @@ var StringCharAt;
 var StringIndexOf;
 var StringSubstring;
 var ToString;
+var Float32x4ToString;
+var Int32x4ToString;
+var Uint32x4ToString;
+var Bool32x4ToString;
+var Int16x8ToString;
+var Uint16x8ToString;
+var Bool16x8ToString;
+var Int8x16ToString;
+var Uint8x16ToString;
+var Bool8x16ToString;
 
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
@@ -64,6 +74,16 @@ utils.Import(function(from) {
   StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
+  Float32x4ToString = from.Float32x4ToString;
+  Int32x4ToString = from.Int32x4ToString;
+  Uint32x4ToString = from.Uint32x4ToString;
+  Bool32x4ToString = from.Bool32x4ToString;
+  Int16x8ToString = from.Int16x8ToString;
+  Uint16x8ToString = from.Uint16x8ToString;
+  Bool16x8ToString = from.Bool16x8ToString;
+  Int8x16ToString = from.Int8x16ToString;
+  Uint8x16ToString = from.Uint8x16ToString;
+  Bool8x16ToString = from.Bool8x16ToString;
 });
 
 utils.ImportNow(function(from) {
@@ -107,11 +127,14 @@ function NoSideEffectToString(obj) {
     switch (typeof(obj)) {
       case 'float32x4': return %_CallFunction(obj, Float32x4ToString);
       case 'int32x4':   return %_CallFunction(obj, Int32x4ToString);
+      case 'uint32x4':   return %_CallFunction(obj, Uint32x4ToString);
       case 'bool32x4':  return %_CallFunction(obj, Bool32x4ToString);
       case 'int16x8':   return %_CallFunction(obj, Int16x8ToString);
+      case 'uint16x8':   return %_CallFunction(obj, Uint16x8ToString);
       case 'bool16x8':  return %_CallFunction(obj, Bool16x8ToString);
-      case 'int16x8':   return %_CallFunction(obj, Int16x8ToString);
-      case 'bool16x8':  return %_CallFunction(obj, Bool16x8ToString);
+      case 'int8x16':   return %_CallFunction(obj, Int8x16ToString);
+      case 'uint8x16':   return %_CallFunction(obj, Uint8x16ToString);
+      case 'bool8x16':  return %_CallFunction(obj, Bool8x16ToString);
     }
   }
   if (IS_OBJECT(obj)

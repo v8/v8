@@ -115,10 +115,13 @@
 //     - Simd128Value
 //       - Float32x4
 //       - Int32x4
+//       - Uint32x4
 //       - Bool32x4
 //       - Int16x8
+//       - Uint16x8
 //       - Bool16x8
 //       - Int8x16
+//       - Uint8x16
 //       - Bool8x16
 //     - Cell
 //     - PropertyCell
@@ -866,10 +869,13 @@ template <class C> inline bool Is(Object* obj);
   V(Simd128Value)                  \
   V(Float32x4)                     \
   V(Int32x4)                       \
+  V(Uint32x4)                      \
   V(Bool32x4)                      \
   V(Int16x8)                       \
+  V(Uint16x8)                      \
   V(Bool16x8)                      \
   V(Int8x16)                       \
+  V(Uint8x16)                      \
   V(Bool8x16)                      \
   V(Name)                          \
   V(UniqueName)                    \
@@ -1592,10 +1598,13 @@ class Simd128Value : public HeapObject {
 #define SIMD128_TYPES(V)                       \
   V(FLOAT32X4, Float32x4, float32x4, 4, float) \
   V(INT32X4, Int32x4, int32x4, 4, int32_t)     \
+  V(UINT32X4, Uint32x4, uint32x4, 4, uint32_t) \
   V(BOOL32X4, Bool32x4, bool32x4, 4, bool)     \
   V(INT16X8, Int16x8, int16x8, 8, int16_t)     \
+  V(UINT16X8, Uint16x8, uint16x8, 8, uint16_t) \
   V(BOOL16X8, Bool16x8, bool16x8, 8, bool)     \
   V(INT8X16, Int8x16, int8x16, 16, int8_t)     \
+  V(UINT8X16, Uint8x16, uint8x16, 16, uint8_t) \
   V(BOOL8X16, Bool8x16, bool8x16, 16, bool)
 
 #define SIMD128_VALUE_CLASS(TYPE, Type, type, lane_count, lane_type) \
