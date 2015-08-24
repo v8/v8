@@ -163,24 +163,28 @@ bool CodeRange::GetNextAllocationBlock(size_t requested) {
     }
   }
 
-  // Sort and merge the free blocks on the free list and the allocation list.
-  free_list_.AddAll(allocation_list_);
-  allocation_list_.Clear();
-  free_list_.Sort(&CompareFreeBlockAddress);
-  for (int i = 0; i < free_list_.length();) {
-    FreeBlock merged = free_list_[i];
-    i++;
-    // Add adjacent free blocks to the current merged block.
-    while (i < free_list_.length() &&
-           free_list_[i].start == merged.start + merged.size) {
-      merged.size += free_list_[i].size;
+  {
+    base::LockGuard<base::Mutex> free_list_lock_guard(&free_list_mutex_);
+
+    // Sort and merge the free blocks on the free list and the allocation list.
+    free_list_.AddAll(allocation_list_);
+    allocation_list_.Clear();
+    free_list_.Sort(&CompareFreeBlockAddress);
+    for (int i = 0; i < free_list_.length();) {
+      FreeBlock merged = free_list_[i];
       i++;
+      // Add adjacent free blocks to the current merged block.
+      while (i < free_list_.length() &&
+             free_list_[i].start == merged.start + merged.size) {
+        merged.size += free_list_[i].size;
+        i++;
+      }
+      if (merged.size > 0) {
+        allocation_list_.Add(merged);
+      }
     }
-    if (merged.size > 0) {
-      allocation_list_.Add(merged);
-    }
+    free_list_.Clear();
   }
-  free_list_.Clear();
 
   for (current_allocation_block_index_ = 0;
        current_allocation_block_index_ < allocation_list_.length();
@@ -229,6 +233,7 @@ bool CodeRange::UncommitRawMemory(Address start, size_t length) {
 
 void CodeRange::FreeRawMemory(Address address, size_t length) {
   DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
+  base::LockGuard<base::Mutex> free_list_lock_guard(&free_list_mutex_);
   free_list_.Add(FreeBlock(address, length));
   code_range_->Uncommit(address, length);
 }
@@ -237,6 +242,7 @@ void CodeRange::FreeRawMemory(Address address, size_t length) {
 void CodeRange::TearDown() {
   delete code_range_;  // Frees all memory in the virtual memory range.
   code_range_ = NULL;
+  base::LockGuard<base::Mutex> free_list_lock_guard(&free_list_mutex_);
   free_list_.Free();
   allocation_list_.Free();
 }
@@ -264,7 +270,10 @@ bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
 }
 
 
-void CodeRange::ReleaseBlock(const FreeBlock* block) { free_list_.Add(*block); }
+void CodeRange::ReleaseBlock(const FreeBlock* block) {
+  base::LockGuard<base::Mutex> free_list_lock_guard(&free_list_mutex_);
+  free_list_.Add(*block);
+}
 
 
 void CodeRange::ReserveEmergencyBlock() {
@@ -332,26 +341,30 @@ bool MemoryAllocator::CommitMemory(Address base, size_t size,
 }
 
 
+void MemoryAllocator::FreeNewSpaceMemory(Address addr,
+                                         base::VirtualMemory* reservation,
+                                         Executability executable) {
+  LOG(isolate_, DeleteEvent("NewSpace", addr));
+
+  DCHECK(reservation->IsReserved());
+  const size_t size = reservation->size();
+  DCHECK(size_ >= size);
+  size_ -= size;
+  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
+  FreeMemory(reservation, NOT_EXECUTABLE);
+}
+
+
 void MemoryAllocator::FreeMemory(base::VirtualMemory* reservation,
                                  Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
-  DCHECK(reservation->IsReserved());
-  size_t size = reservation->size();
-  DCHECK(size_ >= size);
-  size_ -= size;
-
-  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
-
-  if (executable == EXECUTABLE) {
-    DCHECK(size_executable_ >= size);
-    size_executable_ -= size;
-  }
   // Code which is part of the code-range does not have its own VirtualMemory.
   DCHECK(isolate_->code_range() == NULL ||
          !isolate_->code_range()->contains(
              static_cast<Address>(reservation->address())));
   DCHECK(executable == NOT_EXECUTABLE || isolate_->code_range() == NULL ||
-         !isolate_->code_range()->valid() || size <= Page::kPageSize);
+         !isolate_->code_range()->valid() ||
+         reservation->size() <= Page::kPageSize);
 
   reservation->Release();
 }
@@ -360,15 +373,6 @@ void MemoryAllocator::FreeMemory(base::VirtualMemory* reservation,
 void MemoryAllocator::FreeMemory(Address base, size_t size,
                                  Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
-  DCHECK(size_ >= size);
-  size_ -= size;
-
-  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
-
-  if (executable == EXECUTABLE) {
-    DCHECK(size_executable_ >= size);
-    size_executable_ -= size;
-  }
   if (isolate_->code_range() != NULL &&
       isolate_->code_range()->contains(static_cast<Address>(base))) {
     DCHECK(executable == EXECUTABLE);
@@ -742,7 +746,8 @@ LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
 }
 
 
-void MemoryAllocator::Free(MemoryChunk* chunk) {
+void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
+  DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
   if (chunk->owner() != NULL) {
     ObjectSpace space =
@@ -753,9 +758,29 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
   isolate_->heap()->RememberUnmappedPage(reinterpret_cast<Address>(chunk),
                                          chunk->IsEvacuationCandidate());
 
-  delete chunk->slots_buffer();
-  delete chunk->skip_list();
-  delete chunk->mutex();
+  size_t size;
+  base::VirtualMemory* reservation = chunk->reserved_memory();
+  if (reservation->IsReserved()) {
+    size = reservation->size();
+  } else {
+    size = chunk->size();
+  }
+  DCHECK(size_ >= size);
+  size_ -= size;
+  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
+
+  if (chunk->executable() == EXECUTABLE) {
+    DCHECK(size_executable_ >= size);
+    size_executable_ -= size;
+  }
+
+  chunk->SetFlag(MemoryChunk::PRE_FREED);
+}
+
+
+void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
+  DCHECK(chunk->IsFlagSet(MemoryChunk::PRE_FREED));
+  chunk->ReleaseAllocatedMemory();
 
   base::VirtualMemory* reservation = chunk->reserved_memory();
   if (reservation->IsReserved()) {
@@ -763,6 +788,12 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
   } else {
     FreeMemory(chunk->address(), chunk->size(), chunk->executable());
   }
+}
+
+
+void MemoryAllocator::Free(MemoryChunk* chunk) {
+  PreFreeMemory(chunk);
+  PerformFreeMemory(chunk);
 }
 
 
@@ -915,6 +946,13 @@ void MemoryChunk::IncrementLiveBytesFromMutator(HeapObject* object, int by) {
     static_cast<PagedSpace*>(chunk->owner())->IncrementUnsweptFreeBytes(-by);
   }
   chunk->IncrementLiveBytes(by);
+}
+
+
+void MemoryChunk::ReleaseAllocatedMemory() {
+  delete slots_buffer_;
+  delete skip_list_;
+  delete mutex_;
 }
 
 
@@ -1284,11 +1322,9 @@ void NewSpace::TearDown() {
   to_space_.TearDown();
   from_space_.TearDown();
 
-  LOG(heap()->isolate(), DeleteEvent("InitialChunk", chunk_base_));
+  heap()->isolate()->memory_allocator()->FreeNewSpaceMemory(
+      chunk_base_, &reservation_, NOT_EXECUTABLE);
 
-  DCHECK(reservation_.IsReserved());
-  heap()->isolate()->memory_allocator()->FreeMemory(&reservation_,
-                                                    NOT_EXECUTABLE);
   chunk_base_ = NULL;
   chunk_size_ = 0;
 }

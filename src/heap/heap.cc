@@ -135,6 +135,7 @@ Heap::Heap()
       current_gc_flags_(Heap::kNoGCFlags),
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
+      pending_unmap_job_semaphore_(0),
       gc_callbacks_depth_(0),
       deserialization_complete_(false),
       concurrent_sweeping_enabled_(false),
@@ -6501,7 +6502,39 @@ void ExternalStringTable::TearDown() {
 }
 
 
+class Heap::UnmapFreeMemoryTask : public v8::Task {
+ public:
+  UnmapFreeMemoryTask(Heap* heap, MemoryChunk* head)
+      : heap_(heap), head_(head) {}
+  virtual ~UnmapFreeMemoryTask() {}
+
+ private:
+  // v8::Task overrides.
+  void Run() override {
+    heap_->FreeQueuedChunks(head_);
+    heap_->pending_unmap_job_semaphore_.Signal();
+  }
+
+  Heap* heap_;
+  MemoryChunk* head_;
+
+  DISALLOW_COPY_AND_ASSIGN(UnmapFreeMemoryTask);
+};
+
+
+void Heap::WaitUntilUnmappingOfFreeChunksCompleted() {
+  // We start an unmap job after sweeping and after compaction.
+  pending_unmap_job_semaphore_.Wait();
+  pending_unmap_job_semaphore_.Wait();
+}
+
+
 void Heap::QueueMemoryChunkForFree(MemoryChunk* chunk) {
+  // PreFree logically frees the memory chunk. However, the actual freeing
+  // will happen on a separate thread sometime later.
+  isolate_->memory_allocator()->PreFreeMemory(chunk);
+
+  // The chunks added to this queue will be freed by a concurrent thread.
   chunk->set_next_chunk(chunks_queued_for_free_);
   chunks_queued_for_free_ = chunk;
 }
@@ -6515,19 +6548,32 @@ void Heap::FilterStoreBufferEntriesOnAboutToBeFreedPages() {
     next = chunk->next_chunk();
     chunk->SetFlag(MemoryChunk::ABOUT_TO_BE_FREED);
   }
-  isolate_->heap()->store_buffer()->Compact();
-  isolate_->heap()->store_buffer()->Filter(MemoryChunk::ABOUT_TO_BE_FREED);
+  store_buffer()->Compact();
+  store_buffer()->Filter(MemoryChunk::ABOUT_TO_BE_FREED);
 }
 
 
 void Heap::FreeQueuedChunks() {
+  if (chunks_queued_for_free_ != NULL) {
+    V8::GetCurrentPlatform()->CallOnBackgroundThread(
+        new UnmapFreeMemoryTask(this, chunks_queued_for_free_),
+        v8::Platform::kShortRunningTask);
+    chunks_queued_for_free_ = NULL;
+  } else {
+    // If we do not have anything to unmap, we just signal the semaphore
+    // that we are done.
+    pending_unmap_job_semaphore_.Signal();
+  }
+}
+
+
+void Heap::FreeQueuedChunks(MemoryChunk* list_head) {
   MemoryChunk* next;
   MemoryChunk* chunk;
-  for (chunk = chunks_queued_for_free_; chunk != NULL; chunk = next) {
+  for (chunk = list_head; chunk != NULL; chunk = next) {
     next = chunk->next_chunk();
-    isolate_->memory_allocator()->Free(chunk);
+    isolate_->memory_allocator()->PerformFreeMemory(chunk);
   }
-  chunks_queued_for_free_ = NULL;
 }
 
 

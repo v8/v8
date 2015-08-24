@@ -1125,7 +1125,9 @@ class Heap {
 
   void QueueMemoryChunkForFree(MemoryChunk* chunk);
   void FilterStoreBufferEntriesOnAboutToBeFreedPages();
+  void FreeQueuedChunks(MemoryChunk* list_head);
   void FreeQueuedChunks();
+  void WaitUntilUnmappingOfFreeChunksCompleted();
 
   bool RecentIdleNotificationHappened();
 
@@ -1656,6 +1658,8 @@ class Heap {
 #endif
 
  private:
+  class UnmapFreeMemoryTask;
+
   struct StrongRootsList;
 
   struct StringTypeTable {
@@ -2336,6 +2340,8 @@ class Heap {
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 
   MemoryChunk* chunks_queued_for_free_;
+
+  base::Semaphore pending_unmap_job_semaphore_;
 
   base::Mutex relocation_mutex_;
 

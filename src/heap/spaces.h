@@ -386,6 +386,10 @@ class MemoryChunk {
     // candidates selection cycle.
     FORCE_EVACUATION_CANDIDATE_FOR_TESTING,
 
+    // The memory chunk is already logically freed, however the actual freeing
+    // still has to be performed.
+    PRE_FREED,
+
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
   };
@@ -656,6 +660,9 @@ class MemoryChunk {
 
   // Approximate amount of physical memory committed for this chunk.
   size_t CommittedPhysicalMemory() { return high_water_mark_; }
+
+  // Should be called when memory chunk is about to be freed.
+  void ReleaseAllocatedMemory();
 
   static inline void UpdateHighWaterMark(Address mark) {
     if (mark == NULL) return;
@@ -980,10 +987,15 @@ class CodeRange {
     size_t size;
   };
 
+  // All access to free_list_ require to take the free_list_mutex_. GC threads
+  // may access the free_list_ concurrently to the main thread.
+  base::Mutex free_list_mutex_;
+
   // Freed blocks of memory are added to the free list.  When the allocation
   // list is exhausted, the free list is sorted and merged to make the new
   // allocation list.
   List<FreeBlock> free_list_;
+
   // Memory is allocated from the free blocks on the allocation list.
   // The block at current_allocation_block_index_ is the current block.
   List<FreeBlock> allocation_list_;
@@ -1079,6 +1091,15 @@ class MemoryAllocator {
   LargePage* AllocateLargePage(intptr_t object_size, Space* owner,
                                Executability executable);
 
+  // PreFree logically frees the object, i.e., it takes care of the size
+  // bookkeeping and calls the allocation callback.
+  void PreFreeMemory(MemoryChunk* chunk);
+
+  // FreeMemory can be called concurrently when PreFree was executed before.
+  void PerformFreeMemory(MemoryChunk* chunk);
+
+  // Free is a wrapper method, which calls PreFree and PerformFreeMemory
+  // together.
   void Free(MemoryChunk* chunk);
 
   // Returns the maximum available bytes of heaps.
@@ -1128,6 +1149,8 @@ class MemoryAllocator {
 
   bool CommitMemory(Address addr, size_t size, Executability executable);
 
+  void FreeNewSpaceMemory(Address addr, base::VirtualMemory* reservation,
+                          Executability executable);
   void FreeMemory(base::VirtualMemory* reservation, Executability executable);
   void FreeMemory(Address addr, size_t size, Executability executable);
 
