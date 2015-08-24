@@ -135,6 +135,8 @@ class CompilationInfo {
 
   explicit CompilationInfo(ParseInfo* parse_info);
   CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone);
+  CompilationInfo(const char* code_stub_debug_name, Isolate* isolate,
+                  Zone* zone);
   virtual ~CompilationInfo();
 
   ParseInfo* parse_info() const { return parse_info_; }
@@ -306,10 +308,7 @@ class CompilationInfo {
   }
   Type::FunctionType* function_type() const { return function_type_; }
 
-  void SetStub(CodeStub* code_stub) {
-    SetMode(STUB);
-    code_stub_ = code_stub;
-  }
+  void SetStub(CodeStub* code_stub);
 
   // Deoptimization support.
   bool HasDeoptimizationSupport() const {
@@ -319,6 +318,7 @@ class CompilationInfo {
     DCHECK_EQ(BASE, mode_);
     SetFlag(kDeoptimizationSupport);
   }
+  bool ShouldEnsureSpaceForLazyDeopt() { return !IsStub(); }
 
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();
@@ -410,6 +410,8 @@ class CompilationInfo {
     inlined_functions_.push_back(inlined_function);
   }
 
+  base::SmartArrayPointer<char> GetDebugName() const;
+
  protected:
   ParseInfo* parse_info_;
 
@@ -429,8 +431,9 @@ class CompilationInfo {
     STUB
   };
 
-  CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub, Mode mode,
-                  Isolate* isolate, Zone* zone);
+  CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
+                  const char* code_stub_debug_name, Mode mode, Isolate* isolate,
+                  Zone* zone);
 
   Isolate* isolate_;
 
@@ -498,6 +501,8 @@ class CompilationInfo {
   JavaScriptFrame* osr_frame_ = nullptr;
 
   Type::FunctionType* function_type_;
+
+  const char* code_stub_debug_name_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };

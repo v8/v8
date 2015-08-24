@@ -119,7 +119,7 @@ bool CompilationInfo::has_scope() const {
 
 
 CompilationInfo::CompilationInfo(ParseInfo* parse_info)
-    : CompilationInfo(parse_info, nullptr, BASE, parse_info->isolate(),
+    : CompilationInfo(parse_info, nullptr, nullptr, BASE, parse_info->isolate(),
                       parse_info->zone()) {
   // Compiling for the snapshot typically results in different code than
   // compiling later on. This means that code recompiled with deoptimization
@@ -148,11 +148,16 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
 
 
 CompilationInfo::CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone)
-    : CompilationInfo(nullptr, stub, STUB, isolate, zone) {}
+    : CompilationInfo(nullptr, stub, CodeStub::MajorName(stub->MajorKey()),
+                      STUB, isolate, zone) {}
 
+CompilationInfo::CompilationInfo(const char* debug_name, Isolate* isolate,
+                                 Zone* zone)
+    : CompilationInfo(nullptr, nullptr, debug_name, STUB, isolate, zone) {}
 
 CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
-                                 Mode mode, Isolate* isolate, Zone* zone)
+                                 const char* code_stub_debug_name, Mode mode,
+                                 Isolate* isolate, Zone* zone)
     : parse_info_(parse_info),
       isolate_(isolate),
       flags_(0),
@@ -173,7 +178,8 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       parameter_count_(0),
       optimization_id_(-1),
       osr_expr_stack_height_(0),
-      function_type_(nullptr) {
+      function_type_(nullptr),
+      code_stub_debug_name_(code_stub_debug_name) {
   // Parameter count is number of stack parameters.
   if (code_stub_ != NULL) {
     CodeStubDescriptor descriptor(code_stub_);
@@ -194,6 +200,13 @@ CompilationInfo::~CompilationInfo() {
   // been rolled back or committed.
   DCHECK(dependencies()->IsEmpty());
 #endif  // DEBUG
+}
+
+
+void CompilationInfo::SetStub(CodeStub* code_stub) {
+  SetMode(STUB);
+  code_stub_ = code_stub;
+  code_stub_debug_name_ = CodeStub::MajorName(code_stub->MajorKey());
 }
 
 
@@ -299,6 +312,19 @@ void CompilationInfo::LogDeoptCallPosition(int pc_offset, int inlining_id) {
   if (!track_positions_ || IsStub()) return;
   DCHECK_LT(static_cast<size_t>(inlining_id), inlined_function_infos_.size());
   inlined_function_infos_.at(inlining_id).deopt_pc_offsets.push_back(pc_offset);
+}
+
+
+base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
+  if (IsStub()) {
+    size_t len = strlen(code_stub_debug_name_) + 1;
+    base::SmartArrayPointer<char> name(new char[len]);
+    memcpy(name.get(), code_stub_debug_name_, len);
+    return name;
+  } else {
+    AllowHandleDereference allow_deref;
+    return literal()->debug_name()->ToCString();
+  }
 }
 
 

@@ -2532,8 +2532,7 @@ void CodeSerializer::SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
 
   if (FLAG_trace_serializer) {
     PrintF(" Encoding code stub %s as %d\n",
-           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key), false),
-           index);
+           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key)), index);
   }
 
   sink_->Put(kAttachedReference + how_to_code + where_to_point, "CodeStub");

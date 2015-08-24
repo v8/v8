@@ -13108,16 +13108,13 @@ std::ostream& operator<<(std::ostream& os, const HEnvironment& env) {
 
 void HTracer::TraceCompilation(CompilationInfo* info) {
   Tag tag(this, "compilation");
+  base::SmartArrayPointer<char> name = info->GetDebugName();
   if (info->IsOptimizing()) {
-    Handle<String> name = info->literal()->debug_name();
-    PrintStringProperty("name", name->ToCString().get());
+    PrintStringProperty("name", name.get());
     PrintIndent();
-    trace_.Add("method \"%s:%d\"\n",
-               name->ToCString().get(),
-               info->optimization_id());
+    trace_.Add("method \"%s:%d\"\n", name.get(), info->optimization_id());
   } else {
-    CodeStub::Major major_key = info->code_stub()->MajorKey();
-    PrintStringProperty("name", CodeStub::MajorName(major_key, false));
+    PrintStringProperty("name", name.get());
     PrintStringProperty("method", "stub");
   }
   PrintLongProperty("date",

@@ -1746,7 +1746,7 @@ std::ostream& HCheckInstanceType::PrintDataTo(
 
 
 std::ostream& HCallStub::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << CodeStub::MajorName(major_key_, false) << " ";
+  os << CodeStub::MajorName(major_key_) << " ";
   return HUnaryCall::PrintDataTo(os);
 }
 

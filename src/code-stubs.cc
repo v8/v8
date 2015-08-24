@@ -187,8 +187,7 @@ Handle<Code> CodeStub::GetCode() {
 }
 
 
-const char* CodeStub::MajorName(CodeStub::Major major_key,
-                                bool allow_unknown_keys) {
+const char* CodeStub::MajorName(CodeStub::Major major_key) {
   switch (major_key) {
 #define DEF_CASE(name) case name: return #name "Stub";
     CODE_STUB_LIST(DEF_CASE)
@@ -204,7 +203,7 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 
 
 void CodeStub::PrintBaseName(std::ostream& os) const {  // NOLINT
-  os << MajorName(MajorKey(), false);
+  os << MajorName(MajorKey());
 }
 
 
@@ -481,7 +480,7 @@ Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
 
 Handle<Code> TurboFanCodeStub::GenerateCode() {
   // Get the outer ("stub generator") function.
-  const char* name = CodeStub::MajorName(MajorKey(), false);
+  const char* name = CodeStub::MajorName(MajorKey());
   Handle<JSFunction> outer = GetFunction(isolate(), name);
   DCHECK_EQ(2, outer->shared()->length());
 

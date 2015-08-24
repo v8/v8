@@ -1336,14 +1336,9 @@ void LAllocator::BuildLiveRanges() {
       while (!iterator.Done()) {
         found = true;
         int operand_index = iterator.Current();
-        if (chunk_->info()->IsStub()) {
-          CodeStub::Major major_key = chunk_->info()->code_stub()->MajorKey();
-          PrintF("Function: %s\n", CodeStub::MajorName(major_key, false));
-        } else {
-          DCHECK(chunk_->info()->IsOptimizing());
+        {
           AllowHandleDereference allow_deref;
-          PrintF("Function: %s\n",
-                 chunk_->info()->literal()->debug_name()->ToCString().get());
+          PrintF("Function: %s\n", chunk_->info()->GetDebugName().get());
         }
         PrintF("Value %d used before first definition!\n", operand_index);
         LiveRange* range = LiveRangeFor(operand_index);

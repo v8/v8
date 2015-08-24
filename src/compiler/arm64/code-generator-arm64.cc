@@ -1346,22 +1346,24 @@ void CodeGenerator::AddNopForSmiCodeInlining() { __ movz(xzr, 0); }
 
 
 void CodeGenerator::EnsureSpaceForLazyDeopt() {
+  if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
+    return;
+  }
+
   int space_needed = Deoptimizer::patch_size();
-  if (!info()->IsStub()) {
-    // Ensure that we have enough space after the previous lazy-bailout
-    // instruction for patching the code here.
-    intptr_t current_pc = masm()->pc_offset();
+  // Ensure that we have enough space after the previous lazy-bailout
+  // instruction for patching the code here.
+  intptr_t current_pc = masm()->pc_offset();
 
-    if (current_pc < (last_lazy_deopt_pc_ + space_needed)) {
-      intptr_t padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-      DCHECK((padding_size % kInstructionSize) == 0);
-      InstructionAccurateScope instruction_accurate(
-          masm(), padding_size / kInstructionSize);
+  if (current_pc < (last_lazy_deopt_pc_ + space_needed)) {
+    intptr_t padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
+    DCHECK((padding_size % kInstructionSize) == 0);
+    InstructionAccurateScope instruction_accurate(
+        masm(), padding_size / kInstructionSize);
 
-      while (padding_size > 0) {
-        __ nop();
-        padding_size -= kInstructionSize;
-      }
+    while (padding_size > 0) {
+      __ nop();
+      padding_size -= kInstructionSize;
     }
   }
 }

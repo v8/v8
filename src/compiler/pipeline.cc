@@ -349,21 +349,6 @@ void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
 }
 
 
-base::SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
-  if (info->code_stub() != NULL) {
-    CodeStub::Major major_key = info->code_stub()->MajorKey();
-    const char* major_name = CodeStub::MajorName(major_key, false);
-    size_t len = strlen(major_name) + 1;
-    base::SmartArrayPointer<char> name(new char[len]);
-    memcpy(name.get(), major_name, len);
-    return name;
-  } else {
-    AllowHandleDereference allow_deref;
-    return info->literal()->debug_name()->ToCString();
-  }
-}
-
-
 class AstGraphBuilderWithPositions final : public AstGraphBuilder {
  public:
   AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
@@ -1015,8 +1000,7 @@ Handle<Code> Pipeline::GenerateCode() {
       OFStream json_of(json_file);
       Handle<Script> script = info()->script();
       FunctionLiteral* function = info()->literal();
-      base::SmartArrayPointer<char> function_name =
-          info()->shared_info()->DebugName()->ToCString();
+      base::SmartArrayPointer<char> function_name = info()->GetDebugName();
       int pos = info()->shared_info()->start_position();
       json_of << "{\"function\":\"" << function_name.get()
               << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
@@ -1048,7 +1032,7 @@ Handle<Code> Pipeline::GenerateCode() {
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
     os << "---------------------------------------------------\n"
-       << "Begin compiling method " << GetDebugName(info()).get()
+       << "Begin compiling method " << info()->GetDebugName().get()
        << " using Turbofan" << std::endl;
     TurboCfgFile tcf(isolate());
     tcf << AsC1VCompilation(info());
@@ -1158,8 +1142,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(Isolate* isolate,
                                               CallDescriptor* call_descriptor,
                                               Graph* graph,
                                               Schedule* schedule) {
-  FakeStubForTesting stub(isolate);
-  CompilationInfo info(&stub, isolate, graph->zone());
+  CompilationInfo info("testing", isolate, graph->zone());
   return GenerateCodeForTesting(&info, call_descriptor, graph, schedule);
 }
 
@@ -1191,8 +1174,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
-  FakeStubForTesting stub(sequence->isolate());
-  CompilationInfo info(&stub, sequence->isolate(), sequence->zone());
+  CompilationInfo info("testing", sequence->isolate(), sequence->zone());
   ZonePool zone_pool;
   PipelineData data(&zone_pool, &info, sequence);
   Pipeline pipeline(&info);
@@ -1292,7 +1274,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
     }
     OFStream os(stdout);
     os << "---------------------------------------------------\n"
-       << "Finished compiling method " << GetDebugName(info()).get()
+       << "Finished compiling method " << info()->GetDebugName().get()
        << " using Turbofan" << std::endl;
   }
 
@@ -1316,7 +1298,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
 
   base::SmartArrayPointer<char> debug_name;
 #ifdef DEBUG
-  debug_name = GetDebugName(data->info());
+  debug_name = info()->GetDebugName();
 #endif
 
   data->InitializeRegisterAllocationData(config, descriptor, debug_name.get());

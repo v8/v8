@@ -147,7 +147,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   }
 
   // Ensure there is space for lazy deoptimization in the code.
-  if (!info->IsStub()) {
+  if (info->ShouldEnsureSpaceForLazyDeopt()) {
     int target_offset = masm()->pc_offset() + Deoptimizer::patch_size();
     while (masm()->pc_offset() < target_offset) {
       masm()->nop();
@@ -193,7 +193,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   PopulateDeoptimizationData(result);
 
   // Ensure there is space for lazy deoptimization in the relocation info.
-  if (!info->IsStub()) {
+  if (!info->ShouldEnsureSpaceForLazyDeopt()) {
     Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(result);
   }
 

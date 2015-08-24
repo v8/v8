@@ -11438,7 +11438,7 @@ void Code::PrintExtraICState(std::ostream& os,  // NOLINT
 void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   os << "kind = " << Kind2String(kind()) << "\n";
   if (IsCodeStubOrIC()) {
-    const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(this), true);
+    const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(this));
     os << "major_key = " << (n == NULL ? "null" : n) << "\n";
   }
   if (is_inline_cache_stub()) {

@@ -199,7 +199,7 @@ class CodeStub BASE_EMBEDDED {
 
   static uint32_t NoCacheKey() { return MajorKeyBits::encode(NoCache); }
 
-  static const char* MajorName(Major major_key, bool allow_unknown_keys);
+  static const char* MajorName(Major major_key);
 
   explicit CodeStub(Isolate* isolate) : minor_key_(0), isolate_(isolate) {}
   virtual ~CodeStub() {}
@@ -313,29 +313,6 @@ class CodeStub BASE_EMBEDDED {
   friend class BreakPointIterator;
 
   Isolate* isolate_;
-};
-
-
-// TODO(svenpanne) This class is only used to construct a more or less sensible
-// CompilationInfo for testing purposes, basically pretending that we are
-// currently compiling some kind of code stub. Remove this when the pipeline and
-// testing machinery is restructured in such a way that we don't have to come up
-// with a CompilationInfo out of thin air, although we only need a few parts of
-// it.
-struct FakeStubForTesting : public CodeStub {
-  explicit FakeStubForTesting(Isolate* isolate) : CodeStub(isolate) {}
-
-  // Only used by pipeline.cc's GetDebugName in DEBUG mode.
-  Major MajorKey() const override { return CodeStub::NoCache; }
-
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    return ContextOnlyDescriptor(isolate());
-  }
-
-  Handle<Code> GenerateCode() override {
-    UNREACHABLE();
-    return Handle<Code>();
-  }
 };
 
 

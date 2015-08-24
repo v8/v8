@@ -1455,7 +1455,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
            "  translating %s => StubFailureTrampolineStub, height=%d\n",
-           CodeStub::MajorName(static_cast<CodeStub::Major>(major_key), false),
+           CodeStub::MajorName(static_cast<CodeStub::Major>(major_key)),
            height_in_bytes);
   }
 

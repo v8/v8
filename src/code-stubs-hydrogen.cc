@@ -131,7 +131,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   isolate()->counters()->code_stubs()->Increment();
 
   if (FLAG_trace_hydrogen_stubs) {
-    const char* name = CodeStub::MajorName(stub()->MajorKey(), false);
+    const char* name = CodeStub::MajorName(stub()->MajorKey());
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling stub %s using hydrogen\n", name);
     isolate()->GetHTracer()->TraceCompilation(info());
