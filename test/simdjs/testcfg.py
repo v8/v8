@@ -44,7 +44,7 @@ class SimdJsTestSuite(testsuite.TestSuite):
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags +
             [os.path.join(self.root, "harness-adapt.js"),
-             "--harmony",
+             "--harmony", "--harmony-simd",
              os.path.join(self.testroot, testcase.path + ".js"),
              os.path.join(self.root, "harness-finish.js")])
 

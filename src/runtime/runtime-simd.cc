@@ -21,6 +21,24 @@ namespace {
 
 // Functions to convert Numbers to SIMD component types.
 
+template <typename T, typename F>
+static bool CanCast(F from) {
+  // A float can't represent 2^31 - 1 or 2^32 - 1 exactly, so promote the limits
+  // to double. Otherwise, the limit is truncated and numbers like 2^31 or 2^32
+  // get through, causing any static_cast to be undefined.
+  return from >= static_cast<double>(std::numeric_limits<T>::min()) &&
+         from <= static_cast<double>(std::numeric_limits<T>::max());
+}
+
+
+// Explicitly specialize for conversions to float, which always succeed.
+template <>
+bool CanCast<float>(int32_t from) {
+  return true;
+}
+
+}  // namespace
+
 template <typename T>
 static T ConvertNumber(double number);
 
@@ -110,16 +128,6 @@ inline float MaxNumber(float a, float b) {
   return Max(a, b);
 }
 
-
-inline bool CanCast(int32_t a) { return true; }
-
-
-inline bool CanCast(float a) {
-  return a > std::numeric_limits<int32_t>::min() &&
-         a < std::numeric_limits<int32_t>::max();
-}
-
-}  // namespace
 
 //-------------------------------------------------------------------
 
@@ -759,7 +767,7 @@ SIMD_SELECT_TYPES(SIMD_SELECT_FUNCTION)
     lane_type lanes[kLaneCount];                                               \
     for (int i = 0; i < kLaneCount; i++) {                                     \
       from_ctype a_value = a->get_lane(i);                                     \
-      RUNTIME_ASSERT(CanCast(a_value));                                        \
+      RUNTIME_ASSERT(CanCast<lane_type>(a_value));                             \
       lanes[i] = static_cast<lane_type>(a_value);                              \
     }                                                                          \
     Handle<type> result = isolate->factory()->New##type(lanes);                \
