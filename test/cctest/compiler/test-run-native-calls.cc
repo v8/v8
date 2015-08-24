@@ -847,7 +847,7 @@ TEST(Int64Select_registers) {
 
 
 TEST(Float32Select_registers) {
-  if (DoubleRegister::kMaxNumAllocatableRegisters < 2) return;
+  if (RegisterConfiguration::ArchDefault()->num_double_registers() < 2) return;
 
   int rarray[] = {0};
   ArgsBuffer<float32>::Sig sig(2);
@@ -869,7 +869,7 @@ TEST(Float32Select_registers) {
 
 
 TEST(Float64Select_registers) {
-  if (DoubleRegister::kMaxNumAllocatableRegisters < 2) return;
+  if (RegisterConfiguration::ArchDefault()->num_double_registers() < 2) return;
 
   int rarray[] = {0};
   ArgsBuffer<float64>::Sig sig(2);
