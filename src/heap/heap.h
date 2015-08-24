@@ -902,8 +902,6 @@ class Heap {
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed(bool dependant_context);
 
-  void FinalizeIncrementalMarkingIfComplete(const char* comment);
-
   inline void increment_scan_on_scavenge_pages() {
     scan_on_scavenge_pages_++;
     if (FLAG_gc_verbose) {
@@ -1247,8 +1245,6 @@ class Heap {
   bool HasLowAllocationRate();
   bool HasHighFragmentation();
   bool HasHighFragmentation(intptr_t used, intptr_t committed);
-
-  bool ShouldOptimizeForMemoryUsage() { return optimize_for_memory_usage_; }
 
   // ===========================================================================
   // Initialization. ===========================================================
