@@ -496,15 +496,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   // Just to make sure nobody calls this...
   inner->set_code(isolate()->builtins()->builtin(Builtins::kIllegal));
 
-  Zone zone;
-  // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
-  ParseInfo parse_info(&zone, inner);
-  CompilationInfo info(&parse_info);
-  info.SetFunctionType(GetCallInterfaceDescriptor().GetFunctionType());
-  info.MarkAsContextSpecializing();
-  info.MarkAsDeoptimizationEnabled();
-  info.SetStub(this);
-  return info.GenerateCodeStub();
+  return Compiler::GetStubCode(inner, this).ToHandleChecked();
 }
 
 

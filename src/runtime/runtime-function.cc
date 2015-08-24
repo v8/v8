@@ -215,7 +215,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   Handle<SharedFunctionInfo> source_shared(source->shared());
   RUNTIME_ASSERT(!source_shared->bound());
 
-  if (!Compiler::EnsureCompiled(source, KEEP_EXCEPTION)) {
+  if (!Compiler::Compile(source, KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
 

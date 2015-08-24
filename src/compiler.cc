@@ -302,14 +302,6 @@ void CompilationInfo::LogDeoptCallPosition(int pc_offset, int inlining_id) {
 }
 
 
-Handle<Code> CompilationInfo::GenerateCodeStub() {
-  // Run a "mini pipeline", extracted from compiler.cc.
-  CHECK(Parser::ParseStatic(parse_info()));
-  CHECK(Compiler::Analyze(parse_info()));
-  return compiler::Pipeline(this).GenerateCode();
-}
-
-
 class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
  public:
   explicit HOptimizedGraphBuilderWithPositions(CompilationInfo* info)
@@ -940,8 +932,24 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
 }
 
 
-bool Compiler::EnsureCompiled(Handle<JSFunction> function,
-                              ClearExceptionFlag flag) {
+MaybeHandle<Code> Compiler::GetStubCode(Handle<JSFunction> function,
+                                        CodeStub* stub) {
+  // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
+  Zone zone;
+  ParseInfo parse_info(&zone, function);
+  CompilationInfo info(&parse_info);
+  info.SetFunctionType(stub->GetCallInterfaceDescriptor().GetFunctionType());
+  info.MarkAsContextSpecializing();
+  info.MarkAsDeoptimizationEnabled();
+  info.SetStub(stub);
+
+  // Run a "mini pipeline", extracted from compiler.cc.
+  if (!ParseAndAnalyze(&parse_info)) return MaybeHandle<Code>();
+  return compiler::Pipeline(&info).GenerateCode();
+}
+
+
+bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   if (function->is_compiled()) return true;
   MaybeHandle<Code> maybe_code = Compiler::GetLazyCode(function);
   Handle<Code> code;

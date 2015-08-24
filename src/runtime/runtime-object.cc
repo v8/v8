@@ -1110,7 +1110,7 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
 
   // The function should be compiled for the optimization hints to be
   // available.
-  Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
+  Compiler::Compile(function, CLEAR_EXCEPTION);
 
   Handle<JSObject> result;
   if (site.is_null()) {
