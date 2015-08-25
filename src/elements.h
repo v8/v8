@@ -125,6 +125,10 @@ class ElementsAccessor {
                    Handle<Object> value, PropertyAttributes attributes,
                    uint32_t new_capacity) = 0;
 
+  virtual uint32_t Unshift(Handle<JSArray> receiver,
+                           Handle<FixedArrayBase> backing_store, Arguments args,
+                           uint32_t add_count) = 0;
+
   // TODO(cbruni): Consider passing Arguments* instead of Object** depending on
   // the requirements of future callers.
   virtual uint32_t Push(Handle<JSArray> receiver,

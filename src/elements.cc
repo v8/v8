@@ -585,6 +585,20 @@ class ElementsAccessorBase : public ElementsAccessor {
     return 0;
   }
 
+  virtual uint32_t Unshift(Handle<JSArray> receiver,
+                           Handle<FixedArrayBase> backing_store, Arguments args,
+                           uint32_t add_count) {
+    return ElementsAccessorSubclass::UnshiftImpl(receiver, backing_store, args,
+                                                 add_count);
+  }
+
+  static uint32_t UnshiftImpl(Handle<JSArray> receiver,
+                              Handle<FixedArrayBase> backing_store,
+                              Arguments args, uint32_t add_count) {
+    UNREACHABLE();
+    return 0;
+  }
+
   virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
                                  Handle<FixedArrayBase> backing_store,
                                  uint32_t start, uint32_t delete_count,
@@ -1181,6 +1195,50 @@ class FastElementsAccessor
 #endif
   }
 
+
+  static uint32_t UnshiftImpl(Handle<JSArray> receiver,
+                              Handle<FixedArrayBase> backing_store,
+                              Arguments args, uint32_t add_count) {
+    int len = Smi::cast(receiver->length())->value();
+    if (add_count == 0) {
+      return len;
+    }
+    // Currently fixed arrays cannot grow too big, so
+    // we should never hit this case.
+    DCHECK(add_count <= static_cast<uint32_t>(Smi::kMaxValue - len));
+    int new_length = len + add_count;
+    Handle<FixedArrayBase> new_elements;
+
+    if (new_length > backing_store->length()) {
+      // New backing storage is needed.
+      int capacity = new_length + (new_length >> 1) + 16;
+      new_elements = FastElementsAccessorSubclass::ConvertElementsWithCapacity(
+          receiver, backing_store, KindTraits::Kind, capacity, 0);
+      FastElementsAccessorSubclass::CopyElementsImpl(
+          *backing_store, 0, *new_elements, KindTraits::Kind, add_count,
+          kPackedSizeNotKnown, ElementsAccessor::kCopyToEndAndInitializeToHole);
+    } else {
+      DisallowHeapAllocation no_gc;
+      Heap* heap = receiver->GetIsolate()->heap();
+      FastElementsAccessorSubclass::MoveElements(heap, backing_store, add_count,
+                                                 0, len, 0, 0);
+      new_elements = backing_store;
+    }
+
+    // Add the provided values.
+    DisallowHeapAllocation no_gc;
+    for (uint32_t i = 0; i < add_count; i++) {
+      FastElementsAccessorSubclass::SetImpl(*new_elements, i, args[i + 1]);
+    }
+    if (!new_elements.is_identical_to(backing_store)) {
+      receiver->set_elements(*new_elements);
+    }
+    // Set the length.
+    receiver->set_length(Smi::FromInt(new_length));
+    return new_length;
+  }
+
+
   static uint32_t PushImpl(Handle<JSArray> receiver,
                            Handle<FixedArrayBase> backing_store,
                            Object** objects, uint32_t push_size,
@@ -1189,14 +1247,13 @@ class FastElementsAccessor
     if (push_size == 0) {
       return len;
     }
-    uint32_t elms_len = backing_store->length();
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
     DCHECK(push_size <= static_cast<uint32_t>(Smi::kMaxValue - len));
     uint32_t new_length = len + push_size;
     Handle<FixedArrayBase> new_elms;
 
-    if (new_length > elms_len) {
+    if (new_length > static_cast<uint32_t>(backing_store->length())) {
       // New backing storage is needed.
       uint32_t capacity = new_length + (new_length >> 1) + 16;
       new_elms = FastElementsAccessorSubclass::ConvertElementsWithCapacity(
@@ -1271,19 +1328,10 @@ class FastElementsAccessor
     }
 
     // Copy new Elements from args
-    if (IsFastDoubleElementsKind(KindTraits::Kind)) {
-      for (uint32_t index = start; index < start + add_count; index++) {
-        Object* arg = args[3 + index - start];
-        FastElementsAccessorSubclass::SetImpl(*backing_store, index, arg);
-      }
-    } else {
-      // FastSmiOrObjectElementsKind
-      Handle<FixedArray> elms = Handle<FixedArray>::cast(backing_store);
-      DisallowHeapAllocation no_gc;
-      WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-      for (uint32_t index = start; index < start + add_count; index++) {
-        elms->set(index, args[3 + index - start], mode);
-      }
+    DisallowHeapAllocation no_gc;
+    for (uint32_t index = start; index < start + add_count; index++) {
+      Object* object = args[3 + index - start];
+      FastElementsAccessorSubclass::SetImpl(*backing_store, index, object);
     }
 
     if (elms_changed) {
