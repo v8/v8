@@ -546,6 +546,9 @@ struct ParserFormalParameters : FormalParametersBase {
     Expression* pattern;
     Expression* initializer;
     bool is_rest;
+    bool is_simple() const {
+      return pattern->IsVariableProxy() && initializer == nullptr && !is_rest;
+    }
   };
 
   explicit ParserFormalParameters(Scope* scope)

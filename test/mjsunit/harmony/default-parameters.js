@@ -172,19 +172,18 @@
   function f3(y = eval("var x = 2"), z = eval("x")) { return z; }
   assertEquals(1, f3());
   assertEquals(1, f3(0));
-  // TODO(rossberg): eval inside patterns is not recognized yet.
-  // function f41({[eval("var x = 2; 'a'")]: w}, z = x)) { return z; }
-  // assertEquals(1, f41({}));
-  // assertEquals(1, f41({a: 0}));
-  // function f42({[eval("var x = 2; 'a'")]: w}, z = eval("x")) { return z; }
-  // assertEquals(1, f42({}));
-  // assertEquals(1, f42({a: 0}));
-  // function f43({a: w = eval("var x = 2")}, z = x) { return z; }
-  // assertEquals(1, f43({}));
-  // assertEquals(1, f43({a: 0}));
-  // function f44({a: w = eval("var x = 2")}, z = eval("x")) { return z; }
-  // assertEquals(1, f44({}));
-  // assertEquals(1, f44({a: 0}));
+  function f41({[eval("var x = 2; 'a'")]: w}, z = x) { return z; }
+  assertEquals(1, f41({}));
+  assertEquals(1, f41({a: 0}));
+  function f42({[eval("var x = 2; 'a'")]: w}, z = eval("x")) { return z; }
+  assertEquals(1, f42({}));
+  assertEquals(1, f42({a: 0}));
+  function f43({a: w = eval("var x = 2")}, z = x) { return z; }
+  assertEquals(1, f43({}));
+  assertEquals(1, f43({a: 0}));
+  function f44({a: w = eval("var x = 2")}, z = eval("x")) { return z; }
+  assertEquals(1, f44({}));
+  assertEquals(1, f44({a: 0}));
 
   function f5({a = eval("var x = 2"), b = x}) { return b; }
   assertEquals(2, f5({}));
@@ -221,6 +220,63 @@
   function f22(f = () => eval("x")) { eval("var x = 2"); return f() }
   assertEquals(1, f22());
   assertEquals(3, f22(() => 3));
+
+  var g1 = (y = eval("var x = 2")) => { with ({}) { return x; } };
+  assertEquals(1, g1());
+  var g2 = (y = eval("var x = 2"), z = x) => { return z; };
+  assertEquals(1, g2());
+  assertEquals(1, g2(0));
+  var g3 = (y = eval("var x = 2"), z = eval("x")) => { return z; };
+  assertEquals(1, g3());
+  assertEquals(1, g3(0));
+  var g41 = ({[eval("var x = 2; 'a'")]: w}, z = x) => { return z; };
+  assertEquals(1, g41({}));
+  assertEquals(1, g41({a: 0}));
+  var g42 = ({[eval("var x = 2; 'a'")]: w}, z = eval("x")) => { return z; };
+  assertEquals(1, g42({}));
+  assertEquals(1, g42({a: 0}));
+  var g43 = ({a: w = eval("var x = 2")}, z = x) => { return z; };
+  assertEquals(1, g43({}));
+  assertEquals(1, g43({a: 0}));
+  var g44 = ({a: w = eval("var x = 2")}, z = eval("x")) => { return z; };
+  assertEquals(1, g44({}));
+  assertEquals(1, g44({a: 0}));
+
+  var g5 = ({a = eval("var x = 2"), b = x}) => { return b; };
+  assertEquals(2, g5({}));
+  assertEquals(1, g5({a: 0}));
+  var g6 = ({a = eval("var x = 2"), b = eval("x")}) => { return b; };
+  assertEquals(2, g6({}));
+  assertEquals(1, g6({a: 0}));
+  var g71 = ({[eval("var x = 2; 'a'")]: w, b = x}) => { return b; };
+  assertEquals(2, g71({}));
+  assertEquals(2, g71({a: 0}));
+  var g72 = ({[eval("var x = 2; 'a'")]: w, b = eval("x")}) => { return b; };
+  assertEquals(2, g72({}));
+  assertEquals(2, g72({a: 0}));
+  var g73 = ({a: w = eval("var x = 2"), b = x}) => { return b; };
+  assertEquals(2, g73({}));
+  assertEquals(1, g73({a: 0}));
+  var g74 = ({a: w = eval("var x = 2"), b = eval("x")}) => { return b; };
+  assertEquals(2, g74({}));
+  assertEquals(1, g74({a: 0}));
+  var g8 = (y = (eval("var x = 2"), x)) => { return y; };
+  assertEquals(2, g8());
+  assertEquals(0, g8(0));
+
+  var g11 = (z = eval("var y = 2")) => { return y; };
+  assertThrows(g11, ReferenceError);
+  var g12 = (z = eval("var y = 2"), b = y) => {};
+  assertThrows(g12, ReferenceError);
+  var g13 = (z = eval("var y = 2"), b = eval("y")) => {};
+  assertThrows(g13, ReferenceError);
+
+  var g21 = (f = () => x) => { eval("var x = 2"); return f() };
+  assertEquals(1, g21());
+  assertEquals(3, g21(() => 3));
+  var g22 = (f = () => eval("x")) => { eval("var x = 2"); return f() };
+  assertEquals(1, g22());
+  assertEquals(3, g22(() => 3));
 })();
 
 

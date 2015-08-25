@@ -4399,7 +4399,7 @@ Block* Parser::BuildParameterInitializationBlock(
 
     Scope* param_scope = scope_;
     Block* param_block = init_block;
-    if (parameter.initializer != nullptr && scope_->calls_sloppy_eval()) {
+    if (!parameter.is_simple() && scope_->calls_sloppy_eval()) {
       param_scope = NewScope(scope_, BLOCK_SCOPE);
       param_scope->set_is_declaration_scope();
       param_scope->set_start_position(parameter.pattern->position());
@@ -4418,7 +4418,7 @@ Block* Parser::BuildParameterInitializationBlock(
                                                      &decl, nullptr, CHECK_OK);
     }
 
-    if (parameter.initializer != nullptr && scope_->calls_sloppy_eval()) {
+    if (!parameter.is_simple() && scope_->calls_sloppy_eval()) {
       param_scope = param_scope->FinalizeBlockScope();
       if (param_scope != nullptr) {
         CheckConflictingVarDeclarations(param_scope, CHECK_OK);
