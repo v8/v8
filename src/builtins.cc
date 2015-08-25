@@ -175,9 +175,9 @@ BUILTIN(EmptyFunction) {
   return isolate->heap()->undefined_value();
 }
 
-namespace {
 
-bool ObjectToClampedInteger(Object* object, int* out) {
+// TODO(cbruni): check if this is a suitable method on Object
+bool ClampedToInteger(Object* object, int* out) {
   // This is an extended version of ECMA-262 9.4, but additionally
   // clamps values to [kMinInt, kMaxInt]
   if (object->IsSmi()) {
@@ -331,7 +331,6 @@ MUST_USE_RESULT static Object* CallJsBuiltin(
   return *result;
 }
 
-}  // namespace
 
 BUILTIN(ArrayPush) {
   HandleScope scope(isolate);
@@ -433,6 +432,7 @@ BUILTIN(ArrayShift) {
     }
   }
 
+  // Set the length.
   array->set_length(Smi::FromInt(len - 1));
 
   return *first;
@@ -450,15 +450,51 @@ BUILTIN(ArrayUnshift) {
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   DCHECK(!array->map()->is_observed());
+  if (!array->HasFastSmiOrObjectElements()) {
+    return CallJsBuiltin(isolate, "$arrayUnshift", args);
+  }
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
+  int new_length = len + to_add;
+  // Currently fixed arrays cannot grow too big, so
+  // we should never hit this case.
+  DCHECK(to_add <= (Smi::kMaxValue - len));
 
   if (to_add > 0 && JSArray::WouldChangeReadOnlyLength(array, len + to_add)) {
     return CallJsBuiltin(isolate, "$arrayUnshift", args);
   }
 
-  ElementsAccessor* accessor = array->GetElementsAccessor();
-  int new_length = accessor->Unshift(array, elms_obj, args, to_add);
+  Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
+
+  if (new_length > elms->length()) {
+    // New backing storage is needed.
+    int capacity = new_length + (new_length >> 1) + 16;
+    Handle<FixedArray> new_elms =
+        isolate->factory()->NewUninitializedFixedArray(capacity);
+
+    ElementsKind kind = array->GetElementsKind();
+    ElementsAccessor* accessor = array->GetElementsAccessor();
+    accessor->CopyElements(
+        elms, 0, kind, new_elms, to_add,
+        ElementsAccessor::kCopyToEndAndInitializeToHole);
+
+    elms = new_elms;
+    array->set_elements(*elms);
+  } else {
+    DisallowHeapAllocation no_gc;
+    Heap* heap = isolate->heap();
+    heap->MoveElements(*elms, to_add, 0, len);
+  }
+
+  // Add the provided values.
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+  for (int i = 0; i < to_add; i++) {
+    elms->set(i, args[i + 1], mode);
+  }
+
+  // Set the length.
+  array->set_length(Smi::FromInt(new_length));
   return Smi::FromInt(new_length);
 }
 
@@ -620,7 +656,7 @@ BUILTIN(ArraySplice) {
   int relative_start = 0;
   if (argument_count > 0) {
     DisallowHeapAllocation no_gc;
-    if (!ObjectToClampedInteger(args[1], &relative_start)) {
+    if (!ClampedToInteger(args[1], &relative_start)) {
       AllowHeapAllocation allow_allocation;
       return CallJsBuiltin(isolate, "$arraySplice", args);
     }
@@ -642,7 +678,7 @@ BUILTIN(ArraySplice) {
     int delete_count = 0;
     DisallowHeapAllocation no_gc;
     if (argument_count > 1) {
-      if (!ObjectToClampedInteger(args[2], &delete_count)) {
+      if (!ClampedToInteger(args[2], &delete_count)) {
         AllowHeapAllocation allow_allocation;
         return CallJsBuiltin(isolate, "$arraySplice", args);
       }
