@@ -1631,6 +1631,38 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
                       const Matcher<Node*>& value1_matcher,
                       const Matcher<Node*>& value2_matcher,
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher) {
+  std::vector<Matcher<Node*>> value_matchers;
+  value_matchers.push_back(value0_matcher);
+  value_matchers.push_back(value1_matcher);
+  value_matchers.push_back(value2_matcher);
+  return MakeMatcher(new IsCallMatcher(descriptor_matcher, value_matchers,
+                                       effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
+                      const Matcher<Node*>& value0_matcher,
+                      const Matcher<Node*>& value1_matcher,
+                      const Matcher<Node*>& value2_matcher,
+                      const Matcher<Node*>& value3_matcher,
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher) {
+  std::vector<Matcher<Node*>> value_matchers;
+  value_matchers.push_back(value0_matcher);
+  value_matchers.push_back(value1_matcher);
+  value_matchers.push_back(value2_matcher);
+  value_matchers.push_back(value3_matcher);
+  return MakeMatcher(new IsCallMatcher(descriptor_matcher, value_matchers,
+                                       effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
+                      const Matcher<Node*>& value0_matcher,
+                      const Matcher<Node*>& value1_matcher,
+                      const Matcher<Node*>& value2_matcher,
                       const Matcher<Node*>& value3_matcher,
                       const Matcher<Node*>& value4_matcher,
                       const Matcher<Node*>& effect_matcher,

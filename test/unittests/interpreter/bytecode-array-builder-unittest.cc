@@ -41,7 +41,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.BinaryOperation(Token::Value::ADD, reg)
       .BinaryOperation(Token::Value::SUB, reg)
       .BinaryOperation(Token::Value::MUL, reg)
-      .BinaryOperation(Token::Value::DIV, reg);
+      .BinaryOperation(Token::Value::DIV, reg)
+      .BinaryOperation(Token::Value::MOD, reg);
 
   // Emit control flow. Return must be the last instruction.
   builder.Return();

@@ -42,6 +42,7 @@ namespace interpreter {
   V(Sub, OperandType::kReg)            \
   V(Mul, OperandType::kReg)            \
   V(Div, OperandType::kReg)            \
+  V(Mod, OperandType::kReg)            \
                                        \
   /* Control Flow */                   \
   V(Return, OperandType::kNone)

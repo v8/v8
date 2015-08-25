@@ -69,6 +69,7 @@ using v8::internal::BytecodeArray;
 using v8::internal::Handle;
 using v8::internal::Object;
 using v8::internal::Smi;
+using v8::internal::Token;
 using namespace v8::internal::interpreter;
 
 TEST(TestInterpreterReturn) {
@@ -205,4 +206,105 @@ TEST(TestInterpreterLoadStoreRegisters) {
     Handle<Object> return_val = callable().ToHandleChecked();
     CHECK(return_val.is_identical_to(true_value));
   }
+}
+
+
+TEST(TestInterpreterAdd) {
+  InitializedHandleScope handles;
+  // TODO(rmcilroy): Do add tests for heap numbers and strings once we support
+  // them.
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(1);
+  Register reg(0);
+  builder.LoadLiteral(Smi::FromInt(1))
+      .StoreAccumulatorInRegister(reg)
+      .LoadLiteral(Smi::FromInt(2))
+      .BinaryOperation(Token::Value::ADD, reg)
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(3));
+}
+
+
+TEST(TestInterpreterSub) {
+  InitializedHandleScope handles;
+  // TODO(rmcilroy): Do add tests for heap numbers once we support them.
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(1);
+  Register reg(0);
+  builder.LoadLiteral(Smi::FromInt(5))
+      .StoreAccumulatorInRegister(reg)
+      .LoadLiteral(Smi::FromInt(31))
+      .BinaryOperation(Token::Value::SUB, reg)
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(-26));
+}
+
+
+TEST(TestInterpreterMul) {
+  InitializedHandleScope handles;
+  // TODO(rmcilroy): Do add tests for heap numbers once we support them.
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(1);
+  Register reg(0);
+  builder.LoadLiteral(Smi::FromInt(111))
+      .StoreAccumulatorInRegister(reg)
+      .LoadLiteral(Smi::FromInt(6))
+      .BinaryOperation(Token::Value::MUL, reg)
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(666));
+}
+
+
+TEST(TestInterpreterDiv) {
+  InitializedHandleScope handles;
+  // TODO(rmcilroy): Do add tests for heap numbers once we support them.
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(1);
+  Register reg(0);
+  builder.LoadLiteral(Smi::FromInt(-20))
+      .StoreAccumulatorInRegister(reg)
+      .LoadLiteral(Smi::FromInt(5))
+      .BinaryOperation(Token::Value::DIV, reg)
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(-4));
+}
+
+
+TEST(TestInterpreterMod) {
+  InitializedHandleScope handles;
+  // TODO(rmcilroy): Do add tests for heap numbers once we support them.
+  BytecodeArrayBuilder builder(handles.main_isolate());
+  builder.set_locals_count(1);
+  Register reg(0);
+  builder.LoadLiteral(Smi::FromInt(121))
+      .StoreAccumulatorInRegister(reg)
+      .LoadLiteral(Smi::FromInt(100))
+      .BinaryOperation(Token::Value::MOD, reg)
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterCallable callable(tester.GetCallable());
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(21));
 }

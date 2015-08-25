@@ -187,9 +187,51 @@ Node* InterpreterAssembler::SmiUntag(Node* value) {
 }
 
 
+Node* InterpreterAssembler::LoadObjectField(Node* object, int offset) {
+  return raw_assembler_->Load(kMachAnyTagged, object,
+                              IntPtrConstant(offset - kHeapObjectTag));
+}
+
+
 Node* InterpreterAssembler::LoadContextSlot(int slot_index) {
   return raw_assembler_->Load(kMachAnyTagged, ContextTaggedPointer(),
                               IntPtrConstant(Context::SlotOffset(slot_index)));
+}
+
+
+Node* InterpreterAssembler::CallJSBuiltin(Builtins::JavaScript builtin,
+                                          Node* receiver, Node** js_args,
+                                          int js_arg_count) {
+  Node* global_object = LoadContextSlot(Context::GLOBAL_OBJECT_INDEX);
+  Node* builtins_object =
+      LoadObjectField(global_object, GlobalObject::kBuiltinsOffset);
+  Node* function = LoadObjectField(
+      builtins_object, JSBuiltinsObject::OffsetOfFunctionWithId(builtin));
+  Node* context = LoadObjectField(function, JSFunction::kContextOffset);
+
+  int index = 0;
+  Node** args = zone()->NewArray<Node*>(js_arg_count + 2);
+  args[index++] = receiver;
+  for (int i = 0; i < js_arg_count; i++) {
+    args[index++] = js_args[i];
+  }
+  args[index++] = context;
+
+  CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
+      zone(), false, js_arg_count + 1, CallDescriptor::kNoFlags);
+  return raw_assembler_->CallN(descriptor, function, args);
+}
+
+
+Node* InterpreterAssembler::CallJSBuiltin(Builtins::JavaScript builtin,
+                                          Node* receiver) {
+  return CallJSBuiltin(builtin, receiver, nullptr, 0);
+}
+
+
+Node* InterpreterAssembler::CallJSBuiltin(Builtins::JavaScript builtin,
+                                          Node* receiver, Node* arg1) {
+  return CallJSBuiltin(builtin, receiver, &arg1, 1);
 }
 
 
@@ -204,10 +246,14 @@ void InterpreterAssembler::Return() {
   STATIC_ASSERT(3 == Linkage::kInterpreterBytecodeArrayParameter);
   STATIC_ASSERT(4 == Linkage::kInterpreterDispatchTableParameter);
   STATIC_ASSERT(5 == Linkage::kInterpreterContextParameter);
-  Node* tail_call = raw_assembler_->TailCallInterpreterDispatch(
-      call_descriptor(), exit_trampoline_code_object, GetAccumulator(),
-      RegisterFileRawPointer(), BytecodeOffset(), BytecodeArrayTaggedPointer(),
-      DispatchTableRawPointer(), ContextTaggedPointer());
+  Node* args[] = { GetAccumulator(),
+                   RegisterFileRawPointer(),
+                   BytecodeOffset(),
+                   BytecodeArrayTaggedPointer(),
+                   DispatchTableRawPointer(),
+                   ContextTaggedPointer() };
+  Node* tail_call = raw_assembler_->TailCallN(
+      call_descriptor(), exit_trampoline_code_object, args);
   // This should always be the end node.
   SetEndInput(tail_call);
 }
@@ -237,11 +283,14 @@ void InterpreterAssembler::Dispatch() {
   STATIC_ASSERT(3 == Linkage::kInterpreterBytecodeArrayParameter);
   STATIC_ASSERT(4 == Linkage::kInterpreterDispatchTableParameter);
   STATIC_ASSERT(5 == Linkage::kInterpreterContextParameter);
-  Node* tail_call = raw_assembler_->TailCallInterpreterDispatch(
-      call_descriptor(), target_code_object, GetAccumulator(),
-      RegisterFileRawPointer(), new_bytecode_offset,
-      BytecodeArrayTaggedPointer(), DispatchTableRawPointer(),
-      ContextTaggedPointer());
+  Node* args[] = { GetAccumulator(),
+                   RegisterFileRawPointer(),
+                   new_bytecode_offset,
+                   BytecodeArrayTaggedPointer(),
+                   DispatchTableRawPointer(),
+                   ContextTaggedPointer() };
+  Node* tail_call =
+      raw_assembler_->TailCallN(call_descriptor(), target_code_object, args);
   // This should always be the end node.
   SetEndInput(tail_call);
 }
@@ -277,6 +326,8 @@ Schedule* InterpreterAssembler::schedule() {
   return raw_assembler_->schedule();
 }
 
+
+Zone* InterpreterAssembler::zone() { return raw_assembler_->zone(); }
 
 
 }  // namespace interpreter

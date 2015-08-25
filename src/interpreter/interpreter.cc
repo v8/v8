@@ -165,7 +165,8 @@ void Interpreter::DoLdaFalse(compiler::InterpreterAssembler* assembler) {
 //
 // Load accumulator with value from register <src>.
 void Interpreter::DoLdar(compiler::InterpreterAssembler* assembler) {
-  Node* value = __ LoadRegister(__ BytecodeOperandReg(0));
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* value = __ LoadRegister(reg_index);
   __ SetAccumulator(value);
   __ Dispatch();
 }
@@ -182,12 +183,24 @@ void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
 }
 
 
+void Interpreter::DoBinaryOp(Builtins::JavaScript binop_builtin,
+                             compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy): Call ICs which back-patch bytecode with type specialized
+  // operations, instead of calling builtins directly.
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* result = __ CallJSBuiltin(binop_builtin, lhs, rhs);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 // Add <src>
 //
 // Add register <src> to accumulator.
 void Interpreter::DoAdd(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
-  __ Dispatch();
+  DoBinaryOp(Builtins::ADD, assembler);
 }
 
 
@@ -195,8 +208,7 @@ void Interpreter::DoAdd(compiler::InterpreterAssembler* assembler) {
 //
 // Subtract register <src> from accumulator.
 void Interpreter::DoSub(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
-  __ Dispatch();
+  DoBinaryOp(Builtins::SUB, assembler);
 }
 
 
@@ -204,8 +216,7 @@ void Interpreter::DoSub(compiler::InterpreterAssembler* assembler) {
 //
 // Multiply accumulator by register <src>.
 void Interpreter::DoMul(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement add register to accumulator.
-  __ Dispatch();
+  DoBinaryOp(Builtins::MUL, assembler);
 }
 
 
@@ -213,8 +224,15 @@ void Interpreter::DoMul(compiler::InterpreterAssembler* assembler) {
 //
 // Divide register <src> by accumulator.
 void Interpreter::DoDiv(compiler::InterpreterAssembler* assembler) {
-  // TODO(rmcilroy) Implement.
-  __ Dispatch();
+  DoBinaryOp(Builtins::DIV, assembler);
+}
+
+
+// Mod <src>
+//
+// Modulo register <src> by accumulator.
+void Interpreter::DoMod(compiler::InterpreterAssembler* assembler) {
+  DoBinaryOp(Builtins::MOD, assembler);
 }
 
 

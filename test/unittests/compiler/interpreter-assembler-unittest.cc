@@ -277,6 +277,52 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadContextSlot) {
   }
 }
 
+
+TARGET_TEST_F(InterpreterAssemblerTest, LoadObjectField) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* object = m.IntPtrConstant(0xdeadbeef);
+    int offset = 16;
+    Node* load_field = m.LoadObjectField(object, offset);
+    EXPECT_THAT(load_field,
+                m.IsLoad(kMachAnyTagged, object,
+                         IsIntPtrConstant(offset - kHeapObjectTag)));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, CallJSBuiltin) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* receiver = m.IntPtrConstant(1234);
+    Node* call_js_builtin_0 = m.CallJSBuiltin(Builtins::SUB, receiver);
+
+    Matcher<Node*> load_globals_matcher = m.IsLoad(
+        kMachAnyTagged, IsParameter(Linkage::kInterpreterContextParameter),
+        IsIntPtrConstant(Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+    Matcher<Node*> load_builtins_matcher = m.IsLoad(
+        kMachAnyTagged, load_globals_matcher,
+        IsIntPtrConstant(GlobalObject::kBuiltinsOffset - kHeapObjectTag));
+    Matcher<Node*> function_matcher =
+        m.IsLoad(kMachAnyTagged, load_builtins_matcher,
+                 IsIntPtrConstant(
+                     JSBuiltinsObject::OffsetOfFunctionWithId(Builtins::SUB) -
+                     kHeapObjectTag));
+    Matcher<Node*> context_matcher =
+        m.IsLoad(kMachAnyTagged, function_matcher,
+                 IsIntPtrConstant(JSFunction::kContextOffset - kHeapObjectTag));
+    EXPECT_THAT(call_js_builtin_0,
+                IsCall(_, function_matcher, receiver, context_matcher,
+                       m.graph()->start(), m.graph()->start()));
+
+    Node* arg1 = m.Int32Constant(0xabcd);
+    Node* call_js_builtin_1 = m.CallJSBuiltin(Builtins::SUB, receiver, arg1);
+    EXPECT_THAT(call_js_builtin_1,
+                IsCall(_, function_matcher, receiver, arg1, context_matcher,
+                       m.graph()->start(), m.graph()->start()));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

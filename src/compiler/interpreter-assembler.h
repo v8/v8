@@ -9,6 +9,7 @@
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
 #include "src/base/smart-pointers.h"
+#include "src/builtins.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/unique.h"
@@ -61,8 +62,15 @@ class InterpreterAssembler {
   Node* SmiTag(Node* value);
   Node* SmiUntag(Node* value);
 
+  // Load a field from an object on the heap.
+  Node* LoadObjectField(Node* object, int offset);
+
   // Load |slot_index| from the current context.
   Node* LoadContextSlot(int slot_index);
+
+  // Call JS builtin.
+  Node* CallJSBuiltin(Builtins::JavaScript builtin, Node* receiver);
+  Node* CallJSBuiltin(Builtins::JavaScript builtin, Node* receiver, Node* arg1);
 
   // Returns from the function.
   void Return();
@@ -97,6 +105,9 @@ class InterpreterAssembler {
   Node* BytecodeOperand(int operand_index);
   Node* BytecodeOperandSignExtended(int operand_index);
 
+  Node* CallJSBuiltin(Builtins::JavaScript builtin, Node* receiver,
+                      Node** js_args, int js_arg_count);
+
   // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
   // update BytecodeOffset() itself.
   Node* Advance(int delta);
@@ -107,6 +118,7 @@ class InterpreterAssembler {
   // Private helpers which delegate to RawMachineAssembler.
   Isolate* isolate();
   Schedule* schedule();
+  Zone* zone();
 
   interpreter::Bytecode bytecode_;
   base::SmartPointer<RawMachineAssembler> raw_assembler_;

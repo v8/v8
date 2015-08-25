@@ -193,6 +193,8 @@ Bytecode BytecodeArrayBuilder::BytecodeForBinaryOperation(Token::Value op) {
       return Bytecode::kMul;
     case Token::Value::DIV:
       return Bytecode::kDiv;
+    case Token::Value::MOD:
+      return Bytecode::kMod;
     default:
       UNIMPLEMENTED();
       return static_cast<Bytecode>(-1);

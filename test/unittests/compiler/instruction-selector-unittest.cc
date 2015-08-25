@@ -366,6 +366,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   ZoneVector<MachineType> int32_type(1, kMachInt32, zone());
   ZoneVector<MachineType> empty_types(zone());
 
+  CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
+      zone(), false, 1, CallDescriptor::kNeedsFrameState);
+
   Node* parameters =
       m.NewNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(1));
   Node* locals = m.NewNode(m.common()->TypedStateValues(&empty_types));
@@ -377,7 +380,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
                              m.GetFrameStateFunctionInfo(1, 0)),
       parameters, locals, stack, context_dummy, function_node,
       m.UndefinedConstant());
-  Node* call = m.CallJS0(function_node, receiver, context, state_node);
+  Node* args[] = {receiver, context};
+  Node* call =
+      m.CallNWithFrameState(descriptor, function_node, args, state_node);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);

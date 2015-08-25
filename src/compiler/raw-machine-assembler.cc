@@ -104,7 +104,8 @@ Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
                                  Node** args) {
   int param_count =
       static_cast<int>(desc->GetMachineSignature()->parameter_count());
-  Node** buffer = zone()->NewArray<Node*>(param_count + 3);
+  int input_count = param_count + 3;
+  Node** buffer = zone()->NewArray<Node*>(input_count);
   int index = 0;
   buffer[index++] = function;
   for (int i = 0; i < param_count; i++) {
@@ -112,9 +113,51 @@ Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
   }
   buffer[index++] = graph()->start();
   buffer[index++] = graph()->start();
-  Node* call = graph()->NewNode(common()->Call(desc), param_count + 3, buffer);
+  Node* call = graph()->NewNode(common()->Call(desc), input_count, buffer);
   schedule()->AddNode(CurrentBlock(), call);
   return call;
+}
+
+
+Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* desc,
+                                               Node* function, Node** args,
+                                               Node* frame_state) {
+  DCHECK(desc->NeedsFrameState());
+  int param_count =
+      static_cast<int>(desc->GetMachineSignature()->parameter_count());
+  int input_count = param_count + 4;
+  Node** buffer = zone()->NewArray<Node*>(input_count);
+  int index = 0;
+  buffer[index++] = function;
+  for (int i = 0; i < param_count; i++) {
+    buffer[index++] = args[i];
+  }
+  buffer[index++] = frame_state;
+  buffer[index++] = graph()->start();
+  buffer[index++] = graph()->start();
+  Node* call = graph()->NewNode(common()->Call(desc), input_count, buffer);
+  schedule()->AddNode(CurrentBlock(), call);
+  return call;
+}
+
+
+Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
+                                     Node** args) {
+  int param_count =
+      static_cast<int>(desc->GetMachineSignature()->parameter_count());
+  int input_count = param_count + 3;
+  Node** buffer = zone()->NewArray<Node*>(input_count);
+  int index = 0;
+  buffer[index++] = function;
+  for (int i = 0; i < param_count; i++) {
+    buffer[index++] = args[i];
+  }
+  buffer[index++] = graph()->start();
+  buffer[index++] = graph()->start();
+  Node* tail_call =
+      graph()->NewNode(common()->TailCall(desc), input_count, buffer);
+  schedule()->AddTailCall(CurrentBlock(), tail_call);
+  return tail_call;
 }
 
 
@@ -129,18 +172,6 @@ Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
   Node* call = graph()->NewNode(common()->Call(desc), stub_code, function,
                                 receiver, context, frame_state,
                                 graph()->start(), graph()->start());
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
-}
-
-
-Node* RawMachineAssembler::CallJS0(Node* function, Node* receiver,
-                                   Node* context, Node* frame_state) {
-  CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
-      zone(), false, 1, CallDescriptor::kNeedsFrameState);
-  Node* call =
-      graph()->NewNode(common()->Call(descriptor), function, receiver, context,
-                       frame_state, graph()->start(), graph()->start());
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }
@@ -246,17 +277,6 @@ Node* RawMachineAssembler::CallCFunction8(
       graph()->NewNode(common()->Call(descriptor), arraysize(args), args);
   schedule()->AddNode(CurrentBlock(), call);
   return call;
-}
-
-
-Node* RawMachineAssembler::TailCallInterpreterDispatch(
-    const CallDescriptor* call_descriptor, Node* target, Node* arg1, Node* arg2,
-    Node* arg3, Node* arg4, Node* arg5, Node* arg6) {
-  Node* tail_call = graph()->NewNode(common()->TailCall(call_descriptor),
-                                     target, arg1, arg2, arg3, arg4, arg5, arg6,
-                                     graph()->start(), graph()->start());
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  return tail_call;
 }
 
 
