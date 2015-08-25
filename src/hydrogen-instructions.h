@@ -2635,7 +2635,12 @@ class HUnaryMathOperation final : public HTemplateInstruction<2> {
     SetFlag(kAllowUndefinedAsNaN);
   }
 
-  bool IsDeletable() const override { return true; }
+  bool IsDeletable() const override {
+    // TODO(crankshaft): This should be true, however the semantics of this
+    // instruction also include the ToNumber conversion that is mentioned in the
+    // spec, which is of course observable.
+    return false;
+  }
 
   HValue* SimplifiedDividendForMathFloorOfDiv(HDiv* hdiv);
   HValue* SimplifiedDivisorForMathFloorOfDiv(HDiv* hdiv);
