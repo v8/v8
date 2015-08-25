@@ -1362,8 +1362,9 @@ class Heap {
 
   // Starts incremental marking assuming incremental marking is currently
   // stopped.
-  void StartIncrementalMarking(int gc_flags,
-                               const GCCallbackFlags gc_callback_flags,
+  void StartIncrementalMarking(int gc_flags = kNoGCFlags,
+                               const GCCallbackFlags gc_callback_flags =
+                                   GCCallbackFlags::kNoGCCallbackFlags,
                                const char* reason = nullptr);
 
   // Performs incremental marking steps of step_size_in_bytes as long as
@@ -1669,8 +1670,6 @@ class Heap {
   inline void set_##name(type* value);
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
-
-  int current_gc_flags() { return current_gc_flags_; }
 
   void set_current_gc_flags(int flags) {
     current_gc_flags_ = flags;
@@ -2345,6 +2344,10 @@ class Heap {
 
   // Currently set GC flags that are respected by all GC components.
   int current_gc_flags_;
+
+  // Currently set GC callback flags that are used to pass information between
+  // the embedder and V8's GC.
+  GCCallbackFlags current_gc_callback_flags_;
 
   ExternalStringTable external_string_table_;
 

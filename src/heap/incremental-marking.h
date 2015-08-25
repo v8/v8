@@ -81,9 +81,7 @@ class IncrementalMarking {
 
   bool WasActivated();
 
-  void Start(int flags,
-             const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
-             const char* reason = nullptr);
+  void Start(const char* reason = nullptr);
 
   void MarkObjectGroups();
 
@@ -199,8 +197,6 @@ class IncrementalMarking {
 
   Heap* heap() const { return heap_; }
 
-  GCCallbackFlags CallbackFlags() const { return gc_callback_flags_; }
-
  private:
   int64_t SpaceLeftInOldSpace();
 
@@ -258,8 +254,6 @@ class IncrementalMarking {
   int weak_closure_approximation_rounds_;
 
   GCRequestType request_type_;
-
-  GCCallbackFlags gc_callback_flags_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

@@ -133,6 +133,7 @@ Heap::Heap()
       promotion_queue_(this),
       configured_(false),
       current_gc_flags_(Heap::kNoGCFlags),
+      current_gc_callback_flags_(GCCallbackFlags::kNoGCCallbackFlags),
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
       pending_unmap_job_semaphore_(0),
@@ -741,8 +742,8 @@ void Heap::PreprocessStackTraces() {
 void Heap::HandleGCRequest() {
   if (incremental_marking()->request_type() ==
       IncrementalMarking::COMPLETE_MARKING) {
-    CollectAllGarbage(current_gc_flags(), "GC interrupt",
-                      incremental_marking()->CallbackFlags());
+    CollectAllGarbage(current_gc_flags_, "GC interrupt",
+                      current_gc_callback_flags_);
     return;
   }
   DCHECK(FLAG_overapproximate_weak_closure);
@@ -947,7 +948,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   // generator needs incremental marking to stay off after it aborted.
   if (!ShouldAbortIncrementalMarking() && incremental_marking()->IsStopped() &&
       incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
-    incremental_marking()->Start(kNoGCFlags, kNoGCCallbackFlags, "GC epilogue");
+    StartIncrementalMarking(kNoGCFlags, kNoGCCallbackFlags, "GC epilogue");
   }
 
   return next_gc_likely_to_collect_more;
@@ -978,7 +979,9 @@ void Heap::StartIncrementalMarking(int gc_flags,
                                    const GCCallbackFlags gc_callback_flags,
                                    const char* reason) {
   DCHECK(incremental_marking()->IsStopped());
-  incremental_marking()->Start(gc_flags, gc_callback_flags, reason);
+  set_current_gc_flags(gc_flags);
+  current_gc_callback_flags_ = gc_callback_flags;
+  incremental_marking()->Start(reason);
 }
 
 
@@ -4636,7 +4639,7 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
               gc_idle_time_handler_.ShouldDoFinalIncrementalMarkCompact(
                   static_cast<size_t>(idle_time_in_ms), size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
-    CollectAllGarbage(current_gc_flags(),
+    CollectAllGarbage(current_gc_flags_,
                       "idle notification: finalize incremental");
     return true;
   }
