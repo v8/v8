@@ -180,6 +180,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   num_global_slots_ = 0;
   num_modules_ = 0;
   module_var_ = NULL;
+  arity_ = 0;
   has_simple_parameters_ = true;
   rest_parameter_ = NULL;
   rest_index_ = -1;
@@ -465,10 +466,12 @@ Variable* Scope::Lookup(const AstRawString* name) {
 }
 
 
-Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
-                                  bool is_rest, bool* is_duplicate) {
+Variable* Scope::DeclareParameter(
+    const AstRawString* name, VariableMode mode,
+    bool is_optional, bool is_rest, bool* is_duplicate) {
   DCHECK(!already_resolved());
   DCHECK(is_function_scope());
+  DCHECK(!is_optional || !is_rest);
   Variable* var;
   if (mode == TEMPORARY) {
     var = NewTemporary(name);
@@ -478,6 +481,9 @@ Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
                              kCreatedInitialized);
     // TODO(wingo): Avoid O(n^2) check.
     *is_duplicate = IsDeclaredParameter(name);
+  }
+  if (!is_optional && !is_rest && arity_ == params_.length()) {
+    ++arity_;
   }
   if (is_rest) {
     DCHECK_NULL(rest_parameter_);

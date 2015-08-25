@@ -362,15 +362,14 @@
 
 
 (function TestFunctionLength() {
-  // TODO(rossberg): Fix arity.
-  // assertEquals(0, (function(x = 1) {}).length);
-  // assertEquals(0, (function(x = 1, ...a) {}).length);
-  // assertEquals(1, (function(x, y = 1) {}).length);
-  // assertEquals(1, (function(x, y = 1, ...a) {}).length);
-  // assertEquals(2, (function(x, y, z = 1) {}).length);
-  // assertEquals(2, (function(x, y, z = 1, ...a) {}).length);
-  // assertEquals(1, (function(x, y = 1, z) {}).length);
-  // assertEquals(1, (function(x, y = 1, z, ...a) {}).length);
-  // assertEquals(1, (function(x, y = 1, z, v = 2) {}).length);
-  // assertEquals(1, (function(x, y = 1, z, v = 2, ...a) {}).length);
+   assertEquals(0, (function(x = 1) {}).length);
+   assertEquals(0, (function(x = 1, ...a) {}).length);
+   assertEquals(1, (function(x, y = 1) {}).length);
+   assertEquals(1, (function(x, y = 1, ...a) {}).length);
+   assertEquals(2, (function(x, y, z = 1) {}).length);
+   assertEquals(2, (function(x, y, z = 1, ...a) {}).length);
+   assertEquals(1, (function(x, y = 1, z) {}).length);
+   assertEquals(1, (function(x, y = 1, z, ...a) {}).length);
+   assertEquals(1, (function(x, y = 1, z, v = 2) {}).length);
+   assertEquals(1, (function(x, y = 1, z, v = 2, ...a) {}).length);
 })();

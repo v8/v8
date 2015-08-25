@@ -953,3 +953,19 @@
   assertThrows("'use strict'; let x = {}; for (let [x, y] in {x});", ReferenceError);
   assertThrows("'use strict'; let x = {}; for (let [y, x] in {x});", ReferenceError);
 }());
+
+
+(function TestFunctionLength() {
+   assertEquals(1, (function({}) {}).length);
+   assertEquals(1, (function([]) {}).length);
+   assertEquals(1, (function({x}) {}).length);
+   assertEquals(1, (function({}, ...a) {}).length);
+   assertEquals(1, (function({x}, {y} = {}) {}).length);
+   assertEquals(1, (function({x}, {y} = {}, ...a) {}).length);
+   assertEquals(2, (function(x, {y}, {z} = {}) {}).length);
+   assertEquals(2, (function({x}, {}, {z} = {}, ...a) {}).length);
+   assertEquals(1, (function(x, {y} = {}, {z}) {}).length);
+   assertEquals(1, (function({x}, {y} = {}, {z}, ...a) {}).length);
+   assertEquals(1, (function(x, {y} = {}, {z}, {v} = {}) {}).length);
+   assertEquals(1, (function({x}, {y} = {}, {z}, {v} = {}, ...a) {}).length);
+})();

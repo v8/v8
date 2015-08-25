@@ -128,8 +128,9 @@ class Scope: public ZoneObject {
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
-  Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
-                             bool is_rest, bool* is_duplicate);
+  Variable* DeclareParameter(
+      const AstRawString* name, VariableMode mode,
+      bool is_optional, bool is_rest, bool* is_duplicate);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
@@ -369,16 +370,8 @@ class Scope: public ZoneObject {
     return params_[index];
   }
 
-  // Returns the default function arity --- does not include rest parameters.
-  int default_function_length() const {
-    int count = params_.length();
-    if (rest_index_ >= 0) {
-      DCHECK(count > 0);
-      DCHECK(is_function_scope());
-      --count;
-    }
-    return count;
-  }
+  // Returns the default function arity excluding default or rest parameters.
+  int default_function_length() const { return arity_; }
 
   int num_parameters() const { return params_.length(); }
 
@@ -636,6 +629,7 @@ class Scope: public ZoneObject {
   Variable* module_var_;
 
   // Info about the parameter list of a function.
+  int arity_;
   bool has_simple_parameters_;
   Variable* rest_parameter_;
   int rest_index_;
