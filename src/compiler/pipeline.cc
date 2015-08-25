@@ -1129,6 +1129,36 @@ Handle<Code> Pipeline::GenerateCode() {
 }
 
 
+Handle<Code> Pipeline::GenerateCodeForInterpreter(
+    Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+    Schedule* schedule, const char* bytecode_name) {
+  CompilationInfo info(bytecode_name, isolate, graph->zone());
+
+  // Construct a pipeline for scheduling and code generation.
+  ZonePool zone_pool;
+  PipelineData data(&zone_pool, &info, graph, schedule);
+  base::SmartPointer<PipelineStatistics> pipeline_statistics;
+  if (FLAG_turbo_stats) {
+    pipeline_statistics.Reset(new PipelineStatistics(&info, &zone_pool));
+    pipeline_statistics->BeginPhaseKind("interpreter handler codegen");
+  }
+  if (FLAG_trace_turbo) {
+    FILE* json_file = OpenVisualizerLogFile(&info, NULL, "json", "w+");
+    if (json_file != nullptr) {
+      OFStream json_of(json_file);
+      json_of << "{\"function\":\"" << info.GetDebugName().get()
+              << "\", \"source\":\"\",\n\"phases\":[";
+      fclose(json_file);
+    }
+  }
+
+  Pipeline pipeline(&info);
+  pipeline.data_ = &data;
+  pipeline.RunPrintAndVerify("Machine", true);
+  return pipeline.ScheduleAndGenerateCode(call_descriptor);
+}
+
+
 Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
                                               Graph* graph,
                                               Schedule* schedule) {

@@ -28,6 +28,12 @@ class Pipeline {
   // Run the entire pipeline and generate a handle to a code object.
   Handle<Code> GenerateCode();
 
+  // Run the pipeline on an interpreter bytecode handler machine graph and
+  // generate code.
+  static Handle<Code> GenerateCodeForInterpreter(
+      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+      Schedule* schedule, const char* bytecode_name);
+
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
   static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,

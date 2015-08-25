@@ -25,7 +25,8 @@ RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
       parameters_(nullptr),
       current_block_(schedule()->start()) {
   int param_count = static_cast<int>(parameter_count());
-  Node* s = graph->NewNode(common_.Start(param_count));
+  // Add an extra input node for the JSFunction parameter to the start node.
+  Node* s = graph->NewNode(common_.Start(param_count + 1));
   graph->SetStart(s);
   if (parameter_count() == 0) return;
   parameters_ = zone()->NewArray<Node*>(param_count);
