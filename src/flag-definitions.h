@@ -200,7 +200,6 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                       \
-  V(harmony_arrow_functions, "harmony arrow functions")         \
   V(harmony_tostring, "harmony toString")                       \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \
   V(harmony_rest_parameters, "harmony rest parameters")         \
@@ -209,6 +208,7 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                             \
+  V(harmony_arrow_functions, "harmony arrow functions")                 \
   V(harmony_computed_property_names, "harmony computed property names") \
   V(harmony_unicode, "harmony unicode escapes")                         \
   V(harmony_object, "harmony Object methods")
