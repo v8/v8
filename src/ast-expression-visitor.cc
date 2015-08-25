@@ -111,8 +111,10 @@ void AstExpressionVisitor::VisitSwitchStatement(SwitchStatement* stmt) {
 
   for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
-    Expression* label = clause->label();
-    RECURSE(Visit(label));
+    if (!clause->is_default()) {
+      Expression* label = clause->label();
+      RECURSE(Visit(label));
+    }
     ZoneList<Statement*>* stmts = clause->statements();
     RECURSE(VisitStatements(stmts));
   }
@@ -137,9 +139,15 @@ void AstExpressionVisitor::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void AstExpressionVisitor::VisitForStatement(ForStatement* stmt) {
-  RECURSE(Visit(stmt->init()));
-  RECURSE(Visit(stmt->cond()));
-  RECURSE(Visit(stmt->next()));
+  if (stmt->init() != NULL) {
+    RECURSE(Visit(stmt->init()));
+  }
+  if (stmt->cond() != NULL) {
+    RECURSE(Visit(stmt->cond()));
+  }
+  if (stmt->next() != NULL) {
+    RECURSE(Visit(stmt->next()));
+  }
   RECURSE(Visit(stmt->body()));
 }
 

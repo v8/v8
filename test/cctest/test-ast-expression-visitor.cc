@@ -256,3 +256,44 @@ TEST(VisitExpressions) {
   }
   CHECK_TYPES_END
 }
+
+
+TEST(VisitEmptyForStatment) {
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
+  // Check that traversing an empty for statement works.
+  const char test_function[] =
+      "function foo() {\n"
+      "  for (;;) {}\n"
+      "}\n";
+  CollectTypes(&handles, test_function, &types);
+  CHECK_TYPES_BEGIN {
+    CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {}
+  }
+  CHECK_TYPES_END
+}
+
+
+TEST(VisitSwitchStatment) {
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
+  // Check that traversing a switch with a default works.
+  const char test_function[] =
+      "function foo() {\n"
+      "  switch (0) { case 1: break; default: break; }\n"
+      "}\n";
+  CollectTypes(&handles, test_function, &types);
+  CHECK_TYPES_BEGIN {
+    CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {
+      CHECK_EXPR(Assignment, DEFAULT_TYPE) {
+        CHECK_VAR(.switch_tag, DEFAULT_TYPE);
+        CHECK_EXPR(Literal, DEFAULT_TYPE);
+      }
+      CHECK_VAR(.switch_tag, DEFAULT_TYPE);
+      CHECK_EXPR(Literal, DEFAULT_TYPE);
+    }
+  }
+  CHECK_TYPES_END
+}
