@@ -1643,6 +1643,10 @@ void Logger::LogCodeObject(Object* object) {
       description = "A keyed store IC from the snapshot";
       tag = Logger::KEYED_STORE_IC_TAG;
       break;
+    case Code::PLACEHOLDER:
+      description = "A placeholder for linking later code";
+      tag = Logger::STUB_TAG;
+      break;
     case Code::NUMBER_OF_KINDS:
       break;
   }

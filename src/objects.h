@@ -4461,7 +4461,8 @@ class Code: public HeapObject {
   V(STUB)                   \
   V(HANDLER)                \
   V(BUILTIN)                \
-  V(REGEXP)
+  V(REGEXP)                 \
+  V(PLACEHOLDER)
 
 #define IC_KIND_LIST(V) \
   V(LOAD_IC)            \
