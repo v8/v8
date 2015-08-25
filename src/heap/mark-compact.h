@@ -669,6 +669,7 @@ class MarkCompactCollector {
   void RemoveObjectSlots(Address start_slot, Address end_slot);
 
  private:
+  class CompactionTask;
   class SweeperTask;
 
   explicit MarkCompactCollector(Heap* heap);
@@ -706,7 +707,11 @@ class MarkCompactCollector {
   // True if concurrent or parallel sweeping is currently in progress.
   bool sweeping_in_progress_;
 
+  // Synchronize sweeper threads.
   base::Semaphore pending_sweeper_jobs_semaphore_;
+
+  // Synchronize compaction threads.
+  base::Semaphore pending_compaction_jobs_semaphore_;
 
   bool evacuation_;
 
@@ -865,6 +870,8 @@ class MarkCompactCollector {
   void EvacuateLiveObjectsFromPage(Page* p);
 
   void EvacuatePages();
+
+  void EvacuatePagesInParallel();
 
   void EvacuateNewSpaceAndCandidates();
 

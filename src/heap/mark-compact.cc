@@ -48,6 +48,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       was_marked_incrementally_(false),
       sweeping_in_progress_(false),
       pending_sweeper_jobs_semaphore_(0),
+      pending_compaction_jobs_semaphore_(0),
       evacuation_(false),
       migration_slots_buffer_(NULL),
       heap_(heap),
@@ -457,6 +458,28 @@ void MarkCompactCollector::ClearMarkbits() {
     Page::FromAddress(obj->address())->ResetLiveBytes();
   }
 }
+
+
+class MarkCompactCollector::CompactionTask : public v8::Task {
+ public:
+  explicit CompactionTask(Heap* heap) : heap_(heap) {}
+
+  virtual ~CompactionTask() {}
+
+ private:
+  // v8::Task overrides.
+  void Run() override {
+    // TODO(mlippautz, hpayer): EvacuatePages is not thread-safe and can just be
+    // called by one thread concurrently.
+    heap_->mark_compact_collector()->EvacuatePages();
+    heap_->mark_compact_collector()
+        ->pending_compaction_jobs_semaphore_.Signal();
+  }
+
+  Heap* heap_;
+
+  DISALLOW_COPY_AND_ASSIGN(CompactionTask);
+};
 
 
 class MarkCompactCollector::SweeperTask : public v8::Task {
@@ -3289,6 +3312,12 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 }
 
 
+void MarkCompactCollector::EvacuatePagesInParallel() {
+  V8::GetCurrentPlatform()->CallOnBackgroundThread(
+      new CompactionTask(heap()), v8::Platform::kShortRunningTask);
+}
+
+
 void MarkCompactCollector::EvacuatePages() {
   int npages = evacuation_candidates_.length();
   int abandoned_pages = 0;
@@ -3595,7 +3624,12 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_EVACUATE_PAGES);
     EvacuationScope evacuation_scope(this);
-    EvacuatePages();
+    if (FLAG_parallel_compaction) {
+      EvacuatePagesInParallel();
+      pending_compaction_jobs_semaphore_.Wait();
+    } else {
+      EvacuatePages();
+    }
   }
 
   // Second pass: find pointers to new space and update them.

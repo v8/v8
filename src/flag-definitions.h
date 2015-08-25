@@ -664,6 +664,7 @@ DEFINE_INT(min_progress_during_object_groups_marking, 128,
 DEFINE_INT(max_object_groups_marking_rounds, 3,
            "at most try this many times to over approximate the weak closure")
 DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
+DEFINE_BOOL(parallel_compaction, false, "use parallel compaction")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_BOOL(track_gc_object_stats, false,
@@ -813,6 +814,7 @@ DEFINE_BOOL(predictable, false, "enable predictable mode")
 DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_osr)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sweeping)
+DEFINE_NEG_IMPLICATION(predictable, parallel_compaction)
 
 // mark-compact.cc
 DEFINE_BOOL(force_marking_deque_overflows, false,
