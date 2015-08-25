@@ -811,8 +811,8 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kHasInstanceTypeAndBranch:
     case HValue::kInnerAllocatedObject:
     case HValue::kInstanceOf:
-    case HValue::kInstanceOfKnownGlobal:
     case HValue::kIsConstructCallAndBranch:
+    case HValue::kHasInPrototypeChainAndBranch:
     case HValue::kIsObjectAndBranch:
     case HValue::kIsSmiAndBranch:
     case HValue::kIsStringAndBranch:

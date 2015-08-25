@@ -46,8 +46,8 @@ const Register StoreGlobalViaContextDescriptor::SlotRegister() { return r2; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return r0; }
 
 
-const Register InstanceofDescriptor::left() { return r0; }
-const Register InstanceofDescriptor::right() { return r1; }
+const Register InstanceOfDescriptor::LeftRegister() { return r1; }
+const Register InstanceOfDescriptor::RightRegister() { return r0; }
 
 
 const Register ArgumentsAccessReadDescriptor::index() { return r1; }

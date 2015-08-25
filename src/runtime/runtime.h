@@ -436,7 +436,6 @@ namespace internal {
   F(GetPrototype, 1, 1)                              \
   F(InternalSetPrototype, 2, 1)                      \
   F(SetPrototype, 2, 1)                              \
-  F(IsInPrototypeChain, 2, 1)                        \
   F(GetOwnProperty, 2, 1)                            \
   F(PreventExtensions, 1, 1)                         \
   F(IsExtensible, 1, 1)                              \
@@ -495,7 +494,9 @@ namespace internal {
   F(DefineGetterPropertyUnchecked, 4, 1)             \
   F(DefineSetterPropertyUnchecked, 4, 1)             \
   F(ToObject, 1, 1)                                  \
-  F(StrictEquals, 2, 1)
+  F(StrictEquals, 2, 1)                              \
+  F(InstanceOf, 2, 1)                                \
+  F(HasInPrototypeChain, 2, 1)
 
 
 #define FOR_EACH_INTRINSIC_OBSERVE(F)            \

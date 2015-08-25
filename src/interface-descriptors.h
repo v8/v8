@@ -20,7 +20,7 @@ class PlatformInterfaceDescriptor;
   V(VectorStoreTransition)                    \
   V(VectorStoreICTrampoline)                  \
   V(VectorStoreIC)                            \
-  V(Instanceof)                               \
+  V(InstanceOf)                               \
   V(LoadWithVector)                           \
   V(FastNewClosure)                           \
   V(FastNewContext)                           \
@@ -291,13 +291,13 @@ class VectorStoreTransitionDescriptor : public StoreDescriptor {
 };
 
 
-class InstanceofDescriptor : public CallInterfaceDescriptor {
+class InstanceOfDescriptor final : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(InstanceofDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(InstanceOfDescriptor, CallInterfaceDescriptor)
 
   enum ParameterIndices { kLeftIndex, kRightIndex, kParameterCount };
-  static const Register left();
-  static const Register right();
+  static const Register LeftRegister();
+  static const Register RightRegister();
 };
 
 

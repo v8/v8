@@ -594,14 +594,6 @@ void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
 }
 
 
-void InstanceofStub::PrintName(std::ostream& os) const {  // NOLINT
-  os << "InstanceofStub";
-  if (HasArgsInRegisters()) os << "_REGS";
-  if (HasCallSiteInlineCheck()) os << "_INLINE";
-  if (ReturnTrueFalseObject()) os << "_TRUEFALSE";
-}
-
-
 void JSEntryStub::FinishCode(Handle<Code> code) {
   Handle<FixedArray> handler_table =
       code->GetIsolate()->factory()->NewFixedArray(1, TENURED);

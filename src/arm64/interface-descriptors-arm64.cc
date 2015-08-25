@@ -46,16 +46,8 @@ const Register StoreGlobalViaContextDescriptor::SlotRegister() { return x2; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return x0; }
 
 
-const Register InstanceofDescriptor::left() {
-  // Object to check (instanceof lhs).
-  return x11;
-}
-
-
-const Register InstanceofDescriptor::right() {
-  // Constructor function (instanceof rhs).
-  return x10;
-}
+const Register InstanceOfDescriptor::LeftRegister() { return x1; }
+const Register InstanceOfDescriptor::RightRegister() { return x0; }
 
 
 const Register ArgumentsAccessReadDescriptor::index() { return x1; }

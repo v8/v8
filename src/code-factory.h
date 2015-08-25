@@ -66,7 +66,7 @@ class CodeFactory final {
   static Callable StoreGlobalViaContext(Isolate* isolate, int depth,
                                         LanguageMode language_mode);
 
-  static Callable Instanceof(Isolate* isolate, InstanceofStub::Flags flags);
+  static Callable InstanceOf(Isolate* isolate);
 
   static Callable ToBoolean(
       Isolate* isolate, ToBooleanStub::ResultMode mode,

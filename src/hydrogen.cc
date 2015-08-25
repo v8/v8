@@ -11347,11 +11347,19 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     // Check to see if the rhs of the instanceof is a known function.
     if (right->IsConstant() &&
         HConstant::cast(right)->handle(isolate())->IsJSFunction()) {
-      Handle<Object> function = HConstant::cast(right)->handle(isolate());
-      Handle<JSFunction> target = Handle<JSFunction>::cast(function);
-      HInstanceOfKnownGlobal* result =
-          New<HInstanceOfKnownGlobal>(left, target);
-      return ast_context()->ReturnInstruction(result, expr->id());
+      Handle<JSFunction> constructor =
+          Handle<JSFunction>::cast(HConstant::cast(right)->handle(isolate()));
+      if (!constructor->map()->has_non_instance_prototype()) {
+        JSFunction::EnsureHasInitialMap(constructor);
+        DCHECK(constructor->has_initial_map());
+        Handle<Map> initial_map(constructor->initial_map(), isolate());
+        top_info()->dependencies()->AssumeInitialMapCantChange(initial_map);
+        HInstruction* prototype =
+            Add<HConstant>(handle(initial_map->prototype(), isolate()));
+        HHasInPrototypeChainAndBranch* result =
+            New<HHasInPrototypeChainAndBranch>(left, prototype);
+        return ast_context()->ReturnControl(result, expr->id());
+      }
     }
 
     HInstanceOf* result = New<HInstanceOf>(left, right);
@@ -12549,6 +12557,18 @@ void HOptimizedGraphBuilder::GenerateLikely(CallRuntime* call) {
 
 void HOptimizedGraphBuilder::GenerateUnlikely(CallRuntime* call) {
   return GenerateLikely(call);
+}
+
+
+void HOptimizedGraphBuilder::GenerateHasInPrototypeChain(CallRuntime* call) {
+  DCHECK_EQ(2, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
+  HValue* prototype = Pop();
+  HValue* object = Pop();
+  HHasInPrototypeChainAndBranch* result =
+      New<HHasInPrototypeChainAndBranch>(object, prototype);
+  return ast_context()->ReturnControl(result, call->id());
 }
 
 

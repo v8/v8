@@ -105,9 +105,9 @@ class LChunkBuilder;
   V(HasInstanceTypeAndBranch)                 \
   V(InnerAllocatedObject)                     \
   V(InstanceOf)                               \
-  V(InstanceOfKnownGlobal)                    \
   V(InvokeFunction)                           \
   V(IsConstructCallAndBranch)                 \
+  V(HasInPrototypeChainAndBranch)             \
   V(IsObjectAndBranch)                        \
   V(IsStringAndBranch)                        \
   V(IsSmiAndBranch)                           \
@@ -4760,34 +4760,32 @@ class HInstanceOf final : public HBinaryOperation {
 };
 
 
-class HInstanceOfKnownGlobal final : public HTemplateInstruction<2> {
+class HHasInPrototypeChainAndBranch final
+    : public HTemplateControlInstruction<2, 2> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HInstanceOfKnownGlobal,
-                                              HValue*,
-                                              Handle<JSFunction>);
+  DECLARE_INSTRUCTION_FACTORY_P2(HHasInPrototypeChainAndBranch, HValue*,
+                                 HValue*);
 
-  HValue* context() { return OperandAt(0); }
-  HValue* left() { return OperandAt(1); }
-  Handle<JSFunction> function() { return function_; }
+  HValue* object() const { return OperandAt(0); }
+  HValue* prototype() const { return OperandAt(1); }
 
   Representation RequiredInputRepresentation(int index) override {
     return Representation::Tagged();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal)
-
- private:
-  HInstanceOfKnownGlobal(HValue* context,
-                         HValue* left,
-                         Handle<JSFunction> right)
-      : HTemplateInstruction<2>(HType::Boolean()), function_(right) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, left);
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
+  bool ObjectNeedsSmiCheck() const {
+    return !object()->type().IsHeapObject() &&
+           !object()->representation().IsHeapObject();
   }
 
-  Handle<JSFunction> function_;
+  DECLARE_CONCRETE_INSTRUCTION(HasInPrototypeChainAndBranch)
+
+ private:
+  HHasInPrototypeChainAndBranch(HValue* object, HValue* prototype) {
+    SetOperandAt(0, object);
+    SetOperandAt(1, prototype);
+    SetDependsOnFlag(kCalls);
+  }
 };
 
 

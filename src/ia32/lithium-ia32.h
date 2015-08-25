@@ -87,10 +87,10 @@ class LCodeGen;
   V(GetCachedArrayIndex)                     \
   V(Goto)                                    \
   V(HasCachedArrayIndexAndBranch)            \
+  V(HasInPrototypeChainAndBranch)            \
   V(HasInstanceTypeAndBranch)                \
   V(InnerAllocatedObject)                    \
   V(InstanceOf)                              \
-  V(InstanceOfKnownGlobal)                   \
   V(InstructionGap)                          \
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
@@ -235,8 +235,6 @@ class LInstruction : public ZoneObject {
 
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
-
-  virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) { }
 
   void MarkAsCall() { bit_field_ = IsCallBits::update(bit_field_, true); }
   bool IsCall() const { return IsCallBits::decode(bit_field_); }
@@ -1187,39 +1185,30 @@ class LInstanceOf final : public LTemplateInstruction<1, 3, 0> {
     inputs_[2] = right;
   }
 
-  LOperand* context() { return inputs_[0]; }
+  LOperand* context() const { return inputs_[0]; }
+  LOperand* left() const { return inputs_[1]; }
+  LOperand* right() const { return inputs_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance-of")
 };
 
 
-class LInstanceOfKnownGlobal final : public LTemplateInstruction<1, 2, 1> {
+class LHasInPrototypeChainAndBranch final : public LControlInstruction<2, 1> {
  public:
-  LInstanceOfKnownGlobal(LOperand* context, LOperand* value, LOperand* temp) {
-    inputs_[0] = context;
-    inputs_[1] = value;
-    temps_[0] = temp;
+  LHasInPrototypeChainAndBranch(LOperand* object, LOperand* prototype,
+                                LOperand* scratch) {
+    inputs_[0] = object;
+    inputs_[1] = prototype;
+    temps_[0] = scratch;
   }
 
-  LOperand* context() { return inputs_[0]; }
-  LOperand* value() { return inputs_[1]; }
-  LOperand* temp() { return temps_[0]; }
+  LOperand* object() const { return inputs_[0]; }
+  LOperand* prototype() const { return inputs_[1]; }
+  LOperand* scratch() const { return temps_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal,
-                               "instance-of-known-global")
-  DECLARE_HYDROGEN_ACCESSOR(InstanceOfKnownGlobal)
-
-  Handle<JSFunction> function() const { return hydrogen()->function(); }
-  LEnvironment* GetDeferredLazyDeoptimizationEnvironment() {
-    return lazy_deopt_env_;
-  }
-  virtual void SetDeferredLazyDeoptimizationEnvironment(
-      LEnvironment* env) override {
-    lazy_deopt_env_ = env;
-  }
-
- private:
-  LEnvironment* lazy_deopt_env_;
+  DECLARE_CONCRETE_INSTRUCTION(HasInPrototypeChainAndBranch,
+                               "has-in-prototype-chain-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(HasInPrototypeChainAndBranch)
 };
 
 

@@ -6700,6 +6700,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kNativeBitWithinByte =
       (kNative + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
+  static const int kBoundBitWithinByte =
+      (kBoundFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
+
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
@@ -6708,6 +6711,9 @@ class SharedFunctionInfo: public HeapObject {
       (kStrongModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kNative + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kBoundByteOffset =
+      kCompilerHintsOffset +
+      (kBoundFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
 #elif defined(V8_TARGET_BIG_ENDIAN)
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
@@ -6718,6 +6724,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kNative + kCompilerHintsSmiTagSize) / kBitsPerByte);
+  static const int kBoundByteOffset =
+      kCompilerHintsOffset + (kCompilerHintsSize - 1) -
+      ((kBoundFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
 #else
 #error Unknown byte ordering
 #endif

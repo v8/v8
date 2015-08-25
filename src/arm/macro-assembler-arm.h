@@ -851,11 +851,8 @@ class MacroAssembler: public Assembler {
   // function and jumps to the miss label if the fast checks fail. The
   // function register will be untouched; the other registers may be
   // clobbered.
-  void TryGetFunctionPrototype(Register function,
-                               Register result,
-                               Register scratch,
-                               Label* miss,
-                               bool miss_on_bound_function = false);
+  void TryGetFunctionPrototype(Register function, Register result,
+                               Register scratch, Label* miss);
 
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both
@@ -1374,14 +1371,6 @@ class MacroAssembler: public Assembler {
                                  Register index,
                                  Register value,
                                  uint32_t encoding_mask);
-
-  // ---------------------------------------------------------------------------
-  // Patching helpers.
-
-  // Get the location of a relocated constant (its address in the constant pool)
-  // from its load site.
-  void GetRelocatedValueLocation(Register ldr_location, Register result,
-                                 Register scratch);
 
 
   void ClampUint8(Register output_reg, Register input_reg);

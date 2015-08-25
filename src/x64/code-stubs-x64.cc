@@ -2684,220 +2684,108 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 }
 
 
-void InstanceofStub::Generate(MacroAssembler* masm) {
-  // Implements "value instanceof function" operator.
-  // Expected input state with no inline cache:
-  //   rsp[0]  : return address
-  //   rsp[8]  : function pointer
-  //   rsp[16] : value
-  // Expected input state with an inline one-element cache:
-  //   rsp[0]  : return address
-  //   rsp[8]  : offset from return address to location of inline cache
-  //   rsp[16] : function pointer
-  //   rsp[24] : value
-  // Returns a bitwise zero to indicate that the value
-  // is and instance of the function and anything else to
-  // indicate that the value is not an instance.
+void InstanceOfStub::Generate(MacroAssembler* masm) {
+  Register const object = rdx;              // Object (lhs).
+  Register const function = rax;            // Function (rhs).
+  Register const object_map = rcx;          // Map of {object}.
+  Register const function_map = r8;         // Map of {function}.
+  Register const function_prototype = rdi;  // Prototype of {function}.
 
-  // Fixed register usage throughout the stub.
-  Register object = rax;     // Object (lhs).
-  Register map = rbx;        // Map of the object.
-  Register function = rdx;   // Function (rhs).
-  Register prototype = rdi;  // Prototype of the function.
-  Register scratch = rcx;
+  DCHECK(object.is(InstanceOfDescriptor::LeftRegister()));
+  DCHECK(function.is(InstanceOfDescriptor::RightRegister()));
 
-  static const int kOffsetToMapCheckValue = 2;
-  static const int kOffsetToResultValue = kPointerSize == kInt64Size ? 18 : 14;
-  // The last 4 bytes of the instruction sequence
-  //   movp(rdi, FieldOperand(rax, HeapObject::kMapOffset))
-  //   Move(kScratchRegister, Factory::the_hole_value())
-  // in front of the hole value address.
-  static const unsigned int kWordBeforeMapCheckValue =
-      kPointerSize == kInt64Size ? 0xBA49FF78 : 0xBA41FF78;
-  // The last 4 bytes of the instruction sequence
-  //   __ j(not_equal, &cache_miss);
-  //   __ LoadRoot(ToRegister(instr->result()), Heap::kTheHoleValueRootIndex);
-  // before the offset of the hole value in the root array.
-  static const unsigned int kWordBeforeResultValue =
-      kPointerSize == kInt64Size ? 0x458B4906 : 0x458B4106;
+  // Check if {object} is a smi.
+  Label object_is_smi;
+  __ JumpIfSmi(object, &object_is_smi, Label::kNear);
 
-  int extra_argument_offset = HasCallSiteInlineCheck() ? 1 : 0;
+  // Lookup the {function} and the {object} map in the global instanceof cache.
+  // Note: This is safe because we clear the global instanceof cache whenever
+  // we change the prototype of any object.
+  Label fast_case, slow_case;
+  __ movp(object_map, FieldOperand(object, HeapObject::kMapOffset));
+  __ CompareRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
+  __ j(not_equal, &fast_case, Label::kNear);
+  __ CompareRoot(object_map, Heap::kInstanceofCacheMapRootIndex);
+  __ j(not_equal, &fast_case, Label::kNear);
+  __ LoadRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
+  __ ret(0);
 
-  DCHECK_EQ(object.code(), InstanceofStub::left().code());
-  DCHECK_EQ(function.code(), InstanceofStub::right().code());
+  // If {object} is a smi we can safely return false if {function} is a JS
+  // function, otherwise we have to miss to the runtime and throw an exception.
+  __ bind(&object_is_smi);
+  __ JumpIfSmi(function, &slow_case);
+  __ CmpObjectType(function, JS_FUNCTION_TYPE, function_map);
+  __ j(not_equal, &slow_case);
+  __ LoadRoot(rax, Heap::kFalseValueRootIndex);
+  __ ret(0);
 
-  // Get the object and function - they are always both needed.
-  // Go slow case if the object is a smi.
-  Label slow;
-  StackArgumentsAccessor args(rsp, 2 + extra_argument_offset,
-                              ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  if (!HasArgsInRegisters()) {
-    __ movp(object, args.GetArgumentOperand(0));
-    __ movp(function, args.GetArgumentOperand(1));
-  }
-  __ JumpIfSmi(object, &slow);
+  // Fast-case: The {function} must be a valid JSFunction.
+  __ bind(&fast_case);
+  __ JumpIfSmi(function, &slow_case);
+  __ CmpObjectType(function, JS_FUNCTION_TYPE, function_map);
+  __ j(not_equal, &slow_case);
 
-  // Check that the left hand is a JS object. Leave its map in rax.
-  __ CmpObjectType(object, FIRST_SPEC_OBJECT_TYPE, map);
-  __ j(below, &slow);
-  __ CmpInstanceType(map, LAST_SPEC_OBJECT_TYPE);
-  __ j(above, &slow);
+  // Ensure that {function} has an instance prototype.
+  __ testb(FieldOperand(function_map, Map::kBitFieldOffset),
+           Immediate(1 << Map::kHasNonInstancePrototype));
+  __ j(not_zero, &slow_case);
 
-  // If there is a call site cache don't look in the global cache, but do the
-  // real lookup and update the call site cache.
-  if (!HasCallSiteInlineCheck() && !ReturnTrueFalseObject()) {
-    // Look up the function and the map in the instanceof cache.
-    Label miss;
-    __ CompareRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
-    __ j(not_equal, &miss, Label::kNear);
-    __ CompareRoot(map, Heap::kInstanceofCacheMapRootIndex);
-    __ j(not_equal, &miss, Label::kNear);
-    __ LoadRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
-    __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
-    __ bind(&miss);
-  }
+  // Ensure that {function} is not bound.
+  Register const shared_info = kScratchRegister;
+  __ movp(shared_info,
+          FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  __ TestBitSharedFunctionInfoSpecialField(
+      shared_info, SharedFunctionInfo::kCompilerHintsOffset,
+      SharedFunctionInfo::kBoundFunction);
+  __ j(not_zero, &slow_case);
 
-  // Get the prototype of the function.
-  __ TryGetFunctionPrototype(function, prototype, &slow, true);
+  // Get the "prototype" (or initial map) of the {function}.
+  __ movp(function_prototype,
+          FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+  __ AssertNotSmi(function_prototype);
 
-  // Check that the function prototype is a JS object.
-  __ JumpIfSmi(prototype, &slow);
-  __ CmpObjectType(prototype, FIRST_SPEC_OBJECT_TYPE, kScratchRegister);
-  __ j(below, &slow);
-  __ CmpInstanceType(kScratchRegister, LAST_SPEC_OBJECT_TYPE);
-  __ j(above, &slow);
+  // Resolve the prototype if the {function} has an initial map.  Afterwards the
+  // {function_prototype} will be either the JSReceiver prototype object or the
+  // hole value, which means that no instances of the {function} were created so
+  // far and hence we should return false.
+  Label function_prototype_valid;
+  Register const function_prototype_map = kScratchRegister;
+  __ CmpObjectType(function_prototype, MAP_TYPE, function_prototype_map);
+  __ j(not_equal, &function_prototype_valid, Label::kNear);
+  __ movp(function_prototype,
+          FieldOperand(function_prototype, Map::kPrototypeOffset));
+  __ bind(&function_prototype_valid);
+  __ AssertNotSmi(function_prototype);
 
-  // Update the global instanceof or call site inlined cache with the current
-  // map and function. The cached answer will be set when it is known below.
-  if (!HasCallSiteInlineCheck()) {
-    __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
-    __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);
-  } else {
-    // The constants for the code patching are based on push instructions
-    // at the call site.
-    DCHECK(!HasArgsInRegisters());
-    // Get return address and delta to inlined map check.
-    __ movq(kScratchRegister, StackOperandForReturnAddress(0));
-    __ subp(kScratchRegister, args.GetArgumentOperand(2));
-    if (FLAG_debug_code) {
-      __ movl(scratch, Immediate(kWordBeforeMapCheckValue));
-      __ cmpl(Operand(kScratchRegister, kOffsetToMapCheckValue - 4), scratch);
-      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheCheck);
-    }
-    __ movp(kScratchRegister,
-            Operand(kScratchRegister, kOffsetToMapCheckValue));
-    __ movp(Operand(kScratchRegister, 0), map);
+  // Update the global instanceof cache with the current {object} map and
+  // {function}.  The cached answer will be set when it is known below.
+  __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
+  __ StoreRoot(object_map, Heap::kInstanceofCacheMapRootIndex);
 
-    __ movp(r8, map);
-    // Scratch points at the cell payload. Calculate the start of the object.
-    __ subp(kScratchRegister, Immediate(Cell::kValueOffset - 1));
-    __ RecordWriteField(kScratchRegister, Cell::kValueOffset, r8, function,
-                        kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  }
-
-  // Loop through the prototype chain looking for the function prototype.
-  __ movp(scratch, FieldOperand(map, Map::kPrototypeOffset));
-  Label loop, is_instance, is_not_instance;
-  __ LoadRoot(kScratchRegister, Heap::kNullValueRootIndex);
+  // Loop through the prototype chain looking for the {function} prototype.
+  // Assume true, and change to false if not found.
+  Register const object_prototype = object_map;
+  Label done, loop;
+  __ LoadRoot(rax, Heap::kTrueValueRootIndex);
   __ bind(&loop);
-  __ cmpp(scratch, prototype);
-  __ j(equal, &is_instance, Label::kNear);
-  __ cmpp(scratch, kScratchRegister);
-  // The code at is_not_instance assumes that kScratchRegister contains a
-  // non-zero GCable value (the null object in this case).
-  __ j(equal, &is_not_instance, Label::kNear);
-  __ movp(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
-  __ movp(scratch, FieldOperand(scratch, Map::kPrototypeOffset));
-  __ jmp(&loop);
+  __ movp(object_prototype, FieldOperand(object_map, Map::kPrototypeOffset));
+  __ cmpp(object_prototype, function_prototype);
+  __ j(equal, &done, Label::kNear);
+  __ CompareRoot(object_prototype, Heap::kNullValueRootIndex);
+  __ movp(object_map, FieldOperand(object_prototype, HeapObject::kMapOffset));
+  __ j(not_equal, &loop);
+  __ LoadRoot(rax, Heap::kFalseValueRootIndex);
+  __ bind(&done);
+  __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
+  __ ret(0);
 
-  __ bind(&is_instance);
-  if (!HasCallSiteInlineCheck()) {
-    __ xorl(rax, rax);
-    // Store bitwise zero in the cache.  This is a Smi in GC terms.
-    STATIC_ASSERT(kSmiTag == 0);
-    __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
-    if (ReturnTrueFalseObject()) {
-      __ LoadRoot(rax, Heap::kTrueValueRootIndex);
-    }
-  } else {
-    // Store offset of true in the root array at the inline check site.
-    int true_offset = 0x100 +
-        (Heap::kTrueValueRootIndex << kPointerSizeLog2) - kRootRegisterBias;
-    // Assert it is a 1-byte signed value.
-    DCHECK(true_offset >= 0 && true_offset < 0x100);
-    __ movl(rax, Immediate(true_offset));
-    __ movq(kScratchRegister, StackOperandForReturnAddress(0));
-    __ subp(kScratchRegister, args.GetArgumentOperand(2));
-    __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
-    if (FLAG_debug_code) {
-      __ movl(rax, Immediate(kWordBeforeResultValue));
-      __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
-      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheMov);
-    }
-    if (!ReturnTrueFalseObject()) {
-      __ Set(rax, 0);
-    }
-  }
-  __ ret(((HasArgsInRegisters() ? 0 : 2) + extra_argument_offset) *
-         kPointerSize);
-
-  __ bind(&is_not_instance);
-  if (!HasCallSiteInlineCheck()) {
-    // We have to store a non-zero value in the cache.
-    __ StoreRoot(kScratchRegister, Heap::kInstanceofCacheAnswerRootIndex);
-    if (ReturnTrueFalseObject()) {
-      __ LoadRoot(rax, Heap::kFalseValueRootIndex);
-    }
-  } else {
-    // Store offset of false in the root array at the inline check site.
-    int false_offset = 0x100 +
-        (Heap::kFalseValueRootIndex << kPointerSizeLog2) - kRootRegisterBias;
-    // Assert it is a 1-byte signed value.
-    DCHECK(false_offset >= 0 && false_offset < 0x100);
-    __ movl(rax, Immediate(false_offset));
-    __ movq(kScratchRegister, StackOperandForReturnAddress(0));
-    __ subp(kScratchRegister, args.GetArgumentOperand(2));
-    __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
-    if (FLAG_debug_code) {
-      __ movl(rax, Immediate(kWordBeforeResultValue));
-      __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
-      __ Assert(equal, kInstanceofStubUnexpectedCallSiteCacheMov);
-    }
-  }
-  __ ret(((HasArgsInRegisters() ? 0 : 2) + extra_argument_offset) *
-         kPointerSize);
-
-  // Slow-case: Go through the JavaScript implementation.
-  __ bind(&slow);
-  if (!ReturnTrueFalseObject()) {
-    // Tail call the builtin which returns 0 or 1.
-    DCHECK(!HasArgsInRegisters());
-    if (HasCallSiteInlineCheck()) {
-      // Remove extra value from the stack.
-      __ PopReturnAddressTo(rcx);
-      __ Pop(rax);
-      __ PushReturnAddressFrom(rcx);
-    }
-    __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
-  } else {
-    // Call the builtin and convert 0/1 to true/false.
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(object);
-      __ Push(function);
-      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
-    }
-    Label true_value, done;
-    __ testq(rax, rax);
-    __ j(zero, &true_value, Label::kNear);
-    __ LoadRoot(rax, Heap::kFalseValueRootIndex);
-    __ jmp(&done, Label::kNear);
-    __ bind(&true_value);
-    __ LoadRoot(rax, Heap::kTrueValueRootIndex);
-    __ bind(&done);
-    __ ret(((HasArgsInRegisters() ? 0 : 2) + extra_argument_offset) *
-           kPointerSize);
-  }
+  // Slow-case: Call the runtime function.
+  __ bind(&slow_case);
+  __ PopReturnAddressTo(kScratchRegister);
+  __ Push(object);
+  __ Push(function);
+  __ PushReturnAddressFrom(kScratchRegister);
+  __ TailCallRuntime(Runtime::kInstanceOf, 2, 1);
 }
 
 

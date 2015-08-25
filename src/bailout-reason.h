@@ -197,8 +197,6 @@ namespace internal {
   V(kTheInstructionShouldBeAnOris, "The instruction should be an oris")        \
   V(kTheInstructionShouldBeALi, "The instruction should be a li")              \
   V(kTheInstructionShouldBeASldi, "The instruction should be a sldi")          \
-  V(kTheInstructionToPatchShouldBeALoadFromConstantPool,                       \
-    "The instruction to patch should be a load from the constant pool")        \
   V(kTheInstructionToPatchShouldBeAnLdrLiteral,                                \
     "The instruction to patch should be a ldr literal")                        \
   V(kTheInstructionToPatchShouldBeALis,                                        \

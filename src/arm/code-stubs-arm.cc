@@ -1287,209 +1287,108 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Uses registers r0 to r4.
-// Expected input (depending on whether args are in registers or on the stack):
-// * object: r0 or at sp + 1 * kPointerSize.
-// * function: r1 or at sp.
-//
-// An inlined call site may have been generated before calling this stub.
-// In this case the offset to the inline sites to patch are passed in r5 and r6.
-// (See LCodeGen::DoInstanceOfKnownGlobal)
-void InstanceofStub::Generate(MacroAssembler* masm) {
-  // Call site inlining and patching implies arguments in registers.
-  DCHECK(HasArgsInRegisters() || !HasCallSiteInlineCheck());
+void InstanceOfStub::Generate(MacroAssembler* masm) {
+  Register const object = r1;              // Object (lhs).
+  Register const function = r0;            // Function (rhs).
+  Register const object_map = r2;          // Map of {object}.
+  Register const function_map = r3;        // Map of {function}.
+  Register const function_prototype = r4;  // Prototype of {function}.
+  Register const scratch = r5;
 
-  // Fixed register usage throughout the stub:
-  const Register object = r0;  // Object (lhs).
-  Register map = r3;  // Map of the object.
-  const Register function = r1;  // Function (rhs).
-  const Register prototype = r4;  // Prototype of the function.
-  const Register scratch = r2;
+  DCHECK(object.is(InstanceOfDescriptor::LeftRegister()));
+  DCHECK(function.is(InstanceOfDescriptor::RightRegister()));
 
-  Label slow, loop, is_instance, is_not_instance, not_js_object;
+  // Check if {object} is a smi.
+  Label object_is_smi;
+  __ JumpIfSmi(object, &object_is_smi);
 
-  if (!HasArgsInRegisters()) {
-    __ ldr(object, MemOperand(sp, 1 * kPointerSize));
-    __ ldr(function, MemOperand(sp, 0));
-  }
+  // Lookup the {function} and the {object} map in the global instanceof cache.
+  // Note: This is safe because we clear the global instanceof cache whenever
+  // we change the prototype of any object.
+  Label fast_case, slow_case;
+  __ ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
+  __ CompareRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
+  __ b(ne, &fast_case);
+  __ CompareRoot(object_map, Heap::kInstanceofCacheMapRootIndex);
+  __ b(ne, &fast_case);
+  __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
+  __ Ret();
 
-  // Check that the left hand is a JS object and load map.
-  __ JumpIfSmi(object, &not_js_object);
-  __ IsObjectJSObjectType(object, map, scratch, &not_js_object);
+  // If {object} is a smi we can safely return false if {function} is a JS
+  // function, otherwise we have to miss to the runtime and throw an exception.
+  __ bind(&object_is_smi);
+  __ JumpIfSmi(function, &slow_case);
+  __ CompareObjectType(function, function_map, scratch, JS_FUNCTION_TYPE);
+  __ b(ne, &slow_case);
+  __ LoadRoot(r0, Heap::kFalseValueRootIndex);
+  __ Ret();
 
-  // If there is a call site cache don't look in the global cache, but do the
-  // real lookup and update the call site cache.
-  if (!HasCallSiteInlineCheck() && !ReturnTrueFalseObject()) {
-    Label miss;
-    __ CompareRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
-    __ b(ne, &miss);
-    __ CompareRoot(map, Heap::kInstanceofCacheMapRootIndex);
-    __ b(ne, &miss);
-    __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
-    __ Ret(HasArgsInRegisters() ? 0 : 2);
+  // Fast-case: The {function} must be a valid JSFunction.
+  __ bind(&fast_case);
+  __ JumpIfSmi(function, &slow_case);
+  __ CompareObjectType(function, function_map, scratch, JS_FUNCTION_TYPE);
+  __ b(ne, &slow_case);
 
-    __ bind(&miss);
-  }
+  // Ensure that {function} has an instance prototype.
+  __ ldrb(scratch, FieldMemOperand(function_map, Map::kBitFieldOffset));
+  __ tst(scratch, Operand(1 << Map::kHasNonInstancePrototype));
+  __ b(ne, &slow_case);
 
-  // Get the prototype of the function.
-  __ TryGetFunctionPrototype(function, prototype, scratch, &slow, true);
+  // Ensure that {function} is not bound.
+  Register const shared_info = scratch;
+  __ ldr(shared_info,
+         FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(scratch, FieldMemOperand(shared_info,
+                                  SharedFunctionInfo::kCompilerHintsOffset));
+  __ tst(scratch,
+         Operand(Smi::FromInt(1 << SharedFunctionInfo::kBoundFunction)));
+  __ b(ne, &slow_case);
 
-  // Check that the function prototype is a JS object.
-  __ JumpIfSmi(prototype, &slow);
-  __ IsObjectJSObjectType(prototype, scratch, scratch, &slow);
+  // Get the "prototype" (or initial map) of the {function}.
+  __ ldr(function_prototype,
+         FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+  __ AssertNotSmi(function_prototype);
 
-  // Update the global instanceof or call site inlined cache with the current
-  // map and function. The cached answer will be set when it is known below.
-  if (!HasCallSiteInlineCheck()) {
-    __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
-    __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);
-  } else {
-    DCHECK(HasArgsInRegisters());
-    // Patch the (relocated) inlined map check.
+  // Resolve the prototype if the {function} has an initial map.  Afterwards the
+  // {function_prototype} will be either the JSReceiver prototype object or the
+  // hole value, which means that no instances of the {function} were created so
+  // far and hence we should return false.
+  Label function_prototype_valid;
+  __ CompareObjectType(function_prototype, scratch, scratch, MAP_TYPE);
+  __ b(ne, &function_prototype_valid);
+  __ ldr(function_prototype,
+         FieldMemOperand(function_prototype, Map::kPrototypeOffset));
+  __ bind(&function_prototype_valid);
+  __ AssertNotSmi(function_prototype);
 
-    // The map_load_offset was stored in r5
-    //   (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
-    const Register map_load_offset = r5;
-    __ sub(r9, lr, map_load_offset);
-    // Get the map location in r5 and patch it.
-    __ GetRelocatedValueLocation(r9, map_load_offset, scratch);
-    __ ldr(map_load_offset, MemOperand(map_load_offset));
-    __ str(map, FieldMemOperand(map_load_offset, Cell::kValueOffset));
+  // Update the global instanceof cache with the current {object} map and
+  // {function}.  The cached answer will be set when it is known below.
+  __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
+  __ StoreRoot(object_map, Heap::kInstanceofCacheMapRootIndex);
 
-    __ mov(scratch, map);
-    // |map_load_offset| points at the beginning of the cell. Calculate the
-    // field containing the map.
-    __ add(function, map_load_offset, Operand(Cell::kValueOffset - 1));
-    __ RecordWriteField(map_load_offset, Cell::kValueOffset, scratch, function,
-                        kLRHasNotBeenSaved, kDontSaveFPRegs,
-                        OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  }
-
-  // Register mapping: r3 is object map and r4 is function prototype.
-  // Get prototype of object into r2.
-  __ ldr(scratch, FieldMemOperand(map, Map::kPrototypeOffset));
-
-  // We don't need map any more. Use it as a scratch register.
-  Register scratch2 = map;
-  map = no_reg;
-
-  // Loop through the prototype chain looking for the function prototype.
-  __ LoadRoot(scratch2, Heap::kNullValueRootIndex);
+  // Loop through the prototype chain looking for the {function} prototype.
+  // Assume true, and change to false if not found.
+  Register const object_prototype = object_map;
+  Register const null = scratch;
+  Label done, loop;
+  __ LoadRoot(r0, Heap::kTrueValueRootIndex);
+  __ LoadRoot(null, Heap::kNullValueRootIndex);
   __ bind(&loop);
-  __ cmp(scratch, Operand(prototype));
-  __ b(eq, &is_instance);
-  __ cmp(scratch, scratch2);
-  __ b(eq, &is_not_instance);
-  __ ldr(scratch, FieldMemOperand(scratch, HeapObject::kMapOffset));
-  __ ldr(scratch, FieldMemOperand(scratch, Map::kPrototypeOffset));
-  __ jmp(&loop);
-  Factory* factory = isolate()->factory();
+  __ ldr(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
+  __ cmp(object_prototype, function_prototype);
+  __ b(eq, &done);
+  __ cmp(object_prototype, null);
+  __ ldr(object_map, FieldMemOperand(object_prototype, HeapObject::kMapOffset));
+  __ b(ne, &loop);
+  __ LoadRoot(r0, Heap::kFalseValueRootIndex);
+  __ bind(&done);
+  __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
+  __ Ret();
 
-  __ bind(&is_instance);
-  if (!HasCallSiteInlineCheck()) {
-    __ mov(r0, Operand(Smi::FromInt(0)));
-    __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
-    if (ReturnTrueFalseObject()) {
-      __ Move(r0, factory->true_value());
-    }
-  } else {
-    // Patch the call site to return true.
-    __ LoadRoot(r0, Heap::kTrueValueRootIndex);
-    // The bool_load_offset was stored in r6
-    //   (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
-    const Register bool_load_offset = r6;
-    __ sub(r9, lr, bool_load_offset);
-    // Get the boolean result location in scratch and patch it.
-    __ GetRelocatedValueLocation(r9, scratch, scratch2);
-    __ str(r0, MemOperand(scratch));
-
-    if (!ReturnTrueFalseObject()) {
-      __ mov(r0, Operand(Smi::FromInt(0)));
-    }
-  }
-  __ Ret(HasArgsInRegisters() ? 0 : 2);
-
-  __ bind(&is_not_instance);
-  if (!HasCallSiteInlineCheck()) {
-    __ mov(r0, Operand(Smi::FromInt(1)));
-    __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
-    if (ReturnTrueFalseObject()) {
-      __ Move(r0, factory->false_value());
-    }
-  } else {
-    // Patch the call site to return false.
-    __ LoadRoot(r0, Heap::kFalseValueRootIndex);
-    // The bool_load_offset was stored in r6
-    //   (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
-    const Register bool_load_offset = r6;
-    __ sub(r9, lr, bool_load_offset);
-    ;
-    // Get the boolean result location in scratch and patch it.
-    __ GetRelocatedValueLocation(r9, scratch, scratch2);
-    __ str(r0, MemOperand(scratch));
-
-    if (!ReturnTrueFalseObject()) {
-      __ mov(r0, Operand(Smi::FromInt(1)));
-    }
-  }
-  __ Ret(HasArgsInRegisters() ? 0 : 2);
-
-  Label object_not_null, object_not_null_or_smi;
-  __ bind(&not_js_object);
-  // Before null, smi and string value checks, check that the rhs is a function
-  // as for a non-function rhs an exception needs to be thrown.
-  __ JumpIfSmi(function, &slow);
-  __ CompareObjectType(function, scratch2, scratch, JS_FUNCTION_TYPE);
-  __ b(ne, &slow);
-
-  // Null is not instance of anything.
-  __ cmp(object, Operand(isolate()->factory()->null_value()));
-  __ b(ne, &object_not_null);
-  if (ReturnTrueFalseObject()) {
-    __ Move(r0, factory->false_value());
-  } else {
-    __ mov(r0, Operand(Smi::FromInt(1)));
-  }
-  __ Ret(HasArgsInRegisters() ? 0 : 2);
-
-  __ bind(&object_not_null);
-  // Smi values are not instances of anything.
-  __ JumpIfNotSmi(object, &object_not_null_or_smi);
-  if (ReturnTrueFalseObject()) {
-    __ Move(r0, factory->false_value());
-  } else {
-    __ mov(r0, Operand(Smi::FromInt(1)));
-  }
-  __ Ret(HasArgsInRegisters() ? 0 : 2);
-
-  __ bind(&object_not_null_or_smi);
-  // String values are not instances of anything.
-  __ IsObjectJSStringType(object, scratch, &slow);
-  if (ReturnTrueFalseObject()) {
-    __ Move(r0, factory->false_value());
-  } else {
-    __ mov(r0, Operand(Smi::FromInt(1)));
-  }
-  __ Ret(HasArgsInRegisters() ? 0 : 2);
-
-  // Slow-case.  Tail call builtin.
-  __ bind(&slow);
-  if (!ReturnTrueFalseObject()) {
-    if (HasArgsInRegisters()) {
-      __ Push(r0, r1);
-    }
-  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
-  } else {
-    {
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ Push(r0, r1);
-      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
-    }
-    __ cmp(r0, Operand::Zero());
-    __ LoadRoot(r0, Heap::kTrueValueRootIndex, eq);
-    __ LoadRoot(r0, Heap::kFalseValueRootIndex, ne);
-    __ Ret(HasArgsInRegisters() ? 0 : 2);
-  }
+  // Slow-case: Call the runtime function.
+  __ bind(&slow_case);
+  __ Push(object, function);
+  __ TailCallRuntime(Runtime::kInstanceOf, 2, 1);
 }
 
 

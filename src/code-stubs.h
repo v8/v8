@@ -34,7 +34,7 @@ namespace internal {
   V(CompareIC)                              \
   V(DoubleToI)                              \
   V(FunctionPrototype)                      \
-  V(Instanceof)                             \
+  V(InstanceOf)                             \
   V(InternalArrayConstructor)               \
   V(JSEntry)                                \
   V(KeyedLoadICTrampoline)                  \
@@ -876,47 +876,14 @@ class GrowArrayElementsStub : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(GrowArrayElements, HydrogenCodeStub);
 };
 
-class InstanceofStub: public PlatformCodeStub {
+
+class InstanceOfStub final : public PlatformCodeStub {
  public:
-  enum Flags {
-    kNoFlags = 0,
-    kArgsInRegisters = 1 << 0,
-    kCallSiteInlineCheck = 1 << 1,
-    kReturnTrueFalseObject = 1 << 2
-  };
-
-  InstanceofStub(Isolate* isolate, Flags flags) : PlatformCodeStub(isolate) {
-    minor_key_ = FlagBits::encode(flags);
-  }
-
-  static Register left() { return InstanceofDescriptor::left(); }
-  static Register right() { return InstanceofDescriptor::right(); }
-
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    if (HasArgsInRegisters()) {
-      return InstanceofDescriptor(isolate());
-    }
-    return ContextOnlyDescriptor(isolate());
-  }
+  explicit InstanceOfStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
  private:
-  Flags flags() const { return FlagBits::decode(minor_key_); }
-
-  bool HasArgsInRegisters() const { return (flags() & kArgsInRegisters) != 0; }
-
-  bool HasCallSiteInlineCheck() const {
-    return (flags() & kCallSiteInlineCheck) != 0;
-  }
-
-  bool ReturnTrueFalseObject() const {
-    return (flags() & kReturnTrueFalseObject) != 0;
-  }
-
-  void PrintName(std::ostream& os) const override;  // NOLINT
-
-  class FlagBits : public BitField<Flags, 0, 3> {};
-
-  DEFINE_PLATFORM_CODE_STUB(Instanceof, PlatformCodeStub);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(InstanceOf);
+  DEFINE_PLATFORM_CODE_STUB(InstanceOf, PlatformCodeStub);
 };
 
 

@@ -113,9 +113,6 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocate(LAllocate* instr);
-  void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                       Label* map_check);
-
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
   void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
                                    Register result,
@@ -278,10 +275,11 @@ class LCodeGen: public LCodeGenBase {
                    Condition condition,
                    FPURegister src1,
                    FPURegister src2);
-  template<class InstrType>
-  void EmitFalseBranch(InstrType instr,
-                       Condition condition,
-                       Register src1,
+  template <class InstrType>
+  void EmitTrueBranch(InstrType instr, Condition condition, Register src1,
+                      const Operand& src2);
+  template <class InstrType>
+  void EmitFalseBranch(InstrType instr, Condition condition, Register src1,
                        const Operand& src2);
   template<class InstrType>
   void EmitFalseBranchF(InstrType instr,

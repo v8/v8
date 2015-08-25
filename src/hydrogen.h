@@ -2217,6 +2217,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(DebugIsActive)                     \
   F(Likely)                            \
   F(Unlikely)                          \
+  F(HasInPrototypeChain)               \
   /* Typed Arrays */                   \
   F(TypedArrayInitialize)              \
   F(DataViewInitialize)                \
