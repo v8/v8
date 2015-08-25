@@ -273,7 +273,7 @@ class UsePosition final : public ZoneObject {
 
 
 class SpillRange;
-
+class RegisterAllocationData;
 
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
@@ -355,6 +355,9 @@ class LiveRange final : public ZoneObject {
   // All uses following the given position will be moved from this
   // live range to the result live range.
   void SplitAt(LifetimePosition position, LiveRange* result, Zone* zone);
+  void Splinter(LifetimePosition start, LifetimePosition end, LiveRange* result,
+                Zone* zone);
+  void Merge(LiveRange* other, RegisterAllocationData* data);
 
   // Returns nullptr when no register is hinted, otherwise sets register_index.
   UsePosition* FirstHintPosition(int* register_index) const;
@@ -384,6 +387,12 @@ class LiveRange final : public ZoneObject {
     DCHECK(spill_type() == SpillType::kSpillOperand);
     return spill_operand_;
   }
+
+  SpillRange* GetAllocatedSpillRange() const {
+    DCHECK(spill_type() != SpillType::kSpillOperand);
+    return spill_range_;
+  }
+
   SpillRange* GetSpillRange() const {
     DCHECK(spill_type() == SpillType::kSpillRange);
     return spill_range_;
@@ -395,6 +404,11 @@ class LiveRange final : public ZoneObject {
     return spill_type() == SpillType::kSpillOperand;
   }
   bool HasSpillRange() const { return spill_type() == SpillType::kSpillRange; }
+  bool MayRequireSpillRange() const {
+    DCHECK(!IsChild() && !IsSplinter());
+    return !HasSpillOperand() && spill_range_ == nullptr;
+  }
+
   AllocatedOperand GetSpillRangeOperand() const;
 
   void SpillAtDefinition(Zone* zone, int gap_index,
@@ -458,16 +472,34 @@ class LiveRange final : public ZoneObject {
   static const float kInvalidWeight;
   static const float kMaxWeight;
 
- private:
+  LiveRange* splintered_from() const {
+    DCHECK(!IsChild());
+    return splintered_from_;
+  }
+  bool IsSplinter() const {
+    DCHECK(!IsChild());
+    return splintered_from_ != nullptr;
+  }
+
   void set_spill_type(SpillType value) {
     bits_ = SpillTypeField::update(bits_, value);
   }
+
+ private:
+  void AppendChild(LiveRange* other);
+  void UpdateParentForAllChildren(LiveRange* new_parent);
+  void UpdateSpillRangePostMerge(LiveRange* merged);
+
+  void SetSplinteredFrom(LiveRange* splinter_parent);
+
 
   void set_spilled(bool value) { bits_ = SpilledField::update(bits_, value); }
 
   UseInterval* FirstSearchIntervalForPosition(LifetimePosition position) const;
   void AdvanceLastProcessedMarker(UseInterval* to_start_of,
                                   LifetimePosition but_not_past) const;
+
+  LiveRange* GetLastChild();
 
   typedef BitField<bool, 0, 1> SpilledField;
   typedef BitField<bool, 1, 1> HasSlotUseField;
@@ -485,6 +517,7 @@ class LiveRange final : public ZoneObject {
   UsePosition* first_pos_;
   LiveRange* parent_;
   LiveRange* next_;
+  LiveRange* splintered_from_;
   union {
     // Correct value determined by spill_type()
     InstructionOperand* spill_operand_;
@@ -543,10 +576,13 @@ class SpillRange final : public ZoneObject {
     DCHECK_NE(kUnassignedSlot, assigned_slot_);
     return assigned_slot_;
   }
+  const ZoneVector<LiveRange*>& live_ranges() const { return live_ranges_; }
+  ZoneVector<LiveRange*>& live_ranges() { return live_ranges_; }
+  int byte_width() const { return byte_width_; }
+  RegisterKind kind() const { return kind_; }
 
  private:
   LifetimePosition End() const { return end_position_; }
-  ZoneVector<LiveRange*>& live_ranges() { return live_ranges_; }
   bool IsIntersectingWith(SpillRange* other) const;
   // Merge intervals, making sure the use intervals are sorted
   void MergeDisjointIntervals(UseInterval* other);
@@ -555,6 +591,8 @@ class SpillRange final : public ZoneObject {
   UseInterval* use_interval_;
   LifetimePosition end_position_;
   int assigned_slot_;
+  int byte_width_;
+  RegisterKind kind_;
 
   DISALLOW_COPY_AND_ASSIGN(SpillRange);
 };
@@ -612,7 +650,7 @@ class RegisterAllocationData final : public ZoneObject {
     return fixed_double_live_ranges_;
   }
   ZoneVector<BitVector*>& live_in_sets() { return live_in_sets_; }
-  ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
+  ZoneSet<SpillRange*>& spill_ranges() { return spill_ranges_; }
   DelayedReferences& delayed_references() { return delayed_references_; }
   InstructionSequence* code() const { return code_; }
   // This zone is for datastructures only needed during register allocation
@@ -630,9 +668,11 @@ class RegisterAllocationData final : public ZoneObject {
   LiveRange* LiveRangeFor(int index);
   // Creates a new live range.
   LiveRange* NewLiveRange(int index, MachineType machine_type);
+  LiveRange* NextLiveRange(MachineType machine_type);
   LiveRange* NewChildRangeFor(LiveRange* range);
 
   SpillRange* AssignSpillRangeToLiveRange(LiveRange* range);
+  SpillRange* CreateSpillRangeForLiveRange(LiveRange* range);
 
   MoveOperands* AddGapMove(int index, Instruction::GapPosition position,
                            const InstructionOperand& from,
@@ -656,6 +696,7 @@ class RegisterAllocationData final : public ZoneObject {
   void Print(const LiveRange* range, bool with_children = false);
   void Print(const InstructionOperand& op);
   void Print(const MoveOperands* move);
+  void Print(const SpillRange* spill_range);
 
  private:
   Zone* const allocation_zone_;
@@ -668,7 +709,7 @@ class RegisterAllocationData final : public ZoneObject {
   ZoneVector<LiveRange*> live_ranges_;
   ZoneVector<LiveRange*> fixed_live_ranges_;
   ZoneVector<LiveRange*> fixed_double_live_ranges_;
-  ZoneVector<SpillRange*> spill_ranges_;
+  ZoneSet<SpillRange*> spill_ranges_;
   DelayedReferences delayed_references_;
   BitVector* assigned_registers_;
   BitVector* assigned_double_registers_;
@@ -721,6 +762,8 @@ class LiveRangeBuilder final : public ZoneObject {
 
   // Phase 3: compute liveness of all virtual register.
   void BuildLiveRanges();
+  static BitVector* ComputeLiveOut(const InstructionBlock* block,
+                                   RegisterAllocationData* data);
 
  private:
   RegisterAllocationData* data() const { return data_; }
@@ -737,7 +780,6 @@ class LiveRangeBuilder final : public ZoneObject {
   void Verify() const;
 
   // Liveness analysis support.
-  BitVector* ComputeLiveOut(const InstructionBlock* block);
   void AddInitialIntervals(const InstructionBlock* block, BitVector* live_out);
   void ProcessInstructions(const InstructionBlock* block, BitVector* live);
   void ProcessPhis(const InstructionBlock* block, BitVector* live);

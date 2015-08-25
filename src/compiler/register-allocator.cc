@@ -253,6 +253,7 @@ LiveRange::LiveRange(int id, MachineType machine_type)
       first_pos_(nullptr),
       parent_(nullptr),
       next_(nullptr),
+      splintered_from_(nullptr),
       spill_operand_(nullptr),
       spills_at_definition_(nullptr),
       current_interval_(nullptr),
@@ -447,9 +448,9 @@ void LiveRange::SetSpillOperand(InstructionOperand* operand) {
 
 
 void LiveRange::SetSpillRange(SpillRange* spill_range) {
-  DCHECK(HasNoSpillType() || HasSpillRange());
+  DCHECK(!HasSpillOperand());
   DCHECK(spill_range);
-  set_spill_type(SpillType::kSpillRange);
+  DCHECK(!IsChild());
   spill_range_ = spill_range;
 }
 
@@ -665,6 +666,146 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result,
   Verify();
   result->Verify();
 #endif
+}
+
+
+void LiveRange::Splinter(LifetimePosition start, LifetimePosition end,
+                         LiveRange* result, Zone* zone) {
+  DCHECK(start != Start() || end != End());
+  DCHECK(start < end);
+
+  result->set_spill_type(spill_type());
+
+  if (start <= Start()) {
+    DCHECK(end < End());
+    SplitAt(end, result, zone);
+    next_ = nullptr;
+  } else if (end >= End()) {
+    DCHECK(start > Start());
+    SplitAt(start, result, zone);
+    next_ = nullptr;
+  } else {
+    DCHECK(start < End() && Start() < end);
+
+    const int kInvalidId = std::numeric_limits<int>::max();
+
+    SplitAt(start, result, zone);
+
+    LiveRange end_part(kInvalidId, this->machine_type());
+    result->SplitAt(end, &end_part, zone);
+
+    next_ = end_part.next_;
+    last_interval_->set_next(end_part.first_interval_);
+    last_interval_ = end_part.last_interval_;
+
+
+    if (first_pos_ == nullptr) {
+      first_pos_ = end_part.first_pos_;
+    } else {
+      UsePosition* pos = first_pos_;
+      for (; pos->next() != nullptr; pos = pos->next()) {
+      }
+      pos->set_next(end_part.first_pos_);
+    }
+  }
+  result->next_ = nullptr;
+  result->parent_ = nullptr;
+
+  result->SetSplinteredFrom(this);
+}
+
+
+void LiveRange::SetSplinteredFrom(LiveRange* splinter_parent) {
+  // The splinter parent is always the original "Top".
+  DCHECK(splinter_parent->Start() < Start());
+  DCHECK(!splinter_parent->IsChild());
+
+  splintered_from_ = splinter_parent;
+  if (!HasSpillOperand()) {
+    SetSpillRange(splinter_parent->spill_range_);
+  }
+}
+
+
+void LiveRange::AppendChild(LiveRange* other) {
+  DCHECK(!other->IsChild());
+  next_ = other;
+
+  other->UpdateParentForAllChildren(TopLevel());
+  TopLevel()->UpdateSpillRangePostMerge(other);
+}
+
+
+void LiveRange::UpdateSpillRangePostMerge(LiveRange* merged) {
+  DCHECK(!IsChild());
+  DCHECK(merged->TopLevel() == this);
+
+  if (HasNoSpillType() && merged->HasSpillRange()) {
+    set_spill_type(merged->spill_type());
+    DCHECK(GetSpillRange()->live_ranges().size() > 0);
+    merged->spill_range_ = nullptr;
+    merged->bits_ = SpillTypeField::update(merged->bits_,
+                                           LiveRange::SpillType::kNoSpillType);
+  }
+}
+
+
+void LiveRange::UpdateParentForAllChildren(LiveRange* new_parent) {
+  LiveRange* child = this;
+  for (; child != nullptr; child = child->next()) {
+    child->parent_ = new_parent;
+  }
+}
+
+
+LiveRange* LiveRange::GetLastChild() {
+  LiveRange* ret = this;
+  for (; ret->next() != nullptr; ret = ret->next()) {
+  }
+  return ret;
+}
+
+
+void LiveRange::Merge(LiveRange* other, RegisterAllocationData* data) {
+  DCHECK(!IsChild());
+  DCHECK(!other->IsChild());
+  DCHECK(Start() < other->Start());
+
+  LiveRange* last_other = other->GetLastChild();
+  LiveRange* last_me = GetLastChild();
+
+  // Simple case: we just append at the end.
+  if (last_me->End() <= other->Start()) return last_me->AppendChild(other);
+
+  DCHECK(last_me->End() > last_other->End());
+
+  // In the more general case, we need to find the ranges between which to
+  // insert.
+  LiveRange* insertion_point = this;
+  for (; insertion_point->next() != nullptr &&
+         insertion_point->next()->Start() <= other->Start();
+       insertion_point = insertion_point->next()) {
+  }
+
+  // When we splintered the original range, we reconstituted the original range
+  // into one range without children, but with discontinuities. To merge the
+  // splinter back in, we need to split the range - or a child obtained after
+  // register allocation splitting.
+  LiveRange* after = insertion_point->next();
+  if (insertion_point->End() > other->Start()) {
+    LiveRange* new_after = data->NewChildRangeFor(insertion_point);
+    insertion_point->SplitAt(other->Start(), new_after,
+                             data->allocation_zone());
+    new_after->set_spilled(insertion_point->spilled());
+    if (!new_after->spilled())
+      new_after->set_assigned_register(insertion_point->assigned_register());
+    after = new_after;
+  }
+
+  last_other->next_ = after;
+  insertion_point->next_ = other;
+  other->UpdateParentForAllChildren(TopLevel());
+  TopLevel()->UpdateSpillRangePostMerge(other);
 }
 
 
@@ -913,8 +1054,15 @@ std::ostream& operator<<(std::ostream& os,
 
 
 SpillRange::SpillRange(LiveRange* parent, Zone* zone)
-    : live_ranges_(zone), assigned_slot_(kUnassignedSlot) {
+    : live_ranges_(zone),
+      assigned_slot_(kUnassignedSlot),
+      byte_width_(GetByteWidth(parent->machine_type())),
+      kind_(parent->kind()) {
+  // Spill ranges are created for top level, non-splintered ranges. This is so
+  // that, when merging decisions are made, we consider the full extent of the
+  // virtual register, and avoid clobbering it.
   DCHECK(!parent->IsChild());
+  DCHECK(!parent->IsSplinter());
   UseInterval* result = nullptr;
   UseInterval* node = nullptr;
   // Copy the intervals for all ranges.
@@ -934,7 +1082,6 @@ SpillRange::SpillRange(LiveRange* parent, Zone* zone)
   use_interval_ = result;
   live_ranges().push_back(parent);
   end_position_ = node->end();
-  DCHECK(!parent->HasSpillRange());
   parent->SetSpillRange(this);
 }
 
@@ -1056,7 +1203,6 @@ RegisterAllocationData::RegisterAllocationData(
          RegisterConfiguration::kMaxGeneralRegisters);
   DCHECK(this->config()->num_double_registers() <=
          RegisterConfiguration::kMaxDoubleRegisters);
-  spill_ranges().reserve(8);
   assigned_registers_ = new (code_zone())
       BitVector(this->config()->num_general_registers(), code_zone());
   assigned_double_registers_ = new (code_zone())
@@ -1100,14 +1246,20 @@ LiveRange* RegisterAllocationData::NewLiveRange(int index,
 }
 
 
-LiveRange* RegisterAllocationData::NewChildRangeFor(LiveRange* range) {
+LiveRange* RegisterAllocationData::NextLiveRange(MachineType machine_type) {
   int vreg = virtual_register_count_++;
   if (vreg >= static_cast<int>(live_ranges().size())) {
     live_ranges().resize(vreg + 1, nullptr);
   }
-  auto child = new (allocation_zone()) LiveRange(vreg, range->machine_type());
-  DCHECK_NULL(live_ranges()[vreg]);
-  live_ranges()[vreg] = child;
+  LiveRange* ret = NewLiveRange(vreg, machine_type);
+  return ret;
+}
+
+
+LiveRange* RegisterAllocationData::NewChildRangeFor(LiveRange* range) {
+  auto child = NextLiveRange(range->machine_type());
+  DCHECK_NULL(live_ranges()[child->id()]);
+  live_ranges()[child->id()] = child;
   return child;
 }
 
@@ -1155,9 +1307,28 @@ bool RegisterAllocationData::ExistsUseWithoutDefinition() {
 
 SpillRange* RegisterAllocationData::AssignSpillRangeToLiveRange(
     LiveRange* range) {
+  DCHECK(!range->IsChild());
+  DCHECK(!range->HasSpillOperand());
+
+  SpillRange* spill_range = range->GetAllocatedSpillRange();
+  if (spill_range == nullptr) {
+    DCHECK(!range->IsSplinter());
+    spill_range = new (allocation_zone()) SpillRange(range, allocation_zone());
+  }
+  range->set_spill_type(LiveRange::SpillType::kSpillRange);
+
+  spill_ranges().insert(spill_range);
+  return spill_range;
+}
+
+
+SpillRange* RegisterAllocationData::CreateSpillRangeForLiveRange(
+    LiveRange* range) {
+  DCHECK(!range->HasSpillOperand());
+  DCHECK(!range->IsChild());
+  DCHECK(!range->IsSplinter());
   auto spill_range =
       new (allocation_zone()) SpillRange(range, allocation_zone());
-  spill_ranges().push_back(spill_range);
   return spill_range;
 }
 
@@ -1227,6 +1398,23 @@ void RegisterAllocationData::Print(const MoveOperands* move) {
   os << wrapper << " = ";
   wrapper.op_ = move->source();
   os << wrapper << std::endl;
+}
+
+
+void RegisterAllocationData::Print(const SpillRange* spill_range) {
+  OFStream os(stdout);
+  os << "{" << std::endl;
+  for (LiveRange* range : spill_range->live_ranges()) {
+    os << range->id() << " ";
+  }
+  os << std::endl;
+
+  for (UseInterval* interval = spill_range->interval(); interval != nullptr;
+       interval = interval->next()) {
+    os << '[' << interval->start() << ", " << interval->end() << ')'
+       << std::endl;
+  }
+  os << "}" << std::endl;
 }
 
 
@@ -1474,22 +1662,25 @@ LiveRangeBuilder::LiveRangeBuilder(RegisterAllocationData* data,
     : data_(data), phi_hints_(local_zone) {}
 
 
-BitVector* LiveRangeBuilder::ComputeLiveOut(const InstructionBlock* block) {
+BitVector* LiveRangeBuilder::ComputeLiveOut(const InstructionBlock* block,
+                                            RegisterAllocationData* data) {
   // Compute live out for the given block, except not including backward
   // successor edges.
-  auto live_out = new (allocation_zone())
-      BitVector(code()->VirtualRegisterCount(), allocation_zone());
+  Zone* zone = data->allocation_zone();
+  const InstructionSequence* code = data->code();
+
+  auto live_out = new (zone) BitVector(code->VirtualRegisterCount(), zone);
 
   // Process all successor blocks.
   for (auto succ : block->successors()) {
-    // Add values live on entry to the successor. Note the successor's
-    // live_in will not be computed yet for backwards edges.
-    auto live_in = live_in_sets()[succ.ToSize()];
+    // Add values live on entry to the successor.
+    if (succ <= block->rpo_number()) continue;
+    auto live_in = data->live_in_sets()[succ.ToSize()];
     if (live_in != nullptr) live_out->Union(*live_in);
 
     // All phi input operands corresponding to this successor edge are live
     // out from this block.
-    auto successor = code()->InstructionBlockAt(succ);
+    auto successor = code->InstructionBlockAt(succ);
     size_t index = successor->PredecessorIndexOf(block->rpo_number());
     DCHECK(index < successor->PredecessorCount());
     for (auto phi : successor->phis()) {
@@ -1834,7 +2025,7 @@ void LiveRangeBuilder::BuildLiveRanges() {
   for (int block_id = code()->InstructionBlockCount() - 1; block_id >= 0;
        --block_id) {
     auto block = code()->InstructionBlockAt(RpoNumber::FromInt(block_id));
-    auto live = ComputeLiveOut(block);
+    auto live = ComputeLiveOut(block, data());
     // Initially consider all live_out values live for the entire block. We
     // will shorten these intervals if necessary.
     AddInitialIntervals(block, live);
@@ -2597,13 +2788,15 @@ OperandAssigner::OperandAssigner(RegisterAllocationData* data) : data_(data) {}
 
 
 void OperandAssigner::AssignSpillSlots() {
-  auto& spill_ranges = data()->spill_ranges();
+  ZoneSet<SpillRange*>& spill_ranges = data()->spill_ranges();
   // Merge disjoint spill ranges
-  for (size_t i = 0; i < spill_ranges.size(); i++) {
-    auto range = spill_ranges[i];
+  for (auto i = spill_ranges.begin(), end = spill_ranges.end(); i != end; ++i) {
+    SpillRange* range = *i;
     if (range->IsEmpty()) continue;
-    for (size_t j = i + 1; j < spill_ranges.size(); j++) {
-      auto other = spill_ranges[j];
+    auto j = i;
+    j++;
+    for (; j != end; ++j) {
+      SpillRange* other = *j;
       if (!other->IsEmpty()) {
         range->TryMerge(other);
       }
