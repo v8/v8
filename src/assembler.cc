@@ -1141,7 +1141,7 @@ ExternalReference ExternalReference::new_space_start(Isolate* isolate) {
 
 
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->store_buffer()->TopAddress());
+  return ExternalReference(isolate->heap()->store_buffer_top_address());
 }
 
 

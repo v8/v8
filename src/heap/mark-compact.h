@@ -559,6 +559,7 @@ class MarkCompactCollector {
   enum SweepingParallelism { SWEEP_ON_MAIN_THREAD, SWEEP_IN_PARALLEL };
 
 #ifdef VERIFY_HEAP
+  void VerifyValidStoreAndSlotsBufferEntries();
   void VerifyMarkbitsAreClean();
   static void VerifyMarkbitsAreClean(PagedSpace* space);
   static void VerifyMarkbitsAreClean(NewSpace* space);

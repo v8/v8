@@ -12,16 +12,11 @@
 namespace v8 {
 namespace internal {
 
-Address StoreBuffer::TopAddress() {
-  return reinterpret_cast<Address>(heap_->store_buffer_top_address());
-}
-
-
 void StoreBuffer::Mark(Address addr) {
   DCHECK(!heap_->code_space()->Contains(addr));
   Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
   *top++ = addr;
-  heap_->public_set_store_buffer_top(top);
+  heap_->set_store_buffer_top(reinterpret_cast<Smi*>(top));
   if ((reinterpret_cast<uintptr_t>(top) & kStoreBufferOverflowBit) != 0) {
     DCHECK(top == limit_);
     Compact();

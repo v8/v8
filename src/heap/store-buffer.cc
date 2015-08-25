@@ -88,7 +88,7 @@ void StoreBuffer::SetUp() {
                                false)) {  // Not executable.
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
-  heap_->public_set_store_buffer_top(start_);
+  heap_->set_store_buffer_top(reinterpret_cast<Smi*>(start_));
 
   hash_set_1_ = new uintptr_t[kHashSetLength];
   hash_set_2_ = new uintptr_t[kHashSetLength];
@@ -105,7 +105,7 @@ void StoreBuffer::TearDown() {
   delete[] hash_set_2_;
   old_start_ = old_top_ = old_limit_ = old_reserved_limit_ = NULL;
   start_ = limit_ = NULL;
-  heap_->public_set_store_buffer_top(start_);
+  heap_->set_store_buffer_top(reinterpret_cast<Smi*>(start_));
 }
 
 
@@ -536,7 +536,7 @@ void StoreBuffer::Compact() {
   // There's no check of the limit in the loop below so we check here for
   // the worst case (compaction doesn't eliminate any pointers).
   DCHECK(top <= limit_);
-  heap_->public_set_store_buffer_top(start_);
+  heap_->set_store_buffer_top(reinterpret_cast<Smi*>(start_));
   EnsureSpace(top - start_);
   DCHECK(may_move_store_buffer_entries_);
   // Goes through the addresses in the store buffer attempting to remove

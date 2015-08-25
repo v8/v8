@@ -994,20 +994,12 @@ class Heap {
     roots_[kEmptyScriptRootIndex] = script;
   }
 
-  void public_set_store_buffer_top(Address* top) {
-    roots_[kStoreBufferTopRootIndex] = reinterpret_cast<Smi*>(top);
-  }
-
   void public_set_materialized_objects(FixedArray* objects) {
     roots_[kMaterializedObjectsRootIndex] = objects;
   }
 
   // Generated code can embed this address to get access to the roots.
   Object** roots_array_start() { return roots_; }
-
-  Address* store_buffer_top_address() {
-    return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
-  }
 
   void CheckHandleCount();
 
@@ -1028,12 +1020,6 @@ class Heap {
   size_t object_size_last_gc(size_t index) {
     return index < OBJECT_STATS_COUNT ? object_sizes_last_time_[index] : 0;
   }
-
-  // Write barrier support for address[offset] = o.
-  INLINE(void RecordWrite(Address address, int offset));
-
-  // Write barrier support for address[start : start + len[ = o.
-  INLINE(void RecordWrites(Address address, int start, int len));
 
   inline HeapState gc_state() { return gc_state_; }
 
@@ -1093,10 +1079,6 @@ class Heap {
   void ClearNormalizedMapCaches();
 
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
-
-  ExternalStringTable* external_string_table() {
-    return &external_string_table_;
-  }
 
   bool concurrent_sweeping_enabled() { return concurrent_sweeping_enabled_; }
 
@@ -1307,7 +1289,9 @@ class Heap {
     return &mark_compact_collector_;
   }
 
-  StoreBuffer* store_buffer() { return &store_buffer_; }
+  ExternalStringTable* external_string_table() {
+    return &external_string_table_;
+  }
 
   // ===========================================================================
   // Inline allocation. ========================================================
@@ -1363,6 +1347,20 @@ class Heap {
   void IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
                                          Address end, bool record_slots,
                                          ObjectSlotCallback callback);
+
+  // ===========================================================================
+  // Store buffer API. =========================================================
+  // ===========================================================================
+
+  // Write barrier support for address[offset] = o.
+  INLINE(void RecordWrite(Address address, int offset));
+
+  // Write barrier support for address[start : start + len[ = o.
+  INLINE(void RecordWrites(Address address, int start, int len));
+
+  Address* store_buffer_top_address() {
+    return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
+  }
 
   // ===========================================================================
   // Incremental marking API. ==================================================
@@ -1682,6 +1680,8 @@ class Heap {
   inline void set_##name(type* value);
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+
+  StoreBuffer* store_buffer() { return &store_buffer_; }
 
   void set_current_gc_flags(int flags) {
     current_gc_flags_ = flags;
@@ -2411,6 +2411,7 @@ class Heap {
   friend class MarkCompactMarkingVisitor;
   friend class MapCompact;
   friend class Page;
+  friend class StoreBuffer;
 
   // Used in cctest.
   friend class HeapTester;

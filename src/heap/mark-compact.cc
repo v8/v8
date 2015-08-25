@@ -303,17 +303,17 @@ static void VerifyValidSlotsBufferEntries(Heap* heap, PagedSpace* space) {
 }
 
 
-static void VerifyValidStoreAndSlotsBufferEntries(Heap* heap) {
-  heap->store_buffer()->VerifyValidStoreBufferEntries();
+void MarkCompactCollector::VerifyValidStoreAndSlotsBufferEntries() {
+  heap()->store_buffer()->VerifyValidStoreBufferEntries();
 
-  VerifyValidSlotsBufferEntries(heap, heap->old_space());
-  VerifyValidSlotsBufferEntries(heap, heap->code_space());
-  VerifyValidSlotsBufferEntries(heap, heap->map_space());
+  VerifyValidSlotsBufferEntries(heap(), heap()->old_space());
+  VerifyValidSlotsBufferEntries(heap(), heap()->code_space());
+  VerifyValidSlotsBufferEntries(heap(), heap()->map_space());
 
-  LargeObjectIterator it(heap->lo_space());
+  LargeObjectIterator it(heap()->lo_space());
   for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-    SlotsBuffer::VerifySlots(heap, chunk->slots_buffer());
+    SlotsBuffer::VerifySlots(heap(), chunk->slots_buffer());
   }
 }
 #endif
@@ -349,7 +349,7 @@ void MarkCompactCollector::CollectGarbage() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifyValidStoreAndSlotsBufferEntries(heap_);
+    VerifyValidStoreAndSlotsBufferEntries();
   }
 #endif
 

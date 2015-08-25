@@ -30,8 +30,6 @@ class StoreBuffer {
 
   static void StoreBufferOverflow(Isolate* isolate);
 
-  inline Address TopAddress();
-
   void SetUp();
   void TearDown();
 
