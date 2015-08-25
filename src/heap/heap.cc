@@ -5685,6 +5685,12 @@ void Heap::SetStackLimits() {
 }
 
 
+void Heap::PrintAlloctionsHash() {
+  uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
+  PrintF("\n### Allocations = %u, hash = 0x%08x\n", allocations_count(), hash);
+}
+
+
 void Heap::NotifyDeserializationComplete() {
   deserialization_complete_ = true;
 #ifdef DEBUG

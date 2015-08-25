@@ -323,12 +323,6 @@ void Heap::UpdateAllocationsHash(uint32_t value) {
 }
 
 
-void Heap::PrintAlloctionsHash() {
-  uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
-  PrintF("\n### Allocations = %u, hash = 0x%08x\n", allocations_count_, hash);
-}
-
-
 void Heap::FinalizeExternalString(String* string) {
   DCHECK(string->IsExternalString());
   v8::String::ExternalStringResourceBase** resource_addr =

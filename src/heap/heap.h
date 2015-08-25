@@ -821,9 +821,6 @@ class Heap {
   // should not happen during deserialization.
   void NotifyDeserializationComplete();
 
-  // Returns whether SetUp has been called.
-  bool HasBeenSetUp();
-
   intptr_t old_generation_allocation_limit() const {
     return old_generation_allocation_limit_;
   }
@@ -889,12 +886,6 @@ class Heap {
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Object* ToBoolean(bool condition);
-
-  // Attempt to over-approximate the weak closure by marking object groups and
-  // implicit references from global handles, but don't atomically complete
-  // marking. If we continue to mark incrementally, we might have marked
-  // objects that die later.
-  void OverApproximateWeakClosure(const char* gc_reason);
 
   // Check whether the heap is currently iterable.
   bool IsHeapIterable();
@@ -1013,7 +1004,7 @@ class Heap {
 
   // Returns deterministic "time" value in ms. Works only with
   // FLAG_verify_predictable.
-  double synthetic_time() { return allocations_count_ / 2.0; }
+  double synthetic_time() { return allocations_count() / 2.0; }
 
   // Print short heap statistics.
   void PrintShortHeapStatistics();
@@ -1049,21 +1040,6 @@ class Heap {
 
   void CreateApiObjects();
 
-  // Calculates the allocation limit based on a given growing factor and a
-  // given old generation size.
-  intptr_t CalculateOldGenerationAllocationLimit(double factor,
-                                                 intptr_t old_gen_size);
-
-  // Sets the allocation limit to trigger the next full garbage collection.
-  void SetOldGenerationAllocationLimit(intptr_t old_gen_size, double gc_speed,
-                                       double mutator_speed);
-
-  // Decrease the allocation limit if the new limit based on the given
-  // parameters is lower than the current limit.
-  void DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
-                                          double gc_speed,
-                                          double mutator_speed);
-
   // Implements the corresponding V8 API function.
   bool IdleNotification(double deadline_in_seconds);
   bool IdleNotification(int idle_time_in_ms);
@@ -1096,15 +1072,6 @@ class Heap {
     return false;
   }
 
-  void UpdateNewSpaceReferencesInExternalStringTable(
-      ExternalStringTableUpdaterCallback updater_func);
-
-  void UpdateReferencesInExternalStringTable(
-      ExternalStringTableUpdaterCallback updater_func);
-
-  void ProcessAllWeakReferences(WeakObjectRetainer* retainer);
-  void ProcessYoungWeakReferences(WeakObjectRetainer* retainer);
-
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
 
   // An object should be promoted if the object has survived a
@@ -1128,8 +1095,6 @@ class Heap {
   void FreeQueuedChunks(MemoryChunk* list_head);
   void FreeQueuedChunks();
   void WaitUntilUnmappingOfFreeChunksCompleted();
-
-  bool RecentIdleNotificationHappened();
 
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).
@@ -1160,8 +1125,6 @@ class Heap {
   }
 
   void DeoptMarkedAllocationSites();
-
-  bool MaximumSizeScavenge() { return maximum_size_scavenges_ > 0; }
 
   bool DeoptMaybeTenuredAllocationSites() {
     return new_space_.IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
@@ -1268,6 +1231,9 @@ class Heap {
 
   // Destroys all memory allocated by the heap.
   void TearDown();
+
+  // Returns whether SetUp has been called.
+  bool HasBeenSetUp();
 
   // ===========================================================================
   // Getters for spaces. =======================================================
@@ -1502,7 +1468,6 @@ class Heap {
     return semi_space_copied_object_size_;
   }
 
-
   inline intptr_t SurvivedNewSpaceObjectSize() {
     return promoted_objects_size_ + semi_space_copied_object_size_;
   }
@@ -1528,15 +1493,6 @@ class Heap {
     if (total < 0) return 0;
     return static_cast<intptr_t>(total);
   }
-
-  inline intptr_t OldGenerationSpaceAvailable() {
-    return old_generation_allocation_limit_ - PromotedTotalSize();
-  }
-
-  inline intptr_t OldGenerationCapacityAvailable() {
-    return max_old_generation_size_ - PromotedTotalSize();
-  }
-
 
   void UpdateNewSpaceAllocationCounter() {
     new_space_allocation_counter_ = NewSpaceAllocationCounter();
@@ -1567,19 +1523,6 @@ class Heap {
   size_t PromotedSinceLastGC() {
     return PromotedSpaceSizeOfObjects() - old_generation_size_at_last_gc_;
   }
-
-  // Update GC statistics that are tracked on the Heap.
-  void UpdateCumulativeGCStatistics(double duration, double spent_in_mutator,
-                                    double marking_time);
-
-  // Returns maximum GC pause.
-  double get_max_gc_pause() { return max_gc_pause_; }
-
-  // Returns maximum size of objects alive after GC.
-  intptr_t get_max_alive_after_gc() { return max_alive_after_gc_; }
-
-  // Returns minimal interval between two subsequent collections.
-  double get_min_in_mutator() { return min_in_mutator_; }
 
   int gc_count() const { return gc_count_; }
 
@@ -1618,15 +1561,10 @@ class Heap {
   // Allocation methods. =======================================================
   // ===========================================================================
 
-  // Returns a deep copy of the JavaScript object.
-  // Properties and elements are copied too.
-  // Optionally takes an AllocationSite to be appended in an AllocationMemento.
-  MUST_USE_RESULT AllocationResult CopyJSObject(JSObject* source,
-                                                AllocationSite* site = NULL);
-
   // Creates a filler object and returns a heap object immediately after it.
   MUST_USE_RESULT HeapObject* PrecedeWithFiller(HeapObject* object,
                                                 int filler_size);
+
   // Creates a filler object if needed for alignment and returns a heap object
   // immediately after it. If any space is left after the returned object,
   // another filler object is created so the over allocated memory is iterable.
@@ -1727,6 +1665,11 @@ class Heap {
     return (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
   }
 
+#define ROOT_ACCESSOR(type, name, camel_name) \
+  inline void set_##name(type* value);
+  ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
   int current_gc_flags() { return current_gc_flags_; }
 
   void set_current_gc_flags(int flags) {
@@ -1746,16 +1689,6 @@ class Heap {
   inline bool ShouldFinalizeIncrementalMarking() const {
     return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
   }
-
-#define ROOT_ACCESSOR(type, name, camel_name) \
-  inline void set_##name(type* value);
-  ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR
-
-  // Code that should be run before and after each GC.  Includes some
-  // reporting/verification activities when compiled with DEBUG set.
-  void GarbageCollectionPrologue();
-  void GarbageCollectionEpilogue();
 
   void PreprocessStackTraces();
 
@@ -1813,9 +1746,6 @@ class Heap {
 
   HeapObject* DoubleAlignForDeserialization(HeapObject* object, int size);
 
-  // Performs a minor collection in new generation.
-  void Scavenge();
-
   // Commits from space if it is uncommitted.
   void EnsureFromSpaceIsCommitted();
 
@@ -1824,18 +1754,6 @@ class Heap {
 
   // Fill in bogus values in from space
   void ZapFromSpace();
-
-  Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front);
-
-  // Performs a major collection in the whole heap.
-  void MarkCompact();
-
-  // Code to be run before and after mark-compact.
-  void MarkCompactPrologue();
-  void MarkCompactEpilogue();
-
-  void ProcessNativeContexts(WeakObjectRetainer* retainer);
-  void ProcessAllocationSites(WeakObjectRetainer* retainer);
 
   // Deopts all code that contains allocation instruction which are tenured or
   // not tenured. Moreover it clears the pretenuring allocation site statistics.
@@ -1918,14 +1836,107 @@ class Heap {
 
   inline void UpdateAllocationsHash(HeapObject* object);
   inline void UpdateAllocationsHash(uint32_t value);
-  inline void PrintAlloctionsHash();
+  void PrintAlloctionsHash();
 
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
 
+  // Attempt to over-approximate the weak closure by marking object groups and
+  // implicit references from global handles, but don't atomically complete
+  // marking. If we continue to mark incrementally, we might have marked
+  // objects that die later.
+  void OverApproximateWeakClosure(const char* gc_reason);
+
+  // ===========================================================================
+  // Actual GC. ================================================================
+  // ===========================================================================
+
+  // Code that should be run before and after each GC.  Includes some
+  // reporting/verification activities when compiled with DEBUG set.
+  void GarbageCollectionPrologue();
+  void GarbageCollectionEpilogue();
+
+  // Performs a major collection in the whole heap.
+  void MarkCompact();
+
+  // Code to be run before and after mark-compact.
+  void MarkCompactPrologue();
+  void MarkCompactEpilogue();
+
+  // Performs a minor collection in new generation.
+  void Scavenge();
+
+  Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front);
+
+  void UpdateNewSpaceReferencesInExternalStringTable(
+      ExternalStringTableUpdaterCallback updater_func);
+
+  void UpdateReferencesInExternalStringTable(
+      ExternalStringTableUpdaterCallback updater_func);
+
+  void ProcessAllWeakReferences(WeakObjectRetainer* retainer);
+  void ProcessYoungWeakReferences(WeakObjectRetainer* retainer);
+  void ProcessNativeContexts(WeakObjectRetainer* retainer);
+  void ProcessAllocationSites(WeakObjectRetainer* retainer);
+
+  // ===========================================================================
+  // GC statistics. ============================================================
+  // ===========================================================================
+
+  inline intptr_t OldGenerationSpaceAvailable() {
+    return old_generation_allocation_limit_ - PromotedTotalSize();
+  }
+
+  // Returns maximum GC pause.
+  double get_max_gc_pause() { return max_gc_pause_; }
+
+  // Returns maximum size of objects alive after GC.
+  intptr_t get_max_alive_after_gc() { return max_alive_after_gc_; }
+
+  // Returns minimal interval between two subsequent collections.
+  double get_min_in_mutator() { return min_in_mutator_; }
+
+  // Update GC statistics that are tracked on the Heap.
+  void UpdateCumulativeGCStatistics(double duration, double spent_in_mutator,
+                                    double marking_time);
+
+  bool MaximumSizeScavenge() { return maximum_size_scavenges_ > 0; }
+
+  // ===========================================================================
+  // Growing strategy. =========================================================
+  // ===========================================================================
+
+  // Decrease the allocation limit if the new limit based on the given
+  // parameters is lower than the current limit.
+  void DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
+                                          double gc_speed,
+                                          double mutator_speed);
+
+
+  // Calculates the allocation limit based on a given growing factor and a
+  // given old generation size.
+  intptr_t CalculateOldGenerationAllocationLimit(double factor,
+                                                 intptr_t old_gen_size);
+
+  // Sets the allocation limit to trigger the next full garbage collection.
+  void SetOldGenerationAllocationLimit(intptr_t old_gen_size, double gc_speed,
+                                       double mutator_speed);
+
+  // ===========================================================================
+  // Idle notification. ========================================================
+  // ===========================================================================
+
+  bool RecentIdleNotificationHappened();
+
   // ===========================================================================
   // Allocation methods. =======================================================
   // ===========================================================================
+
+  // Returns a deep copy of the JavaScript object.
+  // Properties and elements are copied too.
+  // Optionally takes an AllocationSite to be appended in an AllocationMemento.
+  MUST_USE_RESULT AllocationResult CopyJSObject(JSObject* source,
+                                                AllocationSite* site = NULL);
 
   // Allocates a JS Map in the heap.
   MUST_USE_RESULT AllocationResult
