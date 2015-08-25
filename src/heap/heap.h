@@ -824,11 +824,6 @@ class Heap {
   // pointer size aligned addresses.
   static inline void MoveBlock(Address dst, Address src, int byte_size);
 
-  // Set the stack limit in the roots_ array.  Some architectures generate
-  // code that looks here, because it is faster than loading from the static
-  // jslimit_/real_jslimit_ variable in the StackGuard.
-  void SetStackLimits();
-
   // Notifies the heap that is ok to start marking or other activities that
   // should not happen during deserialization.
   void NotifyDeserializationComplete();
@@ -919,35 +914,6 @@ class Heap {
     }
   }
 
-// Heap root getters.  We have versions with and without type::cast() here.
-// You can't use type::cast during GC because the assert fails.
-// TODO(1490): Try removing the unchecked accessors, now that GC marking does
-// not corrupt the map.
-#define ROOT_ACCESSOR(type, name, camel_name)                         \
-  inline type* name();                                                \
-  type* raw_unchecked_##name() {                                      \
-    return reinterpret_cast<type*>(roots_[k##camel_name##RootIndex]); \
-  }
-  ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR
-
-// Utility type maps
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name) inline Map* name##_map();
-  STRUCT_LIST(STRUCT_MAP_ACCESSOR)
-#undef STRUCT_MAP_ACCESSOR
-
-#define STRING_ACCESSOR(name, str) inline String* name();
-  INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
-#undef STRING_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name) inline Symbol* name();
-  PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name, varname, description) inline Symbol* name();
-  PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
   void set_native_contexts_list(Object* object) {
     native_contexts_list_ = object;
   }
@@ -979,27 +945,6 @@ class Heap {
   // Checks whether the given object is allowed to be migrated from it's
   // current space into the given destination space. Used for debugging.
   inline bool AllowedToBeMigrated(HeapObject* object, AllocationSpace dest);
-
-  // Sets the stub_cache_ (only used when expanding the dictionary).
-  void public_set_code_stubs(UnseededNumberDictionary* value) {
-    roots_[kCodeStubsRootIndex] = value;
-  }
-
-  // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
-  void public_set_non_monomorphic_cache(UnseededNumberDictionary* value) {
-    roots_[kNonMonomorphicCacheRootIndex] = value;
-  }
-
-  void public_set_empty_script(Script* script) {
-    roots_[kEmptyScriptRootIndex] = script;
-  }
-
-  void public_set_materialized_objects(FixedArray* objects) {
-    roots_[kMaterializedObjectsRootIndex] = objects;
-  }
-
-  // Generated code can embed this address to get access to the roots.
-  Object** roots_array_start() { return roots_; }
 
   void CheckHandleCount();
 
@@ -1043,17 +988,6 @@ class Heap {
   bool IdleNotification(int idle_time_in_ms);
 
   double MonotonicallyIncreasingTimeInMs();
-
-  Object* root(RootListIndex index) { return roots_[index]; }
-
-  // Generated code can treat direct references to this root as constant.
-  bool RootCanBeTreatedAsConstant(RootListIndex root_index);
-
-  Map* MapForFixedTypedArray(ExternalArrayType array_type);
-  RootListIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
-
-  RootListIndex RootIndexForEmptyFixedTypedArray(ElementsKind kind);
-  FixedTypedArrayBase* EmptyFixedTypedArrayForMap(Map* map);
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
 
@@ -1155,9 +1089,6 @@ class Heap {
   void CheckpointObjectStats();
   bool GetObjectTypeName(size_t index, const char** object_type,
                          const char** object_sub_type);
-
-  void RegisterStrongRoots(Object** start, Object** end);
-  void UnregisterStrongRoots(Object** start);
 
   void AddWeakObjectToCodeDependency(Handle<HeapObject> obj,
                                      Handle<DependentCode> dep);
@@ -1292,6 +1223,79 @@ class Heap {
   ExternalStringTable* external_string_table() {
     return &external_string_table_;
   }
+
+  // ===========================================================================
+  // Root set access. ==========================================================
+  // ===========================================================================
+
+  // Heap root getters.  We have versions with and without type::cast() here.
+  // You can't use type::cast during GC because the assert fails.
+  // TODO(1490): Try removing the unchecked accessors, now that GC marking does
+  // not corrupt the map.
+#define ROOT_ACCESSOR(type, name, camel_name)                         \
+  inline type* name();                                                \
+  type* raw_unchecked_##name() {                                      \
+    return reinterpret_cast<type*>(roots_[k##camel_name##RootIndex]); \
+  }
+  ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
+  // Utility type maps.
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name) inline Map* name##_map();
+  STRUCT_LIST(STRUCT_MAP_ACCESSOR)
+#undef STRUCT_MAP_ACCESSOR
+
+#define STRING_ACCESSOR(name, str) inline String* name();
+  INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
+#undef STRING_ACCESSOR
+
+#define SYMBOL_ACCESSOR(name) inline Symbol* name();
+  PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
+#define SYMBOL_ACCESSOR(name, varname, description) inline Symbol* name();
+  PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
+  Object* root(RootListIndex index) { return roots_[index]; }
+
+  // Generated code can embed this address to get access to the roots.
+  Object** roots_array_start() { return roots_; }
+
+  // Sets the stub_cache_ (only used when expanding the dictionary).
+  void public_set_code_stubs(UnseededNumberDictionary* value) {
+    roots_[kCodeStubsRootIndex] = value;
+  }
+
+  // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
+  void public_set_non_monomorphic_cache(UnseededNumberDictionary* value) {
+    roots_[kNonMonomorphicCacheRootIndex] = value;
+  }
+
+  void public_set_empty_script(Script* script) {
+    roots_[kEmptyScriptRootIndex] = script;
+  }
+
+  void public_set_materialized_objects(FixedArray* objects) {
+    roots_[kMaterializedObjectsRootIndex] = objects;
+  }
+
+  // Set the stack limit in the roots_ array.  Some architectures generate
+  // code that looks here, because it is faster than loading from the static
+  // jslimit_/real_jslimit_ variable in the StackGuard.
+  void SetStackLimits();
+
+  // Generated code can treat direct references to this root as constant.
+  bool RootCanBeTreatedAsConstant(RootListIndex root_index);
+
+  Map* MapForFixedTypedArray(ExternalArrayType array_type);
+  RootListIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
+
+  RootListIndex RootIndexForEmptyFixedTypedArray(ElementsKind kind);
+  FixedTypedArrayBase* EmptyFixedTypedArrayForMap(Map* map);
+
+  void RegisterStrongRoots(Object** start, Object** end);
+  void UnregisterStrongRoots(Object** start);
 
   // ===========================================================================
   // Inline allocation. ========================================================
