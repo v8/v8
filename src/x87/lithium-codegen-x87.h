@@ -138,8 +138,6 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocate(LAllocate* instr);
-  void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                       Label* map_check);
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
   void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
                                    Register object,
@@ -287,7 +285,9 @@ class LCodeGen: public LCodeGenBase {
   // EmitBranch expects to be the last instruction of a block.
   template<class InstrType>
   void EmitBranch(InstrType instr, Condition cc);
-  template<class InstrType>
+  template <class InstrType>
+  void EmitTrueBranch(InstrType instr, Condition cc);
+  template <class InstrType>
   void EmitFalseBranch(InstrType instr, Condition cc);
   void EmitNumberUntagDNoSSE2(LNumberUntagD* instr, Register input,
                               Register temp, X87Register res_reg,
