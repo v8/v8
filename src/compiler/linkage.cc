@@ -413,7 +413,7 @@ CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
 
   STATIC_ASSERT(5 == Linkage::kInterpreterContextParameter);
   types.AddParam(kMachAnyTagged);
-#if defined(V8_TARGET_ARCH_IA32)
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
   locations.AddParam(
       LinkageLocation::ForCallerFrameSlot(kInterpreterContextSpillSlot));
 #else

@@ -725,8 +725,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ add(kInterpreterDispatchTableRegister,
          Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
 
-  // TODO(rmcilroy) Push our context as a stack located parameter of the
-  // bytecode handler.
+  // Push context as a stack located parameter to the bytecode handler.
+  DCHECK_EQ(-1, kInterpreterContextSpillSlot);
+  __ push(esi);
 
   // Dispatch to the first bytecode handler for the function.
   __ movzx_b(esi, Operand(kInterpreterBytecodeArrayRegister,
