@@ -1707,7 +1707,7 @@ Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
     data = reinterpret_cast<Data*>(
         isolate->array_buffer_allocator()->Allocate(byte_length));
   }
-  Runtime::SetupArrayBuffer(isolate, buffer, is_external, data, byte_length);
+  JSArrayBuffer::Setup(buffer, isolate, is_external, data, byte_length);
 
   Handle<JSTypedArray> typed_array =
       isolate->factory()->NewJSTypedArray(type, buffer, 0, num_elements);

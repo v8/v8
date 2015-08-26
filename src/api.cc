@@ -6552,7 +6552,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, size_t byte_length) {
   ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
-  i::Runtime::SetupArrayBufferAllocatingData(i_isolate, obj, byte_length);
+  i::JSArrayBuffer::SetupAllocatingData(obj, i_isolate, byte_length);
   return Utils::ToLocal(obj);
 }
 
@@ -6567,9 +6567,9 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
   ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
-  i::Runtime::SetupArrayBuffer(i_isolate, obj,
-                               mode == ArrayBufferCreationMode::kExternalized,
-                               data, byte_length);
+  i::JSArrayBuffer::Setup(obj, i_isolate,
+                          mode == ArrayBufferCreationMode::kExternalized, data,
+                          byte_length);
   return Utils::ToLocal(obj);
 }
 
@@ -6749,8 +6749,8 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
   ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
-  i::Runtime::SetupArrayBufferAllocatingData(i_isolate, obj, byte_length, true,
-                                             i::SharedFlag::kShared);
+  i::JSArrayBuffer::SetupAllocatingData(obj, i_isolate, byte_length, true,
+                                        i::SharedFlag::kShared);
   return Utils::ToLocalShared(obj);
 }
 
@@ -6766,9 +6766,9 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
   ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
-  i::Runtime::SetupArrayBuffer(i_isolate, obj,
-                               mode == ArrayBufferCreationMode::kExternalized,
-                               data, byte_length, i::SharedFlag::kShared);
+  i::JSArrayBuffer::Setup(obj, i_isolate,
+                          mode == ArrayBufferCreationMode::kExternalized, data,
+                          byte_length, i::SharedFlag::kShared);
   return Utils::ToLocalShared(obj);
 }
 

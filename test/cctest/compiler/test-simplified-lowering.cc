@@ -266,7 +266,7 @@ TEST(RunLoadStoreArrayBuffer) {
   t.GenerateCode();
 
     Handle<JSArrayBuffer> array = t.factory()->NewJSArrayBuffer();
-    Runtime::SetupArrayBufferAllocatingData(t.isolate(), array, array_length);
+    JSArrayBuffer::SetupAllocatingData(array, t.isolate(), array_length);
     uint8_t* data = reinterpret_cast<uint8_t*>(array->backing_store());
     for (int i = 0; i < array_length; i++) {
       data[i] = i;

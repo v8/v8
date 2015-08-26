@@ -9519,6 +9519,15 @@ class JSArrayBuffer: public JSObject {
 
   void Neuter();
 
+  static void Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
+                    bool is_external, void* data, size_t allocated_length,
+                    SharedFlag shared = SharedFlag::kNotShared);
+
+  static bool SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
+                                  Isolate* isolate, size_t allocated_length,
+                                  bool initialize = true,
+                                  SharedFlag shared = SharedFlag::kNotShared);
+
   // Dispatched behavior.
   DECLARE_PRINTER(JSArrayBuffer)
   DECLARE_VERIFIER(JSArrayBuffer)

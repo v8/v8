@@ -1843,8 +1843,8 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
   obj->set_length(*length_object);
 
   Handle<JSArrayBuffer> buffer = isolate()->factory()->NewJSArrayBuffer();
-  Runtime::SetupArrayBuffer(isolate(), buffer, true, NULL, byte_length,
-                            SharedFlag::kNotShared);
+  JSArrayBuffer::Setup(buffer, isolate(), true, NULL, byte_length,
+                       SharedFlag::kNotShared);
   obj->set_buffer(*buffer);
   Handle<FixedTypedArrayBase> elements =
       isolate()->factory()->NewFixedTypedArray(

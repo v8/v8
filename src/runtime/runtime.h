@@ -1083,9 +1083,6 @@ class RuntimeState {
 };
 
 
-class JavaScriptFrameIterator;  // Forward declaration.
-
-
 class Runtime : public AllStatic {
  public:
   enum FunctionId {
@@ -1155,17 +1152,6 @@ class Runtime : public AllStatic {
 
   MUST_USE_RESULT static MaybeHandle<Name> ToName(Isolate* isolate,
                                                   Handle<Object> key);
-
-  static void SetupArrayBuffer(Isolate* isolate,
-                               Handle<JSArrayBuffer> array_buffer,
-                               bool is_external, void* data,
-                               size_t allocated_length,
-                               SharedFlag shared = SharedFlag::kNotShared);
-
-  static bool SetupArrayBufferAllocatingData(
-      Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-      size_t allocated_length, bool initialize = true,
-      SharedFlag shared = SharedFlag::kNotShared);
 
   enum TypedArrayId {
     // arrayIds below should be synchronized with typedarray.js natives.

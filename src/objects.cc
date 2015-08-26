@@ -15592,6 +15592,58 @@ void JSArrayBuffer::Neuter() {
 }
 
 
+void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
+                          bool is_external, void* data, size_t allocated_length,
+                          SharedFlag shared) {
+  DCHECK(array_buffer->GetInternalFieldCount() ==
+         v8::ArrayBuffer::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBuffer::kInternalFieldCount; i++) {
+    array_buffer->SetInternalField(i, Smi::FromInt(0));
+  }
+  array_buffer->set_backing_store(data);
+  array_buffer->set_bit_field(0);
+  array_buffer->set_is_external(is_external);
+  array_buffer->set_is_neuterable(shared == SharedFlag::kNotShared);
+  array_buffer->set_is_shared(shared == SharedFlag::kShared);
+
+  if (data && !is_external) {
+    isolate->heap()->RegisterNewArrayBuffer(
+        isolate->heap()->InNewSpace(*array_buffer), data, allocated_length);
+  }
+
+  Handle<Object> byte_length =
+      isolate->factory()->NewNumberFromSize(allocated_length);
+  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
+  array_buffer->set_byte_length(*byte_length);
+}
+
+
+bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
+                                        Isolate* isolate,
+                                        size_t allocated_length,
+                                        bool initialize, SharedFlag shared) {
+  void* data;
+  CHECK(isolate->array_buffer_allocator() != NULL);
+  // Prevent creating array buffers when serializing.
+  DCHECK(!isolate->serializer_enabled());
+  if (allocated_length != 0) {
+    if (initialize) {
+      data = isolate->array_buffer_allocator()->Allocate(allocated_length);
+    } else {
+      data = isolate->array_buffer_allocator()->AllocateUninitialized(
+          allocated_length);
+    }
+    if (data == NULL) return false;
+  } else {
+    data = NULL;
+  }
+
+  JSArrayBuffer::Setup(array_buffer, isolate, false, data, allocated_length,
+                       shared);
+  return true;
+}
+
+
 Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
     Handle<JSTypedArray> typed_array) {
 
