@@ -66,9 +66,8 @@ bool IsIntervalAlreadyExcluded(const LiveRange *range, LifetimePosition start,
 }
 
 
-void CreateSplinter(LiveRange *range, RegisterAllocationData *data,
+void CreateSplinter(TopLevelLiveRange *range, RegisterAllocationData *data,
                     LifetimePosition first_cut, LifetimePosition last_cut) {
-  DCHECK(!range->IsChild());
   DCHECK(!range->IsSplinter());
   // We can ignore ranges that live solely in deferred blocks.
   // If a range ends right at the end of a deferred block, it is marked by
@@ -94,7 +93,10 @@ void CreateSplinter(LiveRange *range, RegisterAllocationData *data,
     if (range->MayRequireSpillRange()) {
       data->CreateSpillRangeForLiveRange(range);
     }
-    LiveRange *result = data->NewChildRangeFor(range);
+    TopLevelLiveRange *result = data->NextLiveRange(range->machine_type());
+    DCHECK_NULL(data->live_ranges()[result->vreg()]);
+    data->live_ranges()[result->vreg()] = result;
+
     Zone *zone = data->allocation_zone();
     range->Splinter(start, end, result, zone);
   }
@@ -138,7 +140,7 @@ void SplinterRangesInDeferredBlocks(RegisterAllocationData *data) {
       int range_id = iterator.Current();
       iterator.Advance();
 
-      LiveRange *range = data->live_ranges()[range_id];
+      TopLevelLiveRange *range = data->live_ranges()[range_id];
       CreateSplinter(range, data, first_cut, last_cut);
     }
   }
@@ -155,12 +157,11 @@ void LiveRangeSeparator::Splinter() {
 void LiveRangeMerger::Merge() {
   int live_range_count = static_cast<int>(data()->live_ranges().size());
   for (int i = 0; i < live_range_count; ++i) {
-    LiveRange *range = data()->live_ranges()[i];
-    if (range == nullptr || range->IsEmpty() || range->IsChild() ||
-        !range->IsSplinter()) {
+    TopLevelLiveRange *range = data()->live_ranges()[i];
+    if (range == nullptr || range->IsEmpty() || !range->IsSplinter()) {
       continue;
     }
-    LiveRange *splinter_parent = range->splintered_from();
+    TopLevelLiveRange *splinter_parent = range->splintered_from();
 
     splinter_parent->Merge(range, data());
   }

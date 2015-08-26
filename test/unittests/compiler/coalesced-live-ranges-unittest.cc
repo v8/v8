@@ -29,7 +29,8 @@ class TestRangeBuilder {
   LiveRange* Build(int start, int end) { return Add(start, end).Build(); }
 
   LiveRange* Build() {
-    LiveRange* range = new (zone_) LiveRange(id_, MachineType::kRepTagged);
+    TopLevelLiveRange* range =
+        new (zone_) TopLevelLiveRange(id_, MachineType::kRepTagged);
     // Traverse the provided interval specifications backwards, because that is
     // what LiveRange expects.
     for (int i = static_cast<int>(pairs_.size()) - 1; i >= 0; --i) {
@@ -100,8 +101,9 @@ void CoalescedLiveRangesTest::RemoveConflicts(LiveRange* range) {
   LiveRangeIDs seen(zone());
   for (auto c = conflicts.Current(); c != nullptr;
        c = conflicts.RemoveCurrentAndGetNext()) {
-    EXPECT_FALSE(seen.count(c->id()) > 0);
-    seen.insert(c->id());
+    int id = c->TopLevel()->vreg();
+    EXPECT_FALSE(seen.count(id) > 0);
+    seen.insert(c->TopLevel()->vreg());
   }
 }
 
@@ -118,7 +120,7 @@ bool CoalescedLiveRangesTest::IsRangeConflictingWith(const LiveRange* range,
   auto conflicts = ranges().GetConflicts(range);
   for (auto conflict = conflicts.Current(); conflict != nullptr;
        conflict = conflicts.GetNext()) {
-    found_ids.insert(conflict->id());
+    found_ids.insert(conflict->TopLevel()->vreg());
   }
   return found_ids == ids;
 }

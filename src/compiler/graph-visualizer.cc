@@ -420,7 +420,9 @@ class GraphC1Visualizer {
   void PrintInputs(InputIterator* i, int count, const char* prefix);
   void PrintType(Node* node);
 
-  void PrintLiveRange(LiveRange* range, const char* type);
+  void PrintLiveRange(LiveRange* range, const char* type, int vreg);
+  void PrintLiveRangeChain(TopLevelLiveRange* range, const char* type);
+
   class Tag final BASE_EMBEDDED {
    public:
     Tag(GraphC1Visualizer* visualizer, const char* name) {
@@ -694,23 +696,33 @@ void GraphC1Visualizer::PrintLiveRanges(const char* phase,
   PrintStringProperty("name", phase);
 
   for (auto range : data->fixed_double_live_ranges()) {
-    PrintLiveRange(range, "fixed");
+    PrintLiveRangeChain(range, "fixed");
   }
 
   for (auto range : data->fixed_live_ranges()) {
-    PrintLiveRange(range, "fixed");
+    PrintLiveRangeChain(range, "fixed");
   }
 
   for (auto range : data->live_ranges()) {
-    PrintLiveRange(range, "object");
+    PrintLiveRangeChain(range, "object");
   }
 }
 
 
-void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
+void GraphC1Visualizer::PrintLiveRangeChain(TopLevelLiveRange* range,
+                                            const char* type) {
+  int vreg = range->vreg();
+  for (LiveRange* child = range; child != nullptr; child = child->next()) {
+    PrintLiveRange(child, type, vreg);
+  }
+}
+
+
+void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
+                                       int vreg) {
   if (range != NULL && !range->IsEmpty()) {
     PrintIndent();
-    os_ << range->id() << " " << type;
+    os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
       int assigned_reg = op.index();
@@ -739,13 +751,8 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
         }
       }
     }
-    int parent_index = -1;
-    if (range->IsChild()) {
-      parent_index = range->parent()->id();
-    } else {
-      parent_index = range->id();
-    }
-    os_ << " " << parent_index;
+
+    os_ << " " << vreg;
     for (auto interval = range->first_interval(); interval != nullptr;
          interval = interval->next()) {
       os_ << " [" << interval->start().value() << ", "

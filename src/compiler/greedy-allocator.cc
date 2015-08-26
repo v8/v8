@@ -22,11 +22,11 @@ const float GreedyAllocator::kAllocatedRangeMultiplier = 10.0;
 namespace {
 
 
-void UpdateOperands(LiveRange* range, RegisterAllocationData* data) {
+void UpdateOperands(TopLevelLiveRange* range, RegisterAllocationData* data) {
   int reg_id = range->assigned_register();
   range->SetUseHints(reg_id);
   if (range->is_phi()) {
-    data->GetPhiMapValueFor(range->id())->set_assigned_register(reg_id);
+    data->GetPhiMapValueFor(range)->set_assigned_register(reg_id);
   }
 }
 
@@ -38,8 +38,7 @@ LiveRange* Split(LiveRange* range, RegisterAllocationData* data,
          (data->code()
               ->GetInstructionBlock(pos.ToInstructionIndex())
               ->last_instruction_index() != pos.ToInstructionIndex()));
-  LiveRange* result = data->NewChildRangeFor(range);
-  range->SplitAt(pos, result, data->allocation_zone());
+  LiveRange* result = range->SplitAt(pos, data->allocation_zone());
   return result;
 }
 
@@ -117,7 +116,8 @@ AllocationCandidate AllocationScheduler::GetNext() {
 
 
 void AllocationScheduler::Schedule(LiveRange* range) {
-  TRACE("Scheduling live range %d.\n", range->id());
+  TRACE("Scheduling live range %d:%d.\n", range->TopLevel()->vreg(),
+        range->relative_id());
   queue_.push(AllocationCandidate(range));
 }
 
@@ -130,14 +130,15 @@ GreedyAllocator::GreedyAllocator(RegisterAllocationData* data,
 
 
 void GreedyAllocator::AssignRangeToRegister(int reg_id, LiveRange* range) {
-  TRACE("Assigning register %s to live range %d\n", RegisterName(reg_id),
-        range->id());
+  TRACE("Assigning register %s to live range %d:%d\n", RegisterName(reg_id),
+        range->TopLevel()->vreg(), range->relative_id());
 
   DCHECK(!range->HasRegisterAssigned());
 
   AllocateRegisterToRange(reg_id, range);
 
-  TRACE("Assigning %s to range %d\n", RegisterName(reg_id), range->id());
+  TRACE("Assigning %s to range %d%d.\n", RegisterName(reg_id),
+        range->TopLevel()->vreg(), range->relative_id());
   range->set_assigned_register(reg_id);
 }
 
@@ -151,7 +152,7 @@ void GreedyAllocator::PreallocateFixedRanges() {
   for (LiveRange* fixed_range : GetFixedRegisters()) {
     if (fixed_range != nullptr) {
       DCHECK_EQ(mode(), fixed_range->kind());
-      DCHECK(fixed_range->IsFixed());
+      DCHECK(fixed_range->TopLevel()->IsFixed());
 
       int reg_nr = fixed_range->assigned_register();
       EnsureValidRangeWeight(fixed_range);
@@ -180,7 +181,8 @@ void GreedyAllocator::TryAllocateCandidate(
 void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
   // TODO(mtrofin): once we introduce groups, we'll want to first try and
   // allocate at the preferred register.
-  TRACE("Attempting to allocate live range %d\n", range->id());
+  TRACE("Attempting to allocate live range %d:%d.\n", range->TopLevel()->vreg(),
+        range->relative_id());
   int free_reg = -1;
   int evictable_reg = -1;
   EnsureValidRangeWeight(range);
@@ -206,8 +208,9 @@ void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
 
   // We have a free register, so we use it.
   if (free_reg >= 0) {
-    TRACE("Found free register %s for live range %d\n", RegisterName(free_reg),
-          range->id());
+    TRACE("Found free register %s for live range %d:%d.\n",
+          RegisterName(free_reg), range->TopLevel()->vreg(),
+          range->relative_id());
     AssignRangeToRegister(free_reg, range);
     return;
   }
@@ -215,8 +218,9 @@ void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
   // We found a register to perform evictions, so we evict and allocate our
   // candidate.
   if (evictable_reg >= 0) {
-    TRACE("Found evictable register %s for live range %d\n",
-          RegisterName(free_reg), range->id());
+    TRACE("Found evictable register %s for live range %d:%d.\n",
+          RegisterName(free_reg), range->TopLevel()->vreg(),
+          range->relative_id());
     EvictAndRescheduleConflicts(evictable_reg, range);
     AssignRangeToRegister(evictable_reg, range);
     return;
@@ -233,11 +237,12 @@ void GreedyAllocator::EvictAndRescheduleConflicts(unsigned reg_id,
   for (LiveRange* conflict = conflicts.Current(); conflict != nullptr;
        conflict = conflicts.RemoveCurrentAndGetNext()) {
     DCHECK(conflict->HasRegisterAssigned());
-    CHECK(!conflict->IsFixed());
+    CHECK(!conflict->TopLevel()->IsFixed());
     conflict->UnsetAssignedRegister();
     UpdateWeightAtEviction(conflict);
     scheduler().Schedule(conflict);
-    TRACE("Evicted range %d.\n", conflict->id());
+    TRACE("Evicted range %d%d.\n", conflict->TopLevel()->vreg(),
+          conflict->relative_id());
   }
 }
 
@@ -250,7 +255,8 @@ void GreedyAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
     if (range->HasNoSpillType()) continue;
 
     LifetimePosition start = range->Start();
-    TRACE("Live range %d is defined by a spill operand.\n", range->id());
+    TRACE("Live range %d:%d is defined by a spill operand.\n",
+          range->TopLevel()->vreg(), range->relative_id());
     auto next_pos = start;
     if (next_pos.IsGapPosition()) {
       next_pos = next_pos.NextStart();
@@ -335,7 +341,7 @@ void GreedyAllocator::EnsureValidRangeWeight(LiveRange* range) {
   // unallocated.
   if (range->weight() != LiveRange::kInvalidWeight) return;
 
-  if (range->IsFixed()) {
+  if (range->TopLevel()->IsFixed()) {
     range->set_weight(LiveRange::kMaxWeight);
     return;
   }
