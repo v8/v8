@@ -1776,6 +1776,8 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
     if (!new_map->is_dictionary_map()) {
       MigrateFastToFast(object, new_map);
       if (old_map->is_prototype_map()) {
+        DCHECK(!old_map->is_stable());
+        DCHECK(new_map->is_stable());
         // Clear out the old descriptor array to avoid problems to sharing
         // the descriptor array without using an explicit.
         old_map->InitializeDescriptors(

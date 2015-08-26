@@ -8601,9 +8601,10 @@ bool HOptimizedGraphBuilder::CanInlineArrayResizeOperation(
   return !receiver_map.is_null() &&
          receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
-         !receiver_map->is_dictionary_map() &&
-         !IsReadOnlyLengthDescriptor(receiver_map) &&
-         !receiver_map->is_observed() && receiver_map->is_extensible();
+         !receiver_map->is_dictionary_map() && !receiver_map->is_observed() &&
+         receiver_map->is_extensible() &&
+         (!receiver_map->is_prototype_map() || receiver_map->is_stable()) &&
+         !IsReadOnlyLengthDescriptor(receiver_map);
 }
 
 
