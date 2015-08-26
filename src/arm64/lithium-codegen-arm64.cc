@@ -3099,31 +3099,6 @@ void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
 }
 
 
-void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
-  Label* is_object = instr->TrueLabel(chunk_);
-  Label* is_not_object = instr->FalseLabel(chunk_);
-  Register value = ToRegister(instr->value());
-  Register map = ToRegister(instr->temp1());
-  Register scratch = ToRegister(instr->temp2());
-
-  __ JumpIfSmi(value, is_not_object);
-  __ JumpIfRoot(value, Heap::kNullValueRootIndex, is_object);
-
-  __ Ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));
-
-  // Check for undetectable objects.
-  __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-  __ TestAndBranchIfAnySet(scratch, 1 << Map::kIsUndetectable, is_not_object);
-
-  // Check that instance type is in object type range.
-  __ IsInstanceJSObjectType(map, scratch, NULL);
-  // Flags have been updated by IsInstanceJSObjectType. We can now test the
-  // flags for "le" condition to check if the object's type is a valid
-  // JS object type.
-  EmitBranch(instr, le);
-}
-
-
 Condition LCodeGen::EmitIsString(Register input,
                                  Register temp1,
                                  Label* is_not_string,

@@ -1363,21 +1363,6 @@ RUNTIME_FUNCTION(Runtime_ObjectEquals) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsObject) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  if (!obj->IsHeapObject()) return isolate->heap()->false_value();
-  if (obj->IsNull()) return isolate->heap()->true_value();
-  if (obj->IsUndetectableObject()) return isolate->heap()->false_value();
-  Map* map = HeapObject::cast(obj)->map();
-  bool is_non_callable_spec_object =
-      map->instance_type() >= FIRST_NONCALLABLE_SPEC_OBJECT_TYPE &&
-      map->instance_type() <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE;
-  return isolate->heap()->ToBoolean(is_non_callable_spec_object);
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsSpecObject) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

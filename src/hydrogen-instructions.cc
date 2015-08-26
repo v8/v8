@@ -813,7 +813,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kInstanceOf:
     case HValue::kIsConstructCallAndBranch:
     case HValue::kHasInPrototypeChainAndBranch:
-    case HValue::kIsObjectAndBranch:
     case HValue::kIsSmiAndBranch:
     case HValue::kIsStringAndBranch:
     case HValue::kIsUndetectableAndBranch:
@@ -3265,29 +3264,6 @@ bool HCompareObjectEqAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
   }
   if (FLAG_fold_constants && left()->IsConstant() && right()->IsConstant()) {
     *block = HConstant::cast(left())->DataEquals(HConstant::cast(right()))
-        ? FirstSuccessor() : SecondSuccessor();
-    return true;
-  }
-  *block = NULL;
-  return false;
-}
-
-
-bool ConstantIsObject(HConstant* constant, Isolate* isolate) {
-  if (constant->HasNumberValue()) return false;
-  if (constant->GetUnique().IsKnownGlobal(isolate->heap()->null_value())) {
-    return true;
-  }
-  if (constant->IsUndetectable()) return false;
-  InstanceType type = constant->GetInstanceType();
-  return (FIRST_NONCALLABLE_SPEC_OBJECT_TYPE <= type) &&
-         (type <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
-}
-
-
-bool HIsObjectAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
-  if (FLAG_fold_constants && value()->IsConstant()) {
-    *block = ConstantIsObject(HConstant::cast(value()), isolate())
         ? FirstSuccessor() : SecondSuccessor();
     return true;
   }

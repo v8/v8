@@ -198,13 +198,6 @@ void LCompareNumericAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LIsObjectAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add("if is_object(");
-  value()->PrintTo(stream);
-  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
-}
-
-
 void LIsStringAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_string(");
   value()->PrintTo(stream);
@@ -1738,13 +1731,6 @@ LInstruction* LChunkBuilder::DoCompareMinusZeroAndBranch(
     HCompareMinusZeroAndBranch* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   return new (zone()) LCompareMinusZeroAndBranch(value);
-}
-
-
-LInstruction* LChunkBuilder::DoIsObjectAndBranch(HIsObjectAndBranch* instr) {
-  DCHECK(instr->value()->representation().IsSmiOrTagged());
-  LOperand* temp = TempRegister();
-  return new(zone()) LIsObjectAndBranch(UseRegister(instr->value()), temp);
 }
 
 

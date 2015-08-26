@@ -93,7 +93,6 @@ class LCodeGen;
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
   V(IsConstructCallAndBranch)                \
-  V(IsObjectAndBranch)                       \
   V(IsStringAndBranch)                       \
   V(IsSmiAndBranch)                          \
   V(IsUndetectableAndBranch)                 \
@@ -1002,23 +1001,6 @@ class LCompareMinusZeroAndBranch final : public LControlInstruction<1, 1> {
   DECLARE_CONCRETE_INSTRUCTION(CompareMinusZeroAndBranch,
                                "cmp-minus-zero-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(CompareMinusZeroAndBranch)
-};
-
-
-class LIsObjectAndBranch final : public LControlInstruction<1, 1> {
- public:
-  LIsObjectAndBranch(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch, "is-object-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(IsObjectAndBranch)
-
-  void PrintDataTo(StringStream* stream) override;
 };
 
 

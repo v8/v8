@@ -140,20 +140,6 @@ TEST(IsNonNegativeSmi) {
 }
 
 
-TEST(IsObject) {
-  FunctionTester T("(function(a) { return %_IsObject(a); })", flags);
-
-  T.CheckFalse(T.NewObject("(function() {})"));
-  T.CheckTrue(T.NewObject("([1])"));
-  T.CheckTrue(T.NewObject("({})"));
-  T.CheckTrue(T.NewObject("(/x/)"));
-  T.CheckFalse(T.undefined());
-  T.CheckTrue(T.null());
-  T.CheckFalse(T.Val("x"));
-  T.CheckFalse(T.Val(1));
-}
-
-
 TEST(IsRegExp) {
   FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
 

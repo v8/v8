@@ -2488,46 +2488,6 @@ void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
 }
 
 
-Condition LCodeGen::EmitIsObject(Register input,
-                                 Register temp1,
-                                 Register temp2,
-                                 Label* is_not_object,
-                                 Label* is_object) {
-  __ JumpIfSmi(input, is_not_object);
-
-  __ LoadRoot(temp2, Heap::kNullValueRootIndex);
-  __ Branch(is_object, eq, input, Operand(temp2));
-
-  // Load map.
-  __ ld(temp1, FieldMemOperand(input, HeapObject::kMapOffset));
-  // Undetectable objects behave like undefined.
-  __ lbu(temp2, FieldMemOperand(temp1, Map::kBitFieldOffset));
-  __ And(temp2, temp2, Operand(1 << Map::kIsUndetectable));
-  __ Branch(is_not_object, ne, temp2, Operand(zero_reg));
-
-  // Load instance type and check that it is in object type range.
-  __ lbu(temp2, FieldMemOperand(temp1, Map::kInstanceTypeOffset));
-  __ Branch(is_not_object,
-            lt, temp2, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-
-  return le;
-}
-
-
-void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
-  Register reg = ToRegister(instr->value());
-  Register temp1 = ToRegister(instr->temp());
-  Register temp2 = scratch0();
-
-  Condition true_cond =
-      EmitIsObject(reg, temp1, temp2,
-          instr->FalseLabel(chunk_), instr->TrueLabel(chunk_));
-
-  EmitBranch(instr, true_cond, temp2,
-             Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
-}
-
-
 Condition LCodeGen::EmitIsString(Register input,
                                  Register temp1,
                                  Label* is_not_string,

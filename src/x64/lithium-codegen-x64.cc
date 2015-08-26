@@ -2427,41 +2427,6 @@ void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
 }
 
 
-Condition LCodeGen::EmitIsObject(Register input,
-                                 Label* is_not_object,
-                                 Label* is_object) {
-  DCHECK(!input.is(kScratchRegister));
-
-  __ JumpIfSmi(input, is_not_object);
-
-  __ CompareRoot(input, Heap::kNullValueRootIndex);
-  __ j(equal, is_object);
-
-  __ movp(kScratchRegister, FieldOperand(input, HeapObject::kMapOffset));
-  // Undetectable objects behave like undefined.
-  __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsUndetectable));
-  __ j(not_zero, is_not_object);
-
-  __ movzxbl(kScratchRegister,
-             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
-  __ cmpb(kScratchRegister, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-  __ j(below, is_not_object);
-  __ cmpb(kScratchRegister, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
-  return below_equal;
-}
-
-
-void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
-  Register reg = ToRegister(instr->value());
-
-  Condition true_cond = EmitIsObject(
-      reg, instr->FalseLabel(chunk_), instr->TrueLabel(chunk_));
-
-  EmitBranch(instr, true_cond);
-}
-
-
 Condition LCodeGen::EmitIsString(Register input,
                                  Register temp1,
                                  Label* is_not_string,

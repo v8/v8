@@ -108,7 +108,6 @@ class LChunkBuilder;
   V(InvokeFunction)                           \
   V(IsConstructCallAndBranch)                 \
   V(HasInPrototypeChainAndBranch)             \
-  V(IsObjectAndBranch)                        \
   V(IsStringAndBranch)                        \
   V(IsSmiAndBranch)                           \
   V(IsUndetectableAndBranch)                  \
@@ -4451,28 +4450,6 @@ class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
   }
 
   int known_successor_index_;
-};
-
-
-class HIsObjectAndBranch final : public HUnaryControlInstruction {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HIsObjectAndBranch, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P3(HIsObjectAndBranch, HValue*,
-                                 HBasicBlock*, HBasicBlock*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  bool KnownSuccessorBlock(HBasicBlock** block) override;
-
-  DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch)
-
- private:
-  HIsObjectAndBranch(HValue* value,
-                     HBasicBlock* true_target = NULL,
-                     HBasicBlock* false_target = NULL)
-    : HUnaryControlInstruction(value, true_target, false_target) {}
 };
 
 
