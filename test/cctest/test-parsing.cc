@@ -3801,6 +3801,50 @@ TEST(ArrowFunctionsSloppyParameterNames) {
 }
 
 
+TEST(ArrowFunctionsYieldParameterNameInGenerator) {
+  const char* sloppy_function_context_data[][2] = {
+    {"(function f() { (", "); });"},
+    {NULL, NULL}
+  };
+
+  const char* strict_function_context_data[][2] = {
+    {"(function f() {'use strong'; (", "); });"},
+    {"(function f() {'use strict'; (", "); });"},
+    {NULL, NULL}
+  };
+
+  const char* generator_context_data[][2] = {
+    {"(function *g() {'use strong'; (", "); });"},
+    {"(function *g() {'use strict'; (", "); });"},
+    {"(function *g() { (", "); });"},
+    {NULL, NULL}
+  };
+
+  const char* arrow_data[] = {
+    "yield => {}",
+    "(yield) => {}",
+    "(a, yield) => {}",
+    "(yield, a) => {}",
+    "(yield, ...a) => {}",
+    "(a, ...yield) => {}",
+    "({yield}) => {}",
+    "([yield]) => {}",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = { kAllowHarmonyDestructuring,
+                                             kAllowHarmonyRestParameters,
+                                             kAllowHarmonyArrowFunctions,
+                                             kAllowStrongMode};
+  RunParserSyncTest(sloppy_function_context_data, arrow_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_function_context_data, arrow_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(generator_context_data, arrow_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
 TEST(SuperNoErrors) {
   // Tests that parser and preparser accept 'super' keyword in right places.
   const char* context_data[][2] = {
