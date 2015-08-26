@@ -88,7 +88,8 @@ namespace internal {
   V(ThisFunction)               \
   V(SuperPropertyReference)     \
   V(SuperCallReference)         \
-  V(CaseClause)
+  V(CaseClause)                 \
+  V(EmptyParentheses)
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
@@ -2848,6 +2849,17 @@ class SuperCallReference final : public Expression {
 };
 
 
+// This class is produced when parsing the () in arrow functions without any
+// arguments and is not actually a valid expression.
+class EmptyParentheses final : public Expression {
+ public:
+  DECLARE_NODE_TYPE(EmptyParentheses)
+
+ private:
+  EmptyParentheses(Zone* zone, int pos) : Expression(zone, pos) {}
+};
+
+
 #undef DECLARE_NODE_TYPE
 
 
@@ -3631,6 +3643,10 @@ class AstNodeFactory final BASE_EMBEDDED {
                                             int pos) {
     return new (zone_) SuperCallReference(zone_, this_var, new_target_var,
                                           this_function_var, pos);
+  }
+
+  EmptyParentheses* NewEmptyParentheses(int pos) {
+    return new (zone_) EmptyParentheses(zone_, pos);
   }
 
  private:

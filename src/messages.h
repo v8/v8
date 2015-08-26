@@ -308,8 +308,6 @@ class CallSite {
   T(MalformedArrowFunParamList, "Malformed arrow function parameter list")     \
   T(MalformedRegExp, "Invalid regular expression: /%/: %")                     \
   T(MalformedRegExpFlags, "Invalid regular expression flags")                  \
-  T(MissingArrow,                                                              \
-    "Expected () to start arrow function, but got '%' instead of '=>'")        \
   T(ModuleExportUndefined, "Export '%' is not defined in module")              \
   T(MultipleDefaultsInSwitch,                                                  \
     "More than one default clause in switch statement")                        \

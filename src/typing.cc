@@ -742,6 +742,11 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
 void AstTyper::VisitSpread(Spread* expr) { RECURSE(Visit(expr->expression())); }
 
 
+void AstTyper::VisitEmptyParentheses(EmptyParentheses* expr) {
+  UNREACHABLE();
+}
+
+
 void AstTyper::VisitThisFunction(ThisFunction* expr) {
 }
 

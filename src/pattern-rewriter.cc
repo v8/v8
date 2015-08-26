@@ -364,7 +364,12 @@ void Parser::PatternRewriter::VisitAssignment(Assignment* node) {
 
 
 void Parser::PatternRewriter::VisitSpread(Spread* node) {
-  // TODO(dslomov): implement.
+  UNREACHABLE();
+}
+
+
+void Parser::PatternRewriter::VisitEmptyParentheses(EmptyParentheses* node) {
+  UNREACHABLE();
 }
 
 

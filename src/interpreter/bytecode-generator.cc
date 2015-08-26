@@ -332,7 +332,12 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* node) {
 }
 
 
-void BytecodeGenerator::VisitSpread(Spread* node) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitSpread(Spread* node) { UNREACHABLE(); }
+
+
+void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* node) {
+  UNREACHABLE();
+}
 
 
 void BytecodeGenerator::VisitThisFunction(ThisFunction* node) {

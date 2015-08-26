@@ -337,6 +337,9 @@ void AstExpressionVisitor::VisitClassLiteral(ClassLiteral* expr) {}
 void AstExpressionVisitor::VisitSpread(Spread* expr) {}
 
 
+void AstExpressionVisitor::VisitEmptyParentheses(EmptyParentheses* expr) {}
+
+
 void AstExpressionVisitor::VisitSuperPropertyReference(
     SuperPropertyReference* expr) {}
 
