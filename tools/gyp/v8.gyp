@@ -999,6 +999,7 @@
         '../../src/version.h',
         '../../src/vm-state-inl.h',
         '../../src/vm-state.h',
+        '../../src/zone-type-cache.h',
         '../../src/zone.cc',
         '../../src/zone.h',
         '../../src/zone-allocator.h',
