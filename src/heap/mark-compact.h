@@ -707,6 +707,9 @@ class MarkCompactCollector {
   // True if concurrent or parallel sweeping is currently in progress.
   bool sweeping_in_progress_;
 
+  // True if parallel compaction is currently in progress.
+  bool parallel_compaction_in_progress_;
+
   // Synchronize sweeper threads.
   base::Semaphore pending_sweeper_jobs_semaphore_;
 
@@ -872,6 +875,8 @@ class MarkCompactCollector {
   void EvacuatePages();
 
   void EvacuatePagesInParallel();
+
+  void WaitUntilCompactionCompleted();
 
   void EvacuateNewSpaceAndCandidates();
 

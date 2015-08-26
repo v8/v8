@@ -33,8 +33,12 @@ class StoreBuffer {
   void SetUp();
   void TearDown();
 
-  // This is used by the mutator to enter addresses into the store buffer.
+  // This is used to add addresses to the store buffer non-concurrently.
   inline void Mark(Address addr);
+
+  // This is used to add addresses to the store buffer when multiple threads
+  // may operate on the store buffer.
+  inline void MarkSynchronized(Address addr);
 
   // This is used by the heap traversal to enter the addresses into the store
   // buffer that should still be in the store buffer after GC.  It enters
@@ -128,6 +132,9 @@ class StoreBuffer {
   uintptr_t* hash_set_1_;
   uintptr_t* hash_set_2_;
   bool hash_sets_are_empty_;
+
+  // Used for synchronization of concurrent store buffer access.
+  base::Mutex mutex_;
 
   void ClearFilteringHashSets();
 

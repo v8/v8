@@ -26,6 +26,12 @@ void StoreBuffer::Mark(Address addr) {
 }
 
 
+inline void StoreBuffer::MarkSynchronized(Address addr) {
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  Mark(addr);
+}
+
+
 void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
   if (store_buffer_rebuilding_enabled_) {
     SLOW_DCHECK(!heap_->code_space()->Contains(addr) &&

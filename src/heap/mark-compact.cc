@@ -47,6 +47,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       compacting_(false),
       was_marked_incrementally_(false),
       sweeping_in_progress_(false),
+      parallel_compaction_in_progress_(false),
       pending_sweeper_jobs_semaphore_(0),
       pending_compaction_jobs_semaphore_(0),
       evacuation_(false),
@@ -2690,7 +2691,11 @@ void MarkCompactCollector::AbortWeakCells() {
 
 void MarkCompactCollector::RecordMigratedSlot(Object* value, Address slot) {
   if (heap_->InNewSpace(value)) {
-    heap_->store_buffer()->Mark(slot);
+    if (parallel_compaction_in_progress_) {
+      heap_->store_buffer()->MarkSynchronized(slot);
+    } else {
+      heap_->store_buffer()->Mark(slot);
+    }
   } else if (value->IsHeapObject() && IsOnEvacuationCandidate(value)) {
     SlotsBuffer::AddTo(&slots_buffer_allocator_, &migration_slots_buffer_,
                        reinterpret_cast<Object**>(slot),
@@ -3313,8 +3318,15 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
+  parallel_compaction_in_progress_ = true;
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
       new CompactionTask(heap()), v8::Platform::kShortRunningTask);
+}
+
+
+void MarkCompactCollector::WaitUntilCompactionCompleted() {
+  pending_compaction_jobs_semaphore_.Wait();
+  parallel_compaction_in_progress_ = false;
 }
 
 
@@ -3626,7 +3638,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     EvacuationScope evacuation_scope(this);
     if (FLAG_parallel_compaction) {
       EvacuatePagesInParallel();
-      pending_compaction_jobs_semaphore_.Wait();
+      WaitUntilCompactionCompleted();
     } else {
       EvacuatePages();
     }
