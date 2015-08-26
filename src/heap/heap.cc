@@ -6460,7 +6460,7 @@ void DescriptorLookupCache::Clear() {
 }
 
 
-void ExternalStringTable::CleanUp() {
+void Heap::ExternalStringTable::CleanUp() {
   int last = 0;
   for (int i = 0; i < new_space_strings_.length(); ++i) {
     if (new_space_strings_[i] == heap_->the_hole_value()) {
@@ -6495,7 +6495,7 @@ void ExternalStringTable::CleanUp() {
 }
 
 
-void ExternalStringTable::TearDown() {
+void Heap::ExternalStringTable::TearDown() {
   for (int i = 0; i < new_space_strings_.length(); ++i) {
     heap_->FinalizeExternalString(ExternalString::cast(new_space_strings_[i]));
   }

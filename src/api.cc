@@ -5785,7 +5785,7 @@ MaybeLocal<String> v8::String::NewExternalTwoByte(
   i::Handle<i::String> string = i_isolate->factory()
                                     ->NewExternalStringFromTwoByte(resource)
                                     .ToHandleChecked();
-  i_isolate->heap()->external_string_table()->AddString(*string);
+  i_isolate->heap()->RegisterExternalString(*string);
   return Utils::ToLocal(string);
 }
 
@@ -5809,7 +5809,7 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
   i::Handle<i::String> string = i_isolate->factory()
                                     ->NewExternalStringFromOneByte(resource)
                                     .ToHandleChecked();
-  i_isolate->heap()->external_string_table()->AddString(*string);
+  i_isolate->heap()->RegisterExternalString(*string);
   return Utils::ToLocal(string);
 }
 
@@ -5837,7 +5837,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   DCHECK(!CanMakeExternal() || result);
   if (result) {
     DCHECK(obj->IsExternalString());
-    isolate->heap()->external_string_table()->AddString(*obj);
+    isolate->heap()->RegisterExternalString(*obj);
   }
   return result;
 }
@@ -5861,7 +5861,7 @@ bool v8::String::MakeExternal(
   DCHECK(!CanMakeExternal() || result);
   if (result) {
     DCHECK(obj->IsExternalString());
-    isolate->heap()->external_string_table()->AddString(*obj);
+    isolate->heap()->RegisterExternalString(*obj);
   }
   return result;
 }

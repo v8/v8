@@ -422,14 +422,11 @@ namespace internal {
   PRIVATE_SYMBOL_LIST(V)
 
 // Forward declarations.
+class HeapObjectsFilter;
 class HeapStats;
 class Isolate;
 class MemoryReducer;
 class WeakObjectRetainer;
-
-
-typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
-                                                      Object** pointer);
 
 
 // A queue of objects promoted during scavenge. Each object is accompanied
@@ -539,46 +536,6 @@ class PromotionQueue {
 
 typedef void (*ScavengingCallback)(Map* map, HeapObject** slot,
                                    HeapObject* object);
-
-
-// External strings table is a place where all external strings are
-// registered.  We need to keep track of such strings to properly
-// finalize them.
-class ExternalStringTable {
- public:
-  // Registers an external string.
-  inline void AddString(String* string);
-
-  inline void Iterate(ObjectVisitor* v);
-
-  // Restores internal invariant and gets rid of collected strings.
-  // Must be called after each Iterate() that modified the strings.
-  void CleanUp();
-
-  // Destroys all allocated memory.
-  void TearDown();
-
- private:
-  explicit ExternalStringTable(Heap* heap) : heap_(heap) {}
-
-  friend class Heap;
-
-  inline void Verify();
-
-  inline void AddOldString(String* string);
-
-  // Notifies the table that only a prefix of the new list is valid.
-  inline void ShrinkNewStrings(int position);
-
-  // To speed up scavenge collections new space string are kept
-  // separate from old space strings.
-  List<Object*> new_space_strings_;
-  List<Object*> old_space_strings_;
-
-  Heap* heap_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
-};
 
 
 enum ArrayStorageAllocationMode {
@@ -869,10 +826,6 @@ class Heap {
   // Move len elements within a given array from src_index index to dst_index
   // index.
   void MoveElements(FixedArray* array, int dst_index, int src_index, int len);
-
-  // Finalizes an external string by deleting the associated external
-  // data and clearing the resource pointer.
-  inline void FinalizeExternalString(String* string);
 
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages.
@@ -1220,10 +1173,6 @@ class Heap {
     return &mark_compact_collector_;
   }
 
-  ExternalStringTable* external_string_table() {
-    return &external_string_table_;
-  }
-
   // ===========================================================================
   // Root set access. ==========================================================
   // ===========================================================================
@@ -1391,6 +1340,17 @@ class Heap {
       IncrementalMarking::StepActions step_actions);
 
   IncrementalMarking* incremental_marking() { return &incremental_marking_; }
+
+  // ===========================================================================
+  // External string table API. ================================================
+  // ===========================================================================
+
+  // Registers an external string.
+  inline void RegisterExternalString(String* string);
+
+  // Finalizes an external string by deleting the associated external
+  // data and clearing the resource pointer.
+  inline void FinalizeExternalString(String* string);
 
   // ===========================================================================
   // Methods checking/returning the space of a given object/address. ===========
@@ -1613,6 +1573,45 @@ class Heap {
  private:
   class UnmapFreeMemoryTask;
 
+  // External strings table is a place where all external strings are
+  // registered.  We need to keep track of such strings to properly
+  // finalize them.
+  class ExternalStringTable {
+   public:
+    // Registers an external string.
+    inline void AddString(String* string);
+
+    inline void Iterate(ObjectVisitor* v);
+
+    // Restores internal invariant and gets rid of collected strings.
+    // Must be called after each Iterate() that modified the strings.
+    void CleanUp();
+
+    // Destroys all allocated memory.
+    void TearDown();
+
+   private:
+    explicit ExternalStringTable(Heap* heap) : heap_(heap) {}
+
+    inline void Verify();
+
+    inline void AddOldString(String* string);
+
+    // Notifies the table that only a prefix of the new list is valid.
+    inline void ShrinkNewStrings(int position);
+
+    // To speed up scavenge collections new space string are kept
+    // separate from old space strings.
+    List<Object*> new_space_strings_;
+    List<Object*> old_space_strings_;
+
+    Heap* heap_;
+
+    friend class Heap;
+
+    DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
+  };
+
   struct StrongRootsList;
 
   struct StringTypeTable {
@@ -1645,6 +1644,9 @@ class Heap {
     GCType gc_type;
     bool pass_isolate;
   };
+
+  typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
+                                                        Object** pointer);
 
   static const int kInitialStringTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
@@ -2569,8 +2571,6 @@ class SpaceIterator : public Malloced {
 // nodes filtering uses GC marks, it can't be used during MS/MC GC
 // phases. Also, it is forbidden to interrupt iteration in this mode,
 // as this will leave heap objects marked (and thus, unusable).
-class HeapObjectsFilter;
-
 class HeapIterator BASE_EMBEDDED {
  public:
   enum HeapObjectsFiltering { kNoFiltering, kFilterUnreachable };
