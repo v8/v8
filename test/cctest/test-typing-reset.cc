@@ -112,10 +112,12 @@ void CheckAllSame(ZoneVector<ExpressionTypeEntry>& types,
             CHECK_EXPR(BinaryOperation, expected_type) {
               CHECK_EXPR(Call, expected_type) {
                 CHECK_VAR(log, expected_type);
-                CHECK_VAR(values, expected_type);
-                CHECK_EXPR(BinaryOperation, expected_type) {
-                  CHECK_VAR(p, expected_type);
-                  CHECK_EXPR(Literal, expected_type);
+                CHECK_EXPR(Property, expected_type) {
+                  CHECK_VAR(values, expected_type);
+                  CHECK_EXPR(BinaryOperation, expected_type) {
+                    CHECK_VAR(p, expected_type);
+                    CHECK_EXPR(Literal, expected_type);
+                  }
                 }
               }
               CHECK_EXPR(Literal, expected_type);
@@ -177,23 +179,33 @@ void CheckAllSame(ZoneVector<ExpressionTypeEntry>& types,
       // var exp = stdlib.Math.exp;
       CHECK_EXPR(Assignment, expected_type) {
         CHECK_VAR(exp, expected_type);
-        CHECK_VAR(stdlib, expected_type);
-        CHECK_EXPR(Literal, expected_type);
-        CHECK_EXPR(Literal, expected_type);
+        CHECK_EXPR(Property, expected_type) {
+          CHECK_EXPR(Property, expected_type) {
+            CHECK_VAR(stdlib, expected_type);
+            CHECK_EXPR(Literal, expected_type);
+          }
+          CHECK_EXPR(Literal, expected_type);
+        }
       }
       // var log = stdlib.Math.log;
       CHECK_EXPR(Assignment, expected_type) {
         CHECK_VAR(log, expected_type);
-        CHECK_VAR(stdlib, expected_type);
-        CHECK_EXPR(Literal, expected_type);
-        CHECK_EXPR(Literal, expected_type);
+        CHECK_EXPR(Property, expected_type) {
+          CHECK_EXPR(Property, expected_type) {
+            CHECK_VAR(stdlib, expected_type);
+            CHECK_EXPR(Literal, expected_type);
+          }
+          CHECK_EXPR(Literal, expected_type);
+        }
       }
       // var values = new stdlib.Float64Array(buffer);
       CHECK_EXPR(Assignment, expected_type) {
         CHECK_VAR(values, expected_type);
         CHECK_EXPR(CallNew, expected_type) {
-          CHECK_VAR(stdlib, expected_type);
-          CHECK_EXPR(Literal, expected_type);
+          CHECK_EXPR(Property, expected_type) {
+            CHECK_VAR(stdlib, expected_type);
+            CHECK_EXPR(Literal, expected_type);
+          }
           CHECK_VAR(buffer, expected_type);
         }
       }

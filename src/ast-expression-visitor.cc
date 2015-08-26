@@ -241,19 +241,22 @@ void AstExpressionVisitor::VisitAssignment(Assignment* expr) {
 
 
 void AstExpressionVisitor::VisitYield(Yield* expr) {
-  RECURSE(Visit(expr->generator_object()));
-  RECURSE(Visit(expr->expression()));
+  VisitExpression(expr);
+  RECURSE_EXPRESSION(Visit(expr->generator_object()));
+  RECURSE_EXPRESSION(Visit(expr->expression()));
 }
 
 
 void AstExpressionVisitor::VisitThrow(Throw* expr) {
-  RECURSE(Visit(expr->exception()));
+  VisitExpression(expr);
+  RECURSE_EXPRESSION(Visit(expr->exception()));
 }
 
 
 void AstExpressionVisitor::VisitProperty(Property* expr) {
-  RECURSE(Visit(expr->obj()));
-  RECURSE(Visit(expr->key()));
+  VisitExpression(expr);
+  RECURSE_EXPRESSION(Visit(expr->obj()));
+  RECURSE_EXPRESSION(Visit(expr->key()));
 }
 
 

@@ -163,10 +163,12 @@ TEST(VisitExpressions) {
             CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
               CHECK_EXPR(Call, DEFAULT_TYPE) {
                 CHECK_VAR(log, DEFAULT_TYPE);
-                CHECK_VAR(values, DEFAULT_TYPE);
-                CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-                  CHECK_VAR(p, DEFAULT_TYPE);
-                  CHECK_EXPR(Literal, DEFAULT_TYPE);
+                CHECK_EXPR(Property, DEFAULT_TYPE) {
+                  CHECK_VAR(values, DEFAULT_TYPE);
+                  CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
+                    CHECK_VAR(p, DEFAULT_TYPE);
+                    CHECK_EXPR(Literal, DEFAULT_TYPE);
+                  }
                 }
               }
               CHECK_EXPR(Literal, DEFAULT_TYPE);
@@ -228,23 +230,33 @@ TEST(VisitExpressions) {
       // var exp = stdlib.Math.exp;
       CHECK_EXPR(Assignment, DEFAULT_TYPE) {
         CHECK_VAR(exp, DEFAULT_TYPE);
-        CHECK_VAR(stdlib, DEFAULT_TYPE);
-        CHECK_EXPR(Literal, DEFAULT_TYPE);
-        CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(Property, DEFAULT_TYPE) {
+          CHECK_EXPR(Property, DEFAULT_TYPE) {
+            CHECK_VAR(stdlib, DEFAULT_TYPE);
+            CHECK_EXPR(Literal, DEFAULT_TYPE);
+          }
+          CHECK_EXPR(Literal, DEFAULT_TYPE);
+        }
       }
       // var log = stdlib.Math.log;
       CHECK_EXPR(Assignment, DEFAULT_TYPE) {
         CHECK_VAR(log, DEFAULT_TYPE);
-        CHECK_VAR(stdlib, DEFAULT_TYPE);
-        CHECK_EXPR(Literal, DEFAULT_TYPE);
-        CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(Property, DEFAULT_TYPE) {
+          CHECK_EXPR(Property, DEFAULT_TYPE) {
+            CHECK_VAR(stdlib, DEFAULT_TYPE);
+            CHECK_EXPR(Literal, DEFAULT_TYPE);
+          }
+          CHECK_EXPR(Literal, DEFAULT_TYPE);
+        }
       }
       // var values = new stdlib.Float64Array(buffer);
       CHECK_EXPR(Assignment, DEFAULT_TYPE) {
         CHECK_VAR(values, DEFAULT_TYPE);
         CHECK_EXPR(CallNew, DEFAULT_TYPE) {
-          CHECK_VAR(stdlib, DEFAULT_TYPE);
-          CHECK_EXPR(Literal, DEFAULT_TYPE);
+          CHECK_EXPR(Property, DEFAULT_TYPE) {
+            CHECK_VAR(stdlib, DEFAULT_TYPE);
+            CHECK_EXPR(Literal, DEFAULT_TYPE);
+          }
           CHECK_VAR(buffer, DEFAULT_TYPE);
         }
       }
@@ -293,6 +305,61 @@ TEST(VisitSwitchStatment) {
       }
       CHECK_VAR(.switch_tag, DEFAULT_TYPE);
       CHECK_EXPR(Literal, DEFAULT_TYPE);
+    }
+  }
+  CHECK_TYPES_END
+}
+
+
+TEST(VisitThrow) {
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
+  // Check that traversing an empty for statement works.
+  const char test_function[] =
+      "function foo() {\n"
+      "  throw 123;\n"
+      "}\n";
+  CollectTypes(&handles, test_function, &types);
+  CHECK_TYPES_BEGIN {
+    CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {
+      CHECK_EXPR(Throw, DEFAULT_TYPE) { CHECK_EXPR(Literal, DEFAULT_TYPE); }
+    }
+  }
+  CHECK_TYPES_END
+}
+
+
+TEST(VisitYield) {
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
+  // Check that traversing an empty for statement works.
+  const char test_function[] =
+      "function* foo() {\n"
+      "  yield 123;\n"
+      "}\n";
+  CollectTypes(&handles, test_function, &types);
+  CHECK_TYPES_BEGIN {
+    CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {
+      // Generator function yields generator on entry.
+      CHECK_EXPR(Yield, DEFAULT_TYPE) {
+        CHECK_VAR(.generator_object, DEFAULT_TYPE);
+        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
+          CHECK_VAR(.generator_object, DEFAULT_TYPE);
+          CHECK_EXPR(CallRuntime, DEFAULT_TYPE);
+        }
+      }
+      // Then yields undefined.
+      CHECK_EXPR(Yield, DEFAULT_TYPE) {
+        CHECK_VAR(.generator_object, DEFAULT_TYPE);
+        CHECK_EXPR(Literal, DEFAULT_TYPE);
+      }
+      // Then yields 123.
+      CHECK_EXPR(Yield, DEFAULT_TYPE) {
+        CHECK_VAR(.generator_object, DEFAULT_TYPE);
+        CHECK_EXPR(Literal, DEFAULT_TYPE);
+      }
     }
   }
   CHECK_TYPES_END
