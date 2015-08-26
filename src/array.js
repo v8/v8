@@ -2,14 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $arrayConcat;
-var $arrayPush;
-var $arrayPop;
-var $arrayShift;
-var $arraySlice;
-var $arraySplice;
-var $arrayUnshift;
-
 (function(global, utils) {
 
 "use strict";
@@ -1695,6 +1687,7 @@ utils.SetUpLockedPrototype(InternalPackedArray, GlobalArray(), [
 utils.Export(function(to) {
   to.ArrayIndexOf = ArrayIndexOf;
   to.ArrayJoin = ArrayJoin;
+  to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
   to.InnerArrayEvery = InnerArrayEvery;
   to.InnerArrayFilter = InnerArrayFilter;
@@ -1711,12 +1704,14 @@ utils.Export(function(to) {
   to.PackedArrayReverse = PackedArrayReverse;
 });
 
-$arrayConcat = ArrayConcatJS;
-$arrayPush = ArrayPush;
-$arrayPop = ArrayPop;
-$arrayShift = ArrayShift;
-$arraySlice = ArraySlice;
-$arraySplice = ArraySplice;
-$arrayUnshift = ArrayUnshift;
+%InstallToContext([
+  "array_concat", ArrayConcatJS,
+  "array_pop", ArrayPop,
+  "array_push", ArrayPush,
+  "array_shift", ArrayShift,
+  "array_splice", ArraySplice,
+  "array_slice", ArraySlice,
+  "array_unshift", ArrayUnshift,
+]);
 
 });

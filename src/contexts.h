@@ -91,6 +91,13 @@ enum BindingFlags {
   V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
+  V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                             \
+  V(ARRAY_POP_INDEX, JSFunction, array_pop)                                   \
+  V(ARRAY_PUSH_INDEX, JSFunction, array_push)                                 \
+  V(ARRAY_SHIFT_INDEX, JSFunction, array_shift)                               \
+  V(ARRAY_SPLICE_INDEX, JSFunction, array_splice)                             \
+  V(ARRAY_SLICE_INDEX, JSFunction, array_slice)                               \
+  V(ARRAY_UNSHIFT_INDEX, JSFunction, array_unshift)                           \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)           \
   V(CREATE_DATE_FUN_INDEX, JSFunction, create_date_fun)                       \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                     \

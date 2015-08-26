@@ -19,6 +19,7 @@
 
 var ArrayIndexOf;
 var ArrayJoin;
+var ArrayPush;
 var IsFinite;
 var IsNaN;
 var GlobalBoolean = global.Boolean;
@@ -39,6 +40,7 @@ var StringSubstring;
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
+  ArrayPush = from.ArrayPush;
   IsFinite = from.IsFinite;
   IsNaN = from.IsNaN;
   MathFloor = from.MathFloor;
@@ -298,7 +300,7 @@ function lookupSupportedLocalesOf(requestedLocales, availableLocales) {
     do {
       if (!IS_UNDEFINED(availableLocales[locale])) {
         // Push requested locale not the resolved one.
-        %_CallFunction(matchedLocales, requestedLocales[i], $arrayPush);
+        %_CallFunction(matchedLocales, requestedLocales[i], ArrayPush);
         break;
       }
       // Truncate locale if possible, if not break.
@@ -715,7 +717,7 @@ function initializeLocaleList(locales) {
   } else {
     // We allow single string localeID.
     if (typeof locales === 'string') {
-      %_CallFunction(seen, canonicalizeLanguageTag(locales), $arrayPush);
+      %_CallFunction(seen, canonicalizeLanguageTag(locales), ArrayPush);
       return freezeArray(seen);
     }
 
@@ -729,7 +731,7 @@ function initializeLocaleList(locales) {
         var tag = canonicalizeLanguageTag(value);
 
         if (%_CallFunction(seen, tag, ArrayIndexOf) === -1) {
-          %_CallFunction(seen, tag, $arrayPush);
+          %_CallFunction(seen, tag, ArrayPush);
         }
       }
     }
@@ -775,7 +777,7 @@ function isValidLanguageTag(locale) {
     if (%_CallFunction(GetLanguageVariantRE(), value, RegExpTest) &&
         extensions.length === 0) {
       if (%_CallFunction(variants, value, ArrayIndexOf) === -1) {
-        %_CallFunction(variants, value, $arrayPush);
+        %_CallFunction(variants, value, ArrayPush);
       } else {
         return false;
       }
@@ -783,7 +785,7 @@ function isValidLanguageTag(locale) {
 
     if (%_CallFunction(GetLanguageSingletonRE(), value, RegExpTest)) {
       if (%_CallFunction(extensions, value, ArrayIndexOf) === -1) {
-        %_CallFunction(extensions, value, $arrayPush);
+        %_CallFunction(extensions, value, ArrayPush);
       } else {
         return false;
       }
