@@ -245,6 +245,7 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 
 // Feature dependencies.
 DEFINE_IMPLICATION(harmony_sloppy_let, harmony_sloppy)
+DEFINE_IMPLICATION(harmony_sloppy_function, harmony_sloppy)
 
 
 // Flags for experimental implementation features.
