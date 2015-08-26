@@ -6153,7 +6153,7 @@ void Map::Clear() {
   i::Isolate* isolate = self->GetIsolate();
   LOG_API(isolate, "Map::Clear");
   ENTER_V8(isolate);
-  i::Runtime::JSMapClear(isolate, self);
+  i::JSMap::Clear(self);
 }
 
 
@@ -6269,7 +6269,7 @@ void Set::Clear() {
   i::Isolate* isolate = self->GetIsolate();
   LOG_API(isolate, "Set::Clear");
   ENTER_V8(isolate);
-  i::Runtime::JSSetClear(isolate, self);
+  i::JSSet::Clear(self);
 }
 
 
@@ -6535,7 +6535,7 @@ void v8::ArrayBuffer::Neuter() {
                   "Only neuterable ArrayBuffers can be neutered");
   LOG_API(obj->GetIsolate(), "v8::ArrayBuffer::Neuter()");
   ENTER_V8(isolate);
-  i::Runtime::NeuterArrayBuffer(obj);
+  obj->Neuter();
 }
 
 

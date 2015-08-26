@@ -1167,8 +1167,6 @@ class Runtime : public AllStatic {
       size_t allocated_length, bool initialize = true,
       SharedFlag shared = SharedFlag::kNotShared);
 
-  static void NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer);
-
   enum TypedArrayId {
     // arrayIds below should be synchromized with typedarray.js natives.
     ARRAY_ID_UINT8 = 1,
@@ -1192,12 +1190,6 @@ class Runtime : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
       Isolate* isolate, Handle<FixedArray> literals,
       Handle<FixedArray> elements, bool is_strong);
-
-
-  static void JSMapInitialize(Isolate* isolate, Handle<JSMap> map);
-  static void JSMapClear(Isolate* isolate, Handle<JSMap> map);
-  static void JSSetInitialize(Isolate* isolate, Handle<JSSet> set);
-  static void JSSetClear(Isolate* isolate, Handle<JSSet> set);
 
   static void WeakCollectionInitialize(
       Isolate* isolate, Handle<JSWeakCollection> weak_collection);

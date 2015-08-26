@@ -9301,6 +9301,9 @@ class JSSet : public JSCollection {
  public:
   DECLARE_CAST(JSSet)
 
+  static void Initialize(Handle<JSSet> set, Isolate* isolate);
+  static void Clear(Handle<JSSet> set);
+
   // Dispatched behavior.
   DECLARE_PRINTER(JSSet)
   DECLARE_VERIFIER(JSSet)
@@ -9314,6 +9317,9 @@ class JSSet : public JSCollection {
 class JSMap : public JSCollection {
  public:
   DECLARE_CAST(JSMap)
+
+  static void Initialize(Handle<JSMap> map, Isolate* isolate);
+  static void Clear(Handle<JSMap> map);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSMap)

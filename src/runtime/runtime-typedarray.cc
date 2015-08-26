@@ -67,11 +67,6 @@ bool Runtime::SetupArrayBufferAllocatingData(Isolate* isolate,
 }
 
 
-void Runtime::NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer) {
-  array_buffer->Neuter();
-}
-
-
 RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
@@ -150,7 +145,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   void* backing_store = array_buffer->backing_store();
   size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
   array_buffer->set_is_external(true);
-  Runtime::NeuterArrayBuffer(array_buffer);
+  array_buffer->Neuter();
   isolate->heap()->UnregisterArrayBuffer(
       isolate->heap()->InNewSpace(*array_buffer), backing_store);
   isolate->array_buffer_allocator()->Free(backing_store, byte_length);

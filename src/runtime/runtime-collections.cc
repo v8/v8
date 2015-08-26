@@ -45,17 +45,11 @@ RUNTIME_FUNCTION(Runtime_GenericHash) {
 }
 
 
-void Runtime::JSSetInitialize(Isolate* isolate, Handle<JSSet> set) {
-  Handle<OrderedHashSet> table = isolate->factory()->NewOrderedHashSet();
-  set->set_table(*table);
-}
-
-
 RUNTIME_FUNCTION(Runtime_SetInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  Runtime::JSSetInitialize(isolate, holder);
+  JSSet::Initialize(holder, isolate);
   return *holder;
 }
 
@@ -82,18 +76,11 @@ RUNTIME_FUNCTION(Runtime_SetShrink) {
 }
 
 
-void Runtime::JSSetClear(Isolate* isolate, Handle<JSSet> set) {
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
-  table = OrderedHashSet::Clear(table);
-  set->set_table(*table);
-}
-
-
 RUNTIME_FUNCTION(Runtime_SetClear) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  Runtime::JSSetClear(isolate, holder);
+  JSSet::Clear(holder);
   return isolate->heap()->undefined_value();
 }
 
@@ -153,17 +140,11 @@ RUNTIME_FUNCTION(Runtime_SetIteratorDetails) {
 }
 
 
-void Runtime::JSMapInitialize(Isolate* isolate, Handle<JSMap> map) {
-  Handle<OrderedHashMap> table = isolate->factory()->NewOrderedHashMap();
-  map->set_table(*table);
-}
-
-
 RUNTIME_FUNCTION(Runtime_MapInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  Runtime::JSMapInitialize(isolate, holder);
+  JSMap::Initialize(holder, isolate);
   return *holder;
 }
 
@@ -179,18 +160,11 @@ RUNTIME_FUNCTION(Runtime_MapShrink) {
 }
 
 
-void Runtime::JSMapClear(Isolate* isolate, Handle<JSMap> map) {
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
-  table = OrderedHashMap::Clear(table);
-  map->set_table(*table);
-}
-
-
 RUNTIME_FUNCTION(Runtime_MapClear) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  Runtime::JSMapClear(isolate, holder);
+  JSMap::Clear(holder);
   return isolate->heap()->undefined_value();
 }
 

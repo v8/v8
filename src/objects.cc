@@ -15127,6 +15127,32 @@ template void
 OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::Transition();
 
 
+void JSSet::Initialize(Handle<JSSet> set, Isolate* isolate) {
+  Handle<OrderedHashSet> table = isolate->factory()->NewOrderedHashSet();
+  set->set_table(*table);
+}
+
+
+void JSSet::Clear(Handle<JSSet> set) {
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
+  table = OrderedHashSet::Clear(table);
+  set->set_table(*table);
+}
+
+
+void JSMap::Initialize(Handle<JSMap> map, Isolate* isolate) {
+  Handle<OrderedHashMap> table = isolate->factory()->NewOrderedHashMap();
+  map->set_table(*table);
+}
+
+
+void JSMap::Clear(Handle<JSMap> map) {
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
+  table = OrderedHashMap::Clear(table);
+  map->set_table(*table);
+}
+
+
 // Check if there is a break point at this code position.
 bool DebugInfo::HasBreakPoint(int code_position) {
   // Get the break point info object for this code position.
