@@ -1752,75 +1752,6 @@ void Genesis::InitializeBuiltinTypedArrays() {
 }
 
 
-#define INSTALL_NATIVE(index, Type, name)                    \
-  Handle<Object> name##_native =                             \
-      Object::GetProperty(isolate, container, #name, STRICT) \
-          .ToHandleChecked();                                \
-  DCHECK(name##_native->Is##Type());                         \
-  native_context->set_##name(Type::cast(*name##_native));
-
-
-void Bootstrapper::ImportNatives(Isolate* isolate, Handle<JSObject> container) {
-  HandleScope scope(isolate);
-  Handle<Context> native_context = isolate->native_context();
-  NATIVE_CONTEXT_IMPORTED_FIELDS(INSTALL_NATIVE)
-}
-
-
-#define EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(id)                                \
-  static void InstallExperimentalNatives_##id(Isolate* isolate,               \
-                                              Handle<Context> native_context, \
-                                              Handle<JSObject> container) {}
-
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_modules)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_array_includes)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_regexps)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_arrow_functions)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_tostring)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sloppy)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sloppy_function)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sloppy_let)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode_regexps)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_rest_parameters)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_default_parameters)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_reflect)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spreadcalls)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_destructuring)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_object)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_object_observe)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_spread_arrays)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sharedarraybuffer)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_atomics)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_new_target)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_concat_spreadable)
-EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_simd)
-
-
-static void InstallExperimentalNatives_harmony_proxies(
-    Isolate* isolate, Handle<Context> native_context,
-    Handle<JSObject> container) {
-  if (FLAG_harmony_proxies) {
-    NATIVE_CONTEXT_IMPORTED_FIELDS_FOR_PROXY(INSTALL_NATIVE)
-  }
-}
-
-
-void Bootstrapper::ImportExperimentalNatives(Isolate* isolate,
-                                             Handle<JSObject> container) {
-  HandleScope scope(isolate);
-  Handle<Context> native_context = isolate->native_context();
-#define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) \
-  InstallExperimentalNatives_##id(isolate, native_context, container);
-
-  HARMONY_INPROGRESS(INSTALL_NATIVE_FUNCTIONS_FOR)
-  HARMONY_STAGED(INSTALL_NATIVE_FUNCTIONS_FOR)
-  HARMONY_SHIPPING(INSTALL_NATIVE_FUNCTIONS_FOR)
-#undef INSTALL_NATIVE_FUNCTIONS_FOR
-}
-
-#undef INSTALL_NATIVE
-
-
 bool Bootstrapper::InstallJSBuiltins(Isolate* isolate,
                                      Handle<JSObject> container) {
   HandleScope scope(isolate);
@@ -1905,11 +1836,15 @@ void Genesis::InitializeGlobal_harmony_reflect() {
   apply->shared()->set_internal_formal_parameter_count(3);
   apply->shared()->set_length(3);
 
+  native_context()->set_reflect_apply(*apply);
+
   Handle<JSFunction> construct = InstallFunction(
       builtins, "$reflectConstruct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
       MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
   construct->shared()->set_internal_formal_parameter_count(3);
   construct->shared()->set_length(2);
+
+  native_context()->set_reflect_construct(*construct);
 
   if (!FLAG_harmony_reflect) return;
 

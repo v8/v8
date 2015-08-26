@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(yangguo): Remove this file. Do all of this in
+//                Genesis::InitializeGlobal_harmony_reflect
+
 (function(global, utils) {
 
 'use strict';

@@ -2473,16 +2473,13 @@ class HCallNewArray final : public HBinaryCall {
 
 class HCallRuntime final : public HCall<1> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCallRuntime,
-                                              Handle<String>,
-                                              const Runtime::Function*,
-                                              int);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallRuntime,
+                                              const Runtime::Function*, int);
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
   HValue* context() { return OperandAt(0); }
   const Runtime::Function* function() const { return c_function_; }
-  Handle<String> name() const { return name_; }
   SaveFPRegsMode save_doubles() const { return save_doubles_; }
   void set_save_doubles(SaveFPRegsMode save_doubles) {
     save_doubles_ = save_doubles;
@@ -2495,17 +2492,15 @@ class HCallRuntime final : public HCall<1> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime)
 
  private:
-  HCallRuntime(HValue* context,
-               Handle<String> name,
-               const Runtime::Function* c_function,
+  HCallRuntime(HValue* context, const Runtime::Function* c_function,
                int argument_count)
-      : HCall<1>(argument_count), c_function_(c_function), name_(name),
+      : HCall<1>(argument_count),
+        c_function_(c_function),
         save_doubles_(kDontSaveFPRegs) {
     SetOperandAt(0, context);
   }
 
   const Runtime::Function* c_function_;
-  Handle<String> name_;
   SaveFPRegsMode save_doubles_;
 };
 

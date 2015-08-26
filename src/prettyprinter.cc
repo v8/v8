@@ -800,8 +800,7 @@ void PrettyPrinter::VisitCallNew(CallNew* node) {
 
 
 void PrettyPrinter::VisitCallRuntime(CallRuntime* node) {
-  Print("%%");
-  PrintLiteral(node->name(), false);
+  Print("%%%s\n", node->debug_name());
   PrintArguments(node->arguments());
 }
 
@@ -1533,9 +1532,8 @@ void AstPrinter::VisitCallNew(CallNew* node) {
 
 void AstPrinter::VisitCallRuntime(CallRuntime* node) {
   EmbeddedVector<char, 128> buf;
-  FormatICSlotNode(&buf, node, "CALL RUNTIME", node->CallRuntimeFeedbackSlot());
   IndentedScope indent(this, buf.start());
-  PrintLiteralIndented("NAME", node->name(), false);
+  Print("NAME %s\n", node->debug_name());
   PrintArguments(node->arguments());
 }
 

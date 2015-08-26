@@ -2191,7 +2191,6 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
         // KeyedLookupCache miss; call runtime.
         Add<HPushArguments>(receiver, key);
         Push(Add<HCallRuntime>(
-            isolate()->factory()->empty_string(),
             Runtime::FunctionForId(is_strong(casted_stub()->language_mode())
                                        ? Runtime::kKeyedGetPropertyStrong
                                        : Runtime::kKeyedGetProperty),

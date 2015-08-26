@@ -170,8 +170,6 @@ utils.Export(function(to) {
 
 $arrayValues = ArrayValues;
 
-utils.ExportToRuntime(function(to) {
-  to["array_values_iterator"] = ArrayValues;
-});
+%InstallToContext(["array_values_iterator", ArrayValues]);
 
 })

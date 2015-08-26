@@ -4481,15 +4481,11 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
 
 void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   // Push the builtins object as receiver.
-  __ movp(rax, GlobalObjectOperand());
-  __ Push(FieldOperand(rax, GlobalObject::kBuiltinsOffset));
+  __ PushRoot(Heap::kUndefinedValueRootIndex);
 
-  // Load the function from the receiver.
-  __ movp(LoadDescriptor::ReceiverRegister(), Operand(rsp, 0));
-  __ Move(LoadDescriptor::NameRegister(), expr->name());
-  __ Move(LoadDescriptor::SlotRegister(),
-          SmiFromSlot(expr->CallRuntimeFeedbackSlot()));
-  CallLoadIC(NOT_INSIDE_TYPEOF);
+  __ movp(rax, GlobalObjectOperand());
+  __ movp(rax, FieldOperand(rax, GlobalObject::kNativeContextOffset));
+  __ movp(rax, ContextOperand(rax, expr->context_index()));
 }
 
 

@@ -883,8 +883,6 @@ utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
   "toJSON", DateToJSON
 ]);
 
-utils.ExportToRuntime(function(to) {
-  to["create_date_fun"] = CreateDate;
-});
+%InstallToContext(["create_date_fun", CreateDate]);
 
 })

@@ -502,16 +502,16 @@ function SetFromArray(array) {
 // -----------------------------------------------------------------------
 // Exports
 
-utils.ExportToRuntime(function(to) {
-  to["map_get"] = MapGet;
-  to["map_set"] = MapSet;
-  to["map_has"] = MapHas;
-  to["map_delete"] = MapDelete;
-  to["set_add"] = SetAdd;
-  to["set_has"] = SetHas;
-  to["set_delete"] = SetDelete;
-  to["map_from_array"] = MapFromArray;
-  to["set_from_array"]= SetFromArray;
-});
+%InstallToContext([
+  "map_get", MapGet,
+  "map_set", MapSet,
+  "map_has", MapHas,
+  "map_delete", MapDelete,
+  "set_add", SetAdd,
+  "set_has", SetHas,
+  "set_delete", SetDelete,
+  "map_from_array", MapFromArray,
+  "set_from_array",SetFromArray,
+]);
 
 })

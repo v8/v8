@@ -379,15 +379,14 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "catch", PromiseCatch
 ]);
 
-utils.ExportToRuntime(function(to) {
-  to["promise_catch"] = PromiseCatch;
-  to["promise_chain"] = PromiseChain;
-  to["promise_create"] = PromiseCreate;
-  to["promise_has_user_defined_reject_handler"] =
-      PromiseHasUserDefinedRejectHandler;
-  to["promise_reject"] = PromiseReject;
-  to["promise_resolve"] = PromiseResolve;
-  to["promise_then"] = PromiseThen;
-});
+%InstallToContext([
+  "promise_catch", PromiseCatch,
+  "promise_chain", PromiseChain,
+  "promise_create", PromiseCreate,
+  "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
+  "promise_reject", PromiseReject,
+  "promise_resolve", PromiseResolve,
+  "promise_then", PromiseThen,
+]);
 
 })

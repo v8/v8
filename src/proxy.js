@@ -200,11 +200,11 @@ utils.Export(function(to) {
   to.ProxyDerivedKeysTrap = DerivedKeysTrap;
 });
 
-utils.ExportToRuntime(function(to) {
-  to["derived_get_trap"] = DerivedGetTrap;
-  to["derived_has_trap"] = DerivedHasTrap;
-  to["derived_set_trap"] = DerivedSetTrap;
-  to["proxy_enumerate"] = ProxyEnumerate;
-});
+%InstallToContext([
+  "derived_get_trap", DerivedGetTrap,
+  "derived_has_trap", DerivedHasTrap,
+  "derived_set_trap", DerivedSetTrap,
+  "proxy_enumerate", ProxyEnumerate,
+]);
 
 })

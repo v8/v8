@@ -73,9 +73,29 @@ enum BindingFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
+#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                             \
+  V(CONCAT_ITERABLE_TO_ARRAY_INDEX, JSFunction, concat_iterable_to_array) \
+  V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)     \
+  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                 \
+  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                   \
+  V(NON_NUMBER_TO_NUMBER_INDEX, JSFunction, non_number_to_number)         \
+  V(NON_STRING_TO_STRING_INDEX, JSFunction, non_string_to_string)         \
+  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                       \
+  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)               \
+  V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                 \
+  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                   \
+  V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                       \
+  V(TO_NAME_INDEX, JSFunction, to_name)                                   \
+  V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)                       \
+  V(TO_PRIMITIVE_INDEX, JSFunction, to_primitive)                         \
+  V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)
+
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)           \
   V(CREATE_DATE_FUN_INDEX, JSFunction, create_date_fun)                       \
+  V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                     \
+  V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap)                     \
+  V(DERIVED_SET_TRAP_INDEX, JSFunction, derived_set_trap)                     \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                         \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)               \
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)         \
@@ -111,6 +131,7 @@ enum BindingFlags {
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                       \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                             \
+  V(PROXY_ENUMERATE_INDEX, JSFunction, proxy_enumerate)                       \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)             \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)     \
   V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                \
@@ -123,17 +144,8 @@ enum BindingFlags {
     to_complete_property_descriptor)                                          \
   V(TO_DETAIL_STRING_FUN_INDEX, JSFunction, to_detail_string_fun)             \
   V(TO_INTEGER_FUN_INDEX, JSFunction, to_integer_fun)                         \
-  V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                           \
-  V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)                           \
-  V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)                           \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)               \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)
-
-#define NATIVE_CONTEXT_IMPORTED_FIELDS_FOR_PROXY(V)       \
-  V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap) \
-  V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
-  V(DERIVED_SET_TRAP_INDEX, JSFunction, derived_set_trap) \
-  V(PROXY_ENUMERATE_INDEX, JSFunction, proxy_enumerate)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
   V(GLOBAL_PROXY_INDEX, JSObject, global_proxy_object)                         \
@@ -222,8 +234,8 @@ enum BindingFlags {
   V(UINT8_ARRAY_FUN_INDEX, JSFunction, uint8_array_fun)                        \
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun)        \
   V(UINT8X16_FUNCTION_INDEX, JSFunction, uint8x16_function)                    \
-  NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                            \
-  NATIVE_CONTEXT_IMPORTED_FIELDS_FOR_PROXY(V)
+  NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                                        \
+  NATIVE_CONTEXT_IMPORTED_FIELDS(V)
 
 // A table of all script contexts. Every loaded top-level script with top-level
 // lexical declarations contributes its ScriptContext into this table.
@@ -476,6 +488,9 @@ class Context: public FixedArray {
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
 
+  static int ImportedFieldIndexForName(Handle<String> name);
+  static int IntrinsicIndexForName(Handle<String> name);
+
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   void  set_##name(type* value) {                         \
     DCHECK(IsNativeContext());                            \
@@ -546,6 +561,7 @@ class Context: public FixedArray {
   }
 
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;
+  static const int kNotFound = -1;
 
   // GC support.
   typedef FixedBodyDescriptor<

@@ -244,7 +244,6 @@ class AstValue : public ZoneObject {
 #define STRING_CONSTANTS(F)                                                \
   F(anonymous_function, "(anonymous function)")                            \
   F(arguments, "arguments")                                                \
-  F(concat_iterable_to_array, "$concatIterableToArray")                    \
   F(constructor, "constructor")                                            \
   F(default, "default")                                                    \
   F(done, "done")                                                          \
@@ -258,25 +257,14 @@ class AstValue : public ZoneObject {
   F(dot_switch_tag, ".switch_tag")                                         \
   F(empty, "")                                                             \
   F(eval, "eval")                                                          \
-  F(get_template_callsite, "$getTemplateCallSite")                         \
-  F(initialize_const_global, "initializeConstGlobal")                      \
-  F(initialize_var_global, "initializeVarGlobal")                          \
-  F(is_construct_call, "_IsConstructCall")                                 \
-  F(is_spec_object, "_IsSpecObject")                                       \
   F(let, "let")                                                            \
   F(native, "native")                                                      \
   F(new_target, ".new.target")                                             \
   F(next, "next")                                                          \
   F(proto, "__proto__")                                                    \
   F(prototype, "prototype")                                                \
-  F(reflect_apply, "$reflectApply")                                        \
-  F(reflect_construct, "$reflectConstruct")                                \
-  F(spread_arguments, "$spreadArguments")                                  \
-  F(spread_iterable, "$spreadIterable")                                    \
   F(this, "this")                                                          \
   F(this_function, ".this_function")                                       \
-  F(throw_iterator_result_not_an_object, "ThrowIteratorResultNotAnObject") \
-  F(to_string, "$toString")                                                \
   F(undefined, "undefined")                                                \
   F(use_asm, "use asm")                                                    \
   F(use_strong, "use strong")                                              \

@@ -37,22 +37,27 @@ RUNTIME_FUNCTION(Runtime_ExportPrivateSymbols) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ImportToRuntime) {
+RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  RUNTIME_ASSERT(array->HasFastElements());
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
-  Bootstrapper::ImportNatives(isolate, container);
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_ImportExperimentalToRuntime) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
-  Bootstrapper::ImportExperimentalNatives(isolate, container);
+  Handle<Context> native_context = isolate->native_context();
+  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
+  int length = Smi::cast(array->length())->value();
+  for (int i = 0; i < length; i += 2) {
+    RUNTIME_ASSERT(fixed_array->get(i)->IsString());
+    Handle<String> name(String::cast(fixed_array->get(i)));
+    RUNTIME_ASSERT(fixed_array->get(i + 1)->IsJSObject());
+    Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)));
+    int index = Context::ImportedFieldIndexForName(name);
+    if (index == Context::kNotFound) {
+      index = Context::IntrinsicIndexForName(name);
+    }
+    RUNTIME_ASSERT(index != Context::kNotFound);
+    native_context->set(index, *object);
+  }
   return isolate->heap()->undefined_value();
 }
 

@@ -13,7 +13,6 @@
 
 var imports = UNDEFINED;
 var imports_from_experimental = UNDEFINED;
-var exports_to_runtime = UNDEFINED;
 var exports_container = {};
 
 // Export to other scripts.
@@ -22,13 +21,6 @@ var exports_container = {};
 // to normal natives that import using utils.ImportFromExperimental.
 function Export(f) {
   f(exports_container);
-}
-
-
-// Export to the native context for calls from the runtime.
-function ExportToRuntime(f) {
-  f.next = exports_to_runtime;
-  exports_to_runtime = f;
 }
 
 
@@ -173,13 +165,6 @@ function PostNatives(utils) {
     imports(exports_container);
   }
 
-  var runtime_container = {};
-  for ( ; !IS_UNDEFINED(exports_to_runtime);
-          exports_to_runtime = exports_to_runtime.next) {
-    exports_to_runtime(runtime_container);
-  }
-  %ImportToRuntime(runtime_container);
-
   // Whitelist of exports from normal natives to experimental natives and debug.
   var expose_list = [
     "ArrayToString",
@@ -235,12 +220,6 @@ function PostExperimentals(utils) {
           imports_from_experimental = imports_from_experimental.next) {
     imports_from_experimental(exports_container);
   }
-  var runtime_container = {};
-  for ( ; !IS_UNDEFINED(exports_to_runtime);
-          exports_to_runtime = exports_to_runtime.next) {
-    exports_to_runtime(runtime_container);
-  }
-  %ImportExperimentalToRuntime(runtime_container);
 
   exports_container = UNDEFINED;
   private_symbols = UNDEFINED;
@@ -268,12 +247,11 @@ function PostDebug(utils) {
 
 // -----------------------------------------------------------------------
 
-%OptimizeObjectForAddingMultipleProperties(utils, 15);
+%OptimizeObjectForAddingMultipleProperties(utils, 14);
 
 utils.Import = Import;
 utils.ImportNow = ImportNow;
 utils.Export = Export;
-utils.ExportToRuntime = ExportToRuntime;
 utils.ImportFromExperimental = ImportFromExperimental;
 utils.GetPrivateSymbol = GetPrivateSymbol;
 utils.SetFunctionName = SetFunctionName;

@@ -15,6 +15,7 @@ var harmony_unicode_regexps = false;
 
 var GlobalRegExp = global.RegExp;
 var InternalPackedArray = utils.InternalPackedArray;
+var ToNumber;
 
 utils.Import(function(from) {
   ToNumber = from.ToNumber;

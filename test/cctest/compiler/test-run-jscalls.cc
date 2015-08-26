@@ -144,7 +144,7 @@ TEST(RuntimeCallCPP2) {
 
 TEST(RuntimeCallJS) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %$toString(a); })");
+  FunctionTester T("(function(a) { return %to_string_fun(a); })");
 
   T.CheckCall(T.Val("23"), T.Val(23), T.undefined());
   T.CheckCall(T.Val("4.2"), T.Val(4.2), T.undefined());

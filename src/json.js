@@ -252,8 +252,6 @@ function JsonSerializeAdapter(key, object) {
   return JSONSerialize(key, holder, UNDEFINED, new InternalArray(), "", "");
 }
 
-utils.ExportToRuntime(function(to) {
-  to["json_serialize_adapter"] = JsonSerializeAdapter;
-});
+%InstallToContext(["json_serialize_adapter", JsonSerializeAdapter]);
 
 })

@@ -265,7 +265,7 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
     if (is_var) return isolate->heap()->undefined_value();
 
     DCHECK(is_function);
-    if (index >= 0) {
+    if (index != Context::kNotFound) {
       DCHECK(holder.is_identical_to(context));
       context->set(index, *initial_value);
       return isolate->heap()->undefined_value();
@@ -346,7 +346,7 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
     if (isolate->has_pending_exception()) return isolate->heap()->exception();
   }
 
-  if (index >= 0) {
+  if (index != Context::kNotFound) {
     DCHECK(holder->IsContext());
     // Property was found in a context.  Perform the assignment if the constant
     // was uninitialized.
@@ -950,8 +950,7 @@ static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
     return MakePair(isolate->heap()->exception(), NULL);
   }
 
-  // If the index is non-negative, the slot has been found in a context.
-  if (index >= 0) {
+  if (index != Context::kNotFound) {
     DCHECK(holder->IsContext());
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
@@ -1053,7 +1052,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   }
 
   // The property was found in a context slot.
-  if (index >= 0) {
+  if (index != Context::kNotFound) {
     if ((binding_flags == MUTABLE_CHECK_INITIALIZED ||
          binding_flags == IMMUTABLE_CHECK_INITIALIZED_HARMONY) &&
         Handle<Context>::cast(holder)->is_the_hole(index)) {

@@ -303,8 +303,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTERNAL(F)        \
   F(CheckIsBootstrapping, 0, 1)               \
   F(ExportPrivateSymbols, 1, 1)               \
-  F(ImportToRuntime, 1, 1)                    \
-  F(ImportExperimentalToRuntime, 1, 1)        \
+  F(InstallToContext, 1, 1)                   \
   F(InstallJSBuiltins, 1, 1)                  \
   F(Throw, 1, 1)                              \
   F(ReThrow, 1, 1)                            \
@@ -1093,10 +1092,11 @@ class Runtime : public AllStatic {
   enum FunctionId {
 #define F(name, nargs, ressize) k##name,
 #define I(name, nargs, ressize) kInline##name,
-    FOR_EACH_INTRINSIC(F) FOR_EACH_INTRINSIC(I)
+  FOR_EACH_INTRINSIC(F)
+  FOR_EACH_INTRINSIC(I)
 #undef I
 #undef F
-        kNumFunctions,
+    kNumFunctions,
   };
 
   enum IntrinsicType { RUNTIME, INLINE };
@@ -1108,14 +1108,15 @@ class Runtime : public AllStatic {
     // The JS name of the function.
     const char* name;
 
-    // The C++ (native) entry point.  NULL if the function is inlined.
-    byte* entry;
+    // For RUNTIME functions, this is the C++ entry point.
+    // For INLINE functions this is the C++ entry point of the fall back.
+    Address entry;
 
     // The number of arguments expected. nargs is -1 if the function takes
     // a variable number of arguments.
-    int nargs;
+    int8_t nargs;
     // Size of result.  Most functions return a single pointer, size 1.
-    int result_size;
+    int8_t result_size;
   };
 
   static const int kNotFound = -1;

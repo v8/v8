@@ -2721,27 +2721,6 @@ TEST(NoErrorsRegexpLiteral) {
 }
 
 
-TEST(Intrinsics) {
-  const char* context_data[][2] = {
-    {"", ""},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "%someintrinsic(arg)",
-    NULL
-  };
-
-  // This test requires kAllowNatives to succeed.
-  static const ParserFlag always_true_flags[] = {
-    kAllowNatives
-  };
-
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_true_flags, 1);
-}
-
-
 TEST(NoErrorsNewExpression) {
   const char* context_data[][2] = {
     {"", ""},

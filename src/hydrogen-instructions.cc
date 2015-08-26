@@ -1099,7 +1099,7 @@ std::ostream& HCallNewArray::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 std::ostream& HCallRuntime::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << name()->ToCString().get() << " ";
+  os << function()->name << " ";
   if (save_doubles() == kSaveFPRegs) os << "[save doubles] ";
   return os << "#" << argument_count();
 }

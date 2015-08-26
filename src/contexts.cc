@@ -244,7 +244,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
   Handle<Context> context(this, isolate);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
-  *index = -1;
+  *index = kNotFound;
   *attributes = ABSENT;
   *binding_flags = MISSING_BINDING;
 
@@ -535,6 +535,23 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
   return isolate->factory()->NewStringFromStaticChars(
       "Code generation from strings disallowed for this context");
 }
+
+
+#define COMPARE_NAME(index, type, name) \
+  if (string->IsOneByteEqualTo(STATIC_CHAR_VECTOR(#name))) return index;
+
+int Context::ImportedFieldIndexForName(Handle<String> string) {
+  NATIVE_CONTEXT_IMPORTED_FIELDS(COMPARE_NAME)
+  return kNotFound;
+}
+
+
+int Context::IntrinsicIndexForName(Handle<String> string) {
+  NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NAME);
+  return kNotFound;
+}
+
+#undef COMPARE_NAME
 
 
 #ifdef DEBUG

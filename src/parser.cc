@@ -371,9 +371,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
           Variable::NORMAL, pos);
       args->Add(this_function_proxy, zone());
       CallRuntime* call = factory()->NewCallRuntime(
-          ast_value_factory()->empty_string(),
-          Runtime::FunctionForId(Runtime::kInlineDefaultConstructorCallSuper),
-          args, pos);
+          Runtime::kInlineDefaultConstructorCallSuper, args, pos);
       body->Add(factory()->NewReturnStatement(call, pos), zone());
     }
 
@@ -671,9 +669,8 @@ Expression* ParserTraits::NewThrowError(Runtime::FunctionId id,
   ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(2, zone);
   args->Add(parser_->factory()->NewSmiLiteral(message, pos), zone);
   args->Add(parser_->factory()->NewStringLiteral(arg, pos), zone);
-  CallRuntime* call_constructor = parser_->factory()->NewCallRuntime(
-      parser_->ast_value_factory()->empty_string(), Runtime::FunctionForId(id),
-      args, pos);
+  CallRuntime* call_constructor =
+      parser_->factory()->NewCallRuntime(id, args, pos);
   return parser_->factory()->NewThrow(call_constructor, pos);
 }
 
@@ -2855,9 +2852,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           new (zone()) ZoneList<Expression*>(1, zone());
       is_spec_object_args->Add(factory()->NewVariableProxy(temp), zone());
       Expression* is_spec_object_call = factory()->NewCallRuntime(
-          ast_value_factory()->is_spec_object_string(),
-          Runtime::FunctionForId(Runtime::kInlineIsSpecObject),
-          is_spec_object_args, pos);
+          Runtime::kInlineIsSpecObject, is_spec_object_args, pos);
 
       // %_IsSpecObject(temp) ? temp : throw_expression
       Expression* is_object_conditional = factory()->NewConditional(
@@ -3208,9 +3203,7 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
       new (zone()) ZoneList<Expression*>(1, zone());
   is_spec_object_args->Add(left, zone());
   Expression* is_spec_object_call = factory()->NewCallRuntime(
-      ast_value_factory()->is_spec_object_string(),
-      Runtime::FunctionForId(Runtime::kInlineIsSpecObject), is_spec_object_args,
-      pos);
+      Runtime::kInlineIsSpecObject, is_spec_object_args, pos);
 
   // %ThrowIteratorResultNotAnObject(result)
   Expression* result_proxy_again = factory()->NewVariableProxy(result);
@@ -3218,9 +3211,7 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
       new (zone()) ZoneList<Expression*>(1, zone());
   throw_arguments->Add(result_proxy_again, zone());
   Expression* throw_call = factory()->NewCallRuntime(
-      ast_value_factory()->throw_iterator_result_not_an_object_string(),
-      Runtime::FunctionForId(Runtime::kThrowIteratorResultNotAnObject),
-      throw_arguments, pos);
+      Runtime::kThrowIteratorResultNotAnObject, throw_arguments, pos);
 
   return factory()->NewBinaryOperation(
       Token::AND,
@@ -4322,12 +4313,9 @@ void Parser::AddAssertIsConstruct(ZoneList<Statement*>* body, int pos) {
   ZoneList<Expression*>* arguments =
       new (zone()) ZoneList<Expression*>(0, zone());
   CallRuntime* construct_check = factory()->NewCallRuntime(
-      ast_value_factory()->is_construct_call_string(),
-      Runtime::FunctionForId(Runtime::kInlineIsConstructCall), arguments, pos);
+      Runtime::kInlineIsConstructCall, arguments, pos);
   CallRuntime* non_callable_error = factory()->NewCallRuntime(
-      ast_value_factory()->empty_string(),
-      Runtime::FunctionForId(Runtime::kThrowConstructorNonCallableError),
-      arguments, pos);
+      Runtime::kThrowConstructorNonCallableError, arguments, pos);
   IfStatement* if_statement = factory()->NewIfStatement(
       factory()->NewUnaryOperation(Token::NOT, construct_check, pos),
       factory()->NewReturnStatement(non_callable_error, pos),
@@ -4479,9 +4467,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
       ZoneList<Expression*>* arguments =
           new(zone()) ZoneList<Expression*>(0, zone());
       CallRuntime* allocation = factory()->NewCallRuntime(
-          ast_value_factory()->empty_string(),
-          Runtime::FunctionForId(Runtime::kCreateJSGeneratorObject), arguments,
-          pos);
+          Runtime::kCreateJSGeneratorObject, arguments, pos);
       VariableProxy* init_proxy = factory()->NewVariableProxy(
           function_state_->generator_object_variable());
       Assignment* assignment = factory()->NewAssignment(
@@ -4739,40 +4725,42 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 
   const Runtime::Function* function = Runtime::FunctionForName(name->string());
 
-  // Check for built-in IS_VAR macro.
-  if (function != NULL &&
-      function->intrinsic_type == Runtime::RUNTIME &&
-      function->function_id == Runtime::kIS_VAR) {
-    // %IS_VAR(x) evaluates to x if x is a variable,
-    // leads to a parse error otherwise.  Could be implemented as an
-    // inline function %_IS_VAR(x) to eliminate this special case.
-    if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
-      return args->at(0);
-    } else {
-      ReportMessage(MessageTemplate::kNotIsvar);
+  if (function != NULL) {
+    // Check for built-in IS_VAR macro.
+    if (function->function_id == Runtime::kIS_VAR) {
+      DCHECK_EQ(Runtime::RUNTIME, function->intrinsic_type);
+      // %IS_VAR(x) evaluates to x if x is a variable,
+      // leads to a parse error otherwise.  Could be implemented as an
+      // inline function %_IS_VAR(x) to eliminate this special case.
+      if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
+        return args->at(0);
+      } else {
+        ReportMessage(MessageTemplate::kNotIsvar);
+        *ok = false;
+        return NULL;
+      }
+    }
+
+    // Check that the expected number of arguments are being passed.
+    if (function->nargs != -1 && function->nargs != args->length()) {
+      ReportMessage(MessageTemplate::kIllegalAccess);
       *ok = false;
       return NULL;
     }
+
+    return factory()->NewCallRuntime(function, args, pos);
   }
 
-  // Check that the expected number of arguments are being passed.
-  if (function != NULL &&
-      function->nargs != -1 &&
-      function->nargs != args->length()) {
-    ReportMessage(MessageTemplate::kIllegalAccess);
-    *ok = false;
-    return NULL;
-  }
+  int context_index = Context::IntrinsicIndexForName(name->string());
 
-  // Check that the function is defined if it's an inline runtime call.
-  if (function == NULL && name->FirstCharacter() == '_') {
+  // Check that the function is defined.
+  if (context_index == Context::kNotFound) {
     ParserTraits::ReportMessage(MessageTemplate::kNotDefined, name);
     *ok = false;
     return NULL;
   }
 
-  // We have a valid intrinsics call or a call to a builtin.
-  return factory()->NewCallRuntime(name, function, args, pos);
+  return factory()->NewCallRuntime(context_index, args, pos);
 }
 
 
@@ -5915,8 +5903,7 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
           new (zone()) ZoneList<Expression*>(1, zone());
       args->Add(sub, zone());
       Expression* middle = factory()->NewCallRuntime(
-          ast_value_factory()->to_string_string(), NULL, args,
-          sub->position());
+          Context::TO_STRING_FUN_INDEX, args, sub->position());
 
       expr = factory()->NewBinaryOperation(
           Token::ADD, factory()->NewBinaryOperation(
@@ -5948,7 +5935,7 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
 
     this->CheckPossibleEvalCall(tag, scope_);
     Expression* call_site = factory()->NewCallRuntime(
-        ast_value_factory()->get_template_callsite_string(), NULL, args, start);
+        Context::GET_TEMPLATE_CALL_SITE_INDEX, args, start);
 
     // Call TagFn
     ZoneList<Expression*>* call_args =
@@ -6004,10 +5991,9 @@ ZoneList<v8::internal::Expression*>* Parser::PrepareSpreadArguments(
     ZoneList<Expression*>* spread_list =
         new (zone()) ZoneList<Expression*>(0, zone());
     spread_list->Add(list->at(0)->AsSpread()->expression(), zone());
-    args->Add(
-        factory()->NewCallRuntime(ast_value_factory()->spread_iterable_string(),
-                                  NULL, spread_list, RelocInfo::kNoPosition),
-        zone());
+    args->Add(factory()->NewCallRuntime(Context::SPREAD_ITERABLE_INDEX,
+                                        spread_list, RelocInfo::kNoPosition),
+              zone());
     return args;
   } else {
     // Spread-call with multiple arguments produces array literals for each
@@ -6041,16 +6027,14 @@ ZoneList<v8::internal::Expression*>* Parser::PrepareSpreadArguments(
       ZoneList<v8::internal::Expression*>* spread_list =
           new (zone()) ZoneList<v8::internal::Expression*>(1, zone());
       spread_list->Add(list->at(i++)->AsSpread()->expression(), zone());
-      args->Add(factory()->NewCallRuntime(
-                    ast_value_factory()->spread_iterable_string(), NULL,
-                    spread_list, RelocInfo::kNoPosition),
+      args->Add(factory()->NewCallRuntime(Context::SPREAD_ITERABLE_INDEX,
+                                          spread_list, RelocInfo::kNoPosition),
                 zone());
     }
 
     list = new (zone()) ZoneList<v8::internal::Expression*>(1, zone());
-    list->Add(factory()->NewCallRuntime(
-                  ast_value_factory()->spread_arguments_string(), NULL, args,
-                  RelocInfo::kNoPosition),
+    list->Add(factory()->NewCallRuntime(Context::SPREAD_ARGUMENTS_INDEX, args,
+                                        RelocInfo::kNoPosition),
               zone());
     return list;
   }
@@ -6066,13 +6050,12 @@ Expression* Parser::SpreadCall(Expression* function,
     // %ReflectConstruct(%GetPrototype(<this-function>), args, new.target))
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
-    Expression* get_prototype = factory()->NewCallRuntime(
-        ast_value_factory()->empty_string(),
-        Runtime::FunctionForId(Runtime::kGetPrototype), tmp, pos);
+    Expression* get_prototype =
+        factory()->NewCallRuntime(Runtime::kGetPrototype, tmp, pos);
     args->InsertAt(0, get_prototype, zone());
     args->Add(function->AsSuperCallReference()->new_target_var(), zone());
-    return factory()->NewCallRuntime(
-        ast_value_factory()->reflect_construct_string(), NULL, args, pos);
+    return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args,
+                                     pos);
   } else {
     if (function->IsProperty()) {
       // Method calls
@@ -6100,8 +6083,7 @@ Expression* Parser::SpreadCall(Expression* function,
       args->InsertAt(1, factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
                      zone());
     }
-    return factory()->NewCallRuntime(
-        ast_value_factory()->reflect_apply_string(), NULL, args, pos);
+    return factory()->NewCallRuntime(Context::REFLECT_APPLY_INDEX, args, pos);
   }
 }
 
@@ -6111,8 +6093,7 @@ Expression* Parser::SpreadCallNew(Expression* function,
                                   int pos) {
   args->InsertAt(0, function, zone());
 
-  return factory()->NewCallRuntime(
-      ast_value_factory()->reflect_construct_string(), NULL, args, pos);
+  return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args, pos);
 }
 }  // namespace internal
 }  // namespace v8
