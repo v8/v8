@@ -2059,6 +2059,44 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
 }
 
 
+void KeyedStoreIC::ValidateStoreMode(Handle<Code> stub) {
+#ifdef DEBUG
+  DCHECK(!FLAG_vector_stores);
+  if (stub.is_null() || *stub == *megamorphic_stub() || *stub == *slow_stub()) {
+    return;
+  }
+
+  // Query the keyed store mode.
+  ExtraICState state = stub->extra_ic_state();
+  KeyedAccessStoreMode stub_mode = GetKeyedAccessStoreMode(state);
+
+  MapHandleList map_list;
+  stub->FindAllMaps(&map_list);
+  CodeHandleList list;
+  stub->FindHandlers(&list, map_list.length());
+  for (int i = 0; i < list.length(); i++) {
+    Handle<Code> handler = list.at(i);
+    CHECK(handler->is_handler());
+    CodeStub::Major major_key = CodeStub::MajorKeyFromKey(handler->stub_key());
+    uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
+    // Ensure that we only see handlers we know have the store mode embedded.
+    CHECK(major_key == CodeStub::KeyedStoreSloppyArguments ||
+          major_key == CodeStub::StoreFastElement ||
+          major_key == CodeStub::StoreElement ||
+          major_key == CodeStub::ElementsTransitionAndStore ||
+          *handler == *isolate()->builtins()->KeyedStoreIC_Slow());
+    // Ensure that the store mode matches that of the IC.
+    CHECK(major_key == CodeStub::NoCache ||
+          stub_mode == CommonStoreModeBits::decode(minor_key));
+    // The one exception is the keyed store slow builtin, which doesn't include
+    // store mode.
+    CHECK(major_key != CodeStub::NoCache ||
+          *handler == *isolate()->builtins()->KeyedStoreIC_Slow());
+  }
+#endif  // DEBUG
+}
+
+
 MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
                                         Handle<Object> key,
                                         Handle<Object> value) {
@@ -2139,6 +2177,10 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
           KeyedAccessStoreMode store_mode =
               GetStoreMode(receiver, index, value);
           stub = StoreElementStub(receiver, store_mode);
+
+          // Validate that the store_mode in the stub can also be derived
+          // from peeking in the code bits of the handlers.
+          ValidateStoreMode(stub);
         } else {
           TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "dictionary prototype");
         }

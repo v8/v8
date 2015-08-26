@@ -525,9 +525,9 @@ class KeyedStoreIC : public StoreIC {
   // When more language modes are added, these BitFields need to move too.
   STATIC_ASSERT(i::LANGUAGE_END == 3);
   class ExtraICStateKeyedAccessStoreMode
-      : public BitField<KeyedAccessStoreMode, 3, 4> {};  // NOLINT
+      : public BitField<KeyedAccessStoreMode, 3, 3> {};  // NOLINT
 
-  class IcCheckTypeField : public BitField<IcCheckType, 7, 1> {};
+  class IcCheckTypeField : public BitField<IcCheckType, 6, 1> {};
 
   static ExtraICState ComputeExtraICState(LanguageMode flag,
                                           KeyedAccessStoreMode mode) {
@@ -598,6 +598,8 @@ class KeyedStoreIC : public StoreIC {
 
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
+
+  void ValidateStoreMode(Handle<Code> stub);
 
   friend class IC;
 };

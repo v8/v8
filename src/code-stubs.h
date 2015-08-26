@@ -1140,10 +1140,15 @@ class KeyedLoadSloppyArgumentsStub : public HandlerStub {
 };
 
 
+class CommonStoreModeBits : public BitField<KeyedAccessStoreMode, 0, 3> {};
+
 class KeyedStoreSloppyArgumentsStub : public HandlerStub {
  public:
-  explicit KeyedStoreSloppyArgumentsStub(Isolate* isolate)
-      : HandlerStub(isolate) {}
+  explicit KeyedStoreSloppyArgumentsStub(Isolate* isolate,
+                                         KeyedAccessStoreMode mode)
+      : HandlerStub(isolate) {
+    set_sub_minor_key(CommonStoreModeBits::encode(mode));
+  }
 
  protected:
   Code::Kind kind() const override { return Code::KEYED_STORE_IC; }
@@ -2595,9 +2600,9 @@ class StoreFastElementStub : public HydrogenCodeStub {
   StoreFastElementStub(Isolate* isolate, bool is_js_array,
                        ElementsKind elements_kind, KeyedAccessStoreMode mode)
       : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(ElementsKindBits::encode(elements_kind) |
-                      IsJSArrayBits::encode(is_js_array) |
-                      StoreModeBits::encode(mode));
+    set_sub_minor_key(CommonStoreModeBits::encode(mode) |
+                      ElementsKindBits::encode(elements_kind) |
+                      IsJSArrayBits::encode(is_js_array));
   }
 
   static void GenerateAheadOfTime(Isolate* isolate);
@@ -2609,7 +2614,7 @@ class StoreFastElementStub : public HydrogenCodeStub {
   }
 
   KeyedAccessStoreMode store_mode() const {
-    return StoreModeBits::decode(sub_minor_key());
+    return CommonStoreModeBits::decode(sub_minor_key());
   }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
@@ -2619,10 +2624,11 @@ class StoreFastElementStub : public HydrogenCodeStub {
     return StoreDescriptor(isolate());
   }
 
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+
  private:
-  class ElementsKindBits: public BitField<ElementsKind,      0, 8> {};
-  class StoreModeBits: public BitField<KeyedAccessStoreMode, 8, 4> {};
-  class IsJSArrayBits: public BitField<bool,                12, 1> {};
+  class ElementsKindBits : public BitField<ElementsKind, 3, 8> {};
+  class IsJSArrayBits : public BitField<bool, 11, 1> {};
 
   DEFINE_HYDROGEN_CODE_STUB(StoreFastElement, HydrogenCodeStub);
 };
@@ -2836,9 +2842,11 @@ class InternalArrayNArgumentsConstructorStub : public
 
 class StoreElementStub : public PlatformCodeStub {
  public:
-  StoreElementStub(Isolate* isolate, ElementsKind elements_kind)
+  StoreElementStub(Isolate* isolate, ElementsKind elements_kind,
+                   KeyedAccessStoreMode mode)
       : PlatformCodeStub(isolate) {
-    minor_key_ = ElementsKindBits::encode(elements_kind);
+    minor_key_ = ElementsKindBits::encode(elements_kind) |
+                 CommonStoreModeBits::encode(mode);
   }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
@@ -2848,12 +2856,14 @@ class StoreElementStub : public PlatformCodeStub {
     return StoreDescriptor(isolate());
   }
 
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+
  private:
   ElementsKind elements_kind() const {
     return ElementsKindBits::decode(minor_key_);
   }
 
-  class ElementsKindBits : public BitField<ElementsKind, 0, 8> {};
+  class ElementsKindBits : public BitField<ElementsKind, 3, 8> {};
 
   DEFINE_PLATFORM_CODE_STUB(StoreElement, PlatformCodeStub);
 };
@@ -2957,25 +2967,25 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
                                  ElementsKind to_kind, bool is_jsarray,
                                  KeyedAccessStoreMode store_mode)
       : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(FromBits::encode(from_kind) | ToBits::encode(to_kind) |
-                      IsJSArrayBits::encode(is_jsarray) |
-                      StoreModeBits::encode(store_mode));
+    set_sub_minor_key(CommonStoreModeBits::encode(store_mode) |
+                      FromBits::encode(from_kind) | ToBits::encode(to_kind) |
+                      IsJSArrayBits::encode(is_jsarray));
   }
 
   ElementsKind from_kind() const { return FromBits::decode(sub_minor_key()); }
   ElementsKind to_kind() const { return ToBits::decode(sub_minor_key()); }
   bool is_jsarray() const { return IsJSArrayBits::decode(sub_minor_key()); }
   KeyedAccessStoreMode store_mode() const {
-    return StoreModeBits::decode(sub_minor_key());
+    return CommonStoreModeBits::decode(sub_minor_key());
   }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override;
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
 
  private:
-  class FromBits : public BitField<ElementsKind, 0, 8> {};
-  class ToBits : public BitField<ElementsKind, 8, 8> {};
-  class IsJSArrayBits : public BitField<bool, 16, 1> {};
-  class StoreModeBits : public BitField<KeyedAccessStoreMode, 17, 4> {};
+  class FromBits : public BitField<ElementsKind, 3, 8> {};
+  class ToBits : public BitField<ElementsKind, 11, 8> {};
+  class IsJSArrayBits : public BitField<bool, 19, 1> {};
 
   DEFINE_HYDROGEN_CODE_STUB(ElementsTransitionAndStore, HydrogenCodeStub);
 };

@@ -2234,8 +2234,8 @@ class CountOperation final : public Expression {
 
   class IsPrefixField : public BitField16<bool, 0, 1> {};
   class KeyTypeField : public BitField16<IcCheckType, 1, 1> {};
-  class StoreModeField : public BitField16<KeyedAccessStoreMode, 2, 4> {};
-  class TokenField : public BitField16<Token::Value, 6, 8> {};
+  class StoreModeField : public BitField16<KeyedAccessStoreMode, 2, 3> {};
+  class TokenField : public BitField16<Token::Value, 5, 8> {};
 
   // Starts with 16-bit field, which should get packed together with
   // Expression's trailing 16-bit field.
@@ -2405,8 +2405,8 @@ class Assignment final : public Expression {
 
   class IsUninitializedField : public BitField16<bool, 0, 1> {};
   class KeyTypeField : public BitField16<IcCheckType, 1, 1> {};
-  class StoreModeField : public BitField16<KeyedAccessStoreMode, 2, 4> {};
-  class TokenField : public BitField16<Token::Value, 6, 8> {};
+  class StoreModeField : public BitField16<KeyedAccessStoreMode, 2, 3> {};
+  class TokenField : public BitField16<Token::Value, 5, 8> {};
 
   // Starts with 16-bit field, which should get packed together with
   // Expression's trailing 16-bit field.
