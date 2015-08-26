@@ -3511,13 +3511,10 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         return value;
       } else if (mode == LET && op != Token::INIT_LET) {
         // Perform an initialization check for let declared variables.
-        // Also note that the dynamic hole-check is only done to ensure that
-        // this does not break in the presence of do-expressions within the
-        // temporal dead zone of a let declared variable.
         Node* current = environment()->Lookup(variable);
         if (current->op() == the_hole->op()) {
           value = BuildThrowReferenceError(variable, bailout_id);
-        } else if (value->opcode() == IrOpcode::kPhi) {
+        } else if (current->opcode() == IrOpcode::kPhi) {
           value = BuildHoleCheckThenThrow(current, variable, value, bailout_id);
         }
       } else if (mode == CONST && op == Token::INIT_CONST) {
@@ -3533,7 +3530,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         Node* current = environment()->Lookup(variable);
         if (current->op() == the_hole->op()) {
           return BuildThrowReferenceError(variable, bailout_id);
-        } else if (value->opcode() == IrOpcode::kPhi) {
+        } else if (current->opcode() == IrOpcode::kPhi) {
           BuildHoleCheckThenThrow(current, variable, value, bailout_id);
         }
         return BuildThrowConstAssignError(bailout_id);
