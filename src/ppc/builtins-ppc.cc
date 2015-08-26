@@ -899,9 +899,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Allocate the local and temporary register file on the stack.
   {
-    // Load frame size from the BytecodeArray object.
-    __ LoadP(r5, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                 BytecodeArray::kFrameSizeOffset));
+    // Load frame size (word) from the BytecodeArray object.
+    __ lwz(r5, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                               BytecodeArray::kFrameSizeOffset));
 
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
@@ -919,6 +919,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     Label loop_header;
     __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
     __ ShiftRightImm(r5, r5, Operand(kPointerSizeLog2));
+    __ mtctr(r5);
     __ bind(&loop_header);
     __ push(r6);
     __ bdnz(&loop_header);
