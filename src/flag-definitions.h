@@ -247,6 +247,9 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 DEFINE_IMPLICATION(harmony_sloppy_let, harmony_sloppy)
 DEFINE_IMPLICATION(harmony_sloppy_function, harmony_sloppy)
 
+// Destructuring shares too much parsing architecture with default parameters
+// to be enabled on its own.
+DEFINE_IMPLICATION(harmony_destructuring, harmony_default_parameters)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_generic_loads, false,
