@@ -981,7 +981,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kPPC_PushFrame: {
       int num_slots = i.InputInt32(1);
-      __ StorePU(i.InputRegister(0), MemOperand(sp, -num_slots * kPointerSize));
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ stfdu(i.InputDoubleRegister(0),
+                 MemOperand(sp, -num_slots * kPointerSize));
+      } else {
+        __ StorePU(i.InputRegister(0),
+                   MemOperand(sp, -num_slots * kPointerSize));
+      }
       break;
     }
     case kPPC_StoreToStackSlot: {
@@ -1338,6 +1344,8 @@ void CodeGenerator::AssemblePrologue() {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
+  } else {
+    frame()->SetPCOnStack(false);
   }
 
   if (info()->is_osr()) {
@@ -1384,6 +1392,7 @@ void CodeGenerator::AssembleReturn() {
       const RegList saves = descriptor->CalleeSavedRegisters() & ~frame_saves;
       __ MultiPop(saves);
     }
+    __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
   } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
@@ -1391,9 +1400,11 @@ void CodeGenerator::AssembleReturn() {
       return;
     } else {
       __ bind(&return_label_);
+      __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
     }
+  } else {
+    __ Drop(pop_count);
   }
-  __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
   __ Ret();
 }
 
