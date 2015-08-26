@@ -1236,7 +1236,8 @@ bool CanLeak(Object* obj, Heap* heap, bool skip_weak_cell) {
   if (obj->IsMap()) {
     Map* map = Map::cast(obj);
     for (int i = 0; i < Heap::kStrongRootListLength; i++) {
-      if (map == heap->roots_array_start()[i]) return false;
+      Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
+      if (map == heap->root(root_index)) return false;
     }
     return true;
   }

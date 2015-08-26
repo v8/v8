@@ -354,10 +354,9 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
   map_ = isolate->root_index_map();
   if (map_ != NULL) return;
   map_ = new HashMap(HashMap::PointersMatch);
-  Object** root_array = isolate->heap()->roots_array_start();
   for (uint32_t i = 0; i < Heap::kStrongRootListLength; i++) {
     Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
-    Object* root = root_array[root_index];
+    Object* root = isolate->heap()->root(root_index);
     // Omit root entries that can be written after initialization. They must
     // not be referenced through the root list in the snapshot.
     if (root->IsHeapObject() &&
@@ -954,8 +953,9 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         emit_write_barrier = (space_number == NEW_SPACE);                      \
         new_object = GetBackReferencedObject(data & kSpaceMask);               \
       } else if (where == kRootArray) {                                        \
-        int root_id = source_.GetInt();                                        \
-        new_object = isolate->heap()->roots_array_start()[root_id];            \
+        int id = source_.GetInt();                                             \
+        Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id); \
+        new_object = isolate->heap()->root(root_index);                        \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else if (where == kPartialSnapshotCache) {                             \
         int cache_index = source_.GetInt();                                    \
@@ -1229,8 +1229,9 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
 
       SIXTEEN_CASES(kRootArrayConstants)
       SIXTEEN_CASES(kRootArrayConstants + 16) {
-        int root_id = data & kRootArrayConstantsMask;
-        Object* object = isolate->heap()->roots_array_start()[root_id];
+        int id = data & kRootArrayConstantsMask;
+        Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
+        Object* object = isolate->heap()->root(root_index);
         DCHECK(!isolate->heap()->InNewSpace(object));
         UnalignedCopy(current++, &object);
         break;

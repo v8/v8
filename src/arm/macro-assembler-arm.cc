@@ -425,7 +425,7 @@ void MacroAssembler::LoadRoot(Register destination,
       !predictable_code_size()) {
     // The CPU supports fast immediate values, and this root will never
     // change. We will load it as a relocatable immediate value.
-    Handle<Object> root(&isolate()->heap()->roots_array_start()[index]);
+    Handle<Object> root = isolate()->heap()->root_handle(index);
     mov(destination, Operand(root), LeaveCC, cond);
     return;
   }

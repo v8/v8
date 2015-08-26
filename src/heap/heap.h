@@ -1207,6 +1207,9 @@ class Heap {
 #undef SYMBOL_ACCESSOR
 
   Object* root(RootListIndex index) { return roots_[index]; }
+  Handle<Object> root_handle(RootListIndex index) {
+    return Handle<Object>(&roots_[index]);
+  }
 
   // Generated code can embed this address to get access to the roots.
   Object** roots_array_start() { return roots_; }
