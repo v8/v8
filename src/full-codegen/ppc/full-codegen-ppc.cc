@@ -4992,13 +4992,8 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(eq, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->string_string())) {
     __ JumpIfSmi(r3, if_false);
-    // Check for undetectable objects => false.
     __ CompareObjectType(r3, r3, r4, FIRST_NONSTRING_TYPE);
-    __ bge(if_false);
-    __ lbz(r4, FieldMemOperand(r3, Map::kBitFieldOffset));
-    STATIC_ASSERT((1 << Map::kIsUndetectable) < 0x8000);
-    __ andi(r0, r4, Operand(1 << Map::kIsUndetectable));
-    Split(eq, if_true, if_false, fall_through, cr0);
+    Split(lt, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->symbol_string())) {
     __ JumpIfSmi(r3, if_false);
     __ CompareObjectType(r3, r3, r4, SYMBOL_TYPE);

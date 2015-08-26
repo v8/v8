@@ -5903,11 +5903,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label, Label* false_label,
   } else if (String::Equals(type_name, factory->string_string())) {
     __ JumpIfSmi(input, false_label);
     __ CompareObjectType(input, scratch, no_reg, FIRST_NONSTRING_TYPE);
-    __ bge(false_label);
-    __ lbz(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ ExtractBit(r0, scratch, Map::kIsUndetectable);
-    __ cmpi(r0, Operand::Zero());
-    final_branch_condition = eq;
+    final_branch_condition = lt;
 
   } else if (String::Equals(type_name, factory->symbol_string())) {
     __ JumpIfSmi(input, false_label);
