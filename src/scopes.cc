@@ -475,7 +475,6 @@ Variable* Scope::DeclareParameter(
   Variable* var;
   if (mode == TEMPORARY) {
     var = NewTemporary(name);
-    has_simple_parameters_ = false;
   } else {
     var = variables_.Declare(this, name, mode, Variable::NORMAL,
                              kCreatedInitialized);
@@ -489,7 +488,6 @@ Variable* Scope::DeclareParameter(
     DCHECK_NULL(rest_parameter_);
     rest_parameter_ = var;
     rest_index_ = num_parameters();
-    has_simple_parameters_ = false;
   }
   params_.Add(var, zone());
   return var;

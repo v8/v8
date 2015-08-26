@@ -21,7 +21,7 @@ function generateArguments(n, prefix) {
 }
 
 
-function generateParams(n) {
+function generateParams(n, directive_in_body) {
   let a = [];
   for (let i = 0; i < n; i++) {
     a[i] = `p${i}`;
@@ -29,13 +29,17 @@ function generateParams(n) {
   return a.join(', ');
 }
 
-function generateParamsWithRest(n) {
+function generateParamsWithRest(n, directive_in_body) {
   let a = [];
   let i = 0;
   for (; i < n; i++) {
     a[i] = `p${i}`;
   }
-  a.push(`...p${i}`)
+  if (!directive_in_body) {
+    // If language mode directive occurs in body, rest parameters will trigger
+    // an early error regardless of language mode.
+    a.push(`...p${i}`);
+  }
   return a.join(', ');
 }
 
@@ -76,6 +80,7 @@ function generateSpread(n) {
         for (let call of calls) {
           let code = `'use strict'; ${def}; ${call};`;
           if (argumentCount < parameterCount) {
+            print(code);
             assertThrows(code, TypeError);
           } else {
             assertDoesNotThrow(code);
@@ -106,13 +111,13 @@ function generateSpread(n) {
     for (let parameterCount = 0; parameterCount < 3; parameterCount++) {
       let defs = [
         `let o = new class {
-          m(${genParams(parameterCount)}) { 'use strong'; }
+          m(${genParams(parameterCount, true)}) { 'use strong'; }
         }`,
         `let o = new class {
-          *m(${genParams(parameterCount)}) { 'use strong'; }
+          *m(${genParams(parameterCount, true)}) { 'use strong'; }
         }`,
-        `let o = { m(${genParams(parameterCount)}) { 'use strong'; } }`,
-        `let o = { *m(${genParams(parameterCount)}) { 'use strong'; } }`,
+        `let o = { m(${genParams(parameterCount, true)}) { 'use strong'; } }`,
+        `let o = { *m(${genParams(parameterCount, true)}) { 'use strong'; } }`,
         `'use strong';
         let o = new class { m(${genParams(parameterCount)}) {} }`,
         `'use strong';
@@ -173,7 +178,7 @@ function generateSpread(n) {
           class C { constructor(${genParams(parameterCount)}) {} }`,
           `'use strict';
           class C {
-            constructor(${genParams(parameterCount)}) { 'use strong'; }
+            constructor(${genParams(parameterCount, true)}) { 'use strong'; }
           }`,
         ];
         for (let def of defs) {
@@ -214,7 +219,7 @@ function generateSpread(n) {
             }`,
             `'use strict';
             class B {
-              constructor(${genParams(parameterCount)}) { 'use strong'; }
+              constructor(${genParams(parameterCount, true)}) { 'use strong'; }
             }
             class C extends B {
               constructor() {
@@ -250,7 +255,7 @@ function generateSpread(n) {
             class C extends B {}`,
             `'use strict';
             class B {
-              constructor(${genParams(parameterCount)}) { 'use strong'; }
+              constructor(${genParams(parameterCount, true)}) { 'use strong'; }
             }
             class C extends B {}`,
           ];

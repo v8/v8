@@ -45,11 +45,17 @@ class ExpressionClassifier {
                       ArrowFormalParametersProduction)
   };
 
+  enum FunctionProperties { NonSimpleParameter = 1 << 0 };
+
   ExpressionClassifier()
-      : invalid_productions_(0), duplicate_finder_(nullptr) {}
+      : invalid_productions_(0),
+        function_properties_(0),
+        duplicate_finder_(nullptr) {}
 
   explicit ExpressionClassifier(DuplicateFinder* duplicate_finder)
-      : invalid_productions_(0), duplicate_finder_(duplicate_finder) {}
+      : invalid_productions_(0),
+        function_properties_(0),
+        duplicate_finder_(duplicate_finder) {}
 
   bool is_valid(unsigned productions) const {
     return (invalid_productions_ & productions) == 0;
@@ -109,6 +115,14 @@ class ExpressionClassifier {
 
   const Error& strong_mode_formal_parameter_error() const {
     return strong_mode_formal_parameter_error_;
+  }
+
+  bool is_simple_parameter_list() const {
+    return !(function_properties_ & NonSimpleParameter);
+  }
+
+  void RecordNonSimpleParameter() {
+    function_properties_ |= NonSimpleParameter;
   }
 
   void RecordExpressionError(const Scanner::Location& loc,
@@ -216,15 +230,21 @@ class ExpressionClassifier {
     // As an exception to the above, the result continues to be a valid arrow
     // formal parameters if the inner expression is a valid binding pattern.
     if (productions & ArrowFormalParametersProduction &&
-        is_valid_arrow_formal_parameters() &&
-        !inner.is_valid_binding_pattern()) {
-      invalid_productions_ |= ArrowFormalParametersProduction;
-      arrow_formal_parameters_error_ = inner.binding_pattern_error_;
+        is_valid_arrow_formal_parameters()) {
+      // Also copy function properties if expecting an arrow function
+      // parameter.
+      function_properties_ |= inner.function_properties_;
+
+      if (!inner.is_valid_binding_pattern()) {
+        invalid_productions_ |= ArrowFormalParametersProduction;
+        arrow_formal_parameters_error_ = inner.binding_pattern_error_;
+      }
     }
   }
 
  private:
   unsigned invalid_productions_;
+  unsigned function_properties_;
   Error expression_error_;
   Error binding_pattern_error_;
   Error assignment_pattern_error_;

@@ -786,11 +786,11 @@ class ParserTraits {
       Expression* initializer, bool is_rest);
   V8_INLINE void DeclareFormalParameter(
       Scope* scope, const ParserFormalParameters::Parameter& parameter,
-      bool is_simple, ExpressionClassifier* classifier);
-  void ParseArrowFunctionFormalParameters(
-      ParserFormalParameters* parameters, Expression* params,
-      const Scanner::Location& params_loc,
-      Scanner::Location* duplicate_loc, bool* ok);
+      ExpressionClassifier* classifier);
+  void ParseArrowFunctionFormalParameters(ParserFormalParameters* parameters,
+                                          Expression* params,
+                                          const Scanner::Location& params_loc,
+                                          bool* ok);
   void ParseArrowFunctionFormalParameterList(
       ParserFormalParameters* parameters, Expression* params,
       const Scanner::Location& params_loc,
@@ -1335,12 +1335,14 @@ void ParserTraits::AddFormalParameter(
 
 void ParserTraits::DeclareFormalParameter(
     Scope* scope, const ParserFormalParameters::Parameter& parameter,
-    bool is_simple, ExpressionClassifier* classifier) {
+    ExpressionClassifier* classifier) {
   bool is_duplicate = false;
+  bool is_simple = classifier->is_simple_parameter_list();
   // TODO(caitp): Remove special handling for rest once desugaring is in.
   auto name = is_simple || parameter.is_rest
       ? parameter.name : parser_->ast_value_factory()->empty_string();
   auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
+  if (!is_simple) scope->SetHasNonSimpleParameters();
   bool is_optional = parameter.initializer != nullptr;
   Variable* var = scope->DeclareParameter(
       name, mode, is_optional, parameter.is_rest, &is_duplicate);

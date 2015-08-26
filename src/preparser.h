@@ -1648,8 +1648,11 @@ class PreParserTraits {
     ++parameters->arity;
   }
   void DeclareFormalParameter(Scope* scope, PreParserIdentifier parameter,
-                              bool is_simple,
-                              ExpressionClassifier* classifier) {}
+                              ExpressionClassifier* classifier) {
+    if (!classifier->is_simple_parameter_list()) {
+      scope->SetHasNonSimpleParameters();
+    }
+  }
 
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
 
@@ -1747,8 +1750,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
   PreParseResult PreParseLazyFunction(
-      LanguageMode language_mode, FunctionKind kind, ParserRecorder* log,
-      Scanner::BookmarkScope* bookmark = nullptr);
+      LanguageMode language_mode, FunctionKind kind, bool has_simple_parameters,
+      ParserRecorder* log, Scanner::BookmarkScope* bookmark = nullptr);
 
  private:
   friend class PreParserTraits;
@@ -2283,6 +2286,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         classifier->RecordExpressionError(scanner()->location(),
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::ELLIPSIS));
+        classifier->RecordNonSimpleParameter();
         Scanner::Location expr_loc = scanner()->peek_location();
         Token::Value tok = peek();
         result = this->ParseAssignmentExpression(true, classifier, CHECK_OK);
@@ -2295,6 +2299,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
           return this->EmptyExpression();
         }
         result = factory()->NewSpread(result, ellipsis_pos);
+
         if (peek() == Token::COMMA) {
           ReportMessageAt(scanner()->peek_location(),
                           MessageTemplate::kParamAfterRest);
@@ -2385,6 +2390,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
       this->ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
   classifier->Accumulate(binding_classifier,
                          ExpressionClassifier::AllProductions);
+  bool is_simple_parameter_list = this->IsIdentifier(result);
   bool seen_rest = false;
   while (peek() == Token::COMMA) {
     if (seen_rest) {
@@ -2408,9 +2414,14 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     ExpressionT right = this->ParseAssignmentExpression(
         accept_IN, &binding_classifier, CHECK_OK);
     if (is_rest) right = factory()->NewSpread(right, pos);
+    is_simple_parameter_list =
+        is_simple_parameter_list && this->IsIdentifier(right);
     classifier->Accumulate(binding_classifier,
                            ExpressionClassifier::AllProductions);
     result = factory()->NewBinaryOperation(Token::COMMA, result, right, pos);
+  }
+  if (!is_simple_parameter_list || seen_rest) {
+    classifier->RecordNonSimpleParameter();
   }
   return result;
 }
@@ -2839,7 +2850,6 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   }
   ExpressionT expression = this->ParseConditionalExpression(
       accept_IN, &arrow_formals_classifier, CHECK_OK);
-
   if (allow_harmony_arrow_functions() && peek() == Token::ARROW) {
     BindingPatternUnexpectedToken(classifier);
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
@@ -2848,6 +2858,10 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     Scope* scope =
         this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
     FormalParametersT parameters(scope);
+    if (!arrow_formals_classifier.is_simple_parameter_list()) {
+      scope->SetHasNonSimpleParameters();
+      parameters.is_simple = false;
+    }
     checkpoint.Restore(&parameters.materialized_literals_count);
 
     scope->set_start_position(lhs_beg_pos);
@@ -3662,6 +3676,7 @@ void ParserBase<Traits>::ParseFormalParameter(
       return;
     }
     parameters->is_simple = false;
+    classifier->RecordNonSimpleParameter();
   }
 
   ExpressionT initializer = Traits::EmptyExpression();
@@ -3672,6 +3687,7 @@ void ParserBase<Traits>::ParseFormalParameter(
     ValidateExpression(&init_classifier, ok);
     if (!*ok) return;
     parameters->is_simple = false;
+    classifier->RecordNonSimpleParameter();
   }
 
   Traits::AddFormalParameter(parameters, pattern, initializer, is_rest);
@@ -3712,6 +3728,7 @@ void ParserBase<Traits>::ParseFormalParameterList(
 
     if (parameters->has_rest) {
       parameters->is_simple = false;
+      classifier->RecordNonSimpleParameter();
       if (peek() == Token::COMMA) {
         ReportMessageAt(scanner()->peek_location(),
                       MessageTemplate::kParamAfterRest);
@@ -3723,8 +3740,7 @@ void ParserBase<Traits>::ParseFormalParameterList(
 
   for (int i = 0; i < parameters->Arity(); ++i) {
     auto parameter = parameters->at(i);
-    Traits::DeclareFormalParameter(
-        parameters->scope, parameter, parameters->is_simple, classifier);
+    Traits::DeclareFormalParameter(parameters->scope, parameter, classifier);
   }
 }
 

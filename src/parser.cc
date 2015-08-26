@@ -1198,9 +1198,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
           // BindingIdentifier
           ParseFormalParameter(&formals, &formals_classifier, &ok);
           if (ok) {
-            DeclareFormalParameter(
-                formals.scope, formals.at(0), formals.is_simple,
-                &formals_classifier);
+            DeclareFormalParameter(formals.scope, formals.at(0),
+                                   &formals_classifier);
           }
         }
       }
@@ -1322,6 +1321,20 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
             token_loc.end_pos - token_loc.beg_pos ==
                 ast_value_factory()->use_strong_string()->length() + 2;
         if (use_strict_found || use_strong_found) {
+          if (!scope_->HasSimpleParameters()) {
+            // TC39 deemed "use strict" directives to be an error when occurring
+            // in the body of a function with non-simple parameter list, on
+            // 29/7/2015. https://goo.gl/ueA7Ln
+            //
+            // In V8, this also applies to "use strong " directives.
+            const AstRawString* string = literal->raw_value()->AsString();
+            ParserTraits::ReportMessageAt(
+                token_loc, MessageTemplate::kIllegalLanguageModeDirective,
+                string);
+            *ok = false;
+            return nullptr;
+          }
+
           // Strong mode implies strict mode. If there are several "use strict"
           // / "use strong" directives, do the strict mode changes only once.
           if (is_sloppy(scope_->language_mode())) {
@@ -3889,8 +3902,7 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 
 void ParserTraits::ParseArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr,
-    const Scanner::Location& params_loc,
-    Scanner::Location* duplicate_loc, bool* ok) {
+    const Scanner::Location& params_loc, bool* ok) {
   if (parameters->Arity() >= Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     *ok = false;
@@ -3917,8 +3929,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     DCHECK_EQ(binop->op(), Token::COMMA);
     Expression* left = binop->left();
     Expression* right = binop->right();
-    ParseArrowFunctionFormalParameters(parameters, left, params_loc,
-                                       duplicate_loc, ok);
+    ParseArrowFunctionFormalParameters(parameters, left, params_loc, ok);
     if (!*ok) return;
     // LHS of comma expression should be unparenthesized.
     expr = right;
@@ -3962,15 +3973,16 @@ void ParserTraits::ParseArrowFunctionFormalParameterList(
     Scanner::Location* duplicate_loc, bool* ok) {
   if (expr->IsEmptyParentheses()) return;
 
-  ParseArrowFunctionFormalParameters(parameters, expr, params_loc,
-                                     duplicate_loc, ok);
+  ParseArrowFunctionFormalParameters(parameters, expr, params_loc, ok);
   if (!*ok) return;
 
+  ExpressionClassifier classifier;
+  if (!parameters->is_simple) {
+    classifier.RecordNonSimpleParameter();
+  }
   for (int i = 0; i < parameters->Arity(); ++i) {
     auto parameter = parameters->at(i);
-    ExpressionClassifier classifier;
-    DeclareFormalParameter(
-        parameters->scope, parameter, parameters->is_simple, &classifier);
+    DeclareFormalParameter(parameters->scope, parameter, &classifier);
     if (!duplicate_loc->IsValid()) {
       *duplicate_loc = classifier.duplicate_formal_parameter_error().location;
     }
@@ -4585,7 +4597,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
-      language_mode(), function_state_->kind(), logger, bookmark);
+      language_mode(), function_state_->kind(), scope_->has_simple_parameters(),
+      logger, bookmark);
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }

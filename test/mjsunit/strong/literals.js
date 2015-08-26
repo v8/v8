@@ -112,14 +112,14 @@
   assertWeakArray({a: [], b: {}}.a);
 })();
 
-(function StrongArrayLiterals(...args) {
+(function StrongArrayLiterals() {
   'use strong';
   function assertStrongArray(x) {
     assertTrue(%IsStrong(x));
     assertSame(Array.prototype, Object.getPrototypeOf(x));
   }
   let [...r] = [];
-  assertStrongArray(args);
+  assertStrongArray((function(...a) { return a; })());
   assertStrongArray(r);
   assertStrongArray([]);
   assertStrongArray([1, 2, 3]);

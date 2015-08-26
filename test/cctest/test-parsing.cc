@@ -6925,3 +6925,90 @@ TEST(LetSloppy) {
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
+
+
+TEST(LanguageModeDirectivesNonSimpleParameterListErrors) {
+  // TC39 deemed "use strict" directives to be an error when occurring in the
+  // body of a function with non-simple parameter list, on 29/7/2015.
+  // https://goo.gl/ueA7Ln
+  //
+  // In V8, this also applies to "use strong " directives.
+  const char* context_data[][2] = {
+      {"function f(", ") { 'use strict'; }"},
+      {"function f(", ") { 'use strong'; }"},
+      {"function* g(", ") { 'use strict'; }"},
+      {"function* g(", ") { 'use strong'; }"},
+      {"class c { foo(", ") { 'use strict' }"},
+      {"class c { foo(", ") { 'use strong' }"},
+      {"var a = (", ") => { 'use strict'; }"},
+      {"var a = (", ") => { 'use strong'; }"},
+      {"var o = { m(", ") { 'use strict'; }"},
+      {"var o = { m(", ") { 'use strong'; }"},
+      {"var o = { *gm(", ") { 'use strict'; }"},
+      {"var o = { *gm(", ") { 'use strong'; }"},
+      {"var c = { m(", ") { 'use strict'; }"},
+      {"var c = { m(", ") { 'use strong'; }"},
+      {"var c = { *gm(", ") { 'use strict'; }"},
+      {"var c = { *gm(", ") { 'use strong'; }"},
+
+      {"'use strict'; function f(", ") { 'use strict'; }"},
+      {"'use strict'; function f(", ") { 'use strong'; }"},
+      {"'use strict'; function* g(", ") { 'use strict'; }"},
+      {"'use strict'; function* g(", ") { 'use strong'; }"},
+      {"'use strict'; class c { foo(", ") { 'use strict' }"},
+      {"'use strict'; class c { foo(", ") { 'use strong' }"},
+      {"'use strict'; var a = (", ") => { 'use strict'; }"},
+      {"'use strict'; var a = (", ") => { 'use strong'; }"},
+      {"'use strict'; var o = { m(", ") { 'use strict'; }"},
+      {"'use strict'; var o = { m(", ") { 'use strong'; }"},
+      {"'use strict'; var o = { *gm(", ") { 'use strict'; }"},
+      {"'use strict'; var o = { *gm(", ") { 'use strong'; }"},
+      {"'use strict'; var c = { m(", ") { 'use strict'; }"},
+      {"'use strict'; var c = { m(", ") { 'use strong'; }"},
+      {"'use strict'; var c = { *gm(", ") { 'use strict'; }"},
+      {"'use strict'; var c = { *gm(", ") { 'use strong'; }"},
+
+      {"'use strong'; function f(", ") { 'use strict'; }"},
+      {"'use strong'; function f(", ") { 'use strong'; }"},
+      {"'use strong'; function* g(", ") { 'use strict'; }"},
+      {"'use strong'; function* g(", ") { 'use strong'; }"},
+      {"'use strong'; class c { foo(", ") { 'use strict' }"},
+      {"'use strong'; class c { foo(", ") { 'use strong' }"},
+      {"'use strong'; var a = (", ") => { 'use strict'; }"},
+      {"'use strong'; var a = (", ") => { 'use strong'; }"},
+      {"'use strong'; var o = { m(", ") { 'use strict'; }"},
+      {"'use strong'; var o = { m(", ") { 'use strong'; }"},
+      {"'use strong'; var o = { *gm(", ") { 'use strict'; }"},
+      {"'use strong'; var o = { *gm(", ") { 'use strong'; }"},
+      {"'use strong'; var c = { m(", ") { 'use strict'; }"},
+      {"'use strong'; var c = { m(", ") { 'use strong'; }"},
+      {"'use strong'; var c = { *gm(", ") { 'use strict'; }"},
+      {"'use strong'; var c = { *gm(", ") { 'use strong'; }"},
+
+      {NULL, NULL}};
+
+  const char* data[] = {
+      // TODO(@caitp): support formal parameter initializers
+      "{}",
+      "[]",
+      "[{}]",
+      "{a}",
+      "a, {b}",
+      "a, b, {c, d, e}",
+      "initializer = true",
+      "a, b, c = 1",
+      "...args",
+      "a, b, ...rest",
+      "[a, b, ...rest]",
+      "{ bindingPattern = {} }",
+      "{ initializedBindingPattern } = { initializedBindingPattern: true }",
+      NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyArrowFunctions, kAllowHarmonyDefaultParameters,
+      kAllowHarmonyDestructuring, kAllowHarmonyRestParameters,
+      kAllowHarmonySloppy, kAllowStrongMode
+  };
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}

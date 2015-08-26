@@ -387,8 +387,23 @@ class Scope: public ZoneObject {
   }
 
   bool has_simple_parameters() const {
-    DCHECK(is_function_scope());
     return has_simple_parameters_;
+  }
+
+  // TODO(caitp): manage this state in a better way. PreParser must be able to
+  // communicate that the scope is non-simple, without allocating any parameters
+  // as the Parser does. This is necessary to ensure that TC39's proposed early
+  // error can be reported consistently regardless of whether lazily parsed or
+  // not.
+  void SetHasNonSimpleParameters() {
+    DCHECK(is_function_scope());
+    has_simple_parameters_ = false;
+  }
+
+  // Retrieve `IsSimpleParameterList` of current or outer function.
+  bool HasSimpleParameters() {
+    Scope* scope = ClosureScope();
+    return !scope->is_function_scope() || scope->has_simple_parameters();
   }
 
   // The local variable 'arguments' if we need to allocate it; NULL otherwise.
