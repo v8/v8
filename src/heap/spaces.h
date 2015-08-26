@@ -931,10 +931,6 @@ class CodeRange {
   // Returns false on failure.
   bool SetUp(size_t requested_size);
 
-  // Frees the range of virtual memory, and frees the data structures used to
-  // manage it.
-  void TearDown();
-
   bool valid() { return code_range_ != NULL; }
   Address start() {
     DCHECK(valid());
@@ -964,6 +960,10 @@ class CodeRange {
   void ReleaseEmergencyBlock();
 
  private:
+  // Frees the range of virtual memory, and frees the data structures used to
+  // manage it.
+  void TearDown();
+
   Isolate* isolate_;
 
   // The reserved range of virtual memory that all code objects are put in.

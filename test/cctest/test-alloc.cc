@@ -243,6 +243,4 @@ TEST(CodeRange) {
       }
     }
   }
-
-  code_range.TearDown();
 }
