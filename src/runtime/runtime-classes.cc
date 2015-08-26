@@ -551,14 +551,8 @@ RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
   Handle<JSArray> arguments = isolate->factory()->NewJSArrayWithElements(
       elements, FAST_ELEMENTS, argument_count);
 
-  // Call $reflectConstruct(<super>, <args>, <new.target>) now.
-  Handle<Object> reflect;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, reflect,
-      Object::GetProperty(isolate,
-                          handle(isolate->native_context()->builtins()),
-                          "$reflectConstruct"));
-  RUNTIME_ASSERT(reflect->IsJSFunction());  // Depends on --harmony-reflect.
+  // Call %reflect_construct(<super>, <args>, <new.target>) now.
+  Handle<JSFunction> reflect = isolate->reflect_construct();
   Handle<Object> argv[] = {super_constructor, arguments, original_constructor};
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

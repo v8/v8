@@ -6060,7 +6060,7 @@ Expression* Parser::SpreadCall(Expression* function,
                                int pos) {
   if (function->IsSuperCallReference()) {
     // Super calls
-    // %ReflectConstruct(%GetPrototype(<this-function>), args, new.target))
+    // %reflect_construct(%GetPrototype(<this-function>), args, new.target))
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
     Expression* get_prototype =
