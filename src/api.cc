@@ -2525,7 +2525,7 @@ Local<NativeWeakMap> NativeWeakMap::New(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
   i::Handle<i::JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
-  i::Runtime::WeakCollectionInitialize(isolate, weakmap);
+  i::JSWeakCollection::Initialize(weakmap, isolate);
   return Utils::NativeWeakMapToLocal(weakmap);
 }
 
@@ -2548,7 +2548,7 @@ void NativeWeakMap::Set(Local<Value> v8_key, Local<Value> v8_value) {
     return;
   }
   int32_t hash = i::Object::GetOrCreateHash(isolate, key)->value();
-  i::Runtime::WeakCollectionSet(weak_collection, key, value, hash);
+  i::JSWeakCollection::Set(weak_collection, key, value, hash);
 }
 
 
@@ -2611,7 +2611,8 @@ bool NativeWeakMap::Delete(Local<Value> v8_key) {
     DCHECK(false);
     return false;
   }
-  return i::Runtime::WeakCollectionDelete(weak_collection, key);
+  int32_t hash = i::Object::GetOrCreateHash(isolate, key)->value();
+  return i::JSWeakCollection::Delete(weak_collection, key, hash);
 }
 
 

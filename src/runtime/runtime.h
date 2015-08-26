@@ -1168,7 +1168,7 @@ class Runtime : public AllStatic {
       SharedFlag shared = SharedFlag::kNotShared);
 
   enum TypedArrayId {
-    // arrayIds below should be synchromized with typedarray.js natives.
+    // arrayIds below should be synchronized with typedarray.js natives.
     ARRAY_ID_UINT8 = 1,
     ARRAY_ID_INT8 = 2,
     ARRAY_ID_UINT16 = 3,
@@ -1190,16 +1190,6 @@ class Runtime : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
       Isolate* isolate, Handle<FixedArray> literals,
       Handle<FixedArray> elements, bool is_strong);
-
-  static void WeakCollectionInitialize(
-      Isolate* isolate, Handle<JSWeakCollection> weak_collection);
-  static void WeakCollectionSet(Handle<JSWeakCollection> weak_collection,
-                                Handle<Object> key, Handle<Object> value,
-                                int32_t hash);
-  static bool WeakCollectionDelete(Handle<JSWeakCollection> weak_collection,
-                                   Handle<Object> key);
-  static bool WeakCollectionDelete(Handle<JSWeakCollection> weak_collection,
-                                   Handle<Object> key, int32_t hash);
 
   static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
                                                     Handle<Object>);

@@ -89,9 +89,9 @@ TEST(Weakness) {
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     Handle<Smi> smi(Smi::FromInt(23), isolate);
     int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
-    Runtime::WeakCollectionSet(weakmap, key, object, hash);
+    JSWeakCollection::Set(weakmap, key, object, hash);
     int32_t object_hash = Object::GetOrCreateHash(isolate, object)->value();
-    Runtime::WeakCollectionSet(weakmap, object, smi, object_hash);
+    JSWeakCollection::Set(weakmap, object, smi, object_hash);
   }
   CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
 
@@ -147,7 +147,7 @@ TEST(Shrinking) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
       Handle<Smi> smi(Smi::FromInt(i), isolate);
       int32_t object_hash = Object::GetOrCreateHash(isolate, object)->value();
-      Runtime::WeakCollectionSet(weakmap, object, smi, object_hash);
+      JSWeakCollection::Set(weakmap, object, smi, object_hash);
     }
   }
 
@@ -196,7 +196,7 @@ TEST(Regress2060a) {
       CHECK(!heap->InNewSpace(object->address()));
       CHECK(!first_page->Contains(object->address()));
       int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
-      Runtime::WeakCollectionSet(weakmap, key, object, hash);
+      JSWeakCollection::Set(weakmap, key, object, hash);
     }
   }
 
@@ -239,7 +239,7 @@ TEST(Regress2060b) {
   for (int i = 0; i < 32; i++) {
     Handle<Smi> smi(Smi::FromInt(i), isolate);
     int32_t hash = Object::GetOrCreateHash(isolate, keys[i])->value();
-    Runtime::WeakCollectionSet(weakmap, keys[i], smi, hash);
+    JSWeakCollection::Set(weakmap, keys[i], smi, hash);
   }
 
   // Force compacting garbage collection. The subsequent collections are used

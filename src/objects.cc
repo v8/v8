@@ -15153,6 +15153,49 @@ void JSMap::Clear(Handle<JSMap> map) {
 }
 
 
+void JSWeakCollection::Initialize(Handle<JSWeakCollection> weak_collection,
+                                  Isolate* isolate) {
+  DCHECK_EQ(0, weak_collection->map()->GetInObjectProperties());
+  Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 0);
+  weak_collection->set_table(*table);
+}
+
+
+void JSWeakCollection::Set(Handle<JSWeakCollection> weak_collection,
+                           Handle<Object> key, Handle<Object> value,
+                           int32_t hash) {
+  DCHECK(key->IsJSReceiver() || key->IsSymbol());
+  Handle<ObjectHashTable> table(
+      ObjectHashTable::cast(weak_collection->table()));
+  DCHECK(table->IsKey(*key));
+  Handle<ObjectHashTable> new_table =
+      ObjectHashTable::Put(table, key, value, hash);
+  weak_collection->set_table(*new_table);
+  if (*table != *new_table) {
+    // Zap the old table since we didn't record slots for its elements.
+    table->FillWithHoles(0, table->length());
+  }
+}
+
+
+bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
+                              Handle<Object> key, int32_t hash) {
+  DCHECK(key->IsJSReceiver() || key->IsSymbol());
+  Handle<ObjectHashTable> table(
+      ObjectHashTable::cast(weak_collection->table()));
+  DCHECK(table->IsKey(*key));
+  bool was_present = false;
+  Handle<ObjectHashTable> new_table =
+      ObjectHashTable::Remove(table, key, &was_present, hash);
+  weak_collection->set_table(*new_table);
+  if (*table != *new_table) {
+    // Zap the old table since we didn't record slots for its elements.
+    table->FillWithHoles(0, table->length());
+  }
+  return was_present;
+}
+
+
 // Check if there is a break point at this code position.
 bool DebugInfo::HasBreakPoint(int code_position) {
   // Get the break point info object for this code position.

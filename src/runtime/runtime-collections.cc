@@ -271,19 +271,11 @@ RUNTIME_FUNCTION(Runtime_MapIteratorNext) {
 }
 
 
-void Runtime::WeakCollectionInitialize(
-    Isolate* isolate, Handle<JSWeakCollection> weak_collection) {
-  DCHECK_EQ(0, weak_collection->map()->GetInObjectProperties());
-  Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 0);
-  weak_collection->set_table(*table);
-}
-
-
 RUNTIME_FUNCTION(Runtime_WeakCollectionInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  Runtime::WeakCollectionInitialize(isolate, weak_collection);
+  JSWeakCollection::Initialize(weak_collection, isolate);
   return *weak_collection;
 }
 
@@ -318,32 +310,6 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionHas) {
 }
 
 
-bool Runtime::WeakCollectionDelete(Handle<JSWeakCollection> weak_collection,
-                                   Handle<Object> key) {
-  int32_t hash =
-      Object::GetOrCreateHash(weak_collection->GetIsolate(), key)->value();
-  return WeakCollectionDelete(weak_collection, key, hash);
-}
-
-
-bool Runtime::WeakCollectionDelete(Handle<JSWeakCollection> weak_collection,
-                                   Handle<Object> key, int32_t hash) {
-  DCHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
-  DCHECK(table->IsKey(*key));
-  bool was_present = false;
-  Handle<ObjectHashTable> new_table =
-      ObjectHashTable::Remove(table, key, &was_present, hash);
-  weak_collection->set_table(*new_table);
-  if (*table != *new_table) {
-    // Zap the old table since we didn't record slots for its elements.
-    table->FillWithHoles(0, table->length());
-  }
-  return was_present;
-}
-
-
 RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
@@ -354,25 +320,8 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
-  bool was_present = Runtime::WeakCollectionDelete(weak_collection, key, hash);
+  bool was_present = JSWeakCollection::Delete(weak_collection, key, hash);
   return isolate->heap()->ToBoolean(was_present);
-}
-
-
-void Runtime::WeakCollectionSet(Handle<JSWeakCollection> weak_collection,
-                                Handle<Object> key, Handle<Object> value,
-                                int32_t hash) {
-  DCHECK(key->IsJSReceiver() || key->IsSymbol());
-  Handle<ObjectHashTable> table(
-      ObjectHashTable::cast(weak_collection->table()));
-  DCHECK(table->IsKey(*key));
-  Handle<ObjectHashTable> new_table =
-      ObjectHashTable::Put(table, key, value, hash);
-  weak_collection->set_table(*new_table);
-  if (*table != *new_table) {
-    // Zap the old table since we didn't record slots for its elements.
-    table->FillWithHoles(0, table->length());
-  }
 }
 
 
@@ -387,7 +336,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
-  Runtime::WeakCollectionSet(weak_collection, key, value, hash);
+  JSWeakCollection::Set(weak_collection, key, value, hash);
   return *weak_collection;
 }
 
@@ -425,7 +374,7 @@ RUNTIME_FUNCTION(Runtime_ObservationWeakMapCreate) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
-  Runtime::WeakCollectionInitialize(isolate, weakmap);
+  JSWeakCollection::Initialize(weakmap, isolate);
   return *weakmap;
 }
 }  // namespace internal

@@ -9445,6 +9445,12 @@ class JSWeakCollection: public JSObject {
   // [next]: linked list of encountered weak maps during GC.
   DECL_ACCESSORS(next, Object)
 
+  static void Initialize(Handle<JSWeakCollection> collection, Isolate* isolate);
+  static void Set(Handle<JSWeakCollection> collection, Handle<Object> key,
+                  Handle<Object> value, int32_t hash);
+  static bool Delete(Handle<JSWeakCollection> collection, Handle<Object> key,
+                     int32_t hash);
+
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kNextOffset = kTableOffset + kPointerSize;
   static const int kSize = kNextOffset + kPointerSize;
