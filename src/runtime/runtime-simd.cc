@@ -960,14 +960,16 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
 
 //-------------------------------------------------------------------
 
-// Load functions.
+// Load and Store functions.
+
 #define SIMD_LOADN_STOREN_TYPES(FUNCTION) \
   FUNCTION(Float32x4, float, 4)           \
   FUNCTION(Int32x4, int32_t, 4)           \
   FUNCTION(Uint32x4, uint32_t, 4)
 
 
-// Common Load Functions
+// Common Load and Store Functions
+
 #define SIMD_LOAD(type, lane_type, lane_count, count, result)          \
   static const int kLaneCount = lane_count;                            \
   DCHECK(args.length() == 2);                                          \
@@ -984,6 +986,27 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
   lane_type lanes[kLaneCount] = {0};                                   \
   memcpy(lanes, tarray_base + index * bpe, bytes);                     \
   Handle<type> result = isolate->factory()->New##type(lanes);
+
+
+#define SIMD_STORE(type, lane_type, lane_count, count, a)              \
+  static const int kLaneCount = lane_count;                            \
+  DCHECK(args.length() == 3);                                          \
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, tarray, 0);                 \
+  CONVERT_INT32_ARG_CHECKED(index, 1)                                  \
+  CONVERT_ARG_HANDLE_CHECKED(type, a, 2);                              \
+  size_t bpe = tarray->element_size();                                 \
+  uint32_t bytes = count * sizeof(lane_type);                          \
+  size_t byte_length = NumberToSize(isolate, tarray->byte_length());   \
+  RUNTIME_ASSERT(index >= 0 && index * bpe + bytes <= byte_length);    \
+  size_t tarray_offset = NumberToSize(isolate, tarray->byte_offset()); \
+  uint8_t* tarray_base =                                               \
+      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +    \
+      tarray_offset;                                                   \
+  lane_type lanes[kLaneCount];                                         \
+  for (int i = 0; i < kLaneCount; i++) {                               \
+    lanes[i] = a->get_lane(i);                                         \
+  }                                                                    \
+  memcpy(tarray_base + index * bpe, lanes, bytes);
 
 
 #define SIMD_LOAD_FUNCTION(type, lane_type, lane_count)         \
@@ -1018,10 +1041,46 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
   }
 
 
+#define SIMD_STORE_FUNCTION(type, lane_type, lane_count)    \
+  RUNTIME_FUNCTION(Runtime_##type##Store) {                 \
+    HandleScope scope(isolate);                             \
+    SIMD_STORE(type, lane_type, lane_count, lane_count, a); \
+    return *a;                                              \
+  }
+
+
+#define SIMD_STORE1_FUNCTION(type, lane_type, lane_count) \
+  RUNTIME_FUNCTION(Runtime_##type##Store1) {              \
+    HandleScope scope(isolate);                           \
+    SIMD_STORE(type, lane_type, lane_count, 1, a);        \
+    return *a;                                            \
+  }
+
+
+#define SIMD_STORE2_FUNCTION(type, lane_type, lane_count) \
+  RUNTIME_FUNCTION(Runtime_##type##Store2) {              \
+    HandleScope scope(isolate);                           \
+    SIMD_STORE(type, lane_type, lane_count, 2, a);        \
+    return *a;                                            \
+  }
+
+
+#define SIMD_STORE3_FUNCTION(type, lane_type, lane_count) \
+  RUNTIME_FUNCTION(Runtime_##type##Store3) {              \
+    HandleScope scope(isolate);                           \
+    SIMD_STORE(type, lane_type, lane_count, 3, a);        \
+    return *a;                                            \
+  }
+
+
 SIMD_NUMERIC_TYPES(SIMD_LOAD_FUNCTION)
 SIMD_LOADN_STOREN_TYPES(SIMD_LOAD1_FUNCTION)
 SIMD_LOADN_STOREN_TYPES(SIMD_LOAD2_FUNCTION)
 SIMD_LOADN_STOREN_TYPES(SIMD_LOAD3_FUNCTION)
+SIMD_NUMERIC_TYPES(SIMD_STORE_FUNCTION)
+SIMD_LOADN_STOREN_TYPES(SIMD_STORE1_FUNCTION)
+SIMD_LOADN_STOREN_TYPES(SIMD_STORE2_FUNCTION)
+SIMD_LOADN_STOREN_TYPES(SIMD_STORE3_FUNCTION)
 
 //-------------------------------------------------------------------
 
