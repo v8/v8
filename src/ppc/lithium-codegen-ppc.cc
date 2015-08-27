@@ -612,15 +612,23 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
   }
 
   if (op->IsStackSlot()) {
+    int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
     if (is_tagged) {
-      translation->StoreStackSlot(op->index());
+      translation->StoreStackSlot(index);
     } else if (is_uint32) {
-      translation->StoreUint32StackSlot(op->index());
+      translation->StoreUint32StackSlot(index);
     } else {
-      translation->StoreInt32StackSlot(op->index());
+      translation->StoreInt32StackSlot(index);
     }
   } else if (op->IsDoubleStackSlot()) {
-    translation->StoreDoubleStackSlot(op->index());
+    int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
+    translation->StoreDoubleStackSlot(index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
     if (is_tagged) {
@@ -2306,11 +2314,8 @@ void LCodeGen::DoBranch(LBranch* instr) {
       if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
         // SIMD value -> true.
         Label not_simd;
-        __ CompareInstanceType(map, ip, FIRST_SIMD_VALUE_TYPE);
-        __ blt(&not_simd);
-        __ CompareInstanceType(map, ip, LAST_SIMD_VALUE_TYPE);
-        __ ble(instr->TrueLabel(chunk_));
-        __ bind(&not_simd);
+        __ CompareInstanceType(map, ip, SIMD128_VALUE_TYPE);
+        __ beq(instr->TrueLabel(chunk_));
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -5939,11 +5944,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label, Label* false_label,
   } else if (String::Equals(type_name, factory->string_string())) {
     __ JumpIfSmi(input, false_label);
     __ CompareObjectType(input, scratch, no_reg, FIRST_NONSTRING_TYPE);
-    __ bge(false_label);
-    __ lbz(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ ExtractBit(r0, scratch, Map::kIsUndetectable);
-    __ cmpi(r0, Operand::Zero());
-    final_branch_condition = eq;
+    final_branch_condition = lt;
 
   } else if (String::Equals(type_name, factory->symbol_string())) {
     __ JumpIfSmi(input, false_label);
@@ -5989,40 +5990,16 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label, Label* false_label,
     __ cmpi(r0, Operand::Zero());
     final_branch_condition = eq;
 
-  } else if (String::Equals(type_name, factory->float32x4_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, no_reg, FLOAT32X4_TYPE);
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)        \
+  } else if (String::Equals(type_name, factory->type##_string())) {  \
+    __ JumpIfSmi(input, false_label);                                \
+    __ LoadP(scratch, FieldMemOperand(input, HeapObject::kMapOffset)); \
+    __ CompareRoot(scratch, Heap::k##Type##MapRootIndex);            \
     final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->int32x4_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, no_reg, INT32X4_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->bool32x4_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, no_reg, BOOL32X4_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->int16x8_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, no_reg, INT16X8_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->bool16x8_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, no_reg, BOOL16X8_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->int8x16_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, no_reg, INT8X16_TYPE);
-    final_branch_condition = eq;
-
-  } else if (String::Equals(type_name, factory->bool8x16_string())) {
-    __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, no_reg, BOOL8X16_TYPE);
-    final_branch_condition = eq;
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
 
   } else {
     __ b(false_label);

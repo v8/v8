@@ -8,7 +8,6 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -899,29 +898,30 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Allocate the local and temporary register file on the stack.
   {
-    // Load frame size from the BytecodeArray object.
-    __ LoadP(r5, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                 BytecodeArray::kFrameSizeOffset));
+    // Load frame size (word) from the BytecodeArray object.
+    __ lwz(r5, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                               BytecodeArray::kFrameSizeOffset));
 
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
     __ sub(r6, sp, r5);
     __ LoadRoot(r0, Heap::kRealStackLimitRootIndex);
-    __ cmp(r6, r0);
+    __ cmpl(r6, r0);
     __ bge(&ok);
     __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
     __ bind(&ok);
 
     // If ok, push undefined as the initial value for all register file entries.
-    // Note: there should always be at least one stack slot for the return
-    // register in the register file.
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
-    Label loop_header;
+    Label loop, no_args;
     __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
-    __ ShiftRightImm(r5, r5, Operand(kPointerSizeLog2));
-    __ bind(&loop_header);
+    __ ShiftRightImm(r5, r5, Operand(kPointerSizeLog2), SetRC);
+    __ beq(&no_args, cr0);
+    __ mtctr(r5);
+    __ bind(&loop);
     __ push(r6);
-    __ bdnz(&loop_header);
+    __ bdnz(&loop);
+    __ bind(&no_args);
   }
 
   // TODO(rmcilroy): List of things not currently dealt with here but done in
@@ -955,7 +955,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ bind(&ok);
   }
 
-  // Load bytecode offset and dispatch table into registers.
+  // Load accumulator, register file, bytecode offset, dispatch table into
+  // registers.
+  __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
+  __ subi(
+      kInterpreterRegisterFileRegister, fp,
+      Operand(kPointerSize + StandardFrameConstants::kFixedFrameSizeFromFp));
   __ mov(kInterpreterBytecodeOffsetRegister,
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
   __ LoadRoot(kInterpreterDispatchTableRegister,
@@ -964,14 +969,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Dispatch to the first bytecode handler for the function.
-  __ lbzx(r3, MemOperand(kInterpreterBytecodeArrayRegister,
+  __ lbzx(r4, MemOperand(kInterpreterBytecodeArrayRegister,
                          kInterpreterBytecodeOffsetRegister));
-  __ ShiftLeftImm(ip, r3, Operand(kPointerSizeLog2));
+  __ ShiftLeftImm(ip, r4, Operand(kPointerSizeLog2));
   __ LoadPX(ip, MemOperand(kInterpreterDispatchTableRegister, ip));
   // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
   // and header removal.
   __ addi(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(ip);
+  __ Call(ip);
 }
 
 
@@ -982,10 +987,8 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
   //  - Support profiler (specifically decrementing profiling_counter
   //    appropriately and calling out to HandleInterrupts if necessary).
 
-  // Load return value into r3.
-  __ LoadP(r3,
-           MemOperand(fp, -kPointerSize -
-                              StandardFrameConstants::kFixedFrameSizeFromFp));
+  // The return value is in accumulator, which is already in r3.
+
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::JAVA_SCRIPT);
   // Drop receiver + arguments.

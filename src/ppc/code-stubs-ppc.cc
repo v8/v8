@@ -258,7 +258,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
   // They are both equal and they are not both Smis so both of them are not
   // Smis.  If it's not a heap number, then return equal.
   if (cond == lt || cond == gt) {
-    Label not_simd;
     // Call runtime on identical JSObjects.
     __ CompareObjectType(r3, r7, r7, FIRST_SPEC_OBJECT_TYPE);
     __ bge(slow);
@@ -266,11 +265,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ cmpi(r7, Operand(SYMBOL_TYPE));
     __ beq(slow);
     // Call runtime on identical SIMD values since we must throw a TypeError.
-    __ cmpi(r7, Operand(FIRST_SIMD_VALUE_TYPE));
-    __ blt(&not_simd);
-    __ cmpi(r7, Operand(LAST_SIMD_VALUE_TYPE));
-    __ ble(slow);
-    __ bind(&not_simd);
+    __ cmpi(r7, Operand(SIMD128_VALUE_TYPE));
+    __ beq(slow);
     if (is_strong(strength)) {
       // Call the runtime on anything that is converted in the semantics, since
       // we need to throw a TypeError. Smis have already been ruled out.
@@ -284,18 +280,14 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ beq(&heap_number);
     // Comparing JS objects with <=, >= is complicated.
     if (cond != eq) {
-      Label not_simd;
       __ cmpi(r7, Operand(FIRST_SPEC_OBJECT_TYPE));
       __ bge(slow);
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ cmpi(r7, Operand(SYMBOL_TYPE));
       __ beq(slow);
       // Call runtime on identical SIMD values since we must throw a TypeError.
-      __ cmpi(r7, Operand(FIRST_SIMD_VALUE_TYPE));
-      __ blt(&not_simd);
-      __ cmpi(r7, Operand(LAST_SIMD_VALUE_TYPE));
-      __ ble(slow);
-      __ bind(&not_simd);
+      __ cmpi(r7, Operand(SIMD128_VALUE_TYPE));
+      __ beq(slow);
       if (is_strong(strength)) {
         // Call the runtime on anything that is converted in the semantics,
         // since we need to throw a TypeError. Smis and heap numbers have
@@ -4780,7 +4772,7 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Code::Flags code_flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::LOAD_IC, code_flags,
-                                               false, receiver, name, feedback,
+                                               receiver, name, feedback,
                                                receiver_map, scratch1, r10);
 
   __ bind(&miss);

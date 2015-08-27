@@ -3432,14 +3432,9 @@ void FullCodeGenerator::EmitIsSimdValue(CallRuntime* expr) {
                          &if_false, &fall_through);
 
   __ JumpIfSmi(r3, if_false);
-  Register map = r4;
-  Register type_reg = r5;
-  __ LoadP(map, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ lbz(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ subi(type_reg, type_reg, Operand(FIRST_SIMD_VALUE_TYPE));
-  __ cmpli(type_reg, Operand(LAST_SIMD_VALUE_TYPE - FIRST_SIMD_VALUE_TYPE));
+  __ CompareObjectType(r3, r4, r4, SIMD128_VALUE_TYPE);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(le, if_true, if_false, fall_through);
+  Split(eq, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }
@@ -5029,44 +5024,11 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(eq, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->string_string())) {
     __ JumpIfSmi(r3, if_false);
-    // Check for undetectable objects => false.
     __ CompareObjectType(r3, r3, r4, FIRST_NONSTRING_TYPE);
-    __ bge(if_false);
-    __ lbz(r4, FieldMemOperand(r3, Map::kBitFieldOffset));
-    STATIC_ASSERT((1 << Map::kIsUndetectable) < 0x8000);
-    __ andi(r0, r4, Operand(1 << Map::kIsUndetectable));
-    Split(eq, if_true, if_false, fall_through, cr0);
+    Split(lt, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->symbol_string())) {
     __ JumpIfSmi(r3, if_false);
     __ CompareObjectType(r3, r3, r4, SYMBOL_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->float32x4_string())) {
-    __ JumpIfSmi(r3, if_false);
-    __ CompareObjectType(r3, r3, r4, FLOAT32X4_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->int32x4_string())) {
-    __ JumpIfSmi(r3, if_false);
-    __ CompareObjectType(r3, r3, r4, INT32X4_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->bool32x4_string())) {
-    __ JumpIfSmi(r3, if_false);
-    __ CompareObjectType(r3, r3, r4, BOOL32X4_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->int16x8_string())) {
-    __ JumpIfSmi(r3, if_false);
-    __ CompareObjectType(r3, r3, r4, INT16X8_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->bool16x8_string())) {
-    __ JumpIfSmi(r3, if_false);
-    __ CompareObjectType(r3, r3, r4, BOOL16X8_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->int8x16_string())) {
-    __ JumpIfSmi(r3, if_false);
-    __ CompareObjectType(r3, r3, r4, INT8X16_TYPE);
-    Split(eq, if_true, if_false, fall_through);
-  } else if (String::Equals(check, factory->bool8x16_string())) {
-    __ JumpIfSmi(r3, if_false);
-    __ CompareObjectType(r3, r3, r4, BOOL8X16_TYPE);
     Split(eq, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->boolean_string())) {
     __ CompareRoot(r3, Heap::kTrueValueRootIndex);
@@ -5103,6 +5065,16 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ lbz(r4, FieldMemOperand(r3, Map::kBitFieldOffset));
     __ andi(r0, r4, Operand(1 << Map::kIsUndetectable));
     Split(eq, if_true, if_false, fall_through, cr0);
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)   \
+  } else if (String::Equals(check, factory->type##_string())) { \
+    __ JumpIfSmi(r3, if_false);                                 \
+    __ LoadP(r3, FieldMemOperand(r3, HeapObject::kMapOffset));    \
+    __ CompareRoot(r3, Heap::k##Type##MapRootIndex);            \
+    Split(eq, if_true, if_false, fall_through);
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
   } else {
     if (if_false != fall_through) __ b(if_false);
   }
