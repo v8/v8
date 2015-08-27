@@ -623,14 +623,6 @@ class Factory final {
   PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-  inline void set_string_table(Handle<StringTable> table) {
-    isolate()->heap()->set_string_table(*table);
-  }
-
-  inline void set_weak_stack_trace_list(Handle<WeakFixedArray> list) {
-    isolate()->heap()->set_weak_stack_trace_list(*list);
-  }
-
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       Handle<String> name, int number_of_literals, FunctionKind kind,

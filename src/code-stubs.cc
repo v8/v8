@@ -174,7 +174,7 @@ Handle<Code> CodeStub::GetCode() {
               Handle<UnseededNumberDictionary>(heap->code_stubs()),
               GetKey(),
               new_object);
-      heap->public_set_code_stubs(*dict);
+      heap->SetRootCodeStubs(*dict);
     }
     code = *new_object;
   }

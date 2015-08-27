@@ -1215,21 +1215,33 @@ class Heap {
   Object** roots_array_start() { return roots_; }
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void public_set_code_stubs(UnseededNumberDictionary* value) {
+  void SetRootCodeStubs(UnseededNumberDictionary* value) {
     roots_[kCodeStubsRootIndex] = value;
   }
 
   // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
-  void public_set_non_monomorphic_cache(UnseededNumberDictionary* value) {
+  void SetRootNonMonomorphicCache(UnseededNumberDictionary* value) {
     roots_[kNonMonomorphicCacheRootIndex] = value;
   }
 
-  void public_set_empty_script(Script* script) {
-    roots_[kEmptyScriptRootIndex] = script;
+  void SetRootMaterializedObjects(FixedArray* objects) {
+    roots_[kMaterializedObjectsRootIndex] = objects;
   }
 
-  void public_set_materialized_objects(FixedArray* objects) {
-    roots_[kMaterializedObjectsRootIndex] = objects;
+  void SetRootCodeStubContext(Object* value) {
+    roots_[kCodeStubContextRootIndex] = value;
+  }
+
+  void SetRootCodeStubExportsObject(JSObject* value) {
+    roots_[kCodeStubExportsObjectRootIndex] = value;
+  }
+
+  void SetRootScriptList(Object* value) {
+    roots_[kScriptListRootIndex] = value;
+  }
+
+  void SetRootStringTable(StringTable* value) {
+    roots_[kStringTableRootIndex] = value;
   }
 
   // Set the stack limit in the roots_ array.  Some architectures generate
@@ -2408,20 +2420,22 @@ class Heap {
 
   StrongRootsList* strong_roots_list_;
 
+  // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
-  friend class Bootstrapper;
-  friend class Deserializer;
-  friend class Factory;
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapIterator;
   friend class IncrementalMarking;
-  friend class Isolate;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
-  friend class MapCompact;
   friend class Page;
   friend class StoreBuffer;
+
+  // The allocator interface.
+  friend class Factory;
+
+  // The Isolate constructs us.
+  friend class Isolate;
 
   // Used in cctest.
   friend class HeapTester;

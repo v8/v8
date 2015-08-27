@@ -14111,7 +14111,7 @@ void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
   // We need a key instance for the virtual hash function.
   InternalizedStringKey dummy_key(Handle<String>::null());
   table = StringTable::EnsureCapacity(table, expected, &dummy_key);
-  isolate->factory()->set_string_table(table);
+  isolate->heap()->SetRootStringTable(*table);
 }
 
 
@@ -14145,7 +14145,7 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
   table->set(EntryToIndex(entry), *string);
   table->ElementAdded();
 
-  isolate->factory()->set_string_table(table);
+  isolate->heap()->SetRootStringTable(*table);
   return Handle<String>::cast(string);
 }
 

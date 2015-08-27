@@ -2252,7 +2252,7 @@ Handle<FixedArray> MaterializedObjectStore::EnsureStackEntries(int length) {
   for (int i = array->length(); i < length; i++) {
     new_array->set(i, isolate()->heap()->undefined_value());
   }
-  isolate()->heap()->public_set_materialized_objects(*new_array);
+  isolate()->heap()->SetRootMaterializedObjects(*new_array);
   return new_array;
 }
 

@@ -165,7 +165,7 @@ Code* PropertyICCompiler::FindPreMonomorphic(Isolate* isolate, Code::Kind kind,
 static void FillCache(Isolate* isolate, Handle<Code> code) {
   Handle<UnseededNumberDictionary> dictionary = UnseededNumberDictionary::Set(
       isolate->factory()->non_monomorphic_cache(), code->flags(), code);
-  isolate->heap()->public_set_non_monomorphic_cache(*dictionary);
+  isolate->heap()->SetRootNonMonomorphicCache(*dictionary);
 }
 
 

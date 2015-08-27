@@ -776,7 +776,8 @@ void Deserializer::CommitPostProcessedObjects(Isolate* isolate) {
     // Assign a new script id to avoid collision.
     script->set_id(isolate_->heap()->NextScriptId());
     // Add script to list.
-    heap->set_script_list(*WeakFixedArray::Add(factory->script_list(), script));
+    Handle<Object> list = WeakFixedArray::Add(factory->script_list(), script);
+    heap->SetRootScriptList(*list);
   }
 }
 
