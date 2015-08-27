@@ -775,7 +775,8 @@ void Heap::PreprocessStackTraces() {
 void Heap::HandleGCRequest() {
   if (incremental_marking()->request_type() ==
       IncrementalMarking::COMPLETE_MARKING) {
-    CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt");
+    CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt",
+                      incremental_marking()->CallbackFlags());
     return;
   }
   DCHECK(FLAG_overapproximate_weak_closure);
@@ -985,7 +986,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   if (!mark_compact_collector()->abort_incremental_marking() &&
       incremental_marking()->IsStopped() &&
       incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
-    incremental_marking()->Start(kNoGCFlags);
+    incremental_marking()->Start(kNoGCFlags, kNoGCCallbackFlags, "GC epilogue");
   }
 
   return next_gc_likely_to_collect_more;
@@ -1012,9 +1013,18 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
 }
 
 
+void Heap::StartIncrementalMarking(int gc_flags,
+                                   const GCCallbackFlags gc_callback_flags,
+                                   const char* reason) {
+  DCHECK(incremental_marking()->IsStopped());
+  incremental_marking()->Start(gc_flags, gc_callback_flags, reason);
+}
+
+
 void Heap::StartIdleIncrementalMarking() {
   gc_idle_time_handler_.ResetNoProgressCounter();
-  incremental_marking()->Start(kReduceMemoryFootprintMask);
+  StartIncrementalMarking(kReduceMemoryFootprintMask, kNoGCCallbackFlags,
+                          "idle");
 }
 
 
@@ -4762,27 +4772,63 @@ void Heap::MakeHeapIterable() {
 }
 
 
-bool Heap::HasLowYoungGenerationAllocationRate() {
-  const double high_mutator_utilization = 0.993;
+static double ComputeMutatorUtilization(double mutator_speed, double gc_speed) {
+  const double kMinMutatorUtilization = 0.0;
+  const double kConservativeGcSpeedInBytesPerMillisecond = 200000;
+  if (mutator_speed == 0) return kMinMutatorUtilization;
+  if (gc_speed == 0) gc_speed = kConservativeGcSpeedInBytesPerMillisecond;
+  // Derivation:
+  // mutator_utilization = mutator_time / (mutator_time + gc_time)
+  // mutator_time = 1 / mutator_speed
+  // gc_time = 1 / gc_speed
+  // mutator_utilization = (1 / mutator_speed) /
+  //                       (1 / mutator_speed + 1 / gc_speed)
+  // mutator_utilization = gc_speed / (mutator_speed + gc_speed)
+  return gc_speed / (mutator_speed + gc_speed);
+}
+
+
+double Heap::YoungGenerationMutatorUtilization() {
   double mutator_speed = static_cast<double>(
       tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
   double gc_speed = static_cast<double>(
       tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects));
-  if (mutator_speed == 0 || gc_speed == 0) return false;
-  double mutator_utilization = gc_speed / (mutator_speed + gc_speed);
-  return mutator_utilization > high_mutator_utilization;
+  double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
+  if (FLAG_trace_mutator_utilization) {
+    PrintIsolate(isolate(),
+                 "Young generation mutator utilization = %.3f ("
+                 "mutator_speed=%.f, gc_speed=%.f)\n",
+                 result, mutator_speed, gc_speed);
+  }
+  return result;
+}
+
+
+double Heap::OldGenerationMutatorUtilization() {
+  double mutator_speed = static_cast<double>(
+      tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond());
+  double gc_speed = static_cast<double>(
+      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
+  double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
+  if (FLAG_trace_mutator_utilization) {
+    PrintIsolate(isolate(),
+                 "Old generation mutator utilization = %.3f ("
+                 "mutator_speed=%.f, gc_speed=%.f)\n",
+                 result, mutator_speed, gc_speed);
+  }
+  return result;
+}
+
+
+bool Heap::HasLowYoungGenerationAllocationRate() {
+  const double high_mutator_utilization = 0.993;
+  return YoungGenerationMutatorUtilization() > high_mutator_utilization;
 }
 
 
 bool Heap::HasLowOldGenerationAllocationRate() {
   const double high_mutator_utilization = 0.993;
-  double mutator_speed = static_cast<double>(
-      tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond());
-  double gc_speed = static_cast<double>(
-      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
-  if (mutator_speed == 0 || gc_speed == 0) return false;
-  double mutator_utilization = gc_speed / (mutator_speed + gc_speed);
-  return mutator_utilization > high_mutator_utilization;
+  return OldGenerationMutatorUtilization() > high_mutator_utilization;
 }
 
 
@@ -4808,7 +4854,13 @@ bool Heap::HasHighFragmentation(intptr_t used, intptr_t committed) {
 
 
 void Heap::ReduceNewSpaceSize() {
-  if (!FLAG_predictable && HasLowAllocationRate()) {
+  // TODO(ulan): Unify this constant with the similar constant in
+  // GCIdleTimeHandler once the change is merged to 4.5.
+  static const size_t kLowAllocationThroughput = 1000;
+  size_t allocation_throughput =
+      tracer()->CurrentAllocationThroughputInBytesPerMillisecond();
+  if (FLAG_predictable || allocation_throughput == 0) return;
+  if (allocation_throughput < kLowAllocationThroughput) {
     new_space_.Shrink();
     UncommitFromSpace();
   }
@@ -4867,6 +4919,32 @@ GCIdleTimeHandler::HeapState Heap::ComputeHeapState() {
 }
 
 
+double Heap::AdvanceIncrementalMarking(
+    intptr_t step_size_in_bytes, double deadline_in_ms,
+    IncrementalMarking::StepActions step_actions) {
+  DCHECK(!incremental_marking()->IsStopped());
+
+  if (step_size_in_bytes == 0) {
+    step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
+        static_cast<size_t>(GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs),
+        static_cast<size_t>(
+            tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()));
+  }
+
+  double remaining_time_in_ms = 0.0;
+  do {
+    incremental_marking()->Step(
+        step_size_in_bytes, step_actions.completion_action,
+        step_actions.force_marking, step_actions.force_completion);
+    remaining_time_in_ms = deadline_in_ms - MonotonicallyIncreasingTimeInMs();
+  } while (remaining_time_in_ms >=
+               2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
+           !incremental_marking()->IsComplete() &&
+           !mark_compact_collector_.marking_deque()->IsEmpty());
+  return remaining_time_in_ms;
+}
+
+
 bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
                                  GCIdleTimeHandler::HeapState heap_state,
                                  double deadline_in_ms) {
@@ -4876,19 +4954,9 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       result = true;
       break;
     case DO_INCREMENTAL_MARKING: {
-      DCHECK(!incremental_marking()->IsStopped());
-      double remaining_idle_time_in_ms = 0.0;
-      do {
-        incremental_marking()->Step(
-            action.parameter, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-            IncrementalMarking::FORCE_MARKING,
-            IncrementalMarking::DO_NOT_FORCE_COMPLETION);
-        remaining_idle_time_in_ms =
-            deadline_in_ms - MonotonicallyIncreasingTimeInMs();
-      } while (remaining_idle_time_in_ms >=
-                   2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
-               !incremental_marking()->IsComplete() &&
-               !mark_compact_collector_.marking_deque()->IsEmpty());
+      const double remaining_idle_time_in_ms =
+          AdvanceIncrementalMarking(action.parameter, deadline_in_ms,
+                                    IncrementalMarking::IdleStepActions());
       if (remaining_idle_time_in_ms > 0.0) {
         action.additional_work = TryFinalizeIdleIncrementalMarking(
             remaining_idle_time_in_ms, heap_state.size_of_objects,
