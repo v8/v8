@@ -6111,31 +6111,15 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 };
 
 
-HeapIterator::HeapIterator(Heap* heap)
-    : make_heap_iterable_helper_(heap),
-      no_heap_allocation_(),
-      heap_(heap),
-      filtering_(HeapIterator::kNoFiltering),
-      filter_(NULL) {
-  Init();
-}
-
-
 HeapIterator::HeapIterator(Heap* heap,
                            HeapIterator::HeapObjectsFiltering filtering)
     : make_heap_iterable_helper_(heap),
       no_heap_allocation_(),
       heap_(heap),
       filtering_(filtering),
-      filter_(NULL) {
-  Init();
-}
-
-
-HeapIterator::~HeapIterator() { Shutdown(); }
-
-
-void HeapIterator::Init() {
+      filter_(nullptr),
+      space_iterator_(nullptr),
+      object_iterator_(nullptr) {
   // Start the iteration.
   space_iterator_ = new SpaceIterator(heap_);
   switch (filtering_) {
@@ -6149,35 +6133,33 @@ void HeapIterator::Init() {
 }
 
 
-void HeapIterator::Shutdown() {
+HeapIterator::~HeapIterator() {
 #ifdef DEBUG
   // Assert that in filtering mode we have iterated through all
   // objects. Otherwise, heap will be left in an inconsistent state.
   if (filtering_ != kNoFiltering) {
-    DCHECK(object_iterator_ == NULL);
+    DCHECK(object_iterator_ == nullptr);
   }
 #endif
   // Make sure the last iterator is deallocated.
+  delete object_iterator_;
   delete space_iterator_;
-  space_iterator_ = NULL;
-  object_iterator_ = NULL;
   delete filter_;
-  filter_ = NULL;
 }
 
 
 HeapObject* HeapIterator::next() {
-  if (filter_ == NULL) return NextObject();
+  if (filter_ == nullptr) return NextObject();
 
   HeapObject* obj = NextObject();
-  while (obj != NULL && filter_->SkipObject(obj)) obj = NextObject();
+  while ((obj != nullptr) && (filter_->SkipObject(obj))) obj = NextObject();
   return obj;
 }
 
 
 HeapObject* HeapIterator::NextObject() {
   // No iterator means we are done.
-  if (object_iterator_ == NULL) return NULL;
+  if (object_iterator_ == nullptr) return nullptr;
 
   if (HeapObject* obj = object_iterator_->next_object()) {
     // If the current iterator has more objects we are fine.
@@ -6192,15 +6174,8 @@ HeapObject* HeapIterator::NextObject() {
     }
   }
   // Done with the last space.
-  object_iterator_ = NULL;
-  return NULL;
-}
-
-
-void HeapIterator::reset() {
-  // Restart the iterator.
-  Shutdown();
-  Init();
+  object_iterator_ = nullptr;
+  return nullptr;
 }
 
 

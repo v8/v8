@@ -2588,26 +2588,26 @@ class HeapIterator BASE_EMBEDDED {
  public:
   enum HeapObjectsFiltering { kNoFiltering, kFilterUnreachable };
 
-  explicit HeapIterator(Heap* heap);
-  HeapIterator(Heap* heap, HeapObjectsFiltering filtering);
+  explicit HeapIterator(Heap* heap,
+                        HeapObjectsFiltering filtering = kNoFiltering);
   ~HeapIterator();
 
   HeapObject* next();
-  void reset();
 
  private:
   struct MakeHeapIterableHelper {
     explicit MakeHeapIterableHelper(Heap* heap) { heap->MakeHeapIterable(); }
   };
 
-  // Perform the initialization.
-  void Init();
-  // Perform all necessary shutdown (destruction) work.
-  void Shutdown();
   HeapObject* NextObject();
 
+  // The following two fields need to be declared in this order. Initialization
+  // order guarantees that we first make the heap iterable (which may involve
+  // allocations) and only then lock it down by not allowing further
+  // allocations.
   MakeHeapIterableHelper make_heap_iterable_helper_;
   DisallowHeapAllocation no_heap_allocation_;
+
   Heap* heap_;
   HeapObjectsFiltering filtering_;
   HeapObjectsFilter* filter_;
