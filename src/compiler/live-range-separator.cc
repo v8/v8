@@ -118,7 +118,8 @@ void SplinterRangesInDeferredBlocks(RegisterAllocationData *data) {
     if (!block->IsDeferred()) continue;
 
     RpoNumber last_deferred = block->last_deferred();
-    i = last_deferred.ToInt();
+    // last_deferred + 1 is not deferred, so no point in visiting it.
+    i = last_deferred.ToInt() + 1;
 
     LifetimePosition first_cut = LifetimePosition::GapFromInstructionIndex(
         block->first_instruction_index());
@@ -126,7 +127,7 @@ void SplinterRangesInDeferredBlocks(RegisterAllocationData *data) {
     LifetimePosition last_cut = LifetimePosition::GapFromInstructionIndex(
         static_cast<int>(code->instructions().size()));
 
-    const BitVector *in_set = in_sets[i];
+    const BitVector *in_set = in_sets[block->rpo_number().ToInt()];
     InstructionBlock *last = code->InstructionBlockAt(last_deferred);
     const BitVector *out_set = LiveRangeBuilder::ComputeLiveOut(last, data);
     last_cut = LifetimePosition::GapFromInstructionIndex(

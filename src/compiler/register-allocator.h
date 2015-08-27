@@ -683,7 +683,8 @@ class RegisterAllocationData final : public ZoneObject {
     return fixed_double_live_ranges_;
   }
   ZoneVector<BitVector*>& live_in_sets() { return live_in_sets_; }
-  ZoneSet<SpillRange*>& spill_ranges() { return spill_ranges_; }
+  ZoneVector<BitVector*>& live_out_sets() { return live_out_sets_; }
+  ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
   DelayedReferences& delayed_references() { return delayed_references_; }
   InstructionSequence* code() const { return code_; }
   // This zone is for datastructures only needed during register allocation
@@ -741,10 +742,11 @@ class RegisterAllocationData final : public ZoneObject {
   const RegisterConfiguration* const config_;
   PhiMap phi_map_;
   ZoneVector<BitVector*> live_in_sets_;
+  ZoneVector<BitVector*> live_out_sets_;
   ZoneVector<TopLevelLiveRange*> live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_double_live_ranges_;
-  ZoneSet<SpillRange*> spill_ranges_;
+  ZoneVector<SpillRange*> spill_ranges_;
   DelayedReferences delayed_references_;
   BitVector* assigned_registers_;
   BitVector* assigned_double_registers_;

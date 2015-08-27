@@ -1201,13 +1201,14 @@ RegisterAllocationData::RegisterAllocationData(
       config_(config),
       phi_map_(allocation_zone()),
       live_in_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
+      live_out_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, nullptr,
                    allocation_zone()),
       fixed_live_ranges_(this->config()->num_general_registers(), nullptr,
                          allocation_zone()),
       fixed_double_live_ranges_(this->config()->num_double_registers(), nullptr,
                                 allocation_zone()),
-      spill_ranges_(allocation_zone()),
+      spill_ranges_(code->VirtualRegisterCount(), nullptr, allocation_zone()),
       delayed_references_(allocation_zone()),
       assigned_registers_(nullptr),
       assigned_double_registers_(nullptr),
@@ -1334,7 +1335,11 @@ SpillRange* RegisterAllocationData::AssignSpillRangeToLiveRange(
   }
   range->set_spill_type(TopLevelLiveRange::SpillType::kSpillRange);
 
-  spill_ranges().insert(spill_range);
+  int spill_range_index =
+      range->IsSplinter() ? range->splintered_from()->vreg() : range->vreg();
+
+  spill_ranges()[spill_range_index] = spill_range;
+
   return spill_range;
 }
 
@@ -1683,28 +1688,33 @@ LiveRangeBuilder::LiveRangeBuilder(RegisterAllocationData* data,
 
 BitVector* LiveRangeBuilder::ComputeLiveOut(const InstructionBlock* block,
                                             RegisterAllocationData* data) {
-  // Compute live out for the given block, except not including backward
-  // successor edges.
-  Zone* zone = data->allocation_zone();
-  const InstructionSequence* code = data->code();
+  size_t block_index = block->rpo_number().ToSize();
+  BitVector* live_out = data->live_out_sets()[block_index];
+  if (live_out == nullptr) {
+    // Compute live out for the given block, except not including backward
+    // successor edges.
+    Zone* zone = data->allocation_zone();
+    const InstructionSequence* code = data->code();
 
-  auto live_out = new (zone) BitVector(code->VirtualRegisterCount(), zone);
+    live_out = new (zone) BitVector(code->VirtualRegisterCount(), zone);
 
-  // Process all successor blocks.
-  for (auto succ : block->successors()) {
-    // Add values live on entry to the successor.
-    if (succ <= block->rpo_number()) continue;
-    auto live_in = data->live_in_sets()[succ.ToSize()];
-    if (live_in != nullptr) live_out->Union(*live_in);
+    // Process all successor blocks.
+    for (const RpoNumber& succ : block->successors()) {
+      // Add values live on entry to the successor.
+      if (succ <= block->rpo_number()) continue;
+      BitVector* live_in = data->live_in_sets()[succ.ToSize()];
+      if (live_in != nullptr) live_out->Union(*live_in);
 
-    // All phi input operands corresponding to this successor edge are live
-    // out from this block.
-    auto successor = code->InstructionBlockAt(succ);
-    size_t index = successor->PredecessorIndexOf(block->rpo_number());
-    DCHECK(index < successor->PredecessorCount());
-    for (auto phi : successor->phis()) {
-      live_out->Add(phi->operands()[index]);
+      // All phi input operands corresponding to this successor edge are live
+      // out from this block.
+      auto successor = code->InstructionBlockAt(succ);
+      size_t index = successor->PredecessorIndexOf(block->rpo_number());
+      DCHECK(index < successor->PredecessorCount());
+      for (PhiInstruction* phi : successor->phis()) {
+        live_out->Add(phi->operands()[index]);
+      }
     }
+    data->live_out_sets()[block_index] = live_out;
   }
   return live_out;
 }
@@ -2829,23 +2839,22 @@ OperandAssigner::OperandAssigner(RegisterAllocationData* data) : data_(data) {}
 
 
 void OperandAssigner::AssignSpillSlots() {
-  ZoneSet<SpillRange*>& spill_ranges = data()->spill_ranges();
+  ZoneVector<SpillRange*>& spill_ranges = data()->spill_ranges();
   // Merge disjoint spill ranges
-  for (auto i = spill_ranges.begin(), end = spill_ranges.end(); i != end; ++i) {
-    SpillRange* range = *i;
+  for (size_t i = 0; i < spill_ranges.size(); ++i) {
+    SpillRange* range = spill_ranges[i];
+    if (range == nullptr) continue;
     if (range->IsEmpty()) continue;
-    auto j = i;
-    j++;
-    for (; j != end; ++j) {
-      SpillRange* other = *j;
-      if (!other->IsEmpty()) {
+    for (size_t j = i + 1; j < spill_ranges.size(); ++j) {
+      SpillRange* other = spill_ranges[j];
+      if (other != nullptr && !other->IsEmpty()) {
         range->TryMerge(other);
       }
     }
   }
   // Allocate slots for the merged spill ranges.
-  for (auto range : spill_ranges) {
-    if (range->IsEmpty()) continue;
+  for (SpillRange* range : spill_ranges) {
+    if (range == nullptr || range->IsEmpty()) continue;
     // Allocate a new operand referring to the spill slot.
     int byte_width = range->ByteWidth();
     int index = data()->frame()->AllocateSpillSlot(byte_width);
