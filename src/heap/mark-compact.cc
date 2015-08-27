@@ -4524,9 +4524,18 @@ void SlotsBuffer::RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer) {
       ObjectSlot slot = slots[slot_idx];
       if (!IsTypedSlot(slot)) {
         Object* object = *slot;
-        if ((object->IsHeapObject() && heap->InNewSpace(object)) ||
+        // Slots are invalid when they currently:
+        // - do not point to a heap object (SMI)
+        // - point to a heap object in new space
+        // - are not within a live heap object on a valid pointer slot
+        // - point to a heap object not on an evacuation candidate
+        if (!object->IsHeapObject() || heap->InNewSpace(object) ||
             !heap->mark_compact_collector()->IsSlotInLiveObject(
-                reinterpret_cast<Address>(slot))) {
+                reinterpret_cast<Address>(slot)) ||
+            !Page::FromAddress(reinterpret_cast<Address>(object))
+                 ->IsEvacuationCandidate()) {
+          // TODO(hpayer): Instead of replacing slots with kRemovedEntry we
+          // could shrink the slots buffer in-place.
           slots[slot_idx] = kRemovedEntry;
         }
       } else {
@@ -4558,6 +4567,8 @@ void SlotsBuffer::RemoveObjectSlots(Heap* heap, SlotsBuffer* buffer,
       if (!IsTypedSlot(slot)) {
         Address slot_address = reinterpret_cast<Address>(slot);
         if (slot_address >= start_slot && slot_address < end_slot) {
+          // TODO(hpayer): Instead of replacing slots with kRemovedEntry we
+          // could shrink the slots buffer in-place.
           slots[slot_idx] = kRemovedEntry;
           if (is_typed_slot) {
             slots[slot_idx - 1] = kRemovedEntry;
