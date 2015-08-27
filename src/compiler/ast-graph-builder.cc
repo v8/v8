@@ -3737,14 +3737,6 @@ Node* AstGraphBuilder::BuildLoadImmutableObjectField(Node* object, int offset) {
 }
 
 
-Node* AstGraphBuilder::BuildLoadBuiltinsObject() {
-  Node* global = BuildLoadGlobalObject();
-  Node* builtins =
-      BuildLoadObjectField(global, JSGlobalObject::kBuiltinsOffset);
-  return builtins;
-}
-
-
 Node* AstGraphBuilder::BuildLoadGlobalObject() {
   const Operator* load_op =
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true);

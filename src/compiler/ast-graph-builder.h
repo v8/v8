@@ -315,7 +315,6 @@ class AstGraphBuilder : public AstVisitor {
                          TypeFeedbackId id, int slot_index);
 
   // Builders for accessing the function context.
-  Node* BuildLoadBuiltinsObject();
   Node* BuildLoadGlobalObject();
   Node* BuildLoadNativeContextField(int index);
   Node* BuildLoadGlobalProxy();
