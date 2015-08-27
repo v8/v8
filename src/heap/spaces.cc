@@ -2219,7 +2219,6 @@ FreeSpace* FreeListCategory::PickNodeFromList(int size_in_bytes,
 
 
 void FreeListCategory::Free(FreeSpace* free_space, int size_in_bytes) {
-  DCHECK_LE(FreeList::kSmallListMin, size_in_bytes);
   free_space->set_next(top());
   set_top(free_space);
   if (end_ == NULL) {
@@ -2274,7 +2273,7 @@ int FreeList::Free(Address start, int size_in_bytes) {
   Page* page = Page::FromAddress(start);
 
   // Early return to drop too-small blocks on the floor.
-  if (size_in_bytes < kSmallListMin) {
+  if (size_in_bytes <= kSmallListMin) {
     page->add_non_available_small_blocks(size_in_bytes);
     return size_in_bytes;
   }

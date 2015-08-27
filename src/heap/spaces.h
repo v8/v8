@@ -1591,7 +1591,7 @@ class FreeList {
   // This method returns how much memory can be allocated after freeing
   // maximum_freed memory.
   static inline int GuaranteedAllocatable(int maximum_freed) {
-    if (maximum_freed < kSmallListMin) {
+    if (maximum_freed <= kSmallListMin) {
       return 0;
     } else if (maximum_freed <= kSmallListMax) {
       return kSmallAllocationMax;
@@ -1631,24 +1631,23 @@ class FreeList {
   FreeListCategory* large_list() { return &large_list_; }
   FreeListCategory* huge_list() { return &huge_list_; }
 
-  static const int kSmallListMin = 0x20 * kPointerSize;
-
  private:
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxRegularHeapObjectSize;
 
+  static const int kSmallListMin = 0x1f * kPointerSize;
+  static const int kSmallListMax = 0xff * kPointerSize;
+  static const int kMediumListMax = 0x7ff * kPointerSize;
+  static const int kLargeListMax = 0x3fff * kPointerSize;
+  static const int kSmallAllocationMax = kSmallListMin;
+  static const int kMediumAllocationMax = kSmallListMax;
+  static const int kLargeAllocationMax = kMediumListMax;
+
   FreeSpace* FindNodeFor(int size_in_bytes, int* node_size);
 
   PagedSpace* owner_;
   Heap* heap_;
-
-  static const int kSmallListMax = 0xff * kPointerSize;
-  static const int kMediumListMax = 0x7ff * kPointerSize;
-  static const int kLargeListMax = 0x3fff * kPointerSize;
-  static const int kSmallAllocationMax = kSmallListMin - kPointerSize;
-  static const int kMediumAllocationMax = kSmallListMax;
-  static const int kLargeAllocationMax = kMediumListMax;
   FreeListCategory small_list_;
   FreeListCategory medium_list_;
   FreeListCategory large_list_;
@@ -1804,6 +1803,9 @@ class PagedSpace : public Space {
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
   MUST_USE_RESULT inline AllocationResult AllocateRawUnaligned(
+      int size_in_bytes);
+
+  MUST_USE_RESULT inline AllocationResult AllocateRawUnalignedSynchronized(
       int size_in_bytes);
 
   // Allocate the requested number of bytes in the space double aligned if
@@ -2002,8 +2004,11 @@ class PagedSpace : public Space {
   // If not used, the emergency memory is released after compaction.
   MemoryChunk* emergency_memory_;
 
-  friend class PageIterator;
+  // Mutex guarding any concurrent access to the space.
+  base::Mutex space_mutex_;
+
   friend class MarkCompactCollector;
+  friend class PageIterator;
 };
 
 
@@ -2684,6 +2689,12 @@ class CompactionSpace : public PagedSpace {
  public:
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable)
       : PagedSpace(heap, id, executable) {}
+
+  // Adds external memory starting at {start} of {size_in_bytes} to the space.
+  void AddExternalMemory(Address start, int size_in_bytes) {
+    IncreaseCapacity(size_in_bytes);
+    Free(start, size_in_bytes);
+  }
 
  protected:
   // The space is temporary and not included in any snapshots.

@@ -441,6 +441,91 @@ TEST(CompactionSpace) {
 }
 
 
+TEST(CompactionSpaceUsingExternalMemory) {
+  const int kObjectSize = 512;
+
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  MemoryAllocator* allocator = new MemoryAllocator(isolate);
+  CHECK(allocator != nullptr);
+  CHECK(allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize()));
+  TestMemoryAllocatorScope test_scope(isolate, allocator);
+
+  CompactionSpace* compaction_space =
+      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+  CHECK(compaction_space != NULL);
+  CHECK(compaction_space->SetUp());
+
+  OldSpace* old_space = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+  CHECK(old_space != NULL);
+  CHECK(old_space->SetUp());
+
+  // The linear allocation area already counts as used bytes, making
+  // exact testing impossible.
+  heap->DisableInlineAllocation();
+
+  // Test:
+  // * Allocate a backing store in old_space.
+  // * Compute the number num_rest_objects of kObjectSize objects that fit into
+  //   of available memory.
+  //   kNumRestObjects.
+  // * Add the rest of available memory to the compaction space.
+  // * Allocate kNumRestObjects in the compaction space.
+  // * Allocate one object more.
+  // * Merge the compaction space and compare the expected number of pages.
+
+  // Allocate a single object in old_space to initialize a backing page.
+  old_space->AllocateRawUnaligned(kObjectSize).ToObjectChecked();
+  // Compute the number of objects that fit into the rest in old_space.
+  intptr_t rest = static_cast<int>(old_space->Available());
+  CHECK_GT(rest, 0);
+  intptr_t num_rest_objects = rest / kObjectSize;
+  // After allocating num_rest_objects in compaction_space we allocate a bit
+  // more.
+  const intptr_t kAdditionalCompactionMemory = kObjectSize;
+  // We expect a single old_space page.
+  const intptr_t kExpectedInitialOldSpacePages = 1;
+  // We expect a single additional page in compaction space because we mostly
+  // use external memory.
+  const intptr_t kExpectedCompactionPages = 1;
+  // We expect two pages to be reachable from old_space in the end.
+  const intptr_t kExpectedOldSpacePagesAfterMerge = 2;
+
+  Object* chunk =
+      old_space->AllocateRawUnaligned(static_cast<int>(rest)).ToObjectChecked();
+  CHECK_EQ(old_space->CountTotalPages(), kExpectedInitialOldSpacePages);
+  CHECK(chunk != nullptr);
+  CHECK(chunk->IsHeapObject());
+
+  CHECK_EQ(compaction_space->CountTotalPages(), 0);
+  CHECK_EQ(compaction_space->Capacity(), 0);
+  // Make the rest of memory available for compaction.
+  compaction_space->AddExternalMemory(HeapObject::cast(chunk)->address(),
+                                      static_cast<int>(rest));
+  CHECK_EQ(compaction_space->CountTotalPages(), 0);
+  CHECK_EQ(compaction_space->Capacity(), rest);
+  while (num_rest_objects-- > 0) {
+    compaction_space->AllocateRawUnaligned(kObjectSize).ToObjectChecked();
+  }
+  // We only used external memory so far.
+  CHECK_EQ(compaction_space->CountTotalPages(), 0);
+  // Additional allocation.
+  compaction_space->AllocateRawUnaligned(kAdditionalCompactionMemory)
+      .ToObjectChecked();
+  // Now the compaction space shouldve also acquired a page.
+  CHECK_EQ(compaction_space->CountTotalPages(), kExpectedCompactionPages);
+
+  old_space->MergeCompactionSpace(compaction_space);
+  CHECK_EQ(old_space->CountTotalPages(), kExpectedOldSpacePagesAfterMerge);
+
+  delete compaction_space;
+  delete old_space;
+
+  allocator->TearDown();
+  delete allocator;
+}
+
+
 TEST(LargeObjectSpace) {
   v8::V8::Initialize();
 
