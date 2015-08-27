@@ -11585,6 +11585,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 
 
 void BytecodeArray::Disassemble(std::ostream& os) {
+  os << "Parameter count " << parameter_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
   Vector<char> buf = Vector<char>::New(50);
 

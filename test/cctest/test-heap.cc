@@ -711,6 +711,7 @@ TEST(BytecodeArray) {
   static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int kFrameSize = 32;
+  static const int kParameterCount = 2;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -719,12 +720,13 @@ TEST(BytecodeArray) {
   HandleScope scope(isolate);
 
   // Allocate and initialize BytecodeArray
-  Handle<BytecodeArray> array =
-      factory->NewBytecodeArray(kRawBytesSize, kRawBytes, kFrameSize);
+  Handle<BytecodeArray> array = factory->NewBytecodeArray(
+      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount);
 
   CHECK(array->IsBytecodeArray());
   CHECK_EQ(array->length(), (int)sizeof(kRawBytes));
   CHECK_EQ(array->frame_size(), kFrameSize);
+  CHECK_EQ(array->parameter_count(), kParameterCount);
   CHECK_LE(array->address(), array->GetFirstBytecodeAddress());
   CHECK_GE(array->address() + array->BytecodeArraySize(),
            array->GetFirstBytecodeAddress() + array->length());

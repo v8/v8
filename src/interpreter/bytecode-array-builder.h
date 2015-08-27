@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/ast.h"
+#include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
 
 namespace v8 {
@@ -24,9 +25,15 @@ class BytecodeArrayBuilder {
   explicit BytecodeArrayBuilder(Isolate* isolate);
   Handle<BytecodeArray> ToBytecodeArray();
 
+  // Set number of parameters expected by function.
+  void set_parameter_count(int number_of_params);
+  int parameter_count() const;
+
   // Set number of locals required for bytecode array.
   void set_locals_count(int number_of_locals);
   int locals_count() const;
+
+  Register Parameter(int parameter_index);
 
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
@@ -47,6 +54,9 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& Return();
 
  private:
+  static const int kLastParamRegisterIndex =
+      -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
+
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
 
   void Output(Bytecode bytecode, uint8_t r0, uint8_t r1, uint8_t r2);
@@ -64,6 +74,7 @@ class BytecodeArrayBuilder {
   std::vector<uint8_t> bytecodes_;
   bool bytecode_generated_;
 
+  int parameter_count_;
   int local_register_count_;
   int temporary_register_count_;
   int temporary_register_next_;
@@ -72,17 +83,20 @@ class BytecodeArrayBuilder {
   DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeArrayBuilder);
 };
 
-// An interpreter register which is located in the function's regsiter file
+// An interpreter register which is located in the function's register file
 // in its stack-frame.
 class Register {
  public:
   static const int kMaxRegisterIndex = 128;
+  static const int kMinRegisterIndex = -127;
 
   explicit Register(int index) : index_(index) {
     DCHECK_LE(index_, kMaxRegisterIndex);
+    DCHECK_GE(index_, kMinRegisterIndex);
   }
 
   int index() { return index_; }
+
   uint8_t ToOperand() { return static_cast<uint8_t>(-index_); }
   static Register FromOperand(uint8_t operand) {
     return Register(-static_cast<int8_t>(operand));

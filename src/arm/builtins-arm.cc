@@ -1003,8 +1003,11 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::JAVA_SCRIPT);
-  // Drop receiver + arguments.
-  __ Drop(1);  // TODO(rmcilroy): Get number of arguments from BytecodeArray.
+
+  // Drop receiver + arguments and return.
+  __ ldr(ip, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                             BytecodeArray::kParameterSizeOffset));
+  __ add(sp, sp, ip, LeaveCC);
   __ Jump(lr);
 }
 

@@ -15,7 +15,7 @@ namespace interpreter {
 
 class BytecodeGeneratorHelper {
  public:
-  const char* kFunctionName = "my_function";
+  const char* kFunctionName = "f";
 
   BytecodeGeneratorHelper() {
     i::FLAG_ignition = true;
@@ -40,6 +40,12 @@ class BytecodeGeneratorHelper {
              kFunctionName);
     return MakeBytecode(program.start(), kFunctionName);
   }
+
+  Handle<BytecodeArray> MakeBytecodeForFunction(const char* function) {
+    ScopedVector<char> program(1024);
+    SNPrintF(program, "%s\n%s();", function, kFunctionName);
+    return MakeBytecode(program.start(), kFunctionName);
+  }
 };
 
 
@@ -47,6 +53,7 @@ class BytecodeGeneratorHelper {
 struct ExpectedSnippet {
   const char* body;
   int frame_size;
+  int parameter_count;
   int bytecode_length;
   const uint8_t bytecode[16];
 };
@@ -54,8 +61,8 @@ struct ExpectedSnippet {
 
 // Helper macros for handcrafting bytecode sequences.
 #define B(x) static_cast<uint8_t>(Bytecode::k##x)
-#define U8(x) static_cast<uint8_t>(x & 0xff)
-#define R(x) static_cast<uint8_t>(-x & 0xff)
+#define U8(x) static_cast<uint8_t>((x) & 0xff)
+#define R(x) static_cast<uint8_t>(-(x) & 0xff)
 
 
 TEST(PrimitiveReturnStatements) {
@@ -63,15 +70,15 @@ TEST(PrimitiveReturnStatements) {
   BytecodeGeneratorHelper helper;
 
   ExpectedSnippet snippets[] = {
-      {"return;", 0, 2, {B(LdaUndefined), B(Return)}},
-      {"return null;", 0, 2, {B(LdaNull), B(Return)}},
-      {"return true;", 0, 2, {B(LdaTrue), B(Return)}},
-      {"return false;", 0, 2, {B(LdaFalse), B(Return)}},
-      {"return 0;", 0, 2, {B(LdaZero), B(Return)}},
-      {"return +1;", 0, 3, {B(LdaSmi8), U8(1), B(Return)}},
-      {"return -1;", 0, 3, {B(LdaSmi8), U8(-1), B(Return)}},
-      {"return +127;", 0, 3, {B(LdaSmi8), U8(127), B(Return)}},
-      {"return -128;", 0, 3, {B(LdaSmi8), U8(-128), B(Return)}},
+      {"return;", 0, 1, 2, {B(LdaUndefined), B(Return)}},
+      {"return null;", 0, 1, 2, {B(LdaNull), B(Return)}},
+      {"return true;", 0, 1, 2, {B(LdaTrue), B(Return)}},
+      {"return false;", 0, 1, 2, {B(LdaFalse), B(Return)}},
+      {"return 0;", 0, 1, 2, {B(LdaZero), B(Return)}},
+      {"return +1;", 0, 1, 3, {B(LdaSmi8), U8(1), B(Return)}},
+      {"return -1;", 0, 1, 3, {B(LdaSmi8), U8(-1), B(Return)}},
+      {"return +127;", 0, 1, 3, {B(LdaSmi8), U8(127), B(Return)}},
+      {"return -128;", 0, 1, 3, {B(LdaSmi8), U8(-128), B(Return)}},
   };
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
@@ -79,6 +86,7 @@ TEST(PrimitiveReturnStatements) {
     Handle<BytecodeArray> ba =
         helper.MakeBytecodeForFunctionBody(snippets[i].body);
     CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
+    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
     CHECK_EQ(ba->length(), snippets[i].bytecode_length);
     CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
                   ba->length()));
@@ -93,6 +101,7 @@ TEST(PrimitiveExpressions) {
   ExpectedSnippet snippets[] = {
       {"var x = 0; return x;",
        kPointerSize,
+       1,
        6,
        {
            B(LdaZero),     //
@@ -102,6 +111,7 @@ TEST(PrimitiveExpressions) {
        }},
       {"var x = 0; return x + 3;",
        2 * kPointerSize,
+       1,
        12,
        {
            B(LdaZero),         //
@@ -118,6 +128,38 @@ TEST(PrimitiveExpressions) {
     Handle<BytecodeArray> ba =
         helper.MakeBytecodeForFunctionBody(snippets[i].body);
     CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
+    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
+    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
+    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
+                  ba->length()));
+  }
+}
+
+
+TEST(Parameters) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int last_param_index =
+      -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
+  ExpectedSnippet snippets[] = {
+      {"function f() { return this; }",
+       0, 1, 3, {B(Ldar), R(last_param_index), B(Return)}},
+      {"function f(arg1) { return arg1; }",
+       0, 2, 3, {B(Ldar), R(last_param_index), B(Return)}},
+      {"function f(arg1) { return this; }",
+       0, 2, 3, {B(Ldar), R(last_param_index - 1), B(Return)}},
+      {"function f(arg1, arg2, arg3, arg4, arg5, arg6, arg7) { return arg4; }",
+       0, 8, 3, {B(Ldar), R(last_param_index - 3), B(Return)}},
+      {"function f(arg1, arg2, arg3, arg4, arg5, arg6, arg7) { return this; }",
+       0, 8, 3, {B(Ldar), R(last_param_index - 7), B(Return)}}
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    Handle<BytecodeArray> ba = helper.MakeBytecodeForFunction(snippets[i].body);
+    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
+    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
     CHECK_EQ(ba->length(), snippets[i].bytecode_length);
     CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
                   ba->length()));

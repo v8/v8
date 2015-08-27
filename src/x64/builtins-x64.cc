@@ -802,9 +802,14 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 
   // Leave the frame (also dropping the register file).
   __ leave();
-  // Return droping receiver + arguments.
-  // TODO(rmcilroy): Get number of arguments from BytecodeArray.
-  __ Ret(1 * kPointerSize, rcx);
+
+  // Drop receiver + arguments and return.
+  __ movl(rbx, FieldOperand(kInterpreterBytecodeArrayRegister,
+                            BytecodeArray::kParameterSizeOffset));
+  __ PopReturnAddressTo(rcx);
+  __ addp(rsp, rbx);
+  __ PushReturnAddressFrom(rcx);
+  __ ret(0);
 }
 
 

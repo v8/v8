@@ -4058,6 +4058,22 @@ int BytecodeArray::frame_size() const {
 }
 
 
+void BytecodeArray::set_parameter_count(int number_of_parameters) {
+  DCHECK_GE(number_of_parameters, 0);
+  // Parameter count is stored as the size on stack of the parameters to allow
+  // it to be used directly by generated code.
+  WRITE_INT_FIELD(this, kParameterSizeOffset,
+                  (number_of_parameters << kPointerSizeLog2));
+}
+
+
+int BytecodeArray::parameter_count() const {
+  // Parameter count is stored as the size on stack of the parameters to allow
+  // it to be used directly by generated code.
+  return READ_INT_FIELD(this, kParameterSizeOffset) >> kPointerSizeLog2;
+}
+
+
 Address BytecodeArray::GetFirstBytecodeAddress() {
   return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
 }

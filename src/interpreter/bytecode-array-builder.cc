@@ -11,6 +11,7 @@ namespace interpreter {
 BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate)
     : isolate_(isolate),
       bytecode_generated_(false),
+      parameter_count_(-1),
       local_register_count_(-1),
       temporary_register_count_(0),
       temporary_register_next_(0) {}
@@ -25,14 +26,30 @@ void BytecodeArrayBuilder::set_locals_count(int number_of_locals) {
 int BytecodeArrayBuilder::locals_count() const { return local_register_count_; }
 
 
+void BytecodeArrayBuilder::set_parameter_count(int number_of_parameters) {
+  parameter_count_ = number_of_parameters;
+}
+
+
+int BytecodeArrayBuilder::parameter_count() const { return parameter_count_; }
+
+
+Register BytecodeArrayBuilder::Parameter(int param_index) {
+  DCHECK_GE(param_index, 0);
+  DCHECK_LT(param_index, parameter_count_);
+  return Register(kLastParamRegisterIndex - parameter_count_ + param_index + 1);
+}
+
+
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   DCHECK_EQ(bytecode_generated_, false);
+  DCHECK_GE(parameter_count_, 0);
   DCHECK_GE(local_register_count_, 0);
   int bytecode_size = static_cast<int>(bytecodes_.size());
   int register_count = local_register_count_ + temporary_register_count_;
   int frame_size = register_count * kPointerSize;
   Handle<BytecodeArray> output = isolate_->factory()->NewBytecodeArray(
-      bytecode_size, &bytecodes_.front(), frame_size);
+      bytecode_size, &bytecodes_.front(), frame_size, parameter_count_);
   bytecode_generated_ = true;
   return output;
 }
@@ -135,9 +152,12 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
       return false;
     case OperandType::kImm8:
       return true;
-    case OperandType::kReg:
-      return Register::FromOperand(operand_value).index() <
-             temporary_register_next_;
+    case OperandType::kReg: {
+      int reg_index = Register::FromOperand(operand_value).index();
+      return (reg_index >= 0 && reg_index < temporary_register_next_) ||
+             (reg_index <= kLastParamRegisterIndex &&
+              reg_index > kLastParamRegisterIndex - parameter_count_);
+    }
   }
   UNREACHABLE();
   return false;

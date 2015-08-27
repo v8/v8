@@ -1996,7 +1996,8 @@ class Heap {
 
   // Allocates a bytecode array with given contents.
   MUST_USE_RESULT AllocationResult
-  AllocateBytecodeArray(int length, const byte* raw_bytecodes, int frame_size);
+  AllocateBytecodeArray(int length, const byte* raw_bytecodes, int frame_size,
+                        int parameter_count);
 
   // Copy the code and scope info part of the code object, but insert
   // the provided data as the relocation information.

@@ -889,10 +889,12 @@ Handle<ByteArray> Factory::NewByteArray(int length, PretenureFlag pretenure) {
 
 Handle<BytecodeArray> Factory::NewBytecodeArray(int length,
                                                 const byte* raw_bytecodes,
-                                                int frame_size) {
+                                                int frame_size,
+                                                int parameter_count) {
   DCHECK(0 <= length);
-  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateBytecodeArray(
-                                    length, raw_bytecodes, frame_size),
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateBytecodeArray(
+                         length, raw_bytecodes, frame_size, parameter_count),
                      BytecodeArray);
 }
 

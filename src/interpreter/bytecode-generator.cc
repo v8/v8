@@ -30,6 +30,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   // This a temporary guard (oth).
   DCHECK(scope()->is_function_scope());
 
+  builder().set_parameter_count(info->num_parameters_including_this());
   builder().set_locals_count(scope()->num_stack_slots());
 
   // Visit implicit declaration of the function name.
@@ -72,8 +73,6 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       UNIMPLEMENTED();
       break;
     case VariableLocation::PARAMETER:
-      UNIMPLEMENTED();
-      break;
     case VariableLocation::LOCAL:
       // Details stored in scope, i.e. variable index.
       break;
@@ -248,9 +247,15 @@ void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
       builder().LoadAccumulatorWithRegister(source);
       break;
     }
+    case VariableLocation::PARAMETER: {
+      // The parameter indices are shifted by 1 (receiver is variable
+      // index -1 but is parameter index 0 in BytecodeArrayBuilder).
+      Register source(builder().Parameter(variable->index() + 1));
+      builder().LoadAccumulatorWithRegister(source);
+      break;
+    }
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED:
-    case VariableLocation::PARAMETER:
     case VariableLocation::CONTEXT:
     case VariableLocation::LOOKUP:
       UNIMPLEMENTED();

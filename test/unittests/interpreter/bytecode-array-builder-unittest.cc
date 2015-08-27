@@ -22,6 +22,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeArrayBuilder builder(isolate());
 
   builder.set_locals_count(1);
+  builder.set_parameter_count(0);
   CHECK_EQ(builder.locals_count(), 1);
 
   // Emit constant loads.
@@ -79,6 +80,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
   for (int locals = 0; locals < 5; locals++) {
     for (int temps = 0; temps < 3; temps++) {
       BytecodeArrayBuilder builder(isolate());
+      builder.set_parameter_count(0);
       builder.set_locals_count(locals);
       builder.Return();
 
@@ -97,6 +99,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
 
 TEST_F(BytecodeArrayBuilderTest, TemporariesRecycled) {
   BytecodeArrayBuilder builder(isolate());
+  builder.set_parameter_count(0);
   builder.set_locals_count(0);
   builder.Return();
 
@@ -131,6 +134,17 @@ TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
 
   int actual_index = Register::FromOperand(actual_operand).index();
   CHECK_EQ(actual_index, index);
+}
+
+
+TEST_F(BytecodeArrayBuilderTest, Parameters) {
+  BytecodeArrayBuilder builder(isolate());
+  builder.set_parameter_count(10);
+  builder.set_locals_count(0);
+
+  Register param0(builder.Parameter(0));
+  Register param9(builder.Parameter(9));
+  CHECK_EQ(param9.index() - param0.index(), 9);
 }
 
 }  // namespace interpreter

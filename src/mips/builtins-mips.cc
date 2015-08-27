@@ -8,7 +8,6 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
 
 
@@ -996,8 +995,11 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::JAVA_SCRIPT);
-  // Drop receiver + arguments.
-  __ Drop(1);  // TODO(rmcilroy): Get number of arguments from BytecodeArray.
+
+  // Drop receiver + arguments and return.
+  __ lw(at, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                            BytecodeArray::kParameterSizeOffset));
+  __ Addu(sp, sp, at);
   __ Jump(ra);
 }
 

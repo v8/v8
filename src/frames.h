@@ -174,6 +174,14 @@ class ConstructFrameConstants : public AllStatic {
 };
 
 
+class InterpreterFrameConstants : public AllStatic {
+ public:
+  // Register file pointer relative.
+  static const int kLastParamFromRegisterPointer =
+      StandardFrameConstants::kFixedFrameSize + kPointerSize;
+};
+
+
 // Abstract base class for all stack frames.
 class StackFrame BASE_EMBEDDED {
  public:

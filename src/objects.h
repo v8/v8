@@ -4112,9 +4112,13 @@ class BytecodeArray : public FixedArrayBase {
   // Returns data start address.
   inline Address GetFirstBytecodeAddress();
 
-  // Accessors for frame size and the number of locals
+  // Accessors for frame size.
   inline int frame_size() const;
-  inline void set_frame_size(int value);
+  inline void set_frame_size(int frame_size);
+
+  // Accessors for parameter count (including implicit 'this' receiver).
+  inline int parameter_count() const;
+  inline void set_parameter_count(int number_of_parameters);
 
   DECLARE_CAST(BytecodeArray)
 
@@ -4128,7 +4132,8 @@ class BytecodeArray : public FixedArrayBase {
 
   // Layout description.
   static const int kFrameSizeOffset = FixedArrayBase::kHeaderSize;
-  static const int kHeaderSize = kFrameSizeOffset + kIntSize;
+  static const int kParameterSizeOffset = kFrameSizeOffset + kIntSize;
+  static const int kHeaderSize = kParameterSizeOffset + kIntSize;
 
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
