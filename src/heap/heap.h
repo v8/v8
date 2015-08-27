@@ -2389,7 +2389,9 @@ class Heap {
 
   MemoryChunk* chunks_queued_for_free_;
 
-  base::Semaphore pending_unmap_job_semaphore_;
+  size_t concurrent_unmapping_tasks_active_;
+
+  base::Semaphore pending_unmapping_tasks_semaphore_;
 
   base::Mutex relocation_mutex_;
 

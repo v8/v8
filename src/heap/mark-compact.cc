@@ -550,8 +550,6 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
     pending_sweeper_jobs_semaphore_.Wait();
   }
 
-  heap()->WaitUntilUnmappingOfFreeChunksCompleted();
-
   ParallelSweepSpacesComplete();
   sweeping_in_progress_ = false;
   RefillFreeList(heap()->paged_space(OLD_SPACE));
@@ -811,6 +809,10 @@ void MarkCompactCollector::Prepare() {
     // Instead of waiting we could also abort the sweeper threads here.
     EnsureSweepingCompleted();
   }
+
+  // If concurrent unmapping tasks are still running, we should wait for
+  // them here.
+  heap()->WaitUntilUnmappingOfFreeChunksCompleted();
 
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {

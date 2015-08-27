@@ -137,7 +137,8 @@ Heap::Heap()
       current_gc_callback_flags_(GCCallbackFlags::kNoGCCallbackFlags),
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
-      pending_unmap_job_semaphore_(0),
+      concurrent_unmapping_tasks_active_(0),
+      pending_unmapping_tasks_semaphore_(0),
       gc_callbacks_depth_(0),
       deserialization_complete_(false),
       concurrent_sweeping_enabled_(false),
@@ -5771,6 +5772,8 @@ void Heap::TearDown() {
     memory_reducer_ = nullptr;
   }
 
+  WaitUntilUnmappingOfFreeChunksCompleted();
+
   TearDownArrayBuffers();
 
   isolate_->global_handles()->TearDown();
@@ -6532,7 +6535,7 @@ class Heap::UnmapFreeMemoryTask : public v8::Task {
   // v8::Task overrides.
   void Run() override {
     heap_->FreeQueuedChunks(head_);
-    heap_->pending_unmap_job_semaphore_.Signal();
+    heap_->pending_unmapping_tasks_semaphore_.Signal();
   }
 
   Heap* heap_;
@@ -6543,9 +6546,10 @@ class Heap::UnmapFreeMemoryTask : public v8::Task {
 
 
 void Heap::WaitUntilUnmappingOfFreeChunksCompleted() {
-  // We start an unmap job after sweeping and after compaction.
-  pending_unmap_job_semaphore_.Wait();
-  pending_unmap_job_semaphore_.Wait();
+  while (concurrent_unmapping_tasks_active_ > 0) {
+    pending_unmapping_tasks_semaphore_.Wait();
+    concurrent_unmapping_tasks_active_--;
+  }
 }
 
 
@@ -6582,8 +6586,9 @@ void Heap::FreeQueuedChunks() {
   } else {
     // If we do not have anything to unmap, we just signal the semaphore
     // that we are done.
-    pending_unmap_job_semaphore_.Signal();
+    pending_unmapping_tasks_semaphore_.Signal();
   }
+  concurrent_unmapping_tasks_active_++;
 }
 
 
