@@ -545,14 +545,14 @@ class TopLevelLiveRange final : public LiveRange {
   SpillAtDefinitionList* spills_at_definition() const {
     return spills_at_definition_;
   }
+  void set_last_child(LiveRange* range) { last_child_ = range; }
+  LiveRange* last_child() const { return last_child_; }
 
  private:
   typedef BitField<bool, 1, 1> HasSlotUseField;
   typedef BitField<bool, 2, 1> IsPhiField;
   typedef BitField<bool, 3, 1> IsNonLoopPhiField;
   typedef BitField<SpillType, 4, 2> SpillTypeField;
-
-  LiveRange* GetLastChild();
 
   int vreg_;
   int last_child_id_;
@@ -567,6 +567,8 @@ class TopLevelLiveRange final : public LiveRange {
   // just for spill in a single deferred block.
   bool spilled_in_deferred_blocks_;
   int spill_start_index_;
+  LiveRange* last_child_;
+  LiveRange* last_insertion_point_;
 
   DISALLOW_COPY_AND_ASSIGN(TopLevelLiveRange);
 };

@@ -427,7 +427,9 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
   child->top_level_ = TopLevel();
   child->next_ = next_;
   next_ = child;
-
+  if (child->next() == nullptr) {
+    TopLevel()->set_last_child(child);
+  }
   return child;
 }
 
@@ -524,6 +526,7 @@ void LiveRange::AppendAsChild(TopLevelLiveRange* other) {
 
   other->UpdateParentForAllChildren(TopLevel());
   TopLevel()->UpdateSpillRangePostMerge(other);
+  TopLevel()->set_last_child(other->last_child());
 }
 
 
@@ -666,7 +669,9 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineType machine_type)
       spill_operand_(nullptr),
       spills_at_definition_(nullptr),
       spilled_in_deferred_blocks_(false),
-      spill_start_index_(kMaxInt) {
+      spill_start_index_(kMaxInt),
+      last_child_(this),
+      last_insertion_point_(this) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
 }
 
@@ -882,22 +887,15 @@ void TopLevelLiveRange::UpdateSpillRangePostMerge(TopLevelLiveRange* merged) {
 }
 
 
-LiveRange* TopLevelLiveRange::GetLastChild() {
-  LiveRange* ret = this;
-  for (; ret->next() != nullptr; ret = ret->next()) {
-  }
-  return ret;
-}
-
-
 void TopLevelLiveRange::Merge(TopLevelLiveRange* other,
                               RegisterAllocationData* data) {
   DCHECK(Start() < other->Start());
+  DCHECK(other->splintered_from() == this);
 
   data->live_ranges()[other->vreg()] = nullptr;
 
-  LiveRange* last_other = other->GetLastChild();
-  LiveRange* last_me = GetLastChild();
+  LiveRange* last_other = other->last_child();
+  LiveRange* last_me = last_child();
 
   // Simple case: we just append at the end.
   if (last_me->End() <= other->Start()) return last_me->AppendAsChild(other);
@@ -906,28 +904,32 @@ void TopLevelLiveRange::Merge(TopLevelLiveRange* other,
 
   // In the more general case, we need to find the ranges between which to
   // insert.
-  LiveRange* insertion_point = this;
-  for (; insertion_point->next() != nullptr &&
-         insertion_point->next()->Start() <= other->Start();
-       insertion_point = insertion_point->next()) {
+  if (other->Start() < last_insertion_point_->Start()) {
+    last_insertion_point_ = this;
+  }
+
+  for (; last_insertion_point_->next() != nullptr &&
+         last_insertion_point_->next()->Start() <= other->Start();
+       last_insertion_point_ = last_insertion_point_->next()) {
   }
 
   // When we splintered the original range, we reconstituted the original range
   // into one range without children, but with discontinuities. To merge the
   // splinter back in, we need to split the range - or a child obtained after
   // register allocation splitting.
-  LiveRange* after = insertion_point->next();
-  if (insertion_point->End() > other->Start()) {
+  LiveRange* after = last_insertion_point_->next();
+  if (last_insertion_point_->End() > other->Start()) {
     LiveRange* new_after =
-        insertion_point->SplitAt(other->Start(), data->allocation_zone());
-    new_after->set_spilled(insertion_point->spilled());
+        last_insertion_point_->SplitAt(other->Start(), data->allocation_zone());
+    new_after->set_spilled(last_insertion_point_->spilled());
     if (!new_after->spilled())
-      new_after->set_assigned_register(insertion_point->assigned_register());
+      new_after->set_assigned_register(
+          last_insertion_point_->assigned_register());
     after = new_after;
   }
 
   last_other->next_ = after;
-  insertion_point->next_ = other;
+  last_insertion_point_->next_ = other;
   other->UpdateParentForAllChildren(TopLevel());
   TopLevel()->UpdateSpillRangePostMerge(other);
 }
