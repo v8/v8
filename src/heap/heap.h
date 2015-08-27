@@ -817,8 +817,8 @@ class Heap {
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 
-  // Iterates the whole code space to clear all ICs of the given kind.
-  void ClearAllICsByKind(Code::Kind kind);
+  // Iterates the whole code space to clear all keyed store ICs.
+  void ClearAllKeyedStoreICs();
 
   // FreeSpace objects have a null map after deserialization. Update the map.
   void RepairFreeListsAfterDeserialization();

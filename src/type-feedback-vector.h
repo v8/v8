@@ -213,6 +213,9 @@ class TypeFeedbackVector : public FixedArray {
     ClearICSlotsImpl(shared, false);
   }
 
+  static void ClearAllKeyedStoreICs(Isolate* isolate);
+  void ClearKeyedStoreICs(SharedFunctionInfo* shared);
+
   // The object that indicates an uninitialized cache.
   static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
 

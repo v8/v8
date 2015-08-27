@@ -575,10 +575,17 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
         KeyedLoadICNexus nexus(this, slot);
         os << " KEYED_LOAD_IC "
            << Code::ICState2String(nexus.StateFromFeedback());
-      } else {
-        DCHECK(kind == Code::CALL_IC);
+      } else if (kind == Code::CALL_IC) {
         CallICNexus nexus(this, slot);
         os << " CALL_IC " << Code::ICState2String(nexus.StateFromFeedback());
+      } else if (kind == Code::STORE_IC) {
+        StoreICNexus nexus(this, slot);
+        os << " STORE_IC " << Code::ICState2String(nexus.StateFromFeedback());
+      } else {
+        DCHECK(kind == Code::KEYED_STORE_IC);
+        KeyedStoreICNexus nexus(this, slot);
+        os << " KEYED_STORE_IC "
+           << Code::ICState2String(nexus.StateFromFeedback());
       }
 
       os << "\n  [" << GetIndex(slot) << "]: " << Brief(Get(slot));

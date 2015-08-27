@@ -224,6 +224,40 @@ void TypeFeedbackVector::ClearICSlotsImpl(SharedFunctionInfo* shared,
 
 
 // static
+void TypeFeedbackVector::ClearAllKeyedStoreICs(Isolate* isolate) {
+  DCHECK(FLAG_vector_stores);
+  SharedFunctionInfo::Iterator iterator(isolate);
+  SharedFunctionInfo* shared;
+  while ((shared = iterator.Next())) {
+    TypeFeedbackVector* vector = shared->feedback_vector();
+    vector->ClearKeyedStoreICs(shared);
+  }
+}
+
+
+void TypeFeedbackVector::ClearKeyedStoreICs(SharedFunctionInfo* shared) {
+  Heap* heap = GetIsolate()->heap();
+
+  int slots = ICSlots();
+  Code* host = shared->code();
+  Object* uninitialized_sentinel =
+      TypeFeedbackVector::RawUninitializedSentinel(heap);
+  for (int i = 0; i < slots; i++) {
+    FeedbackVectorICSlot slot(i);
+    Object* obj = Get(slot);
+    if (obj != uninitialized_sentinel) {
+      Code::Kind kind = GetKind(slot);
+      if (kind == Code::KEYED_STORE_IC) {
+        DCHECK(FLAG_vector_stores);
+        KeyedStoreICNexus nexus(this, slot);
+        nexus.Clear(host);
+      }
+    }
+  }
+}
+
+
+// static
 Handle<TypeFeedbackVector> TypeFeedbackVector::DummyVector(Isolate* isolate) {
   return Handle<TypeFeedbackVector>::cast(isolate->factory()->dummy_vector());
 }

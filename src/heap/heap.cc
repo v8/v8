@@ -33,6 +33,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"
+#include "src/type-feedback-vector.h"
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -478,8 +479,14 @@ const char* Heap::GetSpaceName(int idx) {
 }
 
 
-void Heap::ClearAllICsByKind(Code::Kind kind) {
-  // TODO(mvstanton): Do not iterate the heap.
+void Heap::ClearAllKeyedStoreICs() {
+  if (FLAG_vector_stores) {
+    TypeFeedbackVector::ClearAllKeyedStoreICs(isolate_);
+    return;
+  }
+
+  // TODO(mvstanton): Remove this function when FLAG_vector_stores is turned on
+  // permanently, and divert all callers to KeyedStoreIC::ClearAllKeyedStoreICs.
   HeapObjectIterator it(code_space());
 
   for (Object* object = it.Next(); object != NULL; object = it.Next()) {
@@ -487,7 +494,7 @@ void Heap::ClearAllICsByKind(Code::Kind kind) {
     Code::Kind current_kind = code->kind();
     if (current_kind == Code::FUNCTION ||
         current_kind == Code::OPTIMIZED_FUNCTION) {
-      code->ClearInlineCaches(kind);
+      code->ClearInlineCaches(Code::KEYED_STORE_IC);
     }
   }
 }
