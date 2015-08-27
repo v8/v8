@@ -1074,9 +1074,12 @@ class Object {
   // native_context is used when creating wrapper object.
   static inline MaybeHandle<JSReceiver> ToObject(Isolate* isolate,
                                                  Handle<Object> object);
-  static MaybeHandle<JSReceiver> ToObject(Isolate* isolate,
-                                          Handle<Object> object,
-                                          Handle<Context> context);
+  MUST_USE_RESULT static MaybeHandle<JSReceiver> ToObject(
+      Isolate* isolate, Handle<Object> object, Handle<Context> context);
+
+  // Convert to a Name if needed.
+  MUST_USE_RESULT static MaybeHandle<Name> ToName(Isolate* isolate,
+                                                  Handle<Object> object);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       LookupIterator* it, LanguageMode language_mode = SLOPPY);

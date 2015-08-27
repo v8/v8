@@ -3531,7 +3531,7 @@ static i::MaybeHandle<i::Object> DefineObjectProperty(
 
   i::Handle<i::Name> name;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, name,
-                                   i::Runtime::ToName(isolate, key),
+                                   i::Object::ToName(isolate, key),
                                    i::MaybeHandle<i::Object>());
 
   return i::JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name,
@@ -3855,7 +3855,7 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   } else {
     // Convert the key to a name - possibly by calling back into JavaScript.
     i::Handle<i::Name> name;
-    if (i::Runtime::ToName(isolate, key_obj).ToHandle(&name)) {
+    if (i::Object::ToName(isolate, key_obj).ToHandle(&name)) {
       maybe = i::JSReceiver::HasProperty(self, name);
     }
   }

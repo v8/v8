@@ -1149,9 +1149,6 @@ class Runtime : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Object> GetPrototype(
       Isolate* isolate, Handle<Object> object);
 
-  MUST_USE_RESULT static MaybeHandle<Name> ToName(Isolate* isolate,
-                                                  Handle<Object> key);
-
   enum TypedArrayId {
     // arrayIds below should be synchronized with typedarray.js natives.
     ARRAY_ID_UINT8 = 1,

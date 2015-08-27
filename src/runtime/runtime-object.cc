@@ -14,18 +14,6 @@ namespace v8 {
 namespace internal {
 
 
-MaybeHandle<Name> Runtime::ToName(Isolate* isolate, Handle<Object> key) {
-  if (key->IsName()) {
-    return Handle<Name>::cast(key);
-  } else {
-    Handle<Object> converted;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, converted,
-                               Execution::ToString(isolate, key), Name);
-    return Handle<Name>::cast(converted);
-  }
-}
-
-
 MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key,
@@ -45,7 +33,8 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
 
   // Convert the key to a name - possibly by calling back into JavaScript.
   Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, ToName(isolate, key), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
+                             Object);
 
   // Check if the name is trivially convertible to an index and get
   // the element if so.
@@ -150,7 +139,8 @@ MaybeHandle<Object> Runtime::DeleteObjectProperty(Isolate* isolate,
   }
 
   Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, ToName(isolate, key), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
+                             Object);
 
   return JSReceiver::DeletePropertyOrElement(receiver, name, language_mode);
 }
@@ -175,7 +165,8 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   }
 
   Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, ToName(isolate, key), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
+                             Object);
 
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name);
   return Object::SetProperty(&it, value, language_mode,

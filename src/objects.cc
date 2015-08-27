@@ -90,6 +90,18 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
 }
 
 
+MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> object) {
+  if (object->IsName()) {
+    return Handle<Name>::cast(object);
+  } else {
+    Handle<Object> converted;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, converted,
+                               Execution::ToString(isolate, object), Name);
+    return Handle<Name>::cast(converted);
+  }
+}
+
+
 bool Object::BooleanValue() {
   if (IsBoolean()) return IsTrue();
   if (IsSmi()) return Smi::cast(this)->value() != 0;
