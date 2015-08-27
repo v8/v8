@@ -65,12 +65,15 @@ class InterpreterAssembler {
   // Load a field from an object on the heap.
   Node* LoadObjectField(Node* object, int offset);
 
+  // Load |slot_index| from a context.
+  Node* LoadContextSlot(Node* context, int slot_index);
+
   // Load |slot_index| from the current context.
   Node* LoadContextSlot(int slot_index);
 
   // Call JS builtin.
-  Node* CallJSBuiltin(Builtins::JavaScript builtin, Node* receiver);
-  Node* CallJSBuiltin(Builtins::JavaScript builtin, Node* receiver, Node* arg1);
+  Node* CallJSBuiltin(int context_index, Node* receiver);
+  Node* CallJSBuiltin(int context_index, Node* receiver, Node* arg1);
 
   // Returns from the function.
   void Return();
@@ -105,8 +108,8 @@ class InterpreterAssembler {
   Node* BytecodeOperand(int operand_index);
   Node* BytecodeOperandSignExtended(int operand_index);
 
-  Node* CallJSBuiltin(Builtins::JavaScript builtin, Node* receiver,
-                      Node** js_args, int js_arg_count);
+  Node* CallJSBuiltin(int context_index, Node* receiver, Node** js_args,
+                      int js_arg_count);
 
   // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
   // update BytecodeOffset() itself.

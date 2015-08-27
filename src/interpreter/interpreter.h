@@ -48,7 +48,7 @@ class Interpreter {
 #undef DECLARE_BYTECODE_HANDLER_GENERATOR
 
   // Generates code to perform the binary operations via |binop_builtin|.
-  void DoBinaryOp(Builtins::JavaScript binop_builtin,
+  void DoBinaryOp(int builtin_context_index,
                   compiler::InterpreterAssembler* assembler);
 
   bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);

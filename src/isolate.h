@@ -658,10 +658,6 @@ class Isolate {
     return context()->global_proxy();
   }
 
-  Handle<JSBuiltinsObject> js_builtins_object() {
-    return Handle<JSBuiltinsObject>(thread_local_top_.context_->builtins());
-  }
-
   static int ArchiveSpacePerThread() { return sizeof(ThreadLocalTop); }
   void FreeThreadResources() { thread_local_top_.Free(); }
 

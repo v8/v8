@@ -304,7 +304,6 @@ namespace internal {
   F(CheckIsBootstrapping, 0, 1)               \
   F(ExportPrivateSymbols, 1, 1)               \
   F(InstallToContext, 1, 1)                   \
-  F(InstallJSBuiltins, 1, 1)                  \
   F(Throw, 1, 1)                              \
   F(ReThrow, 1, 1)                            \
   F(UnwindAndFindExceptionHandler, 0, 1)      \

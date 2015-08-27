@@ -119,7 +119,6 @@ class Bootstrapper final {
   static bool CompileCodeStubBuiltin(Isolate* isolate, int index);
   static bool InstallCodeStubNatives(Isolate* isolate);
 
-  static bool InstallJSBuiltins(Isolate* isolate, Handle<JSObject> container);
   static void ExportPrivateSymbols(Isolate* isolate,
                                    Handle<JSObject> container);
 

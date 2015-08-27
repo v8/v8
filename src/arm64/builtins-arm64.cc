@@ -229,7 +229,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(arg);
-    __ InvokeBuiltin(Builtins::TO_STRING, CALL_FUNCTION);
+    __ InvokeBuiltin(Context::TO_STRING_BUILTIN_INDEX, CALL_FUNCTION);
   }
   __ Pop(function);
   __ Mov(argument, x0);
@@ -780,7 +780,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
     __ SmiTag(argc);
   }
   __ Push(function, argc);
-  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+  __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
   // We should never return from the APPLY_OVERFLOW builtin.
   if (__ emit_debug_code()) {
     __ Unreachable();
@@ -945,7 +945,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ Sub(x10, jssp, Operand(x11));
     __ CompareRoot(x10, Heap::kRealStackLimitRootIndex);
     __ B(hs, &ok);
-    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
     __ Bind(&ok);
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1438,12 +1438,12 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     __ Push(function);  // Re-add proxy object as additional argument.
     __ Add(argc, argc, 1);
-    __ GetBuiltinFunction(function, Builtins::CALL_FUNCTION_PROXY);
+    __ GetBuiltinFunction(function, Context::CALL_FUNCTION_PROXY_BUILTIN_INDEX);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
 
     __ Bind(&non_proxy);
-    __ GetBuiltinFunction(function, Builtins::CALL_NON_FUNCTION);
+    __ GetBuiltinFunction(function, Context::CALL_NON_FUNCTION_BUILTIN_INDEX);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
     __ Bind(&js_function);
@@ -1542,9 +1542,10 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     __ Ldr(args, MemOperand(fp, kArgumentsOffset));
     __ Push(function, args);
     if (targetIsArgument) {
-      __ InvokeBuiltin(Builtins::REFLECT_APPLY_PREPARE, CALL_FUNCTION);
+      __ InvokeBuiltin(Context::REFLECT_APPLY_PREPARE_BUILTIN_INDEX,
+                       CALL_FUNCTION);
     } else {
-      __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+      __ InvokeBuiltin(Context::APPLY_PREPARE_BUILTIN_INDEX, CALL_FUNCTION);
     }
     Register argc = x0;
 
@@ -1629,7 +1630,7 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     __ Push(function);  // Add function proxy as last argument.
     __ Add(x0, x0, 1);
     __ Mov(x2, 0);
-    __ GetBuiltinFunction(x1, Builtins::CALL_FUNCTION_PROXY);
+    __ GetBuiltinFunction(x1, Context::CALL_FUNCTION_PROXY_BUILTIN_INDEX);
     __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
   }
@@ -1673,7 +1674,8 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ Ldr(args, MemOperand(fp, kArgumentsOffset));
     __ Ldr(newTarget, MemOperand(fp, kNewTargetOffset));
     __ Push(function, args, newTarget);
-    __ InvokeBuiltin(Builtins::REFLECT_CONSTRUCT_PREPARE, CALL_FUNCTION);
+    __ InvokeBuiltin(Context::REFLECT_CONSTRUCT_PREPARE_BUILTIN_INDEX,
+                     CALL_FUNCTION);
     Register argc = x0;
 
     Generate_CheckStackOverflow(masm, kFunctionOffset, argc, kArgcIsSmiTagged);
@@ -1926,7 +1928,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {
     FrameScope frame(masm, StackFrame::MANUAL);
     EnterArgumentsAdaptorFrame(masm);
-    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
     __ Unreachable();
   }
 }

@@ -38,7 +38,7 @@ class JSGenericLowering final : public Reducer {
   // Helpers to replace existing nodes with a generic call.
   void ReplaceWithCompareIC(Node* node, Token::Value token);
   void ReplaceWithStubCall(Node* node, Callable c, CallDescriptor::Flags flags);
-  void ReplaceWithBuiltinCall(Node* node, Builtins::JavaScript id, int args);
+  void ReplaceWithBuiltinCall(Node* node, int context_index, int args);
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);
 
   Zone* zone() const;

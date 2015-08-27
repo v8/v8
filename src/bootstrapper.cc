@@ -1752,23 +1752,6 @@ void Genesis::InitializeBuiltinTypedArrays() {
 }
 
 
-bool Bootstrapper::InstallJSBuiltins(Isolate* isolate,
-                                     Handle<JSObject> container) {
-  HandleScope scope(isolate);
-  Handle<JSBuiltinsObject> builtins = isolate->js_builtins_object();
-  for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
-    Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
-    Handle<Object> function_object =
-        Object::GetProperty(isolate, container, Builtins::GetName(id))
-            .ToHandleChecked();
-    DCHECK(function_object->IsJSFunction());
-    Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-    builtins->set_javascript_builtin(id, *function);
-  }
-  return true;
-}
-
-
 void Bootstrapper::ExportPrivateSymbols(Isolate* isolate,
                                         Handle<JSObject> container) {
   HandleScope scope(isolate);

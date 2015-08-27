@@ -709,12 +709,13 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   if (cc == eq && strict()) {
     __ TailCallRuntime(Runtime::kStrictEquals, 2, 1);
   } else {
-    Builtins::JavaScript native;
+    int context_index;
     if (cc == eq) {
-      native = Builtins::EQUALS;
+      context_index = Context::EQUALS_BUILTIN_INDEX;
     } else {
-      native =
-          is_strong(strength()) ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
+      context_index = is_strong(strength())
+                          ? Context::COMPARE_STRONG_BUILTIN_INDEX
+                          : Context::COMPARE_BUILTIN_INDEX;
       int ncr;  // NaN compare result
       if (cc == lt || cc == le) {
         ncr = GREATER;
@@ -728,7 +729,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.
-    __ InvokeBuiltin(native, JUMP_FUNCTION);
+    __ InvokeBuiltin(context_index, JUMP_FUNCTION);
   }
 
   __ bind(&miss);
@@ -1549,12 +1550,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     if (HasArgsInRegisters()) {
       __ Push(r3, r4);
     }
-    __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
+    __ InvokeBuiltin(Context::INSTANCE_OF_BUILTIN_INDEX, JUMP_FUNCTION);
   } else {
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ Push(r3, r4);
-      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+      __ InvokeBuiltin(Context::INSTANCE_OF_BUILTIN_INDEX, CALL_FUNCTION);
     }
     if (CpuFeatures::IsSupported(ISELECT)) {
       __ cmpi(r3, Operand::Zero());
@@ -2700,7 +2701,7 @@ static void EmitSlowCase(MacroAssembler* masm, int argc, Label* non_function) {
   __ push(r4);  // put proxy as additional argument
   __ li(r3, Operand(argc + 1));
   __ li(r5, Operand::Zero());
-  __ GetBuiltinFunction(r4, Builtins::CALL_FUNCTION_PROXY);
+  __ GetBuiltinFunction(r4, Context::CALL_FUNCTION_PROXY_BUILTIN_INDEX);
   {
     Handle<Code> adaptor =
         masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -2713,7 +2714,7 @@ static void EmitSlowCase(MacroAssembler* masm, int argc, Label* non_function) {
   __ StoreP(r4, MemOperand(sp, argc * kPointerSize), r0);
   __ li(r3, Operand(argc));  // Set up the number of arguments.
   __ li(r5, Operand::Zero());
-  __ GetBuiltinFunction(r4, Builtins::CALL_NON_FUNCTION);
+  __ GetBuiltinFunction(r4, Context::CALL_NON_FUNCTION_BUILTIN_INDEX);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -2858,11 +2859,13 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(JS_FUNCTION_PROXY_TYPE < 0xffffu);
   __ cmpi(r8, Operand(JS_FUNCTION_PROXY_TYPE));
   __ bne(&non_function_call);
-  __ GetBuiltinFunction(r4, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
+  __ GetBuiltinFunction(
+      r4, Context::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX);
   __ b(&do_call);
 
   __ bind(&non_function_call);
-  __ GetBuiltinFunction(r4, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ GetBuiltinFunction(
+      r4, Context::CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX);
   __ bind(&do_call);
   // Set expected number of arguments to zero (not changing r3).
   __ li(r5, Operand::Zero());
@@ -3531,7 +3534,7 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ bind(&not_oddball);
 
   __ push(r3);  // Push argument.
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+  __ InvokeBuiltin(Context::TO_NUMBER_BUILTIN_INDEX, JUMP_FUNCTION);
 }
 
 

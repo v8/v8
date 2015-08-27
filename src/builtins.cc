@@ -1317,17 +1317,6 @@ Address const Builtins::c_functions_[cfunction_count] = {
 };
 #undef DEF_ENUM_C
 
-#define DEF_JS_NAME(name, ignore) #name,
-#define DEF_JS_ARGC(ignore, argc) argc,
-const char* const Builtins::javascript_names_[id_count] = {
-  BUILTINS_LIST_JS(DEF_JS_NAME)
-};
-
-int const Builtins::javascript_argc_[id_count] = {
-  BUILTINS_LIST_JS(DEF_JS_ARGC)
-};
-#undef DEF_JS_NAME
-#undef DEF_JS_ARGC
 
 struct BuiltinDesc {
   byte* generator;

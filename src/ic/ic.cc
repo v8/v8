@@ -2642,8 +2642,8 @@ MaybeHandle<Object> BinaryOpIC::Transition(
   BinaryOpICState state(isolate(), target()->extra_ic_state());
 
   // Compute the actual result using the builtin for the binary operation.
-  Object* builtin = isolate()->js_builtins_object()->javascript_builtin(
-      TokenToJSBuiltin(state.op(), state.strength()));
+  Object* builtin = isolate()->native_context()->get(
+      TokenToContextIndex(state.op(), state.strength()));
   Handle<JSFunction> function = handle(JSFunction::cast(builtin), isolate());
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -2882,37 +2882,58 @@ RUNTIME_FUNCTION(Runtime_Unreachable) {
 }
 
 
-Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op,
-                                                  Strength strength) {
+int BinaryOpIC::TokenToContextIndex(Token::Value op, Strength strength) {
   if (is_strong(strength)) {
     switch (op) {
       default: UNREACHABLE();
-      case Token::ADD: return Builtins::ADD_STRONG;
-      case Token::SUB: return Builtins::SUB_STRONG;
-      case Token::MUL: return Builtins::MUL_STRONG;
-      case Token::DIV: return Builtins::DIV_STRONG;
-      case Token::MOD: return Builtins::MOD_STRONG;
-      case Token::BIT_OR: return Builtins::BIT_OR_STRONG;
-      case Token::BIT_AND: return Builtins::BIT_AND_STRONG;
-      case Token::BIT_XOR: return Builtins::BIT_XOR_STRONG;
-      case Token::SAR: return Builtins::SAR_STRONG;
-      case Token::SHR: return Builtins::SHR_STRONG;
-      case Token::SHL: return Builtins::SHL_STRONG;
+      case Token::ADD:
+        return Context::ADD_STRONG_BUILTIN_INDEX;
+      case Token::SUB:
+        return Context::SUB_STRONG_BUILTIN_INDEX;
+      case Token::MUL:
+        return Context::MUL_STRONG_BUILTIN_INDEX;
+      case Token::DIV:
+        return Context::DIV_STRONG_BUILTIN_INDEX;
+      case Token::MOD:
+        return Context::MOD_STRONG_BUILTIN_INDEX;
+      case Token::BIT_OR:
+        return Context::BIT_OR_STRONG_BUILTIN_INDEX;
+      case Token::BIT_AND:
+        return Context::BIT_AND_STRONG_BUILTIN_INDEX;
+      case Token::BIT_XOR:
+        return Context::BIT_XOR_STRONG_BUILTIN_INDEX;
+      case Token::SAR:
+        return Context::SAR_STRONG_BUILTIN_INDEX;
+      case Token::SHR:
+        return Context::SHR_STRONG_BUILTIN_INDEX;
+      case Token::SHL:
+        return Context::SHL_STRONG_BUILTIN_INDEX;
     }
   } else {
     switch (op) {
       default: UNREACHABLE();
-      case Token::ADD: return Builtins::ADD;
-      case Token::SUB: return Builtins::SUB;
-      case Token::MUL: return Builtins::MUL;
-      case Token::DIV: return Builtins::DIV;
-      case Token::MOD: return Builtins::MOD;
-      case Token::BIT_OR: return Builtins::BIT_OR;
-      case Token::BIT_AND: return Builtins::BIT_AND;
-      case Token::BIT_XOR: return Builtins::BIT_XOR;
-      case Token::SAR: return Builtins::SAR;
-      case Token::SHR: return Builtins::SHR;
-      case Token::SHL: return Builtins::SHL;
+      case Token::ADD:
+        return Context::ADD_BUILTIN_INDEX;
+      case Token::SUB:
+        return Context::SUB_BUILTIN_INDEX;
+      case Token::MUL:
+        return Context::MUL_BUILTIN_INDEX;
+      case Token::DIV:
+        return Context::DIV_BUILTIN_INDEX;
+      case Token::MOD:
+        return Context::MOD_BUILTIN_INDEX;
+      case Token::BIT_OR:
+        return Context::BIT_OR_BUILTIN_INDEX;
+      case Token::BIT_AND:
+        return Context::BIT_AND_BUILTIN_INDEX;
+      case Token::BIT_XOR:
+        return Context::BIT_XOR_BUILTIN_INDEX;
+      case Token::SAR:
+        return Context::SAR_BUILTIN_INDEX;
+      case Token::SHR:
+        return Context::SHR_BUILTIN_INDEX;
+      case Token::SHL:
+        return Context::SHL_BUILTIN_INDEX;
     }
   }
 }

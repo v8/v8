@@ -698,8 +698,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
 }
 
 
-void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
-                                   InvokeFlag flag,
+void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
                                    const CallWrapper& call_wrapper) {
   // You can't call a builtin without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
@@ -708,25 +707,25 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  GetBuiltinEntry(rdx, id);
+  GetBuiltinEntry(rdx, native_context_index);
   InvokeCode(rdx, expected, expected, flag, call_wrapper);
 }
 
 
 void MacroAssembler::GetBuiltinFunction(Register target,
-                                        Builtins::JavaScript id) {
+                                        int native_context_index) {
   // Load the builtins object into target register.
   movp(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  movp(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
-  movp(target, FieldOperand(target,
-                            JSBuiltinsObject::OffsetOfFunctionWithId(id)));
+  movp(target, FieldOperand(target, GlobalObject::kNativeContextOffset));
+  movp(target, ContextOperand(target, native_context_index));
 }
 
 
-void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+void MacroAssembler::GetBuiltinEntry(Register target,
+                                     int native_context_index) {
   DCHECK(!target.is(rdi));
   // Load the JavaScript builtin function from the builtins object.
-  GetBuiltinFunction(rdi, id);
+  GetBuiltinFunction(rdi, native_context_index);
   movp(target, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 }
 

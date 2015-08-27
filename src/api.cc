@@ -3373,8 +3373,7 @@ Maybe<bool> Value::Equals(Local<Context> context, Local<Value> that) const {
   }
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Value::Equals()", bool);
   i::Handle<i::Object> args[] = { other };
-  i::Handle<i::JSFunction> fun(i::JSFunction::cast(
-      isolate->js_builtins_object()->javascript_builtin(i::Builtins::EQUALS)));
+  i::Handle<i::JSFunction> fun = isolate->equals_builtin();
   i::Handle<i::Object> result;
   has_pending_exception =
       !i::Execution::Call(isolate, fun, self, arraysize(args), args)

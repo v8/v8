@@ -149,48 +149,6 @@ enum BuiltinExtraArguments {
   V(PlainReturn_LiveEdit, BUILTIN, DEBUG_STUB, kNoExtraICState) \
   V(FrameDropper_LiveEdit, BUILTIN, DEBUG_STUB, kNoExtraICState)
 
-// Define list of builtins implemented in JavaScript.
-#define BUILTINS_LIST_JS(V)                \
-  V(EQUALS, 1)                             \
-  V(COMPARE, 2)                            \
-  V(COMPARE_STRONG, 2)                     \
-  V(ADD, 1)                                \
-  V(ADD_STRONG, 1)                         \
-  V(SUB, 1)                                \
-  V(SUB_STRONG, 1)                         \
-  V(MUL, 1)                                \
-  V(MUL_STRONG, 1)                         \
-  V(DIV, 1)                                \
-  V(DIV_STRONG, 1)                         \
-  V(MOD, 1)                                \
-  V(MOD_STRONG, 1)                         \
-  V(BIT_OR, 1)                             \
-  V(BIT_OR_STRONG, 1)                      \
-  V(BIT_AND, 1)                            \
-  V(BIT_AND_STRONG, 1)                     \
-  V(BIT_XOR, 1)                            \
-  V(BIT_XOR_STRONG, 1)                     \
-  V(SHL, 1)                                \
-  V(SHL_STRONG, 1)                         \
-  V(SAR, 1)                                \
-  V(SAR_STRONG, 1)                         \
-  V(SHR, 1)                                \
-  V(SHR_STRONG, 1)                         \
-  V(IN, 1)                                 \
-  V(CALL_NON_FUNCTION, 0)                  \
-  V(CALL_NON_FUNCTION_AS_CONSTRUCTOR, 0)   \
-  V(CALL_FUNCTION_PROXY, 1)                \
-  V(CALL_FUNCTION_PROXY_AS_CONSTRUCTOR, 1) \
-  V(TO_NUMBER, 0)                          \
-  V(TO_STRING, 0)                          \
-  V(TO_NAME, 0)                            \
-  V(STRING_ADD_LEFT, 1)                    \
-  V(STRING_ADD_RIGHT, 1)                   \
-  V(APPLY_PREPARE, 1)                      \
-  V(REFLECT_APPLY_PREPARE, 1)              \
-  V(REFLECT_CONSTRUCT_PREPARE, 2)          \
-  V(CONCAT_ITERABLE_TO_ARRAY, 1)           \
-  V(STACK_OVERFLOW, 1)
 
 class BuiltinFunctionTable;
 class ObjectVisitor;
@@ -231,13 +189,6 @@ class Builtins {
     cfunction_count
   };
 
-  enum JavaScript {
-#define DEF_ENUM(name, ignore) name,
-    BUILTINS_LIST_JS(DEF_ENUM)
-#undef DEF_ENUM
-    id_count
-  };
-
 #define DECLARE_BUILTIN_ACCESSOR_C(name, ignore) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_A(name, kind, state, extra) \
   Handle<Code> name();
@@ -263,14 +214,11 @@ class Builtins {
     return c_functions_[id];
   }
 
-  static const char* GetName(JavaScript id) { return javascript_names_[id]; }
   const char* name(int index) {
     DCHECK(index >= 0);
     DCHECK(index < builtin_count);
     return names_[index];
   }
-  static int GetArgumentsCount(JavaScript id) { return javascript_argc_[id]; }
-  static int NumberOfJavaScriptBuiltins() { return id_count; }
 
   bool is_initialized() const { return initialized_; }
 
@@ -289,8 +237,6 @@ class Builtins {
   // function f, we use an Object* array here.
   Object* builtins_[builtin_count];
   const char* names_[builtin_count];
-  static const char* const javascript_names_[id_count];
-  static int const javascript_argc_[id_count];
 
   static void Generate_Adaptor(MacroAssembler* masm,
                                CFunctionId id,

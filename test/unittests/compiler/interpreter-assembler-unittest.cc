@@ -269,11 +269,18 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
 TARGET_TEST_F(InterpreterAssemblerTest, LoadContextSlot) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
-    Node* load_context = m.LoadContextSlot(22);
-    EXPECT_THAT(load_context,
-                m.IsLoad(kMachAnyTagged,
-                         IsParameter(Linkage::kInterpreterContextParameter),
-                         IsIntPtrConstant(Context::SlotOffset(22))));
+    Node* load_from_current_context = m.LoadContextSlot(22);
+    Matcher<Node*> load_from_current_context_matcher = m.IsLoad(
+        kMachAnyTagged, IsParameter(Linkage::kInterpreterContextParameter),
+        IsIntPtrConstant(Context::SlotOffset(22)));
+    EXPECT_THAT(load_from_current_context, load_from_current_context_matcher);
+
+    // Let's imagine that the loaded context slot is another context.
+    Node* load_from_any_context =
+        m.LoadContextSlot(load_from_current_context, 23);
+    EXPECT_THAT(load_from_any_context,
+                m.IsLoad(kMachAnyTagged, load_from_current_context_matcher,
+                         IsIntPtrConstant(Context::SlotOffset(23))));
   }
 }
 
@@ -295,19 +302,18 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallJSBuiltin) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* receiver = m.IntPtrConstant(1234);
-    Node* call_js_builtin_0 = m.CallJSBuiltin(Builtins::SUB, receiver);
+    Node* call_js_builtin_0 =
+        m.CallJSBuiltin(Context::SUB_BUILTIN_INDEX, receiver);
 
     Matcher<Node*> load_globals_matcher = m.IsLoad(
         kMachAnyTagged, IsParameter(Linkage::kInterpreterContextParameter),
         IsIntPtrConstant(Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-    Matcher<Node*> load_builtins_matcher = m.IsLoad(
+    Matcher<Node*> load_native_context_matcher = m.IsLoad(
         kMachAnyTagged, load_globals_matcher,
-        IsIntPtrConstant(GlobalObject::kBuiltinsOffset - kHeapObjectTag));
-    Matcher<Node*> function_matcher =
-        m.IsLoad(kMachAnyTagged, load_builtins_matcher,
-                 IsIntPtrConstant(
-                     JSBuiltinsObject::OffsetOfFunctionWithId(Builtins::SUB) -
-                     kHeapObjectTag));
+        IsIntPtrConstant(GlobalObject::kNativeContextOffset - kHeapObjectTag));
+    Matcher<Node*> function_matcher = m.IsLoad(
+        kMachAnyTagged, load_native_context_matcher,
+        IsIntPtrConstant(Context::SlotOffset(Context::SUB_BUILTIN_INDEX)));
     Matcher<Node*> context_matcher =
         m.IsLoad(kMachAnyTagged, function_matcher,
                  IsIntPtrConstant(JSFunction::kContextOffset - kHeapObjectTag));
@@ -316,7 +322,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallJSBuiltin) {
                        m.graph()->start(), m.graph()->start()));
 
     Node* arg1 = m.Int32Constant(0xabcd);
-    Node* call_js_builtin_1 = m.CallJSBuiltin(Builtins::SUB, receiver, arg1);
+    Node* call_js_builtin_1 =
+        m.CallJSBuiltin(Context::SUB_BUILTIN_INDEX, receiver, arg1);
     EXPECT_THAT(call_js_builtin_1,
                 IsCall(_, function_matcher, receiver, arg1, context_matcher,
                        m.graph()->start(), m.graph()->start()));

@@ -7151,27 +7151,14 @@ class JSGlobalObject: public GlobalObject {
 // JavaScript.
 class JSBuiltinsObject: public GlobalObject {
  public:
-  // Accessors for the runtime routines written in JavaScript.
-  inline Object* javascript_builtin(Builtins::JavaScript id);
-  inline void set_javascript_builtin(Builtins::JavaScript id, Object* value);
-
   DECLARE_CAST(JSBuiltinsObject)
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSBuiltinsObject)
   DECLARE_VERIFIER(JSBuiltinsObject)
 
-  // Layout description.  The size of the builtins object includes
-  // room for two pointers per runtime routine written in javascript
-  // (function and code object).
-  static const int kJSBuiltinsCount = Builtins::id_count;
-  static const int kJSBuiltinsOffset = GlobalObject::kHeaderSize;
-  static const int kSize =
-      GlobalObject::kHeaderSize + (kJSBuiltinsCount * kPointerSize);
-
-  static int OffsetOfFunctionWithId(Builtins::JavaScript id) {
-    return kJSBuiltinsOffset + id * kPointerSize;
-  }
+  // Layout description.
+  static const int kSize = GlobalObject::kHeaderSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSBuiltinsObject);

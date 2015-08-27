@@ -90,6 +90,56 @@ enum BindingFlags {
   V(TO_PRIMITIVE_INDEX, JSFunction, to_primitive)                         \
   V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)
 
+
+#define NATIVE_CONTEXT_JS_BUILTINS(V)                                       \
+  V(ADD_BUILTIN_INDEX, JSFunction, add_builtin)                             \
+  V(ADD_STRONG_BUILTIN_INDEX, JSFunction, add_strong_builtin)               \
+  V(APPLY_PREPARE_BUILTIN_INDEX, JSFunction, apply_prepare_builtin)         \
+  V(BIT_AND_BUILTIN_INDEX, JSFunction, bit_and_builtin)                     \
+  V(BIT_AND_STRONG_BUILTIN_INDEX, JSFunction, bit_and_strong_builtin)       \
+  V(BIT_OR_BUILTIN_INDEX, JSFunction, bit_or_builtin)                       \
+  V(BIT_OR_STRONG_BUILTIN_INDEX, JSFunction, bit_or_strong_builtin)         \
+  V(BIT_XOR_BUILTIN_INDEX, JSFunction, bit_xor_builtin)                     \
+  V(BIT_XOR_STRONG_BUILTIN_INDEX, JSFunction, bit_xor_strong_builtin)       \
+  V(CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX, JSFunction,           \
+    call_function_proxy_as_constructor_builtin)                             \
+  V(CALL_FUNCTION_PROXY_BUILTIN_INDEX, JSFunction,                          \
+    call_function_proxy_builtin)                                            \
+  V(CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX, JSFunction,             \
+    call_non_function_as_constructor_builtin)                               \
+  V(CALL_NON_FUNCTION_BUILTIN_INDEX, JSFunction, call_non_function_builtin) \
+  V(COMPARE_BUILTIN_INDEX, JSFunction, compare_builtin)                     \
+  V(COMPARE_STRONG_BUILTIN_INDEX, JSFunction, compare_strong_builtin)       \
+  V(CONCAT_ITERABLE_TO_ARRAY_BUILTIN_INDEX, JSFunction,                     \
+    concat_iterable_to_array_builtin)                                       \
+  V(DIV_BUILTIN_INDEX, JSFunction, div_builtin)                             \
+  V(DIV_STRONG_BUILTIN_INDEX, JSFunction, div_strong_builtin)               \
+  V(EQUALS_BUILTIN_INDEX, JSFunction, equals_builtin)                       \
+  V(IN_BUILTIN_INDEX, JSFunction, in_builtin)                               \
+  V(MOD_BUILTIN_INDEX, JSFunction, mod_builtin)                             \
+  V(MOD_STRONG_BUILTIN_INDEX, JSFunction, mod_strong_builtin)               \
+  V(MUL_BUILTIN_INDEX, JSFunction, mul_builtin)                             \
+  V(MUL_STRONG_BUILTIN_INDEX, JSFunction, mul_strong_builtin)               \
+  V(REFLECT_APPLY_PREPARE_BUILTIN_INDEX, JSFunction,                        \
+    reflect_apply_prepare_builtin)                                          \
+  V(REFLECT_CONSTRUCT_PREPARE_BUILTIN_INDEX, JSFunction,                    \
+    reflect_construct_prepare_builtin)                                      \
+  V(SAR_BUILTIN_INDEX, JSFunction, sar_builtin)                             \
+  V(SAR_STRONG_BUILTIN_INDEX, JSFunction, sar_strong_builtin)               \
+  V(SHL_BUILTIN_INDEX, JSFunction, shl_builtin)                             \
+  V(SHL_STRONG_BUILTIN_INDEX, JSFunction, shl_strong_builtin)               \
+  V(SHR_BUILTIN_INDEX, JSFunction, shr_builtin)                             \
+  V(SHR_STRONG_BUILTIN_INDEX, JSFunction, shr_strong_builtin)               \
+  V(STACK_OVERFLOW_BUILTIN_INDEX, JSFunction, stack_overflow_builtin)       \
+  V(STRING_ADD_LEFT_BUILTIN_INDEX, JSFunction, string_add_left_builtin)     \
+  V(STRING_ADD_RIGHT_BUILTIN_INDEX, JSFunction, string_add_right_builtin)   \
+  V(SUB_BUILTIN_INDEX, JSFunction, sub_builtin)                             \
+  V(SUB_STRONG_BUILTIN_INDEX, JSFunction, sub_strong_builtin)               \
+  V(TO_NAME_BUILTIN_INDEX, JSFunction, to_name_builtin)                     \
+  V(TO_NUMBER_BUILTIN_INDEX, JSFunction, to_number_builtin)                 \
+  V(TO_STRING_BUILTIN_INDEX, JSFunction, to_string_builtin)
+
+
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
   V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                             \
   V(ARRAY_POP_INDEX, JSFunction, array_pop)                                   \
@@ -152,7 +202,8 @@ enum BindingFlags {
   V(TO_DETAIL_STRING_FUN_INDEX, JSFunction, to_detail_string_fun)             \
   V(TO_INTEGER_FUN_INDEX, JSFunction, to_integer_fun)                         \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)               \
-  V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)
+  V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                 \
+  NATIVE_CONTEXT_JS_BUILTINS(V)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
   V(GLOBAL_PROXY_INDEX, JSObject, global_proxy_object)                         \
@@ -497,6 +548,9 @@ class Context: public FixedArray {
 
   static int ImportedFieldIndexForName(Handle<String> name);
   static int IntrinsicIndexForName(Handle<String> name);
+
+  static bool IsJSBuiltin(Handle<Context> native_context,
+                          Handle<JSFunction> function);
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   void  set_##name(type* value) {                         \

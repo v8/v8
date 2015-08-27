@@ -3508,16 +3508,15 @@ HAllocate* HGraphBuilder::JSArrayBuilder::AllocateArray(
 }
 
 
-HValue* HGraphBuilder::AddLoadJSBuiltin(Builtins::JavaScript builtin) {
+HValue* HGraphBuilder::AddLoadJSBuiltin(int context_index) {
   HValue* global_object = Add<HLoadNamedField>(
       context(), nullptr,
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
   HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(
-      GlobalObject::kBuiltinsOffset);
-  HValue* builtins = Add<HLoadNamedField>(global_object, nullptr, access);
-  HObjectAccess function_access = HObjectAccess::ForObservableJSObjectOffset(
-          JSBuiltinsObject::OffsetOfFunctionWithId(builtin));
-  return Add<HLoadNamedField>(builtins, nullptr, function_access);
+      GlobalObject::kNativeContextOffset);
+  HValue* native_context = Add<HLoadNamedField>(global_object, nullptr, access);
+  HObjectAccess function_access = HObjectAccess::ForContextSlot(context_index);
+  return Add<HLoadNamedField>(native_context, nullptr, function_access);
 }
 
 
@@ -10911,7 +10910,8 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         left = BuildNumberToString(left, left_type);
       } else if (!left_type->Is(Type::String())) {
         DCHECK(right_type->Is(Type::String()));
-        HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_RIGHT);
+        HValue* function =
+            AddLoadJSBuiltin(Context::STRING_ADD_RIGHT_BUILTIN_INDEX);
         Add<HPushArguments>(left, right);
         return AddUncasted<HInvokeFunction>(function, 2);
       }
@@ -10922,7 +10922,8 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         right = BuildNumberToString(right, right_type);
       } else if (!right_type->Is(Type::String())) {
         DCHECK(left_type->Is(Type::String()));
-        HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_LEFT);
+        HValue* function =
+            AddLoadJSBuiltin(Context::STRING_ADD_LEFT_BUILTIN_INDEX);
         Add<HPushArguments>(left, right);
         return AddUncasted<HInvokeFunction>(function, 2);
       }
@@ -10990,7 +10991,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   // operation in optimized code, which is more expensive, than a stub call.
   if (graph()->info()->IsStub() && is_non_primitive) {
     HValue* function =
-        AddLoadJSBuiltin(BinaryOpIC::TokenToJSBuiltin(op, strength));
+        AddLoadJSBuiltin(BinaryOpIC::TokenToContextIndex(op, strength));
     Add<HPushArguments>(left, right);
     instr = AddUncasted<HInvokeFunction>(function, 2);
   } else {
@@ -11352,7 +11353,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnInstruction(result, expr->id());
 
   } else if (op == Token::IN) {
-    HValue* function = AddLoadJSBuiltin(Builtins::IN);
+    HValue* function = AddLoadJSBuiltin(Context::IN_BUILTIN_INDEX);
     Add<HPushArguments>(left, right);
     // TODO(olivf) InvokeFunction produces a check for the parameter count,
     // even though we are certain to pass the correct number of arguments here.

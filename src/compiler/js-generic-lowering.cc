@@ -214,8 +214,7 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
 }
 
 
-void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
-                                               Builtins::JavaScript id,
+void JSGenericLowering::ReplaceWithBuiltinCall(Node* node, int context_index,
                                                int nargs) {
   Node* context_input = NodeProperties::GetContextInput(node);
   Node* effect_input = NodeProperties::GetEffectInput(node);
@@ -231,14 +230,14 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
                        jsgraph()->IntPtrConstant(
                            Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)),
                        effect_input, graph()->start());
-  Node* builtins_object = graph()->NewNode(
-      machine()->Load(kMachAnyTagged), global_object,
-      jsgraph()->IntPtrConstant(GlobalObject::kBuiltinsOffset - kHeapObjectTag),
-      effect_input, graph()->start());
+  Node* native_context =
+      graph()->NewNode(machine()->Load(kMachAnyTagged), global_object,
+                       jsgraph()->IntPtrConstant(
+                           GlobalObject::kNativeContextOffset - kHeapObjectTag),
+                       effect_input, graph()->start());
   Node* function = graph()->NewNode(
-      machine()->Load(kMachAnyTagged), builtins_object,
-      jsgraph()->IntPtrConstant(JSBuiltinsObject::OffsetOfFunctionWithId(id) -
-                                kHeapObjectTag),
+      machine()->Load(kMachAnyTagged), native_context,
+      jsgraph()->IntPtrConstant(Context::SlotOffset(context_index)),
       effect_input, graph()->start());
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   node->InsertInput(zone(), 0, stub_code);
@@ -297,12 +296,12 @@ void JSGenericLowering::LowerJSToNumber(Node* node) {
 
 
 void JSGenericLowering::LowerJSToString(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::TO_STRING, 1);
+  ReplaceWithBuiltinCall(node, Context::TO_STRING_BUILTIN_INDEX, 1);
 }
 
 
 void JSGenericLowering::LowerJSToName(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::TO_NAME, 1);
+  ReplaceWithBuiltinCall(node, Context::TO_NAME_BUILTIN_INDEX, 1);
 }
 
 
@@ -437,7 +436,7 @@ void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
 
 
 void JSGenericLowering::LowerJSHasProperty(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::IN, 2);
+  ReplaceWithBuiltinCall(node, Context::IN_BUILTIN_INDEX, 2);
 }
 
 

@@ -1443,7 +1443,7 @@ class HGraphBuilder {
                                       ElementsKind kind,
                                       HValue *dependency = NULL);
 
-  HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin);
+  HValue* AddLoadJSBuiltin(int context_index);
 
   HValue* EnforceNumberType(HValue* number, Type* expected);
   HValue* TruncateToNumber(HValue* value, Type** expected);

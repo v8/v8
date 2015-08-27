@@ -1765,12 +1765,13 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     __ PushReturnAddressFrom(rcx);
     __ TailCallRuntime(Runtime::kStrictEquals, 2, 1);
   } else {
-    Builtins::JavaScript builtin;
+    int context_index;
     if (cc == equal) {
-      builtin = Builtins::EQUALS;
+      context_index = Context::EQUALS_BUILTIN_INDEX;
     } else {
-      builtin =
-          is_strong(strength()) ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
+      context_index = is_strong(strength())
+                          ? Context::COMPARE_STRONG_BUILTIN_INDEX
+                          : Context::COMPARE_BUILTIN_INDEX;
       __ Push(Smi::FromInt(NegativeComparisonResult(cc)));
     }
 
@@ -1778,7 +1779,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.
-    __ InvokeBuiltin(builtin, JUMP_FUNCTION);
+    __ InvokeBuiltin(context_index, JUMP_FUNCTION);
   }
 
   __ bind(&miss);
@@ -1941,7 +1942,7 @@ static void EmitSlowCase(Isolate* isolate,
   __ PushReturnAddressFrom(rcx);
   __ Set(rax, argc + 1);
   __ Set(rbx, 0);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
+  __ GetBuiltinEntry(rdx, Context::CALL_FUNCTION_PROXY_BUILTIN_INDEX);
   {
     Handle<Code> adaptor =
         masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -1954,7 +1955,7 @@ static void EmitSlowCase(Isolate* isolate,
   __ movp(args->GetReceiverOperand(), rdi);
   __ Set(rax, argc);
   __ Set(rbx, 0);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
+  __ GetBuiltinEntry(rdx, Context::CALL_NON_FUNCTION_BUILTIN_INDEX);
   Handle<Code> adaptor =
       isolate->builtins()->ArgumentsAdaptorTrampoline();
   __ Jump(adaptor, RelocInfo::CODE_TARGET);
@@ -2098,11 +2099,13 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   __ CmpInstanceType(r11, JS_FUNCTION_PROXY_TYPE);
   __ j(not_equal, &non_function_call);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
+  __ GetBuiltinEntry(rdx,
+                     Context::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX);
   __ jmp(&do_call);
 
   __ bind(&non_function_call);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ GetBuiltinEntry(rdx,
+                     Context::CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX);
   __ bind(&do_call);
   // Set expected number of arguments to zero (not changing rax).
   __ Set(rbx, 0);
@@ -3221,7 +3224,7 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ PopReturnAddressTo(rcx);     // Pop return address.
   __ Push(rax);                   // Push argument.
   __ PushReturnAddressFrom(rcx);  // Push return address.
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+  __ InvokeBuiltin(Context::TO_NUMBER_BUILTIN_INDEX, JUMP_FUNCTION);
 }
 
 

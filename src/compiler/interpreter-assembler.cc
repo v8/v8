@@ -195,20 +195,23 @@ Node* InterpreterAssembler::LoadObjectField(Node* object, int offset) {
 }
 
 
-Node* InterpreterAssembler::LoadContextSlot(int slot_index) {
-  return raw_assembler_->Load(kMachAnyTagged, ContextTaggedPointer(),
+Node* InterpreterAssembler::LoadContextSlot(Node* context, int slot_index) {
+  return raw_assembler_->Load(kMachAnyTagged, context,
                               IntPtrConstant(Context::SlotOffset(slot_index)));
 }
 
 
-Node* InterpreterAssembler::CallJSBuiltin(Builtins::JavaScript builtin,
-                                          Node* receiver, Node** js_args,
-                                          int js_arg_count) {
+Node* InterpreterAssembler::LoadContextSlot(int slot_index) {
+  return LoadContextSlot(ContextTaggedPointer(), slot_index);
+}
+
+
+Node* InterpreterAssembler::CallJSBuiltin(int context_index, Node* receiver,
+                                          Node** js_args, int js_arg_count) {
   Node* global_object = LoadContextSlot(Context::GLOBAL_OBJECT_INDEX);
-  Node* builtins_object =
-      LoadObjectField(global_object, GlobalObject::kBuiltinsOffset);
-  Node* function = LoadObjectField(
-      builtins_object, JSBuiltinsObject::OffsetOfFunctionWithId(builtin));
+  Node* native_context =
+      LoadObjectField(global_object, GlobalObject::kNativeContextOffset);
+  Node* function = LoadContextSlot(native_context, context_index);
   Node* context = LoadObjectField(function, JSFunction::kContextOffset);
 
   int index = 0;
@@ -225,15 +228,14 @@ Node* InterpreterAssembler::CallJSBuiltin(Builtins::JavaScript builtin,
 }
 
 
-Node* InterpreterAssembler::CallJSBuiltin(Builtins::JavaScript builtin,
-                                          Node* receiver) {
-  return CallJSBuiltin(builtin, receiver, nullptr, 0);
+Node* InterpreterAssembler::CallJSBuiltin(int context_index, Node* receiver) {
+  return CallJSBuiltin(context_index, receiver, nullptr, 0);
 }
 
 
-Node* InterpreterAssembler::CallJSBuiltin(Builtins::JavaScript builtin,
-                                          Node* receiver, Node* arg1) {
-  return CallJSBuiltin(builtin, receiver, &arg1, 1);
+Node* InterpreterAssembler::CallJSBuiltin(int context_index, Node* receiver,
+                                          Node* arg1) {
+  return CallJSBuiltin(context_index, receiver, &arg1, 1);
 }
 
 

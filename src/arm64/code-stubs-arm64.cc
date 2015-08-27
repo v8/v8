@@ -653,12 +653,13 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   if (cond == eq && strict()) {
     __ TailCallRuntime(Runtime::kStrictEquals, 2, 1);
   } else {
-    Builtins::JavaScript native;
+    int context_index;
     if (cond == eq) {
-      native = Builtins::EQUALS;
+      context_index = Context::EQUALS_BUILTIN_INDEX;
     } else {
-      native =
-          is_strong(strength()) ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
+      context_index = is_strong(strength())
+                          ? Context::COMPARE_STRONG_BUILTIN_INDEX
+                          : Context::COMPARE_BUILTIN_INDEX;
       int ncr;  // NaN compare result
       if ((cond == lt) || (cond == le)) {
         ncr = GREATER;
@@ -672,7 +673,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.
-    __ InvokeBuiltin(native, JUMP_FUNCTION);
+    __ InvokeBuiltin(context_index, JUMP_FUNCTION);
   }
 
   __ Bind(&miss);
@@ -2818,7 +2819,7 @@ static void EmitSlowCase(MacroAssembler* masm,
   __ Push(function);  // put proxy as additional argument
   __ Mov(x0, argc + 1);
   __ Mov(x2, 0);
-  __ GetBuiltinFunction(x1, Builtins::CALL_FUNCTION_PROXY);
+  __ GetBuiltinFunction(x1, Context::CALL_FUNCTION_PROXY_BUILTIN_INDEX);
   {
     Handle<Code> adaptor =
         masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -2831,7 +2832,7 @@ static void EmitSlowCase(MacroAssembler* masm,
   __ Poke(function, argc * kXRegSize);
   __ Mov(x0, argc);  // Set up the number of arguments.
   __ Mov(x2, 0);
-  __ GetBuiltinFunction(function, Builtins::CALL_NON_FUNCTION);
+  __ GetBuiltinFunction(function, Context::CALL_NON_FUNCTION_BUILTIN_INDEX);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -2979,11 +2980,13 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Bind(&slow);
   __ Cmp(object_type, JS_FUNCTION_PROXY_TYPE);
   __ B(ne, &non_function_call);
-  __ GetBuiltinFunction(x1, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
+  __ GetBuiltinFunction(
+      x1, Context::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX);
   __ B(&do_call);
 
   __ Bind(&non_function_call);
-  __ GetBuiltinFunction(x1, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ GetBuiltinFunction(
+      x1, Context::CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX);
 
   __ Bind(&do_call);
   // Set expected number of arguments to zero (not changing x0).
@@ -3992,7 +3995,7 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Bind(&not_oddball);
 
   __ Push(x0);  // Push argument.
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+  __ InvokeBuiltin(Context::TO_NUMBER_BUILTIN_INDEX, JUMP_FUNCTION);
 }
 
 

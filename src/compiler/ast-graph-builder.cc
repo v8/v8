@@ -1985,10 +1985,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     if (subexpr->IsSpread()) {
       VisitForValue(subexpr->AsSpread()->expression());
       Node* iterable = environment()->Pop();
-      Node* builtins = BuildLoadBuiltinsObject();
-      Node* function = BuildLoadObjectField(
-          builtins, JSBuiltinsObject::OffsetOfFunctionWithId(
-                        Builtins::CONCAT_ITERABLE_TO_ARRAY));
+      Node* function = BuildLoadNativeContextField(
+          Context::CONCAT_ITERABLE_TO_ARRAY_BUILTIN_INDEX);
       result = NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS,
                                                   language_mode()),
                        function, array, iterable);
@@ -2541,12 +2539,7 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   // The callee and the receiver both have to be pushed onto the operand stack
   // before arguments are being evaluated.
   CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS;
-  Node* global = BuildLoadGlobalObject();
-  Node* native_context =
-      BuildLoadObjectField(global, GlobalObject::kNativeContextOffset);
-  Node* callee_value =
-      NewNode(javascript()->LoadContext(0, expr->context_index(), true),
-              native_context);
+  Node* callee_value = BuildLoadNativeContextField(expr->context_index());
   Node* receiver_value = jsgraph()->UndefinedConstant();
 
   environment()->Push(callee_value);
@@ -3756,6 +3749,14 @@ Node* AstGraphBuilder::BuildLoadGlobalObject() {
   const Operator* load_op =
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true);
   return NewNode(load_op, GetFunctionContext());
+}
+
+
+Node* AstGraphBuilder::BuildLoadNativeContextField(int index) {
+  Node* global = BuildLoadGlobalObject();
+  Node* native_context =
+      BuildLoadObjectField(global, GlobalObject::kNativeContextOffset);
+  return NewNode(javascript()->LoadContext(0, index, true), native_context);
 }
 
 

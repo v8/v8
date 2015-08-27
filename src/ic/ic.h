@@ -610,8 +610,7 @@ class BinaryOpIC : public IC {
  public:
   explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
-  static Builtins::JavaScript TokenToJSBuiltin(Token::Value op,
-                                               Strength strength);
+  static int TokenToContextIndex(Token::Value op, Strength strength);
 
   MaybeHandle<Object> Transition(Handle<AllocationSite> allocation_site,
                                  Handle<Object> left,

@@ -1603,12 +1603,13 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     __ push(ecx);
     __ TailCallRuntime(Runtime::kStrictEquals, 2, 1);
   } else {
-    Builtins::JavaScript builtin;
+    int context_index;
     if (cc == equal) {
-      builtin = Builtins::EQUALS;
+      context_index = Context::EQUALS_BUILTIN_INDEX;
     } else {
-      builtin =
-          is_strong(strength()) ? Builtins::COMPARE_STRONG : Builtins::COMPARE;
+      context_index = is_strong(strength())
+                          ? Context::COMPARE_STRONG_BUILTIN_INDEX
+                          : Context::COMPARE_BUILTIN_INDEX;
       __ push(Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
     }
 
@@ -1617,7 +1618,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.
-    __ InvokeBuiltin(builtin, JUMP_FUNCTION);
+    __ InvokeBuiltin(context_index, JUMP_FUNCTION);
   }
 
   __ bind(&miss);
@@ -1782,7 +1783,7 @@ static void EmitSlowCase(Isolate* isolate,
   __ push(ecx);
   __ Move(eax, Immediate(argc + 1));
   __ Move(ebx, Immediate(0));
-  __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
+  __ GetBuiltinEntry(edx, Context::CALL_FUNCTION_PROXY_BUILTIN_INDEX);
   {
     Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
     __ jmp(adaptor, RelocInfo::CODE_TARGET);
@@ -1794,7 +1795,7 @@ static void EmitSlowCase(Isolate* isolate,
   __ mov(Operand(esp, (argc + 1) * kPointerSize), edi);
   __ Move(eax, Immediate(argc));
   __ Move(ebx, Immediate(0));
-  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
+  __ GetBuiltinEntry(edx, Context::CALL_NON_FUNCTION_BUILTIN_INDEX);
   Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
@@ -1938,11 +1939,13 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
   __ j(not_equal, &non_function_call);
-  __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
+  __ GetBuiltinEntry(edx,
+                     Context::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX);
   __ jmp(&do_call);
 
   __ bind(&non_function_call);
-  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ GetBuiltinEntry(edx,
+                     Context::CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX);
   __ bind(&do_call);
   if (IsSuperConstructorCall()) {
     __ Drop(1);
@@ -2978,7 +2981,7 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ pop(ecx);   // Pop return address.
   __ push(eax);  // Push argument.
   __ push(ecx);  // Push return address.
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+  __ InvokeBuiltin(Context::TO_NUMBER_BUILTIN_INDEX, JUMP_FUNCTION);
 }
 
 

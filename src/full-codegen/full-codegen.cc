@@ -883,7 +883,7 @@ void FullCodeGenerator::EmitUnwindBeforeReturn() {
 void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
                                         BailoutId bailout_id) {
   VisitForStackValue(property->key());
-  __ InvokeBuiltin(Builtins::TO_NAME, CALL_FUNCTION);
+  __ InvokeBuiltin(Context::TO_NAME_BUILTIN_INDEX, CALL_FUNCTION);
   PrepareForBailoutForId(bailout_id, NO_REGISTERS);
   __ Push(result_register());
 }
