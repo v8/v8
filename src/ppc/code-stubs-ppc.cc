@@ -1411,7 +1411,7 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Ensure that {function} has an instance prototype.
   __ lbz(scratch, FieldMemOperand(function_map, Map::kBitFieldOffset));
-  __ TestBit(scratch, Map::HasNonInstancePrototype, r0);
+  __ TestBit(scratch, Map::kHasNonInstancePrototype, r0);
   __ bne(&slow_case, cr0);
 
   // Ensure that {function} is not bound.
