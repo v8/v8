@@ -1360,13 +1360,17 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     CHECK(!data->register_allocation_data()->ExistsUseWithoutDefinition());
   }
 
-  Run<SplinterLiveRangesPhase>();
+  if (FLAG_turbo_preprocess_ranges) {
+    Run<SplinterLiveRangesPhase>();
+  }
 
   // TODO(mtrofin): re-enable greedy once we have bots for range preprocessing.
   Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
   Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
 
-  Run<MergeSplintersPhase>();
+  if (FLAG_turbo_preprocess_ranges) {
+    Run<MergeSplintersPhase>();
+  }
 
   if (FLAG_turbo_frame_elision) {
     Run<LocateSpillSlotsPhase>();

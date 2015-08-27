@@ -2932,7 +2932,7 @@ void AstGraphBuilder::VisitInScope(Statement* stmt, Scope* s, Node* context) {
 void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
                                          LoopBuilder* loop) {
   ControlScopeForIteration scope(this, stmt, loop);
-  if (FLAG_turbo_loop_stackcheck) {
+  if (FLAG_turbo_loop_stackcheck || !info()->shared_info()->asm_function()) {
     Node* node = NewNode(javascript()->StackCheck());
     PrepareFrameState(node, stmt->StackCheckId());
   }
