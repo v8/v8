@@ -49,10 +49,6 @@
 #include "src/v8.h"
 #endif  // !V8_SHARED
 
-#if defined(V8_WASM)
-#include "src/wasm/wasm-js.h"
-#endif
-
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #else
@@ -1181,11 +1177,6 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "os", NewStringType::kNormal)
           .ToLocalChecked(),
       os_templ);
-
-#if defined(V8_WASM)
-  // Install WASM API.
-  WasmJs::Install(isolate, global_template);
-#endif
 
   return global_template;
 }

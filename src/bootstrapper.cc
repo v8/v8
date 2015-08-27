@@ -18,6 +18,10 @@
 #include "src/snapshot/snapshot.h"
 #include "third_party/fdlibm/fdlibm.h"
 
+#if defined(V8_WASM)
+#include "src/wasm/wasm-js.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -2666,6 +2670,11 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     Handle<Object> global_proxy(debug_context->global_proxy(), isolate);
     JSObject::AddProperty(global, debug_string, global_proxy, DONT_ENUM);
   }
+
+#if defined(V8_WASM)
+  WasmJs::Install(isolate, global);
+#endif
+
   return true;
 }
 
