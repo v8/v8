@@ -611,6 +611,10 @@ namespace internal {
   F(Float32x4FromUint16x8Bits, 1, 1)           \
   F(Float32x4FromInt8x16Bits, 1, 1)            \
   F(Float32x4FromUint8x16Bits, 1, 1)           \
+  F(Float32x4Load, 2, 1)                       \
+  F(Float32x4Load1, 2, 1)                      \
+  F(Float32x4Load2, 2, 1)                      \
+  F(Float32x4Load3, 2, 1)                      \
   F(Int32x4Check, 1, 1)                        \
   F(Int32x4ExtractLane, 2, 1)                  \
   F(Int32x4ReplaceLane, 3, 1)                  \
@@ -643,6 +647,10 @@ namespace internal {
   F(Int32x4FromUint16x8Bits, 1, 1)             \
   F(Int32x4FromInt8x16Bits, 1, 1)              \
   F(Int32x4FromUint8x16Bits, 1, 1)             \
+  F(Int32x4Load, 2, 1)                         \
+  F(Int32x4Load1, 2, 1)                        \
+  F(Int32x4Load2, 2, 1)                        \
+  F(Int32x4Load3, 2, 1)                        \
   F(Uint32x4Check, 1, 1)                       \
   F(Uint32x4ExtractLane, 2, 1)                 \
   F(Uint32x4ReplaceLane, 3, 1)                 \
@@ -675,6 +683,10 @@ namespace internal {
   F(Uint32x4FromUint16x8Bits, 1, 1)            \
   F(Uint32x4FromInt8x16Bits, 1, 1)             \
   F(Uint32x4FromUint8x16Bits, 1, 1)            \
+  F(Uint32x4Load, 2, 1)                        \
+  F(Uint32x4Load1, 2, 1)                       \
+  F(Uint32x4Load2, 2, 1)                       \
+  F(Uint32x4Load3, 2, 1)                       \
   F(Bool32x4Check, 1, 1)                       \
   F(Bool32x4ExtractLane, 2, 1)                 \
   F(Bool32x4ReplaceLane, 3, 1)                 \
@@ -719,6 +731,7 @@ namespace internal {
   F(Int16x8FromUint16x8Bits, 1, 1)             \
   F(Int16x8FromInt8x16Bits, 1, 1)              \
   F(Int16x8FromUint8x16Bits, 1, 1)             \
+  F(Int16x8Load, 2, 1)                         \
   F(Uint16x8Check, 1, 1)                       \
   F(Uint16x8ExtractLane, 2, 1)                 \
   F(Uint16x8ReplaceLane, 3, 1)                 \
@@ -754,6 +767,7 @@ namespace internal {
   F(Uint16x8FromInt16x8Bits, 1, 1)             \
   F(Uint16x8FromInt8x16Bits, 1, 1)             \
   F(Uint16x8FromUint8x16Bits, 1, 1)            \
+  F(Uint16x8Load, 2, 1)                        \
   F(Bool16x8Check, 1, 1)                       \
   F(Bool16x8ExtractLane, 2, 1)                 \
   F(Bool16x8ReplaceLane, 3, 1)                 \
@@ -798,6 +812,7 @@ namespace internal {
   F(Int8x16FromInt16x8Bits, 1, 1)              \
   F(Int8x16FromUint16x8Bits, 1, 1)             \
   F(Int8x16FromUint8x16Bits, 1, 1)             \
+  F(Int8x16Load, 2, 1)                         \
   F(Uint8x16Check, 1, 1)                       \
   F(Uint8x16ExtractLane, 2, 1)                 \
   F(Uint8x16ReplaceLane, 3, 1)                 \
@@ -833,6 +848,7 @@ namespace internal {
   F(Uint8x16FromInt16x8Bits, 1, 1)             \
   F(Uint8x16FromUint16x8Bits, 1, 1)            \
   F(Uint8x16FromInt8x16Bits, 1, 1)             \
+  F(Uint8x16Load, 2, 1)                        \
   F(Bool8x16Check, 1, 1)                       \
   F(Bool8x16ExtractLane, 2, 1)                 \
   F(Bool8x16ReplaceLane, 3, 1)                 \

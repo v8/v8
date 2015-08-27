@@ -957,5 +957,73 @@ SIMD_FROM_TYPES(SIMD_FROM_FUNCTION)
 
 SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
 
+
+//-------------------------------------------------------------------
+
+// Load functions.
+#define SIMD_LOADN_STOREN_TYPES(FUNCTION) \
+  FUNCTION(Float32x4, float, 4)           \
+  FUNCTION(Int32x4, int32_t, 4)           \
+  FUNCTION(Uint32x4, uint32_t, 4)
+
+
+// Common Load Functions
+#define SIMD_LOAD(type, lane_type, lane_count, count, result)          \
+  static const int kLaneCount = lane_count;                            \
+  DCHECK(args.length() == 2);                                          \
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, tarray, 0);                 \
+  CONVERT_INT32_ARG_CHECKED(index, 1)                                  \
+  size_t bpe = tarray->element_size();                                 \
+  uint32_t bytes = count * sizeof(lane_type);                          \
+  size_t byte_length = NumberToSize(isolate, tarray->byte_length());   \
+  RUNTIME_ASSERT(index >= 0 && index * bpe + bytes <= byte_length);    \
+  size_t tarray_offset = NumberToSize(isolate, tarray->byte_offset()); \
+  uint8_t* tarray_base =                                               \
+      static_cast<uint8_t*>(tarray->GetBuffer()->backing_store()) +    \
+      tarray_offset;                                                   \
+  lane_type lanes[kLaneCount] = {0};                                   \
+  memcpy(lanes, tarray_base + index * bpe, bytes);                     \
+  Handle<type> result = isolate->factory()->New##type(lanes);
+
+
+#define SIMD_LOAD_FUNCTION(type, lane_type, lane_count)         \
+  RUNTIME_FUNCTION(Runtime_##type##Load) {                      \
+    HandleScope scope(isolate);                                 \
+    SIMD_LOAD(type, lane_type, lane_count, lane_count, result); \
+    return *result;                                             \
+  }
+
+
+#define SIMD_LOAD1_FUNCTION(type, lane_type, lane_count) \
+  RUNTIME_FUNCTION(Runtime_##type##Load1) {              \
+    HandleScope scope(isolate);                          \
+    SIMD_LOAD(type, lane_type, lane_count, 1, result);   \
+    return *result;                                      \
+  }
+
+
+#define SIMD_LOAD2_FUNCTION(type, lane_type, lane_count) \
+  RUNTIME_FUNCTION(Runtime_##type##Load2) {              \
+    HandleScope scope(isolate);                          \
+    SIMD_LOAD(type, lane_type, lane_count, 2, result);   \
+    return *result;                                      \
+  }
+
+
+#define SIMD_LOAD3_FUNCTION(type, lane_type, lane_count) \
+  RUNTIME_FUNCTION(Runtime_##type##Load3) {              \
+    HandleScope scope(isolate);                          \
+    SIMD_LOAD(type, lane_type, lane_count, 3, result);   \
+    return *result;                                      \
+  }
+
+
+SIMD_NUMERIC_TYPES(SIMD_LOAD_FUNCTION)
+SIMD_LOADN_STOREN_TYPES(SIMD_LOAD1_FUNCTION)
+SIMD_LOADN_STOREN_TYPES(SIMD_LOAD2_FUNCTION)
+SIMD_LOADN_STOREN_TYPES(SIMD_LOAD3_FUNCTION)
+
+//-------------------------------------------------------------------
+
 }  // namespace internal
 }  // namespace v8

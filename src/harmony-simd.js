@@ -243,6 +243,10 @@ function NAMEGreaterThanJS(a, b) {
 function NAMEGreaterThanOrEqualJS(a, b) {
   return %NAMEGreaterThanOrEqual(a, b);
 }
+
+function NAMELoadJS(tarray, index) {
+  return %NAMELoad(tarray, index);
+}
 endmacro
 
 SIMD_NUMERIC_TYPES(DECLARE_NUMERIC_FUNCTIONS)
@@ -346,6 +350,27 @@ function TOFromFROMBitsJS(a) {
 endmacro
 
 SIMD_FROM_BITS_TYPES(DECLARE_FROM_BITS_FUNCTIONS)
+
+
+macro SIMD_LOADN_STOREN_TYPES(FUNCTION)
+FUNCTION(Float32x4, 1)
+FUNCTION(Float32x4, 2)
+FUNCTION(Float32x4, 3)
+FUNCTION(Int32x4, 1)
+FUNCTION(Int32x4, 2)
+FUNCTION(Int32x4, 3)
+FUNCTION(Uint32x4, 1)
+FUNCTION(Uint32x4, 2)
+FUNCTION(Uint32x4, 3)
+endmacro
+
+macro DECLARE_LOADN_STOREN_FUNCTIONS(NAME, COUNT)
+function NAMELoadCOUNTJS(tarray, index) {
+  return %NAMELoadCOUNT(tarray, index);
+}
+endmacro
+
+SIMD_LOADN_STOREN_TYPES(DECLARE_LOADN_STOREN_FUNCTIONS)
 
 //-------------------------------------------------------------------
 
@@ -599,6 +624,10 @@ utils.InstallFunctions(GlobalFloat32x4, DONT_ENUM, [
   'fromUint16x8Bits', Float32x4FromUint16x8BitsJS,
   'fromInt8x16Bits', Float32x4FromInt8x16BitsJS,
   'fromUint8x16Bits', Float32x4FromUint8x16BitsJS,
+  'load', Float32x4LoadJS,
+  'load1', Float32x4Load1JS,
+  'load2', Float32x4Load2JS,
+  'load3', Float32x4Load3JS,
 ]);
 
 utils.InstallFunctions(GlobalInt32x4, DONT_ENUM, [
@@ -635,6 +664,10 @@ utils.InstallFunctions(GlobalInt32x4, DONT_ENUM, [
   'fromUint16x8Bits', Int32x4FromUint16x8BitsJS,
   'fromInt8x16Bits', Int32x4FromInt8x16BitsJS,
   'fromUint8x16Bits', Int32x4FromUint8x16BitsJS,
+  'load', Int32x4LoadJS,
+  'load1', Int32x4Load1JS,
+  'load2', Int32x4Load2JS,
+  'load3', Int32x4Load3JS,
 ]);
 
 utils.InstallFunctions(GlobalUint32x4, DONT_ENUM, [
@@ -671,6 +704,10 @@ utils.InstallFunctions(GlobalUint32x4, DONT_ENUM, [
   'fromUint16x8Bits', Uint32x4FromUint16x8BitsJS,
   'fromInt8x16Bits', Uint32x4FromInt8x16BitsJS,
   'fromUint8x16Bits', Uint32x4FromUint8x16BitsJS,
+  'load', Uint32x4LoadJS,
+  'load1', Uint32x4Load1JS,
+  'load2', Uint32x4Load2JS,
+  'load3', Uint32x4Load3JS,
 ]);
 
 utils.InstallFunctions(GlobalBool32x4, DONT_ENUM, [
@@ -723,6 +760,7 @@ utils.InstallFunctions(GlobalInt16x8, DONT_ENUM, [
   'fromUint16x8Bits', Int16x8FromUint16x8BitsJS,
   'fromInt8x16Bits', Int16x8FromInt8x16BitsJS,
   'fromUint8x16Bits', Int16x8FromUint8x16BitsJS,
+  'load', Int16x8LoadJS,
 ]);
 
 utils.InstallFunctions(GlobalUint16x8, DONT_ENUM, [
@@ -762,6 +800,7 @@ utils.InstallFunctions(GlobalUint16x8, DONT_ENUM, [
   'fromInt16x8Bits', Uint16x8FromInt16x8BitsJS,
   'fromInt8x16Bits', Uint16x8FromInt8x16BitsJS,
   'fromUint8x16Bits', Uint16x8FromUint8x16BitsJS,
+  'load', Uint16x8LoadJS,
 ]);
 
 utils.InstallFunctions(GlobalBool16x8, DONT_ENUM, [
@@ -814,6 +853,7 @@ utils.InstallFunctions(GlobalInt8x16, DONT_ENUM, [
   'fromInt16x8Bits', Int8x16FromInt16x8BitsJS,
   'fromUint16x8Bits', Int8x16FromUint16x8BitsJS,
   'fromUint8x16Bits', Int8x16FromUint8x16BitsJS,
+  'load', Int8x16LoadJS,
 ]);
 
 utils.InstallFunctions(GlobalUint8x16, DONT_ENUM, [
@@ -853,6 +893,7 @@ utils.InstallFunctions(GlobalUint8x16, DONT_ENUM, [
   'fromInt16x8Bits', Uint8x16FromInt16x8BitsJS,
   'fromUint16x8Bits', Uint8x16FromUint16x8BitsJS,
   'fromInt8x16Bits', Uint8x16FromInt8x16BitsJS,
+  'load', Uint8x16LoadJS,
 ]);
 
 utils.InstallFunctions(GlobalBool8x16, DONT_ENUM, [
