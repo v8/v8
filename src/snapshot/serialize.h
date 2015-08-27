@@ -547,8 +547,6 @@ class Deserializer: public SerializerDeserializer {
   // Deserialize a shared function info. Fail gracefully.
   MaybeHandle<SharedFunctionInfo> DeserializeCode(Isolate* isolate);
 
-  void FlushICacheForNewCodeObjects();
-
   // Pass a vector of externally-provided objects referenced by the snapshot.
   // The ownership to its backing store is handed over as well.
   void SetAttachedObjects(Vector<Handle<Object> > attached_objects) {
@@ -575,6 +573,9 @@ class Deserializer: public SerializerDeserializer {
   }
 
   void DeserializeDeferredObjects();
+
+  void FlushICacheForNewIsolate();
+  void FlushICacheForNewCodeObjects();
 
   void CommitNewInternalizedStrings(Isolate* isolate);
 

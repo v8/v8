@@ -500,16 +500,19 @@ void Deserializer::DecodeReservation(
 }
 
 
-void Deserializer::FlushICacheForNewCodeObjects() {
-  if (!deserializing_user_code_) {
-    // The entire isolate is newly deserialized. Simply flush all code pages.
-    PageIterator it(isolate_->heap()->code_space());
-    while (it.has_next()) {
-      Page* p = it.next();
-      CpuFeatures::FlushICache(p->area_start(),
-                               p->area_end() - p->area_start());
-    }
+void Deserializer::FlushICacheForNewIsolate() {
+  DCHECK(!deserializing_user_code_);
+  // The entire isolate is newly deserialized. Simply flush all code pages.
+  PageIterator it(isolate_->heap()->code_space());
+  while (it.has_next()) {
+    Page* p = it.next();
+    CpuFeatures::FlushICache(p->area_start(), p->area_end() - p->area_start());
   }
+}
+
+
+void Deserializer::FlushICacheForNewCodeObjects() {
+  DCHECK(deserializing_user_code_);
   for (Code* code : new_code_objects_) {
     CpuFeatures::FlushICache(code->instruction_start(),
                              code->instruction_size());
@@ -557,6 +560,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
     isolate_->heap()->RepairFreeListsAfterDeserialization();
     isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
     DeserializeDeferredObjects();
+    FlushICacheForNewIsolate();
   }
 
   isolate_->heap()->set_native_contexts_list(
@@ -573,8 +577,6 @@ void Deserializer::Deserialize(Isolate* isolate) {
   Natives::UpdateSourceCache(isolate_->heap());
   ExtraNatives::UpdateSourceCache(isolate_->heap());
   CodeStubNatives::UpdateSourceCache(isolate_->heap());
-
-  FlushICacheForNewCodeObjects();
 
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
@@ -631,6 +633,7 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
       Object* root;
       VisitPointer(&root);
       DeserializeDeferredObjects();
+      FlushICacheForNewCodeObjects();
       result = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
     }
     CommitNewInternalizedStrings(isolate);
@@ -2529,7 +2532,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
     return MaybeHandle<SharedFunctionInfo>();
   }
-  deserializer.FlushICacheForNewCodeObjects();
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();

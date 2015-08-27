@@ -434,6 +434,7 @@ MaybeHandle<String> ErrorToStringHelper::Stringify(Isolate* isolate,
 bool ErrorToStringHelper::ShadowsInternalError(
     Isolate* isolate, LookupIterator* property_lookup,
     LookupIterator* internal_error_lookup) {
+  if (!property_lookup->IsFound()) return false;
   Handle<JSObject> holder = property_lookup->GetHolder<JSObject>();
   // It's fine if the property is defined on the error itself.
   if (holder.is_identical_to(property_lookup->GetReceiver())) return true;
