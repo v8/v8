@@ -7,6 +7,7 @@
 
 #include "src/char-predicates.h"
 #include "src/conversions.h"
+#include "src/debug/debug.h"
 #include "src/factory.h"
 #include "src/messages.h"
 #include "src/scanner.h"
@@ -244,9 +245,11 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
         break;
     }
 
-    MessageLocation location(factory->NewScript(source_),
-                             position_,
-                             position_ + 1);
+    Handle<Script> script(factory->NewScript(source_));
+    // We should sent compile error event because we compile JSON object in
+    // separated source file.
+    isolate()->debug()->OnCompileError(script);
+    MessageLocation location(script, position_, position_ + 1);
     Handle<Object> error = factory->NewSyntaxError(message, argument);
     return isolate()->template Throw<Object>(error, &location);
   }
