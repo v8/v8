@@ -438,12 +438,6 @@ class SourceProcessor(SourceFileProcessor):
     return success
 
 
-def CheckRuntimeVsNativesNameClashes(workspace):
-  code = subprocess.call(
-      [sys.executable, join(workspace, "tools", "check-name-clashes.py")])
-  return code == 0
-
-
 def CheckExternalReferenceRegistration(workspace):
   code = subprocess.call(
       [sys.executable, join(workspace, "tools", "external-reference-check.py")])
@@ -495,7 +489,6 @@ def Main():
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success = SourceProcessor().Run(workspace) and success
-  success = CheckRuntimeVsNativesNameClashes(workspace) and success
   success = CheckExternalReferenceRegistration(workspace) and success
   if success:
     return 0

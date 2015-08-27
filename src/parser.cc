@@ -4739,6 +4739,9 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   const Runtime::Function* function = Runtime::FunctionForName(name->string());
 
   if (function != NULL) {
+    // Check for possible name clash.
+    DCHECK_EQ(Context::kNotFound,
+              Context::IntrinsicIndexForName(name->string()));
     // Check for built-in IS_VAR macro.
     if (function->function_id == Runtime::kIS_VAR) {
       DCHECK_EQ(Runtime::RUNTIME, function->intrinsic_type);

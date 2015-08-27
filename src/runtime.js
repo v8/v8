@@ -63,7 +63,9 @@ function EQUALS(y) {
       while (true) {
         if (IS_STRING(y)) return %StringEquals(x, y);
         if (IS_NUMBER(y)) return %NumberEquals(%to_number_fun(x), y);
-        if (IS_BOOLEAN(y)) return %NumberEquals(%to_number_fun(x), %to_number_fun(y));
+        if (IS_BOOLEAN(y)) {
+          return %NumberEquals(%to_number_fun(x), %to_number_fun(y));
+        }
         if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
         if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) return 1;  // not equal
         y = %to_primitive(y, NO_HINT);
@@ -75,7 +77,9 @@ function EQUALS(y) {
       if (IS_BOOLEAN(y)) return %_ObjectEquals(x, y) ? 0 : 1;
       if (IS_NULL_OR_UNDEFINED(y)) return 1;
       if (IS_NUMBER(y)) return %NumberEquals(%to_number_fun(x), y);
-      if (IS_STRING(y)) return %NumberEquals(%to_number_fun(x), %to_number_fun(y));
+      if (IS_STRING(y)) {
+        return %NumberEquals(%to_number_fun(x), %to_number_fun(y));
+      }
       if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) return 1;  // not equal
       // y is object.
       x = %to_number_fun(x);
