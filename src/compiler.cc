@@ -257,11 +257,6 @@ bool CompilationInfo::has_simple_parameters() {
 }
 
 
-bool CompilationInfo::MayUseThis() const {
-  return scope()->has_this_declaration() && scope()->receiver()->is_used();
-}
-
-
 int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                                           SourcePosition position,
                                           int parent_id) {
@@ -325,6 +320,12 @@ base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
     AllowHandleDereference allow_deref;
     return literal()->debug_name()->ToCString();
   }
+}
+
+
+bool CompilationInfo::MustReplaceUndefinedReceiverWithGlobalProxy() {
+  return is_sloppy(language_mode()) && !is_native() &&
+         scope()->has_this_declaration() && scope()->receiver()->is_used();
 }
 
 
@@ -1749,7 +1750,6 @@ bool CompilationPhase::ShouldProduceTraceOutput() const {
   return (tracing_on &&
       base::OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
 }
-
 
 #if DEBUG
 void CompilationInfo::PrintAstForTesting() {

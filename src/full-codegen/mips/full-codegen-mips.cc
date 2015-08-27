@@ -128,8 +128,7 @@ void FullCodeGenerator::Generate() {
   // Sloppy mode functions and builtins need to replace the receiver with the
   // global proxy when called as functions (without an explicit receiver
   // object).
-  if (is_sloppy(info->language_mode()) && !info->is_native() &&
-      info->MayUseThis() && info->scope()->has_this_declaration()) {
+  if (info->MustReplaceUndefinedReceiverWithGlobalProxy()) {
     Label ok;
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ lw(at, MemOperand(sp, receiver_offset));

@@ -109,8 +109,7 @@ bool LCodeGen::GeneratePrologue() {
     // Sloppy mode functions and builtins need to replace the receiver with the
     // global proxy when called as functions (without an explicit receiver
     // object).
-    if (is_sloppy(info()->language_mode()) && info()->MayUseThis() &&
-        !info()->is_native() && info()->scope()->has_this_declaration()) {
+    if (info()->MustReplaceUndefinedReceiverWithGlobalProxy()) {
       Label ok;
       // +1 for return address.
       int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;

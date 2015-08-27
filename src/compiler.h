@@ -152,7 +152,6 @@ class CompilationInfo {
   Handle<JSFunction> closure() const;
   FunctionLiteral* literal() const;
   Scope* scope() const;
-  bool MayUseThis() const;
   Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
@@ -319,6 +318,8 @@ class CompilationInfo {
     SetFlag(kDeoptimizationSupport);
   }
   bool ShouldEnsureSpaceForLazyDeopt() { return !IsStub(); }
+
+  bool MustReplaceUndefinedReceiverWithGlobalProxy();
 
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();

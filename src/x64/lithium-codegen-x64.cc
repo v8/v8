@@ -127,8 +127,7 @@ bool LCodeGen::GeneratePrologue() {
 
     // Sloppy mode functions need to replace the receiver with the global proxy
     // when called as functions (without an explicit receiver object).
-    if (is_sloppy(info()->language_mode()) && info()->MayUseThis() &&
-        !info()->is_native() && info()->scope()->has_this_declaration()) {
+    if (info()->MustReplaceUndefinedReceiverWithGlobalProxy()) {
       Label ok;
       StackArgumentsAccessor args(rsp, scope()->num_parameters());
       __ movp(rcx, args.GetReceiverOperand());

@@ -3096,22 +3096,21 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
   // Sloppy mode functions and builtins need to replace the receiver with the
   // global proxy when called as functions (without an explicit receiver
   // object). Otherwise there is nothing left to do here.
-  if (is_strict(language_mode()) || info()->is_native()) return receiver;
-
-  // There is no need to perform patching if the receiver will never be used.
-  if (!info()->MayUseThis()) return receiver;
-
-  IfBuilder receiver_check(this);
-  Node* undefined = jsgraph()->UndefinedConstant();
-  Node* check = NewNode(javascript()->StrictEqual(), receiver, undefined);
-  receiver_check.If(check);
-  receiver_check.Then();
-  Node* proxy = BuildLoadGlobalProxy();
-  environment()->Push(proxy);
-  receiver_check.Else();
-  environment()->Push(receiver);
-  receiver_check.End();
-  return environment()->Pop();
+  if (info()->MustReplaceUndefinedReceiverWithGlobalProxy()) {
+    IfBuilder receiver_check(this);
+    Node* undefined = jsgraph()->UndefinedConstant();
+    Node* check = NewNode(javascript()->StrictEqual(), receiver, undefined);
+    receiver_check.If(check);
+    receiver_check.Then();
+    Node* proxy = BuildLoadGlobalProxy();
+    environment()->Push(proxy);
+    receiver_check.Else();
+    environment()->Push(receiver);
+    receiver_check.End();
+    return environment()->Pop();
+  } else {
+    return receiver;
+  }
 }
 
 
