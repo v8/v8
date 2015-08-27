@@ -2692,6 +2692,8 @@ void MarkCompactCollector::AbortWeakCells() {
 
 
 void MarkCompactCollector::RecordMigratedSlot(Object* value, Address slot) {
+  // When parallel compaction is in progress, store and slots buffer entries
+  // require synchronization.
   if (heap_->InNewSpace(value)) {
     if (parallel_compaction_in_progress_) {
       heap_->store_buffer()->MarkSynchronized(slot);
@@ -2699,8 +2701,46 @@ void MarkCompactCollector::RecordMigratedSlot(Object* value, Address slot) {
       heap_->store_buffer()->Mark(slot);
     }
   } else if (value->IsHeapObject() && IsOnEvacuationCandidate(value)) {
+    if (parallel_compaction_in_progress_) {
+      SlotsBuffer::AddToSynchronized(
+          &slots_buffer_allocator_, &migration_slots_buffer_,
+          &migration_slots_buffer_mutex_, reinterpret_cast<Object**>(slot),
+          SlotsBuffer::IGNORE_OVERFLOW);
+    } else {
+      SlotsBuffer::AddTo(&slots_buffer_allocator_, &migration_slots_buffer_,
+                         reinterpret_cast<Object**>(slot),
+                         SlotsBuffer::IGNORE_OVERFLOW);
+    }
+  }
+}
+
+
+void MarkCompactCollector::RecordMigratedCodeEntrySlot(
+    Address code_entry, Address code_entry_slot) {
+  if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
+    if (parallel_compaction_in_progress_) {
+      SlotsBuffer::AddToSynchronized(
+          &slots_buffer_allocator_, &migration_slots_buffer_,
+          &migration_slots_buffer_mutex_, SlotsBuffer::CODE_ENTRY_SLOT,
+          code_entry_slot, SlotsBuffer::IGNORE_OVERFLOW);
+    } else {
+      SlotsBuffer::AddTo(&slots_buffer_allocator_, &migration_slots_buffer_,
+                         SlotsBuffer::CODE_ENTRY_SLOT, code_entry_slot,
+                         SlotsBuffer::IGNORE_OVERFLOW);
+    }
+  }
+}
+
+
+void MarkCompactCollector::RecordMigratedCodeObjectSlot(Address code_object) {
+  if (parallel_compaction_in_progress_) {
+    SlotsBuffer::AddToSynchronized(
+        &slots_buffer_allocator_, &migration_slots_buffer_,
+        &migration_slots_buffer_mutex_, SlotsBuffer::RELOCATED_CODE_OBJECT,
+        code_object, SlotsBuffer::IGNORE_OVERFLOW);
+  } else {
     SlotsBuffer::AddTo(&slots_buffer_allocator_, &migration_slots_buffer_,
-                       reinterpret_cast<Object**>(slot),
+                       SlotsBuffer::RELOCATED_CODE_OBJECT, code_object,
                        SlotsBuffer::IGNORE_OVERFLOW);
   }
 }
@@ -2745,19 +2785,12 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
     if (compacting_ && dst->IsJSFunction()) {
       Address code_entry_slot = dst->address() + JSFunction::kCodeEntryOffset;
       Address code_entry = Memory::Address_at(code_entry_slot);
-
-      if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
-        SlotsBuffer::AddTo(&slots_buffer_allocator_, &migration_slots_buffer_,
-                           SlotsBuffer::CODE_ENTRY_SLOT, code_entry_slot,
-                           SlotsBuffer::IGNORE_OVERFLOW);
-      }
+      RecordMigratedCodeEntrySlot(code_entry, code_entry_slot);
     }
   } else if (dest == CODE_SPACE) {
     PROFILE(isolate(), CodeMoveEvent(src_addr, dst_addr));
     heap()->MoveBlock(dst_addr, src_addr, size);
-    SlotsBuffer::AddTo(&slots_buffer_allocator_, &migration_slots_buffer_,
-                       SlotsBuffer::RELOCATED_CODE_OBJECT, dst_addr,
-                       SlotsBuffer::IGNORE_OVERFLOW);
+    RecordMigratedCodeObjectSlot(dst_addr);
     Code::cast(dst)->Relocate(dst_addr - src_addr);
   } else {
     DCHECK(dest == NEW_SPACE);
@@ -4486,6 +4519,15 @@ void MarkCompactCollector::Initialize() {
 
 bool SlotsBuffer::IsTypedSlot(ObjectSlot slot) {
   return reinterpret_cast<uintptr_t>(slot) < NUMBER_OF_SLOT_TYPES;
+}
+
+
+bool SlotsBuffer::AddToSynchronized(SlotsBufferAllocator* allocator,
+                                    SlotsBuffer** buffer_address,
+                                    base::Mutex* buffer_mutex, SlotType type,
+                                    Address addr, AdditionMode mode) {
+  base::LockGuard<base::Mutex> lock_guard(buffer_mutex);
+  return AddTo(allocator, buffer_address, type, addr, mode);
 }
 
 

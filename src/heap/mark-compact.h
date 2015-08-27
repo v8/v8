@@ -374,6 +374,14 @@ class SlotsBuffer {
     return buffer != NULL && buffer->chain_length_ >= kChainLengthThreshold;
   }
 
+  INLINE(static bool AddToSynchronized(SlotsBufferAllocator* allocator,
+                                       SlotsBuffer** buffer_address,
+                                       base::Mutex* buffer_mutex,
+                                       ObjectSlot slot, AdditionMode mode)) {
+    base::LockGuard<base::Mutex> lock_guard(buffer_mutex);
+    return AddTo(allocator, buffer_address, slot, mode);
+  }
+
   INLINE(static bool AddTo(SlotsBufferAllocator* allocator,
                            SlotsBuffer** buffer_address, ObjectSlot slot,
                            AdditionMode mode)) {
@@ -391,6 +399,11 @@ class SlotsBuffer {
   }
 
   static bool IsTypedSlot(ObjectSlot slot);
+
+  static bool AddToSynchronized(SlotsBufferAllocator* allocator,
+                                SlotsBuffer** buffer_address,
+                                base::Mutex* buffer_mutex, SlotType type,
+                                Address addr, AdditionMode mode);
 
   static bool AddTo(SlotsBufferAllocator* allocator,
                     SlotsBuffer** buffer_address, SlotType type, Address addr,
@@ -722,6 +735,8 @@ class MarkCompactCollector {
 
   SlotsBuffer* migration_slots_buffer_;
 
+  base::Mutex migration_slots_buffer_mutex_;
+
   // Finishes GC, performs heap verification if enabled.
   void Finish();
 
@@ -896,6 +911,12 @@ class MarkCompactCollector {
 
   // Updates store buffer and slot buffer for a pointer in a migrating object.
   void RecordMigratedSlot(Object* value, Address slot);
+
+  // Adds the code entry slot to the slots buffer.
+  void RecordMigratedCodeEntrySlot(Address code_entry, Address code_entry_slot);
+
+  // Adds the slot of a moved code object.
+  void RecordMigratedCodeObjectSlot(Address code_object);
 
 #ifdef DEBUG
   friend class MarkObjectVisitor;
