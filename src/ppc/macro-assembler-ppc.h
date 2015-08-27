@@ -704,8 +704,7 @@ class MacroAssembler : public Assembler {
   // function register will be untouched; the other registers may be
   // clobbered.
   void TryGetFunctionPrototype(Register function, Register result,
-                               Register scratch, Label* miss,
-                               bool miss_on_bound_function = false);
+                               Register scratch, Label* miss);
 
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both
@@ -1376,11 +1375,6 @@ class MacroAssembler : public Assembler {
   // Decode offset from constant pool load instruction(s).
   // Caller must place the instruction word at <location> in <result>.
   void DecodeConstantPoolOffset(Register result, Register location);
-
-  // Retrieve/patch the relocated value (lis/ori pair or constant pool load).
-  void GetRelocatedValue(Register location, Register result, Register scratch);
-  void SetRelocatedValue(Register location, Register scratch,
-                         Register new_value);
 
   void ClampUint8(Register output_reg, Register input_reg);
 

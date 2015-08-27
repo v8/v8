@@ -5070,18 +5070,17 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForStackValue(expr->right());
       __ InvokeBuiltin(Context::IN_BUILTIN_INDEX, CALL_FUNCTION);
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
-      __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-      __ cmp(r3, ip);
+      __ CompareRoot(r3, Heap::kTrueValueRootIndex);
       Split(eq, if_true, if_false, fall_through);
       break;
 
     case Token::INSTANCEOF: {
-      VisitForStackValue(expr->right());
-      InstanceofStub stub(isolate(), InstanceofStub::kNoFlags);
+      VisitForAccumulatorValue(expr->right());
+      __ pop(r4);
+      InstanceOfStub stub(isolate());
       __ CallStub(&stub);
-      PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-      // The stub returns 0 for true.
-      __ cmpi(r3, Operand::Zero());
+      PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
+      __ CompareRoot(r3, Heap::kTrueValueRootIndex);
       Split(eq, if_true, if_false, fall_through);
       break;
     }
