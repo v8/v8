@@ -2527,7 +2527,7 @@ intptr_t FreeListCategory::SumFreeList() {
   intptr_t sum = 0;
   FreeSpace* cur = top();
   while (cur != NULL) {
-    DCHECK(cur->map() == cur->GetHeap()->raw_unchecked_free_space_map());
+    DCHECK(cur->map() == cur->GetHeap()->root(Heap::kFreeSpaceMapRootIndex));
     sum += cur->nobarrier_size();
     cur = cur->next();
   }

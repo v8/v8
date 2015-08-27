@@ -2577,7 +2577,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   if (!allocation.To(&result)) return allocation;
 
   // Map::cast cannot be used due to uninitialized map field.
-  reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
+  reinterpret_cast<Map*>(result)->set_map(
+      reinterpret_cast<Map*>(root(kMetaMapRootIndex)));
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
   // Initialize to only containing tagged fields.
@@ -3562,11 +3563,14 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
-    filler->set_map_no_write_barrier(raw_unchecked_one_pointer_filler_map());
+    filler->set_map_no_write_barrier(
+        reinterpret_cast<Map*>(root(kOnePointerFillerMapRootIndex)));
   } else if (size == 2 * kPointerSize) {
-    filler->set_map_no_write_barrier(raw_unchecked_two_pointer_filler_map());
+    filler->set_map_no_write_barrier(
+        reinterpret_cast<Map*>(root(kTwoPointerFillerMapRootIndex)));
   } else {
-    filler->set_map_no_write_barrier(raw_unchecked_free_space_map());
+    filler->set_map_no_write_barrier(
+        reinterpret_cast<Map*>(root(kFreeSpaceMapRootIndex)));
     FreeSpace::cast(filler)->nobarrier_set_size(size);
   }
   // At this point, we may be deserializing the heap from a snapshot, and
@@ -6269,7 +6273,7 @@ void PathTracer::TracePathFrom(Object** root) {
 
 
 static bool SafeIsNativeContext(HeapObject* obj) {
-  return obj->map() == obj->GetHeap()->raw_unchecked_native_context_map();
+  return obj->map() == obj->GetHeap()->root(Heap::kNativeContextMapRootIndex);
 }
 
 

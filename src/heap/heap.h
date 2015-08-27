@@ -1177,15 +1177,8 @@ class Heap {
   // Root set access. ==========================================================
   // ===========================================================================
 
-  // Heap root getters.  We have versions with and without type::cast() here.
-  // You can't use type::cast during GC because the assert fails.
-  // TODO(1490): Try removing the unchecked accessors, now that GC marking does
-  // not corrupt the map.
-#define ROOT_ACCESSOR(type, name, camel_name)                         \
-  inline type* name();                                                \
-  type* raw_unchecked_##name() {                                      \
-    return reinterpret_cast<type*>(roots_[k##camel_name##RootIndex]); \
-  }
+  // Heap root getters.
+#define ROOT_ACCESSOR(type, name, camel_name) inline type* name();
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 

@@ -3215,8 +3215,8 @@ int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key,
     Object* element = KeyAt(entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
-    if (element == isolate->heap()->raw_unchecked_undefined_value()) break;
-    if (element != isolate->heap()->raw_unchecked_the_hole_value() &&
+    if (element == isolate->heap()->root(Heap::kUndefinedValueRootIndex)) break;
+    if (element != isolate->heap()->root(Heap::kTheHoleValueRootIndex) &&
         Shape::IsMatch(key, element)) return entry;
     entry = NextProbe(entry, count++, capacity);
   }
@@ -3511,7 +3511,7 @@ int FreeSpace::Size() { return size(); }
 
 
 FreeSpace* FreeSpace::next() {
-  DCHECK(map() == GetHeap()->raw_unchecked_free_space_map() ||
+  DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
          (!GetHeap()->deserialization_complete() && map() == NULL));
   DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
   return reinterpret_cast<FreeSpace*>(
@@ -3520,7 +3520,7 @@ FreeSpace* FreeSpace::next() {
 
 
 FreeSpace** FreeSpace::next_address() {
-  DCHECK(map() == GetHeap()->raw_unchecked_free_space_map() ||
+  DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
          (!GetHeap()->deserialization_complete() && map() == NULL));
   DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
   return reinterpret_cast<FreeSpace**>(address() + kNextOffset);
@@ -3528,7 +3528,7 @@ FreeSpace** FreeSpace::next_address() {
 
 
 void FreeSpace::set_next(FreeSpace* next) {
-  DCHECK(map() == GetHeap()->raw_unchecked_free_space_map() ||
+  DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
          (!GetHeap()->deserialization_complete() && map() == NULL));
   DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
   base::NoBarrier_Store(
