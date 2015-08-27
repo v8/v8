@@ -729,9 +729,7 @@ void Page::ResetFreeListStatistics() {
 Page* MemoryAllocator::AllocatePage(intptr_t size, PagedSpace* owner,
                                     Executability executable) {
   MemoryChunk* chunk = AllocateChunk(size, size, executable, owner);
-
   if (chunk == NULL) return NULL;
-
   return Page::Initialize(isolate_->heap(), chunk, executable, owner);
 }
 
@@ -1003,6 +1001,43 @@ void PagedSpace::TearDown() {
 }
 
 
+void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
+  // Unmerged fields:
+  //   area_size_
+  //   allocation_info_
+  //   emergency_memory_
+  //   end_of_unswept_pages_
+  //   unswept_free_bytes_
+  //   anchor_
+
+  // It only makes sense to merge compatible spaces.
+  DCHECK(identity() == other->identity());
+
+  // Destroy the linear allocation space of {other}. This is needed to (a) not
+  // waste the memory and (b) keep the rest of the chunk in an iterable state
+  // (filler is needed).
+  int linear_size = static_cast<int>(other->limit() - other->top());
+  other->Free(other->top(), linear_size);
+
+  // Move over the free list.
+  free_list_.Concatenate(other->free_list());
+
+  // Update and clear accounting statistics.
+  accounting_stats_.Merge(other->accounting_stats_);
+  other->accounting_stats_.Clear();
+
+  // Move over pages.
+  PageIterator it(other);
+  Page* p = nullptr;
+  while (it.has_next()) {
+    p = it.next();
+    p->Unlink();
+    p->set_owner(this);
+    p->InsertAfter(anchor_.prev_page());
+  }
+}
+
+
 size_t PagedSpace::CommittedPhysicalMemory() {
   if (!base::VirtualMemory::HasLazyCommits()) return CommittedMemory();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
@@ -1062,8 +1097,7 @@ bool PagedSpace::Expand() {
   if (!CanExpand()) return false;
 
   intptr_t size = AreaSize();
-
-  if (anchor_.next_page() == &anchor_) {
+  if (snapshotable() && !HasPages()) {
     size = Snapshot::SizeOfFirstPage(heap()->isolate(), identity());
   }
 
@@ -2652,7 +2686,8 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 
   // Try to expand the space and allocate in the new next page.
   if (Expand()) {
-    DCHECK(CountTotalPages() > 1 || size_in_bytes <= free_list_.available());
+    DCHECK((CountTotalPages() > 1) ||
+           (size_in_bytes <= free_list_.available()));
     return free_list_.Allocate(size_in_bytes);
   }
 

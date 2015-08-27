@@ -91,13 +91,13 @@ class Isolate;
 #define DCHECK_MAP_PAGE_INDEX(index) \
   DCHECK((0 <= index) && (index <= MapSpace::kMaxMapPageIndex))
 
-
-class PagedSpace;
-class MemoryAllocator;
 class AllocationInfo;
-class Space;
+class CompactionSpace;
 class FreeList;
+class MemoryAllocator;
 class MemoryChunk;
+class PagedSpace;
+class Space;
 
 class MarkBit {
  public:
@@ -1466,6 +1466,16 @@ class AllocationStats BASE_EMBEDDED {
     waste_ += size_in_bytes;
   }
 
+  // Merge {other} into {this}.
+  void Merge(const AllocationStats& other) {
+    capacity_ += other.capacity_;
+    size_ += other.size_;
+    waste_ += other.waste_;
+    if (other.max_capacity_ > max_capacity_) {
+      max_capacity_ = other.max_capacity_;
+    }
+  }
+
  private:
   intptr_t capacity_;
   intptr_t max_capacity_;
@@ -1696,7 +1706,7 @@ class PagedSpace : public Space {
   // Creates a space with an id.
   PagedSpace(Heap* heap, AllocationSpace id, Executability executable);
 
-  virtual ~PagedSpace() {}
+  virtual ~PagedSpace() { TearDown(); }
 
   // Set up the space using the given address range of virtual memory (from
   // the memory allocator's initial chunk) if possible.  If the block of
@@ -1707,10 +1717,6 @@ class PagedSpace : public Space {
   // Returns true if the space has been successfully set up and not
   // subsequently torn down.
   bool HasBeenSetUp();
-
-  // Cleans up the space, frees all pages in this space except those belonging
-  // to the initial chunk, uncommits addresses in the initial chunk.
-  void TearDown();
 
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a);
@@ -1926,8 +1932,46 @@ class PagedSpace : public Space {
 
   bool HasEmergencyMemory() { return emergency_memory_ != NULL; }
 
+  // Merges {other} into the current space. Note that this modifies {other},
+  // e.g., removes its bump pointer area and resets statistics.
+  void MergeCompactionSpace(CompactionSpace* other);
+
  protected:
+  // PagedSpaces that should be included in snapshots have different, i.e.,
+  // smaller, initial pages.
+  virtual bool snapshotable() { return true; }
+
   FreeList* free_list() { return &free_list_; }
+
+  bool HasPages() { return anchor_.next_page() != &anchor_; }
+
+  // Cleans up the space, frees all pages in this space except those belonging
+  // to the initial chunk, uncommits addresses in the initial chunk.
+  void TearDown();
+
+  // Expands the space by allocating a fixed number of pages. Returns false if
+  // it cannot allocate requested number of pages from OS, or if the hard heap
+  // size limit has been hit.
+  bool Expand();
+
+  // Generic fast case allocation function that tries linear allocation at the
+  // address denoted by top in allocation_info_.
+  inline HeapObject* AllocateLinearly(int size_in_bytes);
+
+  // Generic fast case allocation function that tries aligned linear allocation
+  // at the address denoted by top in allocation_info_. Writes the aligned
+  // allocation size, which includes the filler size, to size_in_bytes.
+  inline HeapObject* AllocateLinearlyAligned(int* size_in_bytes,
+                                             AllocationAlignment alignment);
+
+  // If sweeping is still in progress try to sweep unswept pages. If that is
+  // not successful, wait for the sweeper threads and re-try free-list
+  // allocation.
+  MUST_USE_RESULT HeapObject* WaitForSweeperThreadsAndRetryAllocation(
+      int size_in_bytes);
+
+  // Slow path of AllocateRaw.  This function is space-dependent.
+  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
 
   int area_size_;
 
@@ -1957,30 +2001,6 @@ class PagedSpace : public Space {
   // of memory error the emergency memory can be used to complete compaction.
   // If not used, the emergency memory is released after compaction.
   MemoryChunk* emergency_memory_;
-
-  // Expands the space by allocating a fixed number of pages. Returns false if
-  // it cannot allocate requested number of pages from OS, or if the hard heap
-  // size limit has been hit.
-  bool Expand();
-
-  // Generic fast case allocation function that tries linear allocation at the
-  // address denoted by top in allocation_info_.
-  inline HeapObject* AllocateLinearly(int size_in_bytes);
-
-  // Generic fast case allocation function that tries aligned linear allocation
-  // at the address denoted by top in allocation_info_. Writes the aligned
-  // allocation size, which includes the filler size, to size_in_bytes.
-  inline HeapObject* AllocateLinearlyAligned(int* size_in_bytes,
-                                             AllocationAlignment alignment);
-
-  // If sweeping is still in progress try to sweep unswept pages. If that is
-  // not successful, wait for the sweeper threads and re-try free-list
-  // allocation.
-  MUST_USE_RESULT HeapObject* WaitForSweeperThreadsAndRetryAllocation(
-      int size_in_bytes);
-
-  // Slow path of AllocateRaw.  This function is space-dependent.
-  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
 
   friend class PageIterator;
   friend class MarkCompactCollector;
@@ -2655,6 +2675,19 @@ class NewSpace : public Space {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
 
   friend class SemiSpaceIterator;
+};
+
+// -----------------------------------------------------------------------------
+// Compaction space that is used temporarily during compaction.
+
+class CompactionSpace : public PagedSpace {
+ public:
+  CompactionSpace(Heap* heap, AllocationSpace id, Executability executable)
+      : PagedSpace(heap, id, executable) {}
+
+ protected:
+  // The space is temporary and not included in any snapshots.
+  virtual bool snapshotable() { return false; }
 };
 
 

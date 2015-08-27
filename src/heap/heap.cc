@@ -5780,19 +5780,16 @@ void Heap::TearDown() {
   new_space_.TearDown();
 
   if (old_space_ != NULL) {
-    old_space_->TearDown();
     delete old_space_;
     old_space_ = NULL;
   }
 
   if (code_space_ != NULL) {
-    code_space_->TearDown();
     delete code_space_;
     code_space_ = NULL;
   }
 
   if (map_space_ != NULL) {
-    map_space_->TearDown();
     delete map_space_;
     map_space_ = NULL;
   }

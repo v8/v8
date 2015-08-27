@@ -305,40 +305,44 @@ TEST(MemoryAllocator) {
   Heap* heap = isolate->heap();
 
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
+  CHECK(memory_allocator != nullptr);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(),
                                 heap->MaxExecutableSize()));
+  TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
-  int total_pages = 0;
-  OldSpace faked_space(heap, OLD_SPACE, NOT_EXECUTABLE);
-  Page* first_page = memory_allocator->AllocatePage(
-      faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
+  {
+    int total_pages = 0;
+    OldSpace faked_space(heap, OLD_SPACE, NOT_EXECUTABLE);
+    Page* first_page = memory_allocator->AllocatePage(
+        faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
 
-  first_page->InsertAfter(faked_space.anchor()->prev_page());
-  CHECK(first_page->is_valid());
-  CHECK(first_page->next_page() == faked_space.anchor());
-  total_pages++;
+    first_page->InsertAfter(faked_space.anchor()->prev_page());
+    CHECK(first_page->is_valid());
+    CHECK(first_page->next_page() == faked_space.anchor());
+    total_pages++;
 
-  for (Page* p = first_page; p != faked_space.anchor(); p = p->next_page()) {
-    CHECK(p->owner() == &faked_space);
+    for (Page* p = first_page; p != faked_space.anchor(); p = p->next_page()) {
+      CHECK(p->owner() == &faked_space);
+    }
+
+    // Again, we should get n or n - 1 pages.
+    Page* other = memory_allocator->AllocatePage(faked_space.AreaSize(),
+                                                 &faked_space, NOT_EXECUTABLE);
+    CHECK(other->is_valid());
+    total_pages++;
+    other->InsertAfter(first_page);
+    int page_count = 0;
+    for (Page* p = first_page; p != faked_space.anchor(); p = p->next_page()) {
+      CHECK(p->owner() == &faked_space);
+      page_count++;
+    }
+    CHECK(total_pages == page_count);
+
+    Page* second_page = first_page->next_page();
+    CHECK(second_page->is_valid());
+
+    // OldSpace's destructor will tear down the space and free up all pages.
   }
-
-  // Again, we should get n or n - 1 pages.
-  Page* other = memory_allocator->AllocatePage(
-      faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
-  CHECK(other->is_valid());
-  total_pages++;
-  other->InsertAfter(first_page);
-  int page_count = 0;
-  for (Page* p = first_page; p != faked_space.anchor(); p = p->next_page()) {
-    CHECK(p->owner() == &faked_space);
-    page_count++;
-  }
-  CHECK(total_pages == page_count);
-
-  Page* second_page = first_page->next_page();
-  CHECK(second_page->is_valid());
-  memory_allocator->Free(first_page);
-  memory_allocator->Free(second_page);
   memory_allocator->TearDown();
   delete memory_allocator;
 }
@@ -388,8 +392,50 @@ TEST(OldSpace) {
     s->AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize).ToObjectChecked();
   }
 
-  s->TearDown();
   delete s;
+  memory_allocator->TearDown();
+  delete memory_allocator;
+}
+
+
+TEST(CompactionSpace) {
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
+  CHECK(memory_allocator != nullptr);
+  CHECK(
+      memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize()));
+  TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
+
+  CompactionSpace* compaction_space =
+      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+  CHECK(compaction_space != NULL);
+  CHECK(compaction_space->SetUp());
+
+  OldSpace* old_space = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+  CHECK(old_space != NULL);
+  CHECK(old_space->SetUp());
+
+  // Cannot loop until "Available()" since we initially have 0 bytes available
+  // and would thus neither grow, nor be able to allocate an object.
+  const int kNumObjects = 100;
+  const int kExpectedPages = kNumObjects;
+  for (int i = 0; i < kNumObjects; i++) {
+    compaction_space->AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize)
+        .ToObjectChecked();
+  }
+  int pages_in_old_space = old_space->CountTotalPages();
+  int pages_in_compaction_space = compaction_space->CountTotalPages();
+  CHECK_EQ(pages_in_compaction_space, kExpectedPages);
+  CHECK_LE(pages_in_old_space, 1);
+
+  old_space->MergeCompactionSpace(compaction_space);
+  CHECK_EQ(old_space->CountTotalPages(),
+           pages_in_old_space + pages_in_compaction_space);
+
+  delete compaction_space;
+  delete old_space;
+
   memory_allocator->TearDown();
   delete memory_allocator;
 }
