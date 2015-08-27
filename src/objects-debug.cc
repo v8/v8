@@ -225,6 +225,8 @@ void ByteArray::ByteArrayVerify() {
 void BytecodeArray::BytecodeArrayVerify() {
   // TODO(oth): Walk bytecodes and immediate values to validate sanity.
   CHECK(IsBytecodeArray());
+  CHECK(constant_pool()->IsFixedArray());
+  VerifyHeapPointer(constant_pool());
 }
 
 

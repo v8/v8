@@ -288,7 +288,8 @@ class Factory final {
                                  PretenureFlag pretenure = NOT_TENURED);
 
   Handle<BytecodeArray> NewBytecodeArray(int length, const byte* raw_bytecodes,
-                                         int frame_size, int parameter_count);
+                                         int frame_size, int parameter_count,
+                                         Handle<FixedArray> constant_pool);
 
   Handle<FixedTypedArrayBase> NewFixedTypedArrayWithExternalPointer(
       int length, ExternalArrayType array_type, void* external_pointer,

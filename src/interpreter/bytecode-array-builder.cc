@@ -48,8 +48,10 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   int bytecode_size = static_cast<int>(bytecodes_.size());
   int register_count = local_register_count_ + temporary_register_count_;
   int frame_size = register_count * kPointerSize;
-  Handle<BytecodeArray> output = isolate_->factory()->NewBytecodeArray(
-      bytecode_size, &bytecodes_.front(), frame_size, parameter_count_);
+  Factory* factory = isolate_->factory();
+  Handle<BytecodeArray> output =
+      factory->NewBytecodeArray(bytecode_size, &bytecodes_.front(), frame_size,
+                                parameter_count_, factory->empty_fixed_array());
   bytecode_generated_ = true;
   return output;
 }

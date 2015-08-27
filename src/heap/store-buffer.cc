@@ -494,6 +494,11 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
                         obj_address + FixedTypedArrayBase::kBasePointerOffset,
                         obj_address + FixedTypedArrayBase::kHeaderSize,
                         slot_callback);
+                  } else if (heap_object->IsBytecodeArray()) {
+                    FindPointersToNewSpaceInRegion(
+                        obj_address + BytecodeArray::kConstantPoolOffset,
+                        obj_address + BytecodeArray::kHeaderSize,
+                        slot_callback);
                   } else if (FLAG_unbox_double_fields) {
                     LayoutDescriptorHelper helper(heap_object->map());
                     DCHECK(!helper.all_fields_tagged());

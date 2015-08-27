@@ -317,10 +317,6 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return reinterpret_cast<ByteArray*>(object)->ByteArraySize();
   }
 
-  INLINE(static int VisitBytecodeArray(Map* map, HeapObject* object)) {
-    return reinterpret_cast<BytecodeArray*>(object)->BytecodeArraySize();
-  }
-
   INLINE(static int VisitFixedDoubleArray(Map* map, HeapObject* object)) {
     int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
     return FixedDoubleArray::SizeFor(length);
@@ -351,6 +347,7 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
   INLINE(static int VisitJSArrayBuffer(Map* map, HeapObject* object));
   INLINE(static int VisitJSTypedArray(Map* map, HeapObject* object));
   INLINE(static int VisitJSDataView(Map* map, HeapObject* object));
+  INLINE(static int VisitBytecodeArray(Map* map, HeapObject* object));
 
   class DataObjectVisitor {
    public:
@@ -435,6 +432,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitJSTypedArray(Map* map, HeapObject* object));
   INLINE(static void VisitJSDataView(Map* map, HeapObject* object));
   INLINE(static void VisitNativeContext(Map* map, HeapObject* object));
+  INLINE(static void VisitBytecodeArray(Map* map, HeapObject* object));
 
   // Mark pointers in a Map and its TransitionArray together, possibly
   // treating transitions or back pointers weak.

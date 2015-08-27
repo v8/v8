@@ -4120,10 +4120,14 @@ class BytecodeArray : public FixedArrayBase {
   inline int parameter_count() const;
   inline void set_parameter_count(int number_of_parameters);
 
+  // Accessors for the constant pool.
+  DECL_ACCESSORS(constant_pool, FixedArray)
+
   DECLARE_CAST(BytecodeArray)
 
   // Dispatched behavior.
   inline int BytecodeArraySize();
+  inline void BytecodeArrayIterateBody(ObjectVisitor* v);
 
   DECLARE_PRINTER(BytecodeArray)
   DECLARE_VERIFIER(BytecodeArray)
@@ -4133,7 +4137,8 @@ class BytecodeArray : public FixedArrayBase {
   // Layout description.
   static const int kFrameSizeOffset = FixedArrayBase::kHeaderSize;
   static const int kParameterSizeOffset = kFrameSizeOffset + kIntSize;
-  static const int kHeaderSize = kParameterSizeOffset + kIntSize;
+  static const int kConstantPoolOffset = kParameterSizeOffset + kIntSize;
+  static const int kHeaderSize = kConstantPoolOffset + kPointerSize;
 
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 

@@ -1477,6 +1477,8 @@ HeapObjectContents HeapObject::ContentType() {
   } else if (type == JS_FUNCTION_TYPE) {
     return HeapObjectContents::kMixedValues;
 #endif
+  } else if (type == BYTECODE_ARRAY_TYPE) {
+    return HeapObjectContents::kMixedValues;
   } else if (type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
              type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
     return HeapObjectContents::kMixedValues;
@@ -4034,6 +4036,11 @@ Address ByteArray::GetDataStartAddress() {
 }
 
 
+void BytecodeArray::BytecodeArrayIterateBody(ObjectVisitor* v) {
+  IteratePointer(v, kConstantPoolOffset);
+}
+
+
 byte BytecodeArray::get(int index) {
   DCHECK(index >= 0 && index < this->length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
@@ -4072,6 +4079,9 @@ int BytecodeArray::parameter_count() const {
   // it to be used directly by generated code.
   return READ_INT_FIELD(this, kParameterSizeOffset) >> kPointerSizeLog2;
 }
+
+
+ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 
 
 Address BytecodeArray::GetFirstBytecodeAddress() {

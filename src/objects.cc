@@ -11602,6 +11602,9 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     interpreter::Bytecodes::Decode(os, bytecode_start);
     os << "\n";
   }
+
+  os << "Constant pool (size = " << constant_pool()->length() << ")\n";
+  constant_pool()->Print();
 }
 
 

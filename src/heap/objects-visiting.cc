@@ -269,13 +269,15 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case SYMBOL_TYPE:
       Symbol::BodyDescriptor::IterateBody(this, v);
       break;
+    case BYTECODE_ARRAY_TYPE:
+      reinterpret_cast<BytecodeArray*>(this)->BytecodeArrayIterateBody(v);
+      break;
 
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case SIMD128_VALUE_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
-    case BYTECODE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:
       break;
 

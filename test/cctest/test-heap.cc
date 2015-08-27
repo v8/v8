@@ -713,20 +713,28 @@ TEST(BytecodeArray) {
   static const int kFrameSize = 32;
   static const int kParameterCount = 2;
 
+  i::FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
+  SimulateFullSpace(heap->old_space());
+  Handle<FixedArray> constant_pool = factory->NewFixedArray(5, TENURED);
+  for (int i = 0; i < 5; i++) {
+    constant_pool->set(i, *factory->NewHeapNumber(i));
+  }
+
   // Allocate and initialize BytecodeArray
   Handle<BytecodeArray> array = factory->NewBytecodeArray(
-      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount);
+      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, constant_pool);
 
   CHECK(array->IsBytecodeArray());
   CHECK_EQ(array->length(), (int)sizeof(kRawBytes));
   CHECK_EQ(array->frame_size(), kFrameSize);
   CHECK_EQ(array->parameter_count(), kParameterCount);
+  CHECK_EQ(array->constant_pool(), *constant_pool);
   CHECK_LE(array->address(), array->GetFirstBytecodeAddress());
   CHECK_GE(array->address() + array->BytecodeArraySize(),
            array->GetFirstBytecodeAddress() + array->length());
@@ -735,17 +743,25 @@ TEST(BytecodeArray) {
     CHECK_EQ(array->get(i), kRawBytes[i]);
   }
 
-  // Full garbage collection
+  FixedArray* old_constant_pool_address = *constant_pool;
+
+  // Perform a full garbage collection and force the constant pool to be on an
+  // evacuation candidate.
+  Page* evac_page = Page::FromAddress(constant_pool->address());
+  evac_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   heap->CollectAllGarbage();
 
-  // BytecodeArray should survive
+  // BytecodeArray should survive.
   CHECK_EQ(array->length(), kRawBytesSize);
   CHECK_EQ(array->frame_size(), kFrameSize);
-
   for (int i = 0; i < kRawBytesSize; i++) {
     CHECK_EQ(array->get(i), kRawBytes[i]);
     CHECK_EQ(array->GetFirstBytecodeAddress()[i], kRawBytes[i]);
   }
+
+  // Constant pool should have been migrated.
+  CHECK_EQ(array->constant_pool(), *constant_pool);
+  CHECK_NE(array->constant_pool(), old_constant_pool_address);
 }
 
 

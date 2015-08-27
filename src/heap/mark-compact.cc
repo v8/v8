@@ -2787,6 +2787,12 @@ void MarkCompactCollector::MigrateObjectMixed(HeapObject* dst, HeapObject* src,
     Address base_pointer_slot =
         dst->address() + FixedTypedArrayBase::kBasePointerOffset;
     RecordMigratedSlot(Memory::Object_at(base_pointer_slot), base_pointer_slot);
+  } else if (src->IsBytecodeArray()) {
+    heap()->MoveBlock(dst->address(), src->address(), size);
+    Address constant_pool_slot =
+        dst->address() + BytecodeArray::kConstantPoolOffset;
+    RecordMigratedSlot(Memory::Object_at(constant_pool_slot),
+                       constant_pool_slot);
   } else if (FLAG_unbox_double_fields) {
     Address dst_addr = dst->address();
     Address src_addr = src->address();
@@ -3210,6 +3216,9 @@ bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
         if (object->IsFixedTypedArrayBase()) {
           return static_cast<int>(slot - object->address()) ==
                  FixedTypedArrayBase::kBasePointerOffset;
+        } else if (object->IsBytecodeArray()) {
+          return static_cast<int>(slot - object->address()) ==
+                 BytecodeArray::kConstantPoolOffset;
         } else if (FLAG_unbox_double_fields) {
           // Filter out slots that happen to point to unboxed double fields.
           LayoutDescriptorHelper helper(object->map());
