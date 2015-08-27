@@ -723,7 +723,8 @@ TEST(BytecodeArray) {
   SimulateFullSpace(heap->old_space());
   Handle<FixedArray> constant_pool = factory->NewFixedArray(5, TENURED);
   for (int i = 0; i < 5; i++) {
-    constant_pool->set(i, *factory->NewHeapNumber(i));
+    Handle<Object> number = factory->NewHeapNumber(i);
+    constant_pool->set(i, *number);
   }
 
   // Allocate and initialize BytecodeArray
