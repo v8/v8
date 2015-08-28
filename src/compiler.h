@@ -135,8 +135,7 @@ class CompilationInfo {
 
   explicit CompilationInfo(ParseInfo* parse_info);
   CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone);
-  CompilationInfo(const char* code_stub_debug_name, Isolate* isolate,
-                  Zone* zone);
+  CompilationInfo(const char* debug_name, Isolate* isolate, Zone* zone);
   virtual ~CompilationInfo();
 
   ParseInfo* parse_info() const { return parse_info_; }
@@ -433,7 +432,7 @@ class CompilationInfo {
   };
 
   CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
-                  const char* code_stub_debug_name, Mode mode, Isolate* isolate,
+                  const char* debug_name, Mode mode, Isolate* isolate,
                   Zone* zone);
 
   Isolate* isolate_;
@@ -503,7 +502,7 @@ class CompilationInfo {
 
   Type::FunctionType* function_type_;
 
-  const char* code_stub_debug_name_;
+  const char* debug_name_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };

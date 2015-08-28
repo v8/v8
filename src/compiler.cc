@@ -156,7 +156,7 @@ CompilationInfo::CompilationInfo(const char* debug_name, Isolate* isolate,
     : CompilationInfo(nullptr, nullptr, debug_name, STUB, isolate, zone) {}
 
 CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
-                                 const char* code_stub_debug_name, Mode mode,
+                                 const char* debug_name, Mode mode,
                                  Isolate* isolate, Zone* zone)
     : parse_info_(parse_info),
       isolate_(isolate),
@@ -179,7 +179,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       optimization_id_(-1),
       osr_expr_stack_height_(0),
       function_type_(nullptr),
-      code_stub_debug_name_(code_stub_debug_name) {
+      debug_name_(debug_name) {
   // Parameter count is number of stack parameters.
   if (code_stub_ != NULL) {
     CodeStubDescriptor descriptor(code_stub_);
@@ -206,7 +206,7 @@ CompilationInfo::~CompilationInfo() {
 void CompilationInfo::SetStub(CodeStub* code_stub) {
   SetMode(STUB);
   code_stub_ = code_stub;
-  code_stub_debug_name_ = CodeStub::MajorName(code_stub->MajorKey());
+  debug_name_ = CodeStub::MajorName(code_stub->MajorKey());
 }
 
 
@@ -311,15 +311,15 @@ void CompilationInfo::LogDeoptCallPosition(int pc_offset, int inlining_id) {
 
 
 base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
-  if (IsStub()) {
-    size_t len = strlen(code_stub_debug_name_) + 1;
-    base::SmartArrayPointer<char> name(new char[len]);
-    memcpy(name.get(), code_stub_debug_name_, len);
-    return name;
-  } else {
+  if (parse_info()) {
     AllowHandleDereference allow_deref;
-    return literal()->debug_name()->ToCString();
+    return parse_info()->literal()->debug_name()->ToCString();
   }
+  const char* str = debug_name_ ? debug_name_ : "unknown";
+  size_t len = strlen(str) + 1;
+  base::SmartArrayPointer<char> name(new char[len]);
+  memcpy(name.get(), str, len);
+  return name;
 }
 
 
