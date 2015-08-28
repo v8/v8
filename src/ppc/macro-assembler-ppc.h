@@ -887,21 +887,9 @@ class MacroAssembler : public Assembler {
 
   void BranchOnNoOverflow(Label* label) { bge(label, cr0); }
 
-  void RetOnOverflow(void) {
-    Label label;
+  void RetOnOverflow(void) { Ret(lt, cr0); }
 
-    blt(&label, cr0);
-    Ret();
-    bind(&label);
-  }
-
-  void RetOnNoOverflow(void) {
-    Label label;
-
-    bge(&label, cr0);
-    Ret();
-    bind(&label);
-  }
+  void RetOnNoOverflow(void) { Ret(ge, cr0); }
 
   // ---------------------------------------------------------------------------
   // Runtime calls

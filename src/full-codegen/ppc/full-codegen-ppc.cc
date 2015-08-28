@@ -3989,6 +3989,39 @@ void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitToString(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  // Load the argument into r3 and convert it.
+  VisitForAccumulatorValue(args->at(0));
+
+  ToStringStub stub(isolate());
+  __ CallStub(&stub);
+  context()->Plug(r3);
+}
+
+
+void FullCodeGenerator::EmitToName(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  // Load the argument into r3 and convert it.
+  VisitForAccumulatorValue(args->at(0));
+
+  Label convert, done_convert;
+  __ JumpIfSmi(r3, &convert);
+  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
+  __ CompareObjectType(r3, r4, r4, LAST_NAME_TYPE);
+  __ ble(&done_convert);
+  __ bind(&convert);
+  ToStringStub stub(isolate());
+  __ CallStub(&stub);
+  __ bind(&done_convert);
+  context()->Plug(r3);
+}
+
+
 void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(1, args->length());
