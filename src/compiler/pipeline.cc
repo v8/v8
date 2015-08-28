@@ -1177,15 +1177,6 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 }
 
 
-Handle<Code> Pipeline::GenerateCodeForTesting(Isolate* isolate,
-                                              CallDescriptor* call_descriptor,
-                                              Graph* graph,
-                                              Schedule* schedule) {
-  CompilationInfo info("testing", isolate, graph->zone());
-  return GenerateCodeForTesting(&info, call_descriptor, graph, schedule);
-}
-
-
 Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
                                               CallDescriptor* call_descriptor,
                                               Graph* graph,

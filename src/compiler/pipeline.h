@@ -40,23 +40,19 @@ class Pipeline {
                                              Graph* graph,
                                              Schedule* schedule = nullptr);
 
-  // Run the pipeline on a machine graph and generate code. If {schedule} is
-  // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(Isolate* isolate,
-                                             CallDescriptor* call_descriptor,
-                                             Graph* graph,
-                                             Schedule* schedule = nullptr);
-
   // Run just the register allocator phases.
   static bool AllocateRegistersForTesting(const RegisterConfiguration* config,
                                           InstructionSequence* sequence,
                                           bool run_verifier);
 
- private:
+  // Run the pipeline on a machine graph and generate code. If {schedule} is
+  // {nullptr}, then compute a new schedule for code generation.
   static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
                                              CallDescriptor* call_descriptor,
-                                             Graph* graph, Schedule* schedule);
+                                             Graph* graph,
+                                             Schedule* schedule = nullptr);
 
+ private:
   CompilationInfo* info_;
   PipelineData* data_;
 
