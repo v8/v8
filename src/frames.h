@@ -126,6 +126,7 @@ class StandardFrameConstants : public AllStatic {
   static const int kFixedSlotCountAboveFp =
       kFixedFrameSizeAboveFp / kPointerSize;
   static const int kFixedSlotCount = kFixedFrameSize / kPointerSize;
+  static const int kCPSlotCount = kCPSlotSize / kPointerSize;
   static const int kExpressionsOffset = -3 * kPointerSize - kCPSlotSize;
   static const int kMarkerOffset = -2 * kPointerSize - kCPSlotSize;
   static const int kContextOffset = -1 * kPointerSize - kCPSlotSize;
