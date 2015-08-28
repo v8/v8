@@ -359,11 +359,8 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   data->SetInlinedFunctionCount(
       Smi::FromInt(static_cast<int>(inlined_function_count_)));
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));
-  // TODO(jarin) The following code was copied over from Lithium, not sure
-  // whether the scope or the IsOptimizing condition are really needed.
-  if (info->IsOptimizing()) {
-    // Reference to shared function info does not change between phases.
-    AllowDeferredHandleDereference allow_handle_dereference;
+
+  if (info->has_shared_info()) {
     data->SetSharedFunctionInfo(*info->shared_info());
   } else {
     data->SetSharedFunctionInfo(Smi::FromInt(0));
