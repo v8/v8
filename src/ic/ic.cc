@@ -1851,7 +1851,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
 }
 
 
-Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
+Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
                                             KeyedAccessStoreMode store_mode) {
   // Don't handle megamorphic property accesses for INTERCEPTORS or
   // ACCESSOR_CONSTANT
@@ -1862,7 +1862,6 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     return megamorphic_stub();
   }
 
-  Handle<Map> receiver_map(receiver->map(), isolate());
   MapHandleList target_receiver_maps;
   TargetMaps(&target_receiver_maps);
   if (target_receiver_maps.length() == 0) {
@@ -1896,7 +1895,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       store_mode = GetNonTransitioningStoreMode(store_mode);
       return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
           transitioned_receiver_map, language_mode(), store_mode);
-    } else if (*previous_receiver_map == receiver->map() &&
+    } else if (receiver_map.is_identical_to(previous_receiver_map) &&
                old_store_mode == STANDARD_STORE &&
                (store_mode == STORE_AND_GROW_NO_TRANSITION ||
                 store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
@@ -2160,23 +2159,43 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     }
   }
 
-  if (use_ic) {
-    if (object->IsJSObject()) {
-      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-      if (receiver->elements()->map() ==
-              isolate()->heap()->sloppy_arguments_elements_map() &&
-          !is_sloppy(language_mode())) {
-        TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "arguments receiver");
-      } else if (key->IsSmi() && Smi::cast(*key)->value() >= 0) {
+  Handle<Map> old_receiver_map;
+  bool sloppy_arguments_elements = false;
+  bool key_is_valid_index = false;
+  KeyedAccessStoreMode store_mode = STANDARD_STORE;
+  if (use_ic && object->IsJSObject()) {
+    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+    old_receiver_map = handle(receiver->map(), isolate());
+    sloppy_arguments_elements =
+        !is_sloppy(language_mode()) &&
+        receiver->elements()->map() ==
+            isolate()->heap()->sloppy_arguments_elements_map();
+    if (!sloppy_arguments_elements) {
+      key_is_valid_index = key->IsSmi() && Smi::cast(*key)->value() >= 0;
+      if (key_is_valid_index) {
         uint32_t index = static_cast<uint32_t>(Smi::cast(*key)->value());
+        store_mode = GetStoreMode(receiver, index, value);
+      }
+    }
+  }
+
+  DCHECK(store_handle.is_null());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate(), store_handle,
+                             Runtime::SetObjectProperty(isolate(), object, key,
+                                                        value, language_mode()),
+                             Object);
+
+  if (use_ic) {
+    if (!old_receiver_map.is_null()) {
+      if (sloppy_arguments_elements) {
+        TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "arguments receiver");
+      } else if (key_is_valid_index) {
         // We should go generic if receiver isn't a dictionary, but our
         // prototype chain does have dictionary elements. This ensures that
         // other non-dictionary receivers in the polymorphic case benefit
         // from fast path keyed stores.
-        if (!receiver->map()->DictionaryElementsInPrototypeChainOnly()) {
-          KeyedAccessStoreMode store_mode =
-              GetStoreMode(receiver, index, value);
-          stub = StoreElementStub(receiver, store_mode);
+        if (!old_receiver_map->DictionaryElementsInPrototypeChainOnly()) {
+          stub = StoreElementStub(old_receiver_map, store_mode);
 
           // Validate that the store_mode in the stub can also be derived
           // from peeking in the code bits of the handlers.
@@ -2190,14 +2209,6 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     } else {
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "non-JSObject receiver");
     }
-  }
-
-  if (store_handle.is_null()) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), store_handle,
-        Runtime::SetObjectProperty(isolate(), object, key, value,
-                                   language_mode()),
-        Object);
   }
 
   if (FLAG_vector_stores) {

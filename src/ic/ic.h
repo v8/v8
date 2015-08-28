@@ -587,7 +587,7 @@ class KeyedStoreIC : public StoreIC {
     }
   }
 
-  Handle<Code> StoreElementStub(Handle<JSObject> receiver,
+  Handle<Code> StoreElementStub(Handle<Map> receiver_map,
                                 KeyedAccessStoreMode store_mode);
 
  private:
