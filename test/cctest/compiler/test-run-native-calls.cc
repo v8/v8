@@ -984,3 +984,131 @@ TEST(Float64StackParamsToStackParams) {
   Run_Computation<float64>(desc, Build_Select_With_Call<float64, 1>,
                            Compute_Select<float64, 1>, 1099);
 }
+
+
+void MixedParamTest(int start) {
+  if (DISABLE_NATIVE_STACK_PARAMS) return;
+  if (RegisterConfiguration::ArchDefault()->num_double_registers() < 2) return;
+#ifdef V8_TARGET_ARCH_MIPS64
+  // TODO(titzer): MIPS stack doubles can be misaligned.
+  if (true) return;
+#endif
+
+// TODO(titzer): mix in 64-bit types on all platforms when supported.
+#if V8_TARGET_ARCH_32_BIT
+  static MachineType types[] = {
+      kMachInt32,   kMachFloat32, kMachFloat64, kMachInt32,   kMachFloat64,
+      kMachFloat32, kMachFloat32, kMachFloat64, kMachInt32,   kMachFloat32,
+      kMachInt32,   kMachFloat64, kMachFloat64, kMachFloat32, kMachInt32,
+      kMachFloat64, kMachInt32,   kMachFloat32};
+#else
+  static MachineType types[] = {
+      kMachInt32,   kMachInt64,   kMachFloat32, kMachFloat64, kMachInt32,
+      kMachFloat64, kMachFloat32, kMachInt64,   kMachFloat64, kMachInt32,
+      kMachFloat32, kMachInt32,   kMachFloat64, kMachFloat64, kMachInt64,
+      kMachInt32,   kMachFloat64, kMachInt32,   kMachFloat32};
+#endif
+
+  Isolate* isolate = CcTest::InitIsolateOnce();
+
+  // Build machine signature
+  MachineType* params = &types[start];
+  const int num_params = static_cast<int>(arraysize(types) - start);
+
+  // Build call descriptor
+  int parray[] = {0, 1};
+  int rarray[] = {0};
+  Allocator palloc(parray, 2, parray, 2);
+  Allocator ralloc(rarray, 1, rarray, 1);
+  RegisterConfig config(palloc, ralloc);
+
+  for (int which = 0; which < num_params; which++) {
+    Zone zone;
+    HandleScope scope(isolate);
+    MachineSignature::Builder builder(&zone, 1, num_params);
+    builder.AddReturn(params[which]);
+    for (int j = 0; j < num_params; j++) builder.AddParam(params[j]);
+    MachineSignature* sig = builder.Build();
+    CallDescriptor* desc = config.Create(&zone, sig);
+
+    Handle<Code> select;
+    {
+      // build the select.
+      Zone zone;
+      Graph graph(&zone);
+      RawMachineAssembler raw(isolate, &graph, desc);
+      raw.Return(raw.Parameter(which));
+      select = CompileGraph("Compute", desc, &graph, raw.Export());
+    }
+
+    {
+      // call the select.
+      Handle<Code> wrapper = Handle<Code>::null();
+      int32_t expected_ret;
+      char bytes[kDoubleSize];
+      char output[kDoubleSize];
+      int expected_size = 0;
+      CSignature0<int32_t> csig;
+      {
+        // Wrap the select code with a callable function that passes constants.
+        Zone zone;
+        Graph graph(&zone);
+        CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
+        RawMachineAssembler raw(isolate, &graph, cdesc);
+        Unique<HeapObject> unique =
+            Unique<HeapObject>::CreateUninitialized(select);
+        Node* target = raw.HeapConstant(unique);
+        Node** args = zone.NewArray<Node*>(num_params);
+        int64_t constant = 0x0102030405060708;
+        for (int i = 0; i < num_params; i++) {
+          MachineType param_type = sig->GetParam(i);
+          Node* konst = nullptr;
+          if (param_type == kMachInt32) {
+            int32_t value[] = {static_cast<int32_t>(constant)};
+            konst = raw.Int32Constant(value[0]);
+            if (i == which) memcpy(bytes, value, expected_size = 4);
+          }
+          if (param_type == kMachInt64) {
+            int64_t value[] = {static_cast<int64_t>(constant)};
+            konst = raw.Int64Constant(value[0]);
+            if (i == which) memcpy(bytes, value, expected_size = 8);
+          }
+          if (param_type == kMachFloat32) {
+            float32 value[] = {static_cast<float32>(constant)};
+            konst = raw.Float32Constant(value[0]);
+            if (i == which) memcpy(bytes, value, expected_size = 4);
+          }
+          if (param_type == kMachFloat64) {
+            float64 value[] = {static_cast<float64>(constant)};
+            konst = raw.Float64Constant(value[0]);
+            if (i == which) memcpy(bytes, value, expected_size = 8);
+          }
+          CHECK_NOT_NULL(konst);
+
+          args[i] = konst;
+          constant += 0x1010101010101010;
+        }
+
+        Node* call = raw.CallN(desc, target, args);
+        Node* store = raw.StoreToPointer(output, sig->GetReturn(), call);
+        USE(store);
+        expected_ret = static_cast<int32_t>(constant);
+        raw.Return(raw.Int32Constant(expected_ret));
+        wrapper = CompileGraph("Select-mixed-wrapper-const", cdesc, &graph,
+                               raw.Export());
+      }
+
+      CodeRunner<int32_t> runnable(isolate, wrapper, &csig);
+      CHECK_EQ(expected_ret, runnable.Call());
+      for (int i = 0; i < expected_size; i++) {
+        CHECK_EQ(static_cast<int>(bytes[i]), static_cast<int>(output[i]));
+      }
+    }
+  }
+}
+
+
+TEST(MixedParams_0) { MixedParamTest(0); }
+TEST(MixedParams_1) { MixedParamTest(1); }
+TEST(MixedParams_2) { MixedParamTest(2); }
+TEST(MixedParams_3) { MixedParamTest(3); }
