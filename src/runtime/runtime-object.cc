@@ -756,9 +756,12 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
 
-  Maybe<bool> maybe = JSReceiver::HasProperty(receiver, key);
+  Handle<Name> name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
+                                     Object::ToName(isolate, key));
+  Maybe<bool> maybe = JSReceiver::HasProperty(receiver, name);
   if (!maybe.IsJust()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(maybe.FromJust());
 }
@@ -1477,6 +1480,17 @@ RUNTIME_FUNCTION(Runtime_ToNumber) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      Object::ToNumber(isolate, input));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ToName) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     Object::ToName(isolate, input));
   return *result;
 }
 

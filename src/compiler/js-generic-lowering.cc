@@ -301,7 +301,7 @@ void JSGenericLowering::LowerJSToString(Node* node) {
 
 
 void JSGenericLowering::LowerJSToName(Node* node) {
-  ReplaceWithBuiltinCall(node, Context::TO_NAME_BUILTIN_INDEX, 1);
+  ReplaceWithRuntimeCall(node, Runtime::kToName);
 }
 
 

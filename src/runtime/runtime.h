@@ -496,6 +496,7 @@ namespace internal {
   F(ToPrimitive_String, 1, 1)                        \
   F(OrdinaryToPrimitive, 2, 1)                       \
   F(ToNumber, 1, 1)                                  \
+  F(ToName, 1, 1)                                    \
   F(StrictEquals, 2, 1)                              \
   F(InstanceOf, 2, 1)                                \
   F(HasInPrototypeChain, 2, 1)

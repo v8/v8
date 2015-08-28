@@ -861,7 +861,7 @@ ObjectMirror.prototype.internalProperties = function() {
 
 
 ObjectMirror.prototype.property = function(name) {
-  var details = %DebugGetPropertyDetails(this.value_, builtins.$toName(name));
+  var details = %DebugGetPropertyDetails(this.value_, TO_NAME(name));
   if (details) {
     return new PropertyMirror(this, name, details);
   }

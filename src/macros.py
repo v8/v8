@@ -156,6 +156,7 @@ macro TO_OBJECT(arg) = (%_ToObject(arg));
 macro TO_PRIMITIVE(arg) = (%_ToPrimitive(arg));
 macro TO_PRIMITIVE_NUMBER(arg) = (%_ToPrimitive_Number(arg));
 macro TO_PRIMITIVE_STRING(arg) = (%_ToPrimitive_String(arg));
+macro TO_NAME(arg) = (%_ToName(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 macro HAS_OWN_PROPERTY(arg, index) = (%_CallFunction(arg, index, ObjectHasOwnProperty));
 macro SHOULD_CREATE_WRAPPER(functionName, receiver) = (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(functionName));

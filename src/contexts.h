@@ -85,7 +85,6 @@ enum BindingFlags {
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                 \
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                   \
   V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                       \
-  V(TO_NAME_INDEX, JSFunction, to_name)                                   \
   V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)                       \
   V(TO_PRIMITIVE_INDEX, JSFunction, to_primitive)                         \
   V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)
@@ -135,7 +134,6 @@ enum BindingFlags {
   V(STRING_ADD_RIGHT_BUILTIN_INDEX, JSFunction, string_add_right_builtin)   \
   V(SUB_BUILTIN_INDEX, JSFunction, sub_builtin)                             \
   V(SUB_STRONG_BUILTIN_INDEX, JSFunction, sub_strong_builtin)               \
-  V(TO_NAME_BUILTIN_INDEX, JSFunction, to_name_builtin)                     \
   V(TO_STRING_BUILTIN_INDEX, JSFunction, to_string_builtin)
 
 

@@ -19,7 +19,6 @@ var $sameValue;
 var $sameValueZero;
 var $toInteger;
 var $toLength;
-var $toName;
 var $toNumber;
 var $toPositiveInteger;
 var $toPrimitive;
@@ -434,7 +433,7 @@ function IN(x) {
     }
     return %HasElement(x, this);
   }
-  return %HasProperty(x, %to_name(this));
+  return %HasProperty(x, this);
 }
 
 
@@ -616,12 +615,6 @@ function TO_STRING() {
 }
 
 
-// Convert the receiver to a string or symbol - forward to ToName.
-function TO_NAME() {
-  return %to_name(this);
-}
-
-
 /* -------------------------------------
    - - -   C o n v e r s i o n s   - - -
    -------------------------------------
@@ -687,12 +680,6 @@ function NonStringToString(x) {
   if (IS_UNDEFINED(x)) return 'undefined';
   // Types that can't be converted to string are caught in DefaultString.
   return (IS_NULL(x)) ? 'null' : ToString(DefaultString(x));
-}
-
-
-// ES6 symbols
-function ToName(x) {
-  return IS_SYMBOL(x) ? x : ToString(x);
 }
 
 
@@ -833,7 +820,6 @@ $sameValue = SameValue;
 $sameValueZero = SameValueZero;
 $toInteger = ToInteger;
 $toLength = ToLength;
-$toName = ToName;
 $toNumber = ToNumber;
 $toPositiveInteger = ToPositiveInteger;
 $toPrimitive = ToPrimitive;
@@ -877,7 +863,6 @@ $toString = ToString;
   "string_add_right_builtin", STRING_ADD_RIGHT,
   "sub_builtin", SUB,
   "sub_strong_builtin", SUB_STRONG,
-  "to_name_builtin", TO_NAME,
   "to_string_builtin", TO_STRING,
 ]);
 
@@ -887,7 +872,6 @@ $toString = ToString;
   "non_string_to_string", NonStringToString,
   "to_integer_fun", ToInteger,
   "to_length_fun", ToLength,
-  "to_name", ToName,
   "to_number_fun", ToNumber,
   "to_primitive", ToPrimitive,
   "to_string_fun", ToString,
@@ -896,7 +880,6 @@ $toString = ToString;
 utils.Export(function(to) {
   to.ToBoolean = ToBoolean;
   to.ToLength = ToLength;
-  to.ToName = ToName;
   to.ToNumber = ToNumber;
   to.ToPrimitive = ToPrimitive;
   to.ToString = ToString;
