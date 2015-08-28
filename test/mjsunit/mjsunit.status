@@ -305,7 +305,7 @@
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 
   # TODO(jkummerow): Doesn't work correctly in GC stress.
-  'regress/regress-crbug-500497': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-500497': [SKIP],
 
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
