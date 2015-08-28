@@ -1425,6 +1425,62 @@ RUNTIME_FUNCTION(Runtime_ToObject) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ToPrimitive) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     Object::ToPrimitive(input));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ToPrimitive_Number) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, Object::ToPrimitive(input, ToPrimitiveHint::kNumber));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ToPrimitive_String) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, Object::ToPrimitive(input, ToPrimitiveHint::kString));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_OrdinaryToPrimitive) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, hint, 1);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSReceiver::OrdinaryToPrimitive(receiver, hint));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ToNumber) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     Object::ToNumber(isolate, input));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_StrictEquals) {
   SealHandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

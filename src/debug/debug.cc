@@ -2148,7 +2148,7 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
       Handle<Object> exception;
       if (!maybe_exception.ToHandle(&exception)) break;
       Handle<Object> result;
-      if (!Execution::ToString(isolate_, exception).ToHandle(&result)) break;
+      if (!Object::ToString(isolate_, exception).ToHandle(&result)) break;
       answer = Handle<String>::cast(result);
     }
 

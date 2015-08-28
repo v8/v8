@@ -136,7 +136,6 @@ enum BindingFlags {
   V(SUB_BUILTIN_INDEX, JSFunction, sub_builtin)                             \
   V(SUB_STRONG_BUILTIN_INDEX, JSFunction, sub_strong_builtin)               \
   V(TO_NAME_BUILTIN_INDEX, JSFunction, to_name_builtin)                     \
-  V(TO_NUMBER_BUILTIN_INDEX, JSFunction, to_number_builtin)                 \
   V(TO_STRING_BUILTIN_INDEX, JSFunction, to_string_builtin)
 
 

@@ -168,6 +168,11 @@ enum KeyedAccessStoreMode {
 };
 
 
+// Valid hints for the abstract operation ToPrimitive,
+// implemented according to ES6, section 7.1.1.
+enum class ToPrimitiveHint { kDefault, kNumber, kString };
+
+
 enum TypeofMode { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
@@ -1077,9 +1082,25 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<JSReceiver> ToObject(
       Isolate* isolate, Handle<Object> object, Handle<Context> context);
 
-  // Convert to a Name if needed.
-  MUST_USE_RESULT static MaybeHandle<Name> ToName(Isolate* isolate,
-                                                  Handle<Object> object);
+  // ES6 section 7.1.14 ToPropertyKey
+  MUST_USE_RESULT static inline MaybeHandle<Name> ToName(Isolate* isolate,
+                                                         Handle<Object> input);
+
+  // ES6 section 7.1.1 ToPrimitive
+  MUST_USE_RESULT static inline MaybeHandle<Object> ToPrimitive(
+      Handle<Object> input, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+
+  // ES6 section 7.1.3 ToNumber
+  MUST_USE_RESULT static MaybeHandle<Object> ToNumber(Isolate* isolate,
+                                                      Handle<Object> input);
+
+  // ES6 section 7.1.12 ToString
+  MUST_USE_RESULT static MaybeHandle<String> ToString(Isolate* isolate,
+                                                      Handle<Object> input);
+
+  // ES6 section 7.3.9 GetMethod
+  MUST_USE_RESULT static MaybeHandle<Object> GetMethod(
+      Handle<JSReceiver> receiver, Handle<Name> name);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       LookupIterator* it, LanguageMode language_mode = SLOPPY);
@@ -1578,6 +1599,8 @@ class Simd128Value : public HeapObject {
   DECLARE_PRINTER(Simd128Value)
   DECLARE_VERIFIER(Simd128Value)
 
+  static Handle<String> ToString(Handle<Simd128Value> input);
+
   // Equality operations.
   inline bool Equals(Simd128Value* that);
 
@@ -1620,6 +1643,8 @@ class Simd128Value : public HeapObject {
                                                                      \
     DECLARE_PRINTER(Type)                                            \
                                                                      \
+    static Handle<String> ToString(Handle<Type> input);              \
+                                                                     \
     inline bool Equals(Type* that);                                  \
                                                                      \
    private:                                                          \
@@ -1648,6 +1673,13 @@ enum AccessorComponent {
 class JSReceiver: public HeapObject {
  public:
   DECLARE_CAST(JSReceiver)
+
+  // ES6 section 7.1.1 ToPrimitive
+  MUST_USE_RESULT static MaybeHandle<Object> ToPrimitive(
+      Handle<JSReceiver> receiver,
+      ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+  MUST_USE_RESULT static MaybeHandle<Object> OrdinaryToPrimitive(
+      Handle<JSReceiver> receiver, Handle<String> hint);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   MUST_USE_RESULT static inline Maybe<bool> HasProperty(
@@ -8345,6 +8377,9 @@ class String: public Name {
   // Get individual two byte char in the string.  Repeated calls
   // to this method are not efficient unless the string is flat.
   INLINE(uint16_t Get(int index));
+
+  // ES6 section 7.1.3.1 ToNumber Applied to the String Type
+  static Handle<Object> ToNumber(Handle<String> subject);
 
   // Flattens the string.  Checks first inline to see if it is
   // necessary.  Does nothing if the string is not a cons string.

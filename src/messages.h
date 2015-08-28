@@ -257,6 +257,7 @@ class CallSite {
     "Offset is outside the bounds of the DataView")                            \
   T(InvalidDataViewLength, "Invalid data view length")                         \
   T(InvalidDataViewOffset, "Start offset is outside the bounds of the buffer") \
+  T(InvalidHint, "Invalid hint: %")                                            \
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
   T(InvalidWeakMapKey, "Invalid value used as weak map key")                   \
   T(InvalidWeakSetValue, "Invalid value used in weak set")                     \

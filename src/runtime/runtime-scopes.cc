@@ -1139,7 +1139,7 @@ RUNTIME_FUNCTION(Runtime_Arguments) {
   // Convert the key to a string.
   Handle<Object> converted;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, converted,
-                                     Execution::ToString(isolate, raw_key));
+                                     Object::ToString(isolate, raw_key));
   Handle<String> key = Handle<String>::cast(converted);
 
   // Try to convert the string key into an array index.

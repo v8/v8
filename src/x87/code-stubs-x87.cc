@@ -2981,7 +2981,7 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ pop(ecx);   // Pop return address.
   __ push(eax);  // Push argument.
   __ push(ecx);  // Push return address.
-  __ InvokeBuiltin(Context::TO_NUMBER_BUILTIN_INDEX, JUMP_FUNCTION);
+  __ TailCallRuntime(Runtime::kToNumber, 1, 1);
 }
 
 

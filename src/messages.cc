@@ -471,7 +471,7 @@ MaybeHandle<String> ErrorToStringHelper::GetStringifiedProperty(
                              String);
   if (obj->IsUndefined()) return default_value;
   if (!obj->IsString()) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Execution::ToString(isolate, obj),
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToString(isolate, obj),
                                String);
   }
   return Handle<String>::cast(obj);

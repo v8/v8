@@ -7,6 +7,7 @@
 // - symbolIsConcatSpreadable
 // - symbolIsRegExp
 // - symbolIterator
+// - symbolToPrimitive
 // - symbolToStringTag
 // - symbolUnscopables
 
@@ -37,6 +38,16 @@ function SymbolConstructor(x) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Symbol");
   // NOTE: Passing in a Symbol value will throw on ToString().
   return %CreateSymbol(IS_UNDEFINED(x) ? x : ToString(x));
+}
+
+
+// 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint )
+function SymbolToPrimitive(hint) {
+  if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "Symbol.prototype [ @@toPrimitive ]", this);
+  }
+  return %_ValueOf(this);
 }
 
 
@@ -97,6 +108,7 @@ utils.InstallConstants(GlobalSymbol, [
   // "isConcatSpreadable", symbolIsConcatSpreadable,
   // "isRegExp", symbolIsRegExp,
   "iterator", symbolIterator,
+  "toPrimitive", symbolToPrimitive,
   // TODO(dslomov, caitp): Currently defined in harmony-tostring.js ---
   // Move here when shipping
   // "toStringTag", symbolToStringTag,
@@ -110,6 +122,10 @@ utils.InstallFunctions(GlobalSymbol, DONT_ENUM, [
 
 %AddNamedProperty(
     GlobalSymbol.prototype, "constructor", GlobalSymbol, DONT_ENUM);
+utils.SetFunctionName(SymbolToPrimitive, symbolToPrimitive);
+%AddNamedProperty(
+    GlobalSymbol.prototype, symbolToPrimitive, SymbolToPrimitive,
+    DONT_ENUM | READ_ONLY);
 %AddNamedProperty(
     GlobalSymbol.prototype, symbolToStringTag, "Symbol", DONT_ENUM | READ_ONLY);
 

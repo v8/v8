@@ -1132,10 +1132,26 @@ bool Object::FitsRepresentation(Representation representation) {
 }
 
 
+// static
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
                                          Handle<Object> object) {
   return ToObject(
       isolate, object, handle(isolate->context()->native_context(), isolate));
+}
+
+
+// static
+MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
+  if (input->IsName()) return Handle<Name>::cast(input);
+  return ToString(isolate, input);
+}
+
+
+// static
+MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
+                                        ToPrimitiveHint hint) {
+  if (input->IsPrimitive()) return input;
+  return JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input), hint);
 }
 
 

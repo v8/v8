@@ -3461,7 +3461,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // string "valueOf" the result is false.
   // The use of ip to store the valueOf string assumes that it is not otherwise
   // used in the loop below.
-  __ mov(ip, Operand(isolate()->factory()->value_of_string()));
+  __ LoadRoot(ip, Heap::kvalueOf_stringRootIndex);
   __ b(&entry);
   __ bind(&loop);
   __ LoadP(r6, MemOperand(r7, 0));

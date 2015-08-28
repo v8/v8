@@ -90,14 +90,57 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
 }
 
 
-MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> object) {
-  if (object->IsName()) {
-    return Handle<Name>::cast(object);
-  } else {
-    Handle<Object> converted;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, converted,
-                               Execution::ToString(isolate, object), Name);
-    return Handle<Name>::cast(converted);
+// static
+MaybeHandle<Object> Object::ToNumber(Isolate* isolate, Handle<Object> input) {
+  while (true) {
+    if (input->IsNumber()) {
+      return input;
+    }
+    if (input->IsOddball()) {
+      return handle(Handle<Oddball>::cast(input)->to_number(), isolate);
+    }
+    if (input->IsString()) {
+      return String::ToNumber(Handle<String>::cast(input));
+    }
+    if (input->IsSymbol()) {
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToNumber),
+                      Object);
+    }
+    if (input->IsSimd128Value()) {
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSimdToNumber),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
+                                                ToPrimitiveHint::kNumber),
+        Object);
+  }
+}
+
+
+// static
+MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
+  while (true) {
+    if (input->IsString()) {
+      return Handle<String>::cast(input);
+    }
+    if (input->IsOddball()) {
+      return handle(Handle<Oddball>::cast(input)->to_string(), isolate);
+    }
+    if (input->IsNumber()) {
+      return isolate->factory()->NumberToString(input);
+    }
+    if (input->IsSymbol()) {
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToString),
+                      String);
+    }
+    if (input->IsSimd128Value()) {
+      return Simd128Value::ToString(Handle<Simd128Value>::cast(input));
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
+                                                ToPrimitiveHint::kString),
+        String);
   }
 }
 
@@ -109,7 +152,6 @@ bool Object::BooleanValue() {
   if (IsUndetectableObject()) return false;   // Undetectable object is false.
   if (IsString()) return String::cast(this)->length() != 0;
   if (IsHeapNumber()) return HeapNumber::cast(this)->HeapNumberBooleanValue();
-  if (IsSimd128Value()) return true;  // Simd value types evaluate to true.
   return true;
 }
 
@@ -154,6 +196,26 @@ bool Object::IsPromise(Handle<Object> object) {
   auto key = isolate->factory()->promise_status_symbol();
   // Shouldn't be possible to throw here.
   return JSObject::HasRealNamedProperty(js_object, key).FromJust();
+}
+
+
+// static
+MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
+                                      Handle<Name> name) {
+  Handle<Object> func;
+  Isolate* isolate = receiver->GetIsolate();
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, func,
+                             JSReceiver::GetProperty(receiver, name), Object);
+  if (func->IsNull() || func->IsUndefined()) {
+    return isolate->factory()->undefined_value();
+  }
+  if (!func->IsCallable()) {
+    // TODO(bmeurer): Better error message here?
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kCalledNonCallable, func),
+                    Object);
+  }
+  return func;
 }
 
 
@@ -1483,6 +1545,73 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
 
 #define READ_BYTE_FIELD(p, offset) \
   (*reinterpret_cast<const byte*>(FIELD_ADDR_CONST(p, offset)))
+
+
+// static
+Handle<String> Simd128Value::ToString(Handle<Simd128Value> input) {
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
+  if (input->Is##Type()) return Type::ToString(Handle<Type>::cast(input));
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+  UNREACHABLE();
+  return Handle<String>::null();
+}
+
+
+// static
+Handle<String> Float32x4::ToString(Handle<Float32x4> input) {
+  Isolate* const isolate = input->GetIsolate();
+  char arr[100];
+  Vector<char> buffer(arr, arraysize(arr));
+  std::ostringstream os;
+  os << "SIMD.Float32x4("
+     << std::string(DoubleToCString(input->get_lane(0), buffer)) << ", "
+     << std::string(DoubleToCString(input->get_lane(1), buffer)) << ", "
+     << std::string(DoubleToCString(input->get_lane(2), buffer)) << ", "
+     << std::string(DoubleToCString(input->get_lane(3), buffer)) << ")";
+  return isolate->factory()->NewStringFromAsciiChecked(os.str().c_str());
+}
+
+
+#define SIMD128_BOOL_TO_STRING(Type, lane_count)                            \
+  Handle<String> Type::ToString(Handle<Type> input) {                       \
+    Isolate* const isolate = input->GetIsolate();                           \
+    std::ostringstream os;                                                  \
+    os << "SIMD." #Type "(";                                                \
+    os << (input->get_lane(0) ? "true" : "false");                          \
+    for (int i = 1; i < lane_count; i++) {                                  \
+      os << ", " << (input->get_lane(i) ? "true" : "false");                \
+    }                                                                       \
+    os << ")";                                                              \
+    return isolate->factory()->NewStringFromAsciiChecked(os.str().c_str()); \
+  }
+SIMD128_BOOL_TO_STRING(Bool32x4, 4)
+SIMD128_BOOL_TO_STRING(Bool16x8, 8)
+SIMD128_BOOL_TO_STRING(Bool8x16, 16)
+#undef SIMD128_BOOL_TO_STRING
+
+
+#define SIMD128_INT_TO_STRING(Type, lane_count)                             \
+  Handle<String> Type::ToString(Handle<Type> input) {                       \
+    Isolate* const isolate = input->GetIsolate();                           \
+    char arr[100];                                                          \
+    Vector<char> buffer(arr, arraysize(arr));                               \
+    std::ostringstream os;                                                  \
+    os << "SIMD." #Type "(";                                                \
+    os << IntToCString(input->get_lane(0), buffer);                         \
+    for (int i = 1; i < lane_count; i++) {                                  \
+      os << ", " << IntToCString(input->get_lane(i), buffer);               \
+    }                                                                       \
+    os << ")";                                                              \
+    return isolate->factory()->NewStringFromAsciiChecked(os.str().c_str()); \
+  }
+SIMD128_INT_TO_STRING(Int32x4, 4)
+SIMD128_INT_TO_STRING(Uint32x4, 4)
+SIMD128_INT_TO_STRING(Int16x8, 8)
+SIMD128_INT_TO_STRING(Uint16x8, 8)
+SIMD128_INT_TO_STRING(Int8x16, 16)
+SIMD128_INT_TO_STRING(Uint8x16, 16)
+#undef SIMD128_INT_TO_STRING
 
 
 bool Simd128Value::BitwiseEquals(const Simd128Value* other) const {
@@ -3279,7 +3408,7 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
   if (it->IsElement() && receiver->HasFixedTypedArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
       ASSIGN_RETURN_ON_EXCEPTION(it->isolate(), to_assign,
-                                 Execution::ToNumber(it->isolate(), value),
+                                 Object::ToNumber(it->isolate(), value),
                                  Object);
       // ToNumber above might modify the receiver, causing the cached
       // holder_map to mismatch the actual holder->map() after this point.
@@ -5881,6 +6010,75 @@ MaybeHandle<JSObject> JSObject::DeepCopy(
 }
 
 
+// static
+MaybeHandle<Object> JSReceiver::ToPrimitive(Handle<JSReceiver> receiver,
+                                            ToPrimitiveHint hint) {
+  Isolate* const isolate = receiver->GetIsolate();
+  Handle<Object> exotic_to_prim;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, exotic_to_prim,
+      GetMethod(receiver, isolate->factory()->to_primitive_symbol()), Object);
+  if (!exotic_to_prim->IsUndefined()) {
+    Handle<Object> hint_string;
+    switch (hint) {
+      case ToPrimitiveHint::kDefault:
+        hint_string = isolate->factory()->default_string();
+        break;
+      case ToPrimitiveHint::kNumber:
+        hint_string = isolate->factory()->number_string();
+        break;
+      case ToPrimitiveHint::kString:
+        hint_string = isolate->factory()->string_string();
+        break;
+    }
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        Execution::Call(isolate, exotic_to_prim, receiver, 1, &hint_string),
+        Object);
+    if (result->IsPrimitive()) return result;
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kCannotConvertToPrimitive),
+                    Object);
+  }
+  return OrdinaryToPrimitive(receiver,
+                             (hint == ToPrimitiveHint::kString)
+                                 ? isolate->factory()->string_string()
+                                 : isolate->factory()->number_string());
+}
+
+
+// static
+MaybeHandle<Object> JSReceiver::OrdinaryToPrimitive(Handle<JSReceiver> receiver,
+                                                    Handle<String> hint) {
+  Isolate* const isolate = receiver->GetIsolate();
+  Handle<String> method_names[2];
+  if (hint.is_identical_to(isolate->factory()->number_string())) {
+    method_names[0] = isolate->factory()->valueOf_string();
+    method_names[1] = isolate->factory()->toString_string();
+  } else {
+    DCHECK(hint.is_identical_to(isolate->factory()->string_string()));
+    method_names[0] = isolate->factory()->toString_string();
+    method_names[1] = isolate->factory()->valueOf_string();
+  }
+  for (Handle<String> name : method_names) {
+    Handle<Object> method;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, method,
+                               JSReceiver::GetProperty(receiver, name), Object);
+    if (method->IsCallable()) {
+      Handle<Object> result;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result, Execution::Call(isolate, method, receiver, 0, NULL),
+          Object);
+      if (result->IsPrimitive()) return result;
+    }
+  }
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kCannotConvertToPrimitive),
+                  Object);
+}
+
+
 // Tests for the fast common case for property enumeration:
 // - This object and all prototypes has an enum cache (which means that
 //   it is no proxy, has no interceptors and needs no access checks).
@@ -8149,6 +8347,95 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
 bool String::LooksValid() {
   if (!GetIsolate()->heap()->Contains(this)) return false;
   return true;
+}
+
+
+namespace {
+
+bool AreDigits(const uint8_t* s, int from, int to) {
+  for (int i = from; i < to; i++) {
+    if (s[i] < '0' || s[i] > '9') return false;
+  }
+
+  return true;
+}
+
+
+int ParseDecimalInteger(const uint8_t* s, int from, int to) {
+  DCHECK(to - from < 10);  // Overflow is not possible.
+  DCHECK(from < to);
+  int d = s[from] - '0';
+
+  for (int i = from + 1; i < to; i++) {
+    d = 10 * d + (s[i] - '0');
+  }
+
+  return d;
+}
+
+}  // namespace
+
+
+// static
+Handle<Object> String::ToNumber(Handle<String> subject) {
+  Isolate* const isolate = subject->GetIsolate();
+
+  // Flatten {subject} string first.
+  subject = String::Flatten(subject);
+
+  // Fast array index case.
+  uint32_t index;
+  if (subject->AsArrayIndex(&index)) {
+    return isolate->factory()->NewNumberFromUint(index);
+  }
+
+  // Fast case: short integer or some sorts of junk values.
+  if (subject->IsSeqOneByteString()) {
+    int len = subject->length();
+    if (len == 0) return handle(Smi::FromInt(0), isolate);
+
+    DisallowHeapAllocation no_gc;
+    uint8_t const* data = Handle<SeqOneByteString>::cast(subject)->GetChars();
+    bool minus = (data[0] == '-');
+    int start_pos = (minus ? 1 : 0);
+
+    if (start_pos == len) {
+      return isolate->factory()->nan_value();
+    } else if (data[start_pos] > '9') {
+      // Fast check for a junk value. A valid string may start from a
+      // whitespace, a sign ('+' or '-'), the decimal point, a decimal digit
+      // or the 'I' character ('Infinity'). All of that have codes not greater
+      // than '9' except 'I' and &nbsp;.
+      if (data[start_pos] != 'I' && data[start_pos] != 0xa0) {
+        return isolate->factory()->nan_value();
+      }
+    } else if (len - start_pos < 10 && AreDigits(data, start_pos, len)) {
+      // The maximal/minimal smi has 10 digits. If the string has less digits
+      // we know it will fit into the smi-data type.
+      int d = ParseDecimalInteger(data, start_pos, len);
+      if (minus) {
+        if (d == 0) return isolate->factory()->minus_zero_value();
+        d = -d;
+      } else if (!subject->HasHashCode() && len <= String::kMaxArrayIndexSize &&
+                 (len == 1 || data[0] != '0')) {
+        // String hash is not calculated yet but all the data are present.
+        // Update the hash field to speed up sequential convertions.
+        uint32_t hash = StringHasher::MakeArrayIndexHash(d, len);
+#ifdef DEBUG
+        subject->Hash();  // Force hash calculation.
+        DCHECK_EQ(static_cast<int>(subject->hash_field()),
+                  static_cast<int>(hash));
+#endif
+        subject->set_hash_field(hash);
+      }
+      return handle(Smi::FromInt(d), isolate);
+    }
+  }
+
+  // Slower case.
+  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
+  return isolate->factory()->NewNumber(
+      StringToDouble(isolate->unicode_cache(), subject, flags));
 }
 
 

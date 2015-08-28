@@ -74,16 +74,14 @@ TEST(HeapMaps) {
 static void CheckOddball(Isolate* isolate, Object* obj, const char* string) {
   CHECK(obj->IsOddball());
   Handle<Object> handle(obj, isolate);
-  Object* print_string =
-      *Execution::ToString(isolate, handle).ToHandleChecked();
+  Object* print_string = *Object::ToString(isolate, handle).ToHandleChecked();
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
   Handle<Object> handle(Smi::FromInt(value), isolate);
-  Object* print_string =
-      *Execution::ToString(isolate, handle).ToHandleChecked();
+  Object* print_string = *Object::ToString(isolate, handle).ToHandleChecked();
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
@@ -92,7 +90,7 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   Handle<Object> number = isolate->factory()->NewNumber(value);
   CHECK(number->IsNumber());
   Handle<Object> print_string =
-      Execution::ToString(isolate, number).ToHandleChecked();
+      Object::ToString(isolate, number).ToHandleChecked();
   CHECK(String::cast(*print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 

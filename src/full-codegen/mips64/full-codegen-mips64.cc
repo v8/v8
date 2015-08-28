@@ -3464,7 +3464,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // string "valueOf" the result is false.
   // The use of a6 to store the valueOf string assumes that it is not otherwise
   // used in the loop below.
-  __ li(a6, Operand(isolate()->factory()->value_of_string()));
+  __ LoadRoot(a6, Heap::kvalueOf_stringRootIndex);
   __ jmp(&entry);
   __ bind(&loop);
   __ ld(a3, MemOperand(a4, 0));

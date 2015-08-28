@@ -3169,7 +3169,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // string "valueOf" the result is false.
   Register valueof_string = x1;
   int descriptor_size = DescriptorArray::kDescriptorSize * kPointerSize;
-  __ Mov(valueof_string, Operand(isolate()->factory()->value_of_string()));
+  __ LoadRoot(valueof_string, Heap::kvalueOf_stringRootIndex);
   __ Bind(&loop);
   __ Ldr(x15, MemOperand(descriptors, descriptor_size, PostIndex));
   __ Cmp(x15, valueof_string);

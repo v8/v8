@@ -544,18 +544,6 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
   } while (false)
 
 
-MaybeHandle<Object> Execution::ToNumber(
-    Isolate* isolate, Handle<Object> obj) {
-  RETURN_NATIVE_CALL(to_number, { obj });
-}
-
-
-MaybeHandle<Object> Execution::ToString(
-    Isolate* isolate, Handle<Object> obj) {
-  RETURN_NATIVE_CALL(to_string, { obj });
-}
-
-
 MaybeHandle<Object> Execution::ToDetailString(
     Isolate* isolate, Handle<Object> obj) {
   RETURN_NATIVE_CALL(to_detail_string, { obj });
@@ -584,7 +572,7 @@ MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
 
 
 MaybeHandle<Object> Execution::ToInt32(Isolate* isolate, Handle<Object> obj) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Execution::ToNumber(isolate, obj),
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToNumber(isolate, obj),
                              Object);
   return isolate->factory()->NewNumberFromInt(DoubleToInt32(obj->Number()));
 }
@@ -601,7 +589,7 @@ MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {
 
 
 MaybeHandle<Object> Execution::ToUint32(Isolate* isolate, Handle<Object> obj) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Execution::ToNumber(isolate, obj),
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToNumber(isolate, obj),
                              Object);
   return isolate->factory()->NewNumberFromUint(DoubleToUint32(obj->Number()));
 }

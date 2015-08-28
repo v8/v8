@@ -2854,7 +2854,7 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
   PREPARE_FOR_EXECUTION(context, "ToString", String);
   Local<String> result;
   has_pending_exception =
-      !ToLocal<String>(i::Execution::ToString(isolate, obj), &result);
+      !ToLocal<String>(i::Object::ToString(isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(String);
   RETURN_ESCAPED(result);
 }
@@ -2920,7 +2920,7 @@ MaybeLocal<Number> Value::ToNumber(Local<Context> context) const {
   PREPARE_FOR_EXECUTION(context, "ToNumber", Number);
   Local<Number> result;
   has_pending_exception =
-      !ToLocal<Number>(i::Execution::ToNumber(isolate, obj), &result);
+      !ToLocal<Number>(i::Object::ToNumber(isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Number);
   RETURN_ESCAPED(result);
 }
@@ -3244,7 +3244,7 @@ Maybe<double> Value::NumberValue(Local<Context> context) const {
   if (obj->IsNumber()) return Just(obj->Number());
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "NumberValue", double);
   i::Handle<i::Object> num;
-  has_pending_exception = !i::Execution::ToNumber(isolate, obj).ToHandle(&num);
+  has_pending_exception = !i::Object::ToNumber(isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(double);
   return Just(num->Number());
 }
@@ -3334,7 +3334,7 @@ MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
   PREPARE_FOR_EXECUTION(context, "ToArrayIndex", Uint32);
   i::Handle<i::Object> string_obj;
   has_pending_exception =
-      !i::Execution::ToString(isolate, self).ToHandle(&string_obj);
+      !i::Object::ToString(isolate, self).ToHandle(&string_obj);
   RETURN_ON_FAILED_EXECUTION(Uint32);
   i::Handle<i::String> str = i::Handle<i::String>::cast(string_obj);
   uint32_t index;
@@ -3614,8 +3614,8 @@ Maybe<PropertyAttribute> v8::Object::GetPropertyAttributes(
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   if (!key_obj->IsName()) {
-    has_pending_exception = !i::Execution::ToString(
-        isolate, key_obj).ToHandle(&key_obj);
+    has_pending_exception =
+        !i::Object::ToString(isolate, key_obj).ToHandle(&key_obj);
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   }
   auto key_name = i::Handle<i::Name>::cast(key_obj);

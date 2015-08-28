@@ -59,10 +59,6 @@ class Execution final : public AllStatic {
                                      Handle<Object> argv[],
                                      MaybeHandle<Object>* exception_out = NULL);
 
-  // ECMA-262 9.3
-  MUST_USE_RESULT static MaybeHandle<Object> ToNumber(
-      Isolate* isolate, Handle<Object> obj);
-
   // ECMA-262 9.4
   MUST_USE_RESULT static MaybeHandle<Object> ToInteger(
       Isolate* isolate, Handle<Object> obj);
@@ -78,10 +74,6 @@ class Execution final : public AllStatic {
 
   // ES6, draft 10-14-14, section 7.1.15
   MUST_USE_RESULT static MaybeHandle<Object> ToLength(
-      Isolate* isolate, Handle<Object> obj);
-
-  // ECMA-262 9.8
-  MUST_USE_RESULT static MaybeHandle<Object> ToString(
       Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.8

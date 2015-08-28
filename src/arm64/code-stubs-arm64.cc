@@ -3995,7 +3995,7 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Bind(&not_oddball);
 
   __ Push(x0);  // Push argument.
-  __ InvokeBuiltin(Context::TO_NUMBER_BUILTIN_INDEX, JUMP_FUNCTION);
+  __ TailCallRuntime(Runtime::kToNumber, 1, 1);
 }
 
 

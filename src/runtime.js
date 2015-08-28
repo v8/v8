@@ -11,7 +11,6 @@
 
 // The following declarations are shared with other native JS files.
 // They are all declared at this one spot to avoid redeclaration errors.
-var $defaultNumber;
 var $defaultString;
 var $NaN;
 var $nonNumberToNumber;
@@ -826,7 +825,6 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 // ----------------------------------------------------------------------------
 // Exports
 
-$defaultNumber = DefaultNumber;
 $defaultString = DefaultString;
 $NaN = %GetRootNaN();
 $nonNumberToNumber = NonNumberToNumber;
@@ -880,7 +878,6 @@ $toString = ToString;
   "sub_builtin", SUB,
   "sub_strong_builtin", SUB_STRONG,
   "to_name_builtin", TO_NAME,
-  "to_number_builtin", TO_NUMBER,
   "to_string_builtin", TO_STRING,
 ]);
 

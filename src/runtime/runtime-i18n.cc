@@ -352,7 +352,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
 
   Handle<Object> value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                     Execution::ToNumber(isolate, date));
+                                     Object::ToNumber(isolate, date));
 
   icu::SimpleDateFormat* date_format =
       DateFormat::UnpackDateFormat(isolate, date_format_holder);
@@ -446,7 +446,7 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
 
   Handle<Object> value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                     Execution::ToNumber(isolate, number));
+                                     Object::ToNumber(isolate, number));
 
   icu::DecimalFormat* number_format =
       NumberFormat::UnpackNumberFormat(isolate, number_format_holder);

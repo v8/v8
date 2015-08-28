@@ -3363,7 +3363,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ jmp(&entry);
   __ bind(&loop);
   __ mov(edx, FieldOperand(ebx, 0));
-  __ cmp(edx, isolate()->factory()->value_of_string());
+  __ cmp(edx, isolate()->factory()->valueOf_string());
   __ j(equal, if_false);
   __ add(ebx, Immediate(DescriptorArray::kDescriptorSize * kPointerSize));
   __ bind(&entry);
