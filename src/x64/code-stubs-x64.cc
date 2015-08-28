@@ -3228,6 +3228,41 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ToStringStub::Generate(MacroAssembler* masm) {
+  // The ToString stub takes one argument in rax.
+  Label is_number;
+  __ JumpIfSmi(rax, &is_number, Label::kNear);
+
+  Label not_string;
+  __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rdi);
+  // rax: receiver
+  // rdi: receiver map
+  __ j(above_equal, &not_string, Label::kNear);
+  __ Ret();
+  __ bind(&not_string);
+
+  Label not_heap_number;
+  __ CompareRoot(rax, Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &not_heap_number, Label::kNear);
+  __ bind(&is_number);
+  NumberToStringStub stub(isolate());
+  __ TailCallStub(&stub);
+  __ bind(&not_heap_number);
+
+  Label not_oddball;
+  __ CmpInstanceType(rdi, ODDBALL_TYPE);
+  __ j(not_equal, &not_oddball, Label::kNear);
+  __ movp(rax, FieldOperand(rax, Oddball::kToStringOffset));
+  __ Ret();
+  __ bind(&not_oddball);
+
+  __ PopReturnAddressTo(rcx);     // Pop return address.
+  __ Push(rax);                   // Push argument.
+  __ PushReturnAddressFrom(rcx);  // Push return address.
+  __ TailCallRuntime(Runtime::kToString, 1, 1);
+}
+
+
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,

@@ -1527,8 +1527,8 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ push(edi);  // Preserve the function.
-    __ push(eax);
-    __ InvokeBuiltin(Context::TO_STRING_BUILTIN_INDEX, CALL_FUNCTION);
+    ToStringStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ pop(edi);
   }
   __ mov(ebx, eax);

@@ -3232,15 +3232,10 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Ret();
   __ bind(&not_smi);
 
-  Label not_heap_number;
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  // r0: object
-  // r1: instance type.
-  __ cmp(r1, Operand(HEAP_NUMBER_TYPE));
-  __ b(ne, &not_heap_number);
-  __ Ret();
-  __ bind(&not_heap_number);
+  __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
+  // r0: receiver
+  // r1: receiver instance type
+  __ Ret(eq);
 
   Label not_string, slow_string;
   __ cmp(r1, Operand(FIRST_NONSTRING_TYPE));
@@ -3265,6 +3260,36 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 
   __ push(r0);  // Push argument.
   __ TailCallRuntime(Runtime::kToNumber, 1, 1);
+}
+
+
+void ToStringStub::Generate(MacroAssembler* masm) {
+  // The ToString stub takes one argument in r0.
+  Label is_number;
+  __ JumpIfSmi(r0, &is_number);
+
+  __ CompareObjectType(r0, r1, r1, FIRST_NONSTRING_TYPE);
+  // r0: receiver
+  // r1: receiver instance type
+  __ Ret(lo);
+
+  Label not_heap_number;
+  __ cmp(r1, Operand(HEAP_NUMBER_TYPE));
+  __ b(ne, &not_heap_number);
+  __ bind(&is_number);
+  NumberToStringStub stub(isolate());
+  __ TailCallStub(&stub);
+  __ bind(&not_heap_number);
+
+  Label not_oddball;
+  __ cmp(r1, Operand(ODDBALL_TYPE));
+  __ b(ne, &not_oddball);
+  __ ldr(r0, FieldMemOperand(r0, Oddball::kToStringOffset));
+  __ Ret();
+  __ bind(&not_oddball);
+
+  __ push(r0);  // Push argument.
+  __ TailCallRuntime(Runtime::kToString, 1, 1);
 }
 
 

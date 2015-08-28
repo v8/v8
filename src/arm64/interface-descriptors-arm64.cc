@@ -100,6 +100,10 @@ void ToNumberDescriptor::InitializePlatformSpecific(
 
 
 // static
+const Register ToStringDescriptor::ReceiverRegister() { return x0; }
+
+
+// static
 const Register ToObjectDescriptor::ReceiverRegister() { return x0; }
 
 

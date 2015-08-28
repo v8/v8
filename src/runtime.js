@@ -865,7 +865,6 @@ $toString = ToString;
   "string_add_right_builtin", STRING_ADD_RIGHT,
   "sub_builtin", SUB,
   "sub_strong_builtin", SUB_STRONG,
-  "to_string_builtin", TO_STRING,
 ]);
 
 %InstallToContext([

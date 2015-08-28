@@ -25,6 +25,7 @@ class PlatformInterfaceDescriptor;
   V(FastNewClosure)                           \
   V(FastNewContext)                           \
   V(ToNumber)                                 \
+  V(ToString)                                 \
   V(ToObject)                                 \
   V(NumberToString)                           \
   V(Typeof)                                   \
@@ -360,6 +361,16 @@ class FastNewContextDescriptor : public CallInterfaceDescriptor {
 class ToNumberDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ToNumberDescriptor, CallInterfaceDescriptor)
+};
+
+
+class ToStringDescriptor : public CallInterfaceDescriptor {
+ public:
+  enum ParameterIndices { kReceiverIndex };
+
+  DECLARE_DESCRIPTOR(ToStringDescriptor, CallInterfaceDescriptor)
+
+  static const Register ReceiverRegister();
 };
 
 

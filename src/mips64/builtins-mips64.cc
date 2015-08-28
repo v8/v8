@@ -239,8 +239,8 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ IncrementCounter(counters->string_ctor_conversions(), 1, a3, a4);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(a0);
-    __ InvokeBuiltin(Context::TO_STRING_BUILTIN_INDEX, CALL_FUNCTION);
+    ToStringStub stub(masm->isolate());
+    __ CallStub(&stub);
   }
   __ pop(function);
   __ mov(argument, v0);

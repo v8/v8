@@ -527,6 +527,8 @@ class FullCodeGenerator: public AstVisitor {
   F(RegExpExec)                           \
   F(RegExpConstructResult)                \
   F(NumberToString)                       \
+  F(ToString)                             \
+  F(ToName)                               \
   F(ToObject)                             \
   F(DebugIsActive)
 

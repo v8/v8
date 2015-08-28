@@ -296,7 +296,9 @@ void JSGenericLowering::LowerJSToNumber(Node* node) {
 
 
 void JSGenericLowering::LowerJSToString(Node* node) {
-  ReplaceWithBuiltinCall(node, Context::TO_STRING_BUILTIN_INDEX, 1);
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Callable callable = CodeFactory::ToString(isolate());
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 

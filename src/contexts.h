@@ -133,8 +133,7 @@ enum BindingFlags {
   V(STRING_ADD_LEFT_BUILTIN_INDEX, JSFunction, string_add_left_builtin)     \
   V(STRING_ADD_RIGHT_BUILTIN_INDEX, JSFunction, string_add_right_builtin)   \
   V(SUB_BUILTIN_INDEX, JSFunction, sub_builtin)                             \
-  V(SUB_STRONG_BUILTIN_INDEX, JSFunction, sub_strong_builtin)               \
-  V(TO_STRING_BUILTIN_INDEX, JSFunction, to_string_builtin)
+  V(SUB_STRONG_BUILTIN_INDEX, JSFunction, sub_strong_builtin)
 
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \

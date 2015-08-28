@@ -3873,6 +3873,40 @@ void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitToString(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  // Load the argument into rax and convert it.
+  VisitForAccumulatorValue(args->at(0));
+
+  ToStringStub stub(isolate());
+  __ CallStub(&stub);
+  context()->Plug(rax);
+}
+
+
+void FullCodeGenerator::EmitToName(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  // Load the argument into rax and convert it.
+  VisitForAccumulatorValue(args->at(0));
+
+  // Convert the object to a name.
+  Label convert, done_convert;
+  __ JumpIfSmi(rax, &convert, Label::kNear);
+  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
+  __ CmpObjectType(rax, LAST_NAME_TYPE, rcx);
+  __ j(below_equal, &done_convert, Label::kNear);
+  __ bind(&convert);
+  ToStringStub stub(isolate());
+  __ CallStub(&stub);
+  __ bind(&done_convert);
+  context()->Plug(rax);
+}
+
+
 void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(1, args->length());
