@@ -6752,6 +6752,71 @@ TEST(DestructuringDisallowPatternsInRestParams) {
 }
 
 
+TEST(DefaultParametersYieldInInitializers) {
+  // clang-format off
+  const char* sloppy_function_context_data[][2] = {
+    {"(function f(", ") { });"},
+    // TODO(wingo): Add arrow functions.
+    {NULL, NULL}
+  };
+
+  const char* strict_function_context_data[][2] = {
+    {"'use strong'; (function f(", ") { });"},
+    {"'use strict'; (function f(", ") { });"},
+    // TODO(wingo,conradw): These should also signal early errors.
+    // {"(function f(", ") {'use strong'; });"},
+    // {"(function f(", ") {'use strict'; });"},
+    // TODO(wingo): Add arrow functions.
+    {NULL, NULL}
+  };
+
+  const char* generator_context_data[][2] = {
+    {"'use strong'; (function *g(", ") { });"},
+    {"'use strict'; (function *g(", ") { });"},
+    // TODO(wingo,conradw): These should also signal early errors.
+    // {"(function *g(", ") {'use strong'; });"},
+    // {"(function *g(", ") {'use strict'; });"},
+    {"(function *g(", ") { });"},
+    {NULL, NULL}
+  };
+
+  const char* formal_parameter_data[] = {
+    "x=yield",
+    "x, y=yield",
+    "{x=yield}",
+    "[x=yield]",
+    "{x}=yield",
+    "[x]=yield",
+
+    "x=(yield)",
+    "x, y=(yield)",
+    "{x=(yield)}",
+    "[x=(yield)]",
+    "{x}=(yield)",
+    "[x]=(yield)",
+
+    "x=f(yield)",
+    "x, y=f(yield)",
+    "{x=f(yield)}",
+    "[x=f(yield)]",
+    "{x}=f(yield)",
+    "[x]=f(yield)",
+    NULL
+  };
+
+  // clang-format on
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyDestructuring, kAllowHarmonyDefaultParameters,
+      kAllowHarmonyArrowFunctions, kAllowStrongMode};
+  RunParserSyncTest(sloppy_function_context_data, formal_parameter_data,
+                    kSuccess, NULL, 0, always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_function_context_data, formal_parameter_data, kError,
+                    NULL, 0, always_flags, arraysize(always_flags));
+  RunParserSyncTest(generator_context_data, formal_parameter_data, kError, NULL,
+                    0, always_flags, arraysize(always_flags));
+}
+
+
 TEST(SpreadArray) {
   i::FLAG_harmony_spread_arrays = true;
 

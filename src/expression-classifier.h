@@ -28,19 +28,22 @@ class ExpressionClassifier {
 
   enum TargetProduction {
     ExpressionProduction = 1 << 0,
-    BindingPatternProduction = 1 << 1,
-    AssignmentPatternProduction = 1 << 2,
-    DistinctFormalParametersProduction = 1 << 3,
-    StrictModeFormalParametersProduction = 1 << 4,
-    StrongModeFormalParametersProduction = 1 << 5,
-    ArrowFormalParametersProduction = 1 << 6,
+    FormalParameterInitializerProduction = 1 << 1,
+    BindingPatternProduction = 1 << 2,
+    AssignmentPatternProduction = 1 << 3,
+    DistinctFormalParametersProduction = 1 << 4,
+    StrictModeFormalParametersProduction = 1 << 5,
+    StrongModeFormalParametersProduction = 1 << 6,
+    ArrowFormalParametersProduction = 1 << 7,
 
+    ExpressionProductions =
+        (ExpressionProduction | FormalParameterInitializerProduction),
     PatternProductions =
         (BindingPatternProduction | AssignmentPatternProduction),
     FormalParametersProductions = (DistinctFormalParametersProduction |
                                    StrictModeFormalParametersProduction |
                                    StrongModeFormalParametersProduction),
-    StandardProductions = ExpressionProduction | PatternProductions,
+    StandardProductions = ExpressionProductions | PatternProductions,
     AllProductions = (StandardProductions | FormalParametersProductions |
                       ArrowFormalParametersProduction)
   };
@@ -64,6 +67,10 @@ class ExpressionClassifier {
   DuplicateFinder* duplicate_finder() const { return duplicate_finder_; }
 
   bool is_valid_expression() const { return is_valid(ExpressionProduction); }
+
+  bool is_valid_formal_parameter_initializer() const {
+    return is_valid(FormalParameterInitializerProduction);
+  }
 
   bool is_valid_binding_pattern() const {
     return is_valid(BindingPatternProduction);
@@ -94,6 +101,10 @@ class ExpressionClassifier {
   }
 
   const Error& expression_error() const { return expression_error_; }
+
+  const Error& formal_parameter_initializer_error() const {
+    return formal_parameter_initializer_error_;
+  }
 
   const Error& binding_pattern_error() const { return binding_pattern_error_; }
 
@@ -133,6 +144,16 @@ class ExpressionClassifier {
     expression_error_.location = loc;
     expression_error_.message = message;
     expression_error_.arg = arg;
+  }
+
+  void RecordFormalParameterInitializerError(const Scanner::Location& loc,
+                                             MessageTemplate::Template message,
+                                             const char* arg = nullptr) {
+    if (!is_valid_formal_parameter_initializer()) return;
+    invalid_productions_ |= FormalParameterInitializerProduction;
+    formal_parameter_initializer_error_.location = loc;
+    formal_parameter_initializer_error_.message = message;
+    formal_parameter_initializer_error_.arg = arg;
   }
 
   void RecordBindingPatternError(const Scanner::Location& loc,
@@ -212,6 +233,9 @@ class ExpressionClassifier {
       invalid_productions_ |= errors;
       if (errors & ExpressionProduction)
         expression_error_ = inner.expression_error_;
+      if (errors & FormalParameterInitializerProduction)
+        formal_parameter_initializer_error_ =
+            inner.formal_parameter_initializer_error_;
       if (errors & BindingPatternProduction)
         binding_pattern_error_ = inner.binding_pattern_error_;
       if (errors & AssignmentPatternProduction)
@@ -246,6 +270,7 @@ class ExpressionClassifier {
   unsigned invalid_productions_;
   unsigned function_properties_;
   Error expression_error_;
+  Error formal_parameter_initializer_error_;
   Error binding_pattern_error_;
   Error assignment_pattern_error_;
   Error arrow_formal_parameters_error_;

@@ -548,6 +548,14 @@ class ParserBase : public Traits {
     }
   }
 
+  void ValidateFormalParameterInitializer(
+      const ExpressionClassifier* classifier, bool* ok) {
+    if (!classifier->is_valid_formal_parameter_initializer()) {
+      ReportClassifierError(classifier->formal_parameter_initializer_error());
+      *ok = false;
+    }
+  }
+
   void ValidateBindingPattern(const ExpressionClassifier* classifier,
                               bool* ok) {
     if (!classifier->is_valid_binding_pattern()) {
@@ -627,6 +635,15 @@ class ParserBase : public Traits {
     GetUnexpectedTokenMessage(peek(), &message, &arg);
     classifier->RecordArrowFormalParametersError(scanner()->peek_location(),
                                                  message, arg);
+  }
+
+  void FormalParameterInitializerUnexpectedToken(
+      ExpressionClassifier* classifier) {
+    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
+    const char* arg;
+    GetUnexpectedTokenMessage(peek(), &message, &arg);
+    classifier->RecordFormalParameterInitializerError(
+        scanner()->peek_location(), message, arg);
   }
 
   // Recursive descent functions:
@@ -2522,7 +2539,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
       ExpressionT expression =
           ParseAssignmentExpression(true, &computed_name_classifier, CHECK_OK);
       classifier->Accumulate(computed_name_classifier,
-                             ExpressionClassifier::ExpressionProduction);
+                             ExpressionClassifier::ExpressionProductions);
       Expect(Token::RBRACK, CHECK_OK);
       return expression;
     }
@@ -2668,7 +2685,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
       ExpressionT rhs = this->ParseAssignmentExpression(
           true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       classifier->Accumulate(rhs_classifier,
-                             ExpressionClassifier::ExpressionProduction);
+                             ExpressionClassifier::ExpressionProductions);
       value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
                                        RelocInfo::kNoPosition);
     } else {
@@ -2910,7 +2927,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   ExpressionT right =
       this->ParseAssignmentExpression(accept_IN, &rhs_classifier, CHECK_OK);
   classifier->Accumulate(rhs_classifier,
-                         ExpressionClassifier::ExpressionProduction);
+                         ExpressionClassifier::ExpressionProductions);
 
   // TODO(1231235): We try to estimate the set of properties set by
   // constructors. We define a new property whenever there is an
@@ -2949,6 +2966,7 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
   //   'yield' ([no line terminator] '*'? AssignmentExpression)?
   int pos = peek_position();
   BindingPatternUnexpectedToken(classifier);
+  FormalParameterInitializerUnexpectedToken(classifier);
   Expect(Token::YIELD, CHECK_OK);
   ExpressionT generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
@@ -3676,6 +3694,8 @@ void ParserBase<Traits>::ParseFormalParameter(
       return;
     }
     parameters->is_simple = false;
+    ValidateFormalParameterInitializer(classifier, ok);
+    if (!*ok) return;
     classifier->RecordNonSimpleParameter();
   }
 
@@ -3685,6 +3705,7 @@ void ParserBase<Traits>::ParseFormalParameter(
     initializer = ParseAssignmentExpression(true, &init_classifier, ok);
     if (!*ok) return;
     ValidateExpression(&init_classifier, ok);
+    ValidateFormalParameterInitializer(&init_classifier, ok);
     if (!*ok) return;
     parameters->is_simple = false;
     classifier->RecordNonSimpleParameter();
