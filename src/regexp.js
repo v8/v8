@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 var $regexpLastMatchInfoOverride;
-var harmony_regexps = false;
-var harmony_unicode_regexps = false;
 
 (function(global, utils) {
 
@@ -13,12 +11,19 @@ var harmony_unicode_regexps = false;
 // -------------------------------------------------------------------
 // Imports
 
+var FLAG_harmony_regexps;
+var FLAG_harmony_unicode_regexps;
 var GlobalRegExp = global.RegExp;
 var InternalPackedArray = utils.InternalPackedArray;
 var ToNumber;
 
 utils.Import(function(from) {
   ToNumber = from.ToNumber;
+});
+
+utils.ImportFromExperimental(function(from) {
+  FLAG_harmony_regexps = from.FLAG_harmony_regexps;
+  FLAG_harmony_unicode_regexps = from.FLAG_harmony_unicode_regexps;
 });
 
 // -------------------------------------------------------------------
@@ -54,9 +59,9 @@ function DoConstructRegExp(object, pattern, flags) {
     flags = (pattern.global ? 'g' : '')
         + (pattern.ignoreCase ? 'i' : '')
         + (pattern.multiline ? 'm' : '');
-    if (harmony_unicode_regexps)
+    if (FLAG_harmony_unicode_regexps)
         flags += (pattern.unicode ? 'u' : '');
-    if (harmony_regexps)
+    if (FLAG_harmony_regexps)
         flags += (pattern.sticky ? 'y' : '');
     pattern = pattern.source;
   }
@@ -163,7 +168,7 @@ function RegExpExecJS(string) {
   // algorithm, step 5) even if the value is discarded for non-global RegExps.
   var i = TO_INTEGER(lastIndex);
 
-  var updateLastIndex = this.global || (harmony_regexps && this.sticky);
+  var updateLastIndex = this.global || (FLAG_harmony_regexps && this.sticky);
   if (updateLastIndex) {
     if (i < 0 || i > string.length) {
       this.lastIndex = 0;
@@ -211,7 +216,7 @@ function RegExpTest(string) {
   // algorithm, step 5) even if the value is discarded for non-global RegExps.
   var i = TO_INTEGER(lastIndex);
 
-  if (this.global || (harmony_regexps && this.sticky)) {
+  if (this.global || (FLAG_harmony_regexps && this.sticky)) {
     if (i < 0 || i > string.length) {
       this.lastIndex = 0;
       return false;
@@ -269,8 +274,8 @@ function RegExpToString() {
   if (this.global) result += 'g';
   if (this.ignoreCase) result += 'i';
   if (this.multiline) result += 'm';
-  if (harmony_unicode_regexps && this.unicode) result += 'u';
-  if (harmony_regexps && this.sticky) result += 'y';
+  if (FLAG_harmony_unicode_regexps && this.unicode) result += 'u';
+  if (FLAG_harmony_regexps && this.sticky) result += 'y';
   return result;
 }
 

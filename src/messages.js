@@ -25,29 +25,31 @@ var Bool16x8ToString;
 var Bool32x4ToString;
 var Bool8x16ToString;
 var callSiteReceiverSymbol =
-    utils.GetPrivateSymbol("call_site_receiver_symbol");
+    utils.ImportNow("call_site_receiver_symbol");
 var callSiteFunctionSymbol =
-    utils.GetPrivateSymbol("call_site_function_symbol");
+    utils.ImportNow("call_site_function_symbol");
 var callSitePositionSymbol =
-    utils.GetPrivateSymbol("call_site_position_symbol");
-var callSiteStrictSymbol = utils.GetPrivateSymbol("call_site_strict_symbol");
+    utils.ImportNow("call_site_position_symbol");
+var callSiteStrictSymbol =
+    utils.ImportNow("call_site_strict_symbol");
 var Float32x4ToString;
 var formattedStackTraceSymbol =
-    utils.GetPrivateSymbol("formatted_stack_trace_symbol");
+    utils.ImportNow("formatted_stack_trace_symbol");
 var FunctionSourceString
 var GlobalObject = global.Object;
 var Int16x8ToString;
 var Int32x4ToString;
 var Int8x16ToString;
 var InternalArray = utils.InternalArray;
-var internalErrorSymbol = utils.GetPrivateSymbol("internal_error_symbol");
+var internalErrorSymbol = utils.ImportNow("internal_error_symbol");
 var ObjectDefineProperty;
 var ObjectToString;
-var stackTraceSymbol = utils.GetPrivateSymbol("stack_trace_symbol");
+var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
 var StringCharAt;
 var StringIndexOf;
 var StringSubstring;
-var ToString;
+var SymbolToString;
+var ToString = utils.ImportNow("ToString");
 var Uint16x8ToString;
 var Uint32x4ToString;
 var Uint8x16ToString;
@@ -67,13 +69,10 @@ utils.Import(function(from) {
   StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
+  SymbolToString = from.SymbolToString;
   Uint16x8ToString = from.Uint16x8ToString;
   Uint32x4ToString = from.Uint32x4ToString;
   Uint8x16ToString = from.Uint8x16ToString;
-});
-
-utils.ImportNow(function(from) {
-  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -108,7 +107,7 @@ function NoSideEffectToString(obj) {
     }
     return str;
   }
-  if (IS_SYMBOL(obj)) return %_CallFunction(obj, $symbolToString);
+  if (IS_SYMBOL(obj)) return %_CallFunction(obj, SymbolToString);
   if (IS_SIMD_VALUE(obj)) {
     switch (typeof(obj)) {
       case 'float32x4': return %_CallFunction(obj, Float32x4ToString);

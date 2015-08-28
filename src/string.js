@@ -20,6 +20,7 @@ var MathMin;
 var RegExpExec;
 var RegExpExecNoTests;
 var RegExpLastMatchInfo;
+var SymbolToString;
 var ToNumber;
 var ToString;
 
@@ -31,6 +32,7 @@ utils.Import(function(from) {
   RegExpExec = from.RegExpExec;
   RegExpExecNoTests = from.RegExpExecNoTests;
   RegExpLastMatchInfo = from.RegExpLastMatchInfo;
+  SymbolToString = from.SymbolToString;
   ToNumber = from.ToNumber;
   ToString = from.ToString;
 });
@@ -43,7 +45,7 @@ function StringConstructor(x) {
     %_SetValueOf(this, TO_STRING_INLINE(x));
   } else {
     return IS_SYMBOL(x) ?
-        %_CallFunction(x, $symbolToString) : TO_STRING_INLINE(x);
+        %_CallFunction(x, SymbolToString) : TO_STRING_INLINE(x);
   }
 }
 

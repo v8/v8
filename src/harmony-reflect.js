@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(yangguo): Remove this file. Do all of this in
-//                Genesis::InitializeGlobal_harmony_reflect
-
 (function(global, utils) {
 
 'use strict';
@@ -12,10 +9,12 @@
 %CheckIsBootstrapping();
 
 var GlobalReflect = global.Reflect;
+var ReflectApply = utils.ImportNow("reflect_apply");
+var ReflectConstruct = utils.ImportNow("reflect_construct");
 
 utils.InstallFunctions(GlobalReflect, DONT_ENUM, [
-  "apply", $reflectApply,
-  "construct", $reflectConstruct
+  "apply", ReflectApply,
+  "construct", ReflectConstruct
 ]);
 
 })

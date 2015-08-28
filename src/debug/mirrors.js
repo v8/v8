@@ -13,13 +13,15 @@ var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
 var MathMin = global.Math.min;
-var promiseStatusSymbol = utils.GetPrivateSymbol("promise_status_symbol");
-var promiseValueSymbol = utils.GetPrivateSymbol("promise_value_symbol");
+var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
+var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
+var SymbolToString;
 var ToBoolean;
 var ToString;
 
 utils.Import(function(from) {
   FunctionSourceString = from.FunctionSourceString;
+  SymbolToString = from.SymbolToString;
   ToBoolean = from.ToBoolean;
   ToString = from.ToString;
 });
@@ -694,7 +696,7 @@ SymbolMirror.prototype.description = function() {
 
 
 SymbolMirror.prototype.toText = function() {
-  return %_CallFunction(this.value_, builtins.$symbolToString);
+  return %_CallFunction(this.value_, SymbolToString);
 }
 
 

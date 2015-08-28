@@ -15,6 +15,8 @@ var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
@@ -147,7 +149,7 @@ function NAMEConstructByIterable(obj, iterable, iteratorFn) {
   };
   // TODO(littledan): Computed properties don't work yet in nosnap.
   // Rephrase when they do.
-  newIterable[symbolIterator] = function() { return iterator; }
+  newIterable[iteratorSymbol] = function() { return iterator; }
   for (var value of newIterable) {
     list.push(value);
   }
@@ -162,7 +164,7 @@ function NAMEConstructor(arg1, arg2, arg3) {
                IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
       NAMEConstructByLength(this, arg1);
     } else {
-      var iteratorFn = arg1[symbolIterator];
+      var iteratorFn = arg1[iteratorSymbol];
       if (IS_UNDEFINED(iteratorFn) || iteratorFn === $arrayValues) {
         NAMEConstructByArrayLike(this, arg1);
       } else {
@@ -368,7 +370,7 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
                       DONT_ENUM | DONT_DELETE);
   utils.InstallGetter(GlobalNAME.prototype, "length", NAME_GetLength,
                       DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, symbolToStringTag,
+  utils.InstallGetter(GlobalNAME.prototype, toStringTagSymbol,
                       TypedArrayGetToStringTag);
   utils.InstallFunctions(GlobalNAME.prototype, DONT_ENUM, [
     "subarray", NAMESubArray,
@@ -474,7 +476,7 @@ DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
 // Set up constructor property on the DataView prototype.
 %AddNamedProperty(GlobalDataView.prototype, "constructor", GlobalDataView,
                   DONT_ENUM);
-%AddNamedProperty(GlobalDataView.prototype, symbolToStringTag, "DataView",
+%AddNamedProperty(GlobalDataView.prototype, toStringTagSymbol, "DataView",
                   READ_ONLY|DONT_ENUM);
 
 utils.InstallGetter(GlobalDataView.prototype, "buffer", DataViewGetBufferJS);

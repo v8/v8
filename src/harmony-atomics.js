@@ -14,6 +14,7 @@
 var GlobalObject = global.Object;
 var MathMax;
 var ToNumber;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
@@ -192,7 +193,7 @@ var Atomics = new AtomicsConstructor();
 %AddNamedProperty(global, "Atomics", Atomics, DONT_ENUM);
 %FunctionSetInstanceClassName(AtomicsConstructor, 'Atomics');
 
-%AddNamedProperty(Atomics, symbolToStringTag, "Atomics", READ_ONLY | DONT_ENUM);
+%AddNamedProperty(Atomics, toStringTagSymbol, "Atomics", READ_ONLY | DONT_ENUM);
 
 // These must match the values in src/futex-emulation.h
 utils.InstallConstants(Atomics, [

@@ -15,6 +15,8 @@ var $setValues;
 
 var GlobalMap = global.Map;
 var GlobalSet = global.Set;
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 // -------------------------------------------------------------------
 
@@ -74,7 +76,7 @@ utils.InstallFunctions(SetIterator.prototype, DONT_ENUM, [
   'next', SetIteratorNextJS
 ]);
 
-%AddNamedProperty(SetIterator.prototype, symbolToStringTag,
+%AddNamedProperty(SetIterator.prototype, toStringTagSymbol,
     "Set Iterator", READ_ONLY | DONT_ENUM);
 
 utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
@@ -83,7 +85,7 @@ utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
   'values', SetValues
 ]);
 
-%AddNamedProperty(GlobalSet.prototype, symbolIterator, SetValues, DONT_ENUM);
+%AddNamedProperty(GlobalSet.prototype, iteratorSymbol, SetValues, DONT_ENUM);
 
 $setIteratorNext = SetIteratorNextJS;
 $setValues = SetValues;
@@ -156,7 +158,7 @@ utils.InstallFunctions(MapIterator.prototype, DONT_ENUM, [
   'next', MapIteratorNextJS
 ]);
 
-%AddNamedProperty(MapIterator.prototype, symbolToStringTag,
+%AddNamedProperty(MapIterator.prototype, toStringTagSymbol,
     "Map Iterator", READ_ONLY | DONT_ENUM);
 
 
@@ -166,7 +168,7 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
   'values', MapValues
 ]);
 
-%AddNamedProperty(GlobalMap.prototype, symbolIterator, MapEntries, DONT_ENUM);
+%AddNamedProperty(GlobalMap.prototype, iteratorSymbol, MapEntries, DONT_ENUM);
 
 $mapEntries = MapEntries;
 $mapIteratorNext = MapIteratorNextJS;

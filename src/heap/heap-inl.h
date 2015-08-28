@@ -66,7 +66,7 @@ INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
 PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name, varname, description) \
+#define SYMBOL_ACCESSOR(name, description) \
   Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
 PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR

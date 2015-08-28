@@ -2,17 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Expects following symbols to be set in the bootstrapper during genesis:
-// - symbolHasInstance
-// - symbolIsConcatSpreadable
-// - symbolIsRegExp
-// - symbolIterator
-// - symbolToPrimitive
-// - symbolToStringTag
-// - symbolUnscopables
-
-var $symbolToString;
-
 (function(global, utils) {
 
 "use strict";
@@ -24,8 +13,16 @@ var $symbolToString;
 
 var GlobalObject = global.Object;
 var GlobalSymbol = global.Symbol;
+var hasInstanceSymbol = utils.ImportNow("has_instance_symbol");
+var isConcatSpreadableSymbol =
+    utils.ImportNow("is_concat_spreadable_symbol");
+var isRegExpSymbol = utils.ImportNow("is_regexp_symbol");
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var ObjectGetOwnPropertyKeys;
+var toPrimitiveSymbol = utils.ImportNow("to_primitive_symbol");
 var ToString;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
   ObjectGetOwnPropertyKeys = from.ObjectGetOwnPropertyKeys;
@@ -97,22 +94,22 @@ function ObjectGetOwnPropertySymbols(obj) {
   return ObjectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_STRING);
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 %SetCode(GlobalSymbol, SymbolConstructor);
 %FunctionSetPrototype(GlobalSymbol, new GlobalObject());
 
 utils.InstallConstants(GlobalSymbol, [
   // TODO(rossberg): expose when implemented.
-  // "hasInstance", symbolHasInstance,
-  // "isConcatSpreadable", symbolIsConcatSpreadable,
-  // "isRegExp", symbolIsRegExp,
-  "iterator", symbolIterator,
-  "toPrimitive", symbolToPrimitive,
+  // "hasInstance", hasInstanceSymbol,
+  // "isConcatSpreadable", isConcatSpreadableSymbol,
+  // "isRegExp", isRegExpSymbol,
+  "iterator", iteratorSymbol,
+  "toPrimitive", toPrimitiveSymbol,
   // TODO(dslomov, caitp): Currently defined in harmony-tostring.js ---
   // Move here when shipping
-  // "toStringTag", symbolToStringTag,
-  "unscopables", symbolUnscopables
+  // "toStringTag", toStringTagSymbol,
+  "unscopables", unscopablesSymbol,
 ]);
 
 utils.InstallFunctions(GlobalSymbol, DONT_ENUM, [
@@ -122,12 +119,12 @@ utils.InstallFunctions(GlobalSymbol, DONT_ENUM, [
 
 %AddNamedProperty(
     GlobalSymbol.prototype, "constructor", GlobalSymbol, DONT_ENUM);
-utils.SetFunctionName(SymbolToPrimitive, symbolToPrimitive);
+utils.SetFunctionName(SymbolToPrimitive, toPrimitiveSymbol);
 %AddNamedProperty(
-    GlobalSymbol.prototype, symbolToPrimitive, SymbolToPrimitive,
+    GlobalSymbol.prototype, toPrimitiveSymbol, SymbolToPrimitive,
     DONT_ENUM | READ_ONLY);
 %AddNamedProperty(
-    GlobalSymbol.prototype, symbolToStringTag, "Symbol", DONT_ENUM | READ_ONLY);
+    GlobalSymbol.prototype, toStringTagSymbol, "Symbol", DONT_ENUM | READ_ONLY);
 
 utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, [
   "toString", SymbolToString,
@@ -138,6 +135,11 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "getOwnPropertySymbols", ObjectGetOwnPropertySymbols
 ]);
 
-$symbolToString = SymbolToString;
+// -------------------------------------------------------------------
+// Exports
+
+utils.Export(function(to) {
+  to.SymbolToString = SymbolToString;
+})
 
 })

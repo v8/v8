@@ -302,7 +302,8 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F)        \
   F(CheckIsBootstrapping, 0, 1)               \
-  F(ExportPrivateSymbols, 1, 1)               \
+  F(ExportFromRuntime, 1, 1)                  \
+  F(ExportExperimentalFromRuntime, 1, 1)      \
   F(InstallToContext, 1, 1)                   \
   F(Throw, 1, 1)                              \
   F(ReThrow, 1, 1)                            \

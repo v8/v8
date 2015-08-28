@@ -21,6 +21,7 @@ var IsFinite;
 var MathAbs;
 var MathFloor;
 var ToNumber;
+var toPrimitiveSymbol = utils.ImportNow("to_primitive_symbol");
 var ToString;
 
 utils.Import(function(from) {
@@ -847,8 +848,8 @@ utils.InstallFunctions(GlobalDate, DONT_ENUM, [
 
 // Set up non-enumerable constructor property of the Date prototype object.
 %AddNamedProperty(GlobalDate.prototype, "constructor", GlobalDate, DONT_ENUM);
-utils.SetFunctionName(DateToPrimitive, symbolToPrimitive);
-%AddNamedProperty(GlobalDate.prototype, symbolToPrimitive, DateToPrimitive,
+utils.SetFunctionName(DateToPrimitive, toPrimitiveSymbol);
+%AddNamedProperty(GlobalDate.prototype, toPrimitiveSymbol, DateToPrimitive,
                   DONT_ENUM | READ_ONLY);
 
 // Set up non-enumerable functions of the Date prototype object and

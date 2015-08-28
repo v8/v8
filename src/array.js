@@ -22,6 +22,7 @@ var ObjectIsSealed;
 var ObjectToString;
 var ToNumber;
 var ToString;
+var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
   Delete = from.Delete;
@@ -1610,7 +1611,7 @@ var unscopables = {
   keys: true,
 };
 
-%AddNamedProperty(GlobalArray.prototype, symbolUnscopables, unscopables,
+%AddNamedProperty(GlobalArray.prototype, unscopablesSymbol, unscopables,
                   DONT_ENUM | READ_ONLY);
 
 // Set up non-enumerable functions on the Array object.

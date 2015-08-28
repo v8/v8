@@ -13,13 +13,14 @@
 
 var InternalArray = utils.InternalArray;
 var promiseHasHandlerSymbol =
-    utils.GetPrivateSymbol("promise_has_handler_symbol");
-var promiseOnRejectSymbol = utils.GetPrivateSymbol("promise_on_reject_symbol");
+    utils.ImportNow("promise_has_handler_symbol");
+var promiseOnRejectSymbol = utils.ImportNow("promise_on_reject_symbol");
 var promiseOnResolveSymbol =
-    utils.GetPrivateSymbol("promise_on_resolve_symbol");
-var promiseRawSymbol = utils.GetPrivateSymbol("promise_raw_symbol");
-var promiseStatusSymbol = utils.GetPrivateSymbol("promise_status_symbol");
-var promiseValueSymbol = utils.GetPrivateSymbol("promise_value_symbol");
+    utils.ImportNow("promise_on_resolve_symbol");
+var promiseRawSymbol = utils.ImportNow("promise_raw_symbol");
+var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
+var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 // -------------------------------------------------------------------
 
@@ -361,7 +362,7 @@ function PromiseHasUserDefinedRejectHandler() {
 // Install exported functions.
 
 %AddNamedProperty(global, 'Promise', GlobalPromise, DONT_ENUM);
-%AddNamedProperty(GlobalPromise.prototype, symbolToStringTag, "Promise",
+%AddNamedProperty(GlobalPromise.prototype, toStringTagSymbol, "Promise",
                   DONT_ENUM | READ_ONLY);
 
 utils.InstallFunctions(GlobalPromise, DONT_ENUM, [

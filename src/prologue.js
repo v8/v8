@@ -13,7 +13,7 @@
 
 var imports = UNDEFINED;
 var imports_from_experimental = UNDEFINED;
-var exports_container = {};
+var exports_container = %ExportFromRuntime({});
 
 // Export to other scripts.
 // In normal natives, this exports functions to other normal natives.
@@ -36,11 +36,12 @@ function Import(f) {
   imports = f;
 }
 
+
 // Import immediately from exports of previous scripts. We need this for
 // functions called during bootstrapping. Hooking up imports in PostNatives
 // would be too late.
-function ImportNow(f) {
-  f(exports_container);
+function ImportNow(name) {
+  return exports_container[name];
 }
 
 
@@ -149,12 +150,6 @@ function SetUpLockedPrototype(
 }
 
 
-var private_symbols = %ExportPrivateSymbols({});
-
-function GetPrivateSymbol(name) {
-  return private_symbols[name];
-}
-
 // -----------------------------------------------------------------------
 // To be called by bootstrapper
 
@@ -190,10 +185,19 @@ function PostNatives(utils) {
     "ObjectIsFrozen",
     "ObjectDefineProperty",
     "OwnPropertyKeys",
+    "SymbolToString",
     "ToNameArray",
     "ToBoolean",
     "ToNumber",
     "ToString",
+    // From runtime:
+    "is_concat_spreadable_symbol",
+    "iterator_symbol",
+    "promise_status_symbol",
+    "promise_value_symbol",
+    "reflect_apply",
+    "reflect_construct",
+    "to_string_tag_symbol",
   ];
 
   var filtered_exports = {};
@@ -212,7 +216,7 @@ function PostNatives(utils) {
 
 function PostExperimentals(utils) {
   %CheckIsBootstrapping();
-
+  %ExportExperimentalFromRuntime(exports_container);
   for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
     imports(exports_container);
   }
@@ -222,7 +226,6 @@ function PostExperimentals(utils) {
   }
 
   exports_container = UNDEFINED;
-  private_symbols = UNDEFINED;
 
   utils.PostExperimentals = UNDEFINED;
   utils.PostDebug = UNDEFINED;
@@ -237,7 +240,6 @@ function PostDebug(utils) {
   }
 
   exports_container = UNDEFINED;
-  private_symbols = UNDEFINED;
 
   utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
@@ -247,13 +249,12 @@ function PostDebug(utils) {
 
 // -----------------------------------------------------------------------
 
-%OptimizeObjectForAddingMultipleProperties(utils, 14);
+%OptimizeObjectForAddingMultipleProperties(utils, 13);
 
 utils.Import = Import;
 utils.ImportNow = ImportNow;
 utils.Export = Export;
 utils.ImportFromExperimental = ImportFromExperimental;
-utils.GetPrivateSymbol = GetPrivateSymbol;
 utils.SetFunctionName = SetFunctionName;
 utils.InstallConstants = InstallConstants;
 utils.InstallFunctions = InstallFunctions;

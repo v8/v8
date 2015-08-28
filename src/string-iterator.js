@@ -13,10 +13,12 @@
 
 var ArrayIteratorCreateResultObject;
 var GlobalString = global.String;
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var stringIteratorIteratedStringSymbol =
-    utils.GetPrivateSymbol("string_iterator_iterated_string_symbol");
+    utils.ImportNow("string_iterator_iterated_string_symbol");
 var stringIteratorNextIndexSymbol =
-    utils.GetPrivateSymbol("string_iterator_next_index_symbol");
+    utils.ImportNow("string_iterator_next_index_symbol");
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   ArrayIteratorCreateResultObject = from.ArrayIteratorCreateResultObject;
@@ -91,11 +93,11 @@ function StringPrototypeIterator() {
 utils.InstallFunctions(StringIterator.prototype, DONT_ENUM, [
   'next', StringIteratorNext
 ]);
-%AddNamedProperty(StringIterator.prototype, symbolToStringTag,
+%AddNamedProperty(StringIterator.prototype, toStringTagSymbol,
                   "String Iterator", READ_ONLY | DONT_ENUM);
 
-utils.SetFunctionName(StringPrototypeIterator, symbolIterator);
-%AddNamedProperty(GlobalString.prototype, symbolIterator,
+utils.SetFunctionName(StringPrototypeIterator, iteratorSymbol);
+%AddNamedProperty(GlobalString.prototype, iteratorSymbol,
                   StringPrototypeIterator, DONT_ENUM);
 
 })

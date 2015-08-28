@@ -3220,7 +3220,7 @@ void Heap::CreateInitialObjects() {
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(name, varname, description)                             \
+#define SYMBOL_INIT(name, description)                                      \
   Handle<Symbol> name = factory->NewSymbol();                               \
   Handle<String> name##d = factory->NewStringFromStaticChars(#description); \
   name->set_name(*name##d);                                                 \

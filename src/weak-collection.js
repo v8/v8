@@ -11,6 +11,7 @@
 var GlobalObject = global.Object;
 var GlobalWeakMap = global.WeakMap;
 var GlobalWeakSet = global.WeakSet;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 // -------------------------------------------------------------------
 // Harmony WeakMap
@@ -90,7 +91,7 @@ function WeakMapDelete(key) {
 %FunctionSetPrototype(GlobalWeakMap, new GlobalObject());
 %AddNamedProperty(GlobalWeakMap.prototype, "constructor", GlobalWeakMap,
                   DONT_ENUM);
-%AddNamedProperty(GlobalWeakMap.prototype, symbolToStringTag, "WeakMap",
+%AddNamedProperty(GlobalWeakMap.prototype, toStringTagSymbol, "WeakMap",
                   DONT_ENUM | READ_ONLY);
 
 // Set up the non-enumerable functions on the WeakMap prototype object.
@@ -164,7 +165,7 @@ function WeakSetDelete(value) {
 %FunctionSetPrototype(GlobalWeakSet, new GlobalObject());
 %AddNamedProperty(GlobalWeakSet.prototype, "constructor", GlobalWeakSet,
                  DONT_ENUM);
-%AddNamedProperty(GlobalWeakSet.prototype, symbolToStringTag, "WeakSet",
+%AddNamedProperty(GlobalWeakSet.prototype, toStringTagSymbol, "WeakSet",
                   DONT_ENUM | READ_ONLY);
 
 // Set up the non-enumerable functions on the WeakSet prototype object.

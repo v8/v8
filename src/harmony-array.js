@@ -14,7 +14,7 @@
 var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
-var GlobalSymbol = global.Symbol;
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MathMax;
 var MathMin;
 var ObjectIsFrozen;
@@ -221,7 +221,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
     }
   }
 
-  var iterable = GetMethod(items, symbolIterator);
+  var iterable = GetMethod(items, iteratorSymbol);
   var k;
   var result;
   var mappedValue;

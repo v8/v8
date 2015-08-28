@@ -14,12 +14,14 @@ var $arrayValues;
 // Imports
 
 var arrayIterationKindSymbol =
-    utils.GetPrivateSymbol("array_iteration_kind_symbol");
+    utils.ImportNow("array_iteration_kind_symbol");
 var arrayIteratorNextIndexSymbol =
-    utils.GetPrivateSymbol("array_iterator_next_symbol");
+    utils.ImportNow("array_iterator_next_symbol");
 var arrayIteratorObjectSymbol =
-    utils.GetPrivateSymbol("array_iterator_object_symbol");
+    utils.ImportNow("array_iterator_object_symbol");
 var GlobalArray = global.Array;
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
   FUNCTION(Uint8Array)
@@ -132,10 +134,10 @@ function ArrayKeys() {
 utils.InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
   'next', ArrayIteratorNext
 ]);
-utils.SetFunctionName(ArrayIteratorIterator, symbolIterator);
-%AddNamedProperty(ArrayIterator.prototype, symbolIterator,
+utils.SetFunctionName(ArrayIteratorIterator, iteratorSymbol);
+%AddNamedProperty(ArrayIterator.prototype, iteratorSymbol,
                   ArrayIteratorIterator, DONT_ENUM);
-%AddNamedProperty(ArrayIterator.prototype, symbolToStringTag,
+%AddNamedProperty(ArrayIterator.prototype, toStringTagSymbol,
                   "Array Iterator", READ_ONLY | DONT_ENUM);
 
 utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
@@ -148,14 +150,14 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
 // InstallFunctions block, as it'll be redundant.
 utils.SetFunctionName(ArrayValues, 'values');
 
-%AddNamedProperty(GlobalArray.prototype, symbolIterator, ArrayValues,
+%AddNamedProperty(GlobalArray.prototype, iteratorSymbol, ArrayValues,
                   DONT_ENUM);
 
 macro EXTEND_TYPED_ARRAY(NAME)
   %AddNamedProperty(GlobalNAME.prototype, 'entries', ArrayEntries, DONT_ENUM);
   %AddNamedProperty(GlobalNAME.prototype, 'values', ArrayValues, DONT_ENUM);
   %AddNamedProperty(GlobalNAME.prototype, 'keys', ArrayKeys, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype, symbolIterator, ArrayValues,
+  %AddNamedProperty(GlobalNAME.prototype, iteratorSymbol, ArrayValues,
                     DONT_ENUM);
 endmacro
 

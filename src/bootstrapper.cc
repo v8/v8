@@ -1756,18 +1756,58 @@ void Genesis::InitializeBuiltinTypedArrays() {
 }
 
 
-void Bootstrapper::ExportPrivateSymbols(Isolate* isolate,
-                                        Handle<JSObject> container) {
+void Bootstrapper::ExportFromRuntime(Isolate* isolate,
+                                     Handle<JSObject> container) {
   HandleScope scope(isolate);
 #define EXPORT_PRIVATE_SYMBOL(NAME)                                         \
   Handle<String> NAME##_name =                                              \
       isolate->factory()->NewStringFromAsciiChecked(#NAME);                 \
   JSObject::AddProperty(container, NAME##_name, isolate->factory()->NAME(), \
                         NONE);
-
   PRIVATE_SYMBOL_LIST(EXPORT_PRIVATE_SYMBOL)
-
 #undef EXPORT_PRIVATE_SYMBOL
+
+#define EXPORT_PUBLIC_SYMBOL(NAME, DESCRIPTION)                             \
+  Handle<String> NAME##_name =                                              \
+      isolate->factory()->NewStringFromAsciiChecked(#NAME);                 \
+  JSObject::AddProperty(container, NAME##_name, isolate->factory()->NAME(), \
+                        NONE);
+  PUBLIC_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
+#undef EXPORT_PUBLIC_SYMBOL
+
+  Handle<JSFunction> apply = InstallFunction(
+      container, "reflect_apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+      MaybeHandle<JSObject>(), Builtins::kReflectApply);
+  apply->shared()->set_internal_formal_parameter_count(3);
+  apply->shared()->set_length(3);
+  isolate->native_context()->set_reflect_apply(*apply);
+
+  Handle<JSFunction> construct = InstallFunction(
+      container, "reflect_construct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+      MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
+  construct->shared()->set_internal_formal_parameter_count(3);
+  construct->shared()->set_length(2);
+  isolate->native_context()->set_reflect_construct(*construct);
+}
+
+
+void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
+                                                 Handle<JSObject> container) {
+  HandleScope scope(isolate);
+
+#define INITIALIZE_FLAG(FLAG)                                         \
+  {                                                                   \
+    Handle<String> name =                                             \
+        isolate->factory()->NewStringFromAsciiChecked(#FLAG);         \
+    JSObject::AddProperty(container, name,                            \
+                          isolate->factory()->ToBoolean(FLAG), NONE); \
+  }
+
+  INITIALIZE_FLAG(FLAG_harmony_regexps)
+  INITIALIZE_FLAG(FLAG_harmony_unicode_regexps)
+  INITIALIZE_FLAG(FLAG_harmony_tostring)
+
+#undef INITIALIZE_FLAG
 }
 
 
@@ -1791,48 +1831,12 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spread_arrays)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_atomics)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_new_target)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_concat_spreadable)
-
-void Genesis::InitializeGlobal_harmony_regexps() {
-  Handle<JSObject> builtins(native_context()->builtins());
-
-  Handle<HeapObject> flag(FLAG_harmony_regexps ? heap()->true_value()
-                                               : heap()->false_value());
-  Runtime::SetObjectProperty(isolate(), builtins,
-                             factory()->harmony_regexps_string(), flag,
-                             STRICT).Assert();
-}
-
-
-void Genesis::InitializeGlobal_harmony_unicode_regexps() {
-  Handle<JSObject> builtins(native_context()->builtins());
-
-  Handle<HeapObject> flag(FLAG_harmony_unicode_regexps ? heap()->true_value()
-                                                       : heap()->false_value());
-  Runtime::SetObjectProperty(isolate(), builtins,
-                             factory()->harmony_unicode_regexps_string(), flag,
-                             STRICT).Assert();
-}
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexps)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tostring)
 
 
 void Genesis::InitializeGlobal_harmony_reflect() {
-  Handle<JSObject> builtins(native_context()->builtins());
-
-  Handle<JSFunction> apply = InstallFunction(
-      builtins, "$reflectApply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-      MaybeHandle<JSObject>(), Builtins::kReflectApply);
-  apply->shared()->set_internal_formal_parameter_count(3);
-  apply->shared()->set_length(3);
-
-  native_context()->set_reflect_apply(*apply);
-
-  Handle<JSFunction> construct = InstallFunction(
-      builtins, "$reflectConstruct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-      MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
-  construct->shared()->set_internal_formal_parameter_count(3);
-  construct->shared()->set_length(2);
-
-  native_context()->set_reflect_construct(*construct);
-
   if (!FLAG_harmony_reflect) return;
 
   Handle<JSGlobalObject> global(JSGlobalObject::cast(
@@ -1844,16 +1848,6 @@ void Genesis::InitializeGlobal_harmony_reflect() {
   JSObject::AddProperty(global, reflect_string, reflect, DONT_ENUM);
 }
 
-
-void Genesis::InitializeGlobal_harmony_tostring() {
-  Handle<JSObject> builtins(native_context()->builtins());
-
-  Handle<HeapObject> flag(FLAG_harmony_tostring ? heap()->true_value()
-                                                : heap()->false_value());
-  Runtime::SetObjectProperty(isolate(), builtins,
-                             factory()->harmony_tostring_string(), flag,
-                             STRICT).Assert();
-}
 
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
@@ -2275,17 +2269,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
   if (FLAG_disable_native_files) {
     PrintF("Warning: Running without installed natives!\n");
     return true;
-  }
-
-  // Install public symbols.
-  {
-    static const PropertyAttributes attributes =
-        static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-#define INSTALL_PUBLIC_SYMBOL(name, varname, description)                 \
-  Handle<String> varname = factory()->NewStringFromStaticChars(#varname); \
-  JSObject::AddProperty(builtins, varname, factory()->name(), attributes);
-    PUBLIC_SYMBOL_LIST(INSTALL_PUBLIC_SYMBOL)
-#undef INSTALL_PUBLIC_SYMBOL
   }
 
   // Run the rest of the native scripts.

@@ -615,7 +615,7 @@ class Factory final {
   PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name, varname, description)             \
+#define SYMBOL_ACCESSOR(name, description)                      \
   inline Handle<Symbol> name() {                                \
     return Handle<Symbol>(bit_cast<Symbol**>(                   \
         &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \

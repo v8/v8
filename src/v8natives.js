@@ -9,20 +9,23 @@
 // ----------------------------------------------------------------------------
 // Imports
 
+var FLAG_harmony_tostring;
 var GlobalArray = global.Array;
 var GlobalBoolean = global.Boolean;
 var GlobalFunction = global.Function;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MathAbs;
 var ProxyDelegateCallAndConstruct;
 var ProxyDerivedHasOwnTrap;
 var ProxyDerivedKeysTrap;
 var StringIndexOf;
-var ToBoolean;
-var ToNumber;
+var ToBoolean = utils.ImportNow("ToBoolean");
+var ToNumber = utils.ImportNow("ToNumber");
 var ToString;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathAbs = from.MathAbs;
@@ -30,12 +33,8 @@ utils.Import(function(from) {
   ToString = from.ToString;
 });
 
-utils.ImportNow(function(from) {
-  ToBoolean = from.ToBoolean;
-  ToNumber = from.ToNumber;
-});
-
 utils.ImportFromExperimental(function(from) {
+  FLAG_harmony_tostring = from.FLAG_harmony_tostring;
   ProxyDelegateCallAndConstruct = from.ProxyDelegateCallAndConstruct;
   ProxyDerivedHasOwnTrap = from.ProxyDerivedHasOwnTrap;
   ProxyDerivedKeysTrap = from.ProxyDerivedKeysTrap;
@@ -148,8 +147,8 @@ function ObjectToString() {
   var tag;
 
   // TODO(caitp): cannot wait to get rid of this flag :>
-  if (harmony_tostring) {
-    tag = O[symbolToStringTag];
+  if (FLAG_harmony_tostring) {
+    tag = O[toStringTagSymbol];
     if (!IS_STRING(tag)) {
       tag = builtinTag;
     }
@@ -1773,7 +1772,7 @@ utils.InstallFunctions(GlobalFunction.prototype, DONT_ENUM, [
 // 7.4.1 GetIterator ( obj, method )
 function GetIterator(obj, method) {
   if (IS_UNDEFINED(method)) {
-    method = obj[symbolIterator];
+    method = obj[iteratorSymbol];
   }
   if (!IS_SPEC_FUNCTION(method)) {
     throw MakeTypeError(kNotIterable, obj);

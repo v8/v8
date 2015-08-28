@@ -16,8 +16,9 @@ var $getExistingHash;
 var GlobalMap = global.Map;
 var GlobalObject = global.Object;
 var GlobalSet = global.Set;
-var hashCodeSymbol = utils.GetPrivateSymbol("hash_code_symbol");
+var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
 var IntRandom;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   IntRandom = from.IntRandom;
@@ -270,7 +271,7 @@ function SetForEach(f, receiver) {
 %FunctionSetLength(GlobalSet, 0);
 %FunctionSetPrototype(GlobalSet, new GlobalObject());
 %AddNamedProperty(GlobalSet.prototype, "constructor", GlobalSet, DONT_ENUM);
-%AddNamedProperty(GlobalSet.prototype, symbolToStringTag, "Set",
+%AddNamedProperty(GlobalSet.prototype, toStringTagSymbol, "Set",
                   DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(SetForEach, 1);
@@ -460,7 +461,7 @@ function MapForEach(f, receiver) {
 %FunctionSetPrototype(GlobalMap, new GlobalObject());
 %AddNamedProperty(GlobalMap.prototype, "constructor", GlobalMap, DONT_ENUM);
 %AddNamedProperty(
-    GlobalMap.prototype, symbolToStringTag, "Map", DONT_ENUM | READ_ONLY);
+    GlobalMap.prototype, toStringTagSymbol, "Map", DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(MapForEach, 1);
 

@@ -18,6 +18,7 @@ var MathMin;
 var ObjectHasOwnProperty;
 var ToNumber;
 var ToString;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
@@ -234,7 +235,7 @@ function JSONStringify(value, replacer, space) {
 
 // -------------------------------------------------------------------
 
-%AddNamedProperty(GlobalJSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
+%AddNamedProperty(GlobalJSON, toStringTagSymbol, "JSON", READ_ONLY | DONT_ENUM);
 
 // Set up non-enumerable properties of the JSON object.
 utils.InstallFunctions(GlobalJSON, DONT_ENUM, [

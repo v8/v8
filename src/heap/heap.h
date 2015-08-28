@@ -258,9 +258,6 @@ namespace internal {
   V(multiline_string, "multiline")                             \
   V(sticky_string, "sticky")                                   \
   V(unicode_string, "unicode")                                 \
-  V(harmony_regexps_string, "harmony_regexps")                 \
-  V(harmony_tostring_string, "harmony_tostring")               \
-  V(harmony_unicode_regexps_string, "harmony_unicode_regexps") \
   V(input_string, "input")                                     \
   V(index_string, "index")                                     \
   V(last_index_string, "lastIndex")                            \
@@ -348,16 +345,14 @@ namespace internal {
   V(string_iterator_next_index_symbol)      \
   V(uninitialized_symbol)
 
-
-#define PUBLIC_SYMBOL_LIST(V)                                    \
-  V(has_instance_symbol, symbolHasInstance, Symbol.hasInstance)  \
-  V(is_concat_spreadable_symbol, symbolIsConcatSpreadable,       \
-    Symbol.isConcatSpreadable)                                   \
-  V(is_regexp_symbol, symbolIsRegExp, Symbol.isRegExp)           \
-  V(iterator_symbol, symbolIterator, Symbol.iterator)            \
-  V(to_primitive_symbol, symbolToPrimitive, Symbol.toPrimitive)  \
-  V(to_string_tag_symbol, symbolToStringTag, Symbol.toStringTag) \
-  V(unscopables_symbol, symbolUnscopables, Symbol.unscopables)
+#define PUBLIC_SYMBOL_LIST(V)                               \
+  V(has_instance_symbol, Symbol.hasInstance)                \
+  V(is_concat_spreadable_symbol, Symbol.isConcatSpreadable) \
+  V(is_regexp_symbol, Symbol.isRegExp)                      \
+  V(iterator_symbol, Symbol.iterator)                       \
+  V(to_primitive_symbol, Symbol.toPrimitive)                \
+  V(to_string_tag_symbol, Symbol.toStringTag)               \
+  V(unscopables_symbol, Symbol.unscopables)
 
 // Heap roots that are known to be immortal immovable, for which we can safely
 // skip write barriers. This list is not complete and has omissions.
@@ -563,7 +558,7 @@ class Heap {
             PRIVATE_SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
 #undef SYMBOL_INDEX_DECLARATION
 
-#define SYMBOL_INDEX_DECLARATION(name, varname, description) k##name##RootIndex,
+#define SYMBOL_INDEX_DECLARATION(name, description) k##name##RootIndex,
                 PUBLIC_SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
 #undef SYMBOL_INDEX_DECLARATION
 
@@ -1198,7 +1193,7 @@ class Heap {
   PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name, varname, description) inline Symbol* name();
+#define SYMBOL_ACCESSOR(name, description) inline Symbol* name();
   PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 

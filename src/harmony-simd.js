@@ -12,6 +12,7 @@
 // Imports
 
 var GlobalSIMD = global.SIMD;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro SIMD_FLOAT_TYPES(FUNCTION)
 FUNCTION(Float32x4, float32x4, 4)
@@ -577,14 +578,14 @@ function Float32x4MaxNumJS(a, b) {
 }
 
 
-%AddNamedProperty(GlobalSIMD, symbolToStringTag, 'SIMD', READ_ONLY | DONT_ENUM);
+%AddNamedProperty(GlobalSIMD, toStringTagSymbol, 'SIMD', READ_ONLY | DONT_ENUM);
 
 macro SETUP_SIMD_TYPE(NAME, TYPE, LANES)
 %SetCode(GlobalNAME, NAMEConstructor);
 %FunctionSetPrototype(GlobalNAME, {});
 %AddNamedProperty(GlobalNAME.prototype, 'constructor', GlobalNAME,
     DONT_ENUM);
-%AddNamedProperty(GlobalNAME.prototype, symbolToStringTag, 'NAME',
+%AddNamedProperty(GlobalNAME.prototype, toStringTagSymbol, 'NAME',
     DONT_ENUM | READ_ONLY);
 utils.InstallFunctions(GlobalNAME.prototype, DONT_ENUM, [
   'toLocaleString', NAMEToLocaleString,

@@ -28,6 +28,8 @@ var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var MathFloor;
+var ObjectDefineProperties = utils.ImportNow("ObjectDefineProperties");
+var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
 var RegExpTest;
 var StringIndexOf;
 var StringLastIndexOf;
@@ -53,11 +55,6 @@ utils.Import(function(from) {
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
   ToNumber = from.ToNumber;
-});
-
-utils.ImportNow(function(from) {
-  ObjectDefineProperties = from.ObjectDefineProperties;
-  ObjectDefineProperty = from.ObjectDefineProperty;
 });
 
 // -------------------------------------------------------------------

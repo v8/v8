@@ -24,15 +24,28 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ExportPrivateSymbols) {
+RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
-                                "ExportPrivateSymbols");
-  Bootstrapper::ExportPrivateSymbols(isolate, container);
-  JSObject::MigrateSlowToFast(container, 0, "ExportPrivateSymbols");
+                                "ExportFromRuntime");
+  Bootstrapper::ExportFromRuntime(isolate, container);
+  JSObject::MigrateSlowToFast(container, 0, "ExportFromRuntime");
+  return *container;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
+                                "ExportExperimentalFromRuntime");
+  Bootstrapper::ExportExperimentalFromRuntime(isolate, container);
+  JSObject::MigrateSlowToFast(container, 0, "ExportExperimentalFromRuntime");
   return *container;
 }
 
