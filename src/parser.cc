@@ -2987,7 +2987,7 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
   // }
 
   Block* switch_block =
-      factory()->NewBlock(NULL, 2, true, RelocInfo::kNoPosition);
+      factory()->NewBlock(NULL, 2, false, RelocInfo::kNoPosition);
   int switch_pos = peek_position();
 
   Expect(Token::SWITCH, CHECK_OK);
@@ -3004,8 +3004,17 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
       factory()->NewExpressionStatement(tag_assign, RelocInfo::kNoPosition);
   switch_block->AddStatement(tag_statement, zone());
 
+  // make statement: undefined;
+  // This is needed so the tag isn't returned as the value, in case the switch
+  // statements don't have a value.
+  switch_block->AddStatement(
+      factory()->NewExpressionStatement(
+          factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
+          RelocInfo::kNoPosition),
+      zone());
+
   Block* cases_block =
-      factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
+      factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
   Scope* cases_scope = NewScope(scope_, BLOCK_SCOPE);
   cases_scope->SetNonlinear();
 

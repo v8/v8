@@ -303,6 +303,7 @@ TEST(VisitSwitchStatment) {
         CHECK_VAR(.switch_tag, DEFAULT_TYPE);
         CHECK_EXPR(Literal, DEFAULT_TYPE);
       }
+      CHECK_EXPR(Literal, DEFAULT_TYPE);
       CHECK_VAR(.switch_tag, DEFAULT_TYPE);
       CHECK_EXPR(Literal, DEFAULT_TYPE);
     }
