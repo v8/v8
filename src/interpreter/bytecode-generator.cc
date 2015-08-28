@@ -16,7 +16,7 @@ namespace internal {
 namespace interpreter {
 
 BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
-    : builder_(isolate) {
+    : builder_(isolate, zone) {
   InitializeAstVisitor(isolate, zone);
 }
 
@@ -201,10 +201,6 @@ void BytecodeGenerator::VisitConditional(Conditional* node) { UNIMPLEMENTED(); }
 
 
 void BytecodeGenerator::VisitLiteral(Literal* expr) {
-  if (expr->IsPropertyName()) {
-    UNIMPLEMENTED();
-  }
-
   Handle<Object> value = expr->value();
   if (value->IsSmi()) {
     builder().LoadLiteral(Smi::cast(*value));
@@ -219,7 +215,7 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
   } else if (value->IsTheHole()) {
     builder().LoadTheHole();
   } else {
-    UNIMPLEMENTED();
+    builder().LoadLiteral(value);
   }
 }
 

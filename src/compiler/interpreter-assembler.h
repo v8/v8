@@ -37,6 +37,9 @@ class InterpreterAssembler {
 
   Handle<Code> GenerateCode();
 
+  // Returns the Idx immediate for bytecode operand |operand_index| in the
+  // current bytecode.
+  Node* BytecodeOperandIdx(int operand_index);
   // Returns the Imm8 immediate for bytecode operand |operand_index| in the
   // current bytecode.
   Node* BytecodeOperandImm8(int operand_index);
@@ -61,6 +64,9 @@ class InterpreterAssembler {
   // Tag and untag Smi values.
   Node* SmiTag(Node* value);
   Node* SmiUntag(Node* value);
+
+  // Load constant at |index| in the constant pool.
+  Node* LoadConstantPoolEntry(Node* index);
 
   // Load a field from an object on the heap.
   Node* LoadObjectField(Node* object, int offset);

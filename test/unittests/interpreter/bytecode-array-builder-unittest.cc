@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class BytecodeArrayBuilderTest : public TestWithIsolate {
+class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
  public:
   BytecodeArrayBuilderTest() {}
   ~BytecodeArrayBuilderTest() override {}
@@ -19,7 +19,7 @@ class BytecodeArrayBuilderTest : public TestWithIsolate {
 
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
-  BytecodeArrayBuilder builder(isolate());
+  BytecodeArrayBuilder builder(isolate(), zone());
 
   builder.set_locals_count(1);
   builder.set_parameter_count(0);
@@ -28,6 +28,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit constant loads.
   builder.LoadLiteral(Smi::FromInt(0))
       .LoadLiteral(Smi::FromInt(8))
+      .LoadLiteral(Smi::FromInt(10000000))
       .LoadUndefined()
       .LoadNull()
       .LoadTheHole()
@@ -79,7 +80,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
   for (int locals = 0; locals < 5; locals++) {
     for (int temps = 0; temps < 3; temps++) {
-      BytecodeArrayBuilder builder(isolate());
+      BytecodeArrayBuilder builder(isolate(), zone());
       builder.set_parameter_count(0);
       builder.set_locals_count(locals);
       builder.Return();
@@ -98,7 +99,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
 
 
 TEST_F(BytecodeArrayBuilderTest, TemporariesRecycled) {
-  BytecodeArrayBuilder builder(isolate());
+  BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(0);
   builder.set_locals_count(0);
   builder.Return();
@@ -138,13 +139,36 @@ TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
 
 
 TEST_F(BytecodeArrayBuilderTest, Parameters) {
-  BytecodeArrayBuilder builder(isolate());
+  BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(10);
   builder.set_locals_count(0);
 
   Register param0(builder.Parameter(0));
   Register param9(builder.Parameter(9));
   CHECK_EQ(param9.index() - param0.index(), 9);
+}
+
+
+TEST_F(BytecodeArrayBuilderTest, Constants) {
+  BytecodeArrayBuilder builder(isolate(), zone());
+  builder.set_parameter_count(0);
+  builder.set_locals_count(0);
+
+  Factory* factory = isolate()->factory();
+  Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(3.14);
+  Handle<HeapObject> heap_num_2 = factory->NewHeapNumber(5.2);
+  Handle<Object> large_smi(Smi::FromInt(0x12345678), isolate());
+  Handle<HeapObject> heap_num_2_copy(*heap_num_2);
+  builder.LoadLiteral(heap_num_1)
+      .LoadLiteral(heap_num_2)
+      .LoadLiteral(large_smi)
+      .LoadLiteral(heap_num_1)
+      .LoadLiteral(heap_num_1)
+      .LoadLiteral(heap_num_2_copy);
+
+  Handle<BytecodeArray> array = builder.ToBytecodeArray();
+  // Should only have one entry for each identical constant.
+  CHECK_EQ(array->constant_pool()->length(), 3);
 }
 
 }  // namespace interpreter

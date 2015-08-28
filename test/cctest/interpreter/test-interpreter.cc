@@ -101,11 +101,11 @@ using v8::internal::Token;
 using namespace v8::internal::interpreter;
 
 TEST(InterpreterReturn) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   Handle<Object> undefined_value =
       handles.main_isolate()->factory()->undefined_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
   builder.set_parameter_count(1);
   builder.Return();
@@ -119,11 +119,11 @@ TEST(InterpreterReturn) {
 
 
 TEST(InterpreterLoadUndefined) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   Handle<Object> undefined_value =
       handles.main_isolate()->factory()->undefined_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
   builder.set_parameter_count(1);
   builder.LoadUndefined().Return();
@@ -137,10 +137,10 @@ TEST(InterpreterLoadUndefined) {
 
 
 TEST(InterpreterLoadNull) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   Handle<Object> null_value = handles.main_isolate()->factory()->null_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
   builder.set_parameter_count(1);
   builder.LoadNull().Return();
@@ -154,11 +154,11 @@ TEST(InterpreterLoadNull) {
 
 
 TEST(InterpreterLoadTheHole) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   Handle<Object> the_hole_value =
       handles.main_isolate()->factory()->the_hole_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
   builder.set_parameter_count(1);
   builder.LoadTheHole().Return();
@@ -172,10 +172,10 @@ TEST(InterpreterLoadTheHole) {
 
 
 TEST(InterpreterLoadTrue) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   Handle<Object> true_value = handles.main_isolate()->factory()->true_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
   builder.set_parameter_count(1);
   builder.LoadTrue().Return();
@@ -189,10 +189,10 @@ TEST(InterpreterLoadTrue) {
 
 
 TEST(InterpreterLoadFalse) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   Handle<Object> false_value = handles.main_isolate()->factory()->false_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
   builder.set_parameter_count(1);
   builder.LoadFalse().Return();
@@ -206,9 +206,12 @@ TEST(InterpreterLoadFalse) {
 
 
 TEST(InterpreterLoadLiteral) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
+  i::Factory* factory = handles.main_isolate()->factory();
+
+  // Small Smis.
   for (int i = -128; i < 128; i++) {
-    BytecodeArrayBuilder builder(handles.main_isolate());
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(0);
     builder.set_parameter_count(1);
     builder.LoadLiteral(Smi::FromInt(i)).Return();
@@ -219,14 +222,57 @@ TEST(InterpreterLoadLiteral) {
     Handle<Object> return_val = callable().ToHandleChecked();
     CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(i));
   }
+
+  // Large Smis.
+  {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    builder.set_locals_count(0);
+    builder.set_parameter_count(1);
+    builder.LoadLiteral(Smi::FromInt(0x12345678)).Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_val = callable().ToHandleChecked();
+    CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(0x12345678));
+  }
+
+  // Heap numbers.
+  {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    builder.set_locals_count(0);
+    builder.set_parameter_count(1);
+    builder.LoadLiteral(factory->NewHeapNumber(-2.1e19)).Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_val = callable().ToHandleChecked();
+    CHECK_EQ(i::HeapNumber::cast(*return_val)->value(), -2.1e19);
+  }
+
+  // Strings.
+  {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    builder.set_locals_count(0);
+    builder.set_parameter_count(1);
+    Handle<i::String> string = factory->NewStringFromAsciiChecked("String");
+    builder.LoadLiteral(string).Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_val = callable().ToHandleChecked();
+    CHECK(i::String::cast(*return_val)->Equals(*string));
+  }
 }
 
 
 TEST(InterpreterLoadStoreRegisters) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   Handle<Object> true_value = handles.main_isolate()->factory()->true_value();
   for (int i = 0; i <= Register::kMaxRegisterIndex; i++) {
-    BytecodeArrayBuilder builder(handles.main_isolate());
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(i + 1);
     builder.set_parameter_count(1);
     Register reg(i);
@@ -246,10 +292,10 @@ TEST(InterpreterLoadStoreRegisters) {
 
 
 TEST(InterpreterAdd) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   // TODO(rmcilroy): Do add tests for heap numbers and strings once we support
   // them.
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
   builder.set_parameter_count(1);
   Register reg(0);
@@ -268,9 +314,9 @@ TEST(InterpreterAdd) {
 
 
 TEST(InterpreterSub) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   // TODO(rmcilroy): Do add tests for heap numbers once we support them.
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
   builder.set_parameter_count(1);
   Register reg(0);
@@ -289,9 +335,9 @@ TEST(InterpreterSub) {
 
 
 TEST(InterpreterMul) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   // TODO(rmcilroy): Do add tests for heap numbers once we support them.
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
   builder.set_parameter_count(1);
   Register reg(0);
@@ -310,9 +356,9 @@ TEST(InterpreterMul) {
 
 
 TEST(InterpreterDiv) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   // TODO(rmcilroy): Do add tests for heap numbers once we support them.
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
   builder.set_parameter_count(1);
   Register reg(0);
@@ -331,9 +377,9 @@ TEST(InterpreterDiv) {
 
 
 TEST(InterpreterMod) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   // TODO(rmcilroy): Do add tests for heap numbers once we support them.
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
   builder.set_parameter_count(1);
   Register reg(0);
@@ -352,8 +398,8 @@ TEST(InterpreterMod) {
 
 
 TEST(InterpreterParameter1) {
-  InitializedHandleScope handles;
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  HandleAndZoneScope handles;
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
   builder.set_parameter_count(1);
   builder.LoadAccumulatorWithRegister(builder.Parameter(0)).Return();
@@ -375,8 +421,8 @@ TEST(InterpreterParameter1) {
 
 
 TEST(InterpreterParameter8) {
-  InitializedHandleScope handles;
-  BytecodeArrayBuilder builder(handles.main_isolate());
+  HandleAndZoneScope handles;
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
   builder.set_parameter_count(8);
   builder.LoadAccumulatorWithRegister(builder.Parameter(0))

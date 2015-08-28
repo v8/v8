@@ -147,6 +147,13 @@ Node* InterpreterAssembler::BytecodeOperandImm8(int operand_index) {
 }
 
 
+Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
+  DCHECK_EQ(interpreter::OperandType::kIdx,
+            interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+  return BytecodeOperand(operand_index);
+}
+
+
 Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
   DCHECK_EQ(interpreter::OperandType::kReg,
             interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
@@ -186,6 +193,16 @@ Node* InterpreterAssembler::SmiTag(Node* value) {
 
 Node* InterpreterAssembler::SmiUntag(Node* value) {
   return raw_assembler_->WordSar(value, SmiShiftBitsConstant());
+}
+
+
+Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
+  Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
+                                        BytecodeArray::kConstantPoolOffset);
+  Node* entry_offset = raw_assembler_->IntPtrAdd(
+      IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
+      raw_assembler_->WordShl(index, Int32Constant(kPointerSizeLog2)));
+  return raw_assembler_->Load(kMachAnyTagged, constant_pool, entry_offset);
 }
 
 

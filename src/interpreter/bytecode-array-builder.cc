@@ -8,9 +8,12 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate)
+BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
     : isolate_(isolate),
+      bytecodes_(zone),
       bytecode_generated_(false),
+      constants_map_(isolate->heap(), zone),
+      constants_(zone),
       parameter_count_(-1),
       local_register_count_(-1),
       temporary_register_count_(0),
@@ -48,10 +51,18 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   int bytecode_size = static_cast<int>(bytecodes_.size());
   int register_count = local_register_count_ + temporary_register_count_;
   int frame_size = register_count * kPointerSize;
+
   Factory* factory = isolate_->factory();
+  int constants_count = static_cast<int>(constants_.size());
+  Handle<FixedArray> constant_pool =
+      factory->NewFixedArray(constants_count, TENURED);
+  for (int i = 0; i < constants_count; i++) {
+    constant_pool->set(i, *constants_[i]);
+  }
+
   Handle<BytecodeArray> output =
       factory->NewBytecodeArray(bytecode_size, &bytecodes_.front(), frame_size,
-                                parameter_count_, factory->empty_fixed_array());
+                                parameter_count_, constant_pool);
   bytecode_generated_ = true;
   return output;
 }
@@ -72,7 +83,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
   } else if (raw_smi >= -128 && raw_smi <= 127) {
     Output(Bytecode::kLdaSmi8, static_cast<uint8_t>(raw_smi));
   } else {
-    // TODO(oth): Put Smi in constant pool.
+    LoadLiteral(Handle<Object>(smi, isolate_));
+  }
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Handle<Object> object) {
+  size_t entry = GetConstantPoolEntry(object);
+  if (entry <= 255) {
+    Output(Bytecode::kLdaConstant, static_cast<uint8_t>(entry));
+  } else {
     UNIMPLEMENTED();
   }
   return *this;
@@ -129,6 +150,26 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
 }
 
 
+size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
+  // These constants shouldn't be added to the constant pool, the should use
+  // specialzed bytecodes instead.
+  DCHECK(!object.is_identical_to(isolate_->factory()->undefined_value()));
+  DCHECK(!object.is_identical_to(isolate_->factory()->null_value()));
+  DCHECK(!object.is_identical_to(isolate_->factory()->the_hole_value()));
+  DCHECK(!object.is_identical_to(isolate_->factory()->true_value()));
+  DCHECK(!object.is_identical_to(isolate_->factory()->false_value()));
+
+  size_t* entry = constants_map_.Find(object);
+  if (!entry) {
+    entry = constants_map_.Get(object);
+    *entry = constants_.size();
+    constants_.push_back(object);
+  }
+  DCHECK(constants_[*entry].is_identical_to(object));
+  return *entry;
+}
+
+
 int BytecodeArrayBuilder::BorrowTemporaryRegister() {
   DCHECK_GE(local_register_count_, 0);
   int temporary_reg_index = temporary_register_next_++;
@@ -154,6 +195,8 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
       return false;
     case OperandType::kImm8:
       return true;
+    case OperandType::kIdx:
+      return operand_value < constants_.size();
     case OperandType::kReg: {
       int reg_index = Register::FromOperand(operand_value).index();
       return (reg_index >= 0 && reg_index < temporary_register_next_) ||

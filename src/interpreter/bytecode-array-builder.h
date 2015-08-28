@@ -9,7 +9,10 @@
 
 #include "src/ast.h"
 #include "src/frames.h"
+#include "src/identity-map.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/zone.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -22,7 +25,7 @@ class Register;
 
 class BytecodeArrayBuilder {
  public:
-  explicit BytecodeArrayBuilder(Isolate* isolate);
+  BytecodeArrayBuilder(Isolate* isolate, Zone* zone);
   Handle<BytecodeArray> ToBytecodeArray();
 
   // Set number of parameters expected by function.
@@ -37,6 +40,7 @@ class BytecodeArrayBuilder {
 
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
+  BytecodeArrayBuilder& LoadLiteral(Handle<Object> object);
   BytecodeArrayBuilder& LoadUndefined();
   BytecodeArrayBuilder& LoadNull();
   BytecodeArrayBuilder& LoadTheHole();
@@ -67,12 +71,17 @@ class BytecodeArrayBuilder {
   bool OperandIsValid(Bytecode bytecode, int operand_index,
                       uint8_t operand_value) const;
 
+  size_t GetConstantPoolEntry(Handle<Object> object);
+
   int BorrowTemporaryRegister();
   void ReturnTemporaryRegister(int reg_index);
 
   Isolate* isolate_;
-  std::vector<uint8_t> bytecodes_;
+  ZoneVector<uint8_t> bytecodes_;
   bool bytecode_generated_;
+
+  IdentityMap<size_t> constants_map_;
+  ZoneVector<Handle<Object>> constants_;
 
   int parameter_count_;
   int local_register_count_;

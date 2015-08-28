@@ -19,6 +19,7 @@ namespace interpreter {
 #define OPERAND_TYPE_LIST(V) \
   V(None)                    \
   V(Imm8)                    \
+  V(Idx)                     \
   V(Reg)
 
 // The list of bytecodes which are interpreted by the interpreter.
@@ -27,6 +28,7 @@ namespace interpreter {
   /* Loading the accumulator */        \
   V(LdaZero, OperandType::kNone)       \
   V(LdaSmi8, OperandType::kImm8)       \
+  V(LdaConstant, OperandType::kIdx)    \
   V(LdaUndefined, OperandType::kNone)  \
   V(LdaNull, OperandType::kNone)       \
   V(LdaTheHole, OperandType::kNone)    \

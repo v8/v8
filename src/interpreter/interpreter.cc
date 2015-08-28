@@ -106,6 +106,17 @@ void Interpreter::DoLdaSmi8(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// LdaConstant <idx>
+//
+// Load constant literal at |idx| in the constant pool into the accumulator.
+void Interpreter::DoLdaConstant(compiler::InterpreterAssembler* assembler) {
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  __ SetAccumulator(constant);
+  __ Dispatch();
+}
+
+
 // LdaUndefined
 //
 // Load Undefined into the accumulator.

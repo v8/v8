@@ -1210,17 +1210,6 @@ int WriteAsCFile(const char* filename, const char* varname,
 
 
 // ----------------------------------------------------------------------------
-// Data structures
-
-template <typename T>
-inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
-                                             int length) {
-  return Vector< Handle<Object> >(
-      reinterpret_cast<v8::internal::Handle<Object>*>(elms), length);
-}
-
-
-// ----------------------------------------------------------------------------
 // Memory
 
 // Copies words from |src| to |dst|. The data spans must not overlap.
