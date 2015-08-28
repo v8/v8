@@ -199,7 +199,7 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
       }
       break;
     case Token::LET:
-      if (allow_let()) {
+      if (IsNextLetKeyword()) {
         return ParseVariableStatement(kStatementListItem, ok);
       }
       break;
@@ -893,7 +893,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   if (peek() != Token::SEMICOLON) {
     ForEachStatement::VisitMode mode;
     if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
-        (peek() == Token::LET && allow_let())) {
+        (peek() == Token::LET && IsNextLetKeyword())) {
       int decl_count;
       Scanner::Location first_initializer_loc = Scanner::Location::invalid();
       Scanner::Location bindings_loc = Scanner::Location::invalid();

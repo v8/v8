@@ -7077,3 +7077,32 @@ TEST(LanguageModeDirectivesNonSimpleParameterListErrors) {
   RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
+
+
+TEST(LetSloppyOnly) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"{", "}"},
+    {NULL, NULL}
+  };
+
+  const char* data[] = {
+    "let let",
+    "let",
+    "let let = 1",
+    "let = 1",
+    "for (let let = 1; let < 1; let++) {}",
+    "for (let = 1; let < 1; let++) {}",
+    "for (let let in {}) {}",
+    "for (let let of []) {}",
+    "for (let in {}) {}",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
+                                            kAllowHarmonySloppyLet};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}

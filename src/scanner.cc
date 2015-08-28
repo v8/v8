@@ -237,6 +237,11 @@ Token::Value Scanner::Next() {
     next_.location.end_pos = current_.location.end_pos;
   }
   current_ = next_;
+  if (V8_UNLIKELY(next_next_.token != Token::UNINITIALIZED)) {
+    next_ = next_next_;
+    next_next_.token = Token::UNINITIALIZED;
+    return current_.token;
+  }
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
   if (static_cast<unsigned>(c0_) <= 0x7f) {
@@ -252,6 +257,20 @@ Token::Value Scanner::Next() {
   }
   Scan();
   return current_.token;
+}
+
+
+Token::Value Scanner::PeekAhead() {
+  if (next_next_.token != Token::UNINITIALIZED) {
+    return next_next_.token;
+  }
+  TokenDesc prev = current_;
+  Next();
+  Token::Value ret = next_.token;
+  next_next_ = next_;
+  next_ = current_;
+  current_ = prev;
+  return ret;
 }
 
 
@@ -1432,7 +1451,7 @@ int Scanner::FindSymbol(DuplicateFinder* finder, int value) {
 
 bool Scanner::SetBookmark() {
   if (c0_ != kNoBookmark && bookmark_c0_ == kNoBookmark &&
-      source_->SetBookmark()) {
+      next_next_.token == Token::UNINITIALIZED && source_->SetBookmark()) {
     bookmark_c0_ = c0_;
     CopyTokenDesc(&bookmark_current_, &current_);
     CopyTokenDesc(&bookmark_next_, &next_);

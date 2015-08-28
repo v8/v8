@@ -338,6 +338,11 @@ class ParserBase : public Traits {
     return scanner()->peek();
   }
 
+  INLINE(Token::Value PeekAhead()) {
+    if (stack_overflow_) return Token::ILLEGAL;
+    return scanner()->PeekAhead();
+  }
+
   INLINE(Token::Value Next()) {
     if (stack_overflow_) return Token::ILLEGAL;
     {
@@ -726,6 +731,8 @@ class ParserBase : public Traits {
   void CheckArityRestrictions(
       int param_count, FunctionLiteral::ArityRestriction arity_restriction,
       bool has_rest, int formals_start_pos, int formals_end_pos, bool* ok);
+
+  bool IsNextLetKeyword();
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -3792,6 +3799,27 @@ void ParserBase<Traits>::CheckArityRestrictions(
       break;
     default:
       break;
+  }
+}
+
+
+template <class Traits>
+bool ParserBase<Traits>::IsNextLetKeyword() {
+  DCHECK(peek() == Token::LET);
+  if (!allow_let()) {
+    return false;
+  }
+  Token::Value next_next = PeekAhead();
+  switch (next_next) {
+    case Token::LBRACE:
+    case Token::LBRACK:
+    case Token::IDENTIFIER:
+    case Token::STATIC:
+    case Token::LET:  // Yes, you can do let let = ... in sloppy mode
+    case Token::YIELD:
+      return true;
+    default:
+      return false;
   }
 }
 

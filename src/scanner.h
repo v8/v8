@@ -361,6 +361,8 @@ class Scanner {
 
   // Returns the next token and advances input.
   Token::Value Next();
+  // Returns the token following peek()
+  Token::Value PeekAhead();
   // Returns the current token again.
   Token::Value current_token() { return current_.token; }
   // Returns the location information for the current token
@@ -489,6 +491,7 @@ class Scanner {
     // Initialize current_ to not refer to a literal.
     current_.literal_chars = NULL;
     current_.raw_literal_chars = NULL;
+    next_next_.token = Token::UNINITIALIZED;
   }
 
   // Support BookmarkScope functionality.
@@ -501,16 +504,22 @@ class Scanner {
 
   // Literal buffer support
   inline void StartLiteral() {
-    LiteralBuffer* free_buffer = (current_.literal_chars == &literal_buffer1_) ?
-            &literal_buffer2_ : &literal_buffer1_;
+    LiteralBuffer* free_buffer =
+        (current_.literal_chars == &literal_buffer0_)
+            ? &literal_buffer1_
+            : (current_.literal_chars == &literal_buffer1_) ? &literal_buffer2_
+                                                            : &literal_buffer0_;
     free_buffer->Reset();
     next_.literal_chars = free_buffer;
   }
 
   inline void StartRawLiteral() {
     LiteralBuffer* free_buffer =
-        (current_.raw_literal_chars == &raw_literal_buffer1_) ?
-            &raw_literal_buffer2_ : &raw_literal_buffer1_;
+        (current_.raw_literal_chars == &raw_literal_buffer0_)
+            ? &raw_literal_buffer1_
+            : (current_.raw_literal_chars == &raw_literal_buffer1_)
+                  ? &raw_literal_buffer2_
+                  : &raw_literal_buffer0_;
     free_buffer->Reset();
     next_.raw_literal_chars = free_buffer;
   }
@@ -687,6 +696,7 @@ class Scanner {
   UnicodeCache* unicode_cache_;
 
   // Buffers collecting literal strings, numbers, etc.
+  LiteralBuffer literal_buffer0_;
   LiteralBuffer literal_buffer1_;
   LiteralBuffer literal_buffer2_;
 
@@ -695,11 +705,13 @@ class Scanner {
   LiteralBuffer source_mapping_url_;
 
   // Buffer to store raw string values
+  LiteralBuffer raw_literal_buffer0_;
   LiteralBuffer raw_literal_buffer1_;
   LiteralBuffer raw_literal_buffer2_;
 
-  TokenDesc current_;  // desc for current token (as returned by Next())
-  TokenDesc next_;     // desc for next token (one token look-ahead)
+  TokenDesc current_;    // desc for current token (as returned by Next())
+  TokenDesc next_;       // desc for next token (one token look-ahead)
+  TokenDesc next_next_;  // desc for the token after next (after PeakAhead())
 
   // Variables for Scanner::BookmarkScope and the *Bookmark implementation.
   // These variables contain the scanner state when a bookmark is set.

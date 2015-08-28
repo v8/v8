@@ -1402,7 +1402,7 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
     case Token::VAR:
       return ParseVariableStatement(kStatementListItem, NULL, ok);
     case Token::LET:
-      if (allow_let()) {
+      if (IsNextLetKeyword()) {
         return ParseVariableStatement(kStatementListItem, NULL, ok);
       }
       break;
@@ -2652,9 +2652,6 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
       }
       break;
 
-    // TODO(arv): Handle `let [`
-    // https://code.google.com/p/v8/issues/detail?id=3847
-
     default:
       break;
   }
@@ -3564,7 +3561,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   DeclarationParsingResult parsing_result;
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
-        (peek() == Token::LET && allow_let())) {
+        (peek() == Token::LET && IsNextLetKeyword())) {
       ParseVariableDeclarations(kForStatement, &parsing_result, CHECK_OK);
       is_const = parsing_result.descriptor.mode == CONST;
 
