@@ -427,18 +427,31 @@ void AstTyper::VisitAssignment(Assignment* expr) {
   Property* prop = expr->target()->AsProperty();
   if (prop != NULL) {
     TypeFeedbackId id = expr->AssignmentFeedbackId();
-    expr->set_is_uninitialized(oracle()->StoreIsUninitialized(id));
+    FeedbackVectorICSlot slot = expr->AssignmentSlot();
+    expr->set_is_uninitialized(FLAG_vector_stores
+                                   ? oracle()->StoreIsUninitialized(slot)
+                                   : oracle()->StoreIsUninitialized(id));
     if (!expr->IsUninitialized()) {
+      SmallMapList* receiver_types = expr->GetReceiverTypes();
       if (prop->key()->IsPropertyName()) {
         Literal* lit_key = prop->key()->AsLiteral();
         DCHECK(lit_key != NULL && lit_key->value()->IsString());
         Handle<String> name = Handle<String>::cast(lit_key->value());
-        oracle()->AssignmentReceiverTypes(id, name, expr->GetReceiverTypes());
+        if (FLAG_vector_stores) {
+          oracle()->AssignmentReceiverTypes(slot, name, receiver_types);
+        } else {
+          oracle()->AssignmentReceiverTypes(id, name, receiver_types);
+        }
       } else {
         KeyedAccessStoreMode store_mode;
         IcCheckType key_type;
-        oracle()->KeyedAssignmentReceiverTypes(id, expr->GetReceiverTypes(),
-                                               &store_mode, &key_type);
+        if (FLAG_vector_stores) {
+          oracle()->KeyedAssignmentReceiverTypes(slot, receiver_types,
+                                                 &store_mode, &key_type);
+        } else {
+          oracle()->KeyedAssignmentReceiverTypes(id, receiver_types,
+                                                 &store_mode, &key_type);
+        }
         expr->set_store_mode(store_mode);
         expr->set_key_type(key_type);
       }

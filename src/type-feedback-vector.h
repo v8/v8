@@ -490,6 +490,12 @@ class KeyedStoreICNexus : public FeedbackNexus {
   // name can be null.
   void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
                             CodeHandleList* handlers);
+  void ConfigurePolymorphic(MapHandleList* maps,
+                            MapHandleList* transitioned_maps,
+                            CodeHandleList* handlers);
+
+  KeyedAccessStoreMode GetKeyedAccessStoreMode() const;
+  IcCheckType GetKeyType() const;
 
   InlineCacheState StateFromFeedback() const override;
   Name* FindFirstName() const override;

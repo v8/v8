@@ -584,6 +584,32 @@ void KeyedStoreICNexus::ConfigurePolymorphic(Handle<Name> name,
 }
 
 
+void KeyedStoreICNexus::ConfigurePolymorphic(MapHandleList* maps,
+                                             MapHandleList* transitioned_maps,
+                                             CodeHandleList* handlers) {
+  int receiver_count = maps->length();
+  DCHECK(receiver_count > 1);
+  Handle<FixedArray> array = EnsureArrayOfSize(receiver_count * 3);
+  SetFeedbackExtra(*TypeFeedbackVector::UninitializedSentinel(GetIsolate()),
+                   SKIP_WRITE_BARRIER);
+
+  Handle<Oddball> undefined_value = GetIsolate()->factory()->undefined_value();
+  for (int i = 0; i < receiver_count; ++i) {
+    Handle<Map> map = maps->at(i);
+    Handle<WeakCell> cell = Map::WeakCellForMap(map);
+    array->set(i * 3, *cell);
+    if (!transitioned_maps->at(i).is_null()) {
+      Handle<Map> transitioned_map = transitioned_maps->at(i);
+      cell = Map::WeakCellForMap(transitioned_map);
+      array->set((i * 3) + 1, *cell);
+    } else {
+      array->set((i * 3) + 1, *undefined_value);
+    }
+    array->set((i * 3) + 2, *handlers->at(i));
+  }
+}
+
+
 int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
@@ -593,10 +619,13 @@ int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
-    // The array should be of the form [<optional name>], then
-    // [map, handler, map, handler, ... ]
+    // The array should be of the form
+    // [map, handler, map, handler, ...]
+    // or
+    // [map, map, handler, map, map, handler, ...]
     DCHECK(array->length() >= 2);
-    for (int i = 0; i < array->length(); i += 2) {
+    int increment = array->get(1)->IsCode() ? 2 : 3;
+    for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
@@ -626,13 +655,15 @@ MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
-    for (int i = 0; i < array->length(); i += 2) {
+    DCHECK(array->length() >= 2);
+    int increment = array->get(1)->IsCode() ? 2 : 3;
+    for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
         Map* array_map = Map::cast(cell->value());
         if (array_map == *map) {
-          Code* code = Code::cast(array->get(i + 1));
+          Code* code = Code::cast(array->get(i + increment - 1));
           DCHECK(code->kind() == Code::HANDLER);
           return handle(code);
         }
@@ -662,14 +693,18 @@ bool FeedbackNexus::FindHandlers(CodeHandleList* code_list, int length) const {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
-    // The array should be of the form [map, handler, map, handler, ... ].
+    // The array should be of the form
+    // [map, handler, map, handler, ...]
+    // or
+    // [map, map, handler, map, map, handler, ...]
     // Be sure to skip handlers whose maps have been cleared.
     DCHECK(array->length() >= 2);
-    for (int i = 0; i < array->length(); i += 2) {
+    int increment = array->get(1)->IsCode() ? 2 : 3;
+    for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
-        Code* code = Code::cast(array->get(i + 1));
+        Code* code = Code::cast(array->get(i + increment - 1));
         DCHECK(code->kind() == Code::HANDLER);
         code_list->Add(handle(code));
         count++;
@@ -721,6 +756,41 @@ void StoreICNexus::Clear(Code* host) {
 
 void KeyedStoreICNexus::Clear(Code* host) {
   KeyedStoreIC::Clear(GetIsolate(), host, this);
+}
+
+
+KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
+  KeyedAccessStoreMode mode = STANDARD_STORE;
+  MapHandleList maps;
+  CodeHandleList handlers;
+
+  if (GetKeyType() == PROPERTY) return mode;
+
+  ExtractMaps(&maps);
+  FindHandlers(&handlers, maps.length());
+  for (int i = 0; i < handlers.length(); i++) {
+    // The first handler that isn't the slow handler will have the bits we need.
+    Handle<Code> handler = handlers.at(i);
+    CodeStub::Major major_key = CodeStub::MajorKeyFromKey(handler->stub_key());
+    uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
+    CHECK(major_key == CodeStub::KeyedStoreSloppyArguments ||
+          major_key == CodeStub::StoreFastElement ||
+          major_key == CodeStub::StoreElement ||
+          major_key == CodeStub::ElementsTransitionAndStore ||
+          major_key == CodeStub::NoCache);
+    if (major_key != CodeStub::NoCache) {
+      mode = CommonStoreModeBits::decode(minor_key);
+      break;
+    }
+  }
+
+  return mode;
+}
+
+
+IcCheckType KeyedStoreICNexus::GetKeyType() const {
+  // The structure of the vector slots tells us the type.
+  return GetFeedback()->IsName() ? PROPERTY : ELEMENT;
 }
 }  // namespace internal
 }  // namespace v8
