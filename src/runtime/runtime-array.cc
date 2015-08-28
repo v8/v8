@@ -28,35 +28,6 @@ RUNTIME_FUNCTION(Runtime_FinishArrayPrototypeSetup) {
 }
 
 
-static void InstallBuiltin(Isolate* isolate, Handle<JSObject> holder,
-                           const char* name, Builtins::Name builtin_name) {
-  Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
-  Handle<Code> code(isolate->builtins()->builtin(builtin_name));
-  Handle<JSFunction> optimized =
-      isolate->factory()->NewFunctionWithoutPrototype(key, code);
-  optimized->shared()->DontAdaptArguments();
-  JSObject::AddProperty(holder, key, optimized, NONE);
-}
-
-
-RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  Handle<JSObject> holder =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  InstallBuiltin(isolate, holder, "pop", Builtins::kArrayPop);
-  InstallBuiltin(isolate, holder, "push", Builtins::kArrayPush);
-  InstallBuiltin(isolate, holder, "shift", Builtins::kArrayShift);
-  InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
-  InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
-  InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);
-  InstallBuiltin(isolate, holder, "concat", Builtins::kArrayConcat);
-
-  return *holder;
-}
-
-
 RUNTIME_FUNCTION(Runtime_FixedArrayGet) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);

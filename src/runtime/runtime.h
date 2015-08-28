@@ -32,7 +32,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_ARRAY(F)         \
   F(FinishArrayPrototypeSetup, 1, 1)        \
-  F(SpecialArrayFunctions, 0, 1)            \
   F(TransitionElementsKind, 2, 1)           \
   F(PushIfAbsent, 2, 1)                     \
   F(ArrayConcat, 1, 1)                      \
