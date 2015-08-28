@@ -53,19 +53,6 @@ void AssociateDeferredBlockSequences(InstructionSequence *code) {
 }
 
 
-// If the live range has a liveness hole right between start and end,
-// we don't need to splinter it.
-bool IsIntervalAlreadyExcluded(const LiveRange *range, LifetimePosition start,
-                               LifetimePosition end) {
-  for (UseInterval *interval = range->first_interval(); interval != nullptr;
-       interval = interval->next()) {
-    if (interval->start() <= start && start < interval->end()) return false;
-    if (interval->start() < end && end <= interval->end()) return false;
-  }
-  return true;
-}
-
-
 void CreateSplinter(TopLevelLiveRange *range, RegisterAllocationData *data,
                     LifetimePosition first_cut, LifetimePosition last_cut) {
   DCHECK(!range->IsSplinter());
@@ -82,8 +69,6 @@ void CreateSplinter(TopLevelLiveRange *range, RegisterAllocationData *data,
 
   LifetimePosition start = Max(first_cut, range->Start());
   LifetimePosition end = Min(last_cut, range->End());
-  // Skip ranges that have a hole where the deferred block(s) are.
-  if (IsIntervalAlreadyExcluded(range, start, end)) return;
 
   if (start < end) {
     // Ensure the original range has a spill range associated, before it gets
@@ -130,8 +115,12 @@ void SplinterRangesInDeferredBlocks(RegisterAllocationData *data) {
     const BitVector *in_set = in_sets[block->rpo_number().ToInt()];
     InstructionBlock *last = code->InstructionBlockAt(last_deferred);
     const BitVector *out_set = LiveRangeBuilder::ComputeLiveOut(last, data);
-    last_cut = LifetimePosition::GapFromInstructionIndex(
-        last->last_instruction_index());
+    int last_index = last->last_instruction_index();
+    if (code->InstructionAt(last_index)->opcode() ==
+        ArchOpcode::kArchDeoptimize) {
+      ++last_index;
+    }
+    last_cut = LifetimePosition::GapFromInstructionIndex(last_index);
 
     BitVector ranges_to_splinter(*in_set, zone);
     ranges_to_splinter.Union(*out_set);
