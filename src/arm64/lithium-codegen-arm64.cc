@@ -980,7 +980,6 @@ void LCodeGen::DeoptimizeBranch(
   }
 
   DCHECK(environment->HasBeenRegistered());
-  DCHECK(info()->IsOptimizing() || info()->IsStub());
   int id = environment->deoptimization_index();
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
@@ -1131,7 +1130,7 @@ void LCodeGen::DeoptimizeIfBitClear(Register rt, int bit, LInstruction* instr,
 
 
 void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
-  if (!info()->IsStub()) {
+  if (info()->ShouldEnsureSpaceForLazyDeopt()) {
     // Ensure that we have enough space after the previous lazy-bailout
     // instruction for patching the code here.
     intptr_t current_pc = masm()->pc_offset();
