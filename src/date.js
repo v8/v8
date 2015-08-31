@@ -16,6 +16,7 @@ var $createDate;
 // Imports
 
 var GlobalDate = global.Date;
+var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var IsFinite;
 var MathAbs;
@@ -822,7 +823,7 @@ function CreateDate(time) {
 // -------------------------------------------------------------------
 
 %SetCode(GlobalDate, DateConstructor);
-%FunctionSetPrototype(GlobalDate, new GlobalDate(NAN));
+%FunctionSetPrototype(GlobalDate, new GlobalObject());
 
 // Set up non-enumerable properties of the Date object itself.
 utils.InstallFunctions(GlobalDate, DONT_ENUM, [

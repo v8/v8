@@ -85,6 +85,8 @@
   'ecma/String/15.5.4.8-1': [FAIL],
   'ecma/String/15.5.4.9-1': [FAIL],
 
+  # Date.prototype is an Object, not a Date
+  'ecma/Date/15.9.5': [FAIL],
 
   ##################### SKIPPED TESTS #####################
 

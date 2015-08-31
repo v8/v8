@@ -284,6 +284,9 @@
   # ES6 says for dates to default to the local timezone if none is specified
   '15.9.1.15-1': [FAIL],
 
+  # ES6 makes Date.prototype an Object, not a Date
+  '15.9.5.40_1': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
