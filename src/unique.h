@@ -32,7 +32,7 @@ class UniqueSet;
 // Careful! Comparison of two Uniques is only correct if both were created
 // in the same "era" of GC or if at least one is a non-movable object.
 template <typename T>
-class Unique {
+class Unique final {
  public:
   Unique<T>() : raw_address_(NULL) {}
 
@@ -53,10 +53,6 @@ class Unique {
     }
     handle_ = handle;
   }
-
-  // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
-  Unique(Address raw_address, Handle<T> handle)
-    : raw_address_(raw_address), handle_(handle) { }
 
   // Constructor for handling automatic up casting.
   // Eg. Unique<JSFunction> can be passed when Unique<Object> is expected.
@@ -129,15 +125,16 @@ class Unique {
     return Unique<T>(reinterpret_cast<Address>(*handle), handle);
   }
 
-  friend class UniqueSet<T>;  // Uses internal details for speed.
-  template <class U>
-  friend class Unique;  // For comparing raw_address values.
+ private:
+  Unique(Address raw_address, Handle<T> handle)
+      : raw_address_(raw_address), handle_(handle) {}
 
- protected:
   Address raw_address_;
   Handle<T> handle_;
 
-  friend class SideEffectsTracker;
+  friend class UniqueSet<T>;  // Uses internal details for speed.
+  template <class U>
+  friend class Unique;  // For comparing raw_address values.
 };
 
 template <typename T>
