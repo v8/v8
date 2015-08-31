@@ -136,6 +136,11 @@ class StackGuard final {
   // is assumed to grow downwards.
   void SetStackLimit(uintptr_t limit);
 
+  // The simulator uses a separate JS stack. Limits on the JS stack might have
+  // to be adjusted in order to reflect overflows of the C stack, because we
+  // cannot rely on the interleaving of frames on the simulator.
+  void AdjustStackLimitForSimulator();
+
   // Threading support.
   char* ArchiveStackGuard(char* to);
   char* RestoreStackGuard(char* from);

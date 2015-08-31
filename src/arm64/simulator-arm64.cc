@@ -222,6 +222,9 @@ int64_t Simulator::CallRegExp(byte* entry,
 
 
 void Simulator::CheckPCSComplianceAndRun() {
+  // Adjust JS-based stack limit to C-based stack limit.
+  isolate_->stack_guard()->AdjustStackLimitForSimulator();
+
 #ifdef DEBUG
   CHECK_EQ(kNumberOfCalleeSavedRegisters, kCalleeSaved.Count());
   CHECK_EQ(kNumberOfCalleeSavedFPRegisters, kCalleeSavedFP.Count());
@@ -332,9 +335,15 @@ uintptr_t Simulator::PopAddress() {
 
 
 // Returns the limit of the stack area to enable checking for stack overflows.
-uintptr_t Simulator::StackLimit() const {
-  // Leave a safety margin of 1024 bytes to prevent overrunning the stack when
-  // pushing values.
+uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
+  // The simulator uses a separate JS stack. If we have exhausted the C stack,
+  // we also drop down the JS limit to reflect the exhaustion on the JS stack.
+  if (GetCurrentStackPosition() < c_limit) {
+    return reinterpret_cast<uintptr_t>(get_sp());
+  }
+
+  // Otherwise the limit is the JS stack. Leave a safety margin of 1024 bytes
+  // to prevent overrunning the stack when pushing values.
   return stack_limit_ + 1024;
 }
 
