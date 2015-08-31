@@ -982,10 +982,6 @@ TEST(Float64StackParamsToStackParams) {
 void MixedParamTest(int start) {
   if (DISABLE_NATIVE_STACK_PARAMS) return;
   if (RegisterConfiguration::ArchDefault()->num_double_registers() < 2) return;
-#ifdef V8_TARGET_ARCH_MIPS64
-  // TODO(titzer): MIPS stack doubles can be misaligned.
-  if (true) return;
-#endif
 
 // TODO(titzer): mix in 64-bit types on all platforms when supported.
 #if V8_TARGET_ARCH_32_BIT
@@ -1039,7 +1035,7 @@ void MixedParamTest(int start) {
       Handle<Code> wrapper = Handle<Code>::null();
       int32_t expected_ret;
       char bytes[kDoubleSize];
-      char output[kDoubleSize];
+      V8_ALIGNED(8) char output[kDoubleSize];
       int expected_size = 0;
       CSignature0<int32_t> csig;
       {
