@@ -515,8 +515,33 @@ class ElementsAccessorBase : public ElementsAccessor {
     ElementsAccessorSubclass::ValidateImpl(holder);
   }
 
+  virtual bool IsPacked(Handle<JSObject> holder,
+                        Handle<FixedArrayBase> backing_store, uint32_t start,
+                        uint32_t end) final {
+    return ElementsAccessorSubclass::IsPackedImpl(holder, backing_store, start,
+                                                  end);
+  }
+
+  static bool IsPackedImpl(Handle<JSObject> holder,
+                           Handle<FixedArrayBase> backing_store, uint32_t start,
+                           uint32_t end) {
+    if (IsFastPackedElementsKind(kind())) return true;
+    for (uint32_t i = start; i < end; i++) {
+      if (!ElementsAccessorSubclass::HasElementImpl(holder, i, backing_store)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   virtual bool HasElement(Handle<JSObject> holder, uint32_t index,
                           Handle<FixedArrayBase> backing_store) final {
+    return ElementsAccessorSubclass::HasElementImpl(holder, index,
+                                                    backing_store);
+  }
+
+  static bool HasElementImpl(Handle<JSObject> holder, uint32_t index,
+                             Handle<FixedArrayBase> backing_store) {
     return ElementsAccessorSubclass::GetEntryForIndexImpl(
                *holder, *backing_store, index) != kMaxUInt32;
   }
@@ -572,7 +597,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   virtual uint32_t Push(Handle<JSArray> receiver,
                         Handle<FixedArrayBase> backing_store, Object** objects,
-                        uint32_t push_size, int direction) {
+                        uint32_t push_size, int direction) final {
     return ElementsAccessorSubclass::PushImpl(receiver, backing_store, objects,
                                               push_size, direction);
   }
@@ -584,10 +609,24 @@ class ElementsAccessorBase : public ElementsAccessor {
     return 0;
   }
 
+  virtual Handle<JSArray> Slice(Handle<JSObject> receiver,
+                                Handle<FixedArrayBase> backing_store,
+                                uint32_t start, uint32_t end) final {
+    return ElementsAccessorSubclass::SliceImpl(receiver, backing_store, start,
+                                               end);
+  }
+
+  static Handle<JSArray> SliceImpl(Handle<JSObject> receiver,
+                                   Handle<FixedArrayBase> backing_store,
+                                   uint32_t start, uint32_t end) {
+    UNREACHABLE();
+    return Handle<JSArray>();
+  }
+
   virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
                                  Handle<FixedArrayBase> backing_store,
                                  uint32_t start, uint32_t delete_count,
-                                 Arguments args, uint32_t add_count) {
+                                 Arguments args, uint32_t add_count) final {
     return ElementsAccessorSubclass::SpliceImpl(receiver, backing_store, start,
                                                 delete_count, args, add_count);
   }
@@ -1232,14 +1271,31 @@ class FastElementsAccessor
     UNREACHABLE();
   }
 
+  static Handle<JSArray> SliceImpl(Handle<JSObject> receiver,
+                                   Handle<FixedArrayBase> backing_store,
+                                   uint32_t start, uint32_t end) {
+    Isolate* isolate = receiver->GetIsolate();
+    if (end <= start) {
+      return isolate->factory()->NewJSArray(KindTraits::Kind, 0, 0);
+    }
+    int result_len = end - start;
+    Handle<JSArray> result_array = isolate->factory()->NewJSArray(
+        KindTraits::Kind, result_len, result_len);
+    DisallowHeapAllocation no_gc;
+    FastElementsAccessorSubclass::CopyElementsImpl(
+        *backing_store, start, result_array->elements(), KindTraits::Kind, 0,
+        kPackedSizeNotKnown, result_len);
+    return result_array;
+  }
+
   static Handle<JSArray> SpliceImpl(Handle<JSArray> receiver,
                                     Handle<FixedArrayBase> backing_store,
                                     uint32_t start, uint32_t delete_count,
                                     Arguments args, uint32_t add_count) {
     Isolate* isolate = receiver->GetIsolate();
     Heap* heap = isolate->heap();
-    const uint32_t len = Smi::cast(receiver->length())->value();
-    const uint32_t new_length = len - delete_count + add_count;
+    uint32_t len = Smi::cast(receiver->length())->value();
+    uint32_t new_length = len - delete_count + add_count;
 
     if (new_length == 0) {
       receiver->set_elements(heap->empty_fixed_array());

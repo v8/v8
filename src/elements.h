@@ -38,6 +38,11 @@ class ElementsAccessor {
     return HasElement(holder, index, handle(holder->elements()));
   }
 
+  // Returns true if the backing store is compact in the given range
+  virtual bool IsPacked(Handle<JSObject> holder,
+                        Handle<FixedArrayBase> backing_store, uint32_t start,
+                        uint32_t end) = 0;
+
   virtual Handle<Object> Get(Handle<FixedArrayBase> backing_store,
                              uint32_t entry) = 0;
 
@@ -130,6 +135,10 @@ class ElementsAccessor {
   virtual uint32_t Push(Handle<JSArray> receiver,
                         Handle<FixedArrayBase> backing_store, Object** objects,
                         uint32_t start, int direction) = 0;
+
+  virtual Handle<JSArray> Slice(Handle<JSObject> receiver,
+                                Handle<FixedArrayBase> backing_store,
+                                uint32_t start, uint32_t end) = 0;
 
   virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
                                  Handle<FixedArrayBase> backing_store,

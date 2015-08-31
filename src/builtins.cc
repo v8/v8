@@ -134,7 +134,7 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 
 
 #ifdef DEBUG
-static inline bool CalledAsConstructor(Isolate* isolate) {
+inline bool CalledAsConstructor(Isolate* isolate) {
   // Calculate the result using a full stack frame iterator and check
   // that the state of the stack is as we assume it to be in the
   // code below.
@@ -165,16 +165,25 @@ static inline bool CalledAsConstructor(Isolate* isolate) {
 // ----------------------------------------------------------------------------
 
 
-bool ClampedToInteger(Object* object, int* out) {
+inline bool ClampedToInteger(Object* object, int* out) {
   // This is an extended version of ECMA-262 7.1.11 handling signed values
   // Try to convert object to a number and clamp values to [kMinInt, kMaxInt]
   if (object->IsSmi()) {
     *out = Smi::cast(object)->value();
     return true;
   } else if (object->IsHeapNumber()) {
-    *out = FastD2IChecked(HeapNumber::cast(object)->value());
+    double value = HeapNumber::cast(object)->value();
+    if (std::isnan(value)) {
+      *out = 0;
+    } else if (value > kMaxInt) {
+      *out = kMaxInt;
+    } else if (value < kMinInt) {
+      *out = kMinInt;
+    } else {
+      *out = static_cast<int>(value);
+    }
     return true;
-  } else if (object->IsUndefined()) {
+  } else if (object->IsUndefined() || object->IsNull()) {
     *out = 0;
     return true;
   } else if (object->IsBoolean()) {
@@ -185,15 +194,31 @@ bool ClampedToInteger(Object* object, int* out) {
 }
 
 
-static void MoveDoubleElements(FixedDoubleArray* dst, int dst_index,
-                               FixedDoubleArray* src, int src_index, int len) {
+void MoveDoubleElements(FixedDoubleArray* dst, int dst_index,
+                        FixedDoubleArray* src, int src_index, int len) {
   if (len == 0) return;
   MemMove(dst->data_start() + dst_index, src->data_start() + src_index,
           len * kDoubleSize);
 }
 
 
-static bool ArrayPrototypeHasNoElements(PrototypeIterator* iter) {
+inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
+                                     int* out) {
+  Map* arguments_map =
+      isolate->context()->native_context()->sloppy_arguments_map();
+  if (object->map() != arguments_map || !object->HasFastElements()) {
+    return false;
+  }
+  Object* len_obj = object->InObjectPropertyAt(Heap::kArgumentsLengthIndex);
+  if (!len_obj->IsSmi()) {
+    return false;
+  }
+  *out = Smi::cast(len_obj)->value();
+  return *out <= object->elements()->length();
+}
+
+
+bool PrototypeHasNoElements(PrototypeIterator* iter) {
   DisallowHeapAllocation no_gc;
   for (; !iter->IsAtEnd(); iter->Advance()) {
     if (iter->GetCurrent()->IsJSProxy()) return false;
@@ -206,8 +231,8 @@ static bool ArrayPrototypeHasNoElements(PrototypeIterator* iter) {
 }
 
 
-static inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
-                                                     JSArray* receiver) {
+inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
+                                              JSArray* receiver) {
   DisallowHeapAllocation no_gc;
   // If the array prototype chain is intact (and free of elements), and if the
   // receiver's prototype is the array prototype, then we are done.
@@ -220,16 +245,14 @@ static inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
 
   // Slow case.
   PrototypeIterator iter(isolate, receiver);
-  return ArrayPrototypeHasNoElements(&iter);
+  return PrototypeHasNoElements(&iter);
 }
 
 
 // Returns empty handle if not applicable.
 MUST_USE_RESULT
-static inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
-    Isolate* isolate,
-    Handle<Object> receiver,
-    Arguments* args,
+inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
+    Isolate* isolate, Handle<Object> receiver, Arguments* args,
     int first_added_arg) {
   if (!receiver->IsJSArray()) return MaybeHandle<FixedArrayBase>();
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
@@ -495,140 +518,79 @@ BUILTIN(ArrayUnshift) {
 BUILTIN(ArraySlice) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
+  Handle<JSObject> object;
+  Handle<FixedArrayBase> elms_obj;
   int len = -1;
   int relative_start = 0;
   int relative_end = 0;
-  {
+  bool is_sloppy_arguments = false;
+
+  if (receiver->IsJSArray()) {
     DisallowHeapAllocation no_gc;
-    if (receiver->IsJSArray()) {
-      JSArray* array = JSArray::cast(*receiver);
-      if (!IsJSArrayFastElementMovingAllowed(isolate, array)) {
-        AllowHeapAllocation allow_allocation;
-        return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-      }
-
-      if (!array->HasFastElements()) {
-        AllowHeapAllocation allow_allocation;
-        return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-      }
-
-      len = Smi::cast(array->length())->value();
-    } else {
-      // Array.slice(arguments, ...) is quite a common idiom (notably more
-      // than 50% of invocations in Web apps).  Treat it in C++ as well.
-      Map* arguments_map =
-          isolate->context()->native_context()->sloppy_arguments_map();
-
-      bool is_arguments_object_with_fast_elements =
-          receiver->IsJSObject() &&
-          JSObject::cast(*receiver)->map() == arguments_map;
-      if (!is_arguments_object_with_fast_elements) {
-        AllowHeapAllocation allow_allocation;
-        return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-      }
-      JSObject* object = JSObject::cast(*receiver);
-
-      if (!object->HasFastElements()) {
-        AllowHeapAllocation allow_allocation;
-        return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-      }
-
-      Object* len_obj = object->InObjectPropertyAt(Heap::kArgumentsLengthIndex);
-      if (!len_obj->IsSmi()) {
-        AllowHeapAllocation allow_allocation;
-        return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-      }
-      len = Smi::cast(len_obj)->value();
-      if (len > object->elements()->length()) {
-        AllowHeapAllocation allow_allocation;
-        return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-      }
+    JSArray* array = JSArray::cast(*receiver);
+    if (!array->HasFastElements() ||
+        !IsJSArrayFastElementMovingAllowed(isolate, array)) {
+      AllowHeapAllocation allow_allocation;
+      return CallJsIntrinsic(isolate, isolate->array_slice(), args);
     }
-
-    DCHECK(len >= 0);
-    int n_arguments = args.length() - 1;
-
-    // Note carefully choosen defaults---if argument is missing,
-    // it's undefined which gets converted to 0 for relative_start
-    // and to len for relative_end.
-    relative_start = 0;
-    relative_end = len;
-    if (n_arguments > 0) {
-      Object* arg1 = args[1];
-      if (arg1->IsSmi()) {
-        relative_start = Smi::cast(arg1)->value();
-      } else if (arg1->IsHeapNumber()) {
-        double start = HeapNumber::cast(arg1)->value();
-        if (start < kMinInt || start > kMaxInt) {
-          AllowHeapAllocation allow_allocation;
-          return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-        }
-        relative_start = std::isnan(start) ? 0 : static_cast<int>(start);
-      } else if (!arg1->IsUndefined()) {
+    len = Smi::cast(array->length())->value();
+    object = Handle<JSObject>::cast(receiver);
+    elms_obj = handle(array->elements(), isolate);
+  } else if (receiver->IsJSObject() &&
+             GetSloppyArgumentsLength(isolate, Handle<JSObject>::cast(receiver),
+                                      &len)) {
+    // Array.prototype.slice(arguments, ...) is quite a common idiom
+    // (notably more than 50% of invocations in Web apps).
+    // Treat it in C++ as well.
+    is_sloppy_arguments = true;
+    object = Handle<JSObject>::cast(receiver);
+    elms_obj = handle(object->elements(), isolate);
+  } else {
+    AllowHeapAllocation allow_allocation;
+    return CallJsIntrinsic(isolate, isolate->array_slice(), args);
+  }
+  DCHECK(len >= 0);
+  int argument_count = args.length() - 1;
+  // Note carefully chosen defaults---if argument is missing,
+  // it's undefined which gets converted to 0 for relative_start
+  // and to len for relative_end.
+  relative_start = 0;
+  relative_end = len;
+  if (argument_count > 0) {
+    DisallowHeapAllocation no_gc;
+    if (!ClampedToInteger(args[1], &relative_start)) {
+      AllowHeapAllocation allow_allocation;
+      return CallJsIntrinsic(isolate, isolate->array_slice(), args);
+    }
+    if (argument_count > 1) {
+      Object* end_arg = args[2];
+      // slice handles the end_arg specially
+      if (end_arg->IsUndefined()) {
+        relative_end = len;
+      } else if (!ClampedToInteger(end_arg, &relative_end)) {
         AllowHeapAllocation allow_allocation;
         return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-      }
-      if (n_arguments > 1) {
-        Object* arg2 = args[2];
-        if (arg2->IsSmi()) {
-          relative_end = Smi::cast(arg2)->value();
-        } else if (arg2->IsHeapNumber()) {
-          double end = HeapNumber::cast(arg2)->value();
-          if (end < kMinInt || end > kMaxInt) {
-            AllowHeapAllocation allow_allocation;
-            return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-          }
-          relative_end = std::isnan(end) ? 0 : static_cast<int>(end);
-        } else if (!arg2->IsUndefined()) {
-          AllowHeapAllocation allow_allocation;
-          return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-        }
       }
     }
   }
 
   // ECMAScript 232, 3rd Edition, Section 15.4.4.10, step 6.
-  int k = (relative_start < 0) ? Max(len + relative_start, 0)
-                               : Min(relative_start, len);
+  uint32_t actual_start = (relative_start < 0) ? Max(len + relative_start, 0)
+                                               : Min(relative_start, len);
 
   // ECMAScript 232, 3rd Edition, Section 15.4.4.10, step 8.
-  int final = (relative_end < 0) ? Max(len + relative_end, 0)
-                                 : Min(relative_end, len);
-
-  // Calculate the length of result array.
-  int result_len = Max(final - k, 0);
-
-  Handle<JSObject> object = Handle<JSObject>::cast(receiver);
-  Handle<FixedArrayBase> elms(object->elements(), isolate);
-
-  ElementsKind kind = object->GetElementsKind();
-  if (IsHoleyElementsKind(kind)) {
-    DisallowHeapAllocation no_gc;
-    bool packed = true;
-    ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
-    for (int i = k; i < final; i++) {
-      if (!accessor->HasElement(object, i, elms)) {
-        packed = false;
-        break;
-      }
-    }
-    if (packed) {
-      kind = GetPackedElementsKind(kind);
-    } else if (!receiver->IsJSArray()) {
-      AllowHeapAllocation allow_allocation;
-      return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-    }
-  }
-
-  Handle<JSArray> result_array =
-      isolate->factory()->NewJSArray(kind, result_len, result_len);
-
-  DisallowHeapAllocation no_gc;
-  if (result_len == 0) return *result_array;
+  uint32_t actual_end =
+      (relative_end < 0) ? Max(len + relative_end, 0) : Min(relative_end, len);
 
   ElementsAccessor* accessor = object->GetElementsAccessor();
-  accessor->CopyElements(
-      elms, k, kind, handle(result_array->elements(), isolate), 0, result_len);
+  if (is_sloppy_arguments &&
+      !accessor->IsPacked(object, elms_obj, actual_start, actual_end)) {
+    // Don't deal with arguments with holes in C++
+    AllowHeapAllocation allow_allocation;
+    return CallJsIntrinsic(isolate, isolate->array_slice(), args);
+  }
+  Handle<JSArray> result_array =
+      accessor->Slice(object, elms_obj, actual_start, actual_end);
   return *result_array;
 }
 
@@ -687,9 +649,9 @@ BUILTIN(ArraySplice) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  Handle<JSArray> result = accessor->Splice(
+  Handle<JSArray> result_array = accessor->Splice(
       array, elms_obj, actual_start, actual_delete_count, args, add_count);
-  return *result;
+  return *result_array;
 }
 
 
@@ -706,7 +668,7 @@ BUILTIN(ArrayConcat) {
     Object* array_proto = native_context->array_function()->prototype();
     PrototypeIterator iter(isolate, array_proto,
                            PrototypeIterator::START_AT_RECEIVER);
-    if (!ArrayPrototypeHasNoElements(&iter)) {
+    if (!PrototypeHasNoElements(&iter)) {
       AllowHeapAllocation allow_allocation;
       return CallJsIntrinsic(isolate, isolate->array_concat(), args);
     }
