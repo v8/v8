@@ -471,7 +471,7 @@ class TopLevelLiveRange final : public LiveRange {
 
   // Assuming other was splintered from this range, embeds other and its
   // children as part of the children sequence of this range.
-  void Merge(TopLevelLiveRange* other, RegisterAllocationData* data);
+  void Merge(TopLevelLiveRange* other, Zone* zone);
 
   // Spill range management.
   void SetSpillRange(SpillRange* spill_range);

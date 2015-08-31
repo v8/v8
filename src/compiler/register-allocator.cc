@@ -897,12 +897,9 @@ void TopLevelLiveRange::UpdateSpillRangePostMerge(TopLevelLiveRange* merged) {
 }
 
 
-void TopLevelLiveRange::Merge(TopLevelLiveRange* other,
-                              RegisterAllocationData* data) {
+void TopLevelLiveRange::Merge(TopLevelLiveRange* other, Zone* zone) {
   DCHECK(Start() < other->Start());
   DCHECK(other->splintered_from() == this);
-
-  data->live_ranges()[other->vreg()] = nullptr;
 
   LiveRange* last_other = other->last_child();
   LiveRange* last_me = last_child();
@@ -929,8 +926,7 @@ void TopLevelLiveRange::Merge(TopLevelLiveRange* other,
   // register allocation splitting.
   LiveRange* after = last_insertion_point_->next();
   if (last_insertion_point_->End() > other->Start()) {
-    LiveRange* new_after =
-        last_insertion_point_->SplitAt(other->Start(), data->allocation_zone());
+    LiveRange* new_after = last_insertion_point_->SplitAt(other->Start(), zone);
     new_after->set_spilled(last_insertion_point_->spilled());
     if (!new_after->spilled())
       new_after->set_assigned_register(

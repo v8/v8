@@ -153,7 +153,9 @@ void LiveRangeMerger::Merge() {
     }
     TopLevelLiveRange *splinter_parent = range->splintered_from();
 
-    splinter_parent->Merge(range, data());
+    int to_remove = range->vreg();
+    splinter_parent->Merge(range, data()->allocation_zone());
+    data()->live_ranges()[to_remove] = nullptr;
   }
 }
 
