@@ -14,17 +14,11 @@
   CHECK_EQ(index, types.size()); \
   }
 
-#define DEFAULT_TYPE Bounds::Unbounded()
-#define INT32_TYPE                            \
-  Bounds(Type::Signed32(handles.main_zone()), \
-         Type::Signed32(handles.main_zone()))
-
-#define CHECK_EXPR(ekind, type)                     \
-  CHECK_LT(index, types.size());                    \
-  CHECK(strcmp(#ekind, types[index].kind) == 0);    \
-  CHECK_EQ(depth, types[index].depth);              \
-  CHECK(type.lower->Is(types[index].bounds.lower)); \
-  CHECK(type.upper->Is(types[index].bounds.upper)); \
+#define CHECK_EXPR(ekind, type)                  \
+  CHECK_LT(index, types.size());                 \
+  CHECK(strcmp(#ekind, types[index].kind) == 0); \
+  CHECK_EQ(depth, types[index].depth);           \
+  CHECK(types[index].bounds.Narrows(type));      \
   for (int j = (++depth, ++index, 0); j < 1 ? 1 : (--depth, 0); ++j)
 
 #define CHECK_VAR(vname, type)                                     \
@@ -32,5 +26,13 @@
   CHECK_EQ(#vname, std::string(types[index - 1].name->raw_data(),  \
                                types[index - 1].name->raw_data() + \
                                    types[index - 1].name->byte_length()));
+
+#define CHECK_SKIP()                                             \
+  {                                                              \
+    ++index;                                                     \
+    while (index < types.size() && types[index].depth > depth) { \
+      ++index;                                                   \
+    }                                                            \
+  }
 
 #endif  // V8_EXPRESSION_TYPE_COLLECTOR_MACROS_H_

@@ -88,181 +88,181 @@ TEST(VisitExpressions) {
   CollectTypes(&handles, test_function, &types);
   CHECK_TYPES_BEGIN {
     // function logSum
-    CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {
-      CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(start, DEFAULT_TYPE);
-          CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-            CHECK_VAR(start, DEFAULT_TYPE);
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
+      CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(start, Bounds::Unbounded());
+          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+            CHECK_VAR(start, Bounds::Unbounded());
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
         }
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(end, DEFAULT_TYPE);
-          CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-            CHECK_VAR(end, DEFAULT_TYPE);
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(end, Bounds::Unbounded());
+          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+            CHECK_VAR(end, Bounds::Unbounded());
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
         }
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(sum, DEFAULT_TYPE);
-          CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(sum, Bounds::Unbounded());
+          CHECK_EXPR(Literal, Bounds::Unbounded());
         }
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(p, DEFAULT_TYPE);
-          CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(p, Bounds::Unbounded());
+          CHECK_EXPR(Literal, Bounds::Unbounded());
         }
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(q, DEFAULT_TYPE);
-          CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(q, Bounds::Unbounded());
+          CHECK_EXPR(Literal, Bounds::Unbounded());
         }
         // for (p = start << 3, q = end << 3;
-        CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-          CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-            CHECK_VAR(p, DEFAULT_TYPE);
-            CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-              CHECK_VAR(start, DEFAULT_TYPE);
-              CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+          CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+            CHECK_VAR(p, Bounds::Unbounded());
+            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+              CHECK_VAR(start, Bounds::Unbounded());
+              CHECK_EXPR(Literal, Bounds::Unbounded());
             }
           }
-          CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-            CHECK_VAR(q, DEFAULT_TYPE);
-            CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-              CHECK_VAR(end, DEFAULT_TYPE);
-              CHECK_EXPR(Literal, DEFAULT_TYPE);
+          CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+            CHECK_VAR(q, Bounds::Unbounded());
+            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+              CHECK_VAR(end, Bounds::Unbounded());
+              CHECK_EXPR(Literal, Bounds::Unbounded());
             }
           }
         }
         // (p|0) < (q|0);
-        CHECK_EXPR(CompareOperation, DEFAULT_TYPE) {
-          CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-            CHECK_VAR(p, DEFAULT_TYPE);
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(CompareOperation, Bounds::Unbounded()) {
+          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+            CHECK_VAR(p, Bounds::Unbounded());
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
-          CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-            CHECK_VAR(q, DEFAULT_TYPE);
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+            CHECK_VAR(q, Bounds::Unbounded());
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
         }
         // p = (p + 8)|0) {\n"
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(p, DEFAULT_TYPE);
-          CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-            CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-              CHECK_VAR(p, DEFAULT_TYPE);
-              CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(p, Bounds::Unbounded());
+          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+              CHECK_VAR(p, Bounds::Unbounded());
+              CHECK_EXPR(Literal, Bounds::Unbounded());
             }
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
         }
         // sum = sum + +log(values[p>>3]);
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(sum, DEFAULT_TYPE);
-          CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-            CHECK_VAR(sum, DEFAULT_TYPE);
-            CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-              CHECK_EXPR(Call, DEFAULT_TYPE) {
-                CHECK_VAR(log, DEFAULT_TYPE);
-                CHECK_EXPR(Property, DEFAULT_TYPE) {
-                  CHECK_VAR(values, DEFAULT_TYPE);
-                  CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-                    CHECK_VAR(p, DEFAULT_TYPE);
-                    CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(sum, Bounds::Unbounded());
+          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+            CHECK_VAR(sum, Bounds::Unbounded());
+            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+              CHECK_EXPR(Call, Bounds::Unbounded()) {
+                CHECK_VAR(log, Bounds::Unbounded());
+                CHECK_EXPR(Property, Bounds::Unbounded()) {
+                  CHECK_VAR(values, Bounds::Unbounded());
+                  CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+                    CHECK_VAR(p, Bounds::Unbounded());
+                    CHECK_EXPR(Literal, Bounds::Unbounded());
                   }
                 }
               }
-              CHECK_EXPR(Literal, DEFAULT_TYPE);
+              CHECK_EXPR(Literal, Bounds::Unbounded());
             }
           }
         }
         // return +sum;
-        CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-          CHECK_VAR(sum, DEFAULT_TYPE);
-          CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+          CHECK_VAR(sum, Bounds::Unbounded());
+          CHECK_EXPR(Literal, Bounds::Unbounded());
         }
       }
       // function geometricMean
-      CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(start, DEFAULT_TYPE);
-          CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-            CHECK_VAR(start, DEFAULT_TYPE);
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+      CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(start, Bounds::Unbounded());
+          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+            CHECK_VAR(start, Bounds::Unbounded());
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
         }
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(end, DEFAULT_TYPE);
-          CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-            CHECK_VAR(end, DEFAULT_TYPE);
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(end, Bounds::Unbounded());
+          CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+            CHECK_VAR(end, Bounds::Unbounded());
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
         }
         // return +exp(+logSum(start, end) / +((end - start)|0));
-        CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-          CHECK_EXPR(Call, DEFAULT_TYPE) {
-            CHECK_VAR(exp, DEFAULT_TYPE);
-            CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-              CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-                CHECK_EXPR(Call, DEFAULT_TYPE) {
-                  CHECK_VAR(logSum, DEFAULT_TYPE);
-                  CHECK_VAR(start, DEFAULT_TYPE);
-                  CHECK_VAR(end, DEFAULT_TYPE);
+        CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+          CHECK_EXPR(Call, Bounds::Unbounded()) {
+            CHECK_VAR(exp, Bounds::Unbounded());
+            CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+              CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+                CHECK_EXPR(Call, Bounds::Unbounded()) {
+                  CHECK_VAR(logSum, Bounds::Unbounded());
+                  CHECK_VAR(start, Bounds::Unbounded());
+                  CHECK_VAR(end, Bounds::Unbounded());
                 }
-                CHECK_EXPR(Literal, DEFAULT_TYPE);
+                CHECK_EXPR(Literal, Bounds::Unbounded());
               }
-              CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-                CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-                  CHECK_EXPR(BinaryOperation, DEFAULT_TYPE) {
-                    CHECK_VAR(end, DEFAULT_TYPE);
-                    CHECK_VAR(start, DEFAULT_TYPE);
+              CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+                CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+                  CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+                    CHECK_VAR(end, Bounds::Unbounded());
+                    CHECK_VAR(start, Bounds::Unbounded());
                   }
-                  CHECK_EXPR(Literal, DEFAULT_TYPE);
+                  CHECK_EXPR(Literal, Bounds::Unbounded());
                 }
-                CHECK_EXPR(Literal, DEFAULT_TYPE);
+                CHECK_EXPR(Literal, Bounds::Unbounded());
               }
             }
           }
-          CHECK_EXPR(Literal, DEFAULT_TYPE);
+          CHECK_EXPR(Literal, Bounds::Unbounded());
         }
       }
       // "use asm";
-      CHECK_EXPR(Literal, DEFAULT_TYPE);
+      CHECK_EXPR(Literal, Bounds::Unbounded());
       // var exp = stdlib.Math.exp;
-      CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-        CHECK_VAR(exp, DEFAULT_TYPE);
-        CHECK_EXPR(Property, DEFAULT_TYPE) {
-          CHECK_EXPR(Property, DEFAULT_TYPE) {
-            CHECK_VAR(stdlib, DEFAULT_TYPE);
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+        CHECK_VAR(exp, Bounds::Unbounded());
+        CHECK_EXPR(Property, Bounds::Unbounded()) {
+          CHECK_EXPR(Property, Bounds::Unbounded()) {
+            CHECK_VAR(stdlib, Bounds::Unbounded());
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
-          CHECK_EXPR(Literal, DEFAULT_TYPE);
+          CHECK_EXPR(Literal, Bounds::Unbounded());
         }
       }
       // var log = stdlib.Math.log;
-      CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-        CHECK_VAR(log, DEFAULT_TYPE);
-        CHECK_EXPR(Property, DEFAULT_TYPE) {
-          CHECK_EXPR(Property, DEFAULT_TYPE) {
-            CHECK_VAR(stdlib, DEFAULT_TYPE);
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+        CHECK_VAR(log, Bounds::Unbounded());
+        CHECK_EXPR(Property, Bounds::Unbounded()) {
+          CHECK_EXPR(Property, Bounds::Unbounded()) {
+            CHECK_VAR(stdlib, Bounds::Unbounded());
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
-          CHECK_EXPR(Literal, DEFAULT_TYPE);
+          CHECK_EXPR(Literal, Bounds::Unbounded());
         }
       }
       // var values = new stdlib.Float64Array(buffer);
-      CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-        CHECK_VAR(values, DEFAULT_TYPE);
-        CHECK_EXPR(CallNew, DEFAULT_TYPE) {
-          CHECK_EXPR(Property, DEFAULT_TYPE) {
-            CHECK_VAR(stdlib, DEFAULT_TYPE);
-            CHECK_EXPR(Literal, DEFAULT_TYPE);
+      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+        CHECK_VAR(values, Bounds::Unbounded());
+        CHECK_EXPR(CallNew, Bounds::Unbounded()) {
+          CHECK_EXPR(Property, Bounds::Unbounded()) {
+            CHECK_VAR(stdlib, Bounds::Unbounded());
+            CHECK_EXPR(Literal, Bounds::Unbounded());
           }
-          CHECK_VAR(buffer, DEFAULT_TYPE);
+          CHECK_VAR(buffer, Bounds::Unbounded());
         }
       }
       // return { geometricMean: geometricMean };
-      CHECK_EXPR(ObjectLiteral, DEFAULT_TYPE) {
-        CHECK_VAR(geometricMean, DEFAULT_TYPE);
+      CHECK_EXPR(ObjectLiteral, Bounds::Unbounded()) {
+        CHECK_VAR(geometricMean, Bounds::Unbounded());
       }
     }
   }
@@ -281,7 +281,7 @@ TEST(VisitEmptyForStatment) {
       "}\n";
   CollectTypes(&handles, test_function, &types);
   CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {}
+    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {}
   }
   CHECK_TYPES_END
 }
@@ -298,14 +298,14 @@ TEST(VisitSwitchStatment) {
       "}\n";
   CollectTypes(&handles, test_function, &types);
   CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {
-      CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-        CHECK_VAR(.switch_tag, DEFAULT_TYPE);
-        CHECK_EXPR(Literal, DEFAULT_TYPE);
+    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
+      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+        CHECK_VAR(.switch_tag, Bounds::Unbounded());
+        CHECK_EXPR(Literal, Bounds::Unbounded());
       }
-      CHECK_EXPR(Literal, DEFAULT_TYPE);
-      CHECK_VAR(.switch_tag, DEFAULT_TYPE);
-      CHECK_EXPR(Literal, DEFAULT_TYPE);
+      CHECK_EXPR(Literal, Bounds::Unbounded());
+      CHECK_VAR(.switch_tag, Bounds::Unbounded());
+      CHECK_EXPR(Literal, Bounds::Unbounded());
     }
   }
   CHECK_TYPES_END
@@ -323,8 +323,10 @@ TEST(VisitThrow) {
       "}\n";
   CollectTypes(&handles, test_function, &types);
   CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {
-      CHECK_EXPR(Throw, DEFAULT_TYPE) { CHECK_EXPR(Literal, DEFAULT_TYPE); }
+    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
+      CHECK_EXPR(Throw, Bounds::Unbounded()) {
+        CHECK_EXPR(Literal, Bounds::Unbounded());
+      }
     }
   }
   CHECK_TYPES_END
@@ -342,24 +344,47 @@ TEST(VisitYield) {
       "}\n";
   CollectTypes(&handles, test_function, &types);
   CHECK_TYPES_BEGIN {
-    CHECK_EXPR(FunctionLiteral, DEFAULT_TYPE) {
+    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
       // Generator function yields generator on entry.
-      CHECK_EXPR(Yield, DEFAULT_TYPE) {
-        CHECK_VAR(.generator_object, DEFAULT_TYPE);
-        CHECK_EXPR(Assignment, DEFAULT_TYPE) {
-          CHECK_VAR(.generator_object, DEFAULT_TYPE);
-          CHECK_EXPR(CallRuntime, DEFAULT_TYPE);
+      CHECK_EXPR(Yield, Bounds::Unbounded()) {
+        CHECK_VAR(.generator_object, Bounds::Unbounded());
+        CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+          CHECK_VAR(.generator_object, Bounds::Unbounded());
+          CHECK_EXPR(CallRuntime, Bounds::Unbounded());
         }
       }
       // Then yields undefined.
-      CHECK_EXPR(Yield, DEFAULT_TYPE) {
-        CHECK_VAR(.generator_object, DEFAULT_TYPE);
-        CHECK_EXPR(Literal, DEFAULT_TYPE);
+      CHECK_EXPR(Yield, Bounds::Unbounded()) {
+        CHECK_VAR(.generator_object, Bounds::Unbounded());
+        CHECK_EXPR(Literal, Bounds::Unbounded());
       }
       // Then yields 123.
-      CHECK_EXPR(Yield, DEFAULT_TYPE) {
-        CHECK_VAR(.generator_object, DEFAULT_TYPE);
-        CHECK_EXPR(Literal, DEFAULT_TYPE);
+      CHECK_EXPR(Yield, Bounds::Unbounded()) {
+        CHECK_VAR(.generator_object, Bounds::Unbounded());
+        CHECK_EXPR(Literal, Bounds::Unbounded());
+      }
+    }
+  }
+  CHECK_TYPES_END
+}
+
+
+TEST(VisitSkipping) {
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
+  // Check that traversing an empty for statement works.
+  const char test_function[] =
+      "function foo(x) {\n"
+      "  return (x + x) + 1;\n"
+      "}\n";
+  CollectTypes(&handles, test_function, &types);
+  CHECK_TYPES_BEGIN {
+    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
+      CHECK_EXPR(BinaryOperation, Bounds::Unbounded()) {
+        // Skip x + x
+        CHECK_SKIP();
+        CHECK_EXPR(Literal, Bounds::Unbounded());
       }
     }
   }

@@ -17,6 +17,8 @@
 #include "test/cctest/expression-type-collector.h"
 #include "test/cctest/expression-type-collector-macros.h"
 
+#define INT32_TYPE Bounds(Type::Signed32(), Type::Signed32())
+
 using namespace v8::internal;
 
 namespace {
@@ -27,14 +29,13 @@ class TypeSetter : public AstExpressionVisitor {
 
  protected:
   void VisitExpression(Expression* expression) {
-    expression->set_bounds(Bounds(Type::Integral32()));
+    expression->set_bounds(INT32_TYPE);
   }
 };
 
 
 void CheckAllSame(ZoneVector<ExpressionTypeEntry>& types,
                   Bounds expected_type) {
-  HandleAndZoneScope handles;
   CHECK_TYPES_BEGIN {
     // function logSum
     CHECK_EXPR(FunctionLiteral, expected_type) {
@@ -283,7 +284,7 @@ TEST(ResetTypingInfo) {
   // Core of the test.
   ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
   ExpressionTypeCollector(&compilation_info, &types).Run();
-  CheckAllSame(types, DEFAULT_TYPE);
+  CheckAllSame(types, Bounds::Unbounded());
 
   TypeSetter(&compilation_info).Run();
 
@@ -293,5 +294,5 @@ TEST(ResetTypingInfo) {
   TypingReseter(&compilation_info).Run();
 
   ExpressionTypeCollector(&compilation_info, &types).Run();
-  CheckAllSame(types, DEFAULT_TYPE);
+  CheckAllSame(types, Bounds::Unbounded());
 }
