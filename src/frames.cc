@@ -879,6 +879,15 @@ void JavaScriptFrame::RestoreOperandStack(FixedArray* store) {
 }
 
 
+FrameSummary::FrameSummary(Object* receiver, JSFunction* function, Code* code,
+                           int offset, bool is_constructor)
+    : receiver_(receiver, function->GetIsolate()),
+      function_(function),
+      code_(code),
+      offset_(offset),
+      is_constructor_(is_constructor) {}
+
+
 void FrameSummary::Print() {
   PrintF("receiver: ");
   receiver_->ShortPrint();
