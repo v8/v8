@@ -96,7 +96,7 @@ TEST(Weakness) {
   CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
 
   // Force a full GC.
-  heap->CollectAllGarbage("Weakness", Heap::kNoGCFlags);
+  heap->CollectAllGarbage(false);
   CHECK_EQ(0, NumberOfWeakCalls);
   CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
@@ -115,12 +115,12 @@ TEST(Weakness) {
   // Force a full GC.
   // Perform two consecutive GCs because the first one will only clear
   // weak references whereas the second one will also clear weak maps.
-  heap->CollectAllGarbage("Weakness", Heap::kNoGCFlags);
+  heap->CollectAllGarbage(false);
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
       0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
-  heap->CollectAllGarbage("Weakness", Heap::kNoGCFlags);
+  heap->CollectAllGarbage(false);
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(2,
@@ -158,7 +158,7 @@ TEST(Shrinking) {
   CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
       0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
-  heap->CollectAllGarbage("Shrinking", Heap::kNoGCFlags);
+  heap->CollectAllGarbage(false);
   CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
       32, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());

@@ -10,7 +10,6 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
-#include "src/base/flags.h"
 #include "src/globals.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/incremental-marking.h"
@@ -577,26 +576,6 @@ class Heap {
     kSmiRootsStart = kStringTableRootIndex + 1
   };
 
-  // Flags to indicate modes for a GC run.
-  enum GCFlag {
-    kNoGCFlags = 0u,
-    kReduceMemoryFootprintMask = 1u << 0,
-    kAbortIncrementalMarkingMask = 1u << 1,
-    kFinalizeIncrementalMarkingMask = 1u << 2,
-
-    // Making the heap iterable requires us to abort incremental marking.
-    kMakeHeapIterableMask = kAbortIncrementalMarkingMask,
-  };
-  typedef base::Flags<GCFlag> GCFlags;
-
-  // A GC invocation always respects the passed flags. Upon finished the current
-  // cycle the previously set flags are either restored (kDontOverride), or
-  // overriden with the flags indicating no special behavior (kOverride).
-  enum GCFlagOverride {
-    kOverride,
-    kDontOverride,
-  };
-
   // Indicates whether live bytes adjustment is triggered
   // - from within the GC code before sweeping started (SEQUENTIAL_TO_SWEEPER),
   // - or from within GC (CONCURRENT_TO_SWEEPER),
@@ -617,36 +596,6 @@ class Heap {
     FIRST_CODE_AGE_SUB_TYPE =
         FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
     OBJECT_STATS_COUNT = FIRST_CODE_AGE_SUB_TYPE + Code::kCodeAgeCount + 1
-  };
-
-  class GCFlagScope {
-   public:
-    GCFlagScope(Heap* heap, GCFlags gc_flags, GCCallbackFlags callback_flags,
-                GCFlagOverride override)
-        : heap_(heap), override_(override) {
-      if (override_ == kDontOverride) {
-        saved_gc_flags_ = heap->current_gc_flags_;
-        saved_gc_callback_flags_ = heap->current_gc_callback_flags_;
-      }
-      heap->set_current_gc_flags(gc_flags);
-      heap->current_gc_callback_flags_ = callback_flags;
-    }
-
-    ~GCFlagScope() {
-      if (override_ == kDontOverride) {
-        heap_->set_current_gc_flags(saved_gc_flags_);
-        heap_->current_gc_callback_flags_ = saved_gc_callback_flags_;
-      } else {
-        heap_->set_current_gc_flags(kNoGCFlags);
-        heap_->current_gc_callback_flags_ = kNoGCCallbackFlags;
-      }
-    }
-
-   private:
-    Heap* heap_;
-    GCFlagOverride override_;
-    GCFlags saved_gc_flags_;
-    GCCallbackFlags saved_gc_callback_flags_;
   };
 
   // Taking this lock prevents the GC from entering a phase that relocates
@@ -750,6 +699,14 @@ class Heap {
 
   // callee is only valid in sloppy mode.
   static const int kArgumentsCalleeIndex = 1;
+
+  static const int kNoGCFlags = 0;
+  static const int kReduceMemoryFootprintMask = 1;
+  static const int kAbortIncrementalMarkingMask = 2;
+  static const int kFinalizeIncrementalMarkingMask = 4;
+
+  // Making the heap iterable requires us to abort incremental marking.
+  static const int kMakeHeapIterableMask = kAbortIncrementalMarkingMask;
 
   // The roots that have an index less than this are always in old space.
   static const int kOldSpaceRoots = 0x20;
@@ -1310,25 +1267,22 @@ class Heap {
   // Methods triggering GCs. ===================================================
   // ===========================================================================
 
-  // Perform a garbage collection operation in a given space.
+  // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
   inline bool CollectGarbage(
-      AllocationSpace space, const char* gc_reason = nullptr,
-      const GCFlags flags = kNoGCFlags,
-      const GCCallbackFlags callback_flags = kNoGCCallbackFlags,
-      const GCFlagOverride override = kOverride);
+      AllocationSpace space, const char* gc_reason = NULL,
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
-  inline bool CollectGarbageNewSpace(const char* gc_reason = nullptr);
-
-  // Performs a full garbage collection.
+  // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
+  // non-zero, then the slower precise sweeper is used, which leaves the heap
+  // in a state where we can iterate over the heap visiting all objects.
   void CollectAllGarbage(
-      const char* gc_reason = nullptr,
-      const GCFlags flags = Heap::kFinalizeIncrementalMarkingMask,
+      int flags = kFinalizeIncrementalMarkingMask, const char* gc_reason = NULL,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Last hope GC, should try to squeeze as much as possible.
-  void CollectAllAvailableGarbage(const char* gc_reason = nullptr);
+  void CollectAllAvailableGarbage(const char* gc_reason = NULL);
 
   // Invoked when GC was requested via the stack guard.
   void HandleGCRequest();
@@ -1377,7 +1331,7 @@ class Heap {
 
   // Starts incremental marking assuming incremental marking is currently
   // stopped.
-  void StartIncrementalMarking(const GCFlags = kNoGCFlags,
+  void StartIncrementalMarking(int gc_flags = kNoGCFlags,
                                const GCCallbackFlags gc_callback_flags =
                                    GCCallbackFlags::kNoGCCallbackFlags,
                                const char* reason = nullptr);
@@ -1741,7 +1695,7 @@ class Heap {
 
   StoreBuffer* store_buffer() { return &store_buffer_; }
 
-  void set_current_gc_flags(GCFlags flags) {
+  void set_current_gc_flags(int flags) {
     current_gc_flags_ = flags;
     DCHECK(!ShouldFinalizeIncrementalMarking() ||
            !ShouldAbortIncrementalMarking());
@@ -1783,13 +1737,17 @@ class Heap {
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
-  bool CollectGarbage(GarbageCollector collector, const char* gc_reason,
-                      const char* collector_reason);
+  bool CollectGarbage(
+      GarbageCollector collector, const char* gc_reason,
+      const char* collector_reason,
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Performs garbage collection
   // Returns whether there is a chance another major GC could
   // collect more garbage.
-  bool PerformGarbageCollection(GarbageCollector collector);
+  bool PerformGarbageCollection(
+      GarbageCollector collector,
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   inline void UpdateOldSpaceLimits();
 
@@ -2410,7 +2368,7 @@ class Heap {
   bool configured_;
 
   // Currently set GC flags that are respected by all GC components.
-  GCFlags current_gc_flags_;
+  int current_gc_flags_;
 
   // Currently set GC callback flags that are used to pass information between
   // the embedder and V8's GC.

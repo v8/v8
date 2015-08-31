@@ -464,7 +464,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
         "})(this);");
     logger->StopProfiler();
     reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectAllGarbage(
-        "EquivalenceOfLoggingAndTraversal", i::Heap::kMakeHeapIterableMask);
+        i::Heap::kMakeHeapIterableMask);
     logger->StringEvent("test-logging-done", "");
 
     // Iterate heap to find compiled functions, will write to log.

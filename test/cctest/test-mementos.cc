@@ -63,7 +63,7 @@ TEST(Regress340063) {
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
   CcTest::i_isolate()->heap()->CollectAllGarbage(
-      "Regress340063", Heap::kAbortIncrementalMarkingMask);
+      Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -81,7 +81,7 @@ TEST(Regress470390) {
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
   CcTest::i_isolate()->heap()->CollectAllGarbage(
-      "Regress470390", Heap::kAbortIncrementalMarkingMask);
+      Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -93,7 +93,7 @@ TEST(BadMementoAfterTopForceScavenge) {
   SetUpNewSpaceWithPoisonedMementoAtTop();
 
   // Force GC to test the poisoned memento handling
-  CcTest::i_isolate()->heap()->CollectGarbageNewSpace();
+  CcTest::i_isolate()->heap()->CollectGarbage(i::NEW_SPACE);
 }
 
 
