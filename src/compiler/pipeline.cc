@@ -266,7 +266,8 @@ class PipelineData {
     int fixed_frame_size = 0;
     if (descriptor != nullptr) {
       fixed_frame_size = (descriptor->kind() == CallDescriptor::kCallAddress)
-                             ? StandardFrameConstants::kFixedSlotCountAboveFp
+                             ? StandardFrameConstants::kFixedSlotCountAboveFp +
+                                   StandardFrameConstants::kCPSlotCount
                              : StandardFrameConstants::kFixedSlotCount;
     }
     frame_ = new (instruction_zone()) Frame(fixed_frame_size);
