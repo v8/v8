@@ -43,7 +43,7 @@ Reduction JSTypeFeedbackLowering::ReduceJSLoadNamed(Node* node) {
   LoadNamedParameters const& p = LoadNamedParametersOf(node->op());
   Handle<TypeFeedbackVector> vector;
   if (!p.feedback().vector().ToHandle(&vector)) return NoChange();
-  if (p.name().handle().is_identical_to(factory()->length_string())) {
+  if (p.name().is_identical_to(factory()->length_string())) {
     LoadICNexus nexus(vector, p.feedback().slot());
     MapHandleList maps;
     if (nexus.ExtractMaps(&maps) > 0) {

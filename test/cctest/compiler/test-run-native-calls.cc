@@ -268,8 +268,7 @@ Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
     GraphAndBuilders& b = caller;
     Node* start = b.graph()->NewNode(b.common()->Start(param_count + 3));
     b.graph()->SetStart(start);
-    Unique<HeapObject> unique = Unique<HeapObject>::CreateUninitialized(inner);
-    Node* target = b.graph()->NewNode(b.common()->HeapConstant(unique));
+    Node* target = b.graph()->NewNode(b.common()->HeapConstant(inner));
 
     // Add arguments to the call.
     Node** args = zone.NewArray<Node*>(param_count + 3);
@@ -445,9 +444,7 @@ class Computer {
         Graph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
-        Unique<HeapObject> unique =
-            Unique<HeapObject>::CreateUninitialized(inner);
-        Node* target = raw.HeapConstant(unique);
+        Node* target = raw.HeapConstant(inner);
         Node** args = zone.NewArray<Node*>(num_params);
         for (int i = 0; i < num_params; i++) {
           args[i] = io.MakeConstant(raw, io.input[i]);
@@ -480,9 +477,7 @@ class Computer {
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* base = raw.PointerConstant(io.input);
-        Unique<HeapObject> unique =
-            Unique<HeapObject>::CreateUninitialized(inner);
-        Node* target = raw.HeapConstant(unique);
+        Node* target = raw.HeapConstant(inner);
         Node** args = zone.NewArray<Node*>(kMaxParamCount);
         for (int i = 0; i < num_params; i++) {
           args[i] = io.LoadInput(raw, base, i);
@@ -579,8 +574,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
     RawMachineAssembler raw(isolate, &graph, cdesc);
     Node* base = raw.PointerConstant(input);
-    Unique<HeapObject> unique = Unique<HeapObject>::CreateUninitialized(inner);
-    Node* target = raw.HeapConstant(unique);
+    Node* target = raw.HeapConstant(inner);
     Node** args = zone.NewArray<Node*>(kNumParams);
     for (int i = 0; i < kNumParams; i++) {
       Node* offset = raw.Int32Constant(i * sizeof(int32_t));
@@ -953,8 +947,7 @@ static void Build_Select_With_Call(CallDescriptor* desc,
 
   {
     // Build a call to the function that does the select.
-    Unique<HeapObject> unique = Unique<HeapObject>::CreateUninitialized(inner);
-    Node* target = raw.HeapConstant(unique);
+    Node* target = raw.HeapConstant(inner);
     Node** args = raw.zone()->NewArray<Node*>(num_params);
     for (int i = 0; i < num_params; i++) {
       args[i] = raw.Parameter(i);
@@ -1055,9 +1048,7 @@ void MixedParamTest(int start) {
         Graph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
-        Unique<HeapObject> unique =
-            Unique<HeapObject>::CreateUninitialized(select);
-        Node* target = raw.HeapConstant(unique);
+        Node* target = raw.HeapConstant(select);
         Node** args = zone.NewArray<Node*>(num_params);
         int64_t constant = 0x0102030405060708;
         for (int i = 0; i < num_params; i++) {

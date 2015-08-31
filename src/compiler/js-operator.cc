@@ -196,7 +196,7 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const* op) {
 
 bool operator==(LoadNamedParameters const& lhs,
                 LoadNamedParameters const& rhs) {
-  return lhs.name() == rhs.name() &&
+  return lhs.name().location() == rhs.name().location() &&
          lhs.language_mode() == rhs.language_mode() &&
          lhs.feedback() == rhs.feedback();
 }
@@ -209,12 +209,13 @@ bool operator!=(LoadNamedParameters const& lhs,
 
 
 size_t hash_value(LoadNamedParameters const& p) {
-  return base::hash_combine(p.name(), p.language_mode(), p.feedback());
+  return base::hash_combine(p.name().location(), p.language_mode(),
+                            p.feedback());
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadNamedParameters const& p) {
-  return os << Brief(*p.name().handle()) << ", " << p.language_mode();
+  return os << Brief(*p.name()) << ", " << p.language_mode();
 }
 
 
@@ -255,7 +256,8 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op) {
 
 bool operator==(LoadGlobalParameters const& lhs,
                 LoadGlobalParameters const& rhs) {
-  return lhs.name() == rhs.name() && lhs.feedback() == rhs.feedback() &&
+  return lhs.name().location() == rhs.name().location() &&
+         lhs.feedback() == rhs.feedback() &&
          lhs.typeof_mode() == rhs.typeof_mode() &&
          lhs.slot_index() == rhs.slot_index();
 }
@@ -268,12 +270,13 @@ bool operator!=(LoadGlobalParameters const& lhs,
 
 
 size_t hash_value(LoadGlobalParameters const& p) {
-  return base::hash_combine(p.name(), p.typeof_mode(), p.slot_index());
+  return base::hash_combine(p.name().location(), p.typeof_mode(),
+                            p.slot_index());
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadGlobalParameters const& p) {
-  return os << Brief(*p.name().handle()) << ", " << p.typeof_mode()
+  return os << Brief(*p.name()) << ", " << p.typeof_mode()
             << ", slot: " << p.slot_index();
 }
 
@@ -287,7 +290,8 @@ const LoadGlobalParameters& LoadGlobalParametersOf(const Operator* op) {
 bool operator==(StoreGlobalParameters const& lhs,
                 StoreGlobalParameters const& rhs) {
   return lhs.language_mode() == rhs.language_mode() &&
-         lhs.name() == rhs.name() && lhs.feedback() == rhs.feedback() &&
+         lhs.name().location() == rhs.name().location() &&
+         lhs.feedback() == rhs.feedback() &&
          lhs.slot_index() == rhs.slot_index();
 }
 
@@ -299,13 +303,13 @@ bool operator!=(StoreGlobalParameters const& lhs,
 
 
 size_t hash_value(StoreGlobalParameters const& p) {
-  return base::hash_combine(p.language_mode(), p.name(), p.feedback(),
-                            p.slot_index());
+  return base::hash_combine(p.language_mode(), p.name().location(),
+                            p.feedback(), p.slot_index());
 }
 
 
 std::ostream& operator<<(std::ostream& os, StoreGlobalParameters const& p) {
-  return os << p.language_mode() << ", " << Brief(*p.name().handle())
+  return os << p.language_mode() << ", " << Brief(*p.name())
             << ", slot: " << p.slot_index();
 }
 
@@ -319,7 +323,8 @@ const StoreGlobalParameters& StoreGlobalParametersOf(const Operator* op) {
 bool operator==(StoreNamedParameters const& lhs,
                 StoreNamedParameters const& rhs) {
   return lhs.language_mode() == rhs.language_mode() &&
-         lhs.name() == rhs.name() && lhs.feedback() == rhs.feedback();
+         lhs.name().location() == rhs.name().location() &&
+         lhs.feedback() == rhs.feedback();
 }
 
 
@@ -330,12 +335,13 @@ bool operator!=(StoreNamedParameters const& lhs,
 
 
 size_t hash_value(StoreNamedParameters const& p) {
-  return base::hash_combine(p.language_mode(), p.name(), p.feedback());
+  return base::hash_combine(p.language_mode(), p.name().location(),
+                            p.feedback());
 }
 
 
 std::ostream& operator<<(std::ostream& os, StoreNamedParameters const& p) {
-  return os << p.language_mode() << ", " << Brief(*p.name().handle());
+  return os << p.language_mode() << ", " << Brief(*p.name());
 }
 
 
@@ -559,7 +565,7 @@ const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
 }
 
 
-const Operator* JSOperatorBuilder::LoadNamed(const Unique<Name>& name,
+const Operator* JSOperatorBuilder::LoadNamed(const Handle<Name>& name,
                                              const VectorSlotPair& feedback,
                                              LanguageMode language_mode) {
   LoadNamedParameters parameters(name, feedback, language_mode);
@@ -583,7 +589,7 @@ const Operator* JSOperatorBuilder::LoadProperty(const VectorSlotPair& feedback,
 
 
 const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
-                                              const Unique<Name>& name,
+                                              const Handle<Name>& name,
                                               const VectorSlotPair& feedback) {
   StoreNamedParameters parameters(language_mode, feedback, name);
   return new (zone()) Operator1<StoreNamedParameters>(   // --
@@ -614,7 +620,7 @@ const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
 }
 
 
-const Operator* JSOperatorBuilder::LoadGlobal(const Unique<Name>& name,
+const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
                                               const VectorSlotPair& feedback,
                                               TypeofMode typeof_mode,
                                               int slot_index) {
@@ -628,7 +634,7 @@ const Operator* JSOperatorBuilder::LoadGlobal(const Unique<Name>& name,
 
 
 const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
-                                               const Unique<Name>& name,
+                                               const Handle<Name>& name,
                                                const VectorSlotPair& feedback,
                                                int slot_index) {
   StoreGlobalParameters parameters(language_mode, feedback, name, slot_index);
@@ -718,8 +724,9 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(int literal_flags) {
 
 
 const Operator* JSOperatorBuilder::CreateCatchContext(
-    const Unique<String>& name) {
-  return new (zone()) Operator1<Unique<String>>(                 // --
+    const Handle<String>& name) {
+  return new (zone()) Operator1<Handle<String>, Handle<String>::equal_to,
+                                Handle<String>::hash>(           // --
       IrOpcode::kJSCreateCatchContext, Operator::kNoProperties,  // opcode
       "JSCreateCatchContext",                                    // name
       2, 1, 1, 1, 1, 2,                                          // counts

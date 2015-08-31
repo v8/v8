@@ -1420,7 +1420,7 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // Create a catch scope that binds the exception.
   Node* exception = try_control.GetExceptionNode();
-  Unique<String> name = MakeUnique(stmt->variable()->name());
+  Handle<String> name = stmt->variable()->name();
   const Operator* op = javascript()->CreateCatchContext(name);
   Node* context = NewNode(op, exception, GetFunctionClosureForContext());
 
@@ -3617,8 +3617,7 @@ Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
 
 Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
                                       const VectorSlotPair& feedback) {
-  const Operator* op =
-      javascript()->LoadNamed(MakeUnique(name), feedback, language_mode());
+  const Operator* op = javascript()->LoadNamed(name, feedback, language_mode());
   Node* node = NewNode(op, object, BuildLoadFeedbackVector());
   return Record(js_type_feedback_, node, feedback.slot());
 }
@@ -3641,7 +3640,7 @@ Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
                                        const VectorSlotPair& feedback,
                                        TypeFeedbackId id) {
   const Operator* op =
-      javascript()->StoreNamed(language_mode(), MakeUnique(name), feedback);
+      javascript()->StoreNamed(language_mode(), name, feedback);
   Node* node = NewNode(op, object, value, BuildLoadFeedbackVector());
   if (FLAG_vector_stores) {
     return Record(js_type_feedback_, node, feedback.slot());
@@ -3701,8 +3700,8 @@ Node* AstGraphBuilder::BuildGlobalLoad(Node* script_context, Node* global,
                                        Handle<Name> name,
                                        const VectorSlotPair& feedback,
                                        TypeofMode typeof_mode, int slot_index) {
-  const Operator* op = javascript()->LoadGlobal(MakeUnique(name), feedback,
-                                                typeof_mode, slot_index);
+  const Operator* op =
+      javascript()->LoadGlobal(name, feedback, typeof_mode, slot_index);
   Node* node = NewNode(op, script_context, global, BuildLoadFeedbackVector());
   return Record(js_type_feedback_, node, feedback.slot());
 }
@@ -3712,8 +3711,8 @@ Node* AstGraphBuilder::BuildGlobalStore(Node* script_context, Node* global,
                                         Handle<Name> name, Node* value,
                                         const VectorSlotPair& feedback,
                                         TypeFeedbackId id, int slot_index) {
-  const Operator* op = javascript()->StoreGlobal(
-      language_mode(), MakeUnique(name), feedback, slot_index);
+  const Operator* op =
+      javascript()->StoreGlobal(language_mode(), name, feedback, slot_index);
   Node* node =
       NewNode(op, script_context, global, value, BuildLoadFeedbackVector());
   if (FLAG_vector_stores) {
@@ -3798,7 +3797,7 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input) {
       return jsgraph_->BooleanConstant(!m.Is(0) && !m.IsNaN());
     }
     case IrOpcode::kHeapConstant: {
-      Handle<HeapObject> object = HeapObjectMatcher(input).Value().handle();
+      Handle<HeapObject> object = HeapObjectMatcher(input).Value();
       return jsgraph_->BooleanConstant(object->BooleanValue());
     }
     case IrOpcode::kJSEqual:

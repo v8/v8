@@ -154,9 +154,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, Return) {
 
     EXPECT_EQ(CallDescriptor::kCallCodeObject, m.call_descriptor()->kind());
     EXPECT_TRUE(m.call_descriptor()->flags() & CallDescriptor::kCanUseRoots);
-    Matcher<Unique<HeapObject>> exit_trampoline(
-        Unique<HeapObject>::CreateImmovable(
-            isolate()->builtins()->InterpreterExitTrampoline()));
+    Handle<HeapObject> exit_trampoline =
+        isolate()->builtins()->InterpreterExitTrampoline();
     EXPECT_THAT(
         tail_call_node,
         IsTailCall(m.call_descriptor(), IsHeapConstant(exit_trampoline),

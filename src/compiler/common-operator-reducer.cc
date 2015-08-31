@@ -33,8 +33,7 @@ Decision DecideCondition(Node* const cond) {
     }
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher mcond(cond);
-      return mcond.Value().handle()->BooleanValue() ? Decision::kTrue
-                                                    : Decision::kFalse;
+      return mcond.Value()->BooleanValue() ? Decision::kTrue : Decision::kFalse;
     }
     default:
       return Decision::kUnknown;

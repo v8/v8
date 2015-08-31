@@ -786,7 +786,7 @@ Reduction JSTypedLowering::ReduceJSToString(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSLoadGlobal(Node* node) {
   // Optimize global constants like "undefined", "Infinity", and "NaN".
-  Handle<Name> name = LoadGlobalParametersOf(node->op()).name().handle();
+  Handle<Name> name = LoadGlobalParametersOf(node->op()).name();
   Handle<Object> constant_value = factory()->GlobalConstantFor(name);
   if (!constant_value.is_null()) {
     Node* constant = jsgraph()->Constant(constant_value);
@@ -803,7 +803,7 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   Type* receiver_type = NodeProperties::GetBounds(receiver).upper;
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Handle<Name> name = LoadNamedParametersOf(node->op()).name().handle();
+  Handle<Name> name = LoadNamedParametersOf(node->op()).name();
   // Optimize "length" property of strings.
   if (name.is_identical_to(factory()->length_string()) &&
       receiver_type->Is(Type::String())) {
@@ -823,9 +823,9 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Node* base = NodeProperties::GetValueInput(node, 0);
   Type* key_type = NodeProperties::GetBounds(key).upper;
   HeapObjectMatcher mbase(base);
-  if (mbase.HasValue() && mbase.Value().handle()->IsJSTypedArray()) {
+  if (mbase.HasValue() && mbase.Value()->IsJSTypedArray()) {
     Handle<JSTypedArray> const array =
-        Handle<JSTypedArray>::cast(mbase.Value().handle());
+        Handle<JSTypedArray>::cast(mbase.Value());
     if (!array->GetBuffer()->was_neutered()) {
       array->GetBuffer()->set_is_neuterable(false);
       BufferAccess const access(array->type());
@@ -869,9 +869,9 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   Type* key_type = NodeProperties::GetBounds(key).upper;
   Type* value_type = NodeProperties::GetBounds(value).upper;
   HeapObjectMatcher mbase(base);
-  if (mbase.HasValue() && mbase.Value().handle()->IsJSTypedArray()) {
+  if (mbase.HasValue() && mbase.Value()->IsJSTypedArray()) {
     Handle<JSTypedArray> const array =
-        Handle<JSTypedArray>::cast(mbase.Value().handle());
+        Handle<JSTypedArray>::cast(mbase.Value());
     if (!array->GetBuffer()->was_neutered()) {
       array->GetBuffer()->set_is_neuterable(false);
       BufferAccess const access(array->type());
@@ -1016,12 +1016,12 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicGlobal(Node* node) {
   }
 
   // Fast case, because variable is not shadowed. Perform global object load.
-  Unique<Name> name = Unique<Name>::CreateUninitialized(access.name());
   Node* global = graph()->NewNode(
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true), context,
       context, effect);
   Node* fast = graph()->NewNode(
-      javascript()->LoadGlobal(name, access.feedback(), access.typeof_mode()),
+      javascript()->LoadGlobal(access.name(), access.feedback(),
+                               access.typeof_mode()),
       context, global, vector, context, state1, state2, global, check_true);
 
   // Slow case, because variable potentially shadowed. Perform dynamic lookup.
@@ -1129,7 +1129,7 @@ Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
 Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateLiteralArray, node->opcode());
   HeapObjectMatcher mconst(NodeProperties::GetValueInput(node, 2));
-  int length = Handle<FixedArray>::cast(mconst.Value().handle())->length();
+  int length = Handle<FixedArray>::cast(mconst.Value())->length();
   int flags = OpParameter<int>(node->op());
 
   // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
@@ -1160,7 +1160,7 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateLiteralObject, node->opcode());
   HeapObjectMatcher mconst(NodeProperties::GetValueInput(node, 2));
   // Constants are pairs, see ObjectLiteral::properties_count().
-  int length = Handle<FixedArray>::cast(mconst.Value().handle())->length() / 2;
+  int length = Handle<FixedArray>::cast(mconst.Value())->length() / 2;
   int flags = OpParameter<int>(node->op());
 
   // Use the FastCloneShallowObjectStub only for shallow boilerplates without
@@ -1225,8 +1225,7 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   HeapObjectMatcher minput(input);
   DCHECK(minput.HasValue());  // TODO(mstarzinger): Make ScopeInfo static.
-  int context_length =
-      Handle<ScopeInfo>::cast(minput.Value().handle())->ContextLength();
+  int context_length = Handle<ScopeInfo>::cast(minput.Value())->ContextLength();
   if (FLAG_turbo_allocate && context_length < kBlockContextAllocationLimit) {
     // JSCreateBlockContext(s:scope[length < limit], f)
     Node* const effect = NodeProperties::GetEffectInput(node);

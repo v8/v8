@@ -183,7 +183,7 @@ class OperandGenerator {
       case IrOpcode::kExternalConstant:
         return Constant(OpParameter<ExternalReference>(node));
       case IrOpcode::kHeapConstant:
-        return Constant(OpParameter<Unique<HeapObject> >(node).handle());
+        return Constant(OpParameter<Handle<HeapObject>>(node));
       default:
         break;
     }

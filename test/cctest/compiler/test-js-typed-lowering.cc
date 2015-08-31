@@ -63,15 +63,12 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 
   Node* UndefinedConstant() {
-    Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(
-        isolate->factory()->undefined_value());
-    return graph.NewNode(common.HeapConstant(unique));
+    Handle<HeapObject> value = isolate->factory()->undefined_value();
+    return graph.NewNode(common.HeapConstant(value));
   }
 
   Node* HeapConstant(Handle<HeapObject> constant) {
-    Unique<HeapObject> unique =
-        Unique<HeapObject>::CreateUninitialized(constant);
-    return graph.NewNode(common.HeapConstant(unique));
+    return graph.NewNode(common.HeapConstant(constant));
   }
 
   Node* EmptyFrameState(Node* context) {
@@ -193,9 +190,9 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     CheckHandle(isolate->factory()->false_value(), result);
   }
 
-  void CheckHandle(Handle<Object> expected, Node* result) {
+  void CheckHandle(Handle<HeapObject> expected, Node* result) {
     CHECK_EQ(IrOpcode::kHeapConstant, result->opcode());
-    Handle<Object> value = OpParameter<Unique<Object> >(result).handle();
+    Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(result);
     CHECK_EQ(*expected, *value);
   }
 };

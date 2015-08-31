@@ -152,7 +152,7 @@ TEST_F(JSContextRelaxationTest,
   Node* const input1 = Parameter(1);
   Node* const context = Parameter(2);
   Node* const outer_context = Parameter(3);
-  const Operator* op = javascript()->CreateCatchContext(Unique<String>());
+  const Operator* op = javascript()->CreateCatchContext(Handle<String>());
   Node* const frame_state_1 =
       ShallowFrameStateChain(outer_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* const effect = graph()->start();

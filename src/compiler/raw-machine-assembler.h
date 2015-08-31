@@ -72,9 +72,8 @@ class RawMachineAssembler {
   // hence will not switch the current basic block.
 
   Node* UndefinedConstant() {
-    Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(
-        isolate()->factory()->undefined_value());
-    return NewNode(common()->HeapConstant(unique));
+    Handle<HeapObject> undefined = isolate()->factory()->undefined_value();
+    return NewNode(common()->HeapConstant(undefined));
   }
 
   // Constants.
@@ -102,10 +101,6 @@ class RawMachineAssembler {
     return NewNode(common()->Float64Constant(value));
   }
   Node* HeapConstant(Handle<HeapObject> object) {
-    Unique<HeapObject> val = Unique<HeapObject>::CreateUninitialized(object);
-    return NewNode(common()->HeapConstant(val));
-  }
-  Node* HeapConstant(Unique<HeapObject> object) {
     return NewNode(common()->HeapConstant(object));
   }
   Node* ExternalConstant(ExternalReference address) {

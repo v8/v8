@@ -59,7 +59,7 @@ class InterpreterAssembler {
   Node* Int32Constant(int value);
   Node* IntPtrConstant(intptr_t value);
   Node* NumberConstant(double value);
-  Node* HeapConstant(Unique<HeapObject> object);
+  Node* HeapConstant(Handle<HeapObject> object);
 
   // Tag and untag Smi values.
   Node* SmiTag(Node* value);

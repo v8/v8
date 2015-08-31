@@ -41,7 +41,7 @@ class JSBuiltinReducerTest : public TypedGraphTest {
         JSObject::GetProperty(
             m, isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
-    return HeapConstant(Unique<JSFunction>::CreateUninitialized(f));
+    return HeapConstant(f);
   }
 
   JSOperatorBuilder* javascript() { return &javascript_; }

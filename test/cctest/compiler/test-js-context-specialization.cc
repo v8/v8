@@ -93,7 +93,7 @@ TEST(ReduceJSLoadContext) {
     Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, *match.Value().handle());
+    CHECK_EQ(*native, *match.Value());
     ContextAccess access = OpParameter<ContextAccess>(r.replacement());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
@@ -110,7 +110,7 @@ TEST(ReduceJSLoadContext) {
 
     HeapObjectMatcher match(r.replacement());
     CHECK(match.HasValue());
-    CHECK_EQ(*expected, *match.Value().handle());
+    CHECK_EQ(*expected, *match.Value());
   }
 
   // TODO(titzer): test with other kinds of contexts, e.g. a function context.
@@ -172,7 +172,7 @@ TEST(ReduceJSStoreContext) {
     Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, *match.Value().handle());
+    CHECK_EQ(*native, *match.Value());
     ContextAccess access = OpParameter<ContextAccess>(r.replacement());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
@@ -249,7 +249,7 @@ TEST(SpecializeToContext) {
     Node* replacement = value_use->InputAt(0);
     HeapObjectMatcher match(replacement);
     CHECK(match.HasValue());
-    CHECK_EQ(*expected, *match.Value().handle());
+    CHECK_EQ(*expected, *match.Value());
   }
   // TODO(titzer): clean up above test and test more complicated effects.
 }

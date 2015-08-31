@@ -541,7 +541,7 @@ Bounds Typer::Visitor::TypeNumberConstant(Node* node) {
 
 
 Bounds Typer::Visitor::TypeHeapConstant(Node* node) {
-  return Bounds(TypeConstant(OpParameter<Unique<HeapObject> >(node).handle()));
+  return Bounds(TypeConstant(OpParameter<Handle<HeapObject>>(node)));
 }
 
 

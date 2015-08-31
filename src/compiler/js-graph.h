@@ -45,10 +45,6 @@ class JSGraph : public ZoneObject {
   Node* OneConstant();
   Node* NaNConstant();
 
-  // Creates a HeapConstant node, possibly canonicalized, without inspecting the
-  // object.
-  Node* HeapConstant(Unique<HeapObject> value);
-
   // Creates a HeapConstant node, possibly canonicalized, and may access the
   // heap to inspect the object.
   Node* HeapConstant(Handle<HeapObject> value);

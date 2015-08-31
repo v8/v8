@@ -535,7 +535,7 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
 
 
 void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
-  Unique<String> name = OpParameter<Unique<String>>(node);
+  Handle<String> name = OpParameter<Handle<String>>(node);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(name));
   ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
 }

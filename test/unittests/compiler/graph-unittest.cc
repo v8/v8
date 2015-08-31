@@ -51,33 +51,25 @@ Node* GraphTest::NumberConstant(volatile double value) {
 
 
 Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
-  return HeapConstant(Unique<HeapObject>::CreateUninitialized(value));
-}
-
-
-Node* GraphTest::HeapConstant(const Unique<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
-  Type* type = Type::Constant(value.handle(), zone());
+  Type* type = Type::Constant(value, zone());
   NodeProperties::SetBounds(node, Bounds(type));
   return node;
 }
 
 
 Node* GraphTest::FalseConstant() {
-  return HeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->false_value()));
+  return HeapConstant(factory()->false_value());
 }
 
 
 Node* GraphTest::TrueConstant() {
-  return HeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->true_value()));
+  return HeapConstant(factory()->true_value());
 }
 
 
 Node* GraphTest::UndefinedConstant() {
-  return HeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->undefined_value()));
+  return HeapConstant(factory()->undefined_value());
 }
 
 
@@ -92,20 +84,17 @@ Node* GraphTest::EmptyFrameState() {
 
 
 Matcher<Node*> GraphTest::IsFalseConstant() {
-  return IsHeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->false_value()));
+  return IsHeapConstant(factory()->false_value());
 }
 
 
 Matcher<Node*> GraphTest::IsTrueConstant() {
-  return IsHeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->true_value()));
+  return IsHeapConstant(factory()->true_value());
 }
 
 
 Matcher<Node*> GraphTest::IsUndefinedConstant() {
-  return IsHeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->undefined_value()));
+  return IsHeapConstant(factory()->undefined_value());
 }
 
 

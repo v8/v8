@@ -14,9 +14,9 @@ namespace internal {
 
 // Forward declarations.
 class ExternalReference;
+template <typename T>
+class Handle;
 class HeapObject;
-template <class T>
-class Unique;
 template <class>
 class TypeImpl;
 struct ZoneTypeConfig;
@@ -73,8 +73,7 @@ Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
                            const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher);
-Matcher<Node*> IsHeapConstant(
-    const Matcher<Unique<HeapObject> >& value_matcher);
+Matcher<Node*> IsHeapConstant(Handle<HeapObject> value);
 Matcher<Node*> IsFloat32Constant(const Matcher<float>& value_matcher);
 Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);

@@ -292,7 +292,7 @@ class RepresentationChanger {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
       case IrOpcode::kHeapConstant: {
-        Handle<Object> value = OpParameter<Unique<Object> >(node).handle();
+        Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
         DCHECK(value.is_identical_to(factory()->true_value()) ||
                value.is_identical_to(factory()->false_value()));
         return jsgraph()->Int32Constant(

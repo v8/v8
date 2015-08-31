@@ -236,17 +236,17 @@ DynamicContextAccess const& DynamicContextAccessOf(Operator const*);
 // used as a parameter by JSLoadNamed operators.
 class LoadNamedParameters final {
  public:
-  LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
+  LoadNamedParameters(const Handle<Name>& name, const VectorSlotPair& feedback,
                       LanguageMode language_mode)
       : name_(name), feedback_(feedback), language_mode_(language_mode) {}
 
-  const Unique<Name>& name() const { return name_; }
+  const Handle<Name>& name() const { return name_; }
   LanguageMode language_mode() const { return language_mode_; }
 
   const VectorSlotPair& feedback() const { return feedback_; }
 
  private:
-  const Unique<Name> name_;
+  const Handle<Name> name_;
   const VectorSlotPair feedback_;
   const LanguageMode language_mode_;
 };
@@ -265,14 +265,14 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 // used as a parameter by JSLoadGlobal operator.
 class LoadGlobalParameters final {
  public:
-  LoadGlobalParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
+  LoadGlobalParameters(const Handle<Name>& name, const VectorSlotPair& feedback,
                        TypeofMode typeof_mode, int slot_index)
       : name_(name),
         feedback_(feedback),
         typeof_mode_(typeof_mode),
         slot_index_(slot_index) {}
 
-  const Unique<Name>& name() const { return name_; }
+  const Handle<Name>& name() const { return name_; }
   TypeofMode typeof_mode() const { return typeof_mode_; }
 
   const VectorSlotPair& feedback() const { return feedback_; }
@@ -280,7 +280,7 @@ class LoadGlobalParameters final {
   int slot_index() const { return slot_index_; }
 
  private:
-  const Unique<Name> name_;
+  const Handle<Name> name_;
   const VectorSlotPair feedback_;
   const TypeofMode typeof_mode_;
   const int slot_index_;
@@ -302,7 +302,7 @@ class StoreGlobalParameters final {
  public:
   StoreGlobalParameters(LanguageMode language_mode,
                         const VectorSlotPair& feedback,
-                        const Unique<Name>& name, int slot_index)
+                        const Handle<Name>& name, int slot_index)
       : language_mode_(language_mode),
         name_(name),
         feedback_(feedback),
@@ -310,12 +310,12 @@ class StoreGlobalParameters final {
 
   LanguageMode language_mode() const { return language_mode_; }
   const VectorSlotPair& feedback() const { return feedback_; }
-  const Unique<Name>& name() const { return name_; }
+  const Handle<Name>& name() const { return name_; }
   int slot_index() const { return slot_index_; }
 
  private:
   const LanguageMode language_mode_;
-  const Unique<Name> name_;
+  const Handle<Name> name_;
   const VectorSlotPair feedback_;
   int slot_index_;
 };
@@ -362,16 +362,16 @@ const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
 class StoreNamedParameters final {
  public:
   StoreNamedParameters(LanguageMode language_mode,
-                       const VectorSlotPair& feedback, const Unique<Name>& name)
+                       const VectorSlotPair& feedback, const Handle<Name>& name)
       : language_mode_(language_mode), name_(name), feedback_(feedback) {}
 
   LanguageMode language_mode() const { return language_mode_; }
   const VectorSlotPair& feedback() const { return feedback_; }
-  const Unique<Name>& name() const { return name_; }
+  const Handle<Name>& name() const { return name_; }
 
  private:
   const LanguageMode language_mode_;
-  const Unique<Name> name_;
+  const Handle<Name> name_;
   const VectorSlotPair feedback_;
 };
 
@@ -488,26 +488,26 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadProperty(const VectorSlotPair& feedback,
                                LanguageMode language_mode);
-  const Operator* LoadNamed(const Unique<Name>& name,
+  const Operator* LoadNamed(const Handle<Name>& name,
                             const VectorSlotPair& feedback,
                             LanguageMode language_mode);
 
   const Operator* StoreProperty(LanguageMode language_mode,
                                 const VectorSlotPair& feedback);
   const Operator* StoreNamed(LanguageMode language_mode,
-                             const Unique<Name>& name,
+                             const Handle<Name>& name,
                              const VectorSlotPair& feedback);
 
   const Operator* DeleteProperty(LanguageMode language_mode);
 
   const Operator* HasProperty();
 
-  const Operator* LoadGlobal(const Unique<Name>& name,
+  const Operator* LoadGlobal(const Handle<Name>& name,
                              const VectorSlotPair& feedback,
                              TypeofMode typeof_mode = NOT_INSIDE_TYPEOF,
                              int slot_index = -1);
   const Operator* StoreGlobal(LanguageMode language_mode,
-                              const Unique<Name>& name,
+                              const Handle<Name>& name,
                               const VectorSlotPair& feedback,
                               int slot_index = -1);
 
@@ -534,7 +534,7 @@ class JSOperatorBuilder final : public ZoneObject {
 
   // TODO(titzer): nail down the static parts of each of these context flavors.
   const Operator* CreateFunctionContext();
-  const Operator* CreateCatchContext(const Unique<String>& name);
+  const Operator* CreateCatchContext(const Handle<String>& name);
   const Operator* CreateWithContext();
   const Operator* CreateBlockContext();
   const Operator* CreateModuleContext();

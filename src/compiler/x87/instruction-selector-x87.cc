@@ -40,9 +40,9 @@ class X87OperandGenerator final : public OperandGenerator {
       case IrOpcode::kHeapConstant: {
         // Constants in new space cannot be used as immediates in V8 because
         // the GC does not scan code objects when collecting the new generation.
-        Unique<HeapObject> value = OpParameter<Unique<HeapObject> >(node);
-        Isolate* isolate = value.handle()->GetIsolate();
-        return !isolate->heap()->InNewSpace(*value.handle());
+        Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
+        Isolate* isolate = value->GetIsolate();
+        return !isolate->heap()->InNewSpace(*value);
       }
       default:
         return false;

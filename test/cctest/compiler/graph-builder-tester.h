@@ -104,8 +104,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return NewNode(common()->Int32Constant(value));
   }
   Node* HeapConstant(Handle<HeapObject> object) {
-    Unique<HeapObject> val = Unique<HeapObject>::CreateUninitialized(object);
-    return NewNode(common()->HeapConstant(val));
+    return NewNode(common()->HeapConstant(object));
   }
 
   Node* BooleanNot(Node* a) { return NewNode(simplified()->BooleanNot(), a); }

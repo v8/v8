@@ -176,7 +176,7 @@ Node* InterpreterAssembler::NumberConstant(double value) {
 }
 
 
-Node* InterpreterAssembler::HeapConstant(Unique<HeapObject> object) {
+Node* InterpreterAssembler::HeapConstant(Handle<HeapObject> object) {
   return raw_assembler_->HeapConstant(object);
 }
 
@@ -258,8 +258,7 @@ Node* InterpreterAssembler::CallJSBuiltin(int context_index, Node* receiver,
 
 void InterpreterAssembler::Return() {
   Node* exit_trampoline_code_object =
-      HeapConstant(Unique<HeapObject>::CreateImmovable(
-          isolate()->builtins()->InterpreterExitTrampoline()));
+      HeapConstant(isolate()->builtins()->InterpreterExitTrampoline());
   // If the order of the parameters you need to change the call signature below.
   STATIC_ASSERT(0 == Linkage::kInterpreterAccumulatorParameter);
   STATIC_ASSERT(1 == Linkage::kInterpreterRegisterFileParameter);

@@ -230,12 +230,6 @@ class AstGraphBuilder : public AstVisitor {
   // frame states with the undefined values.
   void ClearNonLiveSlotsInFrameStates();
 
-  // Helper to wrap a Handle<T> into a Unique<T>.
-  template <class T>
-  Unique<T> MakeUnique(Handle<T> object) {
-    return Unique<T>::CreateUninitialized(object);
-  }
-
   Node** EnsureInputBufferSize(int size);
 
   // Named and keyed loads require a VectorSlotPair for successful lowering.

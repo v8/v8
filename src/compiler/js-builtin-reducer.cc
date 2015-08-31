@@ -25,8 +25,8 @@ class JSCallReduction {
   bool HasBuiltinFunctionId() {
     if (node_->opcode() != IrOpcode::kJSCallFunction) return false;
     HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
-    if (!m.HasValue() || !m.Value().handle()->IsJSFunction()) return false;
-    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value().handle());
+    if (!m.HasValue() || !m.Value()->IsJSFunction()) return false;
+    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
     return function->shared()->HasBuiltinFunctionId();
   }
 
@@ -34,7 +34,7 @@ class JSCallReduction {
   BuiltinFunctionId GetBuiltinFunctionId() {
     DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
     HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
-    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value().handle());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
     return function->shared()->builtin_function_id();
   }
 

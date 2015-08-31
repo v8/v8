@@ -243,9 +243,8 @@ Reduction JSInliner::Reduce(Node* node) {
   HeapObjectMatcher match(call.jsfunction());
   if (!match.HasValue()) return NoChange();
 
-  if (!match.Value().handle()->IsJSFunction()) return NoChange();
-  Handle<JSFunction> function =
-      Handle<JSFunction>::cast(match.Value().handle());
+  if (!match.Value()->IsJSFunction()) return NoChange();
+  Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
   if (mode_ == kRestrictedInlining && !function->shared()->force_inline()) {
     return NoChange();
   }

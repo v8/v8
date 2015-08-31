@@ -21,6 +21,11 @@ using testing::StringMatchResultListener;
 
 namespace v8 {
 namespace internal {
+
+bool operator==(Handle<HeapObject> const& lhs, Handle<HeapObject> const& rhs) {
+  return lhs.is_identical_to(rhs);
+}
+
 namespace compiler {
 
 namespace {
@@ -1528,10 +1533,9 @@ Matcher<Node*> IsExternalConstant(
 }
 
 
-Matcher<Node*> IsHeapConstant(
-    const Matcher<Unique<HeapObject> >& value_matcher) {
-  return MakeMatcher(new IsConstantMatcher<Unique<HeapObject> >(
-      IrOpcode::kHeapConstant, value_matcher));
+Matcher<Node*> IsHeapConstant(Handle<HeapObject> value) {
+  return MakeMatcher(new IsConstantMatcher<Handle<HeapObject>>(
+      IrOpcode::kHeapConstant, value));
 }
 
 

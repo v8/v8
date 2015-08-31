@@ -6,6 +6,7 @@
 #define V8_HANDLES_H_
 
 #include "include/v8.h"
+#include "src/base/functional.h"
 #include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
@@ -118,6 +119,20 @@ class Handle final : public HandleBase {
   // MaybeHandle to force validation before being used as handles.
   static const Handle<T> null() { return Handle<T>(); }
 
+  // Provide function object for location equality comparison.
+  struct equal_to : public std::binary_function<Handle<T>, Handle<T>, bool> {
+    V8_INLINE bool operator()(Handle<T> lhs, Handle<T> rhs) const {
+      return lhs.location() == rhs.location();
+    }
+  };
+
+  // Provide function object for location hashing.
+  struct hash : public std::unary_function<Handle<T>, size_t> {
+    V8_INLINE size_t operator()(Handle<T> const& handle) const {
+      return base::hash<void*>()(handle.location());
+    }
+  };
+
  private:
   // Handles of different classes are allowed to access each other's location_.
   template <typename>
@@ -126,6 +141,9 @@ class Handle final : public HandleBase {
   template <typename>
   friend class MaybeHandle;
 };
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, Handle<T> handle);
 
 template <typename T>
 V8_INLINE Handle<T> handle(T* object, Isolate* isolate) {

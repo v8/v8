@@ -139,7 +139,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* Float64Constant(volatile double);
   const Operator* ExternalConstant(const ExternalReference&);
   const Operator* NumberConstant(volatile double);
-  const Operator* HeapConstant(const Unique<HeapObject>&);
+  const Operator* HeapConstant(const Handle<HeapObject>&);
 
   const Operator* Select(MachineType, BranchHint = BranchHint::kNone);
   const Operator* Phi(MachineType type, int value_input_count);
