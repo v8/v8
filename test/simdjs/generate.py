@@ -37,6 +37,7 @@ output = {
   'units': 'ms',
   'resources': [
     'test/simdjs/data/src/benchmarks/base.js',
+    'test/simdjs/data/src/ecmascript_simd.js',
     'test/simdjs/harness-adapt.js',
     'test/simdjs/harness-finish.js'
   ] + ['test/simdjs/data/src/benchmarks/%s.js' % t for t in tests],

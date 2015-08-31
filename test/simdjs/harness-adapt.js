@@ -21,9 +21,8 @@ load = function(filename) {
   }
 };
 
-// To enable SIMD polyfill, load ecmascript_simd.js here and
-// add to resources in SimdJs.json as well as the script to
-// re-generate SimdJs.json.
+// TODO(bbudge): Drop when polyfill is not needed.
+load('ecmascript_simd.js');
 
 load('base.js');
 
