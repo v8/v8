@@ -1780,6 +1780,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   // Call the entry point.
   __ bind(&invoke);
+  __ movp(rax, rbx);
+  // rax : expected number of arguments
+  // rdi: function (passed through to callee)
   __ call(rdx);
 
   // Store offset of return address for deoptimizer.

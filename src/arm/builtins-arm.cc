@@ -1755,7 +1755,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
 
-    // Calculate copy start address into r0 and copy end address into r2.
+    // Calculate copy start address into r0 and copy end address into r4.
     // r0: actual number of arguments as a smi
     // r1: function
     // r2: expected number of arguments
@@ -1763,19 +1763,20 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ add(r0, fp, Operand::PointerOffsetFromSmiKey(r0));
     // adjust for return address and receiver
     __ add(r0, r0, Operand(2 * kPointerSize));
-    __ sub(r2, r0, Operand(r2, LSL, kPointerSizeLog2));
+    __ sub(r4, r0, Operand(r2, LSL, kPointerSizeLog2));
 
     // Copy the arguments (including the receiver) to the new stack frame.
     // r0: copy start address
     // r1: function
-    // r2: copy end address
+    // r2: expected number of arguments
     // r3: code entry to call
+    // r4: copy end address
 
     Label copy;
     __ bind(&copy);
     __ ldr(ip, MemOperand(r0, 0));
     __ push(ip);
-    __ cmp(r0, r2);  // Compare before moving to next argument.
+    __ cmp(r0, r4);  // Compare before moving to next argument.
     __ sub(r0, r0, Operand(kPointerSize));
     __ b(ne, &copy);
 
@@ -1833,20 +1834,23 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r2: expected number of arguments
     // r3: code entry to call
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    __ sub(r2, fp, Operand(r2, LSL, kPointerSizeLog2));
+    __ sub(r4, fp, Operand(r2, LSL, kPointerSizeLog2));
     // Adjust for frame.
-    __ sub(r2, r2, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
+    __ sub(r4, r4, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
                            2 * kPointerSize));
 
     Label fill;
     __ bind(&fill);
     __ push(ip);
-    __ cmp(sp, r2);
+    __ cmp(sp, r4);
     __ b(ne, &fill);
   }
 
   // Call the entry point.
   __ bind(&invoke);
+  __ mov(r0, r2);
+  // r0 : expected number of arguments
+  // r1 : function (passed through to callee)
   __ Call(r3);
 
   // Store offset of return address for deoptimizer.

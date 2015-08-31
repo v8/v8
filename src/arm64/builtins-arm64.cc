@@ -1803,19 +1803,19 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Register copy_to = x12;
     Register scratch1 = x13, scratch2 = x14;
 
-    __ Lsl(argc_expected, argc_expected, kPointerSizeLog2);
+    __ Lsl(scratch2, argc_expected, kPointerSizeLog2);
 
     // Adjust for fp, lr, and the receiver.
     __ Add(copy_start, fp, 3 * kPointerSize);
     __ Add(copy_start, copy_start, Operand(argc_actual, LSL, kPointerSizeLog2));
-    __ Sub(copy_end, copy_start, argc_expected);
+    __ Sub(copy_end, copy_start, scratch2);
     __ Sub(copy_end, copy_end, kPointerSize);
     __ Mov(copy_to, jssp);
 
     // Claim space for the arguments, the receiver, and one extra slot.
     // The extra slot ensures we do not write under jssp. It will be popped
     // later.
-    __ Add(scratch1, argc_expected, 2 * kPointerSize);
+    __ Add(scratch1, scratch2, 2 * kPointerSize);
     __ Claim(scratch1, 1);
 
     // Copy the arguments (including the receiver) to the new stack frame.
@@ -1868,7 +1868,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ Bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
 
-    __ Lsl(argc_expected, argc_expected, kPointerSizeLog2);
+    __ Lsl(scratch2, argc_expected, kPointerSizeLog2);
     __ Lsl(argc_actual, argc_actual, kPointerSizeLog2);
 
     // Adjust for fp, lr, and the receiver.
@@ -1881,7 +1881,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Claim space for the arguments, the receiver, and one extra slot.
     // The extra slot ensures we do not write under jssp. It will be popped
     // later.
-    __ Add(scratch1, argc_expected, 2 * kPointerSize);
+    __ Add(scratch1, scratch2, 2 * kPointerSize);
     __ Claim(scratch1, 1);
 
     // Copy the arguments (including the receiver) to the new stack frame.
@@ -1913,6 +1913,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   // Arguments have been adapted. Now call the entry point.
   __ Bind(&invoke);
+  __ Mov(argc_actual, argc_expected);
+  // x0 : expected number of arguments
+  // x1 : function (passed through to callee)
   __ Call(code_entry);
 
   // Store offset of return address for deoptimizer.
