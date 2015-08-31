@@ -218,7 +218,7 @@ inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
 }
 
 
-bool PrototypeHasNoElements(PrototypeIterator* iter) {
+inline bool PrototypeHasNoElements(PrototypeIterator* iter) {
   DisallowHeapAllocation no_gc;
   for (; !iter->IsAtEnd(); iter->Advance()) {
     if (iter->GetCurrent()->IsJSProxy()) return false;
@@ -396,13 +396,18 @@ BUILTIN(ArrayPop) {
     return CallJsIntrinsic(isolate, isolate->array_pop(), args);
   }
 
-  uint32_t new_length = len - 1;
-  Handle<Object> element;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, element, Object::GetElement(isolate, array, new_length));
-
-  JSArray::SetLength(array, new_length);
-  return *element;
+  Handle<Object> result;
+  if (IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
+    // Fast Elements Path
+    result = array->GetElementsAccessor()->Pop(array, elms_obj);
+  } else {
+    // Use Slow Lookup otherwise
+    uint32_t new_length = len - 1;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, Object::GetElement(isolate, array, new_length));
+    JSArray::SetLength(array, new_length);
+  }
+  return *result;
 }
 
 

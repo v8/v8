@@ -158,9 +158,8 @@ inline bool IsHoleyElementsKind(ElementsKind kind) {
 
 
 inline bool IsFastPackedElementsKind(ElementsKind kind) {
-  return kind == FAST_SMI_ELEMENTS ||
-      kind == FAST_DOUBLE_ELEMENTS ||
-      kind == FAST_ELEMENTS;
+  return kind == FAST_SMI_ELEMENTS || kind == FAST_DOUBLE_ELEMENTS ||
+         kind == FAST_ELEMENTS;
 }
 
 

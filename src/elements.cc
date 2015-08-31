@@ -639,6 +639,16 @@ class ElementsAccessorBase : public ElementsAccessor {
     return Handle<JSArray>();
   }
 
+  virtual Handle<Object> Pop(Handle<JSArray> receiver,
+                             Handle<FixedArrayBase> backing_store) final {
+    return ElementsAccessorSubclass::PopImpl(receiver, backing_store);
+  }
+
+  static Handle<Object> PopImpl(Handle<JSArray> receiver,
+                                Handle<FixedArrayBase> backing_store) {
+    UNREACHABLE();
+    return Handle<Object>();
+  }
 
   virtual void SetLength(Handle<JSArray> array, uint32_t length) final {
     ElementsAccessorSubclass::SetLengthImpl(array, length,
@@ -1217,6 +1227,21 @@ class FastElementsAccessor
       }
     }
 #endif
+  }
+
+  static Handle<Object> PopImpl(Handle<JSArray> receiver,
+                                Handle<FixedArrayBase> backing_store) {
+    uint32_t new_length =
+        static_cast<uint32_t>(Smi::cast(receiver->length())->value()) - 1;
+    Handle<Object> result =
+        FastElementsAccessorSubclass::GetImpl(backing_store, new_length);
+    FastElementsAccessorSubclass::SetLengthImpl(receiver, new_length,
+                                                backing_store);
+
+    if (IsHoleyElementsKind(KindTraits::Kind) && result->IsTheHole()) {
+      result = receiver->GetIsolate()->factory()->undefined_value();
+    }
+    return result;
   }
 
   static uint32_t PushImpl(Handle<JSArray> receiver,

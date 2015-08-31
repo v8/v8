@@ -145,6 +145,9 @@ class ElementsAccessor {
                                  uint32_t start, uint32_t delete_count,
                                  Arguments args, uint32_t add_count) = 0;
 
+  virtual Handle<Object> Pop(Handle<JSArray> receiver,
+                             Handle<FixedArrayBase> backing_store) = 0;
+
  protected:
   friend class LookupIterator;
 
