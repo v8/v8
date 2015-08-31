@@ -6756,49 +6756,62 @@ TEST(DefaultParametersYieldInInitializers) {
   // clang-format off
   const char* sloppy_function_context_data[][2] = {
     {"(function f(", ") { });"},
-    // TODO(wingo): Add arrow functions.
     {NULL, NULL}
   };
 
   const char* strict_function_context_data[][2] = {
     {"'use strong'; (function f(", ") { });"},
     {"'use strict'; (function f(", ") { });"},
-    // TODO(wingo,conradw): These should also signal early errors.
-    // {"(function f(", ") {'use strong'; });"},
-    // {"(function f(", ") {'use strict'; });"},
-    // TODO(wingo): Add arrow functions.
+    {NULL, NULL}
+  };
+
+  const char* sloppy_arrow_context_data[][2] = {
+    {"((", ")=>{});"},
+    {NULL, NULL}
+  };
+
+  const char* strict_arrow_context_data[][2] = {
+    {"'use strong'; ((", ")=>{});"},
+    {"'use strict'; ((", ")=>{});"},
     {NULL, NULL}
   };
 
   const char* generator_context_data[][2] = {
     {"'use strong'; (function *g(", ") { });"},
     {"'use strict'; (function *g(", ") { });"},
-    // TODO(wingo,conradw): These should also signal early errors.
-    // {"(function *g(", ") {'use strong'; });"},
-    // {"(function *g(", ") {'use strict'; });"},
     {"(function *g(", ") { });"},
     {NULL, NULL}
   };
 
-  const char* formal_parameter_data[] = {
+  const char* parameter_data[] = {
     "x=yield",
     "x, y=yield",
     "{x=yield}",
     "[x=yield]",
-    "{x}=yield",
-    "[x]=yield",
 
     "x=(yield)",
     "x, y=(yield)",
     "{x=(yield)}",
     "[x=(yield)]",
-    "{x}=(yield)",
-    "[x]=(yield)",
 
     "x=f(yield)",
     "x, y=f(yield)",
     "{x=f(yield)}",
     "[x=f(yield)]",
+    NULL
+  };
+
+  // TODO(wingo): These aren't really destructuring assignment patterns; we're
+  // just splitting them for now until the parser gets support for arrow
+  // function arguments that look like destructuring assignments.  When that
+  // happens we should unify destructuring_assignment_data and parameter_data.
+  const char* destructuring_assignment_data[] = {
+    "{x}=yield",
+    "[x]=yield",
+
+    "{x}=(yield)",
+    "[x]=(yield)",
+
     "{x}=f(yield)",
     "[x]=f(yield)",
     NULL
@@ -6808,12 +6821,30 @@ TEST(DefaultParametersYieldInInitializers) {
   static const ParserFlag always_flags[] = {
       kAllowHarmonyDestructuring, kAllowHarmonyDefaultParameters,
       kAllowHarmonyArrowFunctions, kAllowStrongMode};
-  RunParserSyncTest(sloppy_function_context_data, formal_parameter_data,
-                    kSuccess, NULL, 0, always_flags, arraysize(always_flags));
-  RunParserSyncTest(strict_function_context_data, formal_parameter_data, kError,
+
+  RunParserSyncTest(sloppy_function_context_data, parameter_data, kSuccess,
                     NULL, 0, always_flags, arraysize(always_flags));
-  RunParserSyncTest(generator_context_data, formal_parameter_data, kError, NULL,
+  RunParserSyncTest(sloppy_function_context_data, destructuring_assignment_data,
+                    kSuccess, NULL, 0, always_flags, arraysize(always_flags));
+  RunParserSyncTest(sloppy_arrow_context_data, parameter_data, kSuccess, NULL,
                     0, always_flags, arraysize(always_flags));
+  // TODO(wingo): Will change to kSuccess when destructuring assignment lands.
+  RunParserSyncTest(sloppy_arrow_context_data, destructuring_assignment_data,
+                    kError, NULL, 0, always_flags, arraysize(always_flags));
+
+  RunParserSyncTest(strict_function_context_data, parameter_data, kError, NULL,
+                    0, always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_function_context_data, destructuring_assignment_data,
+                    kError, NULL, 0, always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_arrow_context_data, parameter_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_arrow_context_data, destructuring_assignment_data,
+                    kError, NULL, 0, always_flags, arraysize(always_flags));
+
+  RunParserSyncTest(generator_context_data, parameter_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(generator_context_data, destructuring_assignment_data,
+                    kError, NULL, 0, always_flags, arraysize(always_flags));
 }
 
 
