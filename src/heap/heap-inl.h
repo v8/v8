@@ -502,6 +502,24 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
 }
 
 
+bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason,
+                          const GCFlags flags,
+                          const GCCallbackFlags callback_flags,
+                          const GCFlagOverride override) {
+  GCFlagScope flag_scope(this, flags, callback_flags, override);
+  const char* collector_reason = nullptr;
+  const GarbageCollector collector =
+      SelectGarbageCollector(space, &collector_reason);
+  return CollectGarbage(collector, gc_reason, collector_reason);
+}
+
+
+bool Heap::CollectGarbageNewSpace(const char* gc_reason) {
+  return CollectGarbage(NEW_SPACE, gc_reason, kNoGCFlags, kNoGCCallbackFlags,
+                        kDontOverride);
+}
+
+
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
                                         ScratchpadSlotMode mode) {
   Heap* heap = object->GetHeap();
@@ -547,14 +565,6 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
-bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason,
-                          const v8::GCCallbackFlags callbackFlags) {
-  const char* collector_reason = NULL;
-  GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
-  return CollectGarbage(collector, gc_reason, collector_reason, callbackFlags);
-}
-
-
 Isolate* Heap::isolate() {
   return reinterpret_cast<Isolate*>(
       reinterpret_cast<intptr_t>(this) -
@@ -575,28 +585,29 @@ Isolate* Heap::isolate() {
     RETURN_VALUE;                                         \
   }
 
-#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)    \
-  do {                                                                        \
-    AllocationResult __allocation__ = FUNCTION_CALL;                          \
-    Object* __object__ = NULL;                                                \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
-    /* Two GCs before panicking.  In newspace will almost always succeed. */  \
-    for (int __i__ = 0; __i__ < 2; __i__++) {                                 \
-      (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),          \
-                                        "allocation failure");                \
-      __allocation__ = FUNCTION_CALL;                                         \
-      RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                       \
-    }                                                                         \
-    (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();        \
-    (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");          \
-    {                                                                         \
-      AlwaysAllocateScope __scope__(ISOLATE);                                 \
-      __allocation__ = FUNCTION_CALL;                                         \
-    }                                                                         \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
-    /* TODO(1181417): Fix this. */                                            \
-    v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true); \
-    RETURN_EMPTY;                                                             \
+#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)     \
+  do {                                                                         \
+    AllocationResult __allocation__ = FUNCTION_CALL;                           \
+    Object* __object__ = NULL;                                                 \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                          \
+    /* Two GCs before panicking.  In newspace will almost always succeed. */   \
+    for (int __i__ = 0; __i__ < 2; __i__++) {                                  \
+      (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),           \
+                                        "allocation failure",                  \
+                                        Heap::kNoGCFlags, kNoGCCallbackFlags); \
+      __allocation__ = FUNCTION_CALL;                                          \
+      RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                        \
+    }                                                                          \
+    (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();         \
+    (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");           \
+    {                                                                          \
+      AlwaysAllocateScope __scope__(ISOLATE);                                  \
+      __allocation__ = FUNCTION_CALL;                                          \
+    }                                                                          \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                          \
+    /* TODO(1181417): Fix this. */                                             \
+    v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true);  \
+    RETURN_EMPTY;                                                              \
   } while (false)
 
 #define CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL, RETURN_VALUE, \

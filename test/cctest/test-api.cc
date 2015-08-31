@@ -462,8 +462,8 @@ THREADED_TEST(ScriptMakingExternalString) {
     Local<String> source =
         String::NewFromTwoByte(env->GetIsolate(), two_byte_source);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
+    CcTest::heap()->CollectGarbageNewSpace();  // in survivor space now
+    CcTest::heap()->CollectGarbageNewSpace();  // in old gen now
     CHECK_EQ(source->IsExternal(), false);
     CHECK_EQ(source->IsExternalOneByte(), false);
     String::Encoding encoding = String::UNKNOWN_ENCODING;
@@ -493,8 +493,8 @@ THREADED_TEST(ScriptMakingExternalOneByteString) {
     v8::HandleScope scope(env->GetIsolate());
     Local<String> source = v8_str(c_source);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
+    CcTest::heap()->CollectGarbageNewSpace();  // in survivor space now
+    CcTest::heap()->CollectGarbageNewSpace();  // in old gen now
     bool success = source->MakeExternal(
         new TestOneByteResource(i::StrDup(c_source), &dispose_count));
     CHECK(success);
@@ -516,8 +516,8 @@ TEST(MakingExternalStringConditions) {
   v8::HandleScope scope(env->GetIsolate());
 
   // Free some space in the new space so that we can check freshness.
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+  CcTest::heap()->CollectGarbageNewSpace();
+  CcTest::heap()->CollectGarbageNewSpace();
 
   uint16_t* two_byte_string = AsciiToTwoByteString("s1");
   Local<String> small_string =
@@ -556,8 +556,8 @@ TEST(MakingExternalOneByteStringConditions) {
   v8::HandleScope scope(env->GetIsolate());
 
   // Free some space in the new space so that we can check freshness.
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+  CcTest::heap()->CollectGarbageNewSpace();
+  CcTest::heap()->CollectGarbageNewSpace();
 
   Local<String> small_string = String::NewFromUtf8(env->GetIsolate(), "s1");
   // We should refuse to externalize small strings.
@@ -594,8 +594,8 @@ TEST(MakingExternalUnalignedOneByteString) {
 
   // Trigger GCs so that the newly allocated string moves to old gen.
   SimulateFullSpace(CcTest::heap()->old_space());
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
+  CcTest::heap()->CollectGarbageNewSpace();  // in survivor space now
+  CcTest::heap()->CollectGarbageNewSpace();  // in old gen now
 
   // Turn into external string with unaligned resource data.
   const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
@@ -609,7 +609,8 @@ TEST(MakingExternalUnalignedOneByteString) {
 
   // Trigger GCs and force evacuation.
   CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask);
+  CcTest::heap()->CollectAllGarbage("MakingExternalUnalignedOneByteString",
+                                    i::Heap::kReduceMemoryFootprintMask);
 }
 
 
@@ -622,8 +623,8 @@ THREADED_TEST(UsingExternalString) {
         CcTest::isolate(), new TestResource(two_byte_string));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
+    CcTest::heap()->CollectGarbageNewSpace();  // in survivor space now
+    CcTest::heap()->CollectGarbageNewSpace();  // in old gen now
     i::Handle<i::String> isymbol =
         factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());
@@ -642,8 +643,8 @@ THREADED_TEST(UsingExternalOneByteString) {
         CcTest::isolate(), new TestOneByteResource(i::StrDup(one_byte_string)));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
+    CcTest::heap()->CollectGarbageNewSpace();  // in survivor space now
+    CcTest::heap()->CollectGarbageNewSpace();  // in old gen now
     i::Handle<i::String> isymbol =
         factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());
@@ -711,7 +712,7 @@ THREADED_TEST(ScavengeExternalString) {
     Local<String> string = String::NewExternal(
         CcTest::isolate(), new TestResource(two_byte_string, &dispose_count));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+    CcTest::heap()->CollectGarbageNewSpace();
     in_new_space = CcTest::heap()->InNewSpace(*istring);
     CHECK(in_new_space || CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);
@@ -733,7 +734,7 @@ THREADED_TEST(ScavengeExternalOneByteString) {
         CcTest::isolate(),
         new TestOneByteResource(i::StrDup(one_byte_string), &dispose_count));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+    CcTest::heap()->CollectGarbageNewSpace();
     in_new_space = CcTest::heap()->InNewSpace(*istring);
     CHECK(in_new_space || CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);
@@ -3390,7 +3391,7 @@ void TestGlobalValueMap() {
   CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
   if (map.IsWeak()) {
     CcTest::i_isolate()->heap()->CollectAllGarbage(
-        i::Heap::kAbortIncrementalMarkingMask);
+        "TestGlobalValueMap", i::Heap::kAbortIncrementalMarkingMask);
   } else {
     map.Clear();
   }
@@ -6543,7 +6544,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
     if (global_gc) {
       CcTest::heap()->CollectAllGarbage();
     } else {
-      CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+      CcTest::heap()->CollectGarbageNewSpace();
     }
     // We are relying on this creating a big flag array and reserving the space
     // up front.
@@ -6661,7 +6662,7 @@ void InternalFieldCallback(bool global_gc) {
   if (global_gc) {
     CcTest::heap()->CollectAllGarbage();
   } else {
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+    CcTest::heap()->CollectGarbageNewSpace();
   }
 
   CHECK_EQ(1729, t1->x());
@@ -6706,9 +6707,10 @@ void v8::internal::HeapTester::ResetWeakHandle(bool global_gc) {
     object_a.handle.Reset(iso, a);
     object_b.handle.Reset(iso, b);
     if (global_gc) {
-      CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+      CcTest::heap()->CollectAllGarbage("ResetWeakHandle",
+                                        Heap::kAbortIncrementalMarkingMask);
     } else {
-      CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+      CcTest::heap()->CollectGarbageNewSpace();
     }
   }
 
@@ -6724,7 +6726,8 @@ void v8::internal::HeapTester::ResetWeakHandle(bool global_gc) {
     CHECK(object_b.handle.IsIndependent());
   }
   if (global_gc) {
-    CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    CcTest::heap()->CollectAllGarbage("ResetWeakHandle",
+                                      Heap::kAbortIncrementalMarkingMask);
   } else {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   }
@@ -6739,7 +6742,7 @@ THREADED_HEAP_TEST(ResetWeakHandle) {
 }
 
 
-static void InvokeScavenge() { CcTest::heap()->CollectGarbage(i::NEW_SPACE); }
+static void InvokeScavenge() { CcTest::heap()->CollectGarbageNewSpace(); }
 
 
 static void InvokeMarkSweep() { CcTest::heap()->CollectAllGarbage(); }
@@ -11712,7 +11715,8 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
   CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  CcTest::heap()->CollectAllGarbage("CheckSurvivingGlobalObjectsCount",
+                                    i::Heap::kMakeHeapIterableMask);
   int count = GetGlobalObjectsCount();
 #ifdef DEBUG
   if (count != expected) CcTest::heap()->TracePathToGlobal();
@@ -11811,7 +11815,7 @@ TEST(WeakCallbackApi) {
         handle, WeakApiCallback, v8::WeakCallbackType::kParameter);
   }
   reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectAllGarbage(
-      i::Heap::kAbortIncrementalMarkingMask);
+      "WeakCallbackApi", i::Heap::kAbortIncrementalMarkingMask);
   // Verify disposed.
   CHECK_EQ(initial_handles, globals->global_handles_count());
 }
@@ -15446,7 +15450,7 @@ TEST(TestIdleNotification) {
 TEST(Regress2333) {
   LocalContext env;
   for (int i = 0; i < 3; i++) {
-    CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+    CcTest::heap()->CollectGarbageNewSpace();
   }
 }
 
@@ -16459,8 +16463,8 @@ void PrologueCallbackAlloc(v8::Isolate* isolate,
   Local<Object> obj = Object::New(isolate);
   CHECK(!obj.IsEmpty());
 
-  CcTest::heap()->CollectAllGarbage(
-      i::Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage("PrologueCallbackAlloc",
+                                    i::Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -16479,8 +16483,8 @@ void EpilogueCallbackAlloc(v8::Isolate* isolate,
   Local<Object> obj = Object::New(isolate);
   CHECK(!obj.IsEmpty());
 
-  CcTest::heap()->CollectAllGarbage(
-      i::Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage("EpilogueCallbackAlloc",
+                                    i::Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -16555,8 +16559,8 @@ TEST(GCCallbacks) {
   CHECK_EQ(0, epilogue_call_count_alloc);
   isolate->AddGCPrologueCallback(PrologueCallbackAlloc);
   isolate->AddGCEpilogueCallback(EpilogueCallbackAlloc);
-  CcTest::heap()->CollectAllGarbage(
-      i::Heap::kAbortIncrementalMarkingMask);
+  CcTest::heap()->CollectAllGarbage("GCCallbacks",
+                                    i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, prologue_call_count_alloc);
   CHECK_EQ(1, epilogue_call_count_alloc);
   isolate->RemoveGCPrologueCallback(PrologueCallbackAlloc);

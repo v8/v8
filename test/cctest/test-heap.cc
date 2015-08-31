@@ -435,7 +435,7 @@ TEST(GarbageCollection) {
 
   HandleScope sc(isolate);
   // Check GC.
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
 
   Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
@@ -461,7 +461,7 @@ TEST(GarbageCollection) {
              *Object::GetProperty(obj, prop_namex).ToHandleChecked());
   }
 
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
 
   // Function should be alive.
   CHECK(Just(true) == JSReceiver::HasOwnProperty(global, name));
@@ -551,7 +551,7 @@ TEST(GlobalHandles) {
   }
 
   // after gc, it should survive
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
 
   CHECK((*h1)->IsString());
   CHECK((*h2)->IsHeapNumber());
@@ -609,7 +609,7 @@ TEST(WeakGlobalHandlesScavenge) {
                           &TestWeakGlobalHandleCallback);
 
   // Scavenge treats weak pointers as normal roots.
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
 
   CHECK((*h1)->IsString());
   CHECK((*h2)->IsHeapNumber());
@@ -647,7 +647,7 @@ TEST(WeakGlobalHandlesMark) {
 
   // Make sure the objects are promoted.
   heap->CollectGarbage(OLD_SPACE);
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
   CHECK(!heap->InNewSpace(*h1) && !heap->InNewSpace(*h2));
 
   std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
@@ -694,7 +694,7 @@ TEST(DeleteWeakGlobalHandle) {
                           &TestWeakGlobalHandleCallback);
 
   // Scanvenge does not recognize weak reference.
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
 
   CHECK(!WeakPointerCleared);
 
@@ -1513,7 +1513,7 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   // perform a scavenge while incremental marking is still running.
   SimulateIncrementalMarking(CcTest::heap());
   *function2.location() = NULL;
-  CcTest::heap()->CollectGarbage(NEW_SPACE, "test scavenge while marking");
+  CcTest::heap()->CollectGarbageNewSpace("test scavenge while marking");
 
   // Simulate one final GC to make sure the candidate queue is sane.
   CcTest::heap()->CollectAllGarbage();
@@ -1787,7 +1787,7 @@ TEST(TestInternalWeakLists) {
 
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->CollectGarbage(NEW_SPACE);
+      CcTest::heap()->CollectGarbageNewSpace();
       CHECK_EQ(5, CountOptimizedUserFunctions(ctx[i]));
     }
 
@@ -1799,7 +1799,7 @@ TEST(TestInternalWeakLists) {
     // Get rid of f3 and f5 in the same way.
     CompileRun("f3=null");
     for (int j = 0; j < 10; j++) {
-      CcTest::heap()->CollectGarbage(NEW_SPACE);
+      CcTest::heap()->CollectGarbageNewSpace();
       CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::heap()->CollectAllGarbage();
@@ -2382,7 +2382,7 @@ TEST(GrowAndShrinkNewSpace) {
   CHECK(old_capacity == new_capacity);
 
   // Let the scavenger empty the new space.
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
   CHECK_LE(new_space->Size(), old_capacity);
 
   // Explicitly shrinking should halve the space capacity.
@@ -2837,7 +2837,7 @@ HEAP_TEST(GCFlags) {
 
   // Set the flags to check whether we appropriately resets them after the GC.
   heap->set_current_gc_flags(Heap::kAbortIncrementalMarkingMask);
-  heap->CollectAllGarbage(Heap::kReduceMemoryFootprintMask);
+  heap->CollectAllGarbage("GCFlags", Heap::kReduceMemoryFootprintMask);
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 
   MarkCompactCollector* collector = heap->mark_compact_collector();
@@ -2850,11 +2850,11 @@ HEAP_TEST(GCFlags) {
   heap->StartIncrementalMarking(Heap::kReduceMemoryFootprintMask);
   CHECK_NE(0, heap->current_gc_flags_ & Heap::kReduceMemoryFootprintMask);
 
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
   // NewSpace scavenges should not overwrite the flags.
   CHECK_NE(0, heap->current_gc_flags_ & Heap::kReduceMemoryFootprintMask);
 
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage("GCFlags", Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 }
 
@@ -3740,17 +3740,18 @@ TEST(ReleaseOverReservedPages) {
 
   // Triggering one GC will cause a lot of garbage to be discovered but
   // even spread across all allocated pages.
-  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
-                          "triggered for preparation");
+  heap->CollectAllGarbage("triggered for preparation",
+                          Heap::kFinalizeIncrementalMarkingMask);
   CHECK_GE(number_of_test_pages + 1, old_space->CountTotalPages());
 
   // Triggering subsequent GCs should cause at least half of the pages
   // to be released to the OS after at most two cycles.
-  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
-                          "triggered by test 1");
+  heap->CollectAllGarbage("triggered by test 1",
+                          Heap::kFinalizeIncrementalMarkingMask);
+  ;
   CHECK_GE(number_of_test_pages + 1, old_space->CountTotalPages());
-  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
-                          "triggered by test 2");
+  heap->CollectAllGarbage("triggered by test 2",
+                          Heap::kFinalizeIncrementalMarkingMask);
   CHECK_GE(number_of_test_pages + 1, old_space->CountTotalPages() * 2);
 
   // Triggering a last-resort GC should cause all pages to be released to the
@@ -4448,7 +4449,7 @@ TEST(Regress169928) {
   CcTest::global()->Set(array_name, v8::Int32::New(CcTest::isolate(), 0));
 
   // First make sure we flip spaces
-  CcTest::heap()->CollectGarbage(NEW_SPACE);
+  CcTest::heap()->CollectGarbageNewSpace();
 
   // Allocate the object.
   Handle<FixedArray> array_data = factory->NewFixedArray(2, NOT_TENURED);
@@ -5518,10 +5519,10 @@ TEST(WeakCell) {
   }
   CHECK(weak_cell1->value()->IsFixedArray());
   CHECK_EQ(*survivor, weak_cell2->value());
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
   CHECK(weak_cell1->value()->IsFixedArray());
   CHECK_EQ(*survivor, weak_cell2->value());
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
   CHECK(weak_cell1->value()->IsFixedArray());
   CHECK_EQ(*survivor, weak_cell2->value());
   heap->CollectAllAvailableGarbage();
@@ -5552,7 +5553,7 @@ TEST(WeakCellsWithIncrementalMarking) {
       heap->StartIncrementalMarking();
     }
     marking->Step(128, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-    heap->CollectGarbage(NEW_SPACE);
+    heap->CollectGarbageNewSpace();
     CHECK(weak_cell->value()->IsFixedArray());
     weak_cells[i] = inner_scope.CloseAndEscape(weak_cell);
   }
@@ -5758,8 +5759,8 @@ UNINITIALIZED_TEST(PromotionQueue) {
     CHECK(2 * old_capacity == new_space->TotalCapacity());
 
     // Call the scavenger two times to get an empty new space
-    heap->CollectGarbage(NEW_SPACE);
-    heap->CollectGarbage(NEW_SPACE);
+    heap->CollectGarbageNewSpace();
+    heap->CollectGarbageNewSpace();
 
     // First create a few objects which will survive a scavenge, and will get
     // promoted to the old generation later on. These objects will create
@@ -5769,7 +5770,7 @@ UNINITIALIZED_TEST(PromotionQueue) {
     for (int i = 0; i < number_handles; i++) {
       handles[i] = i_isolate->factory()->NewFixedArray(1, NOT_TENURED);
     }
-    heap->CollectGarbage(NEW_SPACE);
+    heap->CollectGarbageNewSpace();
 
     // Create the first huge object which will exactly fit the first semi-space
     // page.
@@ -5794,7 +5795,7 @@ UNINITIALIZED_TEST(PromotionQueue) {
 
     // This scavenge will corrupt memory if the promotion queue is not
     // evacuated.
-    heap->CollectGarbage(NEW_SPACE);
+    heap->CollectGarbageNewSpace();
   }
   isolate->Dispose();
 }
@@ -6219,12 +6220,12 @@ TEST(NewSpaceAllocationCounter) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   size_t counter1 = heap->NewSpaceAllocationCounter();
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
   const size_t kSize = 1024;
   AllocateInSpace(isolate, kSize, NEW_SPACE);
   size_t counter2 = heap->NewSpaceAllocationCounter();
   CHECK_EQ(kSize, counter2 - counter1);
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
   size_t counter3 = heap->NewSpaceAllocationCounter();
   CHECK_EQ(0U, counter3 - counter2);
   // Test counter overflow.
@@ -6246,14 +6247,14 @@ TEST(OldSpaceAllocationCounter) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   size_t counter1 = heap->OldGenerationAllocationCounter();
-  heap->CollectGarbage(NEW_SPACE);
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
+  heap->CollectGarbageNewSpace();
   const size_t kSize = 1024;
   AllocateInSpace(isolate, kSize, OLD_SPACE);
   size_t counter2 = heap->OldGenerationAllocationCounter();
   // TODO(ulan): replace all CHECK_LE with CHECK_EQ after v8:4148 is fixed.
   CHECK_LE(kSize, counter2 - counter1);
-  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbageNewSpace();
   size_t counter3 = heap->OldGenerationAllocationCounter();
   CHECK_EQ(0u, counter3 - counter2);
   AllocateInSpace(isolate, kSize, OLD_SPACE);

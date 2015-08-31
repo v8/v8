@@ -1309,8 +1309,8 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   }
 
   // Make sure we abort incremental marking.
-  isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                                      "prepare for break points");
+  isolate_->heap()->CollectAllGarbage("prepare for break points",
+                                      Heap::kMakeHeapIterableMask);
 
   {
     HeapIterator iterator(isolate_->heap());

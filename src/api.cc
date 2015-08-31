@@ -6880,7 +6880,7 @@ void Isolate::CollectAllGarbage(const char* gc_reason) {
           kGCCallbackFlagSynchronousPhantomCallbackProcessing, gc_reason);
     } else {
       heap->CollectAllGarbage(
-          i::Heap::kNoGCFlags, gc_reason,
+          gc_reason, i::Heap::kNoGCFlags,
           kGCCallbackFlagSynchronousPhantomCallbackProcessing);
     }
   } else {
@@ -7071,13 +7071,13 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
   CHECK(i::FLAG_expose_gc);
   if (type == kMinorGarbageCollection) {
     reinterpret_cast<i::Isolate*>(this)->heap()->CollectGarbage(
-        i::NEW_SPACE, "Isolate::RequestGarbageCollection",
+        i::NEW_SPACE, "Isolate::RequestGarbageCollection", i::Heap::kNoGCFlags,
         kGCCallbackFlagForced);
   } else {
     DCHECK_EQ(kFullGarbageCollection, type);
     reinterpret_cast<i::Isolate*>(this)->heap()->CollectAllGarbage(
-        i::Heap::kAbortIncrementalMarkingMask,
-        "Isolate::RequestGarbageCollection", kGCCallbackFlagForced);
+        "Isolate::RequestGarbageCollection",
+        i::Heap::kAbortIncrementalMarkingMask, kGCCallbackFlagForced);
   }
 }
 

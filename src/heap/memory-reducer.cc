@@ -103,8 +103,8 @@ void MemoryReducer::NotifyBackgroundIdleNotification(const Event& event) {
     // TODO(ulan): Replace it with incremental marking GC once
     // chromium:490559 is fixed.
     if (event.time_ms > state_.last_gc_time_ms + kLongDelayMs) {
-      heap()->CollectAllGarbage(Heap::kReduceMemoryFootprintMask,
-                                "memory reducer background GC");
+      heap()->CollectAllGarbage("memory reducer background GC",
+                                Heap::kReduceMemoryFootprintMask);
     } else {
       DCHECK(FLAG_incremental_marking);
       heap()->StartIdleIncrementalMarking();

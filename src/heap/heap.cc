@@ -50,6 +50,9 @@ struct Heap::StrongRootsList {
 };
 
 
+DEFINE_OPERATORS_FOR_FLAGS(Heap::GCFlags)
+
+
 Heap::Heap()
     : amount_of_external_allocated_memory_(0),
       amount_of_external_allocated_memory_at_last_global_gc_(0),
@@ -133,7 +136,7 @@ Heap::Heap()
       ring_buffer_end_(0),
       promotion_queue_(this),
       configured_(false),
-      current_gc_flags_(Heap::kNoGCFlags),
+      current_gc_flags_(kNoGCFlags),
       current_gc_callback_flags_(GCCallbackFlags::kNoGCCallbackFlags),
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
@@ -750,7 +753,7 @@ void Heap::PreprocessStackTraces() {
 void Heap::HandleGCRequest() {
   if (incremental_marking()->request_type() ==
       IncrementalMarking::COMPLETE_MARKING) {
-    CollectAllGarbage(current_gc_flags_, "GC interrupt",
+    CollectAllGarbage("GC interrupt", current_gc_flags_,
                       current_gc_callback_flags_);
     return;
   }
@@ -794,14 +797,12 @@ void Heap::OverApproximateWeakClosure(const char* gc_reason) {
 }
 
 
-void Heap::CollectAllGarbage(int flags, const char* gc_reason,
+void Heap::CollectAllGarbage(const char* gc_reason, const GCFlags flags,
                              const v8::GCCallbackFlags gc_callback_flags) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
-  set_current_gc_flags(flags);
-  CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags);
-  set_current_gc_flags(kNoGCFlags);
+  CollectGarbage(OLD_SPACE, gc_reason, flags, gc_callback_flags);
 }
 
 
@@ -823,18 +824,18 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
     isolate()->optimizing_compile_dispatcher()->Flush();
   }
   isolate()->ClearSerializerData();
-  set_current_gc_flags(kMakeHeapIterableMask | kReduceMemoryFootprintMask);
-  isolate_->compilation_cache()->Clear();
+  isolate()->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(MARK_COMPACTOR, gc_reason, NULL,
-                        v8::kGCCallbackFlagForced) &&
-        attempt + 1 >= kMinNumberOfAttempts) {
+    if (!CollectGarbage(OLD_SPACE, gc_reason,
+                        Heap::kAbortIncrementalMarkingMask |
+                            Heap::kReduceMemoryFootprintMask,
+                        kGCCallbackFlagForced) &&
+        ((attempt + 1) >= kMinNumberOfAttempts)) {
       break;
     }
   }
-  set_current_gc_flags(kNoGCFlags);
   new_space_.Shrink();
   UncommitFromSpace();
 }
@@ -860,8 +861,7 @@ void Heap::EnsureFillerObjectAtTop() {
 
 
 bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
-                          const char* collector_reason,
-                          const v8::GCCallbackFlags gc_callback_flags) {
+                          const char* collector_reason) {
   // The VM is in the GC state until exiting this function.
   VMState<GC> state(isolate_);
 
@@ -916,8 +916,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
       HistogramTimerScope histogram_timer_scope(
           (collector == SCAVENGER) ? isolate_->counters()->gc_scavenger()
                                    : isolate_->counters()->gc_compactor());
-      next_gc_likely_to_collect_more =
-          PerformGarbageCollection(collector, gc_callback_flags);
+      next_gc_likely_to_collect_more = PerformGarbageCollection(collector);
     }
 
     GarbageCollectionEpilogue();
@@ -948,7 +947,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   }
 
   if (collector == MARK_COMPACTOR &&
-      (gc_callback_flags & kGCCallbackFlagForced) != 0) {
+      (current_gc_callback_flags_ & kGCCallbackFlagForced) != 0) {
     isolate()->CountUsage(v8::Isolate::kForcedGC);
   }
 
@@ -983,7 +982,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
 }
 
 
-void Heap::StartIncrementalMarking(int gc_flags,
+void Heap::StartIncrementalMarking(const GCFlags gc_flags,
                                    const GCCallbackFlags gc_callback_flags,
                                    const char* reason) {
   DCHECK(incremental_marking()->IsStopped());
@@ -1085,17 +1084,17 @@ bool Heap::ReserveSpace(Reservation* reservations) {
       }
       if (perform_gc) {
         if (space == NEW_SPACE) {
-          CollectGarbage(NEW_SPACE, "failed to reserve space in the new space");
+          CollectGarbageNewSpace("failed to reserve space in the new space");
         } else {
           if (counter > 1) {
             CollectAllGarbage(
-                kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
                 "failed to reserve space in paged or large "
-                "object space, trying to reduce memory footprint");
+                "object space, trying to reduce memory footprint",
+                kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask);
           } else {
             CollectAllGarbage(
-                kAbortIncrementalMarkingMask,
-                "failed to reserve space in paged or large object space");
+                "failed to reserve space in paged or large object space",
+                kAbortIncrementalMarkingMask);
           }
         }
         gc_performed = true;
@@ -1164,8 +1163,8 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   }
 }
 
-bool Heap::PerformGarbageCollection(
-    GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
+
+bool Heap::PerformGarbageCollection(GarbageCollector collector) {
   int freed_global_handles = 0;
 
   if (collector != SCAVENGER) {
@@ -1242,7 +1241,7 @@ bool Heap::PerformGarbageCollection(
     GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
     freed_global_handles =
         isolate_->global_handles()->PostGarbageCollectionProcessing(
-            collector, gc_callback_flags);
+            collector, current_gc_callback_flags_);
   }
   gc_post_processing_depth_--;
 
@@ -1273,7 +1272,7 @@ bool Heap::PerformGarbageCollection(
       GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
-      CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
+      CallGCEpilogueCallbacks(gc_type, current_gc_callback_flags_);
     }
   }
 
@@ -4537,7 +4536,7 @@ bool Heap::IsHeapIterable() {
 void Heap::MakeHeapIterable() {
   DCHECK(AllowHeapAllocation::IsAllowed());
   if (!IsHeapIterable()) {
-    CollectAllGarbage(kMakeHeapIterableMask, "Heap::MakeHeapIterable");
+    CollectAllGarbage("Heap::MakeHeapIterable", kMakeHeapIterableMask);
   }
   if (mark_compact_collector()->sweeping_in_progress()) {
     mark_compact_collector()->EnsureSweepingCompleted();
@@ -4662,8 +4661,8 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
               gc_idle_time_handler_.ShouldDoFinalIncrementalMarkCompact(
                   static_cast<size_t>(idle_time_in_ms), size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
-    CollectAllGarbage(current_gc_flags_,
-                      "idle notification: finalize incremental");
+    CollectAllGarbage("idle notification: finalize incremental",
+                      current_gc_flags_);
     return true;
   }
   return false;
@@ -4746,11 +4745,11 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
     case DO_FULL_GC: {
       DCHECK(contexts_disposed_ > 0);
       HistogramTimerScope scope(isolate_->counters()->gc_context());
-      CollectAllGarbage(kNoGCFlags, "idle notification: contexts disposed");
+      CollectAllGarbage("idle notification: contexts disposed", kNoGCFlags);
       break;
     }
     case DO_SCAVENGE:
-      CollectGarbage(NEW_SPACE, "idle notification: scavenge");
+      CollectGarbageNewSpace("idle notification: scavenge");
       break;
     case DO_FINALIZE_SWEEPING:
       mark_compact_collector()->EnsureSweepingCompleted();
