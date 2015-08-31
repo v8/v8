@@ -14,7 +14,7 @@
   CHECK_EQ(index, types.size()); \
   }
 
-#define DEFAULT_TYPE Bounds::Unbounded(handles.main_zone())
+#define DEFAULT_TYPE Bounds::Unbounded()
 #define INT32_TYPE                            \
   Bounds(Type::Signed32(handles.main_zone()), \
          Type::Signed32(handles.main_zone()))

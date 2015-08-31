@@ -19,9 +19,6 @@ class TypingReseter : public AstExpressionVisitor {
 
  protected:
   void VisitExpression(Expression* expression) override;
-
- private:
-  CompilationInfo* info_;
 };
 }
 }  // namespace v8::internal

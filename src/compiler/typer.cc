@@ -483,7 +483,7 @@ Bounds Typer::Visitor::TypeStart(Node* node) {
 
 
 Bounds Typer::Visitor::TypeIfException(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -497,12 +497,12 @@ Bounds Typer::Visitor::TypeParameter(Node* node) {
       return Bounds(Type::None(), function_type->Parameter(index));
     }
   }
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
 Bounds Typer::Visitor::TypeOsrValue(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -605,18 +605,18 @@ Bounds Typer::Visitor::TypeTypedStateValues(Node* node) {
 
 
 Bounds Typer::Visitor::TypeCall(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
 Bounds Typer::Visitor::TypeProjection(Node* node) {
   // TODO(titzer): use the output type of the input to determine the bounds.
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
 Bounds Typer::Visitor::TypeDead(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -1204,12 +1204,12 @@ Bounds Typer::Visitor::TypeJSLoadProperty(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSLoadNamed(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
 Bounds Typer::Visitor::TypeJSLoadGlobal(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -1377,12 +1377,12 @@ Bounds Typer::Visitor::TypeJSStoreContext(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSLoadDynamicGlobal(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
 Bounds Typer::Visitor::TypeJSLoadDynamicContext(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -1432,7 +1432,7 @@ Bounds Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSYield(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -1483,7 +1483,7 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
     default:
       break;
   }
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -1495,7 +1495,7 @@ Bounds Typer::Visitor::TypeJSForInNext(Node* node) {
 
 Bounds Typer::Visitor::TypeJSForInPrepare(Node* node) {
   // TODO(bmeurer): Return a tuple type here.
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -1512,7 +1512,7 @@ Bounds Typer::Visitor::TypeJSForInStep(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSStackCheck(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -1764,7 +1764,7 @@ Bounds Typer::Visitor::TypeObjectIsNonNegativeSmi(Node* node) {
 // Machine operators.
 
 Bounds Typer::Visitor::TypeLoad(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 
@@ -2213,7 +2213,7 @@ Bounds Typer::Visitor::TypeLoadFramePointer(Node* node) {
 
 
 Bounds Typer::Visitor::TypeCheckedLoad(Node* node) {
-  return Bounds::Unbounded(zone());
+  return Bounds::Unbounded();
 }
 
 

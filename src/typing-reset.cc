@@ -15,11 +15,11 @@ namespace internal {
 
 
 TypingReseter::TypingReseter(CompilationInfo* info)
-    : AstExpressionVisitor(info), info_(info) {}
+    : AstExpressionVisitor(info) {}
 
 
 void TypingReseter::VisitExpression(Expression* expression) {
-  expression->set_bounds(Bounds::Unbounded(info_->zone()));
+  expression->set_bounds(Bounds::Unbounded());
 }
 }
 }  // namespace v8::internal

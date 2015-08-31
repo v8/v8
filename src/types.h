@@ -1134,8 +1134,8 @@ struct BoundsImpl {
   }
 
   // Unrestricted bounds.
-  static BoundsImpl Unbounded(Region* region) {
-    return BoundsImpl(Type::None(region), Type::Any(region));
+  static BoundsImpl Unbounded() {
+    return BoundsImpl(Type::None(), Type::Any());
   }
 
   // Meet: both b1 and b2 are known to hold.

@@ -406,7 +406,7 @@ class Expression : public AstNode {
   Expression(Zone* zone, int pos)
       : AstNode(pos),
         base_id_(BailoutId::None().ToInt()),
-        bounds_(Bounds::Unbounded(zone)),
+        bounds_(Bounds::Unbounded()),
         bit_field_(0) {}
   static int parent_num_ids() { return 0; }
   void set_to_boolean_types(uint16_t types) {
