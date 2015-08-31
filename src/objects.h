@@ -173,6 +173,11 @@ enum KeyedAccessStoreMode {
 enum class ToPrimitiveHint { kDefault, kNumber, kString };
 
 
+// Valid hints for the abstract operation OrdinaryToPrimitive,
+// implemented according to ES6, section 7.1.1.
+enum class OrdinaryToPrimitiveHint { kNumber, kString };
+
+
 enum TypeofMode { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
@@ -1679,7 +1684,7 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> receiver,
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   MUST_USE_RESULT static MaybeHandle<Object> OrdinaryToPrimitive(
-      Handle<JSReceiver> receiver, Handle<String> hint);
+      Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   MUST_USE_RESULT static inline Maybe<bool> HasProperty(
@@ -7265,6 +7270,9 @@ class JSDate: public JSObject {
 
   void SetValue(Object* value, bool is_value_nan);
 
+  // ES6 section 20.3.4.45 Date.prototype [ @@toPrimitive ]
+  static MUST_USE_RESULT MaybeHandle<Object> ToPrimitive(
+      Handle<JSReceiver> receiver, Handle<Object> hint);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSDate)
@@ -8114,6 +8122,10 @@ class Name: public HeapObject {
   // string. Otherwise it'll just return the input.
   static inline Handle<Name> Flatten(Handle<Name> name,
                                      PretenureFlag pretenure = NOT_TENURED);
+
+  // Return a string version of this name that is converted according to the
+  // rules described in ES6 section 9.2.11.
+  MUST_USE_RESULT static MaybeHandle<String> ToFunctionName(Handle<Name> name);
 
   DECLARE_CAST(Name)
 

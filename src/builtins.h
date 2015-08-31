@@ -57,6 +57,8 @@ enum BuiltinExtraArguments {
   V(ArraySplice, NO_EXTRA_ARGUMENTS)                         \
   V(ArrayConcat, NO_EXTRA_ARGUMENTS)                         \
                                                              \
+  V(DateToPrimitive, NO_EXTRA_ARGUMENTS)                     \
+                                                             \
   V(HandleApiCall, NEEDS_CALLED_FUNCTION)                    \
   V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)           \
   V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)             \

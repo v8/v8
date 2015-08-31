@@ -37,6 +37,7 @@
 #include "src/objects-inl.h"
 #include "src/prototype.h"
 #include "src/safepoint-table.h"
+#include "src/string-builder.h"
 #include "src/string-search.h"
 #include "src/string-stream.h"
 #include "src/utils.h"
@@ -6041,25 +6042,26 @@ MaybeHandle<Object> JSReceiver::ToPrimitive(Handle<JSReceiver> receiver,
                     NewTypeError(MessageTemplate::kCannotConvertToPrimitive),
                     Object);
   }
-  return OrdinaryToPrimitive(receiver,
-                             (hint == ToPrimitiveHint::kString)
-                                 ? isolate->factory()->string_string()
-                                 : isolate->factory()->number_string());
+  return OrdinaryToPrimitive(receiver, (hint == ToPrimitiveHint::kString)
+                                           ? OrdinaryToPrimitiveHint::kString
+                                           : OrdinaryToPrimitiveHint::kNumber);
 }
 
 
 // static
-MaybeHandle<Object> JSReceiver::OrdinaryToPrimitive(Handle<JSReceiver> receiver,
-                                                    Handle<String> hint) {
+MaybeHandle<Object> JSReceiver::OrdinaryToPrimitive(
+    Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint) {
   Isolate* const isolate = receiver->GetIsolate();
   Handle<String> method_names[2];
-  if (hint.is_identical_to(isolate->factory()->number_string())) {
-    method_names[0] = isolate->factory()->valueOf_string();
-    method_names[1] = isolate->factory()->toString_string();
-  } else {
-    DCHECK(hint.is_identical_to(isolate->factory()->string_string()));
-    method_names[0] = isolate->factory()->toString_string();
-    method_names[1] = isolate->factory()->valueOf_string();
+  switch (hint) {
+    case OrdinaryToPrimitiveHint::kNumber:
+      method_names[0] = isolate->factory()->valueOf_string();
+      method_names[1] = isolate->factory()->toString_string();
+      break;
+    case OrdinaryToPrimitiveHint::kString:
+      method_names[0] = isolate->factory()->toString_string();
+      method_names[1] = isolate->factory()->valueOf_string();
+      break;
   }
   for (Handle<String> name : method_names) {
     Handle<Object> method;
@@ -8347,6 +8349,21 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
 bool String::LooksValid() {
   if (!GetIsolate()->heap()->Contains(this)) return false;
   return true;
+}
+
+
+// static
+MaybeHandle<String> Name::ToFunctionName(Handle<Name> name) {
+  if (name->IsString()) return Handle<String>::cast(name);
+  // ES6 section 9.2.11 SetFunctionName, step 4.
+  Isolate* const isolate = name->GetIsolate();
+  Handle<Object> description(Handle<Symbol>::cast(name)->name(), isolate);
+  if (description->IsUndefined()) return isolate->factory()->empty_string();
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCharacter('[');
+  builder.AppendString(Handle<String>::cast(description));
+  builder.AppendCharacter(']');
+  return builder.Finish();
 }
 
 
@@ -15863,6 +15880,27 @@ void JSDate::SetValue(Object* value, bool is_value_nan) {
   } else {
     set_cache_stamp(Smi::FromInt(DateCache::kInvalidStamp), SKIP_WRITE_BARRIER);
   }
+}
+
+
+// static
+MaybeHandle<Object> JSDate::ToPrimitive(Handle<JSReceiver> receiver,
+                                        Handle<Object> hint) {
+  Isolate* const isolate = receiver->GetIsolate();
+  if (hint->IsString()) {
+    Handle<String> hint_string = Handle<String>::cast(hint);
+    if (hint_string->Equals(isolate->heap()->number_string())) {
+      return JSReceiver::OrdinaryToPrimitive(receiver,
+                                             OrdinaryToPrimitiveHint::kNumber);
+    }
+    if (hint_string->Equals(isolate->heap()->default_string()) ||
+        hint_string->Equals(isolate->heap()->string_string())) {
+      return JSReceiver::OrdinaryToPrimitive(receiver,
+                                             OrdinaryToPrimitiveHint::kString);
+    }
+  }
+  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidHint, hint),
+                  Object);
 }
 
 

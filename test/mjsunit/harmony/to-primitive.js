@@ -67,10 +67,6 @@ assertEquals("xyz", %ToPrimitive_String(a));
 assertEquals("xyz", %_ToPrimitive(a));
 assertEquals("xyz", %_ToPrimitive_Number(a));
 assertEquals("xyz", %_ToPrimitive_String(a));
-assertEquals("xyz", %OrdinaryToPrimitive(a, "number"));
-assertEquals("xyz", %OrdinaryToPrimitive(a, "string"));
-assertEquals("xyz", %_OrdinaryToPrimitive(a, "number"));
-assertEquals("xyz", %_OrdinaryToPrimitive(a, "string"));
 
 var b = { valueOf: function() { return 42 }};
 assertEquals(42, %ToPrimitive(b));
@@ -79,10 +75,6 @@ assertEquals("[object Object]", %ToPrimitive_String(b));
 assertEquals(42, %_ToPrimitive(b));
 assertEquals(42, %_ToPrimitive_Number(b));
 assertEquals("[object Object]", %_ToPrimitive_String(b));
-assertEquals(42, %OrdinaryToPrimitive(b, "number"));
-assertEquals("[object Object]", %OrdinaryToPrimitive(b, "string"));
-assertEquals(42, %_OrdinaryToPrimitive(b, "number"));
-assertEquals("[object Object]", %_OrdinaryToPrimitive(b, "string"));
 
 var c = {
   toString: function() { return "x"},
@@ -94,10 +86,6 @@ assertEquals("x", %ToPrimitive_String(c));
 assertEquals(123, %_ToPrimitive(c));
 assertEquals(123, %_ToPrimitive_Number(c));
 assertEquals("x", %_ToPrimitive_String(c));
-assertEquals(123, %OrdinaryToPrimitive(c, "number"));
-assertEquals("x", %OrdinaryToPrimitive(c, "string"));
-assertEquals(123, %_OrdinaryToPrimitive(c, "number"));
-assertEquals("x", %_OrdinaryToPrimitive(c, "string"));
 
 var d = {
   [Symbol.toPrimitive]: function(hint) { return hint }
@@ -108,3 +96,11 @@ assertEquals("string", %ToPrimitive_String(d));
 assertEquals("default", %_ToPrimitive(d));
 assertEquals("number", %_ToPrimitive_Number(d));
 assertEquals("string", %_ToPrimitive_String(d));
+
+var e = new Date(0);
+assertEquals(e.toString(), %ToPrimitive(e));
+assertEquals(0, %ToPrimitive_Number(e));
+assertEquals(e.toString(), %ToPrimitive_String(e));
+assertEquals(e.toString(), %_ToPrimitive(e));
+assertEquals(0, %_ToPrimitive_Number(e));
+assertEquals(e.toString(), %_ToPrimitive_String(e));

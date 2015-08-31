@@ -380,26 +380,43 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 }
 
 
-static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
-                                          const char* name, InstanceType type,
-                                          int instance_size,
-                                          MaybeHandle<JSObject> maybe_prototype,
-                                          Builtins::Name call,
-                                          bool strict_function_map = false) {
+namespace {
+
+Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
+                                   InstanceType type, int instance_size,
+                                   MaybeHandle<JSObject> maybe_prototype,
+                                   Builtins::Name call,
+                                   PropertyAttributes attributes,
+                                   bool strict_function_map = false) {
   Isolate* isolate = target->GetIsolate();
   Factory* factory = isolate->factory();
-  Handle<String> internalized_name = factory->InternalizeUtf8String(name);
+  Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
   Handle<Code> call_code = Handle<Code>(isolate->builtins()->builtin(call));
   Handle<JSObject> prototype;
   static const bool kReadOnlyPrototype = false;
   static const bool kInstallConstructor = false;
   Handle<JSFunction> function =
       maybe_prototype.ToHandle(&prototype)
-          ? factory->NewFunction(internalized_name, call_code, prototype, type,
+          ? factory->NewFunction(name_string, call_code, prototype, type,
                                  instance_size, kReadOnlyPrototype,
                                  kInstallConstructor, strict_function_map)
-          : factory->NewFunctionWithoutPrototype(internalized_name, call_code,
+          : factory->NewFunctionWithoutPrototype(name_string, call_code,
                                                  strict_function_map);
+  JSObject::AddProperty(target, name, function, attributes);
+  if (target->IsJSGlobalObject()) {
+    function->shared()->set_instance_class_name(*name_string);
+  }
+  function->shared()->set_native(true);
+  return function;
+}
+
+
+Handle<JSFunction> InstallFunction(Handle<JSObject> target, const char* name,
+                                   InstanceType type, int instance_size,
+                                   MaybeHandle<JSObject> maybe_prototype,
+                                   Builtins::Name call,
+                                   bool strict_function_map = false) {
+  Factory* const factory = target->GetIsolate()->factory();
   PropertyAttributes attributes;
   if (target->IsJSBuiltinsObject()) {
     attributes =
@@ -407,13 +424,12 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   } else {
     attributes = DONT_ENUM;
   }
-  JSObject::AddProperty(target, internalized_name, function, attributes);
-  if (target->IsJSGlobalObject()) {
-    function->shared()->set_instance_class_name(*internalized_name);
-  }
-  function->shared()->set_native(true);
-  return function;
+  return InstallFunction(target, factory->InternalizeUtf8String(name), type,
+                         instance_size, maybe_prototype, call, attributes,
+                         strict_function_map);
 }
+
+}  // namespace
 
 
 void Genesis::SetFunctionInstanceDescriptor(Handle<Map> map,
@@ -2290,6 +2306,29 @@ bool Genesis::InstallNatives(ContextType context_type) {
       string_function->initial_map()->prototype())->HasFastProperties());
   native_context()->set_string_function_prototype_map(
       HeapObject::cast(string_function->initial_map()->prototype())->map());
+
+  // Install Date.prototype[@@toPrimitive].
+  {
+    Handle<String> key = factory()->Date_string();
+    Handle<JSFunction> date = Handle<JSFunction>::cast(
+        Object::GetProperty(handle(native_context()->global_object()), key)
+            .ToHandleChecked());
+    Handle<JSObject> proto =
+        Handle<JSObject>(JSObject::cast(date->instance_prototype()));
+
+    // Install the @@toPrimitive function.
+    Handle<JSFunction> to_primitive =
+        InstallFunction(proto, factory()->to_primitive_symbol(), JS_OBJECT_TYPE,
+                        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
+                        Builtins::kDateToPrimitive,
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    // Set the expected parameters for @@toPrimitive to 1; required by builtin.
+    to_primitive->shared()->set_internal_formal_parameter_count(1);
+
+    // Set the length for the function to satisfy ECMA-262.
+    to_primitive->shared()->set_length(1);
+  }
 
   // Install Function.prototype.call and apply.
   {

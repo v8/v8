@@ -55,3 +55,7 @@ var d = {
 };
 assertEquals(987654321, %ToNumber(d));
 assertEquals(987654321, %_ToNumber(d));
+
+var e = new Date(0);
+assertEquals(0, %ToNumber(e));
+assertEquals(0, %_ToNumber(e));

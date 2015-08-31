@@ -365,21 +365,6 @@ function DateToLocaleTimeString() {
 }
 
 
-// 20.3.4.45 Date.prototype [ @@toPrimitive ] ( hint )
-function DateToPrimitive(hint) {
-  if (!IS_SPEC_OBJECT(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        "Date.prototype [ @@toPrimitive ]", this);
-  }
-  if (hint === "default") {
-    hint = "string";
-  } else if (hint !== "number" && hint !== "string") {
-    throw MakeTypeError(kInvalidHint, hint);
-  }
-  return %OrdinaryToPrimitive(this, hint);
-}
-
-
 // ECMA 262 - 15.9.5.8
 function DateValueOf() {
   CHECK_DATE(this);
@@ -848,9 +833,6 @@ utils.InstallFunctions(GlobalDate, DONT_ENUM, [
 
 // Set up non-enumerable constructor property of the Date prototype object.
 %AddNamedProperty(GlobalDate.prototype, "constructor", GlobalDate, DONT_ENUM);
-utils.SetFunctionName(DateToPrimitive, toPrimitiveSymbol);
-%AddNamedProperty(GlobalDate.prototype, toPrimitiveSymbol, DateToPrimitive,
-                  DONT_ENUM | READ_ONLY);
 
 // Set up non-enumerable functions of the Date prototype object and
 // set their names.

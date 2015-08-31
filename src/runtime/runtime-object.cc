@@ -1461,18 +1461,6 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive_String) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_OrdinaryToPrimitive) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, hint, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSReceiver::OrdinaryToPrimitive(receiver, hint));
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_ToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

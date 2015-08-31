@@ -740,6 +740,30 @@ BUILTIN(ArrayConcat) {
 
 
 // -----------------------------------------------------------------------------
+//
+
+
+// 20.3.4.45 Date.prototype [ @@toPrimitive ] ( hint )
+BUILTIN(DateToPrimitive) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  if (!args.receiver()->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Date.prototype [ @@toPrimitive ]"),
+                              args.receiver()));
+  }
+  Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
+  Handle<Object> hint = args.at<Object>(1);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSDate::ToPrimitive(receiver, hint));
+  return *result;
+}
+
+
+// -----------------------------------------------------------------------------
 // Throwers for restricted function properties and strict arguments object
 // properties
 

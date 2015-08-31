@@ -495,7 +495,6 @@ namespace internal {
   F(ToPrimitive, 1, 1)                               \
   F(ToPrimitive_Number, 1, 1)                        \
   F(ToPrimitive_String, 1, 1)                        \
-  F(OrdinaryToPrimitive, 2, 1)                       \
   F(ToNumber, 1, 1)                                  \
   F(ToString, 1, 1)                                  \
   F(ToName, 1, 1)                                    \

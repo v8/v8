@@ -248,7 +248,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kInlineToPrimitive:
     case Runtime::kInlineToPrimitive_Number:
     case Runtime::kInlineToPrimitive_String:
-    case Runtime::kInlineOrdinaryToPrimitive:
     case Runtime::kInlineToNumber:
     case Runtime::kInlineToString:
     case Runtime::kInlineToName:

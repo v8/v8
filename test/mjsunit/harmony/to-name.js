@@ -48,3 +48,7 @@ var d = {
 };
 assertEquals("string", %ToName(d));
 assertEquals("string", %_ToName(d));
+
+var e = new Date(0);
+assertEquals(e.toString(), %ToName(e));
+assertEquals(e.toString(), %_ToName(e));
