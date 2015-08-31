@@ -1757,26 +1757,27 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
 
-    // Calculate copy start address into a0 and copy end address into a2.
+    // Calculate copy start address into a0 and copy end address into a4.
     __ SmiScale(a0, a0, kPointerSizeLog2);
     __ Daddu(a0, fp, a0);
     // Adjust for return address and receiver.
     __ Daddu(a0, a0, Operand(2 * kPointerSize));
     // Compute copy end address.
-    __ dsll(a2, a2, kPointerSizeLog2);
-    __ dsubu(a2, a0, a2);
+    __ dsll(a4, a2, kPointerSizeLog2);
+    __ dsubu(a4, a0, a4);
 
     // Copy the arguments (including the receiver) to the new stack frame.
     // a0: copy start address
     // a1: function
-    // a2: copy end address
+    // a2: expected number of arguments
     // a3: code entry to call
+    // a4: copy end address
 
     Label copy;
     __ bind(&copy);
-    __ ld(a4, MemOperand(a0));
-    __ push(a4);
-    __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(a2));
+    __ ld(a5, MemOperand(a0));
+    __ push(a5);
+    __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(a4));
     __ daddiu(a0, a0, -kPointerSize);  // In delay slot.
 
     __ jmp(&invoke);
@@ -1807,7 +1808,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
 
-    // Calculate copy start address into a0 and copy end address is fp.
+    // Calculate copy start address into a0 and copy end address into a7.
     // a0: actual number of arguments as a smi
     // a1: function
     // a2: expected number of arguments
@@ -1837,23 +1838,25 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // a1: function
     // a2: expected number of arguments
     // a3: code entry to call
-    __ LoadRoot(a4, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(a5, Heap::kUndefinedValueRootIndex);
     __ dsll(a6, a2, kPointerSizeLog2);
-    __ Dsubu(a2, fp, Operand(a6));
+    __ Dsubu(a4, fp, Operand(a6));
     // Adjust for frame.
-    __ Dsubu(a2, a2, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
-                            2 * kPointerSize));
+    __ Dsubu(a4, a4, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
+                             2 * kPointerSize));
 
     Label fill;
     __ bind(&fill);
     __ Dsubu(sp, sp, kPointerSize);
-    __ Branch(USE_DELAY_SLOT, &fill, ne, sp, Operand(a2));
-    __ sd(a4, MemOperand(sp));
+    __ Branch(USE_DELAY_SLOT, &fill, ne, sp, Operand(a4));
+    __ sd(a5, MemOperand(sp));
   }
 
   // Call the entry point.
   __ bind(&invoke);
-
+  __ mov(a0, a2);
+  // a0 : expected number of arguments
+  // a1 : function (passed through to callee)
   __ Call(a3);
 
   // Store offset of return address for deoptimizer.
