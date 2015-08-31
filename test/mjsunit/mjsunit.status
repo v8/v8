@@ -324,6 +324,12 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
+['no_i18n == True and mode == debug', {
+  # Tests too slow for no18n debug.
+  'regress/regress-1200351': [SKIP],
+}],  # 'no_i18n == True and mode == debug'
+
+##############################################################################
 ['byteorder == big', {
   # Emscripten requires little-endian, skip all tests on big endian platforms.
   'asm/embenchen/*': [SKIP],
