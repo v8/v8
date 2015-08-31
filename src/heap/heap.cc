@@ -1800,6 +1800,9 @@ void Heap::RegisterNewArrayBuffer(bool in_new_space, void* data,
     RegisterNewArrayBufferHelper(live_array_buffers_for_scavenge_, data,
                                  length);
   }
+
+  // We may go over the limit of externally allocated memory here. We call the
+  // api function to trigger a GC in this case.
   reinterpret_cast<v8::Isolate*>(isolate_)
       ->AdjustAmountOfExternalAllocatedMemory(length);
 }
@@ -1842,16 +1845,13 @@ void Heap::FreeDeadArrayBuffers(bool from_scavenge) {
       live_array_buffers_for_scavenge_.erase(buffer.first);
     }
   }
-  size_t freed_memory = FreeDeadArrayBuffersHelper(
+
+  // Do not call through the api as this code is triggered while doing a GC.
+  amount_of_external_allocated_memory_ += FreeDeadArrayBuffersHelper(
       isolate_,
       from_scavenge ? live_array_buffers_for_scavenge_ : live_array_buffers_,
       from_scavenge ? not_yet_discovered_array_buffers_for_scavenge_
                     : not_yet_discovered_array_buffers_);
-  if (freed_memory) {
-    reinterpret_cast<v8::Isolate*>(isolate_)
-        ->AdjustAmountOfExternalAllocatedMemory(
-            -static_cast<int64_t>(freed_memory));
-  }
 }
 
 

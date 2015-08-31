@@ -6873,6 +6873,7 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
 
 void Isolate::CollectAllGarbage(const char* gc_reason) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
+  DCHECK_EQ(heap->gc_state(), i::Heap::NOT_IN_GC);
   if (heap->incremental_marking()->IsStopped()) {
     if (heap->incremental_marking()->CanBeActivated()) {
       heap->StartIncrementalMarking(
