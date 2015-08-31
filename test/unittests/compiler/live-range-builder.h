@@ -17,7 +17,8 @@ namespace compiler {
 // support for C++ features such as instantiation lists, on OS X and Android.
 class TestRangeBuilder {
  public:
-  explicit TestRangeBuilder(Zone* zone) : id_(-1), pairs_(), zone_(zone) {}
+  explicit TestRangeBuilder(Zone* zone)
+      : id_(-1), pairs_(), uses_(), zone_(zone) {}
 
   TestRangeBuilder& Id(int id) {
     id_ = id;
@@ -28,9 +29,16 @@ class TestRangeBuilder {
     return *this;
   }
 
-  LiveRange* Build(int start, int end) { return Add(start, end).Build(); }
+  TestRangeBuilder& AddUse(int pos) {
+    uses_.insert(pos);
+    return *this;
+  }
 
-  LiveRange* Build() {
+  TopLevelLiveRange* Build(int start, int end) {
+    return Add(start, end).Build();
+  }
+
+  TopLevelLiveRange* Build() {
     TopLevelLiveRange* range =
         new (zone_) TopLevelLiveRange(id_, MachineType::kRepTagged);
     // Traverse the provided interval specifications backwards, because that is
@@ -42,6 +50,12 @@ class TestRangeBuilder {
       CHECK(start < end);
       range->AddUseInterval(start, end, zone_);
     }
+    for (int pos : uses_) {
+      UsePosition* use_position =
+          new (zone_) UsePosition(LifetimePosition::FromInt(pos), nullptr,
+                                  nullptr, UsePositionHintType::kNone);
+      range->AddUsePosition(use_position);
+    }
 
     pairs_.clear();
     return range;
@@ -52,6 +66,7 @@ class TestRangeBuilder {
   typedef std::vector<Interval> IntervalList;
   int id_;
   IntervalList pairs_;
+  std::set<int> uses_;
   Zone* zone_;
 };
 

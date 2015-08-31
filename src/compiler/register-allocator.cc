@@ -437,6 +437,7 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
 void LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
                          Zone* zone) {
   DCHECK(Start() < position);
+  DCHECK(End() > position);
   DCHECK(result->IsEmpty());
   // Find the last interval that ends before the position. If the
   // position is contained in one of the intervals in the chain, we
@@ -878,7 +879,7 @@ void TopLevelLiveRange::SetSplinteredFrom(TopLevelLiveRange* splinter_parent) {
   DCHECK(splinter_parent->Start() < Start());
 
   splintered_from_ = splinter_parent;
-  if (!HasSpillOperand()) {
+  if (!HasSpillOperand() && splinter_parent->spill_range_ != nullptr) {
     SetSpillRange(splinter_parent->spill_range_);
   }
 }
