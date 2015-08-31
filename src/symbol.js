@@ -119,12 +119,12 @@ utils.InstallFunctions(GlobalSymbol, DONT_ENUM, [
 
 %AddNamedProperty(
     GlobalSymbol.prototype, "constructor", GlobalSymbol, DONT_ENUM);
-utils.SetFunctionName(SymbolToPrimitive, toPrimitiveSymbol);
-%AddNamedProperty(
-    GlobalSymbol.prototype, toPrimitiveSymbol, SymbolToPrimitive,
-    DONT_ENUM | READ_ONLY);
 %AddNamedProperty(
     GlobalSymbol.prototype, toStringTagSymbol, "Symbol", DONT_ENUM | READ_ONLY);
+
+utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM | READ_ONLY, [
+  toPrimitiveSymbol, SymbolToPrimitive
+]);
 
 utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, [
   "toString", SymbolToString,
