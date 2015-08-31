@@ -626,7 +626,7 @@ Expression* ParserTraits::BuildUnaryExpression(Expression* expression,
   // Desugar '+foo' => 'foo*1'
   if (op == Token::ADD) {
     return factory->NewBinaryOperation(
-        Token::MUL, expression, factory->NewNumberLiteral(1, pos), pos);
+        Token::MUL, expression, factory->NewNumberLiteral(1, pos, true), pos);
   }
   // The same idea for '-foo' => 'foo*(-1)'.
   if (op == Token::SUB) {

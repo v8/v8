@@ -1134,10 +1134,19 @@ static void CheckParsesToNumber(const char* source, bool with_dot) {
   CHECK(fun->body()->length() == 1);
   CHECK(fun->body()->at(0)->IsReturnStatement());
   i::ReturnStatement* ret = fun->body()->at(0)->AsReturnStatement();
-  CHECK(ret->expression()->IsLiteral());
   i::Literal* lit = ret->expression()->AsLiteral();
-  const i::AstValue* val = lit->raw_value();
-  CHECK(with_dot == val->ContainsDot());
+  if (lit != NULL) {
+    const i::AstValue* val = lit->raw_value();
+    CHECK(with_dot == val->ContainsDot());
+  } else if (with_dot) {
+    i::BinaryOperation* bin = ret->expression()->AsBinaryOperation();
+    CHECK(bin != NULL);
+    CHECK_EQ(i::Token::MUL, bin->op());
+    i::Literal* rlit = bin->right()->AsLiteral();
+    const i::AstValue* val = rlit->raw_value();
+    CHECK(with_dot == val->ContainsDot());
+    CHECK_EQ(1.0, val->AsNumber());
+  }
 }
 
 
@@ -1148,6 +1157,7 @@ TEST(ParseNumbers) {
   CheckParsesToNumber("134.e44", true);
   CheckParsesToNumber("134.44e44", true);
   CheckParsesToNumber(".44", true);
+  CheckParsesToNumber("+x", true);
 }
 
 
