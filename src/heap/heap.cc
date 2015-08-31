@@ -1847,7 +1847,7 @@ void Heap::FreeDeadArrayBuffers(bool from_scavenge) {
   }
 
   // Do not call through the api as this code is triggered while doing a GC.
-  amount_of_external_allocated_memory_ += FreeDeadArrayBuffersHelper(
+  amount_of_external_allocated_memory_ -= FreeDeadArrayBuffersHelper(
       isolate_,
       from_scavenge ? live_array_buffers_for_scavenge_ : live_array_buffers_,
       from_scavenge ? not_yet_discovered_array_buffers_for_scavenge_
