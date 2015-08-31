@@ -27,16 +27,15 @@ class VectorSlotPair {
 
   bool IsValid() const { return !vector_.is_null(); }
 
-  MaybeHandle<TypeFeedbackVector> vector() const { return vector_; }
+  Handle<TypeFeedbackVector> vector() const { return vector_; }
   FeedbackVectorICSlot slot() const { return slot_; }
 
   int index() const {
-    Handle<TypeFeedbackVector> vector;
-    return vector_.ToHandle(&vector) ? vector->GetIndex(slot_) : -1;
+    return vector_.is_null() ? -1 : vector_->GetIndex(slot_);
   }
 
  private:
-  const MaybeHandle<TypeFeedbackVector> vector_;
+  const Handle<TypeFeedbackVector> vector_;
   const FeedbackVectorICSlot slot_;
 };
 

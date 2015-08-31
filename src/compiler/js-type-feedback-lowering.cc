@@ -41,10 +41,9 @@ Reduction JSTypeFeedbackLowering::ReduceJSLoadNamed(Node* node) {
   // We need to make optimistic assumptions to continue.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
   LoadNamedParameters const& p = LoadNamedParametersOf(node->op());
-  Handle<TypeFeedbackVector> vector;
-  if (!p.feedback().vector().ToHandle(&vector)) return NoChange();
+  if (p.feedback().vector().is_null()) return NoChange();
   if (p.name().is_identical_to(factory()->length_string())) {
-    LoadICNexus nexus(vector, p.feedback().slot());
+    LoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
     MapHandleList maps;
     if (nexus.ExtractMaps(&maps) > 0) {
       for (Handle<Map> map : maps) {

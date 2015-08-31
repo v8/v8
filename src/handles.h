@@ -71,8 +71,14 @@ class HandleBase {
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by
 // the garbage collector.
-// Handles are only valid within a HandleScope.
-// When a handle is created for an object a cell is allocated in the heap.
+//
+// Handles are only valid within a HandleScope. When a handle is created
+// for an object a cell is allocated in the current HandleScope.
+//
+// Also note that Handles do not provide default equality comparison or hashing
+// operators on purpose. Such operators would be misleading, because intended
+// semantics is ambiguous between Handle location and object identity. Instead
+// use either {is_identical_to} or {location} explicitly.
 template <typename T>
 class Handle final : public HandleBase {
  public:
@@ -160,7 +166,12 @@ V8_INLINE Handle<T> handle(T* object) {
 // A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
 // into a Handle requires checking that it does not point to NULL.  This
 // ensures NULL checks before use.
+//
 // Do not use MaybeHandle as argument type.
+//
+// Also note that Handles do not provide default equality comparison or hashing
+// operators on purpose. Such operators would be misleading, because intended
+// semantics is ambiguous between Handle location and object identity.
 template <typename T>
 class MaybeHandle final {
  public:
@@ -211,15 +222,6 @@ class MaybeHandle final {
 
   bool is_null() const { return location_ == nullptr; }
 
-  template <typename S>
-  V8_INLINE bool operator==(MaybeHandle<S> that) const {
-    return this->location_ == that.location_;
-  }
-  template <typename S>
-  V8_INLINE bool operator!=(MaybeHandle<S> that) const {
-    return this->location_ != that.location_;
-  }
-
  protected:
   T** location_ = nullptr;
 
@@ -227,19 +229,10 @@ class MaybeHandle final {
   // other's location_.
   template <typename>
   friend class MaybeHandle;
-  // Utility functions are allowed to access location_.
-  template <typename S>
-  friend size_t hash_value(MaybeHandle<S>);
 };
 
-template <typename T>
-V8_INLINE size_t hash_value(MaybeHandle<T> maybe_handle) {
-  uintptr_t v = bit_cast<uintptr_t>(maybe_handle.location_);
-  DCHECK_EQ(0u, v & ((1u << kPointerSizeLog2) - 1));
-  return v >> kPointerSizeLog2;
-}
 
-
+// ----------------------------------------------------------------------------
 // A stack-allocated class that governs a number of local handles.
 // After a handle scope has been created, all local handles will be
 // allocated within that handle scope until either the handle scope is

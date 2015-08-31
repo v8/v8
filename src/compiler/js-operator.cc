@@ -15,7 +15,8 @@ namespace internal {
 namespace compiler {
 
 bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
-  return lhs.slot() == rhs.slot() && lhs.vector() == rhs.vector();
+  return lhs.slot() == rhs.slot() &&
+         lhs.vector().location() == rhs.vector().location();
 }
 
 
@@ -25,7 +26,7 @@ bool operator!=(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
 
 
 size_t hash_value(VectorSlotPair const& p) {
-  return base::hash_combine(p.slot(), p.vector());
+  return base::hash_combine(p.slot(), p.vector().location());
 }
 
 
