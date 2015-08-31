@@ -1797,7 +1797,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
 
-    // Calculate copy start address into r3 and copy end address into r5.
+    // Calculate copy start address into r3 and copy end address into r6.
     // r3: actual number of arguments as a smi
     // r4: function
     // r5: expected number of arguments
@@ -1806,20 +1806,21 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ add(r3, r3, fp);
     // adjust for return address and receiver
     __ addi(r3, r3, Operand(2 * kPointerSize));
-    __ ShiftLeftImm(r5, r5, Operand(kPointerSizeLog2));
-    __ sub(r5, r3, r5);
+    __ ShiftLeftImm(r6, r5, Operand(kPointerSizeLog2));
+    __ sub(r6, r3, r6);
 
     // Copy the arguments (including the receiver) to the new stack frame.
     // r3: copy start address
     // r4: function
-    // r5: copy end address
+    // r5: expected number of arguments
+    // r6: copy end address
     // ip: code entry to call
 
     Label copy;
     __ bind(&copy);
     __ LoadP(r0, MemOperand(r3, 0));
     __ push(r0);
-    __ cmp(r3, r5);  // Compare before moving to next argument.
+    __ cmp(r3, r6);  // Compare before moving to next argument.
     __ subi(r3, r3, Operand(kPointerSize));
     __ bne(&copy);
 
@@ -1889,21 +1890,24 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r5: expected number of arguments
     // ip: code entry to call
     __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-    __ ShiftLeftImm(r5, r5, Operand(kPointerSizeLog2));
-    __ sub(r5, fp, r5);
+    __ ShiftLeftImm(r6, r5, Operand(kPointerSizeLog2));
+    __ sub(r6, fp, r6);
     // Adjust for frame.
-    __ subi(r5, r5, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
+    __ subi(r6, r6, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
                             2 * kPointerSize));
 
     Label fill;
     __ bind(&fill);
     __ push(r0);
-    __ cmp(sp, r5);
+    __ cmp(sp, r6);
     __ bne(&fill);
   }
 
   // Call the entry point.
   __ bind(&invoke);
+  __ mr(r3, r5);
+  // r3 : expected number of arguments
+  // r4 : function (passed through to callee)
   __ CallJSEntry(ip);
 
   // Store offset of return address for deoptimizer.
