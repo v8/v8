@@ -11,13 +11,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ArrayConcatBuiltin = utils.ImportNow("array_concat");
-var ArrayPopBuiltin = utils.ImportNow("array_pop");
-var ArrayPushBuiltin = utils.ImportNow("array_push");
-var ArrayShiftBuiltin = utils.ImportNow("array_shift");
-var ArraySliceBuiltin = utils.ImportNow("array_slice");
-var ArraySpliceBuiltin = utils.ImportNow("array_splice");
-var ArrayUnshiftBuiltin = utils.ImportNow("array_unshift");
 var Delete;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
@@ -532,7 +525,7 @@ function ArrayPush() {
 // Returns an array containing the array elements of the object followed
 // by the array elements of each argument in order. See ECMA-262,
 // section 15.4.4.7.
-function ArrayConcat(arg1) {  // length == 1
+function ArrayConcatJS(arg1) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.concat");
 
   var array = TO_OBJECT(this);
@@ -1626,43 +1619,45 @@ utils.InstallFunctions(GlobalArray, DONT_ENUM, [
   "isArray", ArrayIsArray
 ]);
 
+var specialFunctions = %SpecialArrayFunctions();
 
-%FunctionSetLength(ArrayEvery, 1);
-%FunctionSetLength(ArrayFilter, 1);
-%FunctionSetLength(ArrayForEach, 1);
-%FunctionSetLength(ArrayIndexOf, 1);
-%FunctionSetLength(ArrayLastIndexOf, 1);
-%FunctionSetLength(ArrayMap, 1);
-%FunctionSetLength(ArrayReduce, 1);
-%FunctionSetLength(ArrayReduceRight, 1);
-%FunctionSetLength(ArraySome, 1);
+var getFunction = function(name, jsBuiltin, len) {
+  var f = jsBuiltin;
+  if (specialFunctions.hasOwnProperty(name)) {
+    f = specialFunctions[name];
+  }
+  if (!IS_UNDEFINED(len)) {
+    %FunctionSetLength(f, len);
+  }
+  return f;
+};
 
 // Set up non-enumerable functions of the Array.prototype object and
 // set their names.
 // Manipulate the length of some of the functions to meet
 // expectations set by ECMA-262 or Mozilla.
 utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
-  "concat", ArrayConcatBuiltin,
-  "every", ArrayEvery,
-  "filter", ArrayFilter,
-  "forEach", ArrayForEach,
-  "indexOf", ArrayIndexOf,
-  "join", ArrayJoin,
-  "lastIndexOf", ArrayLastIndexOf,
-  "map", ArrayMap,
-  "pop", ArrayPopBuiltin,
-  "push", ArrayPushBuiltin,
-  "reduce", ArrayReduce,
-  "reduceRight", ArrayReduceRight,
-  "reverse", ArrayReverse,
-  "shift", ArrayShiftBuiltin,
-  "slice", ArraySliceBuiltin,
-  "some", ArraySome,
-  "sort", ArraySort,
-  "splice", ArraySpliceBuiltin,
-  "toLocaleString", ArrayToLocaleString,
-  "toString", ArrayToString,
-  "unshift", ArrayUnshiftBuiltin,
+  "toString", getFunction("toString", ArrayToString),
+  "toLocaleString", getFunction("toLocaleString", ArrayToLocaleString),
+  "join", getFunction("join", ArrayJoin),
+  "pop", getFunction("pop", ArrayPop),
+  "push", getFunction("push", ArrayPush, 1),
+  "concat", getFunction("concat", ArrayConcatJS, 1),
+  "reverse", getFunction("reverse", ArrayReverse),
+  "shift", getFunction("shift", ArrayShift),
+  "unshift", getFunction("unshift", ArrayUnshift, 1),
+  "slice", getFunction("slice", ArraySlice, 2),
+  "splice", getFunction("splice", ArraySplice, 2),
+  "sort", getFunction("sort", ArraySort),
+  "filter", getFunction("filter", ArrayFilter, 1),
+  "forEach", getFunction("forEach", ArrayForEach, 1),
+  "some", getFunction("some", ArraySome, 1),
+  "every", getFunction("every", ArrayEvery, 1),
+  "map", getFunction("map", ArrayMap, 1),
+  "indexOf", getFunction("indexOf", ArrayIndexOf, 1),
+  "lastIndexOf", getFunction("lastIndexOf", ArrayLastIndexOf, 1),
+  "reduce", getFunction("reduce", ArrayReduce, 1),
+  "reduceRight", getFunction("reduceRight", ArrayReduceRight, 1)
 ]);
 
 %FinishArrayPrototypeSetup(GlobalArray.prototype);
@@ -1671,20 +1666,20 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
 // exposed to user code.
 // Adding only the functions that are actually used.
 utils.SetUpLockedPrototype(InternalArray, GlobalArray(), [
-  "concat", ArrayConcatBuiltin,
-  "indexOf", ArrayIndexOf,
-  "join", ArrayJoin,
-  "pop", ArrayPopBuiltin,
-  "push", ArrayPushBuiltin,
-  "shift", ArrayShiftBuiltin,
-  "splice", ArraySpliceBuiltin,
+  "concat", getFunction("concat", ArrayConcatJS),
+  "indexOf", getFunction("indexOf", ArrayIndexOf),
+  "join", getFunction("join", ArrayJoin),
+  "pop", getFunction("pop", ArrayPop),
+  "push", getFunction("push", ArrayPush),
+  "shift", getFunction("shift", ArrayShift),
+  "splice", getFunction("splice", ArraySplice)
 ]);
 
 utils.SetUpLockedPrototype(InternalPackedArray, GlobalArray(), [
-  "join", ArrayJoin,
-  "pop", ArrayPopBuiltin,
-  "push", ArrayPushBuiltin,
-  "shift", ArrayShiftBuiltin,
+  "join", getFunction("join", ArrayJoin),
+  "pop", getFunction("pop", ArrayPop),
+  "push", getFunction("push", ArrayPush),
+  "shift", getFunction("shift", ArrayShift)
 ]);
 
 // -------------------------------------------------------------------
@@ -1711,7 +1706,7 @@ utils.Export(function(to) {
 });
 
 %InstallToContext([
-  "array_concat", ArrayConcat,
+  "array_concat", ArrayConcatJS,
   "array_pop", ArrayPop,
   "array_push", ArrayPush,
   "array_shift", ArrayShift,
