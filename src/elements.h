@@ -136,6 +136,10 @@ class ElementsAccessor {
                         Handle<FixedArrayBase> backing_store, Object** objects,
                         uint32_t start, int direction) = 0;
 
+  virtual uint32_t Unshift(Handle<JSArray> receiver,
+                           Handle<FixedArrayBase> backing_store,
+                           Arguments* args, uint32_t unshift_size) = 0;
+
   virtual Handle<JSArray> Slice(Handle<JSObject> receiver,
                                 Handle<FixedArrayBase> backing_store,
                                 uint32_t start, uint32_t end) = 0;

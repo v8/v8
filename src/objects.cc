@@ -14272,12 +14272,6 @@ size_t JSTypedArray::element_size() {
 }
 
 
-void FixedArray::SetValue(uint32_t index, Object* value) { set(index, value); }
-
-
-void FixedDoubleArray::SetValue(uint32_t index, Object* value) {
-  set(index, value->Number());
-}
 void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
                                           Handle<Name> name) {
   DCHECK(!global->HasFastProperties());

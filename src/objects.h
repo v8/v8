@@ -2391,7 +2391,6 @@ class FixedArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline Object* get(int index) const;
-  void SetValue(uint32_t index, Object* value);
   static inline Handle<Object> get(Handle<FixedArray> array, int index);
   // Setter that uses write barrier.
   inline void set(int index, Object* value);
@@ -2503,8 +2502,6 @@ class FixedDoubleArray: public FixedArrayBase {
   inline double get_scalar(int index);
   inline uint64_t get_representation(int index);
   static inline Handle<Object> get(Handle<FixedDoubleArray> array, int index);
-  // This accessor has to get a Number as |value|.
-  void SetValue(uint32_t index, Object* value);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
 
@@ -4303,7 +4300,7 @@ class FixedTypedArray: public FixedTypedArrayBase {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  void SetValue(uint32_t index, Object* value);
+  inline void SetValue(uint32_t index, Object* value);
 
   DECLARE_PRINTER(FixedTypedArray)
   DECLARE_VERIFIER(FixedTypedArray)

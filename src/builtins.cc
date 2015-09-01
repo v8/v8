@@ -472,51 +472,17 @@ BUILTIN(ArrayUnshift) {
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   DCHECK(!array->map()->is_observed());
-  if (!array->HasFastSmiOrObjectElements()) {
-    return CallJsIntrinsic(isolate, isolate->array_unshift(), args);
-  }
-  int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
-  int new_length = len + to_add;
   // Currently fixed arrays cannot grow too big, so
   // we should never hit this case.
-  DCHECK(to_add <= (Smi::kMaxValue - len));
+  DCHECK(to_add <= (Smi::kMaxValue - Smi::cast(array->length())->value()));
 
-  if (to_add > 0 && JSArray::WouldChangeReadOnlyLength(array, len + to_add)) {
+  if (to_add > 0 && JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_unshift(), args);
   }
 
-  Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
-
-  if (new_length > elms->length()) {
-    // New backing storage is needed.
-    int capacity = new_length + (new_length >> 1) + 16;
-    Handle<FixedArray> new_elms =
-        isolate->factory()->NewUninitializedFixedArray(capacity);
-
-    ElementsKind kind = array->GetElementsKind();
-    ElementsAccessor* accessor = array->GetElementsAccessor();
-    accessor->CopyElements(
-        elms, 0, kind, new_elms, to_add,
-        ElementsAccessor::kCopyToEndAndInitializeToHole);
-
-    elms = new_elms;
-    array->set_elements(*elms);
-  } else {
-    DisallowHeapAllocation no_gc;
-    Heap* heap = isolate->heap();
-    heap->MoveElements(*elms, to_add, 0, len);
-  }
-
-  // Add the provided values.
-  DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < to_add; i++) {
-    elms->set(i, args[i + 1], mode);
-  }
-
-  // Set the length.
-  array->set_length(Smi::FromInt(new_length));
+  ElementsAccessor* accessor = array->GetElementsAccessor();
+  int new_length = accessor->Unshift(array, elms_obj, &args, to_add);
   return Smi::FromInt(new_length);
 }
 
