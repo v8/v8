@@ -176,16 +176,27 @@ bool LCodeGen::GeneratePrologue() {
   if (info()->saves_caller_doubles()) {
     SaveCallerDoubles();
   }
+  return !is_aborted();
+}
+
+
+void LCodeGen::DoPrologue(LPrologue* instr) {
+  Comment(";;; Prologue begin");
 
   // Possibly allocate a local context.
-  int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-  if (heap_slots > 0) {
+  if (info()->scope()->num_heap_slots() > 0) {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is in r4.
-    DCHECK(!info()->scope()->is_script_scope());
-    if (heap_slots <= FastNewContextStub::kMaximumSlots) {
-      FastNewContextStub stub(isolate(), heap_slots);
+    int slots = info()->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    Safepoint::DeoptMode deopt_mode = Safepoint::kNoLazyDeopt;
+    if (info()->scope()->is_script_scope()) {
+      __ push(r4);
+      __ Push(info()->scope()->GetScopeInfo(info()->isolate()));
+      __ CallRuntime(Runtime::kNewScriptContext, 2);
+      deopt_mode = Safepoint::kLazyDeopt;
+    } else if (slots <= FastNewContextStub::kMaximumSlots) {
+      FastNewContextStub stub(isolate(), slots);
       __ CallStub(&stub);
       // Result of FastNewContextStub is always in new space.
       need_write_barrier = false;
@@ -193,7 +204,8 @@ bool LCodeGen::GeneratePrologue() {
       __ push(r4);
       __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
-    RecordSafepoint(Safepoint::kNoLazyDeopt);
+    RecordSafepoint(deopt_mode);
+
     // Context is returned in both r3 and cp.  It replaces the context
     // passed to us.  It's saved in the stack and kept live in cp.
     __ mr(cp, r3);
@@ -226,13 +238,7 @@ bool LCodeGen::GeneratePrologue() {
     Comment(";;; End allocate local context");
   }
 
-  // Trace the call.
-  if (FLAG_trace && info()->IsOptimizing()) {
-    // We have not executed any compiled code yet, so cp still holds the
-    // incoming context.
-    __ CallRuntime(Runtime::kTraceEnter, 0);
-  }
-  return !is_aborted();
+  Comment(";;; Prologue end");
 }
 
 
