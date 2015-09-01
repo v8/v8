@@ -973,6 +973,8 @@
         '../../src/types-inl.h',
         '../../src/types.cc',
         '../../src/types.h',
+        '../../src/typing-asm.cc',
+        '../../src/typing-asm.h',
         '../../src/typing-reset.cc',
         '../../src/typing-reset.h',
         '../../src/typing.cc',

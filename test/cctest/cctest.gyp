@@ -101,6 +101,7 @@
         'test-array-list.cc',
         'test-ast.cc',
         'test-ast-expression-visitor.cc',
+        'test-asm-validator.cc',
         'test-atomicops.cc',
         'test-bignum.cc',
         'test-bignum-dtoa.cc',
