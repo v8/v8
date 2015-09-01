@@ -550,8 +550,7 @@ class Debug {
                          Handle<Object> exec_state,
                          Handle<Object> event_data,
                          v8::Debug::ClientData* client_data);
-  void ProcessCompileEventInDebugScope(v8::DebugEvent event,
-                                       Handle<Script> script);
+  void ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script);
   void ProcessDebugEvent(v8::DebugEvent event,
                          Handle<JSObject> event_data,
                          bool auto_continue);
