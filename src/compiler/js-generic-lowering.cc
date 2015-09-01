@@ -371,7 +371,7 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const StorePropertyParameters& p = StorePropertyParametersOf(node->op());
-  LanguageMode language_mode = OpParameter<LanguageMode>(node);
+  LanguageMode language_mode = p.language_mode();
   // We have a special case where we do keyed stores but don't have a type
   // feedback vector slot allocated to support it. In this case, install
   // the megamorphic keyed store stub which needs neither vector nor slot.
