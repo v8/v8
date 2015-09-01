@@ -3270,14 +3270,7 @@ class InductionVariableData final : public ZoneObject {
 class HPhi final : public HValue {
  public:
   HPhi(int merged_index, Zone* zone)
-      : inputs_(2, zone),
-        merged_index_(merged_index),
-        phi_id_(-1),
-        induction_variable_data_(NULL) {
-    for (int i = 0; i < Representation::kNumRepresentations; i++) {
-      non_phi_uses_[i] = 0;
-      indirect_uses_[i] = 0;
-    }
+      : inputs_(2, zone), merged_index_(merged_index) {
     DCHECK(merged_index >= 0 || merged_index == kInvalidMergedIndex);
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
@@ -3330,32 +3323,15 @@ class HPhi final : public HValue {
 
   void InitRealUses(int id);
   void AddNonPhiUsesFrom(HPhi* other);
-  void AddIndirectUsesTo(int* use_count);
 
-  int tagged_non_phi_uses() const {
-    return non_phi_uses_[Representation::kTagged];
+  Representation representation_from_indirect_uses() const {
+    return representation_from_indirect_uses_;
   }
-  int smi_non_phi_uses() const {
-    return non_phi_uses_[Representation::kSmi];
+
+  bool has_type_feedback_from_uses() const {
+    return has_type_feedback_from_uses_;
   }
-  int int32_non_phi_uses() const {
-    return non_phi_uses_[Representation::kInteger32];
-  }
-  int double_non_phi_uses() const {
-    return non_phi_uses_[Representation::kDouble];
-  }
-  int tagged_indirect_uses() const {
-    return indirect_uses_[Representation::kTagged];
-  }
-  int smi_indirect_uses() const {
-    return indirect_uses_[Representation::kSmi];
-  }
-  int int32_indirect_uses() const {
-    return indirect_uses_[Representation::kInteger32];
-  }
-  int double_indirect_uses() const {
-    return indirect_uses_[Representation::kDouble];
-  }
+
   int phi_id() { return phi_id_; }
 
   static HPhi* cast(HValue* value) {
@@ -3376,13 +3352,19 @@ class HPhi final : public HValue {
   }
 
  private:
-  ZoneList<HValue*> inputs_;
-  int merged_index_;
+  Representation representation_from_non_phi_uses() const {
+    return representation_from_non_phi_uses_;
+  }
 
-  int non_phi_uses_[Representation::kNumRepresentations];
-  int indirect_uses_[Representation::kNumRepresentations];
-  int phi_id_;
-  InductionVariableData* induction_variable_data_;
+  ZoneList<HValue*> inputs_;
+  int merged_index_ = 0;
+
+  int phi_id_ = -1;
+  InductionVariableData* induction_variable_data_ = nullptr;
+
+  Representation representation_from_indirect_uses_ = Representation::None();
+  Representation representation_from_non_phi_uses_ = Representation::None();
+  bool has_type_feedback_from_uses_ = false;
 
   // TODO(titzer): we can't eliminate the receiver for generating backtraces
   bool IsDeletable() const override { return !IsReceiver(); }

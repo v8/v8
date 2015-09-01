@@ -74,33 +74,26 @@ void HValue::InferRepresentation(HInferRepresentationPhase* h_infer) {
 
 Representation HValue::RepresentationFromUses() {
   if (HasNoUses()) return Representation::None();
-
-  // Array of use counts for each representation.
-  int use_count[Representation::kNumRepresentations] = { 0 };
+  Representation result = Representation::None();
 
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     Representation rep = use->observed_input_representation(it.index());
-    if (rep.IsNone()) continue;
+    result = result.generalize(rep);
+
     if (FLAG_trace_representation) {
       PrintF("#%d %s is used by #%d %s as %s%s\n",
              id(), Mnemonic(), use->id(), use->Mnemonic(), rep.Mnemonic(),
              (use->CheckFlag(kTruncatingToInt32) ? "-trunc" : ""));
     }
-    use_count[rep.kind()] += 1;
   }
-  if (IsPhi()) HPhi::cast(this)->AddIndirectUsesTo(&use_count[0]);
-  int tagged_count = use_count[Representation::kTagged];
-  int double_count = use_count[Representation::kDouble];
-  int int32_count = use_count[Representation::kInteger32];
-  int smi_count = use_count[Representation::kSmi];
+  if (IsPhi()) {
+    result = result.generalize(
+        HPhi::cast(this)->representation_from_indirect_uses());
+  }
 
-  if (tagged_count > 0) return Representation::Tagged();
-  if (double_count > 0) return Representation::Double();
-  if (int32_count > 0) return Representation::Integer32();
-  if (smi_count > 0) return Representation::Smi();
-
-  return Representation::None();
+  // External representations are dealt with separately.
+  return result.IsExternal() ? Representation::None() : result;
 }
 
 
@@ -2484,11 +2477,8 @@ std::ostream& HPhi::PrintTo(std::ostream& os) const {  // NOLINT
   for (int i = 0; i < OperandCount(); ++i) {
     os << " " << NameOf(OperandAt(i)) << " ";
   }
-  return os << " uses:" << UseCount() << "_"
-            << smi_non_phi_uses() + smi_indirect_uses() << "s_"
-            << int32_non_phi_uses() + int32_indirect_uses() << "i_"
-            << double_non_phi_uses() + double_indirect_uses() << "d_"
-            << tagged_non_phi_uses() + tagged_indirect_uses() << "t"
+  return os << " uses" << UseCount()
+            << representation_from_indirect_uses().Mnemonic() << " "
             << TypeOf(this) << "]";
 }
 
@@ -2547,7 +2537,12 @@ void HPhi::InitRealUses(int phi_id) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
       Representation rep = value->observed_input_representation(it.index());
-      non_phi_uses_[rep.kind()] += 1;
+      representation_from_non_phi_uses_ =
+          representation_from_non_phi_uses().generalize(rep);
+      if (rep.IsSmi() || rep.IsInteger32() || rep.IsDouble()) {
+        has_type_feedback_from_uses_ = true;
+      }
+
       if (FLAG_trace_representation) {
         PrintF("#%d Phi is used by real #%d %s as %s\n",
                id(), value->id(), value->Mnemonic(), rep.Mnemonic());
@@ -2567,24 +2562,16 @@ void HPhi::InitRealUses(int phi_id) {
 
 void HPhi::AddNonPhiUsesFrom(HPhi* other) {
   if (FLAG_trace_representation) {
-    PrintF("adding to #%d Phi uses of #%d Phi: s%d i%d d%d t%d\n",
-           id(), other->id(),
-           other->non_phi_uses_[Representation::kSmi],
-           other->non_phi_uses_[Representation::kInteger32],
-           other->non_phi_uses_[Representation::kDouble],
-           other->non_phi_uses_[Representation::kTagged]);
+    PrintF(
+        "generalizing use representation '%s' of #%d Phi "
+        "with uses of #%d Phi '%s'\n",
+        representation_from_indirect_uses().Mnemonic(), id(), other->id(),
+        other->representation_from_non_phi_uses().Mnemonic());
   }
 
-  for (int i = 0; i < Representation::kNumRepresentations; i++) {
-    indirect_uses_[i] += other->non_phi_uses_[i];
-  }
-}
-
-
-void HPhi::AddIndirectUsesTo(int* dest) {
-  for (int i = 0; i < Representation::kNumRepresentations; i++) {
-    dest[i] += indirect_uses_[i];
-  }
+  representation_from_indirect_uses_ =
+      representation_from_indirect_uses().generalize(
+          other->representation_from_non_phi_uses());
 }
 
 
@@ -4422,13 +4409,13 @@ void HPhi::InferRepresentation(HInferRepresentationPhase* h_infer) {
 
 
 Representation HPhi::RepresentationFromInputs() {
-  bool has_type_feedback =
-      smi_non_phi_uses() + int32_non_phi_uses() + double_non_phi_uses() > 0;
   Representation r = representation();
   for (int i = 0; i < OperandCount(); ++i) {
     // Ignore conservative Tagged assumption of parameters if we have
     // reason to believe that it's too conservative.
-    if (has_type_feedback && OperandAt(i)->IsParameter()) continue;
+    if (has_type_feedback_from_uses() && OperandAt(i)->IsParameter()) {
+      continue;
+    }
 
     r = r.generalize(OperandAt(i)->KnownOptimalRepresentation());
   }
