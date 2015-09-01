@@ -1248,6 +1248,12 @@
               '-fno-sanitize-trap=cfi',
               '-fsanitize-recover=cfi',
             ],
+            'cflags_cc!': [
+              '-fno-rtti',
+            ],
+            'cflags!': [
+              '-fno-rtti',
+            ],
             'ldflags': [
               '-fno-sanitize-trap=cfi',
               '-fsanitize-recover=cfi',
