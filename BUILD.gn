@@ -22,9 +22,17 @@ v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
 v8_use_snapshot = true
-v8_target_arch = target_cpu
 v8_random_seed = "314159265"
 v8_toolset_for_d8 = "host"
+
+if (is_msan) {
+  # Running the V8-generated code on an ARM simulator is a powerful hack that
+  # allows the tool to see the memory accesses from JITted code. Without this
+  # flag, JS code causes false positive reports from MSan.
+  v8_target_arch = "arm64"
+} else {
+  v8_target_arch = target_cpu
+}
 
 # The snapshot needs to be compiled for the host, but compiled with
 # a toolchain that matches the bit-width of the target.
@@ -1382,6 +1390,9 @@ source_set("v8_base") {
       "src/arm64/decoder-arm64.cc",
       "src/arm64/decoder-arm64.h",
       "src/arm64/decoder-arm64-inl.h",
+      "src/arm64/delayed-masm-arm64.cc",
+      "src/arm64/delayed-masm-arm64.h",
+      "src/arm64/delayed-masm-arm64-inl.h",
       "src/arm64/deoptimizer-arm64.cc",
       "src/arm64/disasm-arm64.cc",
       "src/arm64/disasm-arm64.h",
