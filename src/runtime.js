@@ -605,18 +605,6 @@ function STACK_OVERFLOW(length) {
 }
 
 
-// Convert the receiver to a number - forward to ToNumber.
-function TO_NUMBER() {
-  return %to_number_fun(this);
-}
-
-
-// Convert the receiver to a string - forward to ToString.
-function TO_STRING() {
-  return %to_string_fun(this);
-}
-
-
 /* -------------------------------------
    - - -   C o n v e r s i o n s   - - -
    -------------------------------------
