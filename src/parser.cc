@@ -3594,7 +3594,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           return nullptr;
         }
         if (parsing_result.first_initializer_loc.IsValid() &&
-            (is_strict(language_mode()) || mode == ForEachStatement::ITERATE)) {
+            (is_strict(language_mode()) || mode == ForEachStatement::ITERATE ||
+             IsLexicalVariableMode(parsing_result.descriptor.mode))) {
           if (mode == ForEachStatement::ITERATE) {
             ReportMessageAt(parsing_result.first_initializer_loc,
                             MessageTemplate::kForOfLoopInitializer);
