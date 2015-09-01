@@ -181,7 +181,7 @@ void FullCodeGenerator::Generate() {
     }
   }
 
-  bool function_in_register = true;
+  bool function_in_register_r1 = true;
 
   // Possibly allocate a local context.
   if (info->scope()->num_heap_slots() > 0) {
@@ -202,7 +202,7 @@ void FullCodeGenerator::Generate() {
       __ push(r1);
       __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
-    function_in_register = false;
+    function_in_register_r1 = false;
     // Context is returned in r0.  It replaces the context passed to us.
     // It's saved in the stack and kept live in cp.
     __ mov(cp, r0);
@@ -235,14 +235,19 @@ void FullCodeGenerator::Generate() {
     }
   }
 
+  PrepareForBailoutForId(BailoutId::Prologue(), NO_REGISTERS);
+  // Function register is trashed in case we bailout here. But since that
+  // could happen only when we allocate a context the value of
+  // |function_in_register_r1| is correct.
+
   // Possibly set up a local binding to the this function which is used in
   // derived constructors with super calls.
   Variable* this_function_var = scope()->this_function_var();
   if (this_function_var != nullptr) {
     Comment cmnt(masm_, "[ This function");
-    if (!function_in_register) {
+    if (!function_in_register_r1) {
       __ ldr(r1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-      // The write barrier clobbers register again, keep is marked as such.
+      // The write barrier clobbers register again, keep it marked as such.
     }
     SetVar(this_function_var, r1, r0, r2);
   }
@@ -258,6 +263,7 @@ void FullCodeGenerator::Generate() {
     __ ldr(r1, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
     __ cmp(r1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
     Label non_construct_frame, done;
+    function_in_register_r1 = false;
 
     __ b(ne, &non_construct_frame);
     __ ldr(r0,
@@ -285,6 +291,7 @@ void FullCodeGenerator::Generate() {
     __ mov(r1, Operand(Smi::FromInt(rest_index)));
     __ mov(r0, Operand(Smi::FromInt(language_mode())));
     __ Push(r3, r2, r1, r0);
+    function_in_register_r1 = false;
 
     RestParamAccessStub stub(isolate());
     __ CallStub(&stub);
@@ -296,7 +303,7 @@ void FullCodeGenerator::Generate() {
   if (arguments != NULL) {
     // Function uses arguments object.
     Comment cmnt(masm_, "[ Allocate arguments object");
-    if (!function_in_register) {
+    if (!function_in_register_r1) {
       // Load this again, if it's used by the local context below.
       __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     } else {
@@ -327,7 +334,6 @@ void FullCodeGenerator::Generate() {
 
     SetVar(arguments, r0, r1, r2);
   }
-
 
   if (FLAG_trace) {
     __ CallRuntime(Runtime::kTraceEnter, 0);

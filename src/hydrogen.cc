@@ -3646,7 +3646,7 @@ HGraph::HGraph(CompilationInfo* info)
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
   }
-  start_environment_->set_ast_id(BailoutId::FunctionEntry());
+  start_environment_->set_ast_id(BailoutId::Prologue());
   entry_block_ = CreateBasicBlock();
   entry_block_->SetInitialEnvironment(start_environment_);
 }
@@ -4408,12 +4408,6 @@ bool HOptimizedGraphBuilder::BuildGraph() {
     return false;
   }
 
-  int slots = current_info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-  if (current_info()->scope()->is_script_scope() && slots > 0) {
-    Bailout(kScriptContext);
-    return false;
-  }
-
   Scope* scope = current_info()->scope();
   SetUpScope(scope);
 
@@ -4617,36 +4611,50 @@ HInstruction* HOptimizedGraphBuilder::PreProcessCall(Instruction* call) {
 
 
 void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
+  HEnvironment* prolog_env = environment();
+  int parameter_count = environment()->parameter_count();
+  ZoneList<HValue*> parameters(parameter_count, zone());
+  for (int i = 0; i < parameter_count; ++i) {
+    HInstruction* parameter = Add<HParameter>(static_cast<unsigned>(i));
+    parameters.Add(parameter, zone());
+    environment()->Bind(i, parameter);
+  }
+
+  HConstant* undefined_constant = graph()->GetConstantUndefined();
+  // Initialize specials and locals to undefined.
+  for (int i = parameter_count + 1; i < environment()->length(); ++i) {
+    environment()->Bind(i, undefined_constant);
+  }
+  Add<HPrologue>();
+
+  HEnvironment* initial_env = environment()->CopyWithoutHistory();
+  HBasicBlock* body_entry = CreateBasicBlock(initial_env);
+  GotoNoSimulate(body_entry);
+  set_current_block(body_entry);
+
+  // Initialize context of prolog environment to undefined.
+  prolog_env->BindContext(undefined_constant);
+
   // First special is HContext.
   HInstruction* context = Add<HContext>();
   environment()->BindContext(context);
 
   // Create an arguments object containing the initial parameters.  Set the
   // initial values of parameters including "this" having parameter index 0.
-  DCHECK_EQ(scope->num_parameters() + 1, environment()->parameter_count());
-  HArgumentsObject* arguments_object =
-      New<HArgumentsObject>(environment()->parameter_count());
-  for (int i = 0; i < environment()->parameter_count(); ++i) {
-    HInstruction* parameter = Add<HParameter>(i);
+  DCHECK_EQ(scope->num_parameters() + 1, parameter_count);
+  HArgumentsObject* arguments_object = New<HArgumentsObject>(parameter_count);
+  for (int i = 0; i < parameter_count; ++i) {
+    HValue* parameter = parameters.at(i);
     arguments_object->AddArgument(parameter, zone());
-    environment()->Bind(i, parameter);
   }
+
   AddInstruction(arguments_object);
   graph()->SetArgumentsObject(arguments_object);
-
-  HConstant* undefined_constant = graph()->GetConstantUndefined();
-  // Initialize specials and locals to undefined.
-  for (int i = environment()->parameter_count() + 1;
-       i < environment()->length();
-       ++i) {
-    environment()->Bind(i, undefined_constant);
-  }
 
   // Handle the arguments and arguments shadow variables specially (they do
   // not have declarations).
   if (scope->arguments() != NULL) {
-    environment()->Bind(scope->arguments(),
-                        graph()->GetArgumentsObject());
+    environment()->Bind(scope->arguments(), graph()->GetArgumentsObject());
   }
 
   int rest_index;
@@ -4658,6 +4666,11 @@ void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
   if (scope->this_function_var() != nullptr ||
       scope->new_target_var() != nullptr) {
     return Bailout(kSuperReference);
+  }
+
+  // Trace the call.
+  if (FLAG_trace && top_info()->IsOptimizing()) {
+    Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kTraceEnter), 0);
   }
 }
 
@@ -12993,6 +13006,12 @@ void HEnvironment::Drop(int count) {
   for (int i = 0; i < count; ++i) {
     Pop();
   }
+}
+
+
+void HEnvironment::Print() const {
+  OFStream os(stdout);
+  os << *this << "\n";
 }
 
 

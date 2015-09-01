@@ -314,12 +314,11 @@ class ScriptContextTable : public FixedArray {
   };
 
   int used() const { return Smi::cast(get(kUsedSlot))->value(); }
-
   void set_used(int used) { set(kUsedSlot, Smi::FromInt(used)); }
 
   static Handle<Context> GetContext(Handle<ScriptContextTable> table, int i) {
     DCHECK(i < table->used());
-    return Handle<Context>::cast(FixedArray::get(table, i + 1));
+    return Handle<Context>::cast(FixedArray::get(table, i + kFirstContextSlot));
   }
 
   // Lookup a variable `name` in a ScriptContextTable.
@@ -340,8 +339,9 @@ class ScriptContextTable : public FixedArray {
 
  private:
   static const int kUsedSlot = 0;
+  static const int kFirstContextSlot = kUsedSlot + 1;
   static const int kFirstContextOffset =
-      FixedArray::kHeaderSize + (kUsedSlot + 1) * kPointerSize;
+      FixedArray::kHeaderSize + kFirstContextSlot * kPointerSize;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScriptContextTable);
 };

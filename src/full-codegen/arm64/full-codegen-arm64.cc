@@ -237,6 +237,11 @@ void FullCodeGenerator::Generate() {
     }
   }
 
+  PrepareForBailoutForId(BailoutId::Prologue(), NO_REGISTERS);
+  // Function register is trashed in case we bailout here. But since that
+  // could happen only when we allocate a context the value of
+  // |function_in_register_x1| is correct.
+
   // Possibly set up a local binding to the this function which is used in
   // derived constructors with super calls.
   Variable* this_function_var = scope()->this_function_var();
@@ -244,7 +249,7 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ This function");
     if (!function_in_register_x1) {
       __ Ldr(x1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-      // The write barrier clobbers register again, keep is marked as such.
+      // The write barrier clobbers register again, keep it marked as such.
     }
     SetVar(this_function_var, x1, x0, x2);
   }
@@ -263,6 +268,7 @@ void FullCodeGenerator::Generate() {
     __ Bind(&check_frame_marker);
     __ Ldr(x1, MemOperand(x2, StandardFrameConstants::kMarkerOffset));
     __ Cmp(x1, Smi::FromInt(StackFrame::CONSTRUCT));
+    function_in_register_x1 = false;
 
     Label non_construct_frame, done;
 
@@ -293,6 +299,7 @@ void FullCodeGenerator::Generate() {
     __ Mov(x1, Smi::FromInt(rest_index));
     __ Mov(x0, Smi::FromInt(language_mode()));
     __ Push(x3, x2, x1, x0);
+    function_in_register_x1 = false;
 
     RestParamAccessStub stub(isolate());
     __ CallStub(&stub);

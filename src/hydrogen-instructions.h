@@ -131,6 +131,7 @@ class LChunkBuilder;
   V(OsrEntry)                                 \
   V(Parameter)                                \
   V(Power)                                    \
+  V(Prologue)                                 \
   V(PushArguments)                            \
   V(RegExpLiteral)                            \
   V(Return)                                   \
@@ -1281,6 +1282,18 @@ class HDebugBreak final : public HTemplateInstruction<0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(DebugBreak)
+};
+
+
+class HPrologue final : public HTemplateInstruction<0> {
+ public:
+  static HPrologue* New(Zone* zone) { return new (zone) HPrologue(); }
+
+  Representation RequiredInputRepresentation(int index) override {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Prologue)
 };
 
 

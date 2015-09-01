@@ -613,6 +613,8 @@ class HEnvironment final : public ZoneObject {
   void SetExpressionStackAt(int index_from_top, HValue* value);
   HValue* RemoveExpressionStackAt(int index_from_top);
 
+  void Print() const;
+
   HEnvironment* Copy() const;
   HEnvironment* CopyWithoutHistory() const;
   HEnvironment* CopyAsLoopHeader(HBasicBlock* block) const;
@@ -2026,16 +2028,37 @@ inline HInstruction* HGraphBuilder::AddUncasted<HCallRuntime>(
 }
 
 
-template<>
+template <>
+inline HParameter* HGraphBuilder::New<HParameter>(unsigned index) {
+  return HParameter::New(isolate(), zone(), nullptr, index);
+}
+
+
+template <>
+inline HParameter* HGraphBuilder::New<HParameter>(
+    unsigned index, HParameter::ParameterKind kind) {
+  return HParameter::New(isolate(), zone(), nullptr, index, kind);
+}
+
+
+template <>
+inline HParameter* HGraphBuilder::New<HParameter>(
+    unsigned index, HParameter::ParameterKind kind, Representation r) {
+  return HParameter::New(isolate(), zone(), nullptr, index, kind, r);
+}
+
+
+template <>
+inline HPrologue* HGraphBuilder::New<HPrologue>() {
+  return HPrologue::New(zone());
+}
+
+
+template <>
 inline HContext* HGraphBuilder::New<HContext>() {
   return HContext::New(zone());
 }
 
-
-template<>
-inline HInstruction* HGraphBuilder::NewUncasted<HContext>() {
-  return New<HContext>();
-}
 
 class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
  public:

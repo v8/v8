@@ -133,6 +133,7 @@ class LCodeGen;
   V(OsrEntry)                                \
   V(Parameter)                               \
   V(Power)                                   \
+  V(Prologue)                                \
   V(PushArgument)                            \
   V(RegExpLiteral)                           \
   V(Return)                                  \
@@ -391,6 +392,12 @@ class LGoto final : public LTemplateInstruction<0, 0, 0> {
 
  private:
   HBasicBlock* block_;
+};
+
+
+class LPrologue final : public LTemplateInstruction<0, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(Prologue, "prologue")
 };
 
 

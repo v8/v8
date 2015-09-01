@@ -880,6 +880,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kMul:
     case HValue::kOsrEntry:
     case HValue::kPower:
+    case HValue::kPrologue:
     case HValue::kRor:
     case HValue::kSar:
     case HValue::kSeqStringSetChar:
