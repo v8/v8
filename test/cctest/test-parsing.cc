@@ -6108,6 +6108,33 @@ TEST(StrongConstructorReturns) {
 }
 
 
+TEST(StrongConstructorDirective) {
+  const char* context_data[][2] = {{"class c { ", " }"},
+                                   {"(class c { ", " });"},
+                                   {"let a = (class c { ", " });"},
+                                   {NULL}};
+
+  const char* error_data[] = {
+      "constructor() { \"use strong\" }",
+      "constructor(...rest) { \"use strong\" }",
+      "foo() {} constructor() { \"use strong\" }",
+      "foo(...rest) { \"use strict\" } constructor() { \"use strong\" }", NULL};
+
+  const char* success_data[] = {
+      "constructor() { \"use strict\" }", "foo() { \"use strong\" }",
+      "foo() { \"use strong\" } constructor() {}", NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyRestParameters, kAllowHarmonySloppy, kAllowHarmonySloppyLet,
+      kAllowStrongMode};
+
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+  RunParserSyncTest(context_data, success_data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
 TEST(StrongUndefinedLocal) {
   const char* context_data[][2] = {{"", ""}, {NULL}};
 

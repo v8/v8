@@ -262,6 +262,14 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
       } else if (use_strong_found) {
         scope_->SetLanguageMode(static_cast<LanguageMode>(
             scope_->language_mode() | STRONG));
+        if (i::IsConstructor(function_state_->kind())) {
+          // "use strong" cannot occur in a class constructor body, to avoid
+          // unintuitive strong class object semantics.
+          PreParserTraits::ReportMessageAt(
+              token_loc, MessageTemplate::kStrongConstructorDirective);
+          *ok = false;
+          return;
+        }
       } else if (!statement.IsStringLiteral()) {
         directive_prologue = false;
       }

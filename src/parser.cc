@@ -1321,6 +1321,25 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
             token_loc.end_pos - token_loc.beg_pos ==
                 ast_value_factory()->use_strong_string()->length() + 2;
         if (use_strict_found || use_strong_found) {
+          // Strong mode implies strict mode. If there are several "use strict"
+          // / "use strong" directives, do the strict mode changes only once.
+          if (is_sloppy(scope_->language_mode())) {
+            scope_->SetLanguageMode(
+                static_cast<LanguageMode>(scope_->language_mode() | STRICT));
+          }
+
+          if (use_strong_found) {
+            scope_->SetLanguageMode(
+                static_cast<LanguageMode>(scope_->language_mode() | STRONG));
+            if (i::IsConstructor(function_state_->kind())) {
+              // "use strong" cannot occur in a class constructor body, to avoid
+              // unintuitive strong class object semantics.
+              ParserTraits::ReportMessageAt(
+                  token_loc, MessageTemplate::kStrongConstructorDirective);
+              *ok = false;
+              return nullptr;
+            }
+          }
           if (!scope_->HasSimpleParameters()) {
             // TC39 deemed "use strict" directives to be an error when occurring
             // in the body of a function with non-simple parameter list, on
@@ -1333,18 +1352,6 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
                 string);
             *ok = false;
             return nullptr;
-          }
-
-          // Strong mode implies strict mode. If there are several "use strict"
-          // / "use strong" directives, do the strict mode changes only once.
-          if (is_sloppy(scope_->language_mode())) {
-            scope_->SetLanguageMode(static_cast<LanguageMode>(
-                scope_->language_mode() | STRICT));
-          }
-
-          if (use_strong_found) {
-            scope_->SetLanguageMode(static_cast<LanguageMode>(
-                scope_->language_mode() | STRONG));
           }
           // Because declarations in strict eval code don't leak into the scope
           // of the eval call, it is likely that functions declared in strict

@@ -176,10 +176,6 @@ function generateSpread(n) {
         let defs = [
           `'use strong';
           class C { constructor(${genParams(parameterCount)}) {} }`,
-          `'use strict';
-          class C {
-            constructor(${genParams(parameterCount, true)}) { 'use strong'; }
-          }`,
         ];
         for (let def of defs) {
           let calls = [
@@ -217,15 +213,6 @@ function generateSpread(n) {
                 super(${genArgs(argumentCount)});
               }
             }`,
-            `'use strict';
-            class B {
-              constructor(${genParams(parameterCount, true)}) { 'use strong'; }
-            }
-            class C extends B {
-              constructor() {
-                super(${genArgs(argumentCount)});
-              }
-            }`,
           ];
           for (let def of defs) {
             let code = `${def}; new C();`;
@@ -251,11 +238,6 @@ function generateSpread(n) {
             `'use strong';
             class B {
               constructor(${genParams(parameterCount)}) {}
-            }
-            class C extends B {}`,
-            `'use strict';
-            class B {
-              constructor(${genParams(parameterCount, true)}) { 'use strong'; }
             }
             class C extends B {}`,
           ];

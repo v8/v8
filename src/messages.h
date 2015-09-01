@@ -335,6 +335,8 @@ class CallSite {
   T(StrictWith, "Strict mode code may not include a with statement")           \
   T(StrongArguments,                                                           \
     "In strong mode, 'arguments' is deprecated, use '...args' instead")        \
+  T(StrongConstructorDirective,                                                \
+    "\"use strong\" directive is disallowed in class constructor body")        \
   T(StrongConstructorReturnMisplaced,                                          \
     "In strong mode, returning from a constructor before its super "           \
     "constructor invocation or all assignments to 'this' is deprecated")       \
