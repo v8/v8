@@ -86,19 +86,29 @@ REPLACE_BINARY_OP_IC_CALL(JSModulus, Token::MOD)
 #undef REPLACE_BINARY_OP_IC_CALL
 
 
-#define REPLACE_COMPARE_IC_CALL(op, token)        \
-  void JSGenericLowering::Lower##op(Node* node) { \
-    ReplaceWithCompareIC(node, token);            \
+// These ops are not language mode dependent; we arbitrarily pass Strength::WEAK
+// here.
+#define REPLACE_COMPARE_IC_CALL(op, token)             \
+  void JSGenericLowering::Lower##op(Node* node) {      \
+    ReplaceWithCompareIC(node, token, Strength::WEAK); \
   }
 REPLACE_COMPARE_IC_CALL(JSEqual, Token::EQ)
 REPLACE_COMPARE_IC_CALL(JSNotEqual, Token::NE)
 REPLACE_COMPARE_IC_CALL(JSStrictEqual, Token::EQ_STRICT)
 REPLACE_COMPARE_IC_CALL(JSStrictNotEqual, Token::NE_STRICT)
-REPLACE_COMPARE_IC_CALL(JSLessThan, Token::LT)
-REPLACE_COMPARE_IC_CALL(JSGreaterThan, Token::GT)
-REPLACE_COMPARE_IC_CALL(JSLessThanOrEqual, Token::LTE)
-REPLACE_COMPARE_IC_CALL(JSGreaterThanOrEqual, Token::GTE)
 #undef REPLACE_COMPARE_IC_CALL
+
+
+#define REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(op, token)        \
+  void JSGenericLowering::Lower##op(Node* node) {                    \
+    ReplaceWithCompareIC(node, token,                                \
+                         strength(OpParameter<LanguageMode>(node))); \
+  }
+REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSLessThan, Token::LT)
+REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSGreaterThan, Token::GT)
+REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSLessThanOrEqual, Token::LTE)
+REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSGreaterThanOrEqual, Token::GTE)
+#undef REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE
 
 
 #define REPLACE_RUNTIME_CALL(op, fun)             \
@@ -129,9 +139,9 @@ static CallDescriptor::Flags FlagsForNode(Node* node) {
 }
 
 
-void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
-  Callable callable = CodeFactory::CompareIC(
-      isolate(), token, strength(OpParameter<LanguageMode>(node)));
+void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
+                                             Strength str) {
+  Callable callable = CodeFactory::CompareIC(isolate(), token, str);
 
   // Create a new call node asking a CompareIC for help.
   NodeVector inputs(zone());
