@@ -7,6 +7,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/vm-state-inl.h"
 

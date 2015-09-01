@@ -6,6 +6,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/deoptimizer.h"
+#include "src/isolate-inl.h"
 #include "src/lookup-inl.h"
 
 namespace v8 {

@@ -30,6 +30,7 @@
 #include "src/hydrogen.h"
 #include "src/ic/ic.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/isolate-inl.h"
 #include "src/log.h"
 #include "src/lookup.h"
 #include "src/macro-assembler.h"

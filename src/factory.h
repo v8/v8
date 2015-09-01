@@ -557,21 +557,17 @@ class Factory final {
                           Handle<Object> arg1 = Handle<Object>(),
                           Handle<Object> arg2 = Handle<Object>());
 
-#define DEFINE_ERROR(NAME, name)                                              \
-  Handle<Object> New##NAME(MessageTemplate::Template template_index,          \
-                           Handle<Object> arg0 = Handle<Object>(),            \
-                           Handle<Object> arg1 = Handle<Object>(),            \
-                           Handle<Object> arg2 = Handle<Object>()) {          \
-    return NewError(isolate()->name##_function(), template_index, arg0, arg1, \
-                    arg2);                                                    \
-  }
-
-  DEFINE_ERROR(Error, error)
-  DEFINE_ERROR(EvalError, eval_error)
-  DEFINE_ERROR(RangeError, range_error)
-  DEFINE_ERROR(ReferenceError, reference_error)
-  DEFINE_ERROR(SyntaxError, syntax_error)
-  DEFINE_ERROR(TypeError, type_error)
+#define DECLARE_ERROR(NAME)                                          \
+  Handle<Object> New##NAME(MessageTemplate::Template template_index, \
+                           Handle<Object> arg0 = Handle<Object>(),   \
+                           Handle<Object> arg1 = Handle<Object>(),   \
+                           Handle<Object> arg2 = Handle<Object>());
+  DECLARE_ERROR(Error)
+  DECLARE_ERROR(EvalError)
+  DECLARE_ERROR(RangeError)
+  DECLARE_ERROR(ReferenceError)
+  DECLARE_ERROR(SyntaxError)
+  DECLARE_ERROR(TypeError)
 #undef DEFINE_ERROR
 
   Handle<String> NumberToString(Handle<Object> number,

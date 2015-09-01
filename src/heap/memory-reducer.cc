@@ -6,8 +6,7 @@
 
 #include "src/flags.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/heap.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/heap/heap-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
 

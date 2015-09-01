@@ -35,6 +35,7 @@
 #include "src/heap-profiler.h"
 #include "src/heap-snapshot-generator-inl.h"
 #include "src/icu_util.h"
+#include "src/isolate-inl.h"
 #include "src/json-parser.h"
 #include "src/messages.h"
 #include "src/parser.h"

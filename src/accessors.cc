@@ -10,7 +10,7 @@
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/frames-inl.h"
-#include "src/isolate.h"
+#include "src/isolate-inl.h"
 #include "src/list-inl.h"
 #include "src/messages.h"
 #include "src/property-details.h"

@@ -35,6 +35,7 @@
 #include "src/ic/ic.h"
 // GetRootConstructor
 #include "src/ic/ic-inl.h"
+#include "src/isolate-inl.h"
 #include "src/lithium-allocator.h"
 #include "src/parser.h"
 #include "src/runtime/runtime.h"

@@ -544,10 +544,7 @@ class Isolate {
 
   // Access to top context (where the current function object was created).
   Context* context() { return thread_local_top_.context_; }
-  void set_context(Context* context) {
-    DCHECK(context == NULL || context->IsContext());
-    thread_local_top_.context_ = context;
-  }
+  inline void set_context(Context* context);
   Context** context_address() { return &thread_local_top_.context_; }
 
   THREAD_LOCAL_TOP_ACCESSOR(SaveContext*, save_context)
@@ -556,28 +553,13 @@ class Isolate {
   THREAD_LOCAL_TOP_ACCESSOR(ThreadId, thread_id)
 
   // Interface to pending exception.
-  Object* pending_exception() {
-    DCHECK(has_pending_exception());
-    DCHECK(!thread_local_top_.pending_exception_->IsException());
-    return thread_local_top_.pending_exception_;
-  }
-
-  void set_pending_exception(Object* exception_obj) {
-    DCHECK(!exception_obj->IsException());
-    thread_local_top_.pending_exception_ = exception_obj;
-  }
-
-  void clear_pending_exception() {
-    DCHECK(!thread_local_top_.pending_exception_->IsException());
-    thread_local_top_.pending_exception_ = heap_.the_hole_value();
-  }
+  inline Object* pending_exception();
+  inline void set_pending_exception(Object* exception_obj);
+  inline void clear_pending_exception();
 
   THREAD_LOCAL_TOP_ADDRESS(Object*, pending_exception)
 
-  bool has_pending_exception() {
-    DCHECK(!thread_local_top_.pending_exception_->IsException());
-    return !thread_local_top_.pending_exception_->IsTheHole();
-  }
+  inline bool has_pending_exception();
 
   THREAD_LOCAL_TOP_ADDRESS(Context*, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Code*, pending_handler_code)
@@ -587,9 +569,6 @@ class Isolate {
 
   THREAD_LOCAL_TOP_ACCESSOR(bool, external_caught_exception)
 
-  void clear_pending_message() {
-    thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
-  }
   v8::TryCatch* try_catch_handler() {
     return thread_local_top_.try_catch_handler();
   }
@@ -599,30 +578,19 @@ class Isolate {
 
   THREAD_LOCAL_TOP_ADDRESS(Object*, scheduled_exception)
 
+  inline void clear_pending_message();
   Address pending_message_obj_address() {
     return reinterpret_cast<Address>(&thread_local_top_.pending_message_obj_);
   }
 
-  Object* scheduled_exception() {
-    DCHECK(has_scheduled_exception());
-    DCHECK(!thread_local_top_.scheduled_exception_->IsException());
-    return thread_local_top_.scheduled_exception_;
-  }
-  bool has_scheduled_exception() {
-    DCHECK(!thread_local_top_.scheduled_exception_->IsException());
-    return thread_local_top_.scheduled_exception_ != heap_.the_hole_value();
-  }
-  void clear_scheduled_exception() {
-    DCHECK(!thread_local_top_.scheduled_exception_->IsException());
-    thread_local_top_.scheduled_exception_ = heap_.the_hole_value();
-  }
+  inline Object* scheduled_exception();
+  inline bool has_scheduled_exception();
+  inline void clear_scheduled_exception();
 
   bool IsJavaScriptHandlerOnTop(Object* exception);
   bool IsExternalHandlerOnTop(Object* exception);
 
-  bool is_catchable_by_javascript(Object* exception) {
-    return exception != heap()->termination_exception();
-  }
+  inline bool is_catchable_by_javascript(Object* exception);
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -649,9 +617,7 @@ class Isolate {
 
   // Returns the global object of the current context. It could be
   // a builtin object, or a JS global object.
-  Handle<GlobalObject> global_object() {
-    return Handle<GlobalObject>(context()->global_object());
-  }
+  inline Handle<GlobalObject> global_object();
 
   // Returns the global proxy object of the current context.
   JSObject* global_proxy() {
@@ -676,13 +642,8 @@ class Isolate {
    public:
     // Scope currently can only be used for regular exceptions,
     // not termination exception.
-    explicit ExceptionScope(Isolate* isolate)
-        : isolate_(isolate),
-          pending_exception_(isolate_->pending_exception(), isolate_) {}
-
-    ~ExceptionScope() {
-      isolate_->set_pending_exception(*pending_exception_);
-    }
+    inline explicit ExceptionScope(Isolate* isolate);
+    inline ~ExceptionScope();
 
    private:
     Isolate* isolate_;
@@ -830,13 +791,9 @@ class Isolate {
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_ACCESSOR)
 #undef GLOBAL_ARRAY_ACCESSOR
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)            \
-  Handle<type> name() {                                             \
-    return Handle<type>(native_context()->name(), this);            \
-  }                                                                 \
-  bool is_##name(type* value) {                                     \
-    return native_context()->is_##name(value);                      \
-  }
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name) \
+  inline Handle<type> name();                            \
+  inline bool is_##name(type* value);
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
@@ -1407,11 +1364,7 @@ class PromiseOnStack {
 class SaveContext BASE_EMBEDDED {
  public:
   explicit SaveContext(Isolate* isolate);
-
-  ~SaveContext() {
-    isolate_->set_context(context_.is_null() ? NULL : *context_);
-    isolate_->set_save_context(prev_);
-  }
+  ~SaveContext();
 
   Handle<Context> context() { return context_; }
   SaveContext* prev() { return prev_; }
@@ -1432,9 +1385,7 @@ class SaveContext BASE_EMBEDDED {
 class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
-  explicit AssertNoContextChange(Isolate* isolate)
-    : isolate_(isolate),
-      context_(isolate->context(), isolate) { }
+  explicit AssertNoContextChange(Isolate* isolate);
   ~AssertNoContextChange() {
     DCHECK(isolate_->context() == *context_);
   }

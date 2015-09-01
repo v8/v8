@@ -10,6 +10,7 @@
 #include "src/compiler.h"
 #include "src/execution.h"
 #include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/ostreams.h"
 #include "src/parser.h"

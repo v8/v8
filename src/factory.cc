@@ -8,6 +8,7 @@
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/conversions.h"
+#include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -1134,6 +1135,22 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
   }
   return result;
 }
+
+
+#define DEFINE_ERROR(NAME, name)                                              \
+  Handle<Object> Factory::New##NAME(MessageTemplate::Template template_index, \
+                                    Handle<Object> arg0, Handle<Object> arg1, \
+                                    Handle<Object> arg2) {                    \
+    return NewError(isolate()->name##_function(), template_index, arg0, arg1, \
+                    arg2);                                                    \
+  }
+DEFINE_ERROR(Error, error)
+DEFINE_ERROR(EvalError, eval_error)
+DEFINE_ERROR(RangeError, range_error)
+DEFINE_ERROR(ReferenceError, reference_error)
+DEFINE_ERROR(SyntaxError, syntax_error)
+DEFINE_ERROR(TypeError, type_error)
+#undef DEFINE_ERROR
 
 
 void Factory::InitializeFunction(Handle<JSFunction> function,

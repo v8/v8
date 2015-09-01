@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/conversions.h"
+#include "src/isolate-inl.h"
 #include "src/objects-inl.h"
 #include "src/string-search.h"
 #include "src/utils.h"

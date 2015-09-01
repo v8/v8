@@ -299,10 +299,7 @@ enum BindingFlags {
 class ScriptContextTable : public FixedArray {
  public:
   // Conversions.
-  static ScriptContextTable* cast(Object* context) {
-    DCHECK(context->IsScriptContextTable());
-    return reinterpret_cast<ScriptContextTable*>(context);
-  }
+  static inline ScriptContextTable* cast(Object* context);
 
   struct LookupResult {
     int context_index;
@@ -313,13 +310,11 @@ class ScriptContextTable : public FixedArray {
     MaybeAssignedFlag maybe_assigned_flag;
   };
 
-  int used() const { return Smi::cast(get(kUsedSlot))->value(); }
-  void set_used(int used) { set(kUsedSlot, Smi::FromInt(used)); }
+  inline int used() const;
+  inline void set_used(int used);
 
-  static Handle<Context> GetContext(Handle<ScriptContextTable> table, int i) {
-    DCHECK(i < table->used());
-    return Handle<Context>::cast(FixedArray::get(table, i + kFirstContextSlot));
-  }
+  static inline Handle<Context> GetContext(Handle<ScriptContextTable> table,
+                                           int i);
 
   // Lookup a variable `name` in a ScriptContextTable.
   // If it returns true, the variable is found and `result` contains
@@ -399,10 +394,7 @@ class ScriptContextTable : public FixedArray {
 class Context: public FixedArray {
  public:
   // Conversions.
-  static Context* cast(Object* context) {
-    DCHECK(context->IsContext());
-    return reinterpret_cast<Context*>(context);
-  }
+  static inline Context* cast(Object* context);
 
   // The default context slot layout; indices are FixedArray slot indices.
   enum {
@@ -438,40 +430,30 @@ class Context: public FixedArray {
   };
 
   // Direct slot access.
-  JSFunction* closure() { return JSFunction::cast(get(CLOSURE_INDEX)); }
-  void set_closure(JSFunction* closure) { set(CLOSURE_INDEX, closure); }
+  inline JSFunction* closure();
+  inline void set_closure(JSFunction* closure);
 
-  Context* previous() {
-    Object* result = unchecked_previous();
-    DCHECK(IsBootstrappingOrValidParentContext(result, this));
-    return reinterpret_cast<Context*>(result);
-  }
-  void set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
+  inline Context* previous();
+  inline void set_previous(Context* context);
 
-  bool has_extension() { return extension() != nullptr; }
-  Object* extension() { return get(EXTENSION_INDEX); }
-  void set_extension(Object* object) { set(EXTENSION_INDEX, object); }
+  inline bool has_extension();
+  inline Object* extension();
+  inline void set_extension(Object* object);
   JSObject* extension_object();
   JSReceiver* extension_receiver();
   ScopeInfo* scope_info();
   String* catch_name();
 
-  JSModule* module() { return JSModule::cast(get(EXTENSION_INDEX)); }
-  void set_module(JSModule* module) { set(EXTENSION_INDEX, module); }
+  inline JSModule* module();
+  inline void set_module(JSModule* module);
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
   Context* declaration_context();
   bool is_declaration_context();
 
-  GlobalObject* global_object() {
-    Object* result = get(GLOBAL_OBJECT_INDEX);
-    DCHECK(IsBootstrappingOrGlobalObject(this->GetIsolate(), result));
-    return reinterpret_cast<GlobalObject*>(result);
-  }
-  void set_global_object(GlobalObject* object) {
-    set(GLOBAL_OBJECT_INDEX, object);
-  }
+  inline GlobalObject* global_object();
+  inline void set_global_object(GlobalObject* object);
 
   // Returns a JSGlobalProxy object or null.
   JSObject* global_proxy();
@@ -489,39 +471,15 @@ class Context: public FixedArray {
   // Predicates for context types.  IsNativeContext is also defined on Object
   // because we frequently have to know if arbitrary objects are natives
   // contexts.
-  bool IsNativeContext() {
-    Map* map = this->map();
-    return map == map->GetHeap()->native_context_map();
-  }
-  bool IsFunctionContext() {
-    Map* map = this->map();
-    return map == map->GetHeap()->function_context_map();
-  }
-  bool IsCatchContext() {
-    Map* map = this->map();
-    return map == map->GetHeap()->catch_context_map();
-  }
-  bool IsWithContext() {
-    Map* map = this->map();
-    return map == map->GetHeap()->with_context_map();
-  }
-  bool IsBlockContext() {
-    Map* map = this->map();
-    return map == map->GetHeap()->block_context_map();
-  }
-  bool IsModuleContext() {
-    Map* map = this->map();
-    return map == map->GetHeap()->module_context_map();
-  }
-  bool IsScriptContext() {
-    Map* map = this->map();
-    return map == map->GetHeap()->script_context_map();
-  }
+  inline bool IsNativeContext();
+  inline bool IsFunctionContext();
+  inline bool IsCatchContext();
+  inline bool IsWithContext();
+  inline bool IsBlockContext();
+  inline bool IsModuleContext();
+  inline bool IsScriptContext();
 
-  bool HasSameSecurityTokenAs(Context* that) {
-    return this->global_object()->native_context()->security_token() ==
-        that->global_object()->native_context()->security_token();
-  }
+  inline bool HasSameSecurityTokenAs(Context* that);
 
   // Initializes global variable bindings in given script context.
   void InitializeGlobalSlots();
@@ -549,18 +507,9 @@ class Context: public FixedArray {
                           Handle<JSFunction> function);
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  void  set_##name(type* value) {                         \
-    DCHECK(IsNativeContext());                            \
-    set(index, value);                                    \
-  }                                                       \
-  bool is_##name(type* value) {                           \
-    DCHECK(IsNativeContext());                            \
-    return type::cast(get(index)) == value;               \
-  }                                                       \
-  type* name() {                                          \
-    DCHECK(IsNativeContext());                            \
-    return type::cast(get(index));                        \
-  }
+  inline void set_##name(type* value);                    \
+  inline bool is_##name(type* value);                     \
+  inline type* name();
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 
@@ -630,9 +579,6 @@ class Context: public FixedArray {
       kSize> MarkCompactBodyDescriptor;
 
  private:
-  // Unchecked access to the slots.
-  Object* unchecked_previous() { return get(PREVIOUS_INDEX); }
-
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
   static bool IsBootstrappingOrValidParentContext(Object* object, Context* kid);

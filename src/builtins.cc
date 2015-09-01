@@ -16,6 +16,7 @@
 #include "src/heap-profiler.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/prototype.h"
 #include "src/vm-state-inl.h"

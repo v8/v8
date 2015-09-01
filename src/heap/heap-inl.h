@@ -19,7 +19,7 @@
 #include "src/list-inl.h"
 #include "src/log.h"
 #include "src/msan.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

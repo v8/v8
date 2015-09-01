@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/execution.h"
+#include "src/isolate-inl.h"
 #include "src/string-builder.h"
 
 namespace v8 {

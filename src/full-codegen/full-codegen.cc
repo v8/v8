@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/full-codegen/full-codegen.h"
+
 #include "src/ast.h"
 #include "src/ast-numbering.h"
 #include "src/code-factory.h"
@@ -9,7 +11,7 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/full-codegen/full-codegen.h"
+#include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/prettyprinter.h"
 #include "src/scopeinfo.h"

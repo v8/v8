@@ -7,6 +7,7 @@
 #include "src/allocation-site-scopes.h"
 #include "src/arguments.h"
 #include "src/ast.h"
+#include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/runtime/runtime.h"
 

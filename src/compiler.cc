@@ -19,6 +19,7 @@
 #include "src/gdb-jit.h"
 #include "src/hydrogen.h"
 #include "src/interpreter/interpreter.h"
+#include "src/isolate-inl.h"
 #include "src/lithium.h"
 #include "src/log-inl.h"
 #include "src/messages.h"

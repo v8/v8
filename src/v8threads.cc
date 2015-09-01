@@ -8,6 +8,7 @@
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
+#include "src/isolate-inl.h"
 #include "src/regexp/regexp-stack.h"
 
 namespace v8 {

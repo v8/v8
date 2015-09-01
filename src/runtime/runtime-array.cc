@@ -8,6 +8,7 @@
 #include "src/conversions-inl.h"
 #include "src/elements.h"
 #include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/prototype.h"
 

@@ -9,6 +9,7 @@
 #include "src/date.h"
 #include "src/dateparser-inl.h"
 #include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 
 namespace v8 {

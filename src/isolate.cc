@@ -26,6 +26,7 @@
 #include "src/hydrogen.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
+#include "src/isolate-inl.h"
 #include "src/lithium-allocator.h"
 #include "src/log.h"
 #include "src/messages.h"
@@ -2796,6 +2797,18 @@ SaveContext::SaveContext(Isolate* isolate)
 
   c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
 }
+
+
+SaveContext::~SaveContext() {
+  isolate_->set_context(context_.is_null() ? NULL : *context_);
+  isolate_->set_save_context(prev_);
+}
+
+
+#ifdef DEBUG
+AssertNoContextChange::AssertNoContextChange(Isolate* isolate)
+    : isolate_(isolate), context_(isolate->context(), isolate) {}
+#endif  // DEBUG
 
 
 bool PostponeInterruptsScope::Intercept(StackGuard::InterruptFlag flag) {

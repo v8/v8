@@ -7,6 +7,7 @@
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
+#include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/scopes.h"
 

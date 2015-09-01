@@ -11,6 +11,7 @@
 #include "src/arguments.h"
 #include "src/factory.h"
 #include "src/i18n.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 
 #include "unicode/brkiter.h"

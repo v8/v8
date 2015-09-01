@@ -5,7 +5,7 @@
 #include "src/api-natives.h"
 
 #include "src/api.h"
-#include "src/isolate.h"
+#include "src/isolate-inl.h"
 #include "src/lookup.h"
 #include "src/messages.h"
 

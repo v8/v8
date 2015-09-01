@@ -9,6 +9,7 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"

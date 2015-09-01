@@ -14,7 +14,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
-#include "src/contexts.h"
+#include "src/contexts-inl.h"
 #include "src/conversions-inl.h"
 #include "src/factory.h"
 #include "src/field-index-inl.h"

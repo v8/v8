@@ -9,6 +9,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"

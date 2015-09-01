@@ -12,7 +12,7 @@
 #include "src/assembler.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/list-inl.h"
 #include "src/ostreams.h"
 #include "src/utils.h"
 

@@ -17,6 +17,7 @@
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
+#include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/prototype.h"
 #include "src/runtime/runtime.h"
