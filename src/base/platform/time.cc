@@ -17,7 +17,6 @@
 #include <ostream>
 
 #if V8_OS_WIN
-#include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/win32-headers.h"
 #endif
@@ -435,35 +434,36 @@ class HighResolutionTickClock final : public TickClock {
 
 class RolloverProtectedTickClock final : public TickClock {
  public:
-  RolloverProtectedTickClock() : rollover_(0) {}
+  // We initialize rollover_ms_ to 1 to ensure that we will never
+  // return 0 from TimeTicks::HighResolutionNow() and TimeTicks::Now() below.
+  RolloverProtectedTickClock() : last_seen_now_(0), rollover_ms_(1) {}
   virtual ~RolloverProtectedTickClock() {}
 
   int64_t Now() override {
+    LockGuard<Mutex> lock_guard(&mutex_);
     // We use timeGetTime() to implement TimeTicks::Now(), which rolls over
     // every ~49.7 days. We try to track rollover ourselves, which works if
-    // TimeTicks::Now() is called at least every 24 days.
+    // TimeTicks::Now() is called at least every 49 days.
     // Note that we do not use GetTickCount() here, since timeGetTime() gives
     // more predictable delta values, as described here:
     // http://blogs.msdn.com/b/larryosterman/archive/2009/09/02/what-s-the-difference-between-gettickcount-and-timegettime.aspx
     // timeGetTime() provides 1ms granularity when combined with
     // timeBeginPeriod(). If the host application for V8 wants fast timers, it
     // can use timeBeginPeriod() to increase the resolution.
-    // We use a lock-free version because the sampler thread calls it
-    // while having the rest of the world stopped, that could cause a deadlock.
-    base::Atomic32 rollover = base::Acquire_Load(&rollover_);
-    base::Atomic32 now = static_cast<base::Atomic32>(timeGetTime());
-    if ((now >> 31) != (rollover & 1)) {
-      base::Release_CompareAndSwap(&rollover_, rollover, rollover + 1);
-      ++rollover;
+    DWORD now = timeGetTime();
+    if (now < last_seen_now_) {
+      rollover_ms_ += V8_INT64_C(0x100000000);  // ~49.7 days.
     }
-    int64_t rollover_ms = static_cast<int64_t>(rollover) << 31;
-    return (rollover_ms | now) * Time::kMicrosecondsPerMillisecond;
+    last_seen_now_ = now;
+    return (now + rollover_ms_) * Time::kMicrosecondsPerMillisecond;
   }
 
   bool IsHighResolution() override { return false; }
 
  private:
-  base::Atomic32 rollover_;
+  Mutex mutex_;
+  DWORD last_seen_now_;
+  int64_t rollover_ms_;
 };
 
 
