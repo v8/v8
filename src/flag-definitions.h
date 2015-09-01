@@ -409,10 +409,10 @@ DEFINE_BOOL(turbo_greedy_regalloc, false, "use the greedy register allocator")
 DEFINE_BOOL(turbo_preprocess_ranges, true,
             "run pre-register allocation heuristics")
 DEFINE_BOOL(turbo_loop_stackcheck, true, "enable stack checks in loops")
-// TODO(mtrofin): remove these implications, as they are here just for trybot
-// purposes.
-DEFINE_IMPLICATION(turbo_greedy_regalloc, turbo_preprocess_ranges)
-DEFINE_IMPLICATION(turbo_greedy_regalloc, turbo_loop_stackcheck)
+
+// TODO(mtrofin): remove the 2 implications.
+DEFINE_NEG_IMPLICATION(turbo_greedy_regalloc, turbo_preprocess_ranges)
+DEFINE_NEG_IMPLICATION(turbo_greedy_regalloc, turbo_loop_stackcheck)
 
 DEFINE_IMPLICATION(turbo, turbo_asm_deoptimization)
 DEFINE_STRING(turbo_filter, "~~", "optimization filter for TurboFan compiler")

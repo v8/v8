@@ -164,8 +164,12 @@ void GreedyAllocator::PreallocateFixedRanges() {
 
 void GreedyAllocator::ScheduleAllocationCandidates() {
   for (auto range : data()->live_ranges()) {
-    if (CanProcessRange(range) && !range->spilled()) {
-      scheduler().Schedule(range);
+    if (CanProcessRange(range)) {
+      for (LiveRange* child = range; child != nullptr; child = child->next()) {
+        if (!child->spilled()) {
+          scheduler().Schedule(child);
+        }
+      }
     }
   }
 }

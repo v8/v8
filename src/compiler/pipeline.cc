@@ -1354,9 +1354,13 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     Run<SplinterLiveRangesPhase>();
   }
 
-  // TODO(mtrofin): re-enable greedy once we have bots for range preprocessing.
-  Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-  Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
+  if (FLAG_turbo_greedy_regalloc) {
+    Run<AllocateGeneralRegistersPhase<GreedyAllocator>>();
+    Run<AllocateDoubleRegistersPhase<GreedyAllocator>>();
+  } else {
+    Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
+    Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
+  }
 
   if (FLAG_turbo_preprocess_ranges) {
     Run<MergeSplintersPhase>();
