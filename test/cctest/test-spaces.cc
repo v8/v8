@@ -222,16 +222,23 @@ TEST(Regress3540) {
           v8::internal::MemoryAllocator::CodePageAreaSize())) {
     return;
   }
+
   Address address;
   size_t size;
+  size_t request_size = code_range_size - 2 * pageSize;
   address = code_range->AllocateRawMemory(
-      code_range_size - 2 * pageSize, code_range_size - 2 * pageSize, &size);
+      request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
+      &size);
   CHECK(address != NULL);
+
   Address null_address;
   size_t null_size;
+  request_size = code_range_size - pageSize;
   null_address = code_range->AllocateRawMemory(
-      code_range_size - pageSize, code_range_size - pageSize, &null_size);
+      request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
+      &null_size);
   CHECK(null_address == NULL);
+
   code_range->FreeRawMemory(address, size);
   delete code_range;
   memory_allocator->TearDown();

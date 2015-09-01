@@ -211,9 +211,6 @@
 ##############################################################################
 ['system == windows', {
 
-  # BUG(3005).
-  'test-alloc/CodeRange': [PASS, FAIL],
-
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 

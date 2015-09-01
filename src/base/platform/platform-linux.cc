@@ -310,16 +310,19 @@ void VirtualMemory::Reset() {
 
 
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+  CHECK(InVM(address, size));
   return CommitRegion(address, size, is_executable);
 }
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
+  CHECK(InVM(address, size));
   return UncommitRegion(address, size);
 }
 
 
 bool VirtualMemory::Guard(void* address) {
+  CHECK(InVM(address, OS::CommitPageSize()));
   OS::Guard(address, OS::CommitPageSize());
   return true;
 }

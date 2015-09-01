@@ -202,7 +202,10 @@ bool CodeRange::GetNextAllocationBlock(size_t requested) {
 Address CodeRange::AllocateRawMemory(const size_t requested_size,
                                      const size_t commit_size,
                                      size_t* allocated) {
-  DCHECK(commit_size <= requested_size);
+  // request_size includes guards while committed_size does not. Make sure
+  // callers know about the invariant.
+  CHECK_LE(commit_size,
+           requested_size - 2 * MemoryAllocator::CodePageGuardSize());
   FreeBlock current;
   if (!ReserveBlock(requested_size, &current)) {
     *allocated = 0;
@@ -636,7 +639,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
                  CodePageGuardSize();
 
     // Check executable memory limit.
-    if (size_executable_ + chunk_size > capacity_executable_) {
+    if ((size_executable_ + chunk_size) > capacity_executable_) {
       LOG(isolate_, StringEvent("MemoryAllocator::AllocateRawMemory",
                                 "V8 Executable Allocation capacity exceeded"));
       return NULL;

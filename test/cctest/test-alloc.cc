@@ -224,9 +224,12 @@ TEST(CodeRange) {
           (Page::kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
           Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
-      Address base = code_range.AllocateRawMemory(requested,
-                                                  requested,
-                                                  &allocated);
+
+      // The request size has to be at least 2 code guard pages larger than the
+      // actual commit size.
+      Address base = code_range.AllocateRawMemory(
+          requested, requested - (2 * MemoryAllocator::CodePageGuardSize()),
+          &allocated);
       CHECK(base != NULL);
       blocks.Add(::Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);
