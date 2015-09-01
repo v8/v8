@@ -65,7 +65,6 @@ LINT_RULES = """
 -readability/namespace
 -readability/nolint
 +readability/streams
--runtime/indentation_namespace
 -runtime/references
 -runtime/threadsafe_fn
 -whitespace/semicolon

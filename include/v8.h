@@ -112,8 +112,8 @@ class MaybeLocal;
 template <class T> class Eternal;
 template<class T> class NonCopyablePersistentTraits;
 template<class T> class PersistentBase;
-template<class T,
-         class M = NonCopyablePersistentTraits<T> > class Persistent;
+template <class T, class M = NonCopyablePersistentTraits<T> >
+class Persistent;
 template <class T>
 class Global;
 template<class K, class V, class T> class PersistentValueMap;

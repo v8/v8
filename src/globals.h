@@ -438,7 +438,7 @@ class ScopeInfo;
 class Script;
 class Smi;
 template <typename Config, class Allocator = FreeStoreAllocationPolicy>
-    class SplayTree;
+class SplayTree;
 class String;
 class Symbol;
 class Name;
