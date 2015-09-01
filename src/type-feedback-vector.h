@@ -407,6 +407,10 @@ class KeyedStoreICNexus : public FeedbackNexus {
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->GetKind(slot) == Code::KEYED_STORE_IC);
   }
+  explicit KeyedStoreICNexus(Isolate* isolate)
+      : FeedbackNexus(TypeFeedbackVector::DummyVector(isolate),
+                      TypeFeedbackVector::DummySlot(
+                          TypeFeedbackVector::kDummyKeyedStoreICSlot)) {}
   KeyedStoreICNexus(TypeFeedbackVector* vector, FeedbackVectorICSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->GetKind(slot) == Code::KEYED_STORE_IC);

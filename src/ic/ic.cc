@@ -123,8 +123,11 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
     ExtraICState extra_state = new_target->extra_ic_state();
     const char* modifier = "";
     if (new_target->kind() == Code::KEYED_STORE_IC) {
-      modifier = GetTransitionMarkModifier(
-          KeyedStoreIC::GetKeyedAccessStoreMode(extra_state));
+      KeyedAccessStoreMode mode =
+          FLAG_vector_stores
+              ? casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode()
+              : KeyedStoreIC::GetKeyedAccessStoreMode(extra_state);
+      modifier = GetTransitionMarkModifier(mode);
     }
     PrintF(" (%c->%c%s) ", TransitionMarkFromState(old_state),
            TransitionMarkFromState(new_state), modifier);
@@ -666,6 +669,20 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
 }
 
 
+void IC::ConfigureVectorState(MapHandleList* maps,
+                              MapHandleList* transitioned_maps,
+                              CodeHandleList* handlers) {
+  DCHECK(UseVector());
+  DCHECK(kind() == Code::KEYED_STORE_IC);
+  KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
+  nexus->ConfigurePolymorphic(maps, transitioned_maps, handlers);
+
+  vector_set_ = true;
+  OnTypeFeedbackChanged(isolate(), get_host(), *vector(), saved_state(),
+                        POLYMORPHIC);
+}
+
+
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
@@ -967,7 +984,7 @@ static Handle<Code> KeyedStoreICInitializeStubHelper(
 Handle<Code> KeyedStoreIC::initialize_stub(Isolate* isolate,
                                            LanguageMode language_mode,
                                            State initialization_state) {
-  if (FLAG_vector_stores) {
+  if (FLAG_vector_stores && initialization_state != MEGAMORPHIC) {
     VectorKeyedStoreICTrampolineStub stub(isolate, StoreICState(language_mode));
     return stub.GetCode();
   }
@@ -986,6 +1003,13 @@ Handle<Code> KeyedStoreIC::initialize_stub_in_optimized_code(
 
   return KeyedStoreICInitializeStubHelper(isolate, language_mode,
                                           initialization_state);
+}
+
+
+Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
+                                                 ExtraICState extra_state) {
+  LanguageMode mode = StoreICState::GetLanguageMode(extra_state);
+  return KeyedStoreICInitializeStubHelper(isolate, mode, MEGAMORPHIC);
 }
 
 
@@ -1854,6 +1878,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
 
 Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
                                             KeyedAccessStoreMode store_mode) {
+  Handle<Code> null_handle;
   // Don't handle megamorphic property accesses for INTERCEPTORS or
   // ACCESSOR_CONSTANT
   // via megamorphic stubs, since they don't have a map in their relocation info
@@ -1869,6 +1894,13 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
     Handle<Map> monomorphic_map =
         ComputeTransitionedMap(receiver_map, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
+    if (FLAG_vector_stores) {
+      Handle<Code> handler =
+          PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
+              monomorphic_map, language_mode(), store_mode);
+      ConfigureVectorState(Handle<Name>::null(), monomorphic_map, handler);
+      return null_handle;
+    }
     return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
         monomorphic_map, language_mode(), store_mode);
   }
@@ -1878,7 +1910,9 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
   // superset of the original IC. Handle those here if the receiver map hasn't
   // changed or it has transitioned to a more general kind.
   KeyedAccessStoreMode old_store_mode =
-      KeyedStoreIC::GetKeyedAccessStoreMode(target()->extra_ic_state());
+      FLAG_vector_stores
+          ? GetKeyedAccessStoreMode()
+          : KeyedStoreIC::GetKeyedAccessStoreMode(target()->extra_ic_state());
   Handle<Map> previous_receiver_map = target_receiver_maps.at(0);
   if (state() == MONOMORPHIC) {
     Handle<Map> transitioned_receiver_map = receiver_map;
@@ -1894,6 +1928,14 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
       // if they at least come from the same origin for a transitioning store,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
       store_mode = GetNonTransitioningStoreMode(store_mode);
+      if (FLAG_vector_stores) {
+        Handle<Code> handler =
+            PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
+                transitioned_receiver_map, language_mode(), store_mode);
+        ConfigureVectorState(Handle<Name>::null(), transitioned_receiver_map,
+                             handler);
+        return null_handle;
+      }
       return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
           transitioned_receiver_map, language_mode(), store_mode);
     } else if (receiver_map.is_identical_to(previous_receiver_map) &&
@@ -1904,6 +1946,13 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
       // A "normal" IC that handles stores can switch to a version that can
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
+      if (FLAG_vector_stores) {
+        Handle<Code> handler =
+            PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
+                receiver_map, language_mode(), store_mode);
+        ConfigureVectorState(Handle<Name>::null(), receiver_map, handler);
+        return null_handle;
+      }
       return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
           receiver_map, language_mode(), store_mode);
     }
@@ -1962,6 +2011,16 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
                        "unsupported combination of external and normal arrays");
       return megamorphic_stub();
     }
+  }
+
+  if (FLAG_vector_stores) {
+    MapHandleList transitioned_maps(target_receiver_maps.length());
+    CodeHandleList handlers(target_receiver_maps.length());
+    PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
+        &target_receiver_maps, &transitioned_maps, &handlers, store_mode,
+        language_mode());
+    ConfigureVectorState(&target_receiver_maps, &transitioned_maps, &handlers);
+    return null_handle;
   }
 
   return PropertyICCompiler::ComputeKeyedStorePolymorphic(
@@ -2200,7 +2259,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 
           // Validate that the store_mode in the stub can also be derived
           // from peeking in the code bits of the handlers.
-          ValidateStoreMode(stub);
+          if (!FLAG_vector_stores) ValidateStoreMode(stub);
         } else {
           TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "dictionary prototype");
         }
@@ -2467,7 +2526,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   Handle<Object> result;
 
   if (FLAG_vector_stores) {
-    DCHECK(args.length() == 5);
+    DCHECK(args.length() == 5 || args.length() == 6);
     Handle<Smi> slot = args.at<Smi>(3);
     Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
     FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
@@ -2595,12 +2654,19 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_MissFromStubFailure) {
 
 RUNTIME_FUNCTION(Runtime_StoreIC_Slow) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+  DCHECK(args.length() == (FLAG_vector_stores ? 5 : 3));
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  LanguageMode language_mode = ic.language_mode();
+  LanguageMode language_mode;
+  if (FLAG_vector_stores) {
+    StoreICNexus nexus(isolate);
+    StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+    language_mode = ic.language_mode();
+  } else {
+    StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+    language_mode = ic.language_mode();
+  }
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -2611,12 +2677,19 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Slow) {
 
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+  DCHECK(args.length() == (FLAG_vector_stores ? 5 : 3));
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  LanguageMode language_mode = ic.language_mode();
+  LanguageMode language_mode;
+  if (FLAG_vector_stores) {
+    KeyedStoreICNexus nexus(isolate);
+    KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+    language_mode = ic.language_mode();
+  } else {
+    KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
+    language_mode = ic.language_mode();
+  }
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -2628,14 +2701,20 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
 RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
+  DCHECK(args.length() == (FLAG_vector_stores ? 6 : 4));
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  Handle<Map> map = args.at<Map>(3);
-
-  LanguageMode language_mode = ic.language_mode();
+  Handle<Map> map = args.at<Map>(FLAG_vector_stores ? 5 : 3);
+  LanguageMode language_mode;
+  if (FLAG_vector_stores) {
+    KeyedStoreICNexus nexus(isolate);
+    KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
+    language_mode = ic.language_mode();
+  } else {
+    KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
+    language_mode = ic.language_mode();
+  }
   if (object->IsJSObject()) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
                                      map->elements_kind());
