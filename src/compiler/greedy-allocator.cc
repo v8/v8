@@ -256,7 +256,7 @@ void GreedyAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
   for (size_t i = 0; i < initial_range_count; ++i) {
     auto range = data()->live_ranges()[i];
     if (!CanProcessRange(range)) continue;
-    if (range->HasNoSpillType()) continue;
+    if (!range->HasSpillOperand()) continue;
 
     LifetimePosition start = range->Start();
     TRACE("Live range %d:%d is defined by a spill operand.\n",
@@ -273,12 +273,14 @@ void GreedyAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
     } else if (pos->pos() > range->Start().NextStart()) {
       // Do not spill live range eagerly if use position that can benefit from
       // the register is too close to the start of live range.
-      auto split_pos = pos->pos();
-      if (data()->IsBlockBoundary(split_pos.Start())) {
-        split_pos = split_pos.Start();
-      } else {
-        split_pos = split_pos.PrevStart().End();
-      }
+      auto split_pos = GetSplitPositionForInstruction(
+          range, data()->code(), pos->pos().ToInstructionIndex());
+      // There is no place to split, so we can't split and spill.
+      if (!split_pos.IsValid()) continue;
+
+      split_pos =
+          FindOptimalSplitPos(range->Start().NextFullStart(), split_pos);
+
       Split(range, data(), split_pos);
       Spill(range);
     }
