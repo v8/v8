@@ -1845,7 +1845,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_destructuring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_observe)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spread_arrays)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_atomics)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_new_target)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_concat_spreadable)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexps)
@@ -2491,9 +2490,7 @@ bool Genesis::InstallExperimentalNatives() {
       "native harmony-object-observe.js", nullptr};
   static const char* harmony_spread_arrays_natives[] = {nullptr};
   static const char* harmony_sharedarraybuffer_natives[] = {
-      "native harmony-sharedarraybuffer.js", NULL};
-  static const char* harmony_atomics_natives[] = {"native harmony-atomics.js",
-                                                  nullptr};
+      "native harmony-sharedarraybuffer.js", "native harmony-atomics.js", NULL};
   static const char* harmony_new_target_natives[] = {nullptr};
   static const char* harmony_concat_spreadable_natives[] = {
       "native harmony-concat-spreadable.js", nullptr};
@@ -2610,7 +2607,7 @@ void Genesis::InstallBuiltinFunctionIds() {
 
 
 void Genesis::InstallExperimentalBuiltinFunctionIds() {
-  if (FLAG_harmony_atomics) {
+  if (FLAG_harmony_sharedarraybuffer) {
     struct BuiltinFunctionIds {
       const char* holder_expr;
       const char* fun_name;

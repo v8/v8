@@ -21835,7 +21835,6 @@ class FutexInterruptionThread : public v8::base::Thread {
 
 TEST(FutexInterruption) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  i::FLAG_harmony_atomics = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
