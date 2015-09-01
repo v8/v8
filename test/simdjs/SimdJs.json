@@ -239,7 +239,7 @@
       ]
     }
   ],
-  "timeout_arm": 240,
+  "timeout_arm": 480,
   "timeout_arm64": 120,
   "units": "ms"
 }
