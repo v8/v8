@@ -1744,13 +1744,61 @@ void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
 }
 
 
+void Heap::RegisterNewArrayBufferHelper(std::map<void*, size_t>& live_buffers,
+                                        void* data, size_t length) {
+  live_buffers[data] = length;
+}
+
+
+void Heap::UnregisterArrayBufferHelper(
+    std::map<void*, size_t>& live_buffers,
+    std::map<void*, size_t>& not_yet_discovered_buffers, void* data) {
+  DCHECK(live_buffers.count(data) > 0);
+  live_buffers.erase(data);
+  not_yet_discovered_buffers.erase(data);
+}
+
+
+void Heap::RegisterLiveArrayBufferHelper(
+    std::map<void*, size_t>& not_yet_discovered_buffers, void* data) {
+  not_yet_discovered_buffers.erase(data);
+}
+
+
+size_t Heap::FreeDeadArrayBuffersHelper(
+    Isolate* isolate, std::map<void*, size_t>& live_buffers,
+    std::map<void*, size_t>& not_yet_discovered_buffers) {
+  size_t freed_memory = 0;
+  for (auto buffer = not_yet_discovered_buffers.begin();
+       buffer != not_yet_discovered_buffers.end(); ++buffer) {
+    isolate->array_buffer_allocator()->Free(buffer->first, buffer->second);
+    freed_memory += buffer->second;
+    live_buffers.erase(buffer->first);
+  }
+  not_yet_discovered_buffers = live_buffers;
+  return freed_memory;
+}
+
+
+void Heap::TearDownArrayBuffersHelper(
+    Isolate* isolate, std::map<void*, size_t>& live_buffers,
+    std::map<void*, size_t>& not_yet_discovered_buffers) {
+  for (auto buffer = live_buffers.begin(); buffer != live_buffers.end();
+       ++buffer) {
+    isolate->array_buffer_allocator()->Free(buffer->first, buffer->second);
+  }
+  live_buffers.clear();
+  not_yet_discovered_buffers.clear();
+}
+
+
 void Heap::RegisterNewArrayBuffer(bool in_new_space, void* data,
                                   size_t length) {
   if (!data) return;
+  RegisterNewArrayBufferHelper(live_array_buffers_, data, length);
   if (in_new_space) {
-    live_array_buffers_for_scavenge_[data] = length;
-  } else {
-    live_array_buffers_[data] = length;
+    RegisterNewArrayBufferHelper(live_array_buffers_for_scavenge_, data,
+                                 length);
   }
 
   // We may go over the limit of externally allocated memory here. We call the
@@ -1762,75 +1810,54 @@ void Heap::RegisterNewArrayBuffer(bool in_new_space, void* data,
 
 void Heap::UnregisterArrayBuffer(bool in_new_space, void* data) {
   if (!data) return;
-
-  std::map<void*, size_t>* live_buffers =
-      in_new_space ? &live_array_buffers_for_scavenge_ : &live_array_buffers_;
-  std::map<void*, size_t>* not_yet_discovered_buffers =
-      in_new_space ? &not_yet_discovered_array_buffers_for_scavenge_
-                   : &not_yet_discovered_array_buffers_;
-
-  DCHECK(live_buffers->count(data) > 0);
-  live_buffers->erase(data);
-  not_yet_discovered_buffers->erase(data);
+  UnregisterArrayBufferHelper(live_array_buffers_,
+                              not_yet_discovered_array_buffers_, data);
+  if (in_new_space) {
+    UnregisterArrayBufferHelper(live_array_buffers_for_scavenge_,
+                                not_yet_discovered_array_buffers_for_scavenge_,
+                                data);
+  }
 }
 
 
 void Heap::RegisterLiveArrayBuffer(bool from_scavenge, void* data) {
   // ArrayBuffer might be in the middle of being constructed.
   if (data == undefined_value()) return;
-  if (from_scavenge) {
-    not_yet_discovered_array_buffers_for_scavenge_.erase(data);
-  } else if (!not_yet_discovered_array_buffers_.erase(data)) {
-    not_yet_discovered_array_buffers_for_scavenge_.erase(data);
-  }
+  RegisterLiveArrayBufferHelper(
+      from_scavenge ? not_yet_discovered_array_buffers_for_scavenge_
+                    : not_yet_discovered_array_buffers_,
+      data);
 }
 
 
 void Heap::FreeDeadArrayBuffers(bool from_scavenge) {
-  size_t freed_memory = 0;
-  for (auto& buffer : not_yet_discovered_array_buffers_for_scavenge_) {
-    isolate()->array_buffer_allocator()->Free(buffer.first, buffer.second);
-    freed_memory += buffer.second;
-    live_array_buffers_for_scavenge_.erase(buffer.first);
-  }
-
-  if (!from_scavenge) {
-    for (auto& buffer : not_yet_discovered_array_buffers_) {
-      isolate()->array_buffer_allocator()->Free(buffer.first, buffer.second);
-      freed_memory += buffer.second;
+  if (from_scavenge) {
+    for (auto& buffer : not_yet_discovered_array_buffers_for_scavenge_) {
+      not_yet_discovered_array_buffers_.erase(buffer.first);
       live_array_buffers_.erase(buffer.first);
+    }
+  } else {
+    for (auto& buffer : not_yet_discovered_array_buffers_) {
+      // Scavenge can't happend during evacuation, so we only need to update
+      // live_array_buffers_for_scavenge_.
+      // not_yet_discovered_array_buffers_for_scanvenge_ will be reset before
+      // the next scavenge run in PrepareArrayBufferDiscoveryInNewSpace.
+      live_array_buffers_for_scavenge_.erase(buffer.first);
     }
   }
 
-  not_yet_discovered_array_buffers_for_scavenge_ =
-      live_array_buffers_for_scavenge_;
-  if (!from_scavenge) not_yet_discovered_array_buffers_ = live_array_buffers_;
-
   // Do not call through the api as this code is triggered while doing a GC.
-  amount_of_external_allocated_memory_ -= freed_memory;
+  amount_of_external_allocated_memory_ -= FreeDeadArrayBuffersHelper(
+      isolate_,
+      from_scavenge ? live_array_buffers_for_scavenge_ : live_array_buffers_,
+      from_scavenge ? not_yet_discovered_array_buffers_for_scavenge_
+                    : not_yet_discovered_array_buffers_);
 }
 
 
 void Heap::TearDownArrayBuffers() {
-  size_t freed_memory = 0;
-  for (auto& buffer : live_array_buffers_) {
-    isolate()->array_buffer_allocator()->Free(buffer.first, buffer.second);
-    freed_memory += buffer.second;
-  }
-  for (auto& buffer : live_array_buffers_for_scavenge_) {
-    isolate()->array_buffer_allocator()->Free(buffer.first, buffer.second);
-    freed_memory += buffer.second;
-  }
-  live_array_buffers_.clear();
-  live_array_buffers_for_scavenge_.clear();
-  not_yet_discovered_array_buffers_.clear();
-  not_yet_discovered_array_buffers_for_scavenge_.clear();
-
-  if (freed_memory > 0) {
-    reinterpret_cast<v8::Isolate*>(isolate_)
-        ->AdjustAmountOfExternalAllocatedMemory(
-            -static_cast<int64_t>(freed_memory));
-  }
+  TearDownArrayBuffersHelper(isolate_, live_array_buffers_,
+                             not_yet_discovered_array_buffers_);
 }
 
 
@@ -1848,7 +1875,7 @@ void Heap::PromoteArrayBuffer(Object* obj) {
   // ArrayBuffer might be in the middle of being constructed.
   if (data == undefined_value()) return;
   DCHECK(live_array_buffers_for_scavenge_.count(data) > 0);
-  live_array_buffers_[data] = live_array_buffers_for_scavenge_[data];
+  DCHECK(live_array_buffers_.count(data) > 0);
   live_array_buffers_for_scavenge_.erase(data);
   not_yet_discovered_array_buffers_for_scavenge_.erase(data);
 }

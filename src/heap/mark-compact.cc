@@ -4431,12 +4431,9 @@ void MarkCompactCollector::SweepSpaces() {
   // buffer entries are already filter out. We can just release the memory.
   heap()->FreeQueuedChunks();
 
-  EvacuateNewSpaceAndCandidates();
-
-  // NOTE: ArrayBuffers must be evacuated first, before freeing them. Otherwise
-  // not yet discovered buffers for scavenge will have all of them, and they
-  // will be erroneously freed.
   heap()->FreeDeadArrayBuffers(false);
+
+  EvacuateNewSpaceAndCandidates();
 
   // Clear the marking state of live large objects.
   heap_->lo_space()->ClearMarkingStateOfLiveObjects();
