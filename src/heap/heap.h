@@ -1664,6 +1664,25 @@ class Heap {
  private:
   Heap();
 
+  int current_gc_flags() { return current_gc_flags_; }
+  void set_current_gc_flags(int flags) {
+    current_gc_flags_ = flags;
+    DCHECK(!ShouldFinalizeIncrementalMarking() ||
+           !ShouldAbortIncrementalMarking());
+  }
+
+  inline bool ShouldReduceMemory() const {
+    return current_gc_flags_ & kReduceMemoryFootprintMask;
+  }
+
+  inline bool ShouldAbortIncrementalMarking() const {
+    return current_gc_flags_ & kAbortIncrementalMarkingMask;
+  }
+
+  inline bool ShouldFinalizeIncrementalMarking() const {
+    return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
+  }
+
   // The amount of external memory registered through the API kept alive
   // by global handles
   int64_t amount_of_external_allocated_memory_;
@@ -2263,6 +2282,9 @@ class Heap {
   // configured through the API until it is set up.
   bool configured_;
 
+  // Currently set GC flags that are respected by all GC components.
+  int current_gc_flags_;
+
   ExternalStringTable external_string_table_;
 
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
@@ -2306,11 +2328,15 @@ class Heap {
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapIterator;
+  friend class IncrementalMarking;
   friend class Isolate;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class MapCompact;
   friend class Page;
+
+  // Used in cctest.
+  friend class HeapTester;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };

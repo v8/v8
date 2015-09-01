@@ -42,9 +42,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #ifdef DEBUG
       state_(IDLE),
 #endif
-      reduce_memory_footprint_(false),
-      abort_incremental_marking_(false),
-      finalize_incremental_marking_(false),
       marking_parity_(ODD_MARKING_PARITY),
       compacting_(false),
       was_marked_incrementally_(false),
@@ -666,7 +663,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   int total_live_bytes = 0;
 
   bool reduce_memory =
-      reduce_memory_footprint_ || heap()->HasLowAllocationRate();
+      heap()->ShouldReduceMemory() || heap()->HasLowAllocationRate();
   if (FLAG_manual_evacuation_candidates_selection) {
     for (size_t i = 0; i < pages.size(); i++) {
       Page* p = pages[i].second;
@@ -788,7 +785,7 @@ void MarkCompactCollector::Prepare() {
   }
 
   // Clear marking bits if incremental marking is aborted.
-  if (was_marked_incrementally_ && abort_incremental_marking_) {
+  if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
     heap()->incremental_marking()->Stop();
     ClearMarkbits();
     AbortWeakCollections();
@@ -2060,7 +2057,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 
 
 void MarkCompactCollector::RetainMaps() {
-  if (reduce_memory_footprint_ || abort_incremental_marking_ ||
+  if (heap()->ShouldReduceMemory() || heap()->ShouldAbortIncrementalMarking() ||
       FLAG_retain_maps_for_n_gc == 0) {
     // Do not retain dead maps if flag disables it or there is
     // - memory pressure (reduce_memory_footprint_),

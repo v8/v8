@@ -11,17 +11,6 @@
 namespace v8 {
 namespace internal {
 
-
-void MarkCompactCollector::SetFlags(int flags) {
-  reduce_memory_footprint_ = ((flags & Heap::kReduceMemoryFootprintMask) != 0);
-  abort_incremental_marking_ =
-      ((flags & Heap::kAbortIncrementalMarkingMask) != 0);
-  finalize_incremental_marking_ =
-      ((flags & Heap::kFinalizeIncrementalMarkingMask) != 0);
-  DCHECK(!finalize_incremental_marking_ || !abort_incremental_marking_);
-}
-
-
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
   DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
   if (marking_deque_.Push(obj)) {

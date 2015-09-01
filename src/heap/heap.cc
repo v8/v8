@@ -133,6 +133,7 @@ Heap::Heap()
       ring_buffer_end_(0),
       promotion_queue_(this),
       configured_(false),
+      current_gc_flags_(Heap::kNoGCFlags),
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
       gc_callbacks_depth_(0),
@@ -744,7 +745,7 @@ void Heap::PreprocessStackTraces() {
 void Heap::HandleGCRequest() {
   if (incremental_marking()->request_type() ==
       IncrementalMarking::COMPLETE_MARKING) {
-    CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt",
+    CollectAllGarbage(current_gc_flags(), "GC interrupt",
                       incremental_marking()->CallbackFlags());
     return;
   }
@@ -797,9 +798,9 @@ void Heap::CollectAllGarbage(int flags, const char* gc_reason,
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
-  mark_compact_collector_.SetFlags(flags);
+  set_current_gc_flags(flags);
   CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags);
-  mark_compact_collector_.SetFlags(kNoGCFlags);
+  set_current_gc_flags(kNoGCFlags);
 }
 
 
@@ -821,8 +822,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
     isolate()->optimizing_compile_dispatcher()->Flush();
   }
   isolate()->ClearSerializerData();
-  mark_compact_collector()->SetFlags(kMakeHeapIterableMask |
-                                     kReduceMemoryFootprintMask);
+  set_current_gc_flags(kMakeHeapIterableMask | kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
@@ -833,7 +833,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
       break;
     }
   }
-  mark_compact_collector()->SetFlags(kNoGCFlags);
+  set_current_gc_flags(kNoGCFlags);
   new_space_.Shrink();
   UncommitFromSpace();
 }
@@ -881,10 +881,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
     }
   }
 
-  if (collector == MARK_COMPACTOR &&
-      !mark_compact_collector()->finalize_incremental_marking() &&
-      !mark_compact_collector()->abort_incremental_marking() &&
-      !incremental_marking()->IsStopped() &&
+  if (collector == MARK_COMPACTOR && !ShouldFinalizeIncrementalMarking() &&
+      !ShouldAbortIncrementalMarking() && !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() && FLAG_incremental_marking) {
     // Make progress in incremental marking.
     const intptr_t kStepSizeWhenDelayedByScavenge = 1 * MB;
@@ -955,8 +953,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
 
   // Start incremental marking for the next cycle. The heap snapshot
   // generator needs incremental marking to stay off after it aborted.
-  if (!mark_compact_collector()->abort_incremental_marking() &&
-      incremental_marking()->IsStopped() &&
+  if (!ShouldAbortIncrementalMarking() && incremental_marking()->IsStopped() &&
       incremental_marking()->ShouldActivateEvenWithoutIdleNotification()) {
     incremental_marking()->Start(kNoGCFlags, kNoGCCallbackFlags, "GC epilogue");
   }
@@ -4761,10 +4758,14 @@ void Heap::ReduceNewSpaceSize() {
   // TODO(ulan): Unify this constant with the similar constant in
   // GCIdleTimeHandler once the change is merged to 4.5.
   static const size_t kLowAllocationThroughput = 1000;
-  size_t allocation_throughput =
+  const size_t allocation_throughput =
       tracer()->CurrentAllocationThroughputInBytesPerMillisecond();
-  if (FLAG_predictable || allocation_throughput == 0) return;
-  if (allocation_throughput < kLowAllocationThroughput) {
+
+  if (FLAG_predictable) return;
+
+  if (ShouldReduceMemory() ||
+      ((allocation_throughput != 0) &&
+       (allocation_throughput < kLowAllocationThroughput))) {
     new_space_.Shrink();
     UncommitFromSpace();
   }
@@ -4788,7 +4789,8 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
               gc_idle_time_handler_.ShouldDoFinalIncrementalMarkCompact(
                   static_cast<size_t>(idle_time_in_ms), size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
-    CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
+    CollectAllGarbage(current_gc_flags(),
+                      "idle notification: finalize incremental");
     return true;
   }
   return false;
@@ -5649,8 +5651,7 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
     factor = Min(factor, kConservativeHeapGrowingFactor);
   }
 
-  if (FLAG_stress_compaction ||
-      mark_compact_collector()->reduce_memory_footprint_) {
+  if (FLAG_stress_compaction || ShouldReduceMemory()) {
     factor = kMinHeapGrowingFactor;
   }
 
