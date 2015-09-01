@@ -38,12 +38,12 @@ static void CollectTypes(HandleAndZoneScope* handles, const char* source,
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
 
-  i::CompilationInfo compilation_info(&info);
   CHECK(i::Compiler::ParseAndAnalyze(&info));
-  info.set_literal(
-      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun());
 
-  ExpressionTypeCollector(&compilation_info, dst).Run();
+  ExpressionTypeCollector(
+      isolate, handles->main_zone(),
+      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun(), dst)
+      .Run();
 }
 }
 

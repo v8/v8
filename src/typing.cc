@@ -15,14 +15,17 @@ namespace v8 {
 namespace internal {
 
 
-AstTyper::AstTyper(CompilationInfo* info)
-    : info_(info),
-      oracle_(info->isolate(), info->zone(),
-              handle(info->closure()->shared()->code()),
-              handle(info->closure()->shared()->feedback_vector()),
-              handle(info->closure()->context()->native_context())),
-      store_(info->zone()) {
-  InitializeAstVisitor(info->isolate(), info->zone());
+AstTyper::AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
+                   Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root)
+    : closure_(closure),
+      scope_(scope),
+      osr_ast_id_(osr_ast_id),
+      root_(root),
+      oracle_(isolate, zone, handle(closure->shared()->code()),
+              handle(closure->shared()->feedback_vector()),
+              handle(closure->context()->native_context())),
+      store_(zone) {
+  InitializeAstVisitor(isolate, zone);
 }
 
 
@@ -45,18 +48,17 @@ Effect AstTyper::ObservedOnStack(Object* value) {
 
 
 void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
-  if (stmt->OsrEntryId() != info_->osr_ast_id()) return;
+  if (stmt->OsrEntryId() != osr_ast_id_) return;
 
   DisallowHeapAllocation no_gc;
   JavaScriptFrameIterator it(isolate());
   JavaScriptFrame* frame = it.frame();
-  Scope* scope = info_->scope();
 
   // Assert that the frame on the stack belongs to the function we want to OSR.
-  DCHECK_EQ(*info_->closure(), frame->function());
+  DCHECK_EQ(*closure_, frame->function());
 
-  int params = scope->num_parameters();
-  int locals = scope->StackLocalCount();
+  int params = scope_->num_parameters();
+  int locals = scope_->StackLocalCount();
 
   // Use sequential composition to achieve desired narrowing.
   // The receiver is a parameter with index -1.
@@ -71,21 +73,19 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
 
 #ifdef OBJECT_PRINT
   if (FLAG_trace_osr && FLAG_print_scopes) {
-    PrintObserved(scope->receiver(),
-                  frame->receiver(),
+    PrintObserved(scope_->receiver(), frame->receiver(),
                   store_.LookupBounds(parameter_index(-1)).lower);
 
     for (int i = 0; i < params; i++) {
-      PrintObserved(scope->parameter(i),
-                    frame->GetParameter(i),
+      PrintObserved(scope_->parameter(i), frame->GetParameter(i),
                     store_.LookupBounds(parameter_index(i)).lower);
     }
 
     ZoneList<Variable*> local_vars(locals, zone());
-    ZoneList<Variable*> context_vars(scope->ContextLocalCount(), zone());
-    ZoneList<Variable*> global_vars(scope->ContextGlobalCount(), zone());
-    scope->CollectStackAndContextLocals(&local_vars, &context_vars,
-                                        &global_vars);
+    ZoneList<Variable*> context_vars(scope_->ContextLocalCount(), zone());
+    ZoneList<Variable*> global_vars(scope_->ContextGlobalCount(), zone());
+    scope_->CollectStackAndContextLocals(&local_vars, &context_vars,
+                                         &global_vars);
     for (int i = 0; i < locals; i++) {
       PrintObserved(local_vars.at(i),
                     frame->GetExpression(i),
@@ -105,9 +105,8 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
 
 
 void AstTyper::Run() {
-  Scope* scope = info_->scope();
-  RECURSE(VisitDeclarations(scope->declarations()));
-  RECURSE(VisitStatements(info_->literal()->body()));
+  RECURSE(VisitDeclarations(scope_->declarations()));
+  RECURSE(VisitStatements(root_->body()));
 }
 
 

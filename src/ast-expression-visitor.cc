@@ -32,15 +32,14 @@ namespace internal {
   } while (false)
 
 
-AstExpressionVisitor::AstExpressionVisitor(CompilationInfo* info)
-    : compilation_info_(info), depth_(0) {
-  InitializeAstVisitor(info->isolate(), info->zone());
+AstExpressionVisitor::AstExpressionVisitor(Isolate* isolate, Zone* zone,
+                                           FunctionLiteral* root)
+    : root_(root), depth_(0) {
+  InitializeAstVisitor(isolate, zone);
 }
 
 
-void AstExpressionVisitor::Run() {
-  RECURSE(VisitFunctionLiteral(compilation_info_->literal()));
-}
+void AstExpressionVisitor::Run() { RECURSE(VisitFunctionLiteral(root_)); }
 
 
 void AstExpressionVisitor::VisitVariableDeclaration(VariableDeclaration* decl) {

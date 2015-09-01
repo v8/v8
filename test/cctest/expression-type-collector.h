@@ -10,10 +10,9 @@
 namespace v8 {
 namespace internal {
 
-// A Visitor over a CompilationInfo's AST that collects
-// a human readable string summarizing structure and types.
-// Used for testing of the typing information attached to the
-// expression nodes of an AST.
+// A Visitor over an AST that collects a human readable string summarizing
+// structure and types. Used for testing of the typing information attached
+// to the expression nodes of an AST.
 
 struct ExpressionTypeEntry {
   int depth;
@@ -24,7 +23,7 @@ struct ExpressionTypeEntry {
 
 class ExpressionTypeCollector : public AstExpressionVisitor {
  public:
-  ExpressionTypeCollector(CompilationInfo* info,
+  ExpressionTypeCollector(Isolate* isolate, Zone* zone, FunctionLiteral* root,
                           ZoneVector<ExpressionTypeEntry>* dst);
   void Run();
 

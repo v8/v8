@@ -15,7 +15,7 @@ namespace internal {
 
 class TypingReseter : public AstExpressionVisitor {
  public:
-  explicit TypingReseter(CompilationInfo* info);
+  TypingReseter(Isolate* isolate, Zone* zone, FunctionLiteral* root);
 
  protected:
   void VisitExpression(Expression* expression) override;

@@ -19,7 +19,8 @@ namespace internal {
 
 class AstTyper: public AstVisitor {
  public:
-  explicit AstTyper(CompilationInfo* info);
+  AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
+           Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root);
   void Run();
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
@@ -32,7 +33,10 @@ class AstTyper: public AstVisitor {
   typedef v8::internal::Effects<int, kNoVar> Effects;
   typedef v8::internal::NestedEffects<int, kNoVar> Store;
 
-  CompilationInfo* info_;
+  Handle<JSFunction> closure_;
+  Scope* scope_;
+  BailoutId osr_ast_id_;
+  FunctionLiteral* root_;
   TypeFeedbackOracle oracle_;
   Store store_;
 

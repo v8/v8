@@ -62,16 +62,13 @@ std::string Validate(Zone* zone, const char* source,
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
 
-  i::CompilationInfo compilation_info(&info);
   CHECK(i::Compiler::ParseAndAnalyze(&info));
-  info.set_literal(
-      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun());
 
-  AsmTyper typer(
-      isolate, zone, *script,
-      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun());
+  FunctionLiteral* root =
+      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun();
+  AsmTyper typer(isolate, zone, *script, root);
   if (typer.Validate()) {
-    ExpressionTypeCollector(&compilation_info, types).Run();
+    ExpressionTypeCollector(isolate, zone, root, types).Run();
     return "";
   } else {
     return typer.error_message();

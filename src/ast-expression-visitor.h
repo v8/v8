@@ -21,7 +21,7 @@ namespace internal {
 
 class AstExpressionVisitor : public AstVisitor {
  public:
-  explicit AstExpressionVisitor(CompilationInfo* info);
+  AstExpressionVisitor(Isolate* isolate, Zone* zone, FunctionLiteral* root);
   void Run();
 
  protected:
@@ -38,7 +38,7 @@ class AstExpressionVisitor : public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  CompilationInfo* compilation_info_;
+  FunctionLiteral* root_;
   int depth_;
 
   DISALLOW_COPY_AND_ASSIGN(AstExpressionVisitor);

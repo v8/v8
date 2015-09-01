@@ -14,8 +14,9 @@ namespace v8 {
 namespace internal {
 
 
-TypingReseter::TypingReseter(CompilationInfo* info)
-    : AstExpressionVisitor(info) {}
+TypingReseter::TypingReseter(Isolate* isolate, Zone* zone,
+                             FunctionLiteral* root)
+    : AstExpressionVisitor(isolate, zone, root) {}
 
 
 void TypingReseter::VisitExpression(Expression* expression) {

@@ -25,7 +25,8 @@ namespace {
 
 class TypeSetter : public AstExpressionVisitor {
  public:
-  explicit TypeSetter(CompilationInfo* info) : AstExpressionVisitor(info) {}
+  TypeSetter(Isolate* isolate, Zone* zone, FunctionLiteral* root)
+      : AstExpressionVisitor(isolate, zone, root) {}
 
  protected:
   void VisitExpression(Expression* expression) {
@@ -276,23 +277,22 @@ TEST(ResetTypingInfo) {
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
 
-  i::CompilationInfo compilation_info(&info);
   CHECK(i::Compiler::ParseAndAnalyze(&info));
-  info.set_literal(
-      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun());
+  FunctionLiteral* root =
+      info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun();
 
   // Core of the test.
   ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
-  ExpressionTypeCollector(&compilation_info, &types).Run();
+  ExpressionTypeCollector(isolate, handles.main_zone(), root, &types).Run();
   CheckAllSame(types, Bounds::Unbounded());
 
-  TypeSetter(&compilation_info).Run();
+  TypeSetter(isolate, handles.main_zone(), root).Run();
 
-  ExpressionTypeCollector(&compilation_info, &types).Run();
+  ExpressionTypeCollector(isolate, handles.main_zone(), root, &types).Run();
   CheckAllSame(types, INT32_TYPE);
 
-  TypingReseter(&compilation_info).Run();
+  TypingReseter(isolate, handles.main_zone(), root).Run();
 
-  ExpressionTypeCollector(&compilation_info, &types).Run();
+  ExpressionTypeCollector(isolate, handles.main_zone(), root, &types).Run();
   CheckAllSame(types, Bounds::Unbounded());
 }
