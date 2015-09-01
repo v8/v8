@@ -74,40 +74,10 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
-  # Class, let, const in sloppy mode.
+  # Const is still interpreted as legacy const in sloppy mode
   # https://code.google.com/p/v8/issues/detail?id=3305
-  'language/block-scope/leave/finally-block-let-declaration-only-shadows-outer-parameter-value-1': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/finally-block-let-declaration-only-shadows-outer-parameter-value-2': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/for-loop-block-let-declaration-only-shadows-outer-parameter-value-1': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/for-loop-block-let-declaration-only-shadows-outer-parameter-value-2': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/nested-block-let-declaration-only-shadows-outer-parameter-value-1': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/nested-block-let-declaration-only-shadows-outer-parameter-value-2': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/outermost-binding-updated-in-catch-block-nested-block-let-declaration-unseen-outside-of-block': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/try-block-let-declaration-only-shadows-outer-parameter-value-1': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/try-block-let-declaration-only-shadows-outer-parameter-value-2': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/verify-context-in-finally-block': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/verify-context-in-for-loop-block': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/verify-context-in-labelled-block': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/verify-context-in-try-block': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/x-after-break-to-label': [PASS, FAIL_SLOPPY],
-  'language/block-scope/leave/x-before-continue': [PASS, FAIL_SLOPPY],
-  'language/block-scope/return-from/block-let': [PASS, FAIL_SLOPPY],
-  'language/block-scope/shadowing/catch-parameter-shadowing-let-declaration': [PASS, FAIL_SLOPPY],
   'language/block-scope/shadowing/const-declaration-shadowing-catch-parameter': [PASS, FAIL_SLOPPY],
   'language/block-scope/shadowing/const-declarations-shadowing-parameter-name-let-const-and-var-variables': [PASS, FAIL_SLOPPY],
-  'language/block-scope/shadowing/dynamic-lookup-from-closure': [PASS, FAIL_SLOPPY],
-  'language/block-scope/shadowing/dynamic-lookup-in-and-through-block-contexts': [PASS, FAIL_SLOPPY],
-  'language/block-scope/shadowing/let-declaration-shadowing-catch-parameter': [PASS, FAIL_SLOPPY],
-  'language/block-scope/shadowing/let-declarations-shadowing-parameter-name-let-const-and-var': [PASS, FAIL_SLOPPY],
-  'language/block-scope/shadowing/lookup-from-closure': [PASS, FAIL_SLOPPY],
-  'language/block-scope/shadowing/lookup-in-and-through-block-contexts': [PASS, FAIL_SLOPPY],
-  'language/block-scope/shadowing/parameter-name-shadowing-parameter-name-let-const-and-var': [PASS, FAIL_SLOPPY],
-  'language/block-scope/syntax/for-in/acquire-properties-from-array': [PASS, FAIL_SLOPPY],
-  'language/block-scope/syntax/for-in/acquire-properties-from-object': [PASS, FAIL_SLOPPY],
-  'language/block-scope/syntax/for-in/mixed-values-in-iteration': [PASS, FAIL_SLOPPY],
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-var': [PASS, FAIL_SLOPPY],
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-var-with-function-declaration': [PASS, FAIL_SLOPPY],
   'language/statements/const/block-local-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
   'language/statements/const/block-local-use-before-initialization-in-declaration-statement': [PASS, FAIL_SLOPPY],
   'language/statements/const/block-local-use-before-initialization-in-prior-statement': [PASS, FAIL_SLOPPY],
@@ -138,48 +108,29 @@
   'language/statements/const/syntax/without-initializer-if-expression-statement-else-statement': [PASS, FAIL_SLOPPY],
   'language/statements/const/syntax/without-initializer-label-statement': [PASS, FAIL_SLOPPY],
   'language/statements/const/syntax/without-initializer-while-expression-statement': [PASS, FAIL_SLOPPY],
-  'language/statements/continue/labeled-continue': [PASS, FAIL_SLOPPY],
-  'language/statements/continue/nested-let-bound-for-loops-inner-continue': [PASS, FAIL_SLOPPY],
-  'language/statements/continue/nested-let-bound-for-loops-labeled-continue': [PASS, FAIL_SLOPPY],
-  'language/statements/continue/nested-let-bound-for-loops-outer-continue': [PASS, FAIL_SLOPPY],
-  'language/statements/continue/no-label-continue': [PASS, FAIL_SLOPPY],
-  'language/statements/continue/shadowing-loop-variable-in-same-scope-as-continue': [PASS, FAIL_SLOPPY],
-  'language/statements/continue/simple-and-labeled': [PASS, FAIL_SLOPPY],
   'language/statements/for-in/const-bound-names-fordecl-tdz-for-in': [PASS, FAIL_SLOPPY],
   'language/statements/for-in/const-fresh-binding-per-iteration-for-in': [PASS, FAIL_SLOPPY],
-  'language/statements/for-in/let-bound-names-fordecl-tdz-for-in': [PASS, FAIL_SLOPPY],
-  'language/statements/for-in/let-fresh-binding-per-iteration-for-in': [PASS, FAIL_SLOPPY],
   'language/statements/for-of/const-bound-names-fordecl-tdz-for-of': [PASS, FAIL_SLOPPY],
   'language/statements/for-of/const-fresh-binding-per-iteration-for-of': [PASS, FAIL_SLOPPY],
-  'language/statements/for-of/let-bound-names-fordecl-tdz-for-of': [PASS, FAIL_SLOPPY],
-  'language/statements/for-of/let-fresh-binding-per-iteration-for-of': [PASS, FAIL_SLOPPY],
-  'language/statements/for/const-fresh-binding-per-iteration-for': [PASS, FAIL_SLOPPY],
-  'language/statements/for/let-fresh-binding-per-iteration-for': [PASS, FAIL_SLOPPY],
-  'language/statements/let/block-local-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
+
+  # Functions in blocks are var-declared and hoisted in sloppy mode
+  # https://code.google.com/p/v8/issues/detail?id=3305
+  'language/block-scope/shadowing/dynamic-lookup-from-closure': [PASS, FAIL_SLOPPY],
+  'language/block-scope/shadowing/lookup-from-closure': [PASS, FAIL_SLOPPY],
+  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
+  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-var': [PASS, FAIL_SLOPPY],
+  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-var-with-function-declaration': [PASS, FAIL_SLOPPY],
   'language/statements/let/block-local-closure-set-before-initialization': [PASS, FAIL_SLOPPY],
-  'language/statements/let/block-local-use-before-initialization-in-declaration-statement': [PASS, FAIL_SLOPPY],
-  'language/statements/let/block-local-use-before-initialization-in-prior-statement': [PASS, FAIL_SLOPPY],
-  'language/statements/let/function-local-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
-  'language/statements/let/function-local-closure-set-before-initialization': [PASS, FAIL_SLOPPY],
-  'language/statements/let/function-local-use-before-initialization-in-declaration-statement': [PASS, FAIL_SLOPPY],
-  'language/statements/let/function-local-use-before-initialization-in-prior-statement': [PASS, FAIL_SLOPPY],
-  'language/statements/let/global-closure-get-before-initialization': [PASS, FAIL_SLOPPY],
-  'language/statements/let/global-closure-set-before-initialization': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/let': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/let-closure-inside-condition': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/let-closure-inside-initialization': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/let-closure-inside-next-expression': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/let-iteration-variable-is-freshly-allocated-for-each-iteration-multi-let-binding': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/let-iteration-variable-is-freshly-allocated-for-each-iteration-single-let-binding': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/let-outer-inner-let-bindings': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/with-initialisers-in-statement-positions-case-expression-statement-list': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/with-initialisers-in-statement-positions-default-statement-list': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/without-initialisers-in-statement-positions-case-expression-statement-list': [PASS, FAIL_SLOPPY],
-  'language/statements/let/syntax/without-initialisers-in-statement-positions-default-statement-list': [PASS, FAIL_SLOPPY],
+
+  # https://code.google.com/p/v8/issues/detail?id=4405
+  'language/block-scope/leave/outermost-binding-updated-in-catch-block-nested-block-let-declaration-unseen-outside-of-block': [PASS, FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=3305
   # This times out in sloppy mode because sloppy const assignment does not throw.
   'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [PASS, FAIL, TIMEOUT],
+
+  # https://code.google.com/p/v8/issues/detail?id=4403
+  'language/statements/let/syntax/identifier-let-disallowed-as-boundname': [PASS, FAIL_SLOPPY],
 
   # Number/Boolean.prototype is a plain object in ES6
   # https://code.google.com/p/v8/issues/detail?id=4001
