@@ -13,6 +13,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/objects-inl.h"
 #include "src/zone-type-cache.h"
 
 namespace v8 {

@@ -7,6 +7,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/objects-inl.h"
 #include "src/types.h"
 
 namespace v8 {

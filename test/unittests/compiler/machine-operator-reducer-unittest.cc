@@ -7,6 +7,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/typer.h"
+#include "src/conversions-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"

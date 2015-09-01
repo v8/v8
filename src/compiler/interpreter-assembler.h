@@ -12,7 +12,6 @@
 #include "src/builtins.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/unique.h"
 
 namespace v8 {
 namespace internal {

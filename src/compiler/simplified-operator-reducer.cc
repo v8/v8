@@ -8,6 +8,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
+#include "src/conversions-inl.h"
 
 namespace v8 {
 namespace internal {

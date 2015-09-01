@@ -6,7 +6,7 @@
 
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
-#include "src/unique.h"
+#include "src/isolate.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/node-test-utils.h"
 

@@ -22,6 +22,7 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/ostreams.h"
+#include "src/types-inl.h"
 
 namespace v8 {
 namespace internal {

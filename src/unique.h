@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HYDROGEN_UNIQUE_H_
-#define V8_HYDROGEN_UNIQUE_H_
+#ifndef V8_UNIQUE_H_
+#define V8_UNIQUE_H_
 
 #include <ostream>  // NOLINT(readability/streams)
 
 #include "src/base/functional.h"
 #include "src/handles.h"
-#include "src/objects-inl.h"  // TODO(everyone): Fix our inl.h crap
 #include "src/utils.h"
 #include "src/zone.h"
 
@@ -358,4 +357,4 @@ class UniqueSet final : public ZoneObject {
 
 } }  // namespace v8::internal
 
-#endif  // V8_HYDROGEN_UNIQUE_H_
+#endif  // V8_UNIQUE_H_

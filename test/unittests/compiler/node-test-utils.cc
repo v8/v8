@@ -11,7 +11,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/unique.h"
+#include "src/handles-inl.h"
 
 using testing::_;
 using testing::MakeMatcher;

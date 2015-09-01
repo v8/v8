@@ -9,10 +9,20 @@
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/type-feedback-vector-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+VectorSlotPair::VectorSlotPair() : slot_(FeedbackVectorICSlot::Invalid()) {}
+
+
+int VectorSlotPair::index() const {
+  return vector_.is_null() ? -1 : vector_->GetIndex(slot_);
+}
+
 
 bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
   return lhs.slot() == rhs.slot() &&

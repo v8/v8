@@ -6,7 +6,6 @@
 #define V8_COMPILER_JS_OPERATOR_H_
 
 #include "src/runtime/runtime.h"
-#include "src/unique.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +20,7 @@ struct JSOperatorGlobalCache;
 // is used to access the type feedback for a certain {Node}.
 class VectorSlotPair {
  public:
-  VectorSlotPair() : slot_(FeedbackVectorICSlot::Invalid()) {}
+  VectorSlotPair();
   VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
       : vector_(vector), slot_(slot) {}
 
@@ -30,9 +29,7 @@ class VectorSlotPair {
   Handle<TypeFeedbackVector> vector() const { return vector_; }
   FeedbackVectorICSlot slot() const { return slot_; }
 
-  int index() const {
-    return vector_.is_null() ? -1 : vector_->GetIndex(slot_);
-  }
+  int index() const;
 
  private:
   const Handle<TypeFeedbackVector> vector_;

@@ -6,6 +6,7 @@
 
 #include "src/ast.h"
 #include "src/ast-numbering.h"
+#include "src/compiler.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"

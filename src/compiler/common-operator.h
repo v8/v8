@@ -7,7 +7,7 @@
 
 #include "src/compiler/frame-states.h"
 #include "src/compiler/machine-type.h"
-#include "src/unique.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {

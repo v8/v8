@@ -11,7 +11,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
-#include "src/unique.h"
 
 namespace v8 {
 namespace internal {

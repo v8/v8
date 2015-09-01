@@ -7,6 +7,8 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
