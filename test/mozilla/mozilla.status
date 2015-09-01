@@ -853,10 +853,10 @@
 
 ['no_i18n == True and mode == debug', {
   # Tests too slow for no18n debug.
-  'ecma_3/Statements/regress-302439': [FAST_VARIANTS],
-  'js1_5/Regress/regress-98901': [FAST_VARIANTS],
-  'ecma_3/RegExp/perlstress-001': [FAST_VARIANTS],
-  'js1_5/extensions/regress-311161': [FAST_VARIANTS],
+  'ecma_3/Statements/regress-302439': [PASS, FAST_VARIANTS],
+  'js1_5/Regress/regress-98901': [SKIP],
+  'ecma_3/RegExp/perlstress-001': [PASS, FAST_VARIANTS],
+  'js1_5/extensions/regress-311161': [FAIL_OK, FAST_VARIANTS],
 }],  # 'no_i18n == True and mode == debug'
 
 
