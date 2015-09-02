@@ -2132,6 +2132,8 @@ HBitwiseBinaryOperation* LChunkBuilder::CanTransformToShiftedOp(HValue* val,
   DCHECK(hleft->representation().Equals(hinstr->representation()));
   DCHECK(hright->representation().Equals(hinstr->representation()));
 
+  if (hleft == hright) return NULL;
+
   if ((hright->IsConstant() &&
        LikelyFitsImmField(hinstr, HConstant::cast(hright)->Integer32Value())) ||
       (hinstr->IsCommutative() && hleft->IsConstant() &&
