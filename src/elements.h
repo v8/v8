@@ -65,9 +65,6 @@ class ElementsAccessor {
   // destination array with the hole.
   static const int kCopyToEndAndInitializeToHole = -2;
 
-  static const int kDirectionForward = 1;
-  static const int kDirectionReverse = -1;
-
   // Copy elements from one backing store to another. Typically, callers specify
   // the source JSObject or JSArray in source_holder. If the holder's backing
   // store is available, it can be passed in source and source_holder is
@@ -133,8 +130,8 @@ class ElementsAccessor {
   // TODO(cbruni): Consider passing Arguments* instead of Object** depending on
   // the requirements of future callers.
   virtual uint32_t Push(Handle<JSArray> receiver,
-                        Handle<FixedArrayBase> backing_store, Object** objects,
-                        uint32_t start, int direction) = 0;
+                        Handle<FixedArrayBase> backing_store, Arguments* args,
+                        uint32_t push_size) = 0;
 
   virtual uint32_t Unshift(Handle<JSArray> receiver,
                            Handle<FixedArrayBase> backing_store,
@@ -147,7 +144,7 @@ class ElementsAccessor {
   virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
                                  Handle<FixedArrayBase> backing_store,
                                  uint32_t start, uint32_t delete_count,
-                                 Arguments args, uint32_t add_count) = 0;
+                                 Arguments* args, uint32_t add_count) = 0;
 
   virtual Handle<Object> Pop(Handle<JSArray> receiver,
                              Handle<FixedArrayBase> backing_store) = 0;

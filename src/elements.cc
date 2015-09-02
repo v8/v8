@@ -602,15 +602,15 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   virtual uint32_t Push(Handle<JSArray> receiver,
-                        Handle<FixedArrayBase> backing_store, Object** objects,
-                        uint32_t push_size, int direction) final {
-    return ElementsAccessorSubclass::PushImpl(receiver, backing_store, objects,
-                                              push_size, direction);
+                        Handle<FixedArrayBase> backing_store, Arguments* args,
+                        uint32_t push_size) final {
+    return ElementsAccessorSubclass::PushImpl(receiver, backing_store, args,
+                                              push_size);
   }
 
   static uint32_t PushImpl(Handle<JSArray> receiver,
-                           Handle<FixedArrayBase> elms_obj, Object** objects,
-                           uint32_t push_size, int direction) {
+                           Handle<FixedArrayBase> elms_obj, Arguments* args,
+                           uint32_t push_sized) {
     UNREACHABLE();
     return 0;
   }
@@ -646,7 +646,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
                                  Handle<FixedArrayBase> backing_store,
                                  uint32_t start, uint32_t delete_count,
-                                 Arguments args, uint32_t add_count) final {
+                                 Arguments* args, uint32_t add_count) final {
     return ElementsAccessorSubclass::SpliceImpl(receiver, backing_store, start,
                                                 delete_count, args, add_count);
   }
@@ -654,7 +654,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   static Handle<JSArray> SpliceImpl(Handle<JSArray> receiver,
                                     Handle<FixedArrayBase> backing_store,
                                     uint32_t start, uint32_t delete_count,
-                                    Arguments args, uint32_t add_count) {
+                                    Arguments* args, uint32_t add_count) {
     UNREACHABLE();
     return Handle<JSArray>();
   }
@@ -1276,8 +1276,7 @@ class FastElementsAccessor
 
   static uint32_t PushImpl(Handle<JSArray> receiver,
                            Handle<FixedArrayBase> backing_store,
-                           Object** objects, uint32_t push_size,
-                           int direction) {
+                           Arguments* args, uint32_t push_size) {
     uint32_t len = Smi::cast(receiver->length())->value();
     if (push_size == 0) {
       return len;
@@ -1287,34 +1286,25 @@ class FastElementsAccessor
     // we should never hit this case.
     DCHECK(push_size <= static_cast<uint32_t>(Smi::kMaxValue - len));
     uint32_t new_length = len + push_size;
-    Handle<FixedArrayBase> new_elms;
 
     if (new_length > elms_len) {
       // New backing storage is needed.
       uint32_t capacity = new_length + (new_length >> 1) + 16;
-      new_elms = FastElementsAccessorSubclass::ConvertElementsWithCapacity(
+      backing_store = FastElementsAccessorSubclass::ConvertElementsWithCapacity(
           receiver, backing_store, KindTraits::Kind, capacity);
-    } else {
-      // push_size is > 0 and new_length <= elms_len, so backing_store cannot be
-      // the empty_fixed_array.
-      new_elms = backing_store;
+      receiver->set_elements(*backing_store);
     }
 
     // Add the provided values.
     DisallowHeapAllocation no_gc;
-    DCHECK(direction == ElementsAccessor::kDirectionForward ||
-           direction == ElementsAccessor::kDirectionReverse);
-    STATIC_ASSERT(ElementsAccessor::kDirectionForward == 1);
-    STATIC_ASSERT(ElementsAccessor::kDirectionReverse == -1);
+    FixedArrayBase* raw_backing_store = *backing_store;
+    WriteBarrierMode mode = raw_backing_store->GetWriteBarrierMode(no_gc);
     for (uint32_t index = 0; index < push_size; index++) {
-      int offset = direction * index;
-      Object* object = objects[offset];
-      FastElementsAccessorSubclass::SetImpl(*new_elms, index + len, object);
+      Object* object = (*args)[index + 1];
+      FastElementsAccessorSubclass::SetImpl(raw_backing_store, index + len,
+                                            object, mode);
     }
-    if (!new_elms.is_identical_to(backing_store)) {
-      receiver->set_elements(*new_elms);
-    }
-    DCHECK(*new_elms == receiver->elements());
+    DCHECK(*backing_store == receiver->elements());
     // Set the length.
     receiver->set_length(Smi::FromInt(new_length));
     return new_length;
@@ -1389,7 +1379,7 @@ class FastElementsAccessor
   static Handle<JSArray> SpliceImpl(Handle<JSArray> receiver,
                                     Handle<FixedArrayBase> backing_store,
                                     uint32_t start, uint32_t delete_count,
-                                    Arguments args, uint32_t add_count) {
+                                    Arguments* args, uint32_t add_count) {
     Isolate* isolate = receiver->GetIsolate();
     Heap* heap = isolate->heap();
     uint32_t len = Smi::cast(receiver->length())->value();
@@ -1425,9 +1415,12 @@ class FastElementsAccessor
 
     // Copy new Elements from args
     DisallowHeapAllocation no_gc;
-    for (uint32_t index = start; index < start + add_count; index++) {
-      Object* arg = args[3 + index - start];
-      FastElementsAccessorSubclass::SetImpl(*backing_store, index, arg);
+    FixedArrayBase* raw_backing_store = *backing_store;
+    WriteBarrierMode mode = raw_backing_store->GetWriteBarrierMode(no_gc);
+    for (uint32_t index = 0; index < add_count; index++) {
+      Object* object = (*args)[3 + index];
+      FastElementsAccessorSubclass::SetImpl(raw_backing_store, index + start,
+                                            object, mode);
     }
 
     if (elms_changed) {

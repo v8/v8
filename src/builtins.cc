@@ -371,8 +371,7 @@ BUILTIN(ArrayPush) {
   }
   DCHECK(!array->map()->is_observed());
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  int new_length = accessor->Push(array, elms_obj, &args[1], push_size,
-                                  ElementsAccessor::kDirectionReverse);
+  int new_length = accessor->Push(array, elms_obj, &args, push_size);
   return Smi::FromInt(new_length);
 }
 
@@ -622,7 +621,7 @@ BUILTIN(ArraySplice) {
   }
   ElementsAccessor* accessor = array->GetElementsAccessor();
   Handle<JSArray> result_array = accessor->Splice(
-      array, elms_obj, actual_start, actual_delete_count, args, add_count);
+      array, elms_obj, actual_start, actual_delete_count, &args, add_count);
   return *result_array;
 }
 
