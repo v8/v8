@@ -1867,6 +1867,10 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
       Object* target = allocation.ToObjectChecked();
 
       MigrateObject(HeapObject::cast(target), object, size, NEW_SPACE);
+      if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
+        heap()->RegisterLiveArrayBuffer(
+            true, JSArrayBuffer::cast(target)->backing_store());
+      }
       heap()->IncrementSemiSpaceCopiedObjectSize(size);
     }
     *cells = 0;
@@ -4431,9 +4435,12 @@ void MarkCompactCollector::SweepSpaces() {
   // buffer entries are already filter out. We can just release the memory.
   heap()->FreeQueuedChunks();
 
-  heap()->FreeDeadArrayBuffers(false);
-
   EvacuateNewSpaceAndCandidates();
+
+  // EvacuateNewSpaceAndCandidates iterates over new space objects and for
+  // ArrayBuffers either re-registers them as live or promotes them. This is
+  // needed to properly free them.
+  heap()->FreeDeadArrayBuffers(false);
 
   // Clear the marking state of live large objects.
   heap_->lo_space()->ClearMarkingStateOfLiveObjects();

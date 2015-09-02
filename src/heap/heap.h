@@ -1070,7 +1070,7 @@ class Heap {
   void UnregisterArrayBuffer(bool in_new_space, void* data);
 
   // A live ArrayBuffer was discovered during marking/scavenge.
-  void RegisterLiveArrayBuffer(bool from_scavenge, void* data);
+  void RegisterLiveArrayBuffer(bool in_new_space, void* data);
 
   // Frees all backing store pointers that weren't discovered in the previous
   // marking or scavenge phase.
@@ -1789,21 +1789,6 @@ class Heap {
 
   // Called on heap tear-down. Frees all remaining ArrayBuffer backing stores.
   void TearDownArrayBuffers();
-
-  // These correspond to the non-Helper versions.
-  void RegisterNewArrayBufferHelper(std::map<void*, size_t>& live_buffers,
-                                    void* data, size_t length);
-  void UnregisterArrayBufferHelper(
-      std::map<void*, size_t>& live_buffers,
-      std::map<void*, size_t>& not_yet_discovered_buffers, void* data);
-  void RegisterLiveArrayBufferHelper(
-      std::map<void*, size_t>& not_yet_discovered_buffers, void* data);
-  size_t FreeDeadArrayBuffersHelper(
-      Isolate* isolate, std::map<void*, size_t>& live_buffers,
-      std::map<void*, size_t>& not_yet_discovered_buffers);
-  void TearDownArrayBuffersHelper(
-      Isolate* isolate, std::map<void*, size_t>& live_buffers,
-      std::map<void*, size_t>& not_yet_discovered_buffers);
 
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();
