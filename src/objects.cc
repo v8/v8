@@ -11916,7 +11916,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
 
     SNPrintF(buf, "%p", bytecode_start);
     os << buf.start() << " : ";
-    interpreter::Bytecodes::Decode(os, bytecode_start);
+    interpreter::Bytecodes::Decode(os, bytecode_start, parameter_count());
     os << "\n";
   }
 

@@ -37,10 +37,10 @@ void BytecodeArrayBuilder::set_parameter_count(int number_of_parameters) {
 int BytecodeArrayBuilder::parameter_count() const { return parameter_count_; }
 
 
-Register BytecodeArrayBuilder::Parameter(int param_index) {
-  DCHECK_GE(param_index, 0);
-  DCHECK_LT(param_index, parameter_count_);
-  return Register(kLastParamRegisterIndex - parameter_count_ + param_index + 1);
+Register BytecodeArrayBuilder::Parameter(int parameter_index) {
+  DCHECK_GE(parameter_index, 0);
+  DCHECK_LT(parameter_index, parameter_count_);
+  return Register::FromParameterIndex(parameter_index, parameter_count_);
 }
 
 
@@ -229,10 +229,13 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
     case OperandType::kIdx:
       return true;
     case OperandType::kReg: {
-      int reg_index = Register::FromOperand(operand_value).index();
-      return (reg_index >= 0 && reg_index < temporary_register_next_) ||
-             (reg_index <= kLastParamRegisterIndex &&
-              reg_index > kLastParamRegisterIndex - parameter_count_);
+      Register reg = Register::FromOperand(operand_value);
+      if (reg.is_parameter()) {
+        int parameter_index = reg.ToParameterIndex(parameter_count_);
+        return parameter_index >= 0 && parameter_index < parameter_count_;
+      } else {
+        return (reg.index() >= 0 && reg.index() < temporary_register_next_);
+      }
     }
   }
   UNREACHABLE();

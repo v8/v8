@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "src/ast.h"
-#include "src/frames.h"
 #include "src/identity-map.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/zone.h"
@@ -64,9 +63,6 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& Return();
 
  private:
-  static const int kLastParamRegisterIndex =
-      -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
-
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
   static bool FitsInByteOperand(int value);
   static bool FitsInByteOperand(size_t value);
@@ -98,32 +94,6 @@ class BytecodeArrayBuilder {
 
   friend class TemporaryRegisterScope;
   DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeArrayBuilder);
-};
-
-// An interpreter register which is located in the function's register file
-// in its stack-frame.
-class Register {
- public:
-  static const int kMaxRegisterIndex = 128;
-  static const int kMinRegisterIndex = -127;
-
-  explicit Register(int index) : index_(index) {
-    DCHECK_LE(index_, kMaxRegisterIndex);
-    DCHECK_GE(index_, kMinRegisterIndex);
-  }
-
-  int index() { return index_; }
-
-  uint8_t ToOperand() { return static_cast<uint8_t>(-index_); }
-  static Register FromOperand(uint8_t operand) {
-    return Register(-static_cast<int8_t>(operand));
-  }
-
- private:
-  void* operator new(size_t size);
-  void operator delete(void* p);
-
-  int index_;
 };
 
 // A stack-allocated class than allows the instantiator to allocate

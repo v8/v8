@@ -80,6 +80,36 @@ enum class Bytecode : uint8_t {
 };
 
 
+// An interpreter register which is located in the function's register file
+// in its stack-frame. Register hold parameters, this, and expression values.
+class Register {
+ public:
+  static const int kMaxRegisterIndex = 127;
+  static const int kMinRegisterIndex = -128;
+
+  explicit Register(int index) : index_(index) {
+    DCHECK_LE(index_, kMaxRegisterIndex);
+    DCHECK_GE(index_, kMinRegisterIndex);
+  }
+
+  int index() const { return index_; }
+  bool is_parameter() const { return index_ < 0; }
+
+  static Register FromParameterIndex(int index, int parameter_count);
+  int ToParameterIndex(int parameter_count) const;
+  static int MaxParameterIndex();
+
+  static Register FromOperand(uint8_t operand);
+  uint8_t ToOperand() const;
+
+ private:
+  void* operator new(size_t size);
+  void operator delete(void* p);
+
+  int index_;
+};
+
+
 class Bytecodes {
  public:
   // Returns string representation of |bytecode|.
@@ -110,7 +140,8 @@ class Bytecodes {
   static int MaximumSize();
 
   // Decode a single bytecode and operands to |os|.
-  static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start);
+  static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
+                              int number_of_parameters);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);

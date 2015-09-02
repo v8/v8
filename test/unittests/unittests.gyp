@@ -95,6 +95,7 @@
         'compiler/value-numbering-reducer-unittest.cc',
         'compiler/zone-pool-unittest.cc',
         'counters-unittest.cc',
+        'interpreter/bytecodes-unittest.cc',
         'interpreter/bytecode-array-builder-unittest.cc',
         'libplatform/default-platform-unittest.cc',
         'libplatform/task-queue-unittest.cc',
