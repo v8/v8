@@ -4600,11 +4600,10 @@ void LoadICStub::GenerateForTrampoline(MacroAssembler* masm) {
 }
 
 
-static void HandleArrayCases(MacroAssembler* masm, Register receiver,
-                             Register key, Register vector, Register slot,
-                             Register feedback, Register receiver_map,
-                             Register scratch1, Register scratch2,
-                             bool is_polymorphic, Label* miss) {
+static void HandleArrayCases(MacroAssembler* masm, Register feedback,
+                             Register receiver_map, Register scratch1,
+                             Register scratch2, bool is_polymorphic,
+                             Label* miss) {
   // feedback initially contains the feedback array
   Label next_loop, prepare_next;
   Label start_polymorphic;
@@ -4714,8 +4713,7 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ ld(scratch1, FieldMemOperand(feedback, HeapObject::kMapOffset));
   __ LoadRoot(at, Heap::kFixedArrayMapRootIndex);
   __ Branch(&not_array, ne, scratch1, Operand(at));
-  HandleArrayCases(masm, receiver, name, vector, slot, feedback, receiver_map,
-                   scratch1, a7, true, &miss);
+  HandleArrayCases(masm, feedback, receiver_map, scratch1, a7, true, &miss);
 
   __ bind(&not_array);
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
@@ -4776,8 +4774,7 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
 
   Label polymorphic, try_poly_name;
   __ bind(&polymorphic);
-  HandleArrayCases(masm, receiver, key, vector, slot, feedback, receiver_map,
-                   scratch1, a7, true, &miss);
+  HandleArrayCases(masm, feedback, receiver_map, scratch1, a7, true, &miss);
 
   __ bind(&not_array);
   // Is it generic?
@@ -4796,8 +4793,7 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ Daddu(feedback, vector, Operand(feedback));
   __ ld(feedback,
         FieldMemOperand(feedback, FixedArray::kHeaderSize + kPointerSize));
-  HandleArrayCases(masm, receiver, key, vector, slot, feedback, receiver_map,
-                   scratch1, a7, false, &miss);
+  HandleArrayCases(masm, feedback, receiver_map, scratch1, a7, false, &miss);
 
   __ bind(&miss);
   KeyedLoadIC::GenerateMiss(masm);

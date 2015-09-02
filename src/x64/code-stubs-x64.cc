@@ -4311,12 +4311,10 @@ void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void HandleArrayCases(MacroAssembler* masm, Register receiver,
-                             Register key, Register vector, Register slot,
-                             Register feedback, Register receiver_map,
-                             Register scratch1, Register scratch2,
-                             Register scratch3, bool is_polymorphic,
-                             Label* miss) {
+static void HandleArrayCases(MacroAssembler* masm, Register feedback,
+                             Register receiver_map, Register scratch1,
+                             Register scratch2, Register scratch3,
+                             bool is_polymorphic, Label* miss) {
   // feedback initially contains the feedback array
   Label next_loop, prepare_next;
   Label start_polymorphic;
@@ -4418,8 +4416,8 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ bind(&try_array);
   __ CompareRoot(FieldOperand(feedback, 0), Heap::kFixedArrayMapRootIndex);
   __ j(not_equal, &not_array);
-  HandleArrayCases(masm, receiver, name, vector, slot, feedback, receiver_map,
-                   integer_slot, r11, r15, true, &miss);
+  HandleArrayCases(masm, feedback, receiver_map, integer_slot, r11, r15, true,
+                   &miss);
 
   __ bind(&not_array);
   __ CompareRoot(feedback, Heap::kmegamorphic_symbolRootIndex);
@@ -4477,8 +4475,8 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   // We have a polymorphic element handler.
   Label polymorphic, try_poly_name;
   __ bind(&polymorphic);
-  HandleArrayCases(masm, receiver, key, vector, slot, feedback, receiver_map,
-                   integer_slot, r11, r15, true, &miss);
+  HandleArrayCases(masm, feedback, receiver_map, integer_slot, r11, r15, true,
+                   &miss);
 
   __ bind(&not_array);
   // Is it generic?
@@ -4496,8 +4494,8 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   // at least one map/handler pair.
   __ movp(feedback, FieldOperand(vector, integer_slot, times_pointer_size,
                                  FixedArray::kHeaderSize + kPointerSize));
-  HandleArrayCases(masm, receiver, key, vector, slot, feedback, receiver_map,
-                   integer_slot, r11, r15, false, &miss);
+  HandleArrayCases(masm, feedback, receiver_map, integer_slot, r11, r15, false,
+                   &miss);
 
   __ bind(&miss);
   KeyedLoadIC::GenerateMiss(masm);
