@@ -424,6 +424,7 @@ class HeapObjectsFilter;
 class HeapStats;
 class Isolate;
 class MemoryReducer;
+class ObjectStats;
 class WeakObjectRetainer;
 
 
@@ -585,18 +586,6 @@ class Heap {
   enum ScratchpadSlotMode { IGNORE_SCRATCHPAD_SLOT, RECORD_SCRATCHPAD_SLOT };
 
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
-
-  // ObjectStats are kept in two arrays, counts and sizes. Related stats are
-  // stored in a contiguous linear buffer. Stats groups are stored one after
-  // another.
-  enum {
-    FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
-    FIRST_FIXED_ARRAY_SUB_TYPE =
-        FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
-    FIRST_CODE_AGE_SUB_TYPE =
-        FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
-    OBJECT_STATS_COUNT = FIRST_CODE_AGE_SUB_TYPE + Code::kCodeAgeCount + 1
-  };
 
   // Taking this lock prevents the GC from entering a phase that relocates
   // object references.
@@ -909,14 +898,6 @@ class Heap {
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
-  size_t object_count_last_gc(size_t index) {
-    return index < OBJECT_STATS_COUNT ? object_counts_last_time_[index] : 0;
-  }
-
-  size_t object_size_last_gc(size_t index) {
-    return index < OBJECT_STATS_COUNT ? object_sizes_last_time_[index] : 0;
-  }
-
   inline HeapState gc_state() { return gc_state_; }
 
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
@@ -1008,38 +989,6 @@ class Heap {
   bool DeoptMaybeTenuredAllocationSites() {
     return new_space_.IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
   }
-
-  void RecordObjectStats(InstanceType type, size_t size) {
-    DCHECK(type <= LAST_TYPE);
-    object_counts_[type]++;
-    object_sizes_[type] += size;
-  }
-
-  void RecordCodeSubTypeStats(int code_sub_type, int code_age, size_t size) {
-    int code_sub_type_index = FIRST_CODE_KIND_SUB_TYPE + code_sub_type;
-    int code_age_index =
-        FIRST_CODE_AGE_SUB_TYPE + code_age - Code::kFirstCodeAge;
-    DCHECK(code_sub_type_index >= FIRST_CODE_KIND_SUB_TYPE &&
-           code_sub_type_index < FIRST_CODE_AGE_SUB_TYPE);
-    DCHECK(code_age_index >= FIRST_CODE_AGE_SUB_TYPE &&
-           code_age_index < OBJECT_STATS_COUNT);
-    object_counts_[code_sub_type_index]++;
-    object_sizes_[code_sub_type_index] += size;
-    object_counts_[code_age_index]++;
-    object_sizes_[code_age_index] += size;
-  }
-
-  void RecordFixedArraySubTypeStats(int array_sub_type, size_t size) {
-    DCHECK(array_sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
-    object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]++;
-    object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
-  }
-
-  void TraceObjectStats();
-  void TraceObjectStat(const char* name, int count, int size, double time);
-  void CheckpointObjectStats();
-  bool GetObjectTypeName(size_t index, const char** object_type,
-                         const char** object_sub_type);
 
   void AddWeakObjectToCodeDependency(Handle<HeapObject> obj,
                                      Handle<DependentCode> dep);
@@ -1382,6 +1331,25 @@ class Heap {
   // Currently used by tests, serialization and heap verification only.
   bool InSpace(Address addr, AllocationSpace space);
   bool InSpace(HeapObject* value, AllocationSpace space);
+
+  // ===========================================================================
+  // Object statistics tracking. ===============================================
+  // ===========================================================================
+
+  // Returns the number of buckets used by object statistics tracking during a
+  // major GC. Note that the following methods fail gracefully when the bounds
+  // are exceeded though.
+  size_t NumberOfTrackedHeapObjectTypes();
+
+  // Returns object statistics about count and size at the last major GC.
+  // Objects are being grouped into buckets that roughly resemble existing
+  // instance types.
+  size_t ObjectCountAtLastGC(size_t index);
+  size_t ObjectSizeAtLastGC(size_t index);
+
+  // Retrieves names of buckets used by object statistics tracking.
+  bool GetObjectTypeName(size_t index, const char** object_type,
+                         const char** object_sub_type);
 
   // ===========================================================================
   // GC statistics. ============================================================
@@ -1840,8 +1808,6 @@ class Heap {
   void CheckAndNotifyBackgroundIdleNotification(double idle_time_in_ms,
                                                 double now_ms);
 
-  void ClearObjectStats(bool clear_last_time_stats = false);
-
   inline void UpdateAllocationsHash(HeapObject* object);
   inline void UpdateAllocationsHash(uint32_t value);
   void PrintAlloctionsHash();
@@ -2274,12 +2240,6 @@ class Heap {
   // of the allocation site.
   unsigned int maximum_size_scavenges_;
 
-  // Object counts and used memory by InstanceType
-  size_t object_counts_[OBJECT_STATS_COUNT];
-  size_t object_counts_last_time_[OBJECT_STATS_COUNT];
-  size_t object_sizes_[OBJECT_STATS_COUNT];
-  size_t object_sizes_last_time_[OBJECT_STATS_COUNT];
-
   // Maximum GC pause.
   double max_gc_pause_;
 
@@ -2313,6 +2273,8 @@ class Heap {
   GCIdleTimeHandler gc_idle_time_handler_;
 
   MemoryReducer* memory_reducer_;
+
+  ObjectStats* object_stats_;
 
   // These two counters are monotomically increasing and never reset.
   size_t full_codegen_bytes_generated_;

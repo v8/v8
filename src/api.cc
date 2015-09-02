@@ -7252,22 +7252,25 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
 
 
 size_t Isolate::NumberOfTrackedHeapObjectTypes() {
-  return i::Heap::OBJECT_STATS_COUNT;
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Heap* heap = isolate->heap();
+  return heap->NumberOfTrackedHeapObjectTypes();
 }
 
 
 bool Isolate::GetHeapObjectStatisticsAtLastGC(
     HeapObjectStatistics* object_statistics, size_t type_index) {
   if (!object_statistics) return false;
-  if (type_index >= i::Heap::OBJECT_STATS_COUNT) return false;
   if (!i::FLAG_track_gc_object_stats) return false;
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();
+  if (type_index >= heap->NumberOfTrackedHeapObjectTypes()) return false;
+
   const char* object_type;
   const char* object_sub_type;
-  size_t object_count = heap->object_count_last_gc(type_index);
-  size_t object_size = heap->object_size_last_gc(type_index);
+  size_t object_count = heap->ObjectCountAtLastGC(type_index);
+  size_t object_size = heap->ObjectSizeAtLastGC(type_index);
   if (!heap->GetObjectTypeName(type_index, &object_type, &object_sub_type)) {
     // There should be no objects counted when the type is unknown.
     DCHECK_EQ(object_count, 0U);

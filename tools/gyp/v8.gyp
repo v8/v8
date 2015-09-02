@@ -721,6 +721,8 @@
         '../../src/heap/mark-compact-inl.h',
         '../../src/heap/mark-compact.cc',
         '../../src/heap/mark-compact.h',
+        '../../src/heap/object-stats.cc',
+        '../../src/heap/object-stats.h',
         '../../src/heap/objects-visiting-inl.h',
         '../../src/heap/objects-visiting.cc',
         '../../src/heap/objects-visiting.h',

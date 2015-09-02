@@ -17,6 +17,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/spaces-inl.h"
@@ -1416,9 +1417,11 @@ void MarkCompactMarkingVisitor::ObjectStatsCountFixedArray(
       fixed_array->map() != heap->fixed_double_array_map() &&
       fixed_array != heap->empty_fixed_array()) {
     if (fixed_array->IsDictionary()) {
-      heap->RecordFixedArraySubTypeStats(dictionary_type, fixed_array->Size());
+      heap->object_stats_->RecordFixedArraySubTypeStats(dictionary_type,
+                                                        fixed_array->Size());
     } else {
-      heap->RecordFixedArraySubTypeStats(fast_type, fixed_array->Size());
+      heap->object_stats_->RecordFixedArraySubTypeStats(fast_type,
+                                                        fixed_array->Size());
     }
   }
 }
@@ -1428,7 +1431,7 @@ void MarkCompactMarkingVisitor::ObjectStatsVisitBase(
     MarkCompactMarkingVisitor::VisitorId id, Map* map, HeapObject* obj) {
   Heap* heap = map->GetHeap();
   int object_size = obj->Size();
-  heap->RecordObjectStats(map->instance_type(), object_size);
+  heap->object_stats_->RecordObjectStats(map->instance_type(), object_size);
   non_count_table_.GetVisitorById(id)(map, obj);
   if (obj->IsJSObject()) {
     JSObject* object = JSObject::cast(obj);
@@ -1460,21 +1463,21 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     if (map_obj->owns_descriptors() &&
         array != heap->empty_descriptor_array()) {
       int fixed_array_size = array->Size();
-      heap->RecordFixedArraySubTypeStats(DESCRIPTOR_ARRAY_SUB_TYPE,
-                                         fixed_array_size);
+      heap->object_stats_->RecordFixedArraySubTypeStats(
+          DESCRIPTOR_ARRAY_SUB_TYPE, fixed_array_size);
     }
     if (TransitionArray::IsFullTransitionArray(map_obj->raw_transitions())) {
       int fixed_array_size =
           TransitionArray::cast(map_obj->raw_transitions())->Size();
-      heap->RecordFixedArraySubTypeStats(TRANSITION_ARRAY_SUB_TYPE,
-                                         fixed_array_size);
+      heap->object_stats_->RecordFixedArraySubTypeStats(
+          TRANSITION_ARRAY_SUB_TYPE, fixed_array_size);
     }
     if (map_obj->has_code_cache()) {
       CodeCache* cache = CodeCache::cast(map_obj->code_cache());
-      heap->RecordFixedArraySubTypeStats(MAP_CODE_CACHE_SUB_TYPE,
-                                         cache->default_cache()->Size());
+      heap->object_stats_->RecordFixedArraySubTypeStats(
+          MAP_CODE_CACHE_SUB_TYPE, cache->default_cache()->Size());
       if (!cache->normal_type_cache()->IsUndefined()) {
-        heap->RecordFixedArraySubTypeStats(
+        heap->object_stats_->RecordFixedArraySubTypeStats(
             MAP_CODE_CACHE_SUB_TYPE,
             FixedArray::cast(cache->normal_type_cache())->Size());
       }
@@ -1493,8 +1496,8 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     int object_size = obj->Size();
     DCHECK(map->instance_type() == CODE_TYPE);
     Code* code_obj = Code::cast(obj);
-    heap->RecordCodeSubTypeStats(code_obj->kind(), code_obj->GetAge(),
-                                 object_size);
+    heap->object_stats_->RecordCodeSubTypeStats(
+        code_obj->kind(), code_obj->GetAge(), object_size);
     ObjectStatsVisitBase(kVisitCode, map, obj);
   }
 };
@@ -1508,7 +1511,7 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     Heap* heap = map->GetHeap();
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
     if (sfi->scope_info() != heap->empty_fixed_array()) {
-      heap->RecordFixedArraySubTypeStats(
+      heap->object_stats_->RecordFixedArraySubTypeStats(
           SCOPE_INFO_SUB_TYPE, FixedArray::cast(sfi->scope_info())->Size());
     }
     ObjectStatsVisitBase(kVisitSharedFunctionInfo, map, obj);
@@ -1524,8 +1527,8 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     Heap* heap = map->GetHeap();
     FixedArray* fixed_array = FixedArray::cast(obj);
     if (fixed_array == heap->string_table()) {
-      heap->RecordFixedArraySubTypeStats(STRING_TABLE_SUB_TYPE,
-                                         fixed_array->Size());
+      heap->object_stats_->RecordFixedArraySubTypeStats(STRING_TABLE_SUB_TYPE,
+                                                        fixed_array->Size());
     }
     ObjectStatsVisitBase(kVisitFixedArray, map, obj);
   }
@@ -2343,9 +2346,9 @@ void MarkCompactCollector::AfterMarking() {
 
   if (FLAG_track_gc_object_stats) {
     if (FLAG_trace_gc_object_stats) {
-      heap()->TraceObjectStats();
+      heap()->object_stats_->TraceObjectStats();
     }
-    heap()->CheckpointObjectStats();
+    heap()->object_stats_->CheckpointObjectStats();
   }
 }
 

@@ -23,6 +23,7 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-reducer.h"
+#include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/store-buffer.h"
@@ -122,6 +123,7 @@ Heap::Heap()
       store_buffer_(this),
       incremental_marking_(this),
       memory_reducer_(nullptr),
+      object_stats_(nullptr),
       full_codegen_bytes_generated_(0),
       crankshaft_codegen_bytes_generated_(0),
       new_space_allocation_counter_(0),
@@ -161,8 +163,6 @@ Heap::Heap()
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
-
-  ClearObjectStats(true);
 }
 
 
@@ -5643,6 +5643,9 @@ bool Heap::SetUp() {
 
   memory_reducer_ = new MemoryReducer(this);
 
+  object_stats_ = new ObjectStats(this);
+  object_stats_->ClearObjectStats(true);
+
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
@@ -5752,6 +5755,9 @@ void Heap::TearDown() {
     delete memory_reducer_;
     memory_reducer_ = nullptr;
   }
+
+  delete object_stats_;
+  object_stats_ = nullptr;
 
   WaitUntilUnmappingOfFreeChunksCompleted();
 
@@ -6573,124 +6579,6 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
 }
 
 
-void Heap::ClearObjectStats(bool clear_last_time_stats) {
-  memset(object_counts_, 0, sizeof(object_counts_));
-  memset(object_sizes_, 0, sizeof(object_sizes_));
-  if (clear_last_time_stats) {
-    memset(object_counts_last_time_, 0, sizeof(object_counts_last_time_));
-    memset(object_sizes_last_time_, 0, sizeof(object_sizes_last_time_));
-  }
-}
-
-
-static base::LazyMutex object_stats_mutex = LAZY_MUTEX_INITIALIZER;
-
-
-void Heap::TraceObjectStat(const char* name, int count, int size, double time) {
-  PrintIsolate(isolate_,
-               "heap:%p, time:%f, gc:%d, type:%s, count:%d, size:%d\n",
-               static_cast<void*>(this), time, ms_count_, name, count, size);
-}
-
-
-void Heap::TraceObjectStats() {
-  base::LockGuard<base::Mutex> lock_guard(object_stats_mutex.Pointer());
-  int index;
-  int count;
-  int size;
-  int total_size = 0;
-  double time = isolate_->time_millis_since_init();
-#define TRACE_OBJECT_COUNT(name)                     \
-  count = static_cast<int>(object_counts_[name]);    \
-  size = static_cast<int>(object_sizes_[name]) / KB; \
-  total_size += size;                                \
-  TraceObjectStat(#name, count, size, time);
-  INSTANCE_TYPE_LIST(TRACE_OBJECT_COUNT)
-#undef TRACE_OBJECT_COUNT
-#define TRACE_OBJECT_COUNT(name)                      \
-  index = FIRST_CODE_KIND_SUB_TYPE + Code::name;      \
-  count = static_cast<int>(object_counts_[index]);    \
-  size = static_cast<int>(object_sizes_[index]) / KB; \
-  TraceObjectStat("*CODE_" #name, count, size, time);
-  CODE_KIND_LIST(TRACE_OBJECT_COUNT)
-#undef TRACE_OBJECT_COUNT
-#define TRACE_OBJECT_COUNT(name)                      \
-  index = FIRST_FIXED_ARRAY_SUB_TYPE + name;          \
-  count = static_cast<int>(object_counts_[index]);    \
-  size = static_cast<int>(object_sizes_[index]) / KB; \
-  TraceObjectStat("*FIXED_ARRAY_" #name, count, size, time);
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(TRACE_OBJECT_COUNT)
-#undef TRACE_OBJECT_COUNT
-#define TRACE_OBJECT_COUNT(name)                                              \
-  index =                                                                     \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge; \
-  count = static_cast<int>(object_counts_[index]);                            \
-  size = static_cast<int>(object_sizes_[index]) / KB;                         \
-  TraceObjectStat("*CODE_AGE_" #name, count, size, time);
-  CODE_AGE_LIST_COMPLETE(TRACE_OBJECT_COUNT)
-#undef TRACE_OBJECT_COUNT
-}
-
-
-void Heap::CheckpointObjectStats() {
-  base::LockGuard<base::Mutex> lock_guard(object_stats_mutex.Pointer());
-  Counters* counters = isolate()->counters();
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)              \
-  counters->count_of_##name()->Increment(                \
-      static_cast<int>(object_counts_[name]));           \
-  counters->count_of_##name()->Decrement(                \
-      static_cast<int>(object_counts_last_time_[name])); \
-  counters->size_of_##name()->Increment(                 \
-      static_cast<int>(object_sizes_[name]));            \
-  counters->size_of_##name()->Decrement(                 \
-      static_cast<int>(object_sizes_last_time_[name]));
-  INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
-#undef ADJUST_LAST_TIME_OBJECT_COUNT
-  int index;
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)               \
-  index = FIRST_CODE_KIND_SUB_TYPE + Code::name;          \
-  counters->count_of_CODE_TYPE_##name()->Increment(       \
-      static_cast<int>(object_counts_[index]));           \
-  counters->count_of_CODE_TYPE_##name()->Decrement(       \
-      static_cast<int>(object_counts_last_time_[index])); \
-  counters->size_of_CODE_TYPE_##name()->Increment(        \
-      static_cast<int>(object_sizes_[index]));            \
-  counters->size_of_CODE_TYPE_##name()->Decrement(        \
-      static_cast<int>(object_sizes_last_time_[index]));
-  CODE_KIND_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
-#undef ADJUST_LAST_TIME_OBJECT_COUNT
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)               \
-  index = FIRST_FIXED_ARRAY_SUB_TYPE + name;              \
-  counters->count_of_FIXED_ARRAY_##name()->Increment(     \
-      static_cast<int>(object_counts_[index]));           \
-  counters->count_of_FIXED_ARRAY_##name()->Decrement(     \
-      static_cast<int>(object_counts_last_time_[index])); \
-  counters->size_of_FIXED_ARRAY_##name()->Increment(      \
-      static_cast<int>(object_sizes_[index]));            \
-  counters->size_of_FIXED_ARRAY_##name()->Decrement(      \
-      static_cast<int>(object_sizes_last_time_[index]));
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
-#undef ADJUST_LAST_TIME_OBJECT_COUNT
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)                                   \
-  index =                                                                     \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge; \
-  counters->count_of_CODE_AGE_##name()->Increment(                            \
-      static_cast<int>(object_counts_[index]));                               \
-  counters->count_of_CODE_AGE_##name()->Decrement(                            \
-      static_cast<int>(object_counts_last_time_[index]));                     \
-  counters->size_of_CODE_AGE_##name()->Increment(                             \
-      static_cast<int>(object_sizes_[index]));                                \
-  counters->size_of_CODE_AGE_##name()->Decrement(                             \
-      static_cast<int>(object_sizes_last_time_[index]));
-  CODE_AGE_LIST_COMPLETE(ADJUST_LAST_TIME_OBJECT_COUNT)
-#undef ADJUST_LAST_TIME_OBJECT_COUNT
-
-  MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
-  MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
-  ClearObjectStats();
-}
-
-
 void Heap::RegisterStrongRoots(Object** start, Object** end) {
   StrongRootsList* list = new StrongRootsList();
   list->next = strong_roots_list_;
@@ -6720,9 +6608,26 @@ void Heap::UnregisterStrongRoots(Object** start) {
 }
 
 
+size_t Heap::NumberOfTrackedHeapObjectTypes() {
+  return ObjectStats::OBJECT_STATS_COUNT;
+}
+
+
+size_t Heap::ObjectCountAtLastGC(size_t index) {
+  if (index >= ObjectStats::OBJECT_STATS_COUNT) return 0;
+  return object_stats_->object_count_last_gc(index);
+}
+
+
+size_t Heap::ObjectSizeAtLastGC(size_t index) {
+  if (index >= ObjectStats::OBJECT_STATS_COUNT) return 0;
+  return object_stats_->object_size_last_gc(index);
+}
+
+
 bool Heap::GetObjectTypeName(size_t index, const char** object_type,
                              const char** object_sub_type) {
-  if (index >= OBJECT_STATS_COUNT) return false;
+  if (index >= ObjectStats::OBJECT_STATS_COUNT) return false;
 
   switch (static_cast<int>(index)) {
 #define COMPARE_AND_RETURN_NAME(name) \
@@ -6732,29 +6637,31 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
     return true;
     INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
 #undef COMPARE_AND_RETURN_NAME
-#define COMPARE_AND_RETURN_NAME(name)         \
-  case FIRST_CODE_KIND_SUB_TYPE + Code::name: \
-    *object_type = "CODE_TYPE";               \
-    *object_sub_type = "CODE_KIND/" #name;    \
+#define COMPARE_AND_RETURN_NAME(name)                      \
+  case ObjectStats::FIRST_CODE_KIND_SUB_TYPE + Code::name: \
+    *object_type = "CODE_TYPE";                            \
+    *object_sub_type = "CODE_KIND/" #name;                 \
     return true;
     CODE_KIND_LIST(COMPARE_AND_RETURN_NAME)
 #undef COMPARE_AND_RETURN_NAME
-#define COMPARE_AND_RETURN_NAME(name)     \
-  case FIRST_FIXED_ARRAY_SUB_TYPE + name: \
-    *object_type = "FIXED_ARRAY_TYPE";    \
-    *object_sub_type = #name;             \
+#define COMPARE_AND_RETURN_NAME(name)                  \
+  case ObjectStats::FIRST_FIXED_ARRAY_SUB_TYPE + name: \
+    *object_type = "FIXED_ARRAY_TYPE";                 \
+    *object_sub_type = #name;                          \
     return true;
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
 #undef COMPARE_AND_RETURN_NAME
-#define COMPARE_AND_RETURN_NAME(name)                                          \
-  case FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge: \
-    *object_type = "CODE_TYPE";                                                \
-    *object_sub_type = "CODE_AGE/" #name;                                      \
+#define COMPARE_AND_RETURN_NAME(name)                                  \
+  case ObjectStats::FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - \
+      Code::kFirstCodeAge:                                             \
+    *object_type = "CODE_TYPE";                                        \
+    *object_sub_type = "CODE_AGE/" #name;                              \
     return true;
     CODE_AGE_LIST_COMPLETE(COMPARE_AND_RETURN_NAME)
 #undef COMPARE_AND_RETURN_NAME
   }
   return false;
 }
+
 }  // namespace internal
 }  // namespace v8
