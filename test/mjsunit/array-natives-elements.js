@@ -53,15 +53,15 @@ function array_natives_test() {
   // Push
   var a0 = make_array("[1, 2, 3]");
   assertTrue(%HasFastSmiElements(a0));
-  a0.push(4);
+  assertEquals(4, a0.push(4));
   assertTrue(%HasFastSmiElements(a0));
-  a0.push(1.3);
+  assertEquals(5, a0.push(1.3));
   assertTrue(%HasFastDoubleElements(a0));
-  a0.push(1.5);
+  assertEquals(6, a0.push(1.5));
   assertTrue(%HasFastDoubleElements(a0));
-  a0.push({});
+  assertEquals(7, a0.push({}));
   assertTrue(%HasFastObjectElements(a0));
-  a0.push({});
+  assertEquals(8, a0.push({}));
   assertTrue(%HasFastObjectElements(a0));
   assertEquals([1,2,3,4,1.3,1.5,{},{}], a0);
 
@@ -253,44 +253,50 @@ function array_natives_test() {
   // Pop
   var a4 = [1,2,3];
   assertEquals(3, a4.pop());
-  assertTrue(%HasFastSmiElements(a4));
+  assertEquals([1,2], a4);
+  //assertTrue(%HasFastSmiElements(a4));
   a4 = [1.1,2,3];
   assertEquals(3, a4.pop());
-  assertTrue(%HasFastDoubleElements(a4));
+  assertEquals([1.1,2], a4);
+  //assertTrue(%HasFastDoubleElements(a4));
   a4 = [{},2,3];
   assertEquals(3, a4.pop());
-  assertTrue(%HasFastObjectElements(a4));
+  assertEquals([{},2], a4);
+  //assertTrue(%HasFastObjectElements(a4));
 
   // Shift
   var a4 = [1,2,3];
   assertEquals(1, a4.shift());
-  assertTrue(%HasFastSmiElements(a4));
+  assertEquals([2,3], a4);
+  //assertTrue(%HasFastSmiElements(a4));
   a4 = [1.1,2,3];
   assertEquals(1.1, a4.shift());
-  assertTrue(%HasFastDoubleElements(a4));
+  assertEquals([2,3], a4);
+  //assertTrue(%HasFastDoubleElements(a4));
   a4 = [{},2,3];
   assertEquals({}, a4.shift());
-  assertTrue(%HasFastObjectElements(a4));
+  assertEquals([2,3], a4);
+  //assertTrue(%HasFastObjectElements(a4));
 
   // Unshift
   var a4 = [1,2,3];
-  a4.unshift(1);
+  assertEquals(4, a4.unshift(1));
   assertTrue(%HasFastSmiElements(a4));
   assertEquals([1,1,2,3], a4);
   a4 = [1,2,3];
-  a4.unshift(1.1);
+  assertEquals(4, a4.unshift(1.1));
   assertTrue(%HasFastDoubleElements(a4));
   assertEquals([1.1,1,2,3], a4);
   a4 = [1.1,2,3];
-  a4.unshift(1);
+  assertEquals(4, a4.unshift(1));
   assertTrue(%HasFastDoubleElements(a4));
   assertEquals([1,1.1,2,3], a4);
   a4 = [{},2,3];
-  a4.unshift(1);
+  assertEquals(4, a4.unshift(1));
   assertTrue(%HasFastObjectElements(a4));
   assertEquals([1,{},2,3], a4);
   a4 = [{},2,3];
-  a4.unshift(1.1);
+  assertEquals(4, a4.unshift(1.1));
   assertTrue(%HasFastObjectElements(a4));
   assertEquals([1.1,{},2,3], a4);
 }

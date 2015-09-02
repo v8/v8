@@ -149,6 +149,9 @@ class ElementsAccessor {
   virtual Handle<Object> Pop(Handle<JSArray> receiver,
                              Handle<FixedArrayBase> backing_store) = 0;
 
+  virtual Handle<Object> Shift(Handle<JSArray> receiver,
+                               Handle<FixedArrayBase> backing_store) = 0;
+
  protected:
   friend class LookupIterator;
 

@@ -670,13 +670,64 @@ class ElementsAccessorBase : public ElementsAccessor {
     return Handle<Object>();
   }
 
+  virtual Handle<Object> Shift(Handle<JSArray> receiver,
+                               Handle<FixedArrayBase> backing_store) final {
+    return ElementsAccessorSubclass::ShiftImpl(receiver, backing_store);
+  }
+
+  static Handle<Object> ShiftImpl(Handle<JSArray> receiver,
+                                  Handle<FixedArrayBase> backing_store) {
+    UNREACHABLE();
+    return Handle<Object>();
+  }
+
   virtual void SetLength(Handle<JSArray> array, uint32_t length) final {
     ElementsAccessorSubclass::SetLengthImpl(array, length,
                                             handle(array->elements()));
   }
 
   static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
-                            Handle<FixedArrayBase> backing_store);
+                            Handle<FixedArrayBase> backing_store) {
+    DCHECK(!array->SetLengthWouldNormalize(length));
+    DCHECK(IsFastElementsKind(array->GetElementsKind()));
+    uint32_t old_length = 0;
+    CHECK(array->length()->ToArrayIndex(&old_length));
+
+    if (old_length < length) {
+      ElementsKind kind = array->GetElementsKind();
+      if (!IsFastHoleyElementsKind(kind)) {
+        kind = GetHoleyElementsKind(kind);
+        JSObject::TransitionElementsKind(array, kind);
+      }
+    }
+
+    // Check whether the backing store should be shrunk.
+    uint32_t capacity = backing_store->length();
+    if (length == 0) {
+      array->initialize_elements();
+    } else if (length <= capacity) {
+      if (array->HasFastSmiOrObjectElements()) {
+        backing_store = JSObject::EnsureWritableFastElements(array);
+      }
+      if (2 * length <= capacity) {
+        // If more than half the elements won't be used, trim the array.
+        array->GetHeap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
+            *backing_store, capacity - length);
+      } else {
+        // Otherwise, fill the unused tail with holes.
+        for (uint32_t i = length; i < old_length; i++) {
+          BackingStore::cast(*backing_store)->set_the_hole(i);
+        }
+      }
+    } else {
+      // Check whether the backing store should be expanded.
+      capacity = Max(length, JSObject::NewElementsCapacity(capacity));
+      ElementsAccessorSubclass::GrowCapacityAndConvertImpl(array, capacity);
+    }
+
+    array->set_length(Smi::FromInt(length));
+    JSObject::ValidateElements(array);
+  }
 
   static Handle<FixedArrayBase> ConvertElementsWithCapacity(
       Handle<JSObject> object, Handle<FixedArrayBase> old_elements,
@@ -1261,10 +1312,37 @@ class FastElementsAccessor
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver,
                                 Handle<FixedArrayBase> backing_store) {
-    uint32_t new_length =
-        static_cast<uint32_t>(Smi::cast(receiver->length())->value()) - 1;
+    uint32_t len =
+        static_cast<uint32_t>(Smi::cast(receiver->length())->value());
+    DCHECK(len > 0);
+    uint32_t new_length = len - 1;
     Handle<Object> result =
         FastElementsAccessorSubclass::GetImpl(backing_store, new_length);
+    FastElementsAccessorSubclass::SetLengthImpl(receiver, new_length,
+                                                backing_store);
+
+    if (IsHoleyElementsKind(KindTraits::Kind) && result->IsTheHole()) {
+      return receiver->GetIsolate()->factory()->undefined_value();
+    }
+    return result;
+  }
+
+  static Handle<Object> ShiftImpl(Handle<JSArray> receiver,
+                                  Handle<FixedArrayBase> backing_store) {
+    uint32_t len =
+        static_cast<uint32_t>(Smi::cast(receiver->length())->value());
+    Isolate* isolate = receiver->GetIsolate();
+    DCHECK(len > 0);
+    int new_length = len - 1;
+    Handle<Object> result =
+        FastElementsAccessorSubclass::GetImpl(backing_store, 0);
+    Heap* heap = isolate->heap();
+    if (heap->CanMoveObjectStart(*backing_store)) {
+      receiver->set_elements(heap->LeftTrimFixedArray(*backing_store, 1));
+    } else {
+      FastElementsAccessorSubclass::MoveElements(heap, backing_store, 0, 1,
+                                                 new_length, 0, 0);
+    }
     FastElementsAccessorSubclass::SetLengthImpl(receiver, new_length,
                                                 backing_store);
 
@@ -1278,9 +1356,7 @@ class FastElementsAccessor
                            Handle<FixedArrayBase> backing_store,
                            Arguments* args, uint32_t push_size) {
     uint32_t len = Smi::cast(receiver->length())->value();
-    if (push_size == 0) {
-      return len;
-    }
+    DCHECK(push_size > 0);
     uint32_t elms_len = backing_store->length();
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
@@ -1314,9 +1390,7 @@ class FastElementsAccessor
                               Handle<FixedArrayBase> backing_store,
                               Arguments* args, uint32_t unshift_size) {
     uint32_t len = Smi::cast(receiver->length())->value();
-    if (unshift_size == 0) {
-      return len;
-    }
+    DCHECK(unshift_size > 0);
     uint32_t elms_len = backing_store->length();
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
@@ -1362,10 +1436,8 @@ class FastElementsAccessor
   static Handle<JSArray> SliceImpl(Handle<JSObject> receiver,
                                    Handle<FixedArrayBase> backing_store,
                                    uint32_t start, uint32_t end) {
+    DCHECK(start < end);
     Isolate* isolate = receiver->GetIsolate();
-    if (end <= start) {
-      return isolate->factory()->NewJSArray(KindTraits::Kind, 0, 0);
-    }
     int result_len = end - start;
     Handle<JSArray> result_array = isolate->factory()->NewJSArray(
         KindTraits::Kind, result_len, result_len);
@@ -2122,50 +2194,6 @@ class FastSloppyArgumentsElementsAccessor
 };
 
 
-template <typename ElementsAccessorSubclass, typename ElementsKindTraits>
-void ElementsAccessorBase<ElementsAccessorSubclass, ElementsKindTraits>::
-    SetLengthImpl(Handle<JSArray> array, uint32_t length,
-                  Handle<FixedArrayBase> backing_store) {
-  DCHECK(!array->SetLengthWouldNormalize(length));
-  DCHECK(IsFastElementsKind(array->GetElementsKind()));
-  uint32_t old_length = 0;
-  CHECK(array->length()->ToArrayIndex(&old_length));
-
-  if (old_length < length) {
-    ElementsKind kind = array->GetElementsKind();
-    if (!IsFastHoleyElementsKind(kind)) {
-      kind = GetHoleyElementsKind(kind);
-      JSObject::TransitionElementsKind(array, kind);
-    }
-  }
-
-  // Check whether the backing store should be shrunk.
-  uint32_t capacity = backing_store->length();
-  if (length == 0) {
-    array->initialize_elements();
-  } else if (length <= capacity) {
-    if (array->HasFastSmiOrObjectElements()) {
-      backing_store = JSObject::EnsureWritableFastElements(array);
-    }
-    if (2 * length <= capacity) {
-      // If more than half the elements won't be used, trim the array.
-      array->GetHeap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
-          *backing_store, capacity - length);
-    } else {
-      // Otherwise, fill the unused tail with holes.
-      for (uint32_t i = length; i < old_length; i++) {
-        BackingStore::cast(*backing_store)->set_the_hole(i);
-      }
-    }
-  } else {
-    // Check whether the backing store should be expanded.
-    capacity = Max(length, JSObject::NewElementsCapacity(capacity));
-    ElementsAccessorSubclass::GrowCapacityAndConvertImpl(array, capacity);
-  }
-
-  array->set_length(Smi::FromInt(length));
-  JSObject::ValidateElements(array);
-}
 }  // namespace
 
 

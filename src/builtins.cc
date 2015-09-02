@@ -195,14 +195,6 @@ inline bool ClampedToInteger(Object* object, int* out) {
 }
 
 
-void MoveDoubleElements(FixedDoubleArray* dst, int dst_index,
-                        FixedDoubleArray* src, int src_index, int len) {
-  if (len == 0) return;
-  MemMove(dst->data_start() + dst_index, src->data_start() + src_index,
-          len * kDoubleSize);
-}
-
-
 inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
                                      int* out) {
   Map* arguments_map =
@@ -432,30 +424,7 @@ BUILTIN(ArrayShift) {
     return CallJsIntrinsic(isolate, isolate->array_shift(), args);
   }
 
-  // Get first element
-  Handle<Object> first;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, first,
-                                     Object::GetElement(isolate, array, 0));
-
-  if (heap->CanMoveObjectStart(*elms_obj)) {
-    array->set_elements(heap->LeftTrimFixedArray(*elms_obj, 1));
-  } else {
-    // Shift the elements.
-    if (elms_obj->IsFixedArray()) {
-      Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
-      DisallowHeapAllocation no_gc;
-      heap->MoveElements(*elms, 0, 1, len - 1);
-      elms->set(len - 1, heap->the_hole_value());
-    } else {
-      Handle<FixedDoubleArray> elms = Handle<FixedDoubleArray>::cast(elms_obj);
-      MoveDoubleElements(*elms, 0, *elms, 1, len - 1);
-      elms->set_the_hole(len - 1);
-    }
-  }
-
-  // Set the length.
-  array->set_length(Smi::FromInt(len - 1));
-
+  Handle<Object> first = array->GetElementsAccessor()->Shift(array, elms_obj);
   return *first;
 }
 
@@ -472,6 +441,9 @@ BUILTIN(ArrayUnshift) {
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   DCHECK(!array->map()->is_observed());
   int to_add = args.length() - 1;
+  if (to_add == 0) {
+    return array->length();
+  }
   // Currently fixed arrays cannot grow too big, so
   // we should never hit this case.
   DCHECK(to_add <= (Smi::kMaxValue - Smi::cast(array->length())->value()));
@@ -552,6 +524,12 @@ BUILTIN(ArraySlice) {
   // ECMAScript 232, 3rd Edition, Section 15.4.4.10, step 8.
   uint32_t actual_end =
       (relative_end < 0) ? Max(len + relative_end, 0) : Min(relative_end, len);
+
+  if (actual_end <= actual_start) {
+    Handle<JSArray> result_array =
+        isolate->factory()->NewJSArray(GetInitialFastElementsKind(), 0, 0);
+    return *result_array;
+  }
 
   ElementsAccessor* accessor = object->GetElementsAccessor();
   if (is_sloppy_arguments &&
