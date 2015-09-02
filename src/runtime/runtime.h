@@ -84,7 +84,6 @@ namespace internal {
   F(ToMethod, 2, 1)                           \
   F(HomeObjectSymbol, 0, 1)                   \
   F(DefineClass, 5, 1)                        \
-  F(DefineClassStrong, 5, 1)                  \
   F(FinalizeClassDefinition, 2, 1)            \
   F(DefineClassMethod, 3, 1)                  \
   F(ClassGetSourceCode, 1, 1)                 \

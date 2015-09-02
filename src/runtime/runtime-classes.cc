@@ -138,6 +138,18 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
       isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   if (constructor->map()->is_strong()) {
     map->set_is_strong();
+    if (super_class->IsNull()) {
+      // Strong class is not permitted to extend null.
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kStrongExtendNull),
+                      Object);
+    }
+  } else {
+    if (Handle<HeapObject>::cast(super_class)->map()->is_strong()) {
+      // Weak class is not permitted to extend strong class.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongWeakExtend, name),
+                      Object);
+    }
   }
   Map::SetPrototype(map, prototype_parent);
   map->SetConstructor(*constructor);
@@ -203,28 +215,6 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
   CONVERT_SMI_ARG_CHECKED(start_position, 3);
   CONVERT_SMI_ARG_CHECKED(end_position, 4);
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, DefineClass(isolate, name, super_class, constructor,
-                                   start_position, end_position));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_DefineClassStrong) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
-  CONVERT_SMI_ARG_CHECKED(start_position, 3);
-  CONVERT_SMI_ARG_CHECKED(end_position, 4);
-
-  if (super_class->IsNull()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kStrongExtendNull));
-  }
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

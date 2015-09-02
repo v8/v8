@@ -79,20 +79,3 @@ testStrongClass(getClassExprStrong);
   assertDoesNotThrow(function(){addProperty(parent)});
   assertDoesNotThrow(function(){convertPropertyToData(parent)});
 })();
-
-// Check strong classes don't freeze their children.
-(function() {
-  let parent = getClassStrong();
-
-  let classFunc = function() {
-    class Foo extends parent {
-      static get bar() { return 0 }
-      get bar() { return 0 }
-    }
-    return Foo;
-  }
-
-  assertThrows(function(){addProperty(parent)}, TypeError);
-  assertThrows(function(){convertPropertyToData(parent)}, TypeError);
-  testWeakClass(classFunc);
-})();
