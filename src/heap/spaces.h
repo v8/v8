@@ -1919,7 +1919,7 @@ class PagedSpace : public Space {
 
   void EvictEvacuationCandidatesFromFreeLists();
 
-  bool CanExpand();
+  bool CanExpand(size_t size);
 
   // Returns the number of total pages in this space.
   int CountTotalPages();

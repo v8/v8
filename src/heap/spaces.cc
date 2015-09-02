@@ -1082,27 +1082,26 @@ Object* PagedSpace::FindObject(Address addr) {
 }
 
 
-bool PagedSpace::CanExpand() {
+bool PagedSpace::CanExpand(size_t size) {
   DCHECK(heap()->mark_compact_collector()->is_compacting() ||
          Capacity() <= heap()->MaxOldGenerationSize());
-  DCHECK(heap()->CommittedOldGenerationMemory() <=
-         heap()->MaxOldGenerationSize() +
-             PagedSpace::MaxEmergencyMemoryAllocated());
 
-  // Are we going to exceed capacity for this space?
-  if (!heap()->CanExpandOldGeneration(Page::kPageSize)) return false;
+  // Are we going to exceed capacity for this space? At this point we can be
+  // way over the maximum size because of AlwaysAllocate scopes and large
+  // objects.
+  if (!heap()->CanExpandOldGeneration(static_cast<int>(size))) return false;
 
   return true;
 }
 
 
 bool PagedSpace::Expand() {
-  if (!CanExpand()) return false;
-
   intptr_t size = AreaSize();
   if (snapshotable() && !HasPages()) {
     size = Snapshot::SizeOfFirstPage(heap()->isolate(), identity());
   }
+
+  if (!CanExpand(size)) return false;
 
   Page* p = heap()->isolate()->memory_allocator()->AllocatePage(size, this,
                                                                 executable());
