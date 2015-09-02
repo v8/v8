@@ -6417,6 +6417,7 @@ void Code::WipeOutHeader() {
   if (!READ_FIELD(this, kTypeFeedbackInfoOffset)->IsSmi()) {
     WRITE_FIELD(this, kTypeFeedbackInfoOffset, NULL);
   }
+  WRITE_FIELD(this, kNextCodeLinkOffset, NULL);
 }
 
 
