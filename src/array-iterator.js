@@ -76,9 +76,10 @@ function ArrayIteratorIterator() {
 
 // 15.4.5.2.2 ArrayIterator.prototype.next( )
 function ArrayIteratorNext() {
-  var iterator = TO_OBJECT(this);
+  var iterator = this;
 
-  if (!HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
+  if (!IS_SPEC_OBJECT(iterator) ||
+      !HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'Array Iterator.prototype.next', this);
   }

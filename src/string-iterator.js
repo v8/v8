@@ -41,9 +41,10 @@ function CreateStringIterator(string) {
 
 // 21.1.5.2.1 %StringIteratorPrototype%.next( )
 function StringIteratorNext() {
-  var iterator = TO_OBJECT(this);
+  var iterator = this;
 
-  if (!HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
+  if (!IS_SPEC_OBJECT(iterator) ||
+      !HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'String Iterator.prototype.next');
   }
