@@ -412,8 +412,8 @@ class IsSelectMatcher final : public NodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<MachineType>(node), "type",
-                                 type_matcher_, listener) &&
+            PrintMatchAndExplain(OpParameter<SelectParameters>(node).type(),
+                                 "type", type_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
                                  "value0", value0_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
@@ -641,7 +641,7 @@ class IsProjectionMatcher final : public NodeMatcher {
 
 class IsCallMatcher final : public NodeMatcher {
  public:
-  IsCallMatcher(const Matcher<CallDescriptor*>& descriptor_matcher,
+  IsCallMatcher(const Matcher<const CallDescriptor*>& descriptor_matcher,
                 const std::vector<Matcher<Node*>>& value_matchers,
                 const Matcher<Node*>& effect_matcher,
                 const Matcher<Node*>& control_matcher)
@@ -670,8 +670,8 @@ class IsCallMatcher final : public NodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     if (!NodeMatcher::MatchAndExplain(node, listener) ||
-        !PrintMatchAndExplain(OpParameter<CallDescriptor*>(node), "descriptor",
-                              descriptor_matcher_, listener)) {
+        !PrintMatchAndExplain(OpParameter<const CallDescriptor*>(node),
+                              "descriptor", descriptor_matcher_, listener)) {
       return false;
     }
     for (size_t i = 0; i < value_matchers_.size(); ++i) {
@@ -690,7 +690,7 @@ class IsCallMatcher final : public NodeMatcher {
   }
 
  private:
-  const Matcher<CallDescriptor*> descriptor_matcher_;
+  const Matcher<const CallDescriptor*> descriptor_matcher_;
   const std::vector<Matcher<Node*>> value_matchers_;
   const Matcher<Node*> effect_matcher_;
   const Matcher<Node*> control_matcher_;
@@ -1618,7 +1618,7 @@ Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
 }
 
 
-Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
+Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
                       const Matcher<Node*>& value1_matcher,
                       const Matcher<Node*>& effect_matcher,
@@ -1631,7 +1631,7 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
 }
 
 
-Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
+Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
                       const Matcher<Node*>& value1_matcher,
                       const Matcher<Node*>& value2_matcher,
@@ -1646,7 +1646,7 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
 }
 
 
-Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
+Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
                       const Matcher<Node*>& value1_matcher,
                       const Matcher<Node*>& value2_matcher,
@@ -1663,7 +1663,7 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
 }
 
 
-Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
+Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
                       const Matcher<Node*>& value1_matcher,
                       const Matcher<Node*>& value2_matcher,
@@ -1682,7 +1682,7 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
 }
 
 
-Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
+Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
                       const Matcher<Node*>& value1_matcher,
                       const Matcher<Node*>& value2_matcher,
@@ -1704,7 +1704,7 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
 
 
 Matcher<Node*> IsCall(
-    const Matcher<CallDescriptor*>& descriptor_matcher,
+    const Matcher<const CallDescriptor*>& descriptor_matcher,
     const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
     const Matcher<Node*>& value2_matcher, const Matcher<Node*>& value3_matcher,
     const Matcher<Node*>& value4_matcher, const Matcher<Node*>& value5_matcher,
