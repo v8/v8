@@ -21,12 +21,11 @@ const float GreedyAllocator::kAllocatedRangeMultiplier = 10.0;
 
 namespace {
 
-
-void UpdateOperands(TopLevelLiveRange* range, RegisterAllocationData* data) {
+void UpdateOperands(LiveRange* range, RegisterAllocationData* data) {
   int reg_id = range->assigned_register();
   range->SetUseHints(reg_id);
-  if (range->is_phi()) {
-    data->GetPhiMapValueFor(range)->set_assigned_register(reg_id);
+  if (range->IsTopLevel() && range->TopLevel()->is_phi()) {
+    data->GetPhiMapValueFor(range->TopLevel())->set_assigned_register(reg_id);
   }
 }
 
@@ -140,6 +139,7 @@ void GreedyAllocator::AssignRangeToRegister(int reg_id, LiveRange* range) {
   TRACE("Assigning %s to range %d%d.\n", RegisterName(reg_id),
         range->TopLevel()->vreg(), range->relative_id());
   range->set_assigned_register(reg_id);
+  UpdateOperands(range, data());
 }
 
 
@@ -189,24 +189,42 @@ void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
         range->relative_id());
   int free_reg = -1;
   int evictable_reg = -1;
+  int hinted_reg = -1;
+
   EnsureValidRangeWeight(range);
   DCHECK(range->weight() != LiveRange::kInvalidWeight);
 
-  float smallest_weight = LiveRange::kMaxWeight;
-
-  // Seek either the first free register, or, from the set of registers
-  // where the maximum conflict is lower than the candidate's weight, the one
-  // with the smallest such weight.
-  for (int i = 0; i < num_registers(); i++) {
-    float max_conflict_weight = GetMaximumConflictingWeight(i, range);
+  // Can we allocate at the hinted register?
+  if (range->FirstHintPosition(&hinted_reg) != nullptr) {
+    DCHECK(hinted_reg >= 0);
+    float max_conflict_weight = GetMaximumConflictingWeight(hinted_reg, range);
     if (max_conflict_weight == LiveRange::kInvalidWeight) {
-      free_reg = i;
-      break;
+      free_reg = hinted_reg;
+    } else if (max_conflict_weight < range->weight()) {
+      evictable_reg = hinted_reg;
     }
-    if (max_conflict_weight < range->weight() &&
-        max_conflict_weight < smallest_weight) {
-      smallest_weight = max_conflict_weight;
-      evictable_reg = i;
+  }
+
+  if (free_reg < 0 && evictable_reg < 0) {
+    // There was no hinted reg, or we cannot allocate there.
+    float smallest_weight = LiveRange::kMaxWeight;
+
+    // Seek either the first free register, or, from the set of registers
+    // where the maximum conflict is lower than the candidate's weight, the one
+    // with the smallest such weight.
+    for (int i = 0; i < num_registers(); i++) {
+      // Skip unnecessarily re-visiting the hinted register, if any.
+      if (i == hinted_reg) continue;
+      float max_conflict_weight = GetMaximumConflictingWeight(i, range);
+      if (max_conflict_weight == LiveRange::kInvalidWeight) {
+        free_reg = i;
+        break;
+      }
+      if (max_conflict_weight < range->weight() &&
+          max_conflict_weight < smallest_weight) {
+        smallest_weight = max_conflict_weight;
+        evictable_reg = i;
+      }
     }
   }
 
@@ -302,15 +320,6 @@ void GreedyAllocator::AllocateRegisters() {
   while (!scheduler().empty()) {
     AllocationCandidate candidate = scheduler().GetNext();
     TryAllocateCandidate(candidate);
-  }
-
-
-  // We do not rely on the hint mechanism used by LinearScan, so no need to
-  // actively update/reset operands until the end.
-  for (auto range : data()->live_ranges()) {
-    if (CanProcessRange(range) && range->HasRegisterAssigned()) {
-      UpdateOperands(range, data());
-    }
   }
 
   for (size_t i = 0; i < allocations_.size(); ++i) {
