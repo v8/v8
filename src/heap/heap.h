@@ -2368,6 +2368,7 @@ class Heap {
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
+  friend class ObjectStatsVisitor;
   friend class Page;
   friend class StoreBuffer;
 

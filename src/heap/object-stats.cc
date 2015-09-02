@@ -134,5 +134,125 @@ void ObjectStats::CheckpointObjectStats() {
 
 Isolate* ObjectStats::isolate() { return heap()->isolate(); }
 
+
+void ObjectStatsVisitor::CountFixedArray(
+    FixedArrayBase* fixed_array, FixedArraySubInstanceType fast_type,
+    FixedArraySubInstanceType dictionary_type) {
+  Heap* heap = fixed_array->map()->GetHeap();
+  if (fixed_array->map() != heap->fixed_cow_array_map() &&
+      fixed_array->map() != heap->fixed_double_array_map() &&
+      fixed_array != heap->empty_fixed_array()) {
+    if (fixed_array->IsDictionary()) {
+      heap->object_stats_->RecordFixedArraySubTypeStats(dictionary_type,
+                                                        fixed_array->Size());
+    } else {
+      heap->object_stats_->RecordFixedArraySubTypeStats(fast_type,
+                                                        fixed_array->Size());
+    }
+  }
+}
+
+
+void ObjectStatsVisitor::VisitBase(VisitorId id, Map* map, HeapObject* obj) {
+  Heap* heap = map->GetHeap();
+  int object_size = obj->Size();
+  heap->object_stats_->RecordObjectStats(map->instance_type(), object_size);
+  table_.GetVisitorById(id)(map, obj);
+  if (obj->IsJSObject()) {
+    JSObject* object = JSObject::cast(obj);
+    CountFixedArray(object->elements(), DICTIONARY_ELEMENTS_SUB_TYPE,
+                    FAST_ELEMENTS_SUB_TYPE);
+    CountFixedArray(object->properties(), DICTIONARY_PROPERTIES_SUB_TYPE,
+                    FAST_PROPERTIES_SUB_TYPE);
+  }
+}
+
+
+template <ObjectStatsVisitor::VisitorId id>
+void ObjectStatsVisitor::Visit(Map* map, HeapObject* obj) {
+  VisitBase(id, map, obj);
+}
+
+
+template <>
+void ObjectStatsVisitor::Visit<ObjectStatsVisitor::kVisitMap>(Map* map,
+                                                              HeapObject* obj) {
+  Heap* heap = map->GetHeap();
+  Map* map_obj = Map::cast(obj);
+  DCHECK(map->instance_type() == MAP_TYPE);
+  DescriptorArray* array = map_obj->instance_descriptors();
+  if (map_obj->owns_descriptors() && array != heap->empty_descriptor_array()) {
+    int fixed_array_size = array->Size();
+    heap->object_stats_->RecordFixedArraySubTypeStats(DESCRIPTOR_ARRAY_SUB_TYPE,
+                                                      fixed_array_size);
+  }
+  if (TransitionArray::IsFullTransitionArray(map_obj->raw_transitions())) {
+    int fixed_array_size =
+        TransitionArray::cast(map_obj->raw_transitions())->Size();
+    heap->object_stats_->RecordFixedArraySubTypeStats(TRANSITION_ARRAY_SUB_TYPE,
+                                                      fixed_array_size);
+  }
+  if (map_obj->has_code_cache()) {
+    CodeCache* cache = CodeCache::cast(map_obj->code_cache());
+    heap->object_stats_->RecordFixedArraySubTypeStats(
+        MAP_CODE_CACHE_SUB_TYPE, cache->default_cache()->Size());
+    if (!cache->normal_type_cache()->IsUndefined()) {
+      heap->object_stats_->RecordFixedArraySubTypeStats(
+          MAP_CODE_CACHE_SUB_TYPE,
+          FixedArray::cast(cache->normal_type_cache())->Size());
+    }
+  }
+  VisitBase(kVisitMap, map, obj);
+}
+
+
+template <>
+void ObjectStatsVisitor::Visit<ObjectStatsVisitor::kVisitCode>(
+    Map* map, HeapObject* obj) {
+  Heap* heap = map->GetHeap();
+  int object_size = obj->Size();
+  DCHECK(map->instance_type() == CODE_TYPE);
+  Code* code_obj = Code::cast(obj);
+  heap->object_stats_->RecordCodeSubTypeStats(code_obj->kind(),
+                                              code_obj->GetAge(), object_size);
+  VisitBase(kVisitCode, map, obj);
+}
+
+
+template <>
+void ObjectStatsVisitor::Visit<ObjectStatsVisitor::kVisitSharedFunctionInfo>(
+    Map* map, HeapObject* obj) {
+  Heap* heap = map->GetHeap();
+  SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+  if (sfi->scope_info() != heap->empty_fixed_array()) {
+    heap->object_stats_->RecordFixedArraySubTypeStats(
+        SCOPE_INFO_SUB_TYPE, FixedArray::cast(sfi->scope_info())->Size());
+  }
+  VisitBase(kVisitSharedFunctionInfo, map, obj);
+}
+
+
+template <>
+void ObjectStatsVisitor::Visit<ObjectStatsVisitor::kVisitFixedArray>(
+    Map* map, HeapObject* obj) {
+  Heap* heap = map->GetHeap();
+  FixedArray* fixed_array = FixedArray::cast(obj);
+  if (fixed_array == heap->string_table()) {
+    heap->object_stats_->RecordFixedArraySubTypeStats(STRING_TABLE_SUB_TYPE,
+                                                      fixed_array->Size());
+  }
+  VisitBase(kVisitFixedArray, map, obj);
+}
+
+
+void ObjectStatsVisitor::Initialize(VisitorDispatchTable<Callback>* original) {
+  // Copy the original visitor table to make call-through possible. After we
+  // preserved a copy locally, we patch the original table to call us.
+  table_.CopyFrom(original);
+#define COUNT_FUNCTION(id) original->Register(kVisit##id, Visit<kVisit##id>);
+  VISITOR_ID_LIST(COUNT_FUNCTION)
+#undef COUNT_FUNCTION
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -80,6 +80,21 @@ class ObjectStats {
   size_t object_sizes_last_time_[OBJECT_STATS_COUNT];
 };
 
+
+class ObjectStatsVisitor : public StaticMarkingVisitor<ObjectStatsVisitor> {
+ public:
+  static void Initialize(VisitorDispatchTable<Callback>* original);
+
+  static void VisitBase(VisitorId id, Map* map, HeapObject* obj);
+
+  static void CountFixedArray(FixedArrayBase* fixed_array,
+                              FixedArraySubInstanceType fast_type,
+                              FixedArraySubInstanceType dictionary_type);
+
+  template <VisitorId id>
+  static inline void Visit(Map* map, HeapObject* obj);
+};
+
 }  // namespace internal
 }  // namespace v8
 
