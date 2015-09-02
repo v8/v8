@@ -180,6 +180,7 @@ class InterpreterFrameConstants : public AllStatic {
   // Register file pointer relative.
   static const int kLastParamFromRegisterPointer =
       StandardFrameConstants::kFixedFrameSize + kPointerSize;
+  static const int kFunctionFromRegisterPointer = kPointerSize;
 };
 
 

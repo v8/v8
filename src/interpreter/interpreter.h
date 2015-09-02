@@ -16,6 +16,7 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class Callable;
 class CompilationInfo;
 
 namespace compiler {
@@ -50,6 +51,9 @@ class Interpreter {
   // Generates code to perform the binary operations via |binop_builtin|.
   void DoBinaryOp(int builtin_context_index,
                   compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a property load via |ic|.
+  void DoPropertyLoadIC(Callable ic, compiler::InterpreterAssembler* assembler);
 
   bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);
 

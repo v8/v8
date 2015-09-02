@@ -16,6 +16,7 @@
 namespace v8 {
 namespace internal {
 
+class CallInterfaceDescriptor;
 class Isolate;
 class Zone;
 
@@ -75,6 +76,13 @@ class InterpreterAssembler {
 
   // Load |slot_index| from the current context.
   Node* LoadContextSlot(int slot_index);
+
+  // Load the TypeFeedbackVector for the current function.
+  Node* LoadTypeFeedbackVector();
+
+  // Call an IC code stub.
+  Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node* arg1,
+               Node* arg2, Node* arg3, Node* arg4);
 
   // Call JS builtin.
   Node* CallJSBuiltin(int context_index, Node* receiver);

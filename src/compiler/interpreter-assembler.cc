@@ -14,6 +14,7 @@
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/schedule.h"
 #include "src/frames.h"
+#include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/macro-assembler.h"
 #include "src/zone.h"
@@ -220,6 +221,35 @@ Node* InterpreterAssembler::LoadContextSlot(Node* context, int slot_index) {
 
 Node* InterpreterAssembler::LoadContextSlot(int slot_index) {
   return LoadContextSlot(ContextTaggedPointer(), slot_index);
+}
+
+
+Node* InterpreterAssembler::LoadTypeFeedbackVector() {
+  Node* function = raw_assembler_->Load(
+      kMachAnyTagged, RegisterFileRawPointer(),
+      IntPtrConstant(InterpreterFrameConstants::kFunctionFromRegisterPointer));
+  Node* shared_info =
+      LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
+  Node* vector =
+      LoadObjectField(shared_info, SharedFunctionInfo::kFeedbackVectorOffset);
+  return vector;
+}
+
+
+Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
+                                   Node* target, Node* arg1, Node* arg2,
+                                   Node* arg3, Node* arg4) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, 0, CallDescriptor::kNoFlags);
+
+  Node** args = zone()->NewArray<Node*>(5);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  args[4] = ContextTaggedPointer();
+
+  return raw_assembler_->CallN(call_descriptor, target, args);
 }
 
 

@@ -17,11 +17,17 @@ class BytecodeGeneratorHelper {
  public:
   const char* kFunctionName = "f";
 
+  const int kLastParamIndex =
+      -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
+
   BytecodeGeneratorHelper() {
     i::FLAG_ignition = true;
     i::FLAG_ignition_filter = kFunctionName;
     CcTest::i_isolate()->interpreter()->Initialize();
   }
+
+
+  Factory* factory() { return CcTest::i_isolate()->factory(); }
 
 
   Handle<BytecodeArray> MakeBytecode(const char* script,
@@ -52,11 +58,11 @@ class BytecodeGeneratorHelper {
 // Structure for containing expected bytecode snippets.
 template<typename T>
 struct ExpectedSnippet {
-  const char* body;
+  const char* code_snippet;
   int frame_size;
   int parameter_count;
   int bytecode_length;
-  const uint8_t bytecode[16];
+  const uint8_t bytecode[24];
   int constant_count;
   T constants[16];
 };
@@ -87,7 +93,7 @@ TEST(PrimitiveReturnStatements) {
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
     Handle<BytecodeArray> ba =
-        helper.MakeBytecodeForFunctionBody(snippets[i].body);
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
     CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
     CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
     CHECK_EQ(ba->length(), snippets[i].bytecode_length);
@@ -134,7 +140,7 @@ TEST(PrimitiveExpressions) {
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
     Handle<BytecodeArray> ba =
-        helper.MakeBytecodeForFunctionBody(snippets[i].body);
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
     CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
     CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
     CHECK_EQ(ba->length(), snippets[i].bytecode_length);
@@ -149,24 +155,23 @@ TEST(Parameters) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  int last_param_index =
-      -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
   ExpectedSnippet<void*> snippets[] = {
       {"function f() { return this; }",
-       0, 1, 3, {B(Ldar), R(last_param_index), B(Return)}, 0},
+       0, 1, 3, {B(Ldar), R(helper.kLastParamIndex), B(Return)}, 0},
       {"function f(arg1) { return arg1; }",
-       0, 2, 3, {B(Ldar), R(last_param_index), B(Return)}, 0},
+       0, 2, 3, {B(Ldar), R(helper.kLastParamIndex), B(Return)}, 0},
       {"function f(arg1) { return this; }",
-       0, 2, 3, {B(Ldar), R(last_param_index - 1), B(Return)}, 0},
+       0, 2, 3, {B(Ldar), R(helper.kLastParamIndex - 1), B(Return)}, 0},
       {"function f(arg1, arg2, arg3, arg4, arg5, arg6, arg7) { return arg4; }",
-       0, 8, 3, {B(Ldar), R(last_param_index - 3), B(Return)}, 0},
+       0, 8, 3, {B(Ldar), R(helper.kLastParamIndex - 3), B(Return)}, 0},
       {"function f(arg1, arg2, arg3, arg4, arg5, arg6, arg7) { return this; }",
-       0, 8, 3, {B(Ldar), R(last_param_index - 7), B(Return)}, 0}
+       0, 8, 3, {B(Ldar), R(helper.kLastParamIndex - 7), B(Return)}, 0}
   };
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
-    Handle<BytecodeArray> ba = helper.MakeBytecodeForFunction(snippets[i].body);
+    Handle<BytecodeArray> ba =
+        helper.MakeBytecodeForFunction(snippets[i].code_snippet);
     CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
     CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
     CHECK_EQ(ba->length(), snippets[i].bytecode_length);
@@ -212,7 +217,7 @@ TEST(Constants) {
     size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
     for (size_t i = 0; i < num_snippets; i++) {
       Handle<BytecodeArray> ba =
-          helper.MakeBytecodeForFunctionBody(snippets[i].body);
+          helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
       CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
       CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
       CHECK_EQ(ba->length(), snippets[i].bytecode_length);
@@ -261,7 +266,7 @@ TEST(Constants) {
     size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
     for (size_t i = 0; i < num_snippets; i++) {
       Handle<BytecodeArray> ba =
-          helper.MakeBytecodeForFunctionBody(snippets[i].body);
+          helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
       CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
       CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
       CHECK_EQ(ba->length(), snippets[i].bytecode_length);
@@ -308,7 +313,7 @@ TEST(Constants) {
     size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
     for (size_t i = 0; i < num_snippets; i++) {
       Handle<BytecodeArray> ba =
-          helper.MakeBytecodeForFunctionBody(snippets[i].body);
+          helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
       CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
       CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
       CHECK_EQ(ba->length(), snippets[i].bytecode_length);
@@ -316,15 +321,102 @@ TEST(Constants) {
                     ba->length()));
       CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
       for (int j = 0; j < snippets[i].constant_count; j++) {
-        Handle<String> expected =
-            CcTest::i_isolate()->factory()->NewStringFromAsciiChecked(
-                snippets[i].constants[j]);
+        Handle<String> expected = helper.factory()->NewStringFromAsciiChecked(
+            snippets[i].constants[j]);
         CHECK(String::cast(ba->constant_pool()->get(j))->Equals(*expected));
       }
     }
   }
 }
 
+
+TEST(PropertyLoads) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  Code::Kind ic_kinds[] = { i::Code::LOAD_IC, i::Code::LOAD_IC };
+  FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  Handle<i::TypeFeedbackVector> vector =
+      helper.factory()->NewTypeFeedbackVector(&feedback_spec);
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function f(a) { return a.name; }\nf({name : \"test\"})",
+       1 * kPointerSize, 2, 10,
+       {
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(0),
+          B(LdaConstant), U8(0),
+          B(LoadIC), R(0), U8(vector->first_ic_slot_index()),
+          B(Return)
+       },
+       1, { "name" }
+      },
+      {"function f(a) { return a[\"key\"]; }\nf({key : \"test\"})",
+       1 * kPointerSize, 2, 10,
+       {
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(0),
+          B(LdaConstant), U8(0),
+          B(LoadIC), R(0), U8(vector->first_ic_slot_index()),
+          B(Return)
+       },
+       1, { "key" }
+      },
+      {"function f(a) { return a[100]; }\nf({100 : \"test\"})",
+       1 * kPointerSize, 2, 10,
+       {
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(0),
+          B(LdaSmi8), U8(100),
+          B(KeyedLoadIC), R(0), U8(vector->first_ic_slot_index()),
+          B(Return)
+       }, 0
+      },
+      {"function f(a, b) { return a[b]; }\nf({arg : \"test\"}, \"arg\")",
+       1 * kPointerSize, 3, 10,
+       {
+          B(Ldar), R(helper.kLastParamIndex - 1),
+          B(Star), R(0),
+          B(Ldar), R(helper.kLastParamIndex),
+          B(KeyedLoadIC), R(0), U8(vector->first_ic_slot_index()),
+          B(Return)
+       }, 0
+      },
+      {"function f(a) { var b = a.name; return a[-124]; }\n"
+       "f({\"-124\" : \"test\", name : 123 })",
+       2 * kPointerSize, 2, 21,
+       {
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(1),
+          B(LdaConstant), U8(0),
+          B(LoadIC), R(1), U8(vector->first_ic_slot_index()),
+          B(Star), R(0),
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(1),
+          B(LdaSmi8), U8(-124),
+          B(KeyedLoadIC), R(1), U8(vector->first_ic_slot_index() + 2),
+          B(Return)
+       },
+       1, { "name" }
+      }
+  };
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    Handle<BytecodeArray> ba =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
+    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
+    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
+    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
+                  ba->length()));
+    CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
+    for (int j = 0; j < snippets[i].constant_count; j++) {
+      Handle<String> expected = helper.factory()->NewStringFromAsciiChecked(
+          snippets[i].constants[j]);
+      CHECK(String::cast(ba->constant_pool()->get(j))->Equals(*expected));
+    }
+  }
+}
 
 }  // namespace interpreter
 }  // namespace internal

@@ -23,30 +23,34 @@ namespace interpreter {
   V(Reg)
 
 // The list of bytecodes which are interpreted by the interpreter.
-#define BYTECODE_LIST(V)               \
-                                       \
-  /* Loading the accumulator */        \
-  V(LdaZero, OperandType::kNone)       \
-  V(LdaSmi8, OperandType::kImm8)       \
-  V(LdaConstant, OperandType::kIdx)    \
-  V(LdaUndefined, OperandType::kNone)  \
-  V(LdaNull, OperandType::kNone)       \
-  V(LdaTheHole, OperandType::kNone)    \
-  V(LdaTrue, OperandType::kNone)       \
-  V(LdaFalse, OperandType::kNone)      \
-                                       \
-  /* Register-accumulator transfers */ \
-  V(Ldar, OperandType::kReg)           \
-  V(Star, OperandType::kReg)           \
-                                       \
-  /* Binary Operators */               \
-  V(Add, OperandType::kReg)            \
-  V(Sub, OperandType::kReg)            \
-  V(Mul, OperandType::kReg)            \
-  V(Div, OperandType::kReg)            \
-  V(Mod, OperandType::kReg)            \
-                                       \
-  /* Control Flow */                   \
+#define BYTECODE_LIST(V)                               \
+                                                       \
+  /* Loading the accumulator */                        \
+  V(LdaZero, OperandType::kNone)                       \
+  V(LdaSmi8, OperandType::kImm8)                       \
+  V(LdaConstant, OperandType::kIdx)                    \
+  V(LdaUndefined, OperandType::kNone)                  \
+  V(LdaNull, OperandType::kNone)                       \
+  V(LdaTheHole, OperandType::kNone)                    \
+  V(LdaTrue, OperandType::kNone)                       \
+  V(LdaFalse, OperandType::kNone)                      \
+                                                       \
+  /* Register-accumulator transfers */                 \
+  V(Ldar, OperandType::kReg)                           \
+  V(Star, OperandType::kReg)                           \
+                                                       \
+  /* LoadIC operations */                              \
+  V(LoadIC, OperandType::kReg, OperandType::kIdx)      \
+  V(KeyedLoadIC, OperandType::kReg, OperandType::kIdx) \
+                                                       \
+  /* Binary Operators */                               \
+  V(Add, OperandType::kReg)                            \
+  V(Sub, OperandType::kReg)                            \
+  V(Mul, OperandType::kReg)                            \
+  V(Div, OperandType::kReg)                            \
+  V(Mod, OperandType::kReg)                            \
+                                                       \
+  /* Control Flow */                                   \
   V(Return, OperandType::kNone)
 
 

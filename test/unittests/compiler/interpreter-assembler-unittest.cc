@@ -6,6 +6,7 @@
 
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
+#include "src/interface-descriptors.h"
 #include "src/isolate.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -72,6 +73,14 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsStore(
   return ::i::compiler::IsStore(rep_matcher, base_matcher, index_matcher,
                                 value_matcher, graph()->start(),
                                 graph()->start());
+}
+
+
+template <class... A>
+Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsCall(
+    const Matcher<const CallDescriptor*>& descriptor_matcher, A... args) {
+  return ::i::compiler::IsCall(descriptor_matcher, args..., graph()->start(),
+                               graph()->start());
 }
 
 
@@ -339,15 +348,53 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallJSBuiltin) {
         m.IsLoad(kMachAnyTagged, function_matcher,
                  IsIntPtrConstant(JSFunction::kContextOffset - kHeapObjectTag));
     EXPECT_THAT(call_js_builtin_0,
-                IsCall(_, function_matcher, receiver, context_matcher,
-                       m.graph()->start(), m.graph()->start()));
+                m.IsCall(_, function_matcher, receiver, context_matcher));
 
     Node* arg1 = m.Int32Constant(0xabcd);
     Node* call_js_builtin_1 =
         m.CallJSBuiltin(Context::SUB_BUILTIN_INDEX, receiver, arg1);
     EXPECT_THAT(call_js_builtin_1,
-                IsCall(_, function_matcher, receiver, arg1, context_matcher,
-                       m.graph()->start(), m.graph()->start()));
+                m.IsCall(_, function_matcher, receiver, arg1, context_matcher));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, CallIC) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    LoadWithVectorDescriptor descriptor(isolate());
+    Node* target = m.Int32Constant(1);
+    Node* arg1 = m.Int32Constant(2);
+    Node* arg2 = m.Int32Constant(3);
+    Node* arg3 = m.Int32Constant(4);
+    Node* arg4 = m.Int32Constant(5);
+    Node* call_ic = m.CallIC(descriptor, target, arg1, arg2, arg3, arg4);
+    EXPECT_THAT(call_ic,
+                m.IsCall(_, target, arg1, arg2, arg3, arg4,
+                         IsParameter(Linkage::kInterpreterContextParameter)));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, LoadTypeFeedbackVector) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* feedback_vector = m.LoadTypeFeedbackVector();
+
+    Matcher<Node*> load_function_matcher = m.IsLoad(
+        kMachAnyTagged, IsParameter(Linkage::kInterpreterRegisterFileParameter),
+        IsIntPtrConstant(
+            InterpreterFrameConstants::kFunctionFromRegisterPointer));
+    Matcher<Node*> load_shared_function_info_matcher =
+        m.IsLoad(kMachAnyTagged, load_function_matcher,
+                 IsIntPtrConstant(JSFunction::kSharedFunctionInfoOffset -
+                                  kHeapObjectTag));
+
+    EXPECT_THAT(
+        feedback_vector,
+        m.IsLoad(kMachAnyTagged, load_shared_function_info_matcher,
+                 IsIntPtrConstant(SharedFunctionInfo::kFeedbackVectorOffset -
+                                  kHeapObjectTag)));
   }
 }
 

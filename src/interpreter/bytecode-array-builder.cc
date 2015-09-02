@@ -91,7 +91,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Handle<Object> object) {
   size_t entry = GetConstantPoolEntry(object);
-  if (entry <= 255) {
+  if (FitsInByteOperand(entry)) {
     Output(Bytecode::kLdaConstant, static_cast<uint8_t>(entry));
   } else {
     UNIMPLEMENTED();
@@ -140,6 +140,38 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
     Register reg) {
   Output(Bytecode::kStar, reg.ToOperand());
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
+    Register object, int feedback_slot, LanguageMode language_mode) {
+  if (is_strong(language_mode)) {
+    UNIMPLEMENTED();
+  }
+
+  if (FitsInByteOperand(feedback_slot)) {
+    Output(Bytecode::kLoadIC, object.ToOperand(),
+           static_cast<uint8_t>(feedback_slot));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
+    Register object, int feedback_slot, LanguageMode language_mode) {
+  if (is_strong(language_mode)) {
+    UNIMPLEMENTED();
+  }
+
+  if (FitsInByteOperand(feedback_slot)) {
+    Output(Bytecode::kKeyedLoadIC, object.ToOperand(),
+           static_cast<uint8_t>(feedback_slot));
+  } else {
+    UNIMPLEMENTED();
+  }
   return *this;
 }
 
@@ -194,9 +226,8 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
     case OperandType::kNone:
       return false;
     case OperandType::kImm8:
-      return true;
     case OperandType::kIdx:
-      return operand_value < constants_.size();
+      return true;
     case OperandType::kReg: {
       int reg_index = Register::FromOperand(operand_value).index();
       return (reg_index >= 0 && reg_index < temporary_register_next_) ||
@@ -264,6 +295,18 @@ Bytecode BytecodeArrayBuilder::BytecodeForBinaryOperation(Token::Value op) {
       UNIMPLEMENTED();
       return static_cast<Bytecode>(-1);
   }
+}
+
+
+// static
+bool BytecodeArrayBuilder::FitsInByteOperand(int value) {
+  return 0 <= value && value <= 255;
+}
+
+
+// static
+bool BytecodeArrayBuilder::FitsInByteOperand(size_t value) {
+  return value <= 255;
 }
 
 

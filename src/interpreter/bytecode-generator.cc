@@ -25,6 +25,7 @@ BytecodeGenerator::~BytecodeGenerator() {}
 
 
 Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
+  set_info(info);
   set_scope(info->scope());
 
   // This a temporary guard (oth).
@@ -45,6 +46,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   VisitStatements(info->literal()->body());
 
   set_scope(nullptr);
+  set_info(nullptr);
   return builder_.ToBytecodeArray();
 }
 
@@ -84,17 +86,17 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 }
 
 
-void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* node) {
+void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitImportDeclaration(ImportDeclaration* node) {
+void BytecodeGenerator::VisitImportDeclaration(ImportDeclaration* decl) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitExportDeclaration(ExportDeclaration* node) {
+void BytecodeGenerator::VisitExportDeclaration(ExportDeclaration* decl) {
   UNIMPLEMENTED();
 }
 
@@ -104,36 +106,36 @@ void BytecodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
 }
 
 
-void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
+void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitIfStatement(IfStatement* node) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitContinueStatement(ContinueStatement* node) {
+void BytecodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitBreakStatement(BreakStatement* node) {
+void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitReturnStatement(ReturnStatement* node) {
-  Visit(node->expression());
+void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
+  Visit(stmt->expression());
   builder().Return();
 }
 
 
-void BytecodeGenerator::VisitWithStatement(WithStatement* node) {
+void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
+void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   UNIMPLEMENTED();
 }
 
@@ -141,63 +143,63 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 void BytecodeGenerator::VisitCaseClause(CaseClause* clause) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
+void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitWhileStatement(WhileStatement* node) {
+void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitForStatement(ForStatement* node) {
+void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitForInStatement(ForInStatement* node) {
+void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitForOfStatement(ForOfStatement* node) {
+void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
+void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
+void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
+void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
+void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitClassLiteral(ClassLiteral* node) {
+void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
   UNIMPLEMENTED();
 }
 
 
 void BytecodeGenerator::VisitNativeFunctionLiteral(
-    NativeFunctionLiteral* node) {
+    NativeFunctionLiteral* expr) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitConditional(Conditional* node) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitConditional(Conditional* expr) { UNIMPLEMENTED(); }
 
 
 void BytecodeGenerator::VisitLiteral(Literal* expr) {
@@ -220,17 +222,17 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
 }
 
 
-void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
+void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
+void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
+void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   UNIMPLEMENTED();
 }
 
@@ -286,30 +288,59 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
 }
 
 
-void BytecodeGenerator::VisitYield(Yield* node) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitYield(Yield* expr) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitThrow(Throw* node) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitThrow(Throw* expr) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitProperty(Property* node) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitProperty(Property* expr) {
+  LhsKind property_kind = Property::GetAssignType(expr);
+  FeedbackVectorICSlot slot = expr->PropertyFeedbackSlot();
+  switch (property_kind) {
+    case VARIABLE:
+      UNREACHABLE();
+      break;
+    case NAMED_PROPERTY: {
+      TemporaryRegisterScope temporary_register_scope(&builder_);
+      Register obj = temporary_register_scope.NewRegister();
+      Visit(expr->obj());
+      builder().StoreAccumulatorInRegister(obj);
+      builder().LoadLiteral(expr->key()->AsLiteral()->AsPropertyName());
+      builder().LoadNamedProperty(obj, feedback_index(slot), language_mode());
+      break;
+    }
+    case KEYED_PROPERTY: {
+      TemporaryRegisterScope temporary_register_scope(&builder_);
+      Register obj = temporary_register_scope.NewRegister();
+      Visit(expr->obj());
+      builder().StoreAccumulatorInRegister(obj);
+      Visit(expr->key());
+      builder().LoadKeyedProperty(obj, feedback_index(slot), language_mode());
+      break;
+    }
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNIMPLEMENTED();
+  }
+}
 
 
-void BytecodeGenerator::VisitCall(Call* node) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitCall(Call* expr) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitCallNew(CallNew* node) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitCallNew(CallNew* expr) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitCallRuntime(CallRuntime* node) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
+void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitCountOperation(CountOperation* node) {
+void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   UNIMPLEMENTED();
 }
 
@@ -328,31 +359,31 @@ void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
 }
 
 
-void BytecodeGenerator::VisitCompareOperation(CompareOperation* node) {
+void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitSpread(Spread* node) { UNREACHABLE(); }
+void BytecodeGenerator::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
 
-void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* node) {
+void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
 }
 
 
-void BytecodeGenerator::VisitThisFunction(ThisFunction* node) {
+void BytecodeGenerator::VisitThisFunction(ThisFunction* expr) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGenerator::VisitSuperCallReference(SuperCallReference* node) {
+void BytecodeGenerator::VisitSuperCallReference(SuperCallReference* expr) {
   UNIMPLEMENTED();
 }
 
 
 void BytecodeGenerator::VisitSuperPropertyReference(
-    SuperPropertyReference* node) {
+    SuperPropertyReference* expr) {
   UNIMPLEMENTED();
 }
 
@@ -369,6 +400,16 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* binop) {
   builder().StoreAccumulatorInRegister(temporary);
   Visit(right);
   builder().BinaryOperation(op, temporary);
+}
+
+
+LanguageMode BytecodeGenerator::language_mode() const {
+  return info()->language_mode();
+}
+
+
+int BytecodeGenerator::feedback_index(FeedbackVectorICSlot slot) const {
+  return info()->feedback_vector()->GetIndex(slot);
 }
 
 }  // namespace interpreter

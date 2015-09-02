@@ -4,6 +4,7 @@
 
 #include "src/interpreter/interpreter.h"
 
+#include "src/code-factory.h"
 #include "src/compiler.h"
 #include "src/compiler/interpreter-assembler.h"
 #include "src/factory.h"
@@ -61,6 +62,7 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
 
   BytecodeGenerator generator(info->isolate(), info->zone());
+  info->EnsureFeedbackVector();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
   if (FLAG_print_bytecode) {
     bytecodes->Print();
@@ -73,7 +75,6 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
 
   shared_info->set_function_data(*bytecodes);
   info->SetCode(info->isolate()->builtins()->InterpreterEntryTrampoline());
-  info->EnsureFeedbackVector();
   return true;
 }
 
@@ -187,6 +188,44 @@ void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   __ StoreRegister(accumulator, reg_index);
   __ Dispatch();
+}
+
+
+void Interpreter::DoPropertyLoadIC(Callable ic,
+                                   compiler::InterpreterAssembler* assembler) {
+  Node* code_target = __ HeapConstant(ic.code());
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* object = __ LoadRegister(reg_index);
+  Node* name = __ GetAccumulator();
+  Node* raw_slot = __ BytecodeOperandIdx(1);
+  Node* smi_slot = __ SmiTag(raw_slot);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* result = __ CallIC(ic.descriptor(), code_target, object, name, smi_slot,
+                           type_feedback_vector);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// LoadIC <object> <slot>
+//
+// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name
+// in the accumulator.
+void Interpreter::DoLoadIC(compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
+                                                   SLOPPY, UNINITIALIZED);
+  DoPropertyLoadIC(ic, assembler);
+}
+
+
+// KeyedLoadIC <object> <slot>
+//
+// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the key
+// in the accumulator.
+void Interpreter::DoKeyedLoadIC(compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  DoPropertyLoadIC(ic, assembler);
 }
 
 

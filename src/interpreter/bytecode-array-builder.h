@@ -51,6 +51,12 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadAccumulatorWithRegister(Register reg);
   BytecodeArrayBuilder& StoreAccumulatorInRegister(Register reg);
 
+  // Load properties. The property name should be in the accumulator.
+  BytecodeArrayBuilder& LoadNamedProperty(Register object, int feedback_slot,
+                                          LanguageMode language_mode);
+  BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot,
+                                          LanguageMode language_mode);
+
   // Operators.
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg);
 
@@ -62,6 +68,8 @@ class BytecodeArrayBuilder {
       -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
 
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
+  static bool FitsInByteOperand(int value);
+  static bool FitsInByteOperand(size_t value);
 
   void Output(Bytecode bytecode, uint8_t r0, uint8_t r1, uint8_t r2);
   void Output(Bytecode bytecode, uint8_t r0, uint8_t r1);

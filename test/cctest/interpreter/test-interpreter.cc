@@ -53,8 +53,12 @@ class InterpreterCallable {
 
 class InterpreterTester {
  public:
-  InterpreterTester(Isolate* isolate, Handle<BytecodeArray> bytecode)
-      : isolate_(isolate), bytecode_(bytecode) {
+  InterpreterTester(Isolate* isolate, Handle<BytecodeArray> bytecode,
+                    MaybeHandle<TypeFeedbackVector> feedback_vector =
+                        MaybeHandle<TypeFeedbackVector>())
+      : isolate_(isolate),
+        bytecode_(bytecode),
+        feedback_vector_(feedback_vector) {
     i::FLAG_ignition = true;
     // Ensure handler table is generated.
     isolate->interpreter()->Initialize();
@@ -66,9 +70,14 @@ class InterpreterTester {
     return InterpreterCallable<A...>(isolate_, GetBytecodeFunction<A...>());
   }
 
+  Handle<Object> NewObject(const char* script) {
+    return v8::Utils::OpenHandle(*CompileRun(script));
+  }
+
  private:
   Isolate* isolate_;
   Handle<BytecodeArray> bytecode_;
+  MaybeHandle<TypeFeedbackVector> feedback_vector_;
 
   template <class... A>
   Handle<JSFunction> GetBytecodeFunction() {
@@ -83,6 +92,10 @@ class InterpreterTester {
         *v8::Handle<v8::Function>::Cast(CompileRun(function_text.c_str())));
     function->ReplaceCode(*isolate_->builtins()->InterpreterEntryTrampoline());
     function->shared()->set_function_data(*bytecode_);
+    if (!feedback_vector_.is_null()) {
+      function->shared()->set_feedback_vector(
+          *feedback_vector_.ToHandleChecked());
+    }
     return function;
   }
 
@@ -400,7 +413,7 @@ TEST(InterpreterMod) {
 TEST(InterpreterParameter1) {
   HandleAndZoneScope handles;
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(1);
+  builder.set_locals_count(0);
   builder.set_parameter_count(1);
   builder.LoadAccumulatorWithRegister(builder.Parameter(0)).Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -423,7 +436,7 @@ TEST(InterpreterParameter1) {
 TEST(InterpreterParameter8) {
   HandleAndZoneScope handles;
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(1);
+  builder.set_locals_count(0);
   builder.set_parameter_count(8);
   builder.LoadAccumulatorWithRegister(builder.Parameter(0))
       .BinaryOperation(Token::Value::ADD, builder.Parameter(1))
@@ -453,4 +466,95 @@ TEST(InterpreterParameter8) {
       callable(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
           .ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(36));
+}
+
+
+TEST(InterpreterLoadNamedProperty) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  i::Code::Kind ic_kinds[] = { i::Code::LOAD_IC };
+  i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  Handle<i::TypeFeedbackVector> vector =
+      factory->NewTypeFeedbackVector(&feedback_spec);
+
+  Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
+  name = factory->string_table()->LookupString(isolate, name);
+
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+  builder.set_locals_count(0);
+  builder.set_parameter_count(1);
+  builder.LoadLiteral(name)
+      .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
+                         i::SLOPPY)
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+  auto callable = tester.GetCallable<Handle<Object>>();
+
+  Handle<Object> object = tester.NewObject("({ val : 123 })");
+  // Test IC miss.
+  Handle<Object> return_val = callable(object).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(123));
+
+  // Test transition to monomorphic IC.
+  return_val = callable(object).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(123));
+
+  // Test transition to polymorphic IC.
+  Handle<Object> object2 = tester.NewObject("({ val : 456, other : 123 })");
+  return_val = callable(object2).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(456));
+
+  // Test transition to megamorphic IC.
+  Handle<Object> object3 = tester.NewObject("({ val : 789, val2 : 123 })");
+  callable(object3).ToHandleChecked();
+  Handle<Object> object4 = tester.NewObject("({ val : 789, val3 : 123 })");
+  callable(object4).ToHandleChecked();
+  Handle<Object> object5 = tester.NewObject("({ val : 789, val4 : 123 })");
+  return_val = callable(object5).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(789));
+}
+
+
+TEST(InterpreterLoadKeyedProperty) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  i::Code::Kind ic_kinds[] = { i::Code::KEYED_LOAD_IC };
+  i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  Handle<i::TypeFeedbackVector> vector =
+      factory->NewTypeFeedbackVector(&feedback_spec);
+
+  Handle<i::String> key = factory->NewStringFromAsciiChecked("key");
+  key = factory->string_table()->LookupString(isolate, key);
+
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+  builder.set_locals_count(1);
+  builder.set_parameter_count(1);
+  builder.LoadLiteral(key)
+      .LoadKeyedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
+                         i::SLOPPY)
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+  auto callable = tester.GetCallable<Handle<Object>>();
+
+  Handle<Object> object = tester.NewObject("({ key : 123 })");
+  // Test IC miss.
+  Handle<Object> return_val = callable(object).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(123));
+
+  // Test transition to monomorphic IC.
+  return_val = callable(object).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(123));
+
+  // Test transition to megamorphic IC.
+  Handle<Object> object3 = tester.NewObject("({ key : 789, val2 : 123 })");
+  return_val = callable(object3).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(789));
 }
