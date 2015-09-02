@@ -2116,56 +2116,6 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 }
 
 
-void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // Stack layout on entry.
-  //  jssp[0]:  language mode (tagged)
-  //  jssp[8]:  index of rest parameter (tagged)
-  //  jssp[16]: number of parameters (tagged)
-  //  jssp[24]: address of receiver argument
-  //
-  // Returns pointer to result object in x0.
-
-  // Get the stub arguments from the frame, and make an untagged copy of the
-  // parameter count.
-  Register language_mode_smi = x1;
-  Register rest_index_smi = x2;
-  Register param_count_smi = x3;
-  Register params = x4;
-  Register param_count = x13;
-  __ Pop(language_mode_smi, rest_index_smi, param_count_smi, params);
-  __ SmiUntag(param_count, param_count_smi);
-
-  // Test if arguments adaptor needed.
-  Register caller_fp = x11;
-  Register caller_ctx = x12;
-  Label runtime;
-  __ Ldr(caller_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ Ldr(caller_ctx, MemOperand(caller_fp,
-                                StandardFrameConstants::kContextOffset));
-  __ Cmp(caller_ctx, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ B(ne, &runtime);
-
-  //   x1   language_mode_smi  language mode
-  //   x2   rest_index_smi     index of rest parameter
-  //   x3   param_count_smi    number of parameters passed to function (smi)
-  //   x4   params             pointer to parameters
-  //   x11  caller_fp          caller's frame pointer
-  //   x13  param_count        number of parameters passed to function
-
-  // Patch the argument length and parameters pointer.
-  __ Ldr(param_count_smi,
-         MemOperand(caller_fp,
-                    ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiUntag(param_count, param_count_smi);
-  __ Add(x10, caller_fp, Operand(param_count, LSL, kPointerSizeLog2));
-  __ Add(params, x10, StandardFrameConstants::kCallerSPOffset);
-
-  __ Bind(&runtime);
-  __ Push(params, param_count_smi, rest_index_smi, language_mode_smi);
-  __ TailCallRuntime(Runtime::kNewRestParam, 4, 1);
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
 #ifdef V8_INTERPRETED_REGEXP
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);

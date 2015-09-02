@@ -16,6 +16,7 @@
                     return args.length; })(1,2,3,4,5));
 })();
 
+
 var strictTest = (function() {
   "use strict";
   return function strictTest(a, b, ...c) {
@@ -30,6 +31,7 @@ var strictTest = (function() {
     }
   };
 })();
+
 
 function sloppyTest(a, b, ...c) {
   assertEquals(Array, c.constructor);
@@ -167,22 +169,6 @@ var O = {
   }
   sloppyF(3, 4, 5);
 })();
-
-
-/* TODO(caitp): support arrow functions (blocked on spread operator support)
-(function testRestParamsArrowFunctions() {
-  "use strict";
-
-  var fn = (a, b, ...c) => c;
-  assertEquals([], fn());
-  assertEquals([], fn(1, 2));
-  assertEquals([3], fn(1, 2, 3));
-  assertEquals([3, 4], fn(1, 2, 3, 4));
-  assertEquals([3, 4, 5], fn(1, 2, 3, 4, 5));
-  assertThrows("var x = ...y => y;", SyntaxError);
-  assertEquals([], ((...args) => args)());
-  assertEquals([1,2,3], ((...args) => args)(1,2,3));
-})();*/
 
 
 (function testRestParamsWithNewTarget() {

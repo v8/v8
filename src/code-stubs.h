@@ -110,8 +110,7 @@ namespace internal {
   V(StoreField)                             \
   V(StoreGlobal)                            \
   V(StoreTransition)                        \
-  V(StringLength)                           \
-  V(RestParamAccess)
+  V(StringLength)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -1927,23 +1926,6 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   class TypeBits : public BitField<Type, 0, 2> {};
 
   DEFINE_PLATFORM_CODE_STUB(ArgumentsAccess, PlatformCodeStub);
-};
-
-
-class RestParamAccessStub: public PlatformCodeStub {
- public:
-  explicit RestParamAccessStub(Isolate* isolate) : PlatformCodeStub(isolate) { }
-
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    return ContextOnlyDescriptor(isolate());
-  }
-
- private:
-  void GenerateNew(MacroAssembler* masm);
-
-  void PrintName(std::ostream& os) const override;  // NOLINT
-
-  DEFINE_PLATFORM_CODE_STUB(RestParamAccess, PlatformCodeStub);
 };
 
 

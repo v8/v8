@@ -1320,7 +1320,8 @@ Expression* ParserTraits::SpreadCallNew(
 void ParserTraits::AddFormalParameter(
     ParserFormalParameters* parameters,
     Expression* pattern, Expression* initializer, bool is_rest) {
-  bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
+  bool is_simple =
+      !is_rest && pattern->IsVariableProxy() && initializer == nullptr;
   DCHECK(parser_->allow_harmony_destructuring() ||
          parser_->allow_harmony_rest_parameters() ||
          parser_->allow_harmony_default_parameters() || is_simple);
@@ -1338,10 +1339,8 @@ void ParserTraits::DeclareFormalParameter(
     ExpressionClassifier* classifier) {
   bool is_duplicate = false;
   bool is_simple = classifier->is_simple_parameter_list();
-  // TODO(caitp): Remove special handling for rest once desugaring is in.
-  auto name = is_simple || parameter.is_rest
-      ? parameter.name : parser_->ast_value_factory()->empty_string();
-  auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
+  auto name = parameter.name;
+  auto mode = is_simple ? VAR : TEMPORARY;
   if (!is_simple) scope->SetHasNonSimpleParameters();
   bool is_optional = parameter.initializer != nullptr;
   Variable* var = scope->DeclareParameter(

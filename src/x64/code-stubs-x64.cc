@@ -838,34 +838,6 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
 }
 
 
-void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // rsp[0]  : return address
-  // rsp[8]  : language mode
-  // rsp[16] : index of rest parameter
-  // rsp[24] : number of parameters
-  // rsp[32] : receiver displacement
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
-  __ movp(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ movp(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
-  __ Cmp(rcx, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(not_equal, &runtime);
-
-  // Patch the arguments.length and the parameters pointer.
-  StackArgumentsAccessor args(rsp, 4, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movp(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ movp(args.GetArgumentOperand(1), rcx);
-  __ SmiToInteger64(rcx, rcx);
-  __ leap(rdx, Operand(rdx, rcx, times_pointer_size,
-                       StandardFrameConstants::kCallerSPOffset));
-  __ movp(args.GetArgumentOperand(0), rdx);
-
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewRestParam, 4, 1);
-}
-
-
 void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
   // Return address is on the stack.
   Label slow;

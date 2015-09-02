@@ -31,6 +31,7 @@ struct FormalParametersBase {
   bool has_rest = false;
   bool is_simple = true;
   int materialized_literals_count = 0;
+  mutable int rest_array_literal_index = -1;
 };
 
 
@@ -941,7 +942,10 @@ class PreParserExpression {
   static PreParserExpression BinaryOperation(PreParserExpression left,
                                              Token::Value op,
                                              PreParserExpression right) {
-    return PreParserExpression(TypeField::encode(kBinaryOperationExpression));
+    return PreParserExpression(
+        TypeField::encode(kBinaryOperationExpression) |
+        HasRestField::encode(op == Token::COMMA &&
+                             right->IsSpreadExpression()));
   }
 
   static PreParserExpression StringLiteral() {
@@ -1058,6 +1062,14 @@ class PreParserExpression {
     return TypeField::decode(code_) == kSpreadExpression;
   }
 
+  bool IsArrowFunctionFormalParametersWithRestParameter() const {
+    // Iff the expression classifier has determined that this expression is a
+    // valid arrow fformal parameter list, return true if the formal parameter
+    // list ends with a rest parameter.
+    return IsSpreadExpression() ||
+           (IsBinaryOperation() && HasRestField::decode(code_));
+  }
+
   PreParserExpression AsFunctionLiteral() { return *this; }
 
   bool IsBinaryOperation() const {
@@ -1106,6 +1118,7 @@ class PreParserExpression {
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
   typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 10>
       IdentifierTypeField;
+  typedef BitField<bool, TypeField::kNext, 1> HasRestField;
 
   uint32_t code_;
 };
@@ -1878,6 +1891,12 @@ void PreParserTraits::ParseArrowFunctionFormalParameterList(
     Scanner::Location* duplicate_loc, bool* ok) {
   // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect parameter
   // lists that are too long.
+
+  // Accomodate array literal for rest parameter.
+  if (params.IsArrowFunctionFormalParametersWithRestParameter()) {
+    ++parameters->materialized_literals_count;
+    pre_parser_->function_state_->NextMaterializedLiteralIndex();
+  }
 }
 
 
@@ -2886,12 +2905,14 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
       scope->SetHasNonSimpleParameters();
       parameters.is_simple = false;
     }
-    checkpoint.Restore(&parameters.materialized_literals_count);
 
-    scope->set_start_position(lhs_beg_pos);
     Scanner::Location duplicate_loc = Scanner::Location::invalid();
     this->ParseArrowFunctionFormalParameterList(&parameters, expression, loc,
                                                 &duplicate_loc, CHECK_OK);
+
+    checkpoint.Restore(&parameters.materialized_literals_count);
+
+    scope->set_start_position(lhs_beg_pos);
     if (duplicate_loc.IsValid()) {
       arrow_formals_classifier.RecordDuplicateFormalParameterError(
           duplicate_loc);
@@ -3706,6 +3727,12 @@ void ParserBase<Traits>::ParseFormalParameter(
     classifier->RecordNonSimpleParameter();
   }
 
+  if (is_rest) {
+    parameters->rest_array_literal_index =
+        function_state_->NextMaterializedLiteralIndex();
+    ++parameters->materialized_literals_count;
+  }
+
   ExpressionT initializer = Traits::EmptyExpression();
   if (!is_rest && allow_harmony_default_parameters() && Check(Token::ASSIGN)) {
     ExpressionClassifier init_classifier;
@@ -3866,6 +3893,11 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
         body = this->NewStatementList(0, zone());
         this->SkipLazyFunctionBody(&materialized_literal_count,
                                    &expected_property_count, CHECK_OK);
+
+        if (formal_parameters.materialized_literals_count > 0) {
+          materialized_literal_count +=
+              formal_parameters.materialized_literals_count;
+        }
       } else {
         body = this->ParseEagerFunctionBody(
             this->EmptyIdentifier(), RelocInfo::kNoPosition, formal_parameters,

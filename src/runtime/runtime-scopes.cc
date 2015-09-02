@@ -556,54 +556,6 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
 }
 
 
-static Handle<JSArray> NewRestParam(Isolate* isolate, Object** parameters,
-                                    int num_params, int rest_index,
-                                    LanguageMode language_mode) {
-  parameters -= rest_index;
-  int num_elements = std::max(0, num_params - rest_index);
-  Handle<FixedArray> elements =
-      isolate->factory()->NewUninitializedFixedArray(num_elements);
-  for (int i = 0; i < num_elements; ++i) {
-    elements->set(i, *--parameters);
-  }
-  return isolate->factory()->NewJSArrayWithElements(
-      elements, FAST_ELEMENTS, num_elements, strength(language_mode));
-}
-
-
-RUNTIME_FUNCTION(Runtime_NewRestParam) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  Object** parameters = reinterpret_cast<Object**>(args[0]);
-  CONVERT_SMI_ARG_CHECKED(num_params, 1);
-  CONVERT_SMI_ARG_CHECKED(rest_index, 2);
-  CONVERT_SMI_ARG_CHECKED(language_mode, 3);
-
-  return *NewRestParam(isolate, parameters, num_params, rest_index,
-                       static_cast<LanguageMode>(language_mode));
-}
-
-
-RUNTIME_FUNCTION(Runtime_NewRestParamSlow) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_SMI_ARG_CHECKED(rest_index, 0);
-  CONVERT_SMI_ARG_CHECKED(language_mode, 1);
-
-  JavaScriptFrameIterator it(isolate);
-
-  // Find the frame that holds the actual arguments passed to the function.
-  it.AdvanceToArgumentsFrame();
-  JavaScriptFrame* frame = it.frame();
-
-  int argument_count = frame->GetArgumentsLength();
-  Object** parameters = reinterpret_cast<Object**>(frame->GetParameterSlot(-1));
-
-  return *NewRestParam(isolate, parameters, argument_count, rest_index,
-                       static_cast<LanguageMode>(language_mode));
-}
-
-
 RUNTIME_FUNCTION(Runtime_NewClosureFromStubFailure) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
