@@ -61,7 +61,8 @@ class AllocationBuilder final {
   void AllocateArray(int length, Handle<Map> map) {
     Allocate(FixedArray::SizeFor(length));
     Store(AccessBuilder::ForMap(), map);
-    Store(AccessBuilder::ForFixedArrayLength(), jsgraph()->Constant(length));
+    Store(AccessBuilder::ForFixedArrayLength(graph()->zone()),
+          jsgraph()->Constant(length));
   }
 
   // Compound store of a constant into a field.
@@ -1409,7 +1410,8 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
 
     cache_array_false0 = cache_type;
     cache_length_false0 = efalse0 = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+        simplified()->LoadField(
+            AccessBuilder::ForFixedArrayLength(graph()->zone())),
         cache_array_false0, efalse0, if_false0);
   }
 

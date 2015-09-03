@@ -431,12 +431,6 @@ class TypeImpl : public Config::Base {
 
   static TypeHandle Union(TypeHandle type1, TypeHandle type2, Region* reg);
   static TypeHandle Intersect(TypeHandle type1, TypeHandle type2, Region* reg);
-  static TypeImpl* Union(TypeImpl* type1, TypeImpl* type2) {
-    return BitsetType::New(type1->AsBitset() | type2->AsBitset());
-  }
-  static TypeImpl* Intersect(TypeImpl* type1, TypeImpl* type2) {
-    return BitsetType::New(type1->AsBitset() & type2->AsBitset());
-  }
 
   static TypeHandle Of(double value, Region* region) {
     return Config::from_bitset(BitsetType::Lub(value), region);

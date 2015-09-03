@@ -591,7 +591,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
     case IrOpcode::kJSForInNext: {
-      CheckUpperIs(node, Type::Union(Type::Name(), Type::Undefined()));
+      CheckUpperIs(node, Type::Union(Type::Name(), Type::Undefined(), zone));
       break;
     }
     case IrOpcode::kJSForInStep: {

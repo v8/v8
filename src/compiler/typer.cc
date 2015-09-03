@@ -259,7 +259,6 @@ class Typer::Visitor : public Reducer {
         current.lower = Weaken(node, current.lower, previous.lower);
       }
 
-      // Types should not get less precise.
       DCHECK(previous.lower->Is(current.lower));
       DCHECK(previous.upper->Is(current.upper));
 
@@ -1124,7 +1123,8 @@ Type* Typer::Visitor::JSTypeOfTyper(Type* type, Typer* t) {
     return Type::Constant(f->number_string(), t->zone());
   } else if (type->Is(Type::Symbol())) {
     return Type::Constant(f->symbol_string(), t->zone());
-  } else if (type->Is(Type::Union(Type::Undefined(), Type::Undetectable()))) {
+  } else if (type->Is(Type::Union(Type::Undefined(), Type::Undetectable(),
+                                  t->zone()))) {
     return Type::Constant(f->undefined_string(), t->zone());
   } else if (type->Is(Type::Null())) {
     return Type::Constant(f->object_string(), t->zone());

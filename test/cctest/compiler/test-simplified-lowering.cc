@@ -1452,8 +1452,10 @@ TEST(LowerStoreField_to_store) {
     }
   }
   {
-    TestingGraph t(Type::Any(),
-                   Type::Intersect(Type::SignedSmall(), Type::TaggedSigned()));
+    HandleAndZoneScope scope;
+    Zone* z = scope.main_zone();
+    TestingGraph t(Type::Any(), Type::Intersect(Type::SignedSmall(),
+                                                Type::TaggedSigned(), z));
     FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                           Handle<Name>::null(), Type::Any(), kMachAnyTagged};
     Node* store = t.graph()->NewNode(t.simplified()->StoreField(access), t.p0,
@@ -1515,8 +1517,11 @@ TEST(LowerStoreElement_to_store) {
     }
   }
   {
-    TestingGraph t(Type::Any(), Type::Signed32(),
-                   Type::Intersect(Type::SignedSmall(), Type::TaggedSigned()));
+    HandleAndZoneScope scope;
+    Zone* z = scope.main_zone();
+    TestingGraph t(
+        Type::Any(), Type::Signed32(),
+        Type::Intersect(Type::SignedSmall(), Type::TaggedSigned(), z));
     ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                             Type::Any(), kMachAnyTagged};
     Node* store = t.graph()->NewNode(t.simplified()->StoreElement(access), t.p0,
