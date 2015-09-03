@@ -1312,32 +1312,26 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     native_context()->set_js_set_fun(*js_set_fun);
   }
 
-  {  // Set up the iterator result object
-    STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
-    Handle<JSFunction> object_function(native_context()->object_function());
-    Handle<Map> iterator_result_map =
-        Map::Create(isolate, JSGeneratorObject::kResultPropertyCount);
-    DCHECK_EQ(JSGeneratorObject::kResultSize,
-              iterator_result_map->instance_size());
-    DCHECK_EQ(JSGeneratorObject::kResultPropertyCount,
-              iterator_result_map->GetInObjectProperties());
-    Map::EnsureDescriptorSlack(iterator_result_map,
-                               JSGeneratorObject::kResultPropertyCount);
+  {  // -- I t e r a t o r R e s u l t
+    Handle<Map> map =
+        factory->NewMap(JS_ITERATOR_RESULT_TYPE, JSIteratorResult::kSize);
+    Map::SetPrototype(map, isolate->initial_object_prototype());
+    Map::EnsureDescriptorSlack(map, 2);
 
-    DataDescriptor value_descr(factory->value_string(),
-                               JSGeneratorObject::kResultValuePropertyIndex,
-                               NONE, Representation::Tagged());
-    iterator_result_map->AppendDescriptor(&value_descr);
+    {  // value
+      DataDescriptor d(factory->value_string(), JSIteratorResult::kValueIndex,
+                       NONE, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
 
-    DataDescriptor done_descr(factory->done_string(),
-                              JSGeneratorObject::kResultDonePropertyIndex, NONE,
-                              Representation::Tagged());
-    iterator_result_map->AppendDescriptor(&done_descr);
+    {  // done
+      DataDescriptor d(factory->done_string(), JSIteratorResult::kDoneIndex,
+                       NONE, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
 
-    iterator_result_map->set_unused_property_fields(0);
-    DCHECK_EQ(JSGeneratorObject::kResultSize,
-              iterator_result_map->instance_size());
-    native_context()->set_iterator_result_map(*iterator_result_map);
+    map->SetInObjectProperties(2);
+    native_context()->set_iterator_result_map(*map);
   }
 
   // -- W e a k M a p

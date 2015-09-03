@@ -11,7 +11,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ArrayIteratorCreateResultObject;
 var GlobalString = global.String;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var stringIteratorIteratedStringSymbol =
@@ -19,10 +18,6 @@ var stringIteratorIteratedStringSymbol =
 var stringIteratorNextIndexSymbol =
     utils.ImportNow("string_iterator_next_index_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
-
-utils.Import(function(from) {
-  ArrayIteratorCreateResultObject = from.ArrayIteratorCreateResultObject;
-});
 
 // -------------------------------------------------------------------
 
@@ -39,9 +34,11 @@ function CreateStringIterator(string) {
 }
 
 
-// 21.1.5.2.1 %StringIteratorPrototype%.next( )
+// ES6 section 21.1.5.2.1 %StringIteratorPrototype%.next ( )
 function StringIteratorNext() {
   var iterator = this;
+  var value = UNDEFINED;
+  var done = true;
 
   if (!IS_SPEC_OBJECT(iterator) ||
       !HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
@@ -50,34 +47,29 @@ function StringIteratorNext() {
   }
 
   var s = GET_PRIVATE(iterator, stringIteratorIteratedStringSymbol);
-  if (IS_UNDEFINED(s)) {
-    return ArrayIteratorCreateResultObject(UNDEFINED, true);
-  }
-
-  var position = GET_PRIVATE(iterator, stringIteratorNextIndexSymbol);
-  var length = TO_UINT32(s.length);
-
-  if (position >= length) {
-    SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol,
-                UNDEFINED);
-    return ArrayIteratorCreateResultObject(UNDEFINED, true);
-  }
-
-  var first = %_StringCharCodeAt(s, position);
-  var resultString = %_StringCharFromCode(first);
-  position++;
-
-  if (first >= 0xD800 && first <= 0xDBFF && position < length) {
-    var second = %_StringCharCodeAt(s, position);
-    if (second >= 0xDC00 && second <= 0xDFFF) {
-      resultString += %_StringCharFromCode(second);
+  if (!IS_UNDEFINED(s)) {
+    var position = GET_PRIVATE(iterator, stringIteratorNextIndexSymbol);
+    var length = TO_UINT32(s.length);
+    if (position >= length) {
+      SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol, UNDEFINED);
+    } else {
+      var first = %_StringCharCodeAt(s, position);
+      value = %_StringCharFromCode(first);
+      done = false;
       position++;
+
+      if (first >= 0xD800 && first <= 0xDBFF && position < length) {
+        var second = %_StringCharCodeAt(s, position);
+        if (second >= 0xDC00 && second <= 0xDFFF) {
+          value += %_StringCharFromCode(second);
+          position++;
+        }
+      }
+
+      SET_PRIVATE(iterator, stringIteratorNextIndexSymbol, position);
     }
   }
-
-  SET_PRIVATE(iterator, stringIteratorNextIndexSymbol, position);
-
-  return ArrayIteratorCreateResultObject(resultString, false);
+  return %_CreateIterResultObject(value, done);
 }
 
 

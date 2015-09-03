@@ -247,6 +247,7 @@ enum BindingFlags {
   V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
+  V(STRING_ITERATOR_MAP_INDEX, Map, string_iterator_map)                       \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners)                      \
   V(NATIVES_UTILS_OBJECT_INDEX, Object, natives_utils_object)                  \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \

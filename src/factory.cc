@@ -1680,6 +1680,16 @@ Handle<JSSetIterator> Factory::NewJSSetIterator() {
 }
 
 
+Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
+                                                      Handle<Object> done) {
+  Handle<JSIteratorResult> result = Handle<JSIteratorResult>::cast(
+      NewJSObjectFromMap(isolate()->iterator_result_map()));
+  result->set_value(*value);
+  result->set_done(*done);
+  return result;
+}
+
+
 namespace {
 
 ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {

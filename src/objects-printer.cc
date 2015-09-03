@@ -144,6 +144,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_MAP_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorPrint(os);
       break;
+    case JS_ITERATOR_RESULT_TYPE:
+      JSIteratorResult::cast(this)->JSIteratorResultPrint(os);
+      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapPrint(os);
       break;
@@ -753,6 +756,15 @@ void JSSetIterator::JSSetIteratorPrint(std::ostream& os) {  // NOLINT
 void JSMapIterator::JSMapIteratorPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSMapIterator");
   OrderedHashTableIteratorPrint(os);
+}
+
+
+void JSIteratorResult::JSIteratorResultPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "JSIteratorResult");
+  os << " - map = " << reinterpret_cast<void*>(map()) << "\n";
+  os << " - done = " << Brief(done()) << "\n";
+  os << " - value = " << Brief(value()) << "\n";
+  os << "\n";
 }
 
 

@@ -144,6 +144,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_MAP_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorVerify();
       break;
+    case JS_ITERATOR_RESULT_TYPE:
+      JSIteratorResult::cast(this)->JSIteratorResultVerify();
+      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapVerify();
       break;
@@ -738,6 +741,14 @@ void JSMapIterator::JSMapIteratorVerify() {
   CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
   CHECK(index()->IsSmi() || index()->IsUndefined());
   CHECK(kind()->IsSmi() || kind()->IsUndefined());
+}
+
+
+void JSIteratorResult::JSIteratorResultVerify() {
+  CHECK(IsJSIteratorResult());
+  JSObjectVerify();
+  VerifyPointer(done());
+  VerifyPointer(value());
 }
 
 

@@ -32,21 +32,21 @@ function SetIteratorNextJS() {
   }
 
   var value_array = [UNDEFINED, UNDEFINED];
-  var entry = {value: value_array, done: false};
+  var result = %_CreateIterResultObject(value_array, false);
   switch (%SetIteratorNext(this, value_array)) {
     case 0:
-      entry.value = UNDEFINED;
-      entry.done = true;
+      result.value = UNDEFINED;
+      result.done = true;
       break;
     case ITERATOR_KIND_VALUES:
-      entry.value = value_array[0];
+      result.value = value_array[0];
       break;
     case ITERATOR_KIND_ENTRIES:
       value_array[1] = value_array[0];
       break;
   }
 
-  return entry;
+  return result;
 }
 
 
@@ -104,22 +104,22 @@ function MapIteratorNextJS() {
   }
 
   var value_array = [UNDEFINED, UNDEFINED];
-  var entry = {value: value_array, done: false};
+  var result = %_CreateIterResultObject(value_array, false);
   switch (%MapIteratorNext(this, value_array)) {
     case 0:
-      entry.value = UNDEFINED;
-      entry.done = true;
+      result.value = UNDEFINED;
+      result.done = true;
       break;
     case ITERATOR_KIND_KEYS:
-      entry.value = value_array[0];
+      result.value = value_array[0];
       break;
     case ITERATOR_KIND_VALUES:
-      entry.value = value_array[1];
+      result.value = value_array[1];
       break;
     // ITERATOR_KIND_ENTRIES does not need any processing.
   }
 
-  return entry;
+  return result;
 }
 
 

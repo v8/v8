@@ -2217,42 +2217,27 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
 
 void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
-  Label gc_required;
-  Label allocated;
+  Label allocate, done_allocate;
 
-  const int instance_size = 5 * kPointerSize;
-  DCHECK_EQ(isolate()->native_context()->iterator_result_map()->instance_size(),
-            instance_size);
+  __ Allocate(JSIteratorResult::kSize, rax, rcx, rdx, &allocate, TAG_OBJECT);
+  __ jmp(&done_allocate, Label::kNear);
 
-  __ Allocate(instance_size, rax, rcx, rdx, &gc_required, TAG_OBJECT);
-  __ jmp(&allocated);
-
-  __ bind(&gc_required);
-  __ Push(Smi::FromInt(instance_size));
+  __ bind(&allocate);
+  __ Push(Smi::FromInt(JSIteratorResult::kSize));
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-  __ movp(context_register(),
-          Operand(rbp, StandardFrameConstants::kContextOffset));
 
-  __ bind(&allocated);
-  __ movp(rbx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ bind(&done_allocate);
+  __ movp(rbx, GlobalObjectOperand());
   __ movp(rbx, FieldOperand(rbx, GlobalObject::kNativeContextOffset));
   __ movp(rbx, ContextOperand(rbx, Context::ITERATOR_RESULT_MAP_INDEX));
-  __ Pop(rcx);
-  __ Move(rdx, isolate()->factory()->ToBoolean(done));
   __ movp(FieldOperand(rax, HeapObject::kMapOffset), rbx);
-  __ Move(FieldOperand(rax, JSObject::kPropertiesOffset),
-          isolate()->factory()->empty_fixed_array());
-  __ Move(FieldOperand(rax, JSObject::kElementsOffset),
-          isolate()->factory()->empty_fixed_array());
-  __ movp(FieldOperand(rax, JSGeneratorObject::kResultValuePropertyOffset),
-          rcx);
-  __ movp(FieldOperand(rax, JSGeneratorObject::kResultDonePropertyOffset),
-          rdx);
-
-  // Only the value field needs a write barrier, as the other values are in the
-  // root set.
-  __ RecordWriteField(rax, JSGeneratorObject::kResultValuePropertyOffset,
-                      rcx, rdx, kDontSaveFPRegs);
+  __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
+  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
+  __ movp(FieldOperand(rax, JSObject::kElementsOffset), rbx);
+  __ Pop(FieldOperand(rax, JSIteratorResult::kValueOffset));
+  __ LoadRoot(FieldOperand(rax, JSIteratorResult::kDoneOffset),
+              done ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex);
+  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
 }
 
 
@@ -4419,6 +4404,35 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
   __ Move(kScratchRegister, debug_is_active);
   __ movzxbp(rax, Operand(kScratchRegister, 0));
   __ Integer32ToSmi(rax, rax);
+  context()->Plug(rax);
+}
+
+
+void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(2, args->length());
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+
+  Label runtime, done;
+
+  __ Allocate(JSIteratorResult::kSize, rax, rcx, rdx, &runtime, TAG_OBJECT);
+  __ movp(rbx, GlobalObjectOperand());
+  __ movp(rbx, FieldOperand(rbx, GlobalObject::kNativeContextOffset));
+  __ movp(rbx, ContextOperand(rbx, Context::ITERATOR_RESULT_MAP_INDEX));
+  __ movp(FieldOperand(rax, HeapObject::kMapOffset), rbx);
+  __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
+  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
+  __ movp(FieldOperand(rax, JSObject::kElementsOffset), rbx);
+  __ Pop(FieldOperand(rax, JSIteratorResult::kDoneOffset));
+  __ Pop(FieldOperand(rax, JSIteratorResult::kValueOffset));
+  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
+  __ jmp(&done, Label::kNear);
+
+  __ bind(&runtime);
+  __ CallRuntime(Runtime::kCreateIterResultObject, 2);
+
+  __ bind(&done);
   context()->Plug(rax);
 }
 

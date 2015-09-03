@@ -1816,6 +1816,37 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
 }
 
 
+HValue* HGraphBuilder::BuildCreateIterResultObject(HValue* value,
+                                                   HValue* done) {
+  NoObservableSideEffectsScope scope(this);
+
+  // Allocate the JSIteratorResult object.
+  HValue* result =
+      Add<HAllocate>(Add<HConstant>(JSIteratorResult::kSize), HType::JSObject(),
+                     NOT_TENURED, JS_ITERATOR_RESULT_TYPE);
+
+  // Initialize the JSIteratorResult object.
+  HValue* native_context = BuildGetNativeContext();
+  HValue* map = Add<HLoadNamedField>(
+      native_context, nullptr,
+      HObjectAccess::ForContextSlot(Context::ITERATOR_RESULT_MAP_INDEX));
+  Add<HStoreNamedField>(result, HObjectAccess::ForMap(), map);
+  HValue* empty_fixed_array = Add<HLoadRoot>(Heap::kEmptyFixedArrayRootIndex);
+  Add<HStoreNamedField>(result, HObjectAccess::ForPropertiesPointer(),
+                        empty_fixed_array);
+  Add<HStoreNamedField>(result, HObjectAccess::ForElementsPointer(),
+                        empty_fixed_array);
+  Add<HStoreNamedField>(result, HObjectAccess::ForObservableJSObjectOffset(
+                                    JSIteratorResult::kValueOffset),
+                        value);
+  Add<HStoreNamedField>(result, HObjectAccess::ForObservableJSObjectOffset(
+                                    JSIteratorResult::kDoneOffset),
+                        done);
+  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
+  return result;
+}
+
+
 HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
                                                   HValue* index,
                                                   HValue* input) {
@@ -12594,6 +12625,17 @@ void HOptimizedGraphBuilder::GenerateFixedArraySet(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateTheHole(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 0);
   return ast_context()->ReturnValue(graph()->GetConstantHole());
+}
+
+
+void HOptimizedGraphBuilder::GenerateCreateIterResultObject(CallRuntime* call) {
+  DCHECK_EQ(2, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
+  HValue* done = Pop();
+  HValue* value = Pop();
+  HValue* result = BuildCreateIterResultObject(value, done);
+  return ast_context()->ReturnValue(result);
 }
 
 

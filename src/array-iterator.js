@@ -62,21 +62,17 @@ function CreateArrayIterator(array, kind) {
 }
 
 
-// 15.19.4.3.4 CreateItrResultObject
-function CreateIteratorResultObject(value, done) {
-  return {value: value, done: done};
-}
-
-
 // 22.1.5.2.2 %ArrayIteratorPrototype%[@@iterator]
 function ArrayIteratorIterator() {
     return this;
 }
 
 
-// 15.4.5.2.2 ArrayIterator.prototype.next( )
+// ES6 section 22.1.5.2.1 %ArrayIteratorPrototype%.next( )
 function ArrayIteratorNext() {
   var iterator = this;
+  var value = UNDEFINED;
+  var done = true;
 
   if (!IS_SPEC_OBJECT(iterator) ||
       !HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
@@ -85,32 +81,30 @@ function ArrayIteratorNext() {
   }
 
   var array = GET_PRIVATE(iterator, arrayIteratorObjectSymbol);
-  if (IS_UNDEFINED(array)) {
-    return CreateIteratorResultObject(UNDEFINED, true);
+  if (!IS_UNDEFINED(array)) {
+    var index = GET_PRIVATE(iterator, arrayIteratorNextIndexSymbol);
+    var itemKind = GET_PRIVATE(iterator, arrayIterationKindSymbol);
+    var length = TO_UINT32(array.length);
+
+    // "sparse" is never used.
+
+    if (index >= length) {
+      SET_PRIVATE(iterator, arrayIteratorObjectSymbol, UNDEFINED);
+    } else {
+      SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, index + 1);
+
+      if (itemKind == ITERATOR_KIND_VALUES) {
+        value = array[index];
+      } else if (itemKind == ITERATOR_KIND_ENTRIES) {
+        value = [index, array[index]];
+      } else {
+        value = index;
+      }
+      done = false;
+    }
   }
 
-  var index = GET_PRIVATE(iterator, arrayIteratorNextIndexSymbol);
-  var itemKind = GET_PRIVATE(iterator, arrayIterationKindSymbol);
-  var length = TO_UINT32(array.length);
-
-  // "sparse" is never used.
-
-  if (index >= length) {
-    SET_PRIVATE(iterator, arrayIteratorObjectSymbol, UNDEFINED);
-    return CreateIteratorResultObject(UNDEFINED, true);
-  }
-
-  SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, index + 1);
-
-  if (itemKind == ITERATOR_KIND_VALUES) {
-    return CreateIteratorResultObject(array[index], false);
-  }
-
-  if (itemKind == ITERATOR_KIND_ENTRIES) {
-    return CreateIteratorResultObject([index, array[index]], false);
-  }
-
-  return CreateIteratorResultObject(index, false);
+  return %_CreateIterResultObject(value, done);
 }
 
 
@@ -166,10 +160,6 @@ TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
 
 // -------------------------------------------------------------------
 // Exports
-
-utils.Export(function(to) {
-  to.ArrayIteratorCreateResultObject = CreateIteratorResultObject;
-});
 
 $arrayValues = ArrayValues;
 

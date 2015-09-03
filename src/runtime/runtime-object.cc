@@ -1558,5 +1558,15 @@ RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
       object->HasInPrototypeChain(isolate, prototype));
 }
 
+
+// ES6 section 7.4.7 CreateIterResultObject ( value, done )
+RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, done, 1);
+  return *isolate->factory()->NewJSIteratorResult(value, done);
+}
+
 }  // namespace internal
 }  // namespace v8

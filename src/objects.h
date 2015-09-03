@@ -431,6 +431,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_MAP_TYPE)                                                \
   V(JS_SET_ITERATOR_TYPE)                                       \
   V(JS_MAP_ITERATOR_TYPE)                                       \
+  V(JS_ITERATOR_RESULT_TYPE)                                    \
   V(JS_WEAK_MAP_TYPE)                                           \
   V(JS_WEAK_SET_TYPE)                                           \
   V(JS_REGEXP_TYPE)                                             \
@@ -729,6 +730,7 @@ enum InstanceType {
   JS_MAP_TYPE,
   JS_SET_ITERATOR_TYPE,
   JS_MAP_ITERATOR_TYPE,
+  JS_ITERATOR_RESULT_TYPE,
   JS_WEAK_MAP_TYPE,
   JS_WEAK_SET_TYPE,
   JS_REGEXP_TYPE,
@@ -957,6 +959,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSMap)                         \
   V(JSSetIterator)                 \
   V(JSMapIterator)                 \
+  V(JSIteratorResult)              \
   V(JSWeakCollection)              \
   V(JSWeakMap)                     \
   V(JSWeakSet)                     \
@@ -6860,17 +6863,6 @@ class JSGeneratorObject: public JSObject {
   // Resume mode, for use by runtime functions.
   enum ResumeMode { NEXT, THROW };
 
-  // Yielding from a generator returns an object with the following inobject
-  // properties.  See Context::iterator_result_map() for the map.
-  static const int kResultValuePropertyIndex = 0;
-  static const int kResultDonePropertyIndex = 1;
-  static const int kResultPropertyCount = 2;
-
-  static const int kResultValuePropertyOffset = JSObject::kHeaderSize;
-  static const int kResultDonePropertyOffset =
-      kResultValuePropertyOffset + kPointerSize;
-  static const int kResultSize = kResultDonePropertyOffset + kPointerSize;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);
 };
@@ -9486,6 +9478,40 @@ class JSMapIterator: public OrderedHashTableIterator<JSMapIterator,
   inline Object* CurrentValue();
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSMapIterator);
+};
+
+
+// ES6 section 25.1.1.3 The IteratorResult Interface
+class JSIteratorResult final : public JSObject {
+ public:
+  // [done]: This is the result status of an iterator next method call.  If the
+  // end of the iterator was reached done is true.  If the end was not reached
+  // done is false and a [value] is available.
+  DECL_ACCESSORS(done, Object)
+
+  // [value]: If [done] is false, this is the current iteration element value.
+  // If [done] is true, this is the return value of the iterator, if it supplied
+  // one.  If the iterator does not have a return value, value is undefined.
+  // In that case, the value property may be absent from the conforming object
+  // if it does not inherit an explicit value property.
+  DECL_ACCESSORS(value, Object)
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSIteratorResult)
+  DECLARE_VERIFIER(JSIteratorResult)
+
+  DECLARE_CAST(JSIteratorResult)
+
+  static const int kValueOffset = JSObject::kHeaderSize;
+  static const int kDoneOffset = kValueOffset + kPointerSize;
+  static const int kSize = kDoneOffset + kPointerSize;
+
+  // Indices of in-object properties.
+  static const int kValueIndex = 0;
+  static const int kDoneIndex = 1;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSIteratorResult);
 };
 
 
