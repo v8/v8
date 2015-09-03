@@ -410,6 +410,7 @@
         '../../src/ast-value-factory.h',
         '../../src/ast.cc',
         '../../src/ast.h',
+        '../../src/atomic-utils.h',
         '../../src/background-parsing-task.cc',
         '../../src/background-parsing-task.h',
         '../../src/bailout-reason.cc',
