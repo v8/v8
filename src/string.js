@@ -250,7 +250,7 @@ function StringReplace(search, replace) {
     var lastIndex = search.lastIndex;
     TO_INTEGER_FOR_SIDE_EFFECT(lastIndex);
 
-    if (!IS_SPEC_FUNCTION(replace)) {
+    if (!IS_CALLABLE(replace)) {
       replace = TO_STRING_INLINE(replace);
 
       if (!search.global) {
@@ -317,7 +317,7 @@ function StringReplace(search, replace) {
   var result = %_SubString(subject, 0, start);
 
   // Compute the string to replace with.
-  if (IS_SPEC_FUNCTION(replace)) {
+  if (IS_CALLABLE(replace)) {
     var receiver = UNDEFINED;
     result += %_CallFunction(receiver, search, start, subject, replace);
   } else {

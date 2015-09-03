@@ -5768,28 +5768,26 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = ne;
 
   } else if (String::Equals(type_name, factory->function_string())) {
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     __ JumpIfSmi(input, false_label);
-    __ GetObjectType(input, scratch, input);
-    __ Branch(true_label, eq, input, Operand(JS_FUNCTION_TYPE));
-    *cmp1 = input;
-    *cmp2 = Operand(JS_FUNCTION_PROXY_TYPE);
+    __ ld(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
+    __ lbu(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ And(scratch, scratch,
+           Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
+    *cmp1 = scratch;
+    *cmp2 = Operand(1 << Map::kIsCallable);
     final_branch_condition = eq;
 
   } else if (String::Equals(type_name, factory->object_string())) {
     __ JumpIfSmi(input, false_label);
     __ LoadRoot(at, Heap::kNullValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
-    Register map = input;
-    __ GetObjectType(input, map, scratch);
-    __ Branch(false_label,
-              lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    __ Branch(USE_DELAY_SLOT, false_label,
-              gt, scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    // map is still valid, so the BitField can be loaded in delay slot.
-    // Check for undetectable objects => false.
-    __ lbu(at, FieldMemOperand(map, Map::kBitFieldOffset));
-    __ And(at, at, 1 << Map::kIsUndetectable);
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ GetObjectType(input, scratch, scratch1());
+    __ Branch(false_label, lt, scratch1(), Operand(FIRST_SPEC_OBJECT_TYPE));
+    // Check for callable or undetectable objects => false.
+    __ lbu(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ And(at, scratch,
+           Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     *cmp1 = at;
     *cmp2 = Operand(zero_reg);
     final_branch_condition = eq;

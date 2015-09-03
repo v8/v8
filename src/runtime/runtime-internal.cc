@@ -11,8 +11,6 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/parser.h"
-#include "src/prettyprinter.h"
 
 namespace v8 {
 namespace internal {
@@ -258,30 +256,6 @@ RUNTIME_FUNCTION(Runtime_CollectStackTrace) {
         isolate, isolate->CaptureAndSetSimpleStackTrace(error_object, caller));
   }
   return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_RenderCallSite) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  MessageLocation location;
-  if (!isolate->ComputeLocation(&location)) {
-    return isolate->heap()->empty_string();
-  }
-
-  Zone zone;
-  base::SmartPointer<ParseInfo> info(
-      location.function()->shared()->is_function()
-          ? new ParseInfo(&zone, location.function())
-          : new ParseInfo(&zone, location.script()));
-
-  if (!Parser::ParseStatic(info.get())) {
-    isolate->clear_pending_exception();
-    return isolate->heap()->empty_string();
-  }
-  CallPrinter printer(isolate, &zone);
-  const char* string = printer.Print(info->literal(), location.start_pos());
-  return *isolate->factory()->NewStringFromAsciiChecked(string);
 }
 
 

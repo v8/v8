@@ -91,7 +91,7 @@ function ArrayCopyWithin(target, start, end) {
 }
 
 function InnerArrayFind(predicate, thisArg, array, length) {
-  if (!IS_SPEC_FUNCTION(predicate)) {
+  if (!IS_CALLABLE(predicate)) {
     throw MakeTypeError(kCalledNonCallable, predicate);
   }
 
@@ -124,7 +124,7 @@ function ArrayFind(predicate, thisArg) {
 }
 
 function InnerArrayFindIndex(predicate, thisArg, array, length) {
-  if (!IS_SPEC_FUNCTION(predicate)) {
+  if (!IS_CALLABLE(predicate)) {
     throw MakeTypeError(kCalledNonCallable, predicate);
   }
 
@@ -210,7 +210,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
   var mapping = !IS_UNDEFINED(mapfn);
 
   if (mapping) {
-    if (!IS_SPEC_FUNCTION(mapfn)) {
+    if (!IS_CALLABLE(mapfn)) {
       throw MakeTypeError(kCalledNonCallable, mapfn);
     } else if (%IsSloppyModeFunction(mapfn)) {
       if (IS_NULL(receiver)) {

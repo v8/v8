@@ -1299,7 +1299,9 @@ std::ostream& HTypeofIsAndBranch::PrintDataTo(
 }
 
 
-static String* TypeOfString(HConstant* constant, Isolate* isolate) {
+namespace {
+
+String* TypeOfString(HConstant* constant, Isolate* isolate) {
   Heap* heap = isolate->heap();
   if (constant->HasNumberValue()) return heap->number_string();
   if (constant->IsUndetectable()) return heap->undefined_string();
@@ -1330,13 +1332,13 @@ static String* TypeOfString(HConstant* constant, Isolate* isolate) {
       UNREACHABLE();
       return nullptr;
     }
-    case JS_FUNCTION_TYPE:
-    case JS_FUNCTION_PROXY_TYPE:
-      return heap->function_string();
     default:
+      if (constant->IsCallable()) return heap->function_string();
       return heap->object_string();
   }
 }
+
+}  // namespace
 
 
 bool HTypeofIsAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
@@ -2705,15 +2707,15 @@ HConstant::HConstant(Handle<Object> object, Representation r)
     : HTemplateInstruction<0>(HType::FromValue(object)),
       object_(Unique<Object>::CreateUninitialized(object)),
       object_map_(Handle<Map>::null()),
-      bit_field_(HasStableMapValueField::encode(false) |
-                 HasSmiValueField::encode(false) |
-                 HasInt32ValueField::encode(false) |
-                 HasDoubleValueField::encode(false) |
-                 HasExternalReferenceValueField::encode(false) |
-                 IsNotInNewSpaceField::encode(true) |
-                 BooleanValueField::encode(object->BooleanValue()) |
-                 IsUndetectableField::encode(false) |
-                 InstanceTypeField::encode(kUnknownInstanceType)) {
+      bit_field_(
+          HasStableMapValueField::encode(false) |
+          HasSmiValueField::encode(false) | HasInt32ValueField::encode(false) |
+          HasDoubleValueField::encode(false) |
+          HasExternalReferenceValueField::encode(false) |
+          IsNotInNewSpaceField::encode(true) |
+          BooleanValueField::encode(object->BooleanValue()) |
+          IsUndetectableField::encode(false) | IsCallableField::encode(false) |
+          InstanceTypeField::encode(kUnknownInstanceType)) {
   if (object->IsHeapObject()) {
     Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
     Isolate* isolate = heap_object->GetIsolate();
@@ -2723,6 +2725,7 @@ HConstant::HConstant(Handle<Object> object, Representation r)
     bit_field_ = InstanceTypeField::update(bit_field_, map->instance_type());
     bit_field_ =
         IsUndetectableField::update(bit_field_, map->is_undetectable());
+    bit_field_ = IsCallableField::update(bit_field_, map->is_callable());
     if (map->is_stable()) object_map_ = Unique<Map>::CreateImmovable(map);
     bit_field_ = HasStableMapValueField::update(
         bit_field_,

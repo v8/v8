@@ -9795,8 +9795,8 @@ THREADED_TEST(ConstructorForObject) {
     value = instance->CallAsConstructor(1, args);
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value2(try_catch.Exception());
-    CHECK_EQ(
-        0, strcmp("TypeError: #<Object> is not a function", *exception_value2));
+    CHECK_EQ(0,
+             strcmp("TypeError: object is not a function", *exception_value2));
     try_catch.Reset();
   }
 
@@ -10165,8 +10165,8 @@ THREADED_TEST(CallAsFunction) {
     CHECK(value.IsEmpty());
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value2(try_catch.Exception());
-    CHECK_EQ(0, strcmp("TypeError: [object Object] is not a function",
-                       *exception_value2));
+    CHECK_EQ(0,
+             strcmp("TypeError: object is not a function", *exception_value2));
     try_catch.Reset();
   }
 

@@ -5534,27 +5534,25 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = ne;
 
   } else if (String::Equals(type_name, factory->function_string())) {
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    Register type_reg = scratch;
     __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, scratch, type_reg, JS_FUNCTION_TYPE);
-    __ b(eq, true_label);
-    __ cmp(type_reg, Operand(JS_FUNCTION_PROXY_TYPE));
+    __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
+    __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ and_(scratch, scratch,
+            Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
+    __ cmp(scratch, Operand(1 << Map::kIsCallable));
     final_branch_condition = eq;
 
   } else if (String::Equals(type_name, factory->object_string())) {
-    Register map = scratch;
     __ JumpIfSmi(input, false_label);
     __ CompareRoot(input, Heap::kNullValueRootIndex);
     __ b(eq, true_label);
-    __ CheckObjectTypeRange(input,
-                            map,
-                            FIRST_NONCALLABLE_SPEC_OBJECT_TYPE,
-                            LAST_NONCALLABLE_SPEC_OBJECT_TYPE,
-                            false_label);
-    // Check for undetectable objects => false.
-    __ ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-    __ tst(scratch, Operand(1 << Map::kIsUndetectable));
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CompareObjectType(input, scratch, ip, FIRST_SPEC_OBJECT_TYPE);
+    __ b(lt, false_label);
+    // Check for callable or undetectable objects => false.
+    __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ tst(scratch,
+           Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     final_branch_condition = eq;
 
 // clang-format off

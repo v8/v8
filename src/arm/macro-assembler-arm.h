@@ -867,15 +867,6 @@ class MacroAssembler: public Assembler {
                          Register type_reg,
                          InstanceType type);
 
-  // Compare object type for heap object. Branch to false_label if type
-  // is lower than min_type or greater than max_type.
-  // Load map into the register map.
-  void CheckObjectTypeRange(Register heap_object,
-                            Register map,
-                            InstanceType min_type,
-                            InstanceType max_type,
-                            Label* false_label);
-
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both
   // sets the flags and leaves the object type in the type_reg register.

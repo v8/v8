@@ -4668,25 +4668,21 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   } else if (String::Equals(check, factory->function_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof function_string");
     __ JumpIfSmi(x0, if_false);
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    __ JumpIfObjectType(x0, x10, x11, JS_FUNCTION_TYPE, if_true);
-    __ CompareAndSplit(x11, JS_FUNCTION_PROXY_TYPE, eq, if_true, if_false,
-                       fall_through);
+    __ Ldr(x0, FieldMemOperand(x0, HeapObject::kMapOffset));
+    __ Ldrb(x1, FieldMemOperand(x0, Map::kBitFieldOffset));
+    __ And(x1, x1, (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable));
+    __ CompareAndSplit(x1, Operand(1 << Map::kIsCallable), eq, if_true,
+                       if_false, fall_through);
   } else if (String::Equals(check, factory->object_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof object_string");
     __ JumpIfSmi(x0, if_false);
     __ JumpIfRoot(x0, Heap::kNullValueRootIndex, if_true);
-    // Check for JS objects => true.
-    Register map = x10;
-    __ JumpIfObjectType(x0, map, x11, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE,
-                        if_false, lt);
-    __ CompareInstanceType(map, x11, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    __ B(gt, if_false);
-    // Check for undetectable objects => false.
-    __ Ldrb(x10, FieldMemOperand(map, Map::kBitFieldOffset));
-
-    __ TestAndSplit(x10, 1 << Map::kIsUndetectable, if_true, if_false,
-                    fall_through);
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ JumpIfObjectType(x0, x10, x11, FIRST_SPEC_OBJECT_TYPE, if_false, lt);
+    // Check for callable or undetectable objects => false.
+    __ Ldrb(x10, FieldMemOperand(x10, Map::kBitFieldOffset));
+    __ TestAndSplit(x10, (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable),
+                    if_true, if_false, fall_through);
 // clang-format off
 #define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)   \
   } else if (String::Equals(check, factory->type##_string())) { \

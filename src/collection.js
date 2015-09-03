@@ -134,7 +134,7 @@ function SetConstructor(iterable) {
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.add;
-    if (!IS_SPEC_FUNCTION(adder)) {
+    if (!IS_CALLABLE(adder)) {
       throw MakeTypeError(kPropertyNotFunction, 'add', this);
     }
 
@@ -245,7 +245,7 @@ function SetForEach(f, receiver) {
                         'Set.prototype.forEach', this);
   }
 
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
     if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
@@ -299,7 +299,7 @@ function MapConstructor(iterable) {
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.set;
-    if (!IS_SPEC_FUNCTION(adder)) {
+    if (!IS_CALLABLE(adder)) {
       throw MakeTypeError(kPropertyNotFunction, 'set', this);
     }
 
@@ -436,7 +436,7 @@ function MapForEach(f, receiver) {
                         'Map.prototype.forEach', this);
   }
 
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
     if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;

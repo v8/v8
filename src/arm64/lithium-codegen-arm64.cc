@@ -5855,14 +5855,15 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     EmitTestAndBranch(instr, ne, scratch, 1 << Map::kIsUndetectable);
 
   } else if (String::Equals(type_name, factory->function_string())) {
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     DCHECK(instr->temp1() != NULL);
-    Register type = ToRegister(instr->temp1());
+    Register scratch = ToRegister(instr->temp1());
 
     __ JumpIfSmi(value, false_label);
-    __ JumpIfObjectType(value, type, type, JS_FUNCTION_TYPE, true_label);
-    // HeapObject's type has been loaded into type register by JumpIfObjectType.
-    EmitCompareAndBranch(instr, eq, type, JS_FUNCTION_PROXY_TYPE);
+    __ Ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+    __ Ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ And(scratch, scratch,
+           (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable));
+    EmitCompareAndBranch(instr, eq, scratch, 1 << Map::kIsCallable);
 
   } else if (String::Equals(type_name, factory->object_string())) {
     DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
@@ -5871,13 +5872,13 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
 
     __ JumpIfSmi(value, false_label);
     __ JumpIfRoot(value, Heap::kNullValueRootIndex, true_label);
-    __ JumpIfObjectType(value, map, scratch,
-                        FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, false_label, lt);
-    __ CompareInstanceType(map, scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    __ B(gt, false_label);
-    // Check for undetectable objects => false.
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ JumpIfObjectType(value, map, scratch, FIRST_SPEC_OBJECT_TYPE,
+                        false_label, lt);
+    // Check for callable or undetectable objects => false.
     __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-    EmitTestAndBranch(instr, eq, scratch, 1 << Map::kIsUndetectable);
+    EmitTestAndBranch(instr, eq, scratch,
+                      (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable));
 
 // clang-format off
 #define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)       \

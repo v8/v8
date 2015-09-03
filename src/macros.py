@@ -128,10 +128,7 @@ macro IS_SPEC_OBJECT(arg)   = (%_IsSpecObject(arg));
 
 # Macro for ECMAScript 5 queries of the type:
 # "IsCallable(O)"
-# We assume here that this is the same as being either a function or a function
-# proxy. That ignores host objects with [[Call]] methods, but in most situations
-# we cannot handle those anyway.
-macro IS_SPEC_FUNCTION(arg) = (%_ClassOf(arg) === 'Function');
+macro IS_CALLABLE(arg) = (typeof(arg) === 'function');
 
 # Macro for ES6 CheckObjectCoercible
 # Will throw a TypeError of the form "[functionName] called on null or undefined".

@@ -30,7 +30,7 @@ var lastMicrotaskId = 0;
 var GlobalPromise = function Promise(resolver) {
   if (resolver === promiseRawSymbol) return;
   if (!%_IsConstructCall()) throw MakeTypeError(kNotAPromise, this);
-  if (!IS_SPEC_FUNCTION(resolver))
+  if (!IS_CALLABLE(resolver))
     throw MakeTypeError(kResolverNotAFunction, resolver);
   var promise = PromiseInit(this);
   try {
@@ -85,7 +85,7 @@ function PromiseCoerce(constructor, x) {
     } catch(r) {
       return %_CallFunction(constructor, r, PromiseRejected);
     }
-    if (IS_SPEC_FUNCTION(then)) {
+    if (IS_CALLABLE(then)) {
       var deferred = %_CallFunction(constructor, PromiseDeferred);
       try {
         %_CallFunction(x, deferred.resolve, deferred.reject, then);
@@ -259,10 +259,8 @@ function PromiseCatch(onReject) {
 // Multi-unwrapped chaining with thenable coercion.
 
 function PromiseThen(onResolve, onReject) {
-  onResolve = IS_SPEC_FUNCTION(onResolve) ? onResolve
-                                          : PromiseIdResolveHandler;
-  onReject = IS_SPEC_FUNCTION(onReject) ? onReject
-                                        : PromiseIdRejectHandler;
+  onResolve = IS_CALLABLE(onResolve) ? onResolve : PromiseIdResolveHandler;
+  onReject = IS_CALLABLE(onReject) ? onReject : PromiseIdRejectHandler;
   var that = this;
   var constructor = this.constructor;
   return %_CallFunction(

@@ -3623,6 +3623,7 @@ class HConstant final : public HTemplateInstruction<0> {
 
   bool HasBooleanValue() const { return type_.IsBoolean(); }
   bool BooleanValue() const { return BooleanValueField::decode(bit_field_); }
+  bool IsCallable() const { return IsCallableField::decode(bit_field_); }
   bool IsUndetectable() const {
     return IsUndetectableField::decode(bit_field_);
   }
@@ -3755,9 +3756,10 @@ class HConstant final : public HTemplateInstruction<0> {
   class IsNotInNewSpaceField : public BitField<bool, 5, 1> {};
   class BooleanValueField : public BitField<bool, 6, 1> {};
   class IsUndetectableField : public BitField<bool, 7, 1> {};
+  class IsCallableField : public BitField<bool, 8, 1> {};
 
   static const InstanceType kUnknownInstanceType = FILLER_TYPE;
-  class InstanceTypeField : public BitField<InstanceType, 8, 8> {};
+  class InstanceTypeField : public BitField<InstanceType, 16, 8> {};
 
   // If this is a numerical constant, object_ either points to the
   // HeapObject the constant originated from or is null.  If the

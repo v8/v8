@@ -178,12 +178,12 @@ function ObserverCreate(callback, acceptList) {
 
 
 function ObserverGetCallback(observer) {
-  return IS_SPEC_FUNCTION(observer) ? observer : observer.callback;
+  return IS_CALLABLE(observer) ? observer : observer.callback;
 }
 
 
 function ObserverGetAcceptTypes(observer) {
-  return IS_SPEC_FUNCTION(observer) ? defaultAcceptTypes : observer.accept;
+  return IS_CALLABLE(observer) ? defaultAcceptTypes : observer.accept;
 }
 
 
@@ -238,8 +238,8 @@ function ObjectInfoGetNotifier(objectInfo) {
 
 
 function ChangeObserversIsOptimized(changeObservers) {
-  return IS_SPEC_FUNCTION(changeObservers) ||
-         IS_SPEC_FUNCTION(changeObservers.callback);
+  return IS_CALLABLE(changeObservers) ||
+         IS_CALLABLE(changeObservers.callback);
 }
 
 
@@ -388,7 +388,7 @@ function ObjectObserve(object, callback, acceptList) {
     throw MakeTypeError(kObserveNonObject, "observe", "observe");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "observe");
-  if (!IS_SPEC_FUNCTION(callback))
+  if (!IS_CALLABLE(callback))
     throw MakeTypeError(kObserveNonFunction, "observe");
   if (ObjectIsFrozen(callback))
     throw MakeTypeError(kObserveCallbackFrozen);
@@ -411,7 +411,7 @@ function ObjectUnobserve(object, callback) {
     throw MakeTypeError(kObserveNonObject, "unobserve", "unobserve");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "unobserve");
-  if (!IS_SPEC_FUNCTION(callback))
+  if (!IS_CALLABLE(callback))
     throw MakeTypeError(kObserveNonFunction, "unobserve");
 
   var objectInfo = ObjectInfoGet(object);
@@ -588,7 +588,7 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
     throw MakeTypeError(kObserveNotifyNonNotifier);
   if (!IS_STRING(changeType))
     throw MakeTypeError(kObservePerformNonString);
-  if (!IS_SPEC_FUNCTION(changeFn))
+  if (!IS_CALLABLE(changeFn))
     throw MakeTypeError(kObservePerformNonFunction);
 
   var performChangeFn = %GetObjectContextNotifierPerformChange(objectInfo);
@@ -656,7 +656,7 @@ function CallbackDeliverPending(callback) {
 
 
 function ObjectDeliverChangeRecords(callback) {
-  if (!IS_SPEC_FUNCTION(callback))
+  if (!IS_CALLABLE(callback))
     throw MakeTypeError(kObserveNonFunction, "deliverChangeRecords");
 
   while (CallbackDeliverPending(callback)) {}

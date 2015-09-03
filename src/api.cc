@@ -4264,11 +4264,9 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   if (self->IsJSFunction()) {
     fun = i::Handle<i::JSFunction>::cast(self);
   } else {
-    i::Handle<i::Object> delegate;
-    has_pending_exception = !i::Execution::TryGetFunctionDelegate(isolate, self)
-                                 .ToHandle(&delegate);
+    has_pending_exception =
+        !i::Execution::GetFunctionDelegate(isolate, self).ToHandle(&fun);
     RETURN_ON_FAILED_EXECUTION(Value);
-    fun = i::Handle<i::JSFunction>::cast(delegate);
     recv_obj = self;
   }
   Local<Value> result;
@@ -4306,21 +4304,15 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
     RETURN_ON_FAILED_EXECUTION(Value);
     RETURN_ESCAPED(result);
   }
-  i::Handle<i::Object> delegate;
-  has_pending_exception = !i::Execution::TryGetConstructorDelegate(
-                               isolate, self).ToHandle(&delegate);
+  i::Handle<i::JSFunction> fun;
+  has_pending_exception =
+      !i::Execution::GetConstructorDelegate(isolate, self).ToHandle(&fun);
   RETURN_ON_FAILED_EXECUTION(Value);
-  if (!delegate->IsUndefined()) {
-    auto fun = i::Handle<i::JSFunction>::cast(delegate);
-    Local<Value> result;
-    has_pending_exception =
-        !ToLocal<Value>(i::Execution::Call(isolate, fun, self, argc, args),
-                        &result);
-    RETURN_ON_FAILED_EXECUTION(Value);
-    DCHECK(!delegate->IsUndefined());
-    RETURN_ESCAPED(result);
-  }
-  return MaybeLocal<Value>();
+  Local<Value> result;
+  has_pending_exception = !ToLocal<Value>(
+      i::Execution::Call(isolate, fun, self, argc, args), &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
 }
 
 

@@ -5000,23 +5000,23 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(ne, a1, Operand(zero_reg), if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->function_string())) {
     __ JumpIfSmi(v0, if_false);
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    __ GetObjectType(v0, v0, a1);
-    __ Branch(if_true, eq, a1, Operand(JS_FUNCTION_TYPE));
-    Split(eq, a1, Operand(JS_FUNCTION_PROXY_TYPE),
-          if_true, if_false, fall_through);
+    __ ld(v0, FieldMemOperand(v0, HeapObject::kMapOffset));
+    __ lbu(a1, FieldMemOperand(v0, Map::kBitFieldOffset));
+    __ And(a1, a1,
+           Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
+    Split(eq, a1, Operand(1 << Map::kIsCallable), if_true, if_false,
+          fall_through);
   } else if (String::Equals(check, factory->object_string())) {
     __ JumpIfSmi(v0, if_false);
     __ LoadRoot(at, Heap::kNullValueRootIndex);
     __ Branch(if_true, eq, v0, Operand(at));
-    // Check for JS objects => true.
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
     __ GetObjectType(v0, v0, a1);
-    __ Branch(if_false, lt, a1, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    __ lbu(a1, FieldMemOperand(v0, Map::kInstanceTypeOffset));
-    __ Branch(if_false, gt, a1, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    // Check for undetectable objects => false.
+    __ Branch(if_false, lt, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
+    // Check for callable or undetectable objects => false.
     __ lbu(a1, FieldMemOperand(v0, Map::kBitFieldOffset));
-    __ And(a1, a1, Operand(1 << Map::kIsUndetectable));
+    __ And(a1, a1,
+           Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     Split(eq, a1, Operand(zero_reg), if_true, if_false, fall_through);
 // clang-format off
 #define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)    \

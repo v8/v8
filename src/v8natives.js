@@ -217,7 +217,7 @@ function ObjectDefineGetter(name, fun) {
   if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
     receiver = %GlobalProxy(ObjectDefineGetter);
   }
-  if (!IS_SPEC_FUNCTION(fun)) {
+  if (!IS_CALLABLE(fun)) {
     throw MakeTypeError(kObjectGetterExpectingFunction);
   }
   var desc = new PropertyDescriptor();
@@ -242,7 +242,7 @@ function ObjectDefineSetter(name, fun) {
   if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
     receiver = %GlobalProxy(ObjectDefineSetter);
   }
-  if (!IS_SPEC_FUNCTION(fun)) {
+  if (!IS_CALLABLE(fun)) {
     throw MakeTypeError(kObjectSetterExpectingFunction);
   }
   var desc = new PropertyDescriptor();
@@ -368,7 +368,7 @@ function ToPropertyDescriptor(obj) {
 
   if ("get" in obj) {
     var get = obj.get;
-    if (!IS_UNDEFINED(get) && !IS_SPEC_FUNCTION(get)) {
+    if (!IS_UNDEFINED(get) && !IS_CALLABLE(get)) {
       throw MakeTypeError(kObjectGetterCallable, get);
     }
     desc.setGet(get);
@@ -376,7 +376,7 @@ function ToPropertyDescriptor(obj) {
 
   if ("set" in obj) {
     var set = obj.set;
-    if (!IS_UNDEFINED(set) && !IS_SPEC_FUNCTION(set)) {
+    if (!IS_UNDEFINED(set) && !IS_CALLABLE(set)) {
       throw MakeTypeError(kObjectSetterCallable, set);
     }
     desc.setSet(set);
@@ -536,7 +536,7 @@ function GetTrap(handler, name, defaultTrap) {
       throw MakeTypeError(kProxyHandlerTrapMissing, handler, name);
     }
     trap = defaultTrap;
-  } else if (!IS_SPEC_FUNCTION(trap)) {
+  } else if (!IS_CALLABLE(trap)) {
     throw MakeTypeError(kProxyHandlerTrapMustBeCallable, handler, name);
   }
   return trap;
@@ -605,7 +605,7 @@ function Delete(obj, p, should_throw) {
 function GetMethod(obj, p) {
   var func = obj[p];
   if (IS_NULL_OR_UNDEFINED(func)) return UNDEFINED;
-  if (IS_SPEC_FUNCTION(func)) return func;
+  if (IS_CALLABLE(func)) return func;
   throw MakeTypeError(kCalledNonCallable, typeof func);
 }
 
@@ -1658,7 +1658,7 @@ function FunctionToString() {
 
 // ES5 15.3.4.5
 function FunctionBind(this_arg) { // Length is 1.
-  if (!IS_SPEC_FUNCTION(this)) throw MakeTypeError(kFunctionBind);
+  if (!IS_CALLABLE(this)) throw MakeTypeError(kFunctionBind);
 
   var boundFunction = function () {
     // Poison .arguments and .caller, but is otherwise not detectable.
@@ -1774,7 +1774,7 @@ function GetIterator(obj, method) {
   if (IS_UNDEFINED(method)) {
     method = obj[iteratorSymbol];
   }
-  if (!IS_SPEC_FUNCTION(method)) {
+  if (!IS_CALLABLE(method)) {
     throw MakeTypeError(kNotIterable, obj);
   }
   var iterator = %_CallFunction(obj, method);

@@ -480,7 +480,7 @@ class Factory final {
 
   // Allocates a Harmony function proxy.
   Handle<JSProxy> NewJSFunctionProxy(Handle<Object> handler,
-                                     Handle<Object> call_trap,
+                                     Handle<JSReceiver> call_trap,
                                      Handle<Object> construct_trap,
                                      Handle<Object> prototype);
 

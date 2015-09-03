@@ -367,14 +367,16 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
           { Push(Add<HConstant>(factory->symbol_string())); }
           is_symbol.Else();
           {
+            HValue* bit_field = Add<HLoadNamedField>(
+                map, nullptr, HObjectAccess::ForMapBitField());
+            HValue* bit_field_masked = AddUncasted<HBitwise>(
+                Token::BIT_AND, bit_field,
+                Add<HConstant>((1 << Map::kIsCallable) |
+                               (1 << Map::kIsUndetectable)));
             IfBuilder is_function(this);
-            HConstant* js_function = Add<HConstant>(JS_FUNCTION_TYPE);
-            HConstant* js_function_proxy =
-                Add<HConstant>(JS_FUNCTION_PROXY_TYPE);
-            is_function.If<HCompareNumericAndBranch>(instance_type, js_function,
-                                                     Token::EQ);
-            is_function.OrIf<HCompareNumericAndBranch>(
-                instance_type, js_function_proxy, Token::EQ);
+            is_function.If<HCompareNumericAndBranch>(
+                bit_field_masked, Add<HConstant>(1 << Map::kIsCallable),
+                Token::EQ);
             is_function.Then();
             { Push(Add<HConstant>(factory->function_string())); }
             is_function.Else();
@@ -390,7 +392,9 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
 #undef SIMD128_BUILDER_OPEN
               // Is it an undetectable object?
               IfBuilder is_undetectable(this);
-              is_undetectable.If<HIsUndetectableAndBranch>(object);
+              is_undetectable.If<HCompareNumericAndBranch>(
+                  bit_field_masked, Add<HConstant>(1 << Map::kIsUndetectable),
+                  Token::EQ);
               is_undetectable.Then();
               {
                 // typeof an undetectable object is 'undefined'.

@@ -12771,53 +12771,6 @@ void HOptimizedGraphBuilder::GenerateDebugIsActive(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateGetPrototype(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* object = Pop();
-
-  NoObservableSideEffectsScope no_effects(this);
-
-  HValue* map = Add<HLoadNamedField>(object, nullptr, HObjectAccess::ForMap());
-  HValue* bit_field =
-      Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField());
-  HValue* is_access_check_needed_mask =
-      Add<HConstant>(1 << Map::kIsAccessCheckNeeded);
-  HValue* is_access_check_needed_test = AddUncasted<HBitwise>(
-      Token::BIT_AND, bit_field, is_access_check_needed_mask);
-
-  HValue* proto =
-      Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForPrototype());
-  HValue* proto_map =
-      Add<HLoadNamedField>(proto, nullptr, HObjectAccess::ForMap());
-  HValue* proto_bit_field =
-      Add<HLoadNamedField>(proto_map, nullptr, HObjectAccess::ForMapBitField());
-  HValue* is_hidden_prototype_mask =
-      Add<HConstant>(1 << Map::kIsHiddenPrototype);
-  HValue* is_hidden_prototype_test = AddUncasted<HBitwise>(
-      Token::BIT_AND, proto_bit_field, is_hidden_prototype_mask);
-
-  {
-    IfBuilder needs_runtime(this);
-    needs_runtime.If<HCompareNumericAndBranch>(
-        is_access_check_needed_test, graph()->GetConstant0(), Token::NE);
-    needs_runtime.OrIf<HCompareNumericAndBranch>(
-        is_hidden_prototype_test, graph()->GetConstant0(), Token::NE);
-
-    needs_runtime.Then();
-    {
-      Add<HPushArguments>(object);
-      Push(
-          Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kGetPrototype), 1));
-    }
-
-    needs_runtime.Else();
-    Push(proto);
-  }
-  return ast_context()->ReturnValue(Pop());
-}
-
-
 #undef CHECK_BAILOUT
 #undef CHECK_ALIVE
 

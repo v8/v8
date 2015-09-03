@@ -387,7 +387,7 @@ function ArrayToString() {
     array = TO_OBJECT(this);
     func = array.join;
   }
-  if (!IS_SPEC_FUNCTION(func)) {
+  if (!IS_CALLABLE(func)) {
     return %_CallFunction(array, ObjectToString);
   }
   return %_CallFunction(array, func);
@@ -904,7 +904,7 @@ function InnerArraySort(length, comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
-  if (!IS_SPEC_FUNCTION(comparefn)) {
+  if (!IS_CALLABLE(comparefn)) {
     comparefn = function (x, y) {
       if (x === y) return 0;
       if (%_IsSmi(x) && %_IsSmi(y)) {
@@ -1196,7 +1196,7 @@ function ArraySort(comparefn) {
 // preserving the semantics, since the calls to the receiver function can add
 // or delete elements from the array.
 function InnerArrayFilter(f, receiver, array, length) {
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
     if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
@@ -1236,7 +1236,7 @@ function ArrayFilter(f, receiver) {
 }
 
 function InnerArrayForEach(f, receiver, array, length) {
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
     if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
@@ -1269,7 +1269,7 @@ function ArrayForEach(f, receiver) {
 
 
 function InnerArraySome(f, receiver, array, length) {
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
     if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
@@ -1306,7 +1306,7 @@ function ArraySome(f, receiver) {
 
 
 function InnerArrayEvery(f, receiver, array, length) {
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
     if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
@@ -1340,7 +1340,7 @@ function ArrayEvery(f, receiver) {
 
 
 function InnerArrayMap(f, receiver, array, length) {
-  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
   if (IS_NULL(receiver)) {
     if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
@@ -1504,7 +1504,7 @@ function ArrayLastIndexOf(element, index) {
 
 
 function InnerArrayReduce(callback, current, array, length, argumentsLength) {
-  if (!IS_SPEC_FUNCTION(callback)) {
+  if (!IS_CALLABLE(callback)) {
     throw MakeTypeError(kCalledNonCallable, callback);
   }
 
@@ -1547,7 +1547,7 @@ function ArrayReduce(callback, current) {
 
 function InnerArrayReduceRight(callback, current, array, length,
                                argumentsLength) {
-  if (!IS_SPEC_FUNCTION(callback)) {
+  if (!IS_CALLABLE(callback)) {
     throw MakeTypeError(kCalledNonCallable, callback);
   }
 

@@ -488,6 +488,7 @@ Handle<Map> Genesis::CreateSloppyFunctionMap(FunctionMode function_mode) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetFunctionInstanceDescriptor(map, function_mode);
   map->set_function_with_prototype(IsFunctionModeWithPrototype(function_mode));
+  map->set_is_callable();
   return map;
 }
 
@@ -727,6 +728,7 @@ Handle<Map> Genesis::CreateStrictFunctionMap(
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrictFunctionInstanceDescriptor(map, function_mode);
   map->set_function_with_prototype(IsFunctionModeWithPrototype(function_mode));
+  map->set_is_callable();
   Map::SetPrototype(map, empty_function);
   return map;
 }
@@ -738,6 +740,7 @@ Handle<Map> Genesis::CreateStrongFunctionMap(
   SetStrongFunctionInstanceDescriptor(map);
   map->set_function_with_prototype(is_constructor);
   Map::SetPrototype(map, empty_function);
+  map->set_is_callable();
   map->set_is_extensible(is_constructor);
   map->set_is_strong();
   return map;
@@ -1044,8 +1047,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   Handle<JSObject> global(native_context()->global_object());
 
   // Install global Function object
-  InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
-                  empty_function, Builtins::kIllegal);
+  Handle<JSFunction> function_function =
+      InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
+                      empty_function, Builtins::kIllegal);
+  function_function->initial_map()->set_is_callable();
 
   {  // --- A r r a y ---
     Handle<JSFunction> array_function =
@@ -2242,9 +2247,11 @@ bool Genesis::InstallNatives(ContextType context_type) {
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     static const bool kUseStrictFunctionMap = true;
-    InstallFunction(builtins, "GeneratorFunction", JS_FUNCTION_TYPE,
-                    JSFunction::kSize, generator_function_prototype,
-                    Builtins::kIllegal, kUseStrictFunctionMap);
+    Handle<JSFunction> generator_function_function =
+        InstallFunction(builtins, "GeneratorFunction", JS_FUNCTION_TYPE,
+                        JSFunction::kSize, generator_function_prototype,
+                        Builtins::kIllegal, kUseStrictFunctionMap);
+    generator_function_function->initial_map()->set_is_callable();
 
     // Create maps for generator functions and their prototypes.  Store those
     // maps in the native context. The "prototype" property descriptor is

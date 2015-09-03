@@ -4918,22 +4918,23 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(not_zero, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->function_string())) {
     __ JumpIfSmi(rax, if_false);
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    __ CmpObjectType(rax, JS_FUNCTION_TYPE, rdx);
-    __ j(equal, if_true);
-    __ CmpInstanceType(rdx, JS_FUNCTION_PROXY_TYPE);
+    // Check for callable and not undetectable objects => true.
+    __ movp(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ movzxbl(rdx, FieldOperand(rdx, Map::kBitFieldOffset));
+    __ andb(rdx,
+            Immediate((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
+    __ cmpb(rdx, Immediate(1 << Map::kIsCallable));
     Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->object_string())) {
     __ JumpIfSmi(rax, if_false);
     __ CompareRoot(rax, Heap::kNullValueRootIndex);
     __ j(equal, if_true);
-    __ CmpObjectType(rax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, rdx);
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rdx);
     __ j(below, if_false);
-    __ CmpInstanceType(rdx, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    __ j(above, if_false);
-    // Check for undetectable objects => false.
+    // Check for callable or undetectable objects => false.
     __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
-             Immediate(1 << Map::kIsUndetectable));
+             Immediate((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     Split(zero, if_true, if_false, fall_through);
 // clang-format off
 #define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)   \

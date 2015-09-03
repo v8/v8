@@ -321,7 +321,6 @@ namespace internal {
   F(AllocateInNewSpace, 1, 1)                 \
   F(AllocateInTargetSpace, 2, 1)              \
   F(CollectStackTrace, 2, 1)                  \
-  F(RenderCallSite, 0, 1)                     \
   F(MessageGetStartPosition, 1, 1)            \
   F(MessageGetScript, 1, 1)                   \
   F(ErrorToStringRT, 1, 1)                    \

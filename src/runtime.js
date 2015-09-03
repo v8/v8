@@ -441,22 +441,12 @@ function IN(x) {
 
 function CALL_NON_FUNCTION() {
   var delegate = %GetFunctionDelegate(this);
-  if (!IS_FUNCTION(delegate)) {
-    var callsite = %RenderCallSite();
-    if (callsite == "") callsite = typeof this;
-    throw %make_type_error(kCalledNonCallable, callsite);
-  }
   return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
 
 
 function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
   var delegate = %GetConstructorDelegate(this);
-  if (!IS_FUNCTION(delegate)) {
-    var callsite = %RenderCallSite();
-    if (callsite == "") callsite = typeof this;
-    throw %make_type_error(kCalledNonCallable, callsite);
-  }
   return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
 
@@ -484,7 +474,7 @@ function APPLY_PREPARE(args) {
   if (IS_ARRAY(args)) {
     length = args.length;
     if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength &&
-        IS_SPEC_FUNCTION(this)) {
+        IS_CALLABLE(this)) {
       return length;
     }
   }
@@ -496,8 +486,9 @@ function APPLY_PREPARE(args) {
   // multiplying with pointer size.
   if (length > kSafeArgumentsLength) throw %make_range_error(kStackOverflow);
 
-  if (!IS_SPEC_FUNCTION(this)) {
-    throw %make_type_error(kApplyNonFunction, %to_string_fun(this), typeof this);
+  if (!IS_CALLABLE(this)) {
+    throw %make_type_error(kApplyNonFunction, %to_string_fun(this),
+                           typeof this);
   }
 
   // Make sure the arguments list has the right type.
@@ -519,12 +510,12 @@ function REFLECT_APPLY_PREPARE(args) {
   if (IS_ARRAY(args)) {
     length = args.length;
     if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength &&
-        IS_SPEC_FUNCTION(this)) {
+        IS_CALLABLE(this)) {
       return length;
     }
   }
 
-  if (!IS_SPEC_FUNCTION(this)) {
+  if (!IS_CALLABLE(this)) {
     throw %make_type_error(kCalledNonCallable, %to_string_fun(this));
   }
 
@@ -548,8 +539,8 @@ function REFLECT_APPLY_PREPARE(args) {
 function REFLECT_CONSTRUCT_PREPARE(
     args, newTarget) {
   var length;
-  var ctorOk = IS_SPEC_FUNCTION(this) && %IsConstructor(this);
-  var newTargetOk = IS_SPEC_FUNCTION(newTarget) && %IsConstructor(newTarget);
+  var ctorOk = IS_CALLABLE(this) && %IsConstructor(this);
+  var newTargetOk = IS_CALLABLE(newTarget) && %IsConstructor(newTarget);
 
   // First check whether length is a positive Smi and args is an
   // array. This is the fast case. If this fails, we do the slow case
@@ -563,7 +554,7 @@ function REFLECT_CONSTRUCT_PREPARE(
   }
 
   if (!ctorOk) {
-    if (!IS_SPEC_FUNCTION(this)) {
+    if (!IS_CALLABLE(this)) {
       throw %make_type_error(kCalledNonCallable, %to_string_fun(this));
     } else {
       throw %make_type_error(kNotConstructor, %to_string_fun(this));
@@ -571,7 +562,7 @@ function REFLECT_CONSTRUCT_PREPARE(
   }
 
   if (!newTargetOk) {
-    if (!IS_SPEC_FUNCTION(newTarget)) {
+    if (!IS_CALLABLE(newTarget)) {
       throw %make_type_error(kCalledNonCallable, %to_string_fun(newTarget));
     } else {
       throw %make_type_error(kNotConstructor, %to_string_fun(newTarget));
@@ -751,14 +742,14 @@ function IsConcatSpreadable(O) {
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultNumber(x) {
   var valueOf = x.valueOf;
-  if (IS_SPEC_FUNCTION(valueOf)) {
+  if (IS_CALLABLE(valueOf)) {
     var v = %_CallFunction(x, valueOf);
     if (IS_SYMBOL(v)) throw MakeTypeError(kSymbolToNumber);
     if (IS_SIMD_VALUE(x)) throw MakeTypeError(kSimdToNumber);
     if (IsPrimitive(v)) return v;
   }
   var toString = x.toString;
-  if (IS_SPEC_FUNCTION(toString)) {
+  if (IS_CALLABLE(toString)) {
     var s = %_CallFunction(x, toString);
     if (IsPrimitive(s)) return s;
   }
@@ -770,13 +761,13 @@ function DefaultString(x) {
   if (!IS_SYMBOL_WRAPPER(x)) {
     if (IS_SYMBOL(x)) throw MakeTypeError(kSymbolToString);
     var toString = x.toString;
-    if (IS_SPEC_FUNCTION(toString)) {
+    if (IS_CALLABLE(toString)) {
       var s = %_CallFunction(x, toString);
       if (IsPrimitive(s)) return s;
     }
 
     var valueOf = x.valueOf;
-    if (IS_SPEC_FUNCTION(valueOf)) {
+    if (IS_CALLABLE(valueOf)) {
       var v = %_CallFunction(x, valueOf);
       if (IsPrimitive(v)) return v;
     }

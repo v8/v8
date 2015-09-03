@@ -80,7 +80,7 @@ RUNTIME_FUNCTION(Runtime_ToMethod) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   Handle<JSFunction> clone = JSFunction::CloneClosure(fun);
-  Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
+  Handle<Symbol> home_object_symbol(isolate->factory()->home_object_symbol());
   JSObject::SetOwnPropertyIgnoreAttributes(clone, home_object_symbol,
                                            home_object, DONT_ENUM).Assert();
   return *clone;
@@ -105,7 +105,7 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
   } else {
     if (super_class->IsNull()) {
       prototype_parent = isolate->factory()->null_value();
-    } else if (super_class->IsSpecFunction()) {
+    } else if (super_class->IsJSFunction()) {  // TODO(bmeurer): IsConstructor.
       if (Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
         THROW_NEW_ERROR(
             isolate,
@@ -126,7 +126,6 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
       }
       constructor_parent = super_class;
     } else {
-      // TODO(arv): Should be IsConstructor.
       THROW_NEW_ERROR(
           isolate,
           NewTypeError(MessageTemplate::kExtendsValueNotFunction, super_class),

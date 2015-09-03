@@ -187,12 +187,18 @@ bool Object::IsUniqueName() const {
 }
 
 
+bool Object::IsCallable() const {
+  return Object::IsHeapObject() && HeapObject::cast(this)->map()->is_callable();
+}
+
+
 bool Object::IsSpecObject() const {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() >= FIRST_SPEC_OBJECT_TYPE;
 }
 
 
+// TODO(rossberg): Remove this and use the spec compliant IsCallable instead.
 bool Object::IsSpecFunction() const {
   if (!Object::IsHeapObject()) return false;
   InstanceType type = HeapObject::cast(this)->map()->instance_type();
@@ -4524,12 +4530,12 @@ bool Map::function_with_prototype() {
 
 
 void Map::set_is_hidden_prototype() {
-  set_bit_field(bit_field() | (1 << kIsHiddenPrototype));
+  set_bit_field3(IsHiddenPrototype::update(bit_field3(), true));
 }
 
 
-bool Map::is_hidden_prototype() {
-  return ((1 << kIsHiddenPrototype) & bit_field()) != 0;
+bool Map::is_hidden_prototype() const {
+  return IsHiddenPrototype::decode(bit_field3());
 }
 
 
@@ -4675,13 +4681,11 @@ bool Map::owns_descriptors() {
 }
 
 
-void Map::set_has_instance_call_handler() {
-  set_bit_field3(HasInstanceCallHandler::update(bit_field3(), true));
-}
+void Map::set_is_callable() { set_bit_field(bit_field() | (1 << kIsCallable)); }
 
 
-bool Map::has_instance_call_handler() {
-  return HasInstanceCallHandler::decode(bit_field3());
+bool Map::is_callable() const {
+  return ((1 << kIsCallable) & bit_field()) != 0;
 }
 
 
@@ -6293,7 +6297,7 @@ int JSFunction::NumberOfLiterals() {
 
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 ACCESSORS(JSProxy, hash, Object, kHashOffset)
-ACCESSORS(JSFunctionProxy, call_trap, Object, kCallTrapOffset)
+ACCESSORS(JSFunctionProxy, call_trap, JSReceiver, kCallTrapOffset)
 ACCESSORS(JSFunctionProxy, construct_trap, Object, kConstructTrapOffset)
 
 

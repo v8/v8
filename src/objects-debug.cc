@@ -36,6 +36,7 @@ void Object::VerifyPointer(Object* p) {
 
 void Smi::SmiVerify() {
   CHECK(IsSmi());
+  CHECK(!IsCallable());
 }
 
 
@@ -533,6 +534,7 @@ void JSFunction::JSFunctionVerify() {
   CHECK(next_function_link() == NULL ||
         next_function_link()->IsUndefined() ||
         next_function_link()->IsJSFunction());
+  CHECK(map()->is_callable());
 }
 
 
@@ -811,6 +813,7 @@ void JSFunctionProxy::JSFunctionProxyVerify() {
   JSProxyVerify();
   VerifyPointer(call_trap());
   VerifyPointer(construct_trap());
+  CHECK(map()->is_callable());
 }
 
 

@@ -92,25 +92,23 @@ class Execution final : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<JSRegExp> NewJSRegExp(
       Handle<String> pattern, Handle<String> flags);
 
-  static Handle<Object> GetFunctionFor();
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
                                           Handle<JSFunction> fun,
                                           Handle<Object> pos,
                                           Handle<Object> is_global);
 
-  // Get a function delegate (or undefined) for the given non-function
-  // object. Used for support calling objects as functions.
-  static Handle<Object> GetFunctionDelegate(Isolate* isolate,
-                                            Handle<Object> object);
-  MUST_USE_RESULT static MaybeHandle<Object> TryGetFunctionDelegate(
-      Isolate* isolate,
-      Handle<Object> object);
+  // Get a function delegate for the given non-function object.
+  // Used for support calling objects as functions.
+  MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionDelegate(
+      Isolate* isolate, Handle<Object> object);
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as constructors.
-  static Handle<Object> GetConstructorDelegate(Isolate* isolate,
-                                               Handle<Object> object);
-  static MaybeHandle<Object> TryGetConstructorDelegate(Isolate* isolate,
+  MUST_USE_RESULT static MaybeHandle<JSFunction> GetConstructorDelegate(
+      Isolate* isolate, Handle<Object> object);
+
+ private:
+  MUST_USE_RESULT static Handle<String> RenderCallSite(Isolate* isolate,
                                                        Handle<Object> object);
 };
 

@@ -35,11 +35,11 @@ function ProxyCreate(handler, proto) {
 function ProxyCreateFunction(handler, callTrap, constructTrap) {
   if (!IS_SPEC_OBJECT(handler))
     throw MakeTypeError(kProxyHandlerNonObject, "createFunction")
-  if (!IS_SPEC_FUNCTION(callTrap))
+  if (!IS_CALLABLE(callTrap))
     throw MakeTypeError(kProxyTrapFunctionExpected, "call")
   if (IS_UNDEFINED(constructTrap)) {
     constructTrap = DerivedConstructTrap(callTrap)
-  } else if (IS_SPEC_FUNCTION(constructTrap)) {
+  } else if (IS_CALLABLE(constructTrap)) {
     // Make sure the trap receives 'undefined' as this.
     var construct = constructTrap
     constructTrap = function() {

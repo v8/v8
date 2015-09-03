@@ -176,14 +176,20 @@ bool Object::StrictEquals(Object* that) {
 }
 
 
-bool Object::IsCallable() const {
-  const Object* fun = this;
-  while (fun->IsJSFunctionProxy()) {
-    fun = JSFunctionProxy::cast(fun)->call_trap();
+// static
+Handle<String> Object::TypeOf(Isolate* isolate, Handle<Object> object) {
+  if (object->IsNumber()) return isolate->factory()->number_string();
+  if (object->IsUndefined() || object->IsUndetectableObject()) {
+    return isolate->factory()->undefined_string();
   }
-  return fun->IsJSFunction() ||
-         (fun->IsHeapObject() &&
-          HeapObject::cast(fun)->map()->has_instance_call_handler());
+  if (object->IsBoolean()) return isolate->factory()->boolean_string();
+  if (object->IsSymbol()) return isolate->factory()->symbol_string();
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
+  if (object->Is##Type()) return isolate->factory()->type##_string();
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+  if (object->IsCallable()) return isolate->factory()->function_string();
+  return isolate->factory()->object_string();
 }
 
 
@@ -9527,16 +9533,19 @@ int Map::Hash() {
 }
 
 
-static bool CheckEquivalent(Map* first, Map* second) {
+namespace {
+
+bool CheckEquivalent(Map* first, Map* second) {
   return first->GetConstructor() == second->GetConstructor() &&
          first->prototype() == second->prototype() &&
          first->instance_type() == second->instance_type() &&
          first->bit_field() == second->bit_field() &&
          first->is_extensible() == second->is_extensible() &&
          first->is_strong() == second->is_strong() &&
-         first->has_instance_call_handler() ==
-             second->has_instance_call_handler();
+         first->is_hidden_prototype() == second->is_hidden_prototype();
 }
+
+}  // namespace
 
 
 bool Map::EquivalentToForTransition(Map* other) {

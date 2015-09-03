@@ -2269,7 +2269,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(TheHole)                           \
   /* Arrays */                         \
   F(HasFastPackedElements)             \
-  F(GetPrototype)                      \
   /* Strings */                        \
   F(StringGetLength)                   \
   /* JSValue */                        \

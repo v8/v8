@@ -25,7 +25,7 @@ function WeakMapConstructor(iterable) {
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.set;
-    if (!IS_SPEC_FUNCTION(adder)) {
+    if (!IS_CALLABLE(adder)) {
       throw MakeTypeError(kPropertyNotFunction, 'set', this);
     }
     for (var nextItem of iterable) {
@@ -114,7 +114,7 @@ function WeakSetConstructor(iterable) {
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.add;
-    if (!IS_SPEC_FUNCTION(adder)) {
+    if (!IS_CALLABLE(adder)) {
       throw MakeTypeError(kPropertyNotFunction, 'add', this);
     }
     for (var value of iterable) {

@@ -453,7 +453,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (has_named_interceptor()) os << " - named_interceptor\n";
   if (has_indexed_interceptor()) os << " - indexed_interceptor\n";
   if (is_undetectable()) os << " - undetectable\n";
-  if (has_instance_call_handler()) os << " - instance_call_handler\n";
+  if (is_callable()) os << " - callable\n";
   if (is_access_check_needed()) os << " - access_check_needed\n";
   if (!is_extensible()) os << " - non-extensible\n";
   if (is_observed()) os << " - observed\n";
