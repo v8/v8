@@ -1702,20 +1702,6 @@ void MacroAssembler::CompareObjectType(Register object, Register map,
 }
 
 
-void MacroAssembler::CheckObjectTypeRange(Register object, Register map,
-                                          InstanceType min_type,
-                                          InstanceType max_type,
-                                          Label* false_label) {
-  STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
-  STATIC_ASSERT(LAST_TYPE < 256);
-  LoadP(map, FieldMemOperand(object, HeapObject::kMapOffset));
-  lbz(ip, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  subi(ip, ip, Operand(min_type));
-  cmpli(ip, Operand(max_type - min_type));
-  bgt(false_label);
-}
-
-
 void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
                                          InstanceType type) {
   STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
