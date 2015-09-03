@@ -416,9 +416,17 @@ TEST(ReferenceContextAllocatesNoSlots) {
   // There should be two LOAD_ICs, one for a and one for y at the end.
   Handle<TypeFeedbackVector> feedback_vector =
       handle(f->shared()->feedback_vector(), isolate);
-  CHECK_EQ(2, feedback_vector->ICSlots());
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+  if (FLAG_vector_stores) {
+    CHECK_EQ(4, feedback_vector->ICSlots());
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::STORE_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::STORE_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::LOAD_IC);
+  } else {
+    CHECK_EQ(2, feedback_vector->ICSlots());
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+  }
 
   CompileRun(
       "function testprop(x) {"
@@ -430,7 +438,11 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
   // There should be one LOAD_IC, for the load of a.
   feedback_vector = handle(f->shared()->feedback_vector(), isolate);
-  CHECK_EQ(1, feedback_vector->ICSlots());
+  if (FLAG_vector_stores) {
+    CHECK_EQ(2, feedback_vector->ICSlots());
+  } else {
+    CHECK_EQ(1, feedback_vector->ICSlots());
+  }
 
   CompileRun(
       "function testpropfunc(x) {"
@@ -444,11 +456,20 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
   // There should be 2 LOAD_ICs and 2 CALL_ICs.
   feedback_vector = handle(f->shared()->feedback_vector(), isolate);
-  CHECK_EQ(4, feedback_vector->ICSlots());
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::CALL_IC);
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::CALL_IC);
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::LOAD_IC);
+  if (FLAG_vector_stores) {
+    CHECK_EQ(5, feedback_vector->ICSlots());
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::CALL_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::STORE_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::CALL_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(4)) == Code::LOAD_IC);
+  } else {
+    CHECK_EQ(4, feedback_vector->ICSlots());
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::CALL_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::CALL_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::LOAD_IC);
+  }
 
   CompileRun(
       "function testkeyedprop(x) {"
@@ -462,10 +483,19 @@ TEST(ReferenceContextAllocatesNoSlots) {
   // There should be 1 LOAD_ICs for the load of a, and one KEYED_LOAD_IC for the
   // load of x[0] in the return statement.
   feedback_vector = handle(f->shared()->feedback_vector(), isolate);
-  CHECK_EQ(2, feedback_vector->ICSlots());
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) ==
-        Code::KEYED_LOAD_IC);
+  if (FLAG_vector_stores) {
+    CHECK_EQ(3, feedback_vector->ICSlots());
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) ==
+          Code::KEYED_STORE_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) ==
+          Code::KEYED_LOAD_IC);
+  } else {
+    CHECK_EQ(2, feedback_vector->ICSlots());
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) ==
+          Code::KEYED_LOAD_IC);
+  }
 
   CompileRun(
       "function testcompound(x) {"
@@ -478,9 +508,47 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
   // There should be 3 LOAD_ICs, for load of a and load of x.old and x.young.
   feedback_vector = handle(f->shared()->feedback_vector(), isolate);
-  CHECK_EQ(3, feedback_vector->ICSlots());
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
-  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::LOAD_IC);
+  if (FLAG_vector_stores) {
+    CHECK_EQ(6, feedback_vector->ICSlots());
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::STORE_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::STORE_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::STORE_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(4)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(5)) == Code::LOAD_IC);
+  } else {
+    CHECK_EQ(3, feedback_vector->ICSlots());
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::LOAD_IC);
+  }
+}
+
+
+TEST(VectorStoreICBasic) {
+  if (i::FLAG_always_opt) return;
+  if (!i::FLAG_vector_stores) return;
+
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  CompileRun(
+      "function f(a) {"
+      "  a.foo = 5;"
+      "}"
+      "var a = { foo: 3 };"
+      "f(a);"
+      "f(a);"
+      "f(a);");
+  Handle<JSFunction> f = GetFunction("f");
+  // There should be one IC slot.
+  Handle<TypeFeedbackVector> feedback_vector =
+      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+  CHECK_EQ(1, feedback_vector->ICSlots());
+  FeedbackVectorICSlot slot(0);
+  StoreICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
 }

@@ -4589,11 +4589,173 @@ void VectorStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
 }
 
 
+// value is on the stack already.
+static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
+                                       Register key, Register vector,
+                                       Register slot, Register feedback,
+                                       Label* miss) {
+  // feedback initially contains the feedback array
+  Label next, next_loop, prepare_next;
+  Label load_smi_map, compare_map;
+  Label start_polymorphic;
+
+  __ push(receiver);
+  __ push(vector);
+
+  Register receiver_map = receiver;
+  Register cached_map = vector;
+
+  // Receiver might not be a heap object.
+  __ JumpIfSmi(receiver, &load_smi_map);
+  __ mov(receiver_map, FieldOperand(receiver, 0));
+  __ bind(&compare_map);
+  __ mov(cached_map, FieldOperand(feedback, FixedArray::OffsetOfElementAt(0)));
+
+  // A named keyed store might have a 2 element array, all other cases can count
+  // on an array with at least 2 {map, handler} pairs, so they can go right
+  // into polymorphic array handling.
+  __ cmp(receiver_map, FieldOperand(cached_map, WeakCell::kValueOffset));
+  __ j(not_equal, &start_polymorphic);
+
+  // found, now call handler.
+  Register handler = feedback;
+  DCHECK(handler.is(VectorStoreICDescriptor::ValueRegister()));
+  __ mov(handler, FieldOperand(feedback, FixedArray::OffsetOfElementAt(1)));
+  __ pop(vector);
+  __ pop(receiver);
+  __ lea(handler, FieldOperand(handler, Code::kHeaderSize));
+  __ xchg(handler, Operand(esp, 0));
+  __ ret(0);
+
+  // Polymorphic, we have to loop from 2 to N
+
+  // TODO(mvstanton): I think there is a bug here, we are assuming the
+  // array has more than one map/handler pair, but we call this function in the
+  // keyed store with a string key case, where it might be just an array of two
+  // elements.
+
+  __ bind(&start_polymorphic);
+  __ push(key);
+  Register counter = key;
+  __ mov(counter, Immediate(Smi::FromInt(2)));
+  __ bind(&next_loop);
+  __ mov(cached_map, FieldOperand(feedback, counter, times_half_pointer_size,
+                                  FixedArray::kHeaderSize));
+  __ cmp(receiver_map, FieldOperand(cached_map, WeakCell::kValueOffset));
+  __ j(not_equal, &prepare_next);
+  __ mov(handler, FieldOperand(feedback, counter, times_half_pointer_size,
+                               FixedArray::kHeaderSize + kPointerSize));
+  __ pop(key);
+  __ pop(vector);
+  __ pop(receiver);
+  __ lea(handler, FieldOperand(handler, Code::kHeaderSize));
+  __ xchg(handler, Operand(esp, 0));
+  __ ret(0);
+
+  __ bind(&prepare_next);
+  __ add(counter, Immediate(Smi::FromInt(2)));
+  __ cmp(counter, FieldOperand(feedback, FixedArray::kLengthOffset));
+  __ j(less, &next_loop);
+
+  // We exhausted our array of map handler pairs.
+  __ pop(key);
+  __ pop(vector);
+  __ pop(receiver);
+  __ jmp(miss);
+
+  __ bind(&load_smi_map);
+  __ LoadRoot(receiver_map, Heap::kHeapNumberMapRootIndex);
+  __ jmp(&compare_map);
+}
+
+
+static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
+                                       Register key, Register vector,
+                                       Register slot, Register weak_cell,
+                                       Label* miss) {
+  // The store ic value is on the stack.
+  DCHECK(weak_cell.is(VectorStoreICDescriptor::ValueRegister()));
+
+  // feedback initially contains the feedback array
+  Label compare_smi_map;
+
+  // Move the weak map into the weak_cell register.
+  Register ic_map = weak_cell;
+  __ mov(ic_map, FieldOperand(weak_cell, WeakCell::kValueOffset));
+
+  // Receiver might not be a heap object.
+  __ JumpIfSmi(receiver, &compare_smi_map);
+  __ cmp(ic_map, FieldOperand(receiver, 0));
+  __ j(not_equal, miss);
+  __ mov(weak_cell, FieldOperand(vector, slot, times_half_pointer_size,
+                                 FixedArray::kHeaderSize + kPointerSize));
+  __ lea(weak_cell, FieldOperand(weak_cell, Code::kHeaderSize));
+  // Put the store ic value back in it's register.
+  __ xchg(weak_cell, Operand(esp, 0));
+  // "return" to the handler.
+  __ ret(0);
+
+  // In microbenchmarks, it made sense to unroll this code so that the call to
+  // the handler is duplicated for a HeapObject receiver and a Smi receiver.
+  __ bind(&compare_smi_map);
+  __ CompareRoot(ic_map, Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, miss);
+  __ mov(weak_cell, FieldOperand(vector, slot, times_half_pointer_size,
+                                 FixedArray::kHeaderSize + kPointerSize));
+  __ lea(weak_cell, FieldOperand(weak_cell, Code::kHeaderSize));
+  // Put the store ic value back in it's register.
+  __ xchg(weak_cell, Operand(esp, 0));
+  // "return" to the handler.
+  __ ret(0);
+}
+
+
 void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // edx
+  Register key = VectorStoreICDescriptor::NameRegister();           // ecx
+  Register value = VectorStoreICDescriptor::ValueRegister();        // eax
+  Register vector = VectorStoreICDescriptor::VectorRegister();      // ebx
+  Register slot = VectorStoreICDescriptor::SlotRegister();          // edi
   Label miss;
 
-  // TODO(mvstanton): Implement.
+  __ push(value);
+
+  Register scratch = value;
+  __ mov(scratch, FieldOperand(vector, slot, times_half_pointer_size,
+                               FixedArray::kHeaderSize));
+
+  // Is it a weak cell?
+  Label try_array;
+  Label not_array, smi_key, key_okay;
+  __ CompareRoot(FieldOperand(scratch, 0), Heap::kWeakCellMapRootIndex);
+  __ j(not_equal, &try_array);
+  HandleMonomorphicStoreCase(masm, receiver, key, vector, slot, scratch, &miss);
+
+  // Is it a fixed array?
+  __ bind(&try_array);
+  __ CompareRoot(FieldOperand(scratch, 0), Heap::kFixedArrayMapRootIndex);
+  __ j(not_equal, &not_array);
+  HandlePolymorphicStoreCase(masm, receiver, key, vector, slot, scratch, &miss);
+
+  __ bind(&not_array);
+  __ CompareRoot(scratch, Heap::kmegamorphic_symbolRootIndex);
+  __ j(not_equal, &miss);
+
+  __ pop(value);
+  __ push(slot);
+  __ push(vector);
+  Code::Flags code_flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::STORE_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, code_flags,
+                                               receiver, key, slot, no_reg);
+  __ pop(vector);
+  __ pop(slot);
+  Label no_pop_miss;
+  __ jmp(&no_pop_miss);
+
   __ bind(&miss);
+  __ pop(value);
+  __ bind(&no_pop_miss);
   StoreIC::GenerateMiss(masm);
 }
 
@@ -4608,11 +4770,147 @@ void VectorKeyedStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
 }
 
 
+static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
+                                            Register receiver, Register key,
+                                            Register vector, Register slot,
+                                            Register feedback, Label* miss) {
+  // feedback initially contains the feedback array
+  Label next, next_loop, prepare_next;
+  Label load_smi_map, compare_map;
+  Label transition_call;
+  Label pop_and_miss;
+
+  __ push(receiver);
+  __ push(vector);
+
+  Register receiver_map = receiver;
+  Register cached_map = vector;
+
+  // Receiver might not be a heap object.
+  __ JumpIfSmi(receiver, &load_smi_map);
+  __ mov(receiver_map, FieldOperand(receiver, 0));
+  __ bind(&compare_map);
+
+  // Polymorphic, we have to loop from 0 to N - 1
+  __ push(key);
+  // On the stack we have:
+  // key (esp)
+  // vector
+  // receiver
+  // value
+  Register counter = key;
+  __ mov(counter, Immediate(Smi::FromInt(0)));
+  __ bind(&next_loop);
+  __ mov(cached_map, FieldOperand(feedback, counter, times_half_pointer_size,
+                                  FixedArray::kHeaderSize));
+  __ cmp(receiver_map, FieldOperand(cached_map, WeakCell::kValueOffset));
+  __ j(not_equal, &prepare_next);
+  __ mov(cached_map, FieldOperand(feedback, counter, times_half_pointer_size,
+                                  FixedArray::kHeaderSize + kPointerSize));
+  __ CompareRoot(cached_map, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, &transition_call);
+  __ mov(feedback, FieldOperand(feedback, counter, times_half_pointer_size,
+                                FixedArray::kHeaderSize + 2 * kPointerSize));
+  __ pop(key);
+  __ pop(vector);
+  __ pop(receiver);
+  __ lea(feedback, FieldOperand(feedback, Code::kHeaderSize));
+  __ xchg(feedback, Operand(esp, 0));
+  __ ret(0);
+
+  __ bind(&transition_call);
+  // Oh holy hell this will be tough.
+  // The map goes in vector register.
+  __ mov(receiver, FieldOperand(cached_map, WeakCell::kValueOffset));
+  // The weak cell may have been cleared.
+  __ JumpIfSmi(receiver, &pop_and_miss);
+  // slot goes on the stack, and holds return address.
+  __ xchg(slot, Operand(esp, 4 * kPointerSize));
+  // Get the handler in value.
+  __ mov(feedback, FieldOperand(feedback, counter, times_half_pointer_size,
+                                FixedArray::kHeaderSize + 2 * kPointerSize));
+  __ lea(feedback, FieldOperand(feedback, Code::kHeaderSize));
+  // Pop key into place.
+  __ pop(key);
+  // Put the return address on top of stack, vector goes in slot.
+  __ xchg(slot, Operand(esp, 0));
+  // put the map on the stack, receiver holds receiver.
+  __ xchg(receiver, Operand(esp, 1 * kPointerSize));
+  // put the vector on the stack, slot holds value.
+  __ xchg(slot, Operand(esp, 2 * kPointerSize));
+  // feedback (value) = value, slot = handler.
+  __ xchg(feedback, slot);
+  __ jmp(slot);
+
+  __ bind(&prepare_next);
+  __ add(counter, Immediate(Smi::FromInt(3)));
+  __ cmp(counter, FieldOperand(feedback, FixedArray::kLengthOffset));
+  __ j(less, &next_loop);
+
+  // We exhausted our array of map handler pairs.
+  __ bind(&pop_and_miss);
+  __ pop(key);
+  __ pop(vector);
+  __ pop(receiver);
+  __ jmp(miss);
+
+  __ bind(&load_smi_map);
+  __ LoadRoot(receiver_map, Heap::kHeapNumberMapRootIndex);
+  __ jmp(&compare_map);
+}
+
+
 void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // edx
+  Register key = VectorStoreICDescriptor::NameRegister();           // ecx
+  Register value = VectorStoreICDescriptor::ValueRegister();        // eax
+  Register vector = VectorStoreICDescriptor::VectorRegister();      // ebx
+  Register slot = VectorStoreICDescriptor::SlotRegister();          // edi
   Label miss;
 
-  // TODO(mvstanton): Implement.
+  __ push(value);
+
+  Register scratch = value;
+  __ mov(scratch, FieldOperand(vector, slot, times_half_pointer_size,
+                               FixedArray::kHeaderSize));
+
+  // Is it a weak cell?
+  Label try_array;
+  Label not_array, smi_key, key_okay;
+  __ CompareRoot(FieldOperand(scratch, 0), Heap::kWeakCellMapRootIndex);
+  __ j(not_equal, &try_array);
+  HandleMonomorphicStoreCase(masm, receiver, key, vector, slot, scratch, &miss);
+
+  // Is it a fixed array?
+  __ bind(&try_array);
+  __ CompareRoot(FieldOperand(scratch, 0), Heap::kFixedArrayMapRootIndex);
+  __ j(not_equal, &not_array);
+  HandlePolymorphicKeyedStoreCase(masm, receiver, key, vector, slot, scratch,
+                                  &miss);
+
+  __ bind(&not_array);
+  Label try_poly_name;
+  __ CompareRoot(scratch, Heap::kmegamorphic_symbolRootIndex);
+  __ j(not_equal, &try_poly_name);
+
+  __ pop(value);
+
+  Handle<Code> megamorphic_stub =
+      KeyedStoreIC::ChooseMegamorphicStub(masm->isolate(), GetExtraICState());
+  __ jmp(megamorphic_stub, RelocInfo::CODE_TARGET);
+
+  __ bind(&try_poly_name);
+  // We might have a name in feedback, and a fixed array in the next slot.
+  __ cmp(key, scratch);
+  __ j(not_equal, &miss);
+  // If the name comparison succeeded, we know we have a fixed array with
+  // at least one map/handler pair.
+  __ mov(scratch, FieldOperand(vector, slot, times_half_pointer_size,
+                               FixedArray::kHeaderSize + kPointerSize));
+  HandlePolymorphicStoreCase(masm, receiver, key, vector, slot, scratch, &miss);
+
   __ bind(&miss);
+  __ pop(value);
   KeyedStoreIC::GenerateMiss(masm);
 }
 

@@ -46,7 +46,6 @@ class TypeFeedbackOracle: public ZoneObject {
   void GetStoreModeAndKeyType(FeedbackVectorICSlot slot,
                               KeyedAccessStoreMode* store_mode,
                               IcCheckType* key_type);
-  void GetLoadKeyType(TypeFeedbackId id, IcCheckType* key_type);
 
   void PropertyReceiverTypes(FeedbackVectorICSlot slot, Handle<Name> name,
                              SmallMapList* receiver_types);

@@ -60,9 +60,6 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   Register scratch2() const { return registers_[3]; }
   Register scratch3() const { return registers_[4]; }
 
-  // Calling convention between indexed store IC and handler.
-  Register transition_map() const { return scratch1(); }
-
   static Register* GetCallingConvention(Code::Kind);
   static Register* load_calling_convention();
   static Register* store_calling_convention();
