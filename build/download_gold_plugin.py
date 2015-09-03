@@ -8,6 +8,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -30,7 +31,24 @@ CLANG_REVISION = os.popen(CLANG_UPDATE_PY + ' --print-revision').read().rstrip()
 
 CLANG_BUCKET = 'gs://chromium-browser-clang/Linux_x64'
 
+GOLD_PLUGIN_PATH = os.path.join(LLVM_BUILD_PATH, 'lib', 'LLVMgold.so')
+
+sys.path.insert(0, os.path.join(CHROME_SRC, 'tools', 'clang', 'scripts'))
+
+import update
+
 def main():
+  if not re.search(r'cfi_vptr=1', os.environ.get('GYP_DEFINES', '')):
+    # Bailout if this is not a cfi build.
+    print 'Skipping gold plugin download for non-cfi build.'
+    return 0
+  if (os.path.exists(GOLD_PLUGIN_PATH) and
+      update.ReadStampFile().strip() == update.PACKAGE_VERSION):
+    # Bailout if clang is up-to-date. This requires the script to be run before
+    # the clang update step! I.e. afterwards clang would always be up-to-date.
+    print 'Skipping gold plugin download. File present and clang up to date.'
+    return 0
+
   targz_name = 'llvmgold-%s.tgz' % CLANG_REVISION
   remote_path = '%s/%s' % (CLANG_BUCKET, targz_name)
 
