@@ -749,12 +749,12 @@ void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
 
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()), daf_(isolate) {
-  heap_->always_allocate_scope_depth_++;
+  heap_->always_allocate_scope_count_.Increment(1);
 }
 
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
-  heap_->always_allocate_scope_depth_--;
+  heap_->always_allocate_scope_count_.Increment(-1);
 }
 
 

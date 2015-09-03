@@ -74,7 +74,7 @@ Heap::Heap()
       maximum_committed_(0),
       survived_since_last_expansion_(0),
       survived_last_scavenge_(0),
-      always_allocate_scope_depth_(0),
+      always_allocate_scope_count_(0),
       contexts_disposed_(0),
       global_ic_age_(0),
       scan_on_scavenge_pages_(0),

@@ -10,6 +10,7 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
+#include "src/atomic-utils.h"
 #include "src/globals.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/incremental-marking.h"
@@ -776,10 +777,7 @@ class Heap {
     return old_generation_allocation_limit_;
   }
 
-  bool always_allocate() { return always_allocate_scope_depth_ != 0; }
-  Address always_allocate_scope_depth_address() {
-    return reinterpret_cast<Address>(&always_allocate_scope_depth_);
-  }
+  bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
 
   Address* NewSpaceAllocationTopAddress() {
     return new_space_.allocation_top_address();
@@ -2134,7 +2132,9 @@ class Heap {
   // ... and since the last scavenge.
   int survived_last_scavenge_;
 
-  int always_allocate_scope_depth_;
+  // This is not the depth of nested AlwaysAllocateScope's but rather a single
+  // count, as scopes can be acquired from multiple tasks (read: threads).
+  AtomicValue always_allocate_scope_count_;
 
   // For keeping track of context disposals.
   int contexts_disposed_;
