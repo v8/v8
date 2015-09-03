@@ -541,6 +541,7 @@ void IncrementalMarking::StartMarking() {
 void IncrementalMarking::MarkObjectGroups() {
   DCHECK(FLAG_overapproximate_weak_closure);
   DCHECK(!weak_closure_was_overapproximated_);
+  DCHECK(IsMarking());
 
   int old_marking_deque_top =
       heap_->mark_compact_collector()->marking_deque()->top();

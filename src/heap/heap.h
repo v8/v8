@@ -1034,6 +1034,8 @@ class Heap {
   bool HasHighFragmentation();
   bool HasHighFragmentation(intptr_t used, intptr_t committed);
 
+  bool ShouldOptimizeForMemoryUsage() { return optimize_for_memory_usage_; }
+
   // ===========================================================================
   // Initialization. ===========================================================
   // ===========================================================================
@@ -1291,6 +1293,8 @@ class Heap {
   double AdvanceIncrementalMarking(
       intptr_t step_size_in_bytes, double deadline_in_ms,
       IncrementalMarking::StepActions step_actions);
+
+  void FinalizeIncrementalMarkingIfComplete(const char* comment);
 
   IncrementalMarking* incremental_marking() { return &incremental_marking_; }
 
