@@ -1142,6 +1142,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kCheckedLoadWord32:
       ASSEMBLE_CHECKED_LOAD_INTEGER(lwa, lwax);
       break;
+    case kCheckedLoadWord64:
+#if V8_TARGET_ARCH_PPC64
+      ASSEMBLE_CHECKED_LOAD_INTEGER(ld, ldx);
+#else
+      UNREACHABLE();
+#endif
+      break;
     case kCheckedLoadFloat32:
       ASSEMBLE_CHECKED_LOAD_FLOAT(lfs, lfsx, 32);
       break;
@@ -1156,6 +1163,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kCheckedStoreWord32:
       ASSEMBLE_CHECKED_STORE_INTEGER(stw, stwx);
+      break;
+    case kCheckedStoreWord64:
+#if V8_TARGET_ARCH_PPC64
+      ASSEMBLE_CHECKED_STORE_INTEGER(std, stdx);
+#else
+      UNREACHABLE();
+#endif
       break;
     case kCheckedStoreFloat32:
       ASSEMBLE_CHECKED_STORE_FLOAT32();

@@ -1224,6 +1224,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cmp(esp, Operand::StaticVariable(stack_limit));
       break;
     }
+    case kCheckedLoadWord64:
+    case kCheckedStoreWord64:
+      UNREACHABLE();  // currently unsupported checked int64 load/store.
+      break;
   }
 }  // NOLINT(readability/fn_size)
 

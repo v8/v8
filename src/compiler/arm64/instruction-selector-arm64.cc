@@ -458,6 +458,9 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case kRepWord32:
       opcode = kCheckedLoadWord32;
       break;
+    case kRepWord64:
+      opcode = kCheckedLoadWord64;
+      break;
     case kRepFloat32:
       opcode = kCheckedLoadFloat32;
       break;
@@ -490,6 +493,9 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       break;
     case kRepWord32:
       opcode = kCheckedStoreWord32;
+      break;
+    case kRepWord64:
+      opcode = kCheckedStoreWord64;
       break;
     case kRepFloat32:
       opcode = kCheckedStoreFloat32;
