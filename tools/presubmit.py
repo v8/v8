@@ -68,7 +68,6 @@ LINT_RULES = """
 -runtime/references
 -runtime/threadsafe_fn
 -whitespace/semicolon
--whitespace/empty_loop_body
 """.split()
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')

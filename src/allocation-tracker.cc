@@ -176,8 +176,7 @@ void AddressToTraceMap::RemoveRange(Address start, Address end) {
       break;
     }
     ++it;
-  }
-  while (it != ranges_.end());
+  } while (it != ranges_.end());
 
   ranges_.erase(to_remove_begin, it);
 
