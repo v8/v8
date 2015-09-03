@@ -290,28 +290,6 @@ void FullCodeGenerator::Generate() {
     SetVar(new_target_var, r3, r5, r6);
   }
 
-  // Possibly allocate RestParameters
-  int rest_index;
-  Variable* rest_param = scope()->rest_parameter(&rest_index);
-  if (rest_param) {
-    Comment cmnt(masm_, "[ Allocate rest parameter array");
-
-    int num_parameters = info->scope()->num_parameters();
-    int offset = num_parameters * kPointerSize;
-
-    __ addi(r6, fp, Operand(StandardFrameConstants::kCallerSPOffset + offset));
-    __ LoadSmiLiteral(r5, Smi::FromInt(num_parameters));
-    __ LoadSmiLiteral(r4, Smi::FromInt(rest_index));
-    __ LoadSmiLiteral(r3, Smi::FromInt(language_mode()));
-    __ Push(r6, r5, r4, r3);
-    function_in_register_r4 = false;
-
-    RestParamAccessStub stub(isolate());
-    __ CallStub(&stub);
-
-    SetVar(rest_param, r3, r4, r5);
-  }
-
   Variable* arguments = scope()->arguments();
   if (arguments != NULL) {
     // Function uses arguments object.
