@@ -100,10 +100,7 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
       Label next_map;
       __ Branch(&next_map, ne, match, Operand(map_reg));
       Handle<WeakCell> cell = Map::WeakCellForMap(transitioned_maps->at(i));
-      Register transition_map = scratch1();
-      DCHECK(!FLAG_vector_stores &&
-             transition_map.is(StoreTransitionDescriptor::MapRegister()));
-      __ LoadWeakValue(transition_map, cell, &miss);
+      __ LoadWeakValue(transition_map(), cell, &miss);
       __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET);
       __ bind(&next_map);
     }

@@ -25,9 +25,6 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   ExternalReference map_offset(isolate->stub_cache()->map_reference(table));
 
   Label miss;
-  bool is_vector_store =
-      IC::ICUseVector(ic_kind) &&
-      (ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC);
 
   // Multiply by 3 because there are 3 fields per entry (name, code, map).
   __ lea(offset, Operand(offset, offset, times_2, 0));
@@ -59,28 +56,19 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     }
 #endif
 
-    // The vector and slot were pushed onto the stack before starting the
-    // probe, and need to be dropped before calling the handler.
-    if (is_vector_store) {
-      // The overlap here is rather embarrassing. One does what one must.
-      Register vector = VectorStoreICDescriptor::VectorRegister();
-      DCHECK(extra.is(VectorStoreICDescriptor::SlotRegister()));
-      __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      __ pop(vector);
-      __ xchg(extra, Operand(esp, 0));
-      // Jump to the first instruction in the code stub.
-      __ ret(0);
-    } else {
+    if (IC::ICUseVector(ic_kind)) {
+      // The vector and slot were pushed onto the stack before starting the
+      // probe, and need to be dropped before calling the handler.
       __ pop(LoadWithVectorDescriptor::VectorRegister());
       __ pop(LoadDescriptor::SlotRegister());
-      __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      __ jmp(extra);
     }
+
+    // Jump to the first instruction in the code stub.
+    __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ jmp(extra);
 
     __ bind(&miss);
   } else {
-    DCHECK(ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC);
-
     // Save the offset on the stack.
     __ push(offset);
 
@@ -117,20 +105,20 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     __ pop(offset);
     __ mov(offset, Operand::StaticArray(offset, times_1, value_offset));
 
-    // Jump to the first instruction in the code stub.
-    if (is_vector_store) {
+    if (IC::ICUseVector(ic_kind)) {
       // The vector and slot were pushed onto the stack before starting the
       // probe, and need to be dropped before calling the handler.
-      Register vector = VectorStoreICDescriptor::VectorRegister();
-      DCHECK(offset.is(VectorStoreICDescriptor::SlotRegister()));
-      __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      Register vector = LoadWithVectorDescriptor::VectorRegister();
+      Register slot = LoadDescriptor::SlotRegister();
+      DCHECK(!offset.is(vector) && !offset.is(slot));
+
       __ pop(vector);
-      __ xchg(offset, Operand(esp, 0));
-      __ ret(0);
-    } else {
-      __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      __ jmp(offset);
+      __ pop(slot);
     }
+
+    // Jump to the first instruction in the code stub.
+    __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ jmp(offset);
 
     // Pop at miss.
     __ bind(&miss);

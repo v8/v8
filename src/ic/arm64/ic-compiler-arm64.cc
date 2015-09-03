@@ -116,10 +116,7 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
       // This argument is used by the handler stub. For example, see
       // ElementsTransitionGenerator::GenerateMapChangeElementsTransition.
       Handle<WeakCell> cell = Map::WeakCellForMap(transitioned_maps->at(i));
-      Register transition_map = scratch1();
-      DCHECK(!FLAG_vector_stores &&
-             transition_map.is(StoreTransitionDescriptor::MapRegister()));
-      __ LoadWeakValue(transition_map, cell, &miss);
+      __ LoadWeakValue(transition_map(), cell, &miss);
     }
     __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET);
     __ Bind(&skip);

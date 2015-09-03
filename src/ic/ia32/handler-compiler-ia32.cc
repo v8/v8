@@ -304,24 +304,13 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
 
-  if (FLAG_vector_stores) {
-    Register slot = VectorStoreICDescriptor::SlotRegister();
-    Register vector = VectorStoreICDescriptor::VectorRegister();
+  DCHECK(!ebx.is(receiver) && !ebx.is(name) && !ebx.is(value));
 
-    __ xchg(receiver, Operand(esp, 0));
-    __ push(name);
-    __ push(value);
-    __ push(slot);
-    __ push(vector);
-    __ push(receiver);  // which contains the return address.
-  } else {
-    DCHECK(!ebx.is(receiver) && !ebx.is(name) && !ebx.is(value));
-    __ pop(ebx);
-    __ push(receiver);
-    __ push(name);
-    __ push(value);
-    __ push(ebx);
-  }
+  __ pop(ebx);
+  __ push(receiver);
+  __ push(name);
+  __ push(value);
+  __ push(ebx);
 }
 
 
@@ -330,7 +319,7 @@ void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kStoreIC_Slow, FLAG_vector_stores ? 5 : 3, 1);
+  __ TailCallRuntime(Runtime::kStoreIC_Slow, 3, 1);
 }
 
 
@@ -339,8 +328,7 @@ void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, FLAG_vector_stores ? 5 : 3,
-                     1);
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, 3, 1);
 }
 
 
@@ -364,16 +352,10 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
 
 void NamedStoreHandlerCompiler::GeneratePushMap(Register map_reg,
                                                 Register scratch) {
-  //       current               after GeneratePushMap
-  // -------------------------------------------------
-  //       ret addr              slot
-  //       vector                vector
-  // sp -> slot                  map
-  //                       sp -> ret addr
-  //
-  __ xchg(map_reg, Operand(esp, 0));
-  __ xchg(map_reg, Operand(esp, 2 * kPointerSize));
+  // Get the return address, push the argument and then continue.
+  __ pop(scratch);
   __ push(map_reg);
+  __ push(scratch);
 }
 
 
@@ -593,7 +575,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ jmp(&success);
     GenerateRestoreName(miss, name);
-    if (IC::ICUseVector(kind())) PopVectorAndSlot();
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }

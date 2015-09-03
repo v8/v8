@@ -136,10 +136,10 @@ bool TypeFeedbackOracle::StoreIsUninitialized(FeedbackVectorICSlot slot) {
     Code::Kind kind = feedback_vector_->GetKind(slot);
     if (kind == Code::STORE_IC) {
       StoreICNexus nexus(feedback_vector_, slot);
-      return nexus.StateFromFeedback() == UNINITIALIZED;
+      return nexus.StateFromFeedback();
     } else if (kind == Code::KEYED_STORE_IC) {
       KeyedStoreICNexus nexus(feedback_vector_, slot);
-      return nexus.StateFromFeedback() == UNINITIALIZED;
+      return nexus.StateFromFeedback();
     }
   }
   return true;
