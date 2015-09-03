@@ -2278,11 +2278,12 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   __ ld(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
   __ ld(a1, ContextOperand(a1, Context::ITERATOR_RESULT_MAP_INDEX));
   __ pop(a2);
-  __ li(a3, Operand(isolate()->factory()->ToBoolean(done)));
-  __ li(t0, Operand(isolate()->factory()->empty_fixed_array()));
+  __ LoadRoot(a3,
+              done ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex);
+  __ LoadRoot(a4, Heap::kEmptyFixedArrayRootIndex);
   __ sd(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
-  __ sd(t0, FieldMemOperand(v0, JSObject::kPropertiesOffset));
-  __ sd(t0, FieldMemOperand(v0, JSObject::kElementsOffset));
+  __ sd(a4, FieldMemOperand(v0, JSObject::kPropertiesOffset));
+  __ sd(a4, FieldMemOperand(v0, JSObject::kElementsOffset));
   __ sd(a2, FieldMemOperand(v0, JSIteratorResult::kValueOffset));
   __ sd(a3, FieldMemOperand(v0, JSIteratorResult::kDoneOffset));
   STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
@@ -4502,12 +4503,11 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
   __ ld(a1, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
   __ ld(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
   __ ld(a1, ContextOperand(a1, Context::ITERATOR_RESULT_MAP_INDEX));
-  __ pop(a3);
-  __ pop(a2);
-  __ li(t0, Operand(isolate()->factory()->empty_fixed_array()));
+  __ Pop(a2, a3);
+  __ LoadRoot(a4, Heap::kEmptyFixedArrayRootIndex);
   __ sd(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
-  __ sd(t0, FieldMemOperand(v0, JSObject::kPropertiesOffset));
-  __ sd(t0, FieldMemOperand(v0, JSObject::kElementsOffset));
+  __ sd(a4, FieldMemOperand(v0, JSObject::kPropertiesOffset));
+  __ sd(a4, FieldMemOperand(v0, JSObject::kElementsOffset));
   __ sd(a2, FieldMemOperand(v0, JSIteratorResult::kValueOffset));
   __ sd(a3, FieldMemOperand(v0, JSIteratorResult::kDoneOffset));
   STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);

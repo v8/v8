@@ -2280,8 +2280,9 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   __ lw(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
   __ lw(a1, ContextOperand(a1, Context::ITERATOR_RESULT_MAP_INDEX));
   __ pop(a2);
-  __ li(a3, Operand(isolate()->factory()->ToBoolean(done)));
-  __ li(t0, Operand(isolate()->factory()->empty_fixed_array()));
+  __ LoadRoot(a3,
+              done ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex);
+  __ LoadRoot(t0, Heap::kEmptyFixedArrayRootIndex);
   __ sw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ sw(t0, FieldMemOperand(v0, JSObject::kPropertiesOffset));
   __ sw(t0, FieldMemOperand(v0, JSObject::kElementsOffset));
@@ -4498,9 +4499,8 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
   __ lw(a1, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
   __ lw(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
   __ lw(a1, ContextOperand(a1, Context::ITERATOR_RESULT_MAP_INDEX));
-  __ pop(a3);
-  __ pop(a2);
-  __ li(t0, Operand(isolate()->factory()->empty_fixed_array()));
+  __ Pop(a2, a3);
+  __ LoadRoot(t0, Heap::kEmptyFixedArrayRootIndex);
   __ sw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ sw(t0, FieldMemOperand(v0, JSObject::kPropertiesOffset));
   __ sw(t0, FieldMemOperand(v0, JSObject::kElementsOffset));
