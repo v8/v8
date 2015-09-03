@@ -2243,43 +2243,28 @@ void FullCodeGenerator::EmitGeneratorResume(
 
 
 void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
-  Label gc_required;
-  Label allocated;
+  Label allocate, done_allocate;
 
-  const int instance_size = 5 * kPointerSize;
-  DCHECK_EQ(isolate()->native_context()->iterator_result_map()->instance_size(),
-            instance_size);
+  __ Allocate(JSIteratorResult::kSize, r3, r5, r6, &allocate, TAG_OBJECT);
+  __ b(&done_allocate);
 
-  __ Allocate(instance_size, r3, r5, r6, &gc_required, TAG_OBJECT);
-  __ b(&allocated);
-
-  __ bind(&gc_required);
-  __ Push(Smi::FromInt(instance_size));
+  __ bind(&allocate);
+  __ Push(Smi::FromInt(JSIteratorResult::kSize));
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-  __ LoadP(context_register(),
-           MemOperand(fp, StandardFrameConstants::kContextOffset));
 
-  __ bind(&allocated);
+  __ bind(&done_allocate);
   __ LoadP(r4, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
   __ LoadP(r4, FieldMemOperand(r4, GlobalObject::kNativeContextOffset));
   __ LoadP(r4, ContextOperand(r4, Context::ITERATOR_RESULT_MAP_INDEX));
   __ pop(r5);
-  __ mov(r6, Operand(isolate()->factory()->ToBoolean(done)));
-  __ mov(r7, Operand(isolate()->factory()->empty_fixed_array()));
+  __ LoadRoot(r6,
+              done ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex);
+  __ LoadRoot(r7, Heap::kEmptyFixedArrayRootIndex);
   __ StoreP(r4, FieldMemOperand(r3, HeapObject::kMapOffset), r0);
   __ StoreP(r7, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
   __ StoreP(r7, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
-  __ StoreP(r5,
-            FieldMemOperand(r3, JSGeneratorObject::kResultValuePropertyOffset),
-            r0);
-  __ StoreP(r6,
-            FieldMemOperand(r3, JSGeneratorObject::kResultDonePropertyOffset),
-            r0);
-
-  // Only the value field needs a write barrier, as the other values are in the
-  // root set.
-  __ RecordWriteField(r3, JSGeneratorObject::kResultValuePropertyOffset, r5, r6,
-                      kLRHasBeenSaved, kDontSaveFPRegs);
+  __ StoreP(r5, FieldMemOperand(r3, JSIteratorResult::kValueOffset), r0);
+  __ StoreP(r6, FieldMemOperand(r3, JSIteratorResult::kDoneOffset), r0);
 }
 
 
@@ -4490,6 +4475,36 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
   __ mov(ip, Operand(debug_is_active));
   __ lbz(r3, MemOperand(ip));
   __ SmiTag(r3);
+  context()->Plug(r3);
+}
+
+
+void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(2, args->length());
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+
+  Label runtime, done;
+
+  __ Allocate(JSIteratorResult::kSize, r3, r5, r6, &runtime, TAG_OBJECT);
+  __ LoadP(r4, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+  __ LoadP(r4, FieldMemOperand(r4, GlobalObject::kNativeContextOffset));
+  __ LoadP(r4, ContextOperand(r4, Context::ITERATOR_RESULT_MAP_INDEX));
+  __ Pop(r5, r6);
+  __ LoadRoot(r7, Heap::kEmptyFixedArrayRootIndex);
+  __ StoreP(r4, FieldMemOperand(r3, HeapObject::kMapOffset), r0);
+  __ StoreP(r7, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
+  __ StoreP(r7, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
+  __ StoreP(r5, FieldMemOperand(r3, JSIteratorResult::kValueOffset), r0);
+  __ StoreP(r6, FieldMemOperand(r3, JSIteratorResult::kDoneOffset), r0);
+  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
+  __ b(&done);
+
+  __ bind(&runtime);
+  __ CallRuntime(Runtime::kCreateIterResultObject, 2);
+
+  __ bind(&done);
   context()->Plug(r3);
 }
 
