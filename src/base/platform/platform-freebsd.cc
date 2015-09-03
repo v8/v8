@@ -17,7 +17,6 @@
 #include <sys/fcntl.h>  // open
 #include <sys/mman.h>   // mmap & munmap
 #include <sys/stat.h>   // open
-#include <sys/types.h>  // mmap & munmap
 #include <unistd.h>     // getpagesize
 // If you don't have execinfo.h then you need devel/libexecinfo from ports.
 #include <errno.h>

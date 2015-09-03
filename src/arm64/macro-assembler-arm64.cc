@@ -4,7 +4,6 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "src/arm64/frames-arm64.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
@@ -12,6 +11,9 @@
 #include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
 #include "src/runtime/runtime.h"
+
+#include "src/arm64/frames-arm64.h"
+#include "src/arm64/macro-assembler-arm64.h"
 
 namespace v8 {
 namespace internal {

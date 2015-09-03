@@ -19,8 +19,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "v8-version.h"
-#include "v8config.h"
+#include "v8-version.h"  // NOLINT(build/include)
+#include "v8config.h"    // NOLINT(build/include)
 
 // We reserve the V8_* prefix for macros defined in V8 public API and
 // assume there are no name conflicts with the embedder's code.

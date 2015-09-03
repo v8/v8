@@ -32,6 +32,8 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
+#include "src/mips/assembler-mips.h"
+
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/base/bits.h"

@@ -8,6 +8,7 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
+#include "src/ia32/code-stubs-ia32.h"
 #include "src/ia32/frames-ia32.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"

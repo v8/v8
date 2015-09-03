@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/ppc/codegen-ppc.h"
+
 #if V8_TARGET_ARCH_PPC
 
 #include "src/codegen.h"

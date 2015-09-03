@@ -32,6 +32,8 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
+#include "src/mips64/assembler-mips64.h"
+
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/cpu.h"

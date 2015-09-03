@@ -11,6 +11,7 @@
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
+#include "src/mips64/macro-assembler-mips64.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

@@ -4,7 +4,6 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "src/arm64/frames-arm64.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
@@ -15,6 +14,9 @@
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
+
+#include "src/arm64/code-stubs-arm64.h"
+#include "src/arm64/frames-arm64.h"
 
 namespace v8 {
 namespace internal {

@@ -13,6 +13,7 @@
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
+#include "src/ppc/macro-assembler-ppc.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

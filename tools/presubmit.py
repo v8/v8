@@ -50,13 +50,11 @@ from subprocess import PIPE
 # build/include_what_you_use: Started giving false positives for variables
 #   named "string" and "map" assuming that you needed to include STL headers.
 # TODO(bmeurer): Fix and re-enable readability/check
-# TODO(mstarzinger): Fix and re-enable build/include
 # TODO(mstarzinger): Fix and re-enable readability/namespace
 
 LINT_RULES = """
 -build/c++11
 -build/header_guard
--build/include
 +build/include_alpha
 -build/include_what_you_use
 -build/namespaces

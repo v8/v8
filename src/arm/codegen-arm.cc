@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/arm/codegen-arm.h"
+
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/simulator-arm.h"

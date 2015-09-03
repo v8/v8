@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/ia32/codegen-ia32.h"
+
 #if V8_TARGET_ARCH_IA32
 
 #include "src/codegen.h"

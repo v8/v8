@@ -20,7 +20,6 @@
 #include <strings.h>    // index
 #include <sys/mman.h>   // mmap & munmap
 #include <sys/stat.h>   // open
-#include <sys/types.h>  // mmap & munmap
 #include <unistd.h>     // sysconf
 
 #include <cmath>

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/mips64/lithium-mips64.h"
+
 #include <sstream>
 
 #if V8_TARGET_ARCH_MIPS64

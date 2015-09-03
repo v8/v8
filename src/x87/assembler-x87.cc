@@ -34,6 +34,8 @@
 // significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
+#include "src/x87/assembler-x87.h"
+
 #if V8_TARGET_ARCH_X87
 
 #include "src/base/bits.h"

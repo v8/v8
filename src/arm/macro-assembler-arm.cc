@@ -14,6 +14,8 @@
 #include "src/debug/debug.h"
 #include "src/runtime/runtime.h"
 
+#include "src/arm/macro-assembler-arm.h"
+
 namespace v8 {
 namespace internal {
 

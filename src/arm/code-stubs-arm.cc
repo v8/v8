@@ -16,6 +16,8 @@
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
 
+#include "src/arm/code-stubs-arm.h"
+
 namespace v8 {
 namespace internal {
 
