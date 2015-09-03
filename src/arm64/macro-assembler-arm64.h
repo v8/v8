@@ -1490,6 +1490,20 @@ class MacroAssembler : public Assembler {
   // Fall-through if the object was a string and jump on fail otherwise.
   inline void IsObjectNameType(Register object, Register type, Label* fail);
 
+  inline void IsObjectJSObjectType(Register heap_object,
+                                   Register map,
+                                   Register scratch,
+                                   Label* fail);
+
+  // Check the instance type in the given map to see if it corresponds to a
+  // JS object type. Jump to the fail label if this is not the case and fall
+  // through otherwise. However if fail label is NULL, no branch will be
+  // performed and the flag will be updated. You can test the flag for "le"
+  // condition to test if it is a valid JS object type.
+  inline void IsInstanceJSObjectType(Register map,
+                                     Register scratch,
+                                     Label* fail);
+
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.
   // The object and type arguments can be the same register; in that case it

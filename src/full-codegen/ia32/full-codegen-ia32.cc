@@ -3565,49 +3565,57 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
 
 void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-  Label done, null, function, function_constructor;
+  DCHECK(args->length() == 1);
+  Label done, null, function, non_function_constructor;
 
   VisitForAccumulatorValue(args->at(0));
 
   // If the object is a smi, we return null.
-  __ JumpIfSmi(eax, &null, Label::kNear);
+  __ JumpIfSmi(eax, &null);
 
-  // If the object is not a receiver, we return null.
-  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, eax);
-  __ j(below, &null, Label::kNear);
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+  // Assume that there are only two callable types, and one of them is at
+  // either end of the type range for JS object types. Saves extra comparisons.
+  STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
+  __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, eax);
+  // Map is now in eax.
+  __ j(below, &null);
+  STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                FIRST_SPEC_OBJECT_TYPE + 1);
+  __ j(equal, &function);
 
-  // According to ES5 section 15 Standard Built-in ECMAScript Objects, the
-  // [[Class]] of builtin objects is "Function" if a [[Call]] internal
-  // method is present.
-  __ test_b(FieldOperand(eax, Map::kBitFieldOffset), 1 << Map::kIsCallable);
-  __ j(not_zero, &function, Label::kNear);
+  __ CmpInstanceType(eax, LAST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_SPEC_OBJECT_TYPE - 1);
+  __ j(equal, &function);
+  // Assume that there is no larger type.
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
 
   // Check if the constructor in the map is a JS function.
   __ GetMapConstructor(eax, eax, ebx);
   __ CmpInstanceType(ebx, JS_FUNCTION_TYPE);
-  __ j(equal, &function_constructor, Label::kNear);
+  __ j(not_equal, &non_function_constructor);
 
-  // Objects with a non-function constructor have class 'Object'.
-  __ LoadRoot(eax, Heap::kObject_stringRootIndex);
-  __ jmp(&done, Label::kNear);
-
-  // Non-JS objects have class null.
-  __ bind(&null);
-  __ LoadRoot(eax, Heap::kNullValueRootIndex);
-  __ jmp(&done, Label::kNear);
-
-  // Functions have class 'Function'.
-  __ bind(&function);
-  __ LoadRoot(eax, Heap::kFunction_stringRootIndex);
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&function_constructor);
   // eax now contains the constructor function. Grab the
   // instance class name from there.
   __ mov(eax, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
   __ mov(eax, FieldOperand(eax, SharedFunctionInfo::kInstanceClassNameOffset));
+  __ jmp(&done);
+
+  // Functions have class 'Function'.
+  __ bind(&function);
+  __ mov(eax, isolate()->factory()->Function_string());
+  __ jmp(&done);
+
+  // Objects with a non-function constructor have class 'Object'.
+  __ bind(&non_function_constructor);
+  __ mov(eax, isolate()->factory()->Object_string());
+  __ jmp(&done);
+
+  // Non-JS objects have class null.
+  __ bind(&null);
+  __ mov(eax, isolate()->factory()->null_value());
 
   // All done.
   __ bind(&done);

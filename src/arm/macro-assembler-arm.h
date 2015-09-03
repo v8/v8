@@ -662,6 +662,15 @@ class MacroAssembler: public Assembler {
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper);
 
+  void IsObjectJSObjectType(Register heap_object,
+                            Register map,
+                            Register scratch,
+                            Label* fail);
+
+  void IsInstanceJSObjectType(Register map,
+                              Register scratch,
+                              Label* fail);
+
   void IsObjectJSStringType(Register object,
                             Register scratch,
                             Label* fail);

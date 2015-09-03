@@ -752,6 +752,26 @@ Condition MacroAssembler::IsObjectNameType(Register heap_object,
 }
 
 
+void MacroAssembler::IsObjectJSObjectType(Register heap_object,
+                                          Register map,
+                                          Register scratch,
+                                          Label* fail) {
+  mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  IsInstanceJSObjectType(map, scratch, fail);
+}
+
+
+void MacroAssembler::IsInstanceJSObjectType(Register map,
+                                            Register scratch,
+                                            Label* fail) {
+  movzx_b(scratch, FieldOperand(map, Map::kInstanceTypeOffset));
+  sub(scratch, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+  cmp(scratch,
+      LAST_NONCALLABLE_SPEC_OBJECT_TYPE - FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+  j(above, fail);
+}
+
+
 void MacroAssembler::FCmp() {
   fucomip();
   fstp(0);
@@ -1764,9 +1784,9 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   Label done, loop;
   mov(result, FieldOperand(map, Map::kConstructorOrBackPointerOffset));
   bind(&loop);
-  JumpIfSmi(result, &done, Label::kNear);
+  JumpIfSmi(result, &done);
   CmpObjectType(result, MAP_TYPE, temp);
-  j(not_equal, &done, Label::kNear);
+  j(not_equal, &done);
   mov(result, FieldOperand(result, Map::kConstructorOrBackPointerOffset));
   jmp(&loop);
   bind(&done);

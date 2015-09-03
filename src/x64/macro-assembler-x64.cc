@@ -3446,9 +3446,9 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   Label done, loop;
   movp(result, FieldOperand(map, Map::kConstructorOrBackPointerOffset));
   bind(&loop);
-  JumpIfSmi(result, &done, Label::kNear);
+  JumpIfSmi(result, &done);
   CmpObjectType(result, MAP_TYPE, temp);
-  j(not_equal, &done, Label::kNear);
+  j(not_equal, &done);
   movp(result, FieldOperand(result, Map::kConstructorOrBackPointerOffset));
   jmp(&loop);
   bind(&done);

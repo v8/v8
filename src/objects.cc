@@ -58,9 +58,9 @@ Handle<HeapType> Object::OptimalType(Isolate* isolate,
     if (representation.IsHeapObject() && IsHeapObject()) {
       // We can track only JavaScript objects with stable maps.
       Handle<Map> map(HeapObject::cast(this)->map(), isolate);
-      if (map->is_stable() && !map->is_callable() &&
-          map->instance_type() >= FIRST_JS_RECEIVER_TYPE &&
-          map->instance_type() <= LAST_JS_RECEIVER_TYPE) {
+      if (map->is_stable() &&
+          map->instance_type() >= FIRST_NONCALLABLE_SPEC_OBJECT_TYPE &&
+          map->instance_type() <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE) {
         return HeapType::Class(map, isolate);
       }
     }
@@ -1650,10 +1650,7 @@ void Simd128Value::CopyBits(void* destination) const {
 
 
 String* JSReceiver::class_name() {
-  // According to ES5 section 15 Standard Built-in ECMAScript Objects, the
-  // [[Class]] of builtin objects is "Function" if a [[Call]] internal
-  // method is present.
-  if (IsCallable()) {
+  if (IsJSFunction() || IsJSFunctionProxy()) {
     return GetHeap()->Function_string();
   }
   Object* maybe_constructor = map()->GetConstructor();

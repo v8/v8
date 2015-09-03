@@ -1434,6 +1434,32 @@ void MacroAssembler::IsObjectNameType(Register object,
 }
 
 
+void MacroAssembler::IsObjectJSObjectType(Register heap_object,
+                                          Register map,
+                                          Register scratch,
+                                          Label* fail) {
+  Ldr(map, FieldMemOperand(heap_object, HeapObject::kMapOffset));
+  IsInstanceJSObjectType(map, scratch, fail);
+}
+
+
+void MacroAssembler::IsInstanceJSObjectType(Register map,
+                                            Register scratch,
+                                            Label* fail) {
+  Ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  // If cmp result is lt, the following ccmp will clear all flags.
+  // Z == 0, N == V implies gt condition.
+  Cmp(scratch, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+  Ccmp(scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE, NoFlag, ge);
+
+  // If we didn't get a valid label object just fall through and leave the
+  // flags updated.
+  if (fail != NULL) {
+    B(gt, fail);
+  }
+}
+
+
 void MacroAssembler::IsObjectJSStringType(Register object,
                                           Register type,
                                           Label* not_string,

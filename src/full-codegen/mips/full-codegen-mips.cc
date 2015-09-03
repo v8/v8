@@ -3663,7 +3663,7 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
 
 void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
+  DCHECK(args->length() == 1);
   Label done, null, function, non_function_constructor;
 
   VisitForAccumulatorValue(args->at(0));
@@ -3671,17 +3671,23 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   // If the object is a smi, we return null.
   __ JumpIfSmi(v0, &null);
 
-  // If the object is not a receiver, we return null.
-  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+  // Assume that there are only two callable types, and one of them is at
+  // either end of the type range for JS object types. Saves extra comparisons.
+  STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
   __ GetObjectType(v0, v0, a1);  // Map is now in v0.
-  __ Branch(&null, lt, a1, Operand(FIRST_JS_RECEIVER_TYPE));
+  __ Branch(&null, lt, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
 
-  // According to ES5 section 15 Standard Built-in ECMAScript Objects, the
-  // [[Class]] of builtin objects is "Function" if a [[Call]] internal
-  // method is present.
-  __ lbu(a1, FieldMemOperand(v0, Map::kBitFieldOffset));
-  __ And(a1, a1, Operand(1 << Map::kIsCallable));
-  __ Branch(&function, ne, a1, Operand(zero_reg));
+  STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                FIRST_SPEC_OBJECT_TYPE + 1);
+  __ Branch(&function, eq, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
+
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_SPEC_OBJECT_TYPE - 1);
+  __ Branch(&function, eq, a1, Operand(LAST_SPEC_OBJECT_TYPE));
+  // Assume that there is no larger type.
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
 
   // Check if the constructor in the map is a JS function.
   Register instance_type = a2;

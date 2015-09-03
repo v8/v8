@@ -3390,7 +3390,7 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
 void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitClassOf");
   ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
+  DCHECK(args->length() == 1);
   Label done, null, function, non_function_constructor;
 
   VisitForAccumulatorValue(args->at(0));
@@ -3398,19 +3398,25 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   // If the object is a smi, we return null.
   __ JumpIfSmi(x0, &null);
 
-  // If the object is not a receiver, we return null.
-  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  __ CompareObjectType(x0, x10, x11, FIRST_JS_RECEIVER_TYPE);
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+  // Assume that there are only two callable types, and one of them is at
+  // either end of the type range for JS object types. Saves extra comparisons.
+  STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
+  __ CompareObjectType(x0, x10, x11, FIRST_SPEC_OBJECT_TYPE);
   // x10: object's map.
   // x11: object's type.
   __ B(lt, &null);
+  STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                FIRST_SPEC_OBJECT_TYPE + 1);
+  __ B(eq, &function);
 
-  // According to ES5 section 15 Standard Built-in ECMAScript Objects, the
-  // [[Class]] of builtin objects is "Function" if a [[Call]] internal
-  // method is present.
-  __ Ldrb(x11, FieldMemOperand(x10, Map::kBitFieldOffset));
-  __ Tst(x11, 1 << Map::kIsCallable);
-  __ B(ne, &function);
+  __ Cmp(x11, LAST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_SPEC_OBJECT_TYPE - 1);
+  __ B(eq, &function);
+  // Assume that there is no larger type.
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
 
   // Check if the constructor in the map is a JS function.
   Register instance_type = x14;
