@@ -3548,57 +3548,50 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
 
 void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 1);
-  Label done, null, function, non_function_constructor;
+  DCHECK_EQ(1, args->length());
+  Label done, null, function, function_constructor;
 
   VisitForAccumulatorValue(args->at(0));
 
   // If the object is a smi, we return null.
-  __ JumpIfSmi(rax, &null);
+  __ JumpIfSmi(rax, &null, Label::kNear);
 
-  // Check that the object is a JS object but take special care of JS
-  // functions to make sure they have 'Function' as their class.
-  // Assume that there are only two callable types, and one of them is at
-  // either end of the type range for JS object types. Saves extra comparisons.
-  STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-  __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rax);
-  // Map is now in rax.
-  __ j(below, &null);
-  STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                FIRST_SPEC_OBJECT_TYPE + 1);
-  __ j(equal, &function);
+  // If the object is not a receiver, we return null.
+  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  __ CmpObjectType(rax, FIRST_JS_RECEIVER_TYPE, rax);
+  __ j(below, &null, Label::kNear);
 
-  __ CmpInstanceType(rax, LAST_SPEC_OBJECT_TYPE);
-  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                LAST_SPEC_OBJECT_TYPE - 1);
-  __ j(equal, &function);
-  // Assume that there is no larger type.
-  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
+  // According to ES5 section 15 Standard Built-in ECMAScript Objects, the
+  // [[Class]] of builtin objects is "Function" if a [[Call]] internal
+  // method is present.
+  __ testb(FieldOperand(rax, Map::kBitFieldOffset),
+           Immediate(1 << Map::kIsCallable));
+  __ j(not_zero, &function, Label::kNear);
 
   // Check if the constructor in the map is a JS function.
   __ GetMapConstructor(rax, rax, rbx);
   __ CmpInstanceType(rbx, JS_FUNCTION_TYPE);
-  __ j(not_equal, &non_function_constructor);
-
-  // rax now contains the constructor function. Grab the
-  // instance class name from there.
-  __ movp(rax, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rax, FieldOperand(rax, SharedFunctionInfo::kInstanceClassNameOffset));
-  __ jmp(&done);
-
-  // Functions have class 'Function'.
-  __ bind(&function);
-  __ Move(rax, isolate()->factory()->Function_string());
-  __ jmp(&done);
+  __ j(equal, &function_constructor, Label::kNear);
 
   // Objects with a non-function constructor have class 'Object'.
-  __ bind(&non_function_constructor);
-  __ Move(rax, isolate()->factory()->Object_string());
-  __ jmp(&done);
+  __ LoadRoot(rax, Heap::kObject_stringRootIndex);
+  __ jmp(&done, Label::kNear);
 
   // Non-JS objects have class null.
   __ bind(&null);
   __ LoadRoot(rax, Heap::kNullValueRootIndex);
+  __ jmp(&done, Label::kNear);
+
+  // Functions have class 'Function'.
+  __ bind(&function);
+  __ LoadRoot(rax, Heap::kFunction_stringRootIndex);
+  __ jmp(&done, Label::kNear);
+
+  __ bind(&function_constructor);
+  // rax now contains the constructor function. Grab the
+  // instance class name from there.
+  __ movp(rax, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rax, FieldOperand(rax, SharedFunctionInfo::kInstanceClassNameOffset));
 
   // All done.
   __ bind(&done);

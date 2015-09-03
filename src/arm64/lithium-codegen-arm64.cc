@@ -2355,27 +2355,21 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
   __ JumpIfSmi(input, false_label);
 
   Register map = scratch2;
-  if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
-    // Assuming the following assertions, we can use the same compares to test
-    // for both being a function type and being in the object type range.
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  FIRST_SPEC_OBJECT_TYPE + 1);
-    STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  LAST_SPEC_OBJECT_TYPE - 1);
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  __ CompareObjectType(input, map, scratch1, FIRST_JS_RECEIVER_TYPE);
+  __ B(lt, false_label);
 
-    // We expect CompareObjectType to load the object instance type in scratch1.
-    __ CompareObjectType(input, map, scratch1, FIRST_SPEC_OBJECT_TYPE);
-    __ B(lt, false_label);
-    __ B(eq, true_label);
-    __ Cmp(scratch1, LAST_SPEC_OBJECT_TYPE);
-    __ B(eq, true_label);
+  // Objects with [[Call]] have class 'Function'.
+  Register bit_field = scratch1;
+  __ Ldrb(bit_field, FieldMemOperand(map, Map::kBitFieldOffset));
+  __ Tst(bit_field, 1 << Map::kIsCallable);
+  if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
+    __ B(ne, true_label);
   } else {
-    __ IsObjectJSObjectType(input, map, scratch1, false_label);
+    __ B(ne, false_label);
   }
 
-  // Now we are in the FIRST-LAST_NONCALLABLE_SPEC_OBJECT_TYPE range.
+  // Now we are in the FIRST-LAST_JS_RECEIVER_TYPE range.
   // Check if the constructor in the map is a function.
   {
     UseScratchRegisterScope temps(masm());

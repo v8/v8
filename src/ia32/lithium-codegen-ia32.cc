@@ -2521,32 +2521,19 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   DCHECK(!temp.is(temp2));
   __ JumpIfSmi(input, is_false);
 
+  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  __ CmpObjectType(input, FIRST_JS_RECEIVER_TYPE, temp);
+  __ j(below, is_false);
+
+  // Objects with [[Call]] have class 'Function'.
+  __ test_b(FieldOperand(temp, Map::kBitFieldOffset), 1 << Map::kIsCallable);
   if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
-    // Assuming the following assertions, we can use the same compares to test
-    // for both being a function type and being in the object type range.
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  FIRST_SPEC_OBJECT_TYPE + 1);
-    STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  LAST_SPEC_OBJECT_TYPE - 1);
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ CmpObjectType(input, FIRST_SPEC_OBJECT_TYPE, temp);
-    __ j(below, is_false);
-    __ j(equal, is_true);
-    __ CmpInstanceType(temp, LAST_SPEC_OBJECT_TYPE);
-    __ j(equal, is_true);
+    __ j(not_zero, is_true);
   } else {
-    // Faster code path to avoid two compares: subtract lower bound from the
-    // actual type and do a signed compare with the width of the type range.
-    __ mov(temp, FieldOperand(input, HeapObject::kMapOffset));
-    __ movzx_b(temp2, FieldOperand(temp, Map::kInstanceTypeOffset));
-    __ sub(Operand(temp2), Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    __ cmp(Operand(temp2), Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
-                                     FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    __ j(above, is_false);
+    __ j(not_zero, is_false);
   }
 
-  // Now we are in the FIRST-LAST_NONCALLABLE_SPEC_OBJECT_TYPE range.
+  // Now we are in the FIRST-LAST_JS_RECEIVER_TYPE range.
   // Check if the constructor in the map is a function.
   __ GetMapConstructor(temp, temp, temp2);
   // Objects with a non-function constructor have class 'Object'.

@@ -708,8 +708,7 @@ enum InstanceType {
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
   // the two forms of function. This organization enables using the same
-  // compares for checking the JS_RECEIVER/SPEC_OBJECT range and the
-  // NONCALLABLE_JS_OBJECT range.
+  // compares for checking the JS_RECEIVER/SPEC_OBJECT range.
   JS_FUNCTION_PROXY_TYPE,  // FIRST_JS_RECEIVER_TYPE, FIRST_JS_PROXY_TYPE
   JS_PROXY_TYPE,           // LAST_JS_PROXY_TYPE
   JS_VALUE_TYPE,           // FIRST_JS_OBJECT_TYPE
@@ -766,13 +765,7 @@ enum InstanceType {
   LAST_JS_PROXY_TYPE = JS_PROXY_TYPE,
   // Boundaries for testing whether the type is a JavaScript object.
   FIRST_SPEC_OBJECT_TYPE = FIRST_JS_RECEIVER_TYPE,
-  LAST_SPEC_OBJECT_TYPE = LAST_JS_RECEIVER_TYPE,
-  // Boundaries for testing the types for which typeof is "object".
-  FIRST_NONCALLABLE_SPEC_OBJECT_TYPE = JS_PROXY_TYPE,
-  LAST_NONCALLABLE_SPEC_OBJECT_TYPE = JS_REGEXP_TYPE,
-  // Note that the types for which typeof is "function" are not continuous.
-  // Define this so that we can put assertions on discrete checks.
-  NUM_OF_CALLABLE_SPEC_OBJECT_TYPES = 2
+  LAST_SPEC_OBJECT_TYPE = LAST_JS_RECEIVER_TYPE
 };
 
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
