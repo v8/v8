@@ -1058,8 +1058,10 @@ std::ostream& operator<<(std::ostream& os,
   PrintableInstructionOperand pio;
   pio.register_configuration_ = printable_range.register_configuration_;
   while (use_pos != nullptr) {
-    pio.op_ = *use_pos->operand();
-    os << pio << use_pos->pos() << " ";
+    if (use_pos->HasOperand()) {
+      pio.op_ = *use_pos->operand();
+      os << pio << use_pos->pos() << " ";
+    }
     use_pos = use_pos->next();
   }
   os << std::endl;
