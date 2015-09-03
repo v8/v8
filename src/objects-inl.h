@@ -6426,6 +6426,7 @@ void Code::WipeOutHeader() {
     WRITE_FIELD(this, kTypeFeedbackInfoOffset, NULL);
   }
   WRITE_FIELD(this, kNextCodeLinkOffset, NULL);
+  WRITE_FIELD(this, kGCMetadataOffset, NULL);
 }
 
 
