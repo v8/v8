@@ -103,6 +103,13 @@ hooks = [
     ],
   },
   {
+    # Pull gold plugin if needed or requested via GYP_DEFINES.
+    # Note: This must run before the clang update.
+    'name': 'gold_plugin',
+    'pattern': '.',
+    'action': ['python', 'v8/build/download_gold_plugin.py'],
+  },
+  {
     # Pull clang if needed or requested via GYP_DEFINES.
     # Note: On Win, this should run after win_toolchain, as it may use it.
     'name': 'clang',
