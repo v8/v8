@@ -113,8 +113,17 @@ void SplinterRangesInDeferredBlocks(RegisterAllocationData *data) {
         static_cast<int>(code->instructions().size()));
 
     const BitVector *in_set = in_sets[block->rpo_number().ToInt()];
+    BitVector ranges_to_splinter(*in_set, zone);
     InstructionBlock *last = code->InstructionBlockAt(last_deferred);
-    const BitVector *out_set = LiveRangeBuilder::ComputeLiveOut(last, data);
+    for (int deferred_id = block->rpo_number().ToInt();
+         deferred_id <= last->rpo_number().ToInt(); ++deferred_id) {
+      const BitVector *ins = in_sets[deferred_id];
+      ranges_to_splinter.Union(*ins);
+      const BitVector *outs = LiveRangeBuilder::ComputeLiveOut(
+          code->InstructionBlockAt(RpoNumber::FromInt(deferred_id)), data);
+      ranges_to_splinter.Union(*outs);
+    }
+
     int last_index = last->last_instruction_index();
     if (code->InstructionAt(last_index)->opcode() ==
         ArchOpcode::kArchDeoptimize) {
@@ -122,8 +131,6 @@ void SplinterRangesInDeferredBlocks(RegisterAllocationData *data) {
     }
     last_cut = LifetimePosition::GapFromInstructionIndex(last_index);
 
-    BitVector ranges_to_splinter(*in_set, zone);
-    ranges_to_splinter.Union(*out_set);
     BitVector::Iterator iterator(&ranges_to_splinter);
 
     while (!iterator.Done()) {
