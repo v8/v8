@@ -190,38 +190,6 @@ class StringSearch : private StringSearchBase {
 };
 
 
-template <typename PatternChar, typename SubjectChar>
-int FindFirstCharacter(Vector<const PatternChar> pattern,
-                       Vector<const SubjectChar> subject, int index) {
-  PatternChar pattern_first_char = pattern[0];
-
-  if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
-    const SubjectChar* char_pos = reinterpret_cast<const SubjectChar*>(memchr(
-        subject.start() + index, pattern_first_char, subject.length() - index));
-    if (char_pos == NULL) return -1;
-    return static_cast<int>(char_pos - subject.start());
-  } else {
-    const uint8_t search_low_byte =
-        static_cast<uint8_t>(pattern_first_char & 0xFF);
-    const SubjectChar search_char =
-        static_cast<SubjectChar>(pattern_first_char);
-    int pos = index;
-    do {
-      const SubjectChar* char_pos = reinterpret_cast<const SubjectChar*>(
-          memchr(subject.start() + pos, search_low_byte,
-                 (subject.length() - pos) * sizeof(SubjectChar)));
-      if (char_pos == NULL) return -1;
-      pos = static_cast<int>(char_pos - subject.start());
-      if (IsAligned(reinterpret_cast<uintptr_t>(char_pos),
-                    sizeof(SubjectChar))) {
-        if (subject[pos] == search_char) return pos;
-      }
-    } while (++pos < subject.length());
-  }
-  return -1;
-}
-
-
 //---------------------------------------------------------------------
 // Single Character Pattern Search Strategy
 //---------------------------------------------------------------------
@@ -233,15 +201,26 @@ int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
     int index) {
   DCHECK_EQ(1, search->pattern_.length());
   PatternChar pattern_first_char = search->pattern_[0];
+  int i = index;
   if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
-    return FindFirstCharacter(search->pattern_, subject, index);
+    const SubjectChar* pos = reinterpret_cast<const SubjectChar*>(
+        memchr(subject.start() + i,
+               pattern_first_char,
+               subject.length() - i));
+    if (pos == NULL) return -1;
+    return static_cast<int>(pos - subject.start());
   } else {
     if (sizeof(PatternChar) > sizeof(SubjectChar)) {
       if (exceedsOneByte(pattern_first_char)) {
         return -1;
       }
     }
-    return FindFirstCharacter(search->pattern_, subject, index);
+    SubjectChar search_char = static_cast<SubjectChar>(pattern_first_char);
+    int n = subject.length();
+    while (i < n) {
+      if (subject[i++] == search_char) return i - 1;
+    }
+    return -1;
   }
 }
 
@@ -275,12 +254,20 @@ int StringSearch<PatternChar, SubjectChar>::LinearSearch(
   Vector<const PatternChar> pattern = search->pattern_;
   DCHECK(pattern.length() > 1);
   int pattern_length = pattern.length();
+  PatternChar pattern_first_char = pattern[0];
   int i = index;
   int n = subject.length() - pattern_length;
   while (i <= n) {
-    i = FindFirstCharacter(pattern, subject, i);
-    if (i == -1) return -1;
-    i++;
+    if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
+      const SubjectChar* pos = reinterpret_cast<const SubjectChar*>(
+          memchr(subject.start() + i,
+                 pattern_first_char,
+                 n - i + 1));
+      if (pos == NULL) return -1;
+      i = static_cast<int>(pos - subject.start()) + 1;
+    } else {
+      if (subject[i++] != pattern_first_char) continue;
+    }
     // Loop extracted to separate function to allow using return to do
     // a deeper break.
     if (CharCompare(pattern.start() + 1,
@@ -518,11 +505,22 @@ int StringSearch<PatternChar, SubjectChar>::InitialSearch(
 
   // We know our pattern is at least 2 characters, we cache the first so
   // the common case of the first character not matching is faster.
+  PatternChar pattern_first_char = pattern[0];
   for (int i = index, n = subject.length() - pattern_length; i <= n; i++) {
     badness++;
     if (badness <= 0) {
-      i = FindFirstCharacter(pattern, subject, i);
-      if (i == -1) return -1;
+      if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
+        const SubjectChar* pos = reinterpret_cast<const SubjectChar*>(
+            memchr(subject.start() + i,
+                   pattern_first_char,
+                   n - i + 1));
+        if (pos == NULL) {
+          return -1;
+        }
+        i = static_cast<int>(pos - subject.start());
+      } else {
+        if (subject[i] != pattern_first_char) continue;
+      }
       int j = 1;
       do {
         if (pattern[j] != subject[i + j]) {
