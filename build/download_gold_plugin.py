@@ -57,6 +57,10 @@ def main():
     print 'Skipping gold plugin download. File present and clang up to date.'
     return 0
 
+  # Make sure this works on empty checkouts (i.e. clang not downloaded yet).
+  if not os.path.exists(LLVM_BUILD_PATH):
+    os.makedirs(LLVM_BUILD_PATH)
+
   targz_name = 'llvmgold-%s.tgz' % CLANG_REVISION
   remote_path = '%s/%s' % (CLANG_BUCKET, targz_name)
 
