@@ -8,22 +8,6 @@
 #include "include/v8.h"
 #include "src/allocation.h"
 
-#if defined(GOOGLE3) || defined(DCHECK_ALWAYS_ON)
-// Google3 and Chromium special flag handling.
-#if defined(DEBUG) && defined(NDEBUG)
-// V8 only uses DEBUG and whenever it is set we are building a debug
-// version of V8. We do not use NDEBUG and simply undef it here for
-// consistency.
-#undef NDEBUG
-#endif
-#endif  // defined(GOOGLE3)
-
-// V8 only uses DEBUG, but included external files
-// may use NDEBUG - make sure they are consistent.
-#if defined(DEBUG) && defined(NDEBUG)
-#error both DEBUG and NDEBUG are set
-#endif
-
 namespace v8 {
 namespace internal {
 
