@@ -114,7 +114,6 @@ enum BindingFlags {
   V(DIV_BUILTIN_INDEX, JSFunction, div_builtin)                             \
   V(DIV_STRONG_BUILTIN_INDEX, JSFunction, div_strong_builtin)               \
   V(EQUALS_BUILTIN_INDEX, JSFunction, equals_builtin)                       \
-  V(IN_BUILTIN_INDEX, JSFunction, in_builtin)                               \
   V(MOD_BUILTIN_INDEX, JSFunction, mod_builtin)                             \
   V(MOD_STRONG_BUILTIN_INDEX, JSFunction, mod_strong_builtin)               \
   V(MUL_BUILTIN_INDEX, JSFunction, mul_builtin)                             \

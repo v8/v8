@@ -488,7 +488,6 @@ class FullCodeGenerator: public AstVisitor {
 
 #define FOR_EACH_FULL_CODE_INTRINSIC(F)   \
   F(IsSmi)                                \
-  F(IsNonNegativeSmi)                     \
   F(IsArray)                              \
   F(IsTypedArray)                         \
   F(IsRegExp)                             \

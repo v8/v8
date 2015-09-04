@@ -242,7 +242,6 @@ Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
                               const Matcher<Node*>& effect_matcher,
                               const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsObjectIsSmi(const Matcher<Node*>& value_matcher);
-Matcher<Node*> IsObjectIsNonNegativeSmi(const Matcher<Node*>& value_matcher);
 
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& base_matcher,

@@ -223,38 +223,6 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
 }
 
 
-void JSGenericLowering::ReplaceWithBuiltinCall(Node* node, int context_index,
-                                               int nargs) {
-  Node* context_input = NodeProperties::GetContextInput(node);
-  Node* effect_input = NodeProperties::GetEffectInput(node);
-
-  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  Operator::Properties properties = node->op()->properties();
-  Callable callable =
-      CodeFactory::CallFunction(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), nargs, flags, properties);
-  Node* global_object =
-      graph()->NewNode(machine()->Load(kMachAnyTagged), context_input,
-                       jsgraph()->IntPtrConstant(
-                           Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)),
-                       effect_input, graph()->start());
-  Node* native_context =
-      graph()->NewNode(machine()->Load(kMachAnyTagged), global_object,
-                       jsgraph()->IntPtrConstant(
-                           GlobalObject::kNativeContextOffset - kHeapObjectTag),
-                       effect_input, graph()->start());
-  Node* function = graph()->NewNode(
-      machine()->Load(kMachAnyTagged), native_context,
-      jsgraph()->IntPtrConstant(Context::SlotOffset(context_index)),
-      effect_input, graph()->start());
-  Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  node->InsertInput(zone(), 0, stub_code);
-  node->InsertInput(zone(), 1, function);
-  node->set_op(common()->Call(desc));
-}
-
-
 void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
                                                Runtime::FunctionId f,
                                                int nargs_override) {
@@ -447,7 +415,7 @@ void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
 
 
 void JSGenericLowering::LowerJSHasProperty(Node* node) {
-  ReplaceWithBuiltinCall(node, Context::IN_BUILTIN_INDEX, 2);
+  ReplaceWithRuntimeCall(node, Runtime::kHasProperty);
 }
 
 

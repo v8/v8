@@ -424,21 +424,6 @@ function SHR_STRONG(y) {
    -----------------------------
 */
 
-// ECMA-262, section 11.8.7, page 54.
-function IN(x) {
-  if (!IS_SPEC_OBJECT(x)) {
-    throw %make_type_error(kInvalidInOperatorUse, this, x);
-  }
-  if (%_IsNonNegativeSmi(this)) {
-    if (IS_ARRAY(x) && %_HasFastPackedElements(x)) {
-      return this < x.length;
-    }
-    return %HasElement(x, this);
-  }
-  return %HasProperty(x, this);
-}
-
-
 function CALL_NON_FUNCTION() {
   var delegate = %GetFunctionDelegate(this);
   return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
@@ -826,7 +811,6 @@ $toString = ToString;
   "div_builtin", DIV,
   "div_strong_builtin", DIV_STRONG,
   "equals_builtin", EQUALS,
-  "in_builtin", IN,
   "mod_builtin", MOD,
   "mod_strong_builtin", MOD_STRONG,
   "mul_builtin", MUL,

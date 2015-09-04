@@ -684,10 +684,6 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckUpperIs(node, Type::Boolean());
       break;
-    case IrOpcode::kObjectIsNonNegativeSmi:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckUpperIs(node, Type::Boolean());
-      break;
     case IrOpcode::kAllocate:
       CheckValueInputIs(node, 0, Type::PlainNumber());
       CheckUpperIs(node, Type::TaggedPointer());

@@ -1455,7 +1455,6 @@ Bounds Typer::Visitor::TypeJSCallFunction(Node* node) {
 Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
   switch (CallRuntimeParametersOf(node->op()).id()) {
     case Runtime::kInlineIsSmi:
-    case Runtime::kInlineIsNonNegativeSmi:
     case Runtime::kInlineIsArray:
     case Runtime::kInlineIsDate:
     case Runtime::kInlineIsTypedArray:
@@ -1753,11 +1752,6 @@ Bounds Typer::Visitor::TypeStoreElement(Node* node) {
 
 
 Bounds Typer::Visitor::TypeObjectIsSmi(Node* node) {
-  return Bounds(Type::Boolean());
-}
-
-
-Bounds Typer::Visitor::TypeObjectIsNonNegativeSmi(Node* node) {
   return Bounds(Type::Boolean());
 }
 

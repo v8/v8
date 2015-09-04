@@ -126,23 +126,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsSmi) {
 
 
 // -----------------------------------------------------------------------------
-// %_IsNonNegativeSmi
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineIsNonNegativeSmi) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineIsNonNegativeSmi, 1), input,
-      context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsObjectIsNonNegativeSmi(input));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_IsArray
 
 
