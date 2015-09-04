@@ -476,9 +476,25 @@ LifetimePosition GreedyAllocator::FindSplitPositionAfterCall(
 }
 
 
+LifetimePosition GreedyAllocator::FindSplitPositionBeforeLoops(
+    LiveRange* range) {
+  LifetimePosition end = range->End();
+  if (end.ToInstructionIndex() >= code()->LastInstructionIndex()) {
+    end =
+        LifetimePosition::GapFromInstructionIndex(end.ToInstructionIndex() - 1);
+  }
+  LifetimePosition pos = FindOptimalSplitPos(range->Start(), end);
+  pos = GetSplitPositionForInstruction(range, pos.ToInstructionIndex());
+  return pos;
+}
+
+
 void GreedyAllocator::SplitOrSpillBlockedRange(LiveRange* range) {
   if (TrySplitAroundCalls(range)) return;
-  auto pos = GetLastResortSplitPosition(range, code());
+
+  LifetimePosition pos = FindSplitPositionBeforeLoops(range);
+
+  if (!pos.IsValid()) pos = GetLastResortSplitPosition(range, code());
   if (pos.IsValid()) {
     LiveRange* tail = Split(range, data(), pos);
     DCHECK(tail != range);

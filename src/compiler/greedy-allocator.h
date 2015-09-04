@@ -132,6 +132,9 @@ class GreedyAllocator final : public RegisterAllocator {
   // were made, or false if no calls were found.
   bool TrySplitAroundCalls(LiveRange* range);
 
+  // Find a split position at the outmost loop.
+  LifetimePosition FindSplitPositionBeforeLoops(LiveRange* range);
+
   // Finds the first call instruction in the path of this range. Splits before
   // and requeues that segment (if any), spills the section over the call, and
   // returns the section after the call. The return is:
