@@ -231,6 +231,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case SIMD128_VALUE_TYPE:
       return kSimd;
     case JS_VALUE_TYPE:
+    case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -247,6 +248,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_MAP_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
+    case JS_ITERATOR_RESULT_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
       if (map->is_undetectable()) return kUndetectable;
@@ -274,6 +276,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case SHARED_FUNCTION_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
+    case FIXED_DOUBLE_ARRAY_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
     case FOREIGN_TYPE:
@@ -281,10 +284,43 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
       return kInternal & kTaggedPointer;
-    default:
+
+    // Remaining instance types are unsupported for now. If any of them do
+    // require bit set types, they should get kInternal & kTaggedPointer.
+    case MUTABLE_HEAP_NUMBER_TYPE:
+    case FREE_SPACE_TYPE:
+#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case FIXED_##TYPE##_ARRAY_TYPE:
+
+      TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE)
+#undef FIXED_TYPED_ARRAY_CASE
+    case FILLER_TYPE:
+    case DECLARED_ACCESSOR_DESCRIPTOR_TYPE:
+    case ACCESS_CHECK_INFO_TYPE:
+    case INTERCEPTOR_INFO_TYPE:
+    case CALL_HANDLER_INFO_TYPE:
+    case FUNCTION_TEMPLATE_INFO_TYPE:
+    case OBJECT_TEMPLATE_INFO_TYPE:
+    case SIGNATURE_INFO_TYPE:
+    case TYPE_SWITCH_INFO_TYPE:
+    case ALLOCATION_SITE_TYPE:
+    case ALLOCATION_MEMENTO_TYPE:
+    case CODE_CACHE_TYPE:
+    case POLYMORPHIC_CODE_CACHE_TYPE:
+    case TYPE_FEEDBACK_INFO_TYPE:
+    case ALIASED_ARGUMENTS_ENTRY_TYPE:
+    case BOX_TYPE:
+    case DEBUG_INFO_TYPE:
+    case BREAK_POINT_INFO_TYPE:
+    case CELL_TYPE:
+    case WEAK_CELL_TYPE:
+    case PROTOTYPE_INFO_TYPE:
+    case SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION_TYPE:
       UNREACHABLE();
       return kNone;
   }
+  UNREACHABLE();
+  return kNone;
 }
 
 
