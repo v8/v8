@@ -686,7 +686,7 @@ TEST_F(RegisterAllocatorTest, MultipleDeferredBlockSpills) {
   EXPECT_TRUE(IsParallelMovePresent(call_in_b1, Instruction::START, sequence(),
                                     Reg(var3_reg), Slot(var3_slot)));
   EXPECT_TRUE(IsParallelMovePresent(end_of_b1, Instruction::START, sequence(),
-                                    Slot(var3_slot), Reg(var3_reg)));
+                                    Slot(var3_slot), Reg()));
 
   EXPECT_TRUE(IsParallelMovePresent(call_in_b2, Instruction::START, sequence(),
                                     Reg(var3_reg), Slot(var3_slot)));

@@ -390,9 +390,94 @@ void GreedyAllocator::SpillRangeAsLastResort(LiveRange* range) {
 }
 
 
+LiveRange* GreedyAllocator::GetRemainderAfterSplittingAroundFirstCall(
+    LiveRange* range) {
+  LiveRange* ret = range;
+  for (UseInterval* interval = range->first_interval(); interval != nullptr;
+       interval = interval->next()) {
+    LifetimePosition start = interval->start();
+    LifetimePosition end = interval->end();
+    // If the interval starts at instruction end, then the first instruction
+    // in the interval is the next one.
+    int first_full_instruction = (start.IsGapPosition() || start.IsStart())
+                                     ? start.ToInstructionIndex()
+                                     : start.ToInstructionIndex() + 1;
+    // If the interval ends in a gap or at instruction start, then the last
+    // instruction is the previous one.
+    int last_full_instruction = (end.IsGapPosition() || end.IsStart())
+                                    ? end.ToInstructionIndex() - 1
+                                    : end.ToInstructionIndex();
+
+    for (int instruction_index = first_full_instruction;
+         instruction_index <= last_full_instruction; ++instruction_index) {
+      if (!code()->InstructionAt(instruction_index)->IsCall()) continue;
+
+      LifetimePosition before =
+          GetSplitPositionForInstruction(range, instruction_index);
+      LiveRange* second_part =
+          before.IsValid() ? Split(range, data(), before) : range;
+
+      if (range != second_part) scheduler().Schedule(range);
+
+      LifetimePosition after =
+          FindSplitPositionAfterCall(second_part, instruction_index);
+
+      if (after.IsValid()) {
+        ret = Split(second_part, data(), after);
+      } else {
+        ret = nullptr;
+      }
+      Spill(second_part);
+      return ret;
+    }
+  }
+  return ret;
+}
+
+
+bool GreedyAllocator::TrySplitAroundCalls(LiveRange* range) {
+  bool modified = false;
+
+  while (range != nullptr) {
+    LiveRange* remainder = GetRemainderAfterSplittingAroundFirstCall(range);
+    // If we performed no modification, we're done.
+    if (remainder == range) {
+      break;
+    }
+    // We performed a modification.
+    modified = true;
+    range = remainder;
+  }
+  // If we have a remainder and we made modifications, it means the remainder
+  // has no calls and we should schedule it for further processing. If we made
+  // no modifications, we will just return false, because we want the algorithm
+  // to make progress by trying some other heuristic.
+  if (modified && range != nullptr) {
+    DCHECK(!range->spilled());
+    DCHECK(!range->HasRegisterAssigned());
+    scheduler().Schedule(range);
+  }
+  return modified;
+}
+
+
+LifetimePosition GreedyAllocator::FindSplitPositionAfterCall(
+    const LiveRange* range, int call_index) {
+  LifetimePosition after_call =
+      Max(range->Start(),
+          LifetimePosition::GapFromInstructionIndex(call_index + 1));
+  UsePosition* next_use = range->NextRegisterPosition(after_call);
+  if (!next_use) return LifetimePosition::Invalid();
+
+  LifetimePosition split_pos = FindOptimalSplitPos(after_call, next_use->pos());
+  split_pos =
+      GetSplitPositionForInstruction(range, split_pos.ToInstructionIndex());
+  return split_pos;
+}
+
+
 void GreedyAllocator::SplitOrSpillBlockedRange(LiveRange* range) {
-  // TODO(mtrofin): replace the call below with the entry point selecting
-  // heuristics, once they exist, out of which GLRSP is the last one.
+  if (TrySplitAroundCalls(range)) return;
   auto pos = GetLastResortSplitPosition(range, code());
   if (pos.IsValid()) {
     LiveRange* tail = Split(range, data(), pos);

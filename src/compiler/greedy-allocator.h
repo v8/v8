@@ -125,6 +125,22 @@ class GreedyAllocator final : public RegisterAllocator {
   // This is the extension point for splitting heuristics.
   void SplitOrSpillBlockedRange(LiveRange* range);
 
+  // Find a good position where to fill, after a range was spilled after a call.
+  LifetimePosition FindSplitPositionAfterCall(const LiveRange* range,
+                                              int call_index);
+  // Split a range around all calls it passes over. Returns true if any changes
+  // were made, or false if no calls were found.
+  bool TrySplitAroundCalls(LiveRange* range);
+
+  // Finds the first call instruction in the path of this range. Splits before
+  // and requeues that segment (if any), spills the section over the call, and
+  // returns the section after the call. The return is:
+  // - same range, if no call was found
+  // - nullptr, if the range finished at the call and there's no "after the
+  //   call" portion.
+  // - the portion after the call.
+  LiveRange* GetRemainderAfterSplittingAroundFirstCall(LiveRange* range);
+
   // Necessary heuristic: spill when all else failed.
   void SpillRangeAsLastResort(LiveRange* range);
 
