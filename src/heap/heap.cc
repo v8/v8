@@ -5388,7 +5388,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
     GetFromRingBuffer(stats->last_few_messages);
   if (stats->js_stacktrace != NULL) {
     FixedStringAllocator fixed(stats->js_stacktrace, kStacktraceBufferSize - 1);
-    StringStream accumulator(&fixed);
+    StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
     isolate()->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
   }
 }
