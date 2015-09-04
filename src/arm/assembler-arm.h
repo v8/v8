@@ -1465,7 +1465,6 @@ class Assembler : public AssemblerBase {
   static const int kMaxDistToIntPool = 4*KB;
   static const int kMaxDistToFPPool = 1*KB;
   // All relocations could be integer, it therefore acts as the limit.
-  static const int kMinNumPendingConstants = 4;
   static const int kMaxNumPending32Constants = kMaxDistToIntPool / kInstrSize;
   static const int kMaxNumPending64Constants = kMaxDistToFPPool / kInstrSize;
 
@@ -1599,10 +1598,8 @@ class Assembler : public AssemblerBase {
   // pending relocation entry per instruction.
 
   // The buffers of pending constant pool entries.
-  ConstantPoolEntry pending_32_bit_constants_buffer_[kMinNumPendingConstants];
-  ConstantPoolEntry pending_64_bit_constants_buffer_[kMinNumPendingConstants];
-  ConstantPoolEntry* pending_32_bit_constants_;
-  ConstantPoolEntry* pending_64_bit_constants_;
+  ConstantPoolEntry pending_32_bit_constants_[kMaxNumPending32Constants];
+  ConstantPoolEntry pending_64_bit_constants_[kMaxNumPending64Constants];
   // Number of pending constant pool entries in the 32 bits buffer.
   int num_pending_32_bit_constants_;
   // Number of pending constant pool entries in the 64 bits buffer.

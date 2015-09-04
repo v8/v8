@@ -78,8 +78,6 @@ class PropertyAccessCompiler BASE_EMBEDDED {
 
   Isolate* isolate_;
   MacroAssembler masm_;
-  // Ensure that MacroAssembler has a reasonable size.
-  STATIC_ASSERT(sizeof(MacroAssembler) < KB / 2);
 };
 }
 }  // namespace v8::internal
