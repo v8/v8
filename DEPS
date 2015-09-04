@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build/gyp":
-    Var("git_url") + "/external/gyp.git" + "@" + "121d89dfcd4f6ebe1c89524b3f9ca11ddd437e77",
+    Var("git_url") + "/external/gyp.git" + "@" + "2b17e0b26a93e8c9758c23aec6c554da4ca8f0a9",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "6b3ce817f8e828c3b7a577d2395f0882eb56ef18",
   "v8/buildtools":
