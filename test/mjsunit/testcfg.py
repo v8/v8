@@ -45,7 +45,7 @@ class MjsunitTestSuite(testsuite.TestSuite):
 
   def ListTests(self, context):
     tests = []
-    for dirname, dirs, files in os.walk(self.root):
+    for dirname, dirs, files in os.walk(self.root, followlinks=True):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
       dirs.sort()
