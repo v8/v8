@@ -711,6 +711,7 @@ void GraphC1Visualizer::PrintLiveRanges(const char* phase,
 
 void GraphC1Visualizer::PrintLiveRangeChain(TopLevelLiveRange* range,
                                             const char* type) {
+  if (range == nullptr || range->IsEmpty()) return;
   int vreg = range->vreg();
   for (LiveRange* child = range; child != nullptr; child = child->next()) {
     PrintLiveRange(child, type, vreg);
