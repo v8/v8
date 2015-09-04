@@ -1123,23 +1123,6 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
 }
 
 
-void MacroAssembler::IsObjectJSObjectType(Register heap_object, Register map,
-                                          Register scratch, Label* fail) {
-  LoadP(map, FieldMemOperand(heap_object, HeapObject::kMapOffset));
-  IsInstanceJSObjectType(map, scratch, fail);
-}
-
-
-void MacroAssembler::IsInstanceJSObjectType(Register map, Register scratch,
-                                            Label* fail) {
-  lbz(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  cmpi(scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-  blt(fail);
-  cmpi(scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
-  bgt(fail);
-}
-
-
 void MacroAssembler::IsObjectJSStringType(Register object, Register scratch,
                                           Label* fail) {
   DCHECK(kNotStringTag != 0);
