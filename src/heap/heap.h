@@ -2138,7 +2138,7 @@ class Heap {
 
   // This is not the depth of nested AlwaysAllocateScope's but rather a single
   // count, as scopes can be acquired from multiple tasks (read: threads).
-  AtomicValue always_allocate_scope_count_;
+  AtomicNumber<size_t> always_allocate_scope_count_;
 
   // For keeping track of context disposals.
   int contexts_disposed_;

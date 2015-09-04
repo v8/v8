@@ -27,6 +27,7 @@
         'V8_IMMINENT_DEPRECATION_WARNINGS',
       ],
       'sources': [  ### gcmole(all) ###
+        'atomic-utils-unittest.cc',
         'base/bits-unittest.cc',
         'base/cpu-unittest.cc',
         'base/division-by-constant-unittest.cc',

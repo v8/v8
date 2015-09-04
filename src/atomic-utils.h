@@ -13,22 +13,76 @@
 namespace v8 {
 namespace internal {
 
-class AtomicValue {
+template <class T>
+class AtomicNumber {
  public:
-  AtomicValue() : value_(0) {}
-  explicit AtomicValue(base::AtomicWord initial) : value_(initial) {}
+  AtomicNumber() : value_(0) {}
+  explicit AtomicNumber(T initial) : value_(initial) {}
 
-  V8_INLINE void Increment(base::AtomicWord increment) {
-    base::NoBarrier_AtomicIncrement(&value_, increment);
+  V8_INLINE void Increment(T increment) {
+    base::NoBarrier_AtomicIncrement(&value_,
+                                    static_cast<base::AtomicWord>(increment));
   }
 
-  V8_INLINE base::AtomicWord Value() { return base::NoBarrier_Load(&value_); }
+  V8_INLINE T Value() { return static_cast<T>(base::NoBarrier_Load(&value_)); }
 
-  V8_INLINE void SetValue(base::AtomicWord new_value) {
-    base::NoBarrier_Store(&value_, new_value);
+  V8_INLINE void SetValue(T new_value) {
+    base::NoBarrier_Store(&value_, static_cast<base::AtomicWord>(new_value));
   }
 
  private:
+  STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
+
+  base::AtomicWord value_;
+};
+
+
+// Flag using T atomically. Also accepts void* as T.
+template <typename T>
+class AtomicValue {
+ public:
+  explicit AtomicValue(T initial)
+      : value_(cast_helper<T>::to_storage_type(initial)) {}
+
+  V8_INLINE T Value() {
+    return cast_helper<T>::to_return_type(base::NoBarrier_Load(&value_));
+  }
+
+  V8_INLINE bool TrySetValue(T old_value, T new_value) {
+    return base::NoBarrier_CompareAndSwap(
+               &value_, cast_helper<T>::to_storage_type(old_value),
+               cast_helper<T>::to_storage_type(new_value)) ==
+           cast_helper<T>::to_storage_type(old_value);
+  }
+
+  V8_INLINE T /*old_value*/ SetValue(T new_value) {
+    return cast_helper<T>::to_return_type(base::NoBarrier_AtomicExchange(
+        &value_, cast_helper<T>::to_storage_type(new_value)));
+  }
+
+ private:
+  STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
+
+  template <typename S>
+  struct cast_helper {
+    static base::AtomicWord to_storage_type(S value) {
+      return static_cast<base::AtomicWord>(value);
+    }
+    static S to_return_type(base::AtomicWord value) {
+      return static_cast<S>(value);
+    }
+  };
+
+  template <typename S>
+  struct cast_helper<S*> {
+    static base::AtomicWord to_storage_type(S* value) {
+      return reinterpret_cast<base::AtomicWord>(value);
+    }
+    static S* to_return_type(base::AtomicWord value) {
+      return reinterpret_cast<S*>(value);
+    }
+  };
+
   base::AtomicWord value_;
 };
 
@@ -82,7 +136,7 @@ class AtomicEnumSet {
 
   void Add(const AtomicEnumSet& set) { ATOMIC_SET_WRITE(|, set.ToIntegral()); }
 
-  void Remove(E element) { ATOMIC_SET_WRITE(&, Mask(element)); }
+  void Remove(E element) { ATOMIC_SET_WRITE(&, ~Mask(element)); }
 
   void Remove(const AtomicEnumSet& set) {
     ATOMIC_SET_WRITE(&, ~set.ToIntegral());
@@ -107,26 +161,6 @@ class AtomicEnumSet {
   }
 
   base::AtomicWord bits_;
-};
-
-
-// Flag using enums atomically.
-template <class E>
-class AtomicEnumFlag {
- public:
-  explicit AtomicEnumFlag(E initial) : value_(initial) {}
-
-  V8_INLINE E Value() { return static_cast<E>(base::NoBarrier_Load(&value_)); }
-
-  V8_INLINE bool TrySetValue(E old_value, E new_value) {
-    return base::NoBarrier_CompareAndSwap(
-               &value_, static_cast<base::AtomicWord>(old_value),
-               static_cast<base::AtomicWord>(new_value)) ==
-           static_cast<base::AtomicWord>(old_value);
-  }
-
- private:
-  base::AtomicWord value_;
 };
 
 }  // namespace internal
