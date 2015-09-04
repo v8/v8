@@ -997,7 +997,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
     return false;
   }
 
-  return %StringIndexOf(s, ss, start) === start;
+  return %_SubString(s, start, start + ss_len) === ss;
 }
 
 
@@ -1028,7 +1028,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
     return false;
   }
 
-  return %StringLastIndexOf(s, ss, start) === start;
+  return %_SubString(s, start, start + ss_len) === ss;
 }
 
 
