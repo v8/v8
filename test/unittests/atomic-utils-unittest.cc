@@ -16,7 +16,7 @@ TEST(AtomicNumber, Constructor) {
   AtomicNumber<size_t> zero_size_t;
   AtomicNumber<intptr_t> zero_intptr_t;
   EXPECT_EQ(0, zero_int.Value());
-  EXPECT_EQ(0, zero_size_t.Value());
+  EXPECT_EQ(0U, zero_size_t.Value());
   EXPECT_EQ(0, zero_intptr_t.Value());
 }
 
@@ -27,7 +27,7 @@ TEST(AtomicNumber, Value) {
   AtomicNumber<int> b(-1);
   EXPECT_EQ(-1, b.Value());
   AtomicNumber<size_t> c(1);
-  EXPECT_EQ(1, c.Value());
+  EXPECT_EQ(1U, c.Value());
   AtomicNumber<size_t> d(static_cast<size_t>(-1));
   EXPECT_EQ(std::numeric_limits<size_t>::max(), d.Value());
 }
@@ -53,7 +53,7 @@ TEST(AtomicNumber, Increment) {
   // Should work as decrement as well.
   AtomicNumber<size_t> c(1);
   c.Increment(-1);
-  EXPECT_EQ(0, c.Value());
+  EXPECT_EQ(0U, c.Value());
   c.Increment(-1);
   EXPECT_EQ(std::numeric_limits<size_t>::max(), c.Value());
 }
