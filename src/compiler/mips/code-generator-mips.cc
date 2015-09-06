@@ -904,15 +904,12 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
   Condition cc = kNoCondition;
-
   // MIPS does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
   // emit mips pseudo-instructions, which are handled here by branch
   // instructions that do the actual comparison. Essential that the input
   // registers to compare pseudo-op are not modified before this branch op, as
   // they are tested here.
-  // TODO(plind): Add CHECK() to ensure that test/cmp and this branch were
-  //    not separated by other instructions.
 
   if (instr->arch_opcode() == kMipsTst) {
     cc = FlagsConditionToConditionTst(branch->condition);
@@ -964,40 +961,104 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   DCHECK_NE(0u, instr->OutputCount());
   Register result = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = kNoCondition;
-
   // MIPS does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
   // emit mips psuedo-instructions, which are checked and handled here.
 
-  // For materializations, we use delay slot to set the result true, and
-  // in the false case, where we fall thru the branch, we reset the result
-  // false.
-
   if (instr->arch_opcode() == kMipsTst) {
     cc = FlagsConditionToConditionTst(condition);
-    __ And(at, i.InputRegister(0), i.InputOperand(1));
-    __ Branch(USE_DELAY_SLOT, &done, cc, at, Operand(zero_reg));
-    __ li(result, Operand(1));  // In delay slot.
-
+    __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
+    __ xori(result, zero_reg, 1);  // Create 1 for true.
+    if (IsMipsArchVariant(kMips32r6)) {
+      if (cc == eq) {
+        __ seleqz(result, result, kScratchReg);
+      } else {
+        __ selnez(result, result, kScratchReg);
+      }
+    } else {
+      if (cc == eq) {
+        __ Movn(result, zero_reg, kScratchReg);
+      } else {
+        __ Movz(result, zero_reg, kScratchReg);
+      }
+    }
+    return;
   } else if (instr->arch_opcode() == kMipsAddOvf ||
              instr->arch_opcode() == kMipsSubOvf) {
     // kMipsAddOvf, SubOvf emits negative result to 'kCompareReg' on overflow.
     cc = FlagsConditionToConditionOvf(condition);
-    __ Branch(USE_DELAY_SLOT, &done, cc, kCompareReg, Operand(zero_reg));
-    __ li(result, Operand(1));  // In delay slot.
-
+    // Return 1 on overflow.
+    __ Slt(result, kCompareReg, Operand(zero_reg));
+    if (cc == ge)  // Invert result on not overflow.
+      __ xori(result, result, 1);
+    return;
   } else if (instr->arch_opcode() == kMipsCmp) {
-    Register left = i.InputRegister(0);
-    Operand right = i.InputOperand(1);
     cc = FlagsConditionToConditionCmp(condition);
-    __ Branch(USE_DELAY_SLOT, &done, cc, left, right);
-    __ li(result, Operand(1));  // In delay slot.
-
+    switch (cc) {
+      case eq:
+      case ne: {
+        Register left = i.InputRegister(0);
+        Operand right = i.InputOperand(1);
+        __ Subu(kScratchReg, left, right);
+        __ xori(result, zero_reg, 1);
+        if (IsMipsArchVariant(kMips32r6)) {
+          if (cc == eq) {
+            __ seleqz(result, result, kScratchReg);
+          } else {
+            __ selnez(result, result, kScratchReg);
+          }
+        } else {
+          if (cc == eq) {
+            __ Movn(result, zero_reg, kScratchReg);
+          } else {
+            __ Movz(result, zero_reg, kScratchReg);
+          }
+        }
+      } break;
+      case lt:
+      case ge: {
+        Register left = i.InputRegister(0);
+        Operand right = i.InputOperand(1);
+        __ Slt(result, left, right);
+        if (cc == ge) {
+          __ xori(result, result, 1);
+        }
+      } break;
+      case gt:
+      case le: {
+        Register left = i.InputRegister(1);
+        Operand right = i.InputOperand(0);
+        __ Slt(result, left, right);
+        if (cc == le) {
+          __ xori(result, result, 1);
+        }
+      } break;
+      case lo:
+      case hs: {
+        Register left = i.InputRegister(0);
+        Operand right = i.InputOperand(1);
+        __ Sltu(result, left, right);
+        if (cc == hs) {
+          __ xori(result, result, 1);
+        }
+      } break;
+      case hi:
+      case ls: {
+        Register left = i.InputRegister(1);
+        Operand right = i.InputOperand(0);
+        __ Sltu(result, left, right);
+        if (cc == ls) {
+          __ xori(result, result, 1);
+        }
+      } break;
+      default:
+        UNREACHABLE();
+    }
+    return;
   } else if (instr->arch_opcode() == kMipsCmpD ||
              instr->arch_opcode() == kMipsCmpS) {
     FPURegister left = i.InputDoubleRegister(0);
     FPURegister right = i.InputDoubleRegister(1);
-
     bool predicate;
     FPUCondition cc = FlagsConditionToConditionCmpFPU(predicate, condition);
     if (!IsMipsArchVariant(kMips32r6)) {
@@ -1032,11 +1093,6 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     TRACE_UNIMPL();
     UNIMPLEMENTED();
   }
-
-  // Fallthrough case is the false materialization.
-  __ bind(&false_value);
-  __ li(result, Operand(0));
-  __ bind(&done);
 }
 
 
