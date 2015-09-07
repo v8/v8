@@ -1643,16 +1643,17 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ lea(eax, Operand(ebp, eax, times_4, offset));
-    __ mov(edi, -1);  // account for receiver
+    __ lea(edi, Operand(ebp, eax, times_4, offset));
+    __ mov(eax, -1);  // account for receiver
 
     Label copy;
     __ bind(&copy);
-    __ inc(edi);
-    __ push(Operand(eax, 0));
-    __ sub(eax, Immediate(kPointerSize));
-    __ cmp(edi, ebx);
+    __ inc(eax);
+    __ push(Operand(edi, 0));
+    __ sub(edi, Immediate(kPointerSize));
+    __ cmp(eax, ebx);
     __ j(less, &copy);
+    // eax now contains the expected number of arguments.
     __ jmp(&invoke);
   }
 
@@ -1681,6 +1682,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
 
+    // Remember expected arguments in ecx.
+    __ mov(ecx, ebx);
+
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(edi, Operand(ebp, eax, times_4, offset));
@@ -1705,12 +1709,17 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ push(Immediate(masm->isolate()->factory()->undefined_value()));
     __ cmp(eax, ebx);
     __ j(less, &fill);
+
+    // Restore expected arguments.
+    __ mov(eax, ecx);
   }
 
   // Call the entry point.
   __ bind(&invoke);
   // Restore function pointer.
   __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  // eax : expected number of arguments
+  // edi : function (passed through to callee)
   __ call(edx);
 
   // Store offset of return address for deoptimizer.
