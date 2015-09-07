@@ -682,7 +682,8 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
   }
 
   // Bind all parameter variables. The parameter indices are shifted by 1
-  // (receiver is parameter index -1 but environment index 0).
+  // (receiver is variable index -1 but {Parameter} node index 0 and located at
+  // index 0 in the environment).
   for (int i = 0; i < scope->num_parameters(); ++i) {
     const char* debug_name = GetDebugParameterName(graph()->zone(), scope, i);
     const Operator* op = common()->Parameter(param_num++, debug_name);
@@ -721,8 +722,8 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder::Environment* copy,
 void AstGraphBuilder::Environment::Bind(Variable* variable, Node* node) {
   DCHECK(variable->IsStackAllocated());
   if (variable->IsParameter()) {
-    // The parameter indices are shifted by 1 (receiver is parameter
-    // index -1 but environment index 0).
+    // The parameter indices are shifted by 1 (receiver is variable
+    // index -1 but located at index 0 in the environment).
     values()->at(variable->index() + 1) = node;
   } else {
     DCHECK(variable->IsStackLocal());
@@ -738,8 +739,8 @@ void AstGraphBuilder::Environment::Bind(Variable* variable, Node* node) {
 Node* AstGraphBuilder::Environment::Lookup(Variable* variable) {
   DCHECK(variable->IsStackAllocated());
   if (variable->IsParameter()) {
-    // The parameter indices are shifted by 1 (receiver is parameter
-    // index -1 but environment index 0).
+    // The parameter indices are shifted by 1 (receiver is variable
+    // index -1 but located at index 0 in the environment).
     return values()->at(variable->index() + 1);
   } else {
     DCHECK(variable->IsStackLocal());
