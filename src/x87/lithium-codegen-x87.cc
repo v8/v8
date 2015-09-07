@@ -6036,24 +6036,24 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
     final_branch_condition = not_zero;
 
   } else if (String::Equals(type_name, factory()->function_string())) {
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     __ JumpIfSmi(input, false_label, false_distance);
-    __ CmpObjectType(input, JS_FUNCTION_TYPE, input);
-    __ j(equal, true_label, true_distance);
-    __ CmpInstanceType(input, JS_FUNCTION_PROXY_TYPE);
+    // Check for callable and not undetectable objects => true.
+    __ mov(input, FieldOperand(input, HeapObject::kMapOffset));
+    __ movzx_b(input, FieldOperand(input, Map::kBitFieldOffset));
+    __ and_(input, (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable));
+    __ cmp(input, 1 << Map::kIsCallable);
     final_branch_condition = equal;
 
   } else if (String::Equals(type_name, factory()->object_string())) {
     __ JumpIfSmi(input, false_label, false_distance);
     __ cmp(input, factory()->null_value());
     __ j(equal, true_label, true_distance);
-    __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CmpObjectType(input, FIRST_SPEC_OBJECT_TYPE, input);
     __ j(below, false_label, false_distance);
-    __ CmpInstanceType(input, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    __ j(above, false_label, false_distance);
-    // Check for undetectable objects => false.
+    // Check for callable or undetectable objects => false.
     __ test_b(FieldOperand(input, Map::kBitFieldOffset),
-              1 << Map::kIsUndetectable);
+              (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable));
     final_branch_condition = zero;
 
 // clang-format off
