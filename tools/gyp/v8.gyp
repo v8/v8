@@ -707,6 +707,8 @@
         '../../src/heap-snapshot-generator-inl.h',
         '../../src/heap-snapshot-generator.cc',
         '../../src/heap-snapshot-generator.h',
+        '../../src/heap/array-buffer-tracker.cc',
+        '../../src/heap/array-buffer-tracker.h',
         '../../src/heap/memory-reducer.cc',
         '../../src/heap/memory-reducer.h',
         '../../src/heap/gc-idle-time-handler.cc',

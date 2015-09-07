@@ -421,6 +421,7 @@ namespace internal {
   PRIVATE_SYMBOL_LIST(V)
 
 // Forward declarations.
+class ArrayBufferTracker;
 class HeapObjectsFilter;
 class HeapStats;
 class Isolate;
@@ -982,6 +983,10 @@ class Heap {
     return amount_of_external_allocated_memory_;
   }
 
+  void update_amount_of_external_allocated_memory(int64_t delta) {
+    amount_of_external_allocated_memory_ += delta;
+  }
+
   void DeoptMarkedAllocationSites();
 
   bool DeoptMaybeTenuredAllocationSites() {
@@ -1006,29 +1011,6 @@ class Heap {
                           int size_in_bytes);
 
   bool deserialization_complete() const { return deserialization_complete_; }
-
-  // The following methods are used to track raw C++ pointers to externally
-  // allocated memory used as backing store in live array buffers.
-
-  // A new ArrayBuffer was created with |data| as backing store.
-  void RegisterNewArrayBuffer(bool in_new_space, void* data, size_t length);
-
-  // The backing store |data| is no longer owned by V8.
-  void UnregisterArrayBuffer(bool in_new_space, void* data);
-
-  // A live ArrayBuffer was discovered during marking/scavenge.
-  void RegisterLiveArrayBuffer(bool in_new_space, void* data);
-
-  // Frees all backing store pointers that weren't discovered in the previous
-  // marking or scavenge phase.
-  void FreeDeadArrayBuffers(bool from_scavenge);
-
-  // Prepare for a new scavenge phase. A new marking phase is implicitly
-  // prepared by finishing the previous one.
-  void PrepareArrayBufferDiscoveryInNewSpace();
-
-  // An ArrayBuffer moved from new space to old space.
-  void PromoteArrayBuffer(Object* buffer);
 
   bool HasLowAllocationRate();
   bool HasHighFragmentation();
@@ -1524,6 +1506,16 @@ class Heap {
                                               int allocation_size,
                                               AllocationAlignment alignment);
 
+  // ===========================================================================
+  // ArrayBufferTracker. =======================================================
+  // ===========================================================================
+  void RegisterNewArrayBuffer(JSArrayBuffer* buffer);
+  void UnregisterArrayBuffer(JSArrayBuffer* buffer);
+
+  inline ArrayBufferTracker* array_buffer_tracker() {
+    return array_buffer_tracker_;
+  }
+
 // =============================================================================
 
 #ifdef VERIFY_HEAP
@@ -1756,9 +1748,6 @@ class Heap {
   // ResetAllTenuredAllocationSitesDependentCode if too many objects died in
   // the old space.
   void EvaluateOldSpaceLocalPretenuring(uint64_t size_of_objects_before_gc);
-
-  // Called on heap tear-down. Frees all remaining ArrayBuffer backing stores.
-  void TearDownArrayBuffers();
 
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();
@@ -2343,26 +2332,9 @@ class Heap {
 
   bool concurrent_sweeping_enabled_;
 
-  // |live_array_buffers_| maps externally allocated memory used as backing
-  // store for ArrayBuffers to the length of the respective memory blocks.
-  //
-  // At the beginning of mark/compact, |not_yet_discovered_array_buffers_| is
-  // a copy of |live_array_buffers_| and we remove pointers as we discover live
-  // ArrayBuffer objects during marking. At the end of mark/compact, the
-  // remaining memory blocks can be freed.
-  std::map<void*, size_t> live_array_buffers_;
-  std::map<void*, size_t> not_yet_discovered_array_buffers_;
-
-  // To be able to free memory held by ArrayBuffers during scavenge as well, we
-  // have a separate list of allocated memory held by ArrayBuffers in new space.
-  //
-  // Since mark/compact also evacuates the new space, all pointers in the
-  // |live_array_buffers_for_scavenge_| list are also in the
-  // |live_array_buffers_| list.
-  std::map<void*, size_t> live_array_buffers_for_scavenge_;
-  std::map<void*, size_t> not_yet_discovered_array_buffers_for_scavenge_;
-
   StrongRootsList* strong_roots_list_;
+
+  ArrayBufferTracker* array_buffer_tracker_;
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;

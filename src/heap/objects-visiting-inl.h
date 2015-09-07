@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_VISITING_INL_H_
 #define V8_OBJECTS_VISITING_INL_H_
 
+#include "src/heap/array-buffer-tracker.h"
 #include "src/heap/objects-visiting.h"
 #include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
@@ -96,8 +97,7 @@ int StaticNewSpaceVisitor<StaticVisitor>::VisitJSArrayBuffer(
       HeapObject::RawField(object, JSArrayBuffer::BodyDescriptor::kStartOffset),
       HeapObject::RawField(object, JSArrayBuffer::kSizeWithInternalFields));
   if (!JSArrayBuffer::cast(object)->is_external()) {
-    heap->RegisterLiveArrayBuffer(true,
-                                  JSArrayBuffer::cast(object)->backing_store());
+    heap->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(object));
   }
   return JSArrayBuffer::kSizeWithInternalFields;
 }
@@ -534,8 +534,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSArrayBuffer(
       HeapObject::RawField(object, JSArrayBuffer::kSizeWithInternalFields));
   if (!JSArrayBuffer::cast(object)->is_external() &&
       !heap->InNewSpace(object)) {
-    heap->RegisterLiveArrayBuffer(false,
-                                  JSArrayBuffer::cast(object)->backing_store());
+    heap->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(object));
   }
 }
 

@@ -92,9 +92,8 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   void* backing_store = array_buffer->backing_store();
   size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
   array_buffer->set_is_external(true);
+  isolate->heap()->UnregisterArrayBuffer(*array_buffer);
   array_buffer->Neuter();
-  isolate->heap()->UnregisterArrayBuffer(
-      isolate->heap()->InNewSpace(*array_buffer), backing_store);
   isolate->array_buffer_allocator()->Free(backing_store, byte_length);
   return isolate->heap()->undefined_value();
 }

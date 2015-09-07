@@ -14,6 +14,7 @@
 #include "src/frames-inl.h"
 #include "src/gdb-jit.h"
 #include "src/global-handles.h"
+#include "src/heap/array-buffer-tracker.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
@@ -1721,8 +1722,7 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
 
       MigrateObject(HeapObject::cast(target), object, size, NEW_SPACE);
       if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
-        heap()->RegisterLiveArrayBuffer(
-            true, JSArrayBuffer::cast(target)->backing_store());
+        heap()->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(target));
       }
       heap()->IncrementSemiSpaceCopiedObjectSize(size);
     }
@@ -2948,7 +2948,7 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
     MigrateObject(target, object, object_size, old_space->identity());
     // If we end up needing more special cases, we should factor this out.
     if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
-      heap()->PromoteArrayBuffer(target);
+      heap()->array_buffer_tracker()->Promote(JSArrayBuffer::cast(target));
     }
     heap()->IncrementPromotedObjectsSize(object_size);
     return true;
@@ -4293,7 +4293,7 @@ void MarkCompactCollector::SweepSpaces() {
   // EvacuateNewSpaceAndCandidates iterates over new space objects and for
   // ArrayBuffers either re-registers them as live or promotes them. This is
   // needed to properly free them.
-  heap()->FreeDeadArrayBuffers(false);
+  heap()->array_buffer_tracker()->FreeDead(false);
 
   // Clear the marking state of live large objects.
   heap_->lo_space()->ClearMarkingStateOfLiveObjects();
