@@ -190,37 +190,42 @@ class StringSearch : private StringSearchBase {
 };
 
 
+template <typename T, typename U>
+inline T AlignDown(T value, U alignment) {
+  return reinterpret_cast<T>(
+      (reinterpret_cast<uintptr_t>(value) & ~(alignment - 1)));
+}
+
+
+inline uint8_t GetHighestValueByte(uc16 character) {
+  return Max(static_cast<uint8_t>(character & 0xFF),
+             static_cast<uint8_t>(character >> 8));
+}
+
+
+inline uint8_t GetHighestValueByte(uint8_t character) { return character; }
+
+
 template <typename PatternChar, typename SubjectChar>
-int FindFirstCharacter(Vector<const PatternChar> pattern,
-                       Vector<const SubjectChar> subject, int index) {
-  PatternChar pattern_first_char = pattern[0];
+inline int FindFirstCharacter(Vector<const PatternChar> pattern,
+                              Vector<const SubjectChar> subject, int index) {
+  const PatternChar pattern_first_char = pattern[0];
   const int max_n = (subject.length() - pattern.length() + 1);
 
-  if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
-    DCHECK_GE(max_n - index, 0);
+  const uint8_t search_byte = GetHighestValueByte(pattern_first_char);
+  const SubjectChar search_char = static_cast<SubjectChar>(pattern_first_char);
+  int pos = index;
+  do {
+    DCHECK_GE(max_n - pos, 0);
     const SubjectChar* char_pos = reinterpret_cast<const SubjectChar*>(
-        memchr(subject.start() + index, pattern_first_char, max_n - index));
+        memchr(subject.start() + pos, search_byte,
+               (max_n - pos) * sizeof(SubjectChar)));
     if (char_pos == NULL) return -1;
-    return static_cast<int>(char_pos - subject.start());
-  } else {
-    const uint8_t search_low_byte =
-        static_cast<uint8_t>(pattern_first_char & 0xFF);
-    const SubjectChar search_char =
-        static_cast<SubjectChar>(pattern_first_char);
-    int pos = index;
-    do {
-      DCHECK_GE(max_n - pos, 0);
-      const SubjectChar* char_pos = reinterpret_cast<const SubjectChar*>(
-          memchr(subject.start() + pos, search_low_byte,
-                 (max_n - pos) * sizeof(SubjectChar)));
-      if (char_pos == NULL) return -1;
-      pos = static_cast<int>(char_pos - subject.start());
-      if (IsAligned(reinterpret_cast<uintptr_t>(char_pos),
-                    sizeof(SubjectChar))) {
-        if (subject[pos] == search_char) return pos;
-      }
-    } while (++pos < max_n);
-  }
+    char_pos = AlignDown(char_pos, sizeof(SubjectChar));
+    pos = static_cast<int>(char_pos - subject.start());
+    if (subject[pos] == search_char) return pos;
+  } while (++pos < max_n);
+
   return -1;
 }
 
@@ -236,16 +241,12 @@ int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
     int index) {
   DCHECK_EQ(1, search->pattern_.length());
   PatternChar pattern_first_char = search->pattern_[0];
-  if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
-    return FindFirstCharacter(search->pattern_, subject, index);
-  } else {
-    if (sizeof(PatternChar) > sizeof(SubjectChar)) {
-      if (exceedsOneByte(pattern_first_char)) {
-        return -1;
-      }
+  if (sizeof(PatternChar) > sizeof(SubjectChar)) {
+    if (exceedsOneByte(pattern_first_char)) {
+      return -1;
     }
-    return FindFirstCharacter(search->pattern_, subject, index);
   }
+  return FindFirstCharacter(search->pattern_, subject, index);
 }
 
 //---------------------------------------------------------------------
