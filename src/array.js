@@ -66,7 +66,7 @@ function GetSortedArrayKeys(array, indices) {
         }
       }
     }
-    %_CallFunction(keys, function(a, b) { return a - b; }, ArraySort);
+    keys.sort(function(a, b) { return a - b; });
   }
   return keys;
 }
@@ -900,7 +900,7 @@ function ArraySplice(start, delete_count) {
 }
 
 
-function InnerArraySort(length, comparefn) {
+function InnerArraySort(array, length, comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
@@ -1145,9 +1145,9 @@ function InnerArraySort(length, comparefn) {
     return first_undefined;
   };
 
-  if (length < 2) return this;
+  if (length < 2) return array;
 
-  var is_array = IS_ARRAY(this);
+  var is_array = IS_ARRAY(array);
   var max_prototype_element;
   if (!is_array) {
     // For compatibility with JSC, we also sort elements inherited from
@@ -1158,28 +1158,28 @@ function InnerArraySort(length, comparefn) {
     // The specification allows "implementation dependent" behavior
     // if an element on the prototype chain has an element that
     // might interact with sorting.
-    max_prototype_element = CopyFromPrototype(this, length);
+    max_prototype_element = CopyFromPrototype(array, length);
   }
 
   // %RemoveArrayHoles returns -1 if fast removal is not supported.
-  var num_non_undefined = %RemoveArrayHoles(this, length);
+  var num_non_undefined = %RemoveArrayHoles(array, length);
 
   if (num_non_undefined == -1) {
     // The array is observed, or there were indexed accessors in the array.
     // Move array holes and undefineds to the end using a Javascript function
     // that is safe in the presence of accessors and is observable.
-    num_non_undefined = SafeRemoveArrayHoles(this);
+    num_non_undefined = SafeRemoveArrayHoles(array);
   }
 
-  QuickSort(this, 0, num_non_undefined);
+  QuickSort(array, 0, num_non_undefined);
 
   if (!is_array && (num_non_undefined + 1 < max_prototype_element)) {
     // For compatibility with JSC, we shadow any elements in the prototype
     // chain that has become exposed by sort moving a hole to its position.
-    ShadowPrototypeElements(this, num_non_undefined, max_prototype_element);
+    ShadowPrototypeElements(array, num_non_undefined, max_prototype_element);
   }
 
-  return this;
+  return array;
 }
 
 
@@ -1188,7 +1188,7 @@ function ArraySort(comparefn) {
 
   var array = TO_OBJECT(this);
   var length = TO_UINT32(array.length);
-  return %_CallFunction(array, length, comparefn, InnerArraySort);
+  return InnerArraySort(array, length, comparefn);
 }
 
 
@@ -1382,7 +1382,7 @@ function ArrayMap(f, receiver) {
 // at the callsite since ToInteger(undefined) == 0; however, for
 // .lastIndexOf, we need to pass it, since the behavior for passing
 // undefined is 0 but for not including the argument is length-1.
-function InnerArrayIndexOf(element, index, length) {
+function InnerArrayIndexOf(array, element, index, length) {
   if (length == 0) return -1;
   if (IS_UNDEFINED(index)) {
     index = 0;
@@ -1397,9 +1397,9 @@ function InnerArrayIndexOf(element, index, length) {
   }
   var min = index;
   var max = length;
-  if (UseSparseVariant(this, length, IS_ARRAY(this), max - min)) {
-    %NormalizeElements(this);
-    var indices = %GetArrayKeys(this, length);
+  if (UseSparseVariant(array, length, IS_ARRAY(array), max - min)) {
+    %NormalizeElements(array);
+    var indices = %GetArrayKeys(array, length);
     if (IS_NUMBER(indices)) {
       // It's an interval.
       max = indices;  // Capped by length already.
@@ -1407,13 +1407,13 @@ function InnerArrayIndexOf(element, index, length) {
     } else {
       if (indices.length == 0) return -1;
       // Get all the keys in sorted order.
-      var sortedKeys = GetSortedArrayKeys(this, indices);
+      var sortedKeys = GetSortedArrayKeys(array, indices);
       var n = sortedKeys.length;
       var i = 0;
       while (i < n && sortedKeys[i] < index) i++;
       while (i < n) {
         var key = sortedKeys[i];
-        if (!IS_UNDEFINED(key) && this[key] === element) return key;
+        if (!IS_UNDEFINED(key) && array[key] === element) return key;
         i++;
       }
       return -1;
@@ -1422,13 +1422,13 @@ function InnerArrayIndexOf(element, index, length) {
   // Lookup through the array.
   if (!IS_UNDEFINED(element)) {
     for (var i = min; i < max; i++) {
-      if (this[i] === element) return i;
+      if (array[i] === element) return i;
     }
     return -1;
   }
   // Lookup through the array.
   for (var i = min; i < max; i++) {
-    if (IS_UNDEFINED(this[i]) && i in this) {
+    if (IS_UNDEFINED(array[i]) && i in array) {
       return i;
     }
   }
@@ -1440,11 +1440,11 @@ function ArrayIndexOf(element, index) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.indexOf");
 
   var length = TO_UINT32(this.length);
-  return %_CallFunction(this, element, index, length, InnerArrayIndexOf);
+  return InnerArrayIndexOf(this, element, index, length);
 }
 
 
-function InnerArrayLastIndexOf(element, index, length, argumentsLength) {
+function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
   if (length == 0) return -1;
   if (argumentsLength < 2) {
     index = length - 1;
@@ -1458,9 +1458,9 @@ function InnerArrayLastIndexOf(element, index, length, argumentsLength) {
   }
   var min = 0;
   var max = index;
-  if (UseSparseVariant(this, length, IS_ARRAY(this), index)) {
-    %NormalizeElements(this);
-    var indices = %GetArrayKeys(this, index + 1);
+  if (UseSparseVariant(array, length, IS_ARRAY(array), index)) {
+    %NormalizeElements(array);
+    var indices = %GetArrayKeys(array, index + 1);
     if (IS_NUMBER(indices)) {
       // It's an interval.
       max = indices;  // Capped by index already.
@@ -1468,11 +1468,11 @@ function InnerArrayLastIndexOf(element, index, length, argumentsLength) {
     } else {
       if (indices.length == 0) return -1;
       // Get all the keys in sorted order.
-      var sortedKeys = GetSortedArrayKeys(this, indices);
+      var sortedKeys = GetSortedArrayKeys(array, indices);
       var i = sortedKeys.length - 1;
       while (i >= 0) {
         var key = sortedKeys[i];
-        if (!IS_UNDEFINED(key) && this[key] === element) return key;
+        if (!IS_UNDEFINED(key) && array[key] === element) return key;
         i--;
       }
       return -1;
@@ -1481,12 +1481,12 @@ function InnerArrayLastIndexOf(element, index, length, argumentsLength) {
   // Lookup through the array.
   if (!IS_UNDEFINED(element)) {
     for (var i = max; i >= min; i--) {
-      if (this[i] === element) return i;
+      if (array[i] === element) return i;
     }
     return -1;
   }
   for (var i = max; i >= min; i--) {
-    if (IS_UNDEFINED(this[i]) && i in this) {
+    if (IS_UNDEFINED(array[i]) && i in array) {
       return i;
     }
   }
@@ -1498,8 +1498,8 @@ function ArrayLastIndexOf(element, index) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.lastIndexOf");
 
   var length = TO_UINT32(this.length);
-  return %_CallFunction(this, element, index, length,
-                        %_ArgumentsLength(), InnerArrayLastIndexOf);
+  return InnerArrayLastIndexOf(this, element, index, length,
+                        %_ArgumentsLength());
 }
 
 
@@ -1672,6 +1672,7 @@ utils.SetUpLockedPrototype(InternalArray, GlobalArray(), [
   "pop", getFunction("pop", ArrayPop),
   "push", getFunction("push", ArrayPush),
   "shift", getFunction("shift", ArrayShift),
+  "sort", getFunction("sort", ArraySort),
   "splice", getFunction("splice", ArraySplice)
 ]);
 

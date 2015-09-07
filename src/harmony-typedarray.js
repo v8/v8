@@ -215,7 +215,7 @@ function TypedArraySort(comparefn) {
     comparefn = TypedArrayComparefn;
   }
 
-  return %_CallFunction(this, length, comparefn, InnerArraySort);
+  return InnerArraySort(this, length, comparefn);
 }
 
 
@@ -224,8 +224,7 @@ function TypedArrayIndexOf(element, index) {
   if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
-
-  return %_CallFunction(this, element, index, length, InnerArrayIndexOf);
+  return InnerArrayIndexOf(this, element, index, length);
 }
 %FunctionSetLength(TypedArrayIndexOf, 1);
 
@@ -236,8 +235,8 @@ function TypedArrayLastIndexOf(element, index) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return %_CallFunction(this, element, index, length,
-                        %_ArgumentsLength(), InnerArrayLastIndexOf);
+  return InnerArrayLastIndexOf(this, element, index, length,
+                        %_ArgumentsLength());
 }
 %FunctionSetLength(TypedArrayLastIndexOf, 1);
 
