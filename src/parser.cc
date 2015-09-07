@@ -4184,9 +4184,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // try to lazy parse in the first place, we'll have to parse eagerly.
     Scanner::BookmarkScope bookmark(scanner());
     if (is_lazily_parsed) {
-      // Deactivate bookmarks for now because they result
-      // race conditions while parsing.
-      Scanner::BookmarkScope* maybe_bookmark = nullptr;
+      Scanner::BookmarkScope* maybe_bookmark =
+          bookmark.Set() ? &bookmark : nullptr;
       SkipLazyFunctionBody(&materialized_literal_count,
                            &expected_property_count, /*CHECK_OK*/ ok,
                            maybe_bookmark);
