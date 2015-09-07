@@ -108,6 +108,9 @@ def ExpandMacroDefinition(lines, pos, name_pattern, macro, expander):
     mapping = { }
     def add_arg(str):
       # Remember to expand recursively in the arguments
+      if arg_index[0] >= len(macro.args):
+        lineno = lines.count(os.linesep, 0, start) + 1
+        raise Error('line %s: Too many arguments for macro "%s"' % (lineno, name_pattern.pattern))
       replacement = expander(str.strip())
       mapping[macro.args[arg_index[0]]] = replacement
       arg_index[0] += 1
