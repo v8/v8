@@ -2331,6 +2331,40 @@ bool Genesis::InstallNatives(ContextType context_type) {
     to_primitive->shared()->set_length(1);
   }
 
+  // Install Array.prototype.concat
+  {
+    Handle<JSFunction> array_constructor(native_context()->array_function());
+    Handle<JSObject> proto(JSObject::cast(array_constructor->prototype()));
+    Handle<JSFunction> concat =
+        InstallFunction(proto, "concat", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                        MaybeHandle<JSObject>(), Builtins::kArrayConcat);
+
+    // Make sure that Array.prototype.concat appears to be compiled.
+    // The code will never be called, but inline caching for call will
+    // only work if it appears to be compiled.
+    concat->shared()->DontAdaptArguments();
+    DCHECK(concat->is_compiled());
+    // Set the lengths for the functions to satisfy ECMA-262.
+    concat->shared()->set_length(1);
+  }
+
+  // Install InternalArray.prototype.concat
+  {
+    Handle<JSFunction> array_constructor(
+        native_context()->internal_array_function());
+    Handle<JSObject> proto(JSObject::cast(array_constructor->prototype()));
+    Handle<JSFunction> concat =
+        InstallFunction(proto, "concat", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                        MaybeHandle<JSObject>(), Builtins::kArrayConcat);
+
+    // Make sure that InternalArray.prototype.concat appears to be compiled.
+    // The code will never be called, but inline caching for call will
+    // only work if it appears to be compiled.
+    concat->shared()->DontAdaptArguments();
+    DCHECK(concat->is_compiled());
+    // Set the lengths for the functions to satisfy ECMA-262.
+    concat->shared()->set_length(1);
+  }
   // Install Function.prototype.call and apply.
   {
     Handle<String> key = factory()->Function_string();

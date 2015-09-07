@@ -522,24 +522,6 @@ function ArrayPush() {
 }
 
 
-// Returns an array containing the array elements of the object followed
-// by the array elements of each argument in order. See ECMA-262,
-// section 15.4.4.7.
-function ArrayConcatJS(arg1) {  // length == 1
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.concat");
-
-  var array = TO_OBJECT(this);
-  var arg_count = %_ArgumentsLength();
-  var arrays = new InternalArray(1 + arg_count);
-  arrays[0] = array;
-  for (var i = 0; i < arg_count; i++) {
-    arrays[i + 1] = %_Arguments(i);
-  }
-
-  return %ArrayConcat(arrays);
-}
-
-
 // For implementing reverse() on large, sparse arrays.
 function SparseReverse(array, len) {
   var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
@@ -1642,7 +1624,6 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "join", getFunction("join", ArrayJoin),
   "pop", getFunction("pop", ArrayPop),
   "push", getFunction("push", ArrayPush, 1),
-  "concat", getFunction("concat", ArrayConcatJS, 1),
   "reverse", getFunction("reverse", ArrayReverse),
   "shift", getFunction("shift", ArrayShift),
   "unshift", getFunction("unshift", ArrayUnshift, 1),
@@ -1666,7 +1647,6 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
 // exposed to user code.
 // Adding only the functions that are actually used.
 utils.SetUpLockedPrototype(InternalArray, GlobalArray(), [
-  "concat", getFunction("concat", ArrayConcatJS),
   "indexOf", getFunction("indexOf", ArrayIndexOf),
   "join", getFunction("join", ArrayJoin),
   "pop", getFunction("pop", ArrayPop),
@@ -1707,7 +1687,6 @@ utils.Export(function(to) {
 });
 
 %InstallToContext([
-  "array_concat", ArrayConcatJS,
   "array_pop", ArrayPop,
   "array_push", ArrayPush,
   "array_shift", ArrayShift,

@@ -2350,6 +2350,69 @@ void ElementsAccessor::TearDown() {
 }
 
 
+Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
+                                         uint32_t concat_size) {
+  int result_len = 0;
+  ElementsKind elements_kind = GetInitialFastElementsKind();
+  bool has_double = false;
+  {
+    DisallowHeapAllocation no_gc;
+    // Iterate through all the arguments performing checks
+    // and calculating total length.
+    bool is_holey = false;
+    for (uint32_t i = 0; i < concat_size; i++) {
+      Object* arg = (*args)[i];
+      int len = Smi::cast(JSArray::cast(arg)->length())->value();
+
+      // We shouldn't overflow when adding another len.
+      const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
+      STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
+      USE(kHalfOfMaxInt);
+      result_len += len;
+      DCHECK(0 <= result_len);
+      DCHECK(result_len <= FixedDoubleArray::kMaxLength);
+
+      ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
+      has_double = has_double || IsFastDoubleElementsKind(arg_kind);
+      is_holey = is_holey || IsFastHoleyElementsKind(arg_kind);
+      if (IsMoreGeneralElementsKindTransition(elements_kind, arg_kind)) {
+        elements_kind = arg_kind;
+      }
+    }
+    if (is_holey) {
+      elements_kind = GetHoleyElementsKind(elements_kind);
+    }
+  }
+
+  // If a double array is concatted into a fast elements array, the fast
+  // elements array needs to be initialized to contain proper holes, since
+  // boxing doubles may cause incremental marking.
+  ArrayStorageAllocationMode mode =
+      has_double && IsFastObjectElementsKind(elements_kind)
+          ? INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+          : DONT_INITIALIZE_ARRAY_ELEMENTS;
+  Handle<JSArray> result_array = isolate->factory()->NewJSArray(
+      elements_kind, result_len, result_len, Strength::WEAK, mode);
+  if (result_len == 0) return result_array;
+  int j = 0;
+  Handle<FixedArrayBase> storage(result_array->elements(), isolate);
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
+  for (uint32_t i = 0; i < concat_size; i++) {
+    // It is crucial to keep |array| in a raw pointer form to avoid
+    // performance degradation.
+    JSArray* array = JSArray::cast((*args)[i]);
+    int len = Smi::cast(array->length())->value();
+    if (len > 0) {
+      ElementsKind from_kind = array->GetElementsKind();
+      accessor->CopyElements(array, 0, from_kind, storage, j, len);
+      j += len;
+    }
+  }
+
+  DCHECK(j == result_len);
+  return result_array;
+}
+
 ElementsAccessor** ElementsAccessor::elements_accessors_ = NULL;
 }  // namespace internal
 }  // namespace v8

@@ -68,7 +68,7 @@ function array_natives_test() {
   // Concat
   var a1;
   a1 = [1,2,3].concat([]);
-  assertTrue(%HasFastSmiElements(a1));
+  //assertTrue(%HasFastSmiElements(a1));
   assertEquals([1,2,3], a1);
   a1 = [1,2,3].concat([4,5,6]);
   assertTrue(%HasFastSmiElements(a1));

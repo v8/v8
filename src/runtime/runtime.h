@@ -35,7 +35,6 @@ namespace internal {
   F(SpecialArrayFunctions, 0, 1)            \
   F(TransitionElementsKind, 2, 1)           \
   F(PushIfAbsent, 2, 1)                     \
-  F(ArrayConcat, 1, 1)                      \
   F(RemoveArrayHoles, 2, 1)                 \
   F(MoveArrayContents, 2, 1)                \
   F(EstimateNumberOfElements, 1, 1)         \
