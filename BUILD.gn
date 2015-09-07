@@ -5,6 +5,7 @@
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
 import("//build/config/mips.gni")
+import("//build/config/sanitizers/sanitizers.gni")
 
 # Because standalone V8 builds are not supported, assume this is part of a
 # Chromium build.
