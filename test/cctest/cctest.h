@@ -271,18 +271,17 @@ class RegisterThreadedTest {
 // A LocalContext holds a reference to a v8::Context.
 class LocalContext {
  public:
-  LocalContext(v8::Isolate* isolate,
-               v8::ExtensionConfiguration* extensions = 0,
-               v8::Handle<v8::ObjectTemplate> global_template =
-                   v8::Handle<v8::ObjectTemplate>(),
-               v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>()) {
+  LocalContext(v8::Isolate* isolate, v8::ExtensionConfiguration* extensions = 0,
+               v8::Local<v8::ObjectTemplate> global_template =
+                   v8::Local<v8::ObjectTemplate>(),
+               v8::Local<v8::Value> global_object = v8::Local<v8::Value>()) {
     Initialize(isolate, extensions, global_template, global_object);
   }
 
   LocalContext(v8::ExtensionConfiguration* extensions = 0,
-               v8::Handle<v8::ObjectTemplate> global_template =
-                   v8::Handle<v8::ObjectTemplate>(),
-               v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>()) {
+               v8::Local<v8::ObjectTemplate> global_template =
+                   v8::Local<v8::ObjectTemplate>(),
+               v8::Local<v8::Value> global_object = v8::Local<v8::Value>()) {
     Initialize(CcTest::isolate(), extensions, global_template, global_object);
   }
 
@@ -303,10 +302,9 @@ class LocalContext {
   }
 
  private:
-  void Initialize(v8::Isolate* isolate,
-                  v8::ExtensionConfiguration* extensions,
-                  v8::Handle<v8::ObjectTemplate> global_template,
-                  v8::Handle<v8::Value> global_object) {
+  void Initialize(v8::Isolate* isolate, v8::ExtensionConfiguration* extensions,
+                  v8::Local<v8::ObjectTemplate> global_template,
+                  v8::Local<v8::Value> global_object) {
      v8::HandleScope scope(isolate);
      v8::Local<v8::Context> context = v8::Context::New(isolate,
                                                        extensions,
@@ -337,7 +335,9 @@ static inline v8::Local<v8::Value> v8_num(double x) {
 
 
 static inline v8::Local<v8::String> v8_str(const char* x) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x);
+  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x,
+                                 v8::NewStringType::kNormal)
+      .ToLocalChecked();
 }
 
 
@@ -346,13 +346,18 @@ static inline v8::Local<v8::Symbol> v8_symbol(const char* name) {
 }
 
 
-static inline v8::Local<v8::Script> v8_compile(const char* x) {
-  return v8::Script::Compile(v8_str(x));
+static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
+  v8::Local<v8::Script> result;
+  if (v8::Script::Compile(v8::Isolate::GetCurrent()->GetCurrentContext(), x)
+          .ToLocal(&result)) {
+    return result;
+  }
+  return v8::Local<v8::Script>();
 }
 
 
-static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
-  return v8::Script::Compile(x);
+static inline v8::Local<v8::Script> v8_compile(const char* x) {
+  return v8_compile(v8_str(x));
 }
 
 
@@ -361,7 +366,8 @@ static inline v8::Local<v8::Script> CompileWithOrigin(
   v8::ScriptOrigin origin(origin_url);
   v8::ScriptCompiler::Source script_source(source, origin);
   return v8::ScriptCompiler::Compile(
-      v8::Isolate::GetCurrent(), &script_source);
+             v8::Isolate::GetCurrent()->GetCurrentContext(), &script_source)
+      .ToLocalChecked();
 }
 
 
@@ -378,20 +384,42 @@ static inline v8::Local<v8::Script> CompileWithOrigin(const char* source,
 
 
 // Helper functions that compile and run the source.
-static inline v8::Local<v8::Value> CompileRun(const char* source) {
-  return v8::Script::Compile(v8_str(source))->Run();
-}
-
-
-// Helper functions that compile and run the source.
 static inline v8::MaybeLocal<v8::Value> CompileRun(
     v8::Local<v8::Context> context, const char* source) {
-  return v8::Script::Compile(v8_str(source))->Run(context);
+  return v8::Script::Compile(context, v8_str(source))
+      .ToLocalChecked()
+      ->Run(context);
 }
 
 
 static inline v8::Local<v8::Value> CompileRun(v8::Local<v8::String> source) {
-  return v8::Script::Compile(source)->Run();
+  v8::Local<v8::Value> result;
+  if (v8_compile(source)
+          ->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
+          .ToLocal(&result)) {
+    return result;
+  }
+  return v8::Local<v8::Value>();
+}
+
+
+// Helper functions that compile and run the source.
+static inline v8::Local<v8::Value> CompileRun(const char* source) {
+  return CompileRun(v8_str(source));
+}
+
+
+static inline v8::Local<v8::Value> CompileRun(
+    v8::Local<v8::Context> context, v8::ScriptCompiler::Source* script_source,
+    v8::ScriptCompiler::CompileOptions options) {
+  v8::Local<v8::Value> result;
+  if (v8::ScriptCompiler::Compile(context, script_source, options)
+          .ToLocalChecked()
+          ->Run(context)
+          .ToLocal(&result)) {
+    return result;
+  }
+  return v8::Local<v8::Value>();
 }
 
 
@@ -399,16 +427,18 @@ static inline v8::Local<v8::Value> ParserCacheCompileRun(const char* source) {
   // Compile once just to get the preparse data, then compile the second time
   // using the data.
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::ScriptCompiler::Source script_source(v8_str(source));
-  v8::ScriptCompiler::Compile(isolate, &script_source,
-                              v8::ScriptCompiler::kProduceParserCache);
+  v8::ScriptCompiler::Compile(context, &script_source,
+                              v8::ScriptCompiler::kProduceParserCache)
+      .ToLocalChecked();
 
   // Check whether we received cached data, and if so use it.
   v8::ScriptCompiler::CompileOptions options =
       script_source.GetCachedData() ? v8::ScriptCompiler::kConsumeParserCache
                                     : v8::ScriptCompiler::kNoCompileOptions;
 
-  return v8::ScriptCompiler::Compile(isolate, &script_source, options)->Run();
+  return CompileRun(context, &script_source, options);
 }
 
 
@@ -418,20 +448,24 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         int line_number,
                                                         int column_number) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::ScriptOrigin origin(v8_str(origin_url),
                           v8::Integer::New(isolate, line_number),
                           v8::Integer::New(isolate, column_number));
   v8::ScriptCompiler::Source script_source(v8_str(source), origin);
-  return v8::ScriptCompiler::Compile(isolate, &script_source)->Run();
+  return CompileRun(context, &script_source,
+                    v8::ScriptCompiler::CompileOptions());
 }
 
 
 static inline v8::Local<v8::Value> CompileRunWithOrigin(
     v8::Local<v8::String> source, const char* origin_url) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::ScriptCompiler::Source script_source(
       source, v8::ScriptOrigin(v8_str(origin_url)));
-  return v8::ScriptCompiler::Compile(v8::Isolate::GetCurrent(), &script_source)
-      ->Run();
+  return CompileRun(context, &script_source,
+                    v8::ScriptCompiler::CompileOptions());
 }
 
 
@@ -453,14 +487,18 @@ static inline void ExpectString(const char* code, const char* expected) {
 static inline void ExpectInt32(const char* code, int expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsInt32());
-  CHECK_EQ(expected, result->Int32Value());
+  CHECK_EQ(expected,
+           result->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext())
+               .FromJust());
 }
 
 
 static inline void ExpectBoolean(const char* code, bool expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsBoolean());
-  CHECK_EQ(expected, result->BooleanValue());
+  CHECK_EQ(expected,
+           result->BooleanValue(v8::Isolate::GetCurrent()->GetCurrentContext())
+               .FromJust());
 }
 
 
