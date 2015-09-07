@@ -53,7 +53,6 @@ from subprocess import PIPE
 # TODO(mstarzinger): Fix and re-enable readability/namespace
 
 LINT_RULES = """
--build/c++11
 -build/header_guard
 +build/include_alpha
 -build/include_what_you_use

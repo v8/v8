@@ -815,7 +815,7 @@ class Global : public PersistentBase<T> {
   /**
    * Move constructor.
    */
-  V8_INLINE Global(Global&& other) : PersistentBase<T>(other.val_) {
+  V8_INLINE Global(Global&& other) : PersistentBase<T>(other.val_) {  // NOLINT
     other.val_ = nullptr;
   }
   V8_INLINE ~Global() { this->Reset(); }
@@ -823,7 +823,7 @@ class Global : public PersistentBase<T> {
    * Move via assignment.
    */
   template <class S>
-  V8_INLINE Global& operator=(Global<S>&& rhs) {
+  V8_INLINE Global& operator=(Global<S>&& rhs) {  // NOLINT
     TYPE_CHECK(T, S);
     if (this != &rhs) {
       this->Reset();
@@ -835,7 +835,7 @@ class Global : public PersistentBase<T> {
   /**
    * Pass allows returning uniques from functions, etc.
    */
-  Global Pass() { return static_cast<Global&&>(*this); }
+  Global Pass() { return static_cast<Global&&>(*this); }  // NOLINT
 
   /*
    * For compatibility with Chromium's base::Bind (base::Passed).

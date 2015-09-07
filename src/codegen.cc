@@ -5,7 +5,7 @@
 #include "src/codegen.h"
 
 #if defined(V8_OS_AIX)
-#include <fenv.h>
+#include <fenv.h>  // NOLINT(build/c++11)
 #endif
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
