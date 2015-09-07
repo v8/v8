@@ -229,6 +229,11 @@ void FullCodeGenerator::Generate() {
     }
   }
 
+  PrepareForBailoutForId(BailoutId::Prologue(), NO_REGISTERS);
+  // Function register is trashed in case we bailout here. But since that
+  // could happen only when we allocate a context the value of
+  // |function_in_register| is correct.
+
   // Possibly set up a local binding to the this function which is used in
   // derived constructors with super calls.
   Variable* this_function_var = scope()->this_function_var();
