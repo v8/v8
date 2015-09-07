@@ -134,7 +134,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     ElementsKind kind = holder_map_->elements_kind();
     ElementsKind to = value->OptimalElementsKind();
     if (IsHoleyElementsKind(kind)) to = GetHoleyElementsKind(to);
-    to = IsMoreGeneralElementsKindTransition(kind, to) ? to : kind;
+    to = GetMoreGeneralElementsKind(kind, to);
     JSObject::TransitionElementsKind(holder, to);
     holder_map_ = handle(holder->map(), isolate_);
 

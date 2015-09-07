@@ -650,9 +650,7 @@ BUILTIN(ArrayConcat) {
       ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
       has_double = has_double || IsFastDoubleElementsKind(arg_kind);
       is_holey = is_holey || IsFastHoleyElementsKind(arg_kind);
-      if (IsMoreGeneralElementsKindTransition(elements_kind, arg_kind)) {
-        elements_kind = arg_kind;
-      }
+      elements_kind = GetMoreGeneralElementsKind(elements_kind, arg_kind);
     }
     if (is_holey) elements_kind = GetHoleyElementsKind(elements_kind);
   }

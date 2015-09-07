@@ -424,10 +424,8 @@ RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
                                            ? FAST_HOLEY_ELEMENTS
                                            : FAST_ELEMENTS;
       JSObject::TransitionElementsKind(object, transitioned_kind);
-      ElementsKind boilerplate_elements_kind =
-          boilerplate_object->GetElementsKind();
-      if (IsMoreGeneralElementsKindTransition(boilerplate_elements_kind,
-                                              transitioned_kind)) {
+      if (IsMoreGeneralElementsKindTransition(
+              boilerplate_object->GetElementsKind(), transitioned_kind)) {
         JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
       }
     }

@@ -730,21 +730,16 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
       Handle<JSArray> array(Handle<JSArray>::cast(obj));
       length_estimate = static_cast<uint32_t>(array->length()->Number());
       if (length_estimate != 0) {
-        ElementsKind array_kind =
-            GetPackedElementsKind(array->map()->elements_kind());
-        if (IsMoreGeneralElementsKindTransition(kind, array_kind)) {
-          kind = array_kind;
-        }
+        kind = GetMoreGeneralElementsKind(
+            kind, GetPackedElementsKind(array->map()->elements_kind()));
       }
       element_estimate = EstimateElementCount(array);
     } else {
       if (obj->IsHeapObject()) {
         if (obj->IsNumber()) {
-          if (IsMoreGeneralElementsKindTransition(kind, FAST_DOUBLE_ELEMENTS)) {
-            kind = FAST_DOUBLE_ELEMENTS;
-          }
-        } else if (IsMoreGeneralElementsKindTransition(kind, FAST_ELEMENTS)) {
-          kind = FAST_ELEMENTS;
+          kind = GetMoreGeneralElementsKind(kind, FAST_DOUBLE_ELEMENTS);
+        } else {
+          kind = GetMoreGeneralElementsKind(kind, FAST_ELEMENTS);
         }
       }
       length_estimate = 1;

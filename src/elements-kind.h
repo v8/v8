@@ -211,6 +211,15 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind);
 
 
+inline ElementsKind GetMoreGeneralElementsKind(ElementsKind from_kind,
+                                               ElementsKind to_kind) {
+  if (IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
+    return to_kind;
+  }
+  return from_kind;
+}
+
+
 inline bool IsTransitionableFastElementsKind(ElementsKind from_kind) {
   return IsFastElementsKind(from_kind) &&
       from_kind != TERMINAL_FAST_ELEMENTS_KIND;

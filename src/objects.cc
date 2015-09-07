@@ -4190,9 +4190,8 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
   ElementsKind obj_kind = object->map()->elements_kind();
   ElementsKind map_kind = map->elements_kind();
   if (map_kind != obj_kind) {
-    ElementsKind to_kind = map_kind;
-    if (IsMoreGeneralElementsKindTransition(map_kind, obj_kind) ||
-        IsDictionaryElementsKind(obj_kind)) {
+    ElementsKind to_kind = GetMoreGeneralElementsKind(map_kind, obj_kind);
+    if (IsDictionaryElementsKind(obj_kind)) {
       to_kind = obj_kind;
     }
     if (IsDictionaryElementsKind(to_kind)) {
@@ -12608,7 +12607,7 @@ MaybeHandle<Object> JSObject::AddDataElement(Handle<JSObject> object,
     to = GetHoleyElementsKind(to);
     kind = GetHoleyElementsKind(kind);
   }
-  to = IsMoreGeneralElementsKindTransition(kind, to) ? to : kind;
+  to = GetMoreGeneralElementsKind(kind, to);
   ElementsAccessor* accessor = ElementsAccessor::ForKind(to);
   accessor->Add(object, index, value, attributes, new_capacity);
 

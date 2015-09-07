@@ -275,11 +275,8 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
     if (first_map == NULL) return false;
     Handle<Map> old_map(first_map);
     if (old_map->is_deprecated()) return true;
-    if (IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
-                                            receiver_map()->elements_kind())) {
-      return true;
-    }
-    return false;
+    return IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
+                                               receiver_map()->elements_kind());
   }
 
   CacheHolderFlag flag;
