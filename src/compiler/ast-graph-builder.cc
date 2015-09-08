@@ -581,8 +581,7 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
 
   // Visit illegal re-declaration and bail out if it exists.
   if (scope->HasIllegalRedeclaration()) {
-    AstEffectContext for_effect(this);
-    scope->VisitIllegalRedeclaration(this);
+    VisitForEffect(scope->GetIllegalRedeclaration());
     return;
   }
 
