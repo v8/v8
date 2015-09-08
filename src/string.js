@@ -15,8 +15,6 @@ var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
-var MathMax;
-var MathMin;
 var RegExpExec;
 var RegExpExecNoTests;
 var RegExpLastMatchInfo;
@@ -27,8 +25,6 @@ var ToString;
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
   RegExpExec = from.RegExpExec;
   RegExpExecNoTests = from.RegExpExecNoTests;
   RegExpLastMatchInfo = from.RegExpLastMatchInfo;
@@ -986,18 +982,28 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   var ss = TO_STRING_INLINE(searchString);
   var pos = 0;
   if (%_ArgumentsLength() > 1) {
-    pos = %_Arguments(1);  // position
-    pos = $toInteger(pos);
+    var arg = %_Arguments(1);  // position
+    if (!IS_UNDEFINED(arg)) {
+      pos = $toInteger(arg);
+    }
   }
 
   var s_len = s.length;
-  var start = MathMin(MathMax(pos, 0), s_len);
+  if (pos < 0) pos = 0;
+  if (pos > s_len) pos = s_len;
   var ss_len = ss.length;
-  if (ss_len + start > s_len) {
+
+  if (ss_len + pos > s_len) {
     return false;
   }
 
-  return %_SubString(s, start, start + ss_len) === ss;
+  for (var i = 0; i < ss_len; i++) {
+    if (%_StringCharCodeAt(s, pos + i) !== %_StringCharCodeAt(ss, i)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 
@@ -1021,14 +1027,22 @@ function StringEndsWith(searchString /* position */) {  // length == 1
     }
   }
 
-  var end = MathMin(MathMax(pos, 0), s_len);
+  if (pos < 0) pos = 0;
+  if (pos > s_len) pos = s_len;
   var ss_len = ss.length;
-  var start = end - ss_len;
-  if (start < 0) {
+  pos = pos - ss_len;
+
+  if (pos < 0) {
     return false;
   }
 
-  return %_SubString(s, start, start + ss_len) === ss;
+  for (var i = 0; i < ss_len; i++) {
+    if (%_StringCharCodeAt(s, pos + i) !== %_StringCharCodeAt(ss, i)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 
