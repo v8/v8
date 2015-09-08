@@ -2793,7 +2793,7 @@ int BinarySearch(T* array, Name* name, int low, int high, int valid_entries,
   DCHECK(low <= high);
 
   while (low != high) {
-    int mid = (low + high) / 2;
+    int mid = low + (high - low) / 2;
     Name* mid_name = array->GetSortedKey(mid);
     uint32_t mid_hash = mid_name->Hash();
 
