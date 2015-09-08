@@ -7624,3 +7624,27 @@ TEST(DebugBreakInLexicalScopes) {
       "x * y",
       30);
 }
+
+static int after_compile_handler_depth = 0;
+static void HandleInterrupt(v8::Isolate* isolate, void* data) {
+  CHECK_EQ(0, after_compile_handler_depth);
+}
+
+static void NoInterruptsOnDebugEvent(
+    const v8::Debug::EventDetails& event_details) {
+  if (event_details.GetEvent() != v8::AfterCompile) return;
+  ++after_compile_handler_depth;
+  // Do not allow nested AfterCompile events.
+  CHECK(after_compile_handler_depth <= 1);
+  v8::Isolate* isolate = event_details.GetEventContext()->GetIsolate();
+  isolate->RequestInterrupt(&HandleInterrupt, nullptr);
+  CompileRun("function foo() {}; foo();");
+  --after_compile_handler_depth;
+}
+
+
+TEST(NoInterruptsInDebugListener) {
+  DebugLocalContext env;
+  v8::Debug::SetDebugEventListener(NoInterruptsOnDebugEvent);
+  CompileRun("void(0);");
+}

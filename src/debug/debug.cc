@@ -1875,6 +1875,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
 
 void Debug::OnCompileError(Handle<Script> script) {
   if (ignore_events()) return;
+  SuppressDebug while_processing(this);
 
   if (in_debug_scope()) {
     ProcessCompileEventInDebugScope(v8::CompileError, script);
@@ -1917,6 +1918,7 @@ void Debug::OnDebugBreak(Handle<Object> break_points_hit,
 
 void Debug::OnBeforeCompile(Handle<Script> script) {
   if (in_debug_scope() || ignore_events()) return;
+  SuppressDebug while_processing(this);
 
   HandleScope scope(isolate_);
   DebugScope debug_scope(this);
@@ -1941,6 +1943,7 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   if (script_cache_ != NULL) script_cache_->Add(script);
 
   if (ignore_events()) return;
+  SuppressDebug while_processing(this);
 
   if (in_debug_scope()) {
     ProcessCompileEventInDebugScope(v8::AfterCompile, script);
@@ -2037,6 +2040,9 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               Handle<Object> exec_state,
                               Handle<Object> event_data,
                               v8::Debug::ClientData* client_data) {
+  // Prevent other interrupts from triggering, for example API callbacks,
+  // while dispatching event listners.
+  PostponeInterruptsScope postpone(isolate_);
   bool previous = in_debug_event_listener_;
   in_debug_event_listener_ = true;
   if (event_listener_->IsForeign()) {
@@ -2070,7 +2076,6 @@ void Debug::ProcessCompileEventInDebugScope(v8::DebugEvent event,
                                             Handle<Script> script) {
   if (event_listener_.is_null()) return;
 
-  SuppressDebug while_processing(this);
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
