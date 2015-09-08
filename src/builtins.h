@@ -70,6 +70,10 @@ enum BuiltinExtraArguments {
 // Define list of builtins implemented in assembly.
 #define BUILTIN_LIST_A(V)                                                    \
   V(ArgumentsAdaptorTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
+                                                                             \
+  V(CallFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
+  V(Call, BUILTIN, UNINITIALIZED, kNoExtraICState)                           \
+                                                                             \
   V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
   V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
   V(JSConstructStubForDerived, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
@@ -260,6 +264,11 @@ class Builtins {
   static void Generate_NotifyStubFailure(MacroAssembler* masm);
   static void Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);
+
+  // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
+  static void Generate_CallFunction(MacroAssembler* masm);
+  // ES6 section 7.3.12 Call(F, V, [argumentsList])
+  static void Generate_Call(MacroAssembler* masm);
 
   static void Generate_FunctionCall(MacroAssembler* masm);
   static void Generate_FunctionApply(MacroAssembler* masm);
