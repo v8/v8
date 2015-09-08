@@ -738,20 +738,20 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
   DCHECK(result->HasFastObjectElements());
 
-  if (part_count == 1 && indices.at(0) == subject_length) {
-    FixedArray::cast(result->elements())->set(0, *subject);
-    return *result;
-  }
-
   Handle<FixedArray> elements(FixedArray::cast(result->elements()));
-  int part_start = 0;
-  for (int i = 0; i < part_count; i++) {
-    HandleScope local_loop_handle(isolate);
-    int part_end = indices.at(i);
-    Handle<String> substring =
-        isolate->factory()->NewProperSubString(subject, part_start, part_end);
-    elements->set(i, *substring);
-    part_start = part_end + pattern_length;
+
+  if (part_count == 1 && indices.at(0) == subject_length) {
+    elements->set(0, *subject);
+  } else {
+    int part_start = 0;
+    for (int i = 0; i < part_count; i++) {
+      HandleScope local_loop_handle(isolate);
+      int part_end = indices.at(i);
+      Handle<String> substring =
+          isolate->factory()->NewProperSubString(subject, part_start, part_end);
+      elements->set(i, *substring);
+      part_start = part_end + pattern_length;
+    }
   }
 
   if (limit == 0xffffffffu) {
