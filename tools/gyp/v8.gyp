@@ -713,6 +713,8 @@
         '../../src/heap/heap.cc',
         '../../src/heap/heap.h',
         '../../src/heap/incremental-marking-inl.h',
+        '../../src/heap/incremental-marking-job.cc',
+        '../../src/heap/incremental-marking-job.h',
         '../../src/heap/incremental-marking.cc',
         '../../src/heap/incremental-marking.h',
         '../../src/heap/mark-compact-inl.h',

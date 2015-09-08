@@ -1278,6 +1278,8 @@ class Heap {
 
   void FinalizeIncrementalMarkingIfComplete(const char* comment);
 
+  bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms);
+
   IncrementalMarking* incremental_marking() { return &incremental_marking_; }
 
   // ===========================================================================

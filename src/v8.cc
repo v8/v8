@@ -119,6 +119,9 @@ v8::Platform* V8::GetCurrentPlatform() {
 }
 
 
+void V8::SetPlatformForTesting(v8::Platform* platform) { platform_ = platform; }
+
+
 void V8::SetNativesBlob(StartupData* natives_blob) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   base::CallOnce(&init_natives_once, &SetNativesFromFile, natives_blob);

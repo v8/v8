@@ -26,9 +26,8 @@ void GCIdleTimeAction::Print() {
     case DO_NOTHING:
       PrintF("no action");
       break;
-    case DO_INCREMENTAL_MARKING:
-      PrintF("incremental marking with step %" V8_PTR_PREFIX "d / ms",
-             parameter);
+    case DO_INCREMENTAL_STEP:
+      PrintF("incremental step");
       if (additional_work) {
         PrintF("; finalized marking");
       }
@@ -38,9 +37,6 @@ void GCIdleTimeAction::Print() {
       break;
     case DO_FULL_GC:
       PrintF("full GC");
-      break;
-    case DO_FINALIZE_SWEEPING:
-      PrintF("finalize sweeping");
       break;
   }
 }
@@ -271,22 +267,11 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     return GCIdleTimeAction::Scavenge();
   }
 
-  if (heap_state.sweeping_in_progress) {
-    if (heap_state.sweeping_completed) {
-      return GCIdleTimeAction::FinalizeSweeping();
-    } else {
-      return NothingOrDone(idle_time_in_ms);
-    }
-  }
-
   if (!FLAG_incremental_marking || heap_state.incremental_marking_stopped) {
     return GCIdleTimeAction::Done();
   }
 
-  size_t step_size = EstimateMarkingStepSize(
-      static_cast<size_t>(kIncrementalMarkingStepTimeInMs),
-      heap_state.incremental_marking_speed_in_bytes_per_ms);
-  return GCIdleTimeAction::IncrementalMarking(step_size);
+  return GCIdleTimeAction::IncrementalStep();
 }
 
 

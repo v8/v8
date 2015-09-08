@@ -4535,10 +4535,12 @@ void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
 }
 
 
-bool Heap::TryFinalizeIdleIncrementalMarking(
-    double idle_time_in_ms, size_t size_of_objects,
-    size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
-  if (FLAG_overapproximate_weak_closure && incremental_marking()->IsMarking() &&
+bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
+  size_t size_of_objects = static_cast<size_t>(SizeOfObjects());
+  size_t final_incremental_mark_compact_speed_in_bytes_per_ms =
+      static_cast<size_t>(
+          tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
+  if (FLAG_overapproximate_weak_closure &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->weak_closure_was_overapproximated() &&
         mark_compact_collector_.marking_deque()->IsEmpty() &&
@@ -4565,19 +4567,9 @@ GCIdleTimeHandler::HeapState Heap::ComputeHeapState() {
   heap_state.contexts_disposed = contexts_disposed_;
   heap_state.contexts_disposal_rate =
       tracer()->ContextDisposalRateInMilliseconds();
-  heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
-  heap_state.sweeping_in_progress =
-      mark_compact_collector()->sweeping_in_progress();
-  heap_state.sweeping_completed =
-      mark_compact_collector()->IsSweepingCompleted();
   heap_state.mark_compact_speed_in_bytes_per_ms =
       static_cast<size_t>(tracer()->MarkCompactSpeedInBytesPerMillisecond());
-  heap_state.incremental_marking_speed_in_bytes_per_ms = static_cast<size_t>(
-      tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
-  heap_state.final_incremental_mark_compact_speed_in_bytes_per_ms =
-      static_cast<size_t>(
-          tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
   heap_state.scavenge_speed_in_bytes_per_ms =
       static_cast<size_t>(tracer()->ScavengeSpeedInBytesPerMillisecond());
   heap_state.used_new_space_size = new_space_.Size();
@@ -4622,14 +4614,15 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
     case DONE:
       result = true;
       break;
-    case DO_INCREMENTAL_MARKING: {
-      const double remaining_idle_time_in_ms =
-          AdvanceIncrementalMarking(action.parameter, deadline_in_ms,
-                                    IncrementalMarking::IdleStepActions());
-      if (remaining_idle_time_in_ms > 0.0) {
-        action.additional_work = TryFinalizeIdleIncrementalMarking(
-            remaining_idle_time_in_ms, heap_state.size_of_objects,
-            heap_state.final_incremental_mark_compact_speed_in_bytes_per_ms);
+    case DO_INCREMENTAL_STEP: {
+      if (incremental_marking()->incremental_marking_job()->IdleTaskPending()) {
+        result = true;
+      } else {
+        incremental_marking()
+            ->incremental_marking_job()
+            ->NotifyIdleTaskProgress();
+        result = IncrementalMarkingJob::IdleTask::Step(this, deadline_in_ms) ==
+                 IncrementalMarkingJob::IdleTask::kDone;
       }
       break;
     }
@@ -4641,9 +4634,6 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
     }
     case DO_SCAVENGE:
       CollectGarbage(NEW_SPACE, "idle notification: scavenge");
-      break;
-    case DO_FINALIZE_SWEEPING:
-      mark_compact_collector()->EnsureSweepingCompleted();
       break;
     case DO_NOTHING:
       break;

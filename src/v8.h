@@ -26,6 +26,9 @@ class V8 : public AllStatic {
   static void InitializePlatform(v8::Platform* platform);
   static void ShutdownPlatform();
   static v8::Platform* GetCurrentPlatform();
+  // Replaces the current platform with the given platform.
+  // Should be used only for testing.
+  static void SetPlatformForTesting(v8::Platform* platform);
 
   static void SetNativesBlob(StartupData* natives_blob);
   static void SetSnapshotBlob(StartupData* snapshot_blob);
