@@ -2398,9 +2398,7 @@ class AlwaysAllocateScope {
   inline ~AlwaysAllocateScope();
 
  private:
-  // Implicitly disable artificial allocation failures.
   Heap* heap_;
-  DisallowAllocationFailure daf_;
 };
 
 

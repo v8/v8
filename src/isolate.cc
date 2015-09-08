@@ -2074,7 +2074,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   // The initialization process does not handle memory exhaustion.
-  DisallowAllocationFailure disallow_allocation_failure(this);
+  AlwaysAllocateScope always_allocate(this);
 
   memory_allocator_ = new MemoryAllocator(this);
   code_range_ = new CodeRange(this);
