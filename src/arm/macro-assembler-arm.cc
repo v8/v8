@@ -2641,6 +2641,12 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
+void MacroAssembler::LoadGlobalProxy(Register dst) {
+  ldr(dst, GlobalObjectOperand());
+  ldr(dst, FieldMemOperand(dst, GlobalObject::kGlobalProxyOffset));
+}
+
+
 void MacroAssembler::LoadTransitionedArrayMapConditional(
     ElementsKind expected_kind,
     ElementsKind transitioned_kind,
@@ -2798,6 +2804,19 @@ void MacroAssembler::AssertName(Register object) {
     CompareInstanceType(object, object, LAST_NAME_TYPE);
     pop(object);
     Check(le, kOperandIsNotAName);
+  }
+}
+
+
+void MacroAssembler::AssertFunction(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, kOperandIsASmiAndNotAFunction);
+    push(object);
+    CompareObjectType(object, object, object, JS_FUNCTION_TYPE);
+    pop(object);
+    Check(ne, kOperandIsNotAFunction);
   }
 }
 

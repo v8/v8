@@ -116,6 +116,12 @@ void MacroAssembler::CompareRoot(const Operand& with,
 }
 
 
+void MacroAssembler::PushRoot(Heap::RootListIndex index) {
+  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
+  Push(isolate()->heap()->root_handle(index));
+}
+
+
 void MacroAssembler::InNewSpace(
     Register object,
     Register scratch,
@@ -800,6 +806,18 @@ void MacroAssembler::AssertName(Register object) {
     CmpInstanceType(object, LAST_NAME_TYPE);
     pop(object);
     Check(below_equal, kOperandIsNotAName);
+  }
+}
+
+
+void MacroAssembler::AssertFunction(Register object) {
+  if (emit_debug_code()) {
+    test(object, Immediate(kSmiTagMask));
+    Check(not_equal, kOperandIsASmiAndNotAFunction);
+    Push(object);
+    CmpObjectType(object, JS_FUNCTION_TYPE, object);
+    Pop(object);
+    Check(not_equal, kOperandIsNotAFunction);
   }
 }
 
@@ -2094,6 +2112,12 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
         isolate()->factory()->with_context_map());
     Check(not_equal, kVariableResolvedToWithContext);
   }
+}
+
+
+void MacroAssembler::LoadGlobalProxy(Register dst) {
+  mov(dst, GlobalObjectOperand());
+  mov(dst, FieldOperand(dst, GlobalObject::kGlobalProxyOffset));
 }
 
 

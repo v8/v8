@@ -3394,6 +3394,18 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
+void MacroAssembler::AssertFunction(Register object) {
+  if (emit_debug_code()) {
+    testb(object, Immediate(kSmiTagMask));
+    Check(not_equal, kOperandIsASmiAndNotAFunction);
+    Push(object);
+    CmpObjectType(object, JS_FUNCTION_TYPE, object);
+    Pop(object);
+    Check(not_equal, kOperandIsNotAFunction);
+  }
+}
+
+
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   if (emit_debug_code()) {
     Label done_checking;
@@ -4540,6 +4552,12 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
                 Heap::kWithContextMapRootIndex);
     Check(not_equal, kVariableResolvedToWithContext);
   }
+}
+
+
+void MacroAssembler::LoadGlobalProxy(Register dst) {
+  movp(dst, GlobalObjectOperand());
+  movp(dst, FieldOperand(dst, GlobalObject::kGlobalProxyOffset));
 }
 
 
