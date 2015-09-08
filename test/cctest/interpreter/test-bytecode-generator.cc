@@ -79,6 +79,7 @@ TEST(PrimitiveReturnStatements) {
   BytecodeGeneratorHelper helper;
 
   ExpectedSnippet<void*> snippets[] = {
+      {"", 0, 1, 2, {B(LdaUndefined), B(Return)}, 0},
       {"return;", 0, 1, 2, {B(LdaUndefined), B(Return)}, 0},
       {"return null;", 0, 1, 2, {B(LdaNull), B(Return)}, 0},
       {"return true;", 0, 1, 2, {B(LdaTrue), B(Return)}, 0},

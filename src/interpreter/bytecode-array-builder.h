@@ -35,6 +35,9 @@ class BytecodeArrayBuilder {
   void set_locals_count(int number_of_locals);
   int locals_count() const;
 
+  // Returns true if the bytecode has an explicit return at the end.
+  bool HasExplicitReturn();
+
   Register Parameter(int parameter_index);
 
   // Constant loads to accumulator.

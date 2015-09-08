@@ -45,6 +45,13 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   // Visit statements in the function body.
   VisitStatements(info->literal()->body());
 
+  // If the last bytecode wasn't a return, then return 'undefined' to avoid
+  // falling off the end.
+  if (!builder_.HasExplicitReturn()) {
+    builder_.LoadUndefined();
+    builder_.Return();
+  }
+
   set_scope(nullptr);
   set_info(nullptr);
   return builder_.ToBytecodeArray();

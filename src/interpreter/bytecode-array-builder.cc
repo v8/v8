@@ -37,6 +37,14 @@ void BytecodeArrayBuilder::set_parameter_count(int number_of_parameters) {
 int BytecodeArrayBuilder::parameter_count() const { return parameter_count_; }
 
 
+bool BytecodeArrayBuilder::HasExplicitReturn() {
+  // TODO(rmcilroy): When we have control flow we should return false here if
+  // there is an outstanding jump target, even if the last bytecode is kReturn.
+  return !bytecodes_.empty() &&
+         bytecodes_.back() == Bytecodes::ToByte(Bytecode::kReturn);
+}
+
+
 Register BytecodeArrayBuilder::Parameter(int parameter_index) {
   DCHECK_GE(parameter_index, 0);
   DCHECK_LT(parameter_index, parameter_count_);
