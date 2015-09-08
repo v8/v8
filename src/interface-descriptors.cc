@@ -355,6 +355,19 @@ CreateWeakCellDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 
 Type::FunctionType*
+CallTrampolineDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int paramater_count) {
+  Zone* zone = isolate->interface_descriptor_zone();
+  Type::FunctionType* function =
+      Type::FunctionType::New(AnyTagged(zone), Type::Undefined(), 2, zone);
+  function->InitParameter(0, AnyTagged(zone));  // target
+  function->InitParameter(
+      1, UntaggedSigned32(zone));  // actual number of arguments
+  return function;
+}
+
+
+Type::FunctionType*
 CallFunctionWithFeedbackDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();

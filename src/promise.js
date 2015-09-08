@@ -88,7 +88,7 @@ function PromiseCoerce(constructor, x) {
     if (IS_CALLABLE(then)) {
       var deferred = %_CallFunction(constructor, PromiseDeferred);
       try {
-        %_CallFunction(x, deferred.resolve, deferred.reject, then);
+        %_Call(then, x, deferred.resolve, deferred.reject);
       } catch(r) {
         deferred.reject(r);
       }

@@ -390,7 +390,7 @@ function ArrayToString() {
   if (!IS_CALLABLE(func)) {
     return %_CallFunction(array, ObjectToString);
   }
-  return %_CallFunction(array, func);
+  return %_Call(func, array);
 }
 
 
@@ -903,7 +903,7 @@ function InnerArraySort(array, length, comparefn) {
       var element = a[i];
       for (var j = i - 1; j >= from; j--) {
         var tmp = a[j];
-        var order = %_CallFunction(UNDEFINED, tmp, element, comparefn);
+        var order = comparefn(tmp, element);
         if (order > 0) {
           a[j + 1] = tmp;
         } else {
@@ -922,7 +922,7 @@ function InnerArraySort(array, length, comparefn) {
       t_array[j] = [i, a[i]];
     }
     %_CallFunction(t_array, function(a, b) {
-      return %_CallFunction(UNDEFINED, a[1], b[1], comparefn);
+      return comparefn(a[1], b[1]);
     }, ArraySort);
     var third_index = t_array[t_array.length >> 1][0];
     return third_index;
@@ -945,14 +945,14 @@ function InnerArraySort(array, length, comparefn) {
       var v0 = a[from];
       var v1 = a[to - 1];
       var v2 = a[third_index];
-      var c01 = %_CallFunction(UNDEFINED, v0, v1, comparefn);
+      var c01 = comparefn(v0, v1);
       if (c01 > 0) {
         // v1 < v0, so swap them.
         var tmp = v0;
         v0 = v1;
         v1 = tmp;
       } // v0 <= v1.
-      var c02 = %_CallFunction(UNDEFINED, v0, v2, comparefn);
+      var c02 = comparefn(v0, v2);
       if (c02 >= 0) {
         // v2 <= v0 <= v1.
         var tmp = v0;
@@ -961,7 +961,7 @@ function InnerArraySort(array, length, comparefn) {
         v1 = tmp;
       } else {
         // v0 <= v1 && v0 < v2
-        var c12 = %_CallFunction(UNDEFINED, v1, v2, comparefn);
+        var c12 = comparefn(v1, v2);
         if (c12 > 0) {
           // v0 <= v2 < v1
           var tmp = v1;
@@ -982,7 +982,7 @@ function InnerArraySort(array, length, comparefn) {
       // From i to high_start are elements that haven't been compared yet.
       partition: for (var i = low_end + 1; i < high_start; i++) {
         var element = a[i];
-        var order = %_CallFunction(UNDEFINED, element, pivot, comparefn);
+        var order = comparefn(element, pivot);
         if (order < 0) {
           a[i] = a[low_end];
           a[low_end] = element;
@@ -992,7 +992,7 @@ function InnerArraySort(array, length, comparefn) {
             high_start--;
             if (high_start == i) break partition;
             var top_elem = a[high_start];
-            order = %_CallFunction(UNDEFINED, top_elem, pivot, comparefn);
+            order = comparefn(top_elem, pivot);
           } while (order > 0);
           a[i] = a[high_start];
           a[high_start] = element;
@@ -1179,12 +1179,6 @@ function ArraySort(comparefn) {
 // or delete elements from the array.
 function InnerArrayFilter(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
-  var needs_wrapper = false;
-  if (IS_NULL(receiver)) {
-    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
-  } else if (!IS_UNDEFINED(receiver)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
-  }
 
   var accumulator = new InternalArray();
   var accumulator_length = 0;
@@ -1195,8 +1189,7 @@ function InnerArrayFilter(f, receiver, array, length) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? TO_OBJECT(receiver) : receiver;
-      if (%_CallFunction(new_receiver, element, i, array, f)) {
+      if (%_Call(f, receiver, element, i, array)) {
         accumulator[accumulator_length++] = element;
       }
     }
@@ -1219,12 +1212,6 @@ function ArrayFilter(f, receiver) {
 
 function InnerArrayForEach(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
-  var needs_wrapper = false;
-  if (IS_NULL(receiver)) {
-    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
-  } else if (!IS_UNDEFINED(receiver)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
-  }
 
   var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
@@ -1233,8 +1220,7 @@ function InnerArrayForEach(f, receiver, array, length) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? TO_OBJECT(receiver) : receiver;
-      %_CallFunction(new_receiver, element, i, array, f);
+      %_Call(f, receiver, element, i, array);
     }
   }
 }
@@ -1252,12 +1238,6 @@ function ArrayForEach(f, receiver) {
 
 function InnerArraySome(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
-  var needs_wrapper = false;
-  if (IS_NULL(receiver)) {
-    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
-  } else if (!IS_UNDEFINED(receiver)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
-  }
 
   var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
@@ -1266,8 +1246,7 @@ function InnerArraySome(f, receiver, array, length) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? TO_OBJECT(receiver) : receiver;
-      if (%_CallFunction(new_receiver, element, i, array, f)) return true;
+      if (%_Call(f, receiver, element, i, array)) return true;
     }
   }
   return false;
@@ -1289,12 +1268,6 @@ function ArraySome(f, receiver) {
 
 function InnerArrayEvery(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
-  var needs_wrapper = false;
-  if (IS_NULL(receiver)) {
-    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
-  } else if (!IS_UNDEFINED(receiver)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
-  }
 
   var is_array = IS_ARRAY(array);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
@@ -1303,8 +1276,7 @@ function InnerArrayEvery(f, receiver, array, length) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? TO_OBJECT(receiver) : receiver;
-      if (!%_CallFunction(new_receiver, element, i, array, f)) return false;
+      if (!%_Call(f, receiver, element, i, array)) return false;
     }
   }
   return true;
@@ -1323,12 +1295,6 @@ function ArrayEvery(f, receiver) {
 
 function InnerArrayMap(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
-  var needs_wrapper = false;
-  if (IS_NULL(receiver)) {
-    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
-  } else if (!IS_UNDEFINED(receiver)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
-  }
 
   var accumulator = new InternalArray(length);
   var is_array = IS_ARRAY(array);
@@ -1338,8 +1304,7 @@ function InnerArrayMap(f, receiver, array, length) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      var new_receiver = needs_wrapper ? TO_OBJECT(receiver) : receiver;
-      accumulator[i] = %_CallFunction(new_receiver, element, i, array, f);
+      accumulator[i] = %_Call(f, receiver, element, i, array);
     }
   }
   return accumulator;
@@ -1508,7 +1473,7 @@ function InnerArrayReduce(callback, current, array, length, argumentsLength) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(callback);
-      current = %_CallFunction(UNDEFINED, current, element, i, array, callback);
+      current = callback(current, element, i, array);
     }
   }
   return current;
@@ -1551,7 +1516,7 @@ function InnerArrayReduceRight(callback, current, array, length,
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(callback);
-      current = %_CallFunction(UNDEFINED, current, element, i, array, callback);
+      current = callback(current, element, i, array);
     }
   }
   return current;

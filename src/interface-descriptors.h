@@ -37,6 +37,7 @@ class PlatformInterfaceDescriptor;
   V(CallFunctionWithFeedback)                 \
   V(CallFunctionWithFeedbackAndVector)        \
   V(CallConstruct)                            \
+  V(CallTrampoline)                           \
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
   V(AllocateHeapNumber)                       \
@@ -426,6 +427,13 @@ class CreateWeakCellDescriptor : public CallInterfaceDescriptor {
   };
 
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CreateWeakCellDescriptor,
+                                               CallInterfaceDescriptor)
+};
+
+
+class CallTrampolineDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallTrampolineDescriptor,
                                                CallInterfaceDescriptor)
 };
 

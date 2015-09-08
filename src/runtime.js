@@ -717,14 +717,14 @@ function IsConcatSpreadable(O) {
 function DefaultNumber(x) {
   var valueOf = x.valueOf;
   if (IS_CALLABLE(valueOf)) {
-    var v = %_CallFunction(x, valueOf);
+    var v = %_Call(valueOf, x);
     if (IS_SYMBOL(v)) throw MakeTypeError(kSymbolToNumber);
     if (IS_SIMD_VALUE(x)) throw MakeTypeError(kSimdToNumber);
     if (IsPrimitive(v)) return v;
   }
   var toString = x.toString;
   if (IS_CALLABLE(toString)) {
-    var s = %_CallFunction(x, toString);
+    var s = %_Call(toString, x);
     if (IsPrimitive(s)) return s;
   }
   throw MakeTypeError(kCannotConvertToPrimitive);
@@ -736,13 +736,13 @@ function DefaultString(x) {
     if (IS_SYMBOL(x)) throw MakeTypeError(kSymbolToString);
     var toString = x.toString;
     if (IS_CALLABLE(toString)) {
-      var s = %_CallFunction(x, toString);
+      var s = %_Call(toString, x);
       if (IsPrimitive(s)) return s;
     }
 
     var valueOf = x.valueOf;
     if (IS_CALLABLE(valueOf)) {
-      var v = %_CallFunction(x, valueOf);
+      var v = %_Call(valueOf, x);
       if (IsPrimitive(v)) return v;
     }
   }

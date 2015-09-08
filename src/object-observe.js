@@ -601,7 +601,7 @@ function NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn) {
 
   var changeRecord;
   try {
-    changeRecord = %_CallFunction(UNDEFINED, changeFn);
+    changeRecord = changeFn();
   } finally {
     ObjectInfoRemovePerformingType(objectInfo, changeType);
   }

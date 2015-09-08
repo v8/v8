@@ -314,8 +314,7 @@ function StringReplace(search, replace) {
 
   // Compute the string to replace with.
   if (IS_CALLABLE(replace)) {
-    var receiver = UNDEFINED;
-    result += %_CallFunction(receiver, search, start, subject, replace);
+    result += replace(search, start, subject);
   } else {
     reusableMatchInfo[CAPTURE0] = start;
     reusableMatchInfo[CAPTURE1] = end;
@@ -478,8 +477,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
         override[0] = elem;
         override[1] = match_start;
         $regexpLastMatchInfoOverride = override;
-        var func_result =
-            %_CallFunction(UNDEFINED, elem, match_start, subject, replace);
+        var func_result = replace(elem, match_start, subject);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
         res[i] = TO_STRING_INLINE(func_result);
@@ -525,7 +523,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
     // No captures, only the match, which is always valid.
     var s = %_SubString(subject, index, endOfMatch);
     // Don't call directly to avoid exposing the built-in global object.
-    replacement = %_CallFunction(UNDEFINED, s, index, subject, replace);
+    replacement = replace(s, index, subject);
   } else {
     var parameters = new InternalArray(m + 2);
     for (var j = 0; j < m; j++) {

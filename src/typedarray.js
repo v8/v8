@@ -143,7 +143,7 @@ function NAMEConstructByIterable(obj, iterable, iteratorFn) {
   // was already looked up, and wrap it in another iterable. The
   // __proto__ of the new iterable is set to null to avoid any chance
   // of modifications to Object.prototype being observable here.
-  var iterator = %_CallFunction(iterable, iteratorFn);
+  var iterator = %_Call(iteratorFn, iterable);
   var newIterable = {
     __proto__: null
   };

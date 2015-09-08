@@ -218,7 +218,6 @@ namespace internal {
 
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)                      \
-  F(IsSloppyModeFunction, 1, 1)                             \
   F(FunctionGetName, 1, 1)                                  \
   F(FunctionSetName, 2, 1)                                  \
   F(FunctionNameShouldPrintAsAnonymous, 1, 1)               \

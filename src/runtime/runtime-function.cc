@@ -16,27 +16,6 @@
 namespace v8 {
 namespace internal {
 
-// TODO(bmeurer): This is an awful hack resulting from our inability to decide
-// who's responsible for doing the receiver patching. By any means, we really
-// need to kill this runtime function and just do things right instead!!
-RUNTIME_FUNCTION(Runtime_IsSloppyModeFunction) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSReceiver, callable, 0);
-  if (!callable->IsJSFunction()) {
-    HandleScope scope(isolate);
-    Handle<JSFunction> delegate;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, delegate,
-        Execution::GetFunctionDelegate(isolate, Handle<JSReceiver>(callable)));
-    callable = JSFunction::cast(*delegate);
-  }
-  JSFunction* function = JSFunction::cast(callable);
-  SharedFunctionInfo* shared = function->shared();
-  return isolate->heap()->ToBoolean(is_sloppy(shared->language_mode()));
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionGetName) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -532,32 +511,18 @@ RUNTIME_FUNCTION(Runtime_NewObjectFromBound) {
 
 RUNTIME_FUNCTION(Runtime_Call) {
   HandleScope scope(isolate);
-  DCHECK(args.length() >= 2);
-  int argc = args.length() - 2;
-  CONVERT_ARG_CHECKED(JSReceiver, fun, argc + 1);
-  Object* receiver = args[0];
-
-  // If there are too many arguments, allocate argv via malloc.
-  const int argv_small_size = 10;
-  Handle<Object> argv_small_buffer[argv_small_size];
-  base::SmartArrayPointer<Handle<Object> > argv_large_buffer;
-  Handle<Object>* argv = argv_small_buffer;
-  if (argc > argv_small_size) {
-    argv = new Handle<Object>[argc];
-    if (argv == NULL) return isolate->StackOverflow();
-    argv_large_buffer = base::SmartArrayPointer<Handle<Object> >(argv);
-  }
-
+  DCHECK_LE(2, args.length());
+  int const argc = args.length() - 2;
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
+  ScopedVector<Handle<Object>> argv(argc);
   for (int i = 0; i < argc; ++i) {
-    argv[i] = Handle<Object>(args[1 + i], isolate);
+    argv[i] = args.at<Object>(2 + i);
   }
-
-  Handle<JSReceiver> hfun(fun);
-  Handle<Object> hreceiver(receiver, isolate);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Execution::Call(isolate, hfun, hreceiver, argc, argv, true));
+      Execution::Call(isolate, target, receiver, argc, argv.start(), true));
   return *result;
 }
 
@@ -634,9 +599,37 @@ RUNTIME_FUNCTION(Runtime_GetOriginalConstructor) {
 }
 
 
+// TODO(bmeurer): Kill %_CallFunction ASAP as it is almost never used
+// correctly because of the weird semantics underneath.
 RUNTIME_FUNCTION(Runtime_CallFunction) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_Call(args, isolate);
+  HandleScope scope(isolate);
+  DCHECK(args.length() >= 2);
+  int argc = args.length() - 2;
+  CONVERT_ARG_CHECKED(JSReceiver, fun, argc + 1);
+  Object* receiver = args[0];
+
+  // If there are too many arguments, allocate argv via malloc.
+  const int argv_small_size = 10;
+  Handle<Object> argv_small_buffer[argv_small_size];
+  base::SmartArrayPointer<Handle<Object>> argv_large_buffer;
+  Handle<Object>* argv = argv_small_buffer;
+  if (argc > argv_small_size) {
+    argv = new Handle<Object>[argc];
+    if (argv == NULL) return isolate->StackOverflow();
+    argv_large_buffer = base::SmartArrayPointer<Handle<Object>>(argv);
+  }
+
+  for (int i = 0; i < argc; ++i) {
+    argv[i] = Handle<Object>(args[1 + i], isolate);
+  }
+
+  Handle<JSReceiver> hfun(fun);
+  Handle<Object> hreceiver(receiver, isolate);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, hfun, hreceiver, argc, argv, true));
+  return *result;
 }
 
 

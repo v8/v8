@@ -52,7 +52,7 @@ function Revive(holder, name, reviver) {
       }
     }
   }
-  return %_CallFunction(holder, name, val, reviver);
+  return %_Call(reviver, holder, name, val);
 }
 
 
@@ -147,11 +147,11 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   if (IS_SPEC_OBJECT(value)) {
     var toJSON = value.toJSON;
     if (IS_CALLABLE(toJSON)) {
-      value = %_CallFunction(value, key, toJSON);
+      value = %_Call(toJSON, value, key);
     }
   }
   if (IS_CALLABLE(replacer)) {
-    value = %_CallFunction(holder, key, value, replacer);
+    value = %_Call(replacer, holder, key, value);
   }
   if (IS_STRING(value)) {
     return %QuoteJSONString(value);

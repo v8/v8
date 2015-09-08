@@ -72,7 +72,7 @@ function generateSpread(n) {
           `f.bind(undefined)(${generateArguments(argumentCount)})`,
           `%_CallFunction(${generateArguments(argumentCount, 'undefined')},
                           f)`,
-          `%Call(${generateArguments(argumentCount, 'undefined')}, f)`,
+          `%Call(f, ${generateArguments(argumentCount, 'undefined')})`,
           `%Apply(f, undefined, [${generateArguments(argumentCount)}], 0,
                   ${argumentCount})`,
         ];
@@ -135,7 +135,7 @@ function generateSpread(n) {
             `o.m.apply(o, [${generateArguments(argumentCount)}])`,
             `o.m.bind(o)(${generateArguments(argumentCount)})`,
             `%_CallFunction(${generateArguments(argumentCount, 'o')}, o.m)`,
-            `%Call(${generateArguments(argumentCount, 'o')}, o.m)`,
+            `%Call(o.m, ${generateArguments(argumentCount, 'o')})`,
             `%Apply(o.m, o, [${generateArguments(argumentCount)}], 0,
                     ${argumentCount})`,
           ];

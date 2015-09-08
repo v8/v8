@@ -32,7 +32,7 @@ function WeakMapConstructor(iterable) {
       if (!IS_SPEC_OBJECT(nextItem)) {
         throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
       }
-      %_CallFunction(this, nextItem[0], nextItem[1], adder);
+      %_Call(adder, this, nextItem[0], nextItem[1]);
     }
   }
 }
@@ -118,7 +118,7 @@ function WeakSetConstructor(iterable) {
       throw MakeTypeError(kPropertyNotFunction, 'add', this);
     }
     for (var value of iterable) {
-      %_CallFunction(this, value, adder);
+      %_Call(adder, this, value);
     }
   }
 }

@@ -95,17 +95,9 @@ function InnerArrayFind(predicate, thisArg, array, length) {
     throw MakeTypeError(kCalledNonCallable, predicate);
   }
 
-  var needs_wrapper = false;
-  if (IS_NULL(thisArg)) {
-    if (%IsSloppyModeFunction(predicate)) thisArg = UNDEFINED;
-  } else if (!IS_UNDEFINED(thisArg)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(predicate, thisArg);
-  }
-
   for (var i = 0; i < length; i++) {
     var element = array[i];
-    var newThisArg = needs_wrapper ? TO_OBJECT(thisArg) : thisArg;
-    if (%_CallFunction(newThisArg, element, i, array, predicate)) {
+    if (%_Call(predicate, thisArg, element, i, array)) {
       return element;
     }
   }
@@ -128,17 +120,9 @@ function InnerArrayFindIndex(predicate, thisArg, array, length) {
     throw MakeTypeError(kCalledNonCallable, predicate);
   }
 
-  var needs_wrapper = false;
-  if (IS_NULL(thisArg)) {
-    if (%IsSloppyModeFunction(predicate)) thisArg = UNDEFINED;
-  } else if (!IS_UNDEFINED(thisArg)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(predicate, thisArg);
-  }
-
   for (var i = 0; i < length; i++) {
     var element = array[i];
-    var newThisArg = needs_wrapper ? TO_OBJECT(thisArg) : thisArg;
-    if (%_CallFunction(newThisArg, element, i, array, predicate)) {
+    if (%_Call(predicate, thisArg, element, i, array)) {
       return i;
     }
   }
@@ -212,12 +196,6 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
   if (mapping) {
     if (!IS_CALLABLE(mapfn)) {
       throw MakeTypeError(kCalledNonCallable, mapfn);
-    } else if (%IsSloppyModeFunction(mapfn)) {
-      if (IS_NULL(receiver)) {
-        receiver = UNDEFINED;
-      } else if (!IS_UNDEFINED(receiver)) {
-        receiver = TO_OBJECT(receiver);
-      }
     }
   }
 
@@ -247,7 +225,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
 
       nextValue = next.value;
       if (mapping) {
-        mappedValue = %_CallFunction(receiver, nextValue, k, mapfn);
+        mappedValue = %_Call(mapfn, receiver, nextValue, k);
       } else {
         mappedValue = nextValue;
       }
@@ -261,7 +239,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
     for (k = 0; k < len; ++k) {
       nextValue = items[k];
       if (mapping) {
-        mappedValue = %_CallFunction(receiver, nextValue, k, mapfn);
+        mappedValue = %_Call(mapfn, receiver, nextValue, k);
       } else {
         mappedValue = nextValue;
       }

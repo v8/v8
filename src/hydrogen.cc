@@ -12477,6 +12477,23 @@ void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
 }
 
 
+// Fast support for calls.
+void HOptimizedGraphBuilder::GenerateCall(CallRuntime* call) {
+  DCHECK_LE(2, call->arguments()->length());
+  CHECK_ALIVE(VisitExpressions(call->arguments()));
+  CallTrampolineDescriptor descriptor(isolate());
+  PushArgumentsFromEnvironment(call->arguments()->length() - 1);
+  HValue* trampoline = Add<HConstant>(isolate()->builtins()->Call());
+  HValue* target = Pop();
+  HValue* values[] = {context(), target,
+                      Add<HConstant>(call->arguments()->length() - 2)};
+  HInstruction* result = New<HCallWithDescriptor>(
+      trampoline, call->arguments()->length() - 1, descriptor,
+      Vector<HValue*>(values, arraysize(values)));
+  return ast_context()->ReturnInstruction(result, call->id());
+}
+
+
 // Fast call for custom callbacks.
 void HOptimizedGraphBuilder::GenerateCallFunction(CallRuntime* call) {
   // 1 ~ The function to call is not itself an argument to the call.

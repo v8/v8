@@ -3785,6 +3785,27 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitCall(CallRuntime* expr) {
+  ASM_LOCATION("FullCodeGenerator::EmitCallFunction");
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_LE(2, args->length());
+  // Push target, receiver and arguments onto the stack.
+  for (Expression* const arg : *args) {
+    VisitForStackValue(arg);
+  }
+  // Move target to x1.
+  int const argc = args->length() - 2;
+  __ Peek(x1, (argc + 1) * kXRegSize);
+  // Call the target.
+  __ Mov(x0, argc);
+  __ Call(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  // Restore context register.
+  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  // Discard the function left on TOS.
+  context()->DropAndPlug(1, x0);
+}
+
+
 void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitCallFunction");
   ZoneList<Expression*>* args = expr->arguments();
@@ -3810,7 +3831,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
 
   __ Bind(&runtime);
   __ Push(x0);
-  __ CallRuntime(Runtime::kCall, args->length());
+  __ CallRuntime(Runtime::kCallFunction, args->length());
   __ Bind(&done);
 
   context()->Plug(x0);

@@ -139,7 +139,7 @@ function SetConstructor(iterable) {
     }
 
     for (var value of iterable) {
-      %_CallFunction(this, value, adder);
+      %_Call(adder, this, value);
     }
   }
 }
@@ -246,12 +246,6 @@ function SetForEach(f, receiver) {
   }
 
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
-  var needs_wrapper = false;
-  if (IS_NULL(receiver)) {
-    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
-  } else if (!IS_UNDEFINED(receiver)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
-  }
 
   var iterator = new SetIterator(this, ITERATOR_KIND_VALUES);
   var key;
@@ -260,8 +254,7 @@ function SetForEach(f, receiver) {
   while (%SetIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
     key = value_array[0];
-    var new_receiver = needs_wrapper ? TO_OBJECT(receiver) : receiver;
-    %_CallFunction(new_receiver, key, key, this, f);
+    %_Call(f, receiver, key, key, this);
   }
 }
 
@@ -307,7 +300,7 @@ function MapConstructor(iterable) {
       if (!IS_SPEC_OBJECT(nextItem)) {
         throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
       }
-      %_CallFunction(this, nextItem[0], nextItem[1], adder);
+      %_Call(adder, this, nextItem[0], nextItem[1]);
     }
   }
 }
@@ -437,20 +430,13 @@ function MapForEach(f, receiver) {
   }
 
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
-  var needs_wrapper = false;
-  if (IS_NULL(receiver)) {
-    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
-  } else if (!IS_UNDEFINED(receiver)) {
-    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
-  }
 
   var iterator = new MapIterator(this, ITERATOR_KIND_ENTRIES);
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   var value_array = [UNDEFINED, UNDEFINED];
   while (%MapIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
-    var new_receiver = needs_wrapper ? TO_OBJECT(receiver) : receiver;
-    %_CallFunction(new_receiver, value_array[1], value_array[0], this, f);
+    %_Call(f, receiver, value_array[1], value_array[0], this);
   }
 }
 
@@ -486,7 +472,7 @@ function MapFromArray(array) {
   for (var i = 0; i < length; i += 2) {
     var key = array[i];
     var value = array[i + 1];
-    %_CallFunction(map, key, value, MapSet);
+    %_Call(MapSet, map, key, value);
   }
   return map;
 };
@@ -495,7 +481,7 @@ function SetFromArray(array) {
   var set = new GlobalSet;
   var length = array.length;
   for (var i = 0; i < length; ++i) {
-    %_CallFunction(set, array[i], SetAdd);
+    %_Call(SetAdd, set, array[i]);
   }
   return set;
 };

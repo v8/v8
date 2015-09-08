@@ -277,7 +277,7 @@ function TypedArrayToLocaleString() {
 
 // ES6 section 22.2.3.28
 function TypedArrayToString() {
-  return %_CallFunction(this, ArrayToString);
+  return %_Call(ArrayToString, this);
 }
 
 
@@ -372,7 +372,7 @@ function TypedArrayOf() {
 function TypedArrayFrom(source, mapfn, thisArg) {
   // TODO(littledan): Investigate if there is a receiver which could be
   // faster to accumulate on than Array, e.g., a TypedVector.
-  var array = %_CallFunction(GlobalArray, source, mapfn, thisArg, ArrayFrom);
+  var array = %_Call(ArrayFrom, GlobalArray, source, mapfn, thisArg);
   return ConstructTypedArray(this, array);
 }
 %FunctionSetLength(TypedArrayFrom, 1);
