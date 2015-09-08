@@ -802,6 +802,8 @@ DEFINE_STRING(testing_serialization_file, "/tmp/serdes",
 #endif
 
 // mksnapshot.cc
+DEFINE_STRING(startup_src, NULL,
+              "Write V8 startup as C++ src. (mksnapshot only)")
 DEFINE_STRING(startup_blob, NULL,
               "Write V8 startup blob file. (mksnapshot only)")
 

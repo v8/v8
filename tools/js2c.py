@@ -586,7 +586,8 @@ def main():
                     help="file to write the startup blob to.")
   parser.add_option("--js",
                     help="writes a JS file output instead of a C file",
-                    action="store_true")
+                    action="store_true", default=False, dest='js')
+  parser.add_option("--nojs", action="store_false", default=False, dest='js')
   parser.set_usage("""js2c out.cc type sources.js ...
         out.cc: C code to be generated.
         type: type parameter for NativesCollection template.

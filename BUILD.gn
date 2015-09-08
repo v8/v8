@@ -497,6 +497,7 @@ action("run_mksnapshot") {
     "--log-snapshot-positions",
     "--logfile",
     rebase_path("$target_gen_dir/snapshot.log", root_build_dir),
+    "--startup_src",
     rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
   ]
 
