@@ -1532,8 +1532,8 @@ void AstPrinter::VisitCallNew(CallNew* node) {
 
 void AstPrinter::VisitCallRuntime(CallRuntime* node) {
   EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "CALL RUNTIME %s", node->debug_name());
   IndentedScope indent(this, buf.start());
-  Print("NAME %s\n", node->debug_name());
   PrintArguments(node->arguments());
 }
 
