@@ -215,6 +215,10 @@ bool LCodeGen::GeneratePrologue() {
       }
     }
   }
+
+  // Initailize FPU state.
+  __ fninit();
+
   return !is_aborted();
 }
 
@@ -277,9 +281,6 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
     }
     Comment(";;; End allocate local context");
   }
-
-  // Initailize FPU state.
-  __ fninit();
 
   Comment(";;; Prologue end");
 }
