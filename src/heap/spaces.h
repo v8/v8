@@ -541,23 +541,38 @@ class MemoryChunk {
   static const intptr_t kSizeOffset = 0;
 
   static const intptr_t kLiveBytesOffset =
-      kSizeOffset + kPointerSize + kPointerSize + kPointerSize + kPointerSize +
-      kPointerSize + kPointerSize + kPointerSize + kPointerSize + kIntSize;
+      kSizeOffset + kPointerSize  // size_t size
+      + kIntptrSize               // intptr_t flags_
+      + kPointerSize              // Address area_start_
+      + kPointerSize              // Address area_end_
+      + 2 * kPointerSize          // base::VirtualMemory reservation_
+      + kPointerSize              // Address owner_
+      + kPointerSize              // Heap* heap_
+      + kIntSize;                 // int store_buffer_counter_
 
-  static const size_t kSlotsBufferOffset = kLiveBytesOffset + kIntSize;
+
+  static const size_t kSlotsBufferOffset =
+      kLiveBytesOffset + kIntSize;  // int live_byte_count_
 
   static const size_t kWriteBarrierCounterOffset =
-      kSlotsBufferOffset + kPointerSize + kPointerSize;
+      kSlotsBufferOffset + kPointerSize  // SlotsBuffer* slots_buffer_;
+      + kPointerSize;                    // SkipList* skip_list_;
 
-  static const size_t kHeaderSize = kWriteBarrierCounterOffset +
-                                    kPointerSize +  // write_barrier_counter_
-                                    kIntSize +      // progress_bar_
-                                    kIntSize +      // high_water_mark_
-                                    kPointerSize +  // mutex_ page lock
-                                    kPointerSize +  // parallel_sweeping_
-                                    5 * kPointerSize +  // free list statistics
-                                    kPointerSize +      // next_chunk_
-                                    kPointerSize;       // prev_chunk_
+  static const size_t kMinHeaderSize =
+      kWriteBarrierCounterOffset +
+      kIntptrSize      // intptr_t write_barrier_counter_
+      + kIntSize       // int progress_bar_
+      + kIntSize       // int high_water_mark_
+      + kPointerSize   // base::Mutex* mutex_
+      + kPointerSize   // base::AtomicWord parallel_sweeping_
+      + 5 * kIntSize   // int free-list statistics
+      + kPointerSize   // base::AtomicWord next_chunk_
+      + kPointerSize;  // base::AtomicWord prev_chunk_
+
+  // We add some more space to the computed header size to amount for missing
+  // alignment requirements in our computation.
+  // Try to get kHeaderSize properly aligned on 32-bit and 64-bit machines.
+  static const size_t kHeaderSize = kMinHeaderSize + kIntSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -716,21 +731,19 @@ class MemoryChunk {
   int available_in_huge_free_list_;
   int non_available_small_blocks_;
 
-  static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
-                                 Address area_start, Address area_end,
-                                 Executability executable, Space* owner);
-
- private:
   // next_chunk_ holds a pointer of type MemoryChunk
   base::AtomicWord next_chunk_;
   // prev_chunk_ holds a pointer of type MemoryChunk
   base::AtomicWord prev_chunk_;
 
+  static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
+                                 Address area_start, Address area_end,
+                                 Executability executable, Space* owner);
+
+ private:
   friend class MemoryAllocator;
+  friend class MemoryChunkValidator;
 };
-
-
-STATIC_ASSERT(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
 
 
 // -----------------------------------------------------------------------------
@@ -841,9 +854,6 @@ class Page : public MemoryChunk {
 };
 
 
-STATIC_ASSERT(sizeof(Page) <= MemoryChunk::kHeaderSize);
-
-
 class LargePage : public MemoryChunk {
  public:
   HeapObject* GetObject() { return HeapObject::FromAddress(area_start()); }
@@ -860,7 +870,6 @@ class LargePage : public MemoryChunk {
   friend class MemoryAllocator;
 };
 
-STATIC_ASSERT(sizeof(LargePage) <= MemoryChunk::kHeaderSize);
 
 // ----------------------------------------------------------------------------
 // Space is the abstract superclass for all allocation spaces.
@@ -911,6 +920,23 @@ class Space : public Malloced {
   Heap* heap_;
   AllocationSpace id_;
   Executability executable_;
+};
+
+
+class MemoryChunkValidator {
+  // Computed offsets should match the compiler generated ones.
+  STATIC_ASSERT(MemoryChunk::kSizeOffset == offsetof(MemoryChunk, size_));
+  STATIC_ASSERT(MemoryChunk::kLiveBytesOffset ==
+                offsetof(MemoryChunk, live_byte_count_));
+  STATIC_ASSERT(MemoryChunk::kSlotsBufferOffset ==
+                offsetof(MemoryChunk, slots_buffer_));
+  STATIC_ASSERT(MemoryChunk::kWriteBarrierCounterOffset ==
+                offsetof(MemoryChunk, write_barrier_counter_));
+
+  // Validate our estimates on the header size.
+  STATIC_ASSERT(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
+  STATIC_ASSERT(sizeof(LargePage) <= MemoryChunk::kHeaderSize);
+  STATIC_ASSERT(sizeof(Page) <= MemoryChunk::kHeaderSize);
 };
 
 
