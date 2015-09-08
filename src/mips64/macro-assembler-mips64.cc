@@ -5378,10 +5378,8 @@ void MacroAssembler::AssertFunction(Register object) {
     STATIC_ASSERT(kSmiTag == 0);
     SmiTst(object, t0);
     Check(ne, kOperandIsASmiAndNotAFunction, t0, Operand(zero_reg));
-    push(object);
-    GetObjectType(object, object, object);
-    pop(object);
-    Check(eq, kOperandIsNotAFunction, object, Operand(JS_FUNCTION_TYPE));
+    GetObjectType(object, t0, t0);
+    Check(eq, kOperandIsNotAFunction, t0, Operand(JS_FUNCTION_TYPE));
   }
 }
 
