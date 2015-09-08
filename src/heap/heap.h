@@ -2404,18 +2404,6 @@ class AlwaysAllocateScope {
 };
 
 
-class GCCallbacksScope {
- public:
-  explicit inline GCCallbacksScope(Heap* heap);
-  inline ~GCCallbacksScope();
-
-  inline bool CheckReenter();
-
- private:
-  Heap* heap_;
-};
-
-
 // Visitor class to verify interior pointers in spaces that do not contain
 // or care about intergenerational references. All heap object pointers have to
 // point into the heap to a location that has a map pointer at its first word.

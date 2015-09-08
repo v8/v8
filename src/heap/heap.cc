@@ -749,6 +749,20 @@ void Heap::PreprocessStackTraces() {
 }
 
 
+class GCCallbacksScope {
+ public:
+  explicit GCCallbacksScope(Heap* heap) : heap_(heap) {
+    heap_->gc_callbacks_depth_++;
+  }
+  ~GCCallbacksScope() { heap_->gc_callbacks_depth_--; }
+
+  bool CheckReenter() { return heap_->gc_callbacks_depth_ == 1; }
+
+ private:
+  Heap* heap_;
+};
+
+
 void Heap::HandleGCRequest() {
   if (incremental_marking()->request_type() ==
       IncrementalMarking::COMPLETE_MARKING) {
