@@ -1613,19 +1613,6 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
-void MacroAssembler::AssertFunction(Register object) {
-  if (emit_debug_code()) {
-    AssertNotSmi(object, kOperandIsASmiAndNotAFunction);
-
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-
-    CompareObjectType(object, temp, temp, JS_FUNCTION_TYPE);
-    Check(eq, kOperandIsNotAFunction);
-  }
-}
-
-
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
   if (emit_debug_code()) {
@@ -3055,12 +3042,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // cannot be allowed to destroy the context in cp).
     Mov(dst, cp);
   }
-}
-
-
-void MacroAssembler::LoadGlobalProxy(Register dst) {
-  Ldr(dst, GlobalObjectMemOperand());
-  Ldr(dst, FieldMemOperand(dst, GlobalObject::kGlobalProxyOffset));
 }
 
 

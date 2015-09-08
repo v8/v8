@@ -16,9 +16,6 @@
 namespace v8 {
 namespace internal {
 
-// TODO(bmeurer): This is an awful hack resulting from our inability to decide
-// who's responsible for doing the receiver patching. By any means, we really
-// need to kill this runtime function and just do things right instead!!
 RUNTIME_FUNCTION(Runtime_IsSloppyModeFunction) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

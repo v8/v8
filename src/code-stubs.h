@@ -1953,8 +1953,6 @@ class RegExpConstructResultStub final : public HydrogenCodeStub {
 };
 
 
-// TODO(bmeurer): Deprecate the CallFunctionStub in favor of the more general
-// Invoke family of builtins.
 class CallFunctionStub: public PlatformCodeStub {
  public:
   CallFunctionStub(Isolate* isolate, int argc, CallFunctionFlags flags)

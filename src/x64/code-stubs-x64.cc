@@ -1902,10 +1902,36 @@ static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
 }
 
 
-static void EmitSlowCase(MacroAssembler* masm, StackArgumentsAccessor* args,
-                         int argc) {
+static void EmitSlowCase(Isolate* isolate,
+                         MacroAssembler* masm,
+                         StackArgumentsAccessor* args,
+                         int argc,
+                         Label* non_function) {
+  // Check for function proxy.
+  __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
+  __ j(not_equal, non_function);
+  __ PopReturnAddressTo(rcx);
+  __ Push(rdi);  // put proxy as additional argument under return address
+  __ PushReturnAddressFrom(rcx);
+  __ Set(rax, argc + 1);
+  __ Set(rbx, 0);
+  __ GetBuiltinEntry(rdx, Context::CALL_FUNCTION_PROXY_BUILTIN_INDEX);
+  {
+    Handle<Code> adaptor =
+        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+    __ jmp(adaptor, RelocInfo::CODE_TARGET);
+  }
+
+  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+  // of the original receiver from the call site).
+  __ bind(non_function);
+  __ movp(args->GetReceiverOperand(), rdi);
   __ Set(rax, argc);
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  __ Set(rbx, 0);
+  __ GetBuiltinEntry(rdx, Context::CALL_NON_FUNCTION_BUILTIN_INDEX);
+  Handle<Code> adaptor =
+      isolate->builtins()->ArgumentsAdaptorTrampoline();
+  __ Jump(adaptor, RelocInfo::CODE_TARGET);
 }
 
 
@@ -1930,12 +1956,13 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
   // rdi : the function to call
 
   // wrap_and_call can only be true if we are compiling a monomorphic method.
-  Label slow, wrap, cont;
+  Isolate* isolate = masm->isolate();
+  Label slow, non_function, wrap, cont;
   StackArgumentsAccessor args(rsp, argc);
 
   if (needs_checks) {
     // Check that the function really is a JavaScript function.
-    __ JumpIfSmi(rdi, &slow);
+    __ JumpIfSmi(rdi, &non_function);
 
     // Goto slow case if we do not have a function.
     __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
@@ -1970,7 +1997,7 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
   if (needs_checks) {
     // Slow-case: Non-function called.
     __ bind(&slow);
-    EmitSlowCase(masm, &args, argc);
+    EmitSlowCase(isolate, masm, &args, argc, &non_function);
   }
 
   if (call_as_method) {
@@ -2086,28 +2113,32 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ movp(rcx, FieldOperand(rbx, rdx, times_pointer_size,
                             FixedArray::kHeaderSize));
   // Verify that ecx contains an AllocationSite
-  __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
-                 Heap::kAllocationSiteMapRootIndex);
-  __ j(not_equal, &miss, Label::kNear);
+  Factory* factory = masm->isolate()->factory();
+  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset),
+         factory->allocation_site_map());
+  __ j(not_equal, &miss);
 
   // Increment the call count for monomorphic function calls.
-  {
-    __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
-                                   FixedArray::kHeaderSize + kPointerSize),
-                      Smi::FromInt(CallICNexus::kCallCountIncrement));
+  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
+                                 FixedArray::kHeaderSize + kPointerSize),
+                    Smi::FromInt(CallICNexus::kCallCountIncrement));
 
-    __ movp(rbx, rcx);
-    __ movp(rdx, rdi);
-    ArrayConstructorStub stub(masm->isolate(), arg_count());
-    __ TailCallStub(&stub);
-  }
+  __ movp(rbx, rcx);
+  __ movp(rdx, rdi);
+  ArrayConstructorStub stub(masm->isolate(), arg_count());
+  __ TailCallStub(&stub);
 
   __ bind(&miss);
   GenerateMiss(masm);
 
   // The slow case, we need this no matter what to complete a call after a miss.
-  __ Set(rax, arg_count());
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  CallFunctionNoFeedback(masm,
+                         arg_count(),
+                         true,
+                         CallAsMethod());
+
+  // Unreachable.
+  __ int3();
 }
 
 
@@ -2121,7 +2152,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   const int generic_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
   Label extra_checks_or_miss, slow_start;
-  Label slow, wrap, cont;
+  Label slow, non_function, wrap, cont;
   Label have_js_function;
   int argc = arg_count();
   StackArgumentsAccessor args(rsp, argc);
@@ -2176,7 +2207,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ InvokeFunction(rdi, actual, JUMP_FUNCTION, NullCallWrapper());
 
   __ bind(&slow);
-  EmitSlowCase(masm, &args, argc);
+  EmitSlowCase(isolate, masm, &args, argc, &non_function);
 
   if (CallAsMethod()) {
     __ bind(&wrap);
@@ -2257,7 +2288,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // the slow case
   __ bind(&slow_start);
   // Check that function is not a smi.
-  __ JumpIfSmi(rdi, &slow);
+  __ JumpIfSmi(rdi, &non_function);
   // Check that function is a JSFunction.
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
   __ j(not_equal, &slow);

@@ -959,9 +959,6 @@ class MacroAssembler : public Assembler {
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
-  // Abort execution if argument is not a JSFunction, enabled via --debug-code.
-  void AssertFunction(Register object);
-
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
@@ -1692,9 +1689,6 @@ class MacroAssembler : public Assembler {
                       bool restore_context);
 
   void LoadContext(Register dst, int context_chain_length);
-
-  // Load the global proxy from the current context.
-  void LoadGlobalProxy(Register dst);
 
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged. Dividend and result must be different.

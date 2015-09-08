@@ -856,8 +856,7 @@ class Assembler : public AssemblerBase {
          Label* L,
          Label::Distance distance = Label::kFar);
   void j(Condition cc, byte* entry, RelocInfo::Mode rmode);
-  void j(Condition cc, Handle<Code> code,
-         RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
+  void j(Condition cc, Handle<Code> code);
 
   // Floating-point operations
   void fld(int i);

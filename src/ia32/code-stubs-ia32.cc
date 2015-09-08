@@ -2039,9 +2039,33 @@ static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
 }
 
 
-static void EmitSlowCase(Isolate* isolate, MacroAssembler* masm, int argc) {
-  __ Set(eax, argc);
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+static void EmitSlowCase(Isolate* isolate,
+                         MacroAssembler* masm,
+                         int argc,
+                         Label* non_function) {
+  // Check for function proxy.
+  __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
+  __ j(not_equal, non_function);
+  __ pop(ecx);
+  __ push(edi);  // put proxy as additional argument under return address
+  __ push(ecx);
+  __ Move(eax, Immediate(argc + 1));
+  __ Move(ebx, Immediate(0));
+  __ GetBuiltinEntry(edx, Context::CALL_FUNCTION_PROXY_BUILTIN_INDEX);
+  {
+    Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
+    __ jmp(adaptor, RelocInfo::CODE_TARGET);
+  }
+
+  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+  // of the original receiver from the call site).
+  __ bind(non_function);
+  __ mov(Operand(esp, (argc + 1) * kPointerSize), edi);
+  __ Move(eax, Immediate(argc));
+  __ Move(ebx, Immediate(0));
+  __ GetBuiltinEntry(edx, Context::CALL_NON_FUNCTION_BUILTIN_INDEX);
+  Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
+  __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 
 
@@ -2062,11 +2086,11 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
                                    int argc, bool needs_checks,
                                    bool call_as_method) {
   // edi : the function to call
-  Label slow, wrap, cont;
+  Label slow, non_function, wrap, cont;
 
   if (needs_checks) {
     // Check that the function really is a JavaScript function.
-    __ JumpIfSmi(edi, &slow);
+    __ JumpIfSmi(edi, &non_function);
 
     // Goto slow case if we do not have a function.
     __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
@@ -2101,7 +2125,8 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
   if (needs_checks) {
     // Slow-case: Non-function called.
     __ bind(&slow);
-    EmitSlowCase(masm->isolate(), masm, argc);
+    // (non_function is bound in EmitSlowCase)
+    EmitSlowCase(masm->isolate(), masm, argc, &non_function);
   }
 
   if (call_as_method) {
@@ -2245,8 +2270,13 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   GenerateMiss(masm);
 
   // The slow case, we need this no matter what to complete a call after a miss.
-  __ Set(eax, arg_count());
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  CallFunctionNoFeedback(masm,
+                         arg_count(),
+                         true,
+                         CallAsMethod());
+
+  // Unreachable.
+  __ int3();
 }
 
 
@@ -2260,7 +2290,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   const int generic_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
   Label extra_checks_or_miss, slow_start;
-  Label slow, wrap, cont;
+  Label slow, non_function, wrap, cont;
   Label have_js_function;
   int argc = arg_count();
   ParameterCount actual(argc);
@@ -2313,7 +2343,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ InvokeFunction(edi, actual, JUMP_FUNCTION, NullCallWrapper());
 
   __ bind(&slow);
-  EmitSlowCase(isolate, masm, argc);
+  EmitSlowCase(isolate, masm, argc, &non_function);
 
   if (CallAsMethod()) {
     __ bind(&wrap);
@@ -2394,7 +2424,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&slow_start);
 
   // Check that the function really is a JavaScript function.
-  __ JumpIfSmi(edi, &slow);
+  __ JumpIfSmi(edi, &non_function);
 
   // Goto slow case if we do not have a function.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
