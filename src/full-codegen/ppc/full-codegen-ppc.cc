@@ -4112,9 +4112,13 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
 
-  // Evaluate new.target and super constructor.
+  // Evaluate new.target.
   VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
+
+  // Evaluate super constructor (to stack and r4).
+  VisitForAccumulatorValue(args->at(1));
+  __ push(result_register());
+  __ mr(r4, result_register());
 
   // Load original constructor into r7.
   __ LoadP(r7, MemOperand(sp, 1 * kPointerSize));
