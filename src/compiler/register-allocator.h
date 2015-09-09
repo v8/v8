@@ -407,6 +407,7 @@ class LiveRange : public ZoneObject {
   typedef BitField<int32_t, 6, 6> AssignedRegisterField;
   typedef BitField<MachineType, 12, 15> MachineTypeField;
 
+  // Unique among children and splinters of the same virtual register.
   int relative_id_;
   uint32_t bits_;
   UseInterval* last_interval_;
@@ -535,7 +536,11 @@ class TopLevelLiveRange final : public LiveRange {
   void UpdateSpillRangePostMerge(TopLevelLiveRange* merged);
   int vreg() const { return vreg_; }
 
-  int GetNextChildId() { return ++last_child_id_; }
+  int GetNextChildId() {
+    return IsSplinter() ? splintered_from()->GetNextChildId()
+                        : ++last_child_id_;
+  }
+
   bool IsSpilledOnlyInDeferredBlocks() const {
     return spilled_in_deferred_blocks_;
   }

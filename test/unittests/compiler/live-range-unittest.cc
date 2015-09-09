@@ -407,6 +407,33 @@ TEST_F(LiveRangeUnitTest, MergeAfterSplitting) {
 }
 
 
+TEST_F(LiveRangeUnitTest, IDGeneration) {
+  TopLevelLiveRange* vreg = TestRangeBuilder(zone()).Id(2).Build(0, 100);
+  EXPECT_EQ(2, vreg->vreg());
+  EXPECT_EQ(0, vreg->relative_id());
+
+  TopLevelLiveRange* splinter =
+      new (zone()) TopLevelLiveRange(101, MachineType::kRepTagged);
+  vreg->Splinter(LifetimePosition::FromInt(4), LifetimePosition::FromInt(12),
+                 splinter, zone());
+
+  EXPECT_EQ(101, splinter->vreg());
+  EXPECT_EQ(1, splinter->relative_id());
+
+  LiveRange* child = vreg->SplitAt(LifetimePosition::FromInt(50), zone());
+
+  EXPECT_EQ(2, child->relative_id());
+
+  LiveRange* splinter_child =
+      splinter->SplitAt(LifetimePosition::FromInt(8), zone());
+
+  EXPECT_EQ(1, splinter->relative_id());
+  EXPECT_EQ(3, splinter_child->relative_id());
+
+  vreg->Merge(splinter, zone());
+  EXPECT_EQ(1, splinter->relative_id());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

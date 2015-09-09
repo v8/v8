@@ -871,6 +871,9 @@ void TopLevelLiveRange::Splinter(LifetimePosition start, LifetimePosition end,
   result->top_level_ = result;
 
   result->SetSplinteredFrom(this);
+  // Ensure the result's relative ID is unique within the IDs used for this
+  // virtual register's children and splinters.
+  result->relative_id_ = GetNextChildId();
 }
 
 
