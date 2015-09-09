@@ -3653,11 +3653,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     // Change context.
     __ LoadP(cp, FieldMemOperand(function_reg, JSFunction::kContextOffset));
 
-    // Set r3 to arguments count if adaption is not needed. Assumes that r3
-    // is available to write to at this point.
-    if (dont_adapt_arguments) {
-      __ mov(r3, Operand(arity));
-    }
+    // Always initialize r3 to the number of actual arguments.
+    __ mov(r3, Operand(arity));
 
     bool is_self_call = function.is_identical_to(info()->closure());
 
@@ -4070,9 +4067,7 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   DCHECK(ToRegister(instr->function()).is(r4));
   DCHECK(ToRegister(instr->result()).is(r3));
 
-  if (instr->hydrogen()->pass_argument_count()) {
-    __ mov(r3, Operand(instr->arity()));
-  }
+  __ mov(r3, Operand(instr->arity()));
 
   // Change context.
   __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
