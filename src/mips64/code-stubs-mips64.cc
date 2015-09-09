@@ -2771,6 +2771,8 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, at);
   __ Branch(miss, ne, a1, Operand(at));
 
+  __ li(a0, Operand(arg_count()));
+
   // Increment the call count for monomorphic function calls.
   __ dsrl(t0, a3, 32 - kPointerSizeLog2);
   __ Daddu(a3, a2, Operand(t0));
