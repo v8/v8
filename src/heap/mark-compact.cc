@@ -2941,7 +2941,7 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
 
   OldSpace* old_space = heap()->old_space();
 
-  HeapObject* target;
+  HeapObject* target = nullptr;
   AllocationAlignment alignment = object->RequiredAlignment();
   AllocationResult allocation = old_space->AllocateRaw(object_size, alignment);
   if (allocation.To(&target)) {
@@ -3193,7 +3193,7 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 
       int size = object->Size();
       AllocationAlignment alignment = object->RequiredAlignment();
-      HeapObject* target_object;
+      HeapObject* target_object = nullptr;
       AllocationResult allocation = space->AllocateRaw(size, alignment);
       if (!allocation.To(&target_object)) {
         // If allocation failed, use emergency memory and re-try allocation.

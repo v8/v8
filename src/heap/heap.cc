@@ -1084,7 +1084,7 @@ bool Heap::ReserveSpace(Reservation* reservations) {
           } else {
             allocation = paged_space(space)->AllocateRawUnaligned(size);
           }
-          HeapObject* free_space;
+          HeapObject* free_space = nullptr;
           if (allocation.To(&free_space)) {
             // Mark with a free list node, in case we have a GC before
             // deserializing.
@@ -2497,7 +2497,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
 AllocationResult Heap::AllocateMap(InstanceType instance_type,
                                    int instance_size,
                                    ElementsKind elements_kind) {
-  HeapObject* result;
+  HeapObject* result = nullptr;
   AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
   if (!allocation.To(&result)) return allocation;
 
@@ -2536,7 +2536,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
 
 AllocationResult Heap::AllocateFillerObject(int size, bool double_align,
                                             AllocationSpace space) {
-  HeapObject* obj;
+  HeapObject* obj = nullptr;
   {
     AllocationAlignment align = double_align ? kDoubleAligned : kWordAligned;
     AllocationResult allocation = AllocateRaw(size, space, space, align);
@@ -2580,7 +2580,7 @@ const Heap::StructTable Heap::struct_table[] = {
 
 
 bool Heap::CreateInitialMaps() {
-  HeapObject* obj;
+  HeapObject* obj = nullptr;
   {
     AllocationResult allocation = AllocatePartialMap(MAP_TYPE, Map::kSize);
     if (!allocation.To(&obj)) return false;
@@ -2816,7 +2816,7 @@ bool Heap::CreateInitialMaps() {
       if (!AllocateByteArray(0, TENURED).To(&byte_array)) return false;
       set_empty_byte_array(byte_array);
 
-      BytecodeArray* bytecode_array;
+      BytecodeArray* bytecode_array = nullptr;
       AllocationResult allocation =
           AllocateBytecodeArray(0, nullptr, 0, 0, empty_fixed_array());
       if (!allocation.To(&bytecode_array)) {
@@ -2850,7 +2850,7 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
 
   AllocationSpace space = SelectSpace(size, pretenure);
 
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation =
         AllocateRaw(size, space, OLD_SPACE, kDoubleUnaligned);
@@ -2871,7 +2871,7 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
                                                                           \
     AllocationSpace space = SelectSpace(size, pretenure);                 \
                                                                           \
-    HeapObject* result;                                                   \
+    HeapObject* result = nullptr;                                         \
     {                                                                     \
       AllocationResult allocation =                                       \
           AllocateRaw(size, space, OLD_SPACE, kSimd128Unaligned);         \
@@ -2893,7 +2893,7 @@ AllocationResult Heap::AllocateCell(Object* value) {
   int size = Cell::kSize;
   STATIC_ASSERT(Cell::kSize <= Page::kMaxRegularHeapObjectSize);
 
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, OLD_SPACE, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
@@ -2908,7 +2908,7 @@ AllocationResult Heap::AllocatePropertyCell() {
   int size = PropertyCell::kSize;
   STATIC_ASSERT(PropertyCell::kSize <= Page::kMaxRegularHeapObjectSize);
 
-  HeapObject* result;
+  HeapObject* result = nullptr;
   AllocationResult allocation = AllocateRaw(size, OLD_SPACE, OLD_SPACE);
   if (!allocation.To(&result)) return allocation;
 
@@ -2925,7 +2925,7 @@ AllocationResult Heap::AllocatePropertyCell() {
 AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
   int size = WeakCell::kSize;
   STATIC_ASSERT(WeakCell::kSize <= Page::kMaxRegularHeapObjectSize);
-  HeapObject* result = NULL;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, OLD_SPACE, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
@@ -3394,7 +3394,7 @@ AllocationResult Heap::AllocateForeign(Address address,
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   STATIC_ASSERT(Foreign::kSize <= Page::kMaxRegularHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
-  Foreign* result;
+  Foreign* result = nullptr;
   AllocationResult allocation = Allocate(foreign_map(), space);
   if (!allocation.To(&result)) return allocation;
   result->set_foreign_address(address);
@@ -3408,7 +3408,7 @@ AllocationResult Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space = SelectSpace(size, pretenure);
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
@@ -3432,7 +3432,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   DCHECK(!InNewSpace(constant_pool));
 
   int size = BytecodeArray::SizeFor(length);
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, OLD_SPACE, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
@@ -3619,7 +3619,7 @@ AllocationResult Heap::AllocateFixedTypedArrayWithExternalPointer(
     PretenureFlag pretenure) {
   int size = FixedTypedArrayBase::kHeaderSize;
   AllocationSpace space = SelectSpace(size, pretenure);
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
@@ -3664,7 +3664,7 @@ AllocationResult Heap::AllocateFixedTypedArray(int length,
                                   FixedTypedArrayBase::kDataOffset);
   AllocationSpace space = SelectSpace(size, pretenure);
 
-  HeapObject* object;
+  HeapObject* object = nullptr;
   AllocationResult allocation = AllocateRaw(
       size, space, OLD_SPACE,
       array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
@@ -3687,7 +3687,7 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
   AllocationResult allocation =
       AllocateRaw(object_size, CODE_SPACE, CODE_SPACE);
 
-  HeapObject* result;
+  HeapObject* result = nullptr;
   if (!allocation.To(&result)) return allocation;
 
   if (immovable) {
@@ -3721,7 +3721,7 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
 AllocationResult Heap::CopyCode(Code* code) {
   AllocationResult allocation;
 
-  HeapObject* result = NULL;
+  HeapObject* result = nullptr;
   // Allocate an object the same size as the code object.
   int obj_size = code->Size();
   allocation = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
@@ -3746,7 +3746,7 @@ AllocationResult Heap::CopyCode(Code* code) {
 AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   // Allocate ByteArray before the Code object, so that we do not risk
   // leaving uninitialized Code object (and breaking the heap).
-  ByteArray* reloc_info_array;
+  ByteArray* reloc_info_array = nullptr;
   {
     AllocationResult allocation =
         AllocateByteArray(reloc_info.length(), TENURED);
@@ -3762,7 +3762,7 @@ AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   size_t relocation_offset =
       static_cast<size_t>(code->instruction_end() - old_addr);
 
-  HeapObject* result;
+  HeapObject* result = nullptr;
   AllocationResult allocation =
       AllocateRaw(new_obj_size, CODE_SPACE, CODE_SPACE);
   if (!allocation.To(&result)) return allocation;
@@ -3817,7 +3817,7 @@ AllocationResult Heap::Allocate(Map* map, AllocationSpace space,
   if (allocation_site != NULL) {
     size += AllocationMemento::kSize;
   }
-  HeapObject* result;
+  HeapObject* result = nullptr;
   AllocationResult allocation = AllocateRaw(size, space, retry_space);
   if (!allocation.To(&result)) return allocation;
   // No need for write barrier since object is white and map is in old space.
@@ -3879,7 +3879,7 @@ AllocationResult Heap::AllocateJSObjectFromMap(
   // Allocate the JSObject.
   int size = map->instance_size();
   AllocationSpace space = SelectSpace(size, pretenure);
-  JSObject* js_obj;
+  JSObject* js_obj = nullptr;
   AllocationResult allocation = Allocate(map, space, allocation_site);
   if (!allocation.To(&js_obj)) return allocation;
 
@@ -3900,7 +3900,7 @@ AllocationResult Heap::AllocateJSObject(JSFunction* constructor,
       constructor->initial_map(), pretenure, allocation_site);
 #ifdef DEBUG
   // Make sure result is NOT a global object if valid.
-  HeapObject* obj;
+  HeapObject* obj = nullptr;
   DCHECK(!allocation.To(&obj) || !obj->IsGlobalObject());
 #endif
   return allocation;
@@ -3917,7 +3917,7 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
         map->instance_type() == JS_ARRAY_TYPE);
 
   int object_size = map->instance_size();
-  HeapObject* clone;
+  HeapObject* clone = nullptr;
 
   DCHECK(site == NULL || AllocationSite::CanTrack(map->instance_type()));
 
@@ -3988,7 +3988,7 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
   if (elements->length() > 0) {
-    FixedArrayBase* elem;
+    FixedArrayBase* elem = nullptr;
     {
       AllocationResult allocation;
       if (elements->map() == fixed_cow_array_map()) {
@@ -4004,7 +4004,7 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   }
   // Update properties if necessary.
   if (properties->length() > 0) {
-    FixedArray* prop;
+    FixedArray* prop = nullptr;
     {
       AllocationResult allocation = CopyFixedArray(properties);
       if (!allocation.To(&prop)) return allocation;
@@ -4082,7 +4082,7 @@ AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
   AllocationSpace space = SelectSpace(size, TENURED);
 
   // Allocate string.
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
@@ -4124,7 +4124,7 @@ AllocationResult Heap::AllocateRawOneByteString(int length,
   DCHECK(size <= SeqOneByteString::kMaxSize);
   AllocationSpace space = SelectSpace(size, pretenure);
 
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
@@ -4148,7 +4148,7 @@ AllocationResult Heap::AllocateRawTwoByteString(int length,
   DCHECK(size <= SeqTwoByteString::kMaxSize);
   AllocationSpace space = SelectSpace(size, pretenure);
 
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
@@ -4165,7 +4165,7 @@ AllocationResult Heap::AllocateRawTwoByteString(int length,
 
 AllocationResult Heap::AllocateEmptyFixedArray() {
   int size = FixedArray::SizeFor(0);
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, OLD_SPACE, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
@@ -4183,7 +4183,7 @@ AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
   }
 
   int len = src->length();
-  HeapObject* obj;
+  HeapObject* obj = nullptr;
   {
     AllocationResult allocation = AllocateRawFixedArray(len, TENURED);
     if (!allocation.To(&obj)) return allocation;
@@ -4216,7 +4216,7 @@ AllocationResult Heap::CopyFixedArrayAndGrow(FixedArray* src, int grow_by,
   int old_len = src->length();
   int new_len = old_len + grow_by;
   DCHECK(new_len >= old_len);
-  HeapObject* obj;
+  HeapObject* obj = nullptr;
   {
     AllocationResult allocation = AllocateRawFixedArray(new_len, pretenure);
     if (!allocation.To(&obj)) return allocation;
@@ -4236,7 +4236,7 @@ AllocationResult Heap::CopyFixedArrayAndGrow(FixedArray* src, int grow_by,
 
 AllocationResult Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   int len = src->length();
-  HeapObject* obj;
+  HeapObject* obj = nullptr;
   {
     AllocationResult allocation = AllocateRawFixedArray(len, NOT_TENURED);
     if (!allocation.To(&obj)) return allocation;
@@ -4262,7 +4262,7 @@ AllocationResult Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
 AllocationResult Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
                                                    Map* map) {
   int len = src->length();
-  HeapObject* obj;
+  HeapObject* obj = nullptr;
   {
     AllocationResult allocation = AllocateRawFixedDoubleArray(len, NOT_TENURED);
     if (!allocation.To(&obj)) return allocation;
@@ -4317,7 +4317,7 @@ AllocationResult Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
 AllocationResult Heap::AllocateUninitializedFixedArray(int length) {
   if (length == 0) return empty_fixed_array();
 
-  HeapObject* obj;
+  HeapObject* obj = nullptr;
   {
     AllocationResult allocation = AllocateRawFixedArray(length, NOT_TENURED);
     if (!allocation.To(&obj)) return allocation;
@@ -4333,7 +4333,7 @@ AllocationResult Heap::AllocateUninitializedFixedDoubleArray(
     int length, PretenureFlag pretenure) {
   if (length == 0) return empty_fixed_array();
 
-  HeapObject* elements;
+  HeapObject* elements = nullptr;
   AllocationResult allocation = AllocateRawFixedDoubleArray(length, pretenure);
   if (!allocation.To(&elements)) return allocation;
 
@@ -4352,7 +4352,7 @@ AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
   int size = FixedDoubleArray::SizeFor(length);
   AllocationSpace space = SelectSpace(size, pretenure);
 
-  HeapObject* object;
+  HeapObject* object = nullptr;
   {
     AllocationResult allocation =
         AllocateRaw(size, space, OLD_SPACE, kDoubleAligned);
@@ -4367,7 +4367,7 @@ AllocationResult Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
   STATIC_ASSERT(Symbol::kSize <= Page::kMaxRegularHeapObjectSize);
 
-  HeapObject* result = NULL;
+  HeapObject* result = nullptr;
   AllocationResult allocation =
       AllocateRaw(Symbol::kSize, OLD_SPACE, OLD_SPACE);
   if (!allocation.To(&result)) return allocation;
@@ -4408,7 +4408,7 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
   }
   int size = map->instance_size();
   AllocationSpace space = SelectSpace(size, TENURED);
-  Struct* result;
+  Struct* result = nullptr;
   {
     AllocationResult allocation = Allocate(map, space);
     if (!allocation.To(&result)) return allocation;
