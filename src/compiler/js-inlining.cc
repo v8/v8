@@ -15,6 +15,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/rewriter.h"
 #include "src/scopes.h"
@@ -296,8 +297,22 @@ Reduction JSInliner::Reduce(Node* node) {
   CompilationInfo info(&parse_info);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
 
-  if (!Compiler::ParseAndAnalyze(info.parse_info())) return NoChange();
-  if (!Compiler::EnsureDeoptimizationSupport(&info)) return NoChange();
+  if (!Compiler::ParseAndAnalyze(info.parse_info())) {
+    TRACE("Not inlining %s into %s because parsing failed\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    if (info_->isolate()->has_pending_exception()) {
+      info_->isolate()->clear_pending_exception();
+    }
+    return NoChange();
+  }
+
+  if (!Compiler::EnsureDeoptimizationSupport(&info)) {
+    TRACE("Not inlining %s into %s because deoptimization support failed\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
 
   if (info.scope()->arguments() != NULL && is_sloppy(info.language_mode())) {
     // For now do not inline functions that use their arguments array.
