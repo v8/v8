@@ -415,6 +415,9 @@ class MacroAssembler : public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
+  // Load the global proxy from the current context.
+  void LoadGlobalProxy(Register dst);
+
   // Conditionally load the cached Array transitioned map of type
   // transitioned_kind from the native context if the map in register
   // map_in_out is the cached Array map in the native context of
@@ -781,7 +784,23 @@ class MacroAssembler : public Assembler {
   // Compare the object in a register to a value from the root list.
   // Uses the ip register as scratch.
   void CompareRoot(Register obj, Heap::RootListIndex index);
+  void PushRoot(Heap::RootListIndex index) {
+    LoadRoot(r0, index);
+    Push(r0);
+  }
 
+  // Compare the object in a register to a value and jump if they are equal.
+  void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal) {
+    CompareRoot(with, index);
+    beq(if_equal);
+  }
+
+  // Compare the object in a register to a value and jump if they are not equal.
+  void JumpIfNotRoot(Register with, Heap::RootListIndex index,
+                     Label* if_not_equal) {
+    CompareRoot(with, index);
+    bne(if_not_equal);
+  }
 
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.
@@ -1287,6 +1306,8 @@ class MacroAssembler : public Assembler {
 
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
+
+  void AssertFunction(Register object);
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
