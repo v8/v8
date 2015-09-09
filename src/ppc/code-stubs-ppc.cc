@@ -2736,45 +2736,29 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 }
 
 
-void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
+void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // r4 - function
   // r6 - slot id
   // r5 - vector
-  Label miss;
-  int argc = arg_count();
-  ParameterCount actual(argc);
-
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r7);
-  __ cmp(r4, r7);
-  __ bne(&miss);
+  // r7 - allocation site (loaded from vector[slot])
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r8);
+  __ cmp(r4, r8);
+  __ bne(miss);
 
   __ mov(r3, Operand(arg_count()));
-  __ SmiToPtrArrayOffset(r9, r6);
-  __ add(r9, r5, r9);
-  __ LoadP(r7, FieldMemOperand(r9, FixedArray::kHeaderSize));
-
-  // Verify that r7 contains an AllocationSite
-  __ LoadP(r8, FieldMemOperand(r7, HeapObject::kMapOffset));
-  __ CompareRoot(r8, Heap::kAllocationSiteMapRootIndex);
-  __ bne(&miss);
 
   // Increment the call count for monomorphic function calls.
   const int count_offset = FixedArray::kHeaderSize + kPointerSize;
-  __ LoadP(r6, FieldMemOperand(r9, count_offset));
+  __ SmiToPtrArrayOffset(r8, r6);
+  __ add(r5, r5, r8);
+  __ LoadP(r6, FieldMemOperand(r5, count_offset));
   __ AddSmiLiteral(r6, r6, Smi::FromInt(CallICNexus::kCallCountIncrement), r0);
-  __ StoreP(r6, FieldMemOperand(r9, count_offset), r0);
+  __ StoreP(r6, FieldMemOperand(r5, count_offset), r0);
 
   __ mr(r5, r7);
   __ mr(r6, r4);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-
-  // The slow case, we need this no matter what to complete a call after a miss.
-  __ mov(r3, Operand(arg_count()));
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -2849,10 +2833,20 @@ void CallICStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&extra_checks_or_miss);
-  Label uninitialized, miss;
+  Label uninitialized, miss, not_allocation_site;
 
   __ CompareRoot(r7, Heap::kmegamorphic_symbolRootIndex);
   __ beq(&slow_start);
+
+  // Verify that r7 contains an AllocationSite
+  __ LoadP(r8, FieldMemOperand(r7, HeapObject::kMapOffset));
+  __ CompareRoot(r8, Heap::kAllocationSiteMapRootIndex);
+  __ bne(&not_allocation_site);
+
+  // We have an allocation site.
+  HandleArrayCase(masm, &miss);
+
+  __ bind(&not_allocation_site);
 
   // The following cases attempt to handle MISS cases without going to the
   // runtime.
@@ -2942,10 +2936,7 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
   __ Push(r4, r5, r6);
 
   // Call the entry.
-  Runtime::FunctionId id = GetICState() == DEFAULT
-                               ? Runtime::kCallIC_Miss
-                               : Runtime::kCallIC_Customization_Miss;
-  __ CallRuntime(id, 3);
+  __ CallRuntime(Runtime::kCallIC_Miss, 3);
 
   // Move result to r4 and exit the internal frame.
   __ mr(r4, r3);
@@ -4502,13 +4493,6 @@ void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
 void CallICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, r5);
   CallICStub stub(isolate(), state());
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, r5);
-  CallIC_ArrayStub stub(isolate(), state());
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
