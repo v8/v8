@@ -2297,73 +2297,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 }
 
 
-bool CallIC::DoCustomHandler(Handle<Object> function,
-                             const CallICState& callic_state) {
-  DCHECK(FLAG_use_ic && function->IsJSFunction());
-
-  // Are we the array function?
-  Handle<JSFunction> array_function =
-      Handle<JSFunction>(isolate()->native_context()->array_function());
-  if (array_function.is_identical_to(Handle<JSFunction>::cast(function))) {
-    // Alter the slot.
-    CallICNexus* nexus = casted_nexus<CallICNexus>();
-    nexus->ConfigureMonomorphicArray();
-
-    // Vector-based ICs have a different calling convention in optimized code
-    // than full code so the correct stub has to be chosen.
-    if (AddressIsOptimizedCode()) {
-      CallIC_ArrayStub stub(isolate(), callic_state);
-      set_target(*stub.GetCode());
-    } else {
-      CallIC_ArrayTrampolineStub stub(isolate(), callic_state);
-      set_target(*stub.GetCode());
-    }
-
-    Handle<String> name;
-    if (array_function->shared()->name()->IsString()) {
-      name = Handle<String>(String::cast(array_function->shared()->name()),
-                            isolate());
-    }
-    TRACE_IC("CallIC", name);
-    OnTypeFeedbackChanged(isolate(), get_host(), nexus->vector(), state(),
-                          MONOMORPHIC);
-    return true;
-  }
-  return false;
-}
-
-
-void CallIC::PatchMegamorphic(Handle<Object> function) {
-  CallICState callic_state(target()->extra_ic_state());
-
-  // We are going generic.
-  CallICNexus* nexus = casted_nexus<CallICNexus>();
-  nexus->ConfigureMegamorphic();
-
-  // Vector-based ICs have a different calling convention in optimized code
-  // than full code so the correct stub has to be chosen.
-  if (AddressIsOptimizedCode()) {
-    CallICStub stub(isolate(), callic_state);
-    set_target(*stub.GetCode());
-  } else {
-    CallICTrampolineStub stub(isolate(), callic_state);
-    set_target(*stub.GetCode());
-  }
-
-  Handle<Object> name = isolate()->factory()->empty_string();
-  if (function->IsJSFunction()) {
-    Handle<JSFunction> js_function = Handle<JSFunction>::cast(function);
-    name = handle(js_function->shared()->name(), isolate());
-  }
-
-  TRACE_IC("CallIC", name);
-  OnTypeFeedbackChanged(isolate(), get_host(), nexus->vector(), state(),
-                        GENERIC);
-}
-
-
 void CallIC::HandleMiss(Handle<Object> function) {
-  CallICState callic_state(target()->extra_ic_state());
   Handle<Object> name = isolate()->factory()->empty_string();
   CallICNexus* nexus = casted_nexus<CallICNexus>();
   Object* feedback = nexus->GetFeedback();
@@ -2371,25 +2305,22 @@ void CallIC::HandleMiss(Handle<Object> function) {
   // Hand-coded MISS handling is easier if CallIC slots don't contain smis.
   DCHECK(!feedback->IsSmi());
 
-  if (feedback->IsWeakCell() || !function->IsJSFunction()) {
+  if (feedback->IsWeakCell() || !function->IsJSFunction() ||
+      feedback->IsAllocationSite()) {
     // We are going generic.
     nexus->ConfigureMegamorphic();
   } else {
-    // The feedback is either uninitialized or an allocation site.
-    // It might be an allocation site because if we re-compile the full code
-    // to add deoptimization support, we call with the default call-ic, and
-    // merely need to patch the target to match the feedback.
-    // TODO(mvstanton): the better approach is to dispense with patching
-    // altogether, which is in progress.
-    DCHECK(feedback == *TypeFeedbackVector::UninitializedSentinel(isolate()) ||
-           feedback->IsAllocationSite());
+    DCHECK(feedback == *TypeFeedbackVector::UninitializedSentinel(isolate()));
+    Handle<JSFunction> js_function = Handle<JSFunction>::cast(function);
 
-    // Do we want to install a custom handler?
-    if (FLAG_use_ic && DoCustomHandler(function, callic_state)) {
-      return;
+    Handle<JSFunction> array_function =
+        Handle<JSFunction>(isolate()->native_context()->array_function());
+    if (array_function.is_identical_to(js_function)) {
+      // Alter the slot.
+      nexus->ConfigureMonomorphicArray();
+    } else {
+      nexus->ConfigureMonomorphic(js_function);
     }
-
-    nexus->ConfigureMonomorphic(Handle<JSFunction>::cast(function));
   }
 
   if (function->IsJSFunction()) {
@@ -2422,22 +2353,6 @@ RUNTIME_FUNCTION(Runtime_CallIC_Miss) {
   CallICNexus nexus(vector, vector_slot);
   CallIC ic(isolate, &nexus);
   ic.HandleMiss(function);
-  return *function;
-}
-
-
-RUNTIME_FUNCTION(Runtime_CallIC_Customization_Miss) {
-  TimerEventScope<TimerEventIcMiss> timer(isolate);
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  Handle<Object> function = args.at<Object>(0);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
-  Handle<Smi> slot = args.at<Smi>(2);
-  FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
-  CallICNexus nexus(vector, vector_slot);
-  // A miss on a custom call ic always results in going megamorphic.
-  CallIC ic(isolate, &nexus);
-  ic.PatchMegamorphic(function);
   return *function;
 }
 

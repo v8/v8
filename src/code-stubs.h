@@ -29,7 +29,6 @@ namespace internal {
   V(CallConstruct)                          \
   V(CallFunction)                           \
   V(CallIC)                                 \
-  V(CallIC_Array)                           \
   V(CEntry)                                 \
   V(CompareIC)                              \
   V(DoubleToI)                              \
@@ -40,7 +39,6 @@ namespace internal {
   V(KeyedLoadICTrampoline)                  \
   V(LoadICTrampoline)                       \
   V(CallICTrampoline)                       \
-  V(CallIC_ArrayTrampoline)                 \
   V(LoadIndexedInterceptor)                 \
   V(LoadIndexedString)                      \
   V(MathPow)                                \
@@ -989,26 +987,13 @@ class CallICStub: public PlatformCodeStub {
 
   // Code generation helpers.
   void GenerateMiss(MacroAssembler* masm);
+  void HandleArrayCase(MacroAssembler* masm, Label* miss);
 
  private:
   void PrintState(std::ostream& os) const override;  // NOLINT
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedbackAndVector);
   DEFINE_PLATFORM_CODE_STUB(CallIC, PlatformCodeStub);
-};
-
-
-class CallIC_ArrayStub: public CallICStub {
- public:
-  CallIC_ArrayStub(Isolate* isolate, const CallICState& state_in)
-      : CallICStub(isolate, state_in) {}
-
-  InlineCacheState GetICState() const final { return MONOMORPHIC; }
-
- private:
-  void PrintState(std::ostream& os) const override;  // NOLINT
-
-  DEFINE_PLATFORM_CODE_STUB(CallIC_Array, CallICStub);
 };
 
 
@@ -2336,16 +2321,6 @@ class CallICTrampolineStub : public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
   DEFINE_PLATFORM_CODE_STUB(CallICTrampoline, PlatformCodeStub);
-};
-
-
-class CallIC_ArrayTrampolineStub : public CallICTrampolineStub {
- public:
-  CallIC_ArrayTrampolineStub(Isolate* isolate, const CallICState& state)
-      : CallICTrampolineStub(isolate, state) {}
-
- private:
-  DEFINE_PLATFORM_CODE_STUB(CallIC_ArrayTrampoline, CallICTrampolineStub);
 };
 
 

@@ -2687,24 +2687,15 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 }
 
 
-void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
+void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // a1 - function
   // a3 - slot id
   // a2 - vector
-  Label miss;
-
+  // t0 - loaded from vector[slot]
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, at);
-  __ Branch(&miss, ne, a1, Operand(at));
+  __ Branch(miss, ne, a1, Operand(at));
 
   __ li(a0, Operand(arg_count()));
-  __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(at, a2, Operand(at));
-  __ lw(t0, FieldMemOperand(at, FixedArray::kHeaderSize));
-
-  // Verify that t0 contains an AllocationSite
-  __ lw(t1, FieldMemOperand(t0, HeapObject::kMapOffset));
-  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-  __ Branch(&miss, ne, t1, Operand(at));
 
   // Increment the call count for monomorphic function calls.
   __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
@@ -2717,13 +2708,6 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ mov(a3, a1);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-
-  // The slow case, we need this no matter what to complete a call after a miss.
-  __ li(a0, Operand(arg_count()));
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -2798,10 +2782,19 @@ void CallICStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&extra_checks_or_miss);
-  Label uninitialized, miss;
+  Label uninitialized, miss, not_allocation_site;
 
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ Branch(&slow_start, eq, t0, Operand(at));
+
+  // Verify that t0 contains an AllocationSite
+  __ lw(t1, FieldMemOperand(t0, HeapObject::kMapOffset));
+  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+  __ Branch(&not_allocation_site, ne, t1, Operand(at));
+
+  HandleArrayCase(masm, &miss);
+
+  __ bind(&not_allocation_site);
 
   // The following cases attempt to handle MISS cases without going to the
   // runtime.
@@ -2894,10 +2887,7 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
   __ Push(a1, a2, a3);
 
   // Call the entry.
-  Runtime::FunctionId id = GetICState() == DEFAULT
-                               ? Runtime::kCallIC_Miss
-                               : Runtime::kCallIC_Customization_Miss;
-  __ CallRuntime(id, 3);
+  __ CallRuntime(Runtime::kCallIC_Miss, 3);
 
   // Move result to a1 and exit the internal frame.
   __ mov(a1, v0);
@@ -4495,13 +4485,6 @@ void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
 void CallICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, a2);
   CallICStub stub(isolate(), state());
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, a2);
-  CallIC_ArrayStub stub(isolate(), state());
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

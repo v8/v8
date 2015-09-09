@@ -2068,46 +2068,26 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 }
 
 
-void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
+void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // rdi - function
-  // rdx - slot id (as integer)
+  // rdx - slot id
   // rbx - vector
-  Label miss;
-  int argc = arg_count();
-  ParameterCount actual(argc);
-
-  __ SmiToInteger32(rdx, rdx);
-
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
-  __ cmpp(rdi, rcx);
-  __ j(not_equal, &miss);
+  // rcx - allocation site (loaded from vector[slot]).
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r8);
+  __ cmpp(rdi, r8);
+  __ j(not_equal, miss);
 
   __ movp(rax, Immediate(arg_count()));
-  __ movp(rcx, FieldOperand(rbx, rdx, times_pointer_size,
-                            FixedArray::kHeaderSize));
-  // Verify that ecx contains an AllocationSite
-  __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
-                 Heap::kAllocationSiteMapRootIndex);
-  __ j(not_equal, &miss, Label::kNear);
 
   // Increment the call count for monomorphic function calls.
-  {
-    __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
-                                   FixedArray::kHeaderSize + kPointerSize),
-                      Smi::FromInt(CallICNexus::kCallCountIncrement));
+  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
+                                 FixedArray::kHeaderSize + kPointerSize),
+                    Smi::FromInt(CallICNexus::kCallCountIncrement));
 
-    __ movp(rbx, rcx);
-    __ movp(rdx, rdi);
-    ArrayConstructorStub stub(masm->isolate(), arg_count());
-    __ TailCallStub(&stub);
-  }
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-
-  // The slow case, we need this no matter what to complete a call after a miss.
-  __ Set(rax, arg_count());
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  __ movp(rbx, rcx);
+  __ movp(rdx, rdi);
+  ArrayConstructorStub stub(masm->isolate(), arg_count());
+  __ TailCallStub(&stub);
 }
 
 
@@ -2184,10 +2164,20 @@ void CallICStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&extra_checks_or_miss);
-  Label uninitialized, miss;
+  Label uninitialized, miss, not_allocation_site;
 
   __ Cmp(rcx, TypeFeedbackVector::MegamorphicSentinel(isolate));
   __ j(equal, &slow_start);
+
+  // Check if we have an allocation site.
+  __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
+                 Heap::kAllocationSiteMapRootIndex);
+  __ j(not_equal, &not_allocation_site);
+
+  // We have an allocation site.
+  HandleArrayCase(masm, &miss);
+
+  __ bind(&not_allocation_site);
 
   // The following cases attempt to handle MISS cases without going to the
   // runtime.
@@ -2278,10 +2268,7 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
   __ Push(rdx);
 
   // Call the entry.
-  Runtime::FunctionId id = GetICState() == DEFAULT
-                               ? Runtime::kCallIC_Miss
-                               : Runtime::kCallIC_Customization_Miss;
-  __ CallRuntime(id, 3);
+  __ CallRuntime(Runtime::kCallIC_Miss, 3);
 
   // Move result to edi and exit the internal frame.
   __ movp(rdi, rax);
@@ -4645,13 +4632,6 @@ void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
 void CallICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, rbx);
   CallICStub stub(isolate(), state());
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, rbx);
-  CallIC_ArrayStub stub(isolate(), state());
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

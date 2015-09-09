@@ -1022,7 +1022,6 @@ namespace internal {
   F(LoadIC_Miss, 3, 1)                       \
   F(KeyedLoadIC_Miss, 3, 1)                  \
   F(CallIC_Miss, 3, 1)                       \
-  F(CallIC_Customization_Miss, 3, 1)         \
   F(StoreIC_Miss, 3, 1)                      \
   F(StoreIC_Slow, 3, 1)                      \
   F(KeyedStoreIC_Miss, 3, 1)                 \

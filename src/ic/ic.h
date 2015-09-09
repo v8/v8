@@ -285,13 +285,7 @@ class CallIC : public IC {
     DCHECK(nexus != NULL);
   }
 
-  void PatchMegamorphic(Handle<Object> function);
-
   void HandleMiss(Handle<Object> function);
-
-  // Returns true if a custom handler was installed.
-  bool DoCustomHandler(Handle<Object> function,
-                       const CallICState& callic_state);
 
   // Code generator routines.
   static Handle<Code> initialize_stub(Isolate* isolate, int argc,
