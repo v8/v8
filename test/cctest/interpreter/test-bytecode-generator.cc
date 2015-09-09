@@ -21,6 +21,7 @@ class BytecodeGeneratorHelper {
       -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
 
   BytecodeGeneratorHelper() {
+    i::FLAG_vector_stores = true;
     i::FLAG_ignition = true;
     i::FLAG_ignition_filter = kFunctionName;
     CcTest::i_isolate()->interpreter()->Initialize();
@@ -414,6 +415,110 @@ TEST(PropertyLoads) {
     for (int j = 0; j < snippets[i].constant_count; j++) {
       Handle<String> expected = helper.factory()->NewStringFromAsciiChecked(
           snippets[i].constants[j]);
+      CHECK(String::cast(ba->constant_pool()->get(j))->Equals(*expected));
+    }
+  }
+}
+
+
+TEST(PropertyStores) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  Code::Kind ic_kinds[] = { i::Code::STORE_IC, i::Code::STORE_IC };
+  FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  Handle<i::TypeFeedbackVector> vector =
+      helper.factory()->NewTypeFeedbackVector(&feedback_spec);
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function f(a) { a.name = \"val\"; }\nf({name : \"test\"})",
+       2 * kPointerSize, 2, 16,
+       {
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(0),
+          B(LdaConstant), U8(0),
+          B(Star), R(1),
+          B(LdaConstant), U8(1),
+          B(StoreIC), R(0), R(1), U8(vector->first_ic_slot_index()),
+          B(LdaUndefined),
+          B(Return)
+       },
+       2, { "name", "val" }
+      },
+      {"function f(a) { a[\"key\"] = \"val\"; }\nf({key : \"test\"})",
+       2 * kPointerSize, 2, 16,
+       {
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(0),
+          B(LdaConstant), U8(0),
+          B(Star), R(1),
+          B(LdaConstant), U8(1),
+          B(StoreIC), R(0), R(1), U8(vector->first_ic_slot_index()),
+          B(LdaUndefined),
+          B(Return)
+       },
+       2, { "key", "val" }
+      },
+      {"function f(a) { a[100] = \"val\"; }\nf({100 : \"test\"})",
+       2 * kPointerSize, 2, 16,
+       {
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(0),
+          B(LdaSmi8), U8(100),
+          B(Star), R(1),
+          B(LdaConstant), U8(0),
+          B(KeyedStoreIC), R(0), R(1), U8(vector->first_ic_slot_index()),
+          B(LdaUndefined),
+          B(Return)
+       },
+       1, { "val" }
+      },
+      {"function f(a, b) { a[b] = \"val\"; }\nf({arg : \"test\"}, \"arg\")",
+       2 * kPointerSize, 3, 16,
+       {
+          B(Ldar), R(helper.kLastParamIndex - 1),
+          B(Star), R(0),
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(1),
+          B(LdaConstant), U8(0),
+          B(KeyedStoreIC), R(0), R(1), U8(vector->first_ic_slot_index()),
+          B(LdaUndefined),
+          B(Return)
+       },
+       1, { "val" }
+      },
+      {"function f(a) { a.name = a[-124]; }\n"
+       "f({\"-124\" : \"test\", name : 123 })",
+       3 * kPointerSize, 2, 23,
+       {
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(0),
+          B(LdaConstant), U8(0),
+          B(Star), R(1),
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(2),
+          B(LdaSmi8), U8(-124),
+          B(KeyedLoadIC), R(2), U8(vector->first_ic_slot_index()),
+          B(StoreIC), R(0), R(1), U8(vector->first_ic_slot_index() + 2),
+          B(LdaUndefined),
+          B(Return)
+       },
+       1, { "name" }
+      }
+  };
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    Handle<BytecodeArray> ba =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
+    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
+    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
+    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
+                  ba->length()));
+    CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
+    for (int j = 0; j < snippets[i].constant_count; j++) {
+      Handle<String> expected =
+          helper.factory()->NewStringFromAsciiChecked(snippets[i].constants[j]);
       CHECK(String::cast(ba->constant_pool()->get(j))->Equals(*expected));
     }
   }

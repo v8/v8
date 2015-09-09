@@ -59,6 +59,14 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot,
                                           LanguageMode language_mode);
 
+  // Store properties. The value to be stored should be in the accumulator.
+  BytecodeArrayBuilder& StoreNamedProperty(Register object, Register name,
+                                           int feedback_slot,
+                                           LanguageMode language_mode);
+  BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
+                                           int feedback_slot,
+                                           LanguageMode language_mode);
+
   // Operators.
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg);
 

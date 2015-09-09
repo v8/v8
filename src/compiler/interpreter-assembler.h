@@ -83,6 +83,8 @@ class InterpreterAssembler {
   // Call an IC code stub.
   Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node* arg1,
                Node* arg2, Node* arg3, Node* arg4);
+  Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node* arg1,
+               Node* arg2, Node* arg3, Node* arg4, Node* arg5);
 
   // Call JS builtin.
   Node* CallJSBuiltin(int context_index, Node* receiver);
@@ -121,6 +123,7 @@ class InterpreterAssembler {
   Node* BytecodeOperand(int operand_index);
   Node* BytecodeOperandSignExtended(int operand_index);
 
+  Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node** args);
   Node* CallJSBuiltin(int context_index, Node* receiver, Node** js_args,
                       int js_arg_count);
 

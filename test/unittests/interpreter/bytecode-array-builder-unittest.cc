@@ -39,9 +39,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Register reg(0);
   builder.LoadAccumulatorWithRegister(reg).StoreAccumulatorInRegister(reg);
 
-  // Emit load property operations.
-  builder.LoadNamedProperty(reg, 0, LanguageMode::SLOPPY);
-  builder.LoadKeyedProperty(reg, 0, LanguageMode::STRICT);
+  // Emit load / store property operations.
+  builder.LoadNamedProperty(reg, 0, LanguageMode::SLOPPY)
+      .LoadKeyedProperty(reg, 0, LanguageMode::SLOPPY)
+      .StoreNamedProperty(reg, reg, 0, LanguageMode::SLOPPY)
+      .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY);
 
   // Emit binary operators invocations.
   builder.BinaryOperation(Token::Value::ADD, reg)

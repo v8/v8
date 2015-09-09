@@ -154,7 +154,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
     Register object, int feedback_slot, LanguageMode language_mode) {
-  if (is_strong(language_mode)) {
+  if (!is_sloppy(language_mode)) {
     UNIMPLEMENTED();
   }
 
@@ -170,12 +170,46 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
     Register object, int feedback_slot, LanguageMode language_mode) {
-  if (is_strong(language_mode)) {
+  if (!is_sloppy(language_mode)) {
     UNIMPLEMENTED();
   }
 
   if (FitsInByteOperand(feedback_slot)) {
     Output(Bytecode::kKeyedLoadIC, object.ToOperand(),
+           static_cast<uint8_t>(feedback_slot));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
+    Register object, Register name, int feedback_slot,
+    LanguageMode language_mode) {
+  if (!is_sloppy(language_mode)) {
+    UNIMPLEMENTED();
+  }
+
+  if (FitsInByteOperand(feedback_slot)) {
+    Output(Bytecode::kStoreIC, object.ToOperand(), name.ToOperand(),
+           static_cast<uint8_t>(feedback_slot));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
+    Register object, Register key, int feedback_slot,
+    LanguageMode language_mode) {
+  if (!is_sloppy(language_mode)) {
+    UNIMPLEMENTED();
+  }
+
+  if (FitsInByteOperand(feedback_slot)) {
+    Output(Bytecode::kKeyedStoreIC, object.ToOperand(), key.ToOperand(),
            static_cast<uint8_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();

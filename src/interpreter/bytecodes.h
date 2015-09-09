@@ -23,34 +23,38 @@ namespace interpreter {
   V(Reg)
 
 // The list of bytecodes which are interpreted by the interpreter.
-#define BYTECODE_LIST(V)                               \
-                                                       \
-  /* Loading the accumulator */                        \
-  V(LdaZero, OperandType::kNone)                       \
-  V(LdaSmi8, OperandType::kImm8)                       \
-  V(LdaConstant, OperandType::kIdx)                    \
-  V(LdaUndefined, OperandType::kNone)                  \
-  V(LdaNull, OperandType::kNone)                       \
-  V(LdaTheHole, OperandType::kNone)                    \
-  V(LdaTrue, OperandType::kNone)                       \
-  V(LdaFalse, OperandType::kNone)                      \
-                                                       \
-  /* Register-accumulator transfers */                 \
-  V(Ldar, OperandType::kReg)                           \
-  V(Star, OperandType::kReg)                           \
-                                                       \
-  /* LoadIC operations */                              \
-  V(LoadIC, OperandType::kReg, OperandType::kIdx)      \
-  V(KeyedLoadIC, OperandType::kReg, OperandType::kIdx) \
-                                                       \
-  /* Binary Operators */                               \
-  V(Add, OperandType::kReg)                            \
-  V(Sub, OperandType::kReg)                            \
-  V(Mul, OperandType::kReg)                            \
-  V(Div, OperandType::kReg)                            \
-  V(Mod, OperandType::kReg)                            \
-                                                       \
-  /* Control Flow */                                   \
+#define BYTECODE_LIST(V)                                                   \
+                                                                           \
+  /* Loading the accumulator */                                            \
+  V(LdaZero, OperandType::kNone)                                           \
+  V(LdaSmi8, OperandType::kImm8)                                           \
+  V(LdaConstant, OperandType::kIdx)                                        \
+  V(LdaUndefined, OperandType::kNone)                                      \
+  V(LdaNull, OperandType::kNone)                                           \
+  V(LdaTheHole, OperandType::kNone)                                        \
+  V(LdaTrue, OperandType::kNone)                                           \
+  V(LdaFalse, OperandType::kNone)                                          \
+                                                                           \
+  /* Register-accumulator transfers */                                     \
+  V(Ldar, OperandType::kReg)                                               \
+  V(Star, OperandType::kReg)                                               \
+                                                                           \
+  /* LoadIC operations */                                                  \
+  V(LoadIC, OperandType::kReg, OperandType::kIdx)                          \
+  V(KeyedLoadIC, OperandType::kReg, OperandType::kIdx)                     \
+                                                                           \
+  /* StoreIC operations */                                                 \
+  V(StoreIC, OperandType::kReg, OperandType::kReg, OperandType::kIdx)      \
+  V(KeyedStoreIC, OperandType::kReg, OperandType::kReg, OperandType::kIdx) \
+                                                                           \
+  /* Binary Operators */                                                   \
+  V(Add, OperandType::kReg)                                                \
+  V(Sub, OperandType::kReg)                                                \
+  V(Mul, OperandType::kReg)                                                \
+  V(Div, OperandType::kReg)                                                \
+  V(Mod, OperandType::kReg)                                                \
+                                                                           \
+  /* Control Flow */                                                       \
   V(Return, OperandType::kNone)
 
 
@@ -87,13 +91,18 @@ class Register {
   static const int kMaxRegisterIndex = 127;
   static const int kMinRegisterIndex = -128;
 
+  Register() : index_(kIllegalIndex) {}
+
   explicit Register(int index) : index_(index) {
     DCHECK_LE(index_, kMaxRegisterIndex);
     DCHECK_GE(index_, kMinRegisterIndex);
   }
 
-  int index() const { return index_; }
-  bool is_parameter() const { return index_ < 0; }
+  int index() const {
+    DCHECK(index_ != kIllegalIndex);
+    return index_;
+  }
+  bool is_parameter() const { return index() < 0; }
 
   static Register FromParameterIndex(int index, int parameter_count);
   int ToParameterIndex(int parameter_count) const;
@@ -103,6 +112,8 @@ class Register {
   uint8_t ToOperand() const;
 
  private:
+  static const int kIllegalIndex = kMaxInt;
+
   void* operator new(size_t size);
   void operator delete(void* p);
 

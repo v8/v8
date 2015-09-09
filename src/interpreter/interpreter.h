@@ -55,6 +55,10 @@ class Interpreter {
   // Generates code to perform a property load via |ic|.
   void DoPropertyLoadIC(Callable ic, compiler::InterpreterAssembler* assembler);
 
+  // Generates code to perform a property store via |ic|.
+  void DoPropertyStoreIC(Callable ic,
+                         compiler::InterpreterAssembler* assembler);
+
   bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);
 
   Isolate* isolate_;

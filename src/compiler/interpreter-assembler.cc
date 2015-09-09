@@ -237,19 +237,37 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
 
 
 Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
-                                   Node* target, Node* arg1, Node* arg2,
-                                   Node* arg3, Node* arg4) {
+                                   Node* target, Node** args) {
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, 0, CallDescriptor::kNoFlags);
+  return raw_assembler_->CallN(call_descriptor, target, args);
+}
 
+
+Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
+                                   Node* target, Node* arg1, Node* arg2,
+                                   Node* arg3, Node* arg4) {
   Node** args = zone()->NewArray<Node*>(5);
   args[0] = arg1;
   args[1] = arg2;
   args[2] = arg3;
   args[3] = arg4;
   args[4] = ContextTaggedPointer();
+  return CallIC(descriptor, target, args);
+}
 
-  return raw_assembler_->CallN(call_descriptor, target, args);
+
+Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
+                                   Node* target, Node* arg1, Node* arg2,
+                                   Node* arg3, Node* arg4, Node* arg5) {
+  Node** args = zone()->NewArray<Node*>(6);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  args[4] = arg5;
+  args[5] = ContextTaggedPointer();
+  return CallIC(descriptor, target, args);
 }
 
 

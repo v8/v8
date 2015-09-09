@@ -270,14 +270,49 @@ void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
 
 void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   DCHECK(expr->target()->IsValidReferenceExpression());
+  TemporaryRegisterScope temporary_register_scope(&builder_);
+  Register object, key;
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->target()->AsProperty();
   LhsKind assign_type = Property::GetAssignType(property);
 
-  DCHECK(!expr->is_compound());
-  Visit(expr->value());
+  // Evaluate LHS expression.
+  switch (assign_type) {
+    case VARIABLE:
+      // Nothing to do to evaluate variable assignment LHS.
+      break;
+    case NAMED_PROPERTY:
+      object = temporary_register_scope.NewRegister();
+      key = temporary_register_scope.NewRegister();
+      Visit(property->obj());
+      builder().StoreAccumulatorInRegister(object);
+      builder().LoadLiteral(property->key()->AsLiteral()->AsPropertyName());
+      builder().StoreAccumulatorInRegister(key);
+      break;
+    case KEYED_PROPERTY:
+      object = temporary_register_scope.NewRegister();
+      key = temporary_register_scope.NewRegister();
+      Visit(property->obj());
+      builder().StoreAccumulatorInRegister(object);
+      Visit(property->key());
+      builder().StoreAccumulatorInRegister(key);
+      break;
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNIMPLEMENTED();
+  }
 
+  // Evaluate the value and potentially handle compound assignments by loading
+  // the left-hand side value and performing a binary operation.
+  if (expr->is_compound()) {
+    UNIMPLEMENTED();
+  } else {
+    Visit(expr->value());
+  }
+
+  // Store the value.
+  FeedbackVectorICSlot slot = expr->AssignmentSlot();
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->target()->AsVariableProxy()->var();
@@ -287,7 +322,13 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     }
     case NAMED_PROPERTY:
+      builder().StoreNamedProperty(object, key, feedback_index(slot),
+                                   language_mode());
+      break;
     case KEYED_PROPERTY:
+      builder().StoreKeyedProperty(object, key, feedback_index(slot),
+                                   language_mode());
+      break;
     case NAMED_SUPER_PROPERTY:
     case KEYED_SUPER_PROPERTY:
       UNIMPLEMENTED();

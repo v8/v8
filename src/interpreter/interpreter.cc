@@ -220,12 +220,52 @@ void Interpreter::DoLoadIC(compiler::InterpreterAssembler* assembler) {
 
 // KeyedLoadIC <object> <slot>
 //
-// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the key
+// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator.
 void Interpreter::DoKeyedLoadIC(compiler::InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedLoadICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
   DoPropertyLoadIC(ic, assembler);
+}
+
+
+void Interpreter::DoPropertyStoreIC(Callable ic,
+                                    compiler::InterpreterAssembler* assembler) {
+  Node* code_target = __ HeapConstant(ic.code());
+  Node* object_reg_index = __ BytecodeOperandReg(0);
+  Node* object = __ LoadRegister(object_reg_index);
+  Node* name_reg_index = __ BytecodeOperandReg(1);
+  Node* name = __ LoadRegister(name_reg_index);
+  Node* value = __ GetAccumulator();
+  Node* raw_slot = __ BytecodeOperandIdx(2);
+  Node* smi_slot = __ SmiTag(raw_slot);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* result = __ CallIC(ic.descriptor(), code_target, object, name, value,
+                           smi_slot, type_feedback_vector);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// StoreIC <object> <name> <slot>
+//
+// Calls the StoreIC at FeedBackVector slot <slot> for <object> and the name
+// <name> with the value in the accumulator.
+void Interpreter::DoStoreIC(compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  DoPropertyStoreIC(ic, assembler);
+}
+
+
+// KeyedStoreIC <object> <key> <slot>
+//
+// Calls the KeyStoreIC at FeedBackVector slot <slot> for <object> and the key
+// <key> with the value in the accumulator.
+void Interpreter::DoKeyedStoreIC(compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::KeyedStoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  DoPropertyStoreIC(ic, assembler);
 }
 
 
