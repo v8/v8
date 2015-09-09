@@ -1215,8 +1215,6 @@ class Runtime : public AllStatic {
   // runtime-scopes.cc then.
   static base::SmartArrayPointer<Handle<Object>> GetCallerArguments(
       Isolate* isolate, int prefix_argc, int* total_argc);
-
-  static bool AtomicIsLockFree(uint32_t size);
 };
 
 
@@ -1232,29 +1230,6 @@ class DeclareGlobalsEvalFlag : public BitField<bool, 0, 1> {};
 class DeclareGlobalsNativeFlag : public BitField<bool, 1, 1> {};
 STATIC_ASSERT(LANGUAGE_END == 3);
 class DeclareGlobalsLanguageMode : public BitField<LanguageMode, 2, 2> {};
-
-//---------------------------------------------------------------------------
-// Inline functions
-
-// Assume that 32-bit architectures don't have 64-bit atomic ops.
-// TODO(binji): can we do better here?
-#if V8_TARGET_ARCH_64_BIT && V8_HOST_ARCH_64_BIT
-
-#define ATOMICS_REQUIRE_LOCK_64_BIT 0
-
-inline bool Runtime::AtomicIsLockFree(uint32_t size) {
-  return size == 1 || size == 2 || size == 4 || size == 8;
-}
-
-#else
-
-#define ATOMICS_REQUIRE_LOCK_64_BIT 1
-
-inline bool Runtime::AtomicIsLockFree(uint32_t size) {
-  return size == 1 || size == 2 || size == 4;
-}
-
-#endif
 
 }  // namespace internal
 }  // namespace v8

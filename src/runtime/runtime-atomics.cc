@@ -19,6 +19,26 @@ namespace internal {
 
 namespace {
 
+// Assume that 32-bit architectures don't have 64-bit atomic ops.
+// TODO(binji): can we do better here?
+#if V8_TARGET_ARCH_64_BIT && V8_HOST_ARCH_64_BIT
+
+#define ATOMICS_REQUIRE_LOCK_64_BIT 0
+
+inline bool AtomicIsLockFree(uint32_t size) {
+  return size == 1 || size == 2 || size == 4 || size == 8;
+}
+
+#else
+
+#define ATOMICS_REQUIRE_LOCK_64_BIT 1
+
+inline bool AtomicIsLockFree(uint32_t size) {
+  return size == 1 || size == 2 || size == 4;
+}
+
+#endif
+
 #if V8_CC_GNU
 
 template <typename T>
@@ -826,9 +846,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsIsLockFree) {
   DCHECK(args.length() == 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(size, 0);
   uint32_t usize = NumberToUint32(*size);
-
-  return Runtime::AtomicIsLockFree(usize) ? isolate->heap()->true_value()
-                                          : isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean(AtomicIsLockFree(usize));
 }
 }
 }  // namespace v8::internal
