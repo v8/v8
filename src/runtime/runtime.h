@@ -408,7 +408,6 @@ namespace internal {
   F(NumberAdd, 2, 1)                   \
   F(NumberSub, 2, 1)                   \
   F(NumberMul, 2, 1)                   \
-  F(NumberUnaryMinus, 1, 1)            \
   F(NumberDiv, 2, 1)                   \
   F(NumberMod, 2, 1)                   \
   F(NumberImul, 2, 1)                  \

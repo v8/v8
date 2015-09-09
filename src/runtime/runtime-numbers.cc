@@ -250,15 +250,6 @@ RUNTIME_FUNCTION(Runtime_NumberMul) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberUnaryMinus) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(-x);
-}
-
-
 RUNTIME_FUNCTION(Runtime_NumberDiv) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
