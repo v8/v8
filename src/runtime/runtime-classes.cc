@@ -517,15 +517,8 @@ RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, original_constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, actual_constructor, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, super_constructor, 1);
   JavaScriptFrameIterator it(isolate);
-
-  // Prepare the callee to the super call. The super constructor is stored as
-  // the prototype of the constructor we are currently executing.
-  Handle<Object> super_constructor;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, super_constructor,
-      Runtime::GetPrototype(isolate, actual_constructor));
 
   // Determine the actual arguments passed to the function.
   int argument_count = 0;

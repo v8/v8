@@ -175,8 +175,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> Runtime::GetPrototype(Isolate* isolate,
-                                          Handle<Object> obj) {
+RUNTIME_FUNCTION(Runtime_GetPrototype) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
@@ -184,25 +186,14 @@ MaybeHandle<Object> Runtime::GetPrototype(Isolate* isolate,
     if (PrototypeIterator::GetCurrent(iter)->IsAccessCheckNeeded() &&
         !isolate->MayAccess(
             Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)))) {
-      return isolate->factory()->null_value();
+      return isolate->heap()->null_value();
     }
     iter.AdvanceIgnoringProxies();
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
-      return PrototypeIterator::GetCurrent(iter);
+      return *PrototypeIterator::GetCurrent(iter);
     }
   } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));
-  return PrototypeIterator::GetCurrent(iter);
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetPrototype) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Runtime::GetPrototype(isolate, obj));
-  return *result;
+  return *PrototypeIterator::GetCurrent(iter);
 }
 
 

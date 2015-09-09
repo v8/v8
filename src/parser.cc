@@ -359,7 +359,7 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     AddAssertIsConstruct(body, pos);
     if (call_super) {
-      // %_DefaultConstructorCallSuper(new.target, .this_function)
+      // %_DefaultConstructorCallSuper(new.target, %GetPrototype(<this-fun>))
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(2, zone());
       VariableProxy* new_target_proxy = scope_->NewUnresolved(
@@ -369,7 +369,12 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
       VariableProxy* this_function_proxy = scope_->NewUnresolved(
           factory(), ast_value_factory()->this_function_string(),
           Variable::NORMAL, pos);
-      args->Add(this_function_proxy, zone());
+      ZoneList<Expression*>* tmp =
+          new (zone()) ZoneList<Expression*>(1, zone());
+      tmp->Add(this_function_proxy, zone());
+      Expression* get_prototype =
+          factory()->NewCallRuntime(Runtime::kGetPrototype, tmp, pos);
+      args->Add(get_prototype, zone());
       CallRuntime* call = factory()->NewCallRuntime(
           Runtime::kInlineDefaultConstructorCallSuper, args, pos);
       body->Add(factory()->NewReturnStatement(call, pos), zone());

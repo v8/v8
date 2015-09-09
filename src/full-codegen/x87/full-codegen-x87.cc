@@ -3991,13 +3991,9 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
 
-  // new.target
+  // Evaluate new.target and super constructor.
   VisitForStackValue(args->at(0));
-
-  // .this_function
   VisitForStackValue(args->at(1));
-  __ CallRuntime(Runtime::kGetPrototype, 1);
-  __ push(result_register());
 
   // Load original constructor into ecx.
   __ mov(ecx, Operand(esp, 1 * kPointerSize));

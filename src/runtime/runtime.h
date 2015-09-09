@@ -1176,10 +1176,6 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<Object> receiver_obj, Handle<Object> key_obj,
       LanguageMode language_mode);
 
-  // TODO(mstarzinger): Remove this once %DefaultConstructorCallSuper is gone.
-  MUST_USE_RESULT static MaybeHandle<Object> GetPrototype(
-      Isolate* isolate, Handle<Object> object);
-
   enum TypedArrayId {
     // arrayIds below should be synchronized with typedarray.js natives.
     ARRAY_ID_UINT8 = 1,
