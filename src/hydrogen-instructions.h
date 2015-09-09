@@ -2228,8 +2228,7 @@ class HBinaryCall : public HCall<2> {
 class HCallJSFunction final : public HCall<1> {
  public:
   static HCallJSFunction* New(Isolate* isolate, Zone* zone, HValue* context,
-                              HValue* function, int argument_count,
-                              bool pass_argument_count);
+                              HValue* function, int argument_count);
 
   HValue* function() const { return OperandAt(0); }
 
@@ -2240,8 +2239,6 @@ class HCallJSFunction final : public HCall<1> {
     return Representation::Tagged();
   }
 
-  bool pass_argument_count() const { return pass_argument_count_; }
-
   bool HasStackCheck() final { return has_stack_check_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallJSFunction)
@@ -2250,15 +2247,12 @@ class HCallJSFunction final : public HCall<1> {
   // The argument count includes the receiver.
   HCallJSFunction(HValue* function,
                   int argument_count,
-                  bool pass_argument_count,
                   bool has_stack_check)
       : HCall<1>(argument_count),
-        pass_argument_count_(pass_argument_count),
         has_stack_check_(has_stack_check) {
       SetOperandAt(0, function);
   }
 
-  bool pass_argument_count_;
   bool has_stack_check_;
 };
 

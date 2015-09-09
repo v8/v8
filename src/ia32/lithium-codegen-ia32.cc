@@ -3340,11 +3340,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     // Change context.
     __ mov(esi, FieldOperand(function_reg, JSFunction::kContextOffset));
 
-    // Set eax to arguments count if adaption is not needed. Assumes that eax
-    // is available to write to at this point.
-    if (dont_adapt_arguments) {
-      __ mov(eax, arity);
-    }
+    // Always initialize eax to the number of actual arguments.
+    __ mov(eax, arity);
 
     // Invoke function directly.
     if (function.is_identical_to(info()->closure())) {
@@ -3406,9 +3403,7 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   DCHECK(ToRegister(instr->function()).is(edi));
   DCHECK(ToRegister(instr->result()).is(eax));
 
-  if (instr->hydrogen()->pass_argument_count()) {
-    __ mov(eax, instr->arity());
-  }
+  __ mov(eax, instr->arity());
 
   // Change context.
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));

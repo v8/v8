@@ -3411,11 +3411,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     // Change context.
     __ movp(rsi, FieldOperand(function_reg, JSFunction::kContextOffset));
 
-    // Set rax to arguments count if adaption is not needed. Assumes that rax
-    // is available to write to at this point.
-    if (dont_adapt_arguments) {
-      __ Set(rax, arity);
-    }
+    // Always initialize rax to the number of actual arguments.
+    __ Set(rax, arity);
 
     // Invoke function.
     if (function.is_identical_to(info()->closure())) {
@@ -3478,9 +3475,7 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   DCHECK(ToRegister(instr->function()).is(rdi));
   DCHECK(ToRegister(instr->result()).is(rax));
 
-  if (instr->hydrogen()->pass_argument_count()) {
-    __ Set(rax, instr->arity());
-  }
+  __ Set(rax, instr->arity());
 
   // Change context.
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));

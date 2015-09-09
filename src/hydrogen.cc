@@ -7901,9 +7901,9 @@ void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
 }
 
 
-HInstruction* HOptimizedGraphBuilder::NewPlainFunctionCall(
-    HValue* fun, int argument_count, bool pass_argument_count) {
-  return New<HCallJSFunction>(fun, argument_count, pass_argument_count);
+HInstruction* HOptimizedGraphBuilder::NewPlainFunctionCall(HValue* fun,
+                                                           int argument_count) {
+  return New<HCallJSFunction>(fun, argument_count);
 }
 
 
@@ -7941,7 +7941,7 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
     if (jsfun.is_identical_to(current_info()->closure())) {
       graph()->MarkRecursive();
     }
-    return NewPlainFunctionCall(target, argument_count, dont_adapt_arguments);
+    return NewPlainFunctionCall(target, argument_count);
   } else {
     HValue* param_count_value = Add<HConstant>(formal_parameter_count);
     HValue* context = Add<HLoadNamedField>(
@@ -8962,7 +8962,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           if_inline.Else();
           {
             Add<HPushArguments>(receiver);
-            result = Add<HCallJSFunction>(function, 1, true);
+            result = Add<HCallJSFunction>(function, 1);
             if (!ast_context()->IsEffect()) Push(result);
           }
           if_inline.End();

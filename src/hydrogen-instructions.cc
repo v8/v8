@@ -927,8 +927,7 @@ std::ostream& HCallJSFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 HCallJSFunction* HCallJSFunction::New(Isolate* isolate, Zone* zone,
                                       HValue* context, HValue* function,
-                                      int argument_count,
-                                      bool pass_argument_count) {
+                                      int argument_count) {
   bool has_stack_check = false;
   if (function->IsConstant()) {
     HConstant* fun_const = HConstant::cast(function);
@@ -939,9 +938,7 @@ HCallJSFunction* HCallJSFunction::New(Isolate* isolate, Zone* zone,
          jsfun->code()->kind() == Code::OPTIMIZED_FUNCTION);
   }
 
-  return new(zone) HCallJSFunction(
-      function, argument_count, pass_argument_count,
-      has_stack_check);
+  return new (zone) HCallJSFunction(function, argument_count, has_stack_check);
 }
 
 
