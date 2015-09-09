@@ -1046,35 +1046,32 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
 
 
 RUNTIME_FUNCTION(Runtime_ArgumentsLength) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  return Smi::FromInt(frame->GetArgumentsLength());
+  int argument_count = 0;
+  Runtime::GetCallerArguments(isolate, 0, &argument_count);
+  return Smi::FromInt(argument_count);
 }
 
 
 RUNTIME_FUNCTION(Runtime_Arguments) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, raw_key, 0);
 
-  // Compute the frame holding the arguments.
-  JavaScriptFrameIterator it(isolate);
-  it.AdvanceToArgumentsFrame();
-  JavaScriptFrame* frame = it.frame();
-
-  // Get the actual number of provided arguments.
-  const uint32_t n = frame->ComputeParametersCount();
+  // Determine the actual arguments passed to the function.
+  int argument_count_signed = 0;
+  base::SmartArrayPointer<Handle<Object>> arguments =
+      Runtime::GetCallerArguments(isolate, 0, &argument_count_signed);
+  const uint32_t argument_count = argument_count_signed;
 
   // Try to convert the key to an index. If successful and within
   // index return the the argument from the frame.
   uint32_t index = 0;
-  if (raw_key->ToArrayIndex(&index) && index < n) {
-    return frame->GetParameter(index);
+  if (raw_key->ToArrayIndex(&index) && index < argument_count) {
+    return *arguments[index];
   }
 
-  HandleScope scope(isolate);
   if (raw_key->IsSymbol()) {
     Handle<Symbol> symbol = Handle<Symbol>::cast(raw_key);
     if (Name::Equals(symbol, isolate->factory()->iterator_symbol())) {
@@ -1097,8 +1094,8 @@ RUNTIME_FUNCTION(Runtime_Arguments) {
 
   // Try to convert the string key into an array index.
   if (key->AsArrayIndex(&index)) {
-    if (index < n) {
-      return frame->GetParameter(index);
+    if (index < argument_count) {
+      return *arguments[index];
     } else {
       Handle<Object> initial_prototype(isolate->initial_object_prototype());
       Handle<Object> result;
@@ -1111,10 +1108,11 @@ RUNTIME_FUNCTION(Runtime_Arguments) {
 
   // Handle special arguments properties.
   if (String::Equals(isolate->factory()->length_string(), key)) {
-    return Smi::FromInt(n);
+    return Smi::FromInt(argument_count);
   }
   if (String::Equals(isolate->factory()->callee_string(), key)) {
-    JSFunction* function = frame->function();
+    JavaScriptFrameIterator it(isolate);
+    JSFunction* function = it.frame()->function();
     if (is_strict(function->shared()->language_mode())) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));

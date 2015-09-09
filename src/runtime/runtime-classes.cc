@@ -527,23 +527,23 @@ RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
       isolate, super_constructor,
       Runtime::GetPrototype(isolate, actual_constructor));
 
-  // Find the frame that holds the actual arguments passed to the function.
-  it.AdvanceToArgumentsFrame();
-  JavaScriptFrame* frame = it.frame();
+  // Determine the actual arguments passed to the function.
+  int argument_count = 0;
+  base::SmartArrayPointer<Handle<Object>> arguments =
+      Runtime::GetCallerArguments(isolate, 0, &argument_count);
 
   // Prepare the array containing all passed arguments.
-  int argument_count = frame->GetArgumentsLength();
   Handle<FixedArray> elements =
       isolate->factory()->NewUninitializedFixedArray(argument_count);
   for (int i = 0; i < argument_count; ++i) {
-    elements->set(i, frame->GetParameter(i));
+    elements->set(i, *arguments[i]);
   }
-  Handle<JSArray> arguments = isolate->factory()->NewJSArrayWithElements(
+  Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(
       elements, FAST_ELEMENTS, argument_count);
 
   // Call %reflect_construct(<super>, <args>, <new.target>) now.
   Handle<JSFunction> reflect = isolate->reflect_construct();
-  Handle<Object> argv[] = {super_constructor, arguments, original_constructor};
+  Handle<Object> argv[] = {super_constructor, array, original_constructor};
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,

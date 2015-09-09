@@ -313,7 +313,7 @@ RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
 // Find the arguments of the JavaScript function invocation that called
 // into C++ code. Collect these in a newly allocated array of handles (possibly
 // prefixed by a number of empty handles).
-static base::SmartArrayPointer<Handle<Object> > GetCallerArguments(
+base::SmartArrayPointer<Handle<Object>> Runtime::GetCallerArguments(
     Isolate* isolate, int prefix_argc, int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
@@ -385,8 +385,8 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   bound_function->shared()->set_inferred_name(isolate->heap()->empty_string());
   // Get all arguments of calling function (Function.prototype.bind).
   int argc = 0;
-  base::SmartArrayPointer<Handle<Object> > arguments =
-      GetCallerArguments(isolate, 0, &argc);
+  base::SmartArrayPointer<Handle<Object>> arguments =
+      Runtime::GetCallerArguments(isolate, 0, &argc);
   // Don't count the this-arg.
   if (argc > 0) {
     RUNTIME_ASSERT(arguments[0].is_identical_to(this_object));
@@ -487,8 +487,8 @@ RUNTIME_FUNCTION(Runtime_NewObjectFromBound) {
          !Handle<JSFunction>::cast(bound_function)->shared()->bound());
 
   int total_argc = 0;
-  base::SmartArrayPointer<Handle<Object> > param_data =
-      GetCallerArguments(isolate, bound_argc, &total_argc);
+  base::SmartArrayPointer<Handle<Object>> param_data =
+      Runtime::GetCallerArguments(isolate, bound_argc, &total_argc);
   for (int i = 0; i < bound_argc; i++) {
     param_data[i] = Handle<Object>(
         bound_args->get(JSFunction::kBoundArgumentsStartIndex + i), isolate);
