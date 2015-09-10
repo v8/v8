@@ -4948,7 +4948,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
     lw(t8, MemOperand(fp, ExitFrameConstants::kSPOffset));
     for (int i = 0; i < FPURegister::kMaxNumRegisters; i+=2) {
       FPURegister reg = FPURegister::from_code(i);
-      ldc1(reg, MemOperand(t8, i  * kDoubleSize + kPointerSize));
+      ldc1(reg, MemOperand(t8, i * kDoubleSize + kPointerSize));
     }
   }
 

@@ -4188,6 +4188,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   DoubleRegister value = ToDoubleRegister(instr->value());
   Register elements = ToRegister(instr->elements());
   Register scratch = scratch0();
+  Register scratch_1 = scratch1();
   DoubleRegister double_scratch = double_scratch0();
   bool key_is_constant = instr->key()->IsConstantOperand();
   int base_offset = instr->base_offset();
@@ -4219,8 +4220,9 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
     // Only load canonical NaN if the comparison above set the overflow.
     __ bind(&is_nan);
-    __ LoadRoot(at, Heap::kNanValueRootIndex);
-    __ ldc1(double_scratch, FieldMemOperand(at, HeapNumber::kValueOffset));
+    __ LoadRoot(scratch_1, Heap::kNanValueRootIndex);
+    __ ldc1(double_scratch,
+            FieldMemOperand(scratch_1, HeapNumber::kValueOffset));
     __ sdc1(double_scratch, MemOperand(scratch, 0));
     __ Branch(&done);
   }

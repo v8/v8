@@ -305,8 +305,8 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     if (instr->InputAt(0)->IsRegister()) {                                    \
       auto offset = i.InputRegister(0);                                       \
       __ Branch(USE_DELAY_SLOT, ool->entry(), hs, offset, i.InputOperand(1)); \
-      __ Daddu(at, i.InputRegister(2), offset);                               \
-      __ asm_instr(result, MemOperand(at, 0));                                \
+      __ Daddu(kScratchReg, i.InputRegister(2), offset);                      \
+      __ asm_instr(result, MemOperand(kScratchReg, 0));                       \
     } else {                                                                  \
       int offset = static_cast<int>(i.InputOperand(0).immediate());           \
       __ Branch(ool->entry(), ls, i.InputRegister(1), Operand(offset));       \
@@ -323,8 +323,8 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     if (instr->InputAt(0)->IsRegister()) {                                    \
       auto offset = i.InputRegister(0);                                       \
       __ Branch(USE_DELAY_SLOT, ool->entry(), hs, offset, i.InputOperand(1)); \
-      __ Daddu(at, i.InputRegister(2), offset);                               \
-      __ asm_instr(result, MemOperand(at, 0));                                \
+      __ Daddu(kScratchReg, i.InputRegister(2), offset);                      \
+      __ asm_instr(result, MemOperand(kScratchReg, 0));                       \
     } else {                                                                  \
       int offset = static_cast<int>(i.InputOperand(0).immediate());           \
       __ Branch(ool->entry(), ls, i.InputRegister(1), Operand(offset));       \
@@ -341,8 +341,8 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
       auto offset = i.InputRegister(0);                                \
       auto value = i.Input##width##Register(2);                        \
       __ Branch(USE_DELAY_SLOT, &done, hs, offset, i.InputOperand(1)); \
-      __ Daddu(at, i.InputRegister(3), offset);                        \
-      __ asm_instr(value, MemOperand(at, 0));                          \
+      __ Daddu(kScratchReg, i.InputRegister(3), offset);               \
+      __ asm_instr(value, MemOperand(kScratchReg, 0));                 \
     } else {                                                           \
       int offset = static_cast<int>(i.InputOperand(0).immediate());    \
       auto value = i.Input##width##Register(2);                        \
@@ -360,8 +360,8 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
       auto offset = i.InputRegister(0);                                \
       auto value = i.InputRegister(2);                                 \
       __ Branch(USE_DELAY_SLOT, &done, hs, offset, i.InputOperand(1)); \
-      __ Daddu(at, i.InputRegister(3), offset);                        \
-      __ asm_instr(value, MemOperand(at, 0));                          \
+      __ Daddu(kScratchReg, i.InputRegister(3), offset);               \
+      __ asm_instr(value, MemOperand(kScratchReg, 0));                 \
     } else {                                                           \
       int offset = static_cast<int>(i.InputOperand(0).immediate());    \
       auto value = i.InputRegister(2);                                 \

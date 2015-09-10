@@ -2026,6 +2026,7 @@ void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
 void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // load to two 32-bit loads.
+  DCHECK(!src.rm().is(at));
   if (IsFp64Mode()) {
     if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
       GenInstrImmediate(LWC1, src.rm(), fd,
@@ -2071,6 +2072,8 @@ void Assembler::swc1(FPURegister fd, const MemOperand& src) {
 void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // store to two 32-bit stores.
+  DCHECK(!src.rm().is(at));
+  DCHECK(!src.rm().is(t8));
   if (IsFp64Mode()) {
     if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
       GenInstrImmediate(SWC1, src.rm(), fd,
