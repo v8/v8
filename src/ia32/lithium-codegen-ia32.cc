@@ -5330,26 +5330,6 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 }
 
 
-void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
-  DCHECK(ToRegister(instr->context()).is(esi));
-  // Use the fast case closure allocation code that allocates in new
-  // space for nested functions that don't need literals cloning.
-  bool pretenure = instr->hydrogen()->pretenure();
-  if (!pretenure && instr->hydrogen()->has_no_literals()) {
-    FastNewClosureStub stub(isolate(), instr->hydrogen()->language_mode(),
-                            instr->hydrogen()->kind());
-    __ mov(ebx, Immediate(instr->hydrogen()->shared_info()));
-    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ push(esi);
-    __ push(Immediate(instr->hydrogen()->shared_info()));
-    __ push(Immediate(pretenure ? factory()->true_value()
-                                : factory()->false_value()));
-    CallRuntime(Runtime::kNewClosure, 3, instr);
-  }
-}
-
-
 void LCodeGen::DoTypeof(LTypeof* instr) {
   DCHECK(ToRegister(instr->context()).is(esi));
   DCHECK(ToRegister(instr->value()).is(ebx));

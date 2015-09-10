@@ -79,7 +79,6 @@ class LCodeGen;
   V(FlooringDivI)                            \
   V(ForInCacheArray)                         \
   V(ForInPrepareMap)                         \
-  V(FunctionLiteral)                         \
   V(GetCachedArrayIndex)                     \
   V(Goto)                                    \
   V(HasCachedArrayIndexAndBranch)            \
@@ -2457,17 +2456,6 @@ class LRegExpLiteral final : public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral, "regexp-literal")
   DECLARE_HYDROGEN_ACCESSOR(RegExpLiteral)
-};
-
-
-class LFunctionLiteral final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LFunctionLiteral(LOperand* context) { inputs_[0] = context; }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(FunctionLiteral, "function-literal")
-  DECLARE_HYDROGEN_ACCESSOR(FunctionLiteral)
 };
 
 

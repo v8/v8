@@ -1510,8 +1510,6 @@ void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
 
 
 void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
-  Node* context = current_context();
-
   // Find or build a shared function info.
   Handle<SharedFunctionInfo> shared_info =
       Compiler::GetSharedFunctionInfo(expr, info()->script(), info());
@@ -1520,7 +1518,7 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   // Create node to instantiate a new closure.
   PretenureFlag pretenure = expr->pretenure() ? TENURED : NOT_TENURED;
   const Operator* op = javascript()->CreateClosure(shared_info, pretenure);
-  Node* value = NewNode(op, context);
+  Node* value = NewNode(op);
   ast_context()->ProduceValue(value);
 }
 

@@ -98,7 +98,6 @@ class LChunkBuilder;
   V(ForceRepresentation)                      \
   V(ForInCacheArray)                          \
   V(ForInPrepareMap)                          \
-  V(FunctionLiteral)                          \
   V(GetCachedArrayIndex)                      \
   V(Goto)                                     \
   V(HasCachedArrayIndexAndBranch)             \
@@ -7549,56 +7548,6 @@ class HRegExpLiteral final : public HMaterializedLiteral<1> {
   Handle<FixedArray> literals_;
   Handle<String> pattern_;
   Handle<String> flags_;
-};
-
-
-class HFunctionLiteral final : public HTemplateInstruction<1> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HFunctionLiteral,
-                                              Handle<SharedFunctionInfo>,
-                                              bool);
-  HValue* context() { return OperandAt(0); }
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(FunctionLiteral)
-
-  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
-  bool pretenure() const { return PretenureField::decode(bit_field_); }
-  bool has_no_literals() const {
-    return HasNoLiteralsField::decode(bit_field_);
-  }
-  FunctionKind kind() const { return FunctionKindField::decode(bit_field_); }
-  LanguageMode language_mode() const {
-    return LanguageModeField::decode(bit_field_);
-  }
-
- private:
-  HFunctionLiteral(HValue* context, Handle<SharedFunctionInfo> shared,
-                   bool pretenure)
-      : HTemplateInstruction<1>(HType::JSObject()),
-        shared_info_(shared),
-        bit_field_(FunctionKindField::encode(shared->kind()) |
-                   PretenureField::encode(pretenure) |
-                   HasNoLiteralsField::encode(shared->num_literals() == 0) |
-                   LanguageModeField::encode(shared->language_mode())) {
-    SetOperandAt(0, context);
-    set_representation(Representation::Tagged());
-    SetChangesFlag(kNewSpacePromotion);
-  }
-
-  bool IsDeletable() const override { return true; }
-
-  class FunctionKindField : public BitField<FunctionKind, 0, 8> {};
-  class PretenureField : public BitField<bool, 8, 1> {};
-  class HasNoLiteralsField : public BitField<bool, 9, 1> {};
-  STATIC_ASSERT(LANGUAGE_END == 3);
-  class LanguageModeField : public BitField<LanguageMode, 10, 2> {};
-
-  Handle<SharedFunctionInfo> shared_info_;
-  uint32_t bit_field_;
 };
 
 

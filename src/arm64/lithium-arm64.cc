@@ -1532,13 +1532,6 @@ LInstruction* LChunkBuilder::DoForceRepresentation(
 }
 
 
-LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  return MarkAsCall(
-      DefineFixed(new(zone()) LFunctionLiteral(context), x0), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoGetCachedArrayIndex(
     HGetCachedArrayIndex* instr) {
   DCHECK(instr->value()->representation().IsTagged());

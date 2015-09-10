@@ -1238,11 +1238,9 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
     __ Mov(x2, Operand(info));
     __ CallStub(&stub);
   } else {
-    __ Mov(x11, Operand(info));
-    __ LoadRoot(x10, pretenure ? Heap::kTrueValueRootIndex
-                               : Heap::kFalseValueRootIndex);
-    __ Push(cp, x11, x10);
-    __ CallRuntime(Runtime::kNewClosure, 3);
+    __ Push(info);
+    __ CallRuntime(
+        pretenure ? Runtime::kNewClosure_Tenured : Runtime::kNewClosure, 1);
   }
   context()->Plug(x0);
 }

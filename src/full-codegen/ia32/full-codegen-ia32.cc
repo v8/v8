@@ -1172,12 +1172,9 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
     __ mov(ebx, Immediate(info));
     __ CallStub(&stub);
   } else {
-    __ push(esi);
     __ push(Immediate(info));
-    __ push(Immediate(pretenure
-                      ? isolate()->factory()->true_value()
-                      : isolate()->factory()->false_value()));
-    __ CallRuntime(Runtime::kNewClosure, 3);
+    __ CallRuntime(
+        pretenure ? Runtime::kNewClosure_Tenured : Runtime::kNewClosure, 1);
   }
   context()->Plug(eax);
 }

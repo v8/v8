@@ -2829,29 +2829,6 @@ void LCodeGen::DoDummyUse(LDummyUse* instr) {
 }
 
 
-void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  // FunctionLiteral instruction is marked as call, we can trash any register.
-  DCHECK(instr->IsMarkedAsCall());
-
-  // Use the fast case closure allocation code that allocates in new
-  // space for nested functions that don't need literals cloning.
-  bool pretenure = instr->hydrogen()->pretenure();
-  if (!pretenure && instr->hydrogen()->has_no_literals()) {
-    FastNewClosureStub stub(isolate(), instr->hydrogen()->language_mode(),
-                            instr->hydrogen()->kind());
-    __ Mov(x2, Operand(instr->hydrogen()->shared_info()));
-    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ Mov(x2, Operand(instr->hydrogen()->shared_info()));
-    __ Mov(x1, Operand(pretenure ? factory()->true_value()
-                                 : factory()->false_value()));
-    __ Push(cp, x2, x1);
-    CallRuntime(Runtime::kNewClosure, 3, instr);
-  }
-}
-
-
 void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register map = ToRegister(instr->map());
   Register result = ToRegister(instr->result());

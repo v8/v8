@@ -545,8 +545,8 @@ namespace internal {
   F(NewArguments, 1, 1) /* TODO(turbofan): Only temporary */ \
   F(NewSloppyArguments, 3, 1)                                \
   F(NewStrictArguments, 3, 1)                                \
-  F(NewClosureFromStubFailure, 1, 1)                         \
-  F(NewClosure, 3, 1)                                        \
+  F(NewClosure, 1, 1)                                        \
+  F(NewClosure_Tenured, 1, 1)                                \
   F(NewScriptContext, 2, 1)                                  \
   F(NewFunctionContext, 1, 1)                                \
   F(PushWithContext, 2, 1)                                   \

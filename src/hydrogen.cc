@@ -5473,8 +5473,25 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
       expr, current_info()->script(), top_info());
   // We also have a stack overflow if the recursive compilation did.
   if (HasStackOverflow()) return;
-  HFunctionLiteral* instr =
-      New<HFunctionLiteral>(shared_info, expr->pretenure());
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning.
+  HConstant* shared_info_value = Add<HConstant>(shared_info);
+  HInstruction* instr;
+  if (!expr->pretenure() && shared_info->num_literals() == 0) {
+    FastNewClosureStub stub(isolate(), shared_info->language_mode(),
+                            shared_info->kind());
+    FastNewClosureDescriptor descriptor(isolate());
+    HValue* values[] = {context(), shared_info_value};
+    HConstant* stub_value = Add<HConstant>(stub.GetCode());
+    instr = New<HCallWithDescriptor>(stub_value, 0, descriptor,
+                                     Vector<HValue*>(values, arraysize(values)),
+                                     NORMAL_CALL);
+  } else {
+    Add<HPushArguments>(shared_info_value);
+    Runtime::FunctionId function_id =
+        expr->pretenure() ? Runtime::kNewClosure_Tenured : Runtime::kNewClosure;
+    instr = New<HCallRuntime>(Runtime::FunctionForId(function_id), 1);
+  }
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 

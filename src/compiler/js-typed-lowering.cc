@@ -1117,8 +1117,8 @@ Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
         CallDescriptor::kNoFlags);
     const Operator* new_op = common()->Call(desc);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    node->ReplaceInput(0, jsgraph()->HeapConstant(shared));
     node->InsertInput(graph()->zone(), 0, stub_code);
+    node->InsertInput(graph()->zone(), 1, jsgraph()->HeapConstant(shared));
     node->set_op(new_op);
     return Changed(node);
   }

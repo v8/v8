@@ -491,9 +491,10 @@ void JSGenericLowering::LowerJSLoadDynamicContext(Node* node) {
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   CreateClosureParameters p = CreateClosureParametersOf(node->op());
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.shared_info()));
-  node->InsertInput(zone(), 2, jsgraph()->BooleanConstant(p.pretenure()));
-  ReplaceWithRuntimeCall(node, Runtime::kNewClosure);
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.shared_info()));
+  ReplaceWithRuntimeCall(node, (p.pretenure() == TENURED)
+                                   ? Runtime::kNewClosure_Tenured
+                                   : Runtime::kNewClosure);
 }
 
 

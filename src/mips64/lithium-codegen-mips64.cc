@@ -5649,26 +5649,6 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
 }
 
 
-void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  // Use the fast case closure allocation code that allocates in new
-  // space for nested functions that don't need literals cloning.
-  bool pretenure = instr->hydrogen()->pretenure();
-  if (!pretenure && instr->hydrogen()->has_no_literals()) {
-    FastNewClosureStub stub(isolate(), instr->hydrogen()->language_mode(),
-                            instr->hydrogen()->kind());
-    __ li(a2, Operand(instr->hydrogen()->shared_info()));
-    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ li(a2, Operand(instr->hydrogen()->shared_info()));
-    __ li(a1, Operand(pretenure ? factory()->true_value()
-                                : factory()->false_value()));
-    __ Push(cp, a2, a1);
-    CallRuntime(Runtime::kNewClosure, 3, instr);
-  }
-}
-
-
 void LCodeGen::DoTypeof(LTypeof* instr) {
   DCHECK(ToRegister(instr->value()).is(a3));
   DCHECK(ToRegister(instr->result()).is(v0));

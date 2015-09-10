@@ -711,7 +711,7 @@ const Operator* JSOperatorBuilder::CreateClosure(
   return new (zone()) Operator1<CreateClosureParameters>(  // --
       IrOpcode::kJSCreateClosure, Operator::kNoThrow,      // opcode
       "JSCreateClosure",                                   // name
-      1, 1, 1, 1, 1, 0,                                    // counts
+      0, 1, 1, 1, 1, 0,                                    // counts
       parameters);                                         // parameter
 }
 

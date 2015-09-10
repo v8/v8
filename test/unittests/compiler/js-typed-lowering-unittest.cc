@@ -1038,7 +1038,7 @@ TEST_F(JSTypedLoweringTest, JSCreateClosure) {
   Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
   Reduction r =
       Reduce(graph()->NewNode(javascript()->CreateClosure(shared, NOT_TENURED),
-                              context, context, effect, control));
+                              context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsCall(_, IsHeapConstant(CodeFactory::FastNewClosure(

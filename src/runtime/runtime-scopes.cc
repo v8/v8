@@ -556,29 +556,25 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewClosureFromStubFailure) {
+RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  Handle<Context> context(isolate->context());
-  PretenureFlag pretenure_flag = NOT_TENURED;
+  Handle<Context> context(isolate->context(), isolate);
   return *isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                                pretenure_flag);
+                                                                NOT_TENURED);
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewClosure) {
+RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(Context, context, 0);
-  CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(pretenure, 2);
-
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
+  Handle<Context> context(isolate->context(), isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
-  PretenureFlag pretenure_flag = pretenure ? TENURED : NOT_TENURED;
   return *isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                                pretenure_flag);
+                                                                TENURED);
 }
 
 static Object* FindNameClash(Handle<ScopeInfo> scope_info,

@@ -861,7 +861,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kDiv:
     case HValue::kForInCacheArray:
     case HValue::kForInPrepareMap:
-    case HValue::kFunctionLiteral:
     case HValue::kInvokeFunction:
     case HValue::kLoadContextSlot:
     case HValue::kLoadFunctionPrototype:
