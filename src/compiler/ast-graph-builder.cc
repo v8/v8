@@ -1422,9 +1422,6 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // Evaluate the catch-block.
   VisitInScope(stmt->catch_block(), stmt->scope(), context);
   try_control.EndCatch();
-
-  // TODO(mstarzinger): Remove bailout once everything works.
-  if (!FLAG_turbo_try_catch) SetStackOverflow();
 }
 
 

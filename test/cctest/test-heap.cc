@@ -6354,7 +6354,6 @@ TEST(MessageObjectLeak) {
   const char* flag = "--turbo-filter=*";
   FlagList::SetFlagsFromString(flag, StrLength(flag));
   FLAG_always_opt = true;
-  FLAG_turbo_try_catch = true;
   FLAG_turbo_try_finally = true;
 
   CompileRun(test);
