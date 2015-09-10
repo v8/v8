@@ -5001,16 +5001,12 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     int index = Smi::cast(iteration_order->get(i))->value();
     Object* k = dictionary->KeyAt(index);
     DCHECK(dictionary->IsKey(k));
+    // Dictionary keys are internalized upon insertion.
+    // TODO(jkummerow): Turn this into a DCHECK if it's not hit in the wild.
+    CHECK(k->IsUniqueName());
+    Handle<Name> key(Name::cast(k), isolate);
 
     Object* value = dictionary->ValueAt(index);
-    Handle<Name> key;
-    if (k->IsSymbol()) {
-      key = handle(Symbol::cast(k));
-    } else {
-      // Ensure the key is a unique name before writing into the
-      // instance descriptor.
-      key = factory->InternalizeString(handle(String::cast(k)));
-    }
 
     PropertyDetails details = dictionary->DetailsAt(index);
     int enumeration_index = details.dictionary_index();

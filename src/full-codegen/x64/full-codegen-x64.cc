@@ -2243,10 +2243,46 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   Literal* key = prop->key()->AsLiteral();
   DCHECK(!prop->IsSuperAccess());
 
+  // See comment below.
+  if (FeedbackVector()->GetIndex(prop->PropertyFeedbackSlot()) == 6) {
+    __ Push(LoadDescriptor::ReceiverRegister());
+  }
+
   __ Move(LoadDescriptor::NameRegister(), key->value());
   __ Move(LoadDescriptor::SlotRegister(),
           SmiFromSlot(prop->PropertyFeedbackSlot()));
   CallLoadIC(NOT_INSIDE_TYPEOF, language_mode());
+
+  // Sanity check: The loaded value must be a JS-exposed kind of object,
+  // not something internal (like a Map, or FixedArray). Check this here
+  // to chase after a rare but recurring crash bug. It seems to always
+  // occur for functions beginning with "this.foo.bar()", so be selective
+  // and only insert the check for the first LoadIC (identified by slot).
+  // TODO(jkummerow): Remove this when it has generated a few crash reports.
+  // Don't forget to remove the Push() above as well!
+  if (FeedbackVector()->GetIndex(prop->PropertyFeedbackSlot()) == 6) {
+    __ Pop(LoadDescriptor::ReceiverRegister());
+
+    Label ok;
+    __ JumpIfSmi(rax, &ok, Label::kNear);
+    __ movp(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ CmpInstanceType(rbx, LAST_PRIMITIVE_TYPE);
+    __ j(below_equal, &ok, Label::kNear);
+    __ CmpInstanceType(rbx, FIRST_JS_RECEIVER_TYPE);
+    __ j(above_equal, &ok, Label::kNear);
+
+    __ Push(Smi::FromInt(0xaabbccdd));
+    __ Push(LoadDescriptor::ReceiverRegister());
+    __ movp(rbx, FieldOperand(LoadDescriptor::ReceiverRegister(),
+                              HeapObject::kMapOffset));
+    __ Push(rbx);
+    __ movp(rbx, FieldOperand(LoadDescriptor::ReceiverRegister(),
+                              JSObject::kPropertiesOffset));
+    __ Push(rbx);
+    __ int3();
+
+    __ bind(&ok);
+  }
 }
 
 
