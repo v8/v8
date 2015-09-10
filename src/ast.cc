@@ -251,6 +251,7 @@ ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
                                              bool is_computed_name)
     : key_(key),
       value_(value),
+      ic_slot_or_count_(FeedbackVectorICSlot::Invalid().ToInt()),
       kind_(kind),
       emit_store_(true),
       is_static_(is_static),
@@ -263,6 +264,7 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
                                              bool is_computed_name)
     : key_(key),
       value_(value),
+      ic_slot_or_count_(FeedbackVectorICSlot::Invalid().ToInt()),
       emit_store_(true),
       is_static_(is_static),
       is_computed_name_(is_computed_name) {
@@ -287,35 +289,34 @@ FeedbackVectorRequirements ClassLiteral::ComputeFeedbackRequirements(
   // This logic that computes the number of slots needed for vector store
   // ICs must mirror FullCodeGenerator::VisitClassLiteral.
   int ic_slots = 0;
-  for (int i = 0; i < properties()->length(); i++) {
-    ObjectLiteral::Property* property = properties()->at(i);
-
-    Expression* value = property->value();
-    if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
-  }
-
-  if (scope() != NULL && class_variable_proxy()->var()->IsUnallocated()) {
+  if (NeedsProxySlot()) {
     ic_slots++;
   }
 
-#ifdef DEBUG
-  // FullCodeGenerator::VisitClassLiteral verifies that it consumes slot_count_
-  // slots.
-  slot_count_ = ic_slots;
-#endif
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    // In case we don't end up using any slots.
+    property->set_ic_slot_count(0);
+
+    Expression* value = property->value();
+    if (FunctionLiteral::NeedsHomeObject(value)) {
+      property->set_ic_slot_count(1);
+      ic_slots++;
+    }
+  }
+
   return FeedbackVectorRequirements(0, ic_slots);
 }
 
 
-FeedbackVectorICSlot ClassLiteral::SlotForHomeObject(Expression* value,
-                                                     int* slot_index) const {
-  if (FLAG_vector_stores && FunctionLiteral::NeedsHomeObject(value)) {
-    DCHECK(slot_index != NULL && *slot_index >= 0 && *slot_index < slot_count_);
-    FeedbackVectorICSlot slot = GetNthSlot(*slot_index);
-    *slot_index += 1;
-    return slot;
+void ClassLiteral::LayoutFeedbackSlots() {
+  int base_slot = slot_.ToInt();
+  if (NeedsProxySlot()) base_slot++;
+
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    base_slot += property->set_base_slot(base_slot);
   }
-  return FeedbackVectorICSlot::Invalid();
 }
 
 
@@ -336,55 +337,88 @@ bool ObjectLiteral::Property::emit_store() {
 }
 
 
+void ObjectLiteral::LayoutFeedbackSlots() {
+  int base_slot = slot_.ToInt();
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    base_slot += property->set_base_slot(base_slot);
+  }
+}
+
+
 FeedbackVectorRequirements ObjectLiteral::ComputeFeedbackRequirements(
     Isolate* isolate, const ICSlotCache* cache) {
   if (!FLAG_vector_stores) return FeedbackVectorRequirements(0, 0);
 
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitObjectLiteral.
-  int ic_slots = 0;
-  bool saw_computed_name = false;
-  for (int i = 0; i < properties()->length(); i++) {
-    ObjectLiteral::Property* property = properties()->at(i);
+  int property_index = 0;
+  for (; property_index < properties()->length(); property_index++) {
+    ObjectLiteral::Property* property = properties()->at(property_index);
+    // In case we don't end up using any slots.
+    property->set_ic_slot_count(0);
+
+    if (property->is_computed_name()) break;
     if (property->IsCompileTimeValue()) continue;
-    saw_computed_name |= property->is_computed_name();
+
+    Literal* key = property->key()->AsLiteral();
+    Expression* value = property->value();
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+        UNREACHABLE();
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+      // Fall through.
+      case ObjectLiteral::Property::COMPUTED:
+        // It is safe to use [[Put]] here because the boilerplate already
+        // contains computed properties with an uninitialized value.
+        if (key->value()->IsInternalizedString()) {
+          if (property->emit_store()) {
+            int slot_count = 1;
+            if (FunctionLiteral::NeedsHomeObject(value)) {
+              slot_count++;
+            }
+            property->set_ic_slot_count(slot_count);
+          }
+          break;
+        }
+        if (property->emit_store() && FunctionLiteral::NeedsHomeObject(value)) {
+          property->set_ic_slot_count(1);
+        }
+        break;
+      case ObjectLiteral::Property::PROTOTYPE:
+        break;
+      case ObjectLiteral::Property::GETTER:
+        if (property->emit_store() && FunctionLiteral::NeedsHomeObject(value)) {
+          property->set_ic_slot_count(1);
+        }
+        break;
+      case ObjectLiteral::Property::SETTER:
+        if (property->emit_store() && FunctionLiteral::NeedsHomeObject(value)) {
+          property->set_ic_slot_count(1);
+        }
+        break;
+    }
+  }
+
+  for (; property_index < properties()->length(); property_index++) {
+    ObjectLiteral::Property* property = properties()->at(property_index);
 
     Expression* value = property->value();
-    if (saw_computed_name &&
-        property->kind() != ObjectLiteral::Property::PROTOTYPE) {
-      if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
-    } else if (property->emit_store()) {
-      if (property->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL ||
-          property->kind() == ObjectLiteral::Property::COMPUTED) {
-        Literal* key = property->key()->AsLiteral();
-        if (key->value()->IsInternalizedString()) ic_slots++;
-        if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
-      } else if (property->kind() == ObjectLiteral::Property::GETTER ||
-                 property->kind() == ObjectLiteral::Property::SETTER) {
-        // We might need a slot for the home object.
-        if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
+    if (property->kind() != ObjectLiteral::Property::PROTOTYPE) {
+      if (FunctionLiteral::NeedsHomeObject(value)) {
+        property->set_ic_slot_count(1);
       }
     }
   }
 
-#ifdef DEBUG
-  // FullCodeGenerator::VisitObjectLiteral verifies that it consumes slot_count_
-  // slots.
-  slot_count_ = ic_slots;
-#endif
-  return FeedbackVectorRequirements(0, ic_slots);
-}
-
-
-FeedbackVectorICSlot ObjectLiteral::SlotForHomeObject(Expression* value,
-                                                      int* slot_index) const {
-  if (FLAG_vector_stores && FunctionLiteral::NeedsHomeObject(value)) {
-    DCHECK(slot_index != NULL && *slot_index >= 0 && *slot_index < slot_count_);
-    FeedbackVectorICSlot slot = GetNthSlot(*slot_index);
-    *slot_index += 1;
-    return slot;
+  // How many slots did we allocate?
+  int ic_slots = 0;
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    ic_slots += property->ic_slot_count();
   }
-  return FeedbackVectorICSlot::Invalid();
+
+  return FeedbackVectorRequirements(0, ic_slots);
 }
 
 

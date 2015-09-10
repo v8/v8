@@ -198,7 +198,8 @@ void TypeFeedbackOracle::GetStoreModeAndKeyType(
 void TypeFeedbackOracle::GetStoreModeAndKeyType(
     FeedbackVectorICSlot slot, KeyedAccessStoreMode* store_mode,
     IcCheckType* key_type) {
-  if (!slot.IsInvalid()) {
+  if (!slot.IsInvalid() &&
+      feedback_vector_->GetKind(slot) == Code::KEYED_STORE_IC) {
     KeyedStoreICNexus nexus(feedback_vector_, slot);
     *store_mode = nexus.GetKeyedAccessStoreMode();
     *key_type = nexus.GetKeyType();
@@ -414,6 +415,13 @@ void TypeFeedbackOracle::CountReceiverTypes(TypeFeedbackId id,
 }
 
 
+void TypeFeedbackOracle::CountReceiverTypes(FeedbackVectorICSlot slot,
+                                            SmallMapList* receiver_types) {
+  receiver_types->Clear();
+  if (!slot.IsInvalid()) CollectReceiverTypes(slot, receiver_types);
+}
+
+
 void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorICSlot slot,
                                               Handle<Name> name,
                                               Code::Flags flags,
@@ -462,8 +470,15 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
 
 void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorICSlot slot,
                                               SmallMapList* types) {
-  KeyedStoreICNexus nexus(feedback_vector_, slot);
-  CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+  Code::Kind kind = feedback_vector_->GetKind(slot);
+  if (kind == Code::STORE_IC) {
+    StoreICNexus nexus(feedback_vector_, slot);
+    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+  } else {
+    DCHECK(kind == Code::KEYED_STORE_IC);
+    KeyedStoreICNexus nexus(feedback_vector_, slot);
+    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+  }
 }
 
 

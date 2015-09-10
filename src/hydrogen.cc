@@ -5894,7 +5894,6 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // The object is expected in the bailout environment during computation
   // of the property values and is the value of the entire expression.
   Push(literal);
-  int store_slot_index = 0;
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
     if (property->is_computed_name()) return Bailout(kComputedPropertyName);
@@ -5918,7 +5917,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             Handle<Map> map = property->GetReceiverType();
             Handle<String> name = key->AsPropertyName();
             HValue* store;
-            FeedbackVectorICSlot slot = expr->GetNthSlot(store_slot_index++);
+            FeedbackVectorICSlot slot = property->GetSlot();
             if (map.is_null()) {
               // If we don't know the monomorphic type, do a generic store.
               CHECK_ALIVE(store = BuildNamedGeneric(STORE, NULL, slot, literal,
@@ -5946,8 +5945,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             if (FunctionLiteral::NeedsHomeObject(property->value())) {
               Handle<Symbol> sym = isolate()->factory()->home_object_symbol();
               HInstruction* store_home = BuildNamedGeneric(
-                  STORE, NULL, expr->GetNthSlot(store_slot_index++), value, sym,
-                  literal);
+                  STORE, NULL, property->GetSlot(1), value, sym, literal);
               AddInstruction(store_home);
               DCHECK(store_home->HasObservableSideEffects());
               Add<HSimulate>(property->value()->id(), REMOVABLE_SIMULATE);
@@ -5965,9 +5963,6 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       default: UNREACHABLE();
     }
   }
-
-  // Crankshaft may not consume all the slots because it doesn't emit accessors.
-  DCHECK(!FLAG_vector_stores || store_slot_index <= expr->slot_count());
 
   if (expr->has_function()) {
     // Return the result of the transformation to fast properties

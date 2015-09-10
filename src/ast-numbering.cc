@@ -463,6 +463,7 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
     VisitObjectLiteralProperty(node->properties()->at(i));
   }
   ReserveFeedbackSlots(node);
+  node->LayoutFeedbackSlots();
 }
 
 
@@ -478,6 +479,7 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   // marked expressions, no store code will be is emitted.
   node->CalculateEmitStore(zone());
   ReserveFeedbackSlots(node);
+  node->LayoutFeedbackSlots();
 }
 
 

@@ -66,6 +66,8 @@ class TypeFeedbackOracle: public ZoneObject {
                                     IcCheckType* key_type);
   void CountReceiverTypes(TypeFeedbackId id,
                           SmallMapList* receiver_types);
+  void CountReceiverTypes(FeedbackVectorICSlot slot,
+                          SmallMapList* receiver_types);
 
   void CollectReceiverTypes(FeedbackVectorICSlot slot, SmallMapList* types);
   void CollectReceiverTypes(TypeFeedbackId id,

@@ -1300,23 +1300,13 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ CallRuntime(Runtime::kDefineClass, 5);
     PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
 
-    int store_slot_index = 0;
-    EmitClassDefineProperties(lit, &store_slot_index);
+    EmitClassDefineProperties(lit);
 
     if (lit->scope() != NULL) {
       DCHECK_NOT_NULL(lit->class_variable_proxy());
-      FeedbackVectorICSlot slot =
-          FLAG_vector_stores &&
-                  lit->class_variable_proxy()->var()->IsUnallocated()
-              ? lit->GetNthSlot(store_slot_index++)
-              : FeedbackVectorICSlot::Invalid();
       EmitVariableAssignment(lit->class_variable_proxy()->var(),
-                             Token::INIT_CONST, slot);
+                             Token::INIT_CONST, lit->ProxySlot());
     }
-
-    // Verify that compilation exactly consumed the number of store ic slots
-    // that the ClassLiteral node had to offer.
-    DCHECK(!FLAG_vector_stores || store_slot_index == lit->slot_count());
   }
 
   context()->Plug(result_register());

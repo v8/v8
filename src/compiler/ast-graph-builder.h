@@ -326,8 +326,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Builder for adding the [[HomeObject]] to a value if the value came from a
   // function literal and needs a home object. Do nothing otherwise.
-  Node* BuildSetHomeObject(Node* value, Node* home_object, Expression* expr,
-                           const VectorSlotPair& feedback);
+  Node* BuildSetHomeObject(Node* value, Node* home_object,
+                           ObjectLiteralProperty* property,
+                           int slot_number = 0);
 
   // Builders for error reporting at runtime.
   Node* BuildThrowError(Node* exception, BailoutId bailout_id);
@@ -401,6 +402,10 @@ class AstGraphBuilder : public AstVisitor {
   void VisitForInAssignment(Expression* expr, Node* value,
                             const VectorSlotPair& feedback,
                             BailoutId bailout_id);
+
+  // Dispatched from VisitObjectLiteral.
+  void VisitObjectLiteralAccessor(Node* home_object,
+                                  ObjectLiteralProperty* property);
 
   // Dispatched from VisitClassLiteral.
   void VisitClassLiteralContents(ClassLiteral* expr);

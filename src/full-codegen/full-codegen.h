@@ -552,7 +552,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitVariableLoad(VariableProxy* proxy,
                         TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
 
-  void EmitAccessor(Expression* expression);
+  void EmitAccessor(ObjectLiteralProperty* property);
 
   bool NeedsHoleCheckForLoad(VariableProxy* proxy);
 
@@ -586,7 +586,7 @@ class FullCodeGenerator: public AstVisitor {
   // Adds the properties to the class (function) object and to its prototype.
   // Expects the class (function) in the accumulator. The class (function) is
   // in the accumulator after installing all the properties.
-  void EmitClassDefineProperties(ClassLiteral* lit, int* used_store_slots);
+  void EmitClassDefineProperties(ClassLiteral* lit);
 
   // Pushes the property key as a Name on the stack.
   void EmitPropertyKey(ObjectLiteralProperty* property, BailoutId bailout_id);
@@ -640,9 +640,11 @@ class FullCodeGenerator: public AstVisitor {
   // Adds the [[HomeObject]] to |initializer| if it is a FunctionLiteral.
   // The value of the initializer is expected to be at the top of the stack.
   // |offset| is the offset in the stack where the home object can be found.
-  void EmitSetHomeObjectIfNeeded(
-      Expression* initializer, int offset,
-      FeedbackVectorICSlot slot = FeedbackVectorICSlot::Invalid());
+  void EmitSetHomeObject(Expression* initializer, int offset,
+                         FeedbackVectorICSlot slot);
+
+  void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
+                                    FeedbackVectorICSlot slot);
 
   void EmitLoadSuperConstructor(SuperCallReference* super_call_ref);
 

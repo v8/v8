@@ -396,8 +396,13 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
           prop->emit_store()) {
         // Record type feed back for the property.
         TypeFeedbackId id = prop->key()->AsLiteral()->LiteralFeedbackId();
+        FeedbackVectorICSlot slot = prop->GetSlot();
         SmallMapList maps;
-        oracle()->CollectReceiverTypes(id, &maps);
+        if (FLAG_vector_stores) {
+          oracle()->CollectReceiverTypes(slot, &maps);
+        } else {
+          oracle()->CollectReceiverTypes(id, &maps);
+        }
         prop->set_receiver_type(maps.length() == 1 ? maps.at(0)
                                                    : Handle<Map>::null());
       }
@@ -612,12 +617,18 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 void AstTyper::VisitCountOperation(CountOperation* expr) {
   // Collect type feedback.
   TypeFeedbackId store_id = expr->CountStoreFeedbackId();
+  FeedbackVectorICSlot slot = expr->CountSlot();
   KeyedAccessStoreMode store_mode;
   IcCheckType key_type;
-  oracle()->GetStoreModeAndKeyType(store_id, &store_mode, &key_type);
+  if (FLAG_vector_stores) {
+    oracle()->GetStoreModeAndKeyType(slot, &store_mode, &key_type);
+    oracle()->CountReceiverTypes(slot, expr->GetReceiverTypes());
+  } else {
+    oracle()->GetStoreModeAndKeyType(store_id, &store_mode, &key_type);
+    oracle()->CountReceiverTypes(store_id, expr->GetReceiverTypes());
+  }
   expr->set_store_mode(store_mode);
   expr->set_key_type(key_type);
-  oracle()->CountReceiverTypes(store_id, expr->GetReceiverTypes());
   expr->set_type(oracle()->CountType(expr->CountBinOpFeedbackId()));
   // TODO(rossberg): merge the count type with the generic expression type.
 
