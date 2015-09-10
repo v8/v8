@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-new BenchmarkSuite('Basic', [1000], [
+new BenchmarkSuite('Basic1', [1000], [
   new Benchmark('BasicRest1', false, false, 0,
                 BasicRest1, BasicRest1Setup, BasicRest1TearDown)
 ]);

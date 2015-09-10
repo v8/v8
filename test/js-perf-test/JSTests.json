@@ -18,7 +18,7 @@
       "units": "score",
       "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",
       "tests": [
-        {"name": "BasicRest1"}
+        {"name": "Basic1"}
       ]
     },
     {
