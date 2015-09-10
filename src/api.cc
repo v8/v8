@@ -3702,8 +3702,7 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
       return Local<Object>();
     }
   }
-  return Utils::ToLocal(
-      i::handle(i::JSObject::cast(iter.GetCurrent()), isolate));
+  return Utils::ToLocal(i::handle(iter.GetCurrent<i::JSObject>(), isolate));
 }
 
 

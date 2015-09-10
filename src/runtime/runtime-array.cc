@@ -203,14 +203,13 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
                                 PrototypeIterator::START_AT_RECEIVER);
          !iter.IsAtEnd(); iter.Advance()) {
       if (PrototypeIterator::GetCurrent(iter)->IsJSProxy() ||
-          JSObject::cast(*PrototypeIterator::GetCurrent(iter))
+          PrototypeIterator::GetCurrent<JSObject>(iter)
               ->HasIndexedInterceptor()) {
         // Bail out if we find a proxy or interceptor, likely not worth
         // collecting keys in that case.
         return *isolate->factory()->NewNumberFromUint(length);
       }
-      Handle<JSObject> current =
-          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+      Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
       Handle<FixedArray> current_keys =
           isolate->factory()->NewFixedArray(current->NumberOfOwnElements(NONE));
       current->GetOwnElementKeys(*current_keys, NONE);
@@ -454,8 +453,7 @@ RUNTIME_FUNCTION(Runtime_HasComplexElements) {
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
       return isolate->heap()->true_value();
     }
-    Handle<JSObject> current =
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
     if (current->HasIndexedInterceptor()) {
       return isolate->heap()->true_value();
     }

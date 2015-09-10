@@ -94,7 +94,7 @@ Handle<JSObject> LookupIterator::GetStoreTarget() const {
   if (receiver_->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate(), receiver_);
     if (iter.IsAtEnd()) return Handle<JSGlobalProxy>::cast(receiver_);
-    return Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter));
+    return PrototypeIterator::GetCurrent<JSGlobalObject>(iter);
   }
   return Handle<JSObject>::cast(receiver_);
 }
@@ -359,7 +359,7 @@ bool LookupIterator::InternalHolderIsReceiverOrHiddenPrototype() const {
   PrototypeIterator iter(isolate(), current,
                          PrototypeIterator::START_AT_RECEIVER);
   do {
-    if (JSReceiver::cast(iter.GetCurrent()) == holder) return true;
+    if (iter.GetCurrent<JSReceiver>() == holder) return true;
     DCHECK(!current->IsJSProxy());
     iter.Advance();
   } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));

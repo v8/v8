@@ -7368,7 +7368,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     PrototypeIterator iter(map);
     JSObject* holder = NULL;
     while (!iter.IsAtEnd()) {
-      holder = JSObject::cast(*PrototypeIterator::GetCurrent(iter));
+      holder = *PrototypeIterator::GetCurrent<JSObject>(iter);
       iter.Advance();
     }
     DCHECK(holder && holder->IsJSObject());
@@ -7932,15 +7932,13 @@ HInstruction* HGraphBuilder::BuildCheckPrototypeMaps(Handle<JSObject> prototype,
                          PrototypeIterator::START_AT_RECEIVER);
   while (holder.is_null() ||
          !PrototypeIterator::GetCurrent(iter).is_identical_to(holder)) {
-    BuildConstantMapCheck(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
+    BuildConstantMapCheck(PrototypeIterator::GetCurrent<JSObject>(iter));
     iter.Advance();
     if (iter.IsAtEnd()) {
       return NULL;
     }
   }
-  return BuildConstantMapCheck(
-      Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
+  return BuildConstantMapCheck(PrototypeIterator::GetCurrent<JSObject>(iter));
 }
 
 

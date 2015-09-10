@@ -1348,7 +1348,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   for (PrototypeIterator iter(this, *obj, PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
     if (iter.GetCurrent()->IsJSProxy()) return false;
-    if (JSObject::cast(iter.GetCurrent())->map()->GetConstructor() ==
+    if (iter.GetCurrent<JSObject>()->map()->GetConstructor() ==
         *error_constructor) {
       return true;
     }

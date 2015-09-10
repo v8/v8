@@ -330,7 +330,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     PrototypeIterator iter(isolate(), last);
     while (!iter.IsAtEnd()) {
       lost_holder_register = true;
-      last = JSObject::cast(iter.GetCurrent());
+      last = iter.GetCurrent<JSObject>();
       iter.Advance();
     }
     auto last_handle = handle(last);
@@ -436,7 +436,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
                           : PrototypeIterator::END_AT_NULL;
     PrototypeIterator iter(isolate(), holder());
     while (!iter.IsAtEnd(end)) {
-      last = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+      last = PrototypeIterator::GetCurrent<JSObject>(iter);
       iter.Advance();
     }
     if (!last.is_null()) set_holder(last);

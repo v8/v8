@@ -106,7 +106,7 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   if (result->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, result);
     // TODO(verwaest): This will crash when the global proxy is detached.
-    result = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    result = PrototypeIterator::GetCurrent<JSObject>(iter);
   }
 
   return result;

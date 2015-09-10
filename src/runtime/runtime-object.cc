@@ -186,8 +186,7 @@ RUNTIME_FUNCTION(Runtime_GetPrototype) {
   PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
   do {
     if (PrototypeIterator::GetCurrent(iter)->IsAccessCheckNeeded() &&
-        !isolate->MayAccess(
-            Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)))) {
+        !isolate->MayAccess(PrototypeIterator::GetCurrent<JSObject>(iter))) {
       return isolate->heap()->null_value();
     }
     iter.AdvanceIgnoringProxies();

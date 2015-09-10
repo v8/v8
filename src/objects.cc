@@ -5076,7 +5076,7 @@ Object* JSObject::GetHiddenProperty(Handle<Name> key) {
     // If the proxy is detached, return undefined.
     if (iter.IsAtEnd()) return GetHeap()->the_hole_value();
     DCHECK(iter.GetCurrent()->IsJSGlobalObject());
-    return JSObject::cast(iter.GetCurrent())->GetHiddenProperty(key);
+    return iter.GetCurrent<JSObject>()->GetHiddenProperty(key);
   }
   DCHECK(!IsJSGlobalProxy());
   Object* inline_value = GetHiddenPropertiesHashTable();
@@ -5101,9 +5101,8 @@ Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> object,
     // If the proxy is detached, return undefined.
     if (iter.IsAtEnd()) return isolate->factory()->undefined_value();
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return SetHiddenProperty(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), key,
-        value);
+    return SetHiddenProperty(PrototypeIterator::GetCurrent<JSObject>(iter), key,
+                             value);
   }
   DCHECK(!object->IsJSGlobalProxy());
 
@@ -5134,8 +5133,8 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
     PrototypeIterator iter(isolate, object);
     if (iter.IsAtEnd()) return;
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return DeleteHiddenProperty(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), key);
+    return DeleteHiddenProperty(PrototypeIterator::GetCurrent<JSObject>(iter),
+                                key);
   }
 
   Object* inline_value = object->GetHiddenPropertiesHashTable();
@@ -5548,8 +5547,7 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
     PrototypeIterator iter(isolate, object);
     if (iter.IsAtEnd()) return object;
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return PreventExtensions(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
+    return PreventExtensions(PrototypeIterator::GetCurrent<JSObject>(iter));
   }
 
   // It's not possible to seal objects with external array elements
@@ -5591,7 +5589,7 @@ bool JSObject::IsExtensible() {
     PrototypeIterator iter(GetIsolate(), this);
     if (iter.IsAtEnd()) return false;
     DCHECK(iter.GetCurrent()->IsJSGlobalObject());
-    return JSObject::cast(iter.GetCurrent())->map()->is_extensible();
+    return iter.GetCurrent<JSObject>()->map()->is_extensible();
   }
   return map()->is_extensible();
 }
@@ -5642,7 +5640,7 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
     if (iter.IsAtEnd()) return object;
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return PreventExtensionsWithTransition<attrs>(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
+        PrototypeIterator::GetCurrent<JSObject>(iter));
   }
 
   // It's not possible to seal or freeze objects with external array elements
@@ -6097,14 +6095,14 @@ bool JSReceiver::IsSimpleEnum() {
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
     if (!iter.GetCurrent()->IsJSObject()) return false;
-    JSObject* curr = JSObject::cast(iter.GetCurrent());
-    int enum_length = curr->map()->EnumLength();
+    JSObject* current = iter.GetCurrent<JSObject>();
+    int enum_length = current->map()->EnumLength();
     if (enum_length == kInvalidEnumCacheSentinel) return false;
-    if (curr->IsAccessCheckNeeded()) return false;
-    DCHECK(!curr->HasNamedInterceptor());
-    DCHECK(!curr->HasIndexedInterceptor());
-    if (curr->NumberOfEnumElements() > 0) return false;
-    if (curr != this && enum_length != 0) return false;
+    if (current->IsAccessCheckNeeded()) return false;
+    DCHECK(!current->HasNamedInterceptor());
+    DCHECK(!current->HasIndexedInterceptor());
+    if (current->NumberOfEnumElements() > 0) return false;
+    if (current != this && enum_length != 0) return false;
   }
   return true;
 }
@@ -6305,8 +6303,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(end); iter.Advance()) {
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
-      Handle<JSProxy> proxy(JSProxy::cast(*PrototypeIterator::GetCurrent(iter)),
-                            isolate);
+      Handle<JSProxy> proxy = PrototypeIterator::GetCurrent<JSProxy>(iter);
       Handle<Object> args[] = { proxy };
       Handle<Object> names;
       ASSIGN_RETURN_ON_EXCEPTION(
@@ -6325,8 +6322,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       break;
     }
 
-    Handle<JSObject> current =
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
 
     // Check access rights if required.
     if (current->IsAccessCheckNeeded() && !isolate->MayAccess(current)) {
@@ -6409,7 +6405,7 @@ bool Map::DictionaryElementsInPrototypeChainOnly() {
     if (iter.GetCurrent()->IsJSProxy()) return true;
     // String wrappers have non-configurable, non-writable elements.
     if (iter.GetCurrent()->IsStringWrapper()) return true;
-    JSObject* current = JSObject::cast(iter.GetCurrent());
+    JSObject* current = iter.GetCurrent<JSObject>();
 
     if (current->HasDictionaryElements() &&
         current->element_dictionary()->requires_slow_elements()) {
@@ -9968,7 +9964,7 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   if (slot == PrototypeInfo::UNREGISTERED) return false;
   if (prototype->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, prototype);
-    prototype = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    prototype = PrototypeIterator::GetCurrent<JSObject>(iter);
   }
   DCHECK(prototype->map()->is_prototype_map());
   Object* maybe_proto_info = prototype->map()->prototype_info();
@@ -10020,7 +10016,7 @@ void JSObject::InvalidatePrototypeChains(Map* map) {
   DisallowHeapAllocation no_gc;
   if (map->IsJSGlobalProxyMap()) {
     PrototypeIterator iter(map);
-    map = JSObject::cast(iter.GetCurrent())->map();
+    map = iter.GetCurrent<JSObject>()->map();
   }
   InvalidatePrototypeChainsInternal(map);
 }
@@ -10060,7 +10056,7 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
   Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);
   if (prototype->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, prototype);
-    prototype = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    prototype = PrototypeIterator::GetCurrent<JSObject>(iter);
   }
   // Ensure the prototype is registered with its own prototypes so its cell
   // will be invalidated when necessary.
@@ -12391,7 +12387,7 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   for (PrototypeIterator iter(isolate, *value,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
-    if (JSReceiver::cast(iter.GetCurrent()) == *object) {
+    if (iter.GetCurrent<JSReceiver>() == *object) {
       // Cycle detected.
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCyclicProto),
                       Object);
@@ -12407,8 +12403,7 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
     // hidden and set the new prototype on that object.
     PrototypeIterator iter(isolate, real_receiver);
     while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
-      real_receiver =
-          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+      real_receiver = PrototypeIterator::GetCurrent<JSObject>(iter);
       iter.Advance();
       if (!real_receiver->map()->is_extensible()) {
         THROW_NEW_ERROR(

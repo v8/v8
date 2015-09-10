@@ -215,7 +215,7 @@ inline bool PrototypeHasNoElements(PrototypeIterator* iter) {
   DisallowHeapAllocation no_gc;
   for (; !iter->IsAtEnd(); iter->Advance()) {
     if (iter->GetCurrent()->IsJSProxy()) return false;
-    JSObject* current = JSObject::cast(iter->GetCurrent());
+    JSObject* current = iter->GetCurrent<JSObject>();
     if (current->IsAccessCheckNeeded()) return false;
     if (current->HasIndexedInterceptor()) return false;
     if (current->elements()->length() != 0) return false;
@@ -953,9 +953,8 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
   if (!iter.IsAtEnd()) {
     // The prototype will usually have no inherited element indices,
     // but we have to check.
-    CollectElementIndices(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), range,
-        indices);
+    CollectElementIndices(PrototypeIterator::GetCurrent<JSObject>(iter), range,
+                          indices);
   }
 }
 
