@@ -7452,37 +7452,36 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
       : most_general_consolidated_map->elements_kind();
   LoadKeyedHoleMode load_mode = NEVER_RETURN_HOLE;
   if (has_seen_holey_elements) {
-    if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
-      return NULL;
-    }
-
     // Make sure that all of the maps we are handling have the initial array
     // prototype.
+    bool saw_non_array_prototype = false;
     for (int i = 0; i < maps->length(); ++i) {
       Handle<Map> map = maps->at(i);
       if (map->prototype() != *isolate()->initial_array_prototype()) {
         // We can't guarantee that loading the hole is safe. The prototype may
         // have an element at this position.
-        return NULL;
+        saw_non_array_prototype = true;
+        break;
       }
     }
 
-    Handle<Map> holey_map =
-        handle(isolate()->get_initial_js_array_map(consolidated_elements_kind));
-    load_mode = BuildKeyedHoleMode(holey_map);
-    if (load_mode == NEVER_RETURN_HOLE) {
-      return NULL;
-    }
-
-    for (int i = 0; i < maps->length(); ++i) {
-      Handle<Map> map = maps->at(i);
-      // The prototype check was already done for the holey map in
-      // BuildKeyedHoleMode.
-      if (!map.is_identical_to(holey_map)) {
-        Handle<JSObject> prototype(JSObject::cast(map->prototype()), isolate());
-        Handle<JSObject> object_prototype =
-            isolate()->initial_object_prototype();
-        BuildCheckPrototypeMaps(prototype, object_prototype);
+    if (!saw_non_array_prototype) {
+      Handle<Map> holey_map = handle(
+          isolate()->get_initial_js_array_map(consolidated_elements_kind));
+      load_mode = BuildKeyedHoleMode(holey_map);
+      if (load_mode != NEVER_RETURN_HOLE) {
+        for (int i = 0; i < maps->length(); ++i) {
+          Handle<Map> map = maps->at(i);
+          // The prototype check was already done for the holey map in
+          // BuildKeyedHoleMode.
+          if (!map.is_identical_to(holey_map)) {
+            Handle<JSObject> prototype(JSObject::cast(map->prototype()),
+                                       isolate());
+            Handle<JSObject> object_prototype =
+                isolate()->initial_object_prototype();
+            BuildCheckPrototypeMaps(prototype, object_prototype);
+          }
+        }
       }
     }
   }
