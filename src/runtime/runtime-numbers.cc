@@ -220,56 +220,6 @@ RUNTIME_FUNCTION(Runtime_NumberToSmi) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberAdd) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(x + y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberSub) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(x - y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberMul) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(x * y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberDiv) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(x / y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberMod) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(modulo(x, y));
-}
-
-
 RUNTIME_FUNCTION(Runtime_NumberImul) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -280,67 +230,6 @@ RUNTIME_FUNCTION(Runtime_NumberImul) {
   CONVERT_NUMBER_CHECKED(uint32_t, y, Int32, args[1]);
   int32_t product = static_cast<int32_t>(x * y);
   return *isolate->factory()->NewNumberFromInt(product);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberOr) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(x | y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberAnd) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(x & y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberXor) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(x ^ y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberShl) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(x << (y & 0x1f));
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberShr) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(uint32_t, x, Uint32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromUint(x >> (y & 0x1f));
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberSar) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(
-      ArithmeticShiftRight(x, y & 0x1f));
 }
 
 

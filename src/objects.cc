@@ -93,11 +93,12 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
 
 
 // static
-MaybeHandle<Object> Object::ToNumber(Isolate* isolate, Handle<Object> input) {
+MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
   while (true) {
     if (input->IsNumber()) {
       return input;
     }
+    Isolate* const isolate = Handle<HeapObject>::cast(input)->GetIsolate();
     if (input->IsOddball()) {
       return handle(Handle<Oddball>::cast(input)->to_number(), isolate);
     }
@@ -190,6 +191,203 @@ Handle<String> Object::TypeOf(Isolate* isolate, Handle<Object> object) {
 #undef SIMD128_TYPE
   if (object->IsCallable()) return isolate->factory()->function_string();
   return isolate->factory()->object_string();
+}
+
+
+// static
+MaybeHandle<Object> Object::Multiply(Isolate* isolate, Handle<Object> lhs,
+                                     Handle<Object> rhs, Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumber(lhs->Number() * rhs->Number());
+}
+
+
+// static
+MaybeHandle<Object> Object::Divide(Isolate* isolate, Handle<Object> lhs,
+                                   Handle<Object> rhs, Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumber(lhs->Number() / rhs->Number());
+}
+
+
+// static
+MaybeHandle<Object> Object::Modulus(Isolate* isolate, Handle<Object> lhs,
+                                    Handle<Object> rhs, Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumber(modulo(lhs->Number(), rhs->Number()));
+}
+
+
+// static
+MaybeHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
+                                Handle<Object> rhs, Strength strength) {
+  if (lhs->IsNumber() && rhs->IsNumber()) {
+    return isolate->factory()->NewNumber(lhs->Number() + rhs->Number());
+  } else if (lhs->IsString() && rhs->IsString()) {
+    return isolate->factory()->NewConsString(Handle<String>::cast(lhs),
+                                             Handle<String>::cast(rhs));
+  } else if (is_strong(strength)) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                    Object);
+  }
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToPrimitive(lhs), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToPrimitive(rhs), Object);
+  if (lhs->IsString() || rhs->IsString()) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToString(isolate, rhs),
+                               Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToString(isolate, lhs),
+                               Object);
+    return isolate->factory()->NewConsString(Handle<String>::cast(lhs),
+                                             Handle<String>::cast(rhs));
+  }
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+  return isolate->factory()->NewNumber(lhs->Number() + rhs->Number());
+}
+
+
+// static
+MaybeHandle<Object> Object::Subtract(Isolate* isolate, Handle<Object> lhs,
+                                     Handle<Object> rhs, Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumber(lhs->Number() - rhs->Number());
+}
+
+
+// static
+MaybeHandle<Object> Object::ShiftLeft(Isolate* isolate, Handle<Object> lhs,
+                                      Handle<Object> rhs, Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumberFromInt(NumberToInt32(*lhs)
+                                              << (NumberToUint32(*rhs) & 0x1F));
+}
+
+
+// static
+MaybeHandle<Object> Object::ShiftRight(Isolate* isolate, Handle<Object> lhs,
+                                       Handle<Object> rhs, Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumberFromInt(NumberToInt32(*lhs) >>
+                                              (NumberToUint32(*rhs) & 0x1F));
+}
+
+
+// static
+MaybeHandle<Object> Object::ShiftRightLogical(Isolate* isolate,
+                                              Handle<Object> lhs,
+                                              Handle<Object> rhs,
+                                              Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumberFromUint(NumberToUint32(*lhs) >>
+                                               (NumberToUint32(*rhs) & 0x1F));
+}
+
+
+// static
+MaybeHandle<Object> Object::BitwiseAnd(Isolate* isolate, Handle<Object> lhs,
+                                       Handle<Object> rhs, Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumberFromInt(NumberToInt32(*lhs) &
+                                              NumberToInt32(*rhs));
+}
+
+
+// static
+MaybeHandle<Object> Object::BitwiseOr(Isolate* isolate, Handle<Object> lhs,
+                                      Handle<Object> rhs, Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumberFromInt(NumberToInt32(*lhs) |
+                                              NumberToInt32(*rhs));
+}
+
+
+// static
+MaybeHandle<Object> Object::BitwiseXor(Isolate* isolate, Handle<Object> lhs,
+                                       Handle<Object> rhs, Strength strength) {
+  if (!lhs->IsNumber() || !rhs->IsNumber()) {
+    if (is_strong(strength)) {
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrongImplicitConversion),
+                      Object);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
+  }
+  return isolate->factory()->NewNumberFromInt(NumberToInt32(*lhs) ^
+                                              NumberToInt32(*rhs));
 }
 
 
@@ -3416,8 +3614,7 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
   if (it->IsElement() && receiver->HasFixedTypedArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
       ASSIGN_RETURN_ON_EXCEPTION(it->isolate(), to_assign,
-                                 Object::ToNumber(it->isolate(), value),
-                                 Object);
+                                 Object::ToNumber(value), Object);
       // ToNumber above might modify the receiver, causing the cached
       // holder_map to mismatch the actual holder->map() after this point.
       // Reload the map to be in consistent state. Other cached state cannot

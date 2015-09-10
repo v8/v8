@@ -386,8 +386,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSValue(
     SerializeString(Handle<String>::cast(value));
   } else if (class_name == isolate_->heap()->Number_string()) {
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate_, value, Object::ToNumber(isolate_, object), EXCEPTION);
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, value, Object::ToNumber(object),
+                                     EXCEPTION);
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
   } else if (class_name == isolate_->heap()->Boolean_string()) {

@@ -485,9 +485,11 @@ class RawMachineAssembler {
   // Call through CallFunctionStub with lazy deopt and frame-state.
   Node* CallFunctionStub0(Node* function, Node* receiver, Node* context,
                           Node* frame_state, CallFunctionFlags flags);
-  // Call to a runtime function with zero arguments.
-  Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context,
-                     Node* frame_state);
+  // Call to a runtime function with one arguments.
+  Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context);
+  // Call to a runtime function with two arguments.
+  Node* CallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                     Node* context);
   // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
   // Call to a C function with one parameter.

@@ -618,8 +618,6 @@ class BinaryOpIC : public IC {
  public:
   explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
-  static int TokenToContextIndex(Token::Value op, Strength strength);
-
   MaybeHandle<Object> Transition(Handle<AllocationSite> allocation_site,
                                  Handle<Object> left,
                                  Handle<Object> right) WARN_UNUSED_RESULT;

@@ -2645,13 +2645,67 @@ MaybeHandle<Object> BinaryOpIC::Transition(
   BinaryOpICState state(isolate(), target()->extra_ic_state());
 
   // Compute the actual result using the builtin for the binary operation.
-  Object* builtin = isolate()->native_context()->get(
-      TokenToContextIndex(state.op(), state.strength()));
-  Handle<JSFunction> function = handle(JSFunction::cast(builtin), isolate());
   Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(), result, Execution::Call(isolate(), function, left, 1, &right),
-      Object);
+  switch (state.op()) {
+    default:
+      UNREACHABLE();
+    case Token::ADD:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::Add(isolate(), left, right, state.strength()), Object);
+      break;
+    case Token::SUB:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::Subtract(isolate(), left, right, state.strength()), Object);
+      break;
+    case Token::MUL:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::Multiply(isolate(), left, right, state.strength()), Object);
+      break;
+    case Token::DIV:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::Divide(isolate(), left, right, state.strength()), Object);
+      break;
+    case Token::MOD:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::Modulus(isolate(), left, right, state.strength()), Object);
+      break;
+    case Token::BIT_OR:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::BitwiseOr(isolate(), left, right, state.strength()), Object);
+      break;
+    case Token::BIT_AND:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::BitwiseAnd(isolate(), left, right, state.strength()), Object);
+      break;
+    case Token::BIT_XOR:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::BitwiseXor(isolate(), left, right, state.strength()), Object);
+      break;
+    case Token::SAR:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::ShiftRight(isolate(), left, right, state.strength()), Object);
+      break;
+    case Token::SHR:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::ShiftRightLogical(isolate(), left, right, state.strength()),
+          Object);
+      break;
+    case Token::SHL:
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate(), result,
+          Object::ShiftLeft(isolate(), left, right, state.strength()), Object);
+      break;
+  }
 
   // Do not try to update the target if the code was marked for lazy
   // deoptimization. (Since we do not relocate addresses in these
@@ -2882,63 +2936,6 @@ RUNTIME_FUNCTION(Runtime_Unreachable) {
   UNREACHABLE();
   CHECK(false);
   return isolate->heap()->undefined_value();
-}
-
-
-int BinaryOpIC::TokenToContextIndex(Token::Value op, Strength strength) {
-  if (is_strong(strength)) {
-    switch (op) {
-      default: UNREACHABLE();
-      case Token::ADD:
-        return Context::ADD_STRONG_BUILTIN_INDEX;
-      case Token::SUB:
-        return Context::SUB_STRONG_BUILTIN_INDEX;
-      case Token::MUL:
-        return Context::MUL_STRONG_BUILTIN_INDEX;
-      case Token::DIV:
-        return Context::DIV_STRONG_BUILTIN_INDEX;
-      case Token::MOD:
-        return Context::MOD_STRONG_BUILTIN_INDEX;
-      case Token::BIT_OR:
-        return Context::BIT_OR_STRONG_BUILTIN_INDEX;
-      case Token::BIT_AND:
-        return Context::BIT_AND_STRONG_BUILTIN_INDEX;
-      case Token::BIT_XOR:
-        return Context::BIT_XOR_STRONG_BUILTIN_INDEX;
-      case Token::SAR:
-        return Context::SAR_STRONG_BUILTIN_INDEX;
-      case Token::SHR:
-        return Context::SHR_STRONG_BUILTIN_INDEX;
-      case Token::SHL:
-        return Context::SHL_STRONG_BUILTIN_INDEX;
-    }
-  } else {
-    switch (op) {
-      default: UNREACHABLE();
-      case Token::ADD:
-        return Context::ADD_BUILTIN_INDEX;
-      case Token::SUB:
-        return Context::SUB_BUILTIN_INDEX;
-      case Token::MUL:
-        return Context::MUL_BUILTIN_INDEX;
-      case Token::DIV:
-        return Context::DIV_BUILTIN_INDEX;
-      case Token::MOD:
-        return Context::MOD_BUILTIN_INDEX;
-      case Token::BIT_OR:
-        return Context::BIT_OR_BUILTIN_INDEX;
-      case Token::BIT_AND:
-        return Context::BIT_AND_BUILTIN_INDEX;
-      case Token::BIT_XOR:
-        return Context::BIT_XOR_BUILTIN_INDEX;
-      case Token::SAR:
-        return Context::SAR_BUILTIN_INDEX;
-      case Token::SHR:
-        return Context::SHR_BUILTIN_INDEX;
-      case Token::SHL:
-        return Context::SHL_BUILTIN_INDEX;
-    }
-  }
 }
 
 

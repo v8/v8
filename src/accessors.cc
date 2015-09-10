@@ -231,7 +231,7 @@ void Accessors::ArrayLengthSetter(
     }
 
     Handle<Object> number_v;
-    if (!Object::ToNumber(isolate, length_obj).ToHandle(&number_v)) {
+    if (!Object::ToNumber(length_obj).ToHandle(&number_v)) {
       isolate->OptionalRescheduleException(false);
       return;
     }

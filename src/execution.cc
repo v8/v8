@@ -557,8 +557,7 @@ MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
 
 
 MaybeHandle<Object> Execution::ToInt32(Isolate* isolate, Handle<Object> obj) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToNumber(isolate, obj),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToNumber(obj), Object);
   return isolate->factory()->NewNumberFromInt(DoubleToInt32(obj->Number()));
 }
 
@@ -574,8 +573,7 @@ MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {
 
 
 MaybeHandle<Object> Execution::ToUint32(Isolate* isolate, Handle<Object> obj) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToNumber(isolate, obj),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToNumber(obj), Object);
   return isolate->factory()->NewNumberFromUint(DoubleToUint32(obj->Number()));
 }
 

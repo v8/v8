@@ -405,18 +405,7 @@ namespace internal {
   F(NumberToInteger, 1, 1)             \
   F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToSmi, 1, 1)                 \
-  F(NumberAdd, 2, 1)                   \
-  F(NumberSub, 2, 1)                   \
-  F(NumberMul, 2, 1)                   \
-  F(NumberDiv, 2, 1)                   \
-  F(NumberMod, 2, 1)                   \
   F(NumberImul, 2, 1)                  \
-  F(NumberOr, 2, 1)                    \
-  F(NumberAnd, 2, 1)                   \
-  F(NumberXor, 2, 1)                   \
-  F(NumberShl, 2, 1)                   \
-  F(NumberShr, 2, 1)                   \
-  F(NumberSar, 2, 1)                   \
   F(NumberEquals, 2, 1)                \
   F(NumberCompare, 3, 1)               \
   F(SmiLexicographicCompare, 2, 1)     \
@@ -510,6 +499,30 @@ namespace internal {
   F(GetObjectContextObjectGetNotifier, 1, 1)     \
   F(GetObjectContextNotifierPerformChange, 1, 1)
 
+
+#define FOR_EACH_INTRINSIC_OPERATORS(F) \
+  F(Multiply, 2, 1)                     \
+  F(Multiply_Strong, 2, 1)              \
+  F(Divide, 2, 1)                       \
+  F(Divide_Strong, 2, 1)                \
+  F(Modulus, 2, 1)                      \
+  F(Modulus_Strong, 2, 1)               \
+  F(Add, 2, 1)                          \
+  F(Add_Strong, 2, 1)                   \
+  F(Subtract, 2, 1)                     \
+  F(Subtract_Strong, 2, 1)              \
+  F(ShiftLeft, 2, 1)                    \
+  F(ShiftLeft_Strong, 2, 1)             \
+  F(ShiftRight, 2, 1)                   \
+  F(ShiftRight_Strong, 2, 1)            \
+  F(ShiftRightLogical, 2, 1)            \
+  F(ShiftRightLogical_Strong, 2, 1)     \
+  F(BitwiseAnd, 2, 1)                   \
+  F(BitwiseAnd_Strong, 2, 1)            \
+  F(BitwiseOr, 2, 1)                    \
+  F(BitwiseOr_Strong, 2, 1)             \
+  F(BitwiseXor, 2, 1)                   \
+  F(BitwiseXor_Strong, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F) \
   F(CreateJSProxy, 2, 1)            \
@@ -1065,6 +1078,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_NUMBERS(F)             \
   FOR_EACH_INTRINSIC_OBJECT(F)              \
   FOR_EACH_INTRINSIC_OBSERVE(F)             \
+  FOR_EACH_INTRINSIC_OPERATORS(F)           \
   FOR_EACH_INTRINSIC_PROXY(F)               \
   FOR_EACH_INTRINSIC_REGEXP(F)              \
   FOR_EACH_INTRINSIC_SCOPES(F)              \

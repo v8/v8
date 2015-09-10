@@ -179,19 +179,36 @@ Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
 
 
 Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
-                                        Node* arg0, Node* context,
-                                        Node* frame_state) {
+                                        Node* arg1, Node* context) {
   CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, 1, Operator::kNoProperties);
+      zone(), function, 1, Operator::kNoProperties, false);
 
   Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
   Node* ref = NewNode(
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(1);
 
-  Node* call = graph()->NewNode(common()->Call(descriptor), centry, arg0, ref,
-                                arity, context, frame_state, graph()->start(),
-                                graph()->start());
+  Node* call =
+      graph()->NewNode(common()->Call(descriptor), centry, arg1, ref, arity,
+                       context, graph()->start(), graph()->start());
+  schedule()->AddNode(CurrentBlock(), call);
+  return call;
+}
+
+
+Node* RawMachineAssembler::CallRuntime2(Runtime::FunctionId function,
+                                        Node* arg1, Node* arg2, Node* context) {
+  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, 2, Operator::kNoProperties, false);
+
+  Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
+  Node* ref = NewNode(
+      common()->ExternalConstant(ExternalReference(function, isolate())));
+  Node* arity = Int32Constant(2);
+
+  Node* call =
+      graph()->NewNode(common()->Call(descriptor), centry, arg1, arg2, ref,
+                       arity, context, graph()->start(), graph()->start());
   schedule()->AddNode(CurrentBlock(), call);
   return call;
 }

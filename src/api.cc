@@ -2920,8 +2920,7 @@ MaybeLocal<Number> Value::ToNumber(Local<Context> context) const {
   if (obj->IsNumber()) return ToApiHandle<Number>(obj);
   PREPARE_FOR_EXECUTION(context, "ToNumber", Number);
   Local<Number> result;
-  has_pending_exception =
-      !ToLocal<Number>(i::Object::ToNumber(isolate, obj), &result);
+  has_pending_exception = !ToLocal<Number>(i::Object::ToNumber(obj), &result);
   RETURN_ON_FAILED_EXECUTION(Number);
   RETURN_ESCAPED(result);
 }
@@ -3245,7 +3244,7 @@ Maybe<double> Value::NumberValue(Local<Context> context) const {
   if (obj->IsNumber()) return Just(obj->Number());
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "NumberValue", double);
   i::Handle<i::Object> num;
-  has_pending_exception = !i::Object::ToNumber(isolate, obj).ToHandle(&num);
+  has_pending_exception = !i::Object::ToNumber(obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(double);
   return Just(num->Number());
 }

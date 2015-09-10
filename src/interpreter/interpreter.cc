@@ -269,14 +269,14 @@ void Interpreter::DoKeyedStoreIC(compiler::InterpreterAssembler* assembler) {
 }
 
 
-void Interpreter::DoBinaryOp(int builtin_context_index,
+void Interpreter::DoBinaryOp(Runtime::FunctionId function_id,
                              compiler::InterpreterAssembler* assembler) {
   // TODO(rmcilroy): Call ICs which back-patch bytecode with type specialized
   // operations, instead of calling builtins directly.
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* lhs = __ LoadRegister(reg_index);
   Node* rhs = __ GetAccumulator();
-  Node* result = __ CallJSBuiltin(builtin_context_index, lhs, rhs);
+  Node* result = __ CallRuntime(function_id, lhs, rhs);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -286,7 +286,7 @@ void Interpreter::DoBinaryOp(int builtin_context_index,
 //
 // Add register <src> to accumulator.
 void Interpreter::DoAdd(compiler::InterpreterAssembler* assembler) {
-  DoBinaryOp(Context::ADD_BUILTIN_INDEX, assembler);
+  DoBinaryOp(Runtime::kAdd, assembler);
 }
 
 
@@ -294,7 +294,7 @@ void Interpreter::DoAdd(compiler::InterpreterAssembler* assembler) {
 //
 // Subtract register <src> from accumulator.
 void Interpreter::DoSub(compiler::InterpreterAssembler* assembler) {
-  DoBinaryOp(Context::SUB_BUILTIN_INDEX, assembler);
+  DoBinaryOp(Runtime::kSubtract, assembler);
 }
 
 
@@ -302,7 +302,7 @@ void Interpreter::DoSub(compiler::InterpreterAssembler* assembler) {
 //
 // Multiply accumulator by register <src>.
 void Interpreter::DoMul(compiler::InterpreterAssembler* assembler) {
-  DoBinaryOp(Context::MUL_BUILTIN_INDEX, assembler);
+  DoBinaryOp(Runtime::kMultiply, assembler);
 }
 
 
@@ -310,7 +310,7 @@ void Interpreter::DoMul(compiler::InterpreterAssembler* assembler) {
 //
 // Divide register <src> by accumulator.
 void Interpreter::DoDiv(compiler::InterpreterAssembler* assembler) {
-  DoBinaryOp(Context::DIV_BUILTIN_INDEX, assembler);
+  DoBinaryOp(Runtime::kDivide, assembler);
 }
 
 
@@ -318,7 +318,7 @@ void Interpreter::DoDiv(compiler::InterpreterAssembler* assembler) {
 //
 // Modulo register <src> by accumulator.
 void Interpreter::DoMod(compiler::InterpreterAssembler* assembler) {
-  DoBinaryOp(Context::MOD_BUILTIN_INDEX, assembler);
+  DoBinaryOp(Runtime::kModulus, assembler);
 }
 
 

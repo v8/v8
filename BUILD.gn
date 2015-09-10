@@ -1169,6 +1169,7 @@ source_set("v8_base") {
     "src/runtime/runtime-numbers.cc",
     "src/runtime/runtime-object.cc",
     "src/runtime/runtime-observe.cc",
+    "src/runtime/runtime-operators.cc",
     "src/runtime/runtime-proxy.cc",
     "src/runtime/runtime-regexp.cc",
     "src/runtime/runtime-scopes.cc",

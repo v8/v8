@@ -90,46 +90,24 @@ enum BindingFlags {
   V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)
 
 
-#define NATIVE_CONTEXT_JS_BUILTINS(V)                                       \
-  V(ADD_BUILTIN_INDEX, JSFunction, add_builtin)                             \
-  V(ADD_STRONG_BUILTIN_INDEX, JSFunction, add_strong_builtin)               \
-  V(APPLY_PREPARE_BUILTIN_INDEX, JSFunction, apply_prepare_builtin)         \
-  V(BIT_AND_BUILTIN_INDEX, JSFunction, bit_and_builtin)                     \
-  V(BIT_AND_STRONG_BUILTIN_INDEX, JSFunction, bit_and_strong_builtin)       \
-  V(BIT_OR_BUILTIN_INDEX, JSFunction, bit_or_builtin)                       \
-  V(BIT_OR_STRONG_BUILTIN_INDEX, JSFunction, bit_or_strong_builtin)         \
-  V(BIT_XOR_BUILTIN_INDEX, JSFunction, bit_xor_builtin)                     \
-  V(BIT_XOR_STRONG_BUILTIN_INDEX, JSFunction, bit_xor_strong_builtin)       \
-  V(CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX, JSFunction,           \
-    call_function_proxy_as_constructor_builtin)                             \
-  V(CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX, JSFunction,             \
-    call_non_function_as_constructor_builtin)                               \
-  V(COMPARE_BUILTIN_INDEX, JSFunction, compare_builtin)                     \
-  V(COMPARE_STRONG_BUILTIN_INDEX, JSFunction, compare_strong_builtin)       \
-  V(CONCAT_ITERABLE_TO_ARRAY_BUILTIN_INDEX, JSFunction,                     \
-    concat_iterable_to_array_builtin)                                       \
-  V(DIV_BUILTIN_INDEX, JSFunction, div_builtin)                             \
-  V(DIV_STRONG_BUILTIN_INDEX, JSFunction, div_strong_builtin)               \
-  V(EQUALS_BUILTIN_INDEX, JSFunction, equals_builtin)                       \
-  V(MOD_BUILTIN_INDEX, JSFunction, mod_builtin)                             \
-  V(MOD_STRONG_BUILTIN_INDEX, JSFunction, mod_strong_builtin)               \
-  V(MUL_BUILTIN_INDEX, JSFunction, mul_builtin)                             \
-  V(MUL_STRONG_BUILTIN_INDEX, JSFunction, mul_strong_builtin)               \
-  V(REFLECT_APPLY_PREPARE_BUILTIN_INDEX, JSFunction,                        \
-    reflect_apply_prepare_builtin)                                          \
-  V(REFLECT_CONSTRUCT_PREPARE_BUILTIN_INDEX, JSFunction,                    \
-    reflect_construct_prepare_builtin)                                      \
-  V(SAR_BUILTIN_INDEX, JSFunction, sar_builtin)                             \
-  V(SAR_STRONG_BUILTIN_INDEX, JSFunction, sar_strong_builtin)               \
-  V(SHL_BUILTIN_INDEX, JSFunction, shl_builtin)                             \
-  V(SHL_STRONG_BUILTIN_INDEX, JSFunction, shl_strong_builtin)               \
-  V(SHR_BUILTIN_INDEX, JSFunction, shr_builtin)                             \
-  V(SHR_STRONG_BUILTIN_INDEX, JSFunction, shr_strong_builtin)               \
-  V(STACK_OVERFLOW_BUILTIN_INDEX, JSFunction, stack_overflow_builtin)       \
-  V(STRING_ADD_LEFT_BUILTIN_INDEX, JSFunction, string_add_left_builtin)     \
-  V(STRING_ADD_RIGHT_BUILTIN_INDEX, JSFunction, string_add_right_builtin)   \
-  V(SUB_BUILTIN_INDEX, JSFunction, sub_builtin)                             \
-  V(SUB_STRONG_BUILTIN_INDEX, JSFunction, sub_strong_builtin)
+#define NATIVE_CONTEXT_JS_BUILTINS(V)                                   \
+  V(APPLY_PREPARE_BUILTIN_INDEX, JSFunction, apply_prepare_builtin)     \
+  V(CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX, JSFunction,       \
+    call_function_proxy_as_constructor_builtin)                         \
+  V(CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX, JSFunction,         \
+    call_non_function_as_constructor_builtin)                           \
+  V(COMPARE_BUILTIN_INDEX, JSFunction, compare_builtin)                 \
+  V(COMPARE_STRONG_BUILTIN_INDEX, JSFunction, compare_strong_builtin)   \
+  V(CONCAT_ITERABLE_TO_ARRAY_BUILTIN_INDEX, JSFunction,                 \
+    concat_iterable_to_array_builtin)                                   \
+  V(EQUALS_BUILTIN_INDEX, JSFunction, equals_builtin)                   \
+  V(REFLECT_APPLY_PREPARE_BUILTIN_INDEX, JSFunction,                    \
+    reflect_apply_prepare_builtin)                                      \
+  V(REFLECT_CONSTRUCT_PREPARE_BUILTIN_INDEX, JSFunction,                \
+    reflect_construct_prepare_builtin)                                  \
+  V(STACK_OVERFLOW_BUILTIN_INDEX, JSFunction, stack_overflow_builtin)   \
+  V(STRING_ADD_LEFT_BUILTIN_INDEX, JSFunction, string_add_left_builtin) \
+  V(STRING_ADD_RIGHT_BUILTIN_INDEX, JSFunction, string_add_right_builtin)
 
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \

@@ -284,7 +284,7 @@ bool CallDescriptor::UsesOnlyRegisters() const {
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Zone* zone, Runtime::FunctionId function_id, int js_parameter_count,
-    Operator::Properties properties) {
+    Operator::Properties properties, bool needs_frame_state) {
   const size_t function_count = 1;
   const size_t num_args_count = 1;
   const size_t context_count = 1;
@@ -327,9 +327,10 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   locations.AddParam(regloc(kContextRegister));
   types.AddParam(kMachAnyTagged);
 
-  CallDescriptor::Flags flags = Linkage::FrameStateInputCount(function_id) > 0
-                                    ? CallDescriptor::kNeedsFrameState
-                                    : CallDescriptor::kNoFlags;
+  CallDescriptor::Flags flags =
+      needs_frame_state && (Linkage::FrameStateInputCount(function_id) > 0)
+          ? CallDescriptor::kNeedsFrameState
+          : CallDescriptor::kNoFlags;
 
   // The target for runtime calls is a code object.
   MachineType target_type = kMachAnyTagged;

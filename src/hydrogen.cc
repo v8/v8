@@ -11080,10 +11080,57 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   // inline several instructions (including the two pushes) for every tagged
   // operation in optimized code, which is more expensive, than a stub call.
   if (graph()->info()->IsStub() && is_non_primitive) {
-    HValue* function =
-        AddLoadJSBuiltin(BinaryOpIC::TokenToContextIndex(op, strength));
+    Runtime::FunctionId function_id;
+    switch (op) {
+      default:
+        UNREACHABLE();
+      case Token::ADD:
+        function_id =
+            is_strong(strength) ? Runtime::kAdd_Strong : Runtime::kAdd;
+        break;
+      case Token::SUB:
+        function_id = is_strong(strength) ? Runtime::kSubtract_Strong
+                                          : Runtime::kSubtract;
+        break;
+      case Token::MUL:
+        function_id = is_strong(strength) ? Runtime::kMultiply_Strong
+                                          : Runtime::kMultiply;
+        break;
+      case Token::DIV:
+        function_id =
+            is_strong(strength) ? Runtime::kDivide_Strong : Runtime::kDivide;
+        break;
+      case Token::MOD:
+        function_id =
+            is_strong(strength) ? Runtime::kModulus_Strong : Runtime::kModulus;
+        break;
+      case Token::BIT_OR:
+        function_id = is_strong(strength) ? Runtime::kBitwiseOr_Strong
+                                          : Runtime::kBitwiseOr;
+        break;
+      case Token::BIT_AND:
+        function_id = is_strong(strength) ? Runtime::kBitwiseAnd_Strong
+                                          : Runtime::kBitwiseAnd;
+        break;
+      case Token::BIT_XOR:
+        function_id = is_strong(strength) ? Runtime::kBitwiseXor_Strong
+                                          : Runtime::kBitwiseXor;
+        break;
+      case Token::SAR:
+        function_id = is_strong(strength) ? Runtime::kShiftRight_Strong
+                                          : Runtime::kShiftRight;
+        break;
+      case Token::SHR:
+        function_id = is_strong(strength) ? Runtime::kShiftRightLogical_Strong
+                                          : Runtime::kShiftRightLogical;
+        break;
+      case Token::SHL:
+        function_id = is_strong(strength) ? Runtime::kShiftLeft_Strong
+                                          : Runtime::kShiftLeft;
+        break;
+    }
     Add<HPushArguments>(left, right);
-    instr = AddUncasted<HInvokeFunction>(function, 2);
+    instr = AddUncasted<HCallRuntime>(Runtime::FunctionForId(function_id), 2);
   } else {
     if (is_strong(strength) && Token::IsBitOp(op)) {
       // TODO(conradw): This is not efficient, but is necessary to prevent
@@ -11133,7 +11180,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         instr = AddUncasted<HBitwise>(op, left, right, strength);
         break;
       case Token::BIT_OR: {
-        HValue* operand, *shift_amount;
+        HValue *operand, *shift_amount;
         if (left_type->Is(Type::Signed32()) &&
             right_type->Is(Type::Signed32()) &&
             MatchRotateRight(left, right, &operand, &shift_amount)) {

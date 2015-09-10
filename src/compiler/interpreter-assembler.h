@@ -12,6 +12,7 @@
 #include "src/builtins.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -86,9 +87,8 @@ class InterpreterAssembler {
   Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node* arg1,
                Node* arg2, Node* arg3, Node* arg4, Node* arg5);
 
-  // Call JS builtin.
-  Node* CallJSBuiltin(int context_index, Node* receiver);
-  Node* CallJSBuiltin(int context_index, Node* receiver, Node* arg1);
+  // Call runtime function.
+  Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2);
 
   // Returns from the function.
   void Return();

@@ -1459,8 +1459,7 @@ RUNTIME_FUNCTION(Runtime_ToNumber) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToNumber(isolate, input));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::ToNumber(input));
   return *result;
 }
 

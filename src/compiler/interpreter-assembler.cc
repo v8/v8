@@ -271,36 +271,10 @@ Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
 }
 
 
-Node* InterpreterAssembler::CallJSBuiltin(int context_index, Node* receiver,
-                                          Node** js_args, int js_arg_count) {
-  Node* global_object = LoadContextSlot(Context::GLOBAL_OBJECT_INDEX);
-  Node* native_context =
-      LoadObjectField(global_object, GlobalObject::kNativeContextOffset);
-  Node* function = LoadContextSlot(native_context, context_index);
-  Node* context = LoadObjectField(function, JSFunction::kContextOffset);
-
-  int index = 0;
-  Node** args = zone()->NewArray<Node*>(js_arg_count + 2);
-  args[index++] = receiver;
-  for (int i = 0; i < js_arg_count; i++) {
-    args[index++] = js_args[i];
-  }
-  args[index++] = context;
-
-  CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
-      zone(), false, js_arg_count + 1, CallDescriptor::kNoFlags);
-  return raw_assembler_->CallN(descriptor, function, args);
-}
-
-
-Node* InterpreterAssembler::CallJSBuiltin(int context_index, Node* receiver) {
-  return CallJSBuiltin(context_index, receiver, nullptr, 0);
-}
-
-
-Node* InterpreterAssembler::CallJSBuiltin(int context_index, Node* receiver,
-                                          Node* arg1) {
-  return CallJSBuiltin(context_index, receiver, &arg1, 1);
+Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
+                                        Node* arg1, Node* arg2) {
+  return raw_assembler_->CallRuntime2(function_id, arg1, arg2,
+                                      ContextTaggedPointer());
 }
 
 

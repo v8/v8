@@ -134,11 +134,10 @@ TEST(ConstructorCall) {
 // TODO(titzer): factor these out into test-runtime-calls.cc
 TEST(RuntimeCallCPP2) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a,b) { return %NumberAdd(a, b); })");
+  FunctionTester T("(function(a,b) { return %NumberImul(a, b); })");
 
-  T.CheckCall(T.Val(65), T.Val(42), T.Val(23));
-  T.CheckCall(T.Val(19), T.Val(42), T.Val(-23));
-  T.CheckCall(T.Val(6.5), T.Val(4.2), T.Val(2.3));
+  T.CheckCall(T.Val(2730), T.Val(42), T.Val(65));
+  T.CheckCall(T.Val(798), T.Val(42), T.Val(19));
 }
 
 

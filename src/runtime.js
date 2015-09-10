@@ -156,35 +156,6 @@ function COMPARE_STRONG(x, ncr) {
    -----------------------------------
 */
 
-// ECMA-262, section 11.6.1, page 50.
-function ADD(x) {
-  // Fast case: Check for number operands and do the addition.
-  if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberAdd(this, x);
-  if (IS_STRING(this) && IS_STRING(x)) return %_StringAdd(this, x);
-
-  // Default implementation.
-  var a = %to_primitive(this, NO_HINT);
-  var b = %to_primitive(x, NO_HINT);
-
-  if (IS_STRING(a)) {
-    return %_StringAdd(a, %to_string_fun(b));
-  } else if (IS_STRING(b)) {
-    return %_StringAdd(%non_string_to_string(a), b);
-  } else {
-    return %NumberAdd(%to_number_fun(a), %to_number_fun(b));
-  }
-}
-
-
-// Strong mode ADD throws if an implicit conversion would be performed
-function ADD_STRONG(x) {
-  if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberAdd(this, x);
-  if (IS_STRING(this) && IS_STRING(x)) return %_StringAdd(this, x);
-
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
 // Left operand (this) is already a string.
 function STRING_ADD_LEFT(y) {
   if (!IS_STRING(y)) {
@@ -213,209 +184,6 @@ function STRING_ADD_RIGHT(y) {
     }
   }
   return %_StringAdd(x, y);
-}
-
-
-// ECMA-262, section 11.6.2, page 50.
-function SUB(y) {
-  var x = IS_NUMBER(this) ? this : %non_number_to_number(this);
-  if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  return %NumberSub(x, y);
-}
-
-
-// Strong mode SUB throws if an implicit conversion would be performed
-function SUB_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberSub(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
-// ECMA-262, section 11.5.1, page 48.
-function MUL(y) {
-  var x = IS_NUMBER(this) ? this : %non_number_to_number(this);
-  if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  return %NumberMul(x, y);
-}
-
-
-// Strong mode MUL throws if an implicit conversion would be performed
-function MUL_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberMul(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
-// ECMA-262, section 11.5.2, page 49.
-function DIV(y) {
-  var x = IS_NUMBER(this) ? this : %non_number_to_number(this);
-  if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  return %NumberDiv(x, y);
-}
-
-
-// Strong mode DIV throws if an implicit conversion would be performed
-function DIV_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberDiv(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
-// ECMA-262, section 11.5.3, page 49.
-function MOD(y) {
-  var x = IS_NUMBER(this) ? this : %non_number_to_number(this);
-  if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  return %NumberMod(x, y);
-}
-
-
-// Strong mode MOD throws if an implicit conversion would be performed
-function MOD_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberMod(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
-/* -------------------------------------------
-   - - -   B i t   o p e r a t i o n s   - - -
-   -------------------------------------------
-*/
-
-// ECMA-262, section 11.10, page 57.
-function BIT_OR(y) {
-  var x = IS_NUMBER(this) ? this : %non_number_to_number(this);
-  if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  return %NumberOr(x, y);
-}
-
-
-// Strong mode BIT_OR throws if an implicit conversion would be performed
-function BIT_OR_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberOr(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
-// ECMA-262, section 11.10, page 57.
-function BIT_AND(y) {
-  var x;
-  if (IS_NUMBER(this)) {
-    x = this;
-    if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  } else {
-    x = %non_number_to_number(this);
-    // Make sure to convert the right operand to a number before
-    // bailing out in the fast case, but after converting the
-    // left operand. This ensures that valueOf methods on the right
-    // operand are always executed.
-    if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-    // Optimize for the case where we end up AND'ing a value
-    // that doesn't convert to a number. This is common in
-    // certain benchmarks.
-    if (NUMBER_IS_NAN(x)) return 0;
-  }
-  return %NumberAnd(x, y);
-}
-
-
-// Strong mode BIT_AND throws if an implicit conversion would be performed
-function BIT_AND_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberAnd(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
-// ECMA-262, section 11.10, page 57.
-function BIT_XOR(y) {
-  var x = IS_NUMBER(this) ? this : %non_number_to_number(this);
-  if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  return %NumberXor(x, y);
-}
-
-
-// Strong mode BIT_XOR throws if an implicit conversion would be performed
-function BIT_XOR_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberXor(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
-// ECMA-262, section 11.7.1, page 51.
-function SHL(y) {
-  var x = IS_NUMBER(this) ? this : %non_number_to_number(this);
-  if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  return %NumberShl(x, y);
-}
-
-
-// Strong mode SHL throws if an implicit conversion would be performed
-function SHL_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberShl(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
-// ECMA-262, section 11.7.2, page 51.
-function SAR(y) {
-  var x;
-  if (IS_NUMBER(this)) {
-    x = this;
-    if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  } else {
-    x = %non_number_to_number(this);
-    // Make sure to convert the right operand to a number before
-    // bailing out in the fast case, but after converting the
-    // left operand. This ensures that valueOf methods on the right
-    // operand are always executed.
-    if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-    // Optimize for the case where we end up shifting a value
-    // that doesn't convert to a number. This is common in
-    // certain benchmarks.
-    if (NUMBER_IS_NAN(x)) return 0;
-  }
-  return %NumberSar(x, y);
-}
-
-
-// Strong mode SAR throws if an implicit conversion would be performed
-function SAR_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberSar(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
-}
-
-
-// ECMA-262, section 11.7.3, page 52.
-function SHR(y) {
-  var x = IS_NUMBER(this) ? this : %non_number_to_number(this);
-  if (!IS_NUMBER(y)) y = %non_number_to_number(y);
-  return %NumberShr(x, y);
-}
-
-
-// Strong mode SHR throws if an implicit conversion would be performed
-function SHR_STRONG(y) {
-  if (IS_NUMBER(this) && IS_NUMBER(y)) {
-    return %NumberShr(this, y);
-  }
-  throw %make_type_error(kStrongImplicitConversion);
 }
 
 
@@ -781,40 +549,18 @@ $toPrimitive = ToPrimitive;
 $toString = ToString;
 
 %InstallToContext([
-  "add_builtin", ADD,
-  "add_strong_builtin", ADD_STRONG,
   "apply_prepare_builtin", APPLY_PREPARE,
-  "bit_and_builtin", BIT_AND,
-  "bit_and_strong_builtin", BIT_AND_STRONG,
-  "bit_or_builtin", BIT_OR,
-  "bit_or_strong_builtin", BIT_OR_STRONG,
-  "bit_xor_builtin", BIT_XOR,
-  "bit_xor_strong_builtin", BIT_XOR_STRONG,
   "call_function_proxy_as_constructor_builtin", CALL_FUNCTION_PROXY_AS_CONSTRUCTOR,
   "call_non_function_as_constructor_builtin", CALL_NON_FUNCTION_AS_CONSTRUCTOR,
   "compare_builtin", COMPARE,
   "compare_strong_builtin", COMPARE_STRONG,
   "concat_iterable_to_array_builtin", CONCAT_ITERABLE_TO_ARRAY,
-  "div_builtin", DIV,
-  "div_strong_builtin", DIV_STRONG,
   "equals_builtin", EQUALS,
-  "mod_builtin", MOD,
-  "mod_strong_builtin", MOD_STRONG,
-  "mul_builtin", MUL,
-  "mul_strong_builtin", MUL_STRONG,
   "reflect_apply_prepare_builtin", REFLECT_APPLY_PREPARE,
   "reflect_construct_prepare_builtin", REFLECT_CONSTRUCT_PREPARE,
-  "sar_builtin", SAR,
-  "sar_strong_builtin", SAR_STRONG,
-  "shl_builtin", SHL,
-  "shl_strong_builtin", SHL_STRONG,
-  "shr_builtin", SHR,
-  "shr_strong_builtin", SHR_STRONG,
   "stack_overflow_builtin", STACK_OVERFLOW,
   "string_add_left_builtin", STRING_ADD_LEFT,
   "string_add_right_builtin", STRING_ADD_RIGHT,
-  "sub_builtin", SUB,
-  "sub_strong_builtin", SUB_STRONG,
 ]);
 
 %InstallToContext([

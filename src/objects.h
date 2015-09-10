@@ -1102,8 +1102,7 @@ class Object {
       Handle<Object> input, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
 
   // ES6 section 7.1.3 ToNumber
-  MUST_USE_RESULT static MaybeHandle<Object> ToNumber(Isolate* isolate,
-                                                      Handle<Object> input);
+  MUST_USE_RESULT static MaybeHandle<Object> ToNumber(Handle<Object> input);
 
   // ES6 section 7.1.12 ToString
   MUST_USE_RESULT static MaybeHandle<String> ToString(Isolate* isolate,
@@ -1115,6 +1114,47 @@ class Object {
 
   // ES6 section 12.5.6 The typeof Operator
   static Handle<String> TypeOf(Isolate* isolate, Handle<Object> object);
+
+  // ES6 section 12.6 Multiplicative Operators
+  MUST_USE_RESULT static MaybeHandle<Object> Multiply(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> Divide(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> Modulus(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+
+  // ES6 section 12.7 Additive Operators
+  MUST_USE_RESULT static MaybeHandle<Object> Add(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> Subtract(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+
+  // ES6 section 12.8 Bitwise Shift Operators
+  MUST_USE_RESULT static MaybeHandle<Object> ShiftLeft(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> ShiftRight(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> ShiftRightLogical(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+
+  // ES6 section 12.11 Binary Bitwise Operators
+  MUST_USE_RESULT static MaybeHandle<Object> BitwiseAnd(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> BitwiseOr(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> BitwiseXor(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
+      Strength strength = Strength::WEAK);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       LookupIterator* it, LanguageMode language_mode = SLOPPY);
