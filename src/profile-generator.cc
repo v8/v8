@@ -603,6 +603,13 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     } else {
       Address start;
       CodeEntry* pc_entry = code_map_.FindEntry(sample.pc, &start);
+      // If there is no pc_entry we're likely in native code.
+      // Find out, if top of stack was pointing inside a JS function
+      // meaning that we have encountered a frameless invocation.
+      if (!pc_entry && (sample.top_frame_type == StackFrame::JAVA_SCRIPT ||
+                        sample.top_frame_type == StackFrame::OPTIMIZED)) {
+        pc_entry = code_map_.FindEntry(sample.tos);
+      }
       // If pc is in the function code before it set up stack frame or after the
       // frame was destroyed SafeStackFrameIterator incorrectly thinks that
       // ebp contains return address of the current function and skips caller's
