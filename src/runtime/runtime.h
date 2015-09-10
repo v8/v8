@@ -1172,10 +1172,6 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       LanguageMode language_mode = SLOPPY);
 
-  MUST_USE_RESULT static MaybeHandle<Object> KeyedGetObjectProperty(
-      Isolate* isolate, Handle<Object> receiver_obj, Handle<Object> key_obj,
-      LanguageMode language_mode);
-
   enum TypedArrayId {
     // arrayIds below should be synchronized with typedarray.js natives.
     ARRAY_ID_UINT8 = 1,

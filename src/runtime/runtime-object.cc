@@ -49,9 +49,10 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> Runtime::KeyedGetObjectProperty(
-    Isolate* isolate, Handle<Object> receiver_obj, Handle<Object> key_obj,
-    LanguageMode language_mode) {
+static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
+                                                  Handle<Object> receiver_obj,
+                                                  Handle<Object> key_obj,
+                                                  LanguageMode language_mode) {
   // Fast cases for getting named properties of the receiver JSObject
   // itself.
   //
@@ -125,7 +126,8 @@ MaybeHandle<Object> Runtime::KeyedGetObjectProperty(
   }
 
   // Fall back to GetObjectProperty.
-  return GetObjectProperty(isolate, receiver_obj, key_obj, language_mode);
+  return Runtime::GetObjectProperty(isolate, receiver_obj, key_obj,
+                                    language_mode);
 }
 
 
@@ -520,7 +522,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::KeyedGetObjectProperty(isolate, receiver_obj, key_obj, SLOPPY));
+      KeyedGetObjectProperty(isolate, receiver_obj, key_obj, SLOPPY));
   return *result;
 }
 
@@ -535,7 +537,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetPropertyStrong) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::KeyedGetObjectProperty(isolate, receiver_obj, key_obj, STRONG));
+      KeyedGetObjectProperty(isolate, receiver_obj, key_obj, STRONG));
   return *result;
 }
 
