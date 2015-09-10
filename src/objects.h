@@ -3898,15 +3898,24 @@ class ScopeInfo : public FixedArray {
   // string.
   int StackSlotIndex(String* name);
 
-  // Lookup support for serialized scope info. Returns the
-  // context slot index for a given slot name if the slot is present; otherwise
+  // Lookup support for serialized scope info. Returns the local context slot
+  // index for a given slot name if the slot is present; otherwise
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != NULL, sets *mode to the corresponding
   // mode for that variable.
   static int ContextSlotIndex(Handle<ScopeInfo> scope_info, Handle<String> name,
-                              VariableMode* mode, VariableLocation* location,
-                              InitializationFlag* init_flag,
+                              VariableMode* mode, InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
+
+  // Similar to ContextSlotIndex() but this method searches only among
+  // global slots of the serialized scope info. Returns the context slot index
+  // for a given slot name if the slot is present; otherwise returns a
+  // value < 0. The name must be an internalized string. If the slot is present
+  // and mode != NULL, sets *mode to the corresponding mode for that variable.
+  static int ContextGlobalSlotIndex(Handle<ScopeInfo> scope_info,
+                                    Handle<String> name, VariableMode* mode,
+                                    InitializationFlag* init_flag,
+                                    MaybeAssignedFlag* maybe_assigned_flag);
 
   // Lookup the name of a certain context slot by its index.
   String* ContextSlotName(int slot_index);

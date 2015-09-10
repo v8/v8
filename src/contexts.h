@@ -302,7 +302,6 @@ class ScriptContextTable : public FixedArray {
     int context_index;
     int slot_index;
     VariableMode mode;
-    VariableLocation location;
     InitializationFlag init_flag;
     MaybeAssignedFlag maybe_assigned_flag;
   };

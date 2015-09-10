@@ -561,12 +561,10 @@ bool ScopeIterator::SetContextLocalValue(Handle<ScopeInfo> scope_info,
     Handle<String> next_name(scope_info->ContextLocalName(i));
     if (String::Equals(variable_name, next_name)) {
       VariableMode mode;
-      VariableLocation location;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
-      int context_index =
-          ScopeInfo::ContextSlotIndex(scope_info, next_name, &mode, &location,
-                                      &init_flag, &maybe_assigned_flag);
+      int context_index = ScopeInfo::ContextSlotIndex(
+          scope_info, next_name, &mode, &init_flag, &maybe_assigned_flag);
       context->set(context_index, *new_value);
       return true;
     }

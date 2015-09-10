@@ -568,13 +568,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
       if (scope_info->LocalIsSynthetic(i)) continue;
       Handle<String> name(scope_info->LocalName(i));
       VariableMode mode;
-      VariableLocation location;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
       locals->set(local * 2, *name);
       int context_slot_index = ScopeInfo::ContextSlotIndex(
-          scope_info, name, &mode, &location, &init_flag, &maybe_assigned_flag);
-      DCHECK(VariableLocation::CONTEXT == location);
+          scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
       Object* value = context->get(context_slot_index);
       locals->set(local * 2 + 1, value);
       local++;

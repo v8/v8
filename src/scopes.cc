@@ -394,12 +394,16 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
 
   // Check context slot lookup.
   VariableMode mode;
-  VariableLocation location;
+  VariableLocation location = VariableLocation::CONTEXT;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  int index =
-      ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode, &location,
-                                  &init_flag, &maybe_assigned_flag);
+  int index = ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode,
+                                          &init_flag, &maybe_assigned_flag);
+  if (index < 0) {
+    location = VariableLocation::GLOBAL;
+    index = ScopeInfo::ContextGlobalSlotIndex(scope_info_, name_handle, &mode,
+                                              &init_flag, &maybe_assigned_flag);
+  }
   if (index < 0) {
     // Check parameters.
     index = scope_info_->ParameterIndex(*name_handle);

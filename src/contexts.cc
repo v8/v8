@@ -44,10 +44,10 @@ bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
     DCHECK(context->IsScriptContext());
     Handle<ScopeInfo> scope_info(context->scope_info());
     int slot_index = ScopeInfo::ContextSlotIndex(
-        scope_info, name, &result->mode, &result->location, &result->init_flag,
+        scope_info, name, &result->mode, &result->init_flag,
         &result->maybe_assigned_flag);
 
-    if (slot_index >= 0 && result->location == VariableLocation::CONTEXT) {
+    if (slot_index >= 0) {
       result->context_index = i;
       result->slot_index = slot_index;
       return true;
@@ -333,15 +333,14 @@ Handle<Object> Context::Lookup(Handle<String> name,
           ? context->closure()->shared()->scope_info()
           : context->scope_info());
       VariableMode mode;
-      VariableLocation location;
       InitializationFlag init_flag;
       // TODO(sigurds) Figure out whether maybe_assigned_flag should
       // be used to compute binding_flags.
       MaybeAssignedFlag maybe_assigned_flag;
       int slot_index = ScopeInfo::ContextSlotIndex(
-          scope_info, name, &mode, &location, &init_flag, &maybe_assigned_flag);
+          scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
-      if (slot_index >= 0 && location == VariableLocation::CONTEXT) {
+      if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %d)\n",
                  slot_index, mode);
