@@ -68,6 +68,7 @@
         'compiler/test-osr.cc',
         'compiler/test-pipeline.cc',
         'compiler/test-representation-change.cc',
+        'compiler/test-run-bytecode-graph-builder.cc',
         'compiler/test-run-deopt.cc',
         'compiler/test-run-inlining.cc',
         'compiler/test-run-intrinsics.cc',

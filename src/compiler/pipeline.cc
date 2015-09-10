@@ -12,6 +12,7 @@
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/basic-block-instrumentor.h"
+#include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
@@ -472,11 +473,21 @@ struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    AstGraphBuilderWithPositions graph_builder(
-        temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
-        data->js_type_feedback(), data->source_positions());
     bool stack_check = !data->info()->IsStub();
-    if (!graph_builder.CreateGraph(stack_check)) {
+    bool succeeded = false;
+
+    if (data->info()->shared_info()->HasBytecodeArray()) {
+      BytecodeGraphBuilder graph_builder(temp_zone, data->info(),
+                                         data->jsgraph());
+      succeeded = graph_builder.CreateGraph(stack_check);
+    } else {
+      AstGraphBuilderWithPositions graph_builder(
+          temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
+          data->js_type_feedback(), data->source_positions());
+      succeeded = graph_builder.CreateGraph(stack_check);
+    }
+
+    if (!succeeded) {
       data->set_compilation_failed();
     }
   }

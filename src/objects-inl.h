@@ -4091,6 +4091,11 @@ int BytecodeArray::frame_size() const {
 }
 
 
+int BytecodeArray::register_count() const {
+  return frame_size() / kPointerSize;
+}
+
+
 void BytecodeArray::set_parameter_count(int number_of_parameters) {
   DCHECK_GE(number_of_parameters, 0);
   // Parameter count is stored as the size on stack of the parameters to allow

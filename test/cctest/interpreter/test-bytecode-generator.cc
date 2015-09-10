@@ -23,7 +23,8 @@ class BytecodeGeneratorHelper {
   BytecodeGeneratorHelper() {
     i::FLAG_vector_stores = true;
     i::FLAG_ignition = true;
-    i::FLAG_ignition_filter = kFunctionName;
+    i::FLAG_ignition_filter = StrDup(kFunctionName);
+    i::FLAG_always_opt = false;
     CcTest::i_isolate()->interpreter()->Initialize();
   }
 

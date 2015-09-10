@@ -4211,6 +4211,9 @@ class BytecodeArray : public FixedArrayBase {
   inline int frame_size() const;
   inline void set_frame_size(int frame_size);
 
+  // Accessor for register count (derived from frame_size).
+  inline int register_count() const;
+
   // Accessors for parameter count (including implicit 'this' receiver).
   inline int parameter_count() const;
   inline void set_parameter_count(int number_of_parameters);
