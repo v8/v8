@@ -1888,10 +1888,10 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   Label invoke;
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
+    mov(eax, actual.immediate());
     if (expected.immediate() == actual.immediate()) {
       definitely_matches = true;
     } else {
-      mov(eax, actual.immediate());
       const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
       if (expected.immediate() == sentinel) {
         // Don't worry about adapting arguments for builtins that
@@ -1909,10 +1909,10 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       // Expected is in register, actual is immediate. This is the
       // case when we invoke function values without going through the
       // IC mechanism.
+      mov(eax, actual.immediate());
       cmp(expected.reg(), actual.immediate());
       j(equal, &invoke);
       DCHECK(expected.reg().is(ebx));
-      mov(eax, actual.immediate());
     } else if (!expected.reg().is(actual.reg())) {
       // Both expected and actual are in (different) registers. This
       // is the case when we invoke functions using call and apply.
@@ -1920,6 +1920,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       j(equal, &invoke);
       DCHECK(actual.reg().is(eax));
       DCHECK(expected.reg().is(ebx));
+    } else {
+      Move(eax, actual.reg());
     }
   }
 
