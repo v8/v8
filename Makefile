@@ -143,6 +143,10 @@ endif
 ifeq ($(deprecationwarnings), on)
   GYPFLAGS += -Dv8_deprecation_warnings=1
 endif
+# vectorstores=on
+ifeq ($(vectorstores), on)
+  GYPFLAGS += -Dv8_vector_stores=1
+endif
 # imminentdeprecationwarnings=on
 ifeq ($(imminentdeprecationwarnings), on)
   GYPFLAGS += -Dv8_imminent_deprecation_warnings=1

@@ -30,6 +30,7 @@
     'icu_use_data_file_flag%': 0,
     'v8_code': 1,
     'v8_random_seed%': 314159265,
+    'v8_vector_stores%': 0,
     'embed_script%': "",
     'v8_extra_library_files%': [],
     'v8_experimental_extra_library_files%': [],
@@ -205,6 +206,9 @@
               ['v8_random_seed!=0', {
                 'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
               }],
+              ['v8_vector_stores!=0', {
+                'mksnapshot_flags': ['--vector-stores'],
+              }],
             ],
           },
           'action': [
@@ -306,6 +310,9 @@
                 'conditions': [
                   ['v8_random_seed!=0', {
                     'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
+                  }],
+                  ['v8_vector_stores!=0', {
+                    'mksnapshot_flags': ['--vector-stores'],
                   }],
                 ],
               },
