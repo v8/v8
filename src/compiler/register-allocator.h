@@ -275,6 +275,7 @@ class UsePosition final : public ZoneObject {
 class SpillRange;
 class RegisterAllocationData;
 class TopLevelLiveRange;
+class LiveRangeGroup;
 
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
@@ -384,6 +385,8 @@ class LiveRange : public ZoneObject {
   unsigned GetSize();
   float weight() const { return weight_; }
   void set_weight(float weight) { weight_ = weight; }
+  LiveRangeGroup* group() const { return group_; }
+  void set_group(LiveRangeGroup* group) { group_ = group; }
 
   static const int kInvalidSize = -1;
   static const float kInvalidWeight;
@@ -431,7 +434,27 @@ class LiveRange : public ZoneObject {
   // register and ranges that intersect them and need a register.
   float weight_;
 
+  // greedy: groupping
+  LiveRangeGroup* group_;
+
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
+};
+
+
+class LiveRangeGroup final : public ZoneObject {
+ public:
+  explicit LiveRangeGroup(Zone* zone) : ranges_(zone) {}
+  ZoneVector<LiveRange*>& ranges() { return ranges_; }
+  const ZoneVector<LiveRange*>& ranges() const { return ranges_; }
+
+  // TODO(mtrofin): populate assigned register and use in weight calculation.
+  int assigned_register() const { return assigned_register_; }
+  void set_assigned_register(int reg) { assigned_register_ = reg; }
+
+ private:
+  ZoneVector<LiveRange*> ranges_;
+  int assigned_register_;
+  DISALLOW_COPY_AND_ASSIGN(LiveRangeGroup);
 };
 
 

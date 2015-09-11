@@ -247,7 +247,8 @@ LiveRange::LiveRange(int relative_id, MachineType machine_type,
       last_processed_use_(nullptr),
       current_hint_position_(nullptr),
       size_(kInvalidSize),
-      weight_(kInvalidWeight) {
+      weight_(kInvalidWeight),
+      group_(nullptr) {
   DCHECK(AllocatedOperand::IsSupportedMachineType(machine_type));
   bits_ = AssignedRegisterField::encode(kUnassignedRegister) |
           MachineTypeField::encode(machine_type);

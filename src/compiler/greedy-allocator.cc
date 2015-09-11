@@ -127,12 +127,18 @@ void AllocationScheduler::Schedule(LiveRange* range) {
   queue_.push(AllocationCandidate(range));
 }
 
+
+void AllocationScheduler::Schedule(LiveRangeGroup* group) {
+  queue_.push(AllocationCandidate(group));
+}
+
 GreedyAllocator::GreedyAllocator(RegisterAllocationData* data,
                                  RegisterKind kind, Zone* local_zone)
     : RegisterAllocator(data, kind),
       local_zone_(local_zone),
       allocations_(local_zone),
-      scheduler_(local_zone) {}
+      scheduler_(local_zone),
+      groups_(local_zone) {}
 
 
 void GreedyAllocator::AssignRangeToRegister(int reg_id, LiveRange* range) {
@@ -169,11 +175,99 @@ void GreedyAllocator::PreallocateFixedRanges() {
 }
 
 
+void GreedyAllocator::GroupLiveRanges() {
+  CoalescedLiveRanges groupper(local_zone());
+  for (TopLevelLiveRange* range : data()->live_ranges()) {
+    // Skip splinters, because we do not want to optimize for them, and moves
+    // due to assigning them to different registers occur in deferred blocks.
+    if (!CanProcessRange(range) || range->IsSplinter() || !range->is_phi()) {
+      continue;
+    }
+
+    // A phi can't be a memory operand, so it couldn't have been split.
+    DCHECK(!range->spilled());
+
+    // Maybe this phi range is itself an input to another phi which was already
+    // processed.
+    LiveRangeGroup* latest_grp = range->group() != nullptr
+                                     ? range->group()
+                                     : new (local_zone())
+                                           LiveRangeGroup(local_zone());
+
+    // Populate the groupper.
+    if (range->group() == nullptr) {
+      groupper.clear();
+      groupper.AllocateRange(range);
+    } else {
+      for (LiveRange* member : range->group()->ranges()) {
+        groupper.AllocateRange(member);
+      }
+    }
+    for (int j : data()->GetPhiMapValueFor(range)->phi()->operands()) {
+      // skip output also in input, which may happen for loops.
+      if (j == range->vreg()) continue;
+
+      TopLevelLiveRange* other_top = data()->live_ranges()[j];
+
+      if (other_top->IsSplinter()) continue;
+      // If the other was a memory operand, it might have been split.
+      // So get the unsplit part.
+      LiveRange* other =
+          other_top->next() == nullptr ? other_top : other_top->next();
+
+      if (other->spilled()) continue;
+
+      LiveRangeGroup* other_group = other->group();
+      if (other_group != nullptr) {
+        bool can_merge = true;
+        for (LiveRange* member : other_group->ranges()) {
+          if (groupper.GetConflicts(member).Current() != nullptr) {
+            can_merge = false;
+            break;
+          }
+        }
+        // If each member doesn't conflict with the current group, then since
+        // the members don't conflict with eachother either, we can merge them.
+        if (can_merge) {
+          latest_grp->ranges().insert(latest_grp->ranges().end(),
+                                      other_group->ranges().begin(),
+                                      other_group->ranges().end());
+          for (LiveRange* member : other_group->ranges()) {
+            groupper.AllocateRange(member);
+            member->set_group(latest_grp);
+          }
+          // Clear the other range, so we avoid scheduling it.
+          other_group->ranges().clear();
+        }
+      } else if (groupper.GetConflicts(other).Current() == nullptr) {
+        groupper.AllocateRange(other);
+        latest_grp->ranges().push_back(other);
+        other->set_group(latest_grp);
+      }
+    }
+
+    if (latest_grp->ranges().size() > 0 && range->group() == nullptr) {
+      latest_grp->ranges().push_back(range);
+      DCHECK(latest_grp->ranges().size() > 1);
+      groups().push_back(latest_grp);
+      range->set_group(latest_grp);
+    }
+  }
+}
+
+
 void GreedyAllocator::ScheduleAllocationCandidates() {
-  for (auto range : data()->live_ranges()) {
+  for (LiveRangeGroup* group : groups()) {
+    if (group->ranges().size() > 0) {
+      // We shouldn't have added single-range groups.
+      DCHECK(group->ranges().size() != 1);
+      scheduler().Schedule(group);
+    }
+  }
+  for (LiveRange* range : data()->live_ranges()) {
     if (CanProcessRange(range)) {
       for (LiveRange* child = range; child != nullptr; child = child->next()) {
-        if (!child->spilled()) {
+        if (!child->spilled() && child->group() == nullptr) {
           scheduler().Schedule(child);
         }
       }
@@ -184,8 +278,53 @@ void GreedyAllocator::ScheduleAllocationCandidates() {
 
 void GreedyAllocator::TryAllocateCandidate(
     const AllocationCandidate& candidate) {
-  // At this point, this is just a live range. TODO: groups.
-  TryAllocateLiveRange(candidate.live_range());
+  if (candidate.is_group()) {
+    TryAllocateGroup(candidate.group());
+  } else {
+    TryAllocateLiveRange(candidate.live_range());
+  }
+}
+
+
+void GreedyAllocator::TryAllocateGroup(LiveRangeGroup* group) {
+  float group_weight = 0.0;
+  for (LiveRange* member : group->ranges()) {
+    EnsureValidRangeWeight(member);
+    group_weight = Max(group_weight, member->weight());
+  }
+
+  float eviction_weight = group_weight;
+  int eviction_reg = -1;
+  int free_reg = -1;
+  for (int reg = 0; reg < num_registers(); ++reg) {
+    float weight = GetMaximumConflictingWeight(reg, group, group_weight);
+    if (weight == LiveRange::kInvalidWeight) {
+      free_reg = reg;
+      break;
+    }
+    if (weight < eviction_weight) {
+      eviction_weight = weight;
+      eviction_reg = reg;
+    }
+  }
+  if (eviction_reg < 0 && free_reg < 0) {
+    for (LiveRange* member : group->ranges()) {
+      scheduler().Schedule(member);
+    }
+    return;
+  }
+  if (free_reg < 0) {
+    DCHECK(eviction_reg >= 0);
+    for (LiveRange* member : group->ranges()) {
+      EvictAndRescheduleConflicts(eviction_reg, member);
+    }
+    free_reg = eviction_reg;
+  }
+
+  DCHECK(free_reg >= 0);
+  for (LiveRange* member : group->ranges()) {
+    AssignRangeToRegister(free_reg, member);
+  }
 }
 
 
@@ -280,7 +419,7 @@ void GreedyAllocator::EvictAndRescheduleConflicts(unsigned reg_id,
 void GreedyAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
   size_t initial_range_count = data()->live_ranges().size();
   for (size_t i = 0; i < initial_range_count; ++i) {
-    auto range = data()->live_ranges()[i];
+    TopLevelLiveRange* range = data()->live_ranges()[i];
     if (!CanProcessRange(range)) continue;
     if (!range->HasSpillOperand()) continue;
 
@@ -322,9 +461,9 @@ void GreedyAllocator::AllocateRegisters() {
         data()->debug_name());
 
   SplitAndSpillRangesDefinedByMemoryOperand();
-  PreallocateFixedRanges();
+  GroupLiveRanges();
   ScheduleAllocationCandidates();
-
+  PreallocateFixedRanges();
   while (!scheduler().empty()) {
     AllocationCandidate candidate = scheduler().GetNext();
     TryAllocateCandidate(candidate);
@@ -352,6 +491,24 @@ float GreedyAllocator::GetMaximumConflictingWeight(
     DCHECK_NE(conflict->weight(), LiveRange::kInvalidWeight);
     ret = Max(ret, conflict->weight());
     if (ret == LiveRange::kMaxWeight) return ret;
+  }
+
+  return ret;
+}
+
+
+float GreedyAllocator::GetMaximumConflictingWeight(unsigned reg_id,
+                                                   const LiveRangeGroup* group,
+                                                   float group_weight) const {
+  float ret = LiveRange::kInvalidWeight;
+
+  for (LiveRange* member : group->ranges()) {
+    float member_conflict_weight = GetMaximumConflictingWeight(reg_id, member);
+    if (member_conflict_weight == LiveRange::kMaxWeight) {
+      return LiveRange::kMaxWeight;
+    }
+    if (member_conflict_weight > group_weight) return LiveRange::kMaxWeight;
+    ret = Max(member_conflict_weight, ret);
   }
 
   return ret;

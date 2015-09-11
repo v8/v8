@@ -18,21 +18,45 @@ namespace compiler {
 // we may extend this to groups of LiveRanges. It has to be comparable.
 class AllocationCandidate {
  public:
-  explicit AllocationCandidate(LiveRange* range) : range_(range) {}
+  explicit AllocationCandidate(LiveRange* range)
+      : is_group_(false), size_(range->GetSize()) {
+    candidate_.range_ = range;
+  }
+
+  explicit AllocationCandidate(LiveRangeGroup* ranges)
+      : is_group_(true), size_(CalculateGroupSize(ranges)) {
+    candidate_.group_ = ranges;
+  }
 
   // Strict ordering operators
   bool operator<(const AllocationCandidate& other) const {
-    return range_->GetSize() < other.range_->GetSize();
+    return size() < other.size();
   }
 
   bool operator>(const AllocationCandidate& other) const {
-    return range_->GetSize() > other.range_->GetSize();
+    return size() > other.size();
   }
 
-  LiveRange* live_range() const { return range_; }
+  bool is_group() const { return is_group_; }
+  LiveRange* live_range() const { return candidate_.range_; }
+  LiveRangeGroup* group() const { return candidate_.group_; }
 
  private:
-  LiveRange* range_;
+  unsigned CalculateGroupSize(LiveRangeGroup* group) {
+    unsigned ret = 0;
+    for (LiveRange* range : group->ranges()) {
+      ret += range->GetSize();
+    }
+    return ret;
+  }
+
+  unsigned size() const { return size_; }
+  bool is_group_;
+  unsigned size_;
+  union {
+    LiveRange* range_;
+    LiveRangeGroup* group_;
+  } candidate_;
 };
 
 
@@ -41,6 +65,7 @@ class AllocationScheduler final : ZoneObject {
  public:
   explicit AllocationScheduler(Zone* zone) : queue_(zone) {}
   void Schedule(LiveRange* range);
+  void Schedule(LiveRangeGroup* group);
   AllocationCandidate GetNext();
   bool empty() const { return queue_.empty(); }
 
@@ -85,12 +110,15 @@ class GreedyAllocator final : public RegisterAllocator {
   }
 
   Zone* local_zone() const { return local_zone_; }
+  ZoneVector<LiveRangeGroup*>& groups() { return groups_; }
+  const ZoneVector<LiveRangeGroup*>& groups() const { return groups_; }
 
   // Insert fixed ranges.
   void PreallocateFixedRanges();
 
+  void GroupLiveRanges();
+
   // Schedule unassigned live ranges for allocation.
-  // TODO(mtrofin): groups.
   void ScheduleAllocationCandidates();
 
   void AllocateRegisterToRange(unsigned reg_id, LiveRange* range) {
@@ -106,6 +134,7 @@ class GreedyAllocator final : public RegisterAllocator {
 
   void TryAllocateCandidate(const AllocationCandidate& candidate);
   void TryAllocateLiveRange(LiveRange* range);
+  void TryAllocateGroup(LiveRangeGroup* group);
 
   bool CanProcessRange(LiveRange* range) const {
     return range != nullptr && !range->IsEmpty() && range->kind() == mode();
@@ -121,6 +150,12 @@ class GreedyAllocator final : public RegisterAllocator {
   // a range conflicting with the given range, at the given register.
   float GetMaximumConflictingWeight(unsigned reg_id,
                                     const LiveRange* range) const;
+
+  // Returns kInvalidWeight if there are no conflicts, or the largest weight of
+  // a range conflicting with the given range, at the given register.
+  float GetMaximumConflictingWeight(unsigned reg_id,
+                                    const LiveRangeGroup* group,
+                                    float group_weight) const;
 
   // This is the extension point for splitting heuristics.
   void SplitOrSpillBlockedRange(LiveRange* range);
@@ -152,6 +187,8 @@ class GreedyAllocator final : public RegisterAllocator {
   Zone* local_zone_;
   ZoneVector<CoalescedLiveRanges*> allocations_;
   AllocationScheduler scheduler_;
+  ZoneVector<LiveRangeGroup*> groups_;
+
   DISALLOW_COPY_AND_ASSIGN(GreedyAllocator);
 };
 }  // namespace compiler
