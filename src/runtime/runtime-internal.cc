@@ -88,6 +88,13 @@ RUNTIME_FUNCTION(Runtime_ReThrow) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->StackOverflow();
+}
+
+
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);

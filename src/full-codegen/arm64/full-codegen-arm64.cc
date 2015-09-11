@@ -159,7 +159,7 @@ void FullCodeGenerator::Generate() {
         __ Sub(x10, jssp, locals_count * kPointerSize);
         __ CompareRoot(x10, Heap::kRealStackLimitRootIndex);
         __ B(hs, &ok);
-        __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+        __ CallRuntime(Runtime::kThrowStackOverflow, 0);
         __ Bind(&ok);
       }
       __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);

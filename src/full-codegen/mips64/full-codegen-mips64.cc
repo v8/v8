@@ -159,7 +159,7 @@ void FullCodeGenerator::Generate() {
         __ Dsubu(t1, sp, Operand(locals_count * kPointerSize));
         __ LoadRoot(a2, Heap::kRealStackLimitRootIndex);
         __ Branch(&ok, hs, t1, Operand(a2));
-        __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+        __ CallRuntime(Runtime::kThrowStackOverflow, 0);
         __ bind(&ok);
       }
       __ LoadRoot(t1, Heap::kUndefinedValueRootIndex);

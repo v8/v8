@@ -155,7 +155,7 @@ void FullCodeGenerator::Generate() {
         __ LoadRoot(r2, Heap::kRealStackLimitRootIndex);
         __ cmp(r9, Operand(r2));
         __ b(hs, &ok);
-        __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+        __ CallRuntime(Runtime::kThrowStackOverflow, 0);
         __ bind(&ok);
       }
       __ LoadRoot(r9, Heap::kUndefinedValueRootIndex);

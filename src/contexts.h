@@ -101,7 +101,6 @@ enum BindingFlags {
     reflect_apply_prepare_builtin)                                      \
   V(REFLECT_CONSTRUCT_PREPARE_BUILTIN_INDEX, JSFunction,                \
     reflect_construct_prepare_builtin)                                  \
-  V(STACK_OVERFLOW_BUILTIN_INDEX, JSFunction, stack_overflow_builtin)   \
   V(STRING_ADD_LEFT_BUILTIN_INDEX, JSFunction, string_add_left_builtin) \
   V(STRING_ADD_RIGHT_BUILTIN_INDEX, JSFunction, string_add_right_builtin)
 

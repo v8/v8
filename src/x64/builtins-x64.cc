@@ -525,7 +525,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
     __ Integer32ToSmi(rax, rax);
   }
   __ Push(rax);
-  __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+  __ CallRuntime(Runtime::kThrowStackOverflow, 0);
 
   __ bind(&okay);
 }
@@ -718,7 +718,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ subp(rdx, rcx);
     __ CompareRoot(rdx, Heap::kRealStackLimitRootIndex);
     __ j(above_equal, &ok, Label::kNear);
-    __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+    __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ bind(&ok);
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1619,7 +1619,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {
     FrameScope frame(masm, StackFrame::MANUAL);
     EnterArgumentsAdaptorFrame(masm);
-    __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+    __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ int3();
   }
 }

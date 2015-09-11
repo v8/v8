@@ -320,11 +320,6 @@ function CONCAT_ITERABLE_TO_ARRAY(iterable) {
 };
 
 
-function STACK_OVERFLOW(length) {
-  throw %make_range_error(kStackOverflow);
-}
-
-
 /* -------------------------------------
    - - -   C o n v e r s i o n s   - - -
    -------------------------------------
@@ -543,7 +538,6 @@ $toString = ToString;
   "equals_builtin", EQUALS,
   "reflect_apply_prepare_builtin", REFLECT_APPLY_PREPARE,
   "reflect_construct_prepare_builtin", REFLECT_CONSTRUCT_PREPARE,
-  "stack_overflow_builtin", STACK_OVERFLOW,
   "string_add_left_builtin", STRING_ADD_LEFT,
   "string_add_right_builtin", STRING_ADD_RIGHT,
 ]);
