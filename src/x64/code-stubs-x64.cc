@@ -2041,22 +2041,31 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // rdi: called object
   // rax: number of arguments
   // r11: object map
-  Label do_call;
   __ bind(&slow);
-  __ CmpInstanceType(r11, JS_FUNCTION_PROXY_TYPE);
-  __ j(not_equal, &non_function_call);
-  __ GetBuiltinEntry(rdx,
-                     Context::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX);
-  __ jmp(&do_call);
+  {
+    __ CmpInstanceType(r11, JS_FUNCTION_PROXY_TYPE);
+    __ j(not_equal, &non_function_call, Label::kNear);
 
-  __ bind(&non_function_call);
-  __ GetBuiltinEntry(rdx,
-                     Context::CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX);
-  __ bind(&do_call);
-  // Set expected number of arguments to zero (not changing rax).
-  __ Set(rbx, 0);
-  __ Jump(isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-          RelocInfo::CODE_TARGET);
+    // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
+    __ movp(rdi, FieldOperand(rdi, JSFunctionProxy::kConstructTrapOffset));
+    __ Jump(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+
+    __ bind(&non_function_call);
+    {
+      // Determine the delegate for the target (if any).
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Integer32ToSmi(rax, rax);
+      __ Push(rax);
+      __ Push(rdi);
+      __ CallRuntime(Runtime::kGetConstructorDelegate, 1);
+      __ movp(rdi, rax);
+      __ Pop(rax);
+      __ SmiToInteger32(rax, rax);
+    }
+    // The delegate is always a regular function.
+    __ AssertFunction(rdi);
+    __ Jump(isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
+  }
 }
 
 

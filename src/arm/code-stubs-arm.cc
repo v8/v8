@@ -2528,22 +2528,30 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // r0: number of arguments
   // r1: called object
   // r5: object type
-  Label do_call;
   __ bind(&slow);
-  __ cmp(r5, Operand(JS_FUNCTION_PROXY_TYPE));
-  __ b(ne, &non_function_call);
-  __ GetBuiltinFunction(
-      r1, Context::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX);
-  __ jmp(&do_call);
+  {
+    __ cmp(r5, Operand(JS_FUNCTION_PROXY_TYPE));
+    __ b(ne, &non_function_call);
+    // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
+    __ ldr(r1, FieldMemOperand(r1, JSFunctionProxy::kConstructTrapOffset));
+    __ Jump(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 
-  __ bind(&non_function_call);
-  __ GetBuiltinFunction(
-      r1, Context::CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX);
-  __ bind(&do_call);
-  // Set expected number of arguments to zero (not changing r0).
-  __ mov(r2, Operand::Zero());
-  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-          RelocInfo::CODE_TARGET);
+    __ bind(&non_function_call);
+    {
+      // Determine the delegate for the target (if any).
+      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+      __ SmiTag(r0);
+      __ Push(r0, r1);
+      __ CallRuntime(Runtime::kGetConstructorDelegate, 1);
+      __ mov(r1, r0);
+      __ Pop(r0);
+      __ SmiUntag(r0);
+    }
+    // The delegate is always a regular function.
+    __ AssertFunction(r1);
+    __ Jump(masm->isolate()->builtins()->CallFunction(),
+            RelocInfo::CODE_TARGET);
+  }
 }
 
 
