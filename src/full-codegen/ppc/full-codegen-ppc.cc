@@ -160,7 +160,7 @@ void FullCodeGenerator::Generate() {
         __ LoadRoot(r5, Heap::kRealStackLimitRootIndex);
         __ cmpl(ip, r5);
         __ bc_short(ge, &ok);
-        __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+        __ CallRuntime(Runtime::kThrowStackOverflow, 0);
         __ bind(&ok);
       }
       __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);

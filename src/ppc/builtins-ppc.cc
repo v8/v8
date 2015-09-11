@@ -759,7 +759,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
     __ SmiTag(argc);
   }
   __ Push(r4, argc);
-  __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+  __ CallRuntime(Runtime::kThrowStackOverflow, 0);
 
   __ bind(&okay);
 }
@@ -908,7 +908,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ LoadRoot(r0, Heap::kRealStackLimitRootIndex);
     __ cmpl(r6, r0);
     __ bge(&ok);
-    __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+    __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ bind(&ok);
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1826,7 +1826,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {
     FrameScope frame(masm, StackFrame::MANUAL);
     EnterArgumentsAdaptorFrame(masm);
-    __ InvokeBuiltin(Context::STACK_OVERFLOW_BUILTIN_INDEX, CALL_FUNCTION);
+    __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ bkpt(0);
   }
 }
