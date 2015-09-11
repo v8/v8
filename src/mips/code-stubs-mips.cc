@@ -2671,12 +2671,12 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     {
       // Determine the delegate for the target (if any).
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ sll(a0, a0, kSmiTagSize);  // Smi tagged.
+      __ SmiTag(a0);
       __ Push(a0, a1);
       __ CallRuntime(Runtime::kGetConstructorDelegate, 1);
       __ mov(a1, v0);
       __ Pop(a0);
-      __ sra(a0, a0, kSmiTagSize);  // Un-tag.
+      __ SmiUntag(a0);
     }
     // The delegate is always a regular function.
     __ AssertFunction(a1);
