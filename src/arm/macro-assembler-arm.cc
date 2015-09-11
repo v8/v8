@@ -3747,7 +3747,7 @@ CodePatcher::CodePatcher(byte* address,
 CodePatcher::~CodePatcher() {
   // Indicate that code has changed.
   if (flush_cache_ == FLUSH) {
-    CpuFeatures::FlushICache(address_, size_);
+    Assembler::FlushICacheWithoutIsolate(address_, size_);
   }
 
   // Check that the code was patched as expected.

@@ -64,7 +64,7 @@ UnaryMathFunction CreateExpFunction() {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
 
 #if !defined(USE_SIMULATOR)

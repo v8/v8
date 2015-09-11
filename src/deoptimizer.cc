@@ -1852,7 +1852,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   }
   CopyBytes(chunk->area_start(), desc.buffer,
             static_cast<size_t>(desc.instr_size));
-  CpuFeatures::FlushICache(chunk->area_start(), desc.instr_size);
+  Assembler::FlushICache(isolate, chunk->area_start(), desc.instr_size);
 
   data->deopt_entry_code_entries_[type] = entry_count;
 }

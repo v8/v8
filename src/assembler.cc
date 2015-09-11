@@ -54,6 +54,7 @@
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
+#include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serialize.h"
 #include "src/token.h"
 
@@ -152,6 +153,31 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
 
 AssemblerBase::~AssemblerBase() {
   if (own_buffer_) DeleteArray(buffer_);
+}
+
+
+void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
+  if (size == 0) return;
+  if (CpuFeatures::IsSupported(COHERENT_CACHE)) return;
+
+#if defined(USE_SIMULATOR)
+  Simulator::FlushICache(isolate->simulator_i_cache(), start, size);
+#else
+  CpuFeatures::FlushICache(start, size);
+#endif  // USE_SIMULATOR
+}
+
+
+void AssemblerBase::FlushICacheWithoutIsolate(void* start, size_t size) {
+  // Ideally we would just call Isolate::Current() here. However, this flushes
+  // out issues because we usually only need the isolate when in the simulator.
+  Isolate* isolate;
+#if defined(USE_SIMULATOR)
+  isolate = Isolate::Current();
+#else
+  isolate = nullptr;
+#endif  // USE_SIMULATOR
+  FlushICache(isolate, start, size);
 }
 
 
@@ -1024,7 +1050,7 @@ ExternalReference ExternalReference::
 
 ExternalReference ExternalReference::flush_icache_function(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(CpuFeatures::FlushICache)));
+      Redirect(isolate, FUNCTION_ADDR(Assembler::FlushICacheWithoutIsolate)));
 }
 
 

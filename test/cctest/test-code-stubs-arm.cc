@@ -126,7 +126,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
 }

@@ -122,7 +122,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   Add(ExternalReference::invoke_accessor_getter_callback(isolate).address(),
       "InvokeAccessorGetterCallback");
   Add(ExternalReference::flush_icache_function(isolate).address(),
-      "CpuFeatures::FlushICache");
+      "Assembler::FlushICacheWithoutIsolate");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),
@@ -505,7 +505,8 @@ void Deserializer::FlushICacheForNewIsolate() {
   PageIterator it(isolate_->heap()->code_space());
   while (it.has_next()) {
     Page* p = it.next();
-    CpuFeatures::FlushICache(p->area_start(), p->area_end() - p->area_start());
+    Assembler::FlushICache(isolate_, p->area_start(),
+                           p->area_end() - p->area_start());
   }
 }
 
@@ -513,8 +514,8 @@ void Deserializer::FlushICacheForNewIsolate() {
 void Deserializer::FlushICacheForNewCodeObjects() {
   DCHECK(deserializing_user_code_);
   for (Code* code : new_code_objects_) {
-    CpuFeatures::FlushICache(code->instruction_start(),
-                             code->instruction_size());
+    Assembler::FlushICache(isolate_, code->instruction_start(),
+                           code->instruction_size());
   }
 }
 

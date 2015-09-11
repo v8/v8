@@ -151,6 +151,13 @@ typedef SimRegisterBase SimFPRegister;    // v0-v31
 
 class Simulator : public DecoderVisitor {
  public:
+  static void FlushICache(v8::internal::HashMap* i_cache, void* start,
+                          size_t size) {
+    USE(i_cache);
+    USE(start);
+    USE(size);
+  }
+
   explicit Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
                      Isolate* isolate = NULL,
                      FILE* stream = stderr);

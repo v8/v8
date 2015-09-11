@@ -2845,7 +2845,7 @@ CodePatcher::CodePatcher(byte* address, int size)
 
 CodePatcher::~CodePatcher() {
   // Indicate that code has changed.
-  CpuFeatures::FlushICache(address_, size_);
+  Assembler::FlushICacheWithoutIsolate(address_, size_);
 
   // Check that the code was patched as expected.
   DCHECK(masm_.pc_ == address_ + size_);
