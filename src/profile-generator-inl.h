@@ -31,16 +31,6 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag, const char* name,
       instruction_start_(instruction_start) {}
 
 
-bool CodeEntry::is_js_function_tag(Logger::LogEventsAndTags tag) {
-  return tag == Logger::FUNCTION_TAG
-      || tag == Logger::LAZY_COMPILE_TAG
-      || tag == Logger::SCRIPT_TAG
-      || tag == Logger::NATIVE_FUNCTION_TAG
-      || tag == Logger::NATIVE_LAZY_COMPILE_TAG
-      || tag == Logger::NATIVE_SCRIPT_TAG;
-}
-
-
 ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
     : tree_(tree),
       entry_(entry),

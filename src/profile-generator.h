@@ -49,7 +49,6 @@ class CodeEntry {
                    Address instruction_start = NULL);
   ~CodeEntry();
 
-  bool is_js_function() const { return is_js_function_tag(tag()); }
   const char* name_prefix() const { return name_prefix_; }
   bool has_name_prefix() const { return name_prefix_[0] != '\0'; }
   const char* name() const { return name_; }
@@ -83,8 +82,6 @@ class CodeEntry {
   }
 
   void FillFunctionInfo(SharedFunctionInfo* shared);
-
-  static inline bool is_js_function_tag(Logger::LogEventsAndTags tag);
 
   List<OffsetRange>* no_frame_ranges() const { return no_frame_ranges_; }
   void set_no_frame_ranges(List<OffsetRange>* ranges) {
@@ -269,7 +266,7 @@ class CodeMap {
   ~CodeMap();
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
-  CodeEntry* FindEntry(Address addr, Address* start = NULL);
+  CodeEntry* FindEntry(Address addr);
   int GetSharedId(Address addr);
 
   void Print();

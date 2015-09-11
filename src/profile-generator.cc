@@ -405,15 +405,12 @@ void CodeMap::DeleteAllCoveredCode(Address start, Address end) {
 }
 
 
-CodeEntry* CodeMap::FindEntry(Address addr, Address* start) {
+CodeEntry* CodeMap::FindEntry(Address addr) {
   CodeTree::Locator locator;
   if (tree_.FindGreatestLessThan(addr, &locator)) {
     // locator.key() <= addr. Need to check that addr is within entry.
     const CodeEntryInfo& entry = locator.value();
     if (addr < (locator.key() + entry.size)) {
-      if (start) {
-        *start = locator.key();
-      }
       return entry.entry;
     }
   }
@@ -601,8 +598,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // that a callback calls itself.
       *entry++ = code_map_.FindEntry(sample.external_callback);
     } else {
-      Address start;
-      CodeEntry* pc_entry = code_map_.FindEntry(sample.pc, &start);
+      CodeEntry* pc_entry = code_map_.FindEntry(sample.pc);
       // If there is no pc_entry we're likely in native code.
       // Find out, if top of stack was pointing inside a JS function
       // meaning that we have encountered a frameless invocation.
@@ -651,8 +647,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
            *stack_end = stack_pos + sample.frames_count;
          stack_pos != stack_end;
          ++stack_pos) {
-      Address start = NULL;
-      *entry = code_map_.FindEntry(*stack_pos, &start);
+      *entry = code_map_.FindEntry(*stack_pos);
 
       // Skip unresolved frames (e.g. internal frame) and get source line of
       // the first JS caller.
