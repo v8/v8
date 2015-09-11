@@ -62,6 +62,11 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save callee save registers.
   __ MultiPush(kCalleeSaved | ra.bit());
 
+  // Save callee-saved FPU registers.
+  __ MultiPushFPU(kCalleeSavedFPU);
+  // Set up the reserved register for 0.0.
+  __ Move(kDoubleRegZero, 0.0);
+
   // For softfp, move the input value into f12.
   if (IsMipsSoftFloatABI) {
     __ Move(f12, a0, a1);
@@ -116,6 +121,9 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   Label ok;
   __ Branch(&ok, eq, v0, Operand(zero_reg));
   __ bind(&ok);
+
+  // Restore callee-saved FPU registers.
+  __ MultiPopFPU(kCalleeSavedFPU);
 
   // Restore callee save registers.
   __ MultiPop(kCalleeSaved | ra.bit());
