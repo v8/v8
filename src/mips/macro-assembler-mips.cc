@@ -1220,20 +1220,6 @@ void MacroAssembler::MultiPopReversedFPU(RegList regs) {
 }
 
 
-void MacroAssembler::FlushICache(Register address, unsigned instructions) {
-  RegList saved_regs = kJSCallerSaved | ra.bit();
-  MultiPush(saved_regs);
-  AllowExternalCallThatCantCauseGC scope(this);
-
-  Move(a0, address);
-  PrepareCallCFunction(2, t8);
-
-  li(a1, instructions * kInstrSize);
-  CallCFunction(ExternalReference::flush_icache_function(isolate()), 2);
-  MultiPop(saved_regs);
-}
-
-
 void MacroAssembler::Ext(Register rt,
                          Register rs,
                          uint16_t pos,

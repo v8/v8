@@ -1048,12 +1048,6 @@ ExternalReference ExternalReference::
 }
 
 
-ExternalReference ExternalReference::flush_icache_function(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(Assembler::FlushICacheWithoutIsolate)));
-}
-
-
 ExternalReference ExternalReference::delete_handle_scope_extensions(
     Isolate* isolate) {
   return ExternalReference(Redirect(
