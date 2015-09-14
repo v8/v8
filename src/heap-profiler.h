@@ -76,6 +76,7 @@ class HeapProfiler {
   List<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
   base::SmartPointer<AllocationTracker> allocation_tracker_;
   bool is_tracking_object_moves_;
+  base::Mutex profiler_mutex_;
 };
 
 } }  // namespace v8::internal

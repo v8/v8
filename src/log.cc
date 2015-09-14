@@ -501,6 +501,7 @@ class JitLogger : public CodeEventLogger {
                                  int length);
 
   JitCodeEventHandler code_event_handler_;
+  base::Mutex logger_mutex_;
 };
 
 
@@ -530,6 +531,7 @@ void JitLogger::LogRecordedBuffer(Code* code,
 
 
 void JitLogger::CodeMoveEvent(Address from, Address to) {
+  base::LockGuard<base::Mutex> guard(&logger_mutex_);
   Code* from_code = Code::cast(HeapObject::FromAddress(from));
 
   JitCodeEvent event;
