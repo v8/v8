@@ -102,6 +102,7 @@ import math
 import optparse
 import os
 import re
+import subprocess
 import sys
 
 from testrunner.local import commands
@@ -457,7 +458,10 @@ class RunnableConfig(GraphConfig):
 
   def GetCommand(self, shell_dir, extra_flags=None):
     # TODO(machenbach): This requires +.exe if run on windows.
+    extra_flags = extra_flags or []
     cmd = [os.path.join(shell_dir, self.binary)]
+    if self.binary != 'd8' and '--prof' in self.extra_flags:
+      print "Profiler supported only on a benchmark run with d8"
     return cmd + self.GetCommandFlags(extra_flags=extra_flags)
 
   def Run(self, runner, trybot):
@@ -640,6 +644,19 @@ class DesktopPlatform(Platform):
       print output.stderr
     if output.timed_out:
       print ">>> Test timed out after %ss." % runnable.timeout
+    if '--prof' in self.extra_flags:
+      if utils.GuessOS() == "linux":
+        tick_tools = os.path.abspath(os.path.join(shell_dir, "..", "..",
+                                                  "tools",
+                                                  "linux-tick-processor"))
+      elif utils.GuessOS() == "macos":
+        tick_tools = os.path.abspath(os.path.join(shell_dir, "..", "..",
+                                                  "tools",
+                                                  "mac-tick-processor"))
+      else:
+        print "Profiler option currently supported on Linux and Mac OS."
+      prof_cmd = tick_tools + " --only-summary"
+      subprocess.check_call(prof_cmd, shell=True)
     return output.stdout
 
 
