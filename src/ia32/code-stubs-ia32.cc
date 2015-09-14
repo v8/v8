@@ -4567,8 +4567,6 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
   Label next, next_loop, prepare_next;
   Label load_smi_map, compare_map;
   Label start_polymorphic;
-  ExternalReference virtual_register =
-      ExternalReference::vector_store_virtual_register(masm->isolate());
 
   __ push(receiver);
   __ push(vector);
@@ -4595,9 +4593,8 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
   __ pop(vector);
   __ pop(receiver);
   __ lea(handler, FieldOperand(handler, Code::kHeaderSize));
-  __ mov(Operand::StaticVariable(virtual_register), handler);
-  __ pop(handler);  // Pop "value".
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ xchg(handler, Operand(esp, 0));
+  __ ret(0);
 
   // Polymorphic, we have to loop from 2 to N
 
@@ -4617,13 +4614,12 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
   __ j(not_equal, &prepare_next);
   __ mov(handler, FieldOperand(feedback, counter, times_half_pointer_size,
                                FixedArray::kHeaderSize + kPointerSize));
-  __ lea(handler, FieldOperand(handler, Code::kHeaderSize));
   __ pop(key);
   __ pop(vector);
   __ pop(receiver);
-  __ mov(Operand::StaticVariable(virtual_register), handler);
-  __ pop(handler);  // Pop "value".
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ lea(handler, FieldOperand(handler, Code::kHeaderSize));
+  __ xchg(handler, Operand(esp, 0));
+  __ ret(0);
 
   __ bind(&prepare_next);
   __ add(counter, Immediate(Smi::FromInt(2)));
@@ -4648,8 +4644,6 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
                                        Label* miss) {
   // The store ic value is on the stack.
   DCHECK(weak_cell.is(VectorStoreICDescriptor::ValueRegister()));
-  ExternalReference virtual_register =
-      ExternalReference::vector_store_virtual_register(masm->isolate());
 
   // feedback initially contains the feedback array
   Label compare_smi_map;
@@ -4666,10 +4660,9 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
                                  FixedArray::kHeaderSize + kPointerSize));
   __ lea(weak_cell, FieldOperand(weak_cell, Code::kHeaderSize));
   // Put the store ic value back in it's register.
-  __ mov(Operand::StaticVariable(virtual_register), weak_cell);
-  __ pop(weak_cell);  // Pop "value".
-  // jump to the handler.
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ xchg(weak_cell, Operand(esp, 0));
+  // "return" to the handler.
+  __ ret(0);
 
   // In microbenchmarks, it made sense to unroll this code so that the call to
   // the handler is duplicated for a HeapObject receiver and a Smi receiver.
@@ -4679,10 +4672,10 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
   __ mov(weak_cell, FieldOperand(vector, slot, times_half_pointer_size,
                                  FixedArray::kHeaderSize + kPointerSize));
   __ lea(weak_cell, FieldOperand(weak_cell, Code::kHeaderSize));
-  __ mov(Operand::StaticVariable(virtual_register), weak_cell);
-  __ pop(weak_cell);  // Pop "value".
-  // jump to the handler.
-  __ jmp(Operand::StaticVariable(virtual_register));
+  // Put the store ic value back in it's register.
+  __ xchg(weak_cell, Operand(esp, 0));
+  // "return" to the handler.
+  __ ret(0);
 }
 
 
@@ -4755,8 +4748,6 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   Label load_smi_map, compare_map;
   Label transition_call;
   Label pop_and_miss;
-  ExternalReference virtual_register =
-      ExternalReference::vector_store_virtual_register(masm->isolate());
 
   __ push(receiver);
   __ push(vector);
@@ -4793,9 +4784,8 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ pop(vector);
   __ pop(receiver);
   __ lea(feedback, FieldOperand(feedback, Code::kHeaderSize));
-  __ mov(Operand::StaticVariable(virtual_register), feedback);
-  __ pop(feedback);  // Pop "value".
-  __ jmp(Operand::StaticVariable(virtual_register));
+  __ xchg(feedback, Operand(esp, 0));
+  __ ret(0);
 
   __ bind(&transition_call);
   // Oh holy hell this will be tough.

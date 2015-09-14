@@ -1407,12 +1407,6 @@ ExternalReference
 }
 
 
-ExternalReference ExternalReference::vector_store_virtual_register(
-    Isolate* isolate) {
-  return ExternalReference(isolate->vector_store_virtual_register_address());
-}
-
-
 double power_helper(double x, double y) {
   int y_int = static_cast<int>(y);
   if (y == y_int) {

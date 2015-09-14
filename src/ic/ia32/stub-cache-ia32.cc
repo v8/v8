@@ -23,8 +23,6 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
   ExternalReference value_offset(isolate->stub_cache()->value_reference(table));
   ExternalReference map_offset(isolate->stub_cache()->map_reference(table));
-  ExternalReference virtual_register =
-      ExternalReference::vector_store_virtual_register(masm->isolate());
 
   Label miss;
   bool is_vector_store =
@@ -69,10 +67,9 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
       DCHECK(extra.is(VectorStoreICDescriptor::SlotRegister()));
       __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
       __ pop(vector);
-      __ mov(Operand::StaticVariable(virtual_register), extra);
-      __ pop(extra);  // Pop "slot".
+      __ xchg(extra, Operand(esp, 0));
       // Jump to the first instruction in the code stub.
-      __ jmp(Operand::StaticVariable(virtual_register));
+      __ ret(0);
     } else {
       __ pop(LoadWithVectorDescriptor::VectorRegister());
       __ pop(LoadDescriptor::SlotRegister());
@@ -127,10 +124,9 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
       Register vector = VectorStoreICDescriptor::VectorRegister();
       DCHECK(offset.is(VectorStoreICDescriptor::SlotRegister()));
       __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      __ mov(Operand::StaticVariable(virtual_register), offset);
       __ pop(vector);
-      __ pop(offset);  // Pop "slot".
-      __ jmp(Operand::StaticVariable(virtual_register));
+      __ xchg(offset, Operand(esp, 0));
+      __ ret(0);
     } else {
       __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
       __ jmp(offset);
