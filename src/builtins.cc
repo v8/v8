@@ -527,7 +527,7 @@ BUILTIN(ArraySlice) {
 
   if (actual_end <= actual_start) {
     Handle<JSArray> result_array =
-        isolate->factory()->NewJSArray(GetInitialFastElementsKind(), 0, 0);
+        isolate->factory()->NewJSArray(object->GetElementsKind(), 0, 0);
     return *result_array;
   }
 
