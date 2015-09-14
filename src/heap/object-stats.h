@@ -6,6 +6,7 @@
 #define V8_HEAP_OBJECT_STATS_H_
 
 #include "src/heap/heap.h"
+#include "src/heap/objects-visiting.h"
 #include "src/objects.h"
 
 namespace v8 {

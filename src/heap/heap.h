@@ -15,7 +15,6 @@
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
 #include "src/list.h"
@@ -427,6 +426,7 @@ class HeapStats;
 class Isolate;
 class MemoryReducer;
 class ObjectStats;
+class Scavenger;
 class WeakObjectRetainer;
 
 
@@ -533,10 +533,6 @@ class PromotionQueue {
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };
-
-
-typedef void (*ScavengingCallback)(Map* map, HeapObject** slot,
-                                   HeapObject* object);
 
 
 enum ArrayStorageAllocationMode {
@@ -718,16 +714,6 @@ class Heap {
 
   template <typename T>
   static inline bool IsOneByte(T t, int chars);
-
-  // Callback function passed to Heap::Iterate etc.  Copies an object if
-  // necessary, the object might be promoted to an old space.  The caller must
-  // ensure the precondition that the object is (a) a heap object and (b) in
-  // the heap's from space.
-  static inline void ScavengePointer(HeapObject** p);
-  static inline void ScavengeObject(HeapObject** p, HeapObject* object);
-
-  // Slow part of scavenge object.
-  static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
   static void FatalProcessOutOfMemory(const char* location,
                                       bool take_snapshot = false);
@@ -1776,8 +1762,6 @@ class Heap {
 
   void ConfigureInitialOldGenerationSize();
 
-  void SelectScavengingVisitorsTable();
-
   bool HasLowYoungGenerationAllocationRate();
   bool HasLowOldGenerationAllocationRate();
   double YoungGenerationMutatorUtilization();
@@ -2259,6 +2243,8 @@ class Heap {
   // Last time a garbage collection happened.
   double last_gc_time_;
 
+  Scavenger* scavenge_collector_;
+
   MarkCompactCollector mark_compact_collector_;
 
   StoreBuffer store_buffer_;
@@ -2318,8 +2304,6 @@ class Heap {
 
   ExternalStringTable external_string_table_;
 
-  VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
-
   MemoryChunk* chunks_queued_for_free_;
 
   size_t concurrent_unmapping_tasks_active_;
@@ -2348,6 +2332,7 @@ class Heap {
   friend class MarkCompactMarkingVisitor;
   friend class ObjectStatsVisitor;
   friend class Page;
+  friend class Scavenger;
   friend class StoreBuffer;
 
   // The allocator interface.

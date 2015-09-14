@@ -11,6 +11,7 @@
 #include "src/counters.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
+#include "src/heap/objects-visiting.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
 #include "src/heap/store-buffer-inl.h"
@@ -460,9 +461,6 @@ void Heap::MoveBlock(Address dst, Address src, int byte_size) {
 }
 
 
-void Heap::ScavengePointer(HeapObject** p) { ScavengeObject(p, *p); }
-
-
 AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   // Check if there is potentially a memento behind the object. If
   // the last word of the memento is on another page we return
@@ -517,33 +515,6 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
   if (memento->GetAllocationSite()->IncrementMementoFoundCount()) {
     heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite(), mode);
   }
-}
-
-
-void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  DCHECK(object->GetIsolate()->heap()->InFromSpace(object));
-
-  // We use the first word (where the map pointer usually is) of a heap
-  // object to record the forwarding pointer.  A forwarding pointer can
-  // point to an old space, the code space, or the to space of the new
-  // generation.
-  MapWord first_word = object->map_word();
-
-  // If the first word is a forwarding address, the object has already been
-  // copied.
-  if (first_word.IsForwardingAddress()) {
-    HeapObject* dest = first_word.ToForwardingAddress();
-    DCHECK(object->GetIsolate()->heap()->InFromSpace(*p));
-    *p = dest;
-    return;
-  }
-
-  UpdateAllocationSiteFeedback(object, IGNORE_SCRATCHPAD_SLOT);
-
-  // AllocationMementos are unrooted and shouldn't survive a scavenge
-  DCHECK(object->map() != object->GetHeap()->allocation_memento_map());
-  // Call the slow part of scavenge object.
-  return ScavengeObjectSlow(p, object);
 }
 
 
