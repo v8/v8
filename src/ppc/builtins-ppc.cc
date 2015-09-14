@@ -140,122 +140,76 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->string_ctor_calls(), 1, r5, r6);
 
-  Register function = r4;
-  if (FLAG_debug_code) {
-    __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, r5);
-    __ cmp(function, r5);
-    __ Assert(eq, kUnexpectedStringFunction);
-  }
-
-  // Load the first arguments in r3 and get rid of the rest.
-  Label no_arguments;
-  __ cmpi(r3, Operand::Zero());
-  __ beq(&no_arguments);
-  // First args = sp[(argc - 1) * 4].
-  __ subi(r3, r3, Operand(1));
-  __ ShiftLeftImm(r3, r3, Operand(kPointerSizeLog2));
-  __ add(sp, sp, r3);
-  __ LoadP(r3, MemOperand(sp));
-  // sp now point to args[0], drop args[0] + receiver.
-  __ Drop(2);
-
-  Register argument = r5;
-  Label not_cached, argument_is_string;
-  __ LookupNumberStringCache(r3,        // Input.
-                             argument,  // Result.
-                             r6,        // Scratch.
-                             r7,        // Scratch.
-                             r8,        // Scratch.
-                             &not_cached);
-  __ IncrementCounter(counters->string_ctor_cached_number(), 1, r6, r7);
-  __ bind(&argument_is_string);
-
-  // ----------- S t a t e -------------
-  //  -- r5     : argument converted to string
-  //  -- r4     : constructor function
-  //  -- lr     : return address
-  // -----------------------------------
-
-  Label gc_required;
-  __ Allocate(JSValue::kSize,
-              r3,  // Result.
-              r6,  // Scratch.
-              r7,  // Scratch.
-              &gc_required, TAG_OBJECT);
-
-  // Initialising the String Object.
-  Register map = r6;
-  __ LoadGlobalFunctionInitialMap(function, map, r7);
-  if (FLAG_debug_code) {
-    __ lbz(r7, FieldMemOperand(map, Map::kInstanceSizeOffset));
-    __ cmpi(r7, Operand(JSValue::kSize >> kPointerSizeLog2));
-    __ Assert(eq, kUnexpectedStringWrapperInstanceSize);
-    __ lbz(r7, FieldMemOperand(map, Map::kUnusedPropertyFieldsOffset));
-    __ cmpi(r7, Operand::Zero());
-    __ Assert(eq, kUnexpectedUnusedPropertiesOfStringWrapper);
-  }
-  __ StoreP(map, FieldMemOperand(r3, HeapObject::kMapOffset), r0);
-
-  __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
-  __ StoreP(r6, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
-  __ StoreP(r6, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
-
-  __ StoreP(argument, FieldMemOperand(r3, JSValue::kValueOffset), r0);
-
-  // Ensure the object is fully initialized.
-  STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
-
-  __ Ret();
-
-  // The argument was not found in the number to string cache. Check
-  // if it's a string already before calling the conversion builtin.
-  Label convert_argument;
-  __ bind(&not_cached);
-  __ JumpIfSmi(r3, &convert_argument);
-
-  // Is it a String?
-  __ LoadP(r5, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ lbz(r6, FieldMemOperand(r5, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kNotStringTag != 0);
-  __ andi(r0, r6, Operand(kIsNotStringMask));
-  __ bne(&convert_argument, cr0);
-  __ mr(argument, r3);
-  __ IncrementCounter(counters->string_ctor_conversions(), 1, r6, r7);
-  __ b(&argument_is_string);
-
-  // Invoke the conversion builtin and put the result into r5.
-  __ bind(&convert_argument);
-  __ push(function);  // Preserve the function.
-  __ IncrementCounter(counters->string_ctor_conversions(), 1, r6, r7);
+  // 1. Load the first argument into r5 and get rid of the rest (including the
+  // receiver).
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    ToStringStub stub(masm->isolate());
-    __ CallStub(&stub);
+    Label no_arguments, done;
+    __ cmpi(r3, Operand::Zero());
+    __ beq(&no_arguments);
+    __ subi(r5, r3, Operand(1));
+    __ ShiftLeftImm(r5, r5, Operand(kPointerSizeLog2));
+    __ LoadPUX(r5, MemOperand(sp, r5));
+    __ Drop(2);
+    __ b(&done);
+    __ bind(&no_arguments);
+    __ LoadRoot(r5, Heap::kempty_stringRootIndex);
+    __ Drop(1);
+    __ bind(&done);
   }
-  __ pop(function);
-  __ mr(argument, r3);
-  __ b(&argument_is_string);
 
-  // Load the empty string into r5, remove the receiver from the
-  // stack, and jump back to the case where the argument is a string.
-  __ bind(&no_arguments);
-  __ LoadRoot(argument, Heap::kempty_stringRootIndex);
-  __ Drop(1);
-  __ b(&argument_is_string);
-
-  // At this point the argument is already a string. Call runtime to
-  // create a string wrapper.
-  __ bind(&gc_required);
-  __ IncrementCounter(counters->string_ctor_gc_required(), 1, r6, r7);
+  // 2. Make sure r5 is a string.
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ push(argument);
-    __ CallRuntime(Runtime::kNewStringWrapper, 1);
+    Label convert, done_convert;
+    __ JumpIfSmi(r5, &convert);
+    __ CompareObjectType(r5, r6, r6, FIRST_NONSTRING_TYPE);
+    __ blt(&done_convert);
+    __ bind(&convert);
+    {
+      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+      ToStringStub stub(masm->isolate());
+      __ push(r4);
+      __ mr(r3, r5);
+      __ CallStub(&stub);
+      __ mr(r5, r3);
+      __ pop(r4);
+    }
+    __ bind(&done_convert);
   }
-  __ Ret();
+
+  // 3. Allocate a JSValue wrapper for the string.
+  {
+    // ----------- S t a t e -------------
+    //  -- r4 : constructor function
+    //  -- r5 : the first argument
+    //  -- lr : return address
+    // -----------------------------------
+
+    Label allocate, done_allocate;
+    __ Allocate(JSValue::kSize, r3, r6, r7, &allocate, TAG_OBJECT);
+    __ bind(&done_allocate);
+
+    // Initialize the JSValue in eax.
+    __ LoadGlobalFunctionInitialMap(r4, r6, r7);
+    __ StoreP(r6, FieldMemOperand(r3, HeapObject::kMapOffset), r0);
+    __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
+    __ StoreP(r6, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
+    __ StoreP(r6, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
+    __ StoreP(r5, FieldMemOperand(r3, JSValue::kValueOffset), r0);
+    STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
+    __ Ret();
+
+    // Fallback to the runtime to allocate in new space.
+    __ bind(&allocate);
+    {
+      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+      __ LoadSmiLiteral(r6, Smi::FromInt(JSValue::kSize));
+      __ Push(r4, r5, r6);
+      __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+      __ Pop(r4, r5);
+    }
+    __ b(&done_allocate);
+  }
 }
 
 
