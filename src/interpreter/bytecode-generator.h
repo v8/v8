@@ -28,6 +28,7 @@ class BytecodeGenerator : public AstVisitor {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
   void VisitArithmeticExpression(BinaryOperation* binop);
+  void VisitPropertyLoad(Register obj, Property* expr);
 
   inline BytecodeArrayBuilder& builder() { return builder_; }
   inline Scope* scope() const { return scope_; }

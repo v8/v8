@@ -74,6 +74,8 @@ enum BuiltinExtraArguments {
   V(CallFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
   V(Call, BUILTIN, UNINITIALIZED, kNoExtraICState)                           \
                                                                              \
+  V(PushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+                                                                             \
   V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
   V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
   V(JSConstructStubForDerived, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
@@ -269,6 +271,8 @@ class Builtins {
   static void Generate_CallFunction(MacroAssembler* masm);
   // ES6 section 7.3.12 Call(F, V, [argumentsList])
   static void Generate_Call(MacroAssembler* masm);
+
+  static void Generate_PushArgsAndCall(MacroAssembler* masm);
 
   static void Generate_FunctionCall(MacroAssembler* masm);
   static void Generate_FunctionApply(MacroAssembler* masm);

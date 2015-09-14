@@ -224,6 +224,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
+                                                 Register receiver,
+                                                 size_t arg_count) {
+  if (FitsInByteOperand(arg_count)) {
+    Output(Bytecode::kCall, callable.ToOperand(), receiver.ToOperand(),
+           static_cast<uint8_t>(arg_count));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   // These constants shouldn't be added to the constant pool, the should use
   // specialzed bytecodes instead.
@@ -267,6 +280,7 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
   switch (operand_type) {
     case OperandType::kNone:
       return false;
+    case OperandType::kCount:
     case OperandType::kImm8:
     case OperandType::kIdx:
       return true;

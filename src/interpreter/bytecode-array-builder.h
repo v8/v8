@@ -67,6 +67,13 @@ class BytecodeArrayBuilder {
                                            int feedback_slot,
                                            LanguageMode language_mode);
 
+  // Call a JS function. The JSFunction or Callable to be called should be in
+  // |callable|, the receiver should be in |receiver| and all subsequent
+  // arguments should be in registers <receiver + 1> to
+  // <receiver + 1 + arg_count>.
+  BytecodeArrayBuilder& Call(Register callable, Register receiver,
+                             size_t arg_count);
+
   // Operators.
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg);
 

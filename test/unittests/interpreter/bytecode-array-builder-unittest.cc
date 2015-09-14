@@ -45,6 +45,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreNamedProperty(reg, reg, 0, LanguageMode::SLOPPY)
       .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY);
 
+  // Call operations.
+  builder.Call(reg, reg, 0);
+
   // Emit binary operators invocations.
   builder.BinaryOperation(Token::Value::ADD, reg)
       .BinaryOperation(Token::Value::SUB, reg)

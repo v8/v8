@@ -4,6 +4,7 @@
 
 #include "test/unittests/compiler/interpreter-assembler-unittest.h"
 
+#include "src/code-factory.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/interface-descriptors.h"
@@ -185,6 +186,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
     int number_of_operands = interpreter::Bytecodes::NumberOfOperands(bytecode);
     for (int i = 0; i < number_of_operands; i++) {
       switch (interpreter::Bytecodes::GetOperandType(bytecode, i)) {
+        case interpreter::OperandType::kCount:
+          EXPECT_THAT(m.BytecodeOperandCount(i), m.IsBytecodeOperand(i));
+          break;
         case interpreter::OperandType::kIdx:
           EXPECT_THAT(m.BytecodeOperandIdx(i), m.IsBytecodeOperand(i));
           break;
@@ -235,6 +239,20 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
 }
 
 
+TARGET_TEST_F(InterpreterAssemblerTest, RegisterLocation) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* reg_index_node = m.Int32Constant(44);
+    Node* reg_location_node = m.RegisterLocation(reg_index_node);
+    EXPECT_THAT(
+        reg_location_node,
+        IsIntPtrAdd(
+            IsParameter(Linkage::kInterpreterRegisterFileParameter),
+            IsWordShl(reg_index_node, IsInt32Constant(kPointerSizeLog2))));
+  }
+}
+
+
 TARGET_TEST_F(InterpreterAssemblerTest, LoadRegister) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
@@ -273,6 +291,38 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
                 IsWordShl(value, IsInt32Constant(kSmiShiftSize + kSmiTagSize)));
     EXPECT_THAT(m.SmiUntag(value),
                 IsWordSar(value, IsInt32Constant(kSmiShiftSize + kSmiTagSize)));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, IntPtrAdd) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* a = m.Int32Constant(0);
+    Node* b = m.Int32Constant(1);
+    Node* add = m.IntPtrAdd(a, b);
+    EXPECT_THAT(add, IsIntPtrAdd(a, b));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, IntPtrSub) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* a = m.Int32Constant(0);
+    Node* b = m.Int32Constant(1);
+    Node* add = m.IntPtrSub(a, b);
+    EXPECT_THAT(add, IsIntPtrSub(a, b));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, WordShl) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* a = m.Int32Constant(0);
+    Node* add = m.WordShl(a, 10);
+    EXPECT_THAT(add, IsWordShl(a, IsInt32Constant(10)));
   }
 }
 
@@ -354,6 +404,22 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallIC) {
     EXPECT_THAT(call_ic,
                 m.IsCall(_, target, arg1, arg2, arg3, arg4,
                          IsParameter(Linkage::kInterpreterContextParameter)));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Callable builtin = CodeFactory::PushArgsAndCall(isolate());
+    Node* function = m.Int32Constant(0);
+    Node* first_arg = m.Int32Constant(1);
+    Node* arg_count = m.Int32Constant(2);
+    Node* call_js = m.CallJS(function, first_arg, arg_count);
+    EXPECT_THAT(
+        call_js,
+        m.IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
+                 function, IsParameter(Linkage::kInterpreterContextParameter)));
   }
 }
 

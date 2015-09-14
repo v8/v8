@@ -38,6 +38,7 @@ class PlatformInterfaceDescriptor;
   V(CallFunctionWithFeedbackAndVector)        \
   V(CallConstruct)                            \
   V(CallTrampoline)                           \
+  V(PushArgsAndCall)                          \
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
   V(AllocateHeapNumber)                       \
@@ -679,6 +680,12 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
   enum RegisterInfo { kObjectIndex, kKeyIndex };
   static const Register ObjectRegister();
   static const Register KeyRegister();
+};
+
+
+class PushArgsAndCallDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(PushArgsAndCallDescriptor, CallInterfaceDescriptor)
 };
 
 #undef DECLARE_DESCRIPTOR

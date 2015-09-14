@@ -322,6 +322,22 @@ void Interpreter::DoMod(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// Call <receiver> <arg_count>
+//
+// Call a JS function with receiver and |arg_count| arguments in subsequent
+// registers. The JSfunction or Callable to call is in the accumulator.
+void Interpreter::DoCall(compiler::InterpreterAssembler* assembler) {
+  Node* function_reg = __ BytecodeOperandReg(0);
+  Node* function = __ LoadRegister(function_reg);
+  Node* receiver_reg = __ BytecodeOperandReg(1);
+  Node* first_arg = __ RegisterLocation(receiver_reg);
+  Node* args_count = __ BytecodeOperandCount(2);
+  Node* result = __ CallJS(function, first_arg, args_count);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 // Return
 //
 // Return the value in register 0.

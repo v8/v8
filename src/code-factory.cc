@@ -242,5 +242,12 @@ Callable CodeFactory::CallFunction(Isolate* isolate, int argc,
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
+
+// static
+Callable CodeFactory::PushArgsAndCall(Isolate* isolate) {
+  return Callable(isolate->builtins()->PushArgsAndCall(),
+                  PushArgsAndCallDescriptor(isolate));
+}
+
 }  // namespace internal
 }  // namespace v8

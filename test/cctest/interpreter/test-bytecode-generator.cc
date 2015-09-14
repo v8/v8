@@ -64,7 +64,7 @@ struct ExpectedSnippet {
   int frame_size;
   int parameter_count;
   int bytecode_length;
-  const uint8_t bytecode[24];
+  const uint8_t bytecode[32];
   int constant_count;
   T constants[16];
 };
@@ -338,7 +338,7 @@ TEST(PropertyLoads) {
   BytecodeGeneratorHelper helper;
 
   Code::Kind ic_kinds[] = { i::Code::LOAD_IC, i::Code::LOAD_IC };
-  FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  FeedbackVectorSpec feedback_spec(0, 2, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       helper.factory()->NewTypeFeedbackVector(&feedback_spec);
 
@@ -427,7 +427,7 @@ TEST(PropertyStores) {
   BytecodeGeneratorHelper helper;
 
   Code::Kind ic_kinds[] = { i::Code::STORE_IC, i::Code::STORE_IC };
-  FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  FeedbackVectorSpec feedback_spec(0, 2, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       helper.factory()->NewTypeFeedbackVector(&feedback_spec);
 
@@ -506,6 +506,89 @@ TEST(PropertyStores) {
        },
        1, { "name" }
       }
+  };
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    Handle<BytecodeArray> ba =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
+    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
+    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
+    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
+                  ba->length()));
+    CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
+    for (int j = 0; j < snippets[i].constant_count; j++) {
+      Handle<String> expected =
+          helper.factory()->NewStringFromAsciiChecked(snippets[i].constants[j]);
+      CHECK(String::cast(ba->constant_pool()->get(j))->Equals(*expected));
+    }
+  }
+}
+
+
+#define FUNC_ARG "new (function Obj() { this.func = function() { return; }})()"
+
+
+TEST(PropertyCall) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  Code::Kind ic_kinds[] = { i::Code::LOAD_IC, i::Code::LOAD_IC  };
+  FeedbackVectorSpec feedback_spec(0, 2, ic_kinds);
+  Handle<i::TypeFeedbackVector> vector =
+      helper.factory()->NewTypeFeedbackVector(&feedback_spec);
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function f(a) { return a.func(); }\nf(" FUNC_ARG ")",
+       2 * kPointerSize, 2, 16,
+       {
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(1),
+          B(LdaConstant), U8(0),
+          B(LoadIC), R(1), U8(vector->first_ic_slot_index() + 2),
+          B(Star), R(0),
+          B(Call), R(0), R(1), U8(0),
+          B(Return)
+       },
+       1, { "func" }
+      },
+      {"function f(a, b, c) { return a.func(b, c); }\nf(" FUNC_ARG ", 1, 2)",
+       4 * kPointerSize, 4, 24,
+       {
+          B(Ldar), R(helper.kLastParamIndex - 2),
+          B(Star), R(1),
+          B(LdaConstant), U8(0),
+          B(LoadIC), R(1), U8(vector->first_ic_slot_index() + 2),
+          B(Star), R(0),
+          B(Ldar), R(helper.kLastParamIndex - 1),
+          B(Star), R(2),
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(3),
+          B(Call), R(0), R(1), U8(2),
+          B(Return)
+       },
+      1, { "func" }
+     },
+     {"function f(a, b) { return a.func(b + b, b); }\nf(" FUNC_ARG ", 1)",
+      4 * kPointerSize, 3, 30,
+      {
+          B(Ldar), R(helper.kLastParamIndex - 1),
+          B(Star), R(1),
+          B(LdaConstant), U8(0),
+          B(LoadIC), R(1), U8(vector->first_ic_slot_index() + 2),
+          B(Star), R(0),
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(2),
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Add), R(2),
+          B(Star), R(2),
+          B(Ldar), R(helper.kLastParamIndex),
+          B(Star), R(3),
+          B(Call), R(0), R(1), U8(2),
+          B(Return)
+       },
+       1, { "func" }
+    }
   };
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {

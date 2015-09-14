@@ -476,7 +476,7 @@ TEST(InterpreterLoadNamedProperty) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  i::Code::Kind ic_kinds[] = { i::Code::LOAD_IC };
+  i::Code::Kind ic_kinds[] = {i::Code::LOAD_IC};
   i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
@@ -661,4 +661,147 @@ TEST(InterpreterStoreKeyedProperty) {
   callable(object2).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(isolate, object2, name).ToHandle(&result));
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
+}
+
+
+TEST(InterpreterCall) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  i::Code::Kind ic_kinds[] = { i::Code::LOAD_IC };
+  i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  Handle<i::TypeFeedbackVector> vector =
+      factory->NewTypeFeedbackVector(&feedback_spec);
+
+  Handle<i::String> name = factory->NewStringFromAsciiChecked("func");
+  name = factory->string_table()->LookupString(isolate, name);
+
+  // Check with no args.
+  {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    builder.set_locals_count(1);
+    builder.set_parameter_count(1);
+    builder.LoadLiteral(name)
+        .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
+                           i::SLOPPY)
+        .StoreAccumulatorInRegister(Register(0))
+        .Call(Register(0), builder.Parameter(0), 0)
+        .Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+    auto callable = tester.GetCallable<Handle<Object>>();
+
+    Handle<Object> object = tester.NewObject(
+        "new (function Obj() { this.func = function() { return 0x265; }})()");
+    Handle<Object> return_val = callable(object).ToHandleChecked();
+    CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(0x265));
+  }
+
+  // Check that receiver is passed properly.
+  {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    builder.set_locals_count(1);
+    builder.set_parameter_count(1);
+    builder.LoadLiteral(name)
+        .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
+                           i::SLOPPY)
+        .StoreAccumulatorInRegister(Register(0))
+        .Call(Register(0), builder.Parameter(0), 0)
+        .Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+    auto callable = tester.GetCallable<Handle<Object>>();
+
+    Handle<Object> object = tester.NewObject(
+        "new (function Obj() {"
+        "  this.val = 1234;"
+        "  this.func = function() { return this.val; };"
+        "})()");
+    Handle<Object> return_val = callable(object).ToHandleChecked();
+    CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(1234));
+  }
+
+  // Check with two parameters (+ receiver).
+  {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    builder.set_locals_count(4);
+    builder.set_parameter_count(1);
+    builder.LoadLiteral(name)
+        .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
+                           i::SLOPPY)
+        .StoreAccumulatorInRegister(Register(0))
+        .LoadAccumulatorWithRegister(builder.Parameter(0))
+        .StoreAccumulatorInRegister(Register(1))
+        .LoadLiteral(Smi::FromInt(51))
+        .StoreAccumulatorInRegister(Register(2))
+        .LoadLiteral(Smi::FromInt(11))
+        .StoreAccumulatorInRegister(Register(3))
+        .Call(Register(0), Register(1), 2)
+        .Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+    auto callable = tester.GetCallable<Handle<Object>>();
+
+    Handle<Object> object = tester.NewObject(
+        "new (function Obj() { "
+        "  this.func = function(a, b) { return a - b; }"
+        "})()");
+    Handle<Object> return_val = callable(object).ToHandleChecked();
+    CHECK(return_val->SameValue(Smi::FromInt(40)));
+  }
+
+  // Check with 10 parameters (+ receiver).
+  {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    builder.set_locals_count(12);
+    builder.set_parameter_count(1);
+    builder.LoadLiteral(name)
+        .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
+                           i::SLOPPY)
+        .StoreAccumulatorInRegister(Register(0))
+        .LoadAccumulatorWithRegister(builder.Parameter(0))
+        .StoreAccumulatorInRegister(Register(1))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("a"))
+        .StoreAccumulatorInRegister(Register(2))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("b"))
+        .StoreAccumulatorInRegister(Register(3))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("c"))
+        .StoreAccumulatorInRegister(Register(4))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("d"))
+        .StoreAccumulatorInRegister(Register(5))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("e"))
+        .StoreAccumulatorInRegister(Register(6))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("f"))
+        .StoreAccumulatorInRegister(Register(7))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("g"))
+        .StoreAccumulatorInRegister(Register(8))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("h"))
+        .StoreAccumulatorInRegister(Register(9))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("i"))
+        .StoreAccumulatorInRegister(Register(10))
+        .LoadLiteral(factory->NewStringFromAsciiChecked("j"))
+        .StoreAccumulatorInRegister(Register(11))
+        .Call(Register(0), Register(1), 10)
+        .Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+    InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+    auto callable = tester.GetCallable<Handle<Object>>();
+
+    Handle<Object> object = tester.NewObject(
+        "new (function Obj() { "
+        "  this.prefix = \"prefix_\";"
+        "  this.func = function(a, b, c, d, e, f, g, h, i, j) {"
+        "      return this.prefix + a + b + c + d + e + f + g + h + i + j;"
+        "  }"
+        "})()");
+    Handle<Object> return_val = callable(object).ToHandleChecked();
+    Handle<i::String> expected =
+        factory->NewStringFromAsciiChecked("prefix_abcdefghij");
+    CHECK(i::String::cast(*return_val)->Equals(*expected));
+  }
 }

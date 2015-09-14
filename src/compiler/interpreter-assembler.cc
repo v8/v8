@@ -6,6 +6,7 @@
 
 #include <ostream>
 
+#include "src/code-factory.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
@@ -102,7 +103,12 @@ Node* InterpreterAssembler::DispatchTableRawPointer() {
 
 
 Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
-  return raw_assembler_->WordShl(index, Int32Constant(kPointerSizeLog2));
+  return WordShl(index, kPointerSizeLog2);
+}
+
+
+Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
+  return IntPtrAdd(RegisterFileRawPointer(), RegisterFrameOffset(reg_index));
 }
 
 
@@ -122,8 +128,7 @@ Node* InterpreterAssembler::BytecodeOperand(int operand_index) {
   DCHECK_LT(operand_index, interpreter::Bytecodes::NumberOfOperands(bytecode_));
   return raw_assembler_->Load(
       kMachUint8, BytecodeArrayTaggedPointer(),
-      raw_assembler_->IntPtrAdd(BytecodeOffset(),
-                                Int32Constant(1 + operand_index)));
+      IntPtrAdd(BytecodeOffset(), Int32Constant(1 + operand_index)));
 }
 
 
@@ -131,13 +136,19 @@ Node* InterpreterAssembler::BytecodeOperandSignExtended(int operand_index) {
   DCHECK_LT(operand_index, interpreter::Bytecodes::NumberOfOperands(bytecode_));
   Node* load = raw_assembler_->Load(
       kMachInt8, BytecodeArrayTaggedPointer(),
-      raw_assembler_->IntPtrAdd(BytecodeOffset(),
-                                Int32Constant(1 + operand_index)));
+      IntPtrAdd(BytecodeOffset(), Int32Constant(1 + operand_index)));
   // Ensure that we sign extend to full pointer size
   if (kPointerSize == 8) {
     load = raw_assembler_->ChangeInt32ToInt64(load);
   }
   return load;
+}
+
+
+Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
+  DCHECK_EQ(interpreter::OperandType::kCount,
+            interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+  return BytecodeOperand(operand_index);
 }
 
 
@@ -197,12 +208,27 @@ Node* InterpreterAssembler::SmiUntag(Node* value) {
 }
 
 
+Node* InterpreterAssembler::IntPtrAdd(Node* a, Node* b) {
+  return raw_assembler_->IntPtrAdd(a, b);
+}
+
+
+Node* InterpreterAssembler::IntPtrSub(Node* a, Node* b) {
+  return raw_assembler_->IntPtrSub(a, b);
+}
+
+
+Node* InterpreterAssembler::WordShl(Node* value, int shift) {
+  return raw_assembler_->WordShl(value, Int32Constant(shift));
+}
+
+
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
                                         BytecodeArray::kConstantPoolOffset);
-  Node* entry_offset = raw_assembler_->IntPtrAdd(
-      IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
-      raw_assembler_->WordShl(index, Int32Constant(kPointerSizeLog2)));
+  Node* entry_offset =
+      IntPtrAdd(IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
+                WordShl(index, kPointerSizeLog2));
   return raw_assembler_->Load(kMachAnyTagged, constant_pool, entry_offset);
 }
 
@@ -233,6 +259,24 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
   Node* vector =
       LoadObjectField(shared_info, SharedFunctionInfo::kFeedbackVectorOffset);
   return vector;
+}
+
+
+Node* InterpreterAssembler::CallJS(Node* function, Node* first_arg,
+                                   Node* arg_count) {
+  Callable builtin = CodeFactory::PushArgsAndCall(isolate());
+  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), builtin.descriptor(), 0, CallDescriptor::kNoFlags);
+
+  Node* code_target = HeapConstant(builtin.code());
+
+  Node** args = zone()->NewArray<Node*>(4);
+  args[0] = arg_count;
+  args[1] = first_arg;
+  args[2] = function;
+  args[3] = ContextTaggedPointer();
+
+  return raw_assembler_->CallN(descriptor, code_target, args);
 }
 
 
@@ -302,7 +346,7 @@ void InterpreterAssembler::Return() {
 
 
 Node* InterpreterAssembler::Advance(int delta) {
-  return raw_assembler_->IntPtrAdd(BytecodeOffset(), Int32Constant(delta));
+  return IntPtrAdd(BytecodeOffset(), Int32Constant(delta));
 }
 
 

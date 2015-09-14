@@ -342,27 +342,18 @@ void BytecodeGenerator::VisitYield(Yield* expr) { UNIMPLEMENTED(); }
 void BytecodeGenerator::VisitThrow(Throw* expr) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitProperty(Property* expr) {
+void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
   LhsKind property_kind = Property::GetAssignType(expr);
   FeedbackVectorICSlot slot = expr->PropertyFeedbackSlot();
   switch (property_kind) {
     case VARIABLE:
       UNREACHABLE();
-      break;
     case NAMED_PROPERTY: {
-      TemporaryRegisterScope temporary_register_scope(&builder_);
-      Register obj = temporary_register_scope.NewRegister();
-      Visit(expr->obj());
-      builder().StoreAccumulatorInRegister(obj);
       builder().LoadLiteral(expr->key()->AsLiteral()->AsPropertyName());
       builder().LoadNamedProperty(obj, feedback_index(slot), language_mode());
       break;
     }
     case KEYED_PROPERTY: {
-      TemporaryRegisterScope temporary_register_scope(&builder_);
-      Register obj = temporary_register_scope.NewRegister();
-      Visit(expr->obj());
-      builder().StoreAccumulatorInRegister(obj);
       Visit(expr->key());
       builder().LoadKeyedProperty(obj, feedback_index(slot), language_mode());
       break;
@@ -374,7 +365,60 @@ void BytecodeGenerator::VisitProperty(Property* expr) {
 }
 
 
-void BytecodeGenerator::VisitCall(Call* expr) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitProperty(Property* expr) {
+  TemporaryRegisterScope temporary_register_scope(&builder_);
+  Register obj = temporary_register_scope.NewRegister();
+  Visit(expr->obj());
+  builder().StoreAccumulatorInRegister(obj);
+  VisitPropertyLoad(obj, expr);
+}
+
+
+void BytecodeGenerator::VisitCall(Call* expr) {
+  Expression* callee_expr = expr->expression();
+  Call::CallType call_type = expr->GetCallType(isolate());
+
+  // Prepare the callee and the receiver to the function call. This depends on
+  // the semantics of the underlying call type.
+  TemporaryRegisterScope temporary_register_scope(&builder_);
+  Register callee = temporary_register_scope.NewRegister();
+  Register receiver = temporary_register_scope.NewRegister();
+
+  switch (call_type) {
+    case Call::PROPERTY_CALL: {
+      Property* property = callee_expr->AsProperty();
+      if (property->IsSuperAccess()) {
+        UNIMPLEMENTED();
+      }
+      Visit(property->obj());
+      builder().StoreAccumulatorInRegister(receiver);
+      // Perform a property load of the callee.
+      VisitPropertyLoad(receiver, property);
+      builder().StoreAccumulatorInRegister(callee);
+      break;
+    }
+    case Call::GLOBAL_CALL:
+    case Call::LOOKUP_SLOT_CALL:
+    case Call::SUPER_CALL:
+    case Call::POSSIBLY_EVAL_CALL:
+    case Call::OTHER_CALL:
+      UNIMPLEMENTED();
+  }
+
+  // Evaluate all arguments to the function call and store in sequential
+  // registers.
+  ZoneList<Expression*>* args = expr->arguments();
+  for (int i = 0; i < args->length(); ++i) {
+    Visit(args->at(i));
+    Register arg = temporary_register_scope.NewRegister();
+    DCHECK(arg.index() - i == receiver.index() + 1);
+    builder().StoreAccumulatorInRegister(arg);
+  }
+
+  // TODO(rmcilroy): Deal with possible direct eval here?
+  // TODO(rmcilroy): Use CallIC to allow call type feedback.
+  builder().Call(callee, receiver, args->length());
+}
 
 
 void BytecodeGenerator::VisitCallNew(CallNew* expr) { UNIMPLEMENTED(); }

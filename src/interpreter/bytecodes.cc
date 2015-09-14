@@ -126,6 +126,9 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
     OperandType op_type = GetOperandType(bytecode, i);
     uint8_t operand = operands_start[i];
     switch (op_type) {
+      case interpreter::OperandType::kCount:
+        os << "#" << static_cast<unsigned int>(operand);
+        break;
       case interpreter::OperandType::kIdx:
         os << "[" << static_cast<unsigned int>(operand) << "]";
         break;

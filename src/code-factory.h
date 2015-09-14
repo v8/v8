@@ -91,6 +91,8 @@ class CodeFactory final {
 
   static Callable CallFunction(Isolate* isolate, int argc,
                                CallFunctionFlags flags);
+
+  static Callable PushArgsAndCall(Isolate* isolate);
 };
 
 }  // namespace internal

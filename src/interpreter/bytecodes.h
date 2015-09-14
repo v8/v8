@@ -18,6 +18,7 @@ namespace interpreter {
 // The list of operand types used by bytecodes.
 #define OPERAND_TYPE_LIST(V) \
   V(None)                    \
+  V(Count)                   \
   V(Imm8)                    \
   V(Idx)                     \
   V(Reg)
@@ -53,6 +54,9 @@ namespace interpreter {
   V(Mul, OperandType::kReg)                                                \
   V(Div, OperandType::kReg)                                                \
   V(Mod, OperandType::kReg)                                                \
+                                                                           \
+  /* Call operations. */                                                   \
+  V(Call, OperandType::kReg, OperandType::kReg, OperandType::kCount)       \
                                                                            \
   /* Control Flow */                                                       \
   V(Return, OperandType::kNone)
