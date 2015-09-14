@@ -343,7 +343,7 @@ void Map::DictionaryMapVerify() {
   CHECK(is_dictionary_map());
   CHECK(instance_descriptors()->IsEmpty());
   CHECK_EQ(0, unused_property_fields());
-  CHECK_EQ(StaticVisitorBase::GetVisitorId(this), visitor_id());
+  CHECK_EQ(Heap::GetStaticVisitorIdForMap(this), visitor_id());
 }
 
 

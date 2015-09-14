@@ -117,10 +117,6 @@ class Marking : public AllStatic {
     markbit.Next().Set();
   }
 
-  static void SetAllMarkBitsInRange(MarkBit start, MarkBit end);
-  static void ClearAllMarkBitsOfCellsContainedInRange(MarkBit start,
-                                                      MarkBit end);
-
   static void TransferMark(Heap* heap, Address old_start, Address new_start);
 
 #ifdef DEBUG

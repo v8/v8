@@ -6,6 +6,7 @@
 #define V8_OBJECTS_VISITING_H_
 
 #include "src/allocation.h"
+#include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 #include "src/layout-descriptor.h"
 
@@ -99,7 +100,6 @@ class StaticVisitorBase : public AllStatic {
     kVisitDataObject = kVisitDataObject2,
     kVisitJSObject = kVisitJSObject2,
     kVisitStruct = kVisitStruct2,
-    kMinObjectSizeInWords = 2
   };
 
   // Visitor ID should fit in one byte.
@@ -121,15 +121,15 @@ class StaticVisitorBase : public AllStatic {
     DCHECK((base == kVisitDataObject) || (base == kVisitStruct) ||
            (base == kVisitJSObject));
     DCHECK(IsAligned(object_size, kPointerSize));
-    DCHECK(kMinObjectSizeInWords * kPointerSize <= object_size);
+    DCHECK(Heap::kMinObjectSizeInWords * kPointerSize <= object_size);
     DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
     DCHECK(!has_unboxed_fields || (base == kVisitJSObject));
 
     if (has_unboxed_fields) return generic;
 
-    int visitor_id =
-        Min(base + (object_size >> kPointerSizeLog2) - kMinObjectSizeInWords,
-            static_cast<int>(generic));
+    int visitor_id = Min(
+        base + (object_size >> kPointerSizeLog2) - Heap::kMinObjectSizeInWords,
+        static_cast<int>(generic));
 
     return static_cast<VisitorId>(visitor_id);
   }
@@ -171,8 +171,7 @@ class VisitorDispatchTable {
   template <typename Visitor, StaticVisitorBase::VisitorId base,
             StaticVisitorBase::VisitorId generic>
   void RegisterSpecializations() {
-    STATIC_ASSERT((generic - base + StaticVisitorBase::kMinObjectSizeInWords) ==
-                  10);
+    STATIC_ASSERT((generic - base + Heap::kMinObjectSizeInWords) == 10);
     RegisterSpecialization<Visitor, base, generic, 2>();
     RegisterSpecialization<Visitor, base, generic, 3>();
     RegisterSpecialization<Visitor, base, generic, 4>();

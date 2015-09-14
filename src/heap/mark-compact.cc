@@ -37,6 +37,11 @@ const char* Marking::kGreyBitPattern = "11";
 const char* Marking::kImpossibleBitPattern = "01";
 
 
+// The following has to hold in order for {Marking::MarkBitFrom} to not produce
+// invalid {kImpossibleBitPattern} in the marking bitmap by overlapping.
+STATIC_ASSERT(Heap::kMinObjectSizeInWords >= 2);
+
+
 // -------------------------------------------------------------------------
 // MarkCompactCollector
 

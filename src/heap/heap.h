@@ -698,6 +698,9 @@ class Heap {
   // The roots that have an index less than this are always in old space.
   static const int kOldSpaceRoots = 0x20;
 
+  // The minimum size of a HeapObject on the heap.
+  static const int kMinObjectSizeInWords = 2;
+
   STATIC_ASSERT(kUndefinedValueRootIndex ==
                 Internals::kUndefinedValueRootIndex);
   STATIC_ASSERT(kNullValueRootIndex == Internals::kNullValueRootIndex);
@@ -755,6 +758,10 @@ class Heap {
   // Optimized version of memmove for blocks with pointer size aligned sizes and
   // pointer size aligned addresses.
   static inline void MoveBlock(Address dst, Address src, int byte_size);
+
+  // Determines a static visitor id based on the given {map} that can then be
+  // stored on the map to facilitate fast dispatch for {StaticVisitorBase}.
+  static int GetStaticVisitorIdForMap(Map* map);
 
   // Notifies the heap that is ok to start marking or other activities that
   // should not happen during deserialization.
@@ -1495,8 +1502,9 @@ class Heap {
                                               AllocationAlignment alignment);
 
   // ===========================================================================
-  // ArrayBufferTracker. =======================================================
+  // ArrayBuffer tracking. =====================================================
   // ===========================================================================
+
   void RegisterNewArrayBuffer(JSArrayBuffer* buffer);
   void UnregisterArrayBuffer(JSArrayBuffer* buffer);
 

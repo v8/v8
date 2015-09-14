@@ -1812,7 +1812,7 @@ inline void AllocationSite::set_memento_found_count(int count) {
   // Verify that we can count more mementos than we can possibly find in one
   // new space collection.
   DCHECK((GetHeap()->MaxSemiSpaceSize() /
-          (StaticVisitorBase::kMinObjectSizeInWords * kPointerSize +
+          (Heap::kMinObjectSizeInWords * kPointerSize +
            AllocationMemento::kSize)) < MementoFoundCountBits::kMax);
   DCHECK(count < MementoFoundCountBits::kMax);
   set_pretenure_data(
@@ -5362,11 +5362,11 @@ void Map::UpdateDescriptors(DescriptorArray* descriptors,
     // TODO(ishell): remove these checks from VERIFY_HEAP mode.
     if (FLAG_verify_heap) {
       CHECK(layout_descriptor()->IsConsistentWithMap(this));
-      CHECK(visitor_id() == StaticVisitorBase::GetVisitorId(this));
+      CHECK(visitor_id() == Heap::GetStaticVisitorIdForMap(this));
     }
 #else
     SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
-    DCHECK(visitor_id() == StaticVisitorBase::GetVisitorId(this));
+    DCHECK(visitor_id() == Heap::GetStaticVisitorIdForMap(this));
 #endif
   }
 }
@@ -5388,7 +5388,7 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors,
 #else
     SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
 #endif
-    set_visitor_id(StaticVisitorBase::GetVisitorId(this));
+    set_visitor_id(Heap::GetStaticVisitorIdForMap(this));
   }
 }
 
