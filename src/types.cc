@@ -930,7 +930,7 @@ int TypeImpl<Config>::IntersectAux(TypeHandle lhs, TypeHandle rhs,
 
 // Make sure that we produce a well-formed range and bitset:
 // If the range is non-empty, the number bits in the bitset should be
-// clear. Moreover, if we have a canonical range (such as Signed32(),
+// clear. Moreover, if we have a canonical range (such as Signed32),
 // we want to produce a bitset rather than a range.
 template <class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
@@ -942,8 +942,8 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
     return range;
   }
 
-  // If the range is contained within the bitset, return an empty range
-  // (but make sure we take the representation).
+  // If the range is semantically contained within the bitset, return None and
+  // leave the bitset untouched.
   bitset range_lub = SEMANTIC(range->BitsetLub());
   if (BitsetType::Is(BitsetType::NumberBits(range_lub), *bits)) {
     return None(region);
@@ -993,7 +993,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
 
   // Figure out the representation of the result.
   // The rest of the method should not change this representation and
-  // it should make any decisions based on representations (i.e.,
+  // it should not make any decisions based on representations (i.e.,
   // it should only use the semantic part of types).
   const bitset representation =
       type1->Representation() | type2->Representation();

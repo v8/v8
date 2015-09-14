@@ -95,10 +95,13 @@ namespace internal {
 // RANGE TYPES
 //
 // A range type represents a continuous integer interval by its minimum and
-// maximum value.  Either value might be an infinity.
+// maximum value.  Either value may be an infinity, in which case that infinity
+// itself is also included in the range.   A range never contains NaN or -0.
 //
-// Constant(v) is considered a subtype of Range(x..y) if v happens to be an
-// integer between x and y.
+// If a value v happens to be an integer n, then Constant(v) is considered a
+// subtype of Range(n, n) (and therefore also a subtype of any larger range).
+// In order to avoid large unions, however, it is usually a good idea to use
+// Range rather than Constant.
 //
 //
 // PREDICATES
@@ -513,10 +516,16 @@ class TypeImpl : public Config::Base {
   double Min();
   double Max();
 
-  // Extracts a range from the type. If the type is a range, it just
-  // returns it; if it is a union, it returns the range component.
-  // Note that it does not contain range for constants.
+  // Extracts a range from the type: if the type is a range or a union
+  // containing a range, that range is returned; otherwise, NULL is returned.
   RangeType* GetRange();
+
+  static bool IsInteger(double x) {
+    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
+  }
+  static bool IsInteger(i::Object* x) {
+    return x->IsNumber() && IsInteger(x->Number());
+  }
 
   int NumClasses();
   int NumConstants();
@@ -588,13 +597,6 @@ class TypeImpl : public Config::Base {
 
   bool SlowIs(TypeImpl* that);
   bool SemanticIs(TypeImpl* that);
-
-  static bool IsInteger(double x) {
-    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
-  }
-  static bool IsInteger(i::Object* x) {
-    return x->IsNumber() && IsInteger(x->Number());
-  }
 
   struct Limits {
     double min;

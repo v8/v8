@@ -48,6 +48,8 @@ Typer::Typer(Isolate* isolate, Graph* graph, Type::FunctionType* function_type)
 
   Type* infinity = Type::Constant(factory->infinity_value(), zone);
   Type* minus_infinity = Type::Constant(factory->minus_infinity_value(), zone);
+  // TODO(neis): Unfortunately, the infinities created in other places might
+  // be different ones (eg the result of NewNumber in TypeNumberConstant).
   Type* truncating_to_zero =
       Type::Union(Type::Union(infinity, minus_infinity, zone),
                   Type::MinusZeroOrNaN(), zone);
@@ -535,8 +537,11 @@ Bounds Typer::Visitor::TypeFloat64Constant(Node* node) {
 
 Bounds Typer::Visitor::TypeNumberConstant(Node* node) {
   Factory* f = isolate()->factory();
-  return Bounds(Type::Constant(
-      f->NewNumber(OpParameter<double>(node)), zone()));
+  double number = OpParameter<double>(node);
+  if (Type::IsInteger(number)) {
+    return Bounds(Type::Range(number, number, zone()));
+  }
+  return Bounds(Type::Constant(f->NewNumber(number), zone()));
 }
 
 
@@ -2287,6 +2292,9 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
     }
+  }
+  if (Type::IsInteger(*value)) {
+    return Type::Range(value->Number(), value->Number(), zone());
   }
   return Type::Constant(value, zone());
 }
