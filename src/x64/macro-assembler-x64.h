@@ -759,17 +759,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // String macros.
 
-  // Generate code to do a lookup in the number string cache. If the number in
-  // the register object is found in the cache the generated code falls through
-  // with the result in the result register. The object and the result register
-  // can be the same. If the number is not found in the cache the code jumps to
-  // the label not_found with only the content of register object unchanged.
-  void LookupNumberStringCache(Register object,
-                               Register result,
-                               Register scratch1,
-                               Register scratch2,
-                               Label* not_found);
-
   // If object is a string, its map is loaded into object_map.
   void JumpIfNotString(Register object,
                        Register object_map,

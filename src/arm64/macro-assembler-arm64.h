@@ -984,18 +984,6 @@ class MacroAssembler : public Assembler {
   // floating point representation of -0.0.
   void JumpIfMinusZero(Register input, Label* on_negative_zero);
 
-  // Generate code to do a lookup in the number string cache. If the number in
-  // the register object is found in the cache the generated code falls through
-  // with the result in the result register. The object and the result register
-  // can be the same. If the number is not found in the cache the code jumps to
-  // the label not_found with only the content of register object unchanged.
-  void LookupNumberStringCache(Register object,
-                               Register result,
-                               Register scratch1,
-                               Register scratch2,
-                               Register scratch3,
-                               Label* not_found);
-
   // Saturate a signed 32-bit integer in input to an unsigned 8-bit integer in
   // output.
   void ClampInt32ToUint8(Register in_out);

@@ -1025,14 +1025,6 @@ RUNTIME_FUNCTION(Runtime_ToFastProperties) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewStringWrapper) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, value, 0);
-  return *Object::ToObject(isolate, value).ToHandleChecked();
-}
-
-
 RUNTIME_FUNCTION(Runtime_AllocateHeapNumber) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
