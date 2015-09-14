@@ -161,14 +161,13 @@ void Accessors::ArgumentsIteratorSetter(
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> object = Utils::OpenHandle(*info.This());
-  Handle<Object> value = Utils::OpenHandle(*val);
+  Handle<JSObject> object_handle = Utils::OpenHandle(*info.This());
+  Handle<Object> value_handle = Utils::OpenHandle(*val);
+  Handle<Name> name_handle = Utils::OpenHandle(*name);
 
-  LookupIterator it(object, Utils::OpenHandle(*name));
-  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
-  DCHECK(it.HolderIsReceiverOrHiddenPrototype());
-
-  if (Object::SetDataProperty(&it, value).is_null()) {
+  if (JSObject::DefinePropertyOrElementIgnoreAttributes(
+          object_handle, name_handle, value_handle, NONE)
+          .is_null()) {
     isolate->OptionalRescheduleException(false);
   }
 }
