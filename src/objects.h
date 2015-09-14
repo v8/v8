@@ -5790,7 +5790,7 @@ class Map: public HeapObject {
 
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;
-  static const int kStringWrapperSafeForDefaultValueOf = 1;
+  // Bit 1 is free.
   class IsPrototypeMapBits : public BitField<bool, 2, 1> {};
   class ElementsKindBits: public BitField<ElementsKind, 3, 5> {};
 

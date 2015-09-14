@@ -150,43 +150,6 @@ function COMPARE_STRONG(x, ncr) {
 }
 
 
-
-/* -----------------------------------
-   - - -   A r i t h m e t i c   - - -
-   -----------------------------------
-*/
-
-// Left operand (this) is already a string.
-function STRING_ADD_LEFT(y) {
-  if (!IS_STRING(y)) {
-    if (IS_STRING_WRAPPER(y) && %_IsStringWrapperSafeForDefaultValueOf(y)) {
-      y = %_ValueOf(y);
-    } else {
-      y = IS_NUMBER(y)
-          ? %_NumberToString(y)
-          : %to_string_fun(%to_primitive(y, NO_HINT));
-    }
-  }
-  return %_StringAdd(this, y);
-}
-
-
-// Right operand (y) is already a string.
-function STRING_ADD_RIGHT(y) {
-  var x = this;
-  if (!IS_STRING(x)) {
-    if (IS_STRING_WRAPPER(x) && %_IsStringWrapperSafeForDefaultValueOf(x)) {
-      x = %_ValueOf(x);
-    } else {
-      x = IS_NUMBER(x)
-          ? %_NumberToString(x)
-          : %to_string_fun(%to_primitive(x, NO_HINT));
-    }
-  }
-  return %_StringAdd(x, y);
-}
-
-
 /* -----------------------------
    - - -   H e l p e r s   - - -
    -----------------------------
@@ -538,8 +501,6 @@ $toString = ToString;
   "equals_builtin", EQUALS,
   "reflect_apply_prepare_builtin", REFLECT_APPLY_PREPARE,
   "reflect_construct_prepare_builtin", REFLECT_CONSTRUCT_PREPARE,
-  "string_add_left_builtin", STRING_ADD_LEFT,
-  "string_add_right_builtin", STRING_ADD_RIGHT,
 ]);
 
 %InstallToContext([

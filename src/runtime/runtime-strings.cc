@@ -1322,12 +1322,6 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsStringWrapperSafeForDefaultValueOf) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
 RUNTIME_FUNCTION(Runtime_StringGetLength) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

@@ -921,7 +921,6 @@ namespace internal {
   F(TwoByteSeqStringGetChar, 2, 1)              \
   F(TwoByteSeqStringSetChar, 3, 1)              \
   F(StringCharCodeAt, 2, 1)                     \
-  F(IsStringWrapperSafeForDefaultValueOf, 1, 1) \
   F(StringGetLength, 1, 1)
 
 

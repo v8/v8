@@ -10995,10 +10995,11 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         left = BuildNumberToString(left, left_type);
       } else if (!left_type->Is(Type::String())) {
         DCHECK(right_type->Is(Type::String()));
-        HValue* function =
-            AddLoadJSBuiltin(Context::STRING_ADD_RIGHT_BUILTIN_INDEX);
+        // TODO(bmeurer): We might want to optimize this, because we already
+        // know that the right hand side is a string.
         Add<HPushArguments>(left, right);
-        return AddUncasted<HInvokeFunction>(function, 2);
+        return AddUncasted<HCallRuntime>(Runtime::FunctionForId(Runtime::kAdd),
+                                         2);
       }
 
       // Convert right argument as necessary.
@@ -11007,10 +11008,11 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         right = BuildNumberToString(right, right_type);
       } else if (!right_type->Is(Type::String())) {
         DCHECK(left_type->Is(Type::String()));
-        HValue* function =
-            AddLoadJSBuiltin(Context::STRING_ADD_LEFT_BUILTIN_INDEX);
+        // TODO(bmeurer): We might want to optimize this, because we already
+        // know that the left hand side is a string.
         Add<HPushArguments>(left, right);
-        return AddUncasted<HInvokeFunction>(function, 2);
+        return AddUncasted<HCallRuntime>(Runtime::FunctionForId(Runtime::kAdd),
+                                         2);
       }
     }
 

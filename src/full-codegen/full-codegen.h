@@ -510,7 +510,6 @@ class FullCodeGenerator: public AstVisitor {
   F(IsFunction)                           \
   F(IsSpecObject)                         \
   F(IsSimdValue)                          \
-  F(IsStringWrapperSafeForDefaultValueOf) \
   F(MathPow)                              \
   F(IsMinusZero)                          \
   F(HasCachedArrayIndex)                  \
