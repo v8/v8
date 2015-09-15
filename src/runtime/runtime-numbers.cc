@@ -11,8 +11,7 @@
 
 
 #ifndef _STLP_VENDOR_CSTD
-// STLPort doesn't import fpclassify and isless into the std namespace.
-using std::fpclassify;
+// STLPort doesn't import isless into the std namespace.
 using std::isless;
 #endif
 
@@ -233,25 +232,6 @@ RUNTIME_FUNCTION(Runtime_NumberImul) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberEquals) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  if (std::isnan(x)) return Smi::FromInt(NOT_EQUAL);
-  if (std::isnan(y)) return Smi::FromInt(NOT_EQUAL);
-  if (x == y) return Smi::FromInt(EQUAL);
-  Object* result;
-  if ((fpclassify(x) == FP_ZERO) && (fpclassify(y) == FP_ZERO)) {
-    result = Smi::FromInt(EQUAL);
-  } else {
-    result = Smi::FromInt(NOT_EQUAL);
-  }
-  return result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_NumberCompare) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
@@ -362,5 +342,6 @@ RUNTIME_FUNCTION(Runtime_GetRootNaN) {
   DCHECK(args.length() == 0);
   return isolate->heap()->nan_value();
 }
+
 }  // namespace internal
 }  // namespace v8

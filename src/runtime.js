@@ -42,68 +42,6 @@ var isConcatSpreadableSymbol =
 -----------------------------------
 */
 
-// ECMA-262 Section 11.9.3.
-function EQUALS(y) {
-  if (IS_STRING(this) && IS_STRING(y)) return %StringEquals(this, y);
-  var x = this;
-
-  while (true) {
-    if (IS_NUMBER(x)) {
-      while (true) {
-        if (IS_NUMBER(y)) return %NumberEquals(x, y);
-        if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
-        if (!IS_SPEC_OBJECT(y)) {
-          if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) return 1;  // not equal
-          // String or boolean.
-          return %NumberEquals(x, %to_number_fun(y));
-        }
-        y = %to_primitive(y, NO_HINT);
-      }
-    } else if (IS_STRING(x)) {
-      while (true) {
-        if (IS_STRING(y)) return %StringEquals(x, y);
-        if (IS_NUMBER(y)) return %NumberEquals(%to_number_fun(x), y);
-        if (IS_BOOLEAN(y)) {
-          return %NumberEquals(%to_number_fun(x), %to_number_fun(y));
-        }
-        if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
-        if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) return 1;  // not equal
-        y = %to_primitive(y, NO_HINT);
-      }
-    } else if (IS_SYMBOL(x)) {
-      if (IS_SYMBOL(y)) return %_ObjectEquals(x, y) ? 0 : 1;
-      return 1; // not equal
-    } else if (IS_BOOLEAN(x)) {
-      if (IS_BOOLEAN(y)) return %_ObjectEquals(x, y) ? 0 : 1;
-      if (IS_NULL_OR_UNDEFINED(y)) return 1;
-      if (IS_NUMBER(y)) return %NumberEquals(%to_number_fun(x), y);
-      if (IS_STRING(y)) {
-        return %NumberEquals(%to_number_fun(x), %to_number_fun(y));
-      }
-      if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) return 1;  // not equal
-      // y is object.
-      x = %to_number_fun(x);
-      y = %to_primitive(y, NO_HINT);
-    } else if (IS_NULL_OR_UNDEFINED(x)) {
-      return IS_NULL_OR_UNDEFINED(y) ? 0 : 1;
-    } else if (IS_SIMD_VALUE(x)) {
-      if (!IS_SIMD_VALUE(y)) return 1;  // not equal
-       return %SimdEquals(x, y);
-    } else {
-      // x is an object.
-      if (IS_SPEC_OBJECT(y)) return %_ObjectEquals(x, y) ? 0 : 1;
-      if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
-      if (IS_BOOLEAN(y)) {
-        y = %to_number_fun(y);
-      } else if (IS_SYMBOL(y) || IS_SIMD_VALUE(y)) {
-        return 1;  // not equal
-      }
-      x = %to_primitive(x, NO_HINT);
-    }
-  }
-}
-
-
 // ECMA-262, section 11.8.5, page 53. The 'ncr' parameter is used as
 // the result when either (or both) the operands are NaN.
 function COMPARE(x, ncr) {
@@ -498,7 +436,6 @@ $toString = ToString;
   "compare_builtin", COMPARE,
   "compare_strong_builtin", COMPARE_STRONG,
   "concat_iterable_to_array_builtin", CONCAT_ITERABLE_TO_ARRAY,
-  "equals_builtin", EQUALS,
   "reflect_apply_prepare_builtin", REFLECT_APPLY_PREPARE,
   "reflect_construct_prepare_builtin", REFLECT_CONSTRUCT_PREPARE,
 ]);

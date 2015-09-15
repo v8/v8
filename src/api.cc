@@ -3365,21 +3365,7 @@ Local<Uint32> Value::ToArrayIndex() const {
 Maybe<bool> Value::Equals(Local<Context> context, Local<Value> that) const {
   auto self = Utils::OpenHandle(this);
   auto other = Utils::OpenHandle(*that);
-  if (self->IsSmi() && other->IsSmi()) {
-    return Just(self->Number() == other->Number());
-  }
-  if (self->IsJSObject() && other->IsJSObject()) {
-    return Just(*self == *other);
-  }
-  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Value::Equals()", bool);
-  i::Handle<i::Object> args[] = { other };
-  i::Handle<i::JSFunction> fun = isolate->equals_builtin();
-  i::Handle<i::Object> result;
-  has_pending_exception =
-      !i::Execution::Call(isolate, fun, self, arraysize(args), args)
-           .ToHandle(&result);
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(*result == i::Smi::FromInt(i::EQUAL));
+  return i::Object::Equals(self, other);
 }
 
 

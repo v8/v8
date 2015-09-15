@@ -1082,11 +1082,11 @@ bool Object::IsArgumentsMarker() const {
 }
 
 
-double Object::Number() {
+double Object::Number() const {
   DCHECK(IsNumber());
   return IsSmi()
-    ? static_cast<double>(reinterpret_cast<Smi*>(this)->value())
-    : reinterpret_cast<HeapNumber*>(this)->value();
+             ? static_cast<double>(reinterpret_cast<const Smi*>(this)->value())
+             : reinterpret_cast<const HeapNumber*>(this)->value();
 }
 
 
@@ -1564,6 +1564,12 @@ bool Simd128Value::Equals(Simd128Value* that) {
   SIMD128_TYPES(SIMD128_VALUE)
 #undef SIMD128_VALUE
   return false;
+}
+
+
+// static
+bool Simd128Value::Equals(Handle<Simd128Value> one, Handle<Simd128Value> two) {
+  return one->Equals(*two);
 }
 
 
@@ -2050,6 +2056,12 @@ byte Oddball::kind() const {
 
 void Oddball::set_kind(byte value) {
   WRITE_FIELD(this, kKindOffset, Smi::FromInt(value));
+}
+
+
+// static
+Handle<Object> Oddball::ToNumber(Handle<Oddball> input) {
+  return handle(input->to_number(), input->GetIsolate());
 }
 
 

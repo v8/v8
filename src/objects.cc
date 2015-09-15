@@ -98,13 +98,13 @@ MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
     if (input->IsNumber()) {
       return input;
     }
-    Isolate* const isolate = Handle<HeapObject>::cast(input)->GetIsolate();
-    if (input->IsOddball()) {
-      return handle(Handle<Oddball>::cast(input)->to_number(), isolate);
-    }
     if (input->IsString()) {
       return String::ToNumber(Handle<String>::cast(input));
     }
+    if (input->IsOddball()) {
+      return Oddball::ToNumber(Handle<Oddball>::cast(input));
+    }
+    Isolate* const isolate = Handle<HeapObject>::cast(input)->GetIsolate();
     if (input->IsSymbol()) {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToNumber),
                       Object);
@@ -159,13 +159,114 @@ bool Object::BooleanValue() {
 }
 
 
+namespace {
+
+// TODO(bmeurer): Maybe we should introduce a marker interface Number,
+// where we put all these methods at some point?
+bool NumberEquals(double x, double y) {
+  // Must check explicitly for NaN's on Windows, but -0 works fine.
+  if (std::isnan(x)) return false;
+  if (std::isnan(y)) return false;
+  return x == y;
+}
+
+
+bool NumberEquals(const Object* x, const Object* y) {
+  return NumberEquals(x->Number(), y->Number());
+}
+
+
+bool NumberEquals(Handle<Object> x, Handle<Object> y) {
+  return NumberEquals(*x, *y);
+}
+
+}  // namespace
+
+
+// static
+Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
+  while (true) {
+    if (x->IsNumber()) {
+      if (y->IsNumber()) {
+        return Just(NumberEquals(x, y));
+      } else if (y->IsBoolean()) {
+        return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
+      } else if (y->IsString()) {
+        return Just(NumberEquals(x, String::ToNumber(Handle<String>::cast(y))));
+      } else if (y->IsJSReceiver() && !y->IsUndetectableObject()) {
+        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
+                 .ToHandle(&y)) {
+          return Nothing<bool>();
+        }
+      } else {
+        return Just(false);
+      }
+    } else if (x->IsString()) {
+      if (y->IsString()) {
+        return Just(
+            String::Equals(Handle<String>::cast(x), Handle<String>::cast(y)));
+      } else if (y->IsNumber()) {
+        x = String::ToNumber(Handle<String>::cast(x));
+        return Just(NumberEquals(x, y));
+      } else if (y->IsBoolean()) {
+        x = String::ToNumber(Handle<String>::cast(x));
+        return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
+      } else if (y->IsJSReceiver() && !y->IsUndetectableObject()) {
+        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
+                 .ToHandle(&y)) {
+          return Nothing<bool>();
+        }
+      } else {
+        return Just(false);
+      }
+    } else if (x->IsBoolean()) {
+      if (y->IsOddball()) {
+        return Just(x.is_identical_to(y));
+      } else if (y->IsNumber()) {
+        return Just(NumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
+      } else if (y->IsString()) {
+        y = String::ToNumber(Handle<String>::cast(y));
+        return Just(NumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
+      } else if (y->IsJSReceiver() && !y->IsUndetectableObject()) {
+        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
+                 .ToHandle(&y)) {
+          return Nothing<bool>();
+        }
+        x = Oddball::ToNumber(Handle<Oddball>::cast(x));
+      } else {
+        return Just(false);
+      }
+    } else if (x->IsSymbol()) {
+      return Just(x.is_identical_to(y));
+    } else if (x->IsSimd128Value()) {
+      if (!y->IsSimd128Value()) return Just(false);
+      return Just(Simd128Value::Equals(Handle<Simd128Value>::cast(x),
+                                       Handle<Simd128Value>::cast(y)));
+    } else if (x->IsJSReceiver() && !x->IsUndetectableObject()) {
+      if (y->IsJSReceiver()) {
+        return Just(x.is_identical_to(y));
+      } else if (y->IsNull() || y->IsSimd128Value() || y->IsSymbol() ||
+                 y->IsUndefined()) {
+        return Just(false);
+      } else if (y->IsBoolean()) {
+        y = Oddball::ToNumber(Handle<Oddball>::cast(y));
+      }
+      if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(x)).ToHandle(&x)) {
+        return Nothing<bool>();
+      }
+    } else {
+      return Just(
+          (x->IsNull() || x->IsUndefined() || x->IsUndetectableObject()) &&
+          (y->IsNull() || y->IsUndefined() || y->IsUndetectableObject()));
+    }
+  }
+}
+
+
 bool Object::StrictEquals(Object* that) {
   if (this->IsNumber()) {
     if (!that->IsNumber()) return false;
-    double const x = this->Number();
-    double const y = that->Number();
-    // Must check explicitly for NaN:s on Windows, but -0 works fine.
-    return x == y && !std::isnan(x) && !std::isnan(y);
+    return NumberEquals(this, that);
   } else if (this->IsString()) {
     if (!that->IsString()) return false;
     return String::cast(this)->Equals(String::cast(that));

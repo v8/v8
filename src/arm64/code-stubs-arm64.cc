@@ -652,26 +652,22 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
   __ Push(lhs, rhs);
   // Figure out which native to call and setup the arguments.
-  if (cond == eq && strict()) {
-    __ TailCallRuntime(Runtime::kStrictEquals, 2, 1);
+  if (cond == eq) {
+    __ TailCallRuntime(strict() ? Runtime::kStrictEquals : Runtime::kEquals, 2,
+                       1);
   } else {
-    int context_index;
-    if (cond == eq) {
-      context_index = Context::EQUALS_BUILTIN_INDEX;
+    int context_index = is_strong(strength())
+                            ? Context::COMPARE_STRONG_BUILTIN_INDEX
+                            : Context::COMPARE_BUILTIN_INDEX;
+    int ncr;  // NaN compare result
+    if ((cond == lt) || (cond == le)) {
+      ncr = GREATER;
     } else {
-      context_index = is_strong(strength())
-                          ? Context::COMPARE_STRONG_BUILTIN_INDEX
-                          : Context::COMPARE_BUILTIN_INDEX;
-      int ncr;  // NaN compare result
-      if ((cond == lt) || (cond == le)) {
-        ncr = GREATER;
-      } else {
-        DCHECK((cond == gt) || (cond == ge));  // remaining cases
-        ncr = LESS;
-      }
-      __ Mov(x10, Smi::FromInt(ncr));
-      __ Push(x10);
+      DCHECK((cond == gt) || (cond == ge));  // remaining cases
+      ncr = LESS;
     }
+    __ Mov(x10, Smi::FromInt(ncr));
+    __ Push(x10);
 
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.

@@ -96,7 +96,6 @@ enum BindingFlags {
   V(COMPARE_STRONG_BUILTIN_INDEX, JSFunction, compare_strong_builtin) \
   V(CONCAT_ITERABLE_TO_ARRAY_BUILTIN_INDEX, JSFunction,               \
     concat_iterable_to_array_builtin)                                 \
-  V(EQUALS_BUILTIN_INDEX, JSFunction, equals_builtin)                 \
   V(REFLECT_APPLY_PREPARE_BUILTIN_INDEX, JSFunction,                  \
     reflect_apply_prepare_builtin)                                    \
   V(REFLECT_CONSTRUCT_PREPARE_BUILTIN_INDEX, JSFunction,              \

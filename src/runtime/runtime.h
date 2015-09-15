@@ -407,7 +407,6 @@ namespace internal {
   F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToSmi, 1, 1)                 \
   F(NumberImul, 2, 1)                  \
-  F(NumberEquals, 2, 1)                \
   F(NumberCompare, 3, 1)               \
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
@@ -480,6 +479,7 @@ namespace internal {
   F(ToNumber, 1, 1)                                  \
   F(ToString, 1, 1)                                  \
   F(ToName, 1, 1)                                    \
+  F(Equals, 2, 1)                                    \
   F(StrictEquals, 2, 1)                              \
   F(InstanceOf, 2, 1)                                \
   F(HasInPrototypeChain, 2, 1)                       \
@@ -576,8 +576,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_SIMD(F)             \
   F(IsSimdValue, 1, 1)                         \
-  F(SimdToObject, 1, 1)                        \
-  F(SimdEquals, 2, 1)                          \
   F(SimdSameValue, 2, 1)                       \
   F(SimdSameValueZero, 2, 1)                   \
   F(CreateFloat32x4, 4, 1)                     \

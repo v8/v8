@@ -172,23 +172,6 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SimdToObject) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Simd128Value, value, 0);
-  return *Object::ToObject(isolate, value).ToHandleChecked();
-}
-
-
-RUNTIME_FUNCTION(Runtime_SimdEquals) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(Simd128Value, x, 0);
-  CONVERT_ARG_CHECKED(Simd128Value, y, 1);
-  return Smi::FromInt(x->Equals(y) ? EQUAL : NOT_EQUAL);
-}
-
-
 RUNTIME_FUNCTION(Runtime_SimdSameValue) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

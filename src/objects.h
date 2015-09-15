@@ -1048,7 +1048,7 @@ class Object {
   INLINE(bool IsFiller() const);
 
   // Extract the number.
-  inline double Number();
+  inline double Number() const;
   INLINE(bool IsNaN() const);
   INLINE(bool IsMinusZero() const);
   bool ToInt32(int32_t* value);
@@ -1082,6 +1082,9 @@ class Object {
   inline bool HasSpecificClassOf(String* name);
 
   bool BooleanValue();                                      // ECMA-262 9.2.
+
+  // ES6 section 7.2.12 Abstract Equality Comparison
+  MUST_USE_RESULT static Maybe<bool> Equals(Handle<Object> x, Handle<Object> y);
 
   // ES6 section 7.2.13 Strict Equality Comparison
   bool StrictEquals(Object* that);
@@ -1657,6 +1660,7 @@ class Simd128Value : public HeapObject {
 
   // Equality operations.
   inline bool Equals(Simd128Value* that);
+  static inline bool Equals(Handle<Simd128Value> one, Handle<Simd128Value> two);
 
   // Checks that another instance is bit-wise equal.
   bool BitwiseEquals(const Simd128Value* other) const;
@@ -9101,6 +9105,9 @@ class Oddball: public HeapObject {
 
   inline byte kind() const;
   inline void set_kind(byte kind);
+
+  // ES6 section 7.1.3 ToNumber for Boolean, Null, Undefined.
+  MUST_USE_RESULT static inline Handle<Object> ToNumber(Handle<Oddball> input);
 
   DECLARE_CAST(Oddball)
 
