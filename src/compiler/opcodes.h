@@ -109,6 +109,7 @@
 
 #define JS_OBJECT_OP_LIST(V) \
   V(JSCreate)                \
+  V(JSCreateArguments)       \
   V(JSCreateClosure)         \
   V(JSCreateLiteralArray)    \
   V(JSCreateLiteralObject)   \

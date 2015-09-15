@@ -1179,6 +1179,11 @@ Bounds Typer::Visitor::TypeJSCreate(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeJSCreateArguments(Node* node) {
+  return Bounds(Type::None(), Type::OtherObject());
+}
+
+
 Bounds Typer::Visitor::TypeJSCreateClosure(Node* node) {
   return Bounds(Type::None(), Type::OtherObject());
 }

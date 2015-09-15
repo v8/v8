@@ -75,6 +75,7 @@
         'compiler/test-run-jsbranches.cc',
         'compiler/test-run-jscalls.cc',
         'compiler/test-run-jsexceptions.cc',
+        'compiler/test-run-jsobjects.cc',
         'compiler/test-run-jsops.cc',
         'compiler/test-run-machops.cc',
         'compiler/test-run-native-calls.cc',

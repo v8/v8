@@ -115,6 +115,7 @@ REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSGreaterThanOrEqual, Token::GTE)
     ReplaceWithRuntimeCall(node, fun);            \
   }
 REPLACE_RUNTIME_CALL(JSCreate, Runtime::kAbort)
+REPLACE_RUNTIME_CALL(JSCreateArguments, Runtime::kNewArguments)
 REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateBlockContext, Runtime::kPushBlockContext)

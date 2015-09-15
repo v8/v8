@@ -3152,7 +3152,11 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
 
   // Allocate and initialize a new arguments object.
   Node* callee = GetFunctionClosure();
-  const Operator* op = javascript()->CallRuntime(Runtime::kNewArguments, 1);
+  CreateArgumentsParameters::Type type =
+      is_strict(language_mode()) || !info()->has_simple_parameters()
+          ? CreateArgumentsParameters::kUnmappedArguments
+          : CreateArgumentsParameters::kMappedArguments;
+  const Operator* op = javascript()->CreateArguments(type, 0);
   Node* object = NewNode(op, callee);
 
   // Assign the object to the arguments variable.
