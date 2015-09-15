@@ -990,6 +990,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference invoke_function_callback(Isolate* isolate);
   static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
 
+  static ExternalReference vector_store_virtual_register(Isolate* isolate);
+
   Address address() const { return reinterpret_cast<Address>(address_); }
 
   // Used to check if single stepping is enabled in generated code.

@@ -129,6 +129,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "double_constants.minus_one_half");
   Add(ExternalReference::stress_deopt_count(isolate).address(),
       "Isolate::stress_deopt_count_address()");
+  Add(ExternalReference::vector_store_virtual_register(isolate).address(),
+      "Isolate::vector_store_virtual_register()");
 
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),
