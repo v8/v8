@@ -163,28 +163,24 @@ bool CodeRange::GetNextAllocationBlock(size_t requested) {
     }
   }
 
-  {
-    base::LockGuard<base::Mutex> free_list_lock_guard(&free_list_mutex_);
-
-    // Sort and merge the free blocks on the free list and the allocation list.
-    free_list_.AddAll(allocation_list_);
-    allocation_list_.Clear();
-    free_list_.Sort(&CompareFreeBlockAddress);
-    for (int i = 0; i < free_list_.length();) {
-      FreeBlock merged = free_list_[i];
+  // Sort and merge the free blocks on the free list and the allocation list.
+  free_list_.AddAll(allocation_list_);
+  allocation_list_.Clear();
+  free_list_.Sort(&CompareFreeBlockAddress);
+  for (int i = 0; i < free_list_.length();) {
+    FreeBlock merged = free_list_[i];
+    i++;
+    // Add adjacent free blocks to the current merged block.
+    while (i < free_list_.length() &&
+           free_list_[i].start == merged.start + merged.size) {
+      merged.size += free_list_[i].size;
       i++;
-      // Add adjacent free blocks to the current merged block.
-      while (i < free_list_.length() &&
-             free_list_[i].start == merged.start + merged.size) {
-        merged.size += free_list_[i].size;
-        i++;
-      }
-      if (merged.size > 0) {
-        allocation_list_.Add(merged);
-      }
     }
-    free_list_.Clear();
+    if (merged.size > 0) {
+      allocation_list_.Add(merged);
+    }
   }
+  free_list_.Clear();
 
   for (current_allocation_block_index_ = 0;
        current_allocation_block_index_ < allocation_list_.length();
@@ -236,7 +232,7 @@ bool CodeRange::UncommitRawMemory(Address start, size_t length) {
 
 void CodeRange::FreeRawMemory(Address address, size_t length) {
   DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
-  base::LockGuard<base::Mutex> free_list_lock_guard(&free_list_mutex_);
+  base::LockGuard<base::Mutex> guard(&code_range_mutex_);
   free_list_.Add(FreeBlock(address, length));
   code_range_->Uncommit(address, length);
 }
@@ -245,13 +241,14 @@ void CodeRange::FreeRawMemory(Address address, size_t length) {
 void CodeRange::TearDown() {
   delete code_range_;  // Frees all memory in the virtual memory range.
   code_range_ = NULL;
-  base::LockGuard<base::Mutex> free_list_lock_guard(&free_list_mutex_);
+  base::LockGuard<base::Mutex> guard(&code_range_mutex_);
   free_list_.Free();
   allocation_list_.Free();
 }
 
 
 bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
+  base::LockGuard<base::Mutex> guard(&code_range_mutex_);
   DCHECK(allocation_list_.length() == 0 ||
          current_allocation_block_index_ < allocation_list_.length());
   if (allocation_list_.length() == 0 ||
@@ -274,7 +271,7 @@ bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
 
 
 void CodeRange::ReleaseBlock(const FreeBlock* block) {
-  base::LockGuard<base::Mutex> free_list_lock_guard(&free_list_mutex_);
+  base::LockGuard<base::Mutex> guard(&code_range_mutex_);
   free_list_.Add(*block);
 }
 

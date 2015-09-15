@@ -1013,9 +1013,9 @@ class CodeRange {
     size_t size;
   };
 
-  // All access to free_list_ require to take the free_list_mutex_. GC threads
-  // may access the free_list_ concurrently to the main thread.
-  base::Mutex free_list_mutex_;
+  // The global mutex guards free_list_ and allocation_list_ as GC threads may
+  // access both lists concurrently to the main thread.
+  base::Mutex code_range_mutex_;
 
   // Freed blocks of memory are added to the free list.  When the allocation
   // list is exhausted, the free list is sorted and merged to make the new
