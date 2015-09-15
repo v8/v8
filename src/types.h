@@ -603,12 +603,12 @@ class TypeImpl : public Config::Base {
     double max;
     Limits(double min, double max) : min(min), max(max) {}
     explicit Limits(RangeType* range) : min(range->Min()), max(range->Max()) {}
-    static Limits Empty(Region* region) { return Limits(1, 0); }
+    bool IsEmpty();
+    static Limits Empty() { return Limits(1, 0); }
+    static Limits Intersect(Limits lhs, Limits rhs);
+    static Limits Union(Limits lhs, Limits rhs);
   };
 
-  static bool IsEmpty(Limits lim);
-  static Limits Intersect(Limits lhs, Limits rhs);
-  static Limits Union(Limits lhs, Limits rhs);
   static bool Overlap(RangeType* lhs, RangeType* rhs);
   static bool Contains(RangeType* lhs, RangeType* rhs);
   static bool Contains(RangeType* range, ConstantType* constant);

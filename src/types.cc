@@ -20,9 +20,14 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // Range-related helper functions.
 
-// The result may be invalid (max < min).
+template <class Config>
+bool TypeImpl<Config>::Limits::IsEmpty() {
+  return this->min > this->max;
+}
+
+
 template<class Config>
-typename TypeImpl<Config>::Limits TypeImpl<Config>::Intersect(
+typename TypeImpl<Config>::Limits TypeImpl<Config>::Limits::Intersect(
     Limits lhs, Limits rhs) {
   DisallowHeapAllocation no_allocation;
   Limits result(lhs);
@@ -33,17 +38,11 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::Intersect(
 
 
 template <class Config>
-bool TypeImpl<Config>::IsEmpty(Limits lim) {
-  return lim.min > lim.max;
-}
-
-
-template <class Config>
-typename TypeImpl<Config>::Limits TypeImpl<Config>::Union(Limits lhs,
-                                                          Limits rhs) {
+typename TypeImpl<Config>::Limits TypeImpl<Config>::Limits::Union(
+    Limits lhs, Limits rhs) {
   DisallowHeapAllocation no_allocation;
-  if (IsEmpty(lhs)) return rhs;
-  if (IsEmpty(rhs)) return lhs;
+  if (lhs.IsEmpty()) return rhs;
+  if (rhs.IsEmpty()) return lhs;
   Limits result(lhs);
   if (lhs.min > rhs.min) result.min = rhs.min;
   if (lhs.max < rhs.max) result.max = rhs.max;
@@ -56,8 +55,7 @@ bool TypeImpl<Config>::Overlap(
     typename TypeImpl<Config>::RangeType* lhs,
     typename TypeImpl<Config>::RangeType* rhs) {
   DisallowHeapAllocation no_allocation;
-  typename TypeImpl<Config>::Limits lim = Intersect(Limits(lhs), Limits(rhs));
-  return lim.min <= lim.max;
+  return !Limits::Intersect(Limits(lhs), Limits(rhs)).IsEmpty();
 }
 
 
@@ -802,12 +800,12 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
   // Deal with bitsets.
   result->Set(size++, BitsetType::New(bits, region));
 
-  Limits lims = Limits::Empty(region);
+  Limits lims = Limits::Empty();
   size = IntersectAux(type1, type2, result, size, &lims, region);
 
   // If the range is not empty, then insert it into the union and
   // remove the number bits from the bitset.
-  if (!IsEmpty(lims)) {
+  if (!lims.IsEmpty()) {
     size = UpdateRange(RangeType::New(lims, representation, region), result,
                        size, region);
 
@@ -849,7 +847,7 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::ToLimits(bitset bits,
   bitset number_bits = BitsetType::NumberBits(bits);
 
   if (number_bits == BitsetType::kNone) {
-    return Limits::Empty(region);
+    return Limits::Empty();
   }
 
   return Limits(BitsetType::Min(number_bits), BitsetType::Max(number_bits));
@@ -861,7 +859,7 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::IntersectRangeAndBitset(
     TypeHandle range, TypeHandle bitset, Region* region) {
   Limits range_lims(range->AsRange());
   Limits bitset_lims = ToLimits(bitset->AsBitset(), region);
-  return Intersect(range_lims, bitset_lims);
+  return Limits::Intersect(range_lims, bitset_lims);
 }
 
 
@@ -892,21 +890,22 @@ int TypeImpl<Config>::IntersectAux(TypeHandle lhs, TypeHandle rhs,
     if (rhs->IsBitset()) {
       Limits lim = IntersectRangeAndBitset(lhs, rhs, region);
 
-      if (!IsEmpty(lim)) {
-        *lims = Union(lim, *lims);
+      if (!lim.IsEmpty()) {
+        *lims = Limits::Union(lim, *lims);
       }
       return size;
     }
     if (rhs->IsClass()) {
-      *lims = Union(Limits(lhs->AsRange()), *lims);
+      *lims = Limits::Union(Limits(lhs->AsRange()), *lims);
     }
     if (rhs->IsConstant() && Contains(lhs->AsRange(), rhs->AsConstant())) {
       return AddToUnion(rhs, result, size, region);
     }
     if (rhs->IsRange()) {
-      Limits lim = Intersect(Limits(lhs->AsRange()), Limits(rhs->AsRange()));
-      if (!IsEmpty(lim)) {
-        *lims = Union(lim, *lims);
+      Limits lim = Limits::Intersect(
+          Limits(lhs->AsRange()), Limits(rhs->AsRange()));
+      if (!lim.IsEmpty()) {
+        *lims = Limits::Union(lim, *lims);
       }
     }
     return size;
@@ -1016,7 +1015,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
   RangeType* range1 = type1->GetRange();
   RangeType* range2 = type2->GetRange();
   if (range1 != NULL && range2 != NULL) {
-    Limits lims = Union(Limits(range1), Limits(range2));
+    Limits lims = Limits::Union(Limits(range1), Limits(range2));
     RangeHandle union_range = RangeType::New(lims, representation, region);
     range = NormalizeRangeAndBitset(union_range, &new_bitset, region);
   } else if (range1 != NULL) {
@@ -1266,6 +1265,7 @@ const char* TypeImpl<Config>::BitsetType::Name(bitset bits) {
     #define RETURN_NAMED_SEMANTIC_TYPE(type, value) \
     case SEMANTIC(k##type): return #type;
     SEMANTIC_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
+    INTERNAL_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
     #undef RETURN_NAMED_SEMANTIC_TYPE
 
     default:
