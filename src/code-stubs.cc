@@ -324,12 +324,6 @@ std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags) {
       return os << "CheckRight";
     case STRING_ADD_CHECK_BOTH:
       return os << "CheckBoth";
-    case STRING_ADD_CONVERT_LEFT:
-      return os << "ConvertLeft";
-    case STRING_ADD_CONVERT_RIGHT:
-      return os << "ConvertRight";
-    case STRING_ADD_CONVERT:
-      break;
   }
   UNREACHABLE();
   return os;

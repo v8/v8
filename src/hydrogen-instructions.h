@@ -7355,7 +7355,8 @@ class HStringAdd final : public HBinaryOperation {
  public:
   static HInstruction* New(
       Isolate* isolate, Zone* zone, HValue* context, HValue* left,
-      HValue* right, PretenureFlag pretenure_flag = NOT_TENURED,
+      HValue* right, Strength strength = Strength::WEAK,
+      PretenureFlag pretenure_flag = NOT_TENURED,
       StringAddFlags flags = STRING_ADD_CHECK_BOTH,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
 
@@ -7377,10 +7378,10 @@ class HStringAdd final : public HBinaryOperation {
   }
 
  private:
-  HStringAdd(HValue* context, HValue* left, HValue* right,
+  HStringAdd(HValue* context, HValue* left, HValue* right, Strength strength,
              PretenureFlag pretenure_flag, StringAddFlags flags,
              Handle<AllocationSite> allocation_site)
-      : HBinaryOperation(context, left, right, Strength::WEAK, HType::String()),
+      : HBinaryOperation(context, left, right, strength, HType::String()),
         flags_(flags),
         pretenure_flag_(pretenure_flag) {
     set_representation(Representation::Tagged());

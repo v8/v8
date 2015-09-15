@@ -113,8 +113,6 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
                                         HValue* shared_info,
                                         HValue* native_context);
 
-  HValue* CheckString(HValue* input, bool convert);
-
  private:
   HValue* BuildArraySingleArgumentConstructor(JSArrayBuilder* builder);
   HValue* BuildArrayNArgumentsConstructor(JSArrayBuilder* builder,
@@ -1458,66 +1456,6 @@ Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode() {
 }
 
 
-HValue* CodeStubGraphBuilderBase::CheckString(HValue* input, bool convert) {
-  if (!convert) return BuildCheckString(input);
-  IfBuilder if_inputissmi(this);
-  HValue* inputissmi = if_inputissmi.If<HIsSmiAndBranch>(input);
-  if_inputissmi.Then();
-  {
-    // Convert the input smi to a string.
-    Push(BuildNumberToString(input, Type::SignedSmall()));
-  }
-  if_inputissmi.Else();
-  {
-    HValue* input_map =
-        Add<HLoadNamedField>(input, inputissmi, HObjectAccess::ForMap());
-    HValue* input_instance_type = Add<HLoadNamedField>(
-        input_map, inputissmi, HObjectAccess::ForMapInstanceType());
-    IfBuilder if_inputisstring(this);
-    if_inputisstring.If<HCompareNumericAndBranch>(
-        input_instance_type, Add<HConstant>(FIRST_NONSTRING_TYPE), Token::LT);
-    if_inputisstring.Then();
-    {
-      // The input is already a string.
-      Push(input);
-    }
-    if_inputisstring.Else();
-    {
-      // Convert to primitive first (if necessary), see
-      // ES6 section 12.7.3 The Addition operator.
-      IfBuilder if_inputisprimitive(this);
-      STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
-      if_inputisprimitive.If<HCompareNumericAndBranch>(
-          input_instance_type, Add<HConstant>(LAST_PRIMITIVE_TYPE), Token::LTE);
-      if_inputisprimitive.Then();
-      {
-        // The input is already a primitive.
-        Push(input);
-      }
-      if_inputisprimitive.Else();
-      {
-        // TODO(bmeurer): Add support for fast ToPrimitive conversion using
-        // a dedicated ToPrimitiveStub.
-        Add<HPushArguments>(input);
-        Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kToPrimitive),
-                               1));
-      }
-      if_inputisprimitive.End();
-      // Convert the primitive to a string value.
-      ToStringDescriptor descriptor(isolate());
-      ToStringStub stub(isolate());
-      HValue* values[] = {context(), Pop()};
-      Push(AddUncasted<HCallWithDescriptor>(
-          Add<HConstant>(stub.GetCode()), 0, descriptor,
-          Vector<HValue*>(values, arraysize(values))));
-    }
-    if_inputisstring.End();
-  }
-  if_inputissmi.End();
-  return Pop();
-}
-
-
 template <>
 HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
   StringAddStub* stub = casted_stub();
@@ -1529,12 +1467,10 @@ HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
 
   // Make sure that both arguments are strings if not known in advance.
   if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    left =
-        CheckString(left, (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
+    left = BuildCheckString(left);
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    right =
-        CheckString(right, (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
+    right = BuildCheckString(right);
   }
 
   return BuildStringAdd(left, right, HAllocationMode(pretenure_flag));
