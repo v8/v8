@@ -1259,120 +1259,77 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->string_ctor_calls(), 1);
 
-  if (FLAG_debug_code) {
-    __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, ecx);
-    __ cmp(edi, ecx);
-    __ Assert(equal, kUnexpectedStringFunction);
-  }
-
-  // Load the first argument into eax and get rid of the rest
-  // (including the receiver).
-  Label no_arguments;
-  __ test(eax, eax);
-  __ j(zero, &no_arguments);
-  __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
-  __ pop(ecx);
-  __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
-  __ push(ecx);
-  __ mov(eax, ebx);
-
-  // Lookup the argument in the number to string cache.
-  Label not_cached, argument_is_string;
-  __ LookupNumberStringCache(eax,  // Input.
-                             ebx,  // Result.
-                             ecx,  // Scratch 1.
-                             edx,  // Scratch 2.
-                             &not_cached);
-  __ IncrementCounter(counters->string_ctor_cached_number(), 1);
-  __ bind(&argument_is_string);
-  // ----------- S t a t e -------------
-  //  -- ebx    : argument converted to string
-  //  -- edi    : constructor function
-  //  -- esp[0] : return address
-  // -----------------------------------
-
-  // Allocate a JSValue and put the tagged pointer into eax.
-  Label gc_required;
-  __ Allocate(JSValue::kSize,
-              eax,  // Result.
-              ecx,  // New allocation top (we ignore it).
-              no_reg,
-              &gc_required,
-              TAG_OBJECT);
-
-  // Set the map.
-  __ LoadGlobalFunctionInitialMap(edi, ecx);
-  if (FLAG_debug_code) {
-    __ cmpb(FieldOperand(ecx, Map::kInstanceSizeOffset),
-            JSValue::kSize >> kPointerSizeLog2);
-    __ Assert(equal, kUnexpectedStringWrapperInstanceSize);
-    __ cmpb(FieldOperand(ecx, Map::kUnusedPropertyFieldsOffset), 0);
-    __ Assert(equal, kUnexpectedUnusedPropertiesOfStringWrapper);
-  }
-  __ mov(FieldOperand(eax, HeapObject::kMapOffset), ecx);
-
-  // Set properties and elements.
-  Factory* factory = masm->isolate()->factory();
-  __ Move(ecx, Immediate(factory->empty_fixed_array()));
-  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ecx);
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset), ecx);
-
-  // Set the value.
-  __ mov(FieldOperand(eax, JSValue::kValueOffset), ebx);
-
-  // Ensure the object is fully initialized.
-  STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
-
-  // We're done. Return.
-  __ ret(0);
-
-  // The argument was not found in the number to string cache. Check
-  // if it's a string already before calling the conversion builtin.
-  Label convert_argument;
-  __ bind(&not_cached);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ JumpIfSmi(eax, &convert_argument);
-  Condition is_string = masm->IsObjectStringType(eax, ebx, ecx);
-  __ j(NegateCondition(is_string), &convert_argument);
-  __ mov(ebx, eax);
-  __ IncrementCounter(counters->string_ctor_string_value(), 1);
-  __ jmp(&argument_is_string);
-
-  // Invoke the conversion builtin and put the result into ebx.
-  __ bind(&convert_argument);
-  __ IncrementCounter(counters->string_ctor_conversions(), 1);
+  // 1. Load the first argument into ebx and get rid of the rest (including the
+  // receiver).
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(edi);  // Preserve the function.
-    ToStringStub stub(masm->isolate());
-    __ CallStub(&stub);
-    __ pop(edi);
+    Label no_arguments, done;
+    __ test(eax, eax);
+    __ j(zero, &no_arguments, Label::kNear);
+    __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
+    __ jmp(&done, Label::kNear);
+    __ bind(&no_arguments);
+    __ LoadRoot(ebx, Heap::kempty_stringRootIndex);
+    __ bind(&done);
+    __ PopReturnAddressTo(ecx);
+    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(ecx);
   }
-  __ mov(ebx, eax);
-  __ jmp(&argument_is_string);
 
-  // Load the empty string into ebx, remove the receiver from the
-  // stack, and jump back to the case where the argument is a string.
-  __ bind(&no_arguments);
-  __ Move(ebx, Immediate(factory->empty_string()));
-  __ pop(ecx);
-  __ lea(esp, Operand(esp, kPointerSize));
-  __ push(ecx);
-  __ jmp(&argument_is_string);
-
-  // At this point the argument is already a string. Call runtime to
-  // create a string wrapper.
-  __ bind(&gc_required);
-  __ IncrementCounter(counters->string_ctor_gc_required(), 1);
+  // 2. Make sure ebx is a string.
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(ebx);
-    __ CallRuntime(Runtime::kNewStringWrapper, 1);
+    Label convert, done_convert;
+    __ JumpIfSmi(ebx, &convert, Label::kNear);
+    __ CmpObjectType(ebx, FIRST_NONSTRING_TYPE, edx);
+    __ j(below, &done_convert);
+    __ bind(&convert);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      ToStringStub stub(masm->isolate());
+      __ Push(edi);
+      __ Move(eax, ebx);
+      __ CallStub(&stub);
+      __ Move(ebx, eax);
+      __ Pop(edi);
+    }
+    __ bind(&done_convert);
   }
-  __ ret(0);
+
+  // 3. Allocate a JSValue wrapper for the string.
+  {
+    // ----------- S t a t e -------------
+    //  -- ebx : the first argument
+    //  -- edi : constructor function
+    // -----------------------------------
+
+    Label allocate, done_allocate;
+    __ Allocate(JSValue::kSize, eax, ecx, no_reg, &allocate, TAG_OBJECT);
+    __ bind(&done_allocate);
+
+    // Initialize the JSValue in eax.
+    __ LoadGlobalFunctionInitialMap(edi, ecx);
+    __ mov(FieldOperand(eax, HeapObject::kMapOffset), ecx);
+    __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
+           masm->isolate()->factory()->empty_fixed_array());
+    __ mov(FieldOperand(eax, JSObject::kElementsOffset),
+           masm->isolate()->factory()->empty_fixed_array());
+    __ mov(FieldOperand(eax, JSValue::kValueOffset), ebx);
+    STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
+    __ Ret();
+
+    // Fallback to the runtime to allocate in new space.
+    __ bind(&allocate);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(ebx);
+      __ Push(edi);
+      __ Push(Smi::FromInt(JSValue::kSize));
+      __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+      __ Pop(edi);
+      __ Pop(ebx);
+    }
+    __ jmp(&done_allocate);
+  }
 }
 
 
