@@ -11,6 +11,7 @@
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/heap/slots-buffer.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"

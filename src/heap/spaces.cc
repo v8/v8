@@ -7,7 +7,7 @@
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/full-codegen/full-codegen.h"
-#include "src/heap/mark-compact.h"
+#include "src/heap/slots-buffer.h"
 #include "src/macro-assembler.h"
 #include "src/msan.h"
 #include "src/snapshot/snapshot.h"

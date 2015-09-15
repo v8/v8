@@ -55,20 +55,6 @@ bool MarkCompactCollector::IsMarked(Object* obj) {
 }
 
 
-void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
-                                      Object* target,
-                                      SlotsBuffer::AdditionMode mode) {
-  Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
-  if (target_page->IsEvacuationCandidate() &&
-      !ShouldSkipEvacuationSlotRecording(object)) {
-    if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
-                            target_page->slots_buffer_address(), slot, mode)) {
-      EvictPopularEvacuationCandidate(target_page);
-    }
-  }
-}
-
-
 void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
   if (GetNextCandidate(shared_info) == NULL) {
     SetNextCandidate(shared_info, shared_function_info_candidates_head_);

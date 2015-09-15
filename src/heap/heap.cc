@@ -2852,8 +2852,8 @@ void Heap::AddAllocationSiteToScratchpad(AllocationSite* site,
       // candidates are not part of the global list of old space pages and
       // releasing an evacuation candidate due to a slots buffer overflow
       // results in lost pages.
-      mark_compact_collector()->RecordSlot(allocation_sites_scratchpad(), slot,
-                                           *slot, SlotsBuffer::IGNORE_OVERFLOW);
+      mark_compact_collector()->ForceRecordSlot(allocation_sites_scratchpad(),
+                                                slot, *slot);
     }
     allocation_sites_scratchpad_length_++;
   }

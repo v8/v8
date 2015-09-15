@@ -155,6 +155,7 @@
         'test-sampler-api.cc',
         'test-serialize.cc',
         'test-simd.cc',
+        'test-slots-buffer.cc',
         'test-spaces.cc',
         'test-strings.cc',
         'test-symbols.cc',
