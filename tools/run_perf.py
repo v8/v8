@@ -121,6 +121,7 @@ SUPPORTED_ARCHS = ["arm",
 GENERIC_RESULTS_RE = re.compile(r"^RESULT ([^:]+): ([^=]+)= ([^ ]+) ([^ ]*)$")
 RESULT_STDDEV_RE = re.compile(r"^\{([^\}]+)\}$")
 RESULT_LIST_RE = re.compile(r"^\[([^\]]+)\]$")
+TOOLS_BASE = os.path.abspath(os.path.dirname(__file__))
 
 
 def LoadAndroidBuildTools(path):  # pragma: no cover
@@ -460,7 +461,7 @@ class RunnableConfig(GraphConfig):
     # TODO(machenbach): This requires +.exe if run on windows.
     extra_flags = extra_flags or []
     cmd = [os.path.join(shell_dir, self.binary)]
-    if self.binary != 'd8' and '--prof' in self.extra_flags:
+    if self.binary != 'd8' and '--prof' in extra_flags:
       print "Profiler supported only on a benchmark run with d8"
     return cmd + self.GetCommandFlags(extra_flags=extra_flags)
 
@@ -645,18 +646,12 @@ class DesktopPlatform(Platform):
     if output.timed_out:
       print ">>> Test timed out after %ss." % runnable.timeout
     if '--prof' in self.extra_flags:
-      if utils.GuessOS() == "linux":
-        tick_tools = os.path.abspath(os.path.join(shell_dir, "..", "..",
-                                                  "tools",
-                                                  "linux-tick-processor"))
-      elif utils.GuessOS() == "macos":
-        tick_tools = os.path.abspath(os.path.join(shell_dir, "..", "..",
-                                                  "tools",
-                                                  "mac-tick-processor"))
-      else:
+      os_prefix = {"linux": "linux", "macos": "mac"}.get(utils.GuessOS())
+      if os_prefix:
+        tick_tools = os.path.join(TOOLS_BASE, "%s-tick-processor" % os_prefix)
+        subprocess.check_call(tick_tools + " --only-summary", shell=True)
+      else:  # pragma: no cover
         print "Profiler option currently supported on Linux and Mac OS."
-      prof_cmd = tick_tools + " --only-summary"
-      subprocess.check_call(prof_cmd, shell=True)
     return output.stdout
 
 
