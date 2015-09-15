@@ -86,7 +86,7 @@ TEST(AtomicValue, TrySetValue) {
 
 TEST(AtomicValue, SetValue) {
   AtomicValue<TestFlag> a(kB);
-  EXPECT_EQ(kB, a.SetValue(kC));
+  a.SetValue(kC);
   EXPECT_EQ(TestFlag::kC, a.Value());
 }
 
@@ -95,7 +95,7 @@ TEST(AtomicValue, WithVoidStar) {
   AtomicValue<void*> a(nullptr);
   AtomicValue<void*> dummy(nullptr);
   EXPECT_EQ(nullptr, a.Value());
-  EXPECT_EQ(nullptr, a.SetValue(&a));
+  a.SetValue(&a);
   EXPECT_EQ(&a, a.Value());
   EXPECT_FALSE(a.TrySetValue(nullptr, &dummy));
   EXPECT_TRUE(a.TrySetValue(&a, &dummy));

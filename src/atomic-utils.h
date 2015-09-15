@@ -20,14 +20,14 @@ class AtomicNumber {
   explicit AtomicNumber(T initial) : value_(initial) {}
 
   V8_INLINE void Increment(T increment) {
-    base::NoBarrier_AtomicIncrement(&value_,
-                                    static_cast<base::AtomicWord>(increment));
+    base::Barrier_AtomicIncrement(&value_,
+                                  static_cast<base::AtomicWord>(increment));
   }
 
-  V8_INLINE T Value() { return static_cast<T>(base::NoBarrier_Load(&value_)); }
+  V8_INLINE T Value() { return static_cast<T>(base::Acquire_Load(&value_)); }
 
   V8_INLINE void SetValue(T new_value) {
-    base::NoBarrier_Store(&value_, static_cast<base::AtomicWord>(new_value));
+    base::Release_Store(&value_, static_cast<base::AtomicWord>(new_value));
   }
 
   V8_INLINE T operator=(T value) {
@@ -52,19 +52,18 @@ class AtomicValue {
       : value_(cast_helper<T>::to_storage_type(initial)) {}
 
   V8_INLINE T Value() {
-    return cast_helper<T>::to_return_type(base::NoBarrier_Load(&value_));
+    return cast_helper<T>::to_return_type(base::Acquire_Load(&value_));
   }
 
   V8_INLINE bool TrySetValue(T old_value, T new_value) {
-    return base::NoBarrier_CompareAndSwap(
+    return base::Release_CompareAndSwap(
                &value_, cast_helper<T>::to_storage_type(old_value),
                cast_helper<T>::to_storage_type(new_value)) ==
            cast_helper<T>::to_storage_type(old_value);
   }
 
-  V8_INLINE T /*old_value*/ SetValue(T new_value) {
-    return cast_helper<T>::to_return_type(base::NoBarrier_AtomicExchange(
-        &value_, cast_helper<T>::to_storage_type(new_value)));
+  V8_INLINE void SetValue(T new_value) {
+    base::Release_Store(&value_, cast_helper<T>::to_storage_type(new_value));
   }
 
  private:
@@ -109,12 +108,11 @@ class AtomicEnumSet {
   bool IsEmpty() const { return ToIntegral() == 0; }
 
   bool Contains(E element) const { return (ToIntegral() & Mask(element)) != 0; }
-
   bool ContainsAnyOf(const AtomicEnumSet& set) const {
     return (ToIntegral() & set.ToIntegral()) != 0;
   }
 
-  void RemoveAll() { base::NoBarrier_Store(&bits_, 0); }
+  void RemoveAll() { base::Release_Store(&bits_, 0); }
 
   bool operator==(const AtomicEnumSet& set) const {
     return ToIntegral() == set.ToIntegral();
@@ -160,7 +158,7 @@ class AtomicEnumSet {
   STATIC_ASSERT(E::kLastValue < (sizeof(base::AtomicWord) * CHAR_BIT));
 
   V8_INLINE base::AtomicWord ToIntegral() const {
-    return base::NoBarrier_Load(&bits_);
+    return base::Acquire_Load(&bits_);
   }
 
   V8_INLINE base::AtomicWord Mask(E element) const {
