@@ -322,7 +322,7 @@ bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable) {
 
 void MemoryAllocator::TearDown() {
   // Check that spaces were torn down before MemoryAllocator.
-  DCHECK(size_ == 0);
+  DCHECK(size_.Value() == 0);
   // TODO(gc) this will be true again when we fix FreeMemory.
   // DCHECK(size_executable_ == 0);
   capacity_ = 0;
@@ -347,9 +347,9 @@ void MemoryAllocator::FreeNewSpaceMemory(Address addr,
   LOG(isolate_, DeleteEvent("NewSpace", addr));
 
   DCHECK(reservation->IsReserved());
-  const size_t size = reservation->size();
-  DCHECK(size_ >= size);
-  size_ -= size;
+  const intptr_t size = static_cast<intptr_t>(reservation->size());
+  DCHECK(size_.Value() >= size);
+  size_.Increment(-size);
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   FreeMemory(reservation, NOT_EXECUTABLE);
 }
@@ -392,7 +392,7 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
   base::VirtualMemory reservation(size, alignment);
 
   if (!reservation.IsReserved()) return NULL;
-  size_ += reservation.size();
+  size_.Increment(static_cast<intptr_t>(reservation.size()));
   Address base =
       RoundUp(static_cast<Address>(reservation.address()), alignment);
   controller->TakeControl(&reservation);
@@ -490,7 +490,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->skip_list_ = NULL;
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
-  chunk->high_water_mark_ = static_cast<int>(area_start - base);
+  chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
   chunk->set_parallel_sweeping(SWEEPING_DONE);
   chunk->mutex_ = NULL;
   chunk->available_in_small_free_list_ = 0;
@@ -636,7 +636,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
                  CodePageGuardSize();
 
     // Check executable memory limit.
-    if ((size_executable_ + chunk_size) > capacity_executable_) {
+    if ((size_executable_.Value() + static_cast<intptr_t>(chunk_size)) >
+        capacity_executable_) {
       LOG(isolate_, StringEvent("MemoryAllocator::AllocateRawMemory",
                                 "V8 Executable Allocation capacity exceeded"));
       return NULL;
@@ -660,16 +661,16 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
       DCHECK(
           IsAligned(reinterpret_cast<intptr_t>(base), MemoryChunk::kAlignment));
       if (base == NULL) return NULL;
-      size_ += chunk_size;
+      size_.Increment(static_cast<intptr_t>(chunk_size));
       // Update executable memory size.
-      size_executable_ += chunk_size;
+      size_executable_.Increment(static_cast<intptr_t>(chunk_size));
     } else {
       base = AllocateAlignedMemory(chunk_size, commit_size,
                                    MemoryChunk::kAlignment, executable,
                                    &reservation);
       if (base == NULL) return NULL;
       // Update executable memory size.
-      size_executable_ += reservation.size();
+      size_executable_.Increment(static_cast<intptr_t>(chunk_size));
     }
 
     if (Heap::ShouldZapGarbage()) {
@@ -756,20 +757,20 @@ void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
   isolate_->heap()->RememberUnmappedPage(reinterpret_cast<Address>(chunk),
                                          chunk->IsEvacuationCandidate());
 
-  size_t size;
+  intptr_t size;
   base::VirtualMemory* reservation = chunk->reserved_memory();
   if (reservation->IsReserved()) {
-    size = reservation->size();
+    size = static_cast<intptr_t>(reservation->size());
   } else {
-    size = chunk->size();
+    size = static_cast<intptr_t>(chunk->size());
   }
-  DCHECK(size_ >= size);
-  size_ -= size;
+  DCHECK(size_.Value() >= size);
+  size_.Increment(-size);
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
 
   if (chunk->executable() == EXECUTABLE) {
-    DCHECK(size_executable_ >= size);
-    size_executable_ -= size;
+    DCHECK(size_executable_.Value() >= size);
+    size_executable_.Increment(-size);
   }
 
   chunk->SetFlag(MemoryChunk::PRE_FREED);
@@ -869,13 +870,14 @@ void MemoryAllocator::RemoveMemoryAllocationCallback(
 
 #ifdef DEBUG
 void MemoryAllocator::ReportStatistics() {
-  float pct = static_cast<float>(capacity_ - size_) / capacity_;
+  intptr_t size = Size();
+  float pct = static_cast<float>(capacity_ - size) / capacity_;
   PrintF("  capacity: %" V8_PTR_PREFIX
          "d"
          ", used: %" V8_PTR_PREFIX
          "d"
          ", available: %%%d\n\n",
-         capacity_, size_, static_cast<int>(pct * 100));
+         capacity_, size, static_cast<int>(pct * 100));
 }
 #endif
 

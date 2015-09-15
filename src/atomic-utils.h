@@ -30,6 +30,11 @@ class AtomicNumber {
     base::NoBarrier_Store(&value_, static_cast<base::AtomicWord>(new_value));
   }
 
+  V8_INLINE T operator=(T value) {
+    SetValue(value);
+    return value;
+  }
+
  private:
   STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
 
@@ -41,6 +46,8 @@ class AtomicNumber {
 template <typename T>
 class AtomicValue {
  public:
+  AtomicValue() : value_(0) {}
+
   explicit AtomicValue(T initial)
       : value_(cast_helper<T>::to_storage_type(initial)) {}
 
