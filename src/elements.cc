@@ -542,6 +542,24 @@ class ElementsAccessorBase : public ElementsAccessor {
     return true;
   }
 
+  static void TryTransitionResultArrayToPacked(Handle<JSArray> array) {
+    if (!IsHoleyElementsKind(kind())) return;
+    int length = Smi::cast(array->length())->value();
+    Handle<FixedArrayBase> backing_store(array->elements());
+    if (!ElementsAccessorSubclass::IsPackedImpl(array, backing_store, 0,
+                                                length)) {
+      return;
+    }
+    ElementsKind packed_kind = GetPackedElementsKind(kind());
+    Handle<Map> new_map =
+        JSObject::GetElementsTransitionMap(array, packed_kind);
+    JSObject::MigrateToMap(array, new_map);
+    if (FLAG_trace_elements_transitions) {
+      JSObject::PrintElementsTransition(stdout, array, kind(), backing_store,
+                                        packed_kind, backing_store);
+    }
+  }
+
   virtual bool HasElement(Handle<JSObject> holder, uint32_t index,
                           Handle<FixedArrayBase> backing_store) final {
     return ElementsAccessorSubclass::HasElementImpl(holder, index,
@@ -1453,6 +1471,8 @@ class FastElementsAccessor
     FastElementsAccessorSubclass::CopyElementsImpl(
         *backing_store, start, result_array->elements(), KindTraits::Kind, 0,
         kPackedSizeNotKnown, result_len);
+    FastElementsAccessorSubclass::TryTransitionResultArrayToPacked(
+        result_array);
     return result_array;
   }
 
@@ -1507,6 +1527,8 @@ class FastElementsAccessor
       receiver->set_elements(*backing_store);
     }
     receiver->set_length(Smi::FromInt(new_length));
+    FastElementsAccessorSubclass::TryTransitionResultArrayToPacked(
+        deleted_elements);
     return deleted_elements;
   }
 

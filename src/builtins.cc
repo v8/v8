@@ -526,8 +526,8 @@ BUILTIN(ArraySlice) {
       (relative_end < 0) ? Max(len + relative_end, 0) : Min(relative_end, len);
 
   if (actual_end <= actual_start) {
-    Handle<JSArray> result_array =
-        isolate->factory()->NewJSArray(object->GetElementsKind(), 0, 0);
+    Handle<JSArray> result_array = isolate->factory()->NewJSArray(
+        GetPackedElementsKind(object->GetElementsKind()), 0, 0);
     return *result_array;
   }
 

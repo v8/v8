@@ -4046,6 +4046,7 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
     Object* maybe_array_maps = map->is_strong()
                                    ? native_context->js_array_strong_maps()
                                    : native_context->js_array_maps();
+    // Reuse map transitions for JSArrays.
     if (maybe_array_maps->IsFixedArray()) {
       DisallowHeapAllocation no_gc;
       FixedArray* array_maps = FixedArray::cast(maybe_array_maps);
@@ -4059,6 +4060,14 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
   }
 
   DCHECK(!map->IsUndefined());
+  // Check if we can go back in the elements kind transition chain.
+  if (IsHoleyElementsKind(from_kind) &&
+      to_kind == GetPackedElementsKind(from_kind) &&
+      map->GetBackPointer()->IsMap() &&
+      Map::cast(map->GetBackPointer())->elements_kind() == to_kind) {
+    return handle(Map::cast(map->GetBackPointer()));
+  }
+
   bool allow_store_transition = IsTransitionElementsKind(from_kind);
   // Only store fast element maps in ascending generality.
   if (IsFastElementsKind(to_kind)) {
