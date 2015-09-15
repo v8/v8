@@ -36,6 +36,8 @@ utils.Import(function(from) {
 //-------------------------------------------------------------------
 
 function StringConstructor(x) {
+  // TODO(bmeurer): Move this to toplevel.
+  "use strict";
   if (%_ArgumentsLength() == 0) x = '';
   if (%_IsConstructCall()) {
     %_SetValueOf(this, TO_STRING_INLINE(x));

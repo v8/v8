@@ -1341,6 +1341,8 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
 // Boolean
 
 function BooleanConstructor(x) {
+  // TODO(bmeurer): Move this to toplevel.
+  "use strict";
   if (%_IsConstructCall()) {
     %_SetValueOf(this, ToBoolean(x));
   } else {
@@ -1390,6 +1392,8 @@ utils.InstallFunctions(GlobalBoolean.prototype, DONT_ENUM, [
 // Number
 
 function NumberConstructor(x) {
+  // TODO(bmeurer): Move this to toplevel.
+  "use strict";
   var value = %_ArgumentsLength() == 0 ? 0 : ToNumber(x);
   if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
