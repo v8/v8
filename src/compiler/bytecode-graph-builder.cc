@@ -395,8 +395,8 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       }
       // Add implicit success continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow)) {
-        const Operator* op = common()->IfSuccess();
-        Node* on_success = graph()->NewNode(op, result);
+        const Operator* if_success = common()->IfSuccess();
+        Node* on_success = graph()->NewNode(if_success, result);
         environment_->UpdateControlDependency(on_success);
       }
     }
@@ -421,8 +421,8 @@ Node* BytecodeGraphBuilder::MergeControl(Node* control, Node* other) {
   } else {
     // Control node is a singleton, introduce a merge.
     const Operator* op = common()->Merge(inputs);
-    Node* inputs[] = {control, other};
-    control = graph()->NewNode(op, arraysize(inputs), inputs, true);
+    Node* merge_inputs[] = {control, other};
+    control = graph()->NewNode(op, arraysize(merge_inputs), merge_inputs, true);
   }
   return control;
 }
