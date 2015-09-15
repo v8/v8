@@ -1885,26 +1885,32 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // eax: number of arguments
   // ecx: object map
   // esp[0]: original receiver (for IsSuperConstructorCall)
-  Label do_call;
   __ bind(&slow);
-  __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
-  __ j(not_equal, &non_function_call);
-  __ GetBuiltinEntry(edx,
-                     Context::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR_BUILTIN_INDEX);
-  __ jmp(&do_call);
+  {
+    __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
+    __ j(not_equal, &non_function_call, Label::kNear);
+    if (IsSuperConstructorCall()) __ Drop(1);
+    // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
+    __ mov(edi, FieldOperand(edi, JSFunctionProxy::kConstructTrapOffset));
+    __ Jump(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 
-  __ bind(&non_function_call);
-  __ GetBuiltinEntry(edx,
-                     Context::CALL_NON_FUNCTION_AS_CONSTRUCTOR_BUILTIN_INDEX);
-  __ bind(&do_call);
-  if (IsSuperConstructorCall()) {
-    __ Drop(1);
+    __ bind(&non_function_call);
+    if (IsSuperConstructorCall()) __ Drop(1);
+    {
+      // Determine the delegate for the target (if any).
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ SmiTag(eax);
+      __ Push(eax);
+      __ Push(edi);
+      __ CallRuntime(Runtime::kGetConstructorDelegate, 1);
+      __ mov(edi, eax);
+      __ Pop(eax);
+      __ SmiUntag(eax);
+    }
+    // The delegate is always a regular function.
+    __ AssertFunction(edi);
+    __ Jump(isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
   }
-  // Set expected number of arguments to zero (not changing eax).
-  __ Move(ebx, Immediate(0));
-  Handle<Code> arguments_adaptor =
-      isolate()->builtins()->ArgumentsAdaptorTrampoline();
-  __ jmp(arguments_adaptor, RelocInfo::CODE_TARGET);
 }
 
 
