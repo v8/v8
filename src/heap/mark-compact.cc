@@ -3176,9 +3176,9 @@ void MarkCompactCollector::EvacuateNewSpace() {
 }
 
 
-void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
+void MarkCompactCollector::EvacuateLiveObjectsFromPage(
+    Page* p, PagedSpace* target_space) {
   AlwaysAllocateScope always_allocate(isolate());
-  PagedSpace* space = static_cast<PagedSpace*>(p->owner());
   DCHECK(p->IsEvacuationCandidate() && !p->WasSwept());
   p->SetWasSwept();
 
@@ -3199,12 +3199,12 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
       int size = object->Size();
       AllocationAlignment alignment = object->RequiredAlignment();
       HeapObject* target_object = nullptr;
-      AllocationResult allocation = space->AllocateRaw(size, alignment);
+      AllocationResult allocation = target_space->AllocateRaw(size, alignment);
       if (!allocation.To(&target_object)) {
         // If allocation failed, use emergency memory and re-try allocation.
-        CHECK(space->HasEmergencyMemory());
-        space->UseEmergencyMemory();
-        allocation = space->AllocateRaw(size, alignment);
+        CHECK(target_space->HasEmergencyMemory());
+        target_space->UseEmergencyMemory();
+        allocation = target_space->AllocateRaw(size, alignment);
       }
       if (!allocation.To(&target_object)) {
         // OS refused to give us memory.
@@ -3212,7 +3212,7 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
         return;
       }
 
-      MigrateObject(target_object, object, size, space->identity());
+      MigrateObject(target_object, object, size, target_space->identity());
       DCHECK(object->map_word().IsForwardingAddress());
     }
 
@@ -3256,7 +3256,7 @@ void MarkCompactCollector::EvacuatePages() {
       // up a page.  Check that we actually got an emergency page above so we
       // can guarantee that this succeeds.
       if (space->HasEmergencyMemory()) {
-        EvacuateLiveObjectsFromPage(p);
+        EvacuateLiveObjectsFromPage(p, static_cast<PagedSpace*>(p->owner()));
         // Unlink the page from the list of pages here. We must not iterate
         // over that page later (e.g. when scan on scavenge pages are
         // processed). The page itself will be freed later and is still

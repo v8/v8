@@ -881,7 +881,7 @@ class MarkCompactCollector {
 
   void EvacuateNewSpace();
 
-  void EvacuateLiveObjectsFromPage(Page* p);
+  void EvacuateLiveObjectsFromPage(Page* p, PagedSpace* target_space);
 
   void EvacuatePages();
 
