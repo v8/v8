@@ -6,7 +6,6 @@
 #define V8_HEAP_SPACES_H_
 
 #include "src/allocation.h"
-#include "src/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
 #include "src/base/platform/mutex.h"
@@ -561,14 +560,14 @@ class MemoryChunk {
 
   static const size_t kMinHeaderSize =
       kWriteBarrierCounterOffset +
-      kIntptrSize         // intptr_t write_barrier_counter_
-      + kIntSize          // int progress_bar_
-      + kPointerSize      // AtomicValue high_water_mark_
-      + kPointerSize      // base::Mutex* mutex_
-      + kPointerSize      // base::AtomicWord parallel_sweeping_
-      + 5 * kPointerSize  // AtomicNumber free-list statistics
-      + kPointerSize      // base::AtomicWord next_chunk_
-      + kPointerSize;     // base::AtomicWord prev_chunk_
+      kIntptrSize      // intptr_t write_barrier_counter_
+      + kIntSize       // int progress_bar_
+      + kIntSize       // int high_water_mark_
+      + kPointerSize   // base::Mutex* mutex_
+      + kPointerSize   // base::AtomicWord parallel_sweeping_
+      + 5 * kIntSize   // int free-list statistics
+      + kPointerSize   // base::AtomicWord next_chunk_
+      + kPointerSize;  // base::AtomicWord prev_chunk_
 
   // We add some more space to the computed header size to amount for missing
   // alignment requirements in our computation.
@@ -675,23 +674,21 @@ class MemoryChunk {
   bool CommitArea(size_t requested);
 
   // Approximate amount of physical memory committed for this chunk.
-  size_t CommittedPhysicalMemory() { return high_water_mark_.Value(); }
+  size_t CommittedPhysicalMemory() { return high_water_mark_; }
 
   // Should be called when memory chunk is about to be freed.
   void ReleaseAllocatedMemory();
 
   static inline void UpdateHighWaterMark(Address mark) {
-    if (mark == nullptr) return;
+    if (mark == NULL) return;
     // Need to subtract one from the mark because when a chunk is full the
     // top points to the next address after the chunk, which effectively belongs
     // to another chunk. See the comment to Page::FromAllocationTop.
     MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
-    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
-    intptr_t old_mark = 0;
-    do {
-      old_mark = chunk->high_water_mark_.Value();
-    } while ((new_mark > old_mark) &&
-             !chunk->high_water_mark_.TrySetValue(old_mark, new_mark));
+    int new_mark = static_cast<int>(mark - chunk->address());
+    if (new_mark > chunk->high_water_mark_) {
+      chunk->high_water_mark_ = new_mark;
+    }
   }
 
  protected:
@@ -722,17 +719,17 @@ class MemoryChunk {
   int progress_bar_;
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
-  AtomicValue<intptr_t> high_water_mark_;
+  int high_water_mark_;
 
   base::Mutex* mutex_;
   base::AtomicWord parallel_sweeping_;
 
   // PagedSpace free-list statistics.
-  AtomicNumber<intptr_t> available_in_small_free_list_;
-  AtomicNumber<intptr_t> available_in_medium_free_list_;
-  AtomicNumber<intptr_t> available_in_large_free_list_;
-  AtomicNumber<intptr_t> available_in_huge_free_list_;
-  AtomicNumber<intptr_t> non_available_small_blocks_;
+  int available_in_small_free_list_;
+  int available_in_medium_free_list_;
+  int available_in_large_free_list_;
+  int available_in_huge_free_list_;
+  int non_available_small_blocks_;
 
   // next_chunk_ holds a pointer of type MemoryChunk
   base::AtomicWord next_chunk_;
@@ -831,22 +828,21 @@ class Page : public MemoryChunk {
   void ResetFreeListStatistics();
 
   int LiveBytesFromFreeList() {
-    return static_cast<int>(
-        area_size() - non_available_small_blocks() -
-        available_in_small_free_list() - available_in_medium_free_list() -
-        available_in_large_free_list() - available_in_huge_free_list());
+    return area_size() - non_available_small_blocks_ -
+           available_in_small_free_list_ - available_in_medium_free_list_ -
+           available_in_large_free_list_ - available_in_huge_free_list_;
   }
 
-#define FRAGMENTATION_STATS_ACCESSORS(type, name)        \
-  type name() { return name##_.Value(); }                \
-  void set_##name(type name) { name##_.SetValue(name); } \
-  void add_##name(type name) { name##_.Increment(name); }
+#define FRAGMENTATION_STATS_ACCESSORS(type, name) \
+  type name() { return name##_; }                 \
+  void set_##name(type name) { name##_ = name; }  \
+  void add_##name(type name) { name##_ += name; }
 
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, non_available_small_blocks)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_small_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_medium_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_large_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_huge_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, non_available_small_blocks)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_small_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_medium_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_large_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_huge_free_list)
 
 #undef FRAGMENTATION_STATS_ACCESSORS
 
@@ -1132,24 +1128,20 @@ class MemoryAllocator {
   // together.
   void Free(MemoryChunk* chunk);
 
-  // Returns allocated spaces in bytes.
-  intptr_t Size() { return size_.Value(); }
-
-  // Returns allocated executable spaces in bytes.
-  intptr_t SizeExecutable() { return size_executable_.Value(); }
-
   // Returns the maximum available bytes of heaps.
-  intptr_t Available() {
-    intptr_t size = Size();
-    return capacity_ < size ? 0 : capacity_ - size;
-  }
+  intptr_t Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
+
+  // Returns allocated spaces in bytes.
+  intptr_t Size() { return size_; }
 
   // Returns the maximum available executable bytes of heaps.
   intptr_t AvailableExecutable() {
-    intptr_t executable_size = SizeExecutable();
-    if (capacity_executable_ < executable_size) return 0;
-    return capacity_executable_ - executable_size;
+    if (capacity_executable_ < size_executable_) return 0;
+    return capacity_executable_ - size_executable_;
   }
+
+  // Returns allocated executable spaces in bytes.
+  intptr_t SizeExecutable() { return size_executable_; }
 
   // Returns maximum available bytes that the old space can have.
   intptr_t MaxAvailable() {
@@ -1158,9 +1150,9 @@ class MemoryAllocator {
 
   // Returns an indication of whether a pointer is in a space that has
   // been allocated by this MemoryAllocator.
-  V8_INLINE bool IsOutsideAllocatedSpace(const void* address) {
-    return address < lowest_ever_allocated_.Value() ||
-           address >= highest_ever_allocated_.Value();
+  V8_INLINE bool IsOutsideAllocatedSpace(const void* address) const {
+    return address < lowest_ever_allocated_ ||
+           address >= highest_ever_allocated_;
   }
 
 #ifdef DEBUG
@@ -1240,22 +1232,22 @@ class MemoryAllocator {
   Isolate* isolate_;
 
   // Maximum space size in bytes.
-  intptr_t capacity_;
+  size_t capacity_;
   // Maximum subset of capacity_ that can be executable
-  intptr_t capacity_executable_;
+  size_t capacity_executable_;
 
   // Allocated space size in bytes.
-  AtomicNumber<intptr_t> size_;
+  size_t size_;
   // Allocated executable space size in bytes.
-  AtomicNumber<intptr_t> size_executable_;
+  size_t size_executable_;
 
   // We keep the lowest and highest addresses allocated as a quick way
   // of determining that pointers are outside the heap. The estimate is
   // conservative, i.e. not all addrsses in 'allocated' space are allocated
   // to our heap. The range is [lowest, highest[, inclusive on the low end
   // and exclusive on the high end.
-  AtomicValue<void*> lowest_ever_allocated_;
-  AtomicValue<void*> highest_ever_allocated_;
+  void* lowest_ever_allocated_;
+  void* highest_ever_allocated_;
 
   struct MemoryAllocationCallbackRegistration {
     MemoryAllocationCallbackRegistration(MemoryAllocationCallback callback,
@@ -1278,16 +1270,8 @@ class MemoryAllocator {
                                PagedSpace* owner);
 
   void UpdateAllocatedSpaceLimits(void* low, void* high) {
-    // The use of atomic primitives does not guarantee correctness (wrt.
-    // desired semantics) by default. The loop here ensures that we update the
-    // values only if they did not change in between.
-    void* ptr = nullptr;
-    do {
-      ptr = lowest_ever_allocated_.Value();
-    } while ((low < ptr) && !lowest_ever_allocated_.TrySetValue(ptr, low));
-    do {
-      ptr = highest_ever_allocated_.Value();
-    } while ((high > ptr) && !highest_ever_allocated_.TrySetValue(ptr, high));
+    lowest_ever_allocated_ = Min(lowest_ever_allocated_, low);
+    highest_ever_allocated_ = Max(highest_ever_allocated_, high);
   }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryAllocator);
