@@ -24,12 +24,6 @@ utils.Import(function(from) {
 // -------------------------------------------------------------------
 
 
-function CheckSharedTypedArray(sta) {
-  if (!%IsSharedTypedArray(sta)) {
-    throw MakeTypeError(kNotSharedTypedArray, sta);
-  }
-}
-
 function CheckSharedIntegerTypedArray(ia) {
   if (!%IsSharedIntegerTypedArray(ia)) {
     throw MakeTypeError(kNotIntegerSharedTypedArray, ia);
@@ -46,7 +40,7 @@ function CheckSharedInteger32TypedArray(ia) {
 //-------------------------------------------------------------------
 
 function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
-  CheckSharedTypedArray(sta);
+  CheckSharedIntegerTypedArray(sta);
   index = $toInteger(index);
   if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
@@ -57,7 +51,7 @@ function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
 }
 
 function AtomicsLoadJS(sta, index) {
-  CheckSharedTypedArray(sta);
+  CheckSharedIntegerTypedArray(sta);
   index = $toInteger(index);
   if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
@@ -66,7 +60,7 @@ function AtomicsLoadJS(sta, index) {
 }
 
 function AtomicsStoreJS(sta, index, value) {
-  CheckSharedTypedArray(sta);
+  CheckSharedIntegerTypedArray(sta);
   index = $toInteger(index);
   if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
