@@ -1156,17 +1156,17 @@ TEST(MIPS13) {
   MacroAssembler assm(isolate, NULL, 0);
 
   __ sw(a4, MemOperand(a0, offsetof(T, cvt_small_in)));
-  __ Cvt_d_uw(f10, a4, f22);
+  __ Cvt_d_uw(f10, a4, f4);
   __ sdc1(f10, MemOperand(a0, offsetof(T, cvt_small_out)));
 
-  __ Trunc_uw_d(f10, f10, f22);
+  __ Trunc_uw_d(f10, f10, f4);
   __ swc1(f10, MemOperand(a0, offsetof(T, trunc_small_out)));
 
   __ sw(a4, MemOperand(a0, offsetof(T, cvt_big_in)));
-  __ Cvt_d_uw(f8, a4, f22);
+  __ Cvt_d_uw(f8, a4, f4);
   __ sdc1(f8, MemOperand(a0, offsetof(T, cvt_big_out)));
 
-  __ Trunc_uw_d(f8, f8, f22);
+  __ Trunc_uw_d(f8, f8, f4);
   __ swc1(f8, MemOperand(a0, offsetof(T, trunc_big_out)));
 
   __ jr(ra);
@@ -2610,12 +2610,12 @@ TEST(sqrt_rsqrt_recip) {
   __ rsqrt_d(f14, f8);
   __ rsqrt_s(f16, f2);
   __ recip_d(f18, f8);
-  __ recip_s(f20, f2);
+  __ recip_s(f4, f2);
   __ swc1(f6, MemOperand(a0, offsetof(TestFloat, resultS)) );
   __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, resultD)) );
   __ swc1(f16, MemOperand(a0, offsetof(TestFloat, resultS1)) );
   __ sdc1(f14, MemOperand(a0, offsetof(TestFloat, resultD1)) );
-  __ swc1(f20, MemOperand(a0, offsetof(TestFloat, resultS2)) );
+  __ swc1(f4, MemOperand(a0, offsetof(TestFloat, resultS2)) );
   __ sdc1(f18, MemOperand(a0, offsetof(TestFloat, resultD2)) );
   __ jr(ra);
   __ nop();
@@ -2802,12 +2802,12 @@ TEST(mov) {
     5.3, -5.3, 5.3, -2.9
   };
 
-  __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
+  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)) );
   __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, c)) );
-  __ mov_s(f18, f6);
-  __ mov_d(f20, f2);
-  __ swc1(f18, MemOperand(a0, offsetof(TestFloat, d)) );
-  __ sdc1(f20, MemOperand(a0, offsetof(TestFloat, b)) );
+  __ mov_s(f8, f6);
+  __ mov_d(f10, f4);
+  __ swc1(f8, MemOperand(a0, offsetof(TestFloat, d)) );
+  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, b)) );
   __ jr(ra);
   __ nop();
 

@@ -2634,7 +2634,7 @@ void Assembler::mov_d(FPURegister fd, FPURegister fs) {
 
 
 void Assembler::mov_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, MOV_D);
+  GenInstrRegister(COP1, S, f0, fs, fd, MOV_S);
 }
 
 
