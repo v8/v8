@@ -95,6 +95,8 @@
       'cfi_vptr%': 0,
       'cfi_diag%': 0,
 
+      'cfi_blacklist%': '<(base_dir)/tools/cfi/blacklist.txt',
+
       # goma settings.
       # 1 to use goma.
       # If no gomadir is set, it uses the default gomadir.
@@ -143,6 +145,7 @@
     'use_lto%': '<(use_lto)',
     'cfi_vptr%': '<(cfi_vptr)',
     'cfi_diag%': '<(cfi_diag)',
+    'cfi_blacklist%': '<(cfi_blacklist)',
 
     # Add a simple extras solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],
@@ -1270,6 +1273,7 @@
               '-fsanitize=cfi-vcall',
               '-fsanitize=cfi-derived-cast',
               '-fsanitize=cfi-unrelated-cast',
+              '-fsanitize-blacklist=<(cfi_blacklist)',
             ],
             'ldflags': [
               '-fsanitize=cfi-vcall',
