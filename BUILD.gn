@@ -1537,11 +1537,7 @@ source_set("v8_base") {
   ]
 
   if (!is_debug) {
-    if (using_new_optimization_config) {
-      configs -= [ "//build/config/compiler:default_optimization" ]
-    } else {
-      configs -= [ "//build/config/compiler:optimize" ]
-    }
+    configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
@@ -1640,11 +1636,7 @@ source_set("v8_libbase") {
   ]
 
   if (!is_debug) {
-    if (using_new_optimization_config) {
-      configs -= [ "//build/config/compiler:default_optimization" ]
-    } else {
-      configs -= [ "//build/config/compiler:optimize" ]
-    }
+    configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
@@ -1711,11 +1703,7 @@ source_set("v8_libplatform") {
   ]
 
   if (!is_debug) {
-    if (using_new_optimization_config) {
-      configs -= [ "//build/config/compiler:default_optimization" ]
-    } else {
-      configs -= [ "//build/config/compiler:optimize" ]
-    }
+    configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
