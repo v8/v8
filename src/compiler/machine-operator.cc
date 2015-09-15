@@ -183,15 +183,8 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(MachUint32)              \
   V(MachInt64)               \
   V(MachUint64)              \
-  V(MachAnyTagged)           \
-  V(RepBit)                  \
-  V(RepWord8)                \
-  V(RepWord16)               \
-  V(RepWord32)               \
-  V(RepWord64)               \
-  V(RepFloat32)              \
-  V(RepFloat64)              \
-  V(RepTagged)
+  V(MachPtr)                 \
+  V(MachAnyTagged)
 
 
 struct MachineOperatorGlobalCache {
@@ -279,7 +272,7 @@ static base::LazyInstance<MachineOperatorGlobalCache>::type kCache =
 
 MachineOperatorBuilder::MachineOperatorBuilder(Zone* zone, MachineType word,
                                                Flags flags)
-    : zone_(zone), cache_(kCache.Get()), word_(word), flags_(flags) {
+    : cache_(kCache.Get()), word_(word), flags_(flags) {
   DCHECK(word == kRepWord32 || word == kRepWord64);
 }
 
@@ -322,10 +315,8 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
     default:
       break;
   }
-  // Uncached.
-  return new (zone_) Operator1<LoadRepresentation>(  // --
-      IrOpcode::kLoad, Operator::kNoThrow | Operator::kNoWrite, "Load", 2, 1, 1,
-      1, 1, 0, rep);
+  UNREACHABLE();
+  return nullptr;
 }
 
 
@@ -346,10 +337,8 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
     default:
       break;
   }
-  // Uncached.
-  return new (zone_) Operator1<StoreRepresentation>(  // --
-      IrOpcode::kStore, Operator::kNoRead | Operator::kNoThrow, "Store", 3, 1,
-      1, 0, 1, 0, rep);
+  UNREACHABLE();
+  return nullptr;
 }
 
 
@@ -364,10 +353,8 @@ const Operator* MachineOperatorBuilder::CheckedLoad(
     default:
       break;
   }
-  // Uncached.
-  return new (zone_) Operator1<CheckedLoadRepresentation>(
-      IrOpcode::kCheckedLoad, Operator::kNoThrow | Operator::kNoWrite,
-      "CheckedLoad", 3, 1, 1, 1, 1, 0, rep);
+  UNREACHABLE();
+  return nullptr;
 }
 
 
@@ -382,10 +369,8 @@ const Operator* MachineOperatorBuilder::CheckedStore(
     default:
       break;
   }
-  // Uncached.
-  return new (zone_) Operator1<CheckedStoreRepresentation>(
-      IrOpcode::kCheckedStore, Operator::kNoRead | Operator::kNoThrow,
-      "CheckedStore", 4, 1, 1, 0, 1, 0, rep);
+  UNREACHABLE();
+  return nullptr;
 }
 
 }  // namespace compiler

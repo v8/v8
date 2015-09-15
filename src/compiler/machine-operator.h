@@ -297,7 +297,6 @@ class MachineOperatorBuilder final : public ZoneObject {
 #undef PSEUDO_OP_LIST
 
  private:
-  Zone* const zone_;
   MachineOperatorGlobalCache const& cache_;
   MachineType const word_;
   Flags const flags_;

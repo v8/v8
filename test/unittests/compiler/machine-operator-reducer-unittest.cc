@@ -1492,7 +1492,7 @@ TEST_F(MachineOperatorReducerTest,
 
 
 TEST_F(MachineOperatorReducerTest, StoreRepWord8WithWord32And) {
-  const StoreRepresentation rep(kRepWord8, kNoWriteBarrier);
+  const StoreRepresentation rep(kMachUint8, kNoWriteBarrier);
   Node* const base = Parameter(0);
   Node* const index = Parameter(1);
   Node* const value = Parameter(2);
@@ -1514,7 +1514,7 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord8WithWord32And) {
 
 
 TEST_F(MachineOperatorReducerTest, StoreRepWord8WithWord32SarAndWord32Shl) {
-  const StoreRepresentation rep(kRepWord8, kNoWriteBarrier);
+  const StoreRepresentation rep(kMachUint8, kNoWriteBarrier);
   Node* const base = Parameter(0);
   Node* const index = Parameter(1);
   Node* const value = Parameter(2);
@@ -1538,7 +1538,7 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord8WithWord32SarAndWord32Shl) {
 
 
 TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32And) {
-  const StoreRepresentation rep(kRepWord16, kNoWriteBarrier);
+  const StoreRepresentation rep(kMachUint16, kNoWriteBarrier);
   Node* const base = Parameter(0);
   Node* const index = Parameter(1);
   Node* const value = Parameter(2);
@@ -1560,7 +1560,7 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32And) {
 
 
 TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32SarAndWord32Shl) {
-  const StoreRepresentation rep(kRepWord16, kNoWriteBarrier);
+  const StoreRepresentation rep(kMachUint16, kNoWriteBarrier);
   Node* const base = Parameter(0);
   Node* const index = Parameter(1);
   Node* const value = Parameter(2);
