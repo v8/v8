@@ -189,24 +189,29 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
         break;
     }
   }
-  DCHECK_NE(0u, values.size());
   DCHECK_EQ(values.size(), effects.size());
   DCHECK_EQ(values.size(), controls.size());
-  int const input_count = static_cast<int>(controls.size());
-  Node* control_output = jsgraph_->graph()->NewNode(
-      jsgraph_->common()->Merge(input_count), input_count, &controls.front());
-  values.push_back(control_output);
-  effects.push_back(control_output);
-  Node* value_output = jsgraph_->graph()->NewNode(
-      jsgraph_->common()->Phi(kMachAnyTagged, input_count),
-      static_cast<int>(values.size()), &values.front());
-  Node* effect_output = jsgraph_->graph()->NewNode(
-      jsgraph_->common()->EffectPhi(input_count),
-      static_cast<int>(effects.size()), &effects.front());
 
-  ReplaceWithValue(call, value_output, effect_output, control_output);
-
-  return Changed(value_output);
+  // Depending on whether the inlinee produces a value, we either replace value
+  // uses with said value or kill value uses if no value can be returned.
+  if (values.size() > 0) {
+    int const input_count = static_cast<int>(controls.size());
+    Node* control_output = jsgraph_->graph()->NewNode(
+        jsgraph_->common()->Merge(input_count), input_count, &controls.front());
+    values.push_back(control_output);
+    effects.push_back(control_output);
+    Node* value_output = jsgraph_->graph()->NewNode(
+        jsgraph_->common()->Phi(kMachAnyTagged, input_count),
+        static_cast<int>(values.size()), &values.front());
+    Node* effect_output = jsgraph_->graph()->NewNode(
+        jsgraph_->common()->EffectPhi(input_count),
+        static_cast<int>(effects.size()), &effects.front());
+    ReplaceWithValue(call, value_output, effect_output, control_output);
+    return Changed(value_output);
+  } else {
+    ReplaceWithValue(call, call, call, jsgraph_->Dead());
+    return Changed(call);
+  }
 }
 
 
