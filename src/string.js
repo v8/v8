@@ -18,7 +18,6 @@ var InternalPackedArray = utils.InternalPackedArray;
 var RegExpExec;
 var RegExpExecNoTests;
 var RegExpLastMatchInfo;
-var SymbolToString;
 var ToNumber;
 var ToString;
 
@@ -28,25 +27,11 @@ utils.Import(function(from) {
   RegExpExec = from.RegExpExec;
   RegExpExecNoTests = from.RegExpExecNoTests;
   RegExpLastMatchInfo = from.RegExpLastMatchInfo;
-  SymbolToString = from.SymbolToString;
   ToNumber = from.ToNumber;
   ToString = from.ToString;
 });
 
 //-------------------------------------------------------------------
-
-function StringConstructor(x) {
-  // TODO(bmeurer): Move this to toplevel.
-  "use strict";
-  if (%_ArgumentsLength() == 0) x = '';
-  if (%_IsConstructCall()) {
-    %_SetValueOf(this, TO_STRING_INLINE(x));
-  } else {
-    return IS_SYMBOL(x) ?
-        %_CallFunction(x, SymbolToString) : TO_STRING_INLINE(x);
-  }
-}
-
 
 // ECMA-262 section 15.5.4.2
 function StringToString() {
@@ -1151,7 +1136,6 @@ function StringRaw(callSite) {
 // -------------------------------------------------------------------
 
 // Set the String function and constructor.
-%SetCode(GlobalString, StringConstructor);
 %FunctionSetPrototype(GlobalString, new GlobalString());
 
 // Set up the constructor property on the String prototype object.

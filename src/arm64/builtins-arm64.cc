@@ -131,7 +131,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
+// static
+void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0                     : number of arguments
   //  -- x1                     : constructor function
@@ -139,7 +140,64 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
   //  -- sp[argc * 8]           : receiver
   // -----------------------------------
-  ASM_LOCATION("Builtins::Generate_StringConstructCode");
+  ASM_LOCATION("Builtins::Generate_StringConstructor");
+
+  // 1. Load the first argument into x0 and get rid of the rest (including the
+  // receiver).
+  Label no_arguments;
+  {
+    __ Cbz(x0, &no_arguments);
+    __ Sub(x0, x0, 1);
+    __ Drop(x0);
+    __ Ldr(x0, MemOperand(jssp, 2 * kPointerSize, PostIndex));
+  }
+
+  // 2a. At least one argument, return x0 if it's a string, otherwise
+  // dispatch to appropriate conversion.
+  Label to_string, symbol_descriptive_string;
+  {
+    __ JumpIfSmi(x0, &to_string);
+    STATIC_ASSERT(FIRST_NONSTRING_TYPE == SYMBOL_TYPE);
+    __ CompareObjectType(x0, x1, x1, FIRST_NONSTRING_TYPE);
+    __ B(hi, &to_string);
+    __ B(eq, &symbol_descriptive_string);
+    __ Ret();
+  }
+
+  // 2b. No arguments, return the empty string (and pop the receiver).
+  __ Bind(&no_arguments);
+  {
+    __ LoadRoot(x0, Heap::kempty_stringRootIndex);
+    __ Drop(1);
+    __ Ret();
+  }
+
+  // 3a. Convert x0 to a string.
+  __ Bind(&to_string);
+  {
+    ToStringStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  }
+
+  // 3b. Convert symbol in x0 to a string.
+  __ Bind(&symbol_descriptive_string);
+  {
+    __ Push(x0);
+    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1, 1);
+  }
+}
+
+
+// static
+void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x0                     : number of arguments
+  //  -- x1                     : constructor function
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
+  //  -- sp[argc * 8]           : receiver
+  // -----------------------------------
+  ASM_LOCATION("Builtins::Generate_StringConstructor_ConstructStub");
 
   // 1. Load the first argument into x2 and get rid of the rest (including the
   // receiver).
@@ -147,7 +205,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
     Label no_arguments, done;
     __ Cbz(x0, &no_arguments);
     __ Sub(x0, x0, 1);
-    __ Drop(x0, kXRegSize);
+    __ Drop(x0);
     __ Ldr(x2, MemOperand(jssp, 2 * kPointerSize, PostIndex));
     __ B(&done);
     __ Bind(&no_arguments);

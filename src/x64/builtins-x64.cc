@@ -1314,7 +1314,69 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
+// static
+void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax                 : number of arguments
+  //  -- rdi                 : constructor function
+  //  -- rsp[0]              : return address
+  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- rsp[(argc + 1) * 8] : receiver
+  // -----------------------------------
+
+  // 1. Load the first argument into rax and get rid of the rest (including the
+  // receiver).
+  Label no_arguments;
+  {
+    StackArgumentsAccessor args(rsp, rax);
+    __ testp(rax, rax);
+    __ j(zero, &no_arguments, Label::kNear);
+    __ movp(rbx, args.GetArgumentOperand(1));
+    __ PopReturnAddressTo(rcx);
+    __ leap(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(rcx);
+    __ movp(rax, rbx);
+  }
+
+  // 2a. At least one argument, return rax if it's a string, otherwise
+  // dispatch to appropriate conversion.
+  Label to_string, symbol_descriptive_string;
+  {
+    __ JumpIfSmi(rax, &to_string, Label::kNear);
+    STATIC_ASSERT(FIRST_NONSTRING_TYPE == SYMBOL_TYPE);
+    __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rdx);
+    __ j(above, &to_string, Label::kNear);
+    __ j(equal, &symbol_descriptive_string, Label::kNear);
+    __ Ret();
+  }
+
+  // 2b. No arguments, return the empty string (and pop the receiver).
+  __ bind(&no_arguments);
+  {
+    __ LoadRoot(rax, Heap::kempty_stringRootIndex);
+    __ ret(1 * kPointerSize);
+  }
+
+  // 3a. Convert rax to a string.
+  __ bind(&to_string);
+  {
+    ToStringStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  }
+
+  // 3b. Convert symbol in rax to a string.
+  __ bind(&symbol_descriptive_string);
+  {
+    __ PopReturnAddressTo(rcx);
+    __ Push(rax);
+    __ PushReturnAddressFrom(rcx);
+    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1, 1);
+  }
+}
+
+
+// static
+void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments
   //  -- rdi                 : constructor function

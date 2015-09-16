@@ -5,7 +5,9 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/isolate-inl.h"
 #include "src/objects-inl.h"
+#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
@@ -35,6 +37,22 @@ RUNTIME_FUNCTION(Runtime_SymbolDescription) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
   return symbol->name();
+}
+
+
+RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCString("Symbol(");
+  if (symbol->name()->IsString()) {
+    builder.AppendString(handle(String::cast(symbol->name()), isolate));
+  }
+  builder.AppendCharacter(')');
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, builder.Finish());
+  return *result;
 }
 
 

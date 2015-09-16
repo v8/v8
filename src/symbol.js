@@ -53,8 +53,7 @@ function SymbolToString() {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "Symbol.prototype.toString", this);
   }
-  var description = %SymbolDescription(%_ValueOf(this));
-  return "Symbol(" + (IS_UNDEFINED(description) ? "" : description) + ")";
+  return %SymbolDescriptiveString(%_ValueOf(this));
 }
 
 

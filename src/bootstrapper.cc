@@ -1118,12 +1118,13 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   }
 
   {  // --- S t r i n g ---
-    Handle<JSFunction> string_fun =
-        InstallFunction(global, "String", JS_VALUE_TYPE, JSValue::kSize,
-                        isolate->initial_object_prototype(),
-                        Builtins::kIllegal);
-    string_fun->shared()->set_construct_stub(
-        isolate->builtins()->builtin(Builtins::kStringConstructCode));
+    Handle<JSFunction> string_fun = InstallFunction(
+        global, "String", JS_VALUE_TYPE, JSValue::kSize,
+        isolate->initial_object_prototype(), Builtins::kStringConstructor);
+    string_fun->shared()->set_construct_stub(isolate->builtins()->builtin(
+        Builtins::kStringConstructor_ConstructStub));
+    string_fun->shared()->DontAdaptArguments();
+    string_fun->shared()->set_length(1);
     native_context()->set_string_function(*string_fun);
 
     Handle<Map> string_map =

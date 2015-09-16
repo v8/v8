@@ -140,7 +140,66 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
+// static
+void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0                     : number of arguments
+  //  -- a1                     : constructor function
+  //  -- ra                     : return address
+  //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
+  //  -- sp[argc * 8]           : receiver
+  // -----------------------------------
+
+  // 1. Load the first argument into a0 and get rid of the rest (including the
+  // receiver).
+  Label no_arguments;
+  {
+    __ Branch(USE_DELAY_SLOT, &no_arguments, eq, a0, Operand(zero_reg));
+    __ Dsubu(a0, a0, Operand(1));
+    __ dsll(a0, a0, kPointerSizeLog2);
+    __ Daddu(sp, a0, sp);
+    __ ld(a0, MemOperand(sp));
+    __ Drop(2);
+  }
+
+  // 2a. At least one argument, return a0 if it's a string, otherwise
+  // dispatch to appropriate conversion.
+  Label to_string, symbol_descriptive_string;
+  {
+    __ JumpIfSmi(a0, &to_string);
+    __ GetObjectType(a0, a1, a1);
+    STATIC_ASSERT(FIRST_NONSTRING_TYPE == SYMBOL_TYPE);
+    __ Subu(a1, a1, Operand(FIRST_NONSTRING_TYPE));
+    __ Branch(&symbol_descriptive_string, eq, a1, Operand(zero_reg));
+    __ Branch(&to_string, gt, a1, Operand(zero_reg));
+    __ Ret(USE_DELAY_SLOT);
+    __ mov(v0, a0);
+  }
+
+  // 2b. No arguments, return the empty string (and pop the receiver).
+  __ bind(&no_arguments);
+  {
+    __ LoadRoot(v0, Heap::kempty_stringRootIndex);
+    __ DropAndRet(1);
+  }
+
+  // 3a. Convert a0 to a string.
+  __ bind(&to_string);
+  {
+    ToStringStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  }
+
+  // 3b. Convert symbol in a0 to a string.
+  __ bind(&symbol_descriptive_string);
+  {
+    __ Push(a0);
+    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1, 1);
+  }
+}
+
+
+void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0                     : number of arguments
   //  -- a1                     : constructor function
@@ -153,7 +212,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // receiver).
   {
     Label no_arguments, done;
-    __ Branch(&no_arguments, eq, a0, Operand(zero_reg));
+    __ Branch(USE_DELAY_SLOT, &no_arguments, eq, a0, Operand(zero_reg));
     __ Dsubu(a0, a0, Operand(1));
     __ dsll(a0, a0, kPointerSizeLog2);
     __ Daddu(sp, a0, sp);
