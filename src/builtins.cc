@@ -1739,7 +1739,7 @@ BUILTIN(HandleApiCallAsConstructor) {
 
 
 static void Generate_LoadIC_Miss(MacroAssembler* masm) {
-  LoadIC::GenerateMiss(masm);
+  LoadIC::GenerateMiss(masm, LoadIC::kStressBuiltin);
 }
 
 

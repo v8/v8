@@ -306,7 +306,7 @@ static void LoadIC_PushArgs(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateMiss(MacroAssembler* masm) {
+void LoadIC::GenerateMiss(MacroAssembler* masm, int stress) {
   // The return address is in ra.
   Isolate* isolate = masm->isolate();
 

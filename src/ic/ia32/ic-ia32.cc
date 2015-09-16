@@ -672,7 +672,7 @@ static void LoadIC_PushArgs(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateMiss(MacroAssembler* masm) {
+void LoadIC::GenerateMiss(MacroAssembler* masm, int stress) {
   // Return address is on the stack.
   __ IncrementCounter(masm->isolate()->counters()->load_miss(), 1);
   LoadIC_PushArgs(masm);

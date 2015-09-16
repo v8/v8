@@ -667,13 +667,43 @@ static void LoadIC_PushArgs(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateMiss(MacroAssembler* masm) {
+void LoadIC::GenerateMiss(MacroAssembler* masm, int stress) {
   // The return address is on the stack.
 
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->load_miss(), 1);
 
   LoadIC_PushArgs(masm);
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+
+  // Sanity check: The receiver must be a JS-exposed kind of object,
+  // not something internal (like a Map, or FixedArray). Check this here
+  // to chase after a rare but recurring crash bug.
+  // TODO(jkummerow): Remove this when it has generated a few crash reports.
+
+  Label ok, sound_alarm;
+  __ JumpIfSmi(receiver, &ok, Label::kNear);
+  __ movp(rbx, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ CompareRoot(rbx, Heap::kMetaMapRootIndex);
+  __ j(equal, &sound_alarm);
+  __ CompareRoot(rbx, Heap::kFixedArrayMapRootIndex);
+  __ j(not_equal, &ok, Label::kNear);
+
+  // This cmpp instruction is only here to identify which of several kinds
+  // of code blocks embedded the MISS code. (handler, dispatcher).
+  __ cmpp(receiver, Immediate(stress));
+
+  __ bind(&sound_alarm);
+  __ Push(Smi::FromInt(0xaabbccdd));
+  __ Push(receiver);
+  __ movp(rbx, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ Push(rbx);
+  __ movp(rbx, FieldOperand(receiver, JSObject::kPropertiesOffset));
+  __ Push(rbx);
+  __ int3();
+
+  __ bind(&ok);
 
   // Perform tail call to the entry.
   int arg_count = 4;

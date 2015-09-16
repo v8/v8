@@ -2262,14 +2262,15 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   if (FeedbackVector()->GetIndex(prop->PropertyFeedbackSlot()) == 6) {
     __ Pop(LoadDescriptor::ReceiverRegister());
 
-    Label ok;
+    Label ok, sound_alarm;
     __ JumpIfSmi(rax, &ok, Label::kNear);
     __ movp(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ CmpInstanceType(rbx, LAST_PRIMITIVE_TYPE);
-    __ j(below_equal, &ok, Label::kNear);
-    __ CmpInstanceType(rbx, FIRST_JS_RECEIVER_TYPE);
-    __ j(above_equal, &ok, Label::kNear);
+    __ CompareRoot(rbx, Heap::kMetaMapRootIndex);
+    __ j(equal, &sound_alarm);
+    __ CompareRoot(rbx, Heap::kFixedArrayMapRootIndex);
+    __ j(not_equal, &ok, Label::kNear);
 
+    __ bind(&sound_alarm);
     __ Push(Smi::FromInt(0xaabbccdd));
     __ Push(LoadDescriptor::ReceiverRegister());
     __ movp(rbx, FieldOperand(LoadDescriptor::ReceiverRegister(),
