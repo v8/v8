@@ -1147,7 +1147,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     // --- S y m b o l ---
     Handle<JSFunction> symbol_fun = InstallFunction(
         global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
-        isolate->initial_object_prototype(), Builtins::kIllegal);
+        isolate->initial_object_prototype(), Builtins::kSymbolConstructor);
+    symbol_fun->shared()->set_construct_stub(isolate->builtins()->builtin(
+        Builtins::kSymbolConstructor_ConstructStub));
+    symbol_fun->shared()->set_internal_formal_parameter_count(1);
+    symbol_fun->shared()->set_length(1);
     native_context()->set_symbol_function(*symbol_fun);
   }
 

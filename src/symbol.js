@@ -20,23 +20,14 @@ var isRegExpSymbol = utils.ImportNow("is_regexp_symbol");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var ObjectGetOwnPropertyKeys;
 var toPrimitiveSymbol = utils.ImportNow("to_primitive_symbol");
-var ToString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
   ObjectGetOwnPropertyKeys = from.ObjectGetOwnPropertyKeys;
-  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
-
-function SymbolConstructor(x) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Symbol");
-  // NOTE: Passing in a Symbol value will throw on ToString().
-  return %CreateSymbol(IS_UNDEFINED(x) ? x : ToString(x));
-}
-
 
 // 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint )
 function SymbolToPrimitive(hint) {
@@ -95,7 +86,6 @@ function ObjectGetOwnPropertySymbols(obj) {
 
 // -------------------------------------------------------------------
 
-%SetCode(GlobalSymbol, SymbolConstructor);
 %FunctionSetPrototype(GlobalSymbol, new GlobalObject());
 
 utils.InstallConstants(GlobalSymbol, [

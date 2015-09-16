@@ -59,6 +59,9 @@ enum BuiltinExtraArguments {
                                                              \
   V(DateToPrimitive, NO_EXTRA_ARGUMENTS)                     \
                                                              \
+  V(SymbolConstructor, NO_EXTRA_ARGUMENTS)                   \
+  V(SymbolConstructor_ConstructStub, NO_EXTRA_ARGUMENTS)     \
+                                                             \
   V(HandleApiCall, NEEDS_CALLED_FUNCTION)                    \
   V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)           \
   V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)             \

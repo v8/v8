@@ -1445,11 +1445,7 @@ BUILTIN(ArrayConcat) {
 }
 
 
-// -----------------------------------------------------------------------------
-//
-
-
-// 20.3.4.45 Date.prototype [ @@toPrimitive ] ( hint )
+// ES6 section 20.3.4.45 Date.prototype [ @@toPrimitive ] ( hint )
 BUILTIN(DateToPrimitive) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -1466,6 +1462,30 @@ BUILTIN(DateToPrimitive) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSDate::ToPrimitive(receiver, hint));
   return *result;
+}
+
+
+// ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Call]] case.
+BUILTIN(SymbolConstructor) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Symbol> result = isolate->factory()->NewSymbol();
+  Handle<Object> description = args.at<Object>(1);
+  if (!description->IsUndefined()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, description,
+                                       Object::ToString(isolate, description));
+    result->set_name(*description);
+  }
+  return *result;
+}
+
+
+// ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Construct]] case.
+BUILTIN(SymbolConstructor_ConstructStub) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotConstructor,
+                            isolate->factory()->Symbol_string()));
 }
 
 
