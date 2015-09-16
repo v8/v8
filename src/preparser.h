@@ -2611,19 +2611,66 @@ ParserBase<Traits>::ParsePropertyDefinition(
     this->PushLiteralName(fni_, name);
   }
 
-  if (!in_class && !is_generator && peek() == Token::COLON) {
-    // PropertyDefinition : PropertyName ':' AssignmentExpression
-    if (!*is_computed_name) {
-      checker->CheckProperty(name_token, kValueProperty, is_static,
-                             is_generator,
-                             CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-    }
-    Consume(Token::COLON);
-    value = this->ParseAssignmentExpression(
-        true, classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+  if (!in_class && !is_generator) {
+    DCHECK(!is_static);
 
-  } else if (is_generator || peek() == Token::LPAREN) {
-    // Concise Method
+    if (peek() == Token::COLON) {
+      // PropertyDefinition
+      //    PropertyName ':' AssignmentExpression
+      if (!*is_computed_name) {
+        checker->CheckProperty(name_token, kValueProperty, false, false,
+                               CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+      }
+      Consume(Token::COLON);
+      value = this->ParseAssignmentExpression(
+          true, classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+      return factory()->NewObjectLiteralProperty(name_expression, value, false,
+                                                 *is_computed_name);
+    }
+
+    if (Token::IsIdentifier(name_token, language_mode(),
+                            this->is_generator()) &&
+        (peek() == Token::COMMA || peek() == Token::RBRACE ||
+         peek() == Token::ASSIGN)) {
+      // PropertyDefinition
+      //    IdentifierReference
+      //    CoverInitializedName
+      //
+      // CoverInitializedName
+      //    IdentifierReference Initializer?
+      if (classifier->duplicate_finder() != nullptr &&
+          scanner()->FindSymbol(classifier->duplicate_finder(), 1) != 0) {
+        classifier->RecordDuplicateFormalParameterError(scanner()->location());
+      }
+
+      ExpressionT lhs = this->ExpressionFromIdentifier(
+          name, next_beg_pos, next_end_pos, scope_, factory());
+
+      if (peek() == Token::ASSIGN) {
+        this->ExpressionUnexpectedToken(classifier);
+        Consume(Token::ASSIGN);
+        ExpressionClassifier rhs_classifier;
+        ExpressionT rhs = this->ParseAssignmentExpression(
+            true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        classifier->Accumulate(rhs_classifier,
+                               ExpressionClassifier::ExpressionProductions);
+        value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
+                                         RelocInfo::kNoPosition);
+      } else {
+        value = lhs;
+      }
+
+      return factory()->NewObjectLiteralProperty(
+          name_expression, value, ObjectLiteralProperty::COMPUTED, false,
+          false);
+    }
+  }
+
+
+  if (is_generator || peek() == Token::LPAREN) {
+    // MethodDefinition
+    //    PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'
+    //    '*' PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'
     if (!*is_computed_name) {
       checker->CheckProperty(name_token, kMethodProperty, is_static,
                              is_generator,
@@ -2650,15 +2697,19 @@ ParserBase<Traits>::ParsePropertyDefinition(
     return factory()->NewObjectLiteralProperty(name_expression, value,
                                                ObjectLiteralProperty::COMPUTED,
                                                is_static, *is_computed_name);
+  }
 
-  } else if (in_class && name_is_static && !is_static) {
-    // static MethodDefinition
+  if (in_class && name_is_static && !is_static) {
+    // ClassElement (static)
+    //    'static' MethodDefinition
     return ParsePropertyDefinition(checker, true, has_extends, true,
                                    is_computed_name, nullptr, classifier, ok);
-  } else if ((is_get || is_set) &&
-             (in_class || (peek() != Token::RBRACE && peek() != Token::COMMA &&
-                           peek() != Token::ASSIGN))) {
-    // Accessor
+  }
+
+  if (is_get || is_set) {
+    // MethodDefinition (Accessors)
+    //    get PropertyName '(' ')' '{' FunctionBody '}'
+    //    set PropertyName '(' PropertySetParameterList ')' '{' FunctionBody '}'
     name = this->EmptyIdentifier();
     bool dont_care = false;
     name_token = peek();
@@ -2693,44 +2744,12 @@ ParserBase<Traits>::ParsePropertyDefinition(
         name_expression, value,
         is_get ? ObjectLiteralProperty::GETTER : ObjectLiteralProperty::SETTER,
         is_static, *is_computed_name);
-
-  } else if (!in_class && Token::IsIdentifier(name_token, language_mode(),
-                                              this->is_generator())) {
-    DCHECK(!*is_computed_name);
-    DCHECK(!is_static);
-
-    if (classifier->duplicate_finder() != nullptr &&
-        scanner()->FindSymbol(classifier->duplicate_finder(), 1) != 0) {
-      classifier->RecordDuplicateFormalParameterError(scanner()->location());
-    }
-
-    ExpressionT lhs = this->ExpressionFromIdentifier(
-        name, next_beg_pos, next_end_pos, scope_, factory());
-    if (peek() == Token::ASSIGN) {
-      this->ExpressionUnexpectedToken(classifier);
-      Consume(Token::ASSIGN);
-      ExpressionClassifier rhs_classifier;
-      ExpressionT rhs = this->ParseAssignmentExpression(
-          true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-      classifier->Accumulate(rhs_classifier,
-                             ExpressionClassifier::ExpressionProductions);
-      value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
-                                       RelocInfo::kNoPosition);
-    } else {
-      value = lhs;
-    }
-    return factory()->NewObjectLiteralProperty(
-        name_expression, value, ObjectLiteralProperty::COMPUTED, false, false);
-
-  } else {
-    Token::Value next = Next();
-    ReportUnexpectedToken(next);
-    *ok = false;
-    return this->EmptyObjectLiteralProperty();
   }
 
-  return factory()->NewObjectLiteralProperty(name_expression, value, is_static,
-                                             *is_computed_name);
+  Token::Value next = Next();
+  ReportUnexpectedToken(next);
+  *ok = false;
+  return this->EmptyObjectLiteralProperty();
 }
 
 
