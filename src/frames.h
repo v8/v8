@@ -576,6 +576,10 @@ class JavaScriptFrame: public StandardFrame {
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
 
+  // Determines whether this frame includes inlined activations. To get details
+  // about the inlined frames use {GetFunctions} and {Summarize}.
+  bool HasInlinedFrames();
+
   // Returns the original constructor function that was used in the constructor
   // call to this frame. Note that this is only valid on constructor frames.
   Object* GetOriginalConstructor() const;

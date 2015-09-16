@@ -542,6 +542,12 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
   Object** parameters = reinterpret_cast<Object**>(args[1]);
   CONVERT_SMI_ARG_CHECKED(argument_count, 2);
+#ifdef DEBUG
+  // This runtime function does not materialize the correct arguments when the
+  // caller has been inlined, better make sure we are not hitting that case.
+  JavaScriptFrameIterator it(isolate);
+  DCHECK(!it.frame()->HasInlinedFrames());
+#endif  // DEBUG
   return *NewSloppyArguments(isolate, callee, parameters, argument_count);
 }
 
@@ -552,6 +558,12 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
   Object** parameters = reinterpret_cast<Object**>(args[1]);
   CONVERT_SMI_ARG_CHECKED(argument_count, 2);
+#ifdef DEBUG
+  // This runtime function does not materialize the correct arguments when the
+  // caller has been inlined, better make sure we are not hitting that case.
+  JavaScriptFrameIterator it(isolate);
+  DCHECK(!it.frame()->HasInlinedFrames());
+#endif  // DEBUG
   return *NewStrictArguments(isolate, callee, parameters, argument_count);
 }
 

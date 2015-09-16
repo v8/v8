@@ -727,6 +727,13 @@ bool JavaScriptFrame::IsConstructor() const {
 }
 
 
+bool JavaScriptFrame::HasInlinedFrames() {
+  List<JSFunction*> functions(1);
+  GetFunctions(&functions);
+  return functions.length() > 1;
+}
+
+
 Object* JavaScriptFrame::GetOriginalConstructor() const {
   Address fp = caller_fp();
   if (has_adapted_arguments()) {
