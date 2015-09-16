@@ -413,6 +413,13 @@ std::ostream& operator<<(std::ostream& os, CreateArgumentsParameters const& p) {
 }
 
 
+const CreateArgumentsParameters& CreateArgumentsParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateArguments, op->opcode());
+  return OpParameter<CreateArgumentsParameters>(op);
+}
+
+
 bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
   return lhs.pretenure() == rhs.pretenure() &&

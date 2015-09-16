@@ -547,30 +547,31 @@ namespace internal {
   F(IsRegExp, 1, 1)
 
 
-#define FOR_EACH_INTRINSIC_SCOPES(F)                         \
-  F(ThrowConstAssignError, 0, 1)                             \
-  F(DeclareGlobals, 2, 1)                                    \
-  F(InitializeVarGlobal, 3, 1)                               \
-  F(InitializeConstGlobal, 2, 1)                             \
-  F(DeclareLookupSlot, 2, 1)                                 \
-  F(DeclareReadOnlyLookupSlot, 2, 1)                         \
-  F(InitializeLegacyConstLookupSlot, 3, 1)                   \
-  F(NewArguments, 1, 1) /* TODO(turbofan): Only temporary */ \
-  F(NewSloppyArguments, 3, 1)                                \
-  F(NewStrictArguments, 3, 1)                                \
-  F(NewClosure, 1, 1)                                        \
-  F(NewClosure_Tenured, 1, 1)                                \
-  F(NewScriptContext, 2, 1)                                  \
-  F(NewFunctionContext, 1, 1)                                \
-  F(PushWithContext, 2, 1)                                   \
-  F(PushCatchContext, 3, 1)                                  \
-  F(PushBlockContext, 2, 1)                                  \
-  F(IsJSModule, 1, 1)                                        \
-  F(PushModuleContext, 2, 1)                                 \
-  F(DeclareModules, 1, 1)                                    \
-  F(DeleteLookupSlot, 2, 1)                                  \
-  F(StoreLookupSlot, 4, 1)                                   \
-  F(ArgumentsLength, 0, 1)                                   \
+#define FOR_EACH_INTRINSIC_SCOPES(F)       \
+  F(ThrowConstAssignError, 0, 1)           \
+  F(DeclareGlobals, 2, 1)                  \
+  F(InitializeVarGlobal, 3, 1)             \
+  F(InitializeConstGlobal, 2, 1)           \
+  F(DeclareLookupSlot, 2, 1)               \
+  F(DeclareReadOnlyLookupSlot, 2, 1)       \
+  F(InitializeLegacyConstLookupSlot, 3, 1) \
+  F(NewSloppyArguments_Generic, 1, 1)      \
+  F(NewStrictArguments_Generic, 1, 1)      \
+  F(NewSloppyArguments, 3, 1)              \
+  F(NewStrictArguments, 3, 1)              \
+  F(NewClosure, 1, 1)                      \
+  F(NewClosure_Tenured, 1, 1)              \
+  F(NewScriptContext, 2, 1)                \
+  F(NewFunctionContext, 1, 1)              \
+  F(PushWithContext, 2, 1)                 \
+  F(PushCatchContext, 3, 1)                \
+  F(PushBlockContext, 2, 1)                \
+  F(IsJSModule, 1, 1)                      \
+  F(PushModuleContext, 2, 1)               \
+  F(DeclareModules, 1, 1)                  \
+  F(DeleteLookupSlot, 2, 1)                \
+  F(StoreLookupSlot, 4, 1)                 \
+  F(ArgumentsLength, 0, 1)                 \
   F(Arguments, 1, 1)
 
 

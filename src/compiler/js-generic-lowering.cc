@@ -115,7 +115,6 @@ REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSGreaterThanOrEqual, Token::GTE)
     ReplaceWithRuntimeCall(node, fun);            \
   }
 REPLACE_RUNTIME_CALL(JSCreate, Runtime::kAbort)
-REPLACE_RUNTIME_CALL(JSCreateArguments, Runtime::kNewArguments)
 REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateBlockContext, Runtime::kPushBlockContext)
@@ -487,6 +486,22 @@ void JSGenericLowering::LowerJSLoadDynamicContext(Node* node) {
   node->InsertInput(zone(), 1, jsgraph()->Constant(access.name()));
   ReplaceWithRuntimeCall(node, Runtime::kLoadLookupSlot);
   projection->ReplaceInput(0, node);
+}
+
+
+void JSGenericLowering::LowerJSCreateArguments(Node* node) {
+  const CreateArgumentsParameters& p = CreateArgumentsParametersOf(node->op());
+  switch (p.type()) {
+    case CreateArgumentsParameters::kMappedArguments:
+      ReplaceWithRuntimeCall(node, Runtime::kNewSloppyArguments_Generic);
+      break;
+    case CreateArgumentsParameters::kUnmappedArguments:
+      ReplaceWithRuntimeCall(node, Runtime::kNewStrictArguments_Generic);
+      break;
+    case CreateArgumentsParameters::kRestArray:
+      UNIMPLEMENTED();
+      break;
+  }
 }
 
 

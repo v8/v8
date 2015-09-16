@@ -161,12 +161,29 @@ TEST(InlineOmitArguments) {
       "(function () {"
       "  var x = 42;"
       "  function bar(s, t, u, v) { AssertInlineCount(2); return x + s; };"
-      "  return (function (s,t) { return bar(s); });"
+      "  function foo(s, t) { return bar(s); };"
+      "  return foo;"
       "})();",
       kInlineFlags);
 
   InstallAssertInlineCountHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 12), T.Val(12), T.undefined());
+}
+
+
+TEST(InlineOmitArgumentsObject) {
+  FunctionTester T(
+      "(function () {"
+      "  function bar(s, t, u, v) { AssertInlineCount(2); return arguments; };"
+      "  function foo(s, t) { var args = bar(s);"
+      "                       return args.length == 1 &&"
+      "                              args[0] == 11; };"
+      "  return foo;"
+      "})();",
+      kInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.true_value(), T.Val(11), T.undefined());
 }
 
 
@@ -192,13 +209,31 @@ TEST(InlineSurplusArguments) {
       "(function () {"
       "  var x = 42;"
       "  function foo(s) { AssertInlineCount(2); return x + s; };"
-      "  function bar(s,t) { return foo(s,t,13); };"
+      "  function bar(s, t) { return foo(s, t, 13); };"
       "  return bar;"
       "})();",
       kInlineFlags);
 
   InstallAssertInlineCountHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 12), T.Val(12), T.undefined());
+}
+
+
+TEST(InlineSurplusArgumentsObject) {
+  FunctionTester T(
+      "(function () {"
+      "  function foo(s) { AssertInlineCount(2); return arguments; };"
+      "  function bar(s, t) { var args = foo(s, t, 13);"
+      "                       return args.length == 3 &&"
+      "                              args[0] == 11 &&"
+      "                              args[1] == 12 &&"
+      "                              args[2] == 13; };"
+      "  return bar;"
+      "})();",
+      kInlineFlags);
+
+  InstallAssertInlineCountHelper(CcTest::isolate());
+  T.CheckCall(T.true_value(), T.Val(11), T.Val(12));
 }
 
 

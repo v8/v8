@@ -225,7 +225,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kForInDone:
     case Runtime::kForInStep:
     case Runtime::kGetOriginalConstructor:
-    case Runtime::kNewArguments:
     case Runtime::kNewClosure:
     case Runtime::kNewClosure_Tenured:
     case Runtime::kNewFunctionContext:

@@ -3151,17 +3151,17 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   if (arguments == NULL) return NULL;
 
   // Allocate and initialize a new arguments object.
-  Node* callee = GetFunctionClosure();
   CreateArgumentsParameters::Type type =
       is_strict(language_mode()) || !info()->has_simple_parameters()
           ? CreateArgumentsParameters::kUnmappedArguments
           : CreateArgumentsParameters::kMappedArguments;
   const Operator* op = javascript()->CreateArguments(type, 0);
-  Node* object = NewNode(op, callee);
+  Node* object = NewNode(op, GetFunctionClosure());
+  PrepareFrameState(object, BailoutId::None());
 
-  // Assign the object to the arguments variable.
+  // Assign the object to the {arguments} variable. This should never lazy
+  // deopt, so it is fine to send invalid bailout id.
   DCHECK(arguments->IsContextSlot() || arguments->IsStackAllocated());
-  // This should never lazy deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
   BuildVariableAssignment(arguments, object, Token::ASSIGN, VectorSlotPair(),
                           BailoutId::None(), states);
@@ -3175,7 +3175,8 @@ Node* AstGraphBuilder::BuildThisFunctionVariable(Variable* this_function_var) {
   // Retrieve the closure we were called with.
   Node* this_function = GetFunctionClosure();
 
-  // Assign the object to the {.this_function} variable.
+  // Assign the object to the {.this_function} variable. This should never lazy
+  // deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
   BuildVariableAssignment(this_function_var, this_function, Token::INIT_CONST,
                           VectorSlotPair(), BailoutId::None(), states);
@@ -3191,7 +3192,8 @@ Node* AstGraphBuilder::BuildNewTargetVariable(Variable* new_target_var) {
       javascript()->CallRuntime(Runtime::kGetOriginalConstructor, 0);
   Node* object = NewNode(op);
 
-  // Assign the object to the {new.target} variable.
+  // Assign the object to the {new.target} variable. This should never lazy
+  // deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
   BuildVariableAssignment(new_target_var, object, Token::INIT_CONST,
                           VectorSlotPair(), BailoutId::None(), states);

@@ -432,6 +432,9 @@ size_t hash_value(CreateArgumentsParameters const&);
 
 std::ostream& operator<<(std::ostream&, CreateArgumentsParameters const&);
 
+const CreateArgumentsParameters& CreateArgumentsParametersOf(
+    const Operator* op);
+
 
 // Defines shared information for the closure that should be created. This is
 // used as a parameter by JSCreateClosure operators.

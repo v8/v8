@@ -404,10 +404,11 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
 }
 
 
-static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
-                                           Handle<JSFunction> callee,
-                                           Object** parameters,
-                                           int argument_count) {
+namespace {
+
+template <typename T>
+Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
+                                    T parameters, int argument_count) {
   CHECK(!IsSubclassConstructor(callee->shared()->kind()));
   DCHECK(callee->has_simple_parameters());
   Handle<JSObject> result =
@@ -437,7 +438,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
       while (index >= mapped_count) {
         // These go directly in the arguments array and have no
         // corresponding slot in the parameter map.
-        arguments->set(index, *(parameters - index - 1));
+        arguments->set(index, parameters[index]);
         --index;
       }
 
@@ -457,7 +458,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
         if (duplicate) {
           // This goes directly in the arguments array with a hole in the
           // parameter map.
-          arguments->set(index, *(parameters - index - 1));
+          arguments->set(index, parameters[index]);
           parameter_map->set_the_hole(index + 2);
         } else {
           // The context index goes in the parameter map with a hole in the
@@ -486,7 +487,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
           isolate->factory()->NewFixedArray(argument_count, NOT_TENURED);
       result->set_elements(*elements);
       for (int i = 0; i < argument_count; ++i) {
-        elements->set(i, *(parameters - i - 1));
+        elements->set(i, parameters[i]);
       }
     }
   }
@@ -494,10 +495,9 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
 }
 
 
-static Handle<JSObject> NewStrictArguments(Isolate* isolate,
-                                           Handle<JSFunction> callee,
-                                           Object** parameters,
-                                           int argument_count) {
+template <typename T>
+Handle<JSObject> NewStrictArguments(Isolate* isolate, Handle<JSFunction> callee,
+                                    T parameters, int argument_count) {
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
@@ -507,7 +507,7 @@ static Handle<JSObject> NewStrictArguments(Isolate* isolate,
     DisallowHeapAllocation no_gc;
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < argument_count; i++) {
-      array->set(i, *--parameters, mode);
+      array->set(i, parameters[i], mode);
     }
     result->set_elements(*array);
   }
@@ -515,24 +515,53 @@ static Handle<JSObject> NewStrictArguments(Isolate* isolate,
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewArguments) {
+class HandleArguments BASE_EMBEDDED {
+ public:
+  explicit HandleArguments(Handle<Object>* array) : array_(array) {}
+  Object* operator[](int index) { return *array_[index]; }
+
+ private:
+  Handle<Object>* array_;
+};
+
+
+class ParameterArguments BASE_EMBEDDED {
+ public:
+  explicit ParameterArguments(Object** parameters) : parameters_(parameters) {}
+  Object*& operator[](int index) { return *(parameters_ - index - 1); }
+
+ private:
+  Object** parameters_;
+};
+
+}  // namespace
+
+
+RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
-  JavaScriptFrameIterator it(isolate);
+  // This generic runtime function can also be used when the caller has been
+  // inlined, we use the slow but accurate {Runtime::GetCallerArguments}.
+  int argument_count = 0;
+  base::SmartArrayPointer<Handle<Object>> arguments =
+      Runtime::GetCallerArguments(isolate, 0, &argument_count);
+  HandleArguments argument_getter(arguments.get());
+  return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
+}
 
-  // Find the frame that holds the actual arguments passed to the function.
-  it.AdvanceToArgumentsFrame();
-  JavaScriptFrame* frame = it.frame();
 
-  // Determine parameter location on the stack and dispatch on language mode.
-  int argument_count = frame->GetArgumentsLength();
-  Object** parameters = reinterpret_cast<Object**>(frame->GetParameterSlot(-1));
-
-  return (is_strict(callee->shared()->language_mode()) ||
-             !callee->has_simple_parameters())
-             ? *NewStrictArguments(isolate, callee, parameters, argument_count)
-             : *NewSloppyArguments(isolate, callee, parameters, argument_count);
+RUNTIME_FUNCTION(Runtime_NewStrictArguments_Generic) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
+  // This generic runtime function can also be used when the caller has been
+  // inlined, we use the slow but accurate {Runtime::GetCallerArguments}.
+  int argument_count = 0;
+  base::SmartArrayPointer<Handle<Object>> arguments =
+      Runtime::GetCallerArguments(isolate, 0, &argument_count);
+  HandleArguments argument_getter(arguments.get());
+  return *NewStrictArguments(isolate, callee, argument_getter, argument_count);
 }
 
 
@@ -548,7 +577,8 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   JavaScriptFrameIterator it(isolate);
   DCHECK(!it.frame()->HasInlinedFrames());
 #endif  // DEBUG
-  return *NewSloppyArguments(isolate, callee, parameters, argument_count);
+  ParameterArguments argument_getter(parameters);
+  return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
 }
 
 
@@ -564,7 +594,8 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   JavaScriptFrameIterator it(isolate);
   DCHECK(!it.frame()->HasInlinedFrames());
 #endif  // DEBUG
-  return *NewStrictArguments(isolate, callee, parameters, argument_count);
+  ParameterArguments argument_getter(parameters);
+  return *NewStrictArguments(isolate, callee, argument_getter, argument_count);
 }
 
 

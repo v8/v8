@@ -138,18 +138,17 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
     switch (use->opcode()) {
       case IrOpcode::kParameter: {
         int index = 1 + ParameterIndexOf(use->op());
+        DCHECK_LE(index, inlinee_context_index);
         if (index < inliner_inputs && index < inlinee_context_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.
           Replace(use, call->InputAt(index));
         } else if (index == inlinee_context_index) {
+          // The projection is requesting the inlinee function context.
           Replace(use, context);
-        } else if (index < inlinee_context_index) {
+        } else {
           // Call has fewer arguments than required, fill with undefined.
           Replace(use, jsgraph_->UndefinedConstant());
-        } else {
-          // We got too many arguments, discard for now.
-          // TODO(sigurds): Fix to treat arguments array correctly.
         }
         break;
       }
@@ -314,14 +313,6 @@ Reduction JSInliner::Reduce(Node* node) {
 
   if (!Compiler::EnsureDeoptimizationSupport(&info)) {
     TRACE("Not inlining %s into %s because deoptimization support failed\n",
-          function->shared()->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
-
-  if (info.scope()->arguments() != NULL && is_sloppy(info.language_mode())) {
-    // For now do not inline functions that use their arguments array.
-    TRACE("Not inlining %s into %s because inlinee uses arguments array\n",
           function->shared()->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
