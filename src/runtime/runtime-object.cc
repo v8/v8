@@ -1547,5 +1547,14 @@ RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {
   return *isolate->factory()->NewJSIteratorResult(value, done);
 }
 
+
+RUNTIME_FUNCTION(Runtime_IsAccessCheckNeeded) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, object, 0);
+  return isolate->heap()->ToBoolean(object->IsAccessCheckNeeded());
+}
+
+
 }  // namespace internal
 }  // namespace v8
