@@ -181,6 +181,10 @@ class TypeFeedbackVector : public FixedArray {
     return FeedbackVectorICSlot(dummyIndex);
   }
 
+  static int PushAppliedArgumentsIndex();
+  static Handle<TypeFeedbackVector> CreatePushAppliedArgumentsVector(
+      Isolate* isolate);
+
  private:
   enum VectorICKind {
     KindUnused = 0x0,

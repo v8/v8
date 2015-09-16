@@ -1290,6 +1290,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
 
 static void Generate_PushAppliedArguments(MacroAssembler* masm,
+                                          const int vectorOffset,
                                           const int argumentsOffset,
                                           const int indexOffset,
                                           const int limitOffset) {
@@ -1307,13 +1308,9 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
   __ Ldr(receiver, MemOperand(fp, argumentsOffset));
 
   // Use inline caching to speed up access to arguments.
-  Code::Kind kinds[] = {Code::KEYED_LOAD_IC};
-  FeedbackVectorSpec spec(0, 1, kinds);
-  Handle<TypeFeedbackVector> feedback_vector =
-      masm->isolate()->factory()->NewTypeFeedbackVector(&spec);
-  int index = feedback_vector->GetIndex(FeedbackVectorICSlot(0));
-  __ Mov(slot, Smi::FromInt(index));
-  __ Mov(vector, feedback_vector);
+  int slot_index = TypeFeedbackVector::PushAppliedArgumentsIndex();
+  __ Mov(slot, Operand(Smi::FromInt(slot_index)));
+  __ Ldr(vector, MemOperand(fp, vectorOffset));
   Handle<Code> ic =
       KeyedLoadICStub(masm->isolate(), LoadICState(kNoExtraICState)).GetCode();
   __ Call(ic, RelocInfo::CODE_TARGET);
@@ -1348,14 +1345,24 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     const int kArgumentsOffset =  kFPOnStackSize + kPCOnStackSize;
     const int kReceiverOffset = kArgumentsOffset + kPointerSize;
     const int kFunctionOffset = kReceiverOffset + kPointerSize;
-    const int kIndexOffset    =
-        StandardFrameConstants::kExpressionsOffset - (2 * kPointerSize);
-    const int kLimitOffset    =
-        StandardFrameConstants::kExpressionsOffset - (1 * kPointerSize);
+    const int kVectorOffset =
+        InternalFrameConstants::kCodeOffset - 1 * kPointerSize;
+    const int kIndexOffset = kVectorOffset - (2 * kPointerSize);
+    const int kLimitOffset = kVectorOffset - (1 * kPointerSize);
 
     Register args = x12;
     Register receiver = x14;
     Register function = x15;
+    Register apply_function = x1;
+
+    // Push the vector.
+    __ Ldr(
+        apply_function,
+        FieldMemOperand(apply_function, JSFunction::kSharedFunctionInfoOffset));
+    __ Ldr(apply_function,
+           FieldMemOperand(apply_function,
+                           SharedFunctionInfo::kFeedbackVectorOffset));
+    __ Push(apply_function);
 
     // Get the length of the arguments via a builtin call.
     __ Ldr(function, MemOperand(fp, kFunctionOffset));
@@ -1377,8 +1384,8 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     __ Push(argc, x1, receiver);
 
     // Copy all arguments from the array to the stack.
-    Generate_PushAppliedArguments(masm, kArgumentsOffset, kIndexOffset,
-                                  kLimitOffset);
+    Generate_PushAppliedArguments(masm, kVectorOffset, kArgumentsOffset,
+                                  kIndexOffset, kLimitOffset);
 
     // At the end of the loop, the number of arguments is stored in x0, untagged
 
@@ -1402,16 +1409,25 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     const int kNewTargetOffset = kFPOnStackSize + kPCOnStackSize;
     const int kArgumentsOffset =  kNewTargetOffset + kPointerSize;
     const int kFunctionOffset = kArgumentsOffset + kPointerSize;
-
-    const int kIndexOffset    =
-        StandardFrameConstants::kExpressionsOffset - (2 * kPointerSize);
-    const int kLimitOffset    =
-        StandardFrameConstants::kExpressionsOffset - (1 * kPointerSize);
+    const int kVectorOffset =
+        InternalFrameConstants::kCodeOffset - 1 * kPointerSize;
+    const int kIndexOffset = kVectorOffset - (2 * kPointerSize);
+    const int kLimitOffset = kVectorOffset - (1 * kPointerSize);
 
     // Is x11 safe to use?
     Register newTarget = x11;
     Register args = x12;
     Register function = x15;
+    Register construct_function = x1;
+
+    // Push the vector.
+    __ Ldr(construct_function,
+           FieldMemOperand(construct_function,
+                           JSFunction::kSharedFunctionInfoOffset));
+    __ Ldr(construct_function,
+           FieldMemOperand(construct_function,
+                           SharedFunctionInfo::kFeedbackVectorOffset));
+    __ Push(construct_function);
 
     // If newTarget is not supplied, set it to constructor
     Label validate_arguments;
@@ -1438,8 +1454,8 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ Push(argc, x1, function);
 
     // Copy all arguments from the array to the stack.
-    Generate_PushAppliedArguments(
-        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
+    Generate_PushAppliedArguments(masm, kVectorOffset, kArgumentsOffset,
+                                  kIndexOffset, kLimitOffset);
 
     // Use undefined feedback vector
     __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);

@@ -3909,8 +3909,14 @@ static void CheckVectorIC(Handle<JSFunction> f, int ic_slot_index,
   Handle<TypeFeedbackVector> vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector());
   FeedbackVectorICSlot slot(ic_slot_index);
-  LoadICNexus nexus(vector, slot);
-  CHECK(nexus.StateFromFeedback() == desired_state);
+  if (vector->GetKind(slot) == Code::LOAD_IC) {
+    LoadICNexus nexus(vector, slot);
+    CHECK(nexus.StateFromFeedback() == desired_state);
+  } else {
+    CHECK(vector->GetKind(slot) == Code::KEYED_LOAD_IC);
+    KeyedLoadICNexus nexus(vector, slot);
+    CHECK(nexus.StateFromFeedback() == desired_state);
+  }
 }
 
 
@@ -3920,6 +3926,38 @@ static void CheckVectorICCleared(Handle<JSFunction> f, int ic_slot_index) {
   FeedbackVectorICSlot slot(ic_slot_index);
   LoadICNexus nexus(vector, slot);
   CHECK(IC::IsCleared(&nexus));
+}
+
+
+TEST(ICInBuiltInIsClearedAppropriately) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  Handle<JSFunction> apply;
+  {
+    LocalContext env;
+    v8::Local<v8::Value> res = CompileRun("Function.apply");
+    Handle<JSObject> maybe_apply =
+        v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+    apply = Handle<JSFunction>::cast(maybe_apply);
+    TypeFeedbackVector* vector = apply->shared()->feedback_vector();
+    CHECK(vector->ICSlots() == 1);
+    CheckVectorIC(apply, 0, UNINITIALIZED);
+    CompileRun(
+        "function b(a1, a2, a3) { return a1 + a2 + a3; }"
+        "function fun(bar) { bar.apply({}, [1, 2, 3]); };"
+        "fun(b); fun(b)");
+    CheckVectorIC(apply, 0, MONOMORPHIC);
+  }
+
+  // Fire context dispose notification.
+  CcTest::isolate()->ContextDisposedNotification();
+  SimulateIncrementalMarking(CcTest::heap());
+  CcTest::heap()->CollectAllGarbage();
+
+  // The IC in apply has been cleared, ready to learn again.
+  CheckVectorIC(apply, 0, PREMONOMORPHIC);
 }
 
 
@@ -6524,9 +6562,12 @@ TEST(SharedFunctionInfoIterator) {
       // Shared function infos without a script (API functions or C++ builtins)
       // are not returned by the iterator because they are not created from a
       // script. They are not interesting for type feedback vector anyways.
+
+      // TODO(mvstanton): There are builtins that use type feedback vectors,
+      // consider adding these to the iterator.
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
       if (shared->script()->IsUndefined()) {
-        CHECK_EQ(0, shared->feedback_vector()->ICSlots());
+        CHECK(shared->native() || 0 == shared->feedback_vector()->ICSlots());
       } else {
         sfi_count++;
       }
