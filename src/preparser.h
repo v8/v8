@@ -2655,7 +2655,9 @@ ParserBase<Traits>::ParsePropertyDefinition(
     // static MethodDefinition
     return ParsePropertyDefinition(checker, true, has_extends, true,
                                    is_computed_name, nullptr, classifier, ok);
-  } else if (is_get || is_set) {
+  } else if ((is_get || is_set) &&
+             (in_class || (peek() != Token::RBRACE && peek() != Token::COMMA &&
+                           peek() != Token::ASSIGN))) {
     // Accessor
     name = this->EmptyIdentifier();
     bool dont_care = false;
