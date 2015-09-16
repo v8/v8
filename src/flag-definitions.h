@@ -194,6 +194,7 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_proxies, "harmony proxies")                               \
   V(harmony_sloppy_function, "harmony sloppy function block scoping") \
   V(harmony_unicode_regexps, "harmony unicode regexps")               \
+  V(harmony_tolength, "harmony ToLength")                             \
   V(harmony_reflect, "harmony Reflect API")                           \
   V(harmony_destructuring, "harmony destructuring")                   \
   V(harmony_default_parameters, "harmony default parameters")         \

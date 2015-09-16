@@ -147,6 +147,7 @@ macro TO_INTEGER_FOR_SIDE_EFFECT(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : ToNumber(
 macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero(ToNumber(arg)));
 macro TO_INT32(arg) = (arg | 0);
 macro TO_UINT32(arg) = (arg >>> 0);
+macro TO_LENGTH_OR_UINT32(arg) = (harmony_tolength ? $toLength(arg) : TO_UINT32(arg));
 macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : $nonStringToString(arg));
 macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : $nonNumberToNumber(arg));
 macro TO_OBJECT(arg) = (%_ToObject(arg));

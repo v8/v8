@@ -173,7 +173,7 @@ function ArrayFill(value, start, end) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
 
   var array = TO_OBJECT(this);
-  var length = TO_UINT32(array.length);
+  var length = TO_LENGTH_OR_UINT32(array.length);
 
   return InnerArrayFill(value, start, end, array, length);
 }

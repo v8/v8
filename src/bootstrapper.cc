@@ -1860,6 +1860,15 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tostring)
 
 
+void Genesis::InitializeGlobal_harmony_tolength() {
+  Handle<JSObject> builtins(native_context()->builtins());
+  Handle<Object> flag(factory()->ToBoolean(FLAG_harmony_tolength));
+  Runtime::SetObjectProperty(isolate(), builtins,
+                             factory()->harmony_tolength_string(), flag,
+                             STRICT).Assert();
+}
+
+
 void Genesis::InitializeGlobal_harmony_reflect() {
   if (!FLAG_harmony_reflect) return;
 
@@ -2542,6 +2551,7 @@ bool Genesis::InstallExperimentalNatives() {
       "native harmony-concat-spreadable.js", nullptr};
   static const char* harmony_simd_natives[] = {"native harmony-simd.js",
                                                nullptr};
+  static const char* harmony_tolength_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

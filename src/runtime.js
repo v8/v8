@@ -24,6 +24,8 @@ var $toPositiveInteger;
 var $toPrimitive;
 var $toString;
 
+var harmony_tolength = false;
+
 (function(global, utils) {
 
 %CheckIsBootstrapping();
