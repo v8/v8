@@ -327,7 +327,8 @@ const FPURegister f31 = { 31 };
 #define kLithiumScratchDouble f30
 #define kDoubleRegZero f28
 // Used on mips64r6 for compare operations.
-#define kDoubleCompareReg f31
+// We use the last non-callee saved odd register for N64 ABI
+#define kDoubleCompareReg f23
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.
