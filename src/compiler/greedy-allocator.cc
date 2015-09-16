@@ -178,6 +178,7 @@ void GreedyAllocator::PreallocateFixedRanges() {
 void GreedyAllocator::GroupLiveRanges() {
   CoalescedLiveRanges groupper(local_zone());
   for (TopLevelLiveRange* range : data()->live_ranges()) {
+    groupper.clear();
     // Skip splinters, because we do not want to optimize for them, and moves
     // due to assigning them to different registers occur in deferred blocks.
     if (!CanProcessRange(range) || range->IsSplinter() || !range->is_phi()) {
@@ -196,7 +197,6 @@ void GreedyAllocator::GroupLiveRanges() {
 
     // Populate the groupper.
     if (range->group() == nullptr) {
-      groupper.clear();
       groupper.AllocateRange(range);
     } else {
       for (LiveRange* member : range->group()->ranges()) {
