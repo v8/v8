@@ -450,7 +450,6 @@ namespace internal {
   F(ToFastProperties, 1, 1)                          \
   F(AllocateHeapNumber, 0, 1)                        \
   F(NewObject, 2, 1)                                 \
-  F(NewObjectWithAllocationSite, 3, 1)               \
   F(FinalizeInstanceSize, 1, 1)                      \
   F(GlobalProxy, 1, 1)                               \
   F(LookupAccessor, 3, 1)                            \

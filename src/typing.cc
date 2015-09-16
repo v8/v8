@@ -555,8 +555,7 @@ void AstTyper::VisitCall(Call* expr) {
 void AstTyper::VisitCallNew(CallNew* expr) {
   // Collect type feedback.
   FeedbackVectorSlot allocation_site_feedback_slot =
-      FLAG_pretenuring_call_new ? expr->AllocationSiteFeedbackSlot()
-                                : expr->CallNewFeedbackSlot();
+      expr->CallNewFeedbackSlot();
   expr->set_allocation_site(
       oracle()->GetCallNewAllocationSite(allocation_site_feedback_slot));
   bool monomorphic =

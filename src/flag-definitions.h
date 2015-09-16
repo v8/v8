@@ -253,9 +253,6 @@ DEFINE_IMPLICATION(harmony_destructuring, harmony_default_parameters)
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_generic_loads, false,
             "use optimizing compiler to generate keyed generic load stubs")
-// TODO(hpayer): We will remove this flag as soon as we have pretenuring
-// support for specific allocation sites.
-DEFINE_BOOL(pretenuring_call_new, false, "pretenure call new")
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_BOOL(trace_pretenuring, false,

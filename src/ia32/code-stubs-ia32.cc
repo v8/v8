@@ -1960,27 +1960,25 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   __ j(equal, &done, Label::kFar);
   __ CompareRoot(FieldOperand(ecx, HeapObject::kMapOffset),
                  Heap::kWeakCellMapRootIndex);
-  __ j(not_equal, FLAG_pretenuring_call_new ? &miss : &check_allocation_site);
+  __ j(not_equal, &check_allocation_site);
 
   // If the weak cell is cleared, we have a new chance to become monomorphic.
   __ JumpIfSmi(FieldOperand(ecx, WeakCell::kValueOffset), &initialize);
   __ jmp(&megamorphic);
 
-  if (!FLAG_pretenuring_call_new) {
-    __ bind(&check_allocation_site);
-    // If we came here, we need to see if we are the array function.
-    // If we didn't have a matching function, and we didn't find the megamorph
-    // sentinel, then we have in the slot either some other function or an
-    // AllocationSite.
-    __ CompareRoot(FieldOperand(ecx, 0), Heap::kAllocationSiteMapRootIndex);
-    __ j(not_equal, &miss);
+  __ bind(&check_allocation_site);
+  // If we came here, we need to see if we are the array function.
+  // If we didn't have a matching function, and we didn't find the megamorph
+  // sentinel, then we have in the slot either some other function or an
+  // AllocationSite.
+  __ CompareRoot(FieldOperand(ecx, 0), Heap::kAllocationSiteMapRootIndex);
+  __ j(not_equal, &miss);
 
-    // Make sure the function is the Array() function
-    __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
-    __ cmp(edi, ecx);
-    __ j(not_equal, &megamorphic);
-    __ jmp(&done, Label::kFar);
-  }
+  // Make sure the function is the Array() function
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
+  __ cmp(edi, ecx);
+  __ j(not_equal, &megamorphic);
+  __ jmp(&done, Label::kFar);
 
   __ bind(&miss);
 
@@ -1999,24 +1997,21 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   // An uninitialized cache is patched with the function or sentinel to
   // indicate the ElementsKind if function is the Array constructor.
   __ bind(&initialize);
-  if (!FLAG_pretenuring_call_new) {
-    // Make sure the function is the Array() function
-    __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
-    __ cmp(edi, ecx);
-    __ j(not_equal, &not_array_function);
+  // Make sure the function is the Array() function
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
+  __ cmp(edi, ecx);
+  __ j(not_equal, &not_array_function);
 
-    // The target function is the Array constructor,
-    // Create an AllocationSite if we don't already have it, store it in the
-    // slot.
-    CreateAllocationSiteStub create_stub(isolate);
-    CallStubInRecordCallTarget(masm, &create_stub, is_super);
-    __ jmp(&done);
-
-    __ bind(&not_array_function);
-  }
-
-  CreateWeakCellStub create_stub(isolate);
+  // The target function is the Array constructor,
+  // Create an AllocationSite if we don't already have it, store it in the
+  // slot.
+  CreateAllocationSiteStub create_stub(isolate);
   CallStubInRecordCallTarget(masm, &create_stub, is_super);
+  __ jmp(&done);
+
+  __ bind(&not_array_function);
+  CreateWeakCellStub weak_cell_stub(isolate);
+  CallStubInRecordCallTarget(masm, &weak_cell_stub, is_super);
   __ bind(&done);
 }
 
@@ -2133,24 +2128,16 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm, IsSuperConstructorCall());
 
-    if (FLAG_pretenuring_call_new) {
-      // Put the AllocationSite from the feedback vector into ebx.
-      // By adding kPointerSize we encode that we know the AllocationSite
-      // entry is at the feedback vector slot given by edx + 1.
-      __ mov(ebx, FieldOperand(ebx, edx, times_half_pointer_size,
-                               FixedArray::kHeaderSize + kPointerSize));
-    } else {
-      Label feedback_register_initialized;
-      // Put the AllocationSite from the feedback vector into ebx, or undefined.
-      __ mov(ebx, FieldOperand(ebx, edx, times_half_pointer_size,
-                               FixedArray::kHeaderSize));
-      Handle<Map> allocation_site_map =
-          isolate()->factory()->allocation_site_map();
-      __ cmp(FieldOperand(ebx, 0), Immediate(allocation_site_map));
-      __ j(equal, &feedback_register_initialized);
-      __ mov(ebx, isolate()->factory()->undefined_value());
-      __ bind(&feedback_register_initialized);
-    }
+    Label feedback_register_initialized;
+    // Put the AllocationSite from the feedback vector into ebx, or undefined.
+    __ mov(ebx, FieldOperand(ebx, edx, times_half_pointer_size,
+                             FixedArray::kHeaderSize));
+    Handle<Map> allocation_site_map =
+        isolate()->factory()->allocation_site_map();
+    __ cmp(FieldOperand(ebx, 0), Immediate(allocation_site_map));
+    __ j(equal, &feedback_register_initialized);
+    __ mov(ebx, isolate()->factory()->undefined_value());
+    __ bind(&feedback_register_initialized);
 
     __ AssertUndefinedOrAllocationSite(ebx);
   }

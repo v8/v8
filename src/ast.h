@@ -1982,7 +1982,7 @@ class CallNew final : public Expression {
   // Type feedback information.
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
       Isolate* isolate, const ICSlotCache* cache) override {
-    return FeedbackVectorRequirements(FLAG_pretenuring_call_new ? 2 : 1, 0);
+    return FeedbackVectorRequirements(1, 0);
   }
   void SetFirstFeedbackSlot(FeedbackVectorSlot slot) override {
     callnew_feedback_slot_ = slot;
@@ -1991,10 +1991,6 @@ class CallNew final : public Expression {
   FeedbackVectorSlot CallNewFeedbackSlot() {
     DCHECK(!callnew_feedback_slot_.IsInvalid());
     return callnew_feedback_slot_;
-  }
-  FeedbackVectorSlot AllocationSiteFeedbackSlot() {
-    DCHECK(FLAG_pretenuring_call_new);
-    return CallNewFeedbackSlot().next();
   }
 
   bool IsMonomorphic() override { return is_monomorphic_; }

@@ -162,9 +162,7 @@ bool TypeFeedbackOracle::CallIsMonomorphic(FeedbackVectorICSlot slot) {
 
 bool TypeFeedbackOracle::CallNewIsMonomorphic(FeedbackVectorSlot slot) {
   Handle<Object> info = GetInfo(slot);
-  return FLAG_pretenuring_call_new
-      ? info->IsJSFunction()
-      : info->IsAllocationSite() || info->IsJSFunction();
+  return info->IsAllocationSite() || info->IsJSFunction();
 }
 
 
@@ -224,7 +222,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(
 Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(
     FeedbackVectorSlot slot) {
   Handle<Object> info = GetInfo(slot);
-  if (FLAG_pretenuring_call_new || info->IsJSFunction()) {
+  if (info->IsJSFunction()) {
     return Handle<JSFunction>::cast(info);
   }
 
@@ -246,7 +244,7 @@ Handle<AllocationSite> TypeFeedbackOracle::GetCallAllocationSite(
 Handle<AllocationSite> TypeFeedbackOracle::GetCallNewAllocationSite(
     FeedbackVectorSlot slot) {
   Handle<Object> info = GetInfo(slot);
-  if (FLAG_pretenuring_call_new || info->IsAllocationSite()) {
+  if (info->IsAllocationSite()) {
     return Handle<AllocationSite>::cast(info);
   }
   return Handle<AllocationSite>::null();

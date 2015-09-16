@@ -1117,22 +1117,6 @@ RUNTIME_FUNCTION(Runtime_NewObject) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewObjectWithAllocationSite) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, original_constructor, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, feedback, 0);
-  Handle<AllocationSite> site;
-  if (feedback->IsAllocationSite()) {
-    // The feedback can be an AllocationSite or undefined.
-    site = Handle<AllocationSite>::cast(feedback);
-  }
-  return Runtime_NewObjectHelper(isolate, constructor, original_constructor,
-                                 site);
-}
-
-
 RUNTIME_FUNCTION(Runtime_FinalizeInstanceSize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

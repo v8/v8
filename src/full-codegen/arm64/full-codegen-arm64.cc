@@ -2898,12 +2898,6 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ Peek(x1, arg_count * kXRegSize);
 
   // Record call targets in unoptimized code.
-  if (FLAG_pretenuring_call_new) {
-    EnsureSlotContainsAllocationSite(expr->AllocationSiteFeedbackSlot());
-    DCHECK(expr->AllocationSiteFeedbackSlot().ToInt() ==
-           expr->CallNewFeedbackSlot().ToInt() + 1);
-  }
-
   __ LoadObject(x2, FeedbackVector());
   __ Mov(x3, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
@@ -2944,15 +2938,6 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ Peek(x1, arg_count * kXRegSize);
 
   // Record call targets in unoptimized code.
-  if (FLAG_pretenuring_call_new) {
-    UNREACHABLE();
-    /* TODO(dslomov): support pretenuring.
-    EnsureSlotContainsAllocationSite(expr->AllocationSiteFeedbackSlot());
-    DCHECK(expr->AllocationSiteFeedbackSlot().ToInt() ==
-           expr->CallNewFeedbackSlot().ToInt() + 1);
-    */
-  }
-
   __ LoadObject(x2, FeedbackVector());
   __ Mov(x3, SmiFromSlot(expr->CallFeedbackSlot()));
 
