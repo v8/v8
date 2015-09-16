@@ -37,13 +37,9 @@ endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
 
-var MathMax;
-var MathMin;
 var ToNumber;
 
 utils.Import(function(from) {
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
   ToNumber = from.ToNumber;
 });
 
@@ -210,25 +206,29 @@ function NAMESubArray(begin, end) {
   }
   var beginInt = TO_INTEGER(begin);
   if (!IS_UNDEFINED(end)) {
-    end = TO_INTEGER(end);
+    var endInt = TO_INTEGER(end);
+    var srcLength = %_TypedArrayGetLength(this);
+  } else {
+    var srcLength = %_TypedArrayGetLength(this);
+    var endInt = srcLength;
   }
 
-  var srcLength = %_TypedArrayGetLength(this);
   if (beginInt < 0) {
-    beginInt = MathMax(0, srcLength + beginInt);
+    beginInt = MAX_SIMPLE(0, srcLength + beginInt);
   } else {
-    beginInt = MathMin(srcLength, beginInt);
+    beginInt = MIN_SIMPLE(beginInt, srcLength);
   }
 
-  var endInt = IS_UNDEFINED(end) ? srcLength : end;
   if (endInt < 0) {
-    endInt = MathMax(0, srcLength + endInt);
+    endInt = MAX_SIMPLE(0, srcLength + endInt);
   } else {
-    endInt = MathMin(endInt, srcLength);
+    endInt = MIN_SIMPLE(endInt, srcLength);
   }
+
   if (endInt < beginInt) {
     endInt = beginInt;
   }
+
   var newLength = endInt - beginInt;
   var beginByteOffset =
       %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
