@@ -30,7 +30,9 @@ class RepresentationChanger {
         type_error_(false) {}
 
   // TODO(titzer): should Word64 also be implicitly convertable to others?
-  static const MachineTypeUnion rWord = kRepWord8 | kRepWord16 | kRepWord32;
+  static bool IsWord(MachineTypeUnion type) {
+    return (type & (kRepWord8 | kRepWord16 | kRepWord32)) != 0;
+  }
 
   Node* GetRepresentationFor(Node* node, MachineTypeUnion output_type,
                              MachineTypeUnion use_type) {
@@ -42,7 +44,7 @@ class RepresentationChanger {
       // Representations are the same. That's a no-op.
       return node;
     }
-    if ((use_type & rWord) && (output_type & rWord)) {
+    if (IsWord(use_type) && IsWord(output_type)) {
       // Both are words less than or equal to 32-bits.
       // Since loads of integers from memory implicitly sign or zero extend the
       // value to the full machine word size and stores implicitly truncate,
@@ -57,7 +59,7 @@ class RepresentationChanger {
       return GetFloat64RepresentationFor(node, output_type);
     } else if (use_type & kRepBit) {
       return GetBitRepresentationFor(node, output_type);
-    } else if (use_type & rWord) {
+    } else if (IsWord(use_type)) {
       return GetWord32RepresentationFor(node, output_type,
                                         use_type & kTypeUint32);
     } else if (use_type & kRepWord64) {
@@ -97,7 +99,7 @@ class RepresentationChanger {
     const Operator* op;
     if (output_type & kRepBit) {
       op = simplified()->ChangeBitToBool();
-    } else if (output_type & rWord) {
+    } else if (IsWord(output_type)) {
       if (output_type & kTypeUint32) {
         op = simplified()->ChangeUint32ToTagged();
       } else if (output_type & kTypeInt32) {
@@ -140,7 +142,7 @@ class RepresentationChanger {
     const Operator* op;
     if (output_type & kRepBit) {
       return TypeError(node, output_type, kRepFloat32);
-    } else if (output_type & rWord) {
+    } else if (IsWord(output_type)) {
       if (output_type & kTypeUint32) {
         op = machine()->ChangeUint32ToFloat64();
       } else {
@@ -186,7 +188,7 @@ class RepresentationChanger {
     const Operator* op;
     if (output_type & kRepBit) {
       return TypeError(node, output_type, kRepFloat64);
-    } else if (output_type & rWord) {
+    } else if (IsWord(output_type)) {
       if (output_type & kTypeUint32) {
         op = machine()->ChangeUint32ToFloat64();
       } else {

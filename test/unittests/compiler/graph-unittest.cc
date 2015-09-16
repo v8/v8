@@ -55,7 +55,7 @@ Node* GraphTest::NumberConstant(volatile double value) {
 Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
   Type* type = Type::Constant(value, zone());
-  NodeProperties::SetBounds(node, Bounds(type));
+  NodeProperties::SetType(node, type);
   return node;
 }
 
@@ -109,7 +109,7 @@ TypedGraphTest::~TypedGraphTest() {}
 
 Node* TypedGraphTest::Parameter(Type* type, int32_t index) {
   Node* node = GraphTest::Parameter(index);
-  NodeProperties::SetBounds(node, Bounds(type));
+  NodeProperties::SetType(node, type);
   return node;
 }
 

@@ -178,8 +178,8 @@ class RepresentationSelector {
 
   bool BothInputsAre(Node* node, Type* type) {
     DCHECK_EQ(2, node->InputCount());
-    return NodeProperties::GetBounds(node->InputAt(0)).upper->Is(type) &&
-           NodeProperties::GetBounds(node->InputAt(1)).upper->Is(type);
+    return NodeProperties::GetType(node->InputAt(0))->Is(type) &&
+           NodeProperties::GetType(node->InputAt(1))->Is(type);
   }
 
   void ProcessTruncateWord32Input(Node* node, int index, MachineTypeUnion use) {
@@ -313,7 +313,7 @@ class RepresentationSelector {
   // Infer representation for phi-like nodes.
   MachineType GetRepresentationForPhi(Node* node, MachineTypeUnion use) {
     // Phis adapt to the output representation their uses demand.
-    Type* upper = NodeProperties::GetBounds(node).upper;
+    Type* upper = NodeProperties::GetType(node);
     if ((use & kRepMask) == kRepFloat32) {
       // only float32 uses.
       return kRepFloat32;
@@ -355,7 +355,7 @@ class RepresentationSelector {
     ProcessInput(node, 0, kRepBit);
     MachineType output = GetRepresentationForPhi(node, use);
 
-    Type* upper = NodeProperties::GetBounds(node).upper;
+    Type* upper = NodeProperties::GetType(node);
     MachineType output_type =
         static_cast<MachineType>(changer_->TypeFromUpperBound(upper) | output);
     SetOutput(node, output_type);
@@ -385,7 +385,7 @@ class RepresentationSelector {
                 SimplifiedLowering* lowering) {
     MachineType output = GetRepresentationForPhi(node, use);
 
-    Type* upper = NodeProperties::GetBounds(node).upper;
+    Type* upper = NodeProperties::GetType(node);
     MachineType output_type =
         static_cast<MachineType>(changer_->TypeFromUpperBound(upper) | output);
     SetOutput(node, output_type);
@@ -470,7 +470,7 @@ class RepresentationSelector {
   bool CanLowerToInt32Binop(Node* node, MachineTypeUnion use) {
     return BothInputsAre(node, Type::Signed32()) &&
            (!CanObserveNonInt32(use) ||
-            NodeProperties::GetBounds(node).upper->Is(Type::Signed32()));
+            NodeProperties::GetType(node)->Is(Type::Signed32()));
   }
 
   bool CanLowerToInt32AdditiveBinop(Node* node, MachineTypeUnion use) {
@@ -481,7 +481,7 @@ class RepresentationSelector {
   bool CanLowerToUint32Binop(Node* node, MachineTypeUnion use) {
     return BothInputsAre(node, Type::Unsigned32()) &&
            (!CanObserveNonUint32(use) ||
-            NodeProperties::GetBounds(node).upper->Is(Type::Unsigned32()));
+            NodeProperties::GetType(node)->Is(Type::Unsigned32()));
   }
 
   bool CanLowerToUint32AdditiveBinop(Node* node, MachineTypeUnion use) {
@@ -523,7 +523,7 @@ class RepresentationSelector {
         return VisitLeaf(node, 0);
       case IrOpcode::kParameter: {
         // TODO(titzer): use representation from linkage.
-        Type* upper = NodeProperties::GetBounds(node).upper;
+        Type* upper = NodeProperties::GetType(node);
         ProcessInput(node, 0, 0);
         SetOutput(node, kRepTagged | changer_->TypeFromUpperBound(upper));
         return;
@@ -731,7 +731,7 @@ class RepresentationSelector {
       case IrOpcode::kNumberToInt32: {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
-        Type* in_upper = NodeProperties::GetBounds(input).upper;
+        Type* in_upper = NodeProperties::GetType(input);
         MachineTypeUnion in = GetInfo(input)->output;
         if (in_upper->Is(Type::Signed32())) {
           // If the input has type int32, pass through representation.
@@ -761,7 +761,7 @@ class RepresentationSelector {
       case IrOpcode::kNumberToUint32: {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
-        Type* in_upper = NodeProperties::GetBounds(input).upper;
+        Type* in_upper = NodeProperties::GetType(input);
         MachineTypeUnion in = GetInfo(input)->output;
         if (in_upper->Is(Type::Unsigned32())) {
           // If the input has type uint32, pass through representation.
@@ -1228,7 +1228,7 @@ void SimplifiedLowering::DoLoadField(Node* node) {
 
 void SimplifiedLowering::DoStoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
-  Type* type = NodeProperties::GetBounds(node->InputAt(1)).upper;
+  Type* type = NodeProperties::GetType(node->InputAt(1));
   WriteBarrierKind kind =
       ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type, type);
   node->set_op(
@@ -1335,7 +1335,7 @@ void SimplifiedLowering::DoLoadElement(Node* node) {
 
 void SimplifiedLowering::DoStoreElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
-  Type* type = NodeProperties::GetBounds(node->InputAt(2)).upper;
+  Type* type = NodeProperties::GetType(node->InputAt(2));
   node->set_op(machine()->Store(
       StoreRepresentation(access.machine_type,
                           ComputeWriteBarrierKind(access.base_is_tagged,
@@ -1614,7 +1614,7 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
 void SimplifiedLowering::DoShift(Node* node, Operator const* op) {
   node->set_op(op);
   Node* const rhs = NodeProperties::GetValueInput(node, 1);
-  Type* const rhs_type = NodeProperties::GetBounds(rhs).upper;
+  Type* const rhs_type = NodeProperties::GetType(rhs);
   if (!rhs_type->Is(zero_thirtyone_range_)) {
     node->ReplaceInput(1, graph()->NewNode(machine()->Word32And(), rhs,
                                            jsgraph()->Int32Constant(0x1f)));

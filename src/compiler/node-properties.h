@@ -108,23 +108,18 @@ class NodeProperties final {
 
 
   // ---------------------------------------------------------------------------
-  // Type Bounds.
+  // Type.
 
-  static bool IsTyped(Node* node) {
-    Bounds const bounds = node->bounds();
-    DCHECK(!bounds.lower == !bounds.upper);
-    return bounds.upper;
-  }
-  static Bounds GetBounds(Node* node) {
+  static bool IsTyped(Node* node) { return node->type() != nullptr; }
+  static Type* GetType(Node* node) {
     DCHECK(IsTyped(node));
-    return node->bounds();
+    return node->type();
   }
-  static void SetBounds(Node* node, Bounds bounds) {
-    DCHECK_NOT_NULL(bounds.lower);
-    DCHECK_NOT_NULL(bounds.upper);
-    node->set_bounds(bounds);
+  static void SetType(Node* node, Type* type) {
+    DCHECK_NOT_NULL(type);
+    node->set_type(type);
   }
-  static void RemoveBounds(Node* node) { node->set_bounds(Bounds()); }
+  static void RemoveType(Node* node) { node->set_type(nullptr); }
   static bool AllValueInputsAreTyped(Node* node);
 
  private:

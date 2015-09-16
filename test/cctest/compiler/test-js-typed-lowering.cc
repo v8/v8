@@ -58,7 +58,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Parameter(Type* t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());
-    NodeProperties::SetBounds(n, Bounds(Type::None(), t));
+    NodeProperties::SetType(n, t);
     return n;
   }
 
@@ -296,8 +296,8 @@ TEST_WITH_STRONG(NumberBinops) {
 
 
 static void CheckToI32(Node* old_input, Node* new_input, bool is_signed) {
-  Type* old_type = NodeProperties::GetBounds(old_input).upper;
-  Type* new_type = NodeProperties::GetBounds(new_input).upper;
+  Type* old_type = NodeProperties::GetType(old_input);
+  Type* new_type = NodeProperties::GetType(new_input);
   Type* expected_type = I32Type(is_signed);
   CHECK(new_type->Is(expected_type));
   if (old_type->Is(expected_type)) {
@@ -489,7 +489,7 @@ TEST(JSToNumberOfConstant) {
     // Note that either outcome below is correct. It only depends on whether
     // the types of constants are eagerly computed or only computed by the
     // typing pass.
-    if (NodeProperties::GetBounds(n).upper->Is(Type::Number())) {
+    if (NodeProperties::GetType(n)->Is(Type::Number())) {
       // If number constants are eagerly typed, then reduction should
       // remove the ToNumber.
       CHECK_EQ(n, r);
@@ -624,9 +624,9 @@ TEST_WITH_STRONG(StringComparison) {
 
 
 static void CheckIsConvertedToNumber(Node* val, Node* converted) {
-  if (NodeProperties::GetBounds(val).upper->Is(Type::Number())) {
+  if (NodeProperties::GetType(val)->Is(Type::Number())) {
     CHECK_EQ(val, converted);
-  } else if (NodeProperties::GetBounds(val).upper->Is(Type::Boolean())) {
+  } else if (NodeProperties::GetType(val)->Is(Type::Boolean())) {
     CHECK_EQ(IrOpcode::kBooleanToNumber, converted->opcode());
     CHECK_EQ(val, converted->InputAt(0));
   } else {

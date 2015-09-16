@@ -58,11 +58,11 @@ class TyperTest : public TypedGraphTest {
   Type* TypeBinaryOp(const Operator* op, Type* lhs, Type* rhs) {
     Node* p0 = Parameter(0);
     Node* p1 = Parameter(1);
-    NodeProperties::SetBounds(p0, Bounds(lhs));
-    NodeProperties::SetBounds(p1, Bounds(rhs));
+    NodeProperties::SetType(p0, lhs);
+    NodeProperties::SetType(p1, rhs);
     Node* n = graph()->NewNode(op, p0, p1, context_node_, graph()->start(),
                                graph()->start());
-    return NodeProperties::GetBounds(n).upper;
+    return NodeProperties::GetType(n);
   }
 
   Type* RandomRange(bool int32 = false) {
@@ -399,7 +399,7 @@ TEST_F(TyperTest, TypeRegressInt32Constant) {
   int values[] = {-5, 10};
   for (auto i : values) {
     Node* c = graph()->NewNode(common()->Int32Constant(i));
-    Type* type = NodeProperties::GetBounds(c).upper;
+    Type* type = NodeProperties::GetType(c);
     EXPECT_TRUE(type->Is(NewRange(i, i)));
   }
 }

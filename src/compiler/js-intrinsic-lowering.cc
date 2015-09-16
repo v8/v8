@@ -309,7 +309,7 @@ Reduction JSIntrinsicLowering::ReduceSeqStringSetChar(
   node->ReplaceInput(3, effect);
   node->ReplaceInput(4, control);
   node->TrimInputCount(5);
-  NodeProperties::RemoveBounds(node);
+  NodeProperties::RemoveType(node);
   ReplaceWithValue(node, string, node);
   return Changed(node);
 }

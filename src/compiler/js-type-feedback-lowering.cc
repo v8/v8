@@ -36,7 +36,7 @@ Reduction JSTypeFeedbackLowering::Reduce(Node* node) {
 Reduction JSTypeFeedbackLowering::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Type* receiver_type = NodeProperties::GetBounds(receiver).upper;
+  Type* receiver_type = NodeProperties::GetType(receiver);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);

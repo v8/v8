@@ -99,7 +99,7 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
       }
       copy = graph->NewNode(orig->op(), orig->InputCount(), &tmp_inputs[0]);
       if (NodeProperties::IsTyped(orig)) {
-        NodeProperties::SetBounds(copy, NodeProperties::GetBounds(orig));
+        NodeProperties::SetType(copy, NodeProperties::GetType(orig));
       }
       mapping->at(orig->id()) = copy;
       TRACE(" copy #%d:%s -> #%d\n", orig->id(), orig->op()->mnemonic(),

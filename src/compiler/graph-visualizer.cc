@@ -127,13 +127,10 @@ class JSONGraphNodeWriter {
     os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
                                                                : "false");
     if (NodeProperties::IsTyped(node)) {
-      Bounds bounds = NodeProperties::GetBounds(node);
-      std::ostringstream upper;
-      bounds.upper->PrintTo(upper);
-      std::ostringstream lower;
-      bounds.lower->PrintTo(lower);
-      os_ << ",\"upper_type\":\"" << Escaped(upper, "\"") << "\"";
-      os_ << ",\"lower_type\":\"" << Escaped(lower, "\"") << "\"";
+      Type* type = NodeProperties::GetType(node);
+      std::ostringstream type_out;
+      type->PrintTo(type_out);
+      os_ << ",\"type\":\"" << Escaped(type_out, "\"") << "\"";
     }
     os_ << "}";
   }
@@ -302,12 +299,10 @@ void GraphVisualizer::PrintNode(Node* node, bool gray) {
   os_ << "}";
 
   if (FLAG_trace_turbo_types && NodeProperties::IsTyped(node)) {
-    Bounds bounds = NodeProperties::GetBounds(node);
-    std::ostringstream upper;
-    bounds.upper->PrintTo(upper);
-    std::ostringstream lower;
-    bounds.lower->PrintTo(lower);
-    os_ << "|" << Escaped(upper) << "|" << Escaped(lower);
+    Type* type = NodeProperties::GetType(node);
+    std::ostringstream type_out;
+    type->PrintTo(type_out);
+    os_ << "|" << Escaped(type_out);
   }
   os_ << "}\"\n";
 
@@ -545,11 +540,9 @@ void GraphC1Visualizer::PrintInputs(Node* node) {
 
 void GraphC1Visualizer::PrintType(Node* node) {
   if (NodeProperties::IsTyped(node)) {
-    Bounds bounds = NodeProperties::GetBounds(node);
+    Type* type = NodeProperties::GetType(node);
     os_ << " type:";
-    bounds.upper->PrintTo(os_);
-    os_ << "..";
-    bounds.lower->PrintTo(os_);
+    type->PrintTo(os_);
   }
 }
 

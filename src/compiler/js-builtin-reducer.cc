@@ -45,20 +45,20 @@ class JSCallReduction {
   // Determines whether the call takes one input of the given type.
   bool InputsMatchOne(Type* t1) {
     return GetJSCallArity() == 1 &&
-           NodeProperties::GetBounds(GetJSCallInput(0)).upper->Is(t1);
+           NodeProperties::GetType(GetJSCallInput(0))->Is(t1);
   }
 
   // Determines whether the call takes two inputs of the given types.
   bool InputsMatchTwo(Type* t1, Type* t2) {
     return GetJSCallArity() == 2 &&
-           NodeProperties::GetBounds(GetJSCallInput(0)).upper->Is(t1) &&
-           NodeProperties::GetBounds(GetJSCallInput(1)).upper->Is(t2);
+           NodeProperties::GetType(GetJSCallInput(0))->Is(t1) &&
+           NodeProperties::GetType(GetJSCallInput(1))->Is(t2);
   }
 
   // Determines whether the call takes inputs all of the given type.
   bool InputsMatchAll(Type* t) {
     for (int i = 0; i < GetJSCallArity(); i++) {
-      if (!NodeProperties::GetBounds(GetJSCallInput(i)).upper->Is(t)) {
+      if (!NodeProperties::GetType(GetJSCallInput(i))->Is(t)) {
         return false;
       }
     }
