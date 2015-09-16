@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, utils) {
+(function(global, utils, extrasUtils) {
 
 "use strict";
 
@@ -266,5 +266,50 @@ utils.PostExperimentals = PostExperimentals;
 utils.PostDebug = PostDebug;
 
 %ToFastProperties(utils);
+
+// -----------------------------------------------------------------------
+
+%OptimizeObjectForAddingMultipleProperties(extrasUtils, 5);
+
+extrasUtils.logStackTrace = function logStackTrace() {
+  %DebugTrace();
+};
+
+extrasUtils.log = function log() {
+  let message = '';
+  for (const arg of arguments) {
+    message += arg;
+  }
+
+  %GlobalPrint(message);
+};
+
+// Extras need the ability to store private state on their objects without
+// exposing it to the outside world.
+
+extrasUtils.createPrivateSymbol = function createPrivateSymbol(name) {
+  return %CreatePrivateSymbol(name);
+};
+
+// These functions are key for safe meta-programming:
+// http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
+//
+// Technically they could all be derived from combinations of
+// Function.prototype.{bind,call,apply} but that introduces lots of layers of
+// indirection and slowness given how un-optimized bind is.
+
+extrasUtils.simpleBind = function simpleBind(func, thisArg) {
+  return function() {
+    return %Apply(func, thisArg, arguments, 0, arguments.length);
+  };
+};
+
+extrasUtils.uncurryThis = function uncurryThis(func) {
+  return function(thisArg) {
+    return %Apply(func, thisArg, arguments, 1, arguments.length - 1);
+  };
+};
+
+%ToFastProperties(extrasUtils);
 
 })

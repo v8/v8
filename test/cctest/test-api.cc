@@ -21700,6 +21700,45 @@ TEST(ExperimentalExtras) {
 }
 
 
+TEST(ExtrasUtilsObject) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  LocalContext env;
+  v8::Local<v8::Object> binding = env->GetExtrasBindingObject();
+
+  auto func = binding->Get(v8_str("testExtraCanUseUtils")).As<v8::Function>();
+  auto undefined = v8::Undefined(isolate);
+  auto result = func->Call(undefined, 0, {}).As<v8::Object>();
+
+  auto private_symbol = result->Get(v8_str("privateSymbol")).As<v8::Symbol>();
+  i::Handle<i::Symbol> ips = v8::Utils::OpenHandle(*private_symbol);
+  CHECK_EQ(true, ips->IsPrivate());
+
+  CompileRun("var result = 0; function store(x) { result = x; }");
+  auto store = CompileRun("store").As<v8::Function>();
+
+  auto fulfilled_promise =
+      result->Get(v8_str("fulfilledPromise")).As<v8::Promise>();
+  fulfilled_promise->Then(store);
+  isolate->RunMicrotasks();
+  CHECK_EQ(1, CompileRun("result")->Int32Value());
+
+  auto fulfilled_promise_2 =
+      result->Get(v8_str("fulfilledPromise2")).As<v8::Promise>();
+  fulfilled_promise_2->Then(store);
+  isolate->RunMicrotasks();
+  CHECK_EQ(2, CompileRun("result")->Int32Value());
+
+  auto rejected_promise =
+      result->Get(v8_str("rejectedPromise")).As<v8::Promise>();
+  rejected_promise->Catch(store);
+  isolate->RunMicrotasks();
+  CHECK_EQ(3, CompileRun("result")->Int32Value());
+}
+
+
 TEST(Map) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);

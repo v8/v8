@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, utils) {
+(function(global, utils, extrasUtils) {
 
 "use strict";
 
@@ -386,6 +386,15 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "promise_reject", PromiseReject,
   "promise_resolve", PromiseResolve,
   "promise_then", PromiseThen,
+]);
+
+// This allows extras to create promises quickly without building extra
+// resolve/reject closures, and allows them to later resolve and reject any
+// promise without having to hold on to those closures forever.
+utils.InstallFunctions(extrasUtils, 0, [
+  "createPromise", PromiseCreate,
+  "resolvePromise", PromiseResolve,
+  "rejectPromise", PromiseReject
 ]);
 
 })

@@ -1526,9 +1526,13 @@ bool Bootstrapper::CompileBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> source_code =
       isolate->bootstrapper()->SourceLookup<Natives>(index);
+
+  // We pass in extras_utils so that builtin code can set it up for later use
+  // by actual extras code, compiled with CompileExtraBuiltin.
   Handle<Object> global = isolate->global_object();
   Handle<Object> utils = isolate->natives_utils_object();
-  Handle<Object> args[] = {global, utils};
+  Handle<Object> extras_utils = isolate->extras_utils_object();
+  Handle<Object> args[] = {global, utils, extras_utils};
 
   return Bootstrapper::CompileNative(
       isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
@@ -1557,7 +1561,8 @@ bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
       isolate->bootstrapper()->SourceLookup<ExtraNatives>(index);
   Handle<Object> global = isolate->global_object();
   Handle<Object> binding = isolate->extras_binding_object();
-  Handle<Object> args[] = {global, binding};
+  Handle<Object> extras_utils = isolate->extras_utils_object();
+  Handle<Object> args[] = {global, binding, extras_utils};
   return Bootstrapper::CompileNative(
       isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
       source_code, arraysize(args), args);
@@ -1572,7 +1577,8 @@ bool Bootstrapper::CompileExperimentalExtraBuiltin(Isolate* isolate,
       isolate->bootstrapper()->SourceLookup<ExperimentalExtraNatives>(index);
   Handle<Object> global = isolate->global_object();
   Handle<Object> binding = isolate->extras_binding_object();
-  Handle<Object> args[] = {global, binding};
+  Handle<Object> extras_utils = isolate->extras_utils_object();
+  Handle<Object> args[] = {global, binding, extras_utils};
   return Bootstrapper::CompileNative(
       isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
       source_code, arraysize(args), args);
@@ -2024,6 +2030,14 @@ bool Genesis::InstallNatives(ContextType context_type) {
   JSObject::NormalizeProperties(utils, CLEAR_INOBJECT_PROPERTIES, 16,
                                 "utils container for native scripts");
   native_context()->set_natives_utils_object(*utils);
+
+  // Set up the extras utils object as a shared container between native
+  // scripts and extras. (Extras consume things added there by native scripts.)
+  Handle<JSObject> extras_utils =
+      factory()->NewJSObject(isolate()->object_function());
+  native_context()->set_extras_utils_object(*extras_utils);
+
+  InstallInternalArray(extras_utils, "InternalPackedArray", FAST_ELEMENTS);
 
   int builtin_index = Natives::GetDebuggerCount();
   // Only run prologue.js and runtime.js at this point.
@@ -2585,8 +2599,6 @@ bool Genesis::InstallExtraNatives() {
 
   Handle<JSObject> extras_binding =
       factory()->NewJSObject(isolate()->object_function());
-  JSObject::NormalizeProperties(extras_binding, CLEAR_INOBJECT_PROPERTIES, 2,
-                                "container for binding to/from extra natives");
   native_context()->set_extras_binding_object(*extras_binding);
 
   for (int i = ExtraNatives::GetDebuggerCount();
