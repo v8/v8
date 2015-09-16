@@ -499,6 +499,17 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
                         obj_address + BytecodeArray::kConstantPoolOffset,
                         obj_address + BytecodeArray::kHeaderSize,
                         slot_callback);
+                  } else if (heap_object->IsJSArrayBuffer()) {
+                    FindPointersToNewSpaceInRegion(
+                        obj_address +
+                            JSArrayBuffer::BodyDescriptor::kStartOffset,
+                        obj_address + JSArrayBuffer::kByteLengthOffset +
+                            kPointerSize,
+                        slot_callback);
+                    FindPointersToNewSpaceInRegion(
+                        obj_address + JSArrayBuffer::kSize,
+                        obj_address + JSArrayBuffer::kSizeWithInternalFields,
+                        slot_callback);
                   } else if (FLAG_unbox_double_fields) {
                     LayoutDescriptorHelper helper(heap_object->map());
                     DCHECK(!helper.all_fields_tagged());
