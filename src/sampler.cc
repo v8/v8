@@ -184,7 +184,7 @@ bool IsSamePage(byte* ptr1, byte* ptr2) {
 
 // Check if the code at specified address could potentially be a
 // frame setup code.
-bool IsNoFrameRegion(Address address) {
+DISABLE_ASAN bool IsNoFrameRegion(Address address) {
   struct Pattern {
     int bytes_count;
     byte bytes[8];
