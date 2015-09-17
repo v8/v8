@@ -132,7 +132,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
+// static
+void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3                     : number of arguments
   //  -- r4                     : constructor function
@@ -141,37 +142,92 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into r5 and get rid of the rest (including the
+  // 1. Load the first argument into r3 and get rid of the rest (including the
+  // receiver).
+  Label no_arguments;
+  {
+    __ cmpi(r3, Operand::Zero());
+    __ beq(&no_arguments);
+    __ subi(r3, r3, Operand(1));
+    __ ShiftLeftImm(r3, r3, Operand(kPointerSizeLog2));
+    __ LoadPUX(r3, MemOperand(sp, r3));
+    __ Drop(2);
+  }
+
+  // 2a. At least one argument, return r3 if it's a string, otherwise
+  // dispatch to appropriate conversion.
+  Label to_string, symbol_descriptive_string;
+  {
+    __ JumpIfSmi(r3, &to_string);
+    STATIC_ASSERT(FIRST_NONSTRING_TYPE == SYMBOL_TYPE);
+    __ CompareObjectType(r3, r4, r4, FIRST_NONSTRING_TYPE);
+    __ bgt(&to_string);
+    __ beq(&symbol_descriptive_string);
+    __ Ret();
+  }
+
+  // 2b. No arguments, return the empty string (and pop the receiver).
+  __ bind(&no_arguments);
+  {
+    __ LoadRoot(r3, Heap::kempty_stringRootIndex);
+    __ Ret(1);
+  }
+
+  // 3a. Convert r3 to a string.
+  __ bind(&to_string);
+  {
+    ToStringStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  }
+
+  // 3b. Convert symbol in r3 to a string.
+  __ bind(&symbol_descriptive_string);
+  {
+    __ Push(r3);
+    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1, 1);
+  }
+}
+
+
+// static
+void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r3                     : number of arguments
+  //  -- r4                     : constructor function
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
+  //  -- sp[argc * 4]           : receiver
+  // -----------------------------------
+
+  // 1. Load the first argument into r3 and get rid of the rest (including the
   // receiver).
   {
     Label no_arguments, done;
     __ cmpi(r3, Operand::Zero());
     __ beq(&no_arguments);
-    __ subi(r5, r3, Operand(1));
-    __ ShiftLeftImm(r5, r5, Operand(kPointerSizeLog2));
-    __ LoadPUX(r5, MemOperand(sp, r5));
+    __ subi(r3, r3, Operand(1));
+    __ ShiftLeftImm(r3, r3, Operand(kPointerSizeLog2));
+    __ LoadPUX(r3, MemOperand(sp, r3));
     __ Drop(2);
     __ b(&done);
     __ bind(&no_arguments);
-    __ LoadRoot(r5, Heap::kempty_stringRootIndex);
+    __ LoadRoot(r3, Heap::kempty_stringRootIndex);
     __ Drop(1);
     __ bind(&done);
   }
 
-  // 2. Make sure r5 is a string.
+  // 2. Make sure r3 is a string.
   {
     Label convert, done_convert;
-    __ JumpIfSmi(r5, &convert);
-    __ CompareObjectType(r5, r6, r6, FIRST_NONSTRING_TYPE);
+    __ JumpIfSmi(r3, &convert);
+    __ CompareObjectType(r3, r5, r5, FIRST_NONSTRING_TYPE);
     __ blt(&done_convert);
     __ bind(&convert);
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       ToStringStub stub(masm->isolate());
       __ push(r4);
-      __ mr(r3, r5);
       __ CallStub(&stub);
-      __ mr(r5, r3);
       __ pop(r4);
     }
     __ bind(&done_convert);
@@ -180,16 +236,17 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // 3. Allocate a JSValue wrapper for the string.
   {
     // ----------- S t a t e -------------
+    //  -- r3 : the first argument
     //  -- r4 : constructor function
-    //  -- r5 : the first argument
     //  -- lr : return address
     // -----------------------------------
 
     Label allocate, done_allocate;
+    __ mr(r5, r3);
     __ Allocate(JSValue::kSize, r3, r6, r7, &allocate, TAG_OBJECT);
     __ bind(&done_allocate);
 
-    // Initialize the JSValue in eax.
+    // Initialize the JSValue in r3.
     __ LoadGlobalFunctionInitialMap(r4, r6, r7);
     __ StoreP(r6, FieldMemOperand(r3, HeapObject::kMapOffset), r0);
     __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
