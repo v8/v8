@@ -102,8 +102,8 @@ function NAMEShiftLeftByScalarJS(instance, shift) {
   return %NAMEShiftLeftByScalar(instance, shift);
 }
 
-function NAMEShiftRightArithmeticByScalarJS(instance, shift) {
-  return %NAMEShiftRightArithmeticByScalar(instance, shift);
+function NAMEShiftRightByScalarJS(instance, shift) {
+  return %NAMEShiftRightByScalar(instance, shift);
 }
 endmacro
 
@@ -114,8 +114,8 @@ function NAMEShiftLeftByScalarJS(instance, shift) {
   return %NAMEShiftLeftByScalar(instance, shift);
 }
 
-function NAMEShiftRightLogicalByScalarJS(instance, shift) {
-  return %NAMEShiftRightLogicalByScalar(instance, shift);
+function NAMEShiftRightByScalarJS(instance, shift) {
+  return %NAMEShiftRightByScalar(instance, shift);
 }
 
 function NAMEHorizontalSumJS(instance) {
@@ -659,7 +659,7 @@ utils.InstallFunctions(GlobalInt32x4, DONT_ENUM, [
   'xor', Int32x4XorJS,
   'not', Int32x4NotJS,
   'shiftLeftByScalar', Int32x4ShiftLeftByScalarJS,
-  'shiftRightArithmeticByScalar', Int32x4ShiftRightArithmeticByScalarJS,
+  'shiftRightByScalar', Int32x4ShiftRightByScalarJS,
   'lessThan', Int32x4LessThanJS,
   'lessThanOrEqual', Int32x4LessThanOrEqualJS,
   'greaterThan', Int32x4GreaterThanJS,
@@ -702,7 +702,7 @@ utils.InstallFunctions(GlobalUint32x4, DONT_ENUM, [
   'xor', Uint32x4XorJS,
   'not', Uint32x4NotJS,
   'shiftLeftByScalar', Uint32x4ShiftLeftByScalarJS,
-  'shiftRightLogicalByScalar', Uint32x4ShiftRightLogicalByScalarJS,
+  'shiftRightByScalar', Uint32x4ShiftRightByScalarJS,
   'horizontalSum', Uint32x4HorizontalSumJS,
   'lessThan', Uint32x4LessThanJS,
   'lessThanOrEqual', Uint32x4LessThanOrEqualJS,
@@ -764,7 +764,7 @@ utils.InstallFunctions(GlobalInt16x8, DONT_ENUM, [
   'xor', Int16x8XorJS,
   'not', Int16x8NotJS,
   'shiftLeftByScalar', Int16x8ShiftLeftByScalarJS,
-  'shiftRightArithmeticByScalar', Int16x8ShiftRightArithmeticByScalarJS,
+  'shiftRightByScalar', Int16x8ShiftRightByScalarJS,
   'lessThan', Int16x8LessThanJS,
   'lessThanOrEqual', Int16x8LessThanOrEqualJS,
   'greaterThan', Int16x8GreaterThanJS,
@@ -802,7 +802,7 @@ utils.InstallFunctions(GlobalUint16x8, DONT_ENUM, [
   'xor', Uint16x8XorJS,
   'not', Uint16x8NotJS,
   'shiftLeftByScalar', Uint16x8ShiftLeftByScalarJS,
-  'shiftRightLogicalByScalar', Uint16x8ShiftRightLogicalByScalarJS,
+  'shiftRightByScalar', Uint16x8ShiftRightByScalarJS,
   'horizontalSum', Uint16x8HorizontalSumJS,
   'absoluteDifference', Uint16x8AbsoluteDifferenceJS,
   'widenedAbsoluteDifference', Uint16x8WidenedAbsoluteDifferenceJS,
@@ -859,7 +859,7 @@ utils.InstallFunctions(GlobalInt8x16, DONT_ENUM, [
   'xor', Int8x16XorJS,
   'not', Int8x16NotJS,
   'shiftLeftByScalar', Int8x16ShiftLeftByScalarJS,
-  'shiftRightArithmeticByScalar', Int8x16ShiftRightArithmeticByScalarJS,
+  'shiftRightByScalar', Int8x16ShiftRightByScalarJS,
   'lessThan', Int8x16LessThanJS,
   'lessThanOrEqual', Int8x16LessThanOrEqualJS,
   'greaterThan', Int8x16GreaterThanJS,
@@ -897,7 +897,7 @@ utils.InstallFunctions(GlobalUint8x16, DONT_ENUM, [
   'xor', Uint8x16XorJS,
   'not', Uint8x16NotJS,
   'shiftLeftByScalar', Uint8x16ShiftLeftByScalarJS,
-  'shiftRightLogicalByScalar', Uint8x16ShiftRightLogicalByScalarJS,
+  'shiftRightByScalar', Uint8x16ShiftRightByScalarJS,
   'horizontalSum', Uint8x16HorizontalSumJS,
   'absoluteDifference', Uint8x16AbsoluteDifferenceJS,
   'widenedAbsoluteDifference', Uint8x16WidenedAbsoluteDifferenceJS,

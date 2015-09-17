@@ -458,7 +458,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
   }
 
 #define SIMD_LSR_FUNCTION(type, lane_type, lane_bits, lane_count) \
-  RUNTIME_FUNCTION(Runtime_##type##ShiftRightLogicalByScalar) {   \
+  RUNTIME_FUNCTION(Runtime_##type##ShiftRightByScalar) {          \
     static const int kLaneCount = lane_count;                     \
     HandleScope scope(isolate);                                   \
     DCHECK(args.length() == 2);                                   \
@@ -476,7 +476,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
   }
 
 #define SIMD_ASR_FUNCTION(type, lane_type, lane_bits, lane_count)      \
-  RUNTIME_FUNCTION(Runtime_##type##ShiftRightArithmeticByScalar) {     \
+  RUNTIME_FUNCTION(Runtime_##type##ShiftRightByScalar) {               \
     static const int kLaneCount = lane_count;                          \
     HandleScope scope(isolate);                                        \
     DCHECK(args.length() == 2);                                        \
