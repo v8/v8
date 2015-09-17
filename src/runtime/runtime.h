@@ -960,6 +960,7 @@ namespace internal {
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
   F(HaveSameMap, 2, 1)                        \
+  F(InNewSpace, 1, 1)                         \
   F(HasFastSmiElements, 1, 1)                 \
   F(HasFastObjectElements, 1, 1)              \
   F(HasFastSmiOrObjectElements, 1, 1)         \

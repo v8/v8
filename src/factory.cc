@@ -1626,15 +1626,15 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
 }
 
 
-Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(SharedFlag shared) {
+Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(SharedFlag shared,
+                                                PretenureFlag pretenure) {
   Handle<JSFunction> array_buffer_fun(
       shared == SharedFlag::kShared
           ? isolate()->native_context()->shared_array_buffer_fun()
           : isolate()->native_context()->array_buffer_fun());
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSObject(*array_buffer_fun),
-      JSArrayBuffer);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateJSObject(
+                                    *array_buffer_fun, pretenure),
+                     JSArrayBuffer);
 }
 
 
@@ -1784,18 +1784,19 @@ JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
 void SetupArrayBufferView(i::Isolate* isolate,
                           i::Handle<i::JSArrayBufferView> obj,
                           i::Handle<i::JSArrayBuffer> buffer,
-                          size_t byte_offset, size_t byte_length) {
+                          size_t byte_offset, size_t byte_length,
+                          PretenureFlag pretenure = NOT_TENURED) {
   DCHECK(byte_offset + byte_length <=
          static_cast<size_t>(buffer->byte_length()->Number()));
 
   obj->set_buffer(*buffer);
 
   i::Handle<i::Object> byte_offset_object =
-      isolate->factory()->NewNumberFromSize(byte_offset);
+      isolate->factory()->NewNumberFromSize(byte_offset, pretenure);
   obj->set_byte_offset(*byte_offset_object);
 
   i::Handle<i::Object> byte_length_object =
-      isolate->factory()->NewNumberFromSize(byte_length);
+      isolate->factory()->NewNumberFromSize(byte_length, pretenure);
   obj->set_byte_length(*byte_length_object);
 }
 
@@ -1803,31 +1804,32 @@ void SetupArrayBufferView(i::Isolate* isolate,
 }  // namespace
 
 
-Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
+Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
+                                              PretenureFlag pretenure) {
   Handle<JSFunction> typed_array_fun_handle(GetTypedArrayFun(type, isolate()));
 
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSObject(*typed_array_fun_handle),
-      JSTypedArray);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateJSObject(
+                                    *typed_array_fun_handle, pretenure),
+                     JSTypedArray);
 }
 
 
-Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind) {
+Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
+                                              PretenureFlag pretenure) {
   Handle<JSFunction> typed_array_fun_handle(
       GetTypedArrayFun(elements_kind, isolate()));
 
-  CALL_HEAP_FUNCTION(
-      isolate(), isolate()->heap()->AllocateJSObject(*typed_array_fun_handle),
-      JSTypedArray);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateJSObject(
+                                    *typed_array_fun_handle, pretenure),
+                     JSTypedArray);
 }
 
 
 Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
                                               Handle<JSArrayBuffer> buffer,
-                                              size_t byte_offset,
-                                              size_t length) {
-  Handle<JSTypedArray> obj = NewJSTypedArray(type);
+                                              size_t byte_offset, size_t length,
+                                              PretenureFlag pretenure) {
+  Handle<JSTypedArray> obj = NewJSTypedArray(type, pretenure);
 
   size_t element_size = GetExternalArrayElementSize(type);
   ElementsKind elements_kind = GetExternalArrayElementsKind(type);
@@ -1837,14 +1839,15 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   CHECK(length <= (std::numeric_limits<size_t>::max() / element_size));
   CHECK(length <= static_cast<size_t>(Smi::kMaxValue));
   size_t byte_length = length * element_size;
-  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
+  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length,
+                       pretenure);
 
-  Handle<Object> length_object = NewNumberFromSize(length);
+  Handle<Object> length_object = NewNumberFromSize(length, pretenure);
   obj->set_length(*length_object);
 
   Handle<FixedTypedArrayBase> elements = NewFixedTypedArrayWithExternalPointer(
       static_cast<int>(length), type,
-      static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
+      static_cast<uint8_t*>(buffer->backing_store()) + byte_offset, pretenure);
   Handle<Map> map = JSObject::GetElementsTransitionMap(obj, elements_kind);
   JSObject::SetMapAndElements(obj, map, elements);
   return obj;
@@ -1852,8 +1855,9 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
 
 
 Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
-                                              size_t number_of_elements) {
-  Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind);
+                                              size_t number_of_elements,
+                                              PretenureFlag pretenure) {
+  Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind, pretenure);
 
   size_t element_size = GetFixedTypedArraysElementSize(elements_kind);
   ExternalArrayType array_type = GetArrayTypeFromElementsKind(elements_kind);
@@ -1865,18 +1869,19 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
 
   obj->set_byte_offset(Smi::FromInt(0));
   i::Handle<i::Object> byte_length_object =
-      isolate()->factory()->NewNumberFromSize(byte_length);
+      NewNumberFromSize(byte_length, pretenure);
   obj->set_byte_length(*byte_length_object);
-  Handle<Object> length_object = NewNumberFromSize(number_of_elements);
+  Handle<Object> length_object =
+      NewNumberFromSize(number_of_elements, pretenure);
   obj->set_length(*length_object);
 
-  Handle<JSArrayBuffer> buffer = isolate()->factory()->NewJSArrayBuffer();
+  Handle<JSArrayBuffer> buffer =
+      NewJSArrayBuffer(SharedFlag::kNotShared, pretenure);
   JSArrayBuffer::Setup(buffer, isolate(), true, NULL, byte_length,
                        SharedFlag::kNotShared);
   obj->set_buffer(*buffer);
-  Handle<FixedTypedArrayBase> elements =
-      isolate()->factory()->NewFixedTypedArray(
-          static_cast<int>(number_of_elements), array_type, true);
+  Handle<FixedTypedArrayBase> elements = NewFixedTypedArray(
+      static_cast<int>(number_of_elements), array_type, true, pretenure);
   obj->set_elements(*elements);
   return obj;
 }

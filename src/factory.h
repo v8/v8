@@ -449,20 +449,25 @@ class Factory final {
   Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
-      SharedFlag shared = SharedFlag::kNotShared);
+      SharedFlag shared = SharedFlag::kNotShared,
+      PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
+  Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type,
+                                       PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<JSTypedArray> NewJSTypedArray(ElementsKind elements_kind);
+  Handle<JSTypedArray> NewJSTypedArray(ElementsKind elements_kind,
+                                       PretenureFlag pretenure = NOT_TENURED);
 
   // Creates a new JSTypedArray with the specified buffer.
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type,
                                        Handle<JSArrayBuffer> buffer,
-                                       size_t byte_offset, size_t length);
+                                       size_t byte_offset, size_t length,
+                                       PretenureFlag pretenure = NOT_TENURED);
 
   // Creates a new on-heap JSTypedArray.
   Handle<JSTypedArray> NewJSTypedArray(ElementsKind elements_kind,
-                                       size_t number_of_elements);
+                                       size_t number_of_elements,
+                                       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSDataView> NewJSDataView();
   Handle<JSDataView> NewJSDataView(Handle<JSArrayBuffer> buffer,

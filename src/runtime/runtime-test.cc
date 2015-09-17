@@ -467,6 +467,14 @@ RUNTIME_FUNCTION(Runtime_HaveSameMap) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_InNewSpace) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(isolate->heap()->InNewSpace(obj));
+}
+
+
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)       \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                  \
     CONVERT_ARG_CHECKED(JSObject, obj, 0);               \

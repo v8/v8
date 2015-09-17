@@ -1730,18 +1730,21 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
 template <typename Data>
 Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
                            ExternalArrayType type, Data* data,
-                           size_t num_elements, const char* name) {
+                           size_t num_elements, const char* name,
+                           const SharedFlag shared = SharedFlag::kNotShared,
+                           const PretenureFlag pretenure = TENURED) {
   size_t byte_length = num_elements * sizeof(*data);
-  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+  Handle<JSArrayBuffer> buffer =
+      isolate->factory()->NewJSArrayBuffer(shared, pretenure);
   bool is_external = data != nullptr;
   if (!is_external) {
     data = reinterpret_cast<Data*>(
         isolate->array_buffer_allocator()->Allocate(byte_length));
   }
-  JSArrayBuffer::Setup(buffer, isolate, is_external, data, byte_length);
+  JSArrayBuffer::Setup(buffer, isolate, is_external, data, byte_length, shared);
 
-  Handle<JSTypedArray> typed_array =
-      isolate->factory()->NewJSTypedArray(type, buffer, 0, num_elements);
+  Handle<JSTypedArray> typed_array = isolate->factory()->NewJSTypedArray(
+      type, buffer, 0, num_elements, pretenure);
   Handle<String> name_string = isolate->factory()->InternalizeUtf8String(name);
   // Reset property cell type before (re)initializing.
   JSBuiltinsObject::InvalidatePropertyCell(builtins, name_string);
