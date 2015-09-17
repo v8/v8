@@ -427,10 +427,13 @@ class MarkCompactCollector {
   void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
 
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
-                     AllocationSpace to_old_space);
+                     AllocationSpace to_old_space,
+                     SlotsBuffer** evacuation_slots_buffer);
 
-  void MigrateObjectTagged(HeapObject* dst, HeapObject* src, int size);
-  void MigrateObjectMixed(HeapObject* dst, HeapObject* src, int size);
+  void MigrateObjectTagged(HeapObject* dst, HeapObject* src, int size,
+                           SlotsBuffer** evacuation_slots_buffer);
+  void MigrateObjectMixed(HeapObject* dst, HeapObject* src, int size,
+                          SlotsBuffer** evacuation_slots_buffer);
   void MigrateObjectRaw(HeapObject* dst, HeapObject* src, int size);
 
   bool TryPromoteObject(HeapObject* object, int object_size);
@@ -565,8 +568,6 @@ class MarkCompactCollector {
   SlotsBufferAllocator* slots_buffer_allocator_;
 
   SlotsBuffer* migration_slots_buffer_;
-
-  base::Mutex migration_slots_buffer_mutex_;
 
   // Finishes GC, performs heap verification if enabled.
   void Finish();
@@ -716,9 +717,15 @@ class MarkCompactCollector {
 
   void EvacuateNewSpace();
 
-  bool EvacuateLiveObjectsFromPage(Page* p, PagedSpace* target_space);
+  bool EvacuateLiveObjectsFromPage(Page* p, PagedSpace* target_space,
+                                   SlotsBuffer** evacuation_slots_buffer);
 
-  void EvacuatePages(CompactionSpaceCollection* compaction_spaces);
+  void AddEvacuationSlotsBufferSynchronized(
+      SlotsBuffer* evacuation_slots_buffer);
+
+  void EvacuatePages(CompactionSpaceCollection* compaction_spaces,
+                     SlotsBuffer** evacuation_slots_buffer);
+
   void EvacuatePagesInParallel();
 
   int NumberOfParallelCompactionTasks() {
@@ -746,13 +753,16 @@ class MarkCompactCollector {
   void ParallelSweepSpaceComplete(PagedSpace* space);
 
   // Updates store buffer and slot buffer for a pointer in a migrating object.
-  void RecordMigratedSlot(Object* value, Address slot);
+  void RecordMigratedSlot(Object* value, Address slot,
+                          SlotsBuffer** evacuation_slots_buffer);
 
   // Adds the code entry slot to the slots buffer.
-  void RecordMigratedCodeEntrySlot(Address code_entry, Address code_entry_slot);
+  void RecordMigratedCodeEntrySlot(Address code_entry, Address code_entry_slot,
+                                   SlotsBuffer** evacuation_slots_buffer);
 
   // Adds the slot of a moved code object.
-  void RecordMigratedCodeObjectSlot(Address code_object);
+  void RecordMigratedCodeObjectSlot(Address code_object,
+                                    SlotsBuffer** evacuation_slots_buffer);
 
 #ifdef DEBUG
   friend class MarkObjectVisitor;
@@ -770,6 +780,14 @@ class MarkCompactCollector {
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;
+
+  // The evacuation_slots_buffers_ are used by the compaction threads.
+  // When a compaction task finishes, it uses
+  // AddEvacuationSlotsbufferSynchronized to adds its slots buffer to the
+  // evacuation_slots_buffers_ list using the evacuation_slots_buffers_mutex_
+  // lock.
+  base::Mutex evacuation_slots_buffers_mutex_;
+  List<SlotsBuffer*> evacuation_slots_buffers_;
 
   base::SmartPointer<FreeList> free_list_old_space_;
   base::SmartPointer<FreeList> free_list_code_space_;

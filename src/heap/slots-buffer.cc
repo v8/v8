@@ -16,15 +16,6 @@ bool SlotsBuffer::IsTypedSlot(ObjectSlot slot) {
 }
 
 
-bool SlotsBuffer::AddToSynchronized(SlotsBufferAllocator* allocator,
-                                    SlotsBuffer** buffer_address,
-                                    base::Mutex* buffer_mutex, SlotType type,
-                                    Address addr, AdditionMode mode) {
-  base::LockGuard<base::Mutex> lock_guard(buffer_mutex);
-  return AddTo(allocator, buffer_address, type, addr, mode);
-}
-
-
 bool SlotsBuffer::AddTo(SlotsBufferAllocator* allocator,
                         SlotsBuffer** buffer_address, SlotType type,
                         Address addr, AdditionMode mode) {

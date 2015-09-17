@@ -122,14 +122,6 @@ class SlotsBuffer {
     return buffer != NULL && buffer->chain_length_ >= kChainLengthThreshold;
   }
 
-  INLINE(static bool AddToSynchronized(SlotsBufferAllocator* allocator,
-                                       SlotsBuffer** buffer_address,
-                                       base::Mutex* buffer_mutex,
-                                       ObjectSlot slot, AdditionMode mode)) {
-    base::LockGuard<base::Mutex> lock_guard(buffer_mutex);
-    return AddTo(allocator, buffer_address, slot, mode);
-  }
-
   INLINE(static bool AddTo(SlotsBufferAllocator* allocator,
                            SlotsBuffer** buffer_address, ObjectSlot slot,
                            AdditionMode mode)) {
@@ -147,11 +139,6 @@ class SlotsBuffer {
   }
 
   static bool IsTypedSlot(ObjectSlot slot);
-
-  static bool AddToSynchronized(SlotsBufferAllocator* allocator,
-                                SlotsBuffer** buffer_address,
-                                base::Mutex* buffer_mutex, SlotType type,
-                                Address addr, AdditionMode mode);
 
   static bool AddTo(SlotsBufferAllocator* allocator,
                     SlotsBuffer** buffer_address, SlotType type, Address addr,
