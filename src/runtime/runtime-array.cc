@@ -197,38 +197,39 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
-  if (array->elements()->IsDictionary()) {
-    Handle<FixedArray> keys = isolate->factory()->empty_fixed_array();
-    for (PrototypeIterator iter(isolate, array,
-                                PrototypeIterator::START_AT_RECEIVER);
-         !iter.IsAtEnd(); iter.Advance()) {
-      if (PrototypeIterator::GetCurrent(iter)->IsJSProxy() ||
-          PrototypeIterator::GetCurrent<JSObject>(iter)
-              ->HasIndexedInterceptor()) {
-        // Bail out if we find a proxy or interceptor, likely not worth
-        // collecting keys in that case.
-        return *isolate->factory()->NewNumberFromUint(length);
-      }
-      Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-      Handle<FixedArray> current_keys =
-          isolate->factory()->NewFixedArray(current->NumberOfOwnElements(NONE));
-      current->GetOwnElementKeys(*current_keys, NONE);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, keys, FixedArray::UnionOfKeys(keys, current_keys));
-    }
-    // Erase any keys >= length.
-    // TODO(adamk): Remove this step when the contract of %GetArrayKeys
-    // is changed to let this happen on the JS side.
-    for (int i = 0; i < keys->length(); i++) {
-      if (NumberToUint32(keys->get(i)) >= length) keys->set_undefined(i);
-    }
-    return *isolate->factory()->NewJSArrayWithElements(keys);
-  } else {
+
+  if (!array->elements()->IsDictionary()) {
     RUNTIME_ASSERT(array->HasFastSmiOrObjectElements() ||
                    array->HasFastDoubleElements());
     uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
     return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
   }
+
+  KeyAccumulator accumulator(isolate);
+  for (PrototypeIterator iter(isolate, array,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy() ||
+        PrototypeIterator::GetCurrent<JSObject>(iter)
+            ->HasIndexedInterceptor()) {
+      // Bail out if we find a proxy or interceptor, likely not worth
+      // collecting keys in that case.
+      return *isolate->factory()->NewNumberFromUint(length);
+    }
+    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
+    Handle<FixedArray> current_keys =
+        isolate->factory()->NewFixedArray(current->NumberOfOwnElements(NONE));
+    current->GetOwnElementKeys(*current_keys, NONE);
+    accumulator.AddKeys(current_keys, FixedArray::ALL_KEYS);
+  }
+  // Erase any keys >= length.
+  // TODO(adamk): Remove this step when the contract of %GetArrayKeys
+  // is changed to let this happen on the JS side.
+  Handle<FixedArray> keys = accumulator.GetKeys();
+  for (int i = 0; i < keys->length(); i++) {
+    if (NumberToUint32(keys->get(i)) >= length) keys->set_undefined(i);
+  }
+  return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
 

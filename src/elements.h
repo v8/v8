@@ -100,9 +100,9 @@ class ElementsAccessor {
   virtual void GrowCapacityAndConvert(Handle<JSObject> object,
                                       uint32_t capacity) = 0;
 
-  virtual Handle<FixedArray> AddElementsToFixedArray(
-      Handle<JSObject> receiver, Handle<FixedArray> to,
-      FixedArray::KeyFilter filter) = 0;
+  virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
+                                           KeyAccumulator* accumulator,
+                                           FixedArray::KeyFilter filter) = 0;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {

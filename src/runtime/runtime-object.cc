@@ -996,17 +996,24 @@ RUNTIME_FUNCTION(Runtime_OwnKeys) {
   // a fresh clone on each invocation.
   int length = contents->length();
   Handle<FixedArray> copy = isolate->factory()->NewFixedArray(length);
-  for (int i = 0; i < length; i++) {
-    Object* entry = contents->get(i);
-    if (entry->IsString()) {
-      copy->set(i, entry);
-    } else {
-      DCHECK(entry->IsNumber());
-      HandleScope scope(isolate);
-      Handle<Object> entry_handle(entry, isolate);
-      Handle<Object> entry_str =
-          isolate->factory()->NumberToString(entry_handle);
-      copy->set(i, *entry_str);
+  int offset = 0;
+  // Use an outer loop to avoid creating too many handles in the current
+  // handle scope.
+  while (offset < length) {
+    HandleScope scope(isolate);
+    offset += 100;
+    int end = Min(offset, length);
+    for (int i = offset - 100; i < end; i++) {
+      Object* entry = contents->get(i);
+      if (entry->IsString()) {
+        copy->set(i, entry);
+      } else {
+        DCHECK(entry->IsNumber());
+        Handle<Object> entry_handle(entry, isolate);
+        Handle<Object> entry_str =
+            isolate->factory()->NumberToString(entry_handle);
+        copy->set(i, *entry_str);
+      }
     }
   }
   return *isolate->factory()->NewJSArrayWithElements(copy);

@@ -2472,17 +2472,6 @@ class FixedArray: public FixedArrayBase {
 
   enum KeyFilter { ALL_KEYS, NON_SYMBOL_KEYS };
 
-  // Add the elements of a JSArray to this FixedArray.
-  MUST_USE_RESULT static MaybeHandle<FixedArray> AddKeysFromArrayLike(
-      Handle<FixedArray> content, Handle<JSObject> array,
-      KeyFilter filter = ALL_KEYS);
-
-  // Computes the union of keys and return the result.
-  // Used for implementing "for (n in object) { }"
-  MUST_USE_RESULT static MaybeHandle<FixedArray> UnionOfKeys(
-      Handle<FixedArray> first,
-      Handle<FixedArray> second);
-
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
 
@@ -3661,6 +3650,9 @@ class OrderedHashTable: public FixedArray {
   // exisiting iterators can be updated.
   static Handle<Derived> Clear(Handle<Derived> table);
 
+  // Returns a true if the OrderedHashTable contains the key
+  static bool HasKey(Handle<Derived> table, Handle<Object> key);
+
   int NumberOfElements() {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
   }
@@ -3678,6 +3670,26 @@ class OrderedHashTable: public FixedArray {
   // Returns an index into |this| for the given entry.
   int EntryToIndex(int entry) {
     return kHashTableStartIndex + NumberOfBuckets() + (entry * kEntrySize);
+  }
+
+  int HashToBucket(int hash) { return hash & (NumberOfBuckets() - 1); }
+
+  int HashToEntry(int hash) {
+    int bucket = HashToBucket(hash);
+    Object* entry = this->get(kHashTableStartIndex + bucket);
+    return Smi::cast(entry)->value();
+  }
+
+  int KeyToFirstEntry(Object* key) {
+    Object* hash = key->GetHash();
+    // If the object does not have an identity hash, it was never used as a key
+    if (hash->IsUndefined()) return kNotFound;
+    return HashToEntry(Smi::cast(hash)->value());
+  }
+
+  int NextChainEntry(int entry) {
+    Object* next_entry = get(EntryToIndex(entry) + kChainOffset);
+    return Smi::cast(next_entry)->value();
   }
 
   Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
@@ -3726,7 +3738,7 @@ class OrderedHashTable: public FixedArray {
   // optimize that case.
   static const int kClearedTableSentinel = -1;
 
- private:
+ protected:
   static Handle<Derived> Rehash(Handle<Derived> table, int new_capacity);
 
   void SetNumberOfBuckets(int num) {
@@ -3768,6 +3780,9 @@ class OrderedHashSet: public OrderedHashTable<
     OrderedHashSet, JSSetIterator, 1> {
  public:
   DECLARE_CAST(OrderedHashSet)
+
+  static Handle<OrderedHashSet> Add(Handle<OrderedHashSet> table,
+                                    Handle<Object> value);
 };
 
 
@@ -10488,6 +10503,29 @@ class BooleanBit : public AllStatic {
   }
 };
 
+
+class KeyAccumulator final BASE_EMBEDDED {
+ public:
+  explicit KeyAccumulator(Isolate* isolate) : isolate_(isolate), length_(0) {}
+
+  void AddKey(Handle<Object> key, int check_limit);
+  void AddKeys(Handle<FixedArray> array, FixedArray::KeyFilter filter);
+  void AddKeys(Handle<JSObject> array, FixedArray::KeyFilter filter);
+  void PrepareForComparisons(int count);
+  Handle<FixedArray> GetKeys();
+
+  int GetLength() { return length_; }
+
+ private:
+  void EnsureCapacity(int capacity);
+  void Grow();
+
+  Isolate* isolate_;
+  Handle<FixedArray> keys_;
+  Handle<OrderedHashSet> set_;
+  int length_;
+  DISALLOW_COPY_AND_ASSIGN(KeyAccumulator);
+};
 } }  // namespace v8::internal
 
 #endif  // V8_OBJECTS_H_

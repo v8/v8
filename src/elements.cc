@@ -97,18 +97,6 @@ ELEMENTS_LIST(ELEMENTS_TRAITS)
 #undef ELEMENTS_TRAITS
 
 
-static bool HasIndex(Handle<FixedArray> array, Handle<Object> index_handle) {
-  DisallowHeapAllocation no_gc;
-  Object* index = *index_handle;
-  int len0 = array->length();
-  for (int i = 0; i < len0; i++) {
-    Object* element = array->get(i);
-    if (index->KeyEquals(element)) return true;
-  }
-  return false;
-}
-
-
 MUST_USE_RESULT
 MaybeHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
   THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidArrayLength),
@@ -885,78 +873,26 @@ class ElementsAccessorBase : public ElementsAccessor {
         from, from_start, *to, from_kind, to_start, packed_size, copy_size);
   }
 
-  virtual Handle<FixedArray> AddElementsToFixedArray(
-      Handle<JSObject> receiver, Handle<FixedArray> to,
-      FixedArray::KeyFilter filter) final {
+  virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
+                                           KeyAccumulator* accumulator,
+                                           FixedArray::KeyFilter filter) final {
     Handle<FixedArrayBase> from(receiver->elements());
-
-    int len0 = to->length();
-#ifdef ENABLE_SLOW_DCHECKS
-    if (FLAG_enable_slow_asserts) {
-      for (int i = 0; i < len0; i++) {
-        DCHECK(!to->get(i)->IsTheHole());
+    uint32_t add_length =
+        ElementsAccessorSubclass::GetCapacityImpl(*receiver, *from);
+    if (add_length == 0) return;
+    accumulator->PrepareForComparisons(add_length);
+    int prev_key_count = accumulator->GetLength();
+    for (uint32_t i = 0; i < add_length; i++) {
+      if (!ElementsAccessorSubclass::HasEntryImpl(*from, i)) continue;
+      Handle<Object> value = ElementsAccessorSubclass::GetImpl(from, i);
+      DCHECK(!value->IsTheHole());
+      DCHECK(!value->IsAccessorPair());
+      DCHECK(!value->IsExecutableAccessorInfo());
+      if (filter == FixedArray::NON_SYMBOL_KEYS && value->IsSymbol()) {
+        continue;
       }
+      accumulator->AddKey(value, prev_key_count);
     }
-#endif
-
-    // Optimize if 'other' is empty.
-    // We cannot optimize if 'this' is empty, as other may have holes.
-    uint32_t len1 = ElementsAccessorSubclass::GetCapacityImpl(*receiver, *from);
-    if (len1 == 0) return to;
-
-    Isolate* isolate = from->GetIsolate();
-
-    // Compute how many elements are not in other.
-    uint32_t extra = 0;
-    for (uint32_t y = 0; y < len1; y++) {
-      if (ElementsAccessorSubclass::HasEntryImpl(*from, y)) {
-        Handle<Object> value = ElementsAccessorSubclass::GetImpl(from, y);
-
-        DCHECK(!value->IsTheHole());
-        DCHECK(!value->IsAccessorPair());
-        DCHECK(!value->IsExecutableAccessorInfo());
-        if (filter == FixedArray::NON_SYMBOL_KEYS && value->IsSymbol()) {
-          continue;
-        }
-        if (!HasIndex(to, value)) {
-          extra++;
-        }
-      }
-    }
-
-    if (extra == 0) return to;
-
-    // Allocate the result
-    Handle<FixedArray> result = isolate->factory()->NewFixedArray(len0 + extra);
-
-    // Fill in the content
-    {
-      DisallowHeapAllocation no_gc;
-      WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-      for (int i = 0; i < len0; i++) {
-        Object* e = to->get(i);
-        DCHECK(e->IsString() || e->IsNumber());
-        result->set(i, e, mode);
-      }
-    }
-    // Fill in the extra values.
-    uint32_t entry = 0;
-    for (uint32_t y = 0; y < len1; y++) {
-      if (ElementsAccessorSubclass::HasEntryImpl(*from, y)) {
-        Handle<Object> value = ElementsAccessorSubclass::GetImpl(from, y);
-        DCHECK(!value->IsAccessorPair());
-        DCHECK(!value->IsExecutableAccessorInfo());
-        if (filter == FixedArray::NON_SYMBOL_KEYS && value->IsSymbol()) {
-          continue;
-        }
-        if (!value->IsTheHole() && !HasIndex(to, value)) {
-          result->set(len0 + entry, *value);
-          entry++;
-        }
-      }
-    }
-    DCHECK(extra == entry);
-    return result;
   }
 
   static uint32_t GetCapacityImpl(JSObject* holder,
