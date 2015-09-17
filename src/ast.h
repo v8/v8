@@ -3676,9 +3676,9 @@ class AstNodeFactory final BASE_EMBEDDED {
   // Handles use of temporary zones when parsing inner function bodies.
   class BodyScope {
    public:
-    BodyScope(AstNodeFactory* factory, Zone* temp_zone, bool can_use_temp_zone)
+    BodyScope(AstNodeFactory* factory, Zone* temp_zone, bool use_temp_zone)
         : factory_(factory), prev_zone_(factory->local_zone_) {
-      if (can_use_temp_zone) {
+      if (use_temp_zone) {
         factory->local_zone_ = temp_zone;
       }
     }

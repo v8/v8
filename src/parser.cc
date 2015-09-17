@@ -4224,7 +4224,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       //   FunctionExpression; even without enclosing parentheses it might be
       //   immediately invoked.
       // - The function literal shouldn't be hinted to eagerly compile.
-      bool can_use_temp_zone =
+      bool use_temp_zone =
           FLAG_lazy && !allow_natives() && extension_ == NULL && allow_lazy() &&
           function_type == FunctionLiteral::DECLARATION &&
           eager_compile_hint != FunctionLiteral::kShouldEagerCompile;
@@ -4237,14 +4237,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // parser-persistent zone (see parser_zone_ in AstNodeFactory).
       {
         Zone temp_zone;
-        AstNodeFactory::BodyScope(factory(), &temp_zone, can_use_temp_zone);
+        AstNodeFactory::BodyScope inner(factory(), &temp_zone, use_temp_zone);
 
         body = ParseEagerFunctionBody(function_name, pos, formals, kind,
                                       function_type, CHECK_OK);
       }
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
-      if (can_use_temp_zone) {
+      if (use_temp_zone) {
         // If the preconditions are correct the function body should never be
         // accessed, but do this anyway for better behaviour if they're wrong.
         body = NULL;
