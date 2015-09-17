@@ -82,7 +82,7 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     Handle<JSFunction> fun = FunctionTester::ForMachineGraph(this->graph());
     Handle<Object>* args = NULL;
     MaybeHandle<Object> result = Execution::Call(
-        this->isolate(), fun, factory()->undefined_value(), 0, args);
+        this->isolate(), fun, factory()->undefined_value(), 0, args, false);
     return T::cast(*result.ToHandleChecked());
   }
 

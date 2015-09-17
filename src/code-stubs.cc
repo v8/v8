@@ -489,8 +489,8 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   Handle<Object> call_conv = factory->InternalizeUtf8String(name);
   Handle<Object> minor_key = factory->NewNumber(MinorKey());
   Handle<Object> args[] = {call_conv, minor_key};
-  MaybeHandle<Object> result =
-      Execution::Call(isolate(), outer, factory->undefined_value(), 2, args);
+  MaybeHandle<Object> result = Execution::Call(
+      isolate(), outer, factory->undefined_value(), 2, args, false);
   Handle<JSFunction> inner = Handle<JSFunction>::cast(result.ToHandleChecked());
   // Just to make sure nobody calls this...
   inner->set_code(isolate()->builtins()->builtin(Builtins::kIllegal));

@@ -18,7 +18,8 @@ namespace interpreter {
 static MaybeHandle<Object> CallInterpreter(Isolate* isolate,
                                            Handle<JSFunction> function) {
   return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), 0, nullptr);
+                         isolate->factory()->undefined_value(), 0, nullptr,
+                         false);
 }
 
 
@@ -29,7 +30,7 @@ static MaybeHandle<Object> CallInterpreter(Isolate* isolate,
   Handle<Object> argv[] = { args... };
   return Execution::Call(isolate, function,
                          isolate->factory()->undefined_value(), sizeof...(args),
-                         argv);
+                         argv, false);
 }
 
 
