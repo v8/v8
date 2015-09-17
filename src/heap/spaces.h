@@ -268,6 +268,19 @@ class SlotsBuffer;
 // any heap object.
 class MemoryChunk {
  public:
+  // |kCompactionDone|: Initial compaction state of a |MemoryChunk|.
+  // |kCompactingInProgress|:  Parallel compaction is currently in progress.
+  // |kCompactingFinalize|: Parallel compaction is done but the chunk needs to
+  //   be finalized.
+  // |kCompactingAborted|: Parallel compaction has been aborted, which should
+  //   for now only happen in OOM scenarios.
+  enum ParallelCompactingState {
+    kCompactingDone,
+    kCompactingInProgress,
+    kCompactingFinalize,
+    kCompactingAborted,
+  };
+
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
@@ -458,6 +471,10 @@ class MemoryChunk {
     base::Release_Store(&parallel_sweeping_, state);
   }
 
+  AtomicValue<ParallelCompactingState>& parallel_compaction_state() {
+    return parallel_compaction_;
+  }
+
   bool TryLock() { return mutex_->TryLock(); }
 
   base::Mutex* mutex() { return mutex_; }
@@ -566,6 +583,7 @@ class MemoryChunk {
       + kPointerSize      // AtomicValue high_water_mark_
       + kPointerSize      // base::Mutex* mutex_
       + kPointerSize      // base::AtomicWord parallel_sweeping_
+      + kPointerSize      // AtomicValue parallel_compaction_
       + 5 * kPointerSize  // AtomicNumber free-list statistics
       + kPointerSize      // base::AtomicWord next_chunk_
       + kPointerSize;     // base::AtomicWord prev_chunk_
@@ -726,6 +744,7 @@ class MemoryChunk {
 
   base::Mutex* mutex_;
   base::AtomicWord parallel_sweeping_;
+  AtomicValue<ParallelCompactingState> parallel_compaction_;
 
   // PagedSpace free-list statistics.
   AtomicNumber<intptr_t> available_in_small_free_list_;
@@ -986,9 +1005,6 @@ class CodeRange {
   bool UncommitRawMemory(Address start, size_t length);
   void FreeRawMemory(Address buf, size_t length);
 
-  void ReserveEmergencyBlock();
-  void ReleaseEmergencyBlock();
-
  private:
   // Frees the range of virtual memory, and frees the data structures used to
   // manage it.
@@ -1030,12 +1046,6 @@ class CodeRange {
   // The block at current_allocation_block_index_ is the current block.
   List<FreeBlock> allocation_list_;
   int current_allocation_block_index_;
-
-  // Emergency block guarantees that we can always allocate a page for
-  // evacuation candidates when code space is compacted. Emergency block is
-  // reserved immediately after GC and is released immedietely before
-  // allocating a page for evacuation.
-  FreeBlock emergency_block_;
 
   // Finds a block on the allocation list that contains at least the
   // requested amount of memory.  If none is found, sorts and merges
@@ -1518,6 +1528,13 @@ class AllocationStats BASE_EMBEDDED {
     }
   }
 
+  void DecreaseCapacity(intptr_t size_in_bytes) {
+    capacity_ -= size_in_bytes;
+    DCHECK_GE(capacity_, 0);
+  }
+
+  void IncreaseCapacity(intptr_t size_in_bytes) { capacity_ += size_in_bytes; }
+
  private:
   intptr_t capacity_;
   intptr_t max_capacity_;
@@ -1533,7 +1550,8 @@ class AllocationStats BASE_EMBEDDED {
 // the end element of the linked list of free memory blocks.
 class FreeListCategory {
  public:
-  FreeListCategory() : top_(0), end_(NULL), available_(0) {}
+  explicit FreeListCategory(FreeList* owner)
+      : top_(0), end_(NULL), available_(0), owner_(owner) {}
 
   intptr_t Concatenate(FreeListCategory* category);
 
@@ -1573,6 +1591,8 @@ class FreeListCategory {
   int FreeListLength();
 #endif
 
+  FreeList* owner() { return owner_; }
+
  private:
   // top_ points to the top FreeSpace* in the free list category.
   base::AtomicWord top_;
@@ -1581,6 +1601,8 @@ class FreeListCategory {
 
   // Total available bytes in all blocks of this free list category.
   int available_;
+
+  FreeList* owner_;
 };
 
 
@@ -1672,6 +1694,8 @@ class FreeList {
   FreeListCategory* medium_list() { return &medium_list_; }
   FreeListCategory* large_list() { return &large_list_; }
   FreeListCategory* huge_list() { return &huge_list_; }
+
+  PagedSpace* owner() { return owner_; }
 
  private:
   // The size range of blocks, in bytes.
@@ -1969,16 +1993,13 @@ class PagedSpace : public Space {
   // Return size of allocatable area on a page in this space.
   inline int AreaSize() { return area_size_; }
 
-  void CreateEmergencyMemory();
-  void FreeEmergencyMemory();
-  void UseEmergencyMemory();
-  intptr_t MaxEmergencyMemoryAllocated();
-
-  bool HasEmergencyMemory() { return emergency_memory_ != NULL; }
-
   // Merges {other} into the current space. Note that this modifies {other},
   // e.g., removes its bump pointer area and resets statistics.
   void MergeCompactionSpace(CompactionSpace* other);
+
+  void MoveOverFreeMemory(PagedSpace* other);
+
+  virtual bool is_local() { return false; }
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
@@ -2039,12 +2060,6 @@ class PagedSpace : public Space {
   // and sweep these pages concurrently. They will stop sweeping after the
   // end_of_unswept_pages_ page.
   Page* end_of_unswept_pages_;
-
-  // Emergency memory is the memory of a full page for a given space, allocated
-  // conservatively before evacuating a page. If compaction fails due to out
-  // of memory error the emergency memory can be used to complete compaction.
-  // If not used, the emergency memory is released after compaction.
-  MemoryChunk* emergency_memory_;
 
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
@@ -2739,9 +2754,37 @@ class CompactionSpace : public PagedSpace {
     Free(start, size_in_bytes);
   }
 
+  virtual bool is_local() { return true; }
+
  protected:
   // The space is temporary and not included in any snapshots.
   virtual bool snapshotable() { return false; }
+};
+
+
+// A collection of |CompactionSpace|s used by a single compaction task.
+class CompactionSpaceCollection : public Malloced {
+ public:
+  explicit CompactionSpaceCollection(Heap* heap)
+      : old_space_(heap, OLD_SPACE, Executability::NOT_EXECUTABLE),
+        code_space_(heap, CODE_SPACE, Executability::EXECUTABLE) {}
+
+  CompactionSpace* Get(AllocationSpace space) {
+    switch (space) {
+      case OLD_SPACE:
+        return &old_space_;
+      case CODE_SPACE:
+        return &code_space_;
+      default:
+        UNREACHABLE();
+    }
+    UNREACHABLE();
+    return nullptr;
+  }
+
+ private:
+  CompactionSpace old_space_;
+  CompactionSpace code_space_;
 };
 
 
