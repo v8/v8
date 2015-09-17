@@ -66,8 +66,9 @@ class Test262TestSuite(testsuite.TestSuite):
       files.sort()
       for filename in files:
         if filename.endswith(".js"):
-          testname = os.path.join(dirname[len(self.testroot) + 1:],
-                                  filename[:-3])
+          fullpath = os.path.join(dirname, filename)
+          relpath = fullpath[len(self.testroot) + 1 : -3]
+          testname = relpath.replace(os.path.sep, "/")
           case = testcase.TestCase(self, testname)
           tests.append(case)
     return tests
