@@ -184,7 +184,7 @@ bool IsSamePage(byte* ptr1, byte* ptr2) {
 
 // Check if the code at specified address could potentially be a
 // frame setup code.
-DISABLE_ASAN bool IsNoFrameRegion(Address address) {
+bool IsNoFrameRegion(Address address) {
   struct Pattern {
     int bytes_count;
     byte bytes[8];
@@ -219,6 +219,7 @@ DISABLE_ASAN bool IsNoFrameRegion(Address address) {
     for (int* offset_ptr = pattern->offsets; *offset_ptr != -1; ++offset_ptr) {
       int offset = *offset_ptr;
       if (!offset || IsSamePage(pc, pc - offset)) {
+        MSAN_MEMORY_IS_INITIALIZED(pc - offset, pattern->bytes_count);
         if (!memcmp(pc - offset, pattern->bytes, pattern->bytes_count))
           return true;
       } else {
@@ -226,6 +227,7 @@ DISABLE_ASAN bool IsNoFrameRegion(Address address) {
         // allocated thus causing a SEGFAULT.
         // Check the pattern part that's on the same page and
         // pessimistically assume it could be the entire pattern match.
+        MSAN_MEMORY_IS_INITIALIZED(pc, pattern->bytes_count - offset);
         if (!memcmp(pc, pattern->bytes + offset, pattern->bytes_count - offset))
           return true;
       }
