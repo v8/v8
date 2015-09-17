@@ -148,8 +148,8 @@ class GreedyAllocator final : public RegisterAllocator {
 
   // Returns kInvalidWeight if there are no conflicts, or the largest weight of
   // a range conflicting with the given range, at the given register.
-  float GetMaximumConflictingWeight(unsigned reg_id,
-                                    const LiveRange* range) const;
+  float GetMaximumConflictingWeight(unsigned reg_id, const LiveRange* range,
+                                    float competing_weight) const;
 
   // Returns kInvalidWeight if there are no conflicts, or the largest weight of
   // a range conflicting with the given range, at the given register.

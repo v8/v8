@@ -338,12 +338,14 @@ void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
   int hinted_reg = -1;
 
   EnsureValidRangeWeight(range);
-  DCHECK(range->weight() != LiveRange::kInvalidWeight);
+  float competing_weight = range->weight();
+  DCHECK(competing_weight != LiveRange::kInvalidWeight);
 
   // Can we allocate at the hinted register?
   if (range->FirstHintPosition(&hinted_reg) != nullptr) {
     DCHECK(hinted_reg >= 0);
-    float max_conflict_weight = GetMaximumConflictingWeight(hinted_reg, range);
+    float max_conflict_weight =
+        GetMaximumConflictingWeight(hinted_reg, range, competing_weight);
     if (max_conflict_weight == LiveRange::kInvalidWeight) {
       free_reg = hinted_reg;
     } else if (max_conflict_weight < range->weight()) {
@@ -361,7 +363,8 @@ void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
     for (int i = 0; i < num_registers(); i++) {
       // Skip unnecessarily re-visiting the hinted register, if any.
       if (i == hinted_reg) continue;
-      float max_conflict_weight = GetMaximumConflictingWeight(i, range);
+      float max_conflict_weight =
+          GetMaximumConflictingWeight(i, range, competing_weight);
       if (max_conflict_weight == LiveRange::kInvalidWeight) {
         free_reg = i;
         break;
@@ -482,15 +485,16 @@ void GreedyAllocator::AllocateRegisters() {
 
 
 float GreedyAllocator::GetMaximumConflictingWeight(
-    unsigned reg_id, const LiveRange* range) const {
+    unsigned reg_id, const LiveRange* range, float competing_weight) const {
   float ret = LiveRange::kInvalidWeight;
 
   auto conflicts = current_allocations(reg_id)->GetConflicts(range);
   for (LiveRange* conflict = conflicts.Current(); conflict != nullptr;
        conflict = conflicts.GetNext()) {
     DCHECK_NE(conflict->weight(), LiveRange::kInvalidWeight);
+    if (competing_weight <= conflict->weight()) return LiveRange::kMaxWeight;
     ret = Max(ret, conflict->weight());
-    if (ret == LiveRange::kMaxWeight) return ret;
+    DCHECK(ret < LiveRange::kMaxWeight);
   }
 
   return ret;
@@ -503,7 +507,8 @@ float GreedyAllocator::GetMaximumConflictingWeight(unsigned reg_id,
   float ret = LiveRange::kInvalidWeight;
 
   for (LiveRange* member : group->ranges()) {
-    float member_conflict_weight = GetMaximumConflictingWeight(reg_id, member);
+    float member_conflict_weight =
+        GetMaximumConflictingWeight(reg_id, member, group_weight);
     if (member_conflict_weight == LiveRange::kMaxWeight) {
       return LiveRange::kMaxWeight;
     }
