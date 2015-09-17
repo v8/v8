@@ -176,9 +176,9 @@ void GreedyAllocator::PreallocateFixedRanges() {
 
 
 void GreedyAllocator::GroupLiveRanges() {
-  CoalescedLiveRanges groupper(local_zone());
+  CoalescedLiveRanges grouper(local_zone());
   for (TopLevelLiveRange* range : data()->live_ranges()) {
-    groupper.clear();
+    grouper.clear();
     // Skip splinters, because we do not want to optimize for them, and moves
     // due to assigning them to different registers occur in deferred blocks.
     if (!CanProcessRange(range) || range->IsSplinter() || !range->is_phi()) {
@@ -195,12 +195,12 @@ void GreedyAllocator::GroupLiveRanges() {
                                      : new (local_zone())
                                            LiveRangeGroup(local_zone());
 
-    // Populate the groupper.
+    // Populate the grouper.
     if (range->group() == nullptr) {
-      groupper.AllocateRange(range);
+      grouper.AllocateRange(range);
     } else {
       for (LiveRange* member : range->group()->ranges()) {
-        groupper.AllocateRange(member);
+        grouper.AllocateRange(member);
       }
     }
     for (int j : data()->GetPhiMapValueFor(range)->phi()->operands()) {
@@ -221,7 +221,7 @@ void GreedyAllocator::GroupLiveRanges() {
       if (other_group != nullptr) {
         bool can_merge = true;
         for (LiveRange* member : other_group->ranges()) {
-          if (groupper.GetConflicts(member).Current() != nullptr) {
+          if (grouper.GetConflicts(member).Current() != nullptr) {
             can_merge = false;
             break;
           }
@@ -233,14 +233,14 @@ void GreedyAllocator::GroupLiveRanges() {
                                       other_group->ranges().begin(),
                                       other_group->ranges().end());
           for (LiveRange* member : other_group->ranges()) {
-            groupper.AllocateRange(member);
+            grouper.AllocateRange(member);
             member->set_group(latest_grp);
           }
           // Clear the other range, so we avoid scheduling it.
           other_group->ranges().clear();
         }
-      } else if (groupper.GetConflicts(other).Current() == nullptr) {
-        groupper.AllocateRange(other);
+      } else if (grouper.GetConflicts(other).Current() == nullptr) {
+        grouper.AllocateRange(other);
         latest_grp->ranges().push_back(other);
         other->set_group(latest_grp);
       }
