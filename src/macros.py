@@ -74,6 +74,9 @@ define kMaxMonth = 10000000;
 # Reflect.construct().
 define kSafeArgumentsLength = 0x800000;
 
+# 2^53 - 1
+define kMaxSafeInteger = 9007199254740991;
+
 # Strict mode flags for passing to %SetProperty
 define kSloppyMode = 0;
 define kStrictMode = 1;

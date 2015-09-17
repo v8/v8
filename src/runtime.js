@@ -33,7 +33,6 @@ var harmony_tolength = false;
 var GlobalArray = global.Array;
 var GlobalBoolean = global.Boolean;
 var GlobalString = global.String;
-var GlobalNumber = global.Number;
 var isConcatSpreadableSymbol =
     utils.ImportNow("is_concat_spreadable_symbol");
 
@@ -302,8 +301,7 @@ function ToInteger(x) {
 function ToLength(arg) {
   arg = ToInteger(arg);
   if (arg < 0) return 0;
-  return arg < GlobalNumber.MAX_SAFE_INTEGER ? arg
-                                             : GlobalNumber.MAX_SAFE_INTEGER;
+  return arg < kMaxSafeInteger ? arg : kMaxSafeInteger;
 }
 
 

@@ -1544,7 +1544,7 @@ function NumberIsSafeInteger(number) {
   if (NumberIsFinite(number)) {
     var integral = TO_INTEGER(number);
     if (integral == number) {
-      return MathAbs(integral) <= GlobalNumber.MAX_SAFE_INTEGER;
+      return MathAbs(integral) <= kMaxSafeInteger;
     }
   }
   return false;
