@@ -2581,32 +2581,6 @@ void MarkCompactCollector::RecordMigratedSlot(Object* value, Address slot) {
 }
 
 
-void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
-                                      Object* target) {
-  Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
-  if (target_page->IsEvacuationCandidate() &&
-      !ShouldSkipEvacuationSlotRecording(object)) {
-    if (!SlotsBuffer::AddTo(slots_buffer_allocator_,
-                            target_page->slots_buffer_address(), slot,
-                            SlotsBuffer::FAIL_ON_OVERFLOW)) {
-      EvictPopularEvacuationCandidate(target_page);
-    }
-  }
-}
-
-
-void MarkCompactCollector::ForceRecordSlot(HeapObject* object, Object** slot,
-                                           Object* target) {
-  Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
-  if (target_page->IsEvacuationCandidate() &&
-      !ShouldSkipEvacuationSlotRecording(object)) {
-    CHECK(SlotsBuffer::AddTo(slots_buffer_allocator_,
-                             target_page->slots_buffer_address(), slot,
-                             SlotsBuffer::IGNORE_OVERFLOW));
-  }
-}
-
-
 void MarkCompactCollector::RecordMigratedCodeEntrySlot(
     Address code_entry, Address code_entry_slot) {
   if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {

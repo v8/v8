@@ -419,8 +419,9 @@ class MarkCompactCollector {
   void RecordRelocSlot(RelocInfo* rinfo, Object* target);
   void RecordCodeEntrySlot(HeapObject* object, Address slot, Code* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
-  void RecordSlot(HeapObject* object, Object** slot, Object* target);
-  void ForceRecordSlot(HeapObject* object, Object** slot, Object* target);
+  INLINE(void RecordSlot(HeapObject* object, Object** slot, Object* target));
+  INLINE(void ForceRecordSlot(HeapObject* object, Object** slot,
+                              Object* target));
 
   void UpdateSlots(SlotsBuffer* buffer);
   void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
