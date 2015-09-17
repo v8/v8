@@ -1451,6 +1451,7 @@ void NewSpace::UpdateAllocationInfo() {
 
 
 void NewSpace::ResetAllocationInfo() {
+  Address old_top = allocation_info_.top();
   to_space_.Reset();
   UpdateAllocationInfo();
   pages_used_ = 0;
@@ -1458,6 +1459,12 @@ void NewSpace::ResetAllocationInfo() {
   NewSpacePageIterator it(&to_space_);
   while (it.has_next()) {
     Bitmap::Clear(it.next());
+  }
+  if (top_on_previous_step_) {
+    int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
+    heap()->incremental_marking()->Step(bytes_allocated,
+                                        IncrementalMarking::GC_VIA_STACK_GUARD);
+    top_on_previous_step_ = allocation_info_.top();
   }
 }
 
@@ -1537,13 +1544,15 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
       return false;
     }
 
-    // Do a step for the bytes allocated on the last page.
-    int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
-    heap()->incremental_marking()->Step(bytes_allocated,
-                                        IncrementalMarking::GC_VIA_STACK_GUARD);
-    old_top = allocation_info_.top();
-    top_on_previous_step_ = old_top;
+    if (top_on_previous_step_) {
+      // Do a step for the bytes allocated on the last page.
+      int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
+      heap()->incremental_marking()->Step(
+          bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
+      top_on_previous_step_ = allocation_info_.top();
+    }
 
+    old_top = allocation_info_.top();
     high = to_space_.page_high();
     filler_size = Heap::GetFillToAlign(old_top, alignment);
     aligned_size_in_bytes = size_in_bytes + filler_size;
@@ -1555,12 +1564,14 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
     // Either the limit has been lowered because linear allocation was disabled
     // or because incremental marking wants to get a chance to do a step. Set
     // the new limit accordingly.
-    Address new_top = old_top + aligned_size_in_bytes;
-    int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
-    heap()->incremental_marking()->Step(bytes_allocated,
-                                        IncrementalMarking::GC_VIA_STACK_GUARD);
+    if (top_on_previous_step_) {
+      Address new_top = old_top + aligned_size_in_bytes;
+      int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
+      heap()->incremental_marking()->Step(
+          bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
+      top_on_previous_step_ = new_top;
+    }
     UpdateInlineAllocationLimit(aligned_size_in_bytes);
-    top_on_previous_step_ = new_top;
   }
   return true;
 }

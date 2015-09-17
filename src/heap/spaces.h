@@ -2427,7 +2427,8 @@ class NewSpace : public Space {
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
-        inline_allocation_limit_step_(0) {}
+        inline_allocation_limit_step_(0),
+        top_on_previous_step_(0) {}
 
   // Sets up the new space using the given chunk.
   bool SetUp(int reserved_semispace_size_, int max_semi_space_size);
@@ -2609,7 +2610,7 @@ class NewSpace : public Space {
   void LowerInlineAllocationLimit(intptr_t step) {
     inline_allocation_limit_step_ = step;
     UpdateInlineAllocationLimit(0);
-    top_on_previous_step_ = allocation_info_.top();
+    top_on_previous_step_ = step ? allocation_info_.top() : 0;
   }
 
   // Get the extent of the inactive semispace (for use as a marking stack,
