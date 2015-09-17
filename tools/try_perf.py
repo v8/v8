@@ -4,12 +4,9 @@
 # found in the LICENSE file.
 
 import argparse
-import find_depot_tools
+import os
+import subprocess
 import sys
-
-find_depot_tools.add_depot_tools_to_path()
-
-from git_cl import Changelist
 
 BOTS = {
   '--arm32': 'v8_arm32_perf_try',
@@ -23,9 +20,13 @@ BOTS = {
 }
 
 DEFAULT_BOTS = [
+  'v8_arm32_perf_try',
   'v8_linux32_perf_try',
   'v8_linux64_haswell_perf_try',
+  'v8_nexus10_perf_try',
 ]
+
+V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 def main():
   parser = argparse.ArgumentParser(description='')
@@ -39,31 +40,20 @@ def main():
     print 'No trybots specified. Using default %s.' % ','.join(DEFAULT_BOTS)
     options.bots = DEFAULT_BOTS
 
-  cl = Changelist()
-  if not cl.GetIssue():
-    print 'Need to upload first'
-    return 1
-
-  props = cl.GetIssueProperties()
-  if props.get('closed'):
-    print 'Cannot send tryjobs for a closed CL'
-    return 1
-
-  if props.get('private'):
-    print 'Cannot use trybots with private issue'
-    return 1
-
   if not options.benchmarks:
     print 'Please specify the benchmarks to run as arguments.'
     return 1
 
-  masters = {
-    'internal.client.v8': dict((b, options.benchmarks) for b in options.bots),
-  }
-  cl.RpcServer().trigger_distributed_try_jobs(
-      cl.GetIssue(), cl.GetMostRecentPatchset(), cl.GetBranch(),
-      False, None, masters)
-  return 0
+  # Ensure depot_tools are updated.
+  subprocess.check_output(
+      'gclient', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
+
+  cmd = ['git cl try -m internal.client.v8']
+  cmd += ['-b %s' % bot for bot in options.bots]
+  benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
+  cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
+  subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
+
 
 if __name__ == "__main__":  # pragma: no cover
   sys.exit(main())
