@@ -81,9 +81,8 @@ class MozillaTestSuite(testsuite.TestSuite):
         files.sort()
         for filename in files:
           if filename.endswith(".js") and not filename in FRAMEWORK:
-            fullpath = os.path.join(dirname, filename)
-            relpath = fullpath[len(self.testroot) + 1 : -3]
-            testname = relpath.replace(os.path.sep, "/")
+            testname = os.path.join(dirname[len(self.testroot) + 1:],
+                                    filename[:-3])
             case = testcase.TestCase(self, testname)
             tests.append(case)
     return tests

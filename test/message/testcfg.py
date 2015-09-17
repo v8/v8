@@ -52,9 +52,7 @@ class MessageTestSuite(testsuite.TestSuite):
       files.sort()
       for filename in files:
         if filename.endswith(".js"):
-          fullpath = os.path.join(dirname, filename)
-          relpath = fullpath[len(self.root) + 1 : -3]
-          testname = relpath.replace(os.path.sep, "/")
+          testname = os.path.join(dirname[len(self.root) + 1:], filename[:-3])
           test = testcase.TestCase(self, testname)
           tests.append(test)
     return tests
