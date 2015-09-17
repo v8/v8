@@ -80,8 +80,7 @@ CodeRange::CodeRange(Isolate* isolate)
       code_range_(NULL),
       free_list_(0),
       allocation_list_(0),
-      current_allocation_block_index_(0),
-      emergency_block_() {}
+      current_allocation_block_index_(0) {}
 
 
 bool CodeRange::SetUp(size_t requested) {
@@ -140,7 +139,6 @@ bool CodeRange::SetUp(size_t requested) {
   current_allocation_block_index_ = 0;
 
   LOG(isolate_, NewEvent("CodeRange", code_range_->address(), requested));
-  ReserveEmergencyBlock();
   return true;
 }
 
@@ -273,24 +271,6 @@ bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
 void CodeRange::ReleaseBlock(const FreeBlock* block) {
   base::LockGuard<base::Mutex> guard(&code_range_mutex_);
   free_list_.Add(*block);
-}
-
-
-void CodeRange::ReserveEmergencyBlock() {
-  const size_t requested_size = MemoryAllocator::CodePageAreaSize();
-  if (emergency_block_.size == 0) {
-    ReserveBlock(requested_size, &emergency_block_);
-  } else {
-    DCHECK(emergency_block_.size >= requested_size);
-  }
-}
-
-
-void CodeRange::ReleaseEmergencyBlock() {
-  if (emergency_block_.size != 0) {
-    ReleaseBlock(&emergency_block_);
-    emergency_block_.size = 0;
-  }
 }
 
 
@@ -492,6 +472,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
   chunk->set_parallel_sweeping(SWEEPING_DONE);
+  chunk->parallel_compaction_state().SetValue(kCompactingDone);
   chunk->mutex_ = NULL;
   chunk->available_in_small_free_list_ = 0;
   chunk->available_in_medium_free_list_ = 0;
@@ -974,8 +955,7 @@ PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
     : Space(heap, space, executable),
       free_list_(this),
       unswept_free_bytes_(0),
-      end_of_unswept_pages_(NULL),
-      emergency_memory_(NULL) {
+      end_of_unswept_pages_(NULL) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 
@@ -1003,30 +983,37 @@ void PagedSpace::TearDown() {
 }
 
 
+void PagedSpace::MoveOverFreeMemory(PagedSpace* other) {
+  DCHECK(identity() == other->identity());
+  // Destroy the linear allocation space of {other}. This is needed to
+  //   (a) not waste the memory and
+  //   (b) keep the rest of the chunk in an iterable state (filler is needed).
+  other->EmptyAllocationInfo();
+
+  // Move over the free list. Concatenate makes sure that the source free list
+  // gets properly reset after moving over all nodes.
+  intptr_t freed_bytes = free_list_.Concatenate(other->free_list());
+  other->accounting_stats_.AllocateBytes(freed_bytes);
+  // We do not adjust accounting_stats_ for {this} as we treat the received
+  // memory as borrowed, i.e., the originating space keeps track of its
+  // capacity. Other stats, e.g. accounting_stats_.{size_,waste_} are properly
+  // maintained by allocating and freeing blocks.
+}
+
+
 void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   // Unmerged fields:
   //   area_size_
   //   allocation_info_
-  //   emergency_memory_
   //   end_of_unswept_pages_
   //   unswept_free_bytes_
   //   anchor_
 
-  // It only makes sense to merge compatible spaces.
-  DCHECK(identity() == other->identity());
-
-  // Destroy the linear allocation space of {other}. This is needed to (a) not
-  // waste the memory and (b) keep the rest of the chunk in an iterable state
-  // (filler is needed).
-  int linear_size = static_cast<int>(other->limit() - other->top());
-  other->Free(other->top(), linear_size);
-
-  // Move over the free list.
-  free_list_.Concatenate(other->free_list());
+  MoveOverFreeMemory(other);
 
   // Update and clear accounting statistics.
   accounting_stats_.Merge(other->accounting_stats_);
-  other->accounting_stats_.Clear();
+  other->accounting_stats_.Reset();
 
   // Move over pages.
   PageIterator it(other);
@@ -1110,9 +1097,6 @@ bool PagedSpace::Expand() {
   if (!heap()->deserialization_complete()) p->MarkNeverEvacuate();
 
   DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
-  DCHECK(heap()->CommittedOldGenerationMemory() <=
-         heap()->MaxOldGenerationSize() +
-             PagedSpace::MaxEmergencyMemoryAllocated());
 
   p->InsertAfter(anchor_.prev_page());
 
@@ -1179,51 +1163,6 @@ void PagedSpace::ReleasePage(Page* page) {
 
   DCHECK(Capacity() > 0);
   accounting_stats_.ShrinkSpace(AreaSize());
-}
-
-
-intptr_t PagedSpace::MaxEmergencyMemoryAllocated() {
-  // New space and large object space.
-  static const int spaces_without_emergency_memory = 2;
-  static const int spaces_with_emergency_memory =
-      LAST_SPACE - FIRST_SPACE + 1 - spaces_without_emergency_memory;
-  return Page::kPageSize * spaces_with_emergency_memory;
-}
-
-
-void PagedSpace::CreateEmergencyMemory() {
-  if (identity() == CODE_SPACE) {
-    // Make the emergency block available to the allocator.
-    CodeRange* code_range = heap()->isolate()->code_range();
-    if (code_range != NULL && code_range->valid()) {
-      code_range->ReleaseEmergencyBlock();
-    }
-    DCHECK(MemoryAllocator::CodePageAreaSize() == AreaSize());
-  }
-  emergency_memory_ = heap()->isolate()->memory_allocator()->AllocateChunk(
-      AreaSize(), AreaSize(), executable(), this);
-}
-
-
-void PagedSpace::FreeEmergencyMemory() {
-  Page* page = static_cast<Page*>(emergency_memory_);
-  DCHECK(page->LiveBytes() == 0);
-  DCHECK(AreaSize() == page->area_size());
-  DCHECK(!free_list_.ContainsPageFreeListItems(page));
-  heap()->isolate()->memory_allocator()->Free(page);
-  emergency_memory_ = NULL;
-}
-
-
-void PagedSpace::UseEmergencyMemory() {
-  // Page::Initialize makes the chunk into a real page and adds it to the
-  // accounting for this space.  Unlike PagedSpace::Expand, we don't check
-  // CanExpand first, so we can go over the limits a little here.  That's OK,
-  // because we are in the process of compacting which will free up at least as
-  // much memory as it allocates.
-  Page* page = Page::Initialize(heap(), emergency_memory_, executable(), this);
-  page->InsertAfter(anchor_.prev_page());
-  emergency_memory_ = NULL;
 }
 
 

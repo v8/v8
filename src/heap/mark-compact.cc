@@ -57,7 +57,8 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       sweeping_in_progress_(false),
       parallel_compaction_in_progress_(false),
       pending_sweeper_jobs_semaphore_(0),
-      pending_compaction_jobs_semaphore_(0),
+      pending_compaction_tasks_semaphore_(0),
+      concurrent_compaction_tasks_active_(0),
       evacuation_(false),
       slots_buffer_allocator_(nullptr),
       migration_slots_buffer_(nullptr),
@@ -474,21 +475,21 @@ void MarkCompactCollector::ClearMarkbits() {
 
 class MarkCompactCollector::CompactionTask : public v8::Task {
  public:
-  explicit CompactionTask(Heap* heap) : heap_(heap) {}
+  explicit CompactionTask(Heap* heap, CompactionSpaceCollection* spaces)
+      : heap_(heap), spaces_(spaces) {}
 
   virtual ~CompactionTask() {}
 
  private:
   // v8::Task overrides.
   void Run() override {
-    // TODO(mlippautz, hpayer): EvacuatePages is not thread-safe and can just be
-    // called by one thread concurrently.
-    heap_->mark_compact_collector()->EvacuatePages();
+    heap_->mark_compact_collector()->EvacuatePages(spaces_);
     heap_->mark_compact_collector()
-        ->pending_compaction_jobs_semaphore_.Signal();
+        ->pending_compaction_tasks_semaphore_.Signal();
   }
 
   Heap* heap_;
+  CompactionSpaceCollection* spaces_;
 
   DISALLOW_COPY_AND_ASSIGN(CompactionTask);
 };
@@ -3351,11 +3352,10 @@ void MarkCompactCollector::EvacuateNewSpace() {
 }
 
 
-void MarkCompactCollector::EvacuateLiveObjectsFromPage(
+bool MarkCompactCollector::EvacuateLiveObjectsFromPage(
     Page* p, PagedSpace* target_space) {
   AlwaysAllocateScope always_allocate(isolate());
   DCHECK(p->IsEvacuationCandidate() && !p->WasSwept());
-  p->SetWasSwept();
 
   int offsets[16];
 
@@ -3376,17 +3376,8 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(
       HeapObject* target_object = nullptr;
       AllocationResult allocation = target_space->AllocateRaw(size, alignment);
       if (!allocation.To(&target_object)) {
-        // If allocation failed, use emergency memory and re-try allocation.
-        CHECK(target_space->HasEmergencyMemory());
-        target_space->UseEmergencyMemory();
-        allocation = target_space->AllocateRaw(size, alignment);
+        return false;
       }
-      if (!allocation.To(&target_object)) {
-        // OS refused to give us memory.
-        V8::FatalProcessOutOfMemory("Evacuation");
-        return;
-      }
-
       MigrateObject(target_object, object, size, target_space->identity());
       DCHECK(object->map_word().IsForwardingAddress());
     }
@@ -3395,80 +3386,142 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(
     *cell = 0;
   }
   p->ResetLiveBytes();
+  return true;
 }
 
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
+  if (evacuation_candidates_.length() == 0) return;
+
+  int num_tasks = 1;
+  if (FLAG_parallel_compaction) {
+    num_tasks = NumberOfParallelCompactionTasks();
+  }
+
+  // Set up compaction spaces.
+  CompactionSpaceCollection** compaction_spaces_for_tasks =
+      new CompactionSpaceCollection*[num_tasks];
+  for (int i = 0; i < num_tasks; i++) {
+    compaction_spaces_for_tasks[i] = new CompactionSpaceCollection(heap());
+  }
+
+  compaction_spaces_for_tasks[0]->Get(OLD_SPACE)->MoveOverFreeMemory(
+      heap()->old_space());
+  compaction_spaces_for_tasks[0]
+      ->Get(CODE_SPACE)
+      ->MoveOverFreeMemory(heap()->code_space());
+
   parallel_compaction_in_progress_ = true;
-  V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new CompactionTask(heap()), v8::Platform::kShortRunningTask);
+  // Kick off parallel tasks.
+  for (int i = 1; i < num_tasks; i++) {
+    concurrent_compaction_tasks_active_++;
+    V8::GetCurrentPlatform()->CallOnBackgroundThread(
+        new CompactionTask(heap(), compaction_spaces_for_tasks[i]),
+        v8::Platform::kShortRunningTask);
+  }
+
+  // Contribute in main thread. Counter and signal are in principal not needed.
+  concurrent_compaction_tasks_active_++;
+  EvacuatePages(compaction_spaces_for_tasks[0]);
+  pending_compaction_tasks_semaphore_.Signal();
+
+  WaitUntilCompactionCompleted();
+
+  // Merge back memory (compacted and unused) from compaction spaces.
+  for (int i = 0; i < num_tasks; i++) {
+    heap()->old_space()->MergeCompactionSpace(
+        compaction_spaces_for_tasks[i]->Get(OLD_SPACE));
+    heap()->code_space()->MergeCompactionSpace(
+        compaction_spaces_for_tasks[i]->Get(CODE_SPACE));
+    delete compaction_spaces_for_tasks[i];
+  }
+  delete[] compaction_spaces_for_tasks;
+
+  // Finalize sequentially.
+  const int num_pages = evacuation_candidates_.length();
+  int abandoned_pages = 0;
+  for (int i = 0; i < num_pages; i++) {
+    Page* p = evacuation_candidates_[i];
+    switch (p->parallel_compaction_state().Value()) {
+      case MemoryChunk::ParallelCompactingState::kCompactingAborted:
+        // We have partially compacted the page, i.e., some objects may have
+        // moved, others are still in place.
+        // We need to:
+        // - Leave the evacuation candidate flag for later processing of
+        //   slots buffer entries.
+        // - Leave the slots buffer there for processing of entries added by
+        //   the write barrier.
+        // - Rescan the page as slot recording in the migration buffer only
+        //   happens upon moving (which we potentially didn't do).
+        // - Leave the page in the list of pages of a space since we could not
+        //   fully evacuate it.
+        DCHECK(p->IsEvacuationCandidate());
+        p->SetFlag(Page::RESCAN_ON_EVACUATION);
+        abandoned_pages++;
+        break;
+      case MemoryChunk::kCompactingFinalize:
+        DCHECK(p->IsEvacuationCandidate());
+        p->SetWasSwept();
+        p->Unlink();
+        break;
+      case MemoryChunk::kCompactingDone:
+        DCHECK(p->IsFlagSet(Page::POPULAR_PAGE));
+        DCHECK(p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+        break;
+      default:
+        // We should not observe kCompactingInProgress, or kCompactingDone.
+        UNREACHABLE();
+    }
+    p->parallel_compaction_state().SetValue(MemoryChunk::kCompactingDone);
+  }
+  if (num_pages > 0) {
+    if (FLAG_trace_fragmentation) {
+      if (abandoned_pages != 0) {
+        PrintF(
+            "  Abandoned (at least partially) %d out of %d page compactions due"
+            " to lack of memory\n",
+            abandoned_pages, num_pages);
+      } else {
+        PrintF("  Compacted %d pages\n", num_pages);
+      }
+    }
+  }
 }
 
 
 void MarkCompactCollector::WaitUntilCompactionCompleted() {
-  pending_compaction_jobs_semaphore_.Wait();
+  while (concurrent_compaction_tasks_active_-- > 0) {
+    pending_compaction_tasks_semaphore_.Wait();
+  }
   parallel_compaction_in_progress_ = false;
 }
 
 
-void MarkCompactCollector::EvacuatePages() {
-  int npages = evacuation_candidates_.length();
-  int abandoned_pages = 0;
-  for (int i = 0; i < npages; i++) {
+void MarkCompactCollector::EvacuatePages(
+    CompactionSpaceCollection* compaction_spaces) {
+  for (int i = 0; i < evacuation_candidates_.length(); i++) {
     Page* p = evacuation_candidates_[i];
     DCHECK(p->IsEvacuationCandidate() ||
            p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
     DCHECK(static_cast<int>(p->parallel_sweeping()) ==
            MemoryChunk::SWEEPING_DONE);
-    PagedSpace* space = static_cast<PagedSpace*>(p->owner());
-    // Allocate emergency memory for the case when compaction fails due to out
-    // of memory.
-    if (!space->HasEmergencyMemory()) {
-      space->CreateEmergencyMemory();  // If the OS lets us.
-    }
-    if (p->IsEvacuationCandidate()) {
-      // During compaction we might have to request a new page in order to free
-      // up a page.  Check that we actually got an emergency page above so we
-      // can guarantee that this succeeds.
-      if (space->HasEmergencyMemory()) {
-        EvacuateLiveObjectsFromPage(p, static_cast<PagedSpace*>(p->owner()));
-        // Unlink the page from the list of pages here. We must not iterate
-        // over that page later (e.g. when scan on scavenge pages are
-        // processed). The page itself will be freed later and is still
-        // reachable from the evacuation candidates list.
-        p->Unlink();
-      } else {
-        // Without room for expansion evacuation is not guaranteed to succeed.
-        // Pessimistically abandon unevacuated pages.
-        for (int j = i; j < npages; j++) {
-          Page* page = evacuation_candidates_[j];
-          slots_buffer_allocator_->DeallocateChain(
-              page->slots_buffer_address());
-          page->ClearEvacuationCandidate();
-          page->SetFlag(Page::RESCAN_ON_EVACUATION);
+    if (p->parallel_compaction_state().TrySetValue(
+            MemoryChunk::kCompactingDone, MemoryChunk::kCompactingInProgress)) {
+      if (p->IsEvacuationCandidate()) {
+        DCHECK_EQ(p->parallel_compaction_state().Value(),
+                  MemoryChunk::kCompactingInProgress);
+        if (EvacuateLiveObjectsFromPage(
+                p, compaction_spaces->Get(p->owner()->identity()))) {
+          p->parallel_compaction_state().SetValue(
+              MemoryChunk::kCompactingFinalize);
+        } else {
+          p->parallel_compaction_state().SetValue(
+              MemoryChunk::kCompactingAborted);
         }
-        abandoned_pages = npages - i;
-        break;
-      }
-    }
-  }
-  if (npages > 0) {
-    // Release emergency memory.
-    PagedSpaces spaces(heap());
-    for (PagedSpace* space = spaces.next(); space != NULL;
-         space = spaces.next()) {
-      if (space->HasEmergencyMemory()) {
-        space->FreeEmergencyMemory();
-      }
-    }
-    if (FLAG_trace_fragmentation) {
-      if (abandoned_pages != 0) {
-        PrintF(
-            "  Abandon %d out of %d page defragmentations due to lack of "
-            "memory\n",
-            abandoned_pages, npages);
       } else {
-        PrintF("  Defragmented %d pages\n", npages);
+        // There could be popular pages in the list of evacuation candidates
+        // which we do compact.
+        p->parallel_compaction_state().SetValue(MemoryChunk::kCompactingDone);
       }
     }
   }
@@ -3657,12 +3710,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_EVACUATE_PAGES);
     EvacuationScope evacuation_scope(this);
-    if (FLAG_parallel_compaction) {
-      EvacuatePagesInParallel();
-      WaitUntilCompactionCompleted();
-    } else {
-      EvacuatePages();
-    }
+    EvacuatePagesInParallel();
   }
 
   // Second pass: find pointers to new space and update them.
@@ -3722,13 +3770,15 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
           PrintF("  page %p slots buffer: %d\n", reinterpret_cast<void*>(p),
                  SlotsBuffer::SizeOfChain(p->slots_buffer()));
         }
+        slots_buffer_allocator_->DeallocateChain(p->slots_buffer_address());
 
         // Important: skip list should be cleared only after roots were updated
         // because root iteration traverses the stack and might have to find
         // code objects from non-updated pc pointing into evacuation candidate.
         SkipList* list = p->skip_list();
         if (list != NULL) list->Clear();
-      } else {
+      }
+      if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
         if (FLAG_gc_verbose) {
           PrintF("Sweeping 0x%" V8PRIxPTR " during evacuation.\n",
                  reinterpret_cast<intptr_t>(p));
@@ -3757,6 +3807,12 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
             UNREACHABLE();
             break;
         }
+      }
+      if (p->IsEvacuationCandidate() &&
+          p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
+        // Case where we've aborted compacting a page. Clear the flag here to
+        // avoid release the page later on.
+        p->ClearEvacuationCandidate();
       }
     }
   }
@@ -3804,7 +3860,6 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
     space->Free(p->area_start(), p->area_size());
     p->set_scan_on_scavenge(false);
-    slots_buffer_allocator_->DeallocateChain(p->slots_buffer_address());
     p->ResetLiveBytes();
     space->ReleasePage(p);
   }
@@ -4420,10 +4475,6 @@ void MarkCompactCollector::SweepSpaces() {
 
   // Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
-  CodeRange* code_range = heap()->isolate()->code_range();
-  if (code_range != NULL && code_range->valid()) {
-    code_range->ReserveEmergencyBlock();
-  }
 
   if (FLAG_print_cumulative_gc_stat) {
     heap_->tracer()->AddSweepingTime(base::OS::TimeCurrentMillis() -

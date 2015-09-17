@@ -553,8 +553,11 @@ class MarkCompactCollector {
   // Synchronize sweeper threads.
   base::Semaphore pending_sweeper_jobs_semaphore_;
 
-  // Synchronize compaction threads.
-  base::Semaphore pending_compaction_jobs_semaphore_;
+  // Synchronize compaction tasks.
+  base::Semaphore pending_compaction_tasks_semaphore_;
+
+  // Number of active compaction tasks (including main thread).
+  intptr_t concurrent_compaction_tasks_active_;
 
   bool evacuation_;
 
@@ -712,11 +715,16 @@ class MarkCompactCollector {
 
   void EvacuateNewSpace();
 
-  void EvacuateLiveObjectsFromPage(Page* p, PagedSpace* target_space);
+  bool EvacuateLiveObjectsFromPage(Page* p, PagedSpace* target_space);
 
-  void EvacuatePages();
-
+  void EvacuatePages(CompactionSpaceCollection* compaction_spaces);
   void EvacuatePagesInParallel();
+
+  int NumberOfParallelCompactionTasks() {
+    // TODO(hpayer, mlippautz): Figure out some logic to determine the number
+    // of compaction tasks.
+    return 1;
+  }
 
   void WaitUntilCompactionCompleted();
 
