@@ -3467,8 +3467,9 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
 
 void MarkCompactCollector::WaitUntilCompactionCompleted() {
-  while (concurrent_compaction_tasks_active_-- > 0) {
+  while (concurrent_compaction_tasks_active_ > 0) {
     pending_compaction_tasks_semaphore_.Wait();
+    concurrent_compaction_tasks_active_--;
   }
   parallel_compaction_in_progress_ = false;
 }
