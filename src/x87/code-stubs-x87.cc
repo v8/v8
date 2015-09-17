@@ -1574,26 +1574,22 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   __ push(eax);
 
   // Figure out which native to call and setup the arguments.
-  if (cc == equal && strict()) {
+  if (cc == equal) {
     __ push(ecx);
-    __ TailCallRuntime(Runtime::kStrictEquals, 2, 1);
+    __ TailCallRuntime(strict() ? Runtime::kStrictEquals : Runtime::kEquals, 2,
+                       1);
   } else {
-    int context_index;
-    if (cc == equal) {
-      context_index = Context::EQUALS_BUILTIN_INDEX;
-    } else {
-      context_index = is_strong(strength())
-                          ? Context::COMPARE_STRONG_BUILTIN_INDEX
-                          : Context::COMPARE_BUILTIN_INDEX;
-      __ push(Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
-    }
+    int native_context_index = is_strong(strength())
+                                   ? Context::COMPARE_STRONG_BUILTIN_INDEX
+                                   : Context::COMPARE_BUILTIN_INDEX;
+    __ push(Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
 
     // Restore return address on the stack.
     __ push(ecx);
 
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.
-    __ InvokeBuiltin(context_index, JUMP_FUNCTION);
+    __ InvokeBuiltin(native_context_index, JUMP_FUNCTION);
   }
 
   __ bind(&miss);
