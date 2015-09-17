@@ -2246,7 +2246,7 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
 #ifdef USE_SIMULATOR
   // Don't generate simulator specific code if we are building a snapshot, which
   // might be run on real hardware.
-  // if (!serializer_enabled()) {
+  if (!serializer_enabled()) {
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
     BlockPoolsScope scope(this);
@@ -2266,7 +2266,7 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
     hlt(kImmExceptionIsUnreachable);
 
     return;
-  // }
+  }
   // Fall through if Serializer is enabled.
 #endif
 
