@@ -260,8 +260,7 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
-                                           bool is_api_function,
-                                           bool create_memento) {
+                                           bool is_api_function) {
   // ----------- S t a t e -------------
   //  -- r3     : number of arguments
   //  -- r4     : constructor function
@@ -270,9 +269,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-
-  // Should never create mementos for api functions.
-  DCHECK(!is_api_function || !create_memento);
 
   Isolate* isolate = masm->isolate();
 
@@ -345,9 +341,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r5: initial map
       Label rt_call_reload_new_target;
       __ lbz(r6, FieldMemOperand(r5, Map::kInstanceSizeOffset));
-      if (create_memento) {
-        __ addi(r6, r6, Operand(AllocationMemento::kSize / kPointerSize));
-      }
 
       __ Allocate(r6, r7, r8, r9, &rt_call_reload_new_target, SIZE_IN_WORDS);
 
@@ -355,7 +348,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // initial map and properties and elements are set to empty fixed array.
       // r4: constructor function
       // r5: initial map
-      // r6: object size (including memento if create_memento)
+      // r6: object size
       // r7: JSObject (not tagged)
       __ LoadRoot(r9, Heap::kEmptyFixedArrayRootIndex);
       __ mr(r8, r7);
@@ -370,7 +363,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Fill all the in-object properties with the appropriate filler.
       // r4: constructor function
       // r5: initial map
-      // r6: object size (in words, including memento if create_memento)
+      // r6: object size
       // r7: JSObject (not tagged)
       // r8: First in-object property of JSObject (not tagged)
       // r9: End of object
@@ -412,24 +405,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ bind(&no_inobject_slack_tracking);
       }
 
-      if (create_memento) {
-        __ subi(r3, r9, Operand(AllocationMemento::kSize));
-        __ InitializeFieldsWithFiller(r8, r3, r10);
-
-        // Fill in memento fields.
-        // r8: points to the allocated but uninitialized memento.
-        __ LoadRoot(r10, Heap::kAllocationMementoMapRootIndex);
-        __ StoreP(r10, MemOperand(r8, AllocationMemento::kMapOffset));
-        // Load the AllocationSite
-        __ LoadP(r10, MemOperand(sp, 3 * kPointerSize));
-        __ AssertUndefinedOrAllocationSite(r10, r3);
-        __ StoreP(r10,
-                  MemOperand(r8, AllocationMemento::kAllocationSiteOffset));
-        __ addi(r8, r8, Operand(AllocationMemento::kAllocationSiteOffset +
-                                kPointerSize));
-      } else {
-        __ InitializeFieldsWithFiller(r8, r9, r10);
-      }
+      __ InitializeFieldsWithFiller(r8, r9, r10);
 
       // Add the object tag to make the JSObject real, so that we can continue
       // and jump into the continuation code at any time from now on.
@@ -448,43 +424,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r4: constructor function
     // r6: original constructor
     __ bind(&rt_call);
-    if (create_memento) {
-      // Get the cell or allocation site.
-      __ LoadP(r5, MemOperand(sp, 3 * kPointerSize));
-      __ Push(r5, r4, r6);
-      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
-    } else {
-      __ Push(r4, r6);
-      __ CallRuntime(Runtime::kNewObject, 2);
-    }
+    __ Push(r4, r6);
+    __ CallRuntime(Runtime::kNewObject, 2);
     __ mr(r7, r3);
-
-    // Runtime_NewObjectWithAllocationSite increments allocation count.
-    // Skip the increment.
-    Label count_incremented;
-    if (create_memento) {
-      __ b(&count_incremented);
-    }
 
     // Receiver for constructor call allocated.
     // r7: JSObject
     __ bind(&allocated);
-
-    if (create_memento) {
-      __ LoadP(r5, MemOperand(sp, 3 * kPointerSize));
-      __ LoadRoot(r8, Heap::kUndefinedValueRootIndex);
-      __ cmp(r5, r8);
-      __ beq(&count_incremented);
-      // r5 is an AllocationSite. We are creating a memento from it, so we
-      // need to increment the memento create count.
-      __ LoadP(
-          r6, FieldMemOperand(r5, AllocationSite::kPretenureCreateCountOffset));
-      __ AddSmiLiteral(r6, r6, Smi::FromInt(1), r0);
-      __ StoreP(
-          r6, FieldMemOperand(r5, AllocationSite::kPretenureCreateCountOffset),
-          r0);
-      __ bind(&count_incremented);
-    }
 
     // Restore the parameters.
     __ Pop(r4, ip);
@@ -587,12 +533,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false);
+  Generate_JSConstructStubHelper(masm, true);
 }
 
 
