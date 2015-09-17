@@ -798,8 +798,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
       CallConstructStub stub(masm->isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
       __ CallStub(&stub);
     } else {
-      ParameterCount actual(r0);
-      __ InvokeFunction(r1, actual, CALL_FUNCTION, NullCallWrapper());
+      __ Call(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
     }
     // Exit the JS frame and remove the parameters (except function), and
     // return.

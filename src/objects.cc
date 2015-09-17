@@ -841,7 +841,7 @@ MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
   // TODO(rossberg): should this apply to getters that are function proxies?
   if (debug->is_active()) debug->HandleStepIn(getter, false);
 
-  return Execution::Call(isolate, getter, receiver, 0, NULL, true);
+  return Execution::Call(isolate, getter, receiver, 0, NULL);
 }
 
 
@@ -858,7 +858,7 @@ MaybeHandle<Object> Object::SetPropertyWithDefinedSetter(
 
   Handle<Object> argv[] = { value };
   RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, setter, receiver,
-                                               arraysize(argv), argv, true),
+                                               arraysize(argv), argv),
                       Object);
   return value;
 }

@@ -522,7 +522,7 @@ RUNTIME_FUNCTION(Runtime_Call) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Execution::Call(isolate, target, receiver, argc, argv.start(), true));
+      Execution::Call(isolate, target, receiver, argc, argv.start()));
   return *result;
 }
 
@@ -559,8 +559,7 @@ RUNTIME_FUNCTION(Runtime_Apply) {
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, fun, receiver, argc, argv, true));
+      isolate, result, Execution::Call(isolate, fun, receiver, argc, argv));
   return *result;
 }
 
@@ -627,8 +626,7 @@ RUNTIME_FUNCTION(Runtime_CallFunction) {
   Handle<Object> hreceiver(receiver, isolate);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, hfun, hreceiver, argc, argv, true));
+      isolate, result, Execution::Call(isolate, hfun, hreceiver, argc, argv));
   return *result;
 }
 

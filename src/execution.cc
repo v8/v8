@@ -53,20 +53,35 @@ static void PrintDeserializedCodeInfo(Handle<JSFunction> function) {
 }
 
 
-MUST_USE_RESULT static MaybeHandle<Object> Invoke(
-    bool is_construct,
-    Handle<JSFunction> function,
-    Handle<Object> receiver,
-    int argc,
-    Handle<Object> args[]) {
-  Isolate* isolate = function->GetIsolate();
+namespace {
+
+MUST_USE_RESULT MaybeHandle<Object> Invoke(bool is_construct,
+                                           Handle<JSFunction> function,
+                                           Handle<Object> receiver, int argc,
+                                           Handle<Object> args[]) {
+  Isolate* const isolate = function->GetIsolate();
+
+  // Convert calls on global objects to be calls on the global
+  // receiver instead to avoid having a 'this' pointer which refers
+  // directly to a global object.
+  if (receiver->IsGlobalObject()) {
+    receiver =
+        handle(Handle<GlobalObject>::cast(receiver)->global_proxy(), isolate);
+  }
 
   // api callbacks can be called directly.
   if (!is_construct && function->shared()->IsApiFunction()) {
     SaveContext save(isolate);
     isolate->set_context(function->context());
-    if (receiver->IsGlobalObject()) {
-      receiver = handle(Handle<GlobalObject>::cast(receiver)->global_proxy());
+    // Do proper receiver conversion for non-strict mode api functions.
+    if (!receiver->IsJSReceiver() &&
+        is_sloppy(function->shared()->language_mode())) {
+      if (receiver->IsUndefined() || receiver->IsNull()) {
+        receiver = handle(function->global_proxy(), isolate);
+      } else {
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, receiver, Execution::ToObject(isolate, receiver), Object);
+      }
     }
     DCHECK(function->context()->global_object()->IsGlobalObject());
     auto value = Builtins::InvokeApiFunction(function, receiver, argc, args);
@@ -103,13 +118,6 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
       ? isolate->factory()->js_construct_entry_code()
       : isolate->factory()->js_entry_code();
 
-  // Convert calls on global objects to be calls on the global
-  // receiver instead to avoid having a 'this' pointer which refers
-  // directly to a global object.
-  if (receiver->IsGlobalObject()) {
-    receiver = handle(Handle<GlobalObject>::cast(receiver)->global_proxy());
-  }
-
   // Make sure that the global object of the context we're about to
   // make the current one is indeed a global object.
   DCHECK(function->context()->global_object()->IsGlobalObject());
@@ -122,13 +130,12 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
     JSEntryFunction stub_entry = FUNCTION_CAST<JSEntryFunction>(code->entry());
 
     // Call the function through the right JS entry stub.
-    byte* function_entry = function->code()->entry();
+    byte* ignored = nullptr;  // TODO(bmeurer): Remove this altogether.
     JSFunction* func = *function;
     Object* recv = *receiver;
     Object*** argv = reinterpret_cast<Object***>(args);
     if (FLAG_profile_deserialization) PrintDeserializedCodeInfo(function);
-    value =
-        CALL_GENERATED_CODE(stub_entry, function_entry, func, recv, argc, argv);
+    value = CALL_GENERATED_CODE(stub_entry, ignored, func, recv, argc, argv);
   }
 
 #ifdef VERIFY_HEAP
@@ -154,30 +161,17 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
   return Handle<Object>(value, isolate);
 }
 
+}  // namespace
 
-MaybeHandle<Object> Execution::Call(Isolate* isolate,
-                                    Handle<Object> callable,
-                                    Handle<Object> receiver,
-                                    int argc,
-                                    Handle<Object> argv[],
-                                    bool convert_receiver) {
+
+MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
+                                    Handle<Object> receiver, int argc,
+                                    Handle<Object> argv[]) {
   if (!callable->IsJSFunction()) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, callable,
                                GetFunctionDelegate(isolate, callable), Object);
   }
   Handle<JSFunction> func = Handle<JSFunction>::cast(callable);
-
-  // In sloppy mode, convert receiver.
-  if (convert_receiver && !receiver->IsJSReceiver() &&
-      !func->shared()->native() && is_sloppy(func->shared()->language_mode())) {
-    if (receiver->IsUndefined() || receiver->IsNull()) {
-      receiver = handle(func->global_proxy());
-      DCHECK(!receiver->IsJSBuiltinsObject());
-    } else {
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, receiver, ToObject(isolate, receiver), Object);
-    }
-  }
 
   return Invoke(false, func, receiver, argc, argv);
 }
@@ -207,7 +201,7 @@ MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
     catcher.SetVerbose(false);
     catcher.SetCaptureMessage(false);
 
-    maybe_result = Invoke(false, func, receiver, argc, args);
+    maybe_result = Call(isolate, func, receiver, argc, args);
 
     if (maybe_result.is_null()) {
       DCHECK(catcher.HasCaught());

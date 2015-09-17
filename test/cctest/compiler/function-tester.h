@@ -51,13 +51,13 @@ class FunctionTester : public InitializedHandleScope {
 
   MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b) {
     Handle<Object> args[] = {a, b};
-    return Execution::Call(isolate, function, undefined(), 2, args, false);
+    return Execution::Call(isolate, function, undefined(), 2, args);
   }
 
   MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b, Handle<Object> c,
                            Handle<Object> d) {
     Handle<Object> args[] = {a, b, c, d};
-    return Execution::Call(isolate, function, undefined(), 4, args, false);
+    return Execution::Call(isolate, function, undefined(), 4, args);
   }
 
   void CheckThrows(Handle<Object> a, Handle<Object> b) {

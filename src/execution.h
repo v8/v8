@@ -19,23 +19,16 @@ class JSRegExp;
 class Execution final : public AllStatic {
  public:
   // Call a function, the caller supplies a receiver and an array
-  // of arguments. Arguments are Object* type. After function returns,
-  // pointers in 'args' might be invalid.
+  // of arguments.
   //
-  // *pending_exception tells whether the invoke resulted in
-  // a pending exception.
+  // When the function called is not in strict mode, receiver is
+  // converted to an object.
   //
-  // When convert_receiver is set, and the receiver is not an object,
-  // and the function called is not in strict mode, receiver is converted to
-  // an object.
-  //
-  MUST_USE_RESULT static MaybeHandle<Object> Call(
-      Isolate* isolate,
-      Handle<Object> callable,
-      Handle<Object> receiver,
-      int argc,
-      Handle<Object> argv[],
-      bool convert_receiver = false);
+  MUST_USE_RESULT static MaybeHandle<Object> Call(Isolate* isolate,
+                                                  Handle<Object> callable,
+                                                  Handle<Object> receiver,
+                                                  int argc,
+                                                  Handle<Object> argv[]);
 
   // Construct object from function, the caller supplies an array of
   // arguments. Arguments are Object* type. After function returns,

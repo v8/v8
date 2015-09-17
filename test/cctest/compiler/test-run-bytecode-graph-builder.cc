@@ -25,8 +25,7 @@ static const char kFunctionName[] = "f";
 static MaybeHandle<Object> CallFunction(Isolate* isolate,
                                         Handle<JSFunction> function) {
   return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), 0, nullptr,
-                         false);
+                         isolate->factory()->undefined_value(), 0, nullptr);
 }
 
 
@@ -37,7 +36,7 @@ static MaybeHandle<Object> CallFunction(Isolate* isolate,
   Handle<Object> argv[] = {args...};
   return Execution::Call(isolate, function,
                          isolate->factory()->undefined_value(), sizeof...(args),
-                         argv, false);
+                         argv);
 }
 
 
