@@ -173,6 +173,67 @@ class PlatformDataCommon : public Malloced {
   ThreadId profiled_thread_id_;
 };
 
+
+bool IsSamePage(byte* ptr1, byte* ptr2) {
+  const uint32_t kPageSize = 4096;
+  uintptr_t mask = ~static_cast<uintptr_t>(kPageSize - 1);
+  return (reinterpret_cast<uintptr_t>(ptr1) & mask) ==
+         (reinterpret_cast<uintptr_t>(ptr2) & mask);
+}
+
+
+// Check if the code at specified address could potentially be a
+// frame setup code.
+bool IsNoFrameRegion(Address address) {
+  struct Pattern {
+    int bytes_count;
+    byte bytes[8];
+    int offsets[4];
+  };
+  byte* pc = reinterpret_cast<byte*>(address);
+  static Pattern patterns[] = {
+#if V8_HOST_ARCH_IA32
+    // push %ebp
+    // mov %esp,%ebp
+    {3, {0x55, 0x89, 0xe5}, {0, 1, -1}},
+    // pop %ebp
+    // ret N
+    {2, {0x5d, 0xc2}, {0, 1, -1}},
+    // pop %ebp
+    // ret
+    {2, {0x5d, 0xc3}, {0, 1, -1}},
+#elif V8_HOST_ARCH_X64
+    // pushq %rbp
+    // movq %rsp,%rbp
+    {4, {0x55, 0x48, 0x89, 0xe5}, {0, 1, -1}},
+    // popq %rbp
+    // ret N
+    {2, {0x5d, 0xc2}, {0, 1, -1}},
+    // popq %rbp
+    // ret
+    {2, {0x5d, 0xc3}, {0, 1, -1}},
+#endif
+    {0, {}, {}}
+  };
+  for (Pattern* pattern = patterns; pattern->bytes_count; ++pattern) {
+    for (int* offset_ptr = pattern->offsets; *offset_ptr != -1; ++offset_ptr) {
+      int offset = *offset_ptr;
+      if (!offset || IsSamePage(pc, pc - offset)) {
+        if (!memcmp(pc - offset, pattern->bytes, pattern->bytes_count))
+          return true;
+      } else {
+        // It is not safe to examine bytes on another page as it might not be
+        // allocated thus causing a SEGFAULT.
+        // Check the pattern part that's on the same page and
+        // pessimistically assume it could be the entire pattern match.
+        if (!memcmp(pc, pattern->bytes + offset, pattern->bytes_count - offset))
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 #if defined(USE_SIGNALS)
@@ -591,6 +652,11 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
 
   Address js_entry_sp = isolate->js_entry_sp();
   if (js_entry_sp == 0) return;  // Not executing JS now.
+
+  if (pc && IsNoFrameRegion(pc)) {
+    pc = 0;
+    return;
+  }
 
   ExternalCallbackScope* scope = isolate->external_callback_scope();
   Address handler = Isolate::handler(isolate->thread_local_top());
