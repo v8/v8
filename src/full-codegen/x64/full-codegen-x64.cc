@@ -2257,7 +2257,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   // to chase after a rare but recurring crash bug. It seems to always
   // occur for functions beginning with "this.foo.bar()", so be selective
   // and only insert the check for the first LoadIC (identified by slot).
-  // TODO(jkummerow): Remove this when it has generated a few crash reports.
+  // TODO(chromium:527994): Remove this when we have a few crash reports.
   // Don't forget to remove the Push() above as well!
   if (FeedbackVector()->GetIndex(prop->PropertyFeedbackSlot()) == 6) {
     __ Pop(LoadDescriptor::ReceiverRegister());

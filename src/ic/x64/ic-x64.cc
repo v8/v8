@@ -680,7 +680,7 @@ void LoadIC::GenerateMiss(MacroAssembler* masm, int stress) {
   // Sanity check: The receiver must be a JS-exposed kind of object,
   // not something internal (like a Map, or FixedArray). Check this here
   // to chase after a rare but recurring crash bug.
-  // TODO(jkummerow): Remove this when it has generated a few crash reports.
+  // TODO(chromium:527994): Remove this when we have a few crash reports.
 
   Label ok, sound_alarm;
   __ JumpIfSmi(receiver, &ok, Label::kNear);

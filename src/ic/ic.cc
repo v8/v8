@@ -2381,7 +2381,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
     // Sanity check: The loaded value must be a JS-exposed kind of object,
     // not something internal (like a Map, or FixedArray). Check this here
     // to chase after a rare but recurring crash bug.
-    // TODO(jkummerow): Remove this when it has generated a few crash reports.
+    // TODO(chromium:527994): Remove this when we have a few crash reports.
     if (!result->IsSmi()) {
       InstanceType type =
           Handle<HeapObject>::cast(result)->map()->instance_type();
@@ -3130,7 +3130,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_MissFromStubFailure) {
     // Sanity check: The loaded value must be a JS-exposed kind of object,
     // not something internal (like a Map, or FixedArray). Check this here
     // to chase after a rare but recurring crash bug.
-    // TODO(jkummerow): Remove this when it has generated a few crash reports.
+    // TODO(chromium:527994): Remove this when we have a few crash reports.
     if (!result->IsSmi()) {
       InstanceType type =
           Handle<HeapObject>::cast(result)->map()->instance_type();

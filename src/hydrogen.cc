@@ -9620,6 +9620,29 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     CHECK_ALIVE(VisitForValue(prop->obj()));
     HValue* receiver = Top();
 
+    // Sanity check: The receiver must be a JS-exposed kind of object,
+    // not something internal (like a Map, or FixedArray). Check this here
+    // to chase after a rare but recurring crash bug. It seems to always
+    // occur for functions beginning with "this.foo.bar()", so be selective
+    // and only insert the check for the first call (identified by slot).
+    // TODO(chromium:527994): Remove this when we have a few crash reports.
+    if (prop->key()->IsPropertyName() &&
+        prop->PropertyFeedbackSlot().ToInt() == 2) {
+      IfBuilder if_heapobject(this);
+      if_heapobject.IfNot<HIsSmiAndBranch>(receiver);
+      if_heapobject.Then();
+      {
+        IfBuilder special_map(this);
+        Factory* factory = isolate()->factory();
+        special_map.If<HCompareMap>(receiver, factory->fixed_array_map());
+        special_map.OrIf<HCompareMap>(receiver, factory->meta_map());
+        special_map.Then();
+        Add<HDebugBreak>();
+        special_map.End();
+      }
+      if_heapobject.End();
+    }
+
     SmallMapList* maps;
     ComputeReceiverTypes(expr, receiver, &maps, zone());
 
