@@ -584,9 +584,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
       CallConstructStub stub(masm->isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
       __ CallStub(&stub);
     } else {
-      ParameterCount actual(eax);
-      __ InvokeFunction(edi, actual, CALL_FUNCTION,
-                        NullCallWrapper());
+      __ Call(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
     }
 
     // Exit the internal frame. Notice that this also removes the empty.
