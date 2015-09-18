@@ -12478,16 +12478,6 @@ void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
 }
 
 
-// Fast support for StringCompare.
-void HOptimizedGraphBuilder::GenerateStringCompare(CallRuntime* call) {
-  DCHECK_EQ(2, call->arguments()->length());
-  CHECK_ALIVE(VisitExpressions(call->arguments()));
-  PushArgumentsFromEnvironment(call->arguments()->length());
-  HCallStub* result = New<HCallStub>(CodeStub::StringCompare, 2);
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
 void HOptimizedGraphBuilder::GenerateStringGetLength(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

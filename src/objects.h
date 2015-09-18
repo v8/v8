@@ -800,12 +800,23 @@ enum FixedArraySubInstanceType {
 };
 
 
+// TODO(bmeurer): Remove this in favor of the ComparisonResult below.
 enum CompareResult {
   LESS      = -1,
   EQUAL     =  0,
   GREATER   =  1,
 
   NOT_EQUAL = GREATER
+};
+
+
+// Result of an abstract relational comparison of x and y, implemented according
+// to ES6 section 7.2.11 Abstract Relational Comparison.
+enum class ComparisonResult {
+  kLessThan,     // x < y
+  kEqual,        // x = y
+  kGreaterThan,  // x > x
+  kUndefined     // at least one of x or y was undefined or NaN
 };
 
 
@@ -1083,6 +1094,10 @@ class Object {
 
   bool BooleanValue();                                      // ECMA-262 9.2.
 
+  // ES6 section 7.2.11 Abstract Relational Comparison
+  MUST_USE_RESULT static Maybe<ComparisonResult> Compare(
+      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
+
   // ES6 section 7.2.12 Abstract Equality Comparison
   MUST_USE_RESULT static Maybe<bool> Equals(Handle<Object> x, Handle<Object> y);
 
@@ -1147,6 +1162,16 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<Object> ShiftRightLogical(
       Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
       Strength strength = Strength::WEAK);
+
+  // ES6 section 12.9 Relational Operators
+  MUST_USE_RESULT static inline Maybe<bool> GreaterThan(
+      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static inline Maybe<bool> GreaterThanOrEqual(
+      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static inline Maybe<bool> LessThan(
+      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static inline Maybe<bool> LessThanOrEqual(
+      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
 
   // ES6 section 12.11 Binary Bitwise Operators
   MUST_USE_RESULT static MaybeHandle<Object> BitwiseAnd(
@@ -8488,6 +8513,20 @@ class String: public Name {
   // Returns the parent of a sliced string or first part of a flat cons string.
   // Requires: StringShape(this).IsIndirect() && this->IsFlat()
   inline String* GetUnderlying();
+
+  // String relational comparison, implemented according to ES6 section 7.2.11
+  // Abstract Relational Comparison (step 5): The comparison of Strings uses a
+  // simple lexicographic ordering on sequences of code unit values. There is no
+  // attempt to use the more complex, semantically oriented definitions of
+  // character or string equality and collating order defined in the Unicode
+  // specification. Therefore String values that are canonically equal according
+  // to the Unicode standard could test as unequal. In effect this algorithm
+  // assumes that both Strings are already in normalized form. Also, note that
+  // for strings containing supplementary characters, lexicographic ordering on
+  // sequences of UTF-16 code unit values differs from that on sequences of code
+  // point values.
+  MUST_USE_RESULT static ComparisonResult Compare(Handle<String> x,
+                                                  Handle<String> y);
 
   // String equality operations.
   inline bool Equals(String* other);

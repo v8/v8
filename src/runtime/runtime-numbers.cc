@@ -9,12 +9,6 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 
-
-#ifndef _STLP_VENDOR_CSTD
-// STLPort doesn't import isless into the std namespace.
-using std::isless;
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -229,20 +223,6 @@ RUNTIME_FUNCTION(Runtime_NumberImul) {
   CONVERT_NUMBER_CHECKED(uint32_t, y, Int32, args[1]);
   int32_t product = static_cast<int32_t>(x * y);
   return *isolate->factory()->NewNumberFromInt(product);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberCompare) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 3);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, uncomparable_result, 2)
-  if (std::isnan(x) || std::isnan(y)) return *uncomparable_result;
-  if (x == y) return Smi::FromInt(EQUAL);
-  if (isless(x, y)) return Smi::FromInt(LESS);
-  return Smi::FromInt(GREATER);
 }
 
 

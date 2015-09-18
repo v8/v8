@@ -498,19 +498,6 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-
-  StringCompareStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(result_register());
-}
-
-
 bool RecordStatementPosition(MacroAssembler* masm, int pos) {
   if (pos == RelocInfo::kNoPosition) return false;
   masm->positions_recorder()->RecordStatementPosition(pos);

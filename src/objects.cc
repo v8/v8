@@ -4,6 +4,7 @@
 
 #include "src/objects.h"
 
+#include <cmath>
 #include <iomanip>
 #include <sstream>
 
@@ -163,6 +164,19 @@ namespace {
 
 // TODO(bmeurer): Maybe we should introduce a marker interface Number,
 // where we put all these methods at some point?
+ComparisonResult NumberCompare(double x, double y) {
+  if (std::isnan(x) || std::isnan(y)) {
+    return ComparisonResult::kUndefined;
+  } else if (x < y) {
+    return ComparisonResult::kLessThan;
+  } else if (x > y) {
+    return ComparisonResult::kGreaterThan;
+  } else {
+    return ComparisonResult::kEqual;
+  }
+}
+
+
 bool NumberEquals(double x, double y) {
   // Must check explicitly for NaN's on Windows, but -0 works fine.
   if (std::isnan(x)) return false;
@@ -181,6 +195,44 @@ bool NumberEquals(Handle<Object> x, Handle<Object> y) {
 }
 
 }  // namespace
+
+
+// static
+Maybe<ComparisonResult> Object::Compare(Handle<Object> x, Handle<Object> y,
+                                        Strength strength) {
+  if (!is_strong(strength)) {
+    // ES6 section 7.2.11 Abstract Relational Comparison step 3 and 4.
+    if (!Object::ToPrimitive(x, ToPrimitiveHint::kNumber).ToHandle(&x) ||
+        !Object::ToPrimitive(y, ToPrimitiveHint::kNumber).ToHandle(&y)) {
+      return Nothing<ComparisonResult>();
+    }
+  }
+  if (x->IsString() && y->IsString()) {
+    // ES6 section 7.2.11 Abstract Relational Comparison step 5.
+    return Just(
+        String::Compare(Handle<String>::cast(x), Handle<String>::cast(y)));
+  }
+  // ES6 section 7.2.11 Abstract Relational Comparison step 6.
+  if (!is_strong(strength)) {
+    if (!Object::ToNumber(x).ToHandle(&x) ||
+        !Object::ToNumber(y).ToHandle(&y)) {
+      return Nothing<ComparisonResult>();
+    }
+  } else {
+    if (!x->IsNumber()) {
+      Isolate* const isolate = Handle<HeapObject>::cast(x)->GetIsolate();
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kStrongImplicitConversion));
+      return Nothing<ComparisonResult>();
+    } else if (!y->IsNumber()) {
+      Isolate* const isolate = Handle<HeapObject>::cast(y)->GetIsolate();
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kStrongImplicitConversion));
+      return Nothing<ComparisonResult>();
+    }
+  }
+  return Just(NumberCompare(x->Number(), y->Number()));
+}
 
 
 // static
@@ -9600,6 +9652,69 @@ bool String::SlowEquals(Handle<String> one, Handle<String> two) {
     }
     return true;
   }
+}
+
+
+// static
+ComparisonResult String::Compare(Handle<String> x, Handle<String> y) {
+  // A few fast case tests before we flatten.
+  if (x.is_identical_to(y)) {
+    return ComparisonResult::kEqual;
+  } else if (y->length() == 0) {
+    return x->length() == 0 ? ComparisonResult::kEqual
+                            : ComparisonResult::kGreaterThan;
+  } else if (x->length() == 0) {
+    return ComparisonResult::kLessThan;
+  }
+
+  int const d = x->Get(0) - y->Get(0);
+  if (d < 0) {
+    return ComparisonResult::kLessThan;
+  } else if (d > 0) {
+    return ComparisonResult::kGreaterThan;
+  }
+
+  // Slow case.
+  x = String::Flatten(x);
+  y = String::Flatten(y);
+
+  DisallowHeapAllocation no_gc;
+  ComparisonResult result = ComparisonResult::kEqual;
+  int prefix_length = x->length();
+  if (y->length() < prefix_length) {
+    prefix_length = y->length();
+    result = ComparisonResult::kGreaterThan;
+  } else if (y->length() > prefix_length) {
+    result = ComparisonResult::kLessThan;
+  }
+  int r;
+  String::FlatContent x_content = x->GetFlatContent();
+  String::FlatContent y_content = y->GetFlatContent();
+  if (x_content.IsOneByte()) {
+    Vector<const uint8_t> x_chars = x_content.ToOneByteVector();
+    if (y_content.IsOneByte()) {
+      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+    } else {
+      Vector<const uc16> y_chars = y_content.ToUC16Vector();
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+    }
+  } else {
+    Vector<const uc16> x_chars = x_content.ToUC16Vector();
+    if (y_content.IsOneByte()) {
+      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+    } else {
+      Vector<const uc16> y_chars = y_content.ToUC16Vector();
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+    }
+  }
+  if (r < 0) {
+    result = ComparisonResult::kLessThan;
+  } else if (r > 0) {
+    result = ComparisonResult::kGreaterThan;
+  }
+  return result;
 }
 
 

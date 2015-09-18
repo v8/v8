@@ -522,7 +522,6 @@ class FullCodeGenerator: public AstVisitor {
   F(StringCharCodeAt)                     \
   F(StringAdd)                            \
   F(SubString)                            \
-  F(StringCompare)                        \
   F(RegExpExec)                           \
   F(RegExpConstructResult)                \
   F(NumberToString)                       \

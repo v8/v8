@@ -407,7 +407,6 @@ namespace internal {
   F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToSmi, 1, 1)                 \
   F(NumberImul, 2, 1)                  \
-  F(NumberCompare, 3, 1)               \
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
   F(IsSmi, 1, 1)                       \
@@ -480,6 +479,8 @@ namespace internal {
   F(ToName, 1, 1)                                    \
   F(Equals, 2, 1)                                    \
   F(StrictEquals, 2, 1)                              \
+  F(Compare, 3, 1)                                   \
+  F(Compare_Strong, 3, 1)                            \
   F(InstanceOf, 2, 1)                                \
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \

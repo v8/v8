@@ -7076,6 +7076,78 @@ String* String::GetForwardedInternalizedString() {
 }
 
 
+// static
+Maybe<bool> Object::GreaterThan(Handle<Object> x, Handle<Object> y,
+                                Strength strength) {
+  Maybe<ComparisonResult> result = Compare(x, y, strength);
+  if (result.IsJust()) {
+    switch (result.FromJust()) {
+      case ComparisonResult::kGreaterThan:
+        return Just(true);
+      case ComparisonResult::kLessThan:
+      case ComparisonResult::kEqual:
+      case ComparisonResult::kUndefined:
+        return Just(false);
+    }
+  }
+  return Nothing<bool>();
+}
+
+
+// static
+Maybe<bool> Object::GreaterThanOrEqual(Handle<Object> x, Handle<Object> y,
+                                       Strength strength) {
+  Maybe<ComparisonResult> result = Compare(x, y, strength);
+  if (result.IsJust()) {
+    switch (result.FromJust()) {
+      case ComparisonResult::kEqual:
+      case ComparisonResult::kGreaterThan:
+        return Just(true);
+      case ComparisonResult::kLessThan:
+      case ComparisonResult::kUndefined:
+        return Just(false);
+    }
+  }
+  return Nothing<bool>();
+}
+
+
+// static
+Maybe<bool> Object::LessThan(Handle<Object> x, Handle<Object> y,
+                             Strength strength) {
+  Maybe<ComparisonResult> result = Compare(x, y, strength);
+  if (result.IsJust()) {
+    switch (result.FromJust()) {
+      case ComparisonResult::kLessThan:
+        return Just(true);
+      case ComparisonResult::kEqual:
+      case ComparisonResult::kGreaterThan:
+      case ComparisonResult::kUndefined:
+        return Just(false);
+    }
+  }
+  return Nothing<bool>();
+}
+
+
+// static
+Maybe<bool> Object::LessThanOrEqual(Handle<Object> x, Handle<Object> y,
+                                    Strength strength) {
+  Maybe<ComparisonResult> result = Compare(x, y, strength);
+  if (result.IsJust()) {
+    switch (result.FromJust()) {
+      case ComparisonResult::kEqual:
+      case ComparisonResult::kLessThan:
+        return Just(true);
+      case ComparisonResult::kGreaterThan:
+      case ComparisonResult::kUndefined:
+        return Just(false);
+    }
+  }
+  return Nothing<bool>();
+}
+
+
 MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
                                                  Handle<Name> name,
                                                  LanguageMode language_mode) {

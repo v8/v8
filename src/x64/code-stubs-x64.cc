@@ -1739,15 +1739,11 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     __ TailCallRuntime(strict() ? Runtime::kStrictEquals : Runtime::kEquals, 2,
                        1);
   } else {
-    int context_index = is_strong(strength())
-                            ? Context::COMPARE_STRONG_BUILTIN_INDEX
-                            : Context::COMPARE_BUILTIN_INDEX;
     __ Push(Smi::FromInt(NegativeComparisonResult(cc)));
     __ PushReturnAddressFrom(rcx);
-
-    // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
-    // tagged as a small integer.
-    __ InvokeBuiltin(context_index, JUMP_FUNCTION);
+    __ TailCallRuntime(
+        is_strong(strength()) ? Runtime::kCompare_Strong : Runtime::kCompare, 3,
+        1);
   }
 
   __ bind(&miss);
