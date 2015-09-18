@@ -13476,7 +13476,7 @@ void HTracer::FlushToFile() {
 
 
 void HStatistics::Initialize(CompilationInfo* info) {
-  if (info->shared_info().is_null()) return;
+  if (!info->has_shared_info()) return;
   source_size_ += info->shared_info()->SourceSize();
 }
 
