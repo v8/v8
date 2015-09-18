@@ -30,7 +30,9 @@ V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 def main():
   parser = argparse.ArgumentParser(description='')
-  parser.add_argument("benchmarks", nargs="+", help="The benchmarks to run.")
+  parser.add_argument('benchmarks', nargs='+', help='The benchmarks to run.')
+  parser.add_argument('--extra-flags', default='',
+                      help='Extra flags to be passed to the executable.')
   for option in sorted(BOTS):
     parser.add_argument(
         option, dest='bots', action='append_const', const=BOTS[option],
@@ -44,6 +46,9 @@ def main():
     print 'Please specify the benchmarks to run as arguments.'
     return 1
 
+  assert '"' not in options.extra_flags and '\'' not in options.extra_flags, (
+      'Invalid flag specification.')
+
   # Ensure depot_tools are updated.
   subprocess.check_output(
       'gclient', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
@@ -52,8 +57,10 @@ def main():
   cmd += ['-b %s' % bot for bot in options.bots]
   benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
   cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
+  if options.extra_flags:
+    cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
   subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == '__main__':  # pragma: no cover
   sys.exit(main())
