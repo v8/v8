@@ -1344,21 +1344,16 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
 }
 
 
-Node* SimplifiedLowering::StringComparison(Node* node, bool requires_ordering) {
-  Runtime::FunctionId f =
-      requires_ordering ? Runtime::kStringCompare : Runtime::kStringEquals;
-  ExternalReference ref(f, jsgraph()->isolate());
-  Operator::Properties props = node->op()->properties();
-  // TODO(mstarzinger): We should call StringCompareStub here instead, once an
-  // interface descriptor is available for it.
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(zone(), f, 2, props);
-  return graph()->NewNode(common()->Call(desc),
-                          jsgraph()->CEntryStubConstant(1),
-                          NodeProperties::GetValueInput(node, 0),
-                          NodeProperties::GetValueInput(node, 1),
-                          jsgraph()->ExternalConstant(ref),
-                          jsgraph()->Int32Constant(2),
-                          jsgraph()->NoContextConstant());
+Node* SimplifiedLowering::StringComparison(Node* node) {
+  Operator::Properties properties = node->op()->properties();
+  Callable callable = CodeFactory::StringCompare(isolate());
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), 0, flags, properties);
+  return graph()->NewNode(
+      common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
+      NodeProperties::GetValueInput(node, 0),
+      NodeProperties::GetValueInput(node, 1), jsgraph()->NoContextConstant());
 }
 
 
@@ -1624,21 +1619,21 @@ void SimplifiedLowering::DoShift(Node* node, Operator const* op) {
 
 void SimplifiedLowering::DoStringEqual(Node* node) {
   node->set_op(machine()->WordEqual());
-  node->ReplaceInput(0, StringComparison(node, false));
+  node->ReplaceInput(0, StringComparison(node));
   node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
 }
 
 
 void SimplifiedLowering::DoStringLessThan(Node* node) {
   node->set_op(machine()->IntLessThan());
-  node->ReplaceInput(0, StringComparison(node, true));
+  node->ReplaceInput(0, StringComparison(node));
   node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
 }
 
 
 void SimplifiedLowering::DoStringLessThanOrEqual(Node* node) {
   node->set_op(machine()->IntLessThanOrEqual());
-  node->ReplaceInput(0, StringComparison(node, true));
+  node->ReplaceInput(0, StringComparison(node));
   node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
 }
 
