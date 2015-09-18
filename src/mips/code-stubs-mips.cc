@@ -3482,35 +3482,34 @@ void StringHelper::GenerateOneByteCharsCompareLoop(
 
 
 void StringCompareStub::Generate(MacroAssembler* masm) {
-  Label runtime;
-
-  Counters* counters = isolate()->counters();
-
-  // Stack frame on entry.
-  //  sp[0]: right string
-  //  sp[4]: left string
-  __ lw(a1, MemOperand(sp, 1 * kPointerSize));  // Left.
-  __ lw(a0, MemOperand(sp, 0 * kPointerSize));  // Right.
+  // ----------- S t a t e -------------
+  //  -- a1    : left
+  //  -- a0    : right
+  //  -- ra    : return address
+  // -----------------------------------
+  __ AssertString(a1);
+  __ AssertString(a0);
 
   Label not_same;
   __ Branch(&not_same, ne, a0, Operand(a1));
-  STATIC_ASSERT(EQUAL == 0);
-  STATIC_ASSERT(kSmiTag == 0);
   __ li(v0, Operand(Smi::FromInt(EQUAL)));
-  __ IncrementCounter(counters->string_compare_native(), 1, a1, a2);
-  __ DropAndRet(2);
+  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, a1,
+                      a2);
+  __ Ret();
 
   __ bind(&not_same);
 
   // Check that both objects are sequential one-byte strings.
+  Label runtime;
   __ JumpIfNotBothSequentialOneByteStrings(a1, a0, a2, a3, &runtime);
 
-  // Compare flat ASCII strings natively. Remove arguments from stack first.
-  __ IncrementCounter(counters->string_compare_native(), 1, a2, a3);
-  __ Addu(sp, sp, Operand(2 * kPointerSize));
+  // Compare flat ASCII strings natively.
+  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, a2,
+                      a3);
   StringHelper::GenerateCompareFlatOneByteStrings(masm, a1, a0, a2, a3, t0, t1);
 
   __ bind(&runtime);
+  __ Push(a1, a0);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
 }
 

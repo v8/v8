@@ -4042,45 +4042,38 @@ void StringHelper::GenerateOneByteCharsCompareLoop(
 
 
 void StringCompareStub::Generate(MacroAssembler* masm) {
-  Label runtime;
-
-  Counters* counters = isolate()->counters();
-
-  // Stack frame on entry.
-  //  sp[0]: right string
-  //  sp[8]: left string
-  Register right = x10;
-  Register left = x11;
-  Register result = x0;
-  __ Pop(right, left);
+  // ----------- S t a t e -------------
+  //  -- x1    : left
+  //  -- x0    : right
+  //  -- lr    : return address
+  // -----------------------------------
+  __ AssertString(x1);
+  __ AssertString(x0);
 
   Label not_same;
-  __ Subs(result, right, left);
+  __ Cmp(x0, x1);
   __ B(ne, &not_same);
-  STATIC_ASSERT(EQUAL == 0);
-  __ IncrementCounter(counters->string_compare_native(), 1, x3, x4);
+  __ Mov(x0, Smi::FromInt(EQUAL));
+  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, x3,
+                      x4);
   __ Ret();
 
   __ Bind(&not_same);
 
   // Check that both objects are sequential one-byte strings.
-  __ JumpIfEitherIsNotSequentialOneByteStrings(left, right, x12, x13, &runtime);
+  Label runtime;
+  __ JumpIfEitherIsNotSequentialOneByteStrings(x1, x0, x12, x13, &runtime);
 
-  // Compare flat one-byte strings natively. Remove arguments from stack first,
-  // as this function will generate a return.
-  __ IncrementCounter(counters->string_compare_native(), 1, x3, x4);
-  StringHelper::GenerateCompareFlatOneByteStrings(masm, left, right, x12, x13,
-                                                  x14, x15);
-
-  __ Bind(&runtime);
-
-  // Push arguments back on to the stack.
-  //  sp[0] = right string
-  //  sp[8] = left string.
-  __ Push(left, right);
+  // Compare flat one-byte strings natively.
+  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, x3,
+                      x4);
+  StringHelper::GenerateCompareFlatOneByteStrings(masm, x1, x0, x12, x13, x14,
+                                                  x15);
 
   // Call the runtime.
   // Returns -1 (less), 0 (equal), or 1 (greater) tagged as a small integer.
+  __ Bind(&runtime);
+  __ Push(x1, x0);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
 }
 

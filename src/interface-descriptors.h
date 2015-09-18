@@ -52,6 +52,7 @@ class PlatformInterfaceDescriptor;
   V(BinaryOp)                                 \
   V(BinaryOpWithAllocationSite)               \
   V(StringAdd)                                \
+  V(StringCompare)                            \
   V(Keyed)                                    \
   V(Named)                                    \
   V(CallHandler)                              \
@@ -567,6 +568,16 @@ class BinaryOpWithAllocationSiteDescriptor : public CallInterfaceDescriptor {
 class StringAddDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(StringAddDescriptor, CallInterfaceDescriptor)
+};
+
+
+class StringCompareDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(StringCompareDescriptor, CallInterfaceDescriptor)
+
+  enum ParameterIndices { kLeftIndex, kRightIndex, kParameterCount };
+  static const Register LeftRegister();
+  static const Register RightRegister();
 };
 
 

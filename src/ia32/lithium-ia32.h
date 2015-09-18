@@ -1055,7 +1055,7 @@ class LStringCompareAndBranch final : public LControlInstruction<3, 0> {
     inputs_[2] = right;
   }
 
-  LOperand* context() { return inputs_[1]; }
+  LOperand* context() { return inputs_[0]; }
   LOperand* left() { return inputs_[1]; }
   LOperand* right() { return inputs_[2]; }
 

@@ -52,6 +52,10 @@ const Register InstanceOfDescriptor::LeftRegister() { return x1; }
 const Register InstanceOfDescriptor::RightRegister() { return x0; }
 
 
+const Register StringCompareDescriptor::LeftRegister() { return x1; }
+const Register StringCompareDescriptor::RightRegister() { return x0; }
+
+
 const Register ArgumentsAccessReadDescriptor::index() { return x1; }
 const Register ArgumentsAccessReadDescriptor::parameter_count() { return x0; }
 

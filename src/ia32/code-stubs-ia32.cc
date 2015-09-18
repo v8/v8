@@ -3362,41 +3362,39 @@ void StringHelper::GenerateOneByteCharsCompareLoop(
 
 
 void StringCompareStub::Generate(MacroAssembler* masm) {
-  Label runtime;
-
-  // Stack frame on entry.
-  //  esp[0]: return address
-  //  esp[4]: right string
-  //  esp[8]: left string
-
-  __ mov(edx, Operand(esp, 2 * kPointerSize));  // left
-  __ mov(eax, Operand(esp, 1 * kPointerSize));  // right
+  // ----------- S t a t e -------------
+  //  -- edx    : left string
+  //  -- eax    : right string
+  //  -- esp[0] : return address
+  // -----------------------------------
+  __ AssertString(edx);
+  __ AssertString(eax);
 
   Label not_same;
   __ cmp(edx, eax);
   __ j(not_equal, &not_same, Label::kNear);
-  STATIC_ASSERT(EQUAL == 0);
-  STATIC_ASSERT(kSmiTag == 0);
   __ Move(eax, Immediate(Smi::FromInt(EQUAL)));
   __ IncrementCounter(isolate()->counters()->string_compare_native(), 1);
-  __ ret(2 * kPointerSize);
+  __ Ret();
 
   __ bind(&not_same);
 
   // Check that both objects are sequential one-byte strings.
+  Label runtime;
   __ JumpIfNotBothSequentialOneByteStrings(edx, eax, ecx, ebx, &runtime);
 
   // Compare flat one-byte strings.
-  // Drop arguments from the stack.
-  __ pop(ecx);
-  __ add(esp, Immediate(2 * kPointerSize));
-  __ push(ecx);
+  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1);
   StringHelper::GenerateCompareFlatOneByteStrings(masm, edx, eax, ecx, ebx,
                                                   edi);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ bind(&runtime);
+  __ PopReturnAddressTo(ecx);
+  __ Push(edx);
+  __ Push(eax);
+  __ PushReturnAddressFrom(ecx);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
 }
 

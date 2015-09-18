@@ -3064,7 +3064,7 @@ class StringCompareStub : public PlatformCodeStub {
  public:
   explicit StringCompareStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ContextOnly);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StringCompare);
   DEFINE_PLATFORM_CODE_STUB(StringCompare, PlatformCodeStub);
 };
 
@@ -3077,6 +3077,8 @@ class StringCompareStub : public PlatformCodeStub {
 #undef DEFINE_CODE_STUB_BASE
 
 extern Representation RepresentationFromType(Type* type);
-} }  // namespace v8::internal
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CODE_STUBS_H_

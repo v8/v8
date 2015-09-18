@@ -4526,34 +4526,28 @@ class HIsUndetectableAndBranch final : public HUnaryControlInstruction {
 };
 
 
-class HStringCompareAndBranch : public HTemplateControlInstruction<2, 3> {
+class HStringCompareAndBranch final : public HTemplateControlInstruction<2, 3> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HStringCompareAndBranch,
                                               HValue*,
                                               HValue*,
                                               Token::Value);
 
-  HValue* context() { return OperandAt(0); }
-  HValue* left() { return OperandAt(1); }
-  HValue* right() { return OperandAt(2); }
+  HValue* context() const { return OperandAt(0); }
+  HValue* left() const { return OperandAt(1); }
+  HValue* right() const { return OperandAt(2); }
   Token::Value token() const { return token_; }
 
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
+  std::ostream& PrintDataTo(std::ostream& os) const final;  // NOLINT
 
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  Representation GetInputRepresentation() const {
+  Representation RequiredInputRepresentation(int index) final {
     return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCompareAndBranch)
 
  private:
-  HStringCompareAndBranch(HValue* context,
-                          HValue* left,
-                          HValue* right,
+  HStringCompareAndBranch(HValue* context, HValue* left, HValue* right,
                           Token::Value token)
       : token_(token) {
     DCHECK(Token::IsCompareOp(token));
@@ -4562,9 +4556,11 @@ class HStringCompareAndBranch : public HTemplateControlInstruction<2, 3> {
     SetOperandAt(2, right);
     set_representation(Representation::Tagged());
     SetChangesFlag(kNewSpacePromotion);
+    SetDependsOnFlag(kStringChars);
+    SetDependsOnFlag(kStringLengths);
   }
 
-  Token::Value token_;
+  Token::Value const token_;
 };
 
 
