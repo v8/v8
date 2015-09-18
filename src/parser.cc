@@ -2713,7 +2713,8 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
 
   // Parsed expression statement, followed by semicolon.
   // Detect attempts at 'let' declarations in sloppy mode.
-  if (peek() == Token::IDENTIFIER && expr->AsVariableProxy() != NULL &&
+  if (!allow_harmony_sloppy_let() && peek() == Token::IDENTIFIER &&
+      expr->AsVariableProxy() != NULL &&
       expr->AsVariableProxy()->raw_name() ==
           ast_value_factory()->let_string()) {
     ReportMessage(MessageTemplate::kSloppyLexical, NULL);
@@ -3792,8 +3793,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
   // Parsed initializer at this point.
   // Detect attempts at 'let' declarations in sloppy mode.
-  if (peek() == Token::IDENTIFIER && is_sloppy(language_mode()) &&
-      is_let_identifier_expression) {
+  if (!allow_harmony_sloppy_let() && peek() == Token::IDENTIFIER &&
+      is_sloppy(language_mode()) && is_let_identifier_expression) {
     ReportMessage(MessageTemplate::kSloppyLexical, NULL);
     *ok = false;
     return NULL;

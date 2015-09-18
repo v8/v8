@@ -700,8 +700,9 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   }
   // Parsed expression statement.
   // Detect attempts at 'let' declarations in sloppy mode.
-  if (peek() == Token::IDENTIFIER && is_sloppy(language_mode()) &&
-      expr.IsIdentifier() && expr.AsIdentifier().IsLet()) {
+  if (!allow_harmony_sloppy_let() && peek() == Token::IDENTIFIER &&
+      is_sloppy(language_mode()) && expr.IsIdentifier() &&
+      expr.AsIdentifier().IsLet()) {
     ReportMessage(MessageTemplate::kSloppyLexical, NULL);
     *ok = false;
     return Statement::Default();
@@ -960,8 +961,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
 
   // Parsed initializer at this point.
   // Detect attempts at 'let' declarations in sloppy mode.
-  if (peek() == Token::IDENTIFIER && is_sloppy(language_mode()) &&
-      is_let_identifier_expression) {
+  if (!allow_harmony_sloppy_let() && peek() == Token::IDENTIFIER &&
+      is_sloppy(language_mode()) && is_let_identifier_expression) {
     ReportMessage(MessageTemplate::kSloppyLexical, NULL);
     *ok = false;
     return Statement::Default();
