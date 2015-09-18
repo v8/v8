@@ -479,8 +479,34 @@ void GreedyAllocator::AllocateRegisters() {
   }
   allocations_.clear();
 
+  TryReuseSpillRangesForGroups();
+
   TRACE("End allocating function %s with the Greedy Allocator\n",
         data()->debug_name());
+}
+
+
+void GreedyAllocator::TryReuseSpillRangesForGroups() {
+  for (TopLevelLiveRange* top : data()->live_ranges()) {
+    if (!CanProcessRange(top) || !top->is_phi() || top->group() == nullptr) {
+      continue;
+    }
+
+    SpillRange* spill_range = nullptr;
+    for (LiveRange* member : top->group()->ranges()) {
+      if (!member->TopLevel()->HasSpillRange()) continue;
+      SpillRange* member_range = member->TopLevel()->GetSpillRange();
+      if (spill_range == nullptr) {
+        spill_range = member_range;
+      } else {
+        // This may not always succeed, because we group non-conflicting ranges
+        // that may have been splintered, and the splinters may cause conflicts
+        // in the spill ranges.
+        // TODO(mtrofin): should the splinters own their own spill ranges?
+        spill_range->TryMerge(member_range);
+      }
+    }
+  }
 }
 
 

@@ -179,6 +179,12 @@ class GreedyAllocator final : public RegisterAllocator {
   // - the portion after the call.
   LiveRange* GetRemainderAfterSplittingAroundFirstCall(LiveRange* range);
 
+  // While we attempt to merge spill ranges later on in the allocation pipeline,
+  // we want to ensure group elements get merged. Waiting until later may hinder
+  // merge-ability, since the pipeline merger (being naive) may create conflicts
+  // between spill ranges of group members.
+  void TryReuseSpillRangesForGroups();
+
   // Necessary heuristic: spill when all else failed.
   void SpillRangeAsLastResort(LiveRange* range);
 
