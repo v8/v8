@@ -39,10 +39,6 @@ define NEW_TWO_BYTE_STRING = false;
 define GETTER = 0;
 define SETTER = 1;
 
-define NO_HINT     = 0;
-define NUMBER_HINT = 1;
-define STRING_HINT = 2;
-
 # For date.js.
 define HoursPerDay      = 24;
 define MinutesPerHour   = 60;

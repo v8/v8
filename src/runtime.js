@@ -21,7 +21,6 @@ var $toInteger;
 var $toLength;
 var $toNumber;
 var $toPositiveInteger;
-var $toPrimitive;
 var $toString;
 
 var harmony_tolength = false;
@@ -175,15 +174,6 @@ function CONCAT_ITERABLE_TO_ARRAY(iterable) {
    - - -   C o n v e r s i o n s   - - -
    -------------------------------------
 */
-
-// ECMA-262, section 9.1, page 30. Use null/undefined for no hint,
-// (1) for number hint, and (2) for string hint.
-function ToPrimitive(x, hint) {
-  if (!IS_SPEC_OBJECT(x)) return x;
-  if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
-  return (hint == NUMBER_HINT) ? DefaultNumber(x) : DefaultString(x);
-}
-
 
 // ECMA-262, section 9.2, page 30
 function ToBoolean(x) {
@@ -377,7 +367,6 @@ $toInteger = ToInteger;
 $toLength = ToLength;
 $toNumber = ToNumber;
 $toPositiveInteger = ToPositiveInteger;
-$toPrimitive = ToPrimitive;
 $toString = ToString;
 
 %InstallToContext([
@@ -394,7 +383,6 @@ $toString = ToString;
   "to_integer_fun", ToInteger,
   "to_length_fun", ToLength,
   "to_number_fun", ToNumber,
-  "to_primitive", ToPrimitive,
   "to_string_fun", ToString,
 ]);
 
@@ -402,7 +390,6 @@ utils.Export(function(to) {
   to.ToBoolean = ToBoolean;
   to.ToLength = ToLength;
   to.ToNumber = ToNumber;
-  to.ToPrimitive = ToPrimitive;
   to.ToString = ToString;
 });
 

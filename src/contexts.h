@@ -86,7 +86,6 @@ enum BindingFlags {
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                   \
   V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                       \
   V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)                       \
-  V(TO_PRIMITIVE_INDEX, JSFunction, to_primitive)                         \
   V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)
 
 

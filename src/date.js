@@ -22,7 +22,6 @@ var IsFinite;
 var MathAbs;
 var MathFloor;
 var ToNumber;
-var toPrimitiveSymbol = utils.ImportNow("to_primitive_symbol");
 var ToString;
 
 utils.Import(function(from) {
@@ -150,6 +149,7 @@ function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
   } else if (argc == 1) {
     if (IS_NUMBER(year)) {
       value = year;
+
     } else if (IS_STRING(year)) {
       // Probe the Date cache. If we already have a time value for the
       // given time, we re-use that instead of parsing the string again.
@@ -165,15 +165,11 @@ function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
         }
       }
 
+    } else if (IS_DATE(year)) {
+      value = UTC_DATE_VALUE(year);
+
     } else {
-      // According to ECMA 262, no hint should be given for this
-      // conversion. However, ToPrimitive defaults to STRING_HINT for
-      // Date objects which will lose precision when the Date
-      // constructor is called with another Date object as its
-      // argument. We therefore use NUMBER_HINT for the conversion,
-      // which is the default for everything else than Date objects.
-      // This makes us behave like KJS and SpiderMonkey.
-      var time = $toPrimitive(year, NUMBER_HINT);
+      var time = TO_PRIMITIVE(year);
       value = IS_STRING(time) ? DateParse(time) : ToNumber(time);
     }
     SET_UTC_DATE_VALUE(this, value);
