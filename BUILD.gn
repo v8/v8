@@ -1747,35 +1747,25 @@ if (current_toolchain == snapshot_toolchain) {
 # Public targets
 #
 
+if (v8_use_snapshot && v8_use_external_startup_data) {
+  snapshot_target = ":v8_external_snapshot"
+} else if (v8_use_snapshot) {
+  snapshot_target = ":v8_snapshot"
+} else {
+  assert(!v8_use_external_startup_data)
+  snapshot_target = ":v8_nosnapshot"
+}
+
 if (is_component_build) {
   component("v8") {
     sources = [
       "src/v8dll-main.cc",
     ]
 
-    if (v8_use_snapshot && v8_use_external_startup_data) {
-      deps = [
-        ":v8_base",
-      ]
-      public_deps = [
-        ":v8_external_snapshot",
-      ]
-    } else if (v8_use_snapshot) {
-      deps = [
-        ":v8_base",
-      ]
-      # v8_snapshot should be public so downstream targets can declare the
-      # snapshot file as their input.
-      public_deps = [
-        ":v8_snapshot",
-      ]
-    } else {
-      assert(!v8_use_external_startup_data)
-      deps = [
-        ":v8_base",
-        ":v8_nosnapshot",
-      ]
-    }
+    public_deps = [
+      ":v8_base",
+      snapshot_target,
+    ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -1794,26 +1784,10 @@ if (is_component_build) {
   }
 } else {
   group("v8") {
-    if (v8_use_snapshot && v8_use_external_startup_data) {
-      deps = [
-        ":v8_base",
-        ":v8_external_snapshot",
-      ]
-    } else if (v8_use_snapshot) {
-      deps = [
-        ":v8_base",
-      ]
-      public_deps = [
-        ":v8_snapshot",
-      ]
-    } else {
-      assert(!v8_use_external_startup_data)
-      deps = [
-        ":v8_base",
-        ":v8_nosnapshot",
-      ]
-    }
-
+    public_deps = [
+      ":v8_base",
+      snapshot_target,
+    ]
     public_configs = [ ":external_config" ]
   }
 }
