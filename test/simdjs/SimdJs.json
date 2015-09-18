@@ -1,6 +1,5 @@
 {
   "flags": [
-    "--harmony-object",
     "--harmony-simd",
     "test/simdjs/harness-adapt.js"
   ],

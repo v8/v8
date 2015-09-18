@@ -216,8 +216,7 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_new_target, "harmony new.target")                   \
   V(harmony_object_observe, "harmony Object.observe")           \
   V(harmony_spreadcalls, "harmony spread-calls")                \
-  V(harmony_spread_arrays, "harmony spread in array literals")  \
-  V(harmony_object, "harmony Object methods")
+  V(harmony_spread_arrays, "harmony spread in array literals")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,

@@ -113,7 +113,6 @@
       "path": ["Object"],
       "main": "run.js",
       "resources": ["assign.js"],
-      "flags": ["--harmony-object"],
       "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
       "tests": [
         {"name": "Assign"}

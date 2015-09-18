@@ -40,7 +40,7 @@ output = {
     'test/simdjs/harness-adapt.js',
     'test/simdjs/harness-finish.js'
   ] + ['test/simdjs/data/src/benchmarks/%s.js' % t for t in tests],
-  'flags': ['--harmony-object', 'test/simdjs/harness-adapt.js'],
+  'flags': ['test/simdjs/harness-adapt.js'],
   'path': ['../../'],
   'tests': [
     {

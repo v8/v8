@@ -1262,6 +1262,36 @@ function ObjectIs(obj1, obj2) {
 }
 
 
+// ECMA-262, Edition 6, section 19.1.2.1
+function ObjectAssign(target, sources) {
+  // TODO(bmeurer): Move this to toplevel.
+  "use strict";
+  var to = TO_OBJECT(target);
+  var argsLen = %_ArgumentsLength();
+  if (argsLen < 2) return to;
+
+  for (var i = 1; i < argsLen; ++i) {
+    var nextSource = %_Arguments(i);
+    if (IS_NULL_OR_UNDEFINED(nextSource)) {
+      continue;
+    }
+
+    var from = TO_OBJECT(nextSource);
+    var keys = OwnPropertyKeys(from);
+    var len = keys.length;
+
+    for (var j = 0; j < len; ++j) {
+      var key = keys[j];
+      if (%IsPropertyEnumerable(from, key)) {
+        var propValue = from[key];
+        to[key] = propValue;
+      }
+    }
+  }
+  return to;
+}
+
+
 // ECMA-262, Edition 6, section B.2.2.1.1
 function ObjectGetProto() {
   return %_GetPrototype(TO_OBJECT(this));
@@ -1316,6 +1346,7 @@ utils.InstallGetterSetter(GlobalObject.prototype, "__proto__", ObjectGetProto,
 
 // Set up non-enumerable functions in the Object object.
 utils.InstallFunctions(GlobalObject, DONT_ENUM, [
+  "assign", ObjectAssign,
   "keys", ObjectKeys,
   "create", ObjectCreate,
   "defineProperty", ObjectDefineProperty,
@@ -1808,7 +1839,6 @@ utils.Export(function(to) {
   to.ObjectIsFrozen = ObjectIsFrozen;
   to.ObjectIsSealed = ObjectIsSealed;
   to.ObjectToString = ObjectToString;
-  to.OwnPropertyKeys = OwnPropertyKeys;
   to.ToNameArray = ToNameArray;
 });
 
