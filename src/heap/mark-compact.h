@@ -542,26 +542,7 @@ class MarkCompactCollector {
 
   MarkingParity marking_parity_;
 
-  // True if we are collecting slots to perform evacuation from evacuation
-  // candidates.
-  bool compacting_;
-
   bool was_marked_incrementally_;
-
-  // True if concurrent or parallel sweeping is currently in progress.
-  bool sweeping_in_progress_;
-
-  // True if parallel compaction is currently in progress.
-  bool parallel_compaction_in_progress_;
-
-  // Synchronize sweeper threads.
-  base::Semaphore pending_sweeper_jobs_semaphore_;
-
-  // Synchronize compaction tasks.
-  base::Semaphore pending_compaction_tasks_semaphore_;
-
-  // Number of active compaction tasks (including main thread).
-  intptr_t concurrent_compaction_tasks_active_;
 
   bool evacuation_;
 
@@ -792,6 +773,25 @@ class MarkCompactCollector {
   base::SmartPointer<FreeList> free_list_old_space_;
   base::SmartPointer<FreeList> free_list_code_space_;
   base::SmartPointer<FreeList> free_list_map_space_;
+
+  // True if we are collecting slots to perform evacuation from evacuation
+  // candidates.
+  bool compacting_;
+
+  // True if concurrent or parallel sweeping is currently in progress.
+  bool sweeping_in_progress_;
+
+  // True if parallel compaction is currently in progress.
+  bool compaction_in_progress_;
+
+  // Semaphore used to synchronize sweeper tasks.
+  base::Semaphore pending_sweeper_tasks_semaphore_;
+
+  // Semaphore used to synchronize compaction tasks.
+  base::Semaphore pending_compaction_tasks_semaphore_;
+
+  // Number of active compaction tasks (including main thread).
+  intptr_t concurrent_compaction_tasks_active_;
 
   friend class Heap;
 };

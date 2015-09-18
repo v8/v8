@@ -471,7 +471,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
-  chunk->set_parallel_sweeping(SWEEPING_DONE);
+  chunk->parallel_sweeping_state().SetValue(kSweepingDone);
   chunk->parallel_compaction_state().SetValue(kCompactingDone);
   chunk->mutex_ = NULL;
   chunk->available_in_small_free_list_ = 0;

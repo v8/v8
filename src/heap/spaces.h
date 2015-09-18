@@ -281,6 +281,19 @@ class MemoryChunk {
     kCompactingAborted,
   };
 
+  // |kSweepingDone|: The page state when sweeping is complete or sweeping must
+  //   not be performed on that page.
+  // |kSweepingFinalize|: A sweeper thread is done sweeping this page and will
+  //   not touch the page memory anymore.
+  // |kSweepingInProgress|: This page is currently swept by a sweeper thread.
+  // |kSweepingPending|: This page is ready for parallel sweeping.
+  enum ParallelSweepingState {
+    kSweepingDone,
+    kSweepingFinalize,
+    kSweepingInProgress,
+    kSweepingPending
+  };
+
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
@@ -448,27 +461,8 @@ class MemoryChunk {
   // Return all current flags.
   intptr_t GetFlags() { return flags_; }
 
-
-  // SWEEPING_DONE - The page state when sweeping is complete or sweeping must
-  // not be performed on that page.
-  // SWEEPING_FINALIZE - A sweeper thread is done sweeping this page and will
-  // not touch the page memory anymore.
-  // SWEEPING_IN_PROGRESS - This page is currently swept by a sweeper thread.
-  // SWEEPING_PENDING - This page is ready for parallel sweeping.
-  enum ParallelSweepingState {
-    SWEEPING_DONE,
-    SWEEPING_FINALIZE,
-    SWEEPING_IN_PROGRESS,
-    SWEEPING_PENDING
-  };
-
-  ParallelSweepingState parallel_sweeping() {
-    return static_cast<ParallelSweepingState>(
-        base::Acquire_Load(&parallel_sweeping_));
-  }
-
-  void set_parallel_sweeping(ParallelSweepingState state) {
-    base::Release_Store(&parallel_sweeping_, state);
+  AtomicValue<ParallelSweepingState>& parallel_sweeping_state() {
+    return parallel_sweeping_;
   }
 
   AtomicValue<ParallelCompactingState>& parallel_compaction_state() {
@@ -488,7 +482,9 @@ class MemoryChunk {
     DCHECK(SweepingCompleted());
   }
 
-  bool SweepingCompleted() { return parallel_sweeping() <= SWEEPING_FINALIZE; }
+  bool SweepingCompleted() {
+    return parallel_sweeping_state().Value() <= kSweepingFinalize;
+  }
 
   // Manage live byte count (count of bytes known to be live,
   // because they are marked black).
@@ -743,7 +739,7 @@ class MemoryChunk {
   AtomicValue<intptr_t> high_water_mark_;
 
   base::Mutex* mutex_;
-  base::AtomicWord parallel_sweeping_;
+  AtomicValue<ParallelSweepingState> parallel_sweeping_;
   AtomicValue<ParallelCompactingState> parallel_compaction_;
 
   // PagedSpace free-list statistics.

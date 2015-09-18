@@ -52,13 +52,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       state_(IDLE),
 #endif
       marking_parity_(ODD_MARKING_PARITY),
-      compacting_(false),
       was_marked_incrementally_(false),
-      sweeping_in_progress_(false),
-      parallel_compaction_in_progress_(false),
-      pending_sweeper_jobs_semaphore_(0),
-      pending_compaction_tasks_semaphore_(0),
-      concurrent_compaction_tasks_active_(0),
       evacuation_(false),
       slots_buffer_allocator_(nullptr),
       migration_slots_buffer_(nullptr),
@@ -66,7 +60,13 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       marking_deque_memory_(NULL),
       marking_deque_memory_committed_(0),
       code_flusher_(NULL),
-      have_code_to_deoptimize_(false) {
+      have_code_to_deoptimize_(false),
+      compacting_(false),
+      sweeping_in_progress_(false),
+      compaction_in_progress_(false),
+      pending_sweeper_tasks_semaphore_(0),
+      pending_compaction_tasks_semaphore_(0),
+      concurrent_compaction_tasks_active_(0) {
 }
 
 #ifdef VERIFY_HEAP
@@ -507,7 +507,7 @@ class MarkCompactCollector::SweeperTask : public v8::Task {
   // v8::Task overrides.
   void Run() override {
     heap_->mark_compact_collector()->SweepInParallel(space_, 0);
-    heap_->mark_compact_collector()->pending_sweeper_jobs_semaphore_.Signal();
+    heap_->mark_compact_collector()->pending_sweeper_tasks_semaphore_.Signal();
   }
 
   Heap* heap_;
@@ -559,9 +559,9 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   }
 
   if (heap()->concurrent_sweeping_enabled()) {
-    pending_sweeper_jobs_semaphore_.Wait();
-    pending_sweeper_jobs_semaphore_.Wait();
-    pending_sweeper_jobs_semaphore_.Wait();
+    pending_sweeper_tasks_semaphore_.Wait();
+    pending_sweeper_tasks_semaphore_.Wait();
+    pending_sweeper_tasks_semaphore_.Wait();
   }
 
   ParallelSweepSpacesComplete();
@@ -582,11 +582,11 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 
 
 bool MarkCompactCollector::IsSweepingCompleted() {
-  if (!pending_sweeper_jobs_semaphore_.WaitFor(
+  if (!pending_sweeper_tasks_semaphore_.WaitFor(
           base::TimeDelta::FromSeconds(0))) {
     return false;
   }
-  pending_sweeper_jobs_semaphore_.Signal();
+  pending_sweeper_tasks_semaphore_.Signal();
   return true;
 }
 
@@ -2565,7 +2565,7 @@ void MarkCompactCollector::RecordMigratedSlot(
   // When parallel compaction is in progress, store and slots buffer entries
   // require synchronization.
   if (heap_->InNewSpace(value)) {
-    if (parallel_compaction_in_progress_) {
+    if (compaction_in_progress_) {
       heap_->store_buffer()->MarkSynchronized(slot);
     } else {
       heap_->store_buffer()->Mark(slot);
@@ -3388,7 +3388,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       ->Get(CODE_SPACE)
       ->MoveOverFreeMemory(heap()->code_space());
 
-  parallel_compaction_in_progress_ = true;
+  compaction_in_progress_ = true;
   // Kick off parallel tasks.
   for (int i = 1; i < num_tasks; i++) {
     concurrent_compaction_tasks_active_++;
@@ -3471,7 +3471,7 @@ void MarkCompactCollector::WaitUntilCompactionCompleted() {
     pending_compaction_tasks_semaphore_.Wait();
     concurrent_compaction_tasks_active_--;
   }
-  parallel_compaction_in_progress_ = false;
+  compaction_in_progress_ = false;
 }
 
 
@@ -3482,8 +3482,8 @@ void MarkCompactCollector::EvacuatePages(
     Page* p = evacuation_candidates_[i];
     DCHECK(p->IsEvacuationCandidate() ||
            p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
-    DCHECK(static_cast<int>(p->parallel_sweeping()) ==
-           MemoryChunk::SWEEPING_DONE);
+    DCHECK(static_cast<int>(p->parallel_sweeping_state().Value()) ==
+           MemoryChunk::kSweepingDone);
     if (p->parallel_compaction_state().TrySetValue(
             MemoryChunk::kCompactingDone, MemoryChunk::kCompactingInProgress)) {
       if (p->IsEvacuationCandidate()) {
@@ -3627,7 +3627,7 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
   if (parallelism == MarkCompactCollector::SWEEP_IN_PARALLEL) {
     // When concurrent sweeping is active, the page will be marked after
     // sweeping by the main thread.
-    p->set_parallel_sweeping(MemoryChunk::SWEEPING_FINALIZE);
+    p->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingFinalize);
   } else {
     p->SetWasSwept();
   }
@@ -4276,11 +4276,12 @@ int MarkCompactCollector::SweepInParallel(Page* page, PagedSpace* space) {
   int max_freed = 0;
   if (page->TryLock()) {
     // If this page was already swept in the meantime, we can return here.
-    if (page->parallel_sweeping() != MemoryChunk::SWEEPING_PENDING) {
+    if (page->parallel_sweeping_state().Value() !=
+        MemoryChunk::kSweepingPending) {
       page->mutex()->Unlock();
       return 0;
     }
-    page->set_parallel_sweeping(MemoryChunk::SWEEPING_IN_PROGRESS);
+    page->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingInProgress);
     FreeList* free_list;
     FreeList private_free_list(space);
     if (space->identity() == OLD_SPACE) {
@@ -4321,7 +4322,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
 
   while (it.has_next()) {
     Page* p = it.next();
-    DCHECK(p->parallel_sweeping() == MemoryChunk::SWEEPING_DONE);
+    DCHECK(p->parallel_sweeping_state().Value() == MemoryChunk::kSweepingDone);
 
     // Clear sweeping flags indicating that marking bits are still intact.
     p->ClearWasSwept();
@@ -4375,7 +4376,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
             PrintF("Sweeping 0x%" V8PRIxPTR " in parallel.\n",
                    reinterpret_cast<intptr_t>(p));
           }
-          p->set_parallel_sweeping(MemoryChunk::SWEEPING_PENDING);
+          p->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingPending);
           space->IncreaseUnsweptFreeBytes(p);
         }
         space->set_end_of_unswept_pages(p);
@@ -4482,11 +4483,12 @@ void MarkCompactCollector::ParallelSweepSpaceComplete(PagedSpace* space) {
   PageIterator it(space);
   while (it.has_next()) {
     Page* p = it.next();
-    if (p->parallel_sweeping() == MemoryChunk::SWEEPING_FINALIZE) {
-      p->set_parallel_sweeping(MemoryChunk::SWEEPING_DONE);
+    if (p->parallel_sweeping_state().Value() ==
+        MemoryChunk::kSweepingFinalize) {
+      p->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingDone);
       p->SetWasSwept();
     }
-    DCHECK(p->parallel_sweeping() == MemoryChunk::SWEEPING_DONE);
+    DCHECK(p->parallel_sweeping_state().Value() == MemoryChunk::kSweepingDone);
   }
 }
 

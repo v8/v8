@@ -5644,7 +5644,8 @@ TEST(ArrayShiftSweeping) {
   CHECK(heap->InOldSpace(o->elements()));
   CHECK(heap->InOldSpace(*o));
   Page* page = Page::FromAddress(o->elements()->address());
-  CHECK(page->parallel_sweeping() <= MemoryChunk::SWEEPING_FINALIZE ||
+  CHECK(page->parallel_sweeping_state().Value() <=
+            MemoryChunk::kSweepingFinalize ||
         Marking::IsBlack(Marking::MarkBitFrom(o->elements())));
 }
 
