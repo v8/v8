@@ -363,10 +363,10 @@ class VirtualMemory {
 
  private:
   bool InVM(void* address, size_t size) {
-    return (reinterpret_cast<intptr_t>(address_) <=
-            reinterpret_cast<intptr_t>(address)) &&
-           (reinterpret_cast<intptr_t>(address_) + size_ >=
-            reinterpret_cast<intptr_t>(address) + size);
+    return (reinterpret_cast<uintptr_t>(address_) <=
+            reinterpret_cast<uintptr_t>(address)) &&
+           ((reinterpret_cast<uintptr_t>(address_) + size_) >=
+            (reinterpret_cast<uintptr_t>(address) + size));
   }
 
   void* address_;  // Start address of the virtual memory.
