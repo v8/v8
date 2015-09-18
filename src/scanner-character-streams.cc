@@ -458,11 +458,11 @@ void ExternalStreamingStream::ResetToBookmark() {
 
   // bookmark_data_* => current_data_*
   // (current_data_ assumes ownership of its memory.)
-  uint8_t* data = new uint8_t[bookmark_data_.length() - bookmark_data_offset_];
   current_data_offset_ = 0;
   current_data_length_ = bookmark_data_.length() - bookmark_data_offset_;
+  uint8_t* data = new uint8_t[current_data_length_];
   CopyCharsUnsigned(data, bookmark_data_.begin() + bookmark_data_offset_,
-                    bookmark_data_.length());
+                    current_data_length_);
   delete[] current_data_;
   current_data_ = data;
   bookmark_data_is_from_current_data_ = true;
