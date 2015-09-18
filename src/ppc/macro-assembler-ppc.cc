@@ -2586,7 +2586,9 @@ void MacroAssembler::AssertFunction(Register object) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object, r0);
     Check(ne, kOperandIsASmiAndNotAFunction, cr0);
-    CompareObjectType(object, r0, r0, JS_FUNCTION_TYPE);
+    push(object);
+    CompareObjectType(object, object, object, JS_FUNCTION_TYPE);
+    pop(object);
     Check(eq, kOperandIsNotAFunction);
   }
 }
