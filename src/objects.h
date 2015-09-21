@@ -4054,7 +4054,6 @@ class ScopeInfo : public FixedArray {
   FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
 #undef FIELD_ACCESSORS
 
- private:
   enum {
 #define DECL_INDEX(name) k##name,
     FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(DECL_INDEX)
@@ -4062,6 +4061,7 @@ class ScopeInfo : public FixedArray {
     kVariablePartIndex
   };
 
+ private:
   // The layout of the variable part of a ScopeInfo is as follows:
   // 1. ParameterEntries:
   //    This part stores the names of the parameters for function scopes. One
