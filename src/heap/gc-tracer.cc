@@ -450,6 +450,9 @@ void GCTracer::PrintNVP() const {
              current_.scopes[Scope::MC_WEAKCOLLECTION_CLEAR]);
       PrintF("weakcollection_abort=%.1f ",
              current_.scopes[Scope::MC_WEAKCOLLECTION_ABORT]);
+      PrintF("weakcells=%.1f ", current_.scopes[Scope::MC_WEAKCELL]);
+      PrintF("nonlive_refs=%.1f ",
+             current_.scopes[Scope::MC_NONLIVEREFERENCES]);
 
       PrintF("steps_count=%d ", current_.incremental_marking_steps);
       PrintF("steps_took=%.1f ", current_.incremental_marking_duration);

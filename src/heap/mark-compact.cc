@@ -2216,6 +2216,8 @@ void MarkCompactCollector::AfterMarking() {
 
 
 void MarkCompactCollector::ClearNonLiveReferences() {
+  GCTracer::Scope gc_scope(heap()->tracer(),
+                           GCTracer::Scope::MC_NONLIVEREFERENCES);
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  This action
   // is carried out only on maps of JSObjects and related subtypes.
@@ -2509,6 +2511,7 @@ void MarkCompactCollector::AbortWeakCollections() {
 
 
 void MarkCompactCollector::ProcessAndClearWeakCells() {
+  GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_WEAKCELL);
   Object* weak_cell_obj = heap()->encountered_weak_cells();
   while (weak_cell_obj != Smi::FromInt(0)) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
