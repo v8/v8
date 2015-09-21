@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(mythria): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <stdlib.h>
 #include <utility>
 
@@ -51,8 +54,10 @@ static Handle<String> MakeName(const char* str, int suffix) {
 
 
 Handle<JSObject> GetObject(const char* name) {
-  return v8::Utils::OpenHandle(
-      *v8::Handle<v8::Object>::Cast(CcTest::global()->Get(v8_str(name))));
+  return v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+      CcTest::global()
+          ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str(name))
+          .ToLocalChecked()));
 }
 
 
