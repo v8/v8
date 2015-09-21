@@ -136,6 +136,12 @@ void AstTyper::VisitEmptyStatement(EmptyStatement* stmt) {
 }
 
 
+void AstTyper::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  Visit(stmt->statement());
+}
+
+
 void AstTyper::VisitIfStatement(IfStatement* stmt) {
   // Collect type feedback.
   if (!stmt->condition()->ToBooleanIsTrue() &&

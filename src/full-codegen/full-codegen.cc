@@ -450,6 +450,12 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+void FullCodeGenerator::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* declaration) {
+  Visit(declaration->statement());
+}
+
+
 int FullCodeGenerator::DeclareGlobalsFlags() {
   DCHECK(DeclareGlobalsLanguageMode::is_valid(language_mode()));
   return DeclareGlobalsEvalFlag::encode(is_eval()) |

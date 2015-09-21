@@ -1134,6 +1134,9 @@ class Parser : public ParserBase<ParserTraits> {
   // hoisted over such a scope.
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
 
+  // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
+  void InsertSloppyBlockFunctionVarBindings(Scope* scope, bool* ok);
+
   // Parser support
   VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);
   Variable* Declare(Declaration* declaration,

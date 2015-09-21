@@ -4789,6 +4789,12 @@ void HOptimizedGraphBuilder::VisitEmptyStatement(EmptyStatement* stmt) {
 }
 
 
+void HOptimizedGraphBuilder::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  Visit(stmt->statement());
+}
+
+
 void HOptimizedGraphBuilder::VisitIfStatement(IfStatement* stmt) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);

@@ -266,6 +266,12 @@ void AsmTyper::VisitExpressionStatement(ExpressionStatement* stmt) {
 void AsmTyper::VisitEmptyStatement(EmptyStatement* stmt) {}
 
 
+void AsmTyper::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  Visit(stmt->statement());
+}
+
+
 void AsmTyper::VisitEmptyParentheses(EmptyParentheses* expr) { UNREACHABLE(); }
 
 

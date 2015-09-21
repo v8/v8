@@ -202,6 +202,12 @@ void ALAA::VisitCaseClause(CaseClause* cc) {
 }
 
 
+void ALAA::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  Visit(stmt->statement());
+}
+
+
 // ---------------------------------------------------------------------------
 // -- Interesting nodes-------------------------------------------------------
 // ---------------------------------------------------------------------------

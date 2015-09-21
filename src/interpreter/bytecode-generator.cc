@@ -121,6 +121,12 @@ void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) { UNIMPLEMENTED(); }
 
 
+void BytecodeGenerator::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  Visit(stmt->statement());
+}
+
+
 void BytecodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
   UNIMPLEMENTED();
 }

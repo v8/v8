@@ -113,6 +113,13 @@ void AstNumberingVisitor::VisitEmptyStatement(EmptyStatement* node) {
 }
 
 
+void AstNumberingVisitor::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* node) {
+  IncrementNodeCount();
+  Visit(node->statement());
+}
+
+
 void AstNumberingVisitor::VisitContinueStatement(ContinueStatement* node) {
   IncrementNodeCount();
 }

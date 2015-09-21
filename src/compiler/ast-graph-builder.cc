@@ -1158,6 +1158,12 @@ void AstGraphBuilder::VisitEmptyStatement(EmptyStatement* stmt) {
 }
 
 
+void AstGraphBuilder::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  Visit(stmt->statement());
+}
+
+
 void AstGraphBuilder::VisitIfStatement(IfStatement* stmt) {
   IfBuilder compare_if(this);
   VisitForTest(stmt->condition());

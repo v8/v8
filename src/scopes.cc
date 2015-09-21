@@ -66,6 +66,27 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 }
 
 
+SloppyBlockFunctionMap::SloppyBlockFunctionMap(Zone* zone)
+    : ZoneHashMap(ZoneHashMap::PointersMatch, 8, ZoneAllocationPolicy(zone)),
+      zone_(zone) {}
+SloppyBlockFunctionMap::~SloppyBlockFunctionMap() {}
+
+
+void SloppyBlockFunctionMap::Declare(const AstRawString* name,
+                                     SloppyBlockFunctionStatement* stmt) {
+  // AstRawStrings are unambiguous, i.e., the same string is always represented
+  // by the same AstRawString*.
+  Entry* p =
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+                                  ZoneAllocationPolicy(zone_));
+  if (p->value == nullptr) {
+    p->value = new (zone_->New(sizeof(Vector))) Vector(zone_);
+  }
+  Vector* delegates = static_cast<Vector*>(p->value);
+  delegates->push_back(stmt);
+}
+
+
 // ----------------------------------------------------------------------------
 // Implementation of Scope
 
@@ -79,6 +100,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
       decls_(4, zone),
       module_descriptor_(
           scope_type == MODULE_SCOPE ? ModuleDescriptor::New(zone) : NULL),
+      sloppy_block_function_map_(zone),
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),
       zone_(zone),
@@ -100,6 +122,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
       unresolved_(16, zone),
       decls_(4, zone),
       module_descriptor_(NULL),
+      sloppy_block_function_map_(zone),
       already_resolved_(true),
       ast_value_factory_(value_factory),
       zone_(zone),
@@ -125,6 +148,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       unresolved_(0, zone),
       decls_(0, zone),
       module_descriptor_(NULL),
+      sloppy_block_function_map_(zone),
       already_resolved_(true),
       ast_value_factory_(value_factory),
       zone_(zone),

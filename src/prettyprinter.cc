@@ -114,6 +114,12 @@ void CallPrinter::VisitExpressionStatement(ExpressionStatement* node) {
 void CallPrinter::VisitEmptyStatement(EmptyStatement* node) {}
 
 
+void CallPrinter::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* node) {
+  Find(node->statement());
+}
+
+
 void CallPrinter::VisitIfStatement(IfStatement* node) {
   Find(node->condition());
   Find(node->then_statement());
@@ -496,6 +502,12 @@ void PrettyPrinter::VisitExpressionStatement(ExpressionStatement* node) {
 
 void PrettyPrinter::VisitEmptyStatement(EmptyStatement* node) {
   Print(";");
+}
+
+
+void PrettyPrinter::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* node) {
+  Visit(node->statement());
 }
 
 
@@ -1213,6 +1225,12 @@ void AstPrinter::VisitExpressionStatement(ExpressionStatement* node) {
 
 void AstPrinter::VisitEmptyStatement(EmptyStatement* node) {
   IndentedScope indent(this, "EMPTY");
+}
+
+
+void AstPrinter::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* node) {
+  Visit(node->statement());
 }
 
 

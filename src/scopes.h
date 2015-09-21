@@ -57,6 +57,23 @@ class DynamicScopePart : public ZoneObject {
 };
 
 
+// Sloppy block-scoped function declarations to var-bind
+class SloppyBlockFunctionMap : public ZoneHashMap {
+ public:
+  explicit SloppyBlockFunctionMap(Zone* zone);
+
+  virtual ~SloppyBlockFunctionMap();
+
+  void Declare(const AstRawString* name,
+               SloppyBlockFunctionStatement* statement);
+
+  typedef ZoneVector<SloppyBlockFunctionStatement*> Vector;
+
+ private:
+  Zone* zone_;
+};
+
+
 // Global invariants after AST construction: Each reference (i.e. identifier)
 // to a JavaScript variable (including global properties) is represented by a
 // VariableProxy node. Immediately after AST construction and before variable
@@ -544,6 +561,10 @@ class Scope: public ZoneObject {
     return params_.Contains(variables_.Lookup(name));
   }
 
+  SloppyBlockFunctionMap* sloppy_block_function_map() {
+    return &sloppy_block_function_map_;
+  }
+
   // Error handling.
   void ReportMessage(int start_position, int end_position,
                      MessageTemplate::Template message,
@@ -601,6 +622,9 @@ class Scope: public ZoneObject {
   Variable* this_function_;
   // Module descriptor; module scopes only.
   ModuleDescriptor* module_descriptor_;
+
+  // Map of function names to lists of functions defined in sloppy blocks
+  SloppyBlockFunctionMap sloppy_block_function_map_;
 
   // Illegal redeclaration.
   Expression* illegal_redecl_;

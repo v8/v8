@@ -44,23 +44,24 @@ namespace internal {
   V(ImportDeclaration)           \
   V(ExportDeclaration)
 
-#define STATEMENT_NODE_LIST(V)                  \
-  V(Block)                                      \
-  V(ExpressionStatement)                        \
-  V(EmptyStatement)                             \
-  V(IfStatement)                                \
-  V(ContinueStatement)                          \
-  V(BreakStatement)                             \
-  V(ReturnStatement)                            \
-  V(WithStatement)                              \
-  V(SwitchStatement)                            \
-  V(DoWhileStatement)                           \
-  V(WhileStatement)                             \
-  V(ForStatement)                               \
-  V(ForInStatement)                             \
-  V(ForOfStatement)                             \
-  V(TryCatchStatement)                          \
-  V(TryFinallyStatement)                        \
+#define STATEMENT_NODE_LIST(V)    \
+  V(Block)                        \
+  V(ExpressionStatement)          \
+  V(EmptyStatement)               \
+  V(SloppyBlockFunctionStatement) \
+  V(IfStatement)                  \
+  V(ContinueStatement)            \
+  V(BreakStatement)               \
+  V(ReturnStatement)              \
+  V(WithStatement)                \
+  V(SwitchStatement)              \
+  V(DoWhileStatement)             \
+  V(WhileStatement)               \
+  V(ForStatement)                 \
+  V(ForInStatement)               \
+  V(ForOfStatement)               \
+  V(TryCatchStatement)            \
+  V(TryFinallyStatement)          \
   V(DebuggerStatement)
 
 #define EXPRESSION_NODE_LIST(V) \
@@ -1265,6 +1266,29 @@ class EmptyStatement final : public Statement {
 
  protected:
   explicit EmptyStatement(Zone* zone, int pos): Statement(zone, pos) {}
+};
+
+
+// Delegates to another statement, which may be overwritten.
+// This was introduced to implement ES2015 Annex B3.3 for conditionally making
+// sloppy-mode block-scoped functions have a var binding, which is changed
+// from one statement to another during parsing.
+class SloppyBlockFunctionStatement final : public Statement {
+ public:
+  DECLARE_NODE_TYPE(SloppyBlockFunctionStatement)
+
+  Statement* statement() const { return statement_; }
+  void set_statement(Statement* statement) { statement_ = statement; }
+  Scope* scope() const { return scope_; }
+
+ private:
+  SloppyBlockFunctionStatement(Zone* zone, Statement* statement, Scope* scope)
+      : Statement(zone, RelocInfo::kNoPosition),
+        statement_(statement),
+        scope_(scope) {}
+
+  Statement* statement_;
+  Scope* const scope_;
 };
 
 
@@ -3398,6 +3422,12 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   EmptyStatement* NewEmptyStatement(int pos) {
     return new (local_zone_) EmptyStatement(local_zone_, pos);
+  }
+
+  SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(
+      Statement* statement, Scope* scope) {
+    return new (local_zone_)
+        SloppyBlockFunctionStatement(local_zone_, statement, scope);
   }
 
   CaseClause* NewCaseClause(

@@ -24,6 +24,12 @@ void AstLiteralReindexer::VisitExportDeclaration(ExportDeclaration* node) {
 void AstLiteralReindexer::VisitEmptyStatement(EmptyStatement* node) {}
 
 
+void AstLiteralReindexer::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* node) {
+  Visit(node->statement());
+}
+
+
 void AstLiteralReindexer::VisitContinueStatement(ContinueStatement* node) {}
 
 

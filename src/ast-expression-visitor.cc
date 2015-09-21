@@ -79,6 +79,12 @@ void AstExpressionVisitor::VisitExpressionStatement(ExpressionStatement* stmt) {
 void AstExpressionVisitor::VisitEmptyStatement(EmptyStatement* stmt) {}
 
 
+void AstExpressionVisitor::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  RECURSE(Visit(stmt->statement()));
+}
+
+
 void AstExpressionVisitor::VisitIfStatement(IfStatement* stmt) {
   RECURSE(Visit(stmt->condition()));
   RECURSE(Visit(stmt->then_statement()));
