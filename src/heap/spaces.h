@@ -268,121 +268,6 @@ class SlotsBuffer;
 // any heap object.
 class MemoryChunk {
  public:
-  // |kCompactionDone|: Initial compaction state of a |MemoryChunk|.
-  // |kCompactingInProgress|:  Parallel compaction is currently in progress.
-  // |kCompactingFinalize|: Parallel compaction is done but the chunk needs to
-  //   be finalized.
-  // |kCompactingAborted|: Parallel compaction has been aborted, which should
-  //   for now only happen in OOM scenarios.
-  enum ParallelCompactingState {
-    kCompactingDone,
-    kCompactingInProgress,
-    kCompactingFinalize,
-    kCompactingAborted,
-  };
-
-  // |kSweepingDone|: The page state when sweeping is complete or sweeping must
-  //   not be performed on that page.
-  // |kSweepingFinalize|: A sweeper thread is done sweeping this page and will
-  //   not touch the page memory anymore.
-  // |kSweepingInProgress|: This page is currently swept by a sweeper thread.
-  // |kSweepingPending|: This page is ready for parallel sweeping.
-  enum ParallelSweepingState {
-    kSweepingDone,
-    kSweepingFinalize,
-    kSweepingInProgress,
-    kSweepingPending
-  };
-
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  static MemoryChunk* FromAddress(Address a) {
-    return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
-  }
-  static const MemoryChunk* FromAddress(const byte* a) {
-    return reinterpret_cast<const MemoryChunk*>(OffsetFrom(a) &
-                                                ~kAlignmentMask);
-  }
-
-  // Only works for addresses in pointer spaces, not data or code spaces.
-  static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
-
-  Address address() { return reinterpret_cast<Address>(this); }
-
-  bool is_valid() { return address() != NULL; }
-
-  MemoryChunk* next_chunk() const {
-    return reinterpret_cast<MemoryChunk*>(base::Acquire_Load(&next_chunk_));
-  }
-
-  MemoryChunk* prev_chunk() const {
-    return reinterpret_cast<MemoryChunk*>(base::Acquire_Load(&prev_chunk_));
-  }
-
-  void set_next_chunk(MemoryChunk* next) {
-    base::Release_Store(&next_chunk_, reinterpret_cast<base::AtomicWord>(next));
-  }
-
-  void set_prev_chunk(MemoryChunk* prev) {
-    base::Release_Store(&prev_chunk_, reinterpret_cast<base::AtomicWord>(prev));
-  }
-
-  Space* owner() const {
-    if ((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
-        kPageHeaderTag) {
-      return reinterpret_cast<Space*>(reinterpret_cast<intptr_t>(owner_) -
-                                      kPageHeaderTag);
-    } else {
-      return NULL;
-    }
-  }
-
-  void set_owner(Space* space) {
-    DCHECK((reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask) == 0);
-    owner_ = reinterpret_cast<Address>(space) + kPageHeaderTag;
-    DCHECK((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
-           kPageHeaderTag);
-  }
-
-  base::VirtualMemory* reserved_memory() { return &reservation_; }
-
-  void InitializeReservedMemory() { reservation_.Reset(); }
-
-  void set_reserved_memory(base::VirtualMemory* reservation) {
-    DCHECK_NOT_NULL(reservation);
-    reservation_.TakeControl(reservation);
-  }
-
-  bool scan_on_scavenge() { return IsFlagSet(SCAN_ON_SCAVENGE); }
-  void initialize_scan_on_scavenge(bool scan) {
-    if (scan) {
-      SetFlag(SCAN_ON_SCAVENGE);
-    } else {
-      ClearFlag(SCAN_ON_SCAVENGE);
-    }
-  }
-  inline void set_scan_on_scavenge(bool scan);
-
-  int store_buffer_counter() { return store_buffer_counter_; }
-  void set_store_buffer_counter(int counter) {
-    store_buffer_counter_ = counter;
-  }
-
-  bool Contains(Address addr) {
-    return addr >= area_start() && addr < area_end();
-  }
-
-  // Checks whether addr can be a limit of addresses in this page.
-  // It's a limit if it's in the page, or if it's just after the
-  // last byte of the page.
-  bool ContainsLimit(Address addr) {
-    return addr >= area_start() && addr <= area_end();
-  }
-
-  // Every n write barrier invocations we go to runtime even though
-  // we could have handled it in generated code.  This lets us check
-  // whether we have hit the limit and should do some more marking.
-  static const int kWriteBarrierCounterGranularity = 500;
-
   enum MemoryChunkFlags {
     IS_EXECUTABLE,
     ABOUT_TO_BE_FREED,
@@ -421,6 +306,36 @@ class MemoryChunk {
     NUM_MEMORY_CHUNK_FLAGS
   };
 
+  // |kCompactionDone|: Initial compaction state of a |MemoryChunk|.
+  // |kCompactingInProgress|:  Parallel compaction is currently in progress.
+  // |kCompactingFinalize|: Parallel compaction is done but the chunk needs to
+  //   be finalized.
+  // |kCompactingAborted|: Parallel compaction has been aborted, which should
+  //   for now only happen in OOM scenarios.
+  enum ParallelCompactingState {
+    kCompactingDone,
+    kCompactingInProgress,
+    kCompactingFinalize,
+    kCompactingAborted,
+  };
+
+  // |kSweepingDone|: The page state when sweeping is complete or sweeping must
+  //   not be performed on that page.
+  // |kSweepingFinalize|: A sweeper thread is done sweeping this page and will
+  //   not touch the page memory anymore.
+  // |kSweepingInProgress|: This page is currently swept by a sweeper thread.
+  // |kSweepingPending|: This page is ready for parallel sweeping.
+  enum ParallelSweepingState {
+    kSweepingDone,
+    kSweepingFinalize,
+    kSweepingInProgress,
+    kSweepingPending
+  };
+
+  // Every n write barrier invocations we go to runtime even though
+  // we could have handled it in generated code.  This lets us check
+  // whether we have hit the limit and should do some more marking.
+  static const int kWriteBarrierCounterGranularity = 500;
 
   static const int kPointersToHereAreInterestingMask =
       1 << POINTERS_TO_HERE_ARE_INTERESTING;
@@ -434,6 +349,159 @@ class MemoryChunk {
       (1 << EVACUATION_CANDIDATE) | (1 << RESCAN_ON_EVACUATION) |
       (1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE);
 
+  static const intptr_t kAlignment =
+      (static_cast<uintptr_t>(1) << kPageSizeBits);
+
+  static const intptr_t kAlignmentMask = kAlignment - 1;
+
+  static const intptr_t kSizeOffset = 0;
+
+  static const intptr_t kLiveBytesOffset =
+      kSizeOffset + kPointerSize  // size_t size
+      + kIntptrSize               // intptr_t flags_
+      + kPointerSize              // Address area_start_
+      + kPointerSize              // Address area_end_
+      + 2 * kPointerSize          // base::VirtualMemory reservation_
+      + kPointerSize              // Address owner_
+      + kPointerSize              // Heap* heap_
+      + kIntSize;                 // int store_buffer_counter_
+
+  static const size_t kSlotsBufferOffset =
+      kLiveBytesOffset + kIntSize;  // int live_byte_count_
+
+  static const size_t kWriteBarrierCounterOffset =
+      kSlotsBufferOffset + kPointerSize  // SlotsBuffer* slots_buffer_;
+      + kPointerSize;                    // SkipList* skip_list_;
+
+  static const size_t kMinHeaderSize =
+      kWriteBarrierCounterOffset +
+      kIntptrSize         // intptr_t write_barrier_counter_
+      + kIntSize          // int progress_bar_
+      + kPointerSize      // AtomicValue high_water_mark_
+      + kPointerSize      // base::Mutex* mutex_
+      + kPointerSize      // base::AtomicWord parallel_sweeping_
+      + kPointerSize      // AtomicValue parallel_compaction_
+      + 5 * kPointerSize  // AtomicNumber free-list statistics
+      + kPointerSize      // AtomicValue next_chunk_
+      + kPointerSize;     // AtomicValue prev_chunk_
+
+  // We add some more space to the computed header size to amount for missing
+  // alignment requirements in our computation.
+  // Try to get kHeaderSize properly aligned on 32-bit and 64-bit machines.
+  static const size_t kHeaderSize = kMinHeaderSize + kIntSize;
+
+  static const int kBodyOffset =
+      CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
+
+  // The start offset of the object area in a page. Aligned to both maps and
+  // code alignment to be suitable for both.  Also aligned to 32 words because
+  // the marking bitmap is arranged in 32 bit chunks.
+  static const int kObjectStartAlignment = 32 * kPointerSize;
+  static const int kObjectStartOffset =
+      kBodyOffset - 1 +
+      (kObjectStartAlignment - (kBodyOffset - 1) % kObjectStartAlignment);
+
+  static const int kFlagsOffset = kPointerSize;
+
+  static void IncrementLiveBytesFromMutator(HeapObject* object, int by);
+
+  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
+  static MemoryChunk* FromAddress(Address a) {
+    return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
+  }
+
+  static const MemoryChunk* FromAddress(const byte* a) {
+    return reinterpret_cast<const MemoryChunk*>(OffsetFrom(a) &
+                                                ~kAlignmentMask);
+  }
+
+  static void IncrementLiveBytesFromGC(HeapObject* object, int by) {
+    MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
+  }
+
+  // Only works for addresses in pointer spaces, not data or code spaces.
+  static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
+
+  static inline uint32_t FastAddressToMarkbitIndex(Address addr) {
+    const intptr_t offset = reinterpret_cast<intptr_t>(addr) & kAlignmentMask;
+    return static_cast<uint32_t>(offset) >> kPointerSizeLog2;
+  }
+
+  static inline void UpdateHighWaterMark(Address mark) {
+    if (mark == nullptr) return;
+    // Need to subtract one from the mark because when a chunk is full the
+    // top points to the next address after the chunk, which effectively belongs
+    // to another chunk. See the comment to Page::FromAllocationTop.
+    MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
+    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
+    intptr_t old_mark = 0;
+    do {
+      old_mark = chunk->high_water_mark_.Value();
+    } while ((new_mark > old_mark) &&
+             !chunk->high_water_mark_.TrySetValue(old_mark, new_mark));
+  }
+
+  Address address() { return reinterpret_cast<Address>(this); }
+
+  bool is_valid() { return address() != NULL; }
+
+  MemoryChunk* next_chunk() { return next_chunk_.Value(); }
+
+  MemoryChunk* prev_chunk() { return prev_chunk_.Value(); }
+
+  void set_next_chunk(MemoryChunk* next) { next_chunk_.SetValue(next); }
+
+  void set_prev_chunk(MemoryChunk* prev) { prev_chunk_.SetValue(prev); }
+
+  Space* owner() const {
+    if ((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
+        kPageHeaderTag) {
+      return reinterpret_cast<Space*>(reinterpret_cast<intptr_t>(owner_) -
+                                      kPageHeaderTag);
+    } else {
+      return NULL;
+    }
+  }
+
+  void set_owner(Space* space) {
+    DCHECK((reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask) == 0);
+    owner_ = reinterpret_cast<Address>(space) + kPageHeaderTag;
+    DCHECK((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
+           kPageHeaderTag);
+  }
+
+  base::VirtualMemory* reserved_memory() { return &reservation_; }
+
+  void set_reserved_memory(base::VirtualMemory* reservation) {
+    DCHECK_NOT_NULL(reservation);
+    reservation_.TakeControl(reservation);
+  }
+
+  bool scan_on_scavenge() { return IsFlagSet(SCAN_ON_SCAVENGE); }
+  void initialize_scan_on_scavenge(bool scan) {
+    if (scan) {
+      SetFlag(SCAN_ON_SCAVENGE);
+    } else {
+      ClearFlag(SCAN_ON_SCAVENGE);
+    }
+  }
+  inline void set_scan_on_scavenge(bool scan);
+
+  int store_buffer_counter() { return store_buffer_counter_; }
+  void set_store_buffer_counter(int counter) {
+    store_buffer_counter_ = counter;
+  }
+
+  bool Contains(Address addr) {
+    return addr >= area_start() && addr < area_end();
+  }
+
+  // Checks whether addr can be a limit of addresses in this page.
+  // It's a limit if it's in the page, or if it's just after the
+  // last byte of the page.
+  bool ContainsLimit(Address addr) {
+    return addr >= area_start() && addr <= area_end();
+  }
 
   void SetFlag(int flag) { flags_ |= static_cast<uintptr_t>(1) << flag; }
 
@@ -541,65 +609,6 @@ class MemoryChunk {
            progress_bar();
   }
 
-  static void IncrementLiveBytesFromGC(HeapObject* object, int by) {
-    MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
-  }
-
-  static void IncrementLiveBytesFromMutator(HeapObject* object, int by);
-
-  static const intptr_t kAlignment =
-      (static_cast<uintptr_t>(1) << kPageSizeBits);
-
-  static const intptr_t kAlignmentMask = kAlignment - 1;
-
-  static const intptr_t kSizeOffset = 0;
-
-  static const intptr_t kLiveBytesOffset =
-      kSizeOffset + kPointerSize  // size_t size
-      + kIntptrSize               // intptr_t flags_
-      + kPointerSize              // Address area_start_
-      + kPointerSize              // Address area_end_
-      + 2 * kPointerSize          // base::VirtualMemory reservation_
-      + kPointerSize              // Address owner_
-      + kPointerSize              // Heap* heap_
-      + kIntSize;                 // int store_buffer_counter_
-
-
-  static const size_t kSlotsBufferOffset =
-      kLiveBytesOffset + kIntSize;  // int live_byte_count_
-
-  static const size_t kWriteBarrierCounterOffset =
-      kSlotsBufferOffset + kPointerSize  // SlotsBuffer* slots_buffer_;
-      + kPointerSize;                    // SkipList* skip_list_;
-
-  static const size_t kMinHeaderSize =
-      kWriteBarrierCounterOffset +
-      kIntptrSize         // intptr_t write_barrier_counter_
-      + kIntSize          // int progress_bar_
-      + kPointerSize      // AtomicValue high_water_mark_
-      + kPointerSize      // base::Mutex* mutex_
-      + kPointerSize      // base::AtomicWord parallel_sweeping_
-      + kPointerSize      // AtomicValue parallel_compaction_
-      + 5 * kPointerSize  // AtomicNumber free-list statistics
-      + kPointerSize      // base::AtomicWord next_chunk_
-      + kPointerSize;     // base::AtomicWord prev_chunk_
-
-  // We add some more space to the computed header size to amount for missing
-  // alignment requirements in our computation.
-  // Try to get kHeaderSize properly aligned on 32-bit and 64-bit machines.
-  static const size_t kHeaderSize = kMinHeaderSize + kIntSize;
-
-  static const int kBodyOffset =
-      CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
-
-  // The start offset of the object area in a page. Aligned to both maps and
-  // code alignment to be suitable for both.  Also aligned to 32 words because
-  // the marking bitmap is arranged in 32 bit chunks.
-  static const int kObjectStartAlignment = 32 * kPointerSize;
-  static const int kObjectStartOffset =
-      kBodyOffset - 1 +
-      (kObjectStartAlignment - (kBodyOffset - 1) % kObjectStartAlignment);
-
   size_t size() const { return size_; }
 
   void set_size(size_t size) { size_ = size; }
@@ -621,7 +630,6 @@ class MemoryChunk {
 
   bool InFromSpace() { return IsFlagSet(IN_FROM_SPACE); }
 
-  // ---------------------------------------------------------------------
   // Markbits support
 
   inline Bitmap* markbits() {
@@ -634,12 +642,6 @@ class MemoryChunk {
     return static_cast<uint32_t>(addr - this->address()) >> kPointerSizeLog2;
   }
 
-  inline static uint32_t FastAddressToMarkbitIndex(Address addr) {
-    const intptr_t offset = reinterpret_cast<intptr_t>(addr) & kAlignmentMask;
-
-    return static_cast<uint32_t>(offset) >> kPointerSizeLog2;
-  }
-
   inline Address MarkbitIndexToAddress(uint32_t index) {
     return this->address() + (index << kPointerSizeLog2);
   }
@@ -648,8 +650,6 @@ class MemoryChunk {
   void Unlink();
 
   inline Heap* heap() const { return heap_; }
-
-  static const int kFlagsOffset = kPointerSize;
 
   bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
 
@@ -694,21 +694,11 @@ class MemoryChunk {
   // Should be called when memory chunk is about to be freed.
   void ReleaseAllocatedMemory();
 
-  static inline void UpdateHighWaterMark(Address mark) {
-    if (mark == nullptr) return;
-    // Need to subtract one from the mark because when a chunk is full the
-    // top points to the next address after the chunk, which effectively belongs
-    // to another chunk. See the comment to Page::FromAllocationTop.
-    MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
-    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
-    intptr_t old_mark = 0;
-    do {
-      old_mark = chunk->high_water_mark_.Value();
-    } while ((new_mark > old_mark) &&
-             !chunk->high_water_mark_.TrySetValue(old_mark, new_mark));
-  }
-
  protected:
+  static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
+                                 Address area_start, Address area_end,
+                                 Executability executable, Space* owner);
+
   size_t size_;
   intptr_t flags_;
 
@@ -750,15 +740,13 @@ class MemoryChunk {
   AtomicNumber<intptr_t> non_available_small_blocks_;
 
   // next_chunk_ holds a pointer of type MemoryChunk
-  base::AtomicWord next_chunk_;
+  AtomicValue<MemoryChunk*> next_chunk_;
   // prev_chunk_ holds a pointer of type MemoryChunk
-  base::AtomicWord prev_chunk_;
-
-  static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
-                                 Address area_start, Address area_end,
-                                 Executability executable, Space* owner);
+  AtomicValue<MemoryChunk*> prev_chunk_;
 
  private:
+  void InitializeReservedMemory() { reservation_.Reset(); }
+
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
 };
@@ -877,7 +865,7 @@ class LargePage : public MemoryChunk {
  public:
   HeapObject* GetObject() { return HeapObject::FromAddress(area_start()); }
 
-  inline LargePage* next_page() const {
+  inline LargePage* next_page() {
     return static_cast<LargePage*>(next_chunk());
   }
 
@@ -2117,13 +2105,13 @@ class NewSpacePage : public MemoryChunk {
 
   static const int kAreaSize = Page::kMaxRegularHeapObjectSize;
 
-  inline NewSpacePage* next_page() const {
+  inline NewSpacePage* next_page() {
     return static_cast<NewSpacePage*>(next_chunk());
   }
 
   inline void set_next_page(NewSpacePage* page) { set_next_chunk(page); }
 
-  inline NewSpacePage* prev_page() const {
+  inline NewSpacePage* prev_page() {
     return static_cast<NewSpacePage*>(prev_chunk());
   }
 

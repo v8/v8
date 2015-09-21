@@ -428,8 +428,6 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap, Address start,
   MemoryChunk* chunk =
       MemoryChunk::Initialize(heap, start, Page::kPageSize, area_start,
                               area_end, NOT_EXECUTABLE, semi_space);
-  chunk->set_next_chunk(NULL);
-  chunk->set_prev_chunk(NULL);
   chunk->initialize_scan_on_scavenge(true);
   bool in_to_space = (semi_space->id() != kFromSpace);
   chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
@@ -483,6 +481,8 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
   chunk->SetFlag(WAS_SWEPT);
+  chunk->set_next_chunk(nullptr);
+  chunk->set_prev_chunk(nullptr);
 
   DCHECK(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
   DCHECK(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
