@@ -5322,4 +5322,69 @@ TEST(RunCheckedStoreInt64) {
   CHECK_EQ(write, buffer[0]);
   CHECK_EQ(write, buffer[1]);
 }
+
+
+TEST(RunBitcastInt64ToFloat64) {
+  // TODO(titzer): run int64 tests on all platforms when supported.
+  int64_t input = 1;
+  double output = 0.0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.StoreToPointer(
+      &output, kMachFloat64,
+      m.BitcastInt64ToFloat64(m.LoadFromPointer(&input, kMachInt64)));
+  m.Return(m.Int32Constant(11));
+  FOR_INT32_INPUTS(i) {
+    input = static_cast<int64_t>(*i) * 14444;
+    CHECK_EQ(11, m.Call());
+    double expected = bit_cast<double>(input);
+    CHECK_EQ(bit_cast<int64_t>(expected), bit_cast<int64_t>(output));
+  }
+}
+
+
+TEST(RunBitcastFloat64ToInt64) {
+  // TODO(titzer): run int64 tests on all platforms when supported.
+  double input = 0;
+  int64_t output = 0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.StoreToPointer(
+      &output, kMachInt64,
+      m.BitcastFloat64ToInt64(m.LoadFromPointer(&input, kMachFloat64)));
+  m.Return(m.Int32Constant(11));
+  FOR_FLOAT64_INPUTS(i) {
+    input = *i;
+    CHECK_EQ(11, m.Call());
+    double expected = bit_cast<int64_t>(input);
+    CHECK_EQ(expected, output);
+  }
+}
 #endif
+
+
+TEST(RunBitcastFloat32ToInt32) {
+  float input = 32.25;
+  RawMachineAssemblerTester<int32_t> m;
+  m.Return(m.BitcastFloat32ToInt32(m.LoadFromPointer(&input, kMachFloat32)));
+  FOR_FLOAT32_INPUTS(i) {
+    input = *i;
+    int32_t expected = bit_cast<int32_t>(input);
+    CHECK_EQ(expected, m.Call());
+  }
+}
+
+
+TEST(RunBitcastInt32ToFloat32) {
+  int32_t input = 1;
+  float output = 0.0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.StoreToPointer(
+      &output, kMachFloat32,
+      m.BitcastInt32ToFloat32(m.LoadFromPointer(&input, kMachInt32)));
+  m.Return(m.Int32Constant(11));
+  FOR_INT32_INPUTS(i) {
+    input = *i;
+    CHECK_EQ(11, m.Call());
+    float expected = bit_cast<float>(input);
+    CHECK_EQ(bit_cast<int32_t>(expected), bit_cast<int32_t>(output));
+  }
+}

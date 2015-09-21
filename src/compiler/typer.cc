@@ -1865,6 +1865,26 @@ Type* Typer::Visitor::TypeTruncateInt64ToInt32(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeBitcastFloat32ToInt32(Node* node) {
+  return Type::Number();
+}
+
+
+Type* Typer::Visitor::TypeBitcastFloat64ToInt64(Node* node) {
+  return Type::Number();
+}
+
+
+Type* Typer::Visitor::TypeBitcastInt32ToFloat32(Node* node) {
+  return Type::Number();
+}
+
+
+Type* Typer::Visitor::TypeBitcastInt64ToFloat64(Node* node) {
+  return Type::Number();
+}
+
+
 Type* Typer::Visitor::TypeFloat32Add(Node* node) { return Type::Number(); }
 
 

@@ -1171,6 +1171,34 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ movsd(operand, i.InputDoubleRegister(index));
       }
       break;
+    case kX64BitcastFI:
+      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        __ movl(i.OutputRegister(), i.InputOperand(0));
+      } else {
+        __ movd(i.OutputRegister(), i.InputDoubleRegister(0));
+      }
+      break;
+    case kX64BitcastDL:
+      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        __ movq(i.OutputRegister(), i.InputOperand(0));
+      } else {
+        __ movq(i.OutputRegister(), i.InputDoubleRegister(0));
+      }
+      break;
+    case kX64BitcastIF:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movd(i.OutputDoubleRegister(), i.InputRegister(0));
+      } else {
+        __ movss(i.OutputDoubleRegister(), i.InputOperand(0));
+      }
+      break;
+    case kX64BitcastLD:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movq(i.OutputDoubleRegister(), i.InputRegister(0));
+      } else {
+        __ movsd(i.OutputDoubleRegister(), i.InputOperand(0));
+      }
+      break;
     case kX64Lea32: {
       AddressingMode mode = AddressingModeField::decode(instr->opcode());
       // Shorten "leal" to "addl", "subl" or "shll" if the register allocation

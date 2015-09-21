@@ -261,6 +261,10 @@
   V(TruncateFloat64ToFloat32)   \
   V(TruncateFloat64ToInt32)     \
   V(TruncateInt64ToInt32)       \
+  V(BitcastFloat32ToInt32)      \
+  V(BitcastFloat64ToInt64)      \
+  V(BitcastInt32ToFloat32)      \
+  V(BitcastInt64ToFloat64)      \
   V(Float32Add)                 \
   V(Float32Sub)                 \
   V(Float32Mul)                 \

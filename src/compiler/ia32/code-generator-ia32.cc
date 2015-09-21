@@ -840,6 +840,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
+    case kIA32BitcastFI:
+      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        __ mov(i.OutputRegister(), i.InputOperand(0));
+      } else {
+        __ movd(i.OutputRegister(), i.InputDoubleRegister(0));
+      }
+      break;
+    case kIA32BitcastIF:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movd(i.OutputDoubleRegister(), i.InputRegister(0));
+      } else {
+        __ movss(i.OutputDoubleRegister(), i.InputOperand(0));
+      }
+      break;
     case kIA32Lea: {
       AddressingMode mode = AddressingModeField::decode(instr->opcode());
       // Shorten "leal" to "addl", "subl" or "shll" if the register allocation

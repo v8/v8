@@ -578,6 +578,29 @@ void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
+  VisitRR(this, kMips64Float64ExtractLowWord32, node);
+}
+
+
+void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
+  VisitRR(this, kMips64BitcastDL, node);
+}
+
+
+void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Float64InsertLowWord32, g.DefineAsRegister(node),
+       ImmediateOperand(ImmediateOperand::INLINE, 0),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
+  VisitRR(this, kMips64BitcastLD, node);
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   VisitRRR(this, kMips64AddS, node);
 }
@@ -1331,16 +1354,12 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 
 
 void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64Float64ExtractLowWord32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64Float64ExtractLowWord32, node);
 }
 
 
 void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64Float64ExtractHighWord32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64Float64ExtractHighWord32, node);
 }
 
 

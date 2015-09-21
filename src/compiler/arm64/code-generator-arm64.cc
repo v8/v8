@@ -886,10 +886,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Fmov(i.OutputFloat64Register(), tmp);
       break;
     }
-    case kArm64Float64MoveU64: {
+    case kArm64Float64MoveU64:
       __ Fmov(i.OutputFloat64Register(), i.InputRegister(0));
       break;
-    }
+    case kArm64U64MoveFloat64:
+      __ Fmov(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
     case kArm64Ldrb:
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
       break;

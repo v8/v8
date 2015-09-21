@@ -925,6 +925,19 @@ void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
+  VisitRR(this, kArmVmovLowU32F64, node);
+}
+
+
+void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmVmovLowF64U32, g.DefineAsRegister(node),
+       ImmediateOperand(ImmediateOperand::INLINE, 0),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   ArmOperandGenerator g(this);
   Float32BinopMatcher m(node);

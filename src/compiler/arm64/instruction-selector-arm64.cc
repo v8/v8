@@ -1276,6 +1276,26 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
+  VisitRR(this, kArm64Float64ExtractLowWord32, node);
+}
+
+
+void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
+  VisitRR(this, kArm64U64MoveFloat64, node);
+}
+
+
+void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
+  VisitRR(this, kArm64Float64MoveU64, node);
+}
+
+
+void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
+  VisitRR(this, kArm64Float64MoveU64, node);
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   VisitRRR(this, kArm64Float32Add, node);
 }

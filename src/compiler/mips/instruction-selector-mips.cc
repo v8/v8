@@ -402,6 +402,19 @@ void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
+  VisitRR(this, kMipsFloat64ExtractLowWord32, node);
+}
+
+
+void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsFloat64InsertLowWord32, g.DefineAsRegister(node),
+       ImmediateOperand(ImmediateOperand::INLINE, 0),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   VisitRRR(this, kMipsAddS, node);
 }

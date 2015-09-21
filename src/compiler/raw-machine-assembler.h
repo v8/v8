@@ -433,6 +433,18 @@ class RawMachineAssembler {
   Node* TruncateInt64ToInt32(Node* a) {
     return NewNode(machine()->TruncateInt64ToInt32(), a);
   }
+  Node* BitcastFloat32ToInt32(Node* a) {
+    return NewNode(machine()->BitcastFloat32ToInt32(), a);
+  }
+  Node* BitcastFloat64ToInt64(Node* a) {
+    return NewNode(machine()->BitcastFloat64ToInt64(), a);
+  }
+  Node* BitcastInt32ToFloat32(Node* a) {
+    return NewNode(machine()->BitcastInt32ToFloat32(), a);
+  }
+  Node* BitcastInt64ToFloat64(Node* a) {
+    return NewNode(machine()->BitcastInt64ToFloat64(), a);
+  }
   Node* Float64RoundDown(Node* a) {
     return NewNode(machine()->Float64RoundDown().op(), a);
   }

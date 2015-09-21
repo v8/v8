@@ -664,6 +664,16 @@ void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   X87OperandGenerator g(this);
   Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(0)));

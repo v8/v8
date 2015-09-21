@@ -1076,6 +1076,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 #endif
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+#if V8_TARGET_ARCH_PPC64
+    case kPPC_BitcastDL:
+      __ mffprd(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kPPC_BitcastLD:
+      __ mtfprd(i.OutputDoubleRegister(), i.InputRegister(0));
+      break;
+#endif
     case kPPC_LoadWordU8:
       ASSEMBLE_LOAD_INTEGER(lbz, lbzx);
       break;

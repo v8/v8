@@ -799,6 +799,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
       break;
     }
+    case kMips64BitcastDL:
+      __ dmfc1(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kMips64BitcastLD:
+      __ dmtc1(i.InputRegister(0), i.OutputDoubleRegister());
+      break;
     case kMips64Float64ExtractLowWord32:
       __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
