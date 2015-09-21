@@ -3567,8 +3567,21 @@ void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
   __ Cmp(lhs_map, map);
   __ B(ne, &miss);
 
+  if (Token::IsEqualityOp(op())) {
   __ Sub(result, rhs, lhs);
   __ Ret();
+  } else if (is_strong(strength())) {
+    __ TailCallRuntime(Runtime::kThrowStrongModeImplicitConversion, 0, 1);
+  } else {
+    Register ncr = x2;
+    if (op() == Token::LT || op() == Token::LTE) {
+      __ Mov(ncr, Smi::FromInt(GREATER));
+    } else {
+      __ Mov(ncr, Smi::FromInt(LESS));
+    }
+    __ Push(lhs, rhs, ncr);
+    __ TailCallRuntime(Runtime::kCompare, 3, 1);
+  }
 
   __ Bind(&miss);
   GenerateMiss(masm);

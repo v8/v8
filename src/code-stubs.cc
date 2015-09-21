@@ -383,7 +383,6 @@ bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
-  DCHECK(op() == Token::EQ || op() == Token::EQ_STRICT);
   Handle<Object> probe(
       known_map_->FindInCodeCache(
         strict() ?

@@ -3683,15 +3683,24 @@ void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
   __ j(either_smi, &miss, Label::kNear);
 
   __ GetWeakValue(rdi, cell);
-  __ movp(rcx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ movp(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ cmpp(rcx, rdi);
+  __ cmpp(FieldOperand(rdx, HeapObject::kMapOffset), rdi);
   __ j(not_equal, &miss, Label::kNear);
-  __ cmpp(rbx, rdi);
+  __ cmpp(FieldOperand(rax, HeapObject::kMapOffset), rdi);
   __ j(not_equal, &miss, Label::kNear);
 
-  __ subp(rax, rdx);
-  __ ret(0);
+  if (Token::IsEqualityOp(op())) {
+    __ subp(rax, rdx);
+    __ ret(0);
+  } else if (is_strong(strength())) {
+    __ TailCallRuntime(Runtime::kThrowStrongModeImplicitConversion, 0, 1);
+  } else {
+    __ PopReturnAddressTo(rcx);
+    __ Push(rdx);
+    __ Push(rax);
+    __ Push(Smi::FromInt(NegativeComparisonResult(GetCondition())));
+    __ PushReturnAddressFrom(rcx);
+    __ TailCallRuntime(Runtime::kCompare, 3, 1);
+  }
 
   __ bind(&miss);
   GenerateMiss(masm);

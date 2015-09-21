@@ -11578,6 +11578,46 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
         return result;
       }
     } else {
+      if (combined_type->IsClass()) {
+        // TODO(bmeurer): This is an optimized version of an x < y, x > y,
+        // x <= y or x >= y, where both x and y are spec objects with the
+        // same map. The CompareIC collects this map for us. So if we know
+        // that there's no @@toPrimitive on the map (including the prototype
+        // chain), and both valueOf and toString are the default initial
+        // implementations (on the %ObjectPrototype%), then we can reduce
+        // the comparison to map checks on x and y, because the comparison
+        // will turn into a comparison of "[object CLASS]" to itself (the
+        // default outcome of toString, since valueOf returns a spec object).
+        // This is pretty much adhoc, so in TurboFan we could do a lot better
+        // and inline the interesting parts of ToPrimitive (actually we could
+        // even do that in Crankshaft but we don't want to waste too much
+        // time on this now).
+        DCHECK(Token::IsOrderedRelationalCompareOp(op));
+        Handle<Map> map = combined_type->AsClass()->Map();
+        PropertyAccessInfo value_of(this, LOAD, map,
+                                    isolate()->factory()->valueOf_string());
+        PropertyAccessInfo to_primitive(
+            this, LOAD, map, isolate()->factory()->to_primitive_symbol());
+        PropertyAccessInfo to_string(this, LOAD, map,
+                                     isolate()->factory()->toString_string());
+        if (to_primitive.CanAccessMonomorphic() && !to_primitive.IsFound() &&
+            value_of.CanAccessMonomorphic() && value_of.IsDataConstant() &&
+            value_of.constant().is_identical_to(isolate()->object_value_of()) &&
+            to_string.CanAccessMonomorphic() && to_string.IsDataConstant() &&
+            to_string.constant().is_identical_to(
+                isolate()->object_to_string())) {
+          // We depend on the prototype chain to stay the same, because we
+          // also need to deoptimize when someone installs @@toPrimitive
+          // somewhere in the prototype chain.
+          BuildCheckPrototypeMaps(handle(JSObject::cast(map->prototype())),
+                                  Handle<JSObject>::null());
+          AddCheckMap(left, map);
+          AddCheckMap(right, map);
+          // The caller expects a branch instruction, so make it happy.
+          return New<HBranch>(
+              graph()->GetConstantBool(op == Token::LTE || op == Token::GTE));
+        }
+      }
       Bailout(kUnsupportedNonPrimitiveCompare);
       return NULL;
     }

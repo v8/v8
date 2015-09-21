@@ -470,16 +470,16 @@ CompareICState::State CompareICState::TargetState(
         return Token::IsEqualityOp(op) ? INTERNALIZED_STRING : STRING;
       }
       if (x->IsString() && y->IsString()) return STRING;
-      if (!Token::IsEqualityOp(op)) return GENERIC;
-      if (x->IsUniqueName() && y->IsUniqueName()) return UNIQUE_NAME;
       if (x->IsJSObject() && y->IsJSObject()) {
         if (Handle<JSObject>::cast(x)->map() ==
             Handle<JSObject>::cast(y)->map()) {
           return KNOWN_OBJECT;
         } else {
-          return OBJECT;
+          return Token::IsEqualityOp(op) ? OBJECT : GENERIC;
         }
       }
+      if (!Token::IsEqualityOp(op)) return GENERIC;
+      if (x->IsUniqueName() && y->IsUniqueName()) return UNIQUE_NAME;
       return GENERIC;
     case SMI:
       return x->IsNumber() && y->IsNumber() ? NUMBER : GENERIC;
@@ -496,9 +496,8 @@ CompareICState::State CompareICState::TargetState(
       if (old_right == SMI && y->IsHeapNumber()) return NUMBER;
       return GENERIC;
     case KNOWN_OBJECT:
-      DCHECK(Token::IsEqualityOp(op));
       if (x->IsJSObject() && y->IsJSObject()) {
-        return OBJECT;
+        return Token::IsEqualityOp(op) ? OBJECT : GENERIC;
       }
       return GENERIC;
     case STRING:

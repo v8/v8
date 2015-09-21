@@ -1844,6 +1844,8 @@ utils.Export(function(to) {
 
 %InstallToContext([
   "global_eval_fun", GlobalEval,
+  "object_value_of", ObjectValueOf,
+  "object_to_string", ObjectToString,
   "object_define_own_property", DefineOwnPropertyFromAPI,
   "object_get_own_property_descriptor", ObjectGetOwnPropertyDescriptor,
   "to_complete_property_descriptor", ToCompletePropertyDescriptor,
