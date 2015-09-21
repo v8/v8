@@ -5912,9 +5912,7 @@ class HObjectAccess final {
     return Representation::FromKind(RepresentationField::decode(value_));
   }
 
-  inline Handle<String> name() const {
-    return name_;
-  }
+  inline Handle<Name> name() const { return name_; }
 
   inline bool immutable() const {
     return ImmutableField::decode(value_);
@@ -5977,7 +5975,7 @@ class HObjectAccess final {
 
   static HObjectAccess ForAllocationSiteList() {
     return HObjectAccess(kExternalMemory, 0, Representation::Tagged(),
-                         Handle<String>::null(), false, false);
+                         Handle<Name>::null(), false, false);
   }
 
   static HObjectAccess ForFixedArrayLength() {
@@ -6140,12 +6138,12 @@ class HObjectAccess final {
 
   static HObjectAccess ForCounter() {
     return HObjectAccess(kExternalMemory, 0, Representation::Integer32(),
-                         Handle<String>::null(), false, false);
+                         Handle<Name>::null(), false, false);
   }
 
   static HObjectAccess ForExternalUInteger8() {
     return HObjectAccess(kExternalMemory, 0, Representation::UInteger8(),
-                         Handle<String>::null(), false, false);
+                         Handle<Name>::null(), false, false);
   }
 
   // Create an access to an offset in a fixed array header.
@@ -6181,7 +6179,7 @@ class HObjectAccess final {
   // Create an access to a resolved field (in-object or backing store).
   static HObjectAccess ForField(Handle<Map> map, int index,
                                 Representation representation,
-                                Handle<String> name);
+                                Handle<Name> name);
 
   static HObjectAccess ForJSTypedArrayLength() {
     return HObjectAccess::ForObservableJSObjectOffset(
@@ -6296,16 +6294,15 @@ class HObjectAccess final {
 
   HObjectAccess(Portion portion, int offset,
                 Representation representation = Representation::Tagged(),
-                Handle<String> name = Handle<String>::null(),
-                bool immutable = false,
-                bool existing_inobject_property = true)
-    : value_(PortionField::encode(portion) |
-             RepresentationField::encode(representation.kind()) |
-             ImmutableField::encode(immutable ? 1 : 0) |
-             ExistingInobjectPropertyField::encode(
-                 existing_inobject_property ? 1 : 0) |
-             OffsetField::encode(offset)),
-      name_(name) {
+                Handle<Name> name = Handle<Name>::null(),
+                bool immutable = false, bool existing_inobject_property = true)
+      : value_(PortionField::encode(portion) |
+               RepresentationField::encode(representation.kind()) |
+               ImmutableField::encode(immutable ? 1 : 0) |
+               ExistingInobjectPropertyField::encode(
+                   existing_inobject_property ? 1 : 0) |
+               OffsetField::encode(offset)),
+        name_(name) {
     // assert that the fields decode correctly
     DCHECK(this->offset() == offset);
     DCHECK(this->portion() == portion);
@@ -6322,7 +6319,7 @@ class HObjectAccess final {
   class OffsetField : public BitField<int, 9, 23> {};
 
   uint32_t value_;  // encodes portion, representation, immutable, and offset
-  Handle<String> name_;
+  Handle<Name> name_;
 
   friend class HLoadNamedField;
   friend class HStoreNamedField;

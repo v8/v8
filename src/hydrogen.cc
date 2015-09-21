@@ -6409,8 +6409,8 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::IsIntegerIndexedExotic() {
   InstanceType instance_type = map_->instance_type();
-  return instance_type == JS_TYPED_ARRAY_TYPE &&
-         IsSpecialIndex(isolate()->unicode_cache(), *name_);
+  return instance_type == JS_TYPED_ARRAY_TYPE && name_->IsString() &&
+         IsSpecialIndex(isolate()->unicode_cache(), String::cast(*name_));
 }
 
 

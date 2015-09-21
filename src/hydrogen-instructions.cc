@@ -4589,7 +4589,7 @@ HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
 
 HObjectAccess HObjectAccess::ForField(Handle<Map> map, int index,
                                       Representation representation,
-                                      Handle<String> name) {
+                                      Handle<Name> name) {
   if (index < 0) {
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.
