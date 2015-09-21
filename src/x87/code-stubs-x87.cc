@@ -1579,9 +1579,6 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     __ TailCallRuntime(strict() ? Runtime::kStrictEquals : Runtime::kEquals, 2,
                        1);
   } else {
-    int native_context_index = is_strong(strength())
-                                   ? Context::COMPARE_STRONG_BUILTIN_INDEX
-                                   : Context::COMPARE_BUILTIN_INDEX;
     __ push(Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
 
     // Restore return address on the stack.
@@ -1589,7 +1586,9 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.
-    __ InvokeBuiltin(native_context_index, JUMP_FUNCTION);
+    __ TailCallRuntime(
+        is_strong(strength()) ? Runtime::kCompare_Strong : Runtime::kCompare, 3,
+        1);
   }
 
   __ bind(&miss);
