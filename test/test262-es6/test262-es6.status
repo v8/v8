@@ -113,15 +113,6 @@
   'language/statements/for-of/const-bound-names-fordecl-tdz-for-of': [PASS, FAIL_SLOPPY],
   'language/statements/for-of/const-fresh-binding-per-iteration-for-of': [PASS, FAIL_SLOPPY],
 
-  # Functions in blocks are var-declared and hoisted in sloppy mode
-  # https://code.google.com/p/v8/issues/detail?id=3305
-  'language/block-scope/shadowing/dynamic-lookup-from-closure': [PASS, FAIL_SLOPPY],
-  'language/block-scope/shadowing/lookup-from-closure': [PASS, FAIL_SLOPPY],
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-var': [PASS, FAIL_SLOPPY],
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-var-with-function-declaration': [PASS, FAIL_SLOPPY],
-  'language/statements/let/block-local-closure-set-before-initialization': [PASS, FAIL_SLOPPY],
-
   # https://code.google.com/p/v8/issues/detail?id=4405
   'language/block-scope/leave/outermost-binding-updated-in-catch-block-nested-block-let-declaration-unseen-outside-of-block': [PASS, FAIL],
 
