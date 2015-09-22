@@ -2841,14 +2841,14 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // x3 : slot in feedback vector (Smi, for RecordCallTarget)
   // x4 : original constructor (for IsSuperConstructorCall)
   Register function = x1;
-  Label slow, non_function_call;
 
+  Label non_function;
   // Check that the function is not a smi.
-  __ JumpIfSmi(function, &non_function_call);
+  __ JumpIfSmi(function, &non_function);
   // Check that the function is a JSFunction.
   Register object_type = x10;
   __ JumpIfNotObjectType(function, object_type, object_type, JS_FUNCTION_TYPE,
-                         &slow);
+                         &non_function);
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm, x0, function, x2, x3, x4, x5, x11, x12,
@@ -2873,43 +2873,16 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ Mov(x3, function);
   }
 
-  // Jump to the function-specific construct stub.
-  Register jump_reg = x4;
-  Register shared_func_info = jump_reg;
-  Register cons_stub = jump_reg;
-  Register cons_stub_code = jump_reg;
-  __ Ldr(shared_func_info,
-         FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(cons_stub,
-         FieldMemOperand(shared_func_info,
-                         SharedFunctionInfo::kConstructStubOffset));
-  __ Add(cons_stub_code, cons_stub, Code::kHeaderSize - kHeapObjectTag);
-  __ Br(cons_stub_code);
+  // Tail call to the function-specific construct stub (still in the caller
+  // context at this point).
+  __ Ldr(x4, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(x4, FieldMemOperand(x4, SharedFunctionInfo::kConstructStubOffset));
+  __ Add(x4, x4, Code::kHeaderSize - kHeapObjectTag);
+  __ Br(x4);
 
-  __ Bind(&slow);
-  {
-    __ Cmp(object_type, JS_FUNCTION_PROXY_TYPE);
-    __ B(ne, &non_function_call);
-    // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
-    __ Ldr(x1, FieldMemOperand(x1, JSFunctionProxy::kConstructTrapOffset));
-    __ Jump(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-
-    __ Bind(&non_function_call);
-    {
-      // Determine the delegate for the target (if any).
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(x0);
-      __ Push(x0, x1);
-      __ CallRuntime(Runtime::kGetConstructorDelegate, 1);
-      __ Mov(x1, x0);
-      __ Pop(x0);
-      __ SmiUntag(x0);
-    }
-    // The delegate is always a regular function.
-    __ AssertFunction(x1);
-    __ Jump(masm->isolate()->builtins()->CallFunction(),
-            RelocInfo::CODE_TARGET);
-  }
+  __ Bind(&non_function);
+  __ Mov(x3, function);
+  __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
 

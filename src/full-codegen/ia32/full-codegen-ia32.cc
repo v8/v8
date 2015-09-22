@@ -3916,9 +3916,6 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  // Load original constructor into ecx.
-  __ mov(ecx, Operand(esp, 1 * kPointerSize));
-
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, args_set_up, runtime;
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -3948,10 +3945,9 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
 
   __ bind(&args_set_up);
 
-  __ mov(edi, Operand(esp, eax, times_pointer_size, 0));
-  __ mov(ebx, Immediate(isolate()->factory()->undefined_value()));
-  CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
-  __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+  __ mov(edx, Operand(esp, eax, times_pointer_size, 1 * kPointerSize));
+  __ mov(edi, Operand(esp, eax, times_pointer_size, 0 * kPointerSize));
+  __ Call(isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
 
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));

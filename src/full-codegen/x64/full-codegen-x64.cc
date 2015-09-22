@@ -3950,9 +3950,6 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  // Load original constructor into rcx.
-  __ movp(rcx, Operand(rsp, 1 * kPointerSize));
-
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, args_set_up, runtime;
   __ movp(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
@@ -3981,11 +3978,9 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   }
 
   __ bind(&args_set_up);
-  __ movp(rdi, Operand(rsp, rax, times_pointer_size, 0));
-  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
-
-  CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
-  __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+  __ movp(rdx, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
+  __ movp(rdi, Operand(rsp, rax, times_pointer_size, 0 * kPointerSize));
+  __ Call(isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
 
   // Restore context register.
   __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));

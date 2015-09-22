@@ -525,25 +525,13 @@ RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
   base::SmartArrayPointer<Handle<Object>> arguments =
       Runtime::GetCallerArguments(isolate, 0, &argument_count);
 
-  // Prepare the array containing all passed arguments.
-  Handle<FixedArray> elements =
-      isolate->factory()->NewUninitializedFixedArray(argument_count);
-  for (int i = 0; i < argument_count; ++i) {
-    elements->set(i, *arguments[i]);
-  }
-  Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(
-      elements, FAST_ELEMENTS, argument_count);
-
-  // Call %reflect_construct(<super>, <args>, <new.target>) now.
-  Handle<JSFunction> reflect = isolate->reflect_construct();
-  Handle<Object> argv[] = {super_constructor, array, original_constructor};
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, reflect, isolate->factory()->undefined_value(),
-                      arraysize(argv), argv));
+      isolate, result, Execution::New(super_constructor, original_constructor,
+                                      argument_count, arguments.get()));
 
   return *result;
 }
+
 }  // namespace internal
 }  // namespace v8

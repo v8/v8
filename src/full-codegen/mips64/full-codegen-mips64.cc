@@ -4039,14 +4039,14 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  // Load original constructor into a4.
-  __ ld(a4, MemOperand(sp, 1 * kPointerSize));
+  // Load original constructor into a3.
+  __ ld(a3, MemOperand(sp, 1 * kPointerSize));
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, args_set_up, runtime;
   __ ld(a2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ld(a3, MemOperand(a2, StandardFrameConstants::kContextOffset));
-  __ Branch(&adaptor_frame, eq, a3,
+  __ ld(a4, MemOperand(a2, StandardFrameConstants::kContextOffset));
+  __ Branch(&adaptor_frame, eq, a4,
             Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   // default constructor has no arguments, so no adaptor frame means no args.
   __ mov(a0, zero_reg);
@@ -4069,8 +4069,8 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
     // Pre-decrement a2 with kPointerSize on each iteration.
     // Pre-decrement in order to skip receiver.
     __ Daddu(a2, a2, Operand(-kPointerSize));
-    __ ld(a3, MemOperand(a2));
-    __ Push(a3);
+    __ ld(a4, MemOperand(a2));
+    __ Push(a4);
     __ Daddu(a1, a1, Operand(-1));
     __ Branch(&loop, ne, a1, Operand(zero_reg));
   }
@@ -4079,10 +4079,7 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   __ dsll(at, a0, kPointerSizeLog2);
   __ Daddu(at, at, Operand(sp));
   __ ld(a1, MemOperand(at, 0));
-  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-
-  CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
-  __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+  __ Call(isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
 
   // Restore context register.
   __ ld(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));

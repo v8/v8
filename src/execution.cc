@@ -58,7 +58,8 @@ namespace {
 MUST_USE_RESULT MaybeHandle<Object> Invoke(bool is_construct,
                                            Handle<JSFunction> function,
                                            Handle<Object> receiver, int argc,
-                                           Handle<Object> args[]) {
+                                           Handle<Object> args[],
+                                           Handle<Object> new_target) {
   Isolate* const isolate = function->GetIsolate();
 
   // Convert calls on global objects to be calls on the global
@@ -108,10 +109,8 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(bool is_construct,
   // Placeholder for return value.
   Object* value = NULL;
 
-  typedef Object* (*JSEntryFunction)(byte* entry,
-                                     Object* function,
-                                     Object* receiver,
-                                     int argc,
+  typedef Object* (*JSEntryFunction)(Object* new_target, Object* function,
+                                     Object* receiver, int argc,
                                      Object*** args);
 
   Handle<Code> code = is_construct
@@ -130,12 +129,12 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(bool is_construct,
     JSEntryFunction stub_entry = FUNCTION_CAST<JSEntryFunction>(code->entry());
 
     // Call the function through the right JS entry stub.
-    byte* ignored = nullptr;  // TODO(bmeurer): Remove this altogether.
+    Object* orig_func = *new_target;
     JSFunction* func = *function;
     Object* recv = *receiver;
     Object*** argv = reinterpret_cast<Object***>(args);
     if (FLAG_profile_deserialization) PrintDeserializedCodeInfo(function);
-    value = CALL_GENERATED_CODE(stub_entry, ignored, func, recv, argc, argv);
+    value = CALL_GENERATED_CODE(stub_entry, orig_func, func, recv, argc, argv);
   }
 
 #ifdef VERIFY_HEAP
@@ -172,15 +171,22 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
                                GetFunctionDelegate(isolate, callable), Object);
   }
   Handle<JSFunction> func = Handle<JSFunction>::cast(callable);
-
-  return Invoke(false, func, receiver, argc, argv);
+  return Invoke(false, func, receiver, argc, argv,
+                isolate->factory()->undefined_value());
 }
 
 
-MaybeHandle<Object> Execution::New(Handle<JSFunction> func,
-                                   int argc,
+MaybeHandle<Object> Execution::New(Handle<JSFunction> constructor, int argc,
                                    Handle<Object> argv[]) {
-  return Invoke(true, func, handle(func->global_proxy()), argc, argv);
+  return New(constructor, constructor, argc, argv);
+}
+
+
+MaybeHandle<Object> Execution::New(Handle<JSFunction> constructor,
+                                   Handle<JSFunction> new_target, int argc,
+                                   Handle<Object> argv[]) {
+  return Invoke(true, constructor, handle(constructor->global_proxy()), argc,
+                argv, new_target);
 }
 
 

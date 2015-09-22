@@ -1977,13 +1977,13 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // rcx : original constructor (for IsSuperConstructorCall)
   // rdx : slot in feedback vector (Smi, for RecordCallTarget)
   // rdi : constructor function
-  Label slow, non_function_call;
 
-  // Check that function is not a smi.
-  __ JumpIfSmi(rdi, &non_function_call);
-  // Check that function is a JSFunction.
+  Label non_function;
+  // Check that the constructor is not a smi.
+  __ JumpIfSmi(rdi, &non_function);
+  // Check that constructor is a JSFunction.
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, r11);
-  __ j(not_equal, &slow);
+  __ j(not_equal, &non_function);
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm, IsSuperConstructorCall());
@@ -2008,42 +2008,16 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ movp(rdx, rdi);
   }
 
-  // Jump to the function-specific construct stub.
-  Register jmp_reg = rcx;
-  __ movp(jmp_reg, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(jmp_reg, FieldOperand(jmp_reg,
-                                SharedFunctionInfo::kConstructStubOffset));
-  __ leap(jmp_reg, FieldOperand(jmp_reg, Code::kHeaderSize));
-  __ jmp(jmp_reg);
+  // Tail call to the function-specific construct stub (still in the caller
+  // context at this point).
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kConstructStubOffset));
+  __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
+  __ jmp(rcx);
 
-  // rdi: called object
-  // rax: number of arguments
-  // r11: object map
-  __ bind(&slow);
-  {
-    __ CmpInstanceType(r11, JS_FUNCTION_PROXY_TYPE);
-    __ j(not_equal, &non_function_call, Label::kNear);
-
-    // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
-    __ movp(rdi, FieldOperand(rdi, JSFunctionProxy::kConstructTrapOffset));
-    __ Jump(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-
-    __ bind(&non_function_call);
-    {
-      // Determine the delegate for the target (if any).
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Integer32ToSmi(rax, rax);
-      __ Push(rax);
-      __ Push(rdi);
-      __ CallRuntime(Runtime::kGetConstructorDelegate, 1);
-      __ movp(rdi, rax);
-      __ Pop(rax);
-      __ SmiToInteger32(rax, rax);
-    }
-    // The delegate is always a regular function.
-    __ AssertFunction(rdi);
-    __ Jump(isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
-  }
+  __ bind(&non_function);
+  __ movp(rdx, rdi);
+  __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
 

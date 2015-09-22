@@ -601,6 +601,10 @@ enum CallConstructorFlags {
   NO_CALL_CONSTRUCTOR_FLAGS = 0,
   // The call target is cached in the instruction stream.
   RECORD_CONSTRUCTOR_TARGET = 1,
+  // TODO(bmeurer): Kill these SUPER_* modes and use the Construct builtin
+  // directly instead; also there's no point in collecting any "targets" for
+  // super constructor calls, since these are known when we optimize the
+  // constructor that contains the super call.
   SUPER_CONSTRUCTOR_CALL = 1 << 1,
   SUPER_CALL_RECORD_TARGET = SUPER_CONSTRUCTOR_CALL | RECORD_CONSTRUCTOR_TARGET
 };

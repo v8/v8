@@ -31,13 +31,12 @@ class Execution final : public AllStatic {
                                                   Handle<Object> argv[]);
 
   // Construct object from function, the caller supplies an array of
-  // arguments. Arguments are Object* type. After function returns,
-  // pointers in 'args' might be invalid.
-  //
-  // *pending_exception tells whether the invoke resulted in
-  // a pending exception.
-  //
-  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> func,
+  // arguments.
+  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> constructor,
+                                                 int argc,
+                                                 Handle<Object> argv[]);
+  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> constructor,
+                                                 Handle<JSFunction> new_target,
                                                  int argc,
                                                  Handle<Object> argv[]);
 

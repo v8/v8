@@ -1877,24 +1877,31 @@ void MacroAssembler::Jump(Register target) {
 }
 
 
-void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode) {
+void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
+                          Condition cond) {
+  if (cond == nv) return;
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
+  Label done;
+  if (cond != al) B(NegateCondition(cond), &done);
   Mov(temp, Operand(target, rmode));
   Br(temp);
+  Bind(&done);
 }
 
 
-void MacroAssembler::Jump(Address target, RelocInfo::Mode rmode) {
+void MacroAssembler::Jump(Address target, RelocInfo::Mode rmode,
+                          Condition cond) {
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
-  Jump(reinterpret_cast<intptr_t>(target), rmode);
+  Jump(reinterpret_cast<intptr_t>(target), rmode, cond);
 }
 
 
-void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
+void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
+                          Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   AllowDeferredHandleDereference embedding_raw_address;
-  Jump(reinterpret_cast<intptr_t>(code.location()), rmode);
+  Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
 
 
