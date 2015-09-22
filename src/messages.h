@@ -226,7 +226,6 @@ class CallSite {
     "to be non-writable is deprecated")                                        \
   T(StrongSetProto,                                                            \
     "On strong object %, redefining the internal prototype is deprecated")     \
-  T(StrongWeakExtend, "Non-strong class % cannot extend a strong object")      \
   T(SymbolKeyFor, "% is not a symbol")                                         \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
   T(SymbolToString, "Cannot convert a Symbol value to a string")               \

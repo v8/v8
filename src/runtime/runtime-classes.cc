@@ -142,13 +142,6 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kStrongExtendNull),
                       Object);
     }
-  } else {
-    if (Handle<HeapObject>::cast(super_class)->map()->is_strong()) {
-      // Weak class is not permitted to extend strong class.
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kStrongWeakExtend, name),
-                      Object);
-    }
   }
   Map::SetPrototype(map, prototype_parent);
   map->SetConstructor(*constructor);

@@ -10627,6 +10627,9 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
       function->set_prototype_or_initial_map(*value);
     } else {
       Handle<Map> new_map = Map::Copy(initial_map, "SetInstancePrototype");
+      if (function->map()->is_strong()) {
+        new_map->set_is_strong();
+      }
       JSFunction::SetInitialMap(function, new_map, value);
 
       // If the function is used as the global Array function, cache the
@@ -10751,6 +10754,9 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
     in_object_properties = function->shared()->CalculateInObjectProperties();
   }
   Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size);
+  if (function->map()->is_strong()) {
+    map->set_is_strong();
+  }
 
   // Fetch or allocate prototype.
   Handle<Object> prototype;
@@ -10764,7 +10770,8 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   DCHECK(map->has_fast_object_elements());
 
   // Finally link initial map and constructor function.
-  JSFunction::SetInitialMap(function, map, Handle<JSReceiver>::cast(prototype));
+  DCHECK(prototype->IsJSReceiver());
+  JSFunction::SetInitialMap(function, map, prototype);
 
   if (!function->shared()->is_generator()) {
     function->StartInobjectSlackTracking();
