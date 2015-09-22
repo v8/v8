@@ -4205,9 +4205,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                            &expected_property_count, /*CHECK_OK*/ ok,
                            maybe_bookmark);
 
-      if (formals.materialized_literals_count > 0) {
-        materialized_literal_count += formals.materialized_literals_count;
-      }
+      materialized_literal_count += formals.materialized_literals_count +
+                                    function_state.materialized_literal_count();
 
       if (bookmark.HasBeenReset()) {
         // Trigger eager (re-)parsing, just below this block.
