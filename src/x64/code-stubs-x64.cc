@@ -3132,7 +3132,7 @@ void ToStringStub::Generate(MacroAssembler* masm) {
   __ bind(&not_string);
 
   Label not_heap_number;
-  __ CompareRoot(rax, Heap::kHeapNumberMapRootIndex);
+  __ CompareRoot(rdi, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &not_heap_number, Label::kNear);
   __ bind(&is_number);
   NumberToStringStub stub(isolate());
