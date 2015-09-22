@@ -3749,6 +3749,25 @@ void MacroAssembler::MovDoubleToInt64(
 }
 
 
+void MacroAssembler::MovIntToFloat(DoubleRegister dst, Register src) {
+  subi(sp, sp, Operand(kFloatSize));
+  stw(src, MemOperand(sp, 0));
+  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
+  lfs(dst, MemOperand(sp, 0));
+  addi(sp, sp, Operand(kFloatSize));
+}
+
+
+void MacroAssembler::MovFloatToInt(Register dst, DoubleRegister src) {
+  subi(sp, sp, Operand(kFloatSize));
+  frsp(src, src);
+  stfs(src, MemOperand(sp, 0));
+  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
+  lwz(dst, MemOperand(sp, 0));
+  addi(sp, sp, Operand(kFloatSize));
+}
+
+
 void MacroAssembler::Add(Register dst, Register src, intptr_t value,
                          Register scratch) {
   if (is_int16(value)) {

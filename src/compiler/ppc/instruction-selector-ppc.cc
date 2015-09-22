@@ -911,28 +911,25 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 
 
 void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
-  VisitRR(this, kPPC_DoubleExtractLowWord32, node);
+  VisitRR(this, kPPC_BitcastFloat32ToInt32, node);
 }
 
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
-  VisitRR(this, kPPC_BitcastDL, node);
+  VisitRR(this, kPPC_BitcastDoubleToInt64, node);
 }
 #endif
 
 
 void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
-  PPCOperandGenerator g(this);
-  Emit(kPPC_DoubleInsertLowWord32, g.DefineAsRegister(node),
-       ImmediateOperand(ImmediateOperand::INLINE, 0),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kPPC_BitcastInt32ToFloat32, node);
 }
 
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
-  VisitRR(this, kPPC_BitcastLD, node);
+  VisitRR(this, kPPC_BitcastInt64ToDouble, node);
 }
 #endif
 
