@@ -354,9 +354,21 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
   // We can ignore weak cells with cleared values because they will always
   // contain smi zero.
   if (weak_cell->next_cleared() && !weak_cell->cleared()) {
-    weak_cell->set_next(heap->encountered_weak_cells(),
-                        UPDATE_WEAK_WRITE_BARRIER);
-    heap->set_encountered_weak_cells(weak_cell);
+    HeapObject* value = HeapObject::cast(weak_cell->value());
+    if (MarkCompactCollector::IsMarked(value)) {
+      // Weak cells with live values are directly processed here to reduce
+      // the processing time of weak cells during the main GC pause.
+      Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
+      map->GetHeap()->mark_compact_collector()->RecordSlot(weak_cell, slot,
+                                                           *slot);
+    } else {
+      // If we do not know about liveness of values of weak cells, we have to
+      // process them when we know the liveness of the whole transitive
+      // closure.
+      weak_cell->set_next(heap->encountered_weak_cells(),
+                          UPDATE_WEAK_WRITE_BARRIER);
+      heap->set_encountered_weak_cells(weak_cell);
+    }
   }
 }
 
