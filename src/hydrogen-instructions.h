@@ -7348,8 +7348,7 @@ class HStringAdd final : public HBinaryOperation {
  public:
   static HInstruction* New(
       Isolate* isolate, Zone* zone, HValue* context, HValue* left,
-      HValue* right, Strength strength = Strength::WEAK,
-      PretenureFlag pretenure_flag = NOT_TENURED,
+      HValue* right, PretenureFlag pretenure_flag = NOT_TENURED,
       StringAddFlags flags = STRING_ADD_CHECK_BOTH,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
 
@@ -7371,16 +7370,21 @@ class HStringAdd final : public HBinaryOperation {
   }
 
  private:
-  HStringAdd(HValue* context, HValue* left, HValue* right, Strength strength,
+  HStringAdd(HValue* context, HValue* left, HValue* right,
              PretenureFlag pretenure_flag, StringAddFlags flags,
              Handle<AllocationSite> allocation_site)
-      : HBinaryOperation(context, left, right, strength, HType::String()),
+      : HBinaryOperation(context, left, right, Strength::WEAK, HType::String()),
         flags_(flags),
         pretenure_flag_(pretenure_flag) {
     set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
+    if ((flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT) {
+      SetAllSideEffects();
+      ClearFlag(kUseGVN);
+    } else {
+      SetChangesFlag(kNewSpacePromotion);
+      SetFlag(kUseGVN);
+    }
     SetDependsOnFlag(kMaps);
-    SetChangesFlag(kNewSpacePromotion);
     if (FLAG_trace_pretenuring) {
       PrintF("HStringAdd with AllocationSite %p %s\n",
              allocation_site.is_null()
@@ -7390,8 +7394,9 @@ class HStringAdd final : public HBinaryOperation {
     }
   }
 
-  // No side-effects except possible allocation:
-  bool IsDeletable() const override { return true; }
+  bool IsDeletable() const final {
+    return (flags_ & STRING_ADD_CONVERT) != STRING_ADD_CONVERT;
+  }
 
   const StringAddFlags flags_;
   const PretenureFlag pretenure_flag_;

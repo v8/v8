@@ -11014,11 +11014,9 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         left = BuildNumberToString(left, left_type);
       } else if (!left_type->Is(Type::String())) {
         DCHECK(right_type->Is(Type::String()));
-        // TODO(bmeurer): We might want to optimize this, because we already
-        // know that the right hand side is a string.
-        Add<HPushArguments>(left, right);
-        return AddUncasted<HCallRuntime>(Runtime::FunctionForId(Runtime::kAdd),
-                                         2);
+        return AddUncasted<HStringAdd>(
+            left, right, allocation_mode.GetPretenureMode(),
+            STRING_ADD_CONVERT_LEFT, allocation_mode.feedback_site());
       }
 
       // Convert right argument as necessary.
@@ -11027,11 +11025,9 @@ HValue* HGraphBuilder::BuildBinaryOperation(
         right = BuildNumberToString(right, right_type);
       } else if (!right_type->Is(Type::String())) {
         DCHECK(left_type->Is(Type::String()));
-        // TODO(bmeurer): We might want to optimize this, because we already
-        // know that the left hand side is a string.
-        Add<HPushArguments>(left, right);
-        return AddUncasted<HCallRuntime>(Runtime::FunctionForId(Runtime::kAdd),
-                                         2);
+        return AddUncasted<HStringAdd>(
+            left, right, allocation_mode.GetPretenureMode(),
+            STRING_ADD_CONVERT_RIGHT, allocation_mode.feedback_site());
       }
     }
 
@@ -11048,7 +11044,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     if (!right_string.is_null() && right_string->length() == 0) return left;
     if (!left_string.is_null() && !right_string.is_null()) {
       return AddUncasted<HStringAdd>(
-          left, right, strength, allocation_mode.GetPretenureMode(),
+          left, right, allocation_mode.GetPretenureMode(),
           STRING_ADD_CHECK_NONE, allocation_mode.feedback_site());
     }
 
@@ -11077,8 +11073,8 @@ HValue* HGraphBuilder::BuildBinaryOperation(
 
     // Fallback to using the string add stub.
     return AddUncasted<HStringAdd>(
-        left, right, strength, allocation_mode.GetPretenureMode(),
-        STRING_ADD_CHECK_NONE, allocation_mode.feedback_site());
+        left, right, allocation_mode.GetPretenureMode(), STRING_ADD_CHECK_NONE,
+        allocation_mode.feedback_site());
   }
 
   if (graph()->info()->IsStub()) {
@@ -12536,8 +12532,7 @@ void HOptimizedGraphBuilder::GenerateStringAdd(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
   HValue* right = Pop();
   HValue* left = Pop();
-  HInstruction* result =
-      NewUncasted<HStringAdd>(left, right, strength(function_language_mode()));
+  HInstruction* result = NewUncasted<HStringAdd>(left, right);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

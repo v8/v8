@@ -3997,7 +3997,7 @@ DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HSub, -)
 
 
 HInstruction* HStringAdd::New(Isolate* isolate, Zone* zone, HValue* context,
-                              HValue* left, HValue* right, Strength strength,
+                              HValue* left, HValue* right,
                               PretenureFlag pretenure_flag,
                               StringAddFlags flags,
                               Handle<AllocationSite> allocation_site) {
@@ -4015,8 +4015,8 @@ HInstruction* HStringAdd::New(Isolate* isolate, Zone* zone, HValue* context,
       }
     }
   }
-  return new (zone) HStringAdd(context, left, right, strength, pretenure_flag,
-                               flags, allocation_site);
+  return new (zone)
+      HStringAdd(context, left, right, pretenure_flag, flags, allocation_site);
 }
 
 
