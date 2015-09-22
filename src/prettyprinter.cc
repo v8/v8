@@ -907,7 +907,7 @@ const char* PrettyPrinter::PrintProgram(FunctionLiteral* program) {
 
 void PrettyPrinter::PrintOut(Isolate* isolate, Zone* zone, AstNode* node) {
   PrettyPrinter printer(isolate, zone);
-  PrintF("%s", printer.Print(node));
+  PrintF("%s\n", printer.Print(node));
 }
 
 
