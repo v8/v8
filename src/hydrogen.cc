@@ -11600,7 +11600,12 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
             this, LOAD, map, isolate()->factory()->to_primitive_symbol());
         PropertyAccessInfo to_string(this, LOAD, map,
                                      isolate()->factory()->toString_string());
+        PropertyAccessInfo to_string_tag(
+            this, LOAD, map, isolate()->factory()->to_string_tag_symbol());
         if (to_primitive.CanAccessMonomorphic() && !to_primitive.IsFound() &&
+            to_string_tag.CanAccessMonomorphic() &&
+            (!to_string_tag.IsFound() || to_string_tag.IsData() ||
+             to_string_tag.IsDataConstant()) &&
             value_of.CanAccessMonomorphic() && value_of.IsDataConstant() &&
             value_of.constant().is_identical_to(isolate()->object_value_of()) &&
             to_string.CanAccessMonomorphic() && to_string.IsDataConstant() &&
@@ -11608,7 +11613,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
                 isolate()->object_to_string())) {
           // We depend on the prototype chain to stay the same, because we
           // also need to deoptimize when someone installs @@toPrimitive
-          // somewhere in the prototype chain.
+          // or @@toStringTag somewhere in the prototype chain.
           BuildCheckPrototypeMaps(handle(JSObject::cast(map->prototype())),
                                   Handle<JSObject>::null());
           AddCheckMap(left, map);
