@@ -76,7 +76,7 @@ class FullCodeGenerator: public AstVisitor {
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   static const int kCodeSizeMultiplier = 105;
 #elif V8_TARGET_ARCH_X64
-  static const int kCodeSizeMultiplier = 170;
+  static const int kCodeSizeMultiplier = 165;
 #elif V8_TARGET_ARCH_ARM
   static const int kCodeSizeMultiplier = 149;
 #elif V8_TARGET_ARCH_ARM64
