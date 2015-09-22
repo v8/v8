@@ -11,6 +11,8 @@ import("//build/config/sanitizers/sanitizers.gni")
 # Chromium build.
 import("//build/module_args/v8.gni")
 
+import("snapshot_toolchain.gni")
+
 # TODO(jochen): These will need to be user-settable to support standalone V8
 # builds.
 v8_deprecation_warnings = false
@@ -33,24 +35,6 @@ if (is_msan) {
   v8_target_arch = "arm64"
 } else {
   v8_target_arch = target_cpu
-}
-
-# The snapshot needs to be compiled for the host, but compiled with
-# a toolchain that matches the bit-width of the target.
-#
-# TODO(GYP): For now we only support 32-bit little-endian target builds from an
-# x64 Linux host. Eventually we need to support all of the host/target
-# configurations v8 runs on.
-if (host_cpu == "x64" && host_os == "linux") {
-  if (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86") {
-    snapshot_toolchain = "//build/toolchain/linux:clang_x86"
-  } else if (target_cpu == "x64") {
-    snapshot_toolchain = "//build/toolchain/linux:clang_x64"
-  } else {
-    assert(false, "Need environment for this arch")
-  }
-} else {
-  snapshot_toolchain = default_toolchain
 }
 
 ###############################################################################
@@ -1792,6 +1776,7 @@ if (is_component_build) {
 }
 
 if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
+    (current_toolchain == snapshot_toolchain && v8_toolset_for_d8 == "host") ||
     (current_toolchain != host_toolchain && v8_toolset_for_d8 == "target")) {
   executable("d8") {
     sources = [
