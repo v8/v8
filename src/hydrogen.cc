@@ -11650,6 +11650,23 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     HStringCompareAndBranch* result =
         New<HStringCompareAndBranch>(left, right, op);
     return result;
+  } else if (combined_type->Is(Type::Boolean())) {
+    AddCheckMap(left, isolate()->factory()->boolean_map());
+    AddCheckMap(right, isolate()->factory()->boolean_map());
+    if (Token::IsEqualityOp(op)) {
+      HCompareObjectEqAndBranch* result =
+          New<HCompareObjectEqAndBranch>(left, right);
+      return result;
+    }
+    left = Add<HLoadNamedField>(
+        left, nullptr,
+        HObjectAccess::ForOddballToNumber(Representation::Smi()));
+    right = Add<HLoadNamedField>(
+        right, nullptr,
+        HObjectAccess::ForOddballToNumber(Representation::Smi()));
+    HCompareNumericAndBranch* result =
+        New<HCompareNumericAndBranch>(left, right, op);
+    return result;
   } else {
     if (combined_rep.IsTagged() || combined_rep.IsNone()) {
       HCompareGeneric* result = Add<HCompareGeneric>(

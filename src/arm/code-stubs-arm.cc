@@ -3360,6 +3360,30 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CompareICStub::GenerateBooleans(MacroAssembler* masm) {
+  DCHECK_EQ(CompareICState::BOOLEAN, state());
+  Label miss;
+
+  __ CheckMap(r1, r2, Heap::kBooleanMapRootIndex, &miss, DO_SMI_CHECK);
+  __ CheckMap(r0, r3, Heap::kBooleanMapRootIndex, &miss, DO_SMI_CHECK);
+  if (op() != Token::EQ_STRICT && is_strong(strength())) {
+    __ TailCallRuntime(Runtime::kThrowStrongModeImplicitConversion, 0, 1);
+  } else {
+    if (!Token::IsEqualityOp(op())) {
+      __ ldr(r1, FieldMemOperand(r1, Oddball::kToNumberOffset));
+      __ AssertSmi(r1);
+      __ ldr(r0, FieldMemOperand(r0, Oddball::kToNumberOffset));
+      __ AssertSmi(r0);
+    }
+    __ sub(r0, r1, r0);
+    __ Ret();
+  }
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void CompareICStub::GenerateSmis(MacroAssembler* masm) {
   DCHECK(state() == CompareICState::SMI);
   Label miss;

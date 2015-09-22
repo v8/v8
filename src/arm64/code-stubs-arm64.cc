@@ -3246,6 +3246,32 @@ void StringCharFromCodeGenerator::GenerateSlow(
 }
 
 
+void CompareICStub::GenerateBooleans(MacroAssembler* masm) {
+  // Inputs are in x0 (lhs) and x1 (rhs).
+  DCHECK_EQ(CompareICState::BOOLEAN, state());
+  ASM_LOCATION("CompareICStub[Booleans]");
+  Label miss;
+
+  __ CheckMap(x1, x2, Heap::kBooleanMapRootIndex, &miss, DO_SMI_CHECK);
+  __ CheckMap(x0, x3, Heap::kBooleanMapRootIndex, &miss, DO_SMI_CHECK);
+  if (op() != Token::EQ_STRICT && is_strong(strength())) {
+    __ TailCallRuntime(Runtime::kThrowStrongModeImplicitConversion, 0, 1);
+  } else {
+    if (!Token::IsEqualityOp(op())) {
+      __ Ldr(x1, FieldMemOperand(x1, Oddball::kToNumberOffset));
+      __ AssertSmi(x1);
+      __ Ldr(x0, FieldMemOperand(x0, Oddball::kToNumberOffset));
+      __ AssertSmi(x0);
+    }
+    __ Sub(x0, x1, x0);
+    __ Ret();
+  }
+
+  __ Bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void CompareICStub::GenerateSmis(MacroAssembler* masm) {
   // Inputs are in x0 (lhs) and x1 (rhs).
   DCHECK(state() == CompareICState::SMI);

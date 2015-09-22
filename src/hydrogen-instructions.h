@@ -5946,6 +5946,11 @@ class HObjectAccess final {
                          Representation::Integer32());
   }
 
+  static HObjectAccess ForOddballToNumber(
+      Representation representation = Representation::Tagged()) {
+    return HObjectAccess(kInobject, Oddball::kToNumberOffset, representation);
+  }
+
   static HObjectAccess ForOddballTypeOf() {
     return HObjectAccess(kInobject, Oddball::kTypeOfOffset,
                          Representation::HeapObject());

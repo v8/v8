@@ -351,6 +351,7 @@ InlineCacheState CompareICStub::GetICState() const {
   switch (state) {
     case CompareICState::UNINITIALIZED:
       return ::v8::internal::UNINITIALIZED;
+    case CompareICState::BOOLEAN:
     case CompareICState::SMI:
     case CompareICState::NUMBER:
     case CompareICState::INTERNALIZED_STRING:
@@ -415,6 +416,9 @@ void CompareICStub::Generate(MacroAssembler* masm) {
   switch (state()) {
     case CompareICState::UNINITIALIZED:
       GenerateMiss(masm);
+      break;
+    case CompareICState::BOOLEAN:
+      GenerateBooleans(masm);
       break;
     case CompareICState::SMI:
       GenerateSmis(masm);
