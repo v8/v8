@@ -4244,18 +4244,9 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   auto recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
-  i::Handle<i::JSFunction> fun;
-  if (self->IsJSFunction()) {
-    fun = i::Handle<i::JSFunction>::cast(self);
-  } else {
-    has_pending_exception =
-        !i::Execution::GetFunctionDelegate(isolate, self).ToHandle(&fun);
-    RETURN_ON_FAILED_EXECUTION(Value);
-    recv_obj = self;
-  }
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
-      i::Execution::Call(isolate, fun, recv_obj, argc, args), &result);
+      i::Execution::Call(isolate, self, recv_obj, argc, args), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -4278,21 +4269,9 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
-  if (self->IsJSFunction()) {
-    auto fun = i::Handle<i::JSFunction>::cast(self);
-    Local<Value> result;
-    has_pending_exception =
-        !ToLocal<Value>(i::Execution::New(fun, argc, args), &result);
-    RETURN_ON_FAILED_EXECUTION(Value);
-    RETURN_ESCAPED(result);
-  }
-  i::Handle<i::JSFunction> fun;
-  has_pending_exception =
-      !i::Execution::GetConstructorDelegate(isolate, self).ToHandle(&fun);
-  RETURN_ON_FAILED_EXECUTION(Value);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
-      i::Execution::Call(isolate, fun, self, argc, args), &result);
+      i::Execution::New(isolate, self, self, argc, args), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }

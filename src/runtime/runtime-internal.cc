@@ -11,6 +11,8 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/parser.h"
+#include "src/prettyprinter.h"
 
 namespace v8 {
 namespace internal {
@@ -407,6 +409,40 @@ RUNTIME_FUNCTION(Runtime_GetCallerJSFunction) {
 RUNTIME_FUNCTION(Runtime_GetCodeStubExportsObject) {
   HandleScope shs(isolate);
   return isolate->heap()->code_stub_exports_object();
+}
+
+
+namespace {
+
+Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
+  MessageLocation location;
+  if (isolate->ComputeLocation(&location)) {
+    Zone zone;
+    base::SmartPointer<ParseInfo> info(
+        location.function()->shared()->is_function()
+            ? new ParseInfo(&zone, location.function())
+            : new ParseInfo(&zone, location.script()));
+    if (Parser::ParseStatic(info.get())) {
+      CallPrinter printer(isolate, &zone);
+      const char* string = printer.Print(info->literal(), location.start_pos());
+      return isolate->factory()->NewStringFromAsciiChecked(string);
+    } else {
+      isolate->clear_pending_exception();
+    }
+  }
+  return Object::TypeOf(isolate, object);
+}
+
+}  // namespace
+
+
+RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<String> callsite = RenderCallSite(isolate, object);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kCalledNonCallable, callsite));
 }
 
 }  // namespace internal

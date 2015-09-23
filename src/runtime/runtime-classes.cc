@@ -520,8 +520,9 @@ RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Execution::New(super_constructor, original_constructor,
-                                      argument_count, arguments.get()));
+      isolate, result,
+      Execution::New(isolate, super_constructor, original_constructor,
+                     argument_count, arguments.get()));
 
   return *result;
 }

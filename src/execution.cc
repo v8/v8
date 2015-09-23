@@ -9,8 +9,6 @@
 #include "src/deoptimizer.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/parser.h"
-#include "src/prettyprinter.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -55,47 +53,12 @@ static void PrintDeserializedCodeInfo(Handle<JSFunction> function) {
 
 namespace {
 
-MUST_USE_RESULT MaybeHandle<Object> Invoke(bool is_construct,
-                                           Handle<JSFunction> function,
+MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
+                                           Handle<Object> target,
                                            Handle<Object> receiver, int argc,
                                            Handle<Object> args[],
                                            Handle<Object> new_target) {
-  Isolate* const isolate = function->GetIsolate();
-
-  // Convert calls on global objects to be calls on the global
-  // receiver instead to avoid having a 'this' pointer which refers
-  // directly to a global object.
-  if (receiver->IsGlobalObject()) {
-    receiver =
-        handle(Handle<GlobalObject>::cast(receiver)->global_proxy(), isolate);
-  }
-
-  // api callbacks can be called directly.
-  if (!is_construct && function->shared()->IsApiFunction()) {
-    SaveContext save(isolate);
-    isolate->set_context(function->context());
-    // Do proper receiver conversion for non-strict mode api functions.
-    if (!receiver->IsJSReceiver() &&
-        is_sloppy(function->shared()->language_mode())) {
-      if (receiver->IsUndefined() || receiver->IsNull()) {
-        receiver = handle(function->global_proxy(), isolate);
-      } else {
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, receiver, Execution::ToObject(isolate, receiver), Object);
-      }
-    }
-    DCHECK(function->context()->global_object()->IsGlobalObject());
-    auto value = Builtins::InvokeApiFunction(function, receiver, argc, args);
-    bool has_exception = value.is_null();
-    DCHECK(has_exception == isolate->has_pending_exception());
-    if (has_exception) {
-      isolate->ReportPendingMessages();
-      return MaybeHandle<Object>();
-    } else {
-      isolate->clear_pending_message();
-    }
-    return value;
-  }
+  DCHECK(!receiver->IsGlobalObject());
 
   // Entering JavaScript.
   VMState<JS> state(isolate);
@@ -109,17 +72,13 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(bool is_construct,
   // Placeholder for return value.
   Object* value = NULL;
 
-  typedef Object* (*JSEntryFunction)(Object* new_target, Object* function,
+  typedef Object* (*JSEntryFunction)(Object* new_target, Object* target,
                                      Object* receiver, int argc,
                                      Object*** args);
 
   Handle<Code> code = is_construct
       ? isolate->factory()->js_construct_entry_code()
       : isolate->factory()->js_entry_code();
-
-  // Make sure that the global object of the context we're about to
-  // make the current one is indeed a global object.
-  DCHECK(function->context()->global_object()->IsGlobalObject());
 
   {
     // Save and restore context around invocation and block the
@@ -130,10 +89,12 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(bool is_construct,
 
     // Call the function through the right JS entry stub.
     Object* orig_func = *new_target;
-    JSFunction* func = *function;
+    Object* func = *target;
     Object* recv = *receiver;
     Object*** argv = reinterpret_cast<Object***>(args);
-    if (FLAG_profile_deserialization) PrintDeserializedCodeInfo(function);
+    if (FLAG_profile_deserialization && target->IsJSFunction()) {
+      PrintDeserializedCodeInfo(Handle<JSFunction>::cast(target));
+    }
     value = CALL_GENERATED_CODE(stub_entry, orig_func, func, recv, argc, argv);
   }
 
@@ -163,30 +124,64 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(bool is_construct,
 }  // namespace
 
 
+// static
 MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
                                     Handle<Object> receiver, int argc,
                                     Handle<Object> argv[]) {
-  if (!callable->IsJSFunction()) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, callable,
-                               GetFunctionDelegate(isolate, callable), Object);
+  // Convert calls on global objects to be calls on the global
+  // receiver instead to avoid having a 'this' pointer which refers
+  // directly to a global object.
+  if (receiver->IsGlobalObject()) {
+    receiver =
+        handle(Handle<GlobalObject>::cast(receiver)->global_proxy(), isolate);
   }
-  Handle<JSFunction> func = Handle<JSFunction>::cast(callable);
-  return Invoke(false, func, receiver, argc, argv,
+
+  // api callbacks can be called directly.
+  if (callable->IsJSFunction() &&
+      Handle<JSFunction>::cast(callable)->shared()->IsApiFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
+    SaveContext save(isolate);
+    isolate->set_context(function->context());
+    // Do proper receiver conversion for non-strict mode api functions.
+    if (!receiver->IsJSReceiver() &&
+        is_sloppy(function->shared()->language_mode())) {
+      if (receiver->IsUndefined() || receiver->IsNull()) {
+        receiver = handle(function->global_proxy(), isolate);
+      } else {
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, receiver, Execution::ToObject(isolate, receiver), Object);
+      }
+    }
+    DCHECK(function->context()->global_object()->IsGlobalObject());
+    auto value = Builtins::InvokeApiFunction(function, receiver, argc, argv);
+    bool has_exception = value.is_null();
+    DCHECK(has_exception == isolate->has_pending_exception());
+    if (has_exception) {
+      isolate->ReportPendingMessages();
+      return MaybeHandle<Object>();
+    } else {
+      isolate->clear_pending_message();
+    }
+    return value;
+  }
+  return Invoke(isolate, false, callable, receiver, argc, argv,
                 isolate->factory()->undefined_value());
 }
 
 
+// static
 MaybeHandle<Object> Execution::New(Handle<JSFunction> constructor, int argc,
                                    Handle<Object> argv[]) {
-  return New(constructor, constructor, argc, argv);
+  return New(constructor->GetIsolate(), constructor, constructor, argc, argv);
 }
 
 
-MaybeHandle<Object> Execution::New(Handle<JSFunction> constructor,
-                                   Handle<JSFunction> new_target, int argc,
+// static
+MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
+                                   Handle<Object> new_target, int argc,
                                    Handle<Object> argv[]) {
-  return Invoke(true, constructor, handle(constructor->global_proxy()), argc,
-                argv, new_target);
+  return Invoke(isolate, true, constructor,
+                isolate->factory()->undefined_value(), argc, argv, new_target);
 }
 
 
@@ -231,98 +226,6 @@ MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
   if (is_termination) isolate->stack_guard()->RequestTerminateExecution();
 
   return maybe_result;
-}
-
-
-// static
-MaybeHandle<JSFunction> Execution::GetFunctionDelegate(Isolate* isolate,
-                                                       Handle<Object> object) {
-  DCHECK(!object->IsJSFunction());
-  if (object->IsHeapObject()) {
-    DisallowHeapAllocation no_gc;
-
-    // If object is a function proxy, get its handler. Iterate if necessary.
-    Object* fun = *object;
-    while (fun->IsJSFunctionProxy()) {
-      fun = JSFunctionProxy::cast(fun)->call_trap();
-    }
-    if (fun->IsJSFunction()) {
-      return handle(JSFunction::cast(fun), isolate);
-    }
-
-    // We can also have exotic objects with [[Call]] internal methods.
-    if (fun->IsCallable()) {
-      return handle(isolate->native_context()->call_as_function_delegate(),
-                    isolate);
-    }
-  }
-
-  // If the Object doesn't have an instance-call handler we should
-  // throw a non-callable exception.
-  Handle<String> callsite = RenderCallSite(isolate, object);
-  THROW_NEW_ERROR(isolate,
-                  NewTypeError(MessageTemplate::kCalledNonCallable, callsite),
-                  JSFunction);
-}
-
-
-// static
-MaybeHandle<JSFunction> Execution::GetConstructorDelegate(
-    Isolate* isolate, Handle<Object> object) {
-  // If you return a function from here, it will be called when an
-  // attempt is made to call the given object as a constructor.
-
-  DCHECK(!object->IsJSFunction());
-  if (object->IsHeapObject()) {
-    DisallowHeapAllocation no_gc;
-
-    // If object is a function proxies, get its handler. Iterate if necessary.
-    Object* fun = *object;
-    while (fun->IsJSFunctionProxy()) {
-      // TODO(bmeurer): This should work based on [[Construct]]; our proxies
-      // are screwed.
-      fun = JSFunctionProxy::cast(fun)->call_trap();
-    }
-    if (fun->IsJSFunction()) {
-      return handle(JSFunction::cast(fun), isolate);
-    }
-
-    // We can also have exotic objects with [[Construct]] internal methods.
-    // TODO(bmeurer): This should use IsConstructor() as dictacted by the spec.
-    if (fun->IsCallable()) {
-      return handle(isolate->native_context()->call_as_constructor_delegate(),
-                    isolate);
-    }
-  }
-
-  // If the Object doesn't have an instance-call handler we should
-  // throw a non-callable exception.
-  Handle<String> callsite = RenderCallSite(isolate, object);
-  THROW_NEW_ERROR(isolate,
-                  NewTypeError(MessageTemplate::kCalledNonCallable, callsite),
-                  JSFunction);
-}
-
-
-// static
-Handle<String> Execution::RenderCallSite(Isolate* isolate,
-                                         Handle<Object> object) {
-  MessageLocation location;
-  if (isolate->ComputeLocation(&location)) {
-    Zone zone;
-    base::SmartPointer<ParseInfo> info(
-        location.function()->shared()->is_function()
-            ? new ParseInfo(&zone, location.function())
-            : new ParseInfo(&zone, location.script()));
-    if (Parser::ParseStatic(info.get())) {
-      CallPrinter printer(isolate, &zone);
-      const char* string = printer.Print(info->literal(), location.start_pos());
-      return isolate->factory()->NewStringFromAsciiChecked(string);
-    } else {
-      isolate->clear_pending_exception();
-    }
-  }
-  return Object::TypeOf(isolate, object);
 }
 
 

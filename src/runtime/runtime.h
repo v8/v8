@@ -244,8 +244,6 @@ namespace internal {
   F(NewObjectFromBound, 1, 1)                               \
   F(Call, -1 /* >= 2 */, 1)                                 \
   F(Apply, 5, 1)                                            \
-  F(GetFunctionDelegate, 1, 1)                              \
-  F(GetConstructorDelegate, 1, 1)                           \
   F(GetOriginalConstructor, 0, 1)                           \
   F(CallFunction, -1 /* receiver + n args + function */, 1) \
   F(IsConstructCall, 0, 1)                                  \
@@ -341,7 +339,8 @@ namespace internal {
   F(HarmonyToString, 0, 1)                    \
   F(GetTypeFeedbackVector, 1, 1)              \
   F(GetCallerJSFunction, 0, 1)                \
-  F(GetCodeStubExportsObject, 0, 1)
+  F(GetCodeStubExportsObject, 0, 1)           \
+  F(ThrowCalledNonCallable, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_JSON(F) \

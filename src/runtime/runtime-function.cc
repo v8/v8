@@ -494,16 +494,9 @@ RUNTIME_FUNCTION(Runtime_NewObjectFromBound) {
         bound_args->get(JSFunction::kBoundArgumentsStartIndex + i), isolate);
   }
 
-  if (!bound_function->IsJSFunction()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, bound_function,
-        Execution::GetConstructorDelegate(isolate, bound_function));
-  }
-  DCHECK(bound_function->IsJSFunction());
-
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Execution::New(Handle<JSFunction>::cast(bound_function),
+      isolate, result, Execution::New(isolate, bound_function, bound_function,
                                       total_argc, param_data.get()));
   return *result;
 }
@@ -560,30 +553,6 @@ RUNTIME_FUNCTION(Runtime_Apply) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, Execution::Call(isolate, fun, receiver, argc, argv));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetFunctionDelegate) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  RUNTIME_ASSERT(!object->IsJSFunction());
-  Handle<JSFunction> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Execution::GetFunctionDelegate(isolate, object));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetConstructorDelegate) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  RUNTIME_ASSERT(!object->IsJSFunction());
-  Handle<JSFunction> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Execution::GetConstructorDelegate(isolate, object));
   return *result;
 }
 

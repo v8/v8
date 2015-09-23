@@ -1585,13 +1585,13 @@ void Builtins::Generate_Call(MacroAssembler* masm) {
   //  -- r1 : the target to call (can be any Object).
   // -----------------------------------
 
-  Label non_smi, non_function;
-  __ JumpIfSmi(r1, &non_function);
+  Label non_callable, non_function, non_smi;
+  __ JumpIfSmi(r1, &non_callable);
   __ bind(&non_smi);
-  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
+  __ CompareObjectType(r1, r4, r5, JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET,
           eq);
-  __ cmp(r2, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ cmp(r5, Operand(JS_FUNCTION_PROXY_TYPE));
   __ b(ne, &non_function);
 
   // 1. Call to function proxy.
@@ -1603,27 +1603,23 @@ void Builtins::Generate_Call(MacroAssembler* masm) {
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
   __ bind(&non_function);
-  // TODO(bmeurer): I wonder why we prefer to have slow API calls? This could
-  // be awesome instead; i.e. a trivial improvement would be to call into the
-  // runtime and just deal with the API function there instead of returning a
-  // delegate from a runtime call that just jumps back to the runtime once
-  // called. Or, bonus points, call directly into the C API function here, as
-  // we do in some Crankshaft fast cases.
-  // Overwrite the original receiver with the (original) target.
+  // Check if target has a [[Call]] internal method.
+  __ ldrb(r4, FieldMemOperand(r4, Map::kBitFieldOffset));
+  __ tst(r4, Operand(1 << Map::kIsCallable));
+  __ b(eq, &non_callable);
+  // Overwrite the original receiver the (original) target.
   __ str(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
-  {
-    // Determine the delegate for the target (if any).
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ SmiTag(r0);
-    __ Push(r0, r1);
-    __ CallRuntime(Runtime::kGetFunctionDelegate, 1);
-    __ mov(r1, r0);
-    __ Pop(r0);
-    __ SmiUntag(r0);
-  }
-  // The delegate is always a regular function.
-  __ AssertFunction(r1);
+  // Let the "call_as_function_delegate" take care of the rest.
+  __ LoadGlobalFunction(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, r1);
   __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
+
+  // 3. Call to something that is not callable.
+  __ bind(&non_callable);
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    __ Push(r1);
+    __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
+  }
 }
 
 
@@ -1658,32 +1654,40 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
-  Label slow;
-  __ JumpIfSmi(r1, &slow);
-  __ CompareObjectType(r1, r5, r5, JS_FUNCTION_TYPE);
+  Label non_callable, non_function;
+  __ JumpIfSmi(r1, &non_callable);
+  __ CompareObjectType(r1, r4, r5, JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->ConstructFunction(),
           RelocInfo::CODE_TARGET, eq);
   __ cmp(r5, Operand(JS_FUNCTION_PROXY_TYPE));
-  __ b(ne, &slow);
+  __ b(ne, &non_function);
 
+  // 1. Construct of function proxy.
   // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
   __ ldr(r1, FieldMemOperand(r1, JSFunctionProxy::kConstructTrapOffset));
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 
-  __ bind(&slow);
-  {
-    // Determine the delegate for the target (if any).
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ SmiTag(r0);
-    __ Push(r0, r1);
-    __ CallRuntime(Runtime::kGetConstructorDelegate, 1);
-    __ mov(r1, r0);
-    __ Pop(r0);
-    __ SmiUntag(r0);
-  }
-  // The delegate is always a regular function.
-  __ AssertFunction(r1);
+  // 2. Construct of something that else, which might have a [[Construct]]
+  // internal method (if not we raise an exception).
+  __ bind(&non_function);
+  // Check if target has a [[Call]] internal method.
+  // TODO(bmeurer): This shoud use IsConstructor once available.
+  __ ldrb(r4, FieldMemOperand(r4, Map::kBitFieldOffset));
+  __ tst(r4, Operand(1 << Map::kIsCallable));
+  __ b(eq, &non_callable);
+  // Overwrite the original receiver the (original) target.
+  __ str(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
+  // Let the "call_as_constructor_delegate" take care of the rest.
+  __ LoadGlobalFunction(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, r1);
   __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
+
+  // 3. Construct of something that is not callable.
+  __ bind(&non_callable);
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    __ Push(r1);
+    __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
+  }
 }
 
 

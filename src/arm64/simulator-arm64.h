@@ -188,7 +188,7 @@ class Simulator : public DecoderVisitor {
   // which set up the simulator state and grab the result on return.
   int64_t CallJS(byte* entry,
                  Object* new_target,
-                 JSFunction* func,
+                 Object* target,
                  Object* revc,
                  int64_t argc,
                  Object*** argv);
