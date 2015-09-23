@@ -126,6 +126,26 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
 
 
 // static
+int TypeFeedbackVector::PushAppliedArgumentsIndex() {
+  const int index_count = VectorICComputer::word_count(1);
+  return kReservedIndexCount + index_count;
+}
+
+
+// static
+Handle<TypeFeedbackVector> TypeFeedbackVector::CreatePushAppliedArgumentsVector(
+    Isolate* isolate) {
+  Code::Kind kinds[] = {Code::KEYED_LOAD_IC};
+  FeedbackVectorSpec spec(0, 1, kinds);
+  Handle<TypeFeedbackVector> feedback_vector =
+      isolate->factory()->NewTypeFeedbackVector(&spec);
+  DCHECK(PushAppliedArgumentsIndex() ==
+         feedback_vector->GetIndex(FeedbackVectorICSlot(0)));
+  return feedback_vector;
+}
+
+
+// static
 Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
     Isolate* isolate, Handle<TypeFeedbackVector> vector) {
   Handle<TypeFeedbackVector> result;

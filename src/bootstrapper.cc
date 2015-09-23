@@ -1937,12 +1937,16 @@ void Genesis::InitializeGlobal_harmony_reflect() {
       MaybeHandle<JSObject>(), Builtins::kReflectApply);
   apply->shared()->set_internal_formal_parameter_count(3);
   apply->shared()->set_length(3);
+  apply->shared()->set_feedback_vector(
+      *TypeFeedbackVector::CreatePushAppliedArgumentsVector(isolate()));
 
   Handle<JSFunction> construct = InstallFunction(
       builtins, "$reflectConstruct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
       MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
   construct->shared()->set_internal_formal_parameter_count(3);
   construct->shared()->set_length(2);
+  construct->shared()->set_feedback_vector(
+      *TypeFeedbackVector::CreatePushAppliedArgumentsVector(isolate()));
 
   if (!FLAG_harmony_reflect) return;
 
@@ -2440,6 +2444,8 @@ bool Genesis::InstallNatives(ContextType context_type) {
     Handle<JSFunction> apply =
         InstallFunction(proto, "apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
                         MaybeHandle<JSObject>(), Builtins::kFunctionApply);
+    apply->shared()->set_feedback_vector(
+        *TypeFeedbackVector::CreatePushAppliedArgumentsVector(isolate()));
 
     // Make sure that Function.prototype.call appears to be compiled.
     // The code will never be called, but inline caching for call will

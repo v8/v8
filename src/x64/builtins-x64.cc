@@ -1165,6 +1165,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
 
 static void Generate_PushAppliedArguments(MacroAssembler* masm,
+                                          const int vectorOffset,
                                           const int argumentsOffset,
                                           const int indexOffset,
                                           const int limitOffset) {
@@ -1181,13 +1182,9 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
   __ movp(receiver, Operand(rbp, argumentsOffset));  // load arguments
 
   // Use inline caching to speed up access to arguments.
-  Code::Kind kinds[] = {Code::KEYED_LOAD_IC};
-  FeedbackVectorSpec spec(0, 1, kinds);
-  Handle<TypeFeedbackVector> feedback_vector =
-      masm->isolate()->factory()->NewTypeFeedbackVector(&spec);
-  int index = feedback_vector->GetIndex(FeedbackVectorICSlot(0));
-  __ Move(slot, Smi::FromInt(index));
-  __ Move(vector, feedback_vector);
+  int slot_index = TypeFeedbackVector::PushAppliedArgumentsIndex();
+  __ Move(slot, Smi::FromInt(slot_index));
+  __ movp(vector, Operand(rbp, vectorOffset));
   Handle<Code> ic =
       KeyedLoadICStub(masm->isolate(), LoadICState(kNoExtraICState)).GetCode();
   __ Call(ic, RelocInfo::CODE_TARGET);
@@ -1234,6 +1231,13 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     static const int kArgumentsOffset = kFPOnStackSize + kPCOnStackSize;
     static const int kReceiverOffset = kArgumentsOffset + kPointerSize;
     static const int kFunctionOffset = kReceiverOffset + kPointerSize;
+    static const int kVectorOffset =
+        InternalFrameConstants::kCodeOffset - 1 * kPointerSize;
+
+    // Push the vector.
+    __ movp(rdi, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(rdi, FieldOperand(rdi, SharedFunctionInfo::kFeedbackVectorOffset));
+    __ Push(rdi);
 
     __ Push(Operand(rbp, kFunctionOffset));
     __ Push(Operand(rbp, kArgumentsOffset));
@@ -1245,9 +1249,8 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
 
     Generate_CheckStackOverflow(masm, kFunctionOffset, kRaxIsSmiTagged);
 
-    // Push current index and limit.
-    const int kLimitOffset =
-        StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+    // Push current index and limit, and receiver.
+    const int kLimitOffset = kVectorOffset - 1 * kPointerSize;
     const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
     __ Push(rax);  // limit
     __ Push(Immediate(0));  // index
@@ -1307,8 +1310,8 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     __ Push(rbx);
 
     // Loop over the arguments array, pushing each value to the stack
-    Generate_PushAppliedArguments(
-        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
+    Generate_PushAppliedArguments(masm, kVectorOffset, kArgumentsOffset,
+                                  kIndexOffset, kLimitOffset);
 
     // Call the function.
     Label call_proxy;
@@ -1358,6 +1361,14 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     static const int kArgumentsOffset = kNewTargetOffset + kPointerSize;
     static const int kFunctionOffset = kArgumentsOffset + kPointerSize;
 
+    static const int kVectorOffset =
+        InternalFrameConstants::kCodeOffset - 1 * kPointerSize;
+
+    // Push the vector.
+    __ movp(rdi, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(rdi, FieldOperand(rdi, SharedFunctionInfo::kFeedbackVectorOffset));
+    __ Push(rdi);
+
     // If newTarget is not supplied, set it to constructor
     Label validate_arguments;
     __ movp(rax, Operand(rbp, kNewTargetOffset));
@@ -1376,8 +1387,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     Generate_CheckStackOverflow(masm, kFunctionOffset, kRaxIsSmiTagged);
 
     // Push current index and limit.
-    const int kLimitOffset =
-        StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+    const int kLimitOffset = kVectorOffset - 1 * kPointerSize;
     const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
     __ Push(rax);  // limit
     __ Push(Immediate(0));  // index
@@ -1385,8 +1395,8 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ Push(Operand(rbp, kFunctionOffset));
 
     // Loop over the arguments array, pushing each value to the stack
-    Generate_PushAppliedArguments(
-        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
+    Generate_PushAppliedArguments(masm, kVectorOffset, kArgumentsOffset,
+                                  kIndexOffset, kLimitOffset);
 
     // Use undefined feedback vector
     __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
