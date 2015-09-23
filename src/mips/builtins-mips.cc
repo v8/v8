@@ -1628,7 +1628,7 @@ void Builtins::Generate_Call(MacroAssembler* masm) {
   // 3. Call to something that is not callable.
   __ bind(&non_callable);
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(a1);
     __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
@@ -1698,7 +1698,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // 3. Construct of something that is not callable.
   __ bind(&non_callable);
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(a1);
     __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
