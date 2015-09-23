@@ -1013,8 +1013,8 @@ void CodeFlusher::ProcessOptimizedCodeMaps() {
       STATIC_ASSERT(SharedFunctionInfo::kEntryLength == 4);
       Context* context =
           Context::cast(code_map->get(i + SharedFunctionInfo::kContextOffset));
-      Code* code =
-          Code::cast(code_map->get(i + SharedFunctionInfo::kCachedCodeOffset));
+      HeapObject* code = HeapObject::cast(
+          code_map->get(i + SharedFunctionInfo::kCachedCodeOffset));
       FixedArray* literals = FixedArray::cast(
           code_map->get(i + SharedFunctionInfo::kLiteralsOffset));
       Smi* ast_id =

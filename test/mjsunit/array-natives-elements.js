@@ -30,6 +30,7 @@
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
 
+var __sequence = 0;
 function array_natives_test() {
 
   // Ensure small array literals start in specific element kind mode.
@@ -41,7 +42,6 @@ function array_natives_test() {
 
   // This code exists to eliminate the learning influence of AllocationSites
   // on the following tests.
-  var __sequence = 0;
   function make_array_string(literal) {
     this.__sequence = this.__sequence + 1;
     return "/* " + this.__sequence + " */  " + literal;

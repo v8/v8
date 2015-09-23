@@ -1731,13 +1731,15 @@ void CodeStubGraphBuilderBase::BuildCheckAndInstallOptimizedCode(
       optimized_map, map_index, SharedFunctionInfo::kContextOffset);
   HValue* osr_ast_slot = LoadFromOptimizedCodeMap(
       optimized_map, map_index, SharedFunctionInfo::kOsrAstIdOffset);
+  HValue* code_object = LoadFromOptimizedCodeMap(
+      optimized_map, map_index, SharedFunctionInfo::kCachedCodeOffset);
   builder->If<HCompareObjectEqAndBranch>(native_context,
                                          context_slot);
   builder->AndIf<HCompareObjectEqAndBranch>(osr_ast_slot, osr_ast_id_none);
+  builder->And();
+  builder->IfNot<HCompareObjectEqAndBranch>(code_object,
+                                            graph()->GetConstantUndefined());
   builder->Then();
-  HValue* code_object = LoadFromOptimizedCodeMap(optimized_map,
-      map_index, SharedFunctionInfo::kCachedCodeOffset);
-  // and the literals
   HValue* literals = LoadFromOptimizedCodeMap(optimized_map,
       map_index, SharedFunctionInfo::kLiteralsOffset);
 

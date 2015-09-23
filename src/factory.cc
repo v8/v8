@@ -1314,17 +1314,24 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       context->native_context(), BailoutId::None());
   if (cached.code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
-    if (cached.literals != nullptr) result->set_literals(cached.literals);
     DCHECK(!cached.code->marked_for_deoptimization());
     DCHECK(result->shared()->is_compiled());
     result->ReplaceCode(cached.code);
   }
 
-  if (cached.literals == nullptr && !info->bound()) {
+  if (cached.literals != nullptr) {
+    result->set_literals(cached.literals);
+
+  } else if (!info->bound()) {
     int number_of_literals = info->num_literals();
-    // TODO(mstarzinger): Consider sharing the newly created literals array.
     Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
     result->set_literals(*literals);
+    // Cache context-specific literals.
+    if (FLAG_cache_optimized_code) {
+      Handle<Context> native_context(context->native_context());
+      SharedFunctionInfo::AddToOptimizedCodeMap(
+          info, native_context, undefined_value(), literals, BailoutId::None());
+    }
   }
 
   return result;
