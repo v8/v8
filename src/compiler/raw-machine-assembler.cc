@@ -32,7 +32,7 @@ RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
   parameters_ = zone()->NewArray<Node*>(param_count);
   for (size_t i = 0; i < parameter_count(); ++i) {
     parameters_[i] =
-        NewNode(common()->Parameter(static_cast<int>(i)), graph->start());
+        AddNode(common()->Parameter(static_cast<int>(i)), graph->start());
   }
 }
 
@@ -64,7 +64,7 @@ void RawMachineAssembler::Goto(Label* label) {
 void RawMachineAssembler::Branch(Node* condition, Label* true_val,
                                  Label* false_val) {
   DCHECK(current_block_ != schedule()->end());
-  Node* branch = NewNode(common()->Branch(), condition);
+  Node* branch = AddNode(common()->Branch(), condition);
   schedule()->AddBranch(CurrentBlock(), branch, Use(true_val), Use(false_val));
   current_block_ = nullptr;
 }
@@ -75,7 +75,7 @@ void RawMachineAssembler::Switch(Node* index, Label* default_label,
                                  size_t case_count) {
   DCHECK_NE(schedule()->end(), current_block_);
   size_t succ_count = case_count + 1;
-  Node* switch_node = NewNode(common()->Switch(succ_count), index);
+  Node* switch_node = AddNode(common()->Switch(succ_count), index);
   BasicBlock** succ_blocks = zone()->NewArray<BasicBlock*>(succ_count);
   for (size_t index = 0; index < case_count; ++index) {
     int32_t case_value = case_values[index];
@@ -95,7 +95,7 @@ void RawMachineAssembler::Switch(Node* index, Label* default_label,
 
 
 void RawMachineAssembler::Return(Node* value) {
-  Node* ret = graph()->NewNode(common()->Return(), value);
+  Node* ret = MakeNode(common()->Return(), 1, &value);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
@@ -114,9 +114,7 @@ Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
   }
   buffer[index++] = graph()->start();
   buffer[index++] = graph()->start();
-  Node* call = graph()->NewNode(common()->Call(desc), input_count, buffer);
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
+  return AddNode(common()->Call(desc), input_count, buffer);
 }
 
 
@@ -136,9 +134,7 @@ Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* desc,
   buffer[index++] = frame_state;
   buffer[index++] = graph()->start();
   buffer[index++] = graph()->start();
-  Node* call = graph()->NewNode(common()->Call(desc), input_count, buffer);
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
+  return AddNode(common()->Call(desc), input_count, buffer);
 }
 
 
@@ -155,8 +151,7 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
   }
   buffer[index++] = graph()->start();
   buffer[index++] = graph()->start();
-  Node* tail_call =
-      graph()->NewNode(common()->TailCall(desc), input_count, buffer);
+  Node* tail_call = MakeNode(common()->TailCall(desc), input_count, buffer);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   return tail_call;
 }
@@ -170,11 +165,8 @@ Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
       isolate(), zone(), callable.descriptor(), 1,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
   Node* stub_code = HeapConstant(callable.code());
-  Node* call = graph()->NewNode(common()->Call(desc), stub_code, function,
-                                receiver, context, frame_state,
-                                graph()->start(), graph()->start());
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
+  return AddNode(common()->Call(desc), stub_code, function, receiver, context,
+                 frame_state, graph()->start(), graph()->start());
 }
 
 
@@ -184,15 +176,12 @@ Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
       zone(), function, 1, Operator::kNoProperties, false);
 
   Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
-  Node* ref = NewNode(
+  Node* ref = AddNode(
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(1);
 
-  Node* call =
-      graph()->NewNode(common()->Call(descriptor), centry, arg1, ref, arity,
-                       context, graph()->start(), graph()->start());
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
+  return AddNode(common()->Call(descriptor), centry, arg1, ref, arity, context,
+                 graph()->start(), graph()->start());
 }
 
 
@@ -202,15 +191,12 @@ Node* RawMachineAssembler::CallRuntime2(Runtime::FunctionId function,
       zone(), function, 2, Operator::kNoProperties, false);
 
   Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
-  Node* ref = NewNode(
+  Node* ref = AddNode(
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(2);
 
-  Node* call =
-      graph()->NewNode(common()->Call(descriptor), centry, arg1, arg2, ref,
-                       arity, context, graph()->start(), graph()->start());
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
+  return AddNode(common()->Call(descriptor), centry, arg1, arg2, ref, arity,
+                 context, graph()->start(), graph()->start());
 }
 
 
@@ -221,10 +207,8 @@ Node* RawMachineAssembler::CallCFunction0(MachineType return_type,
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
-  Node* call = graph()->NewNode(common()->Call(descriptor), function,
-                                graph()->start(), graph()->start());
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
+  return AddNode(common()->Call(descriptor), function, graph()->start(),
+                 graph()->start());
 }
 
 
@@ -237,10 +221,8 @@ Node* RawMachineAssembler::CallCFunction1(MachineType return_type,
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
-  Node* call = graph()->NewNode(common()->Call(descriptor), function, arg0,
-                                graph()->start(), graph()->start());
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
+  return AddNode(common()->Call(descriptor), function, arg0, graph()->start(),
+                 graph()->start());
 }
 
 
@@ -255,10 +237,8 @@ Node* RawMachineAssembler::CallCFunction2(MachineType return_type,
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
-  Node* call = graph()->NewNode(common()->Call(descriptor), function, arg0,
-                                arg1, graph()->start(), graph()->start());
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
+  return AddNode(common()->Call(descriptor), function, arg0, arg1,
+                 graph()->start(), graph()->start());
 }
 
 
@@ -291,10 +271,7 @@ Node* RawMachineAssembler::CallCFunction8(
                   graph()->start()};
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
-  Node* call =
-      graph()->NewNode(common()->Call(descriptor), arraysize(args), args);
-  schedule()->AddNode(CurrentBlock(), call);
-  return call;
+  return AddNode(common()->Call(descriptor), arraysize(args), args);
 }
 
 
@@ -324,13 +301,21 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 }
 
 
-Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
-                                    Node** inputs) {
+Node* RawMachineAssembler::AddNode(const Operator* op, int input_count,
+                                   Node** inputs) {
   DCHECK_NOT_NULL(schedule_);
   DCHECK(current_block_ != nullptr);
-  Node* node = graph()->NewNode(op, input_count, inputs);
+  Node* node = MakeNode(op, input_count, inputs);
   schedule()->AddNode(CurrentBlock(), node);
   return node;
+}
+
+
+Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
+                                    Node** inputs) {
+  // The raw machine assembler nodes do not have effect and control inputs,
+  // so we disable checking input counts here.
+  return graph()->NewNodeUnchecked(op, input_count, inputs);
 }
 
 }  // namespace compiler

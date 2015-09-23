@@ -84,15 +84,9 @@ class JSTypeFeedbackTest : public TypedGraphTest {
 
     Handle<Name> name = isolate()->factory()->InternalizeUtf8String(string);
     const Operator* op = javascript()->LoadGlobal(name, feedback);
-    Node* load = graph()->NewNode(op, context, global, vector, context);
-    if (mode == JSTypeFeedbackSpecializer::kDeoptimizationEnabled) {
-      for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op);
-           i++) {
-        load->AppendInput(zone(), EmptyFrameState());
-      }
-    }
-    load->AppendInput(zone(), effect);
-    load->AppendInput(zone(), control);
+    Node* load =
+        graph()->NewNode(op, context, global, vector, context,
+                         EmptyFrameState(), EmptyFrameState(), effect, control);
     Node* if_success = graph()->NewNode(common()->IfSuccess(), load);
     return graph()->NewNode(common()->Return(), load, load, if_success);
   }

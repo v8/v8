@@ -41,7 +41,8 @@ class JSConstantCacheTester : public HandleAndZoneScope,
         JSGraph(main_isolate(), &main_graph_, &main_common_, &main_javascript_,
                 &main_machine_) {
     main_graph_.SetStart(main_graph_.NewNode(common()->Start(0)));
-    main_graph_.SetEnd(main_graph_.NewNode(common()->End(1)));
+    main_graph_.SetEnd(
+        main_graph_.NewNode(common()->End(1), main_graph_.start()));
     main_typer_.Run();
   }
 

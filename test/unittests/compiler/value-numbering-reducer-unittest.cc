@@ -44,8 +44,8 @@ class ValueNumberingReducerTest : public TestWithZone {
 TEST_F(ValueNumberingReducerTest, AllInputsAreChecked) {
   Node* na = graph()->NewNode(&kOp0);
   Node* nb = graph()->NewNode(&kOp0);
-  Node* n1 = graph()->NewNode(&kOp0, na);
-  Node* n2 = graph()->NewNode(&kOp0, nb);
+  Node* n1 = graph()->NewNode(&kOp1, na);
+  Node* n2 = graph()->NewNode(&kOp1, nb);
   EXPECT_FALSE(Reduce(n1).Changed());
   EXPECT_FALSE(Reduce(n2).Changed());
 }

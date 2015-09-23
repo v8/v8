@@ -266,9 +266,12 @@ class RepresentationSelector {
   // Helper for binops of the R x L -> O variety.
   void VisitBinop(Node* node, MachineTypeUnion left_use,
                   MachineTypeUnion right_use, MachineTypeUnion output) {
-    DCHECK_EQ(2, node->InputCount());
+    DCHECK_EQ(2, node->op()->ValueInputCount());
     ProcessInput(node, 0, left_use);
     ProcessInput(node, 1, right_use);
+    for (int i = 2; i < node->InputCount(); i++) {
+      Enqueue(node->InputAt(i));
+    }
     SetOutput(node, output);
   }
 

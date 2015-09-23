@@ -207,7 +207,7 @@ class CompareWrapper {
   explicit CompareWrapper(IrOpcode::Value op) : opcode(op) {}
 
   Node* MakeNode(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) {
-    return m->NewNode(op(m->machine()), a, b);
+    return m->AddNode(op(m->machine()), a, b);
   }
 
   const Operator* op(MachineOperatorBuilder* machine) {
