@@ -1010,7 +1010,6 @@ MUST_USE_RESULT static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
   DCHECK(it.HolderIsReceiverOrHiddenPrototype());
   it.ReconfigureDataProperty(value, it.property_details().attributes());
-  it.WriteDataValue(value);
 
   if (is_observed && !old_value->SameValue(*value)) {
     return JSObject::EnqueueChangeRecord(object, "update", name, old_value);
