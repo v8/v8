@@ -144,16 +144,15 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
                                              CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
-  Code::Flags flags =
-      info->IsStub()
-          ? info->code_stub()
-                ? Code::ComputeFlags(info->code_stub()->GetCodeKind(),
-                                     info->code_stub()->GetICState(),
-                                     info->code_stub()->GetExtraICState(),
-                                     info->code_stub()->GetStubType())
-                : Code::ComputeFlags(Code::STUB)
-          : Code::ComputeFlags(info->IsOptimizing() ? Code::OPTIMIZED_FUNCTION
-                                                    : Code::FUNCTION);
+  Code::Flags flags;
+  if (info->IsStub() && info->code_stub()) {
+    DCHECK_EQ(info->output_code_kind(), info->code_stub()->GetCodeKind());
+    flags = Code::ComputeFlags(
+        info->output_code_kind(), info->code_stub()->GetICState(),
+        info->code_stub()->GetExtraICState(), info->code_stub()->GetStubType());
+  } else {
+    flags = Code::ComputeFlags(info->output_code_kind());
+  }
 
   // Allocate and install the code.
   CodeDesc desc;

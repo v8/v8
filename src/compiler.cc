@@ -154,7 +154,9 @@ CompilationInfo::CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone)
 
 CompilationInfo::CompilationInfo(const char* debug_name, Isolate* isolate,
                                  Zone* zone)
-    : CompilationInfo(nullptr, nullptr, debug_name, STUB, isolate, zone) {}
+    : CompilationInfo(nullptr, nullptr, debug_name, STUB, isolate, zone) {
+  set_output_code_kind(Code::STUB);
+}
 
 CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
                                  const char* debug_name, Mode mode,
@@ -188,6 +190,9 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
     if (descriptor.function_mode() == NOT_JS_FUNCTION_STUB_MODE) {
       parameter_count_--;
     }
+    set_output_code_kind(code_stub->GetCodeKind());
+  } else {
+    set_output_code_kind(Code::FUNCTION);
   }
 }
 
@@ -208,6 +213,7 @@ void CompilationInfo::SetStub(CodeStub* code_stub) {
   SetMode(STUB);
   code_stub_ = code_stub;
   debug_name_ = CodeStub::MajorName(code_stub->MajorKey());
+  set_output_code_kind(code_stub->GetCodeKind());
 }
 
 
