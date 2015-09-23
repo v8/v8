@@ -5280,6 +5280,7 @@ TEST(RunCallCFunction8) {
 #endif  // USE_SIMULATOR
 
 #if V8_TARGET_ARCH_64_BIT
+// TODO(titzer): run int64 tests on all platforms when supported.
 TEST(RunCheckedLoadInt64) {
   int64_t buffer[] = {0x66bbccddeeff0011LL, 0x1122334455667788LL};
   RawMachineAssemblerTester<int64_t> m(kMachInt32);
@@ -5325,7 +5326,6 @@ TEST(RunCheckedStoreInt64) {
 
 
 TEST(RunBitcastInt64ToFloat64) {
-  // TODO(titzer): run int64 tests on all platforms when supported.
   int64_t input = 1;
   double output = 0.0;
   RawMachineAssemblerTester<int32_t> m;
@@ -5333,8 +5333,8 @@ TEST(RunBitcastInt64ToFloat64) {
       &output, kMachFloat64,
       m.BitcastInt64ToFloat64(m.LoadFromPointer(&input, kMachInt64)));
   m.Return(m.Int32Constant(11));
-  FOR_INT32_INPUTS(i) {
-    input = static_cast<int64_t>(*i) * 14444;
+  FOR_INT64_INPUTS(i) {
+    input = *i;
     CHECK_EQ(11, m.Call());
     double expected = bit_cast<double>(input);
     CHECK_EQ(bit_cast<int64_t>(expected), bit_cast<int64_t>(output));
@@ -5343,7 +5343,6 @@ TEST(RunBitcastInt64ToFloat64) {
 
 
 TEST(RunBitcastFloat64ToInt64) {
-  // TODO(titzer): run int64 tests on all platforms when supported.
   double input = 0;
   int64_t output = 0;
   RawMachineAssemblerTester<int32_t> m;
