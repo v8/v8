@@ -113,7 +113,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
                                         HValue* shared_info,
                                         HValue* native_context);
 
-  HValue* CheckString(HValue* input, bool convert);
+  HValue* BuildToString(HValue* input, bool convert);
+  HValue* BuildToPrimitive(HValue* input, HValue* input_map);
 
  private:
   HValue* BuildArraySingleArgumentConstructor(JSArrayBuilder* builder);
@@ -1458,7 +1459,7 @@ Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode() {
 }
 
 
-HValue* CodeStubGraphBuilderBase::CheckString(HValue* input, bool convert) {
+HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
   if (!convert) return BuildCheckString(input);
   IfBuilder if_inputissmi(this);
   HValue* inputissmi = if_inputissmi.If<HIsSmiAndBranch>(input);
@@ -1496,11 +1497,8 @@ HValue* CodeStubGraphBuilderBase::CheckString(HValue* input, bool convert) {
       }
       if_inputisprimitive.Else();
       {
-        // TODO(bmeurer): Add support for fast ToPrimitive conversion using
-        // a dedicated ToPrimitiveStub.
-        Add<HPushArguments>(input);
-        Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kToPrimitive),
-                               1));
+        // Convert the input to a primitive.
+        Push(BuildToPrimitive(input, input_map));
       }
       if_inputisprimitive.End();
       // Convert the primitive to a string value.
@@ -1518,6 +1516,83 @@ HValue* CodeStubGraphBuilderBase::CheckString(HValue* input, bool convert) {
 }
 
 
+HValue* CodeStubGraphBuilderBase::BuildToPrimitive(HValue* input,
+                                                   HValue* input_map) {
+  // Get the native context of the caller.
+  HValue* native_context = BuildGetNativeContext();
+
+  // Determine the initial map of the %ObjectPrototype%.
+  HValue* object_function_prototype_map =
+      Add<HLoadNamedField>(native_context, nullptr,
+                           HObjectAccess::ForContextSlot(
+                               Context::OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX));
+
+  // Determine the initial map of the %StringPrototype%.
+  HValue* string_function_prototype_map =
+      Add<HLoadNamedField>(native_context, nullptr,
+                           HObjectAccess::ForContextSlot(
+                               Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+
+  // Determine the initial map of the String function.
+  HValue* string_function = Add<HLoadNamedField>(
+      native_context, nullptr,
+      HObjectAccess::ForContextSlot(Context::STRING_FUNCTION_INDEX));
+  HValue* string_function_initial_map = Add<HLoadNamedField>(
+      string_function, nullptr, HObjectAccess::ForPrototypeOrInitialMap());
+
+  // Determine the map of the [[Prototype]] of {input}.
+  HValue* input_prototype =
+      Add<HLoadNamedField>(input_map, nullptr, HObjectAccess::ForPrototype());
+  HValue* input_prototype_map =
+      Add<HLoadNamedField>(input_prototype, nullptr, HObjectAccess::ForMap());
+
+  // For string wrappers (JSValue instances with [[StringData]] internal
+  // fields), we can shortcirciut the ToPrimitive if
+  //
+  //  (a) the {input} map matches the initial map of the String function,
+  //  (b) the {input} [[Prototype]] is the unmodified %StringPrototype% (i.e.
+  //      no one monkey-patched toString, @@toPrimitive or valueOf), and
+  //  (c) the %ObjectPrototype% (i.e. the [[Prototype]] of the
+  //      %StringPrototype%) is also unmodified, that is no one sneaked a
+  //      @@toPrimitive into the %ObjectPrototype%.
+  //
+  // If all these assumptions hold, we can just take the [[StringData]] value
+  // and return it.
+  // TODO(bmeurer): This just repairs a regression introduced by removing the
+  // weird (and broken) intrinsic %_IsStringWrapperSafeForDefaultValue, which
+  // was intendend to something similar to this, although less efficient and
+  // wrong in the presence of @@toPrimitive. Long-term we might want to move
+  // into the direction of having a ToPrimitiveStub that can do common cases
+  // while staying in JavaScript land (i.e. not going to C++).
+  IfBuilder if_inputisstringwrapper(this);
+  if_inputisstringwrapper.If<HCompareObjectEqAndBranch>(
+      input_map, string_function_initial_map);
+  if_inputisstringwrapper.And();
+  if_inputisstringwrapper.If<HCompareObjectEqAndBranch>(
+      input_prototype_map, string_function_prototype_map);
+  if_inputisstringwrapper.And();
+  if_inputisstringwrapper.If<HCompareObjectEqAndBranch>(
+      Add<HLoadNamedField>(Add<HLoadNamedField>(input_prototype_map, nullptr,
+                                                HObjectAccess::ForPrototype()),
+                           nullptr, HObjectAccess::ForMap()),
+      object_function_prototype_map);
+  if_inputisstringwrapper.Then();
+  {
+    Push(BuildLoadNamedField(
+        input, FieldIndex::ForInObjectOffset(JSValue::kValueOffset)));
+  }
+  if_inputisstringwrapper.Else();
+  {
+    // TODO(bmeurer): Add support for fast ToPrimitive conversion using
+    // a dedicated ToPrimitiveStub.
+    Add<HPushArguments>(input);
+    Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kToPrimitive), 1));
+  }
+  if_inputisstringwrapper.End();
+  return Pop();
+}
+
+
 template <>
 HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
   StringAddStub* stub = casted_stub();
@@ -1530,11 +1605,11 @@ HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
   // Make sure that both arguments are strings if not known in advance.
   if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
     left =
-        CheckString(left, (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
+        BuildToString(left, (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    right =
-        CheckString(right, (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
+    right = BuildToString(right,
+                          (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
   }
 
   return BuildStringAdd(left, right, HAllocationMode(pretenure_flag));

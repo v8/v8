@@ -2334,7 +2334,15 @@ bool Genesis::InstallNatives(ContextType context_type) {
                            USE_CUSTOM_MINIMUM_CAPACITY);
   native_context()->set_function_cache(*function_cache);
 
-  // Store the map for the string prototype after the natives has been compiled
+  // Store the map for the %ObjectPrototype% after the natives has been compiled
+  // and the Object function has been set up.
+  Handle<JSFunction> object_function(native_context()->object_function());
+  DCHECK(JSObject::cast(object_function->initial_map()->prototype())
+             ->HasFastProperties());
+  native_context()->set_object_function_prototype_map(
+      HeapObject::cast(object_function->initial_map()->prototype())->map());
+
+  // Store the map for the %StringPrototype% after the natives has been compiled
   // and the String function has been set up.
   Handle<JSFunction> string_function(native_context()->string_function());
   DCHECK(JSObject::cast(
