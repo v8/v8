@@ -1034,8 +1034,6 @@ class Object {
   INLINE(bool IsCallable() const);
 
   INLINE(bool IsSpecObject()) const;
-  // TODO(rossberg): IsSpecFunction should be removed in favor of IsCallable.
-  INLINE(bool IsSpecFunction()) const;
   INLINE(bool IsTemplateInfo()) const;
   INLINE(bool IsNameDictionary() const);
   INLINE(bool IsGlobalDictionary() const);

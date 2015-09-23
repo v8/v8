@@ -1204,7 +1204,7 @@ RUNTIME_FUNCTION(Runtime_IsJSGlobalProxy) {
 
 
 static bool IsValidAccessor(Handle<Object> obj) {
-  return obj->IsUndefined() || obj->IsSpecFunction() || obj->IsNull();
+  return obj->IsUndefined() || obj->IsCallable() || obj->IsNull();
 }
 
 

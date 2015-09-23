@@ -198,14 +198,6 @@ bool Object::IsSpecObject() const {
 }
 
 
-// TODO(rossberg): Remove this and use the spec compliant IsCallable instead.
-bool Object::IsSpecFunction() const {
-  if (!Object::IsHeapObject()) return false;
-  InstanceType type = HeapObject::cast(this)->map()->instance_type();
-  return type == JS_FUNCTION_TYPE || type == JS_FUNCTION_PROXY_TYPE;
-}
-
-
 bool Object::IsTemplateInfo() const {
   return IsObjectTemplateInfo() || IsFunctionTemplateInfo();
 }
@@ -7359,7 +7351,7 @@ bool AccessorPair::ContainsAccessor() {
 
 
 bool AccessorPair::IsJSAccessor(Object* obj) {
-  return obj->IsSpecFunction() || obj->IsUndefined();
+  return obj->IsCallable() || obj->IsUndefined();
 }
 
 
