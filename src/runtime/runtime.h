@@ -684,7 +684,6 @@ namespace internal {
   F(Uint32x4Not, 1, 1)                       \
   F(Uint32x4ShiftLeftByScalar, 2, 1)         \
   F(Uint32x4ShiftRightByScalar, 2, 1)        \
-  F(Uint32x4HorizontalSum, 1, 1)             \
   F(Uint32x4Equal, 2, 1)                     \
   F(Uint32x4NotEqual, 2, 1)                  \
   F(Uint32x4LessThan, 2, 1)                  \
@@ -772,9 +771,6 @@ namespace internal {
   F(Uint16x8Not, 1, 1)                       \
   F(Uint16x8ShiftLeftByScalar, 2, 1)         \
   F(Uint16x8ShiftRightByScalar, 2, 1)        \
-  F(Uint16x8HorizontalSum, 1, 1)             \
-  F(Uint16x8AbsoluteDifference, 2, 1)        \
-  F(Uint16x8WidenedAbsoluteDifference, 2, 1) \
   F(Uint16x8Equal, 2, 1)                     \
   F(Uint16x8NotEqual, 2, 1)                  \
   F(Uint16x8LessThan, 2, 1)                  \
@@ -855,9 +851,6 @@ namespace internal {
   F(Uint8x16Not, 1, 1)                       \
   F(Uint8x16ShiftLeftByScalar, 2, 1)         \
   F(Uint8x16ShiftRightByScalar, 2, 1)        \
-  F(Uint8x16HorizontalSum, 1, 1)             \
-  F(Uint8x16AbsoluteDifference, 2, 1)        \
-  F(Uint8x16WidenedAbsoluteDifference, 2, 1) \
   F(Uint8x16Equal, 2, 1)                     \
   F(Uint8x16NotEqual, 2, 1)                  \
   F(Uint8x16LessThan, 2, 1)                  \

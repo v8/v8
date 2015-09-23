@@ -110,14 +110,6 @@ inline T AddSaturate(T a, T b) {
 }
 
 
-// Widening absolute difference for uint16_t and uint8_t.
-template <typename T>
-inline uint32_t AbsoluteDifference(T a, T b) {
-  uint32_t result = std::abs(a - b);
-  return result;
-}
-
-
 // Saturating subtraction for int16_t and int8_t.
 template <typename T>
 inline T SubSaturate(T a, T b) {
@@ -492,23 +484,10 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
     return *result;                                                    \
   }
 
-#define SIMD_HORIZONTAL_SUM_FUNCTION(type, lane_type, lane_bits, lane_count) \
-  RUNTIME_FUNCTION(Runtime_##type##HorizontalSum) {                          \
-    HandleScope scope(isolate);                                              \
-    DCHECK(args.length() == 1);                                              \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                                  \
-    double sum = 0;                                                          \
-    for (int i = 0; i < lane_count; i++) {                                   \
-      sum += a->get_lane(i);                                                 \
-    }                                                                        \
-    return *isolate->factory()->NewNumber(sum);                              \
-  }
-
 SIMD_INT_TYPES(SIMD_LSL_FUNCTION)
 SIMD_UINT_TYPES(SIMD_LSL_FUNCTION)
 SIMD_INT_TYPES(SIMD_ASR_FUNCTION)
 SIMD_UINT_TYPES(SIMD_LSR_FUNCTION)
-SIMD_UINT_TYPES(SIMD_HORIZONTAL_SUM_FUNCTION)
 
 //-------------------------------------------------------------------
 
@@ -579,41 +558,6 @@ SIMD_BOOL_TYPES(SIMD_ALL_FUNCTION)
 
 SIMD_SMALL_INT_TYPES(SIMD_ADD_SATURATE_FUNCTION)
 SIMD_SMALL_INT_TYPES(SIMD_SUB_SATURATE_FUNCTION)
-
-//-------------------------------------------------------------------
-
-// Small Unsigned int-only functions.
-
-#define SIMD_SMALL_UINT_TYPES(FUNCTION)               \
-  FUNCTION(Uint16x8, uint16_t, 8, Uint32x4, uint32_t) \
-  FUNCTION(Uint8x16, uint8_t, 16, Uint16x8, uint16_t)
-
-#define SIMD_ABS_DIFF_FUNCTION(type, lane_type, lane_count, wide_type,       \
-                               wide_ctype)                                   \
-  RUNTIME_FUNCTION(Runtime_##type##AbsoluteDifference) {                     \
-    HandleScope scope(isolate);                                              \
-    SIMD_BINARY_OP(type, lane_type, lane_count, AbsoluteDifference, result); \
-    return *result;                                                          \
-  }
-
-#define SIMD_WIDE_ABS_DIFF_FUNCTION(type, lane_type, lane_count, wide_type, \
-                                    wide_ctype)                             \
-  RUNTIME_FUNCTION(Runtime_##type##WidenedAbsoluteDifference) {             \
-    HandleScope scope(isolate);                                             \
-    static const int kLaneCount = lane_count / 2;                           \
-    DCHECK(args.length() == 2);                                             \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                                 \
-    CONVERT_ARG_HANDLE_CHECKED(type, b, 1);                                 \
-    wide_ctype lanes[kLaneCount];                                           \
-    for (int i = 0; i < kLaneCount; i++) {                                  \
-      lanes[i] = AbsoluteDifference(a->get_lane(i), b->get_lane(i));        \
-    }                                                                       \
-    Handle<wide_type> result = isolate->factory()->New##wide_type(lanes);   \
-    return *result;                                                         \
-  }
-
-SIMD_SMALL_UINT_TYPES(SIMD_ABS_DIFF_FUNCTION)
-SIMD_SMALL_UINT_TYPES(SIMD_WIDE_ABS_DIFF_FUNCTION)
 
 //-------------------------------------------------------------------
 

@@ -97,7 +97,7 @@ endmacro
 
 SIMD_ALL_TYPES(DECLARE_COMMON_FUNCTIONS)
 
-macro DECLARE_INT_FUNCTIONS(NAME, TYPE, LANES)
+macro DECLARE_SHIFT_FUNCTIONS(NAME, TYPE, LANES)
 function NAMEShiftLeftByScalarJS(instance, shift) {
   return %NAMEShiftLeftByScalar(instance, shift);
 }
@@ -107,23 +107,8 @@ function NAMEShiftRightByScalarJS(instance, shift) {
 }
 endmacro
 
-SIMD_INT_TYPES(DECLARE_INT_FUNCTIONS)
-
-macro DECLARE_UINT_FUNCTIONS(NAME, TYPE, LANES)
-function NAMEShiftLeftByScalarJS(instance, shift) {
-  return %NAMEShiftLeftByScalar(instance, shift);
-}
-
-function NAMEShiftRightByScalarJS(instance, shift) {
-  return %NAMEShiftRightByScalar(instance, shift);
-}
-
-function NAMEHorizontalSumJS(instance) {
-  return %NAMEHorizontalSum(instance);
-}
-endmacro
-
-SIMD_UINT_TYPES(DECLARE_UINT_FUNCTIONS)
+SIMD_INT_TYPES(DECLARE_SHIFT_FUNCTIONS)
+SIMD_UINT_TYPES(DECLARE_SHIFT_FUNCTIONS)
 
 macro SIMD_SMALL_INT_TYPES(FUNCTION)
 FUNCTION(Int16x8)
@@ -143,23 +128,6 @@ function NAMESubSaturateJS(a, b) {
 endmacro
 
 SIMD_SMALL_INT_TYPES(DECLARE_SMALL_INT_FUNCTIONS)
-
-macro SIMD_SMALL_UINT_TYPES(FUNCTION)
-FUNCTION(Uint8x16)
-FUNCTION(Uint16x8)
-endmacro
-
-macro DECLARE_SMALL_UINT_FUNCTIONS(NAME)
-function NAMEAbsoluteDifferenceJS(a, b) {
-  return %NAMEAbsoluteDifference(a, b);
-}
-
-function NAMEWidenedAbsoluteDifferenceJS(a, b) {
-  return %NAMEWidenedAbsoluteDifference(a, b);
-}
-endmacro
-
-SIMD_SMALL_UINT_TYPES(DECLARE_SMALL_UINT_FUNCTIONS)
 
 macro DECLARE_SIGNED_FUNCTIONS(NAME, TYPE, LANES)
 function NAMENegJS(a) {
@@ -703,7 +671,6 @@ utils.InstallFunctions(GlobalUint32x4, DONT_ENUM, [
   'not', Uint32x4NotJS,
   'shiftLeftByScalar', Uint32x4ShiftLeftByScalarJS,
   'shiftRightByScalar', Uint32x4ShiftRightByScalarJS,
-  'horizontalSum', Uint32x4HorizontalSumJS,
   'lessThan', Uint32x4LessThanJS,
   'lessThanOrEqual', Uint32x4LessThanOrEqualJS,
   'greaterThan', Uint32x4GreaterThanJS,
@@ -803,9 +770,6 @@ utils.InstallFunctions(GlobalUint16x8, DONT_ENUM, [
   'not', Uint16x8NotJS,
   'shiftLeftByScalar', Uint16x8ShiftLeftByScalarJS,
   'shiftRightByScalar', Uint16x8ShiftRightByScalarJS,
-  'horizontalSum', Uint16x8HorizontalSumJS,
-  'absoluteDifference', Uint16x8AbsoluteDifferenceJS,
-  'widenedAbsoluteDifference', Uint16x8WidenedAbsoluteDifferenceJS,
   'lessThan', Uint16x8LessThanJS,
   'lessThanOrEqual', Uint16x8LessThanOrEqualJS,
   'greaterThan', Uint16x8GreaterThanJS,
@@ -898,9 +862,6 @@ utils.InstallFunctions(GlobalUint8x16, DONT_ENUM, [
   'not', Uint8x16NotJS,
   'shiftLeftByScalar', Uint8x16ShiftLeftByScalarJS,
   'shiftRightByScalar', Uint8x16ShiftRightByScalarJS,
-  'horizontalSum', Uint8x16HorizontalSumJS,
-  'absoluteDifference', Uint8x16AbsoluteDifferenceJS,
-  'widenedAbsoluteDifference', Uint8x16WidenedAbsoluteDifferenceJS,
   'lessThan', Uint8x16LessThanJS,
   'lessThanOrEqual', Uint8x16LessThanOrEqualJS,
   'greaterThan', Uint8x16GreaterThanJS,
