@@ -283,6 +283,7 @@
   'regress/regress-crbug-137689': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
+  'regress/regress-4121': [SKIP],
   # Tests taking too long
   'debug-stepout-scope-part8': [SKIP],
   'mirror-object': [SKIP],
