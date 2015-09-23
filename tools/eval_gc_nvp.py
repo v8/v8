@@ -6,39 +6,57 @@
 
 """This script is used to analyze GCTracer's NVP output."""
 
+
 from argparse import ArgumentParser
+from copy import deepcopy
 from gc_nvp_common import split_nvp
 from sys import stdin
 
+
 class Histogram:
-  def __init__(self, values, granularity):
-    self.values = list(values)  # copy over values
+  def __init__(self, granularity, fill_empty):
     self.granularity = granularity
+    self.histogram = {}
+    self.fill_empty = fill_empty
+
+  def add(self, key):
+    index = int(key / self.granularity)
+    if index not in self.histogram:
+      self.histogram[index] = 0
+    self.histogram[index] += 1
 
   def __str__(self):
     ret = []
-    values = list(self.values)  # copy over values
-    min_value = 0
-    while len(values) > 0:
-      max_value = min_value +  self.granularity
-      sub = [x for x in self.values if x >= min_value and x < max_value]
+    keys = self.histogram.keys()
+    keys.sort()
+    last = -self.granularity
+    for key in keys:
+      min_value = key * self.granularity
+      max_value = min_value + self.granularity
+
+      if self.fill_empty:
+        while (last + self.granularity) != min_value:
+          last += self.granularity
+          ret.append("  [{0},{1}[: {2}".format(
+            str(last), str(last + self.granularity), 0))
+
       ret.append("  [{0},{1}[: {2}".format(
-        str(min_value), str(max_value),len(sub)))
-      min_value += self.granularity
-      values = [x for x in values if x not in sub]
+        str(min_value), str(max_value), self.histogram[key]))
+      last = min_value
     return "\n".join(ret)
 
 
 class Category:
-  def __init__(self, key, histogram, granularity):
+  def __init__(self, key, histogram):
     self.key = key
     self.values = []
     self.histogram = histogram
-    self.granularity = granularity
 
   def process_entry(self, entry):
     if self.key in entry:
       self.values.append(float(entry[self.key]))
+      if self.histogram:
+        self.histogram.add(float(entry[self.key]))
 
   def __str__(self):
     ret = [self.key]
@@ -48,7 +66,7 @@ class Category:
       ret.append("  max: {0}".format(max(self.values)))
       ret.append("  avg: {0}".format(sum(self.values) / len(self.values)))
       if self.histogram:
-        ret.append(str(Histogram(self.values, self.granularity)))
+        ret.append(str(self.histogram))
     return "\n".join(ret)
 
 
@@ -59,6 +77,9 @@ def main():
   parser.add_argument('--histogram-granularity', metavar='GRANULARITY',
                       type=int, nargs='?', default=5,
                       help='histogram granularity (default: 5)')
+  parser.add_argument('--no-histogram-print-empty', dest='histogram_print_empty',
+                      action='store_false',
+                      help='print empty histogram buckets')
   feature_parser = parser.add_mutually_exclusive_group(required=False)
   feature_parser.add_argument('--histogram', dest='histogram',
                               action='store_true',
@@ -67,9 +88,14 @@ def main():
                               action='store_false',
                               help='do not print histogram')
   parser.set_defaults(histogram=True)
+  parser.set_defaults(histogram_print_empty=True)
   args = parser.parse_args()
 
-  categories = [ Category(key, args.histogram, args.histogram_granularity)
+  histogram = None
+  if args.histogram:
+    histogram = Histogram(args.histogram_granularity, args.histogram_print_empty)
+
+  categories = [ Category(key, deepcopy(histogram))
                  for key in args.keys ]
 
   while True:
