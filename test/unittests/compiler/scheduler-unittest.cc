@@ -755,7 +755,7 @@ TARGET_TEST_F(SchedulerTest, NestedFloatingDiamonds) {
 
   Node* map = graph()->NewNode(
       simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()), p0, p0,
-      p0, start, f);
+      start, f);
   Node* br1 = graph()->NewNode(common()->Branch(), map, graph()->start());
   Node* t1 = graph()->NewNode(common()->IfTrue(), br1);
   Node* f1 = graph()->NewNode(common()->IfFalse(), br1);

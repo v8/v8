@@ -1219,7 +1219,10 @@ TEST(InsertBasicChanges) {
 static void CheckChangesAroundBinop(TestingGraph* t, const Operator* op,
                                     IrOpcode::Value input_change,
                                     IrOpcode::Value output_change) {
-  Node* binop = t->graph()->NewNode(op, t->p0, t->p1);
+  Node* binop =
+      op->ControlInputCount() == 0
+          ? t->graph()->NewNode(op, t->p0, t->p1)
+          : t->graph()->NewNode(op, t->p0, t->p1, t->graph()->start());
   t->Return(binop);
   t->Lower();
   CHECK_EQ(input_change, binop->InputAt(0)->opcode());

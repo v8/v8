@@ -140,24 +140,27 @@ TEST(ReduceJSStoreContext) {
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
-                                    const_context, const_context, start);
+    Node* load =
+        t.graph()->NewNode(t.javascript()->StoreContext(0, 0), const_context,
+                           const_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
   {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
-                                    param_context, param_context, start);
+    Node* load =
+        t.graph()->NewNode(t.javascript()->StoreContext(0, 0), param_context,
+                           param_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
   {
     // Immutable slot, constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, slot),
-                                    const_context, const_context, start);
+    Node* load =
+        t.graph()->NewNode(t.javascript()->StoreContext(0, slot), const_context,
+                           const_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
@@ -166,7 +169,7 @@ TEST(ReduceJSStoreContext) {
     // Mutable slot, constant context, depth > 0 => fold-in parent context.
     Node* load = t.graph()->NewNode(
         t.javascript()->StoreContext(2, Context::GLOBAL_EVAL_FUN_INDEX),
-        deep_const_context, deep_const_context, start);
+        deep_const_context, deep_const_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
@@ -219,9 +222,10 @@ TEST(SpecializeToContext) {
     Node* other_use =
         t.graph()->NewNode(t.simplified()->ChangeTaggedToInt32(), other_load);
 
-    Node* add =
-        t.graph()->NewNode(t.javascript()->Add(LanguageMode::SLOPPY), value_use,
-                           other_use, param_context, other_load, start);
+    Node* add = t.graph()->NewNode(
+        t.javascript()->Add(LanguageMode::SLOPPY), value_use, other_use,
+        param_context, t.jsgraph()->EmptyFrameState(),
+        t.jsgraph()->EmptyFrameState(), other_load, start);
 
     Node* ret =
         t.graph()->NewNode(t.common()->Return(), add, effect_use, start);
