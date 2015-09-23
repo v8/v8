@@ -233,7 +233,6 @@ def _SkipTreeCheck(input_api, output_api):
   """Check the env var whether we want to skip tree check.
      Only skip if include/v8-version.h has been updated."""
   src_version = 'include/v8-version.h'
-  FilterFile = lambda file: file.LocalPath() == src_version
   if not input_api.AffectedSourceFiles(
       lambda file: file.LocalPath() == src_version):
     return False
