@@ -7,7 +7,6 @@
 #include "src/codegen.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/operator-properties.h"
 #include "test/cctest/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
@@ -61,23 +60,8 @@ class TyperTest : public TypedGraphTest {
     Node* p1 = Parameter(1);
     NodeProperties::SetType(p0, lhs);
     NodeProperties::SetType(p1, rhs);
-    std::vector<Node*> inputs;
-    inputs.push_back(p0);
-    inputs.push_back(p1);
-    if (OperatorProperties::HasContextInput(op)) {
-      inputs.push_back(context_node_);
-    }
-    for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op); i++) {
-      inputs.push_back(EmptyFrameState());
-    }
-    for (int i = 0; i < op->EffectInputCount(); i++) {
-      inputs.push_back(graph()->start());
-    }
-    for (int i = 0; i < op->ControlInputCount(); i++) {
-      inputs.push_back(graph()->start());
-    }
-    Node* n = graph()->NewNode(op, static_cast<int>(inputs.size()),
-                               &(inputs.front()));
+    Node* n = graph()->NewNode(op, p0, p1, context_node_, graph()->start(),
+                               graph()->start());
     return NodeProperties::GetType(n);
   }
 

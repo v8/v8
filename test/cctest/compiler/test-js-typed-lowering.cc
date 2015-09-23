@@ -41,7 +41,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         typer(main_isolate(), &graph),
         context_node(NULL) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
-    graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
+    graph.SetEnd(graph.NewNode(common.End(1)));
     typer.Run();
   }
 
@@ -79,7 +79,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     Node* state_node = graph.NewNode(
         common.FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
                           nullptr),
-        parameters, locals, stack, context, UndefinedConstant(), graph.start());
+        parameters, locals, stack, context, UndefinedConstant());
 
     return state_node;
   }
@@ -125,23 +125,16 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Binop(const Operator* op, Node* left, Node* right) {
     // JS binops also require context, effect, and control
-    std::vector<Node*> inputs;
-    inputs.push_back(left);
-    inputs.push_back(right);
-    if (OperatorProperties::HasContextInput(op)) {
-      inputs.push_back(context());
+    if (OperatorProperties::GetFrameStateInputCount(op) == 1) {
+      return graph.NewNode(op, left, right, context(),
+                           EmptyFrameState(context()), start(), control());
+    } else if (OperatorProperties::GetFrameStateInputCount(op) == 2) {
+      return graph.NewNode(op, left, right, context(),
+                           EmptyFrameState(context()),
+                           EmptyFrameState(context()), start(), control());
+    } else {
+      return graph.NewNode(op, left, right, context(), start(), control());
     }
-    for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op); i++) {
-      inputs.push_back(EmptyFrameState(context()));
-    }
-    if (op->EffectInputCount() > 0) {
-      inputs.push_back(start());
-    }
-    if (op->ControlInputCount() > 0) {
-      inputs.push_back(control());
-    }
-    return graph.NewNode(op, static_cast<int>(inputs.size()),
-                         &(inputs.front()));
   }
 
   Node* Unop(const Operator* op, Node* input) {
@@ -835,18 +828,15 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
     Node* p1 = j == 1 ? l : r;
 
     {
-      Node* eq = strict
-                     ? R->graph.NewNode(R->javascript.StrictEqual(), p0, p1,
-                                        R->context())
-                     : R->Binop(R->javascript.Equal(), p0, p1);
+      Node* eq = strict ? R->graph.NewNode(R->javascript.StrictEqual(), p0, p1)
+                        : R->Binop(R->javascript.Equal(), p0, p1);
       Node* r = R->reduce(eq);
       R->CheckPureBinop(expected, r);
     }
 
     {
       Node* ne = strict
-                     ? R->graph.NewNode(R->javascript.StrictNotEqual(), p0, p1,
-                                        R->context())
+                     ? R->graph.NewNode(R->javascript.StrictNotEqual(), p0, p1)
                      : R->Binop(R->javascript.NotEqual(), p0, p1);
       Node* n = R->reduce(ne);
       CHECK_EQ(IrOpcode::kBooleanNot, n->opcode());

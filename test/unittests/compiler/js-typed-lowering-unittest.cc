@@ -742,9 +742,13 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Node* control = graph()->start();
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, vector, context,
-                                    EmptyFrameState(), EmptyFrameState(),
-                                    effect, control);
+      Node* node = graph()->NewNode(op, base, key, value, vector, context);
+      for (int i = 0;
+           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
+        node->AppendInput(zone(), EmptyFrameState());
+      }
+      node->AppendInput(zone(), effect);
+      node->AppendInput(zone(), control);
       Reduction r = Reduce(node);
 
       Matcher<Node*> offset_matcher =
@@ -786,9 +790,13 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* control = graph()->start();
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, vector, context,
-                                    EmptyFrameState(), EmptyFrameState(),
-                                    effect, control);
+      Node* node = graph()->NewNode(op, base, key, value, vector, context);
+      for (int i = 0;
+           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
+        node->AppendInput(zone(), EmptyFrameState());
+      }
+      node->AppendInput(zone(), effect);
+      node->AppendInput(zone(), control);
       Reduction r = Reduce(node);
 
       Matcher<Node*> offset_matcher =
@@ -843,9 +851,13 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       Node* control = graph()->start();
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, vector, context,
-                                    EmptyFrameState(), EmptyFrameState(),
-                                    effect, control);
+      Node* node = graph()->NewNode(op, base, key, value, vector, context);
+      for (int i = 0;
+           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
+        node->AppendInput(zone(), EmptyFrameState());
+      }
+      node->AppendInput(zone(), effect);
+      node->AppendInput(zone(), control);
       Reduction r = Reduce(node);
 
       ASSERT_TRUE(r.Changed());

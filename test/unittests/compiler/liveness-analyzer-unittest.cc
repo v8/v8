@@ -64,10 +64,9 @@ class LivenessAnalysisTest : public GraphTest {
 
     const Operator* op = common()->FrameState(
         BailoutId(ast_num), OutputFrameStateCombine::Ignore(), state_info);
-    Node* result =
-        graph()->NewNode(op, empty_values_, locals, empty_values_,
-                         jsgraph()->UndefinedConstant(),
-                         jsgraph()->UndefinedConstant(), graph()->start());
+    Node* result = graph()->NewNode(op, empty_values_, locals, empty_values_,
+                                    jsgraph()->UndefinedConstant(),
+                                    jsgraph()->UndefinedConstant());
 
     current_block_->Checkpoint(result);
     return result;

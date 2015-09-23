@@ -290,8 +290,7 @@ const IfExceptionHint kNoHint = IfExceptionHint::kLocallyCaught;
 TEST_F(AdvancedReducerTest, ReplaceWithValue_ValueUse) {
   CommonOperatorBuilder common(zone());
   Node* node = graph()->NewNode(&kMockOperator);
-  Node* start = graph()->NewNode(common.Start(1));
-  Node* use_value = graph()->NewNode(common.Return(), node, start, start);
+  Node* use_value = graph()->NewNode(common.Return(), node);
   Node* replacement = graph()->NewNode(&kMockOperator);
   GraphReducer graph_reducer(zone(), graph(), nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
@@ -307,18 +306,16 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_EffectUse) {
   CommonOperatorBuilder common(zone());
   Node* start = graph()->NewNode(common.Start(1));
   Node* node = graph()->NewNode(&kMockOpEffect, start);
-  Node* use_control = graph()->NewNode(common.Merge(1), start);
-  Node* use_effect = graph()->NewNode(common.EffectPhi(1), node, use_control);
+  Node* use_effect = graph()->NewNode(common.EffectPhi(1), node);
   Node* replacement = graph()->NewNode(&kMockOperator);
   GraphReducer graph_reducer(zone(), graph(), nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_effect->InputAt(0));
   EXPECT_EQ(0, node->UseCount());
-  EXPECT_EQ(3, start->UseCount());
+  EXPECT_EQ(2, start->UseCount());
   EXPECT_EQ(0, replacement->UseCount());
-  EXPECT_THAT(start->uses(),
-              UnorderedElementsAre(use_effect, use_control, node));
+  EXPECT_THAT(start->uses(), UnorderedElementsAre(use_effect, node));
 }
 
 
