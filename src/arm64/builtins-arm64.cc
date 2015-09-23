@@ -721,17 +721,13 @@ enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
 
 
 // Clobbers x10, x15; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        const int calleeOffset, Register argc,
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
                                         IsTagged argc_is_tagged) {
-  Register function = x15;
-
   // Check the stack for overflow.
   // We are not trying to catch interruptions (e.g. debug break and
   // preemption) here, so the "real stack limit" is checked.
   Label enough_stack_space;
   __ LoadRoot(x10, Heap::kRealStackLimitRootIndex);
-  __ Ldr(function, MemOperand(fp, calleeOffset));
   // Make x10 the space we have left. The stack might already be overflowed
   // here which will cause x10 to become negative.
   // TODO(jbramley): Check that the stack usage here is safe.
@@ -744,12 +740,6 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
     __ Cmp(x10, Operand(argc, LSL, kPointerSizeLog2));
   }
   __ B(gt, &enough_stack_space);
-  // There is not enough stack space, so use a builtin to throw an appropriate
-  // error.
-  if (argc_is_tagged == kArgcIsUntaggedInt) {
-    __ SmiTag(argc);
-  }
-  __ Push(function, argc);
   __ CallRuntime(Runtime::kThrowStackOverflow, 0);
   // We should never return from the APPLY_OVERFLOW builtin.
   if (__ emit_debug_code()) {
@@ -798,13 +788,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Push(function, receiver);
 
     // Check if we have enough stack space to push all arguments.
-    // The function is the first thing that was pushed above after entering
-    // the internal frame.
-    const int kFunctionOffset =
-        InternalFrameConstants::kCodeOffset - kPointerSize;
     // Expects argument count in eax. Clobbers ecx, edx, edi.
-    Generate_CheckStackOverflow(masm, kFunctionOffset, argc,
-                                kArgcIsUntaggedInt);
+    Generate_CheckStackOverflow(masm, argc, kArgcIsUntaggedInt);
 
     // Copy arguments to the stack in a loop, in reverse order.
     // x3: argc.
@@ -1395,7 +1380,7 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     }
     Register argc = x0;
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset, argc, kArgcIsSmiTagged);
+    Generate_CheckStackOverflow(masm, argc, kArgcIsSmiTagged);
 
     // Push current limit, index and receiver.
     __ Mov(x1, 0);  // Initial index.
@@ -1466,7 +1451,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
                      CALL_FUNCTION);
     Register argc = x0;
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset, argc, kArgcIsSmiTagged);
+    Generate_CheckStackOverflow(masm, argc, kArgcIsSmiTagged);
 
     // Push current limit and index & constructor function as callee.
     __ Mov(x1, 0);  // Initial index.

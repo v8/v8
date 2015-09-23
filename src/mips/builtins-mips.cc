@@ -700,8 +700,7 @@ enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
 
 
 // Clobbers a2; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        const int calleeOffset, Register argc,
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
                                         IsTagged argc_is_tagged) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
@@ -722,11 +721,6 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
   __ Branch(&okay, gt, a2, Operand(t3));
 
   // Out of stack space.
-  __ lw(a1, MemOperand(fp, calleeOffset));
-  if (argc_is_tagged == kArgcIsUntaggedInt) {
-    __ SmiTag(argc);
-  }
-  __ Push(a1, argc);
   __ CallRuntime(Runtime::kThrowStackOverflow, 0);
 
   __ bind(&okay);
@@ -763,12 +757,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Push(a1, a2);
 
     // Check if we have enough stack space to push all arguments.
-    // The function is the first thing that was pushed above after entering
-    // the internal frame.
-    const int kFunctionOffset =
-        InternalFrameConstants::kCodeOffset - kPointerSize;
     // Clobbers a2.
-    Generate_CheckStackOverflow(masm, kFunctionOffset, a3, kArgcIsUntaggedInt);
+    Generate_CheckStackOverflow(masm, a3, kArgcIsUntaggedInt);
 
     // Remember new.target.
     __ mov(t1, a0);
@@ -1341,7 +1331,7 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     }
 
     // Returns the result in v0.
-    Generate_CheckStackOverflow(masm, kFunctionOffset, v0, kArgcIsSmiTagged);
+    Generate_CheckStackOverflow(masm, v0, kArgcIsSmiTagged);
 
     // Push current limit and index.
     const int kIndexOffset = kVectorOffset - (2 * kPointerSize);
@@ -1405,7 +1395,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
                      CALL_FUNCTION);
 
     // Returns result in v0.
-    Generate_CheckStackOverflow(masm, kFunctionOffset, v0, kArgcIsSmiTagged);
+    Generate_CheckStackOverflow(masm, v0, kArgcIsSmiTagged);
 
     // Push current limit and index.
     const int kIndexOffset = kVectorOffset - (2 * kPointerSize);
