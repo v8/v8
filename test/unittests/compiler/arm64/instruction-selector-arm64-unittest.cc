@@ -235,10 +235,19 @@ const FPCmp kFPCmpInstructions[] = {
      kEqual},
     {{&RawMachineAssembler::Float64LessThan, "Float64LessThan",
       kArm64Float64Cmp, kMachFloat64},
-     kUnsignedLessThan},
+     kFloatLessThan},
     {{&RawMachineAssembler::Float64LessThanOrEqual, "Float64LessThanOrEqual",
       kArm64Float64Cmp, kMachFloat64},
-     kUnsignedLessThanOrEqual}};
+     kFloatLessThanOrEqual},
+    {{&RawMachineAssembler::Float32Equal, "Float32Equal", kArm64Float32Cmp,
+      kMachFloat32},
+     kEqual},
+    {{&RawMachineAssembler::Float32LessThan, "Float32LessThan",
+      kArm64Float32Cmp, kMachFloat32},
+     kFloatLessThan},
+    {{&RawMachineAssembler::Float32LessThanOrEqual, "Float32LessThanOrEqual",
+      kArm64Float32Cmp, kMachFloat32},
+     kFloatLessThanOrEqual}};
 
 
 struct Conversion {
@@ -1913,7 +1922,11 @@ TEST_P(InstructionSelectorFPCmpTest, Parameter) {
 TEST_P(InstructionSelectorFPCmpTest, WithImmediateZeroOnRight) {
   const FPCmp cmp = GetParam();
   StreamBuilder m(this, kMachInt32, cmp.mi.machine_type);
-  m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Float64Constant(0.0)));
+  if (cmp.mi.machine_type == kMachFloat64) {
+    m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Float64Constant(0.0)));
+  } else {
+    m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Float32Constant(0.0f)));
+  }
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
@@ -1925,22 +1938,27 @@ TEST_P(InstructionSelectorFPCmpTest, WithImmediateZeroOnRight) {
 }
 
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
-                        ::testing::ValuesIn(kFPCmpInstructions));
-
-
-TEST_F(InstructionSelectorTest, Float64EqualWithImmediateZeroOnLeft) {
-  StreamBuilder m(this, kMachInt32, kMachFloat64);
-  m.Return(m.Float64Equal(m.Float64Constant(0.0), m.Parameter(0)));
+TEST_P(InstructionSelectorFPCmpTest, WithImmediateZeroOnLeft) {
+  const FPCmp cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, cmp.mi.machine_type);
+  if (cmp.mi.machine_type == kMachFloat64) {
+    m.Return((m.*cmp.mi.constructor)(m.Float64Constant(0.0), m.Parameter(0)));
+  } else {
+    m.Return((m.*cmp.mi.constructor)(m.Float32Constant(0.0f), m.Parameter(0)));
+  }
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Float64Cmp, s[0]->arch_opcode());
+  EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
   EXPECT_EQ(2U, s[0]->InputCount());
   EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
   EXPECT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kFlags_set, s[0]->flags_mode());
-  EXPECT_EQ(kEqual, s[0]->flags_condition());
+  EXPECT_EQ(CommuteFlagsCondition(cmp.cond), s[0]->flags_condition());
 }
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
+                        ::testing::ValuesIn(kFPCmpInstructions));
 
 
 // -----------------------------------------------------------------------------

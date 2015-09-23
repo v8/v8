@@ -1026,6 +1026,9 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     case kNotOverflow:
       __ j(no_overflow, tlabel);
       break;
+    default:
+      UNREACHABLE();
+      break;
   }
   // Add a jump if not falling through to the next block.
   if (!branch->fallthru) __ jmp(flabel);
@@ -1095,6 +1098,9 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       break;
     case kNotOverflow:
       cc = no_overflow;
+      break;
+    default:
+      UNREACHABLE();
       break;
   }
   __ bind(&check);

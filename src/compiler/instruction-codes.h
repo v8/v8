@@ -114,6 +114,14 @@ enum FlagsCondition {
   kUnsignedGreaterThanOrEqual,
   kUnsignedLessThanOrEqual,
   kUnsignedGreaterThan,
+  kFloatLessThanOrUnordered,
+  kFloatGreaterThanOrEqual,
+  kFloatLessThanOrEqual,
+  kFloatGreaterThanOrUnordered,
+  kFloatLessThan,
+  kFloatGreaterThanOrEqualOrUnordered,
+  kFloatLessThanOrEqualOrUnordered,
+  kFloatGreaterThan,
   kUnorderedEqual,
   kUnorderedNotEqual,
   kOverflow,
@@ -123,6 +131,8 @@ enum FlagsCondition {
 inline FlagsCondition NegateFlagsCondition(FlagsCondition condition) {
   return static_cast<FlagsCondition>(condition ^ 1);
 }
+
+FlagsCondition CommuteFlagsCondition(FlagsCondition condition);
 
 std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc);
 
@@ -139,8 +149,8 @@ typedef int32_t InstructionCode;
 typedef BitField<ArchOpcode, 0, 8> ArchOpcodeField;
 typedef BitField<AddressingMode, 8, 5> AddressingModeField;
 typedef BitField<FlagsMode, 13, 2> FlagsModeField;
-typedef BitField<FlagsCondition, 15, 4> FlagsConditionField;
-typedef BitField<int, 19, 13> MiscField;
+typedef BitField<FlagsCondition, 15, 5> FlagsConditionField;
+typedef BitField<int, 20, 12> MiscField;
 
 }  // namespace compiler
 }  // namespace internal

@@ -1383,6 +1383,9 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     case kNotOverflow:
       __ j(no_overflow, tlabel);
       break;
+    default:
+      UNREACHABLE();
+      break;
   }
   if (!branch->fallthru) __ jmp(flabel, flabel_distance);
 }
@@ -1451,6 +1454,9 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       break;
     case kNotOverflow:
       cc = no_overflow;
+      break;
+    default:
+      UNREACHABLE();
       break;
   }
   __ bind(&check);
