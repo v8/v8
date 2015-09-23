@@ -143,14 +143,11 @@ TEST(RuntimeCallCPP2) {
 
 TEST(RuntimeCallJS) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %to_string_fun(a); })");
+  FunctionTester T("(function(a) { return %to_number_fun(a); })");
 
-  T.CheckCall(T.Val("23"), T.Val(23), T.undefined());
-  T.CheckCall(T.Val("4.2"), T.Val(4.2), T.undefined());
-  T.CheckCall(T.Val("str"), T.Val("str"), T.undefined());
-  T.CheckCall(T.Val("true"), T.true_value(), T.undefined());
-  T.CheckCall(T.Val("false"), T.false_value(), T.undefined());
-  T.CheckCall(T.Val("undefined"), T.undefined(), T.undefined());
+  T.CheckCall(T.Val(23), T.Val(23), T.undefined());
+  T.CheckCall(T.Val(4.2), T.Val(4.2), T.undefined());
+  T.CheckCall(T.Val(1), T.true_value(), T.undefined());
 }
 
 

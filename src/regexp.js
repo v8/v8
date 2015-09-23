@@ -66,8 +66,8 @@ function DoConstructRegExp(object, pattern, flags) {
     pattern = pattern.source;
   }
 
-  pattern = IS_UNDEFINED(pattern) ? '' : $toString(pattern);
-  flags = IS_UNDEFINED(flags) ? '' : $toString(flags);
+  pattern = IS_UNDEFINED(pattern) ? '' : TO_STRING(pattern);
+  flags = IS_UNDEFINED(flags) ? '' : TO_STRING(flags);
 
   %RegExpInitializeAndCompile(object, pattern, flags);
 }
@@ -161,7 +161,7 @@ function RegExpExecJS(string) {
                         'RegExp.prototype.exec', this);
   }
 
-  string = TO_STRING_INLINE(string);
+  string = TO_STRING(string);
   var lastIndex = this.lastIndex;
 
   // Conversion is required by the ES5 specification (RegExp.prototype.exec
@@ -208,7 +208,7 @@ function RegExpTest(string) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'RegExp.prototype.test', this);
   }
-  string = TO_STRING_INLINE(string);
+  string = TO_STRING(string);
 
   var lastIndex = this.lastIndex;
 
@@ -392,7 +392,7 @@ var RegExpGetInput = function() {
   return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
 };
 var RegExpSetInput = function(string) {
-  LAST_INPUT(RegExpLastMatchInfo) = $toString(string);
+  LAST_INPUT(RegExpLastMatchInfo) = TO_STRING(string);
 };
 
 %OptimizeObjectForAddingMultipleProperties(GlobalRegExp, 22);

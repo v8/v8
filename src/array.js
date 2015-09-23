@@ -411,8 +411,8 @@ function ArrayToLocaleString() {
 function InnerArrayJoin(separator, array, length) {
   if (IS_UNDEFINED(separator)) {
     separator = ',';
-  } else if (!IS_STRING(separator)) {
-    separator = $nonStringToString(separator);
+  } else {
+    separator = TO_STRING(separator);
   }
 
   var result = %_FastOneByteArrayJoin(array, separator);
@@ -421,9 +421,8 @@ function InnerArrayJoin(separator, array, length) {
   // Fast case for one-element arrays.
   if (length === 1) {
     var e = array[0];
-    if (IS_STRING(e)) return e;
     if (IS_NULL_OR_UNDEFINED(e)) return '';
-    return $nonStringToString(e);
+    return TO_STRING(e);
   }
 
   return Join(array, length, separator, ConvertToString);

@@ -79,14 +79,12 @@ enum BindingFlags {
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                 \
   V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                   \
   V(NON_NUMBER_TO_NUMBER_INDEX, JSFunction, non_number_to_number)         \
-  V(NON_STRING_TO_STRING_INDEX, JSFunction, non_string_to_string)         \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                       \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)               \
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                 \
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                   \
   V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                       \
-  V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)                       \
-  V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)
+  V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)
 
 
 #define NATIVE_CONTEXT_JS_BUILTINS(V)                                 \

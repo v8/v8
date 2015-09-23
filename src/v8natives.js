@@ -24,13 +24,11 @@ var ProxyDerivedKeysTrap;
 var StringIndexOf;
 var ToBoolean = utils.ImportNow("ToBoolean");
 var ToNumber = utils.ImportNow("ToNumber");
-var ToString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathAbs = from.MathAbs;
   StringIndexOf = from.StringIndexOf;
-  ToString = from.ToString;
 });
 
 utils.ImportFromExperimental(function(from) {
@@ -72,11 +70,11 @@ function GlobalParseInt(string, radix) {
       // Truncate number.
       return string | 0;
     }
-    string = TO_STRING_INLINE(string);
+    string = TO_STRING(string);
     radix = radix | 0;
   } else {
     // The spec says ToString should be evaluated before ToInt32.
-    string = TO_STRING_INLINE(string);
+    string = TO_STRING(string);
     radix = TO_INT32(radix);
     if (!(radix == 0 || (2 <= radix && radix <= 36))) {
       return NAN;
@@ -93,7 +91,7 @@ function GlobalParseInt(string, radix) {
 
 // ECMA-262 - 15.1.2.3
 function GlobalParseFloat(string) {
-  string = TO_STRING_INLINE(string);
+  string = TO_STRING(string);
   if (%_HasCachedArrayIndex(string)) return %_GetCachedArrayIndex(string);
   return %StringParseFloat(string);
 }
@@ -806,7 +804,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
   if (!IS_SYMBOL(p)) {
     var index = TO_UINT32(p);
     var emit_splice = false;
-    if (ToString(index) == p && index != 4294967295) {
+    if (TO_STRING(index) == p && index != 4294967295) {
       var length = obj.length;
       if (index >= length && %IsObserved(obj)) {
         emit_splice = true;
@@ -974,7 +972,7 @@ function ObjectGetOwnPropertyKeys(obj, filter) {
         }
       } else {
         if (filter & PROPERTY_ATTRIBUTES_STRING) continue;
-        name = ToString(name);
+        name = TO_STRING(name);
       }
       if (seenKeys[name]) continue;
       seenKeys[name] = true;
@@ -1538,7 +1536,7 @@ function NumberToPrecisionJS(precision) {
     // Get the value of this number in case it's an object.
     x = %_ValueOf(this);
   }
-  if (IS_UNDEFINED(precision)) return ToString(%_ValueOf(this));
+  if (IS_UNDEFINED(precision)) return TO_STRING(x);
   var p = TO_INTEGER(precision);
 
   if (NUMBER_IS_NAN(x)) return "NaN";
@@ -1758,9 +1756,9 @@ function NewFunctionString(args, function_token) {
   var n = args.length;
   var p = '';
   if (n > 1) {
-    p = ToString(args[0]);
+    p = TO_STRING(args[0]);
     for (var i = 1; i < n - 1; i++) {
-      p += ',' + ToString(args[i]);
+      p += ',' + TO_STRING(args[i]);
     }
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
@@ -1773,7 +1771,7 @@ function NewFunctionString(args, function_token) {
     // comments we can include a trailing block comment to catch this.
     p += '\n/' + '**/';
   }
-  var body = (n > 0) ? ToString(args[n - 1]) : '';
+  var body = (n > 0) ? TO_STRING(args[n - 1]) : '';
   return '(' + function_token + '(' + p + ') {\n' + body + '\n})';
 }
 

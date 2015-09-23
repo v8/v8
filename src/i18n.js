@@ -2004,10 +2004,10 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
     }
 
     CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
-    var s = TO_STRING_INLINE(this);
+    var s = TO_STRING(this);
 
     var formArg = %_Arguments(0);
-    var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING_INLINE(formArg);
+    var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
 
     var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 

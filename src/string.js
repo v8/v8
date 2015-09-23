@@ -19,7 +19,6 @@ var RegExpExec;
 var RegExpExecNoTests;
 var RegExpLastMatchInfo;
 var ToNumber;
-var ToString;
 
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
@@ -28,7 +27,6 @@ utils.Import(function(from) {
   RegExpExecNoTests = from.RegExpExecNoTests;
   RegExpLastMatchInfo = from.RegExpLastMatchInfo;
   ToNumber = from.ToNumber;
-  ToString = from.ToString;
 });
 
 //-------------------------------------------------------------------
@@ -57,7 +55,7 @@ function StringCharAtJS(pos) {
 
   var result = %_StringCharAt(this, pos);
   if (%_IsSmi(result)) {
-    result = %_StringCharAt(TO_STRING_INLINE(this), TO_INTEGER(pos));
+    result = %_StringCharAt(TO_STRING(this), TO_INTEGER(pos));
   }
   return result;
 }
@@ -69,7 +67,7 @@ function StringCharCodeAtJS(pos) {
 
   var result = %_StringCharCodeAt(this, pos);
   if (!%_IsSmi(result)) {
-    result = %_StringCharCodeAt(TO_STRING_INLINE(this), TO_INTEGER(pos));
+    result = %_StringCharCodeAt(TO_STRING(this), TO_INTEGER(pos));
   }
   return result;
 }
@@ -79,15 +77,15 @@ function StringCharCodeAtJS(pos) {
 function StringConcat(other /* and more */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.concat");
   var len = %_ArgumentsLength();
-  var this_as_string = TO_STRING_INLINE(this);
+  var this_as_string = TO_STRING(this);
   if (len === 1) {
-    return this_as_string + TO_STRING_INLINE(other);
+    return this_as_string + TO_STRING(other);
   }
   var parts = new InternalArray(len + 1);
   parts[0] = this_as_string;
   for (var i = 0; i < len; i++) {
     var part = %_Arguments(i);
-    parts[i + 1] = TO_STRING_INLINE(part);
+    parts[i + 1] = TO_STRING(part);
   }
   return %StringBuilderConcat(parts, len + 1, "");
 }
@@ -97,8 +95,8 @@ function StringConcat(other /* and more */) {  // length == 1
 function StringIndexOfJS(pattern /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.indexOf");
 
-  var subject = TO_STRING_INLINE(this);
-  pattern = TO_STRING_INLINE(pattern);
+  var subject = TO_STRING(this);
+  pattern = TO_STRING(pattern);
   var index = 0;
   if (%_ArgumentsLength() > 1) {
     index = %_Arguments(1);  // position
@@ -114,9 +112,9 @@ function StringIndexOfJS(pattern /* position */) {  // length == 1
 function StringLastIndexOfJS(pat /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.lastIndexOf");
 
-  var sub = TO_STRING_INLINE(this);
+  var sub = TO_STRING(this);
   var subLength = sub.length;
-  var pat = TO_STRING_INLINE(pat);
+  var pat = TO_STRING(pat);
   var patLength = pat.length;
   var index = subLength - patLength;
   if (%_ArgumentsLength() > 1) {
@@ -145,8 +143,7 @@ function StringLastIndexOfJS(pat /* position */) {  // length == 1
 function StringLocaleCompareJS(other) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.localeCompare");
 
-  return %StringLocaleCompare(TO_STRING_INLINE(this),
-                              TO_STRING_INLINE(other));
+  return %StringLocaleCompare(TO_STRING(this), TO_STRING(other));
 }
 
 
@@ -154,7 +151,7 @@ function StringLocaleCompareJS(other) {
 function StringMatchJS(regexp) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.match");
 
-  var subject = TO_STRING_INLINE(this);
+  var subject = TO_STRING(this);
   if (IS_REGEXP(regexp)) {
     // Emulate RegExp.prototype.exec's side effect in step 5, even though
     // value is discarded.
@@ -179,10 +176,10 @@ function StringMatchJS(regexp) {
 // proper functionality.
 function StringNormalizeJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
-  var s = TO_STRING_INLINE(this);
+  var s = TO_STRING(this);
 
   var formArg = %_Arguments(0);
-  var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING_INLINE(formArg);
+  var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
 
   var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
   var normalizationForm =
@@ -208,7 +205,7 @@ var reusableMatchInfo = [2, "", "", -1, -1];
 function StringReplace(search, replace) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.replace");
 
-  var subject = TO_STRING_INLINE(this);
+  var subject = TO_STRING(this);
 
   // Decision tree for dispatch
   // .. regexp search
@@ -234,7 +231,7 @@ function StringReplace(search, replace) {
     TO_INTEGER_FOR_SIDE_EFFECT(lastIndex);
 
     if (!IS_CALLABLE(replace)) {
-      replace = TO_STRING_INLINE(replace);
+      replace = TO_STRING(replace);
 
       if (!search.global) {
         // Non-global regexp search, string replace.
@@ -282,7 +279,7 @@ function StringReplace(search, replace) {
     return StringReplaceNonGlobalRegExpWithFunction(subject, search, replace);
   }
 
-  search = TO_STRING_INLINE(search);
+  search = TO_STRING(search);
 
   if (search.length == 1 &&
       subject.length > 0xFF &&
@@ -305,7 +302,7 @@ function StringReplace(search, replace) {
   } else {
     reusableMatchInfo[CAPTURE0] = start;
     reusableMatchInfo[CAPTURE1] = end;
-    result = ExpandReplacement(TO_STRING_INLINE(replace),
+    result = ExpandReplacement(TO_STRING(replace),
                                subject,
                                reusableMatchInfo,
                                result);
@@ -467,7 +464,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
         var func_result = replace(elem, match_start, subject);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
-        res[i] = TO_STRING_INLINE(func_result);
+        res[i] = TO_STRING(func_result);
         match_start += elem.length;
       }
     }
@@ -481,7 +478,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
         var func_result = %Apply(replace, UNDEFINED, elem, 0, elem.length);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
-        res[i] = TO_STRING_INLINE(func_result);
+        res[i] = TO_STRING(func_result);
       }
     }
   }
@@ -539,7 +536,7 @@ function StringSearch(re) {
   } else {
     regexp = new GlobalRegExp(re);
   }
-  var match = RegExpExec(regexp, TO_STRING_INLINE(this), 0);
+  var match = RegExpExec(regexp, TO_STRING(this), 0);
   if (match) {
     return match[CAPTURE0];
   }
@@ -551,7 +548,7 @@ function StringSearch(re) {
 function StringSlice(start, end) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.slice");
 
-  var s = TO_STRING_INLINE(this);
+  var s = TO_STRING(this);
   var s_len = s.length;
   var start_i = TO_INTEGER(start);
   var end_i = s_len;
@@ -593,12 +590,12 @@ function StringSlice(start, end) {
 function StringSplitJS(separator, limit) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.split");
 
-  var subject = TO_STRING_INLINE(this);
+  var subject = TO_STRING(this);
   limit = (IS_UNDEFINED(limit)) ? 0xffffffff : TO_UINT32(limit);
 
   var length = subject.length;
   if (!IS_REGEXP(separator)) {
-    var separator_string = TO_STRING_INLINE(separator);
+    var separator_string = TO_STRING(separator);
 
     if (limit === 0) return [];
 
@@ -685,7 +682,7 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
 function StringSubstring(start, end) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.subString");
 
-  var s = TO_STRING_INLINE(this);
+  var s = TO_STRING(this);
   var s_len = s.length;
 
   var start_i = TO_INTEGER(start);
@@ -718,7 +715,7 @@ function StringSubstring(start, end) {
 function StringSubstr(start, n) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.substr");
 
-  var s = TO_STRING_INLINE(this);
+  var s = TO_STRING(this);
   var len;
 
   // Correct n: If not given, set to string length; if explicitly
@@ -758,7 +755,7 @@ function StringSubstr(start, n) {
 function StringToLowerCaseJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");
 
-  return %StringToLowerCase(TO_STRING_INLINE(this));
+  return %StringToLowerCase(TO_STRING(this));
 }
 
 
@@ -766,7 +763,7 @@ function StringToLowerCaseJS() {
 function StringToLocaleLowerCase() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleLowerCase");
 
-  return %StringToLowerCase(TO_STRING_INLINE(this));
+  return %StringToLowerCase(TO_STRING(this));
 }
 
 
@@ -774,7 +771,7 @@ function StringToLocaleLowerCase() {
 function StringToUpperCaseJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toUpperCase");
 
-  return %StringToUpperCase(TO_STRING_INLINE(this));
+  return %StringToUpperCase(TO_STRING(this));
 }
 
 
@@ -782,26 +779,26 @@ function StringToUpperCaseJS() {
 function StringToLocaleUpperCase() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleUpperCase");
 
-  return %StringToUpperCase(TO_STRING_INLINE(this));
+  return %StringToUpperCase(TO_STRING(this));
 }
 
 // ES5, 15.5.4.20
 function StringTrimJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.trim");
 
-  return %StringTrim(TO_STRING_INLINE(this), true, true);
+  return %StringTrim(TO_STRING(this), true, true);
 }
 
 function StringTrimLeft() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.trimLeft");
 
-  return %StringTrim(TO_STRING_INLINE(this), true, false);
+  return %StringTrim(TO_STRING(this), true, false);
 }
 
 function StringTrimRight() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.trimRight");
 
-  return %StringTrim(TO_STRING_INLINE(this), false, true);
+  return %StringTrim(TO_STRING(this), false, true);
 }
 
 
@@ -837,14 +834,14 @@ function StringFromCharCode(code) {
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
-  return %_CallFunction(TO_STRING_INLINE(str), /"/g, "&quot;", StringReplace);
+  return %_CallFunction(TO_STRING(str), /"/g, "&quot;", StringReplace);
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2
 function StringAnchor(name) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.anchor");
-  return "<a name=\"" + HtmlEscape(name) + "\">" + TO_STRING_INLINE(this) +
+  return "<a name=\"" + HtmlEscape(name) + "\">" + TO_STRING(this) +
          "</a>";
 }
 
@@ -852,35 +849,35 @@ function StringAnchor(name) {
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.3
 function StringBig() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.big");
-  return "<big>" + TO_STRING_INLINE(this) + "</big>";
+  return "<big>" + TO_STRING(this) + "</big>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.4
 function StringBlink() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.blink");
-  return "<blink>" + TO_STRING_INLINE(this) + "</blink>";
+  return "<blink>" + TO_STRING(this) + "</blink>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.5
 function StringBold() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.bold");
-  return "<b>" + TO_STRING_INLINE(this) + "</b>";
+  return "<b>" + TO_STRING(this) + "</b>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.6
 function StringFixed() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.fixed");
-  return "<tt>" + TO_STRING_INLINE(this) + "</tt>";
+  return "<tt>" + TO_STRING(this) + "</tt>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.7
 function StringFontcolor(color) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.fontcolor");
-  return "<font color=\"" + HtmlEscape(color) + "\">" + TO_STRING_INLINE(this) +
+  return "<font color=\"" + HtmlEscape(color) + "\">" + TO_STRING(this) +
          "</font>";
 }
 
@@ -888,7 +885,7 @@ function StringFontcolor(color) {
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.8
 function StringFontsize(size) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.fontsize");
-  return "<font size=\"" + HtmlEscape(size) + "\">" + TO_STRING_INLINE(this) +
+  return "<font size=\"" + HtmlEscape(size) + "\">" + TO_STRING(this) +
          "</font>";
 }
 
@@ -896,49 +893,49 @@ function StringFontsize(size) {
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.9
 function StringItalics() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.italics");
-  return "<i>" + TO_STRING_INLINE(this) + "</i>";
+  return "<i>" + TO_STRING(this) + "</i>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.10
 function StringLink(s) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.link");
-  return "<a href=\"" + HtmlEscape(s) + "\">" + TO_STRING_INLINE(this) + "</a>";
+  return "<a href=\"" + HtmlEscape(s) + "\">" + TO_STRING(this) + "</a>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.11
 function StringSmall() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.small");
-  return "<small>" + TO_STRING_INLINE(this) + "</small>";
+  return "<small>" + TO_STRING(this) + "</small>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.12
 function StringStrike() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.strike");
-  return "<strike>" + TO_STRING_INLINE(this) + "</strike>";
+  return "<strike>" + TO_STRING(this) + "</strike>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.13
 function StringSub() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.sub");
-  return "<sub>" + TO_STRING_INLINE(this) + "</sub>";
+  return "<sub>" + TO_STRING(this) + "</sub>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.14
 function StringSup() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.sup");
-  return "<sup>" + TO_STRING_INLINE(this) + "</sup>";
+  return "<sup>" + TO_STRING(this) + "</sup>";
 }
 
 // ES6 draft 01-20-14, section 21.1.3.13
 function StringRepeat(count) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.repeat");
 
-  var s = TO_STRING_INLINE(this);
+  var s = TO_STRING(this);
   var n = $toInteger(count);
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
@@ -958,13 +955,13 @@ function StringRepeat(count) {
 function StringStartsWith(searchString /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.startsWith");
 
-  var s = TO_STRING_INLINE(this);
+  var s = TO_STRING(this);
 
   if (IS_REGEXP(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.startsWith");
   }
 
-  var ss = TO_STRING_INLINE(searchString);
+  var ss = TO_STRING(searchString);
   var pos = 0;
   if (%_ArgumentsLength() > 1) {
     var arg = %_Arguments(1);  // position
@@ -996,13 +993,13 @@ function StringStartsWith(searchString /* position */) {  // length == 1
 function StringEndsWith(searchString /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.endsWith");
 
-  var s = TO_STRING_INLINE(this);
+  var s = TO_STRING(this);
 
   if (IS_REGEXP(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.endsWith");
   }
 
-  var ss = TO_STRING_INLINE(searchString);
+  var ss = TO_STRING(searchString);
   var s_len = s.length;
   var pos = s_len;
   if (%_ArgumentsLength() > 1) {
@@ -1035,13 +1032,13 @@ function StringEndsWith(searchString /* position */) {  // length == 1
 function StringIncludes(searchString /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.includes");
 
-  var string = TO_STRING_INLINE(this);
+  var string = TO_STRING(this);
 
   if (IS_REGEXP(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.includes");
   }
 
-  searchString = TO_STRING_INLINE(searchString);
+  searchString = TO_STRING(searchString);
   var pos = 0;
   if (%_ArgumentsLength() > 1) {
     pos = %_Arguments(1);  // position
@@ -1065,7 +1062,7 @@ function StringIncludes(searchString /* position */) {  // length == 1
 function StringCodePointAt(pos) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.codePointAt");
 
-  var string = TO_STRING_INLINE(this);
+  var string = TO_STRING(this);
   var size = string.length;
   pos = TO_INTEGER(pos);
   if (pos < 0 || pos >= size) {
@@ -1121,13 +1118,13 @@ function StringRaw(callSite) {
   var literalSegments = $toLength(raw.length);
   if (literalSegments <= 0) return "";
 
-  var result = ToString(raw[0]);
+  var result = TO_STRING(raw[0]);
 
   for (var i = 1; i < literalSegments; ++i) {
     if (i < numberOfSubstitutions) {
-      result += ToString(%_Arguments(i));
+      result += TO_STRING(%_Arguments(i));
     }
-    result += ToString(raw[i]);
+    result += TO_STRING(raw[i]);
   }
 
   return result;

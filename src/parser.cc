@@ -6102,8 +6102,8 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(1, zone());
       args->Add(sub, zone());
-      Expression* middle = factory()->NewCallRuntime(
-          Context::TO_STRING_FUN_INDEX, args, sub->position());
+      Expression* middle = factory()->NewCallRuntime(Runtime::kInlineToString,
+                                                     args, sub->position());
 
       expr = factory()->NewBinaryOperation(
           Token::ADD, factory()->NewBinaryOperation(

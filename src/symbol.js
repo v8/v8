@@ -58,7 +58,7 @@ function SymbolValueOf() {
 
 
 function SymbolFor(key) {
-  key = TO_STRING_INLINE(key);
+  key = TO_STRING(key);
   var registry = %SymbolRegistry();
   if (IS_UNDEFINED(registry.for[key])) {
     var symbol = %CreateSymbol(key);

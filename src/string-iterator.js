@@ -26,7 +26,7 @@ function StringIterator() {}
 
 // 21.1.5.1 CreateStringIterator Abstract Operation
 function CreateStringIterator(string) {
-  var s = TO_STRING_INLINE(string);
+  var s = TO_STRING(string);
   var iterator = new StringIterator;
   SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol, s);
   SET_PRIVATE(iterator, stringIteratorNextIndexSymbol, 0);

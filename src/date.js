@@ -22,14 +22,12 @@ var IsFinite;
 var MathAbs;
 var MathFloor;
 var ToNumber;
-var ToString;
 
 utils.Import(function(from) {
   IsFinite = from.IsFinite;
   MathAbs = from.MathAbs;
   MathFloor = from.MathFloor;
   ToNumber = from.ToNumber;
-  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -268,7 +266,7 @@ var parse_buffer = new InternalArray(8);
 
 // ECMA 262 - 15.9.4.2
 function DateParse(string) {
-  var arr = %DateParseString(ToString(string), parse_buffer);
+  var arr = %DateParseString(string, parse_buffer);
   if (IS_NULL(arr)) return NAN;
 
   var day = MakeDay(arr[0], arr[1], arr[2]);

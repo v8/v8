@@ -49,7 +49,6 @@ var StringCharAt;
 var StringIndexOf;
 var StringSubstring;
 var SymbolToString;
-var ToString = utils.ImportNow("ToString");
 var Uint16x8ToString;
 var Uint32x4ToString;
 var Uint8x16ToString;
@@ -169,7 +168,7 @@ function ToStringCheckErrorObject(obj) {
   if (CanBeSafelyTreatedAsAnErrorObject(obj)) {
     return %_CallFunction(obj, ErrorToString);
   } else {
-    return ToString(obj);
+    return TO_STRING(obj);
   }
 }
 
@@ -953,7 +952,7 @@ function DefineError(global, f) {
       // object. This avoids going through getters and setters defined
       // on prototype objects.
       if (!IS_UNDEFINED(m)) {
-        %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
+        %AddNamedProperty(this, 'message', TO_STRING(m), DONT_ENUM);
       }
     } else {
       return new f(m);

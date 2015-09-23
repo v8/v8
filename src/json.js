@@ -17,7 +17,6 @@ var MathMax;
 var MathMin;
 var ObjectHasOwnProperty;
 var ToNumber;
-var ToString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -25,7 +24,6 @@ utils.Import(function(from) {
   MathMin = from.MathMin;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   ToNumber = from.ToNumber;
-  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -57,7 +55,7 @@ function Revive(holder, name, reviver) {
 
 
 function JSONParse(text, reviver) {
-  var unfiltered = %ParseJson(TO_STRING_INLINE(text));
+  var unfiltered = %ParseJson(text);
   if (IS_CALLABLE(reviver)) {
     return Revive({'': unfiltered}, '', reviver);
   } else {
@@ -161,7 +159,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     return value ? "true" : "false";
   } else if (IS_NULL(value)) {
     return "null";
-  } else if (IS_SPEC_OBJECT(value) && !(typeof value == "function")) {
+  } else if (IS_SPEC_OBJECT(value) && !IS_CALLABLE(value)) {
     // Non-callable object. If it's a primitive wrapper, it must be unwrapped.
     if (IS_ARRAY(value)) {
       return SerializeArray(value, replacer, stack, indent, gap);
@@ -169,7 +167,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
       value = ToNumber(value);
       return JSON_NUMBER_TO_STRING(value);
     } else if (IS_STRING_WRAPPER(value)) {
-      return %QuoteJSONString(ToString(value));
+      return %QuoteJSONString(TO_STRING(value));
     } else if (IS_BOOLEAN_WRAPPER(value)) {
       return %_ValueOf(value) ? "true" : "false";
     } else {
@@ -198,7 +196,7 @@ function JSONStringify(value, replacer, space) {
       } else if (IS_NUMBER(v)) {
         item = %_NumberToString(v);
       } else if (IS_STRING_WRAPPER(v) || IS_NUMBER_WRAPPER(v)) {
-        item = ToString(v);
+        item = TO_STRING(v);
       } else {
         continue;
       }
@@ -214,7 +212,7 @@ function JSONStringify(value, replacer, space) {
     if (IS_NUMBER_WRAPPER(space)) {
       space = ToNumber(space);
     } else if (IS_STRING_WRAPPER(space)) {
-      space = ToString(space);
+      space = TO_STRING(space);
     }
   }
   var gap;

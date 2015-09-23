@@ -145,7 +145,7 @@ function DerivedKeysTrap() {
   for (var i = 0, count = 0; i < names.length; ++i) {
     var name = names[i]
     if (IS_SYMBOL(name)) continue
-    var desc = this.getOwnPropertyDescriptor(TO_STRING_INLINE(name))
+    var desc = this.getOwnPropertyDescriptor(TO_STRING(name))
     if (!IS_UNDEFINED(desc) && desc.enumerable) {
       enumerableNames[count++] = names[i]
     }
@@ -159,7 +159,7 @@ function DerivedEnumerateTrap() {
   for (var i = 0, count = 0; i < names.length; ++i) {
     var name = names[i]
     if (IS_SYMBOL(name)) continue
-    var desc = this.getPropertyDescriptor(TO_STRING_INLINE(name))
+    var desc = this.getPropertyDescriptor(TO_STRING(name))
     if (!IS_UNDEFINED(desc)) {
       if (!desc.configurable) {
         throw MakeTypeError(kProxyPropNotConfigurable,

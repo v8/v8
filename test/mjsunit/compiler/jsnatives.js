@@ -29,4 +29,4 @@
 
 // Test call of JS runtime functions.
 
-assertEquals("1", %to_string_fun(1));
+assertEquals(1, %to_number_fun("1"));
