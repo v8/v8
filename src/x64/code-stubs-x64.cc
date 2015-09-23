@@ -4355,7 +4355,7 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
       masm, Code::LOAD_IC, code_flags, receiver, name, feedback, no_reg);
 
   __ bind(&miss);
-  LoadIC::GenerateMiss(masm, LoadIC::kStressDispatcher);
+  LoadIC::GenerateMiss(masm);
 
   __ bind(&load_smi_map);
   __ LoadRoot(receiver_map, Heap::kHeapNumberMapRootIndex);

@@ -2377,17 +2377,6 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
     LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
-
-    // Sanity check: The loaded value must be a JS-exposed kind of object,
-    // not something internal (like a Map, or FixedArray). Check this here
-    // to chase after a rare but recurring crash bug.
-    // TODO(chromium:527994): Remove this when we have a few crash reports.
-    if (!result->IsSmi()) {
-      InstanceType type =
-          Handle<HeapObject>::cast(result)->map()->instance_type();
-      CHECK(type <= LAST_PRIMITIVE_TYPE || type >= FIRST_JS_RECEIVER_TYPE);
-    }
-
   } else {
     DCHECK(vector->GetKind(vector_slot) == Code::KEYED_LOAD_IC);
     KeyedLoadICNexus nexus(vector, vector_slot);
@@ -3126,17 +3115,6 @@ RUNTIME_FUNCTION(Runtime_LoadIC_MissFromStubFailure) {
     LoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
-
-    // Sanity check: The loaded value must be a JS-exposed kind of object,
-    // not something internal (like a Map, or FixedArray). Check this here
-    // to chase after a rare but recurring crash bug.
-    // TODO(chromium:527994): Remove this when we have a few crash reports.
-    if (!result->IsSmi()) {
-      InstanceType type =
-          Handle<HeapObject>::cast(result)->map()->instance_type();
-      CHECK(type <= LAST_PRIMITIVE_TYPE || type >= FIRST_JS_RECEIVER_TYPE);
-    }
-
   } else {
     DCHECK(vector->GetKind(vector_slot) == Code::KEYED_LOAD_IC);
     KeyedLoadICNexus nexus(vector, vector_slot);

@@ -280,7 +280,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm, LanguageMode language_mode) {
 }
 
 
-void LoadIC::GenerateMiss(MacroAssembler* masm, int stress) {
+void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // The return address is in lr.
   Isolate* isolate = masm->isolate();
   ASM_LOCATION("LoadIC::GenerateMiss");

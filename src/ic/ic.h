@@ -324,16 +324,8 @@ class LoadIC : public IC {
 
   // Code generator routines.
 
-  // TODO(jkummerow): Remove the stress parameter and these stress constants
-  // when a crash bug is fixed.
-  static const int kStressNone = 0;
-  static const int kStressInit = 1;
-  static const int kStressDispatcher = 2;
-  static const int kStressBuiltin = 3;
-  static void GenerateInitialize(MacroAssembler* masm) {
-    GenerateMiss(masm, kStressInit);
-  }
-  static void GenerateMiss(MacroAssembler* masm, int stress = kStressNone);
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
+  static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm,
                                          LanguageMode language_mode);
   static void GenerateNormal(MacroAssembler* masm, LanguageMode language_mode);
