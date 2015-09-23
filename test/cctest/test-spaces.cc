@@ -507,8 +507,8 @@ TEST(CompactionSpaceUsingExternalMemory) {
   CHECK_EQ(compaction_space->CountTotalPages(), 0);
   CHECK_EQ(compaction_space->Capacity(), 0);
   // Make the rest of memory available for compaction.
-  compaction_space->AddMemory(HeapObject::cast(chunk)->address(),
-                              static_cast<int>(rest));
+  compaction_space->AddExternalMemory(HeapObject::cast(chunk)->address(),
+                                      static_cast<int>(rest));
   CHECK_EQ(compaction_space->CountTotalPages(), 0);
   CHECK_EQ(compaction_space->Capacity(), rest);
   while (num_rest_objects-- > 0) {

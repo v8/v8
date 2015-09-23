@@ -2218,40 +2218,6 @@ intptr_t FreeList::Concatenate(FreeList* free_list) {
 }
 
 
-FreeSpace* PagedSpace::TryRemoveMemory() {
-  FreeSpace* space = nullptr;
-  int node_size = 0;
-  space = free_list()->FindNodeIn(FreeList::kHuge, &node_size);
-  if (space == nullptr)
-    space = free_list()->FindNodeIn(FreeList::kLarge, &node_size);
-  if (space == nullptr)
-    space = free_list()->FindNodeIn(FreeList::kMedium, &node_size);
-  if (space == nullptr)
-    space = free_list()->FindNodeIn(FreeList::kSmall, &node_size);
-  if (space != nullptr) {
-    accounting_stats_.DecreaseCapacity(node_size);
-  }
-  return space;
-}
-
-
-void PagedSpace::DivideFreeLists(FreeList** free_lists, int num,
-                                 intptr_t limit) {
-  CHECK(num > 0);
-  CHECK(free_lists != nullptr);
-  if (limit == 0) {
-    limit = std::numeric_limits<intptr_t>::max();
-  }
-  int index = 0;
-  FreeSpace* space = nullptr;
-  while (((space = TryRemoveMemory()) != nullptr) &&
-         (free_lists[index]->available() < limit)) {
-    free_lists[index]->owner()->AddMemory(space->address(), space->size());
-    index = (index + 1) % num;
-  }
-}
-
-
 void FreeList::Reset() {
   small_list_.Reset();
   medium_list_.Reset();
@@ -2295,62 +2261,39 @@ int FreeList::Free(Address start, int size_in_bytes) {
 }
 
 
-void FreeList::UpdateFragmentationStats(FreeListCategoryType category,
-                                        Address address, int size) {
-  Page* page = Page::FromAddress(address);
-  switch (category) {
-    case kSmall:
-      page->add_available_in_small_free_list(size);
-      break;
-    case kMedium:
-      page->add_available_in_medium_free_list(size);
-      break;
-    case kLarge:
-      page->add_available_in_large_free_list(size);
-      break;
-    case kHuge:
-      page->add_available_in_huge_free_list(size);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-FreeSpace* FreeList::FindNodeIn(FreeListCategoryType category, int* node_size) {
-  FreeSpace* node = GetFreeListCategory(category)->PickNodeFromList(node_size);
-  if (node != nullptr) {
-    UpdateFragmentationStats(category, node->address(), -(*node_size));
-    DCHECK(IsVeryLong() || available() == SumFreeLists());
-  }
-  return node;
-}
-
-
 FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   FreeSpace* node = NULL;
   Page* page = NULL;
 
   if (size_in_bytes <= kSmallAllocationMax) {
-    node = FindNodeIn(kSmall, node_size);
-    if (node != nullptr) {
-      DCHECK(size_in_bytes <= node->size());
+    node = small_list_.PickNodeFromList(node_size);
+    if (node != NULL) {
+      DCHECK(size_in_bytes <= *node_size);
+      page = Page::FromAddress(node->address());
+      page->add_available_in_small_free_list(-(*node_size));
+      DCHECK(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
 
   if (size_in_bytes <= kMediumAllocationMax) {
-    node = FindNodeIn(kMedium, node_size);
-    if (node != nullptr) {
-      DCHECK(size_in_bytes <= node->size());
+    node = medium_list_.PickNodeFromList(node_size);
+    if (node != NULL) {
+      DCHECK(size_in_bytes <= *node_size);
+      page = Page::FromAddress(node->address());
+      page->add_available_in_medium_free_list(-(*node_size));
+      DCHECK(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
 
   if (size_in_bytes <= kLargeAllocationMax) {
-    node = FindNodeIn(kLarge, node_size);
-    if (node != nullptr) {
-      DCHECK(size_in_bytes <= node->size());
+    node = large_list_.PickNodeFromList(node_size);
+    if (node != NULL) {
+      DCHECK(size_in_bytes <= *node_size);
+      page = Page::FromAddress(node->address());
+      page->add_available_in_large_free_list(-(*node_size));
+      DCHECK(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }

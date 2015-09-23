@@ -1682,8 +1682,6 @@ class FreeList {
   PagedSpace* owner() { return owner_; }
 
  private:
-  enum FreeListCategoryType { kSmall, kMedium, kLarge, kHuge };
-
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxRegularHeapObjectSize;
@@ -1697,27 +1695,6 @@ class FreeList {
   static const int kLargeAllocationMax = kMediumListMax;
 
   FreeSpace* FindNodeFor(int size_in_bytes, int* node_size);
-  FreeSpace* FindNodeIn(FreeListCategoryType category, int* node_size);
-
-  FreeListCategory* GetFreeListCategory(FreeListCategoryType category) {
-    switch (category) {
-      case kSmall:
-        return &small_list_;
-      case kMedium:
-        return &medium_list_;
-      case kLarge:
-        return &large_list_;
-      case kHuge:
-        return &huge_list_;
-      default:
-        UNREACHABLE();
-    }
-    UNREACHABLE();
-    return nullptr;
-  }
-
-  void UpdateFragmentationStats(FreeListCategoryType category, Address address,
-                                int size);
 
   PagedSpace* owner_;
   Heap* heap_;
@@ -1725,8 +1702,6 @@ class FreeList {
   FreeListCategory medium_list_;
   FreeListCategory large_list_;
   FreeListCategory huge_list_;
-
-  friend class PagedSpace;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
@@ -2009,22 +1984,6 @@ class PagedSpace : public Space {
   void MoveOverFreeMemory(PagedSpace* other);
 
   virtual bool is_local() { return false; }
-
-  // Divide {this} free lists up among {other_free_lists} up to some certain
-  // {limit} of bytes. Note that this operation eventually needs to iterate
-  // over nodes one-by-one, making it a potentially slow operation.
-  void DivideFreeLists(FreeList** other_free_lists, int num, intptr_t limit);
-
-  // Adds memory starting at {start} of {size_in_bytes} to the space.
-  void AddMemory(Address start, int size_in_bytes) {
-    IncreaseCapacity(size_in_bytes);
-    Free(start, size_in_bytes);
-  }
-
-  // Tries to remove some memory from {this} free lists. We try to remove
-  // as much memory as possible, i.e., we check the free lists from huge
-  // to small.
-  FreeSpace* TryRemoveMemory();
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
@@ -2772,6 +2731,12 @@ class CompactionSpace : public PagedSpace {
  public:
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable)
       : PagedSpace(heap, id, executable) {}
+
+  // Adds external memory starting at {start} of {size_in_bytes} to the space.
+  void AddExternalMemory(Address start, int size_in_bytes) {
+    IncreaseCapacity(size_in_bytes);
+    Free(start, size_in_bytes);
+  }
 
   virtual bool is_local() { return true; }
 
