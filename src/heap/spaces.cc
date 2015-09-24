@@ -3033,6 +3033,11 @@ bool LargeObjectSpace::Contains(HeapObject* object) {
 }
 
 
+bool LargeObjectSpace::Contains(Address address) {
+  return FindPage(address) != NULL;
+}
+
+
 #ifdef VERIFY_HEAP
 // We do not assume that the large object iterator works, because it depends
 // on the invariants we are checking during verification.

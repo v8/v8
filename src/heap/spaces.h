@@ -2889,6 +2889,7 @@ class LargeObjectSpace : public Space {
 
   // Checks whether a heap object is in this space; O(1).
   bool Contains(HeapObject* obj);
+  bool Contains(Address address);
 
   // Checks whether the space is empty.
   bool IsEmpty() { return first_page_ == NULL; }
