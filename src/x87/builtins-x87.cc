@@ -24,13 +24,20 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   //  -- eax                : number of arguments excluding receiver
   //  -- edi                : called function (only guaranteed when
   //                          extra_args requires it)
-  //  -- esi                : context
   //  -- esp[0]             : return address
   //  -- esp[4]             : last argument
   //  -- ...
   //  -- esp[4 * argc]      : first argument (argc == eax)
   //  -- esp[4 * (argc +1)] : receiver
   // -----------------------------------
+  __ AssertFunction(edi);
+
+  // Make sure we operate in the context of the called function (for example
+  // ConstructStubs implemented in C++ will be run in the context of the caller
+  // instead of the callee, due to the way that [[Construct]] is defined for
+  // ordinary functions).
+  // TODO(bmeurer): Can we make this more robust?
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Insert extra arguments.
   int num_extra_args = 0;
@@ -488,15 +495,16 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Setup the context (we need to use the caller context from the isolate).
+    ExternalReference context_address(Isolate::kContextAddress,
+                                      masm->isolate());
+    __ mov(esi, Operand::StaticVariable(context_address));
+
     // Load the previous frame pointer (ebx) to access C arguments
     __ mov(ebx, Operand(ebp, 0));
 
-    // Get the function from the frame and setup the context.
-    __ mov(ecx, Operand(ebx, EntryFrameConstants::kFunctionArgOffset));
-    __ mov(esi, FieldOperand(ecx, JSFunction::kContextOffset));
-
     // Push the function and the receiver onto the stack.
-    __ push(ecx);
+    __ push(Operand(ebx, EntryFrameConstants::kFunctionArgOffset));
     __ push(Operand(ebx, EntryFrameConstants::kReceiverArgOffset));
 
     // Load the number of arguments and setup pointer to the arguments.
@@ -514,7 +522,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Copy arguments to the stack in a loop.
     Label loop, entry;
     __ Move(ecx, Immediate(0));
-    __ jmp(&entry);
+    __ jmp(&entry, Label::kNear);
     __ bind(&loop);
     __ mov(edx, Operand(ebx, ecx, times_4, 0));  // push parameter from argv
     __ push(Operand(edx, 0));  // dereference handle
@@ -523,19 +531,18 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ cmp(ecx, eax);
     __ j(not_equal, &loop);
 
-    // Get the function from the stack and call it.
-    // kPointerSize for the receiver.
-    __ mov(edi, Operand(esp, eax, times_4, kPointerSize));
+    // Load the previous frame pointer (ebx) to access C arguments
+    __ mov(ebx, Operand(ebp, 0));
+
+    // Get the new.target and function from the frame.
+    __ mov(edx, Operand(ebx, EntryFrameConstants::kNewTargetArgOffset));
+    __ mov(edi, Operand(ebx, EntryFrameConstants::kFunctionArgOffset));
 
     // Invoke the code.
-    if (is_construct) {
-      // No type feedback cell is available
-      __ mov(ebx, masm->isolate()->factory()->undefined_value());
-      CallConstructStub stub(masm->isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
-      __ CallStub(&stub);
-    } else {
-      __ Call(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-    }
+    Handle<Code> builtin = is_construct
+                               ? masm->isolate()->builtins()->Construct()
+                               : masm->isolate()->builtins()->Call();
+    __ Call(builtin, RelocInfo::CODE_TARGET);
 
     // Exit the internal frame. Notice that this also removes the empty.
     // context and the function left on the stack by the code
@@ -1542,6 +1549,68 @@ void Builtins::Generate_Call(MacroAssembler* masm) {
     __ Push(eax);
     __ Push(edi);
     __ CallRuntime(Runtime::kGetFunctionDelegate, 1);
+    __ mov(edi, eax);
+    __ Pop(eax);
+    __ SmiUntag(eax);
+  }
+  // The delegate is always a regular function.
+  __ AssertFunction(edi);
+  __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
+}
+
+
+// static
+void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax : the number of arguments (not including the receiver)
+  //  -- edx : the original constructor (checked to be a JSFunction)
+  //  -- edi : the constructor to call (checked to be a JSFunction)
+  // -----------------------------------
+  __ AssertFunction(edx);
+  __ AssertFunction(edi);
+
+  // Calling convention for function specific ConstructStubs require
+  // ebx to contain either an AllocationSite or undefined.
+  __ LoadRoot(ebx, Heap::kUndefinedValueRootIndex);
+
+  // Tail call to the function-specific construct stub (still in the caller
+  // context at this point).
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kConstructStubOffset));
+  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
+  __ jmp(ecx);
+}
+
+
+// static
+void Builtins::Generate_Construct(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax : the number of arguments (not including the receiver)
+  //  -- edx : the original constructor (either the same as the constructor or
+  //           the JSFunction on which new was invoked initially)
+  //  -- edi : the constructor to call (can be any Object)
+  // -----------------------------------
+
+  Label slow;
+  __ JumpIfSmi(edi, &slow, Label::kNear);
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+  __ j(equal, masm->isolate()->builtins()->ConstructFunction(),
+       RelocInfo::CODE_TARGET);
+  __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
+  __ j(not_equal, &slow, Label::kNear);
+
+  // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
+  __ mov(edi, FieldOperand(edi, JSFunctionProxy::kConstructTrapOffset));
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+
+  __ bind(&slow);
+  {
+    // Determine the delegate for the target (if any).
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ SmiTag(eax);
+    __ Push(eax);
+    __ Push(edi);
+    __ CallRuntime(Runtime::kGetConstructorDelegate, 1);
     __ mov(edi, eax);
     __ Pop(eax);
     __ SmiUntag(eax);

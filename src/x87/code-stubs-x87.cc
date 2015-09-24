@@ -1819,17 +1819,17 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // ecx : original constructor (for IsSuperConstructorCall)
   // edx : slot in feedback vector (Smi, for RecordCallTarget)
   // edi : constructor function
-  Label slow, non_function_call;
 
   if (IsSuperConstructorCall()) {
     __ push(ecx);
   }
 
+  Label non_function;
   // Check that function is not a smi.
-  __ JumpIfSmi(edi, &non_function_call);
+  __ JumpIfSmi(edi, &non_function);
   // Check that function is a JSFunction.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &slow);
+  __ j(not_equal, &non_function);
 
   if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm, IsSuperConstructorCall());
@@ -1855,44 +1855,17 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ mov(edx, edi);
   }
 
-  // Jump to the function-specific construct stub.
-  Register jmp_reg = ecx;
-  __ mov(jmp_reg, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(jmp_reg, FieldOperand(jmp_reg,
-                               SharedFunctionInfo::kConstructStubOffset));
-  __ lea(jmp_reg, FieldOperand(jmp_reg, Code::kHeaderSize));
-  __ jmp(jmp_reg);
+  // Tail call to the function-specific construct stub (still in the caller
+  // context at this point).
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kConstructStubOffset));
+  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
+  __ jmp(ecx);
 
-  // edi: called object
-  // eax: number of arguments
-  // ecx: object map
-  // esp[0]: original receiver (for IsSuperConstructorCall)
-  __ bind(&slow);
-  {
-    __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
-    __ j(not_equal, &non_function_call, Label::kNear);
-    if (IsSuperConstructorCall()) __ Drop(1);
-    // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
-    __ mov(edi, FieldOperand(edi, JSFunctionProxy::kConstructTrapOffset));
-    __ Jump(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-
-    __ bind(&non_function_call);
-    if (IsSuperConstructorCall()) __ Drop(1);
-    {
-      // Determine the delegate for the target (if any).
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(eax);
-      __ Push(eax);
-      __ Push(edi);
-      __ CallRuntime(Runtime::kGetConstructorDelegate, 1);
-      __ mov(edi, eax);
-      __ Pop(eax);
-      __ SmiUntag(eax);
-    }
-    // The delegate is always a regular function.
-    __ AssertFunction(edi);
-    __ Jump(isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
-  }
+  __ bind(&non_function);
+  if (IsSuperConstructorCall()) __ Drop(1);
+  __ mov(edx, edi);
+  __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
 
