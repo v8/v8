@@ -3110,6 +3110,37 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CompareICStub::GenerateBooleans(MacroAssembler* masm) {
+  DCHECK_EQ(CompareICState::BOOLEAN, state());
+  Label miss;
+  Label::Distance const miss_distance =
+      masm->emit_debug_code() ? Label::kFar : Label::kNear;
+
+  __ JumpIfSmi(edx, &miss, miss_distance);
+  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ JumpIfSmi(eax, &miss, miss_distance);
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ JumpIfNotRoot(ecx, Heap::kBooleanMapRootIndex, &miss, miss_distance);
+  __ JumpIfNotRoot(ebx, Heap::kBooleanMapRootIndex, &miss, miss_distance);
+  if (op() != Token::EQ_STRICT && is_strong(strength())) {
+    __ TailCallRuntime(Runtime::kThrowStrongModeImplicitConversion, 0, 1);
+  } else {
+    if (!Token::IsEqualityOp(op())) {
+      __ mov(eax, FieldOperand(eax, Oddball::kToNumberOffset));
+      __ AssertSmi(eax);
+      __ mov(edx, FieldOperand(edx, Oddball::kToNumberOffset));
+      __ AssertSmi(edx);
+      __ xchg(eax, edx);
+    }
+    __ sub(eax, edx);
+    __ Ret();
+  }
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void CompareICStub::GenerateSmis(MacroAssembler* masm) {
   DCHECK(state() == CompareICState::SMI);
   Label miss;
