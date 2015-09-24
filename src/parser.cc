@@ -1280,8 +1280,9 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
     Scanner::Location old_super_loc = function_state_->super_location();
     Statement* stat = ParseStatementListItem(CHECK_OK);
 
-    if (is_strong(language_mode()) && scope_->is_function_scope() &&
-        IsClassConstructor(function_state_->kind())) {
+    if (is_strong(language_mode()) &&
+        scope_->is_function_scope() &&
+        i::IsConstructor(function_state_->kind())) {
       Scanner::Location this_loc = function_state_->this_location();
       Scanner::Location super_loc = function_state_->super_location();
       if (this_loc.beg_pos != old_this_loc.beg_pos &&
@@ -1335,7 +1336,7 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
           if (use_strong_found) {
             scope_->SetLanguageMode(
                 static_cast<LanguageMode>(scope_->language_mode() | STRONG));
-            if (IsClassConstructor(function_state_->kind())) {
+            if (i::IsConstructor(function_state_->kind())) {
               // "use strong" cannot occur in a class constructor body, to avoid
               // unintuitive strong class object semantics.
               ParserTraits::ReportMessageAt(
@@ -2641,7 +2642,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
       // Fall through.
     case Token::SUPER:
       if (is_strong(language_mode()) &&
-          IsClassConstructor(function_state_->kind())) {
+          i::IsConstructor(function_state_->kind())) {
         bool is_this = peek() == Token::THIS;
         Expression* expr;
         ExpressionClassifier classifier;
@@ -2848,7 +2849,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     }
   } else {
     if (is_strong(language_mode()) &&
-        IsClassConstructor(function_state_->kind())) {
+        i::IsConstructor(function_state_->kind())) {
       int pos = peek_position();
       ReportMessageAt(Scanner::Location(pos, pos + 1),
                       MessageTemplate::kStrongConstructorReturnValue);
@@ -4603,7 +4604,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
   // For concise constructors, check that they are constructed,
   // not called.
-  if (IsClassConstructor(kind)) {
+  if (i::IsConstructor(kind)) {
     AddAssertIsConstruct(result, pos);
   }
 

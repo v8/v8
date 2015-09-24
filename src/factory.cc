@@ -1930,7 +1930,6 @@ Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<Object> handler,
   Handle<Map> map = NewMap(JS_FUNCTION_PROXY_TYPE, JSFunctionProxy::kSize);
   Map::SetPrototype(map, prototype);
   map->set_is_callable();
-  map->set_is_constructor(construct_trap->IsCallable());
 
   // Allocate the proxy object.
   Handle<JSFunctionProxy> result = New<JSFunctionProxy>(map, NEW_SPACE);
@@ -1992,7 +1991,7 @@ void Factory::ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type,
 
   // Functions require some minimal initialization.
   if (type == JS_FUNCTION_TYPE) {
-    map->set_is_constructor(true);
+    map->set_function_with_prototype(true);
     map->set_is_callable();
     Handle<JSFunction> js_function = Handle<JSFunction>::cast(proxy);
     InitializeFunction(js_function, shared.ToHandleChecked(), context);

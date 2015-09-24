@@ -2228,7 +2228,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       if (FLAG_strong_this && is_strong(language_mode())) {
         // Constructors' usages of 'this' in strong mode are parsed separately.
         // TODO(rossberg): this does not work with arrow functions yet.
-        if (IsClassConstructor(function_state_->kind())) {
+        if (i::IsConstructor(function_state_->kind())) {
           ReportMessage(MessageTemplate::kStrongConstructorThis);
           *ok = false;
           break;
@@ -3612,7 +3612,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
   Scope* scope = scope_->ReceiverScope();
   FunctionKind kind = scope->function_kind();
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
-      IsClassConstructor(kind)) {
+      i::IsConstructor(kind)) {
     if (peek() == Token::PERIOD || peek() == Token::LBRACK) {
       scope->RecordSuperPropertyUsage();
       return this->SuperPropertyReference(scope_, factory(), pos);
