@@ -513,7 +513,7 @@ class Context: public FixedArray {
                                       : SLOPPY_GENERATOR_FUNCTION_MAP_INDEX;
     }
 
-    if (IsConstructor(kind)) {
+    if (IsClassConstructor(kind)) {
       // Use strict function map (no own "caller" / "arguments")
       return is_strong(language_mode) ? STRONG_CONSTRUCTOR_MAP_INDEX
                                       : STRICT_FUNCTION_MAP_INDEX;

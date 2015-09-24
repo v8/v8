@@ -6418,7 +6418,8 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (!CanInlinePropertyAccess(map_)) return false;
   if (IsJSObjectFieldAccessor()) return IsLoad();
   if (IsJSArrayBufferViewFieldAccessor()) return IsLoad();
-  if (map_->function_with_prototype() && !map_->has_non_instance_prototype() &&
+  if (map_->IsJSFunctionMap() && map_->is_constructor() &&
+      !map_->has_non_instance_prototype() &&
       name_.is_identical_to(isolate()->factory()->prototype_string())) {
     return IsLoad();
   }
@@ -6532,7 +6533,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
   }
 
   if (info->name().is_identical_to(isolate()->factory()->prototype_string()) &&
-      info->map()->function_with_prototype()) {
+      info->map()->IsJSFunctionMap() && info->map()->is_constructor()) {
     DCHECK(!info->map()->has_non_instance_prototype());
     return New<HLoadFunctionPrototype>(checked_object);
   }

@@ -997,7 +997,7 @@ inline bool IsSubclassConstructor(FunctionKind kind) {
 }
 
 
-inline bool IsConstructor(FunctionKind kind) {
+inline bool IsClassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind &
          (FunctionKind::kBaseConstructor | FunctionKind::kSubclassConstructor |

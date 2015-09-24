@@ -1033,6 +1033,9 @@ class Object {
   // ES6, section 7.2.3 IsCallable.
   INLINE(bool IsCallable() const);
 
+  // ES6, section 7.2.4 IsConstructor.
+  INLINE(bool IsConstructor() const);
+
   INLINE(bool IsSpecObject()) const;
   INLINE(bool IsTemplateInfo()) const;
   INLINE(bool IsNameDictionary() const);
@@ -5362,11 +5365,10 @@ class Map: public HeapObject {
   inline void set_non_instance_prototype(bool value);
   inline bool has_non_instance_prototype();
 
-  // Tells whether function has special prototype property. If not, prototype
-  // property will not be created when accessed (will return undefined),
-  // and construction from this function will not be allowed.
-  inline void set_function_with_prototype(bool value);
-  inline bool function_with_prototype();
+  // Tells whether the instance has a [[Construct]] internal method.
+  // This property is implemented according to ES6, section 7.2.4.
+  inline void set_is_constructor(bool value);
+  inline bool is_constructor() const;
 
   // Tells whether the instance with this map should be ignored by the
   // Object.getPrototypeOf() function and the __proto__ accessor.
@@ -5394,7 +5396,7 @@ class Map: public HeapObject {
   inline void set_is_observed();
   inline bool is_observed();
 
-  // Tells whether the instance has a [[Call]] internal field.
+  // Tells whether the instance has a [[Call]] internal method.
   // This property is implemented according to ES6, section 7.2.3.
   inline void set_is_callable();
   inline bool is_callable() const;
@@ -5723,6 +5725,7 @@ class Map: public HeapObject {
   inline bool IsPrimitiveMap();
   inline bool IsJSObjectMap();
   inline bool IsJSArrayMap();
+  inline bool IsJSFunctionMap();
   inline bool IsStringMap();
   inline bool IsJSProxyMap();
   inline bool IsJSGlobalProxyMap();
@@ -5827,7 +5830,7 @@ class Map: public HeapObject {
   static const int kIsUndetectable = 4;
   static const int kIsObserved = 5;
   static const int kIsAccessCheckNeeded = 6;
-  class FunctionWithPrototype: public BitField<bool, 7,  1> {};
+  static const int kIsConstructor = 7;
 
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;
@@ -7142,7 +7145,6 @@ class JSFunction: public JSObject {
   // After prototype is removed, it will not be created when accessed, and
   // [[Construct]] from this function will not be allowed.
   bool RemovePrototype();
-  inline bool should_have_prototype();
 
   // Accessor for this function's initial map's [[class]]
   // property. This is primarily used by ECMA native functions.  This

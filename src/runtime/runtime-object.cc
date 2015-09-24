@@ -1056,9 +1056,8 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
       Handle<JSFunction>::cast(original_constructor);
 
 
-  // If function should not have prototype, construction is not allowed. In this
-  // case generated code bailouts here, since function has no initial_map.
-  if (!function->should_have_prototype() && !function->shared()->bound()) {
+  // Check that function is a constructor.
+  if (!function->IsConstructor()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotConstructor, constructor));
   }

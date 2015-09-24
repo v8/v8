@@ -192,6 +192,12 @@ bool Object::IsCallable() const {
 }
 
 
+bool Object::IsConstructor() const {
+  return Object::IsHeapObject() &&
+         HeapObject::cast(this)->map()->is_constructor();
+}
+
+
 bool Object::IsSpecObject() const {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() >= FIRST_SPEC_OBJECT_TYPE;
@@ -4532,13 +4538,17 @@ bool Map::has_non_instance_prototype() {
 }
 
 
-void Map::set_function_with_prototype(bool value) {
-  set_bit_field(FunctionWithPrototype::update(bit_field(), value));
+void Map::set_is_constructor(bool value) {
+  if (value) {
+    set_bit_field(bit_field() | (1 << kIsConstructor));
+  } else {
+    set_bit_field(bit_field() & ~(1 << kIsConstructor));
+  }
 }
 
 
-bool Map::function_with_prototype() {
-  return FunctionWithPrototype::decode(bit_field());
+bool Map::is_constructor() const {
+  return ((1 << kIsConstructor) & bit_field()) != 0;
 }
 
 
@@ -4795,6 +4805,7 @@ bool Map::IsJSObjectMap() {
   return instance_type() >= FIRST_JS_OBJECT_TYPE;
 }
 bool Map::IsJSArrayMap() { return instance_type() == JS_ARRAY_TYPE; }
+bool Map::IsJSFunctionMap() { return instance_type() == JS_FUNCTION_TYPE; }
 bool Map::IsStringMap() { return instance_type() < FIRST_NONSTRING_TYPE; }
 bool Map::IsJSProxyMap() {
   InstanceType type = instance_type();
@@ -6253,11 +6264,6 @@ Object* JSFunction::prototype() {
     return prototype;
   }
   return instance_prototype();
-}
-
-
-bool JSFunction::should_have_prototype() {
-  return map()->function_with_prototype();
 }
 
 
