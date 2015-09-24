@@ -41,7 +41,8 @@ bool AllocatedOperandMatches(
     const AllocatedOperand& op,
     const InstructionSequenceTest::TestOperand& test_op) {
   return AreOperandsOfSameType(op, test_op) &&
-         (op.index() == test_op.value_ ||
+         ((op.IsRegister() ? op.GetRegister().code() : op.index()) ==
+              test_op.value_ ||
           test_op.value_ == InstructionSequenceTest::kNoValue);
 }
 

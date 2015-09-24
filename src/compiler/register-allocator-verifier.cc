@@ -218,14 +218,16 @@ void RegisterAllocatorVerifier::CheckConstraint(
       return;
     case kFixedRegister:
       CHECK(op->IsRegister());
-      CHECK_EQ(RegisterOperand::cast(op)->index(), constraint->value_);
+      CHECK_EQ(RegisterOperand::cast(op)->GetDoubleRegister().code(),
+               constraint->value_);
       return;
     case kDoubleRegister:
       CHECK(op->IsDoubleRegister());
       return;
     case kFixedDoubleRegister:
       CHECK(op->IsDoubleRegister());
-      CHECK_EQ(DoubleRegisterOperand::cast(op)->index(), constraint->value_);
+      CHECK_EQ(DoubleRegisterOperand::cast(op)->GetDoubleRegister().code(),
+               constraint->value_);
       return;
     case kFixedSlot:
       CHECK(op->IsStackSlot());

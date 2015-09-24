@@ -593,7 +593,7 @@ void LCodeGen::SaveCallerDoubles() {
   while (!iterator.Done()) {
     // TODO(all): Is this supposed to save just the callee-saved doubles? It
     // looks like it's saving all of them.
-    FPRegister value = FPRegister::FromAllocationIndex(iterator.Current());
+    FPRegister value = FPRegister::from_code(iterator.Current());
     __ Poke(value, count * kDoubleSize);
     iterator.Advance();
     count++;
@@ -611,7 +611,7 @@ void LCodeGen::RestoreCallerDoubles() {
   while (!iterator.Done()) {
     // TODO(all): Is this supposed to restore just the callee-saved doubles? It
     // looks like it's restoring all of them.
-    FPRegister value = FPRegister::FromAllocationIndex(iterator.Current());
+    FPRegister value = FPRegister::from_code(iterator.Current());
     __ Peek(value, count * kDoubleSize);
     iterator.Advance();
     count++;
@@ -1158,7 +1158,7 @@ void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
 Register LCodeGen::ToRegister(LOperand* op) const {
   // TODO(all): support zero register results, as ToRegister32.
   DCHECK((op != NULL) && op->IsRegister());
-  return Register::FromAllocationIndex(op->index());
+  return Register::from_code(op->index());
 }
 
 
@@ -1182,7 +1182,7 @@ Smi* LCodeGen::ToSmi(LConstantOperand* op) const {
 
 DoubleRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
   DCHECK((op != NULL) && op->IsDoubleRegister());
-  return DoubleRegister::FromAllocationIndex(op->index());
+  return DoubleRegister::from_code(op->index());
 }
 
 

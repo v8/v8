@@ -7,6 +7,7 @@
 #include "src/hydrogen.h"
 #include "src/lithium-inl.h"
 #include "src/lithium-allocator-inl.h"
+#include "src/register-configuration.h"
 #include "src/string-stream.h"
 
 namespace v8 {
@@ -585,7 +586,7 @@ void LAllocator::AddInitialIntervals(HBasicBlock* block,
 
 
 int LAllocator::FixedDoubleLiveRangeID(int index) {
-  return -index - 1 - Register::kMaxNumAllocatableRegisters;
+  return -index - 1 - Register::kNumRegisters;
 }
 
 
@@ -617,7 +618,7 @@ LOperand* LAllocator::AllocateFixed(LUnallocated* operand,
 
 
 LiveRange* LAllocator::FixedLiveRangeFor(int index) {
-  DCHECK(index < Register::kMaxNumAllocatableRegisters);
+  DCHECK(index < Register::kNumRegisters);
   LiveRange* result = fixed_live_ranges_[index];
   if (result == NULL) {
     result = new(zone()) LiveRange(FixedLiveRangeID(index), chunk()->zone());
@@ -631,7 +632,7 @@ LiveRange* LAllocator::FixedLiveRangeFor(int index) {
 
 
 LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
-  DCHECK(index < DoubleRegister::NumAllocatableRegisters());
+  DCHECK(index < DoubleRegister::kMaxNumRegisters);
   LiveRange* result = fixed_double_live_ranges_[index];
   if (result == NULL) {
     result = new(zone()) LiveRange(FixedDoubleLiveRangeID(index),
@@ -939,25 +940,27 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
         }
 
         if (instr->ClobbersRegisters()) {
-          for (int i = 0; i < Register::kMaxNumAllocatableRegisters; ++i) {
-            if (output == NULL || !output->IsRegister() ||
-                output->index() != i) {
-              LiveRange* range = FixedLiveRangeFor(i);
-              range->AddUseInterval(curr_position,
-                                    curr_position.InstructionEnd(),
-                                    zone());
+          for (int i = 0; i < Register::kNumRegisters; ++i) {
+            if (Register::from_code(i).IsAllocatable()) {
+              if (output == NULL || !output->IsRegister() ||
+                  output->index() != i) {
+                LiveRange* range = FixedLiveRangeFor(i);
+                range->AddUseInterval(curr_position,
+                                      curr_position.InstructionEnd(), zone());
+              }
             }
           }
         }
 
         if (instr->ClobbersDoubleRegisters(isolate())) {
-          for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
-            if (output == NULL || !output->IsDoubleRegister() ||
-                output->index() != i) {
-              LiveRange* range = FixedDoubleLiveRangeFor(i);
-              range->AddUseInterval(curr_position,
-                                    curr_position.InstructionEnd(),
-                                    zone());
+          for (int i = 0; i < DoubleRegister::kMaxNumRegisters; ++i) {
+            if (DoubleRegister::from_code(i).IsAllocatable()) {
+              if (output == NULL || !output->IsDoubleRegister() ||
+                  output->index() != i) {
+                LiveRange* range = FixedDoubleLiveRangeFor(i);
+                range->AddUseInterval(curr_position,
+                                      curr_position.InstructionEnd(), zone());
+              }
             }
           }
         }
@@ -1069,11 +1072,9 @@ bool LAllocator::Allocate(LChunk* chunk) {
   DCHECK(chunk_ == NULL);
   chunk_ = static_cast<LPlatformChunk*>(chunk);
   assigned_registers_ =
-      new(chunk->zone()) BitVector(Register::NumAllocatableRegisters(),
-                                   chunk->zone());
-  assigned_double_registers_ =
-      new(chunk->zone()) BitVector(DoubleRegister::NumAllocatableRegisters(),
-                                   chunk->zone());
+      new (chunk->zone()) BitVector(Register::kNumRegisters, chunk->zone());
+  assigned_double_registers_ = new (chunk->zone())
+      BitVector(DoubleRegister::kMaxNumRegisters, chunk->zone());
   MeetRegisterConstraints();
   if (!AllocationOk()) return false;
   ResolvePhis();
@@ -1460,7 +1461,10 @@ void LAllocator::PopulatePointerMaps() {
 
 void LAllocator::AllocateGeneralRegisters() {
   LAllocatorPhase phase("L_Allocate general registers", this);
-  num_registers_ = Register::NumAllocatableRegisters();
+  num_registers_ =
+      RegisterConfiguration::ArchDefault()->num_allocatable_general_registers();
+  allocatable_register_codes_ =
+      RegisterConfiguration::ArchDefault()->allocatable_general_codes();
   mode_ = GENERAL_REGISTERS;
   AllocateRegisters();
 }
@@ -1468,7 +1472,10 @@ void LAllocator::AllocateGeneralRegisters() {
 
 void LAllocator::AllocateDoubleRegisters() {
   LAllocatorPhase phase("L_Allocate double registers", this);
-  num_registers_ = DoubleRegister::NumAllocatableRegisters();
+  num_registers_ =
+      RegisterConfiguration::ArchDefault()->num_allocatable_double_registers();
+  allocatable_register_codes_ =
+      RegisterConfiguration::ArchDefault()->allocatable_double_codes();
   mode_ = DOUBLE_REGISTERS;
   AllocateRegisters();
 }
@@ -1492,7 +1499,7 @@ void LAllocator::AllocateRegisters() {
   DCHECK(inactive_live_ranges_.is_empty());
 
   if (mode_ == DOUBLE_REGISTERS) {
-    for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
+    for (int i = 0; i < fixed_double_live_ranges_.length(); ++i) {
       LiveRange* current = fixed_double_live_ranges_.at(i);
       if (current != NULL) {
         AddToInactive(current);
@@ -1586,9 +1593,9 @@ void LAllocator::AllocateRegisters() {
 
 const char* LAllocator::RegisterName(int allocation_index) {
   if (mode_ == GENERAL_REGISTERS) {
-    return Register::AllocationIndexToString(allocation_index);
+    return Register::from_code(allocation_index).ToString();
   } else {
-    return DoubleRegister::AllocationIndexToString(allocation_index);
+    return DoubleRegister::from_code(allocation_index).ToString();
   }
 }
 
@@ -1750,16 +1757,12 @@ void LAllocator::InactiveToActive(LiveRange* range) {
 }
 
 
-// TryAllocateFreeReg and AllocateBlockedReg assume this
-// when allocating local arrays.
-STATIC_ASSERT(DoubleRegister::kMaxNumAllocatableRegisters >=
-              Register::kMaxNumAllocatableRegisters);
-
-
 bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
-  LifetimePosition free_until_pos[DoubleRegister::kMaxNumAllocatableRegisters];
+  DCHECK(DoubleRegister::kMaxNumRegisters >= Register::kNumRegisters);
 
-  for (int i = 0; i < num_registers_; i++) {
+  LifetimePosition free_until_pos[DoubleRegister::kMaxNumRegisters];
+
+  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
     free_until_pos[i] = LifetimePosition::MaxPosition();
   }
 
@@ -1800,10 +1803,11 @@ bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
   }
 
   // Find the register which stays free for the longest time.
-  int reg = 0;
+  int reg = allocatable_register_codes_[0];
   for (int i = 1; i < RegisterCount(); ++i) {
-    if (free_until_pos[i].Value() > free_until_pos[reg].Value()) {
-      reg = i;
+    int code = allocatable_register_codes_[i];
+    if (free_until_pos[code].Value() > free_until_pos[reg].Value()) {
+      reg = code;
     }
   }
 
@@ -1845,10 +1849,10 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
   }
 
 
-  LifetimePosition use_pos[DoubleRegister::kMaxNumAllocatableRegisters];
-  LifetimePosition block_pos[DoubleRegister::kMaxNumAllocatableRegisters];
+  LifetimePosition use_pos[DoubleRegister::kMaxNumRegisters];
+  LifetimePosition block_pos[DoubleRegister::kMaxNumRegisters];
 
-  for (int i = 0; i < num_registers_; i++) {
+  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
     use_pos[i] = block_pos[i] = LifetimePosition::MaxPosition();
   }
 
@@ -1883,10 +1887,11 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
     }
   }
 
-  int reg = 0;
+  int reg = allocatable_register_codes_[0];
   for (int i = 1; i < RegisterCount(); ++i) {
-    if (use_pos[i].Value() > use_pos[reg].Value()) {
-      reg = i;
+    int code = allocatable_register_codes_[i];
+    if (use_pos[code].Value() > use_pos[reg].Value()) {
+      reg = code;
     }
   }
 
