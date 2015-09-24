@@ -77,8 +77,8 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
     }
     const Operator* op = jsgraph_->javascript()->LoadContext(
         0, access.index(), access.immutable());
-    node->set_op(op);
     node->ReplaceInput(0, jsgraph_->Constant(context));
+    NodeProperties::ChangeOp(node, op);
     return Changed(node);
   }
   Handle<Object> value =
@@ -119,8 +119,8 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
     context = handle(context->previous(), isolate());
   }
 
-  node->set_op(javascript()->StoreContext(0, access.index()));
   node->ReplaceInput(0, jsgraph_->Constant(context));
+  NodeProperties::ChangeOp(node, javascript()->StoreContext(0, access.index()));
   return Changed(node);
 }
 

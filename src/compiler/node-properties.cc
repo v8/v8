@@ -196,6 +196,13 @@ void NodeProperties::ReplaceUses(Node* node, Node* value, Node* effect,
 
 
 // static
+void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
+  DCHECK_EQ(OperatorProperties::GetTotalInputCount(new_op), node->InputCount());
+  node->set_op(new_op);
+}
+
+
+// static
 Node* NodeProperties::FindProjection(Node* node, size_t projection_index) {
   for (auto use : node->uses()) {
     if (use->opcode() == IrOpcode::kProjection &&

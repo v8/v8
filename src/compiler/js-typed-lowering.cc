@@ -163,7 +163,7 @@ class JSBinopReduction final {
     // Remove the inputs corresponding to context, effect, and control.
     NodeProperties::RemoveNonValueInputs(node_);
     // Finally, update the operator to the new one.
-    node_->set_op(op);
+    NodeProperties::ChangeOp(node_, op);
 
     // TODO(jarin): Replace the explicit typing hack with a call to some method
     // that encapsulates changing the operator and re-typing.
@@ -362,7 +362,7 @@ class JSBinopReduction final {
     NodeProperties::RemoveType(exception_merge);
     exception_merge->ReplaceInput(0, left_exception);
     exception_merge->ReplaceInput(1, right_exception);
-    exception_merge->set_op(common()->Merge(2));
+    NodeProperties::ChangeOp(exception_merge, common()->Merge(2));
 
     *left_result = left_conv;
     *right_result = right_conv;
@@ -413,7 +413,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->set_op(common()->Call(desc));
+    NodeProperties::ChangeOp(node, common()->Call(desc));
     return Changed(node);
   }
   return NoChange();
@@ -629,14 +629,13 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
   Type* const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::Boolean())) {
     // JSUnaryNot(x:boolean) => BooleanNot(x)
-    node->set_op(simplified()->BooleanNot());
     node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
     return Changed(node);
   } else if (input_type->Is(Type::OrderedNumber())) {
     // JSUnaryNot(x:number) => NumberEqual(x,#0)
-    node->set_op(simplified()->NumberEqual());
     node->ReplaceInput(1, jsgraph()->ZeroConstant());
-    DCHECK_EQ(2, node->InputCount());
+    NodeProperties::ChangeOp(node, simplified()->NumberEqual());
     return Changed(node);
   } else if (input_type->Is(Type::String())) {
     // JSUnaryNot(x:string) => NumberEqual(x.length,#0)
@@ -645,11 +644,10 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
     // chain) because we assume String::length to be immutable.
     Node* length = graph()->NewNode(simplified()->LoadField(access), input,
                                     graph()->start(), graph()->start());
-    node->set_op(simplified()->NumberEqual());
     node->ReplaceInput(0, length);
     node->ReplaceInput(1, jsgraph()->ZeroConstant());
+    NodeProperties::ChangeOp(node, simplified()->NumberEqual());
     ReplaceWithValue(node, node, length);
-    DCHECK_EQ(2, node->InputCount());
     return Changed(node);
   }
   return NoChange();
@@ -664,10 +662,10 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     return Replace(input);
   } else if (input_type->Is(Type::OrderedNumber())) {
     // JSToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x,#0))
-    node->set_op(simplified()->BooleanNot());
     node->ReplaceInput(0, graph()->NewNode(simplified()->NumberEqual(), input,
                                            jsgraph()->ZeroConstant()));
     node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
     return Changed(node);
   } else if (input_type->Is(Type::String())) {
     // JSToBoolean(x:string) => NumberLessThan(#0,x.length)
@@ -676,10 +674,9 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     // chain) because we assume String::length to be immutable.
     Node* length = graph()->NewNode(simplified()->LoadField(access), input,
                                     graph()->start(), graph()->start());
-    node->set_op(simplified()->NumberLessThan());
     node->ReplaceInput(0, jsgraph()->ZeroConstant());
     node->ReplaceInput(1, length);
-    DCHECK_EQ(2, node->InputCount());
+    NodeProperties::ChangeOp(node, simplified()->NumberLessThan());
     return Changed(node);
   }
   return NoChange();
@@ -908,21 +905,22 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         }
         // Check if we can avoid the bounds check.
         if (key_type->Min() >= 0 && key_type->Max() < array->length_value()) {
-          node->set_op(simplified()->StoreElement(
-              AccessBuilder::ForTypedArrayElement(array->type(), true)));
           node->ReplaceInput(0, buffer);
           DCHECK_EQ(key, node->InputAt(1));
           node->ReplaceInput(2, value);
           node->ReplaceInput(3, effect);
           node->ReplaceInput(4, control);
           node->TrimInputCount(5);
+          NodeProperties::ChangeOp(
+              node,
+              simplified()->StoreElement(
+                  AccessBuilder::ForTypedArrayElement(array->type(), true)));
           RelaxControls(node);
           return Changed(node);
         }
         // Compute byte offset.
         Node* offset = Word32Shl(key, static_cast<int>(k));
         // Turn into a StoreBuffer operation.
-        node->set_op(simplified()->StoreBuffer(access));
         node->ReplaceInput(0, buffer);
         node->ReplaceInput(1, offset);
         node->ReplaceInput(2, length);
@@ -930,6 +928,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         node->ReplaceInput(4, effect);
         node->ReplaceInput(5, control);
         node->TrimInputCount(6);
+        NodeProperties::ChangeOp(node, simplified()->StoreBuffer(access));
         RelaxControls(node);
         return Changed(node);
       }
@@ -951,11 +950,11 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
                    AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
                NodeProperties::GetValueInput(node, 0), effect, control));
   }
-  node->set_op(
-      simplified()->LoadField(AccessBuilder::ForContextSlot(access.index())));
   node->ReplaceInput(1, effect);
   node->ReplaceInput(2, control);
-  DCHECK_EQ(3, node->InputCount());
+  NodeProperties::ChangeOp(
+      node,
+      simplified()->LoadField(AccessBuilder::ForContextSlot(access.index())));
   return Changed(node);
 }
 
@@ -972,10 +971,10 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
                    AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
                NodeProperties::GetValueInput(node, 0), effect, control));
   }
-  node->set_op(
-      simplified()->StoreField(AccessBuilder::ForContextSlot(access.index())));
   node->RemoveInput(2);
-  DCHECK_EQ(4, node->InputCount());
+  NodeProperties::ChangeOp(
+      node,
+      simplified()->StoreField(AccessBuilder::ForContextSlot(access.index())));
   return Changed(node);
 }
 
@@ -1007,8 +1006,9 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicGlobal(Node* node) {
                                     check_true);
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    check_false->set_op(common()->Merge(check_false->InputCount() + 1));
     check_false->AppendInput(graph()->zone(), if_false);
+    NodeProperties::ChangeOp(check_false,
+                             common()->Merge(check_false->InputCount()));
     check_true = if_true;
   }
 
@@ -1066,8 +1066,9 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicContext(Node* node) {
                                     check_true);
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    check_false->set_op(common()->Merge(check_false->InputCount() + 1));
     check_false->AppendInput(graph()->zone(), if_false);
+    NodeProperties::ChangeOp(check_false,
+                             common()->Merge(check_false->InputCount()));
     check_true = if_true;
   }
 
@@ -1115,7 +1116,7 @@ Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     node->InsertInput(graph()->zone(), 0, stub_code);
     node->InsertInput(graph()->zone(), 1, jsgraph()->HeapConstant(shared));
-    node->set_op(new_op);
+    NodeProperties::ChangeOp(node, new_op);
     return Changed(node);
   }
 
@@ -1145,7 +1146,7 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
     const Operator* new_op = common()->Call(desc);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     node->InsertInput(graph()->zone(), 0, stub_code);
-    node->set_op(new_op);
+    NodeProperties::ChangeOp(node, new_op);
     return Changed(node);
   }
 
@@ -1175,7 +1176,7 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(flags));
     node->InsertInput(graph()->zone(), 0, stub_code);
-    node->set_op(new_op);
+    NodeProperties::ChangeOp(node, new_op);
     return Changed(node);
   }
 
@@ -1209,8 +1210,8 @@ Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
     ReplaceWithValue(node, node, a.effect());
     node->ReplaceInput(0, a.allocation());
     node->ReplaceInput(1, a.effect());
-    node->set_op(common()->Finish(1));
     node->TrimInputCount(2);
+    NodeProperties::ChangeOp(node, common()->Finish(1));
     return Changed(node);
   }
   return NoChange();
@@ -1248,8 +1249,8 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
     ReplaceWithValue(node, node, a.effect());
     node->ReplaceInput(0, a.allocation());
     node->ReplaceInput(1, a.effect());
-    node->set_op(common()->Finish(1));
     node->TrimInputCount(2);
+    NodeProperties::ChangeOp(node, common()->Finish(1));
     return Changed(node);
   }
   return NoChange();
@@ -1280,8 +1281,9 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
       if (is_strict(p.language_mode())) {
         flags |= CallDescriptor::kSupportsTailCalls;
       }
-      node->set_op(common()->Call(Linkage::GetJSCallDescriptor(
-          graph()->zone(), false, 1 + arity, flags)));
+      NodeProperties::ChangeOp(node,
+                               common()->Call(Linkage::GetJSCallDescriptor(
+                                   graph()->zone(), false, 1 + arity, flags)));
       return Changed(node);
     }
   }
@@ -1291,8 +1293,8 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSForInDone(Node* node) {
   DCHECK_EQ(IrOpcode::kJSForInDone, node->opcode());
-  node->set_op(machine()->Word32Equal());
   node->TrimInputCount(2);
+  NodeProperties::ChangeOp(node, machine()->Word32Equal());
   return Changed(node);
 }
 
@@ -1540,20 +1542,19 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
   ReplaceWithValue(node, node, effect, control);
-  node->set_op(common()->Phi(kMachAnyTagged, 2));
   node->ReplaceInput(0, vtrue0);
   node->ReplaceInput(1, vfalse0);
   node->ReplaceInput(2, control);
   node->TrimInputCount(3);
+  NodeProperties::ChangeOp(node, common()->Phi(kMachAnyTagged, 2));
   return Changed(node);
 }
 
 
 Reduction JSTypedLowering::ReduceJSForInStep(Node* node) {
   DCHECK_EQ(IrOpcode::kJSForInStep, node->opcode());
-  node->set_op(machine()->Int32Add());
   node->ReplaceInput(1, jsgraph()->Int32Constant(1));
-  DCHECK_EQ(2, node->InputCount());
+  NodeProperties::ChangeOp(node, machine()->Int32Add());
   return Changed(node);
 }
 

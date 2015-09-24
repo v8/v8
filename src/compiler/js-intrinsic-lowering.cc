@@ -149,8 +149,8 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
       graph()->NewNode(common()->Deoptimize(), frame_state, effect, control);
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
 
-  node->set_op(common()->Dead());
   node->TrimInputCount(0);
+  NodeProperties::ChangeOp(node, common()->Dead());
   return Changed(node);
 }
 
@@ -283,11 +283,12 @@ Reduction JSIntrinsicLowering::ReduceSeqStringGetChar(
     Node* node, String::Encoding encoding) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  node->set_op(
-      simplified()->LoadElement(AccessBuilder::ForSeqStringChar(encoding)));
   node->ReplaceInput(2, effect);
   node->ReplaceInput(3, control);
   node->TrimInputCount(4);
+  NodeProperties::ChangeOp(
+      node,
+      simplified()->LoadElement(AccessBuilder::ForSeqStringChar(encoding)));
   RelaxControls(node);
   return Changed(node);
 }
@@ -301,14 +302,15 @@ Reduction JSIntrinsicLowering::ReduceSeqStringSetChar(
   Node* string = NodeProperties::GetValueInput(node, 2);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  node->set_op(
-      simplified()->StoreElement(AccessBuilder::ForSeqStringChar(encoding)));
   node->ReplaceInput(0, string);
   node->ReplaceInput(1, index);
   node->ReplaceInput(2, chr);
   node->ReplaceInput(3, effect);
   node->ReplaceInput(4, control);
   node->TrimInputCount(5);
+  NodeProperties::ChangeOp(
+      node,
+      simplified()->StoreElement(AccessBuilder::ForSeqStringChar(encoding)));
   NodeProperties::RemoveType(node);
   ReplaceWithValue(node, string, node);
   return Changed(node);
@@ -337,7 +339,7 @@ Reduction JSIntrinsicLowering::ReduceUnLikely(Node* node, BranchHint hint) {
         nodes_to_visit.push(use);
       } else if (use->opcode() == IrOpcode::kBranch) {
         // Actually set the hint on any branch using the intrinsic node.
-        use->set_op(common()->Branch(hint));
+        NodeProperties::ChangeOp(use, common()->Branch(hint));
       }
     }
   }
@@ -417,7 +419,7 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   // Remove the inputs corresponding to context, effect and control.
   NodeProperties::RemoveNonValueInputs(node);
   // Finally update the operator to the new one.
-  node->set_op(op);
+  NodeProperties::ChangeOp(node, op);
   return Changed(node);
 }
 
@@ -519,14 +521,14 @@ Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
       graph()->NewNode(common()->Deoptimize(), frame_state, effect, control);
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
 
-  node->set_op(common()->Dead());
   node->TrimInputCount(0);
+  NodeProperties::ChangeOp(node, common()->Dead());
   return Changed(node);
 }
 
 
 Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
-  node->set_op(javascript()->ToObject());
+  NodeProperties::ChangeOp(node, javascript()->ToObject());
   return Changed(node);
 }
 
@@ -534,24 +536,26 @@ Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
 Reduction JSIntrinsicLowering::ReduceCallFunction(Node* node) {
   CallRuntimeParameters params = OpParameter<CallRuntimeParameters>(node->op());
   size_t arity = params.arity();
-  node->set_op(javascript()->CallFunction(arity, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                          VectorSlotPair(), ALLOW_TAIL_CALLS));
   Node* function = node->InputAt(static_cast<int>(arity - 1));
   while (--arity != 0) {
     node->ReplaceInput(static_cast<int>(arity),
                        node->InputAt(static_cast<int>(arity - 1)));
   }
   node->ReplaceInput(0, function);
+  NodeProperties::ChangeOp(
+      node,
+      javascript()->CallFunction(params.arity(), NO_CALL_FUNCTION_FLAGS, STRICT,
+                                 VectorSlotPair(), ALLOW_TAIL_CALLS));
   return Changed(node);
 }
 
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b) {
-  node->set_op(op);
   node->ReplaceInput(0, a);
   node->ReplaceInput(1, b);
   node->TrimInputCount(2);
+  NodeProperties::ChangeOp(node, op);
   RelaxControls(node);
   return Changed(node);
 }
@@ -559,11 +563,11 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b, Node* c) {
-  node->set_op(op);
   node->ReplaceInput(0, a);
   node->ReplaceInput(1, b);
   node->ReplaceInput(2, c);
   node->TrimInputCount(3);
+  NodeProperties::ChangeOp(node, op);
   RelaxControls(node);
   return Changed(node);
 }
@@ -571,12 +575,12 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b, Node* c, Node* d) {
-  node->set_op(op);
   node->ReplaceInput(0, a);
   node->ReplaceInput(1, b);
   node->ReplaceInput(2, c);
   node->ReplaceInput(3, d);
   node->TrimInputCount(4);
+  NodeProperties::ChangeOp(node, op);
   RelaxControls(node);
   return Changed(node);
 }

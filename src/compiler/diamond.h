@@ -8,6 +8,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
+#include "src/compiler/node-properties.h"
 
 namespace v8 {
 namespace internal {
@@ -60,20 +61,20 @@ struct Diamond {
   void OverwriteWithPhi(Node* node, MachineType machine_type, Node* tv,
                         Node* fv) {
     DCHECK(node->InputCount() >= 3);
-    node->set_op(common->Phi(machine_type, 2));
     node->ReplaceInput(0, tv);
     node->ReplaceInput(1, fv);
     node->ReplaceInput(2, merge);
     node->TrimInputCount(3);
+    NodeProperties::ChangeOp(node, common->Phi(machine_type, 2));
   }
 
   void OverwriteWithEffectPhi(Node* node, Node* te, Node* fe) {
     DCHECK(node->InputCount() >= 3);
-    node->set_op(common->EffectPhi(2));
     node->ReplaceInput(0, te);
     node->ReplaceInput(1, fe);
     node->ReplaceInput(2, merge);
     node->TrimInputCount(3);
+    NodeProperties::ChangeOp(node, common->EffectPhi(2));
   }
 };
 }

@@ -100,8 +100,8 @@ Reduction SimplifiedOperatorReducer::Change(Node* node, const Operator* op,
                                             Node* a) {
   DCHECK_EQ(node->InputCount(), OperatorProperties::GetTotalInputCount(op));
   DCHECK_LE(1, node->InputCount());
-  node->set_op(op);
   node->ReplaceInput(0, a);
+  NodeProperties::ChangeOp(node, op);
   return Changed(node);
 }
 

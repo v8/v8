@@ -4219,12 +4219,12 @@ Node* AstGraphBuilder::MergeControl(Node* control, Node* other) {
     // Control node for loop exists, add input.
     const Operator* op = common()->Loop(inputs);
     control->AppendInput(graph_zone(), other);
-    control->set_op(op);
+    NodeProperties::ChangeOp(control, op);
   } else if (control->opcode() == IrOpcode::kMerge) {
     // Control node for merge exists, add input.
     const Operator* op = common()->Merge(inputs);
     control->AppendInput(graph_zone(), other);
-    control->set_op(op);
+    NodeProperties::ChangeOp(control, op);
   } else {
     // Control node is a singleton, introduce a merge.
     const Operator* op = common()->Merge(inputs);
@@ -4240,8 +4240,8 @@ Node* AstGraphBuilder::MergeEffect(Node* value, Node* other, Node* control) {
   if (value->opcode() == IrOpcode::kEffectPhi &&
       NodeProperties::GetControlInput(value) == control) {
     // Phi already exists, add input.
-    value->set_op(common()->EffectPhi(inputs));
     value->InsertInput(graph_zone(), inputs - 1, other);
+    NodeProperties::ChangeOp(value, common()->EffectPhi(inputs));
   } else if (value != other) {
     // Phi does not exist yet, introduce one.
     value = NewEffectPhi(inputs, value, control);
@@ -4256,8 +4256,8 @@ Node* AstGraphBuilder::MergeValue(Node* value, Node* other, Node* control) {
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control) {
     // Phi already exists, add input.
-    value->set_op(common()->Phi(kMachAnyTagged, inputs));
     value->InsertInput(graph_zone(), inputs - 1, other);
+    NodeProperties::ChangeOp(value, common()->Phi(kMachAnyTagged, inputs));
   } else if (value != other) {
     // Phi does not exist yet, introduce one.
     value = NewPhi(inputs, value, control);

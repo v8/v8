@@ -418,12 +418,12 @@ Node* BytecodeGraphBuilder::MergeControl(Node* control, Node* other) {
     // Control node for loop exists, add input.
     const Operator* op = common()->Loop(inputs);
     control->AppendInput(graph_zone(), other);
-    control->set_op(op);
+    NodeProperties::ChangeOp(control, op);
   } else if (control->opcode() == IrOpcode::kMerge) {
     // Control node for merge exists, add input.
     const Operator* op = common()->Merge(inputs);
     control->AppendInput(graph_zone(), other);
-    control->set_op(op);
+    NodeProperties::ChangeOp(control, op);
   } else {
     // Control node is a singleton, introduce a merge.
     const Operator* op = common()->Merge(inputs);

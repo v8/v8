@@ -208,7 +208,7 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
   node->ReplaceInput(0, booleanize);
   node->ReplaceInput(1, true_value);
   node->ReplaceInput(2, false_value);
-  node->set_op(common()->Select(kMachAnyTagged));
+  NodeProperties::ChangeOp(node, common()->Select(kMachAnyTagged));
 }
 
 
@@ -219,7 +219,7 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
       isolate(), zone(), callable.descriptor(), 0, flags, properties);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   node->InsertInput(zone(), 0, stub_code);
-  node->set_op(common()->Call(desc));
+  NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
 
@@ -236,7 +236,7 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
   node->InsertInput(zone(), 0, jsgraph()->CEntryStubConstant(fun->result_size));
   node->InsertInput(zone(), nargs + 1, ref);
   node->InsertInput(zone(), nargs + 2, arity);
-  node->set_op(common()->Call(desc));
+  NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
 
@@ -440,7 +440,7 @@ void JSGenericLowering::LowerJSLoadContext(Node* node) {
   node->ReplaceInput(1, jsgraph()->Int32Constant(Context::SlotOffset(
                             static_cast<int>(access.index()))));
   node->AppendInput(zone(), graph()->start());
-  node->set_op(machine()->Load(kMachAnyTagged));
+  NodeProperties::ChangeOp(node, machine()->Load(kMachAnyTagged));
 }
 
 
@@ -458,8 +458,8 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
   node->ReplaceInput(2, NodeProperties::GetValueInput(node, 1));
   node->ReplaceInput(1, jsgraph()->Int32Constant(Context::SlotOffset(
                             static_cast<int>(access.index()))));
-  node->set_op(
-      machine()->Store(StoreRepresentation(kMachAnyTagged, kFullWriteBarrier)));
+  NodeProperties::ChangeOp(node, machine()->Store(StoreRepresentation(
+                                     kMachAnyTagged, kFullWriteBarrier)));
 }
 
 
@@ -551,7 +551,7 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   node->InsertInput(zone(), 2, actual_construct);
   node->InsertInput(zone(), 3, original_construct);
   node->InsertInput(zone(), 4, jsgraph()->UndefinedConstant());
-  node->set_op(common()->Call(desc));
+  NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
 
@@ -568,7 +568,7 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
       isolate(), zone(), d, static_cast<int>(p.arity() - 1), flags);
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
   node->InsertInput(zone(), 0, stub_code);
-  node->set_op(common()->Call(desc));
+  NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
 

@@ -179,9 +179,8 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
       case IrOpcode::kDeoptimize:
       case IrOpcode::kTerminate:
       case IrOpcode::kThrow:
-        jsgraph_->graph()->end()->AppendInput(jsgraph_->zone(), input);
-        jsgraph_->graph()->end()->set_op(
-            jsgraph_->common()->End(jsgraph_->graph()->end()->InputCount()));
+        NodeProperties::MergeControlToEnd(jsgraph_->graph(), jsgraph_->common(),
+                                          input);
         break;
       default:
         UNREACHABLE();

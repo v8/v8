@@ -94,6 +94,10 @@ class NodeProperties final {
   static void ReplaceUses(Node* node, Node* value, Node* effect = nullptr,
                           Node* success = nullptr, Node* exception = nullptr);
 
+  // Safe wrapper to mutate the operator of a node. Checks that the node is
+  // currently in a state that satisfies constraints of the new operator.
+  static void ChangeOp(Node* node, const Operator* new_op);
+
   // ---------------------------------------------------------------------------
   // Miscellaneous utilities.
 
