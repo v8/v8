@@ -1400,12 +1400,7 @@ void NewSpace::ResetAllocationInfo() {
   while (it.has_next()) {
     Bitmap::Clear(it.next());
   }
-  if (top_on_previous_step_) {
-    int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
-    heap()->incremental_marking()->Step(bytes_allocated,
-                                        IncrementalMarking::GC_VIA_STACK_GUARD);
-    top_on_previous_step_ = allocation_info_.top();
-  }
+  InlineAllocationStep(old_top, allocation_info_.top());
 }
 
 
@@ -1484,13 +1479,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
       return false;
     }
 
-    if (top_on_previous_step_) {
-      // Do a step for the bytes allocated on the last page.
-      int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
-      heap()->incremental_marking()->Step(
-          bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
-      top_on_previous_step_ = allocation_info_.top();
-    }
+    InlineAllocationStep(old_top, allocation_info_.top());
 
     old_top = allocation_info_.top();
     high = to_space_.page_high();
@@ -1504,18 +1493,22 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
     // Either the limit has been lowered because linear allocation was disabled
     // or because incremental marking wants to get a chance to do a step. Set
     // the new limit accordingly.
-    if (top_on_previous_step_) {
-      Address new_top = old_top + aligned_size_in_bytes;
-      int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
-      heap()->incremental_marking()->Step(
-          bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
-      top_on_previous_step_ = new_top;
-    }
+    Address new_top = old_top + aligned_size_in_bytes;
+    InlineAllocationStep(new_top, new_top);
     UpdateInlineAllocationLimit(aligned_size_in_bytes);
   }
   return true;
 }
 
+
+void NewSpace::InlineAllocationStep(Address top, Address new_top) {
+  if (top_on_previous_step_) {
+    int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
+    heap()->incremental_marking()->Step(bytes_allocated,
+                                        IncrementalMarking::GC_VIA_STACK_GUARD);
+    top_on_previous_step_ = new_top;
+  }
+}
 
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceIterator because verification doesn't assume

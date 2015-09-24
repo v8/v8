@@ -2721,6 +2721,15 @@ class NewSpace : public Space {
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
 
+  // If we are doing inline allocation in steps, this method performs the 'step'
+  // operation. Right now incremental marking is the only consumer of inline
+  // allocation steps. top is the memory address of the bump pointer at the last
+  // inline allocation (i.e. it determines the numbers of bytes actually
+  // allocated since the last step.) new_top is the address of the bump pointer
+  // where the next byte is going to be allocated from. top and new_top may be
+  // different when we cross a page boundary or reset the space.
+  void InlineAllocationStep(Address top, Address new_top);
+
   friend class SemiSpaceIterator;
 };
 
