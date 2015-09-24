@@ -32,8 +32,8 @@ Bytecode BytecodeArrayIterator::current_bytecode() const {
 }
 
 
-uint8_t BytecodeArrayIterator::GetOperand(int operand_index,
-                                          OperandType operand_type) const {
+uint8_t BytecodeArrayIterator::GetRawOperand(int operand_index,
+                                             OperandType operand_type) const {
   DCHECK_GE(operand_index, 0);
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
   DCHECK_EQ(operand_type,
@@ -44,19 +44,19 @@ uint8_t BytecodeArrayIterator::GetOperand(int operand_index,
 
 
 int8_t BytecodeArrayIterator::GetSmi8Operand(int operand_index) const {
-  uint8_t operand = GetOperand(operand_index, OperandType::kImm8);
+  uint8_t operand = GetRawOperand(operand_index, OperandType::kImm8);
   return static_cast<int8_t>(operand);
 }
 
 
 int BytecodeArrayIterator::GetIndexOperand(int operand_index) const {
-  uint8_t operand = GetOperand(operand_index, OperandType::kIdx);
+  uint8_t operand = GetRawOperand(operand_index, OperandType::kIdx);
   return static_cast<int>(operand);
 }
 
 
 Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
-  uint8_t operand = GetOperand(operand_index, OperandType::kReg);
+  uint8_t operand = GetRawOperand(operand_index, OperandType::kReg);
   return Register::FromOperand(operand);
 }
 

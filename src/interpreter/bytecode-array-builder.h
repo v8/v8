@@ -49,6 +49,9 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
 
+  // Global loads to accumulator.
+  BytecodeArrayBuilder& LoadGlobal(int slot_index);
+
   // Register-accumulator transfers.
   BytecodeArrayBuilder& LoadAccumulatorWithRegister(Register reg);
   BytecodeArrayBuilder& StoreAccumulatorInRegister(Register reg);

@@ -316,6 +316,13 @@ Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
 
 
 Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
+                                        Node* arg1) {
+  return raw_assembler_->CallRuntime1(function_id, arg1,
+                                      ContextTaggedPointer());
+}
+
+
+Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
                                         Node* arg1, Node* arg2) {
   return raw_assembler_->CallRuntime2(function_id, arg1, arg2,
                                       ContextTaggedPointer());

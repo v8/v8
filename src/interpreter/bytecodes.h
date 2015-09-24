@@ -36,6 +36,9 @@ namespace interpreter {
   V(LdaTrue, OperandType::kNone)                                           \
   V(LdaFalse, OperandType::kNone)                                          \
                                                                            \
+  /* Load globals */                                                       \
+  V(LdaGlobal, OperandType::kIdx)                                          \
+                                                                           \
   /* Register-accumulator transfers */                                     \
   V(Ldar, OperandType::kReg)                                               \
   V(Star, OperandType::kReg)                                               \

@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/compiler.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/interpreter.h"
 #include "test/cctest/cctest.h"
@@ -57,6 +58,13 @@ class BytecodeGeneratorHelper {
 };
 
 
+// Helper macros for handcrafting bytecode sequences.
+#define B(x) static_cast<uint8_t>(Bytecode::k##x)
+#define U8(x) static_cast<uint8_t>((x) & 0xff)
+#define R(x) static_cast<uint8_t>(-(x) & 0xff)
+#define _ static_cast<uint8_t>(0x5a)
+
+
 // Structure for containing expected bytecode snippets.
 template<typename T>
 struct ExpectedSnippet {
@@ -70,17 +78,82 @@ struct ExpectedSnippet {
 };
 
 
-// Helper macros for handcrafting bytecode sequences.
-#define B(x) static_cast<uint8_t>(Bytecode::k##x)
-#define U8(x) static_cast<uint8_t>((x) & 0xff)
-#define R(x) static_cast<uint8_t>(-(x) & 0xff)
+static void CheckConstant(int expected, Object* actual) {
+  CHECK_EQ(expected, Smi::cast(actual)->value());
+}
+
+
+static void CheckConstant(double expected, Object* actual) {
+  CHECK_EQ(expected, HeapNumber::cast(actual)->value());
+}
+
+
+static void CheckConstant(const char* expected, Object* actual) {
+  Handle<String> expected_string =
+      CcTest::i_isolate()->factory()->NewStringFromAsciiChecked(expected);
+  CHECK(String::cast(actual)->Equals(*expected_string));
+}
+
+
+template <typename T>
+static void CheckBytecodeArrayEqual(struct ExpectedSnippet<T> expected,
+                                    Handle<BytecodeArray> actual,
+                                    bool has_unknown = false) {
+  CHECK_EQ(actual->frame_size(), expected.frame_size);
+  CHECK_EQ(actual->parameter_count(), expected.parameter_count);
+  CHECK_EQ(actual->length(), expected.bytecode_length);
+  if (expected.constant_count == 0) {
+    CHECK_EQ(actual->constant_pool(), CcTest::heap()->empty_fixed_array());
+  } else {
+    CHECK_EQ(actual->constant_pool()->length(), expected.constant_count);
+    for (int i = 0; i < expected.constant_count; i++) {
+      CheckConstant(expected.constants[i], actual->constant_pool()->get(i));
+    }
+  }
+
+  BytecodeArrayIterator iterator(actual);
+  int i = 0;
+  while (!iterator.done()) {
+    int bytecode_index = i++;
+    Bytecode bytecode = iterator.current_bytecode();
+    if (Bytecodes::ToByte(bytecode) != expected.bytecode[bytecode_index]) {
+      std::ostringstream stream;
+      stream << "Check failed: expected bytecode [" << bytecode_index
+             << "] to be " << Bytecodes::ToString(static_cast<Bytecode>(
+                                  expected.bytecode[bytecode_index]))
+             << " but got " << Bytecodes::ToString(bytecode);
+      FATAL(stream.str().c_str());
+    }
+    for (int j = 0; j < Bytecodes::NumberOfOperands(bytecode); ++j, ++i) {
+      uint8_t raw_operand =
+          iterator.GetRawOperand(j, Bytecodes::GetOperandType(bytecode, j));
+      if (has_unknown) {
+        // Check actual bytecode array doesn't have the same byte as the
+        // one we use to specify an unknown byte.
+        CHECK_NE(raw_operand, _);
+        if (expected.bytecode[i] == _) {
+          continue;
+        }
+      }
+      if (raw_operand != expected.bytecode[i]) {
+        std::ostringstream stream;
+        stream << "Check failed: expected operand [" << j << "] for bytecode ["
+               << bytecode_index << "] to be "
+               << static_cast<unsigned int>(expected.bytecode[i]) << " but got "
+               << static_cast<unsigned int>(raw_operand);
+        FATAL(stream.str().c_str());
+      }
+    }
+    iterator.Advance();
+  }
+}
 
 
 TEST(PrimitiveReturnStatements) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<void*> snippets[] = {
+  ExpectedSnippet<int> snippets[] = {
       {"", 0, 1, 2, {B(LdaUndefined), B(Return)}, 0},
       {"return;", 0, 1, 2, {B(LdaUndefined), B(Return)}, 0},
       {"return null;", 0, 1, 2, {B(LdaNull), B(Return)}, 0},
@@ -95,14 +168,9 @@ TEST(PrimitiveReturnStatements) {
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
-    Handle<BytecodeArray> ba =
+    Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
-    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
-    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
-    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
-    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
-                  ba->length()));
-    CHECK_EQ(ba->constant_pool(), CcTest::heap()->empty_fixed_array());
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
 
@@ -111,7 +179,7 @@ TEST(PrimitiveExpressions) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<void*> snippets[] = {
+  ExpectedSnippet<int> snippets[] = {
       {"var x = 0; return x;",
        kPointerSize,
        1,
@@ -142,14 +210,9 @@ TEST(PrimitiveExpressions) {
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
-    Handle<BytecodeArray> ba =
+    Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
-    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
-    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
-    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
-    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
-                  ba->length()));
-    CHECK_EQ(ba->constant_pool(), CcTest::heap()->empty_fixed_array());
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
 
@@ -158,7 +221,7 @@ TEST(Parameters) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<void*> snippets[] = {
+  ExpectedSnippet<int> snippets[] = {
       {"function f() { return this; }",
        0, 1, 3, {B(Ldar), R(helper.kLastParamIndex), B(Return)}, 0},
       {"function f(arg1) { return arg1; }",
@@ -173,14 +236,9 @@ TEST(Parameters) {
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
-    Handle<BytecodeArray> ba =
+    Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunction(snippets[i].code_snippet);
-    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
-    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
-    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
-    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
-                  ba->length()));
-    CHECK_EQ(ba->constant_pool(), CcTest::heap()->empty_fixed_array());
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
 
@@ -219,18 +277,9 @@ TEST(Constants) {
 
     size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
     for (size_t i = 0; i < num_snippets; i++) {
-      Handle<BytecodeArray> ba =
+      Handle<BytecodeArray> bytecode_array =
           helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
-      CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
-      CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
-      CHECK_EQ(ba->length(), snippets[i].bytecode_length);
-      CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
-                    ba->length()));
-      CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
-      for (int j = 0; j < snippets[i].constant_count; j++) {
-        CHECK_EQ(Smi::cast(ba->constant_pool()->get(j))->value(),
-                 snippets[i].constants[j]);
-      }
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
     }
   }
 
@@ -268,18 +317,9 @@ TEST(Constants) {
 
     size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
     for (size_t i = 0; i < num_snippets; i++) {
-      Handle<BytecodeArray> ba =
+      Handle<BytecodeArray> bytecode_array =
           helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
-      CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
-      CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
-      CHECK_EQ(ba->length(), snippets[i].bytecode_length);
-      CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
-                    ba->length()));
-      CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
-      for (int j = 0; j < snippets[i].constant_count; j++) {
-        CHECK_EQ(HeapNumber::cast(ba->constant_pool()->get(j))->value(),
-                 snippets[i].constants[j]);
-      }
+      CheckBytecodeArrayEqual(snippets[i], bytecode_array);
     }
   }
 
@@ -315,19 +355,9 @@ TEST(Constants) {
 
     size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
     for (size_t i = 0; i < num_snippets; i++) {
-      Handle<BytecodeArray> ba =
+      Handle<BytecodeArray> bytecode_array =
           helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
-      CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
-      CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
-      CHECK_EQ(ba->length(), snippets[i].bytecode_length);
-      CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
-                    ba->length()));
-      CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
-      for (int j = 0; j < snippets[i].constant_count; j++) {
-        Handle<String> expected = helper.factory()->NewStringFromAsciiChecked(
-            snippets[i].constants[j]);
-        CHECK(String::cast(ba->constant_pool()->get(j))->Equals(*expected));
-      }
+      CheckBytecodeArrayEqual(snippets[i], bytecode_array);
     }
   }
 }
@@ -405,19 +435,9 @@ TEST(PropertyLoads) {
   };
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
-    Handle<BytecodeArray> ba =
+    Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
-    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
-    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
-    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
-                  ba->length()));
-    CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
-    for (int j = 0; j < snippets[i].constant_count; j++) {
-      Handle<String> expected = helper.factory()->NewStringFromAsciiChecked(
-          snippets[i].constants[j]);
-      CHECK(String::cast(ba->constant_pool()->get(j))->Equals(*expected));
-    }
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
 
@@ -509,19 +529,9 @@ TEST(PropertyStores) {
   };
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
-    Handle<BytecodeArray> ba =
+    Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
-    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
-    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
-    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
-                  ba->length()));
-    CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
-    for (int j = 0; j < snippets[i].constant_count; j++) {
-      Handle<String> expected =
-          helper.factory()->NewStringFromAsciiChecked(snippets[i].constants[j]);
-      CHECK(String::cast(ba->constant_pool()->get(j))->Equals(*expected));
-    }
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
 
@@ -592,19 +602,84 @@ TEST(PropertyCall) {
   };
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
-    Handle<BytecodeArray> ba =
+    Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CHECK_EQ(ba->frame_size(), snippets[i].frame_size);
-    CHECK_EQ(ba->parameter_count(), snippets[i].parameter_count);
-    CHECK_EQ(ba->length(), snippets[i].bytecode_length);
-    CHECK(!memcmp(ba->GetFirstBytecodeAddress(), snippets[i].bytecode,
-                  ba->length()));
-    CHECK_EQ(ba->constant_pool()->length(), snippets[i].constant_count);
-    for (int j = 0; j < snippets[i].constant_count; j++) {
-      Handle<String> expected =
-          helper.factory()->NewStringFromAsciiChecked(snippets[i].constants[j]);
-      CHECK(String::cast(ba->constant_pool()->get(j))->Equals(*expected));
-    }
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(LoadGlobal) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"var a = 1;\nfunction f() { return a; }\nf()",
+       0, 1, 3,
+       {
+          B(LdaGlobal), _,
+          B(Return)
+       },
+      },
+      {"function t() { }\nfunction f() { return t; }\nf()",
+       0, 1, 3,
+       {
+          B(LdaGlobal), _,
+          B(Return)
+       },
+      },
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    bytecode_array->Print();
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
+  }
+}
+
+
+TEST(CallGlobal) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function t() { }\nfunction f() { return t(); }\nf()",
+       2 * kPointerSize, 1, 12,
+       {
+          B(LdaUndefined),
+          B(Star), R(1),
+          B(LdaGlobal), _,
+          B(Star), R(0),
+          B(Call), R(0), R(1), U8(0),
+          B(Return)
+       },
+      },
+      {"function t(a, b, c) { }\nfunction f() { return t(1, 2, 3); }\nf()",
+       5 * kPointerSize, 1, 24,
+       {
+          B(LdaUndefined),
+          B(Star), R(1),
+          B(LdaGlobal), _,
+          B(Star), R(0),
+          B(LdaSmi8), U8(1),
+          B(Star), R(2),
+          B(LdaSmi8), U8(2),
+          B(Star), R(3),
+          B(LdaSmi8), U8(3),
+          B(Star), R(4),
+          B(Call), R(0), R(1), U8(3),
+          B(Return)
+       },
+      },
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
   }
 }
 

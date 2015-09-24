@@ -50,19 +50,41 @@ class InterpreterCallable {
 };
 
 
+static const char* kFunctionName = "f";
+
+
 class InterpreterTester {
  public:
-  InterpreterTester(Isolate* isolate, Handle<BytecodeArray> bytecode,
-                    MaybeHandle<TypeFeedbackVector> feedback_vector =
-                        MaybeHandle<TypeFeedbackVector>())
+  InterpreterTester(Isolate* isolate, const char* source,
+                    MaybeHandle<BytecodeArray> bytecode,
+                    MaybeHandle<TypeFeedbackVector> feedback_vector)
       : isolate_(isolate),
+        source_(source),
         bytecode_(bytecode),
         feedback_vector_(feedback_vector) {
     i::FLAG_vector_stores = true;
     i::FLAG_ignition = true;
+    i::FLAG_always_opt = false;
+    // Set ignition filter flag via SetFlagsFromString to avoid double-free
+    // (or potential leak with StrDup() based on ownership confusion).
+    ScopedVector<char> ignition_filter(64);
+    SNPrintF(ignition_filter, "--ignition-filter=%s", kFunctionName);
+    FlagList::SetFlagsFromString(ignition_filter.start(),
+                                 ignition_filter.length());
     // Ensure handler table is generated.
     isolate->interpreter()->Initialize();
   }
+
+  InterpreterTester(Isolate* isolate, Handle<BytecodeArray> bytecode,
+                    MaybeHandle<TypeFeedbackVector> feedback_vector =
+                        MaybeHandle<TypeFeedbackVector>())
+      : InterpreterTester(isolate, nullptr, bytecode, feedback_vector) {}
+
+
+  InterpreterTester(Isolate* isolate, const char* source)
+      : InterpreterTester(isolate, source, MaybeHandle<BytecodeArray>(),
+                          MaybeHandle<TypeFeedbackVector>()) {}
+
   virtual ~InterpreterTester() {}
 
   template <class... A>
@@ -70,28 +92,49 @@ class InterpreterTester {
     return InterpreterCallable<A...>(isolate_, GetBytecodeFunction<A...>());
   }
 
-  Handle<Object> NewObject(const char* script) {
+  static Handle<Object> NewObject(const char* script) {
     return v8::Utils::OpenHandle(*CompileRun(script));
+  }
+
+  static Handle<String> GetName(Isolate* isolate, const char* name) {
+    Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(name);
+    return isolate->factory()->string_table()->LookupString(isolate, result);
+  }
+
+  static std::string function_name() {
+    return std::string(kFunctionName);
   }
 
  private:
   Isolate* isolate_;
-  Handle<BytecodeArray> bytecode_;
+  const char* source_;
+  MaybeHandle<BytecodeArray> bytecode_;
   MaybeHandle<TypeFeedbackVector> feedback_vector_;
 
   template <class... A>
   Handle<JSFunction> GetBytecodeFunction() {
-    int arg_count = sizeof...(A);
-    std::string function_text("(function(");
-    for (int i = 0; i < arg_count; i++) {
-      function_text += i == 0 ? "a" : ", a";
+    Handle<JSFunction> function;
+    if (source_) {
+      CompileRun(source_);
+      Local<Function> api_function =
+          Local<Function>::Cast(CcTest::global()->Get(v8_str(kFunctionName)));
+      function = v8::Utils::OpenHandle(*api_function);
+    } else {
+      int arg_count = sizeof...(A);
+      std::string source("(function " + function_name() + "(");
+      for (int i = 0; i < arg_count; i++) {
+        source += i == 0 ? "a" : ", a";
+      }
+      source += "){})";
+      function = v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(CompileRun(source.c_str())));
+      function->ReplaceCode(
+          *isolate_->builtins()->InterpreterEntryTrampoline());
     }
-    function_text += "){})";
 
-    Handle<JSFunction> function = v8::Utils::OpenHandle(
-        *v8::Handle<v8::Function>::Cast(CompileRun(function_text.c_str())));
-    function->ReplaceCode(*isolate_->builtins()->InterpreterEntryTrampoline());
-    function->shared()->set_function_data(*bytecode_);
+    if (!bytecode_.is_null()) {
+      function->shared()->set_function_data(*bytecode_.ToHandleChecked());
+    }
     if (!feedback_vector_.is_null()) {
       function->shared()->set_feedback_vector(
           *feedback_vector_.ToHandleChecked());
@@ -470,6 +513,40 @@ TEST(InterpreterParameter8) {
 }
 
 
+TEST(InterpreterLoadGlobal) {
+  HandleAndZoneScope handles;
+
+  // Test loading a global.
+  std::string source(
+      "var global = 321;\n"
+      "function " + InterpreterTester::function_name() + "() {\n"
+      "  return global;\n"
+      "}");
+  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  auto callable = tester.GetCallable<>();
+
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(321));
+}
+
+
+TEST(InterpreterCallGlobal) {
+  HandleAndZoneScope handles;
+
+  // Test calling a global function.
+  std::string source(
+      "function g_add(a, b) { return a + b; }\n"
+      "function " + InterpreterTester::function_name() + "() {\n"
+      "  return g_add(5, 10);\n"
+      "}");
+  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  auto callable = tester.GetCallable<>();
+
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(15));
+}
+
+
 TEST(InterpreterLoadNamedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
@@ -495,7 +572,7 @@ TEST(InterpreterLoadNamedProperty) {
   InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
   auto callable = tester.GetCallable<Handle<Object>>();
 
-  Handle<Object> object = tester.NewObject("({ val : 123 })");
+  Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
   Handle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(123));
@@ -505,16 +582,20 @@ TEST(InterpreterLoadNamedProperty) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(123));
 
   // Test transition to polymorphic IC.
-  Handle<Object> object2 = tester.NewObject("({ val : 456, other : 123 })");
+  Handle<Object> object2 =
+      InterpreterTester::NewObject("({ val : 456, other : 123 })");
   return_val = callable(object2).ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(456));
 
   // Test transition to megamorphic IC.
-  Handle<Object> object3 = tester.NewObject("({ val : 789, val2 : 123 })");
+  Handle<Object> object3 =
+      InterpreterTester::NewObject("({ val : 789, val2 : 123 })");
   callable(object3).ToHandleChecked();
-  Handle<Object> object4 = tester.NewObject("({ val : 789, val3 : 123 })");
+  Handle<Object> object4 =
+      InterpreterTester::NewObject("({ val : 789, val3 : 123 })");
   callable(object4).ToHandleChecked();
-  Handle<Object> object5 = tester.NewObject("({ val : 789, val4 : 123 })");
+  Handle<Object> object5 =
+      InterpreterTester::NewObject("({ val : 789, val4 : 123 })");
   return_val = callable(object5).ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(789));
 }
@@ -545,7 +626,7 @@ TEST(InterpreterLoadKeyedProperty) {
   InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
   auto callable = tester.GetCallable<Handle<Object>>();
 
-  Handle<Object> object = tester.NewObject("({ key : 123 })");
+  Handle<Object> object = InterpreterTester::NewObject("({ key : 123 })");
   // Test IC miss.
   Handle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(123));
@@ -555,7 +636,8 @@ TEST(InterpreterLoadKeyedProperty) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(123));
 
   // Test transition to megamorphic IC.
-  Handle<Object> object3 = tester.NewObject("({ key : 789, val2 : 123 })");
+  Handle<Object> object3 =
+      InterpreterTester::NewObject("({ key : 789, val2 : 123 })");
   return_val = callable(object3).ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(789));
 }
@@ -587,7 +669,7 @@ TEST(InterpreterStoreNamedProperty) {
 
   InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<Handle<Object>>();
-  Handle<Object> object = tester.NewObject("({ val : 123 })");
+  Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
   Handle<Object> result;
   callable(object).ToHandleChecked();
@@ -600,17 +682,21 @@ TEST(InterpreterStoreNamedProperty) {
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
 
   // Test transition to polymorphic IC.
-  Handle<Object> object2 = tester.NewObject("({ val : 456, other : 123 })");
+  Handle<Object> object2 =
+      InterpreterTester::NewObject("({ val : 456, other : 123 })");
   callable(object2).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(isolate, object2, name).ToHandle(&result));
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
 
   // Test transition to megamorphic IC.
-  Handle<Object> object3 = tester.NewObject("({ val : 789, val2 : 123 })");
+  Handle<Object> object3 =
+      InterpreterTester::NewObject("({ val : 789, val2 : 123 })");
   callable(object3).ToHandleChecked();
-  Handle<Object> object4 = tester.NewObject("({ val : 789, val3 : 123 })");
+  Handle<Object> object4 =
+      InterpreterTester::NewObject("({ val : 789, val3 : 123 })");
   callable(object4).ToHandleChecked();
-  Handle<Object> object5 = tester.NewObject("({ val : 789, val4 : 123 })");
+  Handle<Object> object5 =
+      InterpreterTester::NewObject("({ val : 789, val4 : 123 })");
   callable(object5).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(isolate, object5, name).ToHandle(&result));
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
@@ -643,7 +729,7 @@ TEST(InterpreterStoreKeyedProperty) {
 
   InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<Handle<Object>>();
-  Handle<Object> object = tester.NewObject("({ val : 123 })");
+  Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
   Handle<Object> result;
   callable(object).ToHandleChecked();
@@ -656,7 +742,8 @@ TEST(InterpreterStoreKeyedProperty) {
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
 
   // Test transition to megamorphic IC.
-  Handle<Object> object2 = tester.NewObject("({ val : 456, other : 123 })");
+  Handle<Object> object2 =
+      InterpreterTester::NewObject("({ val : 456, other : 123 })");
   callable(object2).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(isolate, object2, name).ToHandle(&result));
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
@@ -692,7 +779,7 @@ TEST(InterpreterCall) {
     InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
     auto callable = tester.GetCallable<Handle<Object>>();
 
-    Handle<Object> object = tester.NewObject(
+    Handle<Object> object = InterpreterTester::NewObject(
         "new (function Obj() { this.func = function() { return 0x265; }})()");
     Handle<Object> return_val = callable(object).ToHandleChecked();
     CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(0x265));
@@ -714,7 +801,7 @@ TEST(InterpreterCall) {
     InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
     auto callable = tester.GetCallable<Handle<Object>>();
 
-    Handle<Object> object = tester.NewObject(
+    Handle<Object> object = InterpreterTester::NewObject(
         "new (function Obj() {"
         "  this.val = 1234;"
         "  this.func = function() { return this.val; };"
@@ -745,7 +832,7 @@ TEST(InterpreterCall) {
     InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
     auto callable = tester.GetCallable<Handle<Object>>();
 
-    Handle<Object> object = tester.NewObject(
+    Handle<Object> object = InterpreterTester::NewObject(
         "new (function Obj() { "
         "  this.func = function(a, b) { return a - b; }"
         "})()");
@@ -791,7 +878,7 @@ TEST(InterpreterCall) {
     InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
     auto callable = tester.GetCallable<Handle<Object>>();
 
-    Handle<Object> object = tester.NewObject(
+    Handle<Object> object = InterpreterTester::NewObject(
         "new (function Obj() { "
         "  this.prefix = \"prefix_\";"
         "  this.func = function(a, b, c, d, e, f, g, h, i, j) {"

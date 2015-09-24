@@ -29,6 +29,7 @@ class BytecodeGenerator : public AstVisitor {
 
   void VisitArithmeticExpression(BinaryOperation* binop);
   void VisitPropertyLoad(Register obj, Property* expr);
+  void VisitVariableLoad(Variable* variable);
 
   inline BytecodeArrayBuilder& builder() { return builder_; }
   inline Scope* scope() const { return scope_; }

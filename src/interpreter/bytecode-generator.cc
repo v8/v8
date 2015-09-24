@@ -251,7 +251,11 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 
 void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
-  Variable* variable = proxy->var();
+  VisitVariableLoad(proxy->var());
+}
+
+
+void BytecodeGenerator::VisitVariableLoad(Variable* variable) {
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
       Register source(variable->index());
@@ -265,7 +269,15 @@ void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
       builder().LoadAccumulatorWithRegister(source);
       break;
     }
-    case VariableLocation::GLOBAL:
+    case VariableLocation::GLOBAL: {
+      // Global var, const, or let variable.
+      // TODO(rmcilroy): If context chain depth is short enough, do this using
+      // a generic version of LoadGlobalViaContextStub rather than calling the
+      // runtime.
+      DCHECK(variable->IsStaticGlobalObjectProperty());
+      builder().LoadGlobal(variable->index());
+      break;
+    }
     case VariableLocation::UNALLOCATED:
     case VariableLocation::CONTEXT:
     case VariableLocation::LOOKUP:
@@ -403,7 +415,15 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder().StoreAccumulatorInRegister(callee);
       break;
     }
-    case Call::GLOBAL_CALL:
+    case Call::GLOBAL_CALL: {
+      // Receiver is undefined for global calls.
+      builder().LoadUndefined().StoreAccumulatorInRegister(receiver);
+      // Load callee as a global variable.
+      VariableProxy* proxy = callee_expr->AsVariableProxy();
+      VisitVariableLoad(proxy->var());
+      builder().StoreAccumulatorInRegister(callee);
+      break;
+    }
     case Call::LOOKUP_SLOT_CALL:
     case Call::SUPER_CALL:
     case Call::POSSIBLY_EVAL_CALL:

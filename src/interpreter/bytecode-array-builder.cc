@@ -152,6 +152,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(int slot_index) {
+  DCHECK(slot_index >= 0);
+  if (FitsInByteOperand(slot_index)) {
+    Output(Bytecode::kLdaGlobal, static_cast<uint8_t>(slot_index));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
     Register object, int feedback_slot, LanguageMode language_mode) {
   if (!is_sloppy(language_mode)) {

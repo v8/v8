@@ -39,6 +39,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Register reg(0);
   builder.LoadAccumulatorWithRegister(reg).StoreAccumulatorInRegister(reg);
 
+  // Emit global load operations.
+  builder.LoadGlobal(1);
+
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, 0, LanguageMode::SLOPPY)
       .LoadKeyedProperty(reg, 0, LanguageMode::SLOPPY)

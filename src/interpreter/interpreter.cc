@@ -191,6 +191,18 @@ void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// LdaGlobal <slot_index>
+//
+// Load the global at |slot_index| into the accumulator.
+void Interpreter::DoLdaGlobal(compiler::InterpreterAssembler* assembler) {
+  Node* slot_index = __ BytecodeOperandIdx(0);
+  Node* smi_slot_index = __ SmiTag(slot_index);
+  Node* result = __ CallRuntime(Runtime::kLoadGlobalViaContext, smi_slot_index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 void Interpreter::DoPropertyLoadIC(Callable ic,
                                    compiler::InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());

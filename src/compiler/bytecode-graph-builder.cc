@@ -249,6 +249,12 @@ void BytecodeGraphBuilder::VisitStar(
 }
 
 
+void BytecodeGraphBuilder::VisitLdaGlobal(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitLoadIC(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

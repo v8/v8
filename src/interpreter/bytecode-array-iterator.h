@@ -29,9 +29,11 @@ class BytecodeArrayIterator {
   Register GetRegisterOperand(int operand_index) const;
   Handle<Object> GetConstantForIndexOperand(int operand_index) const;
 
- private:
-  uint8_t GetOperand(int operand_index, OperandType operand_type) const;
+  // Get the raw byte for the given operand. Note: you should prefer using the
+  // typed versions above which cast the return to an appropriate type.
+  uint8_t GetRawOperand(int operand_index, OperandType operand_type) const;
 
+ private:
   Handle<BytecodeArray> bytecode_array_;
   int bytecode_offset_;
 
