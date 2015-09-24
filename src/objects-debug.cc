@@ -22,6 +22,7 @@ void Object::ObjectVerify() {
   } else {
     HeapObject::cast(this)->HeapObjectVerify();
   }
+  CHECK(!IsConstructor() || IsCallable());
 }
 
 
@@ -37,6 +38,7 @@ void Object::VerifyPointer(Object* p) {
 void Smi::SmiVerify() {
   CHECK(IsSmi());
   CHECK(!IsCallable());
+  CHECK(!IsConstructor());
 }
 
 

@@ -1649,6 +1649,21 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 
 
 // static
+void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a1 : the constructor to call (checked to be a JSFunctionProxy)
+  //  -- a3 : the original constructor (either the same as the constructor or
+  //          the JSFunction on which new was invoked initially)
+  // -----------------------------------
+
+  // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
+  __ lw(a1, FieldMemOperand(a1, JSFunctionProxy::kConstructTrapOffset));
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+}
+
+
+// static
 void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
@@ -1657,36 +1672,36 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
-  Label non_callable, non_function;
-  __ JumpIfSmi(a1, &non_callable);
-  __ GetObjectType(a1, t1, t2);
+  // Check if target has a [[Construct]] internal method.
+  Label non_constructor;
+  __ JumpIfSmi(a1, &non_constructor);
+  __ lw(t1, FieldMemOperand(a1, HeapObject::kMapOffset));
+  __ lbu(t2, FieldMemOperand(t1, Map::kBitFieldOffset));
+  __ And(t2, t2, Operand(1 << Map::kIsCallable));
+  __ Branch(&non_constructor, eq, t2, Operand(zero_reg));
+
+  // Dispatch based on instance type.
+  __ lbu(t2, FieldMemOperand(t1, Map::kInstanceTypeOffset));
   __ Jump(masm->isolate()->builtins()->ConstructFunction(),
           RelocInfo::CODE_TARGET, eq, t2, Operand(JS_FUNCTION_TYPE));
-  __ Branch(&non_function, ne, t2, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
+          eq, t2, Operand(JS_FUNCTION_PROXY_TYPE));
 
-  // 1. Construct of function proxy.
-  // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
-  __ lw(a1, FieldMemOperand(a1, JSFunctionProxy::kConstructTrapOffset));
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  // Called Construct on an exotic Object with a [[Construct]] internal method.
+  {
+    // Overwrite the original receiver with the (original) target.
+    __ sll(at, a0, kPointerSizeLog2);
+    __ addu(at, sp, at);
+    __ sw(a1, MemOperand(at));
+    // Let the "call_as_constructor_delegate" take care of the rest.
+    __ LoadGlobalFunction(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, a1);
+    __ Jump(masm->isolate()->builtins()->CallFunction(),
+            RelocInfo::CODE_TARGET);
+  }
 
-  // 2. Construct of something that else, which might have a [[Construct]]
-  // internal method (if not we raise an exception).
-  __ bind(&non_function);
-  // Check if target has a [[Call]] internal method.
-  // TODO(bmeurer): This shoud use IsConstructor once available.
-  __ lbu(t1, FieldMemOperand(t1, Map::kBitFieldOffset));
-  __ And(t1, t1, Operand(1 << Map::kIsCallable));
-  __ Branch(&non_callable, eq, t1, Operand(zero_reg));
-  // Overwrite the original receiver with the (original) target.
-  __ sll(at, a0, kPointerSizeLog2);
-  __ addu(at, sp, at);
-  __ sw(a1, MemOperand(at));
-  // Let the "call_as_constructor_delegate" take care of the rest.
-  __ LoadGlobalFunction(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, a1);
-  __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
-
-  // 3. Construct of something that is not callable.
-  __ bind(&non_callable);
+  // Called Construct on an Object that doesn't have a [[Construct]] internal
+  // method.
+  __ bind(&non_constructor);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(a1);

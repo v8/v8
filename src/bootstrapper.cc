@@ -487,7 +487,7 @@ void Genesis::SetFunctionInstanceDescriptor(Handle<Map> map,
 Handle<Map> Genesis::CreateSloppyFunctionMap(FunctionMode function_mode) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetFunctionInstanceDescriptor(map, function_mode);
-  map->set_function_with_prototype(IsFunctionModeWithPrototype(function_mode));
+  map->set_is_constructor(IsFunctionModeWithPrototype(function_mode));
   map->set_is_callable();
   return map;
 }
@@ -727,7 +727,7 @@ Handle<Map> Genesis::CreateStrictFunctionMap(
     FunctionMode function_mode, Handle<JSFunction> empty_function) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrictFunctionInstanceDescriptor(map, function_mode);
-  map->set_function_with_prototype(IsFunctionModeWithPrototype(function_mode));
+  map->set_is_constructor(IsFunctionModeWithPrototype(function_mode));
   map->set_is_callable();
   Map::SetPrototype(map, empty_function);
   return map;
@@ -738,7 +738,7 @@ Handle<Map> Genesis::CreateStrongFunctionMap(
     Handle<JSFunction> empty_function, bool is_constructor) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrongFunctionInstanceDescriptor(map);
-  map->set_function_with_prototype(is_constructor);
+  map->set_is_constructor(is_constructor);
   Map::SetPrototype(map, empty_function);
   map->set_is_callable();
   map->set_is_extensible(is_constructor);
@@ -1373,7 +1373,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     }
     // @@iterator method is added later.
 
-    map->set_function_with_prototype(true);
     map->SetInObjectProperties(2);
     native_context()->set_sloppy_arguments_map(*map);
 
@@ -1439,7 +1438,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     }
     // @@iterator method is added later.
 
-    map->set_function_with_prototype(true);
     DCHECK_EQ(native_context()->object_function()->prototype(),
               *isolate->initial_object_prototype());
     Map::SetPrototype(map, isolate->initial_object_prototype());

@@ -78,6 +78,7 @@ enum BuiltinExtraArguments {
   V(Call, BUILTIN, UNINITIALIZED, kNoExtraICState)                            \
                                                                               \
   V(ConstructFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
+  V(ConstructProxy, BUILTIN, UNINITIALIZED, kNoExtraICState)                  \
   V(Construct, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
                                                                               \
   V(PushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
@@ -281,6 +282,8 @@ class Builtins {
 
   // ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget)
   static void Generate_ConstructFunction(MacroAssembler* masm);
+  // ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget)
+  static void Generate_ConstructProxy(MacroAssembler* masm);
   // ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget])
   static void Generate_Construct(MacroAssembler* masm);
 

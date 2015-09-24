@@ -232,9 +232,8 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
     Statement statement = ParseStatementListItem(ok);
     if (!*ok) return;
 
-    if (is_strong(language_mode()) &&
-        scope_->is_function_scope() &&
-        i::IsConstructor(function_state_->kind())) {
+    if (is_strong(language_mode()) && scope_->is_function_scope() &&
+        IsClassConstructor(function_state_->kind())) {
       Scanner::Location this_loc = function_state_->this_location();
       Scanner::Location super_loc = function_state_->super_location();
       if (this_loc.beg_pos != old_this_loc.beg_pos &&
@@ -262,7 +261,7 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
       } else if (use_strong_found) {
         scope_->SetLanguageMode(static_cast<LanguageMode>(
             scope_->language_mode() | STRONG));
-        if (i::IsConstructor(function_state_->kind())) {
+        if (IsClassConstructor(function_state_->kind())) {
           // "use strong" cannot occur in a class constructor body, to avoid
           // unintuitive strong class object semantics.
           PreParserTraits::ReportMessageAt(
@@ -639,7 +638,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
       // Fall through.
     case Token::SUPER:
       if (is_strong(language_mode()) &&
-          i::IsConstructor(function_state_->kind())) {
+          IsClassConstructor(function_state_->kind())) {
         bool is_this = peek() == Token::THIS;
         Expression expr = Expression::Default();
         ExpressionClassifier classifier;
@@ -790,7 +789,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
       tok != Token::RBRACE &&
       tok != Token::EOS) {
     if (is_strong(language_mode()) &&
-        i::IsConstructor(function_state_->kind())) {
+        IsClassConstructor(function_state_->kind())) {
       int pos = peek_position();
       ReportMessageAt(Scanner::Location(pos, pos + 1),
                       MessageTemplate::kStrongConstructorReturnValue);

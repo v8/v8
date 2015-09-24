@@ -105,8 +105,9 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
   } else {
     if (super_class->IsNull()) {
       prototype_parent = isolate->factory()->null_value();
-    } else if (super_class->IsJSFunction()) {  // TODO(bmeurer): IsConstructor.
-      if (Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
+    } else if (super_class->IsConstructor()) {
+      if (super_class->IsJSFunction() &&
+          Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
         THROW_NEW_ERROR(
             isolate,
             NewTypeError(MessageTemplate::kExtendsValueGenerator, super_class),

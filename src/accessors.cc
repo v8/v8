@@ -929,7 +929,7 @@ MUST_USE_RESULT static MaybeHandle<Object> SetFunctionPrototype(
 
 MaybeHandle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
                                                     Handle<Object> prototype) {
-  DCHECK(function->should_have_prototype());
+  DCHECK(function->IsConstructor());
   Isolate* isolate = function->GetIsolate();
   return SetFunctionPrototype(isolate, function, prototype);
 }

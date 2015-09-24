@@ -1159,7 +1159,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
   // Use specialized code for getting prototype of functions.
   if (receiver->IsJSFunction() &&
       Name::Equals(isolate()->factory()->prototype_string(), lookup->name()) &&
-      Handle<JSFunction>::cast(receiver)->should_have_prototype() &&
+      receiver->IsConstructor() &&
       !Handle<JSFunction>::cast(receiver)
            ->map()
            ->has_non_instance_prototype()) {
