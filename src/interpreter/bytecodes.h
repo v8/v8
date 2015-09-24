@@ -61,7 +61,28 @@ namespace interpreter {
   /* Call operations. */                                                   \
   V(Call, OperandType::kReg, OperandType::kReg, OperandType::kCount)       \
                                                                            \
+  /* Test Operators */                                                     \
+  V(TestEqual, OperandType::kReg)                                          \
+  V(TestNotEqual, OperandType::kReg)                                       \
+  V(TestEqualStrict, OperandType::kReg)                                    \
+  V(TestNotEqualStrict, OperandType::kReg)                                 \
+  V(TestLessThan, OperandType::kReg)                                       \
+  V(TestGreaterThan, OperandType::kReg)                                    \
+  V(TestLessThanEqual, OperandType::kReg)                                  \
+  V(TestGreaterThanEqual, OperandType::kReg)                               \
+  V(TestInstanceOf, OperandType::kReg)                                     \
+  V(TestIn, OperandType::kReg)                                             \
+                                                                           \
+  /* Cast operators */                                                     \
+  V(ToBoolean, OperandType::kNone)                                         \
+                                                                           \
   /* Control Flow */                                                       \
+  V(Jump, OperandType::kImm8)                                              \
+  V(JumpConstant, OperandType::kIdx)                                       \
+  V(JumpIfTrue, OperandType::kImm8)                                        \
+  V(JumpIfTrueConstant, OperandType::kIdx)                                 \
+  V(JumpIfFalse, OperandType::kImm8)                                       \
+  V(JumpIfFalseConstant, OperandType::kIdx)                                \
   V(Return, OperandType::kNone)
 
 

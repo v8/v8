@@ -45,13 +45,6 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   // Visit statements in the function body.
   VisitStatements(info->literal()->body());
 
-  // If the last bytecode wasn't a return, then return 'undefined' to avoid
-  // falling off the end.
-  if (!builder_.HasExplicitReturn()) {
-    builder_.LoadUndefined();
-    builder_.Return();
-  }
-
   set_scope(nullptr);
   set_info(nullptr);
   return builder_.ToBytecodeArray();
@@ -59,6 +52,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
 
 
 void BytecodeGenerator::VisitBlock(Block* node) {
+  builder().EnterBlock();
   if (node->scope() == NULL) {
     // Visit statements in the same scope, no declarations.
     VisitStatements(node->statements());
@@ -71,6 +65,7 @@ void BytecodeGenerator::VisitBlock(Block* node) {
       VisitStatements(node->statements());
     }
   }
+  builder().LeaveBlock();
 }
 
 
@@ -114,11 +109,26 @@ void BytecodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
 
 
 void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
-  UNIMPLEMENTED();
+  // TODO(oth): For control-flow it could be useful to signal empty paths here.
 }
 
 
-void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
+  BytecodeLabel else_start, else_end;
+  // TODO(oth): Spot easy cases where there code would not need to
+  // emit the then block or the else block, e.g. condition is
+  // obviously true/1/false/0.
+  Visit(stmt->condition());
+  builder().CastAccumulatorToBoolean();
+  builder().JumpIfFalse(&else_start);
+
+  Visit(stmt->then_statement());
+  builder().Jump(&else_end);
+  builder().Bind(&else_start);
+
+  Visit(stmt->else_statement());
+  builder().Bind(&else_end);
+}
 
 
 void BytecodeGenerator::VisitSloppyBlockFunctionStatement(
@@ -478,7 +488,17 @@ void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
 
 
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
-  UNIMPLEMENTED();
+  Token::Value op = expr->op();
+  Expression* left = expr->left();
+  Expression* right = expr->right();
+
+  TemporaryRegisterScope temporary_register_scope(&builder_);
+  Register temporary = temporary_register_scope.NewRegister();
+
+  Visit(left);
+  builder().StoreAccumulatorInRegister(temporary);
+  Visit(right);
+  builder().CompareOperation(op, temporary, language_mode());
 }
 
 

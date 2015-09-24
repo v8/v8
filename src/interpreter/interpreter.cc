@@ -294,6 +294,15 @@ void Interpreter::DoBinaryOp(Runtime::FunctionId function_id,
 }
 
 
+void Interpreter::DoCompareOp(Token::Value op,
+                              compiler::InterpreterAssembler* assembler) {
+  // TODO(oth): placeholder until compare path fixed.
+  // The accumulator should be set to true on success (or false otherwise)
+  // by the comparisons so it can be used for conditional jumps.
+  DoLdaTrue(assembler);
+}
+
+
 // Add <src>
 //
 // Add register <src> to accumulator.
@@ -347,6 +356,178 @@ void Interpreter::DoCall(compiler::InterpreterAssembler* assembler) {
   Node* result = __ CallJS(function, first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
+}
+
+
+// TestEqual <src>
+//
+// Test if the value in the <src> register equals the accumulator.
+void Interpreter::DoTestEqual(compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::EQ, assembler);
+}
+
+
+// TestNotEqual <src>
+//
+// Test if the value in the <src> register is not equal to the accumulator.
+void Interpreter::DoTestNotEqual(compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::NE, assembler);
+}
+
+
+// TestEqualStrict <src>
+//
+// Test if the value in the <src> register is strictly equal to the accumulator.
+void Interpreter::DoTestEqualStrict(compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::EQ_STRICT, assembler);
+}
+
+
+// TestNotEqualStrict <src>
+//
+// Test if the value in the <src> register is not strictly equal to the
+// accumulator.
+void Interpreter::DoTestNotEqualStrict(
+    compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::NE_STRICT, assembler);
+}
+
+
+// TestLessThan <src>
+//
+// Test if the value in the <src> register is less than the accumulator.
+void Interpreter::DoTestLessThan(compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::LT, assembler);
+}
+
+
+// TestGreaterThan <src>
+//
+// Test if the value in the <src> register is greater than the accumulator.
+void Interpreter::DoTestGreaterThan(compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::GT, assembler);
+}
+
+
+// TestLessThanEqual <src>
+//
+// Test if the value in the <src> register is less than or equal to the
+// accumulator.
+void Interpreter::DoTestLessThanEqual(
+    compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::LTE, assembler);
+}
+
+
+// TestGreaterThanEqual <src>
+//
+// Test if the value in the <src> register is greater than or equal to the
+// accumulator.
+void Interpreter::DoTestGreaterThanEqual(
+    compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::GTE, assembler);
+}
+
+
+// TestIn <src>
+//
+// Test if the value in the <src> register is in the collection referenced
+// by the accumulator.
+void Interpreter::DoTestIn(compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::IN, assembler);
+}
+
+
+// TestInstanceOf <src>
+//
+// Test if the object referenced by the <src> register is an an instance of type
+// referenced by the accumulator.
+void Interpreter::DoTestInstanceOf(compiler::InterpreterAssembler* assembler) {
+  DoCompareOp(Token::Value::INSTANCEOF, assembler);
+}
+
+
+// ToBoolean
+//
+// Cast the object referenced by the accumulator to a boolean.
+void Interpreter::DoToBoolean(compiler::InterpreterAssembler* assembler) {
+  // TODO(oth): The next CL for test operations has interpreter specific
+  // runtime calls. This looks like another candidate.
+  __ Dispatch();
+}
+
+
+// Jump <imm8>
+//
+// Jump by number of bytes represented by an immediate operand.
+void Interpreter::DoJump(compiler::InterpreterAssembler* assembler) {
+  Node* relative_jump = __ BytecodeOperandImm8(0);
+  __ Jump(relative_jump);
+}
+
+
+// JumpConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool.
+void Interpreter::DoJumpConstant(compiler::InterpreterAssembler* assembler) {
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  Node* relative_jump = __ SmiUntag(constant);
+  __ Jump(relative_jump);
+}
+
+
+// JumpIfTrue <imm8>
+//
+// Jump by number of bytes represented by an immediate operand if the
+// accumulator contains true.
+void Interpreter::DoJumpIfTrue(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* relative_jump = __ BytecodeOperandImm8(0);
+  Node* true_value = __ BooleanConstant(true);
+  __ JumpIfWordEqual(accumulator, true_value, relative_jump);
+}
+
+
+// JumpIfTrueConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
+// if the accumulator contains true.
+void Interpreter::DoJumpIfTrueConstant(
+    compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  Node* relative_jump = __ SmiUntag(constant);
+  Node* true_value = __ BooleanConstant(true);
+  __ JumpIfWordEqual(accumulator, true_value, relative_jump);
+}
+
+
+// JumpIfFalse <imm8>
+//
+// Jump by number of bytes represented by an immediate operand if the
+// accumulator contains false.
+void Interpreter::DoJumpIfFalse(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* relative_jump = __ BytecodeOperandImm8(0);
+  Node* false_value = __ BooleanConstant(false);
+  __ JumpIfWordEqual(accumulator, false_value, relative_jump);
+}
+
+
+// JumpIfFalseConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
+// if the accumulator contains false.
+void Interpreter::DoJumpIfFalseConstant(
+    compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  Node* relative_jump = __ SmiUntag(constant);
+  Node* false_value = __ BooleanConstant(false);
+  __ JumpIfWordEqual(accumulator, false_value, relative_jump);
 }
 
 

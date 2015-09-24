@@ -152,6 +152,89 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
 }
 
 
+TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
+  int jump_offsets[] = {-9710, -77, 0, +3, +97109};
+  TRACED_FOREACH(int, jump_offset, jump_offsets) {
+    TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+      InterpreterAssemblerForTest m(this, bytecode);
+      m.Jump(m.Int32Constant(jump_offset));
+      Graph* graph = m.GetCompletedGraph();
+      Node* end = graph->end();
+      EXPECT_EQ(1, end->InputCount());
+      Node* tail_call_node = end->InputAt(0);
+
+      Matcher<Node*> next_bytecode_offset_matcher =
+          IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
+                      IsInt32Constant(jump_offset));
+      Matcher<Node*> target_bytecode_matcher = m.IsLoad(
+          kMachUint8, IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+          next_bytecode_offset_matcher);
+      Matcher<Node*> code_target_matcher = m.IsLoad(
+          kMachPtr, IsParameter(Linkage::kInterpreterDispatchTableParameter),
+          IsWord32Shl(target_bytecode_matcher,
+                      IsInt32Constant(kPointerSizeLog2)));
+
+      EXPECT_EQ(CallDescriptor::kCallCodeObject, m.call_descriptor()->kind());
+      EXPECT_TRUE(m.call_descriptor()->flags() & CallDescriptor::kCanUseRoots);
+      EXPECT_THAT(
+          tail_call_node,
+          IsTailCall(m.call_descriptor(), code_target_matcher,
+                     IsParameter(Linkage::kInterpreterAccumulatorParameter),
+                     IsParameter(Linkage::kInterpreterRegisterFileParameter),
+                     next_bytecode_offset_matcher,
+                     IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+                     IsParameter(Linkage::kInterpreterDispatchTableParameter),
+                     IsParameter(Linkage::kInterpreterContextParameter),
+                     graph->start(), graph->start()));
+    }
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
+  static const int kJumpIfTrueOffset = 73;
+
+  MachineOperatorBuilder machine(zone());
+
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* lhs = m.IntPtrConstant(0);
+    Node* rhs = m.IntPtrConstant(1);
+    m.JumpIfWordEqual(lhs, rhs, m.Int32Constant(kJumpIfTrueOffset));
+    Graph* graph = m.GetCompletedGraph();
+    Node* end = graph->end();
+    EXPECT_EQ(2, end->InputCount());
+
+    int jump_offsets[] = {kJumpIfTrueOffset,
+                          interpreter::Bytecodes::Size(bytecode)};
+    for (int i = 0; i < static_cast<int>(arraysize(jump_offsets)); i++) {
+      Matcher<Node*> next_bytecode_offset_matcher =
+          IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
+                      IsInt32Constant(jump_offsets[i]));
+      Matcher<Node*> target_bytecode_matcher = m.IsLoad(
+          kMachUint8, IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+          next_bytecode_offset_matcher);
+      Matcher<Node*> code_target_matcher = m.IsLoad(
+          kMachPtr, IsParameter(Linkage::kInterpreterDispatchTableParameter),
+          IsWord32Shl(target_bytecode_matcher,
+                      IsInt32Constant(kPointerSizeLog2)));
+      EXPECT_THAT(
+          end->InputAt(i),
+          IsTailCall(m.call_descriptor(), code_target_matcher,
+                     IsParameter(Linkage::kInterpreterAccumulatorParameter),
+                     IsParameter(Linkage::kInterpreterRegisterFileParameter),
+                     next_bytecode_offset_matcher,
+                     IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+                     IsParameter(Linkage::kInterpreterDispatchTableParameter),
+                     IsParameter(Linkage::kInterpreterContextParameter),
+                     graph->start(), graph->start()));
+    }
+
+    // TODO(oth): test control flow paths.
+  }
+}
+
+
 TARGET_TEST_F(InterpreterAssemblerTest, Return) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);

@@ -153,6 +153,7 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
   buffer[index++] = graph()->start();
   Node* tail_call = MakeNode(common()->TailCall(desc), input_count, buffer);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
+  current_block_ = nullptr;
   return tail_call;
 }
 

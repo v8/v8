@@ -73,8 +73,7 @@ class RawMachineAssembler {
   // hence will not switch the current basic block.
 
   Node* UndefinedConstant() {
-    Handle<HeapObject> undefined = isolate()->factory()->undefined_value();
-    return AddNode(common()->HeapConstant(undefined));
+    return HeapConstant(isolate()->factory()->undefined_value());
   }
 
   // Constants.
@@ -103,6 +102,10 @@ class RawMachineAssembler {
   }
   Node* HeapConstant(Handle<HeapObject> object) {
     return AddNode(common()->HeapConstant(object));
+  }
+  Node* BooleanConstant(bool value) {
+    Handle<Object> object = isolate()->factory()->ToBoolean(value);
+    return HeapConstant(Handle<HeapObject>::cast(object));
   }
   Node* ExternalConstant(ExternalReference address) {
     return AddNode(common()->ExternalConstant(address));

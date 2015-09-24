@@ -133,7 +133,7 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
         os << "[" << static_cast<unsigned int>(operand) << "]";
         break;
       case interpreter::OperandType::kImm8:
-        os << "#" << static_cast<int>(operand);
+        os << "#" << static_cast<int>(static_cast<int8_t>(operand));
         break;
       case interpreter::OperandType::kReg: {
         Register reg = Register::FromOperand(operand);

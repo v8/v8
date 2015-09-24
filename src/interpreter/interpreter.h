@@ -12,6 +12,7 @@
 #include "src/builtins.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
+#include "src/token.h"
 
 namespace v8 {
 namespace internal {
@@ -52,6 +53,11 @@ class Interpreter {
   // Generates code to perform the binary operations via |function_id|.
   void DoBinaryOp(Runtime::FunctionId function_id,
                   compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform the comparison operation associated with
+  // |compare_op|.
+  void DoCompareOp(Token::Value compare_op,
+                   compiler::InterpreterAssembler* assembler);
 
   // Generates code to perform a property load via |ic|.
   void DoPropertyLoadIC(Callable ic, compiler::InterpreterAssembler* assembler);

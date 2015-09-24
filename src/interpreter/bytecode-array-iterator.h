@@ -20,6 +20,7 @@ class BytecodeArrayIterator {
   void Advance();
   bool done() const;
   Bytecode current_bytecode() const;
+  int current_offset() const { return bytecode_offset_; }
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;
   }

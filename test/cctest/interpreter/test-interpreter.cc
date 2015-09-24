@@ -891,3 +891,86 @@ TEST(InterpreterCall) {
     CHECK(i::String::cast(*return_val)->Equals(*expected));
   }
 }
+
+
+static BytecodeArrayBuilder& SetRegister(BytecodeArrayBuilder& builder,
+                                         Register reg, int value,
+                                         Register scratch) {
+  return builder.StoreAccumulatorInRegister(scratch)
+      .LoadLiteral(Smi::FromInt(value))
+      .StoreAccumulatorInRegister(reg)
+      .LoadAccumulatorWithRegister(scratch);
+}
+
+
+static BytecodeArrayBuilder& IncrementRegister(BytecodeArrayBuilder& builder,
+                                               Register reg, int value,
+                                               Register scratch) {
+  return builder.StoreAccumulatorInRegister(scratch)
+      .LoadLiteral(Smi::FromInt(value))
+      .BinaryOperation(Token::Value::ADD, reg)
+      .StoreAccumulatorInRegister(reg)
+      .LoadAccumulatorWithRegister(scratch);
+}
+
+
+TEST(InterpreterJumps) {
+  HandleAndZoneScope handles;
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+  builder.set_locals_count(2);
+  builder.set_parameter_count(0);
+  Register reg(0), scratch(1);
+  BytecodeLabel label[3];
+
+  builder.LoadLiteral(Smi::FromInt(0))
+      .StoreAccumulatorInRegister(reg)
+      .Jump(&label[1]);
+  SetRegister(builder, reg, 1024, scratch).Bind(&label[0]);
+  IncrementRegister(builder, reg, 1, scratch).Jump(&label[2]);
+  SetRegister(builder, reg, 2048, scratch).Bind(&label[1]);
+  IncrementRegister(builder, reg, 2, scratch).Jump(&label[0]);
+  SetRegister(builder, reg, 4096, scratch).Bind(&label[2]);
+  IncrementRegister(builder, reg, 4, scratch)
+      .LoadAccumulatorWithRegister(reg)
+      .Return();
+
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  auto callable = tester.GetCallable<>();
+  Handle<Object> return_value = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_value)->value(), 7);
+}
+
+
+TEST(InterpreterConditionalJumps) {
+  HandleAndZoneScope handles;
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+  builder.set_locals_count(2);
+  builder.set_parameter_count(0);
+  Register reg(0), scratch(1);
+  BytecodeLabel label[2];
+  BytecodeLabel done, done1;
+
+  builder.LoadLiteral(Smi::FromInt(0))
+      .StoreAccumulatorInRegister(reg)
+      .LoadFalse()
+      .JumpIfFalse(&label[0]);
+  IncrementRegister(builder, reg, 1024, scratch)
+      .Bind(&label[0])
+      .LoadTrue()
+      .JumpIfFalse(&done);
+  IncrementRegister(builder, reg, 1, scratch).LoadTrue().JumpIfTrue(&label[1]);
+  IncrementRegister(builder, reg, 2048, scratch).Bind(&label[1]);
+  IncrementRegister(builder, reg, 2, scratch).LoadFalse().JumpIfTrue(&done1);
+  IncrementRegister(builder, reg, 4, scratch)
+      .LoadAccumulatorWithRegister(reg)
+      .Bind(&done)
+      .Bind(&done1)
+      .Return();
+
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  auto callable = tester.GetCallable<>();
+  Handle<Object> return_value = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_value)->value(), 7);
+}

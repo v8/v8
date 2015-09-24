@@ -13,6 +13,7 @@
 #include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -68,6 +69,7 @@ class InterpreterAssembler {
   Node* IntPtrConstant(intptr_t value);
   Node* NumberConstant(double value);
   Node* HeapConstant(Handle<HeapObject> object);
+  Node* BooleanConstant(bool value);
 
   // Tag and untag Smi values.
   Node* SmiTag(Node* value);
@@ -106,6 +108,13 @@ class InterpreterAssembler {
   // Call runtime function.
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2);
+
+  // Jump relative to the current bytecode by |jump_offset|.
+  void Jump(Node* jump_offset);
+
+  // Jump relative to the current bytecode by |jump_offset| if the
+  // word values |lhs| and |rhs| are equal.
+  void JumpIfWordEqual(Node* lhs, Node* rhs, Node* jump_offset);
 
   // Returns from the function.
   void Return();
@@ -147,9 +156,13 @@ class InterpreterAssembler {
   // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
   // update BytecodeOffset() itself.
   Node* Advance(int delta);
+  Node* Advance(Node* delta);
 
-  // Sets the end node of the graph.
-  void SetEndInput(Node* input);
+  // Starts next instruction dispatch at |new_bytecode_offset|.
+  void DispatchTo(Node* new_bytecode_offset);
+
+  // Adds an end node of the graph.
+  void AddEndInput(Node* input);
 
   // Private helpers which delegate to RawMachineAssembler.
   Isolate* isolate();
@@ -158,7 +171,7 @@ class InterpreterAssembler {
 
   interpreter::Bytecode bytecode_;
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
-  Node* end_node_;
+  ZoneVector<Node*> end_nodes_;
   Node* accumulator_;
   bool code_generated_;
 
