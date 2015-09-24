@@ -96,11 +96,12 @@ class InstructionOperandConverter {
   }
 
   Register ToRegister(InstructionOperand* op) {
-    return RegisterOperand::cast(op)->GetRegister();
+    return Register::FromAllocationIndex(RegisterOperand::cast(op)->index());
   }
 
   DoubleRegister ToDoubleRegister(InstructionOperand* op) {
-    return DoubleRegisterOperand::cast(op)->GetDoubleRegister();
+    return DoubleRegister::FromAllocationIndex(
+        DoubleRegisterOperand::cast(op)->index());
   }
 
   Constant ToConstant(InstructionOperand* op) {

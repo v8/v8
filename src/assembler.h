@@ -1276,6 +1276,7 @@ class ConstantPoolBuilder BASE_EMBEDDED {
   PerTypeEntryInfo info_[ConstantPoolEntry::NUMBER_OF_TYPES];
 };
 
+
 } }  // namespace v8::internal
 
 #endif  // V8_ASSEMBLER_H_

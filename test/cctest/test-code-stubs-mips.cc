@@ -34,7 +34,6 @@
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips/constants-mips.h"
-#include "src/register-configuration.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
@@ -80,8 +79,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 2;
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
-  for (; reg_num < config->num_allocatable_general_registers(); ++reg_num) {
+  for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
     Register reg = Register::from_code(reg_num);
     if (!reg.is(destination_reg)) {
       __ push(reg);

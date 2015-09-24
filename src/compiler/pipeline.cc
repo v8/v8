@@ -57,7 +57,6 @@
 #include "src/compiler/verifier.h"
 #include "src/compiler/zone-pool.h"
 #include "src/ostreams.h"
-#include "src/register-configuration.h"
 #include "src/type-info.h"
 #include "src/utils.h"
 

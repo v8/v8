@@ -214,6 +214,18 @@ void CpuFeatures::PrintFeatures() {
 
 
 // -----------------------------------------------------------------------------
+// Implementation of DwVfpRegister
+
+const char* DwVfpRegister::AllocationIndexToString(int index) {
+  DCHECK(index >= 0 && index < NumAllocatableRegisters());
+  DCHECK(kScratchDoubleReg.code() - kDoubleRegZero.code() ==
+         kNumReservedRegisters - 1);
+  if (index >= kDoubleRegZero.code()) index += kNumReservedRegisters;
+  return VFPRegisters::Name(index, true);
+}
+
+
+// -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
 // static
@@ -379,26 +391,26 @@ NeonListOperand::NeonListOperand(DoubleRegister base, int registers_count) {
 // str(r, MemOperand(sp, 4, NegPreIndex), al) instruction (aka push(r))
 // register r is not encoded.
 const Instr kPushRegPattern =
-    al | B26 | 4 | NegPreIndex | Register::kCode_sp * B16;
+    al | B26 | 4 | NegPreIndex | kRegister_sp_Code * B16;
 // ldr(r, MemOperand(sp, 4, PostIndex), al) instruction (aka pop(r))
 // register r is not encoded.
 const Instr kPopRegPattern =
-    al | B26 | L | 4 | PostIndex | Register::kCode_sp * B16;
+    al | B26 | L | 4 | PostIndex | kRegister_sp_Code * B16;
 // ldr rd, [pc, #offset]
 const Instr kLdrPCImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPCImmedPattern = 5 * B24 | L | Register::kCode_pc * B16;
+const Instr kLdrPCImmedPattern = 5 * B24 | L | kRegister_pc_Code * B16;
 // ldr rd, [pp, #offset]
 const Instr kLdrPpImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPpImmedPattern = 5 * B24 | L | Register::kCode_r8 * B16;
+const Instr kLdrPpImmedPattern = 5 * B24 | L | kRegister_r8_Code * B16;
 // ldr rd, [pp, rn]
 const Instr kLdrPpRegMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPpRegPattern = 7 * B24 | L | Register::kCode_r8 * B16;
+const Instr kLdrPpRegPattern = 7 * B24 | L | kRegister_r8_Code * B16;
 // vldr dd, [pc, #offset]
 const Instr kVldrDPCMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
-const Instr kVldrDPCPattern = 13 * B24 | L | Register::kCode_pc * B16 | 11 * B8;
+const Instr kVldrDPCPattern = 13 * B24 | L | kRegister_pc_Code * B16 | 11 * B8;
 // vldr dd, [pp, #offset]
 const Instr kVldrDPpMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
-const Instr kVldrDPpPattern = 13 * B24 | L | Register::kCode_r8 * B16 | 11 * B8;
+const Instr kVldrDPpPattern = 13 * B24 | L | kRegister_r8_Code * B16 | 11 * B8;
 // blxcc rm
 const Instr kBlxRegMask =
     15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
@@ -425,13 +437,13 @@ const Instr kAndBicFlip = 0xe * B21;
 
 // A mask for the Rd register for push, pop, ldr, str instructions.
 const Instr kLdrRegFpOffsetPattern =
-    al | B26 | L | Offset | Register::kCode_fp * B16;
+    al | B26 | L | Offset | kRegister_fp_Code * B16;
 const Instr kStrRegFpOffsetPattern =
-    al | B26 | Offset | Register::kCode_fp * B16;
+    al | B26 | Offset | kRegister_fp_Code * B16;
 const Instr kLdrRegFpNegOffsetPattern =
-    al | B26 | L | NegOffset | Register::kCode_fp * B16;
+    al | B26 | L | NegOffset | kRegister_fp_Code * B16;
 const Instr kStrRegFpNegOffsetPattern =
-    al | B26 | NegOffset | Register::kCode_fp * B16;
+    al | B26 | NegOffset | kRegister_fp_Code * B16;
 const Instr kLdrStrInstrTypeMask = 0xffff0000;
 
 
@@ -607,21 +619,21 @@ Instr Assembler::SetAddRegisterImmediateOffset(Instr instr, int offset) {
 
 Register Assembler::GetRd(Instr instr) {
   Register reg;
-  reg.reg_code = Instruction::RdValue(instr);
+  reg.code_ = Instruction::RdValue(instr);
   return reg;
 }
 
 
 Register Assembler::GetRn(Instr instr) {
   Register reg;
-  reg.reg_code = Instruction::RnValue(instr);
+  reg.code_ = Instruction::RnValue(instr);
   return reg;
 }
 
 
 Register Assembler::GetRm(Instr instr) {
   Register reg;
-  reg.reg_code = Instruction::RmValue(instr);
+  reg.code_ = Instruction::RmValue(instr);
   return reg;
 }
 

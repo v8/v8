@@ -73,13 +73,7 @@ class InterpreterState {
     AllocatedOperand::AllocatedKind kind;
     int index;
     if (!is_constant) {
-      if (op.IsRegister()) {
-        index = AllocatedOperand::cast(op).GetRegister().code();
-      } else if (op.IsDoubleRegister()) {
-        index = AllocatedOperand::cast(op).GetDoubleRegister().code();
-      } else {
-        index = AllocatedOperand::cast(op).index();
-      }
+      index = AllocatedOperand::cast(op).index();
       kind = AllocatedOperand::cast(op).allocated_kind();
     } else {
       index = ConstantOperand::cast(op).virtual_register();
@@ -96,9 +90,7 @@ class InterpreterState {
       return ConstantOperand(key.index);
     }
     return AllocatedOperand(
-        key.kind,
-        v8::internal::compiler::InstructionSequence::DefaultRepresentation(),
-        key.index);
+        key.kind, InstructionSequence::DefaultRepresentation(), key.index);
   }
 
   friend std::ostream& operator<<(std::ostream& os,

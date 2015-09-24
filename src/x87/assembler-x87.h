@@ -76,6 +76,10 @@ struct Register {
 
   static inline const char* AllocationIndexToString(int index);
 
+  static inline int ToAllocationIndex(Register reg);
+
+  static inline Register FromAllocationIndex(int index);
+
   static Register from_code(int code) {
     DCHECK(code >= 0);
     DCHECK(code < kNumRegisters);
@@ -125,6 +129,18 @@ inline const char* Register::AllocationIndexToString(int index) {
   // This is the mapping of allocation indices to registers.
   const char* const kNames[] = { "eax", "ecx", "edx", "ebx", "esi", "edi" };
   return kNames[index];
+}
+
+
+inline int Register::ToAllocationIndex(Register reg) {
+  DCHECK(reg.is_valid() && !reg.is(esp) && !reg.is(ebp));
+  return (reg.code() >= 6) ? reg.code() - 2 : reg.code();
+}
+
+
+inline Register Register::FromAllocationIndex(int index)  {
+  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
+  return (index >= 4) ? from_code(index + 2) : from_code(index);
 }
 
 

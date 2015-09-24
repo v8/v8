@@ -7,7 +7,6 @@
 
 #include "src/compiler/instruction.h"
 #include "src/ostreams.h"
-#include "src/register-configuration.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -242,15 +241,15 @@ class UsePosition final : public ZoneObject {
   void set_next(UsePosition* next) { next_ = next; }
 
   // For hinting only.
-  void set_assigned_register(int register_code) {
-    flags_ = AssignedRegisterField::update(flags_, register_code);
+  void set_assigned_register(int register_index) {
+    flags_ = AssignedRegisterField::update(flags_, register_index);
   }
 
   UsePositionHintType hint_type() const {
     return HintTypeField::decode(flags_);
   }
   bool HasHint() const;
-  bool HintRegister(int* register_code) const;
+  bool HintRegister(int* register_index) const;
   void ResolveHint(UsePosition* use_pos);
   bool IsResolved() const {
     return hint_type() != UsePositionHintType::kUnresolved;
@@ -667,9 +666,9 @@ class RegisterAllocationData final : public ZoneObject {
 
     // For hinting.
     int assigned_register() const { return assigned_register_; }
-    void set_assigned_register(int register_code) {
+    void set_assigned_register(int register_index) {
       DCHECK_EQ(assigned_register_, kUnassignedRegister);
-      assigned_register_ = register_code;
+      assigned_register_ = register_index;
     }
     void UnsetAssignedRegister() { assigned_register_ = kUnassignedRegister; }
 
@@ -770,8 +769,6 @@ class RegisterAllocationData final : public ZoneObject {
   const char* const debug_name_;
   const RegisterConfiguration* const config_;
   PhiMap phi_map_;
-  ZoneVector<int> allocatable_codes_;
-  ZoneVector<int> allocatable_double_codes_;
   ZoneVector<BitVector*> live_in_sets_;
   ZoneVector<BitVector*> live_out_sets_;
   ZoneVector<TopLevelLiveRange*> live_ranges_;
@@ -889,10 +886,6 @@ class RegisterAllocator : public ZoneObject {
   InstructionSequence* code() const { return data()->code(); }
   RegisterKind mode() const { return mode_; }
   int num_registers() const { return num_registers_; }
-  int num_alloctable_registers() const { return num_allocatable_registers_; }
-  int allocatable_register_code(int allocatable_index) const {
-    return allocatable_register_codes_[allocatable_index];
-  }
 
   Zone* allocation_zone() const { return data()->allocation_zone(); }
 
@@ -928,8 +921,6 @@ class RegisterAllocator : public ZoneObject {
   RegisterAllocationData* const data_;
   const RegisterKind mode_;
   const int num_registers_;
-  int num_allocatable_registers_;
-  const int* allocatable_register_codes_;
 
   DISALLOW_COPY_AND_ASSIGN(RegisterAllocator);
 };

@@ -84,6 +84,36 @@ bool Operand::is_reg() const {
 }
 
 
+int Register::NumAllocatableRegisters() {
+    return kMaxNumAllocatableRegisters;
+}
+
+
+int DoubleRegister::NumRegisters() {
+    return FPURegister::kMaxNumRegisters;
+}
+
+
+int DoubleRegister::NumAllocatableRegisters() {
+    return FPURegister::kMaxNumAllocatableRegisters;
+}
+
+
+int DoubleRegister::NumAllocatableAliasedRegisters() {
+  return NumAllocatableRegisters();
+}
+
+
+int FPURegister::ToAllocationIndex(FPURegister reg) {
+  DCHECK(reg.code() % 2 == 0);
+  DCHECK(reg.code() / 2 < kMaxNumAllocatableRegisters);
+  DCHECK(reg.is_valid());
+  DCHECK(!reg.is(kDoubleRegZero));
+  DCHECK(!reg.is(kLithiumScratchDouble));
+  return (reg.code() / 2);
+}
+
+
 // -----------------------------------------------------------------------------
 // RelocInfo.
 

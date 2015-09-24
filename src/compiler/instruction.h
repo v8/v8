@@ -14,9 +14,8 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/register-configuration.h"
 #include "src/compiler/source-position.h"
-#include "src/macro-assembler.h"
-#include "src/register-configuration.h"
 #include "src/zone-allocator.h"
 
 namespace v8 {
@@ -374,21 +373,7 @@ class AllocatedOperand : public InstructionOperand {
   }
 
   int index() const {
-    DCHECK(STACK_SLOT == allocated_kind() ||
-           DOUBLE_STACK_SLOT == allocated_kind());
     return static_cast<int64_t>(value_) >> IndexField::kShift;
-  }
-
-  Register GetRegister() const {
-    DCHECK(REGISTER == allocated_kind() || DOUBLE_REGISTER == allocated_kind());
-    return Register::from_code(static_cast<int64_t>(value_) >>
-                               IndexField::kShift);
-  }
-
-  DoubleRegister GetDoubleRegister() const {
-    DCHECK(REGISTER == allocated_kind() || DOUBLE_REGISTER == allocated_kind());
-    return DoubleRegister::from_code(static_cast<int64_t>(value_) >>
-                                     IndexField::kShift);
   }
 
   AllocatedKind allocated_kind() const {

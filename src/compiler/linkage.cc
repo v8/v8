@@ -18,7 +18,7 @@ namespace compiler {
 
 namespace {
 LinkageLocation regloc(Register reg) {
-  return LinkageLocation::ForRegister(reg.code());
+  return LinkageLocation::ForRegister(Register::ToAllocationIndex(reg));
 }
 
 

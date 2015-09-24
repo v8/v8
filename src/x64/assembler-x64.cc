@@ -116,6 +116,20 @@ void CpuFeatures::PrintFeatures() {
 
 
 // -----------------------------------------------------------------------------
+// Register constants.
+
+const int
+    Register::kRegisterCodeByAllocationIndex[kMaxNumAllocatableRegisters] = {
+  // rax, rbx, rdx, rcx, rsi, rdi, r8, r9, r11, r12, r14, r15
+  0, 3, 2, 1, 6, 7, 8, 9, 11, 12, 14, 15
+};
+
+const int Register::kAllocationIndexByRegisterCode[kNumRegisters] = {
+  0, 3, 2, 1, -1, -1, 4, 5, 6, 7, -1, 8, 9, -1, 10, 11
+};
+
+
+// -----------------------------------------------------------------------------
 // Implementation of Operand
 
 Operand::Operand(Register base, int32_t disp) : rex_(0) {

@@ -13,17 +13,17 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {Register::kCode_v0};
-const Register kReturnRegister1 = {Register::kCode_v1};
-const Register kJSFunctionRegister = {Register::kCode_a1};
+const Register kReturnRegister0 = {kRegister_v0_Code};
+const Register kReturnRegister1 = {kRegister_v1_Code};
+const Register kJSFunctionRegister = {kRegister_a1_Code};
 const Register kContextRegister = {Register::kCpRegister};
-const Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_t3};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t4};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_t5};
-const Register kInterpreterDispatchTableRegister = {Register::kCode_t6};
-const Register kRuntimeCallFunctionRegister = {Register::kCode_a1};
-const Register kRuntimeCallArgCountRegister = {Register::kCode_a0};
+const Register kInterpreterAccumulatorRegister = {kRegister_v0_Code};
+const Register kInterpreterRegisterFileRegister = {kRegister_t3_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_t4_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_t5_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_t6_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_a1_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_a0_Code};
 
 // Forward declaration.
 class JumpTarget;

@@ -520,8 +520,9 @@ class LAllocator BASE_EMBEDDED {
   ZoneList<LiveRange*> live_ranges_;
 
   // Lists of live ranges
-  EmbeddedVector<LiveRange*, Register::kNumRegisters> fixed_live_ranges_;
-  EmbeddedVector<LiveRange*, DoubleRegister::kMaxNumRegisters>
+  EmbeddedVector<LiveRange*, Register::kMaxNumAllocatableRegisters>
+      fixed_live_ranges_;
+  EmbeddedVector<LiveRange*, DoubleRegister::kMaxNumAllocatableRegisters>
       fixed_double_live_ranges_;
   ZoneList<LiveRange*> unhandled_live_ranges_;
   ZoneList<LiveRange*> active_live_ranges_;
@@ -535,7 +536,6 @@ class LAllocator BASE_EMBEDDED {
 
   RegisterKind mode_;
   int num_registers_;
-  const int* allocatable_register_codes_;
 
   BitVector* assigned_registers_;
   BitVector* assigned_double_registers_;

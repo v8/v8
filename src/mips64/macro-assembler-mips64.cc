@@ -12,7 +12,6 @@
 #include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
 #include "src/mips64/macro-assembler-mips64.h"
-#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -150,7 +149,7 @@ MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
 MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
   UNIMPLEMENTED_MIPS();
   // General purpose registers are pushed last on the stack.
-  int doubles_size = DoubleRegister::kMaxNumRegisters * kDoubleSize;
+  int doubles_size = FPURegister::NumAllocatableRegisters() * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
   return MemOperand(sp, doubles_size + register_offset);
 }
@@ -3732,7 +3731,7 @@ void MacroAssembler::CopyFields(Register dst,
   // Find a temp register in temps list.
   for (int i = 0; i < kNumRegisters; i++) {
     if ((temps & (1 << i)) != 0) {
-      tmp.reg_code = i;
+      tmp.code_ = i;
       break;
     }
   }
@@ -5965,10 +5964,8 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   if (reg5.is_valid()) regs |= reg5.bit();
   if (reg6.is_valid()) regs |= reg6.bit();
 
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
-  for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
-    int code = config->GetAllocatableGeneralCode(i);
-    Register candidate = Register::from_code(code);
+  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
+    Register candidate = Register::FromAllocationIndex(i);
     if (regs & candidate.bit()) continue;
     return candidate;
   }

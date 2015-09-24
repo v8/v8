@@ -47,39 +47,6 @@ namespace internal {
 
 // Utility functions
 
-#define GENERAL_REGISTERS(V) \
-  V(rax)                     \
-  V(rcx)                     \
-  V(rdx)                     \
-  V(rbx)                     \
-  V(rsp)                     \
-  V(rbp)                     \
-  V(rsi)                     \
-  V(rdi)                     \
-  V(r8)                      \
-  V(r9)                      \
-  V(r10)                     \
-  V(r11)                     \
-  V(r12)                     \
-  V(r13)                     \
-  V(r14)                     \
-  V(r15)
-
-#define ALLOCATABLE_GENERAL_REGISTERS(V) \
-  V(rax)                                 \
-  V(rbx)                                 \
-  V(rdx)                                 \
-  V(rcx)                                 \
-  V(rsi)                                 \
-  V(rdi)                                 \
-  V(r8)                                  \
-  V(r9)                                  \
-  V(r11)                                 \
-  V(r12)                                 \
-  V(r14)                                 \
-  V(r15)
-
-
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -101,153 +68,226 @@ namespace internal {
 // mode. This way we get the compile-time error checking in debug mode
 // and best performance in optimized code.
 //
+
 struct Register {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    GENERAL_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-
-  static const int kNumRegisters = Code::kAfterLast;
-
-  static Register from_code(int code) {
-    DCHECK(code >= 0);
-    DCHECK(code < kNumRegisters);
-    Register r = {code};
-    return r;
+  // The non-allocatable registers are:
+  //  rsp - stack pointer
+  //  rbp - frame pointer
+  //  r10 - fixed scratch register
+  //  r13 - root register
+  static const int kMaxNumAllocatableRegisters = 12;
+  static int NumAllocatableRegisters() {
+    return kMaxNumAllocatableRegisters;
   }
-  const char* ToString();
-  bool IsAllocatable() const;
-  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
-  bool is(Register reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
+  static const int kNumRegisters = 16;
+
+  static int ToAllocationIndex(Register reg) {
+    return kAllocationIndexByRegisterCode[reg.code()];
   }
 
-  bool is_byte_register() const { return reg_code <= 3; }
-  // Return the high bit of the register code as a 0 or 1.  Used often
-  // when constructing the REX prefix byte.
-  int high_bit() const { return reg_code >> 3; }
-  // Return the 3 low bits of the register code.  Used when encoding registers
-  // in modR/M, SIB, and opcode bytes.
-  int low_bits() const { return reg_code & 0x7; }
-
-  // Unfortunately we can't make this private in a struct when initializing
-  // by assignment.
-  int reg_code;
-};
-
-
-#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
-GENERAL_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const Register no_reg = {Register::kCode_no_reg};
-
-
-#ifdef _WIN64
-  // Windows calling convention
-const Register arg_reg_1 = {Register::kCode_rcx};
-const Register arg_reg_2 = {Register::kCode_rdx};
-const Register arg_reg_3 = {Register::kCode_r8};
-const Register arg_reg_4 = {Register::kCode_r9};
-#else
-  // AMD64 calling convention
-const Register arg_reg_1 = {Register::kCode_rdi};
-const Register arg_reg_2 = {Register::kCode_rsi};
-const Register arg_reg_3 = {Register::kCode_rdx};
-const Register arg_reg_4 = {Register::kCode_rcx};
-#endif  // _WIN64
-
-
-#define DOUBLE_REGISTERS(V) \
-  V(xmm0)                   \
-  V(xmm1)                   \
-  V(xmm2)                   \
-  V(xmm3)                   \
-  V(xmm4)                   \
-  V(xmm5)                   \
-  V(xmm6)                   \
-  V(xmm7)                   \
-  V(xmm8)                   \
-  V(xmm9)                   \
-  V(xmm10)                  \
-  V(xmm11)                  \
-  V(xmm12)                  \
-  V(xmm13)                  \
-  V(xmm14)                  \
-  V(xmm15)
-
-#define ALLOCATABLE_DOUBLE_REGISTERS(V) \
-  V(xmm1)                               \
-  V(xmm2)                               \
-  V(xmm3)                               \
-  V(xmm4)                               \
-  V(xmm5)                               \
-  V(xmm6)                               \
-  V(xmm7)                               \
-  V(xmm8)                               \
-  V(xmm9)                               \
-  V(xmm10)                              \
-  V(xmm11)                              \
-  V(xmm12)                              \
-  V(xmm13)                              \
-  V(xmm14)                              \
-  V(xmm15)
-
-
-struct DoubleRegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    DOUBLE_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-
-  static const int kMaxNumRegisters = Code::kAfterLast;
-
-  static DoubleRegister from_code(int code) {
-    DoubleRegister result = {code};
+  static Register FromAllocationIndex(int index) {
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
+    Register result = { kRegisterCodeByAllocationIndex[index] };
     return result;
   }
 
-  const char* ToString();
-  bool IsAllocatable() const;
-  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
+  static const char* AllocationIndexToString(int index) {
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
+    const char* const names[] = {
+      "rax",
+      "rbx",
+      "rdx",
+      "rcx",
+      "rsi",
+      "rdi",
+      "r8",
+      "r9",
+      "r11",
+      "r12",
+      "r14",
+      "r15"
+    };
+    return names[index];
+  }
+
+  static Register from_code(int code) {
+    Register r = { code };
+    return r;
+  }
+  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
+  bool is(Register reg) const { return code_ == reg.code_; }
+  // rax, rbx, rcx and rdx are byte registers, the rest are not.
+  bool is_byte_register() const { return code_ <= 3; }
   int code() const {
     DCHECK(is_valid());
-    return reg_code;
+    return code_;
+  }
+  int bit() const {
+    return 1 << code_;
   }
 
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
-  int high_bit() const { return reg_code >> 3; }
+  int high_bit() const {
+    return code_ >> 3;
+  }
   // Return the 3 low bits of the register code.  Used when encoding registers
   // in modR/M, SIB, and opcode bytes.
-  int low_bits() const { return reg_code & 0x7; }
+  int low_bits() const {
+    return code_ & 0x7;
+  }
 
   // Unfortunately we can't make this private in a struct when initializing
   // by assignment.
-  int reg_code;
+  int code_;
+
+ private:
+  static const int kRegisterCodeByAllocationIndex[kMaxNumAllocatableRegisters];
+  static const int kAllocationIndexByRegisterCode[kNumRegisters];
 };
 
+const int kRegister_rax_Code = 0;
+const int kRegister_rcx_Code = 1;
+const int kRegister_rdx_Code = 2;
+const int kRegister_rbx_Code = 3;
+const int kRegister_rsp_Code = 4;
+const int kRegister_rbp_Code = 5;
+const int kRegister_rsi_Code = 6;
+const int kRegister_rdi_Code = 7;
+const int kRegister_r8_Code = 8;
+const int kRegister_r9_Code = 9;
+const int kRegister_r10_Code = 10;
+const int kRegister_r11_Code = 11;
+const int kRegister_r12_Code = 12;
+const int kRegister_r13_Code = 13;
+const int kRegister_r14_Code = 14;
+const int kRegister_r15_Code = 15;
+const int kRegister_no_reg_Code = -1;
 
-#define DECLARE_REGISTER(R) \
-  const DoubleRegister R = {DoubleRegister::kCode_##R};
-DOUBLE_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
+const Register rax = { kRegister_rax_Code };
+const Register rcx = { kRegister_rcx_Code };
+const Register rdx = { kRegister_rdx_Code };
+const Register rbx = { kRegister_rbx_Code };
+const Register rsp = { kRegister_rsp_Code };
+const Register rbp = { kRegister_rbp_Code };
+const Register rsi = { kRegister_rsi_Code };
+const Register rdi = { kRegister_rdi_Code };
+const Register r8 = { kRegister_r8_Code };
+const Register r9 = { kRegister_r9_Code };
+const Register r10 = { kRegister_r10_Code };
+const Register r11 = { kRegister_r11_Code };
+const Register r12 = { kRegister_r12_Code };
+const Register r13 = { kRegister_r13_Code };
+const Register r14 = { kRegister_r14_Code };
+const Register r15 = { kRegister_r15_Code };
+const Register no_reg = { kRegister_no_reg_Code };
+
+#ifdef _WIN64
+  // Windows calling convention
+  const Register arg_reg_1 = { kRegister_rcx_Code };
+  const Register arg_reg_2 = { kRegister_rdx_Code };
+  const Register arg_reg_3 = { kRegister_r8_Code };
+  const Register arg_reg_4 = { kRegister_r9_Code };
+#else
+  // AMD64 calling convention
+  const Register arg_reg_1 = { kRegister_rdi_Code };
+  const Register arg_reg_2 = { kRegister_rsi_Code };
+  const Register arg_reg_3 = { kRegister_rdx_Code };
+  const Register arg_reg_4 = { kRegister_rcx_Code };
+#endif  // _WIN64
+
+struct XMMRegister {
+  static const int kMaxNumRegisters = 16;
+  static const int kMaxNumAllocatableRegisters = 15;
+  static int NumAllocatableRegisters() {
+    return kMaxNumAllocatableRegisters;
+  }
+
+  // TODO(turbofan): Proper support for float32.
+  static int NumAllocatableAliasedRegisters() {
+    return NumAllocatableRegisters();
+  }
+
+  static int ToAllocationIndex(XMMRegister reg) {
+    DCHECK(reg.code() != 0);
+    return reg.code() - 1;
+  }
+
+  static XMMRegister FromAllocationIndex(int index) {
+    DCHECK(0 <= index && index < kMaxNumAllocatableRegisters);
+    XMMRegister result = { index + 1 };
+    return result;
+  }
+
+  static const char* AllocationIndexToString(int index) {
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
+    const char* const names[] = {
+      "xmm1",
+      "xmm2",
+      "xmm3",
+      "xmm4",
+      "xmm5",
+      "xmm6",
+      "xmm7",
+      "xmm8",
+      "xmm9",
+      "xmm10",
+      "xmm11",
+      "xmm12",
+      "xmm13",
+      "xmm14",
+      "xmm15"
+    };
+    return names[index];
+  }
+
+  static XMMRegister from_code(int code) {
+    DCHECK(code >= 0);
+    DCHECK(code < kMaxNumRegisters);
+    XMMRegister r = { code };
+    return r;
+  }
+  bool is_valid() const { return 0 <= code_ && code_ < kMaxNumRegisters; }
+  bool is(XMMRegister reg) const { return code_ == reg.code_; }
+  int code() const {
+    DCHECK(is_valid());
+    return code_;
+  }
+
+  // Return the high bit of the register code as a 0 or 1.  Used often
+  // when constructing the REX prefix byte.
+  int high_bit() const {
+    return code_ >> 3;
+  }
+  // Return the 3 low bits of the register code.  Used when encoding registers
+  // in modR/M, SIB, and opcode bytes.
+  int low_bits() const {
+    return code_ & 0x7;
+  }
+
+  int code_;
+};
+
+const XMMRegister xmm0 = { 0 };
+const XMMRegister xmm1 = { 1 };
+const XMMRegister xmm2 = { 2 };
+const XMMRegister xmm3 = { 3 };
+const XMMRegister xmm4 = { 4 };
+const XMMRegister xmm5 = { 5 };
+const XMMRegister xmm6 = { 6 };
+const XMMRegister xmm7 = { 7 };
+const XMMRegister xmm8 = { 8 };
+const XMMRegister xmm9 = { 9 };
+const XMMRegister xmm10 = { 10 };
+const XMMRegister xmm11 = { 11 };
+const XMMRegister xmm12 = { 12 };
+const XMMRegister xmm13 = { 13 };
+const XMMRegister xmm14 = { 14 };
+const XMMRegister xmm15 = { 15 };
 
 
-typedef DoubleRegister XMMRegister;
+typedef XMMRegister DoubleRegister;
+
 
 enum Condition {
   // any value < 0 is considered no_condition
