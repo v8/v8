@@ -281,32 +281,26 @@ void FullCodeGenerator::Generate() {
   if (arguments != NULL) {
     // Function uses arguments object.
     Comment cmnt(masm_, "[ Allocate arguments object");
+    DCHECK(r1.is(ArgumentsAccessNewDescriptor::function()));
     if (!function_in_register_r1) {
       // Load this again, if it's used by the local context below.
-      __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-    } else {
-      __ mov(r3, r1);
+      __ ldr(r1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     }
     // Receiver is just before the parameters on the caller's stack.
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
-
-    __ add(r2, fp, Operand(StandardFrameConstants::kCallerSPOffset + offset));
-    __ mov(r1, Operand(Smi::FromInt(num_parameters)));
-    __ Push(r3, r2, r1);
+    __ mov(ArgumentsAccessNewDescriptor::parameter_count(),
+           Operand(Smi::FromInt(num_parameters)));
+    __ add(ArgumentsAccessNewDescriptor::parameter_pointer(), fp,
+           Operand(StandardFrameConstants::kCallerSPOffset + offset));
 
     // Arguments to ArgumentsAccessStub:
-    //   function, receiver address, parameter count.
-    // The stub will rewrite receiver and parameter count if the previous
-    // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub::Type type;
-    if (is_strict(language_mode()) || !has_simple_parameters()) {
-      type = ArgumentsAccessStub::NEW_STRICT;
-    } else if (literal()->has_duplicate_parameters()) {
-      type = ArgumentsAccessStub::NEW_SLOPPY_SLOW;
-    } else {
-      type = ArgumentsAccessStub::NEW_SLOPPY_FAST;
-    }
+    //   function, parameter pointer, parameter count.
+    // The stub will rewrite parameter pointer and parameter count if the
+    // previous stack frame was an arguments adapter frame.
+    bool is_unmapped = is_strict(language_mode()) || !has_simple_parameters();
+    ArgumentsAccessStub::Type type = ArgumentsAccessStub::ComputeType(
+        is_unmapped, literal()->has_duplicate_parameters());
     ArgumentsAccessStub stub(isolate(), type);
     __ CallStub(&stub);
 

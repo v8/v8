@@ -283,31 +283,25 @@ void FullCodeGenerator::Generate() {
   if (arguments != NULL) {
     // Function uses arguments object.
     Comment cmnt(masm_, "[ Allocate arguments object");
-    if (function_in_register) {
-      __ push(edi);
-    } else {
-      __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+    DCHECK(edi.is(ArgumentsAccessNewDescriptor::function()));
+    if (!function_in_register) {
+      __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     }
     // Receiver is just before the parameters on the caller's stack.
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
-    __ lea(edx,
+    __ mov(ArgumentsAccessNewDescriptor::parameter_count(),
+           Immediate(Smi::FromInt(num_parameters)));
+    __ lea(ArgumentsAccessNewDescriptor::parameter_pointer(),
            Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
-    __ push(edx);
-    __ push(Immediate(Smi::FromInt(num_parameters)));
-    // Arguments to ArgumentsAccessStub:
-    //   function, receiver address, parameter count.
-    // The stub will rewrite receiver and parameter count if the previous
-    // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub::Type type;
-    if (is_strict(language_mode()) || !has_simple_parameters()) {
-      type = ArgumentsAccessStub::NEW_STRICT;
-    } else if (literal()->has_duplicate_parameters()) {
-      type = ArgumentsAccessStub::NEW_SLOPPY_SLOW;
-    } else {
-      type = ArgumentsAccessStub::NEW_SLOPPY_FAST;
-    }
 
+    // Arguments to ArgumentsAccessStub:
+    //   function, parameter pointer, parameter count.
+    // The stub will rewrite parameter pointer and parameter count if the
+    // previous stack frame was an arguments adapter frame.
+    bool is_unmapped = is_strict(language_mode()) || !has_simple_parameters();
+    ArgumentsAccessStub::Type type = ArgumentsAccessStub::ComputeType(
+        is_unmapped, literal()->has_duplicate_parameters());
     ArgumentsAccessStub stub(isolate(), type);
     __ CallStub(&stub);
 

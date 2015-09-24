@@ -1899,8 +1899,19 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
     if (type() == READ_ELEMENT) {
       return ArgumentsAccessReadDescriptor(isolate());
+    } else {
+      return ArgumentsAccessNewDescriptor(isolate());
     }
-    return ContextOnlyDescriptor(isolate());
+  }
+
+  static Type ComputeType(bool is_unmapped, bool has_duplicate_parameters) {
+    if (is_unmapped) {
+      return Type::NEW_STRICT;
+    } else if (has_duplicate_parameters) {
+      return Type::NEW_SLOPPY_SLOW;
+    } else {
+      return Type::NEW_SLOPPY_FAST;
+    }
   }
 
  private:

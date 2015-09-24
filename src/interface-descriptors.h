@@ -61,6 +61,7 @@ class PlatformInterfaceDescriptor;
   V(ApiAccessor)                              \
   V(ApiGetter)                                \
   V(ArgumentsAccessRead)                      \
+  V(ArgumentsAccessNew)                       \
   V(StoreArrayLiteralElement)                 \
   V(LoadGlobalViaContext)                     \
   V(StoreGlobalViaContext)                    \
@@ -635,6 +636,17 @@ class ArgumentsAccessReadDescriptor : public CallInterfaceDescriptor {
 
   static const Register index();
   static const Register parameter_count();
+};
+
+
+class ArgumentsAccessNewDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ArgumentsAccessNewDescriptor,
+                                               CallInterfaceDescriptor)
+
+  static const Register function();
+  static const Register parameter_count();
+  static const Register parameter_pointer();
 };
 
 

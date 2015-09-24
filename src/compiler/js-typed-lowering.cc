@@ -1098,6 +1098,45 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicContext(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateArguments, node->opcode());
+  CreateArgumentsParameters const& p = CreateArgumentsParametersOf(node->op());
+  Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* const outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
+  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+
+  // Use the ArgumentsAccessStub for materializing both mapped and unmapped
+  // arguments object, but only for non-inlined (i.e. outermost) frames.
+  if (p.type() != CreateArgumentsParameters::kRestArray &&
+      outer_state->opcode() != IrOpcode::kFrameState) {
+    Handle<SharedFunctionInfo> shared;
+    Isolate* isolate = jsgraph()->isolate();
+    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+    bool unmapped = p.type() == CreateArgumentsParameters::kUnmappedArguments;
+    Callable callable = CodeFactory::ArgumentsAccess(
+        isolate, unmapped, shared->has_duplicate_parameters());
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate, graph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNeedsFrameState);
+    const Operator* new_op = common()->Call(desc);
+    int parameter_count = state_info.parameter_count() - 1;
+    int parameter_offset = parameter_count * kPointerSize;
+    int offset = StandardFrameConstants::kCallerSPOffset + parameter_offset;
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    Node* parameter_pointer = graph()->NewNode(
+        machine()->IntAdd(), graph()->NewNode(machine()->LoadFramePointer()),
+        jsgraph()->IntPtrConstant(offset));
+    node->InsertInput(graph()->zone(), 0, stub_code);
+    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(parameter_count));
+    node->InsertInput(graph()->zone(), 3, parameter_pointer);
+    NodeProperties::ChangeOp(node, new_op);
+    return Changed(node);
+  }
+
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
@@ -1652,6 +1691,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadDynamicGlobal(node);
     case IrOpcode::kJSLoadDynamicContext:
       return ReduceJSLoadDynamicContext(node);
+    case IrOpcode::kJSCreateArguments:
+      return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateClosure:
       return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateLiteralArray:
