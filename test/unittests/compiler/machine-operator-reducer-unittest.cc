@@ -1454,6 +1454,19 @@ TEST_F(MachineOperatorReducerTest, Float64EqualWithFloat32Conversions) {
 }
 
 
+TEST_F(MachineOperatorReducerTest, Float64EqualWithFloat32Constant) {
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(float, x, kFloat32Values) {
+    Reduction r = Reduce(graph()->NewNode(
+        machine()->Float64Equal(),
+        graph()->NewNode(machine()->ChangeFloat32ToFloat64(), p0),
+        Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat32Equal(p0, IsFloat32Constant(x)));
+  }
+}
+
+
 // -----------------------------------------------------------------------------
 // Float64LessThan
 
@@ -1467,6 +1480,30 @@ TEST_F(MachineOperatorReducerTest, Float64LessThanWithFloat32Conversions) {
       graph()->NewNode(machine()->ChangeFloat32ToFloat64(), p1)));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat32LessThan(p0, p1));
+}
+
+
+TEST_F(MachineOperatorReducerTest, Float64LessThanWithFloat32Constant) {
+  Node* const p0 = Parameter(0);
+  {
+    TRACED_FOREACH(float, x, kFloat32Values) {
+      Reduction r = Reduce(graph()->NewNode(
+          machine()->Float64LessThan(),
+          graph()->NewNode(machine()->ChangeFloat32ToFloat64(), p0),
+          Float64Constant(x)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsFloat32LessThan(p0, IsFloat32Constant(x)));
+    }
+  }
+  {
+    TRACED_FOREACH(float, x, kFloat32Values) {
+      Reduction r = Reduce(graph()->NewNode(
+          machine()->Float64LessThan(), Float64Constant(x),
+          graph()->NewNode(machine()->ChangeFloat32ToFloat64(), p0)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsFloat32LessThan(IsFloat32Constant(x), p0));
+    }
+  }
 }
 
 
@@ -1484,6 +1521,32 @@ TEST_F(MachineOperatorReducerTest,
       graph()->NewNode(machine()->ChangeFloat32ToFloat64(), p1)));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat32LessThanOrEqual(p0, p1));
+}
+
+
+TEST_F(MachineOperatorReducerTest, Float64LessThanOrEqualWithFloat32Constant) {
+  Node* const p0 = Parameter(0);
+  {
+    TRACED_FOREACH(float, x, kFloat32Values) {
+      Reduction r = Reduce(graph()->NewNode(
+          machine()->Float64LessThanOrEqual(),
+          graph()->NewNode(machine()->ChangeFloat32ToFloat64(), p0),
+          Float64Constant(x)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsFloat32LessThanOrEqual(p0, IsFloat32Constant(x)));
+    }
+  }
+  {
+    TRACED_FOREACH(float, x, kFloat32Values) {
+      Reduction r = Reduce(graph()->NewNode(
+          machine()->Float64LessThanOrEqual(), Float64Constant(x),
+          graph()->NewNode(machine()->ChangeFloat32ToFloat64(), p0)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsFloat32LessThanOrEqual(IsFloat32Constant(x), p0));
+    }
+  }
 }
 
 

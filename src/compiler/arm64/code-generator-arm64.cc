@@ -770,8 +770,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
         // 0.0 is the only immediate supported by fcmp instructions.
-        DCHECK(i.InputDouble(1) == 0.0);
-        __ Fcmp(i.InputFloat32Register(0), i.InputDouble(1));
+        DCHECK(i.InputFloat32(1) == 0.0f);
+        __ Fcmp(i.InputFloat32Register(0), i.InputFloat32(1));
       }
       break;
     case kArm64Float32Add:

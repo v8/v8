@@ -572,8 +572,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
         // 0.0 is the only immediate supported by vcmp instructions.
-        DCHECK(i.InputDouble(1) == 0.0);
-        __ VFPCompareAndSetFlags(i.InputFloat32Register(0), i.InputDouble(1));
+        DCHECK(i.InputFloat32(1) == 0.0f);
+        __ VFPCompareAndSetFlags(i.InputFloat32Register(0), i.InputFloat32(1));
       }
       DCHECK_EQ(SetCC, i.OutputSBit());
       break;

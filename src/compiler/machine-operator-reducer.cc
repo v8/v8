@@ -1008,16 +1008,36 @@ Reduction MachineOperatorReducer::ReduceFloat64InsertHighWord32(Node* node) {
 }
 
 
+namespace {
+
+bool IsFloat64RepresentableAsFloat32(const Float64Matcher& m) {
+  if (m.HasValue()) {
+    double v = m.Value();
+    float fv = static_cast<float>(v);
+    return static_cast<double>(fv) == v;
+  }
+  return false;
+}
+
+}  // namespace
+
+
 Reduction MachineOperatorReducer::ReduceFloat64Compare(Node* node) {
   DCHECK((IrOpcode::kFloat64Equal == node->opcode()) ||
          (IrOpcode::kFloat64LessThan == node->opcode()) ||
          (IrOpcode::kFloat64LessThanOrEqual == node->opcode()));
   // As all Float32 values have an exact representation in Float64, comparing
   // two Float64 values both converted from Float32 is equivalent to comparing
-  // the original Float32s, so we can ignore the conversions.
+  // the original Float32s, so we can ignore the conversions. We can also reduce
+  // comparisons of converted Float64 values against constants that can be
+  // represented exactly as Float32.
   Float64BinopMatcher m(node);
-  if (m.left().IsChangeFloat32ToFloat64() &&
-      m.right().IsChangeFloat32ToFloat64()) {
+  if ((m.left().IsChangeFloat32ToFloat64() &&
+       m.right().IsChangeFloat32ToFloat64()) ||
+      (m.left().IsChangeFloat32ToFloat64() &&
+       IsFloat64RepresentableAsFloat32(m.right())) ||
+      (IsFloat64RepresentableAsFloat32(m.left()) &&
+       m.right().IsChangeFloat32ToFloat64())) {
     switch (node->opcode()) {
       case IrOpcode::kFloat64Equal:
         node->set_op(machine()->Float32Equal());
@@ -1031,8 +1051,14 @@ Reduction MachineOperatorReducer::ReduceFloat64Compare(Node* node) {
       default:
         return NoChange();
     }
-    node->ReplaceInput(0, m.left().InputAt(0));
-    node->ReplaceInput(1, m.right().InputAt(0));
+    node->ReplaceInput(
+        0, m.left().HasValue()
+               ? Float32Constant(static_cast<float>(m.left().Value()))
+               : m.left().InputAt(0));
+    node->ReplaceInput(
+        1, m.right().HasValue()
+               ? Float32Constant(static_cast<float>(m.right().Value()))
+               : m.right().InputAt(0));
     return Changed(node);
   }
   return NoChange();
