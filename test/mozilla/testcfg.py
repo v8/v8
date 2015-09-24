@@ -34,11 +34,12 @@ import tarfile
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
+SVN_SERVER = (
+    "svn://svn.chromium.org/chrome/trunk/deps/third_party/mozilla-tests")
+MOZILLA_VERSION = "51236"
 
-MOZILLA_VERSION = "2010-06-29"
 
-
-EXCLUDED = ["CVS"]
+EXCLUDED = ["CVS", ".svn"]
 
 
 FRAMEWORK = """
@@ -147,9 +148,9 @@ class MozillaTestSuite(testsuite.TestSuite):
       os.chdir(old_cwd)
       return
 
-    # No cached copy. Check out via CVS, and pack as .tar.gz for later use.
-    command = ("cvs -d :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot"
-               " co -D %s mozilla/js/tests" % MOZILLA_VERSION)
+    # No cached copy. Check out via SVN, and pack as .tar.gz for later use.
+    command = ("svn co -r %s %s mozilla/js/tests" %
+               (MOZILLA_VERSION, SVN_SERVER))
     code = subprocess.call(command, shell=True)
     if code != 0:
       os.chdir(old_cwd)
