@@ -220,6 +220,7 @@ const MachInst2 kFPArithInstructions[] = {
 struct FPCmp {
   MachInst2 mi;
   FlagsCondition cond;
+  FlagsCondition commuted_cond;
 };
 
 
@@ -232,22 +233,22 @@ std::ostream& operator<<(std::ostream& os, const FPCmp& cmp) {
 const FPCmp kFPCmpInstructions[] = {
     {{&RawMachineAssembler::Float64Equal, "Float64Equal", kArm64Float64Cmp,
       kMachFloat64},
-     kEqual},
+     kEqual, kEqual},
     {{&RawMachineAssembler::Float64LessThan, "Float64LessThan",
       kArm64Float64Cmp, kMachFloat64},
-     kFloatLessThan},
+     kFloatLessThan, kFloatGreaterThan},
     {{&RawMachineAssembler::Float64LessThanOrEqual, "Float64LessThanOrEqual",
       kArm64Float64Cmp, kMachFloat64},
-     kFloatLessThanOrEqual},
+     kFloatLessThanOrEqual, kFloatGreaterThanOrEqual},
     {{&RawMachineAssembler::Float32Equal, "Float32Equal", kArm64Float32Cmp,
       kMachFloat32},
-     kEqual},
+     kEqual, kEqual},
     {{&RawMachineAssembler::Float32LessThan, "Float32LessThan",
       kArm64Float32Cmp, kMachFloat32},
-     kFloatLessThan},
+     kFloatLessThan, kFloatGreaterThan},
     {{&RawMachineAssembler::Float32LessThanOrEqual, "Float32LessThanOrEqual",
       kArm64Float32Cmp, kMachFloat32},
-     kFloatLessThanOrEqual}};
+     kFloatLessThanOrEqual, kFloatGreaterThanOrEqual}};
 
 
 struct Conversion {
@@ -1953,7 +1954,7 @@ TEST_P(InstructionSelectorFPCmpTest, WithImmediateZeroOnLeft) {
   EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
   EXPECT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kFlags_set, s[0]->flags_mode());
-  EXPECT_EQ(CommuteFlagsCondition(cmp.cond), s[0]->flags_condition());
+  EXPECT_EQ(cmp.commuted_cond, s[0]->flags_condition());
 }
 
 
