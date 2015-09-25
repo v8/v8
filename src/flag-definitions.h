@@ -431,8 +431,8 @@ DEFINE_BOOL(turbo_allocate, false, "enable inline allocations in TurboFan")
 DEFINE_BOOL(turbo_source_positions, false,
             "track source code positions when building TurboFan IR")
 DEFINE_IMPLICATION(trace_turbo, turbo_source_positions)
-DEFINE_BOOL(context_specialization, false,
-            "enable context specialization in TurboFan")
+DEFINE_BOOL(function_context_specialization, false,
+            "enable function context specialization in TurboFan")
 DEFINE_BOOL(turbo_inlining, false, "enable inlining in TurboFan")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(loop_assignment_analysis, true, "perform loop assignment analysis")

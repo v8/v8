@@ -504,9 +504,10 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     JSContextSpecialization context_specialization(
-        &graph_reducer, data->jsgraph(), data->info()->is_context_specializing()
-                                             ? data->info()->context()
-                                             : MaybeHandle<Context>());
+        &graph_reducer, data->jsgraph(),
+        data->info()->is_function_context_specializing()
+            ? data->info()->context()
+            : MaybeHandle<Context>());
     JSFrameSpecialization frame_specialization(data->info()->osr_frame(),
                                                data->jsgraph());
     JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()

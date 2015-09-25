@@ -130,7 +130,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
   // with deoptimization support.
   if (isolate_->serializer_enabled()) EnableDeoptimizationSupport();
 
-  if (FLAG_context_specialization) MarkAsContextSpecializing();
+  if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
   if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
@@ -440,7 +440,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
     if (info()->shared_info()->asm_function()) {
       if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
-      info()->MarkAsContextSpecializing();
+      info()->MarkAsFunctionContextSpecializing();
     } else if (FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
       info()->EnsureFeedbackVector();
@@ -777,8 +777,8 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
 
   // Context specialization folds-in the context, so no sharing can occur.
-  if (info->is_context_specializing()) return;
-  // Frame specialization implies context specialization.
+  if (info->is_function_context_specializing()) return;
+  // Frame specialization implies function context specialization.
   DCHECK(!info->is_frame_specializing());
 
   // Do not cache bound functions.
@@ -799,7 +799,7 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 
   // Cache optimized context-independent code.
   if (FLAG_turbo_cache_shared_code && code->is_turbofanned()) {
-    DCHECK(!info->is_context_specializing());
+    DCHECK(!info->is_function_context_specializing());
     DCHECK(info->osr_ast_id().IsNone());
     Handle<SharedFunctionInfo> shared(function->shared());
     SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(shared, code);
@@ -975,7 +975,7 @@ MaybeHandle<Code> Compiler::GetStubCode(Handle<JSFunction> function,
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info);
   info.SetFunctionType(stub->GetCallInterfaceDescriptor().GetFunctionType());
-  info.MarkAsContextSpecializing();
+  info.MarkAsFunctionContextSpecializing();
   info.MarkAsDeoptimizationEnabled();
   info.SetStub(stub);
 

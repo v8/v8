@@ -121,7 +121,7 @@ class CompilationInfo {
     kDeoptimizationSupport = 1 << 5,
     kDebug = 1 << 6,
     kSerializing = 1 << 7,
-    kContextSpecializing = 1 << 8,
+    kFunctionContextSpecializing = 1 << 8,
     kFrameSpecializing = 1 << 9,
     kInliningEnabled = 1 << 10,
     kTypingEnabled = 1 << 11,
@@ -221,9 +221,13 @@ class CompilationInfo {
 
   bool will_serialize() const { return GetFlag(kSerializing); }
 
-  void MarkAsContextSpecializing() { SetFlag(kContextSpecializing); }
+  void MarkAsFunctionContextSpecializing() {
+    SetFlag(kFunctionContextSpecializing);
+  }
 
-  bool is_context_specializing() const { return GetFlag(kContextSpecializing); }
+  bool is_function_context_specializing() const {
+    return GetFlag(kFunctionContextSpecializing);
+  }
 
   void MarkAsFrameSpecializing() { SetFlag(kFrameSpecializing); }
 
