@@ -31,10 +31,9 @@
 # char arrays. It is used for embedded JavaScript code in the V8
 # library.
 
-import os, re, sys, string
+import os, re
 import optparse
 import jsmin
-import bz2
 import textwrap
 
 
