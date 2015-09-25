@@ -80,7 +80,6 @@ namespace internal {
   F(ThrowArrayNotSubclassableError, 0, 1)     \
   F(ThrowStaticPrototypeError, 0, 1)          \
   F(ThrowIfStaticPrototype, 1, 1)             \
-  F(ToMethod, 2, 1)                           \
   F(HomeObjectSymbol, 0, 1)                   \
   F(DefineClass, 5, 1)                        \
   F(FinalizeClassDefinition, 2, 1)            \

@@ -7141,11 +7141,6 @@ class JSFunction: public JSObject {
   static void SetInstancePrototype(Handle<JSFunction> function,
                                    Handle<Object> value);
 
-  // Creates a new closure for the fucntion with the same bindings,
-  // bound values, and prototype. An equivalent of spec operations
-  // ``CloneMethod`` and ``CloneBoundFunction``.
-  static Handle<JSFunction> CloneClosure(Handle<JSFunction> function);
-
   // After prototype is removed, it will not be created when accessed, and
   // [[Construct]] from this function will not be allowed.
   bool RemovePrototype();

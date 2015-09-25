@@ -8792,60 +8792,6 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
 }
 
 
-TEST(SuperAccessControl) {
-  i::FLAG_allow_natives_syntax = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> obj_template =
-      v8::ObjectTemplate::New(isolate);
-  obj_template->SetAccessCheckCallbacks(AccessAlwaysBlocked, NULL);
-  LocalContext env;
-  env->Global()->Set(v8_str("prohibited"), obj_template->NewInstance());
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CompileRun(
-        "var f = { m() { return super.hasOwnProperty; } }.m;"
-        "var m = %ToMethod(f, prohibited);"
-        "m();");
-    CHECK(try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CompileRun(
-        "var f = {m() { return super[42]; } }.m;"
-        "var m = %ToMethod(f, prohibited);"
-        "m();");
-    CHECK(try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CompileRun(
-        "var f = {m() { super.hasOwnProperty = function () {}; } }.m;"
-        "var m = %ToMethod(f, prohibited);"
-        "m();");
-    CHECK(try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CompileRun(
-        "Object.defineProperty(Object.prototype, 'x', { set : function(){}});"
-        "var f = {"
-        "  m() { "
-        "    'use strict';"
-        "    super.x = function () {};"
-        "  }"
-        "}.m;"
-        "var m = %ToMethod(f, prohibited);"
-        "m();");
-    CHECK(try_catch.HasCaught());
-  }
-}
-
-
 TEST(Regress470113) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
