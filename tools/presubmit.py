@@ -63,7 +63,6 @@ LINT_RULES = """
 -readability/nolint
 +readability/streams
 -runtime/references
--runtime/threadsafe_fn
 -whitespace/semicolon
 """.split()
 
