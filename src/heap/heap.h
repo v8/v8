@@ -1644,8 +1644,10 @@ class Heap {
   static void ScavengeStoreBufferCallback(Heap* heap, MemoryChunk* page,
                                           StoreBufferEvent event);
 
-  // Selects the proper allocation space based on the pretenuring decision.
-  static AllocationSpace SelectSpace(PretenureFlag pretenure) {
+  // Selects the proper allocation space depending on the given object
+  // size and pretenuring decision.
+  static AllocationSpace SelectSpace(int object_size, PretenureFlag pretenure) {
+    if (object_size > Page::kMaxRegularHeapObjectSize) return LO_SPACE;
     return (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
   }
 
