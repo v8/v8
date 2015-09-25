@@ -124,6 +124,14 @@
         }, {
           'linux_use_bundled_gold%': 0,
         }],
+
+        # TODO(machenbach): Remove the conditions as more configurations are
+        # supported.
+        ['OS=="linux"', {
+          'test_isolation_mode%': 'check',
+        }, {
+          'test_isolation_mode%': 'noop',
+        }],
       ],
     },
     'base_dir%': '<(base_dir)',
@@ -146,6 +154,7 @@
     'cfi_vptr%': '<(cfi_vptr)',
     'cfi_diag%': '<(cfi_diag)',
     'cfi_blacklist%': '<(cfi_blacklist)',
+    'test_isolation_mode%': '<(test_isolation_mode)',
 
     # Add a simple extras solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],
