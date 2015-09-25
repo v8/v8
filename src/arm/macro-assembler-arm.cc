@@ -1043,6 +1043,14 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 }
 
 
+void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
+  ldr(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  ldr(vector, FieldMemOperand(vector, JSFunction::kSharedFunctionInfoOffset));
+  ldr(vector,
+      FieldMemOperand(vector, SharedFunctionInfo::kFeedbackVectorOffset));
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   // r0-r3: preserved

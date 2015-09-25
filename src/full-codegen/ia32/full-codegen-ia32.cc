@@ -1058,8 +1058,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&fixed_array);
 
   // No need for a write barrier, we are storing a Smi in the feedback vector.
-  __ LoadHeapObject(ebx, FeedbackVector());
-  int vector_index = FeedbackVector()->GetIndex(slot);
+  __ EmitLoadTypeFeedbackVector(ebx);
+  int vector_index = SmiFromSlot(slot)->value();
   __ mov(FieldOperand(ebx, FixedArray::OffsetOfElementAt(vector_index)),
          Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate())));
 
@@ -3074,7 +3074,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ mov(edi, Operand(esp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ LoadHeapObject(ebx, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(ebx);
   __ mov(edx, Immediate(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
   CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
@@ -3114,7 +3114,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ mov(edi, Operand(esp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ LoadHeapObject(ebx, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(ebx);
   __ mov(edx, Immediate(SmiFromSlot(expr->CallFeedbackSlot())));
 
   CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);

@@ -1084,8 +1084,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&fixed_array);
 
   // No need for a write barrier, we are storing a Smi in the feedback vector.
-  __ Move(rbx, FeedbackVector());
-  int vector_index = FeedbackVector()->GetIndex(slot);
+  __ EmitLoadTypeFeedbackVector(rbx);
+  int vector_index = SmiFromSlot(slot)->value();
   __ Move(FieldOperand(rbx, FixedArray::OffsetOfElementAt(vector_index)),
           TypeFeedbackVector::MegamorphicSentinel(isolate()));
   __ Move(rbx, Smi::FromInt(1));  // Smi indicates slow check
@@ -3066,7 +3066,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ movp(rdi, Operand(rsp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code, but not in the snapshot.
-  __ Move(rbx, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(rbx);
   __ Move(rdx, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
@@ -3106,7 +3106,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ movp(rdi, Operand(rsp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ Move(rbx, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(rbx);
   __ Move(rdx, SmiFromSlot(expr->CallFeedbackSlot()));
 
   CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);

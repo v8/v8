@@ -4825,6 +4825,14 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 }
 
 
+void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
+  lw(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  lw(vector, FieldMemOperand(vector, JSFunction::kSharedFunctionInfoOffset));
+  lw(vector,
+     FieldMemOperand(vector, SharedFunctionInfo::kFeedbackVectorOffset));
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   // Out-of-line constant pool not implemented on mips.

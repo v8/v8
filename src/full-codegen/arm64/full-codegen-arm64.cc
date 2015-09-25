@@ -1123,9 +1123,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // We got a fixed array in register x0. Iterate through that.
   __ Bind(&fixed_array);
 
-  __ LoadObject(x1, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(x1);
   __ Mov(x10, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  int vector_index = FeedbackVector()->GetIndex(slot);
+  int vector_index = SmiFromSlot(slot)->value();
   __ Str(x10, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(vector_index)));
 
   __ Mov(x1, Smi::FromInt(1));  // Smi indicates slow check.
@@ -2893,7 +2893,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ Peek(x1, arg_count * kXRegSize);
 
   // Record call targets in unoptimized code.
-  __ LoadObject(x2, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(x2);
   __ Mov(x3, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
@@ -2933,7 +2933,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ Peek(x1, arg_count * kXRegSize);
 
   // Record call targets in unoptimized code.
-  __ LoadObject(x2, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(x2);
   __ Mov(x3, SmiFromSlot(expr->CallFeedbackSlot()));
 
   CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);

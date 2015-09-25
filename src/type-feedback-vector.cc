@@ -125,6 +125,34 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
 }
 
 
+template int TypeFeedbackVector::GetIndexFromSpec(const ZoneFeedbackVectorSpec*,
+                                                  FeedbackVectorICSlot);
+template int TypeFeedbackVector::GetIndexFromSpec(const ZoneFeedbackVectorSpec*,
+                                                  FeedbackVectorSlot);
+
+
+// static
+template <typename Spec>
+int TypeFeedbackVector::GetIndexFromSpec(const Spec* spec,
+                                         FeedbackVectorSlot slot) {
+  const int ic_slot_count = spec->ic_slots();
+  const int index_count = VectorICComputer::word_count(ic_slot_count);
+  return kReservedIndexCount + index_count + slot.ToInt();
+}
+
+
+// static
+template <typename Spec>
+int TypeFeedbackVector::GetIndexFromSpec(const Spec* spec,
+                                         FeedbackVectorICSlot slot) {
+  const int slot_count = spec->slots();
+  const int ic_slot_count = spec->ic_slots();
+  const int index_count = VectorICComputer::word_count(ic_slot_count);
+  return kReservedIndexCount + index_count + slot_count +
+         slot.ToInt() * elements_per_ic_slot();
+}
+
+
 // static
 int TypeFeedbackVector::PushAppliedArgumentsIndex() {
   const int index_count = VectorICComputer::word_count(1);

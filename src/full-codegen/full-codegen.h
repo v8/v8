@@ -420,22 +420,16 @@ class FullCodeGenerator: public AstVisitor {
   void PrepareForBailout(Expression* node, State state);
   void PrepareForBailoutForId(BailoutId id, State state);
 
-  // Feedback slot support. The feedback vector will be cleared during gc and
-  // collected by the type-feedback oracle.
-  Handle<TypeFeedbackVector> FeedbackVector() const {
-    return info_->feedback_vector();
-  }
-  void EnsureSlotContainsAllocationSite(FeedbackVectorSlot slot);
-  void EnsureSlotContainsAllocationSite(FeedbackVectorICSlot slot);
-
   // Returns a smi for the index into the FixedArray that backs the feedback
   // vector
   Smi* SmiFromSlot(FeedbackVectorSlot slot) const {
-    return Smi::FromInt(FeedbackVector()->GetIndex(slot));
+    return Smi::FromInt(TypeFeedbackVector::GetIndexFromSpec(
+        literal()->feedback_vector_spec(), slot));
   }
 
   Smi* SmiFromSlot(FeedbackVectorICSlot slot) const {
-    return Smi::FromInt(FeedbackVector()->GetIndex(slot));
+    return Smi::FromInt(TypeFeedbackVector::GetIndexFromSpec(
+        literal()->feedback_vector_spec(), slot));
   }
 
   // Record a call's return site offset, used to rebuild the frame if the
@@ -702,7 +696,7 @@ class FullCodeGenerator: public AstVisitor {
   bool is_native() { return info_->is_native(); }
   LanguageMode language_mode() { return literal()->language_mode(); }
   bool has_simple_parameters() { return info_->has_simple_parameters(); }
-  FunctionLiteral* literal() { return info_->literal(); }
+  FunctionLiteral* literal() const { return info_->literal(); }
   Scope* scope() { return scope_; }
 
   static Register result_register();

@@ -113,6 +113,11 @@ class TypeFeedbackVector : public FixedArray {
   inline int GetIndex(FeedbackVectorSlot slot) const;
   inline int GetIndex(FeedbackVectorICSlot slot) const;
 
+  template <typename Spec>
+  static int GetIndexFromSpec(const Spec* spec, FeedbackVectorSlot slot);
+  template <typename Spec>
+  static int GetIndexFromSpec(const Spec* spec, FeedbackVectorICSlot slot);
+
   // Conversion from an integer index to either a slot or an ic slot. The caller
   // should know what kind she expects.
   inline FeedbackVectorSlot ToSlot(int index) const;

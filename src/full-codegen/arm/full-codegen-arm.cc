@@ -1124,9 +1124,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label non_proxy;
   __ bind(&fixed_array);
 
-  __ Move(r1, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(r1);
   __ mov(r2, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  int vector_index = FeedbackVector()->GetIndex(slot);
+  int vector_index = SmiFromSlot(slot)->value();
   __ str(r2, FieldMemOperand(r1, FixedArray::OffsetOfElementAt(vector_index)));
 
   __ mov(r1, Operand(Smi::FromInt(1)));  // Smi indicates slow check
@@ -3185,7 +3185,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ Move(r2, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(r2);
   __ mov(r3, Operand(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
   CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
@@ -3225,7 +3225,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ Move(r2, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(r2);
   __ mov(r3, Operand(SmiFromSlot(expr->CallFeedbackSlot())));
 
   CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);

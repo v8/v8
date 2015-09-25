@@ -91,28 +91,6 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
-void FullCodeGenerator::EnsureSlotContainsAllocationSite(
-    FeedbackVectorSlot slot) {
-  Handle<TypeFeedbackVector> vector = FeedbackVector();
-  if (!vector->Get(slot)->IsAllocationSite()) {
-    Handle<AllocationSite> allocation_site =
-        isolate()->factory()->NewAllocationSite();
-    vector->Set(slot, *allocation_site);
-  }
-}
-
-
-void FullCodeGenerator::EnsureSlotContainsAllocationSite(
-    FeedbackVectorICSlot slot) {
-  Handle<TypeFeedbackVector> vector = FeedbackVector();
-  if (!vector->Get(slot)->IsAllocationSite()) {
-    Handle<AllocationSite> allocation_site =
-        isolate()->factory()->NewAllocationSite();
-    vector->Set(slot, *allocation_site);
-  }
-}
-
-
 void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   // Fill in the deoptimization information.
   DCHECK(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());

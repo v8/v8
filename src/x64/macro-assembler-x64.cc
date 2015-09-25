@@ -3634,6 +3634,13 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 }
 
 
+void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
+  movp(vector, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  movp(vector, FieldOperand(vector, JSFunction::kSharedFunctionInfoOffset));
+  movp(vector, FieldOperand(vector, SharedFunctionInfo::kFeedbackVectorOffset));
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   // Out-of-line constant pool not implemented on x64.
