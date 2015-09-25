@@ -63,7 +63,26 @@ class GCIdleTimeAction {
 };
 
 
-class GCTracer;
+class GCIdleTimeHeapState {
+ public:
+  void Print();
+
+  int contexts_disposed;
+  double contexts_disposal_rate;
+  size_t size_of_objects;
+  bool incremental_marking_stopped;
+  bool sweeping_in_progress;
+  bool sweeping_completed;
+  bool has_low_allocation_rate;
+  size_t mark_compact_speed_in_bytes_per_ms;
+  size_t incremental_marking_speed_in_bytes_per_ms;
+  size_t final_incremental_mark_compact_speed_in_bytes_per_ms;
+  size_t scavenge_speed_in_bytes_per_ms;
+  size_t used_new_space_size;
+  size_t new_space_capacity;
+  size_t new_space_allocation_throughput_in_bytes_per_ms;
+};
+
 
 // The idle time handler makes decisions about which garbage collection
 // operations are executing during IdleNotification.
@@ -133,29 +152,10 @@ class GCIdleTimeHandler {
   // ensure we don't keep scheduling idle tasks and making no progress.
   static const int kMaxNoProgressIdleTimes = 10;
 
-  class HeapState {
-   public:
-    void Print();
-
-    int contexts_disposed;
-    double contexts_disposal_rate;
-    size_t size_of_objects;
-    bool incremental_marking_stopped;
-    bool sweeping_in_progress;
-    bool sweeping_completed;
-    bool has_low_allocation_rate;
-    size_t mark_compact_speed_in_bytes_per_ms;
-    size_t incremental_marking_speed_in_bytes_per_ms;
-    size_t final_incremental_mark_compact_speed_in_bytes_per_ms;
-    size_t scavenge_speed_in_bytes_per_ms;
-    size_t used_new_space_size;
-    size_t new_space_capacity;
-    size_t new_space_allocation_throughput_in_bytes_per_ms;
-  };
-
   GCIdleTimeHandler() : idle_times_which_made_no_progress_(0) {}
 
-  GCIdleTimeAction Compute(double idle_time_in_ms, HeapState heap_state);
+  GCIdleTimeAction Compute(double idle_time_in_ms,
+                           GCIdleTimeHeapState heap_state);
 
   void ResetNoProgressCounter() { idle_times_which_made_no_progress_ = 0; }
 

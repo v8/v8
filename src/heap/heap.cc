@@ -125,6 +125,7 @@ Heap::Heap()
       mark_compact_collector_(this),
       store_buffer_(this),
       incremental_marking_(this),
+      gc_idle_time_handler_(nullptr),
       memory_reducer_(nullptr),
       object_stats_(nullptr),
       full_codegen_bytes_generated_(0),
@@ -1012,7 +1013,7 @@ void Heap::StartIncrementalMarking(int gc_flags,
 
 
 void Heap::StartIdleIncrementalMarking() {
-  gc_idle_time_handler_.ResetNoProgressCounter();
+  gc_idle_time_handler_->ResetNoProgressCounter();
   StartIncrementalMarking(kReduceMemoryFootprintMask, kNoGCCallbackFlags,
                           "idle");
 }
@@ -4071,14 +4072,14 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->weak_closure_was_overapproximated() &&
         mark_compact_collector_.marking_deque()->IsEmpty() &&
-        gc_idle_time_handler_.ShouldDoOverApproximateWeakClosure(
+        gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
             static_cast<size_t>(idle_time_in_ms))))) {
     OverApproximateWeakClosure(
         "Idle notification: overapproximate weak closure");
     return true;
   } else if (incremental_marking()->IsComplete() ||
              (mark_compact_collector_.marking_deque()->IsEmpty() &&
-              gc_idle_time_handler_.ShouldDoFinalIncrementalMarkCompact(
+              gc_idle_time_handler_->ShouldDoFinalIncrementalMarkCompact(
                   static_cast<size_t>(idle_time_in_ms), size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
     CollectAllGarbage(current_gc_flags_,
@@ -4089,8 +4090,8 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
 }
 
 
-GCIdleTimeHandler::HeapState Heap::ComputeHeapState() {
-  GCIdleTimeHandler::HeapState heap_state;
+GCIdleTimeHeapState Heap::ComputeHeapState() {
+  GCIdleTimeHeapState heap_state;
   heap_state.contexts_disposed = contexts_disposed_;
   heap_state.contexts_disposal_rate =
       tracer()->ContextDisposalRateInMilliseconds();
@@ -4134,7 +4135,7 @@ double Heap::AdvanceIncrementalMarking(
 
 
 bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
-                                 GCIdleTimeHandler::HeapState heap_state,
+                                 GCIdleTimeHeapState heap_state,
                                  double deadline_in_ms) {
   bool result = false;
   switch (action.type) {
@@ -4171,7 +4172,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
 
 
 void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
-                                    GCIdleTimeHandler::HeapState heap_state,
+                                    GCIdleTimeHeapState heap_state,
                                     double start_ms, double deadline_in_ms) {
   double idle_time_in_ms = deadline_in_ms - start_ms;
   double current_time = MonotonicallyIncreasingTimeInMs();
@@ -4268,10 +4269,10 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   tracer()->SampleAllocation(start_ms, NewSpaceAllocationCounter(),
                              OldGenerationAllocationCounter());
 
-  GCIdleTimeHandler::HeapState heap_state = ComputeHeapState();
+  GCIdleTimeHeapState heap_state = ComputeHeapState();
 
   GCIdleTimeAction action =
-      gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
+      gc_idle_time_handler_->Compute(idle_time_in_ms, heap_state);
 
   bool result = PerformIdleTimeAction(action, heap_state, deadline_in_ms);
 
@@ -5073,6 +5074,8 @@ bool Heap::SetUp() {
 
   scavenge_collector_ = new Scavenger(this);
 
+  gc_idle_time_handler_ = new GCIdleTimeHandler();
+
   memory_reducer_ = new MemoryReducer(this);
 
   object_stats_ = new ObjectStats(this);
@@ -5186,6 +5189,9 @@ void Heap::TearDown() {
 
   delete scavenge_collector_;
   scavenge_collector_ = nullptr;
+
+  delete gc_idle_time_handler_;
+  gc_idle_time_handler_ = nullptr;
 
   if (memory_reducer_ != nullptr) {
     memory_reducer_->TearDown();

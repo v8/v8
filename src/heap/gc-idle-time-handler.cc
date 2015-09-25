@@ -42,7 +42,7 @@ void GCIdleTimeAction::Print() {
 }
 
 
-void GCIdleTimeHandler::HeapState::Print() {
+void GCIdleTimeHeapState::Print() {
   PrintF("contexts_disposed=%d ", contexts_disposed);
   PrintF("contexts_disposal_rate=%f ", contexts_disposal_rate);
   PrintF("size_of_objects=%" V8_PTR_PREFIX "d ", size_of_objects);
@@ -240,7 +240,7 @@ GCIdleTimeAction GCIdleTimeHandler::NothingOrDone(double idle_time_in_ms) {
 // (5) If incremental marking is in progress, we perform a marking step. Note,
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
-                                            HeapState heap_state) {
+                                            GCIdleTimeHeapState heap_state) {
   if (static_cast<int>(idle_time_in_ms) <= 0) {
     if (heap_state.incremental_marking_stopped) {
       if (ShouldDoContextDisposalMarkCompact(

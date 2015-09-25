@@ -12,7 +12,6 @@
 #include "src/assert-scope.h"
 #include "src/atomic-utils.h"
 #include "src/globals.h"
-#include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/spaces.h"
@@ -422,6 +421,10 @@ namespace internal {
 
 // Forward declarations.
 class ArrayBufferTracker;
+class GCIdleTimeAction;
+class GCIdleTimeHandler;
+class GCIdleTimeHeapState;
+class GCTracer;
 class HeapObjectsFilter;
 class HeapStats;
 class Isolate;
@@ -1780,15 +1783,15 @@ class Heap {
       double idle_time_in_ms, size_t size_of_objects,
       size_t mark_compact_speed_in_bytes_per_ms);
 
-  GCIdleTimeHandler::HeapState ComputeHeapState();
+  GCIdleTimeHeapState ComputeHeapState();
 
   bool PerformIdleTimeAction(GCIdleTimeAction action,
-                             GCIdleTimeHandler::HeapState heap_state,
+                             GCIdleTimeHeapState heap_state,
                              double deadline_in_ms);
 
   void IdleNotificationEpilogue(GCIdleTimeAction action,
-                                GCIdleTimeHandler::HeapState heap_state,
-                                double start_ms, double deadline_in_ms);
+                                GCIdleTimeHeapState heap_state, double start_ms,
+                                double deadline_in_ms);
   void CheckAndNotifyBackgroundIdleNotification(double idle_time_in_ms,
                                                 double now_ms);
 
@@ -2258,7 +2261,7 @@ class Heap {
 
   IncrementalMarking incremental_marking_;
 
-  GCIdleTimeHandler gc_idle_time_handler_;
+  GCIdleTimeHandler* gc_idle_time_handler_;
 
   MemoryReducer* memory_reducer_;
 
