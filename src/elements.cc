@@ -210,9 +210,7 @@ static void CopyDictionaryToObjectElements(
 static void CopyDoubleToObjectElements(FixedArrayBase* from_base,
                                        uint32_t from_start,
                                        FixedArrayBase* to_base,
-                                       ElementsKind to_kind, uint32_t to_start,
-                                       int raw_copy_size) {
-  DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
+                                       uint32_t to_start, int raw_copy_size) {
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
     DisallowHeapAllocation no_allocation;
@@ -252,13 +250,8 @@ static void CopyDoubleToObjectElements(FixedArrayBase* from_base,
     HandleScope scope(isolate);
     offset += 100;
     for (int i = offset - 100; i < offset && i < copy_size; ++i) {
-      if (IsFastSmiElementsKind(to_kind)) {
-        UNIMPLEMENTED();
-      } else {
-        DCHECK(IsFastObjectElementsKind(to_kind));
-        Handle<Object> value = FixedDoubleArray::get(from, i + from_start);
-        to->set(i + to_start, *value, UPDATE_WRITE_BARRIER);
-      }
+      Handle<Object> value = FixedDoubleArray::get(from, i + from_start);
+      to->set(i + to_start, *value, UPDATE_WRITE_BARRIER);
     }
   }
 }
@@ -1550,8 +1543,8 @@ class FastSmiOrObjectElementsAccessor
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS: {
         AllowHeapAllocation allow_allocation;
-        CopyDoubleToObjectElements(
-            from, from_start, to, to_kind, to_start, copy_size);
+        DCHECK(IsFastObjectElementsKind(to_kind));
+        CopyDoubleToObjectElements(from, from_start, to, to_start, copy_size);
         break;
       }
       case DICTIONARY_ELEMENTS:
