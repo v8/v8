@@ -6,7 +6,6 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
-#include "src/base/sys-info.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/cpu-profiler.h"
@@ -573,6 +572,7 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   heap()->paged_space(OLD_SPACE)->ResetUnsweptFreeBytes();
   heap()->paged_space(CODE_SPACE)->ResetUnsweptFreeBytes();
   heap()->paged_space(MAP_SPACE)->ResetUnsweptFreeBytes();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !evacuation()) {
     VerifyEvacuation(heap_);
@@ -593,6 +593,7 @@ bool MarkCompactCollector::IsSweepingCompleted() {
 
 void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
   FreeList* free_list;
+
   if (space == heap()->old_space()) {
     free_list = free_list_old_space_.get();
   } else if (space == heap()->code_space()) {
@@ -3369,57 +3370,52 @@ bool MarkCompactCollector::EvacuateLiveObjectsFromPage(
 }
 
 
-int MarkCompactCollector::NumberOfParallelCompactionTasks() {
-  if (!FLAG_parallel_compaction) return 1;
-  // We cap the number of parallel compaction tasks by
-  // - (#cores - 1)
-  // - a value depending on the list of evacuation candidates
-  // - a hard limit
-  const int kPagesPerCompactionTask = 4;
-  const int kMaxCompactionTasks = 8;
-  return Min(kMaxCompactionTasks,
-             Min(1 + evacuation_candidates_.length() / kPagesPerCompactionTask,
-                 Max(1, base::SysInfo::NumberOfProcessors() - 1)));
-}
-
-
 void MarkCompactCollector::EvacuatePagesInParallel() {
   if (evacuation_candidates_.length() == 0) return;
 
-  const int num_tasks = NumberOfParallelCompactionTasks();
+  int num_tasks = 1;
+  if (FLAG_parallel_compaction) {
+    num_tasks = NumberOfParallelCompactionTasks();
+  }
 
   // Set up compaction spaces.
-  CompactionSpaceCollection** spaces_for_tasks =
+  CompactionSpaceCollection** compaction_spaces_for_tasks =
       new CompactionSpaceCollection*[num_tasks];
   for (int i = 0; i < num_tasks; i++) {
-    spaces_for_tasks[i] = new CompactionSpaceCollection(heap());
+    compaction_spaces_for_tasks[i] = new CompactionSpaceCollection(heap());
   }
-  heap()->old_space()->DivideMemory(spaces_for_tasks, num_tasks, 1 * MB);
-  heap()->code_space()->DivideMemory(spaces_for_tasks, num_tasks, 1 * MB);
+
+  compaction_spaces_for_tasks[0]->Get(OLD_SPACE)->MoveOverFreeMemory(
+      heap()->old_space());
+  compaction_spaces_for_tasks[0]
+      ->Get(CODE_SPACE)
+      ->MoveOverFreeMemory(heap()->code_space());
 
   compaction_in_progress_ = true;
   // Kick off parallel tasks.
   for (int i = 1; i < num_tasks; i++) {
     concurrent_compaction_tasks_active_++;
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompactionTask(heap(), spaces_for_tasks[i]),
+        new CompactionTask(heap(), compaction_spaces_for_tasks[i]),
         v8::Platform::kShortRunningTask);
   }
 
-  // Perform compaction on the main thread.
-  EvacuatePages(spaces_for_tasks[0], &migration_slots_buffer_);
+  // Contribute in main thread. Counter and signal are in principal not needed.
+  concurrent_compaction_tasks_active_++;
+  EvacuatePages(compaction_spaces_for_tasks[0], &migration_slots_buffer_);
+  pending_compaction_tasks_semaphore_.Signal();
 
   WaitUntilCompactionCompleted();
 
   // Merge back memory (compacted and unused) from compaction spaces.
   for (int i = 0; i < num_tasks; i++) {
     heap()->old_space()->MergeCompactionSpace(
-        spaces_for_tasks[i]->Get(OLD_SPACE));
+        compaction_spaces_for_tasks[i]->Get(OLD_SPACE));
     heap()->code_space()->MergeCompactionSpace(
-        spaces_for_tasks[i]->Get(CODE_SPACE));
-    delete spaces_for_tasks[i];
+        compaction_spaces_for_tasks[i]->Get(CODE_SPACE));
+    delete compaction_spaces_for_tasks[i];
   }
-  delete[] spaces_for_tasks;
+  delete[] compaction_spaces_for_tasks;
 
   // Finalize sequentially.
   const int num_pages = evacuation_candidates_.length();

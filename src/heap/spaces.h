@@ -19,7 +19,6 @@
 namespace v8 {
 namespace internal {
 
-class CompactionSpaceCollection;
 class Isolate;
 
 // -----------------------------------------------------------------------------
@@ -1421,11 +1420,19 @@ class AllocationInfo {
 
 
 // An abstraction of the accounting statistics of a page-structured space.
+// The 'capacity' of a space is the number of object-area bytes (i.e., not
+// including page bookkeeping structures) currently in the space. The 'size'
+// of a space is the number of allocated bytes, the 'waste' in the space is
+// the number of bytes that are not allocated and not available to
+// allocation without reorganizing the space via a GC (e.g. small blocks due
+// to internal fragmentation, top of page areas in map space), and the bytes
+// 'available' is the number of unallocated bytes that are not waste.  The
+// capacity is the sum of size, waste, and available.
 //
 // The stats are only set by functions that ensure they stay balanced. These
-// functions increase or decrease one of the non-capacity stats in conjunction
-// with capacity, or else they always balance increases and decreases to the
-// non-capacity stats.
+// functions increase or decrease one of the non-capacity stats in
+// conjunction with capacity, or else they always balance increases and
+// decreases to the non-capacity stats.
 class AllocationStats BASE_EMBEDDED {
  public:
   AllocationStats() { Clear(); }
@@ -1436,7 +1443,6 @@ class AllocationStats BASE_EMBEDDED {
     max_capacity_ = 0;
     size_ = 0;
     waste_ = 0;
-    borrowed_ = 0;
   }
 
   void ClearSizeWaste() {
@@ -1456,7 +1462,6 @@ class AllocationStats BASE_EMBEDDED {
   intptr_t MaxCapacity() { return max_capacity_; }
   intptr_t Size() { return size_; }
   intptr_t Waste() { return waste_; }
-  intptr_t Borrowed() { return borrowed_; }
 
   // Grow the space by adding available bytes.  They are initially marked as
   // being in use (part of the size), but will normally be immediately freed,
@@ -1474,19 +1479,15 @@ class AllocationStats BASE_EMBEDDED {
   // during sweeping, bytes have been marked as being in use (part of the size)
   // and are hereby freed.
   void ShrinkSpace(int size_in_bytes) {
-    DCHECK_GE(size_in_bytes, 0);
     capacity_ -= size_in_bytes;
     size_ -= size_in_bytes;
-    DCHECK_GE(size_, 0);
-    DCHECK_GE(capacity_, 0);
+    DCHECK(size_ >= 0);
   }
 
   // Allocate from available bytes (available -> size).
   void AllocateBytes(intptr_t size_in_bytes) {
-    DCHECK_GE(size_in_bytes, 0);
     size_ += size_in_bytes;
-    DCHECK_GE(size_, 0);
-    DCHECK_LE(size_, capacity_);
+    DCHECK(size_ >= 0);
   }
 
   // Free allocated bytes, making them available (size -> available).
@@ -1503,60 +1504,26 @@ class AllocationStats BASE_EMBEDDED {
 
   // Merge {other} into {this}.
   void Merge(const AllocationStats& other) {
-    DCHECK_GE(other.capacity_, 0);
-    DCHECK_GE(other.size_, 0);
-    DCHECK_GE(other.waste_, 0);
     capacity_ += other.capacity_;
     size_ += other.size_;
-    // See description of |borrowed_| below why we need to remove it from
-    // |capacity_| as well as |size_|.
-    capacity_ -= other.borrowed_;
-    size_ -= other.borrowed_;
     waste_ += other.waste_;
-    if (capacity_ > max_capacity_) {
-      max_capacity_ = capacity_;
+    if (other.max_capacity_ > max_capacity_) {
+      max_capacity_ = other.max_capacity_;
     }
   }
 
   void DecreaseCapacity(intptr_t size_in_bytes) {
-    DCHECK_GE(size_in_bytes, 0);
     capacity_ -= size_in_bytes;
-    DCHECK_GE(capacity_, size_);
+    DCHECK_GE(capacity_, 0);
   }
 
-  void IncreaseCapacity(intptr_t size_in_bytes) {
-    DCHECK_GE(size_in_bytes, 0);
-    capacity_ += size_in_bytes;
-  }
-
-  void BorrowMemory(intptr_t size_in_bytes) {
-    DCHECK_GE(size_in_bytes, 0);
-    borrowed_ += size_in_bytes;
-  }
+  void IncreaseCapacity(intptr_t size_in_bytes) { capacity_ += size_in_bytes; }
 
  private:
-  // |capacity_| is the number of object-area bytes (i.e., not including page
-  // bookkeeping structures) currently in the space.
   intptr_t capacity_;
-
-  // |max_capacity_| is the maximum |capacity_| ever observed by a space.
   intptr_t max_capacity_;
-
-  // |size_| is the number of allocated bytes.
   intptr_t size_;
-
-  // |waste_| is the number of bytes that are not allocated and not available
-  // to allocation without reorganizing the space via a GC (e.g. small blocks
-  // due to internal fragmentation, top of page areas in map space
   intptr_t waste_;
-
-  // |borrowed_| denotes the number of bytes that are currently borrowed in this
-  // space, i.e., they have been accounted as allocated in another space, but
-  // have been moved over (e.g. through a free list) to the current space.
-  // Note that accounting them as allocated results in them being included
-  // in |size_| as well as |capacity_| of the original space. The temporary
-  // double-accounting is fixed upon merging accounting stats.
-  intptr_t borrowed_;
 };
 
 
@@ -1715,8 +1682,6 @@ class FreeList {
   PagedSpace* owner() { return owner_; }
 
  private:
-  enum FreeListCategoryType { kSmall, kMedium, kLarge, kHuge };
-
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxRegularHeapObjectSize;
@@ -1730,27 +1695,6 @@ class FreeList {
   static const int kLargeAllocationMax = kMediumListMax;
 
   FreeSpace* FindNodeFor(int size_in_bytes, int* node_size);
-  FreeSpace* FindNodeIn(FreeListCategoryType category, int* node_size);
-
-  FreeListCategory* GetFreeListCategory(FreeListCategoryType category) {
-    switch (category) {
-      case kSmall:
-        return &small_list_;
-      case kMedium:
-        return &medium_list_;
-      case kLarge:
-        return &large_list_;
-      case kHuge:
-        return &huge_list_;
-      default:
-        UNREACHABLE();
-    }
-    UNREACHABLE();
-    return nullptr;
-  }
-
-  void UpdateFragmentationStats(FreeListCategoryType category, Address address,
-                                int size);
 
   PagedSpace* owner_;
   Heap* heap_;
@@ -1758,8 +1702,6 @@ class FreeList {
   FreeListCategory medium_list_;
   FreeListCategory large_list_;
   FreeListCategory huge_list_;
-
-  friend class PagedSpace;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
@@ -2043,25 +1985,7 @@ class PagedSpace : public Space {
 
   virtual bool is_local() { return false; }
 
-  // Divide {this} free lists up among {other} CompactionSpaceCollections
-  // up to some certain {limit} of bytes. Note that this operation eventually
-  // needs to iterate over nodes one-by-one, making it a potentially slow
-  // operation.
-  void DivideMemory(CompactionSpaceCollection** other, int num, intptr_t limit);
-
  protected:
-  // Adds memory starting at {start} of {size_in_bytes} to the space.
-  void AddMemory(Address start, int size_in_bytes) {
-    IncreaseCapacity(size_in_bytes);
-    accounting_stats_.BorrowMemory(size_in_bytes);
-    Free(start, size_in_bytes);
-  }
-
-  // Tries to remove some memory from {this} free lists. We try to remove
-  // as much memory as possible, i.e., we check the free lists from huge
-  // to small.
-  FreeSpace* TryRemoveMemory();
-
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
   virtual bool snapshotable() { return true; }
@@ -2816,6 +2740,12 @@ class CompactionSpace : public PagedSpace {
  public:
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable)
       : PagedSpace(heap, id, executable) {}
+
+  // Adds external memory starting at {start} of {size_in_bytes} to the space.
+  void AddExternalMemory(Address start, int size_in_bytes) {
+    IncreaseCapacity(size_in_bytes);
+    Free(start, size_in_bytes);
+  }
 
   virtual bool is_local() { return true; }
 
