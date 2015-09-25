@@ -715,7 +715,7 @@ TEST(ReduceLoadStore) {
   {
     Node* store = R.graph.NewNode(
         R.machine.Store(StoreRepresentation(kMachInt32, kNoWriteBarrier)), base,
-        index, load, load, load);
+        index, load, load, R.graph.start());
     MachineOperatorReducer reducer(&R.jsgraph);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.

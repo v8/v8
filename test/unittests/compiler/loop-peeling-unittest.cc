@@ -468,7 +468,7 @@ TEST_F(LoopPeelingTest, TwoExitLoop_nope) {
 
 
 const Operator kMockCall(IrOpcode::kCall, Operator::kNoProperties, "MockCall",
-                         0, 0, 1, 1, 0, 2);
+                         0, 0, 1, 1, 1, 2);
 
 
 TEST_F(LoopPeelingTest, TwoExitLoopWithCall_nope) {

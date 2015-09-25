@@ -52,10 +52,10 @@ Reduction SelectLowering::Reduce(Node* node) {
   }
 
   // Create a Phi hanging off the previously determined merge.
-  NodeProperties::ChangeOp(node, common()->Phi(p.type(), 2));
   node->ReplaceInput(0, vthen);
   node->ReplaceInput(1, velse);
   node->ReplaceInput(2, merge);
+  NodeProperties::ChangeOp(node, common()->Phi(p.type(), 2));
   return Changed(node);
 }
 

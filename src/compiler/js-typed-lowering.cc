@@ -644,10 +644,10 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
     // chain) because we assume String::length to be immutable.
     Node* length = graph()->NewNode(simplified()->LoadField(access), input,
                                     graph()->start(), graph()->start());
+    ReplaceWithValue(node, node, length);
     node->ReplaceInput(0, length);
     node->ReplaceInput(1, jsgraph()->ZeroConstant());
     NodeProperties::ChangeOp(node, simplified()->NumberEqual());
-    ReplaceWithValue(node, node, length);
     return Changed(node);
   }
   return NoChange();
@@ -905,6 +905,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         }
         // Check if we can avoid the bounds check.
         if (key_type->Min() >= 0 && key_type->Max() < array->length_value()) {
+          RelaxControls(node);
           node->ReplaceInput(0, buffer);
           DCHECK_EQ(key, node->InputAt(1));
           node->ReplaceInput(2, value);
@@ -915,12 +916,12 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
               node,
               simplified()->StoreElement(
                   AccessBuilder::ForTypedArrayElement(array->type(), true)));
-          RelaxControls(node);
           return Changed(node);
         }
         // Compute byte offset.
         Node* offset = Word32Shl(key, static_cast<int>(k));
         // Turn into a StoreBuffer operation.
+        RelaxControls(node);
         node->ReplaceInput(0, buffer);
         node->ReplaceInput(1, offset);
         node->ReplaceInput(2, length);
@@ -929,7 +930,6 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         node->ReplaceInput(5, control);
         node->TrimInputCount(6);
         NodeProperties::ChangeOp(node, simplified()->StoreBuffer(access));
-        RelaxControls(node);
         return Changed(node);
       }
     }

@@ -73,8 +73,7 @@ TEST_F(ValueNumberingReducerTest, OperatorEqualityNotIdentity) {
   static const size_t kMaxInputCount = 16;
   Node* inputs[kMaxInputCount];
   for (size_t i = 0; i < arraysize(inputs); ++i) {
-    Operator::Opcode opcode = static_cast<Operator::Opcode>(
-        std::numeric_limits<Operator::Opcode>::max() - i);
+    Operator::Opcode opcode = static_cast<Operator::Opcode>(kMaxInputCount + i);
     inputs[i] = graph()->NewNode(
         new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
   }
@@ -99,8 +98,7 @@ TEST_F(ValueNumberingReducerTest, SubsequentReductionsYieldTheSameNode) {
   static const size_t kMaxInputCount = 16;
   Node* inputs[kMaxInputCount];
   for (size_t i = 0; i < arraysize(inputs); ++i) {
-    Operator::Opcode opcode = static_cast<Operator::Opcode>(
-        std::numeric_limits<Operator::Opcode>::max() - i);
+    Operator::Opcode opcode = static_cast<Operator::Opcode>(2 + i);
     inputs[i] = graph()->NewNode(
         new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
   }

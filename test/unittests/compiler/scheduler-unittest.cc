@@ -137,7 +137,7 @@ const Operator kHeapConstant(IrOpcode::kHeapConstant, Operator::kPure,
 const Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
                        0, 1, 0, 0);
 const Operator kMockCall(IrOpcode::kCall, Operator::kNoProperties, "MockCall",
-                         0, 0, 1, 1, 0, 2);
+                         0, 0, 1, 1, 1, 2);
 const Operator kMockTailCall(IrOpcode::kTailCall, Operator::kNoProperties,
                              "MockTailCall", 1, 1, 1, 0, 0, 1);
 
@@ -646,31 +646,6 @@ TEST_F(SchedulerTest, BuildScheduleOneParameter) {
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   USE(Scheduler::ComputeSchedule(zone(), graph(), Scheduler::kNoFlags));
-}
-
-
-TEST_F(SchedulerTest, BuildScheduleIfSplit) {
-  graph()->SetStart(graph()->NewNode(common()->Start(5)));
-
-  Node* p1 = graph()->NewNode(common()->Parameter(0), graph()->start());
-  Node* p2 = graph()->NewNode(common()->Parameter(1), graph()->start());
-  Node* p3 = graph()->NewNode(common()->Parameter(2), graph()->start());
-  Node* p4 = graph()->NewNode(common()->Parameter(3), graph()->start());
-  Node* p5 = graph()->NewNode(common()->Parameter(4), graph()->start());
-  Node* cmp =
-      graph()->NewNode(js()->LessThanOrEqual(LanguageMode::SLOPPY), p1, p2, p3,
-                       p4, p5, graph()->start(), graph()->start());
-  Node* branch = graph()->NewNode(common()->Branch(), cmp, graph()->start());
-  Node* true_branch = graph()->NewNode(common()->IfTrue(), branch);
-  Node* false_branch = graph()->NewNode(common()->IfFalse(), branch);
-
-  Node* ret1 =
-      graph()->NewNode(common()->Return(), p4, graph()->start(), true_branch);
-  Node* ret2 =
-      graph()->NewNode(common()->Return(), p5, graph()->start(), false_branch);
-  graph()->SetEnd(graph()->NewNode(common()->End(2), ret1, ret2));
-
-  ComputeAndVerifySchedule(13);
 }
 
 

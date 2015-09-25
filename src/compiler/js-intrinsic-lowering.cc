@@ -283,13 +283,13 @@ Reduction JSIntrinsicLowering::ReduceSeqStringGetChar(
     Node* node, String::Encoding encoding) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+  RelaxControls(node);
   node->ReplaceInput(2, effect);
   node->ReplaceInput(3, control);
   node->TrimInputCount(4);
   NodeProperties::ChangeOp(
       node,
       simplified()->LoadElement(AccessBuilder::ForSeqStringChar(encoding)));
-  RelaxControls(node);
   return Changed(node);
 }
 
@@ -302,6 +302,8 @@ Reduction JSIntrinsicLowering::ReduceSeqStringSetChar(
   Node* string = NodeProperties::GetValueInput(node, 2);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+  ReplaceWithValue(node, string, node);
+  NodeProperties::RemoveType(node);
   node->ReplaceInput(0, string);
   node->ReplaceInput(1, index);
   node->ReplaceInput(2, chr);
@@ -311,8 +313,6 @@ Reduction JSIntrinsicLowering::ReduceSeqStringSetChar(
   NodeProperties::ChangeOp(
       node,
       simplified()->StoreElement(AccessBuilder::ForSeqStringChar(encoding)));
-  NodeProperties::RemoveType(node);
-  ReplaceWithValue(node, string, node);
   return Changed(node);
 }
 
@@ -552,36 +552,36 @@ Reduction JSIntrinsicLowering::ReduceCallFunction(Node* node) {
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b) {
+  RelaxControls(node);
   node->ReplaceInput(0, a);
   node->ReplaceInput(1, b);
   node->TrimInputCount(2);
   NodeProperties::ChangeOp(node, op);
-  RelaxControls(node);
   return Changed(node);
 }
 
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b, Node* c) {
+  RelaxControls(node);
   node->ReplaceInput(0, a);
   node->ReplaceInput(1, b);
   node->ReplaceInput(2, c);
   node->TrimInputCount(3);
   NodeProperties::ChangeOp(node, op);
-  RelaxControls(node);
   return Changed(node);
 }
 
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b, Node* c, Node* d) {
+  RelaxControls(node);
   node->ReplaceInput(0, a);
   node->ReplaceInput(1, b);
   node->ReplaceInput(2, c);
   node->ReplaceInput(3, d);
   node->TrimInputCount(4);
   NodeProperties::ChangeOp(node, op);
-  RelaxControls(node);
   return Changed(node);
 }
 
