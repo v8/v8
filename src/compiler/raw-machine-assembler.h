@@ -28,6 +28,10 @@ class Schedule;
 // In order to create a schedule on-the-fly, the assembler keeps track of basic
 // blocks by having one current basic block being populated and by referencing
 // other basic blocks through the use of labels.
+//
+// Also note that the generated graph is only valid together with the generated
+// schedule, using one without the other is invalid as the graph is inherently
+// non-schedulable due to missing control and effect dependencies.
 class RawMachineAssembler {
  public:
   class Label {
@@ -61,7 +65,6 @@ class RawMachineAssembler {
   const MachineSignature* machine_sig() const {
     return call_descriptor_->GetMachineSignature();
   }
-  BasicBlock* CurrentBlock();
 
   // Finalizes the schedule and exports it to be used for code generation. Note
   // that this RawMachineAssembler becomes invalid after export.
@@ -558,18 +561,17 @@ class RawMachineAssembler {
     return AddNode(op, 0, static_cast<Node**>(nullptr));
   }
 
-  Node* AddNode(const Operator* op, Node* n1) { return AddNode(op, 1, &n1); }
-
   template <class... TArgs>
-  Node* AddNode(const Operator* op, Node* n1, Node* n2, TArgs... args) {
-    Node* buffer[] = {n1, n2, args...};
-    return AddNode(op, sizeof...(args) + 2, buffer);
+  Node* AddNode(const Operator* op, Node* n1, TArgs... args) {
+    Node* buffer[] = {n1, args...};
+    return AddNode(op, sizeof...(args) + 1, buffer);
   }
 
  private:
   Node* MakeNode(const Operator* op, int input_count, Node** inputs);
   BasicBlock* Use(Label* label);
   BasicBlock* EnsureBlock(Label* label);
+  BasicBlock* CurrentBlock();
 
   Isolate* isolate_;
   Graph* graph_;
