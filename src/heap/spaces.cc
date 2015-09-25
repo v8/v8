@@ -2379,16 +2379,14 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // skipped when scanning the heap.  This also puts it back in the free list
   // if it is big enough.
   owner_->Free(owner_->top(), old_linear_size);
+  owner_->SetTopAndLimit(nullptr, nullptr);
 
   owner_->heap()->incremental_marking()->OldSpaceStep(size_in_bytes -
                                                       old_linear_size);
 
   int new_node_size = 0;
   FreeSpace* new_node = FindNodeFor(size_in_bytes, &new_node_size);
-  if (new_node == NULL) {
-    owner_->SetTopAndLimit(NULL, NULL);
-    return NULL;
-  }
+  if (new_node == nullptr) return nullptr;
 
   int bytes_left = new_node_size - size_in_bytes;
   DCHECK(bytes_left >= 0);
@@ -2432,10 +2430,6 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
     // linear allocation area.
     owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
                            new_node->address() + new_node_size);
-  } else {
-    // TODO(gc) Try not freeing linear allocation region when bytes_left
-    // are zero.
-    owner_->SetTopAndLimit(NULL, NULL);
   }
 
   return new_node;
@@ -2546,7 +2540,10 @@ intptr_t PagedSpace::SizeOfObjects() {
   DCHECK(!FLAG_concurrent_sweeping ||
          heap()->mark_compact_collector()->sweeping_in_progress() ||
          (unswept_free_bytes_ == 0));
-  return Size() - unswept_free_bytes_ - (limit() - top());
+  const intptr_t size = Size() - unswept_free_bytes_ - (limit() - top());
+  DCHECK_GE(size, 0);
+  USE(size);
+  return size;
 }
 
 
