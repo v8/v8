@@ -728,6 +728,14 @@
 ['system == macos', {
   'intl402/11.3.2_TRP': [FAIL],
   'intl402/9.2.5_11_g_ii_2': [FAIL],
+
+  # BUG(v8:4437).
+  'intl402/Collator/10.1.1_19_c': [SKIP],
+  'intl402/Collator/9.2.5_11_g_ii_2': [SKIP],
+  'intl402/NumberFormat/11.1.1_17': [SKIP],
+  'intl402/NumberFormat/11.1.1_19': [SKIP],
+  'intl402/NumberFormat/prototype/format/11.3.2_TRF': [SKIP],
+  'intl402/NumberFormat/prototype/format/11.3.2_TRP': [SKIP],
 }],  # system == macos
 
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64el', {
