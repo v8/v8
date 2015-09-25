@@ -458,8 +458,8 @@ TEST(CompactionSpaceUsingExternalMemory) {
   CHECK(allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize()));
   TestMemoryAllocatorScope test_scope(isolate, allocator);
 
-  CompactionSpace* compaction_space =
-      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+  CompactionSpaceCollection* collection = new CompactionSpaceCollection(heap);
+  CompactionSpace* compaction_space = collection->Get(OLD_SPACE);
   CHECK(compaction_space != NULL);
   CHECK(compaction_space->SetUp());
 
@@ -498,17 +498,11 @@ TEST(CompactionSpaceUsingExternalMemory) {
   // We expect two pages to be reachable from old_space in the end.
   const intptr_t kExpectedOldSpacePagesAfterMerge = 2;
 
-  Object* chunk =
-      old_space->AllocateRawUnaligned(static_cast<int>(rest)).ToObjectChecked();
   CHECK_EQ(old_space->CountTotalPages(), kExpectedInitialOldSpacePages);
-  CHECK(chunk != nullptr);
-  CHECK(chunk->IsHeapObject());
-
   CHECK_EQ(compaction_space->CountTotalPages(), 0);
   CHECK_EQ(compaction_space->Capacity(), 0);
   // Make the rest of memory available for compaction.
-  compaction_space->AddExternalMemory(HeapObject::cast(chunk)->address(),
-                                      static_cast<int>(rest));
+  old_space->DivideMemory(&collection, 1, rest);
   CHECK_EQ(compaction_space->CountTotalPages(), 0);
   CHECK_EQ(compaction_space->Capacity(), rest);
   while (num_rest_objects-- > 0) {
@@ -525,7 +519,7 @@ TEST(CompactionSpaceUsingExternalMemory) {
   old_space->MergeCompactionSpace(compaction_space);
   CHECK_EQ(old_space->CountTotalPages(), kExpectedOldSpacePagesAfterMerge);
 
-  delete compaction_space;
+  delete collection;
   delete old_space;
 
   allocator->TearDown();
