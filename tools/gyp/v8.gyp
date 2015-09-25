@@ -734,6 +734,8 @@
         '../../src/heap/objects-visiting-inl.h',
         '../../src/heap/objects-visiting.cc',
         '../../src/heap/objects-visiting.h',
+        '../../src/heap/scavenge-job.h',
+        '../../src/heap/scavenge-job.cc',
         '../../src/heap/scavenger-inl.h',
         '../../src/heap/scavenger.cc',
         '../../src/heap/scavenger.h',

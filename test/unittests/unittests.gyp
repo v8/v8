@@ -106,6 +106,7 @@
         'heap/gc-idle-time-handler-unittest.cc',
         'heap/memory-reducer-unittest.cc',
         'heap/heap-unittest.cc',
+        'heap/scavenge-job-unittest.cc',
         'run-all-unittests.cc',
         'test-utils.h',
         'test-utils.cc',

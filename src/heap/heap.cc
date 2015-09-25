@@ -27,6 +27,7 @@
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/store-buffer.h"
 #include "src/heap-profiler.h"
@@ -128,6 +129,7 @@ Heap::Heap()
       gc_idle_time_handler_(nullptr),
       memory_reducer_(nullptr),
       object_stats_(nullptr),
+      scavenge_job_(nullptr),
       full_codegen_bytes_generated_(0),
       crankshaft_codegen_bytes_generated_(0),
       new_space_allocation_counter_(0),
@@ -777,6 +779,11 @@ void Heap::HandleGCRequest() {
   if (!incremental_marking()->weak_closure_was_overapproximated()) {
     OverApproximateWeakClosure("GC interrupt");
   }
+}
+
+
+void Heap::ScheduleIdleScavengeIfNeeded(int bytes_allocated) {
+  scavenge_job_->ScheduleIdleTaskIfNeeded(this, bytes_allocated);
 }
 
 
@@ -4098,12 +4105,6 @@ GCIdleTimeHeapState Heap::ComputeHeapState() {
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   heap_state.mark_compact_speed_in_bytes_per_ms =
       static_cast<size_t>(tracer()->MarkCompactSpeedInBytesPerMillisecond());
-  heap_state.scavenge_speed_in_bytes_per_ms =
-      static_cast<size_t>(tracer()->ScavengeSpeedInBytesPerMillisecond());
-  heap_state.used_new_space_size = new_space_.Size();
-  heap_state.new_space_capacity = new_space_.Capacity();
-  heap_state.new_space_allocation_throughput_in_bytes_per_ms =
-      tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond();
   return heap_state;
 }
 
@@ -4160,9 +4161,6 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       CollectAllGarbage(kNoGCFlags, "idle notification: contexts disposed");
       break;
     }
-    case DO_SCAVENGE:
-      CollectGarbage(NEW_SPACE, "idle notification: scavenge");
-      break;
     case DO_NOTHING:
       break;
   }
@@ -4989,6 +4987,17 @@ void Heap::DisableInlineAllocation() {
 }
 
 
+void Heap::LowerInlineAllocationLimit(intptr_t step) {
+  new_space()->LowerInlineAllocationLimit(step);
+}
+
+
+void Heap::ResetInlineAllocationLimit() {
+  new_space()->LowerInlineAllocationLimit(
+      ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
+}
+
+
 V8_DECLARE_ONCE(initialize_gc_once);
 
 static void InitializeGCOnce() {
@@ -5081,6 +5090,8 @@ bool Heap::SetUp() {
   object_stats_ = new ObjectStats(this);
   object_stats_->ClearObjectStats(true);
 
+  scavenge_job_ = new ScavengeJob();
+
   array_buffer_tracker_ = new ArrayBufferTracker(this);
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
@@ -5089,6 +5100,8 @@ bool Heap::SetUp() {
   store_buffer()->SetUp();
 
   mark_compact_collector()->SetUp();
+
+  ResetInlineAllocationLimit();
 
   return true;
 }
@@ -5201,6 +5214,9 @@ void Heap::TearDown() {
 
   delete object_stats_;
   object_stats_ = nullptr;
+
+  delete scavenge_job_;
+  scavenge_job_ = nullptr;
 
   WaitUntilUnmappingOfFreeChunksCompleted();
 

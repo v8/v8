@@ -1440,6 +1440,7 @@ HEAP_TEST(WriteBarriersInCopyJSObject) {
       Min(FixedArray::kMaxSize, Page::kMaxRegularHeapObjectSize + kPointerSize);
   int allocation_len = LenFromSize(allocation_amount);
   NewSpace* new_space = heap->new_space();
+  DisableInlineAllocationSteps(new_space);
   Address* top_addr = new_space->allocation_top_address();
   Address* limit_addr = new_space->allocation_limit_address();
   while ((*limit_addr - *top_addr) > allocation_amount) {

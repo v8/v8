@@ -486,7 +486,7 @@ void IncrementalMarking::Start(const char* reason) {
     state_ = SWEEPING;
   }
 
-  heap_->new_space()->LowerInlineAllocationLimit(kAllocatedThreshold);
+  heap_->LowerInlineAllocationLimit(kAllocatedThreshold);
   incremental_marking_job()->Start(heap_);
 }
 
@@ -738,7 +738,7 @@ void IncrementalMarking::Stop() {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Stopping.\n");
   }
-  heap_->new_space()->LowerInlineAllocationLimit(0);
+  heap_->ResetInlineAllocationLimit();
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   if (IsMarking()) {
@@ -766,7 +766,7 @@ void IncrementalMarking::Finalize() {
   Hurry();
   state_ = STOPPED;
   is_compacting_ = false;
-  heap_->new_space()->LowerInlineAllocationLimit(0);
+  heap_->ResetInlineAllocationLimit();
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   PatchIncrementalMarkingRecordWriteStubs(heap_,

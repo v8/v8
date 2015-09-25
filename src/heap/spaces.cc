@@ -1410,7 +1410,7 @@ void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
     Address high = to_space_.page_high();
     Address new_top = allocation_info_.top() + size_in_bytes;
     allocation_info_.set_limit(Min(new_top, high));
-  } else if (inline_allocation_limit_step() == 0) {
+  } else if (inline_allocation_limit_step_ == 0) {
     // Normal limit is the end of the current page.
     allocation_info_.set_limit(to_space_.page_high());
   } else {
@@ -1491,8 +1491,9 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 
   if (allocation_info_.limit() < high) {
     // Either the limit has been lowered because linear allocation was disabled
-    // or because incremental marking wants to get a chance to do a step. Set
-    // the new limit accordingly.
+    // or because incremental marking wants to get a chance to do a step,
+    // or because idle scavenge job wants to get a chance to post a task.
+    // Set the new limit accordingly.
     Address new_top = old_top + aligned_size_in_bytes;
     InlineAllocationStep(new_top, new_top);
     UpdateInlineAllocationLimit(aligned_size_in_bytes);
@@ -1504,6 +1505,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 void NewSpace::InlineAllocationStep(Address top, Address new_top) {
   if (top_on_previous_step_) {
     int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
+    heap()->ScheduleIdleScavengeIfNeeded(bytes_allocated);
     heap()->incremental_marking()->Step(bytes_allocated,
                                         IncrementalMarking::GC_VIA_STACK_GUARD);
     top_on_previous_step_ = new_top;

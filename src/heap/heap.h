@@ -431,6 +431,7 @@ class Isolate;
 class MemoryReducer;
 class ObjectStats;
 class Scavenger;
+class ScavengeJob;
 class WeakObjectRetainer;
 
 
@@ -1884,10 +1885,18 @@ class Heap {
                                        double mutator_speed);
 
   // ===========================================================================
+  // Inline allocation. ========================================================
+  // ===========================================================================
+
+  void LowerInlineAllocationLimit(intptr_t step);
+  void ResetInlineAllocationLimit();
+
+  // ===========================================================================
   // Idle notification. ========================================================
   // ===========================================================================
 
   bool RecentIdleNotificationHappened();
+  void ScheduleIdleScavengeIfNeeded(int bytes_allocated);
 
   // ===========================================================================
   // Allocation methods. =======================================================
@@ -2267,6 +2276,8 @@ class Heap {
 
   ObjectStats* object_stats_;
 
+  ScavengeJob* scavenge_job_;
+
   // These two counters are monotomically increasing and never reset.
   size_t full_codegen_bytes_generated_;
   size_t crankshaft_codegen_bytes_generated_;
@@ -2340,6 +2351,7 @@ class Heap {
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
+  friend class NewSpace;
   friend class ObjectStatsVisitor;
   friend class Page;
   friend class Scavenger;

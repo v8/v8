@@ -14,7 +14,6 @@ enum GCIdleTimeActionType {
   DONE,
   DO_NOTHING,
   DO_INCREMENTAL_STEP,
-  DO_SCAVENGE,
   DO_FULL_GC,
 };
 
@@ -38,13 +37,6 @@ class GCIdleTimeAction {
   static GCIdleTimeAction IncrementalStep() {
     GCIdleTimeAction result;
     result.type = DO_INCREMENTAL_STEP;
-    result.additional_work = false;
-    return result;
-  }
-
-  static GCIdleTimeAction Scavenge() {
-    GCIdleTimeAction result;
-    result.type = DO_SCAVENGE;
     result.additional_work = false;
     return result;
   }
@@ -77,10 +69,6 @@ class GCIdleTimeHeapState {
   size_t mark_compact_speed_in_bytes_per_ms;
   size_t incremental_marking_speed_in_bytes_per_ms;
   size_t final_incremental_mark_compact_speed_in_bytes_per_ms;
-  size_t scavenge_speed_in_bytes_per_ms;
-  size_t used_new_space_size;
-  size_t new_space_capacity;
-  size_t new_space_allocation_throughput_in_bytes_per_ms;
 };
 
 
@@ -124,20 +112,9 @@ class GCIdleTimeHandler {
 
   static const int kMinBackgroundIdleTime = 900;
 
-  // We conservatively assume that in the next kTimeUntilNextIdleEvent ms
-  // no idle notification happens.
-  static const size_t kTimeUntilNextIdleEvent = 100;
-
   // An allocation throughput below kLowAllocationThroughput bytes/ms is
   // considered low
   static const size_t kLowAllocationThroughput = 1000;
-
-  // If we haven't recorded any scavenger events yet, we use a conservative
-  // lower bound for the scavenger speed.
-  static const size_t kInitialConservativeScavengeSpeed = 100 * KB;
-
-  // The minimum size of allocated new space objects to trigger a scavenge.
-  static const size_t kMinimumNewSpaceSizeToPerformScavenge = MB / 2;
 
   // If contexts are disposed at a higher rate a full gc is triggered.
   static const double kHighContextDisposalRate;
@@ -180,11 +157,6 @@ class GCIdleTimeHandler {
       size_t final_incremental_mark_compact_speed_in_bytes_per_ms);
 
   static bool ShouldDoOverApproximateWeakClosure(size_t idle_time_in_ms);
-
-  static bool ShouldDoScavenge(
-      size_t idle_time_in_ms, size_t new_space_size, size_t used_new_space_size,
-      size_t scavenger_speed_in_bytes_per_ms,
-      size_t new_space_allocation_throughput_in_bytes_per_ms);
 
  private:
   GCIdleTimeAction NothingOrDone(double idle_time_in_ms);

@@ -1216,6 +1216,7 @@ HEAP_TEST(Regression39128) {
                               Page::kMaxRegularHeapObjectSize + kPointerSize);
   int allocation_len = LenFromSize(allocation_amount);
   NewSpace* new_space = heap->new_space();
+  DisableInlineAllocationSteps(new_space);
   Address* top_addr = new_space->allocation_top_address();
   Address* limit_addr = new_space->allocation_limit_address();
   while ((*limit_addr - *top_addr) > allocation_amount) {
@@ -5663,6 +5664,7 @@ UNINITIALIZED_TEST(PromotionQueue) {
     v8::Context::New(isolate)->Enter();
     Heap* heap = i_isolate->heap();
     NewSpace* new_space = heap->new_space();
+    DisableInlineAllocationSteps(new_space);
 
     // In this test we will try to overwrite the promotion queue which is at the
     // end of to-space. To actually make that possible, we need at least two

@@ -525,8 +525,14 @@ static inline void ExpectUndefined(const char* code) {
 }
 
 
+static inline void DisableInlineAllocationSteps(v8::internal::NewSpace* space) {
+  space->LowerInlineAllocationLimit(0);
+}
+
+
 // Helper function that simulates a full new-space in the heap.
 static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
+  DisableInlineAllocationSteps(space);
   v8::internal::AllocationResult allocation = space->AllocateRawUnaligned(
       v8::internal::Page::kMaxRegularHeapObjectSize);
   if (allocation.IsRetry()) return false;
@@ -541,6 +547,7 @@ static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
 // Helper function that simulates a fill new-space in the heap.
 static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
                                         int extra_bytes) {
+  DisableInlineAllocationSteps(space);
   int space_remaining = static_cast<int>(*space->allocation_limit_address() -
                                          *space->allocation_top_address());
   CHECK(space_remaining >= extra_bytes);
