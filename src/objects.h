@@ -2745,8 +2745,9 @@ class DescriptorArray: public FixedArray {
 
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
-  void SetEnumCache(Isolate* isolate, Handle<FixedArray> new_cache,
-                    Handle<FixedArray> new_index_cache);
+  void SetEnumCache(FixedArray* bridge_storage,
+                    FixedArray* new_cache,
+                    Object* new_index_cache);
 
   bool CanHoldValue(int descriptor, Object* value);
 

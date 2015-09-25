@@ -6568,90 +6568,91 @@ static Handle<FixedArray> ReduceFixedArrayTo(
 }
 
 
-namespace {
-
-Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
-                                           Handle<JSObject> object,
-                                           bool cache_enum_length) {
-  Handle<Map> map(object->map());
-  Handle<DescriptorArray> descs =
-      Handle<DescriptorArray>(map->instance_descriptors(), isolate);
-  int own_property_count = map->EnumLength();
-  // If the enum length of the given map is set to kInvalidEnumCache, this
-  // means that the map itself has never used the present enum cache. The
-  // first step to using the cache is to set the enum length of the map by
-  // counting the number of own descriptors that are not DONT_ENUM or
-  // SYMBOLIC.
-  if (own_property_count == kInvalidEnumCacheSentinel) {
-    own_property_count =
-        map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_SHOW);
-  } else {
-    DCHECK(own_property_count ==
-           map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_SHOW));
-  }
-
-  if (descs->HasEnumCache()) {
-    Handle<FixedArray> keys(descs->GetEnumCache(), isolate);
-    // In case the number of properties required in the enum are actually
-    // present, we can reuse the enum cache. Otherwise, this means that the
-    // enum cache was generated for a previous (smaller) version of the
-    // Descriptor Array. In that case we regenerate the enum cache.
-    if (own_property_count <= keys->length()) {
-      isolate->counters()->enum_cache_hits()->Increment();
-      if (cache_enum_length) map->SetEnumLength(own_property_count);
-      return ReduceFixedArrayTo(keys, own_property_count);
-    }
-  }
-
-  if (descs->IsEmpty()) {
-    isolate->counters()->enum_cache_hits()->Increment();
-    if (cache_enum_length) map->SetEnumLength(0);
-    return isolate->factory()->empty_fixed_array();
-  }
-
-  isolate->counters()->enum_cache_misses()->Increment();
-
-  Handle<FixedArray> storage =
-      isolate->factory()->NewFixedArray(own_property_count);
-  Handle<FixedArray> indices =
-      isolate->factory()->NewFixedArray(own_property_count);
-
-  int size = map->NumberOfOwnDescriptors();
-  int index = 0;
-
-  for (int i = 0; i < size; i++) {
-    PropertyDetails details = descs->GetDetails(i);
-    Object* key = descs->GetKey(i);
-    if (details.IsDontEnum() || key->IsSymbol()) continue;
-    storage->set(index, key);
-    if (!indices.is_null()) {
-      if (details.type() != DATA) {
-        indices = Handle<FixedArray>();
-      } else {
-        FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-        int load_by_field_index = field_index.GetLoadByFieldIndex();
-        indices->set(index, Smi::FromInt(load_by_field_index));
-      }
-    }
-    index++;
-  }
-  DCHECK(index == storage->length());
-
-  descs->SetEnumCache(isolate, storage, indices);
-  if (cache_enum_length) {
-    map->SetEnumLength(own_property_count);
-  }
-  return storage;
-}
-
-}  // namespace
-
-
 Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
-                                                 bool cache_enum_length) {
+                                                 bool cache_result) {
   Isolate* isolate = object->GetIsolate();
   if (object->HasFastProperties()) {
-    return GetFastEnumPropertyKeys(isolate, object, cache_enum_length);
+    int own_property_count = object->map()->EnumLength();
+    // If the enum length of the given map is set to kInvalidEnumCache, this
+    // means that the map itself has never used the present enum cache. The
+    // first step to using the cache is to set the enum length of the map by
+    // counting the number of own descriptors that are not DONT_ENUM or
+    // SYMBOLIC.
+    if (own_property_count == kInvalidEnumCacheSentinel) {
+      own_property_count = object->map()->NumberOfDescribedProperties(
+          OWN_DESCRIPTORS, DONT_SHOW);
+    } else {
+      DCHECK(own_property_count == object->map()->NumberOfDescribedProperties(
+          OWN_DESCRIPTORS, DONT_SHOW));
+    }
+
+    if (object->map()->instance_descriptors()->HasEnumCache()) {
+      DescriptorArray* desc = object->map()->instance_descriptors();
+      Handle<FixedArray> keys(desc->GetEnumCache(), isolate);
+
+      // In case the number of properties required in the enum are actually
+      // present, we can reuse the enum cache. Otherwise, this means that the
+      // enum cache was generated for a previous (smaller) version of the
+      // Descriptor Array. In that case we regenerate the enum cache.
+      if (own_property_count <= keys->length()) {
+        if (cache_result) object->map()->SetEnumLength(own_property_count);
+        isolate->counters()->enum_cache_hits()->Increment();
+        return ReduceFixedArrayTo(keys, own_property_count);
+      }
+    }
+
+    Handle<Map> map(object->map());
+
+    if (map->instance_descriptors()->IsEmpty()) {
+      isolate->counters()->enum_cache_hits()->Increment();
+      if (cache_result) map->SetEnumLength(0);
+      return isolate->factory()->empty_fixed_array();
+    }
+
+    isolate->counters()->enum_cache_misses()->Increment();
+
+    Handle<FixedArray> storage = isolate->factory()->NewFixedArray(
+        own_property_count);
+    Handle<FixedArray> indices = isolate->factory()->NewFixedArray(
+        own_property_count);
+
+    Handle<DescriptorArray> descs =
+        Handle<DescriptorArray>(object->map()->instance_descriptors(), isolate);
+
+    int size = map->NumberOfOwnDescriptors();
+    int index = 0;
+
+    for (int i = 0; i < size; i++) {
+      PropertyDetails details = descs->GetDetails(i);
+      Object* key = descs->GetKey(i);
+      if (!(details.IsDontEnum() || key->IsSymbol())) {
+        storage->set(index, key);
+        if (!indices.is_null()) {
+          if (details.type() != DATA) {
+            indices = Handle<FixedArray>();
+          } else {
+            FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+            int load_by_field_index = field_index.GetLoadByFieldIndex();
+            indices->set(index, Smi::FromInt(load_by_field_index));
+          }
+        }
+        index++;
+      }
+    }
+    DCHECK(index == storage->length());
+
+    Handle<FixedArray> bridge_storage =
+        isolate->factory()->NewFixedArray(
+            DescriptorArray::kEnumCacheBridgeLength);
+    DescriptorArray* desc = object->map()->instance_descriptors();
+    desc->SetEnumCache(*bridge_storage,
+                       *storage,
+                       indices.is_null() ? Object::cast(Smi::FromInt(0))
+                                         : Object::cast(*indices));
+    if (cache_result) {
+      object->map()->SetEnumLength(own_property_count);
+    }
+    return storage;
   } else if (object->IsGlobalObject()) {
     Handle<GlobalDictionary> dictionary(object->global_dictionary());
     int length = dictionary->NumberOfEnumElements();
@@ -6855,14 +6856,14 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
     // Wrapped strings have elements, but don't have an elements
     // array or dictionary.  So the fast inline test for whether to
     // use the cache says yes, so we should not create a cache.
-    bool cache_enum_length =
+    bool cache_enum_keys =
         ((current->map()->GetConstructor() != *arguments_function) &&
          !current->IsJSValue() && !current->IsAccessCheckNeeded() &&
          !current->HasNamedInterceptor() && !current->HasIndexedInterceptor());
     // Compute the property keys and cache them if possible.
 
     Handle<FixedArray> enum_keys =
-        JSObject::GetEnumPropertyKeys(current, cache_enum_length);
+        JSObject::GetEnumPropertyKeys(current, cache_enum_keys);
     accumulator.AddKeys(enum_keys, FixedArray::ALL_KEYS);
     DCHECK(ContainsOnlyValidKeys(accumulator.GetKeys()));
 
@@ -8615,25 +8616,18 @@ void DescriptorArray::Replace(int index, Descriptor* descriptor) {
 }
 
 
-void DescriptorArray::SetEnumCache(Isolate* isolate,
-                                   Handle<FixedArray> new_cache,
-                                   Handle<FixedArray> new_index_cache) {
+void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
+                                   FixedArray* new_cache,
+                                   Object* new_index_cache) {
+  DCHECK(bridge_storage->length() >= kEnumCacheBridgeLength);
+  DCHECK(new_index_cache->IsSmi() || new_index_cache->IsFixedArray());
   DCHECK(!IsEmpty());
-  FixedArray* bridge_storage;
-  bool needs_new_enum_cache = !HasEnumCache();
-  if (needs_new_enum_cache) {
-    bridge_storage = *isolate->factory()->NewFixedArray(
-        DescriptorArray::kEnumCacheBridgeLength);
-  } else {
-    bridge_storage = FixedArray::cast(get(kEnumCacheIndex));
-  }
-  bridge_storage->set(kEnumCacheBridgeCacheIndex, *new_cache);
-  bridge_storage->set(kEnumCacheBridgeIndicesCacheIndex,
-                      new_index_cache.is_null() ? Object::cast(Smi::FromInt(0))
-                                                : *new_index_cache);
-  if (needs_new_enum_cache) {
-    set(kEnumCacheIndex, bridge_storage);
-  }
+  DCHECK(!HasEnumCache() || new_cache->length() > GetEnumCache()->length());
+  FixedArray::cast(bridge_storage)->
+    set(kEnumCacheBridgeCacheIndex, new_cache);
+  FixedArray::cast(bridge_storage)->
+    set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
+  set(kEnumCacheIndex, bridge_storage);
 }
 
 

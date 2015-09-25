@@ -89,7 +89,8 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
 inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {
   PropertyDetails details =
       map->instance_descriptors()->GetDetails(descriptor_index);
-  int field_index = details.field_index();
+  int field_index =
+      map->instance_descriptors()->GetFieldIndex(descriptor_index);
   return ForPropertyIndex(map, field_index,
                           details.representation().IsDouble());
 }
