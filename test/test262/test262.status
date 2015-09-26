@@ -738,6 +738,12 @@
   'intl402/NumberFormat/prototype/format/11.3.2_TRP': [SKIP],
 }],  # system == macos
 
+['no_i18n == True and mode == debug', {
+  # BUG(v8:4437).
+  'built-ins/String/prototype/normalize/return-normalized-string-using-default-parameter': [SKIP],
+}],  # no_i18n == True and mode == debug
+
+
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64el', {
 
   # TODO(mstarzinger): Causes stack overflow on simulators due to eager
