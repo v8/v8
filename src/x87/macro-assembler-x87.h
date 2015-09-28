@@ -908,6 +908,9 @@ class MacroAssembler: public Assembler {
     return SafepointRegisterStackIndex(reg.code());
   }
 
+  // Load the type feedback vector from a JavaScript frame.
+  void EmitLoadTypeFeedbackVector(Register vector);
+
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
