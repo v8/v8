@@ -209,10 +209,11 @@ function Join(array, length, separator, convert) {
 
 
 function ConvertToString(x) {
-  // Assumes x is a non-string.
-  if (IS_NUMBER(x)) return %_NumberToString(x);
-  if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
-  return (IS_NULL_OR_UNDEFINED(x)) ? '' : ToString($defaultString(x));
+  if (IS_NULL_OR_UNDEFINED(x)) {
+    return '';
+  } else {
+    return TO_STRING(x);
+  }
 }
 
 
@@ -224,7 +225,7 @@ function ConvertToLocaleString(e) {
     // must throw a TypeError if ToObject(e).toLocaleString isn't
     // callable.
     var e_obj = TO_OBJECT(e);
-    return ToString(e_obj.toLocaleString());
+    return TO_STRING(e_obj.toLocaleString());
   }
 }
 
