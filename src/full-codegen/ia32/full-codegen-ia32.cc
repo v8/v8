@@ -3704,8 +3704,8 @@ void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   __ CmpObjectType(eax, LAST_NAME_TYPE, ecx);
   __ j(below_equal, &done_convert, Label::kNear);
   __ bind(&convert);
-  ToStringStub stub(isolate());
-  __ CallStub(&stub);
+  __ Push(eax);
+  __ CallRuntime(Runtime::kToName, 1);
   __ bind(&done_convert);
   context()->Plug(eax);
 }

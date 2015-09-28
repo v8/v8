@@ -3822,9 +3822,8 @@ void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   __ GetObjectType(v0, a1, a1);
   __ Branch(&done_convert, le, a1, Operand(LAST_NAME_TYPE));
   __ bind(&convert);
-  ToStringStub stub(isolate());
-  __ mov(a0, v0);
-  __ CallStub(&stub);
+  __ Push(v0);
+  __ CallRuntime(Runtime::kToName, 1);
   __ bind(&done_convert);
   context()->Plug(v0);
 }

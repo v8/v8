@@ -1146,13 +1146,6 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
 
 
 // static
-MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
-  if (input->IsName()) return Handle<Name>::cast(input);
-  return ToString(isolate, input);
-}
-
-
-// static
 MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
                                         ToPrimitiveHint hint) {
   if (input->IsPrimitive()) return input;

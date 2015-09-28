@@ -3514,8 +3514,8 @@ void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
   __ JumpIfObjectType(x0, x1, x1, LAST_NAME_TYPE, &done_convert, ls);
   __ Bind(&convert);
-  ToStringStub stub(isolate());
-  __ CallStub(&stub);
+  __ Push(x0);
+  __ CallRuntime(Runtime::kToName, 1);
   __ Bind(&done_convert);
   context()->Plug(x0);
 }

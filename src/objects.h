@@ -1113,8 +1113,8 @@ class Object {
       Isolate* isolate, Handle<Object> object, Handle<Context> context);
 
   // ES6 section 7.1.14 ToPropertyKey
-  MUST_USE_RESULT static inline MaybeHandle<Name> ToName(Isolate* isolate,
-                                                         Handle<Object> input);
+  MUST_USE_RESULT static MaybeHandle<Name> ToName(Isolate* isolate,
+                                                  Handle<Object> input);
 
   // ES6 section 7.1.1 ToPrimitive
   MUST_USE_RESULT static inline MaybeHandle<Object> ToPrimitive(
