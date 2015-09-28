@@ -159,6 +159,22 @@ void GraphReducer::Replace(Node* node, Node* replacement) {
 }
 
 
+namespace {
+
+
+void VerifyUseReplacement(const Edge& edge, const Node* replacement) {
+  // Check that the user does not misuse the replacement.
+  DCHECK(!NodeProperties::IsControlEdge(edge) ||
+         replacement->op()->ControlOutputCount() > 0);
+  DCHECK(!NodeProperties::IsEffectEdge(edge) ||
+         replacement->op()->EffectOutputCount() > 0);
+  DCHECK(!NodeProperties::IsFrameStateEdge(edge) ||
+         replacement->opcode() == IrOpcode::kFrameState);
+}
+
+}  // namespace
+
+
 void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
   if (node == graph()->start()) graph()->SetStart(replacement);
   if (node == graph()->end()) graph()->SetEnd(replacement);
@@ -167,6 +183,7 @@ void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
     // {replacement} was already reduced and finish.
     for (Edge edge : node->use_edges()) {
       Node* const user = edge.from();
+      VerifyUseReplacement(edge, replacement);
       edge.UpdateTo(replacement);
       // Don't revisit this node if it refers to itself.
       if (user != node) Revisit(user);
