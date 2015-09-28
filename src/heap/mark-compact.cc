@@ -6,6 +6,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
+#include "src/base/sys-info.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/cpu-profiler.h"
@@ -3370,13 +3371,24 @@ bool MarkCompactCollector::EvacuateLiveObjectsFromPage(
 }
 
 
+int MarkCompactCollector::NumberOfParallelCompactionTasks() {
+  if (!FLAG_parallel_compaction) return 1;
+  // We cap the number of parallel compaction tasks by
+  // - (#cores - 1)
+  // - a value depending on the list of evacuation candidates
+  // - a hard limit
+  const int kPagesPerCompactionTask = 4;
+  const int kMaxCompactionTasks = 8;
+  return Min(kMaxCompactionTasks,
+             Min(1 + evacuation_candidates_.length() / kPagesPerCompactionTask,
+                 Max(1, base::SysInfo::NumberOfProcessors() - 1)));
+}
+
+
 void MarkCompactCollector::EvacuatePagesInParallel() {
   if (evacuation_candidates_.length() == 0) return;
 
-  int num_tasks = 1;
-  if (FLAG_parallel_compaction) {
-    num_tasks = NumberOfParallelCompactionTasks();
-  }
+  const int num_tasks = NumberOfParallelCompactionTasks();
 
   // Set up compaction spaces.
   CompactionSpaceCollection** compaction_spaces_for_tasks =

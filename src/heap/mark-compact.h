@@ -709,11 +709,8 @@ class MarkCompactCollector {
 
   void EvacuatePagesInParallel();
 
-  int NumberOfParallelCompactionTasks() {
-    // TODO(hpayer, mlippautz): Figure out some logic to determine the number
-    // of compaction tasks.
-    return 1;
-  }
+  // The number of parallel compaction tasks, including the main thread.
+  int NumberOfParallelCompactionTasks();
 
   void WaitUntilCompactionCompleted();
 
