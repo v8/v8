@@ -194,7 +194,7 @@ class OS {
   static void Sleep(TimeDelta interval);
 
   // Abort the current process.
-  static void Abort();
+  V8_NORETURN static void Abort();
 
   // Debug break.
   static void DebugBreak();
