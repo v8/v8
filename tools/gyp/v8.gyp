@@ -922,6 +922,7 @@
         '../../src/runtime/runtime-generator.cc',
         '../../src/runtime/runtime-i18n.cc',
         '../../src/runtime/runtime-internal.cc',
+        '../../src/runtime/runtime-interpreter.cc',
         '../../src/runtime/runtime-json.cc',
         '../../src/runtime/runtime-literals.cc',
         '../../src/runtime/runtime-liveedit.cc',

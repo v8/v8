@@ -294,15 +294,6 @@ void Interpreter::DoBinaryOp(Runtime::FunctionId function_id,
 }
 
 
-void Interpreter::DoCompareOp(Token::Value op,
-                              compiler::InterpreterAssembler* assembler) {
-  // TODO(oth): placeholder until compare path fixed.
-  // The accumulator should be set to true on success (or false otherwise)
-  // by the comparisons so it can be used for conditional jumps.
-  DoLdaTrue(assembler);
-}
-
-
 // Add <src>
 //
 // Add register <src> to accumulator.
@@ -363,7 +354,7 @@ void Interpreter::DoCall(compiler::InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::EQ, assembler);
+  DoBinaryOp(Runtime::kInterpreterEquals, assembler);
 }
 
 
@@ -371,7 +362,7 @@ void Interpreter::DoTestEqual(compiler::InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::NE, assembler);
+  DoBinaryOp(Runtime::kInterpreterNotEquals, assembler);
 }
 
 
@@ -379,7 +370,7 @@ void Interpreter::DoTestNotEqual(compiler::InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::EQ_STRICT, assembler);
+  DoBinaryOp(Runtime::kInterpreterStrictEquals, assembler);
 }
 
 
@@ -389,7 +380,7 @@ void Interpreter::DoTestEqualStrict(compiler::InterpreterAssembler* assembler) {
 // accumulator.
 void Interpreter::DoTestNotEqualStrict(
     compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::NE_STRICT, assembler);
+  DoBinaryOp(Runtime::kInterpreterStrictNotEquals, assembler);
 }
 
 
@@ -397,7 +388,7 @@ void Interpreter::DoTestNotEqualStrict(
 //
 // Test if the value in the <src> register is less than the accumulator.
 void Interpreter::DoTestLessThan(compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::LT, assembler);
+  DoBinaryOp(Runtime::kInterpreterLessThan, assembler);
 }
 
 
@@ -405,36 +396,36 @@ void Interpreter::DoTestLessThan(compiler::InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is greater than the accumulator.
 void Interpreter::DoTestGreaterThan(compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::GT, assembler);
+  DoBinaryOp(Runtime::kInterpreterGreaterThan, assembler);
 }
 
 
-// TestLessThanEqual <src>
+// TestLessThanOrEqual <src>
 //
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
-void Interpreter::DoTestLessThanEqual(
+void Interpreter::DoTestLessThanOrEqual(
     compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::LTE, assembler);
+  DoBinaryOp(Runtime::kInterpreterLessThanOrEqual, assembler);
 }
 
 
-// TestGreaterThanEqual <src>
+// TestGreaterThanOrEqual <src>
 //
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
-void Interpreter::DoTestGreaterThanEqual(
+void Interpreter::DoTestGreaterThanOrEqual(
     compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::GTE, assembler);
+  DoBinaryOp(Runtime::kInterpreterGreaterThanOrEqual, assembler);
 }
 
 
 // TestIn <src>
 //
-// Test if the value in the <src> register is in the collection referenced
-// by the accumulator.
+// Test if the object referenced by the register operand is a property of the
+// object referenced by the accumulator.
 void Interpreter::DoTestIn(compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::IN, assembler);
+  DoBinaryOp(Runtime::kHasProperty, assembler);
 }
 
 
@@ -443,7 +434,7 @@ void Interpreter::DoTestIn(compiler::InterpreterAssembler* assembler) {
 // Test if the object referenced by the <src> register is an an instance of type
 // referenced by the accumulator.
 void Interpreter::DoTestInstanceOf(compiler::InterpreterAssembler* assembler) {
-  DoCompareOp(Token::Value::INSTANCEOF, assembler);
+  DoBinaryOp(Runtime::kInstanceOf, assembler);
 }
 
 

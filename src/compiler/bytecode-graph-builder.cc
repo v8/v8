@@ -368,13 +368,13 @@ void BytecodeGraphBuilder::VisitTestGreaterThan(
 }
 
 
-void BytecodeGraphBuilder::VisitTestLessThanEqual(
+void BytecodeGraphBuilder::VisitTestLessThanOrEqual(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGraphBuilder::VisitTestGreaterThanEqual(
+void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }

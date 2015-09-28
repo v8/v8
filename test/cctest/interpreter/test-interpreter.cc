@@ -151,6 +151,7 @@ class InterpreterTester {
 
 using v8::internal::BytecodeArray;
 using v8::internal::Handle;
+using v8::internal::LanguageMode;
 using v8::internal::Object;
 using v8::internal::Runtime;
 using v8::internal::Smi;
@@ -975,4 +976,272 @@ TEST(InterpreterConditionalJumps) {
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
+}
+
+
+static const Token::Value kComparisonTypes[] = {
+    Token::Value::EQ,        Token::Value::NE,  Token::Value::EQ_STRICT,
+    Token::Value::NE_STRICT, Token::Value::LTE, Token::Value::LTE,
+    Token::Value::GT,        Token::Value::GTE};
+
+
+template <typename T>
+bool CompareC(Token::Value op, T lhs, T rhs, bool types_differed = false) {
+  switch (op) {
+    case Token::Value::EQ:
+      return lhs == rhs;
+    case Token::Value::NE:
+      return lhs != rhs;
+    case Token::Value::EQ_STRICT:
+      return (lhs == rhs) && !types_differed;
+    case Token::Value::NE_STRICT:
+      return (lhs != rhs) || types_differed;
+    case Token::Value::LT:
+      return lhs < rhs;
+    case Token::Value::LTE:
+      return lhs <= rhs;
+    case Token::Value::GT:
+      return lhs > rhs;
+    case Token::Value::GTE:
+      return lhs >= rhs;
+    default:
+      UNREACHABLE();
+      return false;
+  }
+}
+
+
+TEST(InterpreterSmiComparisons) {
+  // NB Constants cover 31-bit space.
+  int inputs[] = {v8::internal::kMinInt / 2,
+                  v8::internal::kMinInt / 4,
+                  -108733832,
+                  -999,
+                  -42,
+                  -2,
+                  -1,
+                  0,
+                  +1,
+                  +2,
+                  42,
+                  12345678,
+                  v8::internal::kMaxInt / 4,
+                  v8::internal::kMaxInt / 2};
+
+  for (size_t c = 0; c < arraysize(kComparisonTypes); c++) {
+    Token::Value comparison = kComparisonTypes[c];
+    for (size_t i = 0; i < arraysize(inputs); i++) {
+      for (size_t j = 0; j < arraysize(inputs); j++) {
+        HandleAndZoneScope handles;
+        BytecodeArrayBuilder builder(handles.main_isolate(),
+                                     handles.main_zone());
+        Register r0(0);
+        builder.set_locals_count(1);
+        builder.set_parameter_count(0);
+        builder.LoadLiteral(Smi::FromInt(inputs[i]))
+            .StoreAccumulatorInRegister(r0)
+            .LoadLiteral(Smi::FromInt(inputs[j]))
+            .CompareOperation(comparison, r0, LanguageMode::SLOPPY)
+            .Return();
+
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        auto callable = tester.GetCallable<>();
+        Handle<Object> return_value = callable().ToHandleChecked();
+        CHECK(return_value->IsBoolean());
+        CHECK_EQ(return_value->BooleanValue(),
+                 CompareC(comparison, inputs[i], inputs[j]));
+      }
+    }
+  }
+}
+
+
+TEST(InterpreterHeapNumberComparisons) {
+  double inputs[] = {std::numeric_limits<double>::min(),
+                     std::numeric_limits<double>::max(),
+                     -0.001,
+                     0.01,
+                     0.1000001,
+                     1e99,
+                     -1e-99};
+  for (size_t c = 0; c < arraysize(kComparisonTypes); c++) {
+    Token::Value comparison = kComparisonTypes[c];
+    for (size_t i = 0; i < arraysize(inputs); i++) {
+      for (size_t j = 0; j < arraysize(inputs); j++) {
+        HandleAndZoneScope handles;
+        i::Factory* factory = handles.main_isolate()->factory();
+        BytecodeArrayBuilder builder(handles.main_isolate(),
+                                     handles.main_zone());
+        Register r0(0);
+        builder.set_locals_count(1);
+        builder.set_parameter_count(0);
+        builder.LoadLiteral(factory->NewHeapNumber(inputs[i]))
+            .StoreAccumulatorInRegister(r0)
+            .LoadLiteral(factory->NewHeapNumber(inputs[j]))
+            .CompareOperation(comparison, r0, LanguageMode::SLOPPY)
+            .Return();
+
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        auto callable = tester.GetCallable<>();
+        Handle<Object> return_value = callable().ToHandleChecked();
+        CHECK(return_value->IsBoolean());
+        CHECK_EQ(return_value->BooleanValue(),
+                 CompareC(comparison, inputs[i], inputs[j]));
+      }
+    }
+  }
+}
+
+
+TEST(InterpreterStringComparisons) {
+  std::string inputs[] = {"A", "abc", "z", "", "Foo!", "Foo"};
+
+  for (size_t c = 0; c < arraysize(kComparisonTypes); c++) {
+    Token::Value comparison = kComparisonTypes[c];
+    for (size_t i = 0; i < arraysize(inputs); i++) {
+      for (size_t j = 0; j < arraysize(inputs); j++) {
+        const char* lhs = inputs[i].c_str();
+        const char* rhs = inputs[j].c_str();
+        HandleAndZoneScope handles;
+        i::Factory* factory = handles.main_isolate()->factory();
+        BytecodeArrayBuilder builder(handles.main_isolate(),
+                                     handles.main_zone());
+        Register r0(0);
+        builder.set_locals_count(1);
+        builder.set_parameter_count(0);
+        builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs))
+            .StoreAccumulatorInRegister(r0)
+            .LoadLiteral(factory->NewStringFromAsciiChecked(rhs))
+            .CompareOperation(comparison, r0, LanguageMode::SLOPPY)
+            .Return();
+
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        auto callable = tester.GetCallable<>();
+        Handle<Object> return_value = callable().ToHandleChecked();
+        CHECK(return_value->IsBoolean());
+        CHECK_EQ(return_value->BooleanValue(),
+                 CompareC(comparison, inputs[i], inputs[j]));
+      }
+    }
+  }
+}
+
+
+TEST(InterpreterMixedComparisons) {
+  // This test compares a HeapNumber with a String. The latter is
+  // convertible to a HeapNumber so comparison will be between numeric
+  // values except for the strict comparisons where no conversion is
+  // performed.
+  const char* inputs[] = {"-1.77", "-40.333", "0.01", "55.77e5", "2.01"};
+
+  i::UnicodeCache unicode_cache;
+
+  for (size_t c = 0; c < arraysize(kComparisonTypes); c++) {
+    Token::Value comparison = kComparisonTypes[c];
+    for (size_t i = 0; i < arraysize(inputs); i++) {
+      for (size_t j = 0; j < arraysize(inputs); j++) {
+        for (int pass = 0; pass < 2; pass++) {
+          const char* lhs_cstr = inputs[i];
+          const char* rhs_cstr = inputs[j];
+          double lhs = StringToDouble(&unicode_cache, lhs_cstr,
+                                      i::ConversionFlags::NO_FLAGS);
+          double rhs = StringToDouble(&unicode_cache, rhs_cstr,
+                                      i::ConversionFlags::NO_FLAGS);
+          HandleAndZoneScope handles;
+          i::Factory* factory = handles.main_isolate()->factory();
+          BytecodeArrayBuilder builder(handles.main_isolate(),
+                                       handles.main_zone());
+          Register r0(0);
+          builder.set_locals_count(1);
+          builder.set_parameter_count(0);
+          if (pass == 0) {
+            // Comparison with HeapNumber on the lhs and String on the rhs
+            builder.LoadLiteral(factory->NewNumber(lhs))
+                .StoreAccumulatorInRegister(r0)
+                .LoadLiteral(factory->NewStringFromAsciiChecked(rhs_cstr))
+                .CompareOperation(comparison, r0, LanguageMode::SLOPPY)
+                .Return();
+          } else {
+            // Comparison with HeapNumber on the rhs and String on the lhs
+            builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs_cstr))
+                .StoreAccumulatorInRegister(r0)
+                .LoadLiteral(factory->NewNumber(rhs))
+                .CompareOperation(comparison, r0, LanguageMode::SLOPPY)
+                .Return();
+          }
+
+          Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+          InterpreterTester tester(handles.main_isolate(), bytecode_array);
+          auto callable = tester.GetCallable<>();
+          Handle<Object> return_value = callable().ToHandleChecked();
+          CHECK(return_value->IsBoolean());
+          CHECK_EQ(return_value->BooleanValue(),
+                   CompareC(comparison, lhs, rhs, true));
+        }
+      }
+    }
+  }
+}
+
+
+TEST(InterpreterInstanceOf) {
+  HandleAndZoneScope handles;
+  i::Factory* factory = handles.main_isolate()->factory();
+  Handle<i::String> name = factory->NewStringFromAsciiChecked("cons");
+  Handle<i::JSFunction> func = factory->NewFunction(name);
+  Handle<i::JSObject> instance = factory->NewJSObject(func);
+  Handle<i::Object> other = factory->NewNumber(3.3333);
+  Handle<i::Object> cases[] = {Handle<i::Object>::cast(instance), other};
+  for (size_t i = 0; i < arraysize(cases); i++) {
+    bool expected_value = (i == 0);
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    Register r0(0);
+    builder.set_locals_count(1);
+    builder.set_parameter_count(0);
+    builder.LoadLiteral(cases[i]);
+    builder.StoreAccumulatorInRegister(r0)
+        .LoadLiteral(func)
+        .CompareOperation(Token::Value::INSTANCEOF, r0, LanguageMode::SLOPPY)
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->IsBoolean());
+    CHECK_EQ(return_value->BooleanValue(), expected_value);
+  }
+}
+
+
+TEST(InterpreterTestIn) {
+  HandleAndZoneScope handles;
+  i::Factory* factory = handles.main_isolate()->factory();
+  // Allocate an array
+  Handle<i::JSArray> array =
+      factory->NewJSArray(i::ElementsKind::FAST_SMI_ELEMENTS);
+  // Check for these properties on the array object
+  const char* properties[] = {"length", "fuzzle", "x", "0"};
+  for (size_t i = 0; i < arraysize(properties); i++) {
+    bool expected_value = (i == 0);
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    Register r0(0);
+    builder.set_locals_count(1);
+    builder.set_parameter_count(0);
+    builder.LoadLiteral(factory->NewStringFromAsciiChecked(properties[i]))
+        .StoreAccumulatorInRegister(r0)
+        .LoadLiteral(Handle<Object>::cast(array))
+        .CompareOperation(Token::Value::IN, r0, LanguageMode::SLOPPY)
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->IsBoolean());
+    CHECK_EQ(return_value->BooleanValue(), expected_value);
+  }
 }

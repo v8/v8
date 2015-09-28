@@ -815,7 +815,7 @@ enum CompareResult {
 enum class ComparisonResult {
   kLessThan,     // x < y
   kEqual,        // x = y
-  kGreaterThan,  // x > x
+  kGreaterThan,  // x > y
   kUndefined     // at least one of x or y was undefined or NaN
 };
 

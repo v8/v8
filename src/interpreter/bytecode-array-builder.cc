@@ -289,9 +289,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
       case Bytecode::kTestEqualStrict:
       case Bytecode::kTestNotEqualStrict:
       case Bytecode::kTestLessThan:
-      case Bytecode::kTestLessThanEqual:
+      case Bytecode::kTestLessThanOrEqual:
       case Bytecode::kTestGreaterThan:
-      case Bytecode::kTestGreaterThanEqual:
+      case Bytecode::kTestGreaterThanOrEqual:
       case Bytecode::kTestInstanceOf:
       case Bytecode::kTestIn:
         break;
@@ -560,9 +560,9 @@ Bytecode BytecodeArrayBuilder::BytecodeForCompareOperation(Token::Value op) {
     case Token::Value::GT:
       return Bytecode::kTestGreaterThan;
     case Token::Value::LTE:
-      return Bytecode::kTestLessThanEqual;
+      return Bytecode::kTestLessThanOrEqual;
     case Token::Value::GTE:
-      return Bytecode::kTestGreaterThanEqual;
+      return Bytecode::kTestGreaterThanOrEqual;
     case Token::Value::INSTANCEOF:
       return Bytecode::kTestInstanceOf;
     case Token::Value::IN:

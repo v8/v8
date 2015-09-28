@@ -216,6 +216,18 @@ namespace internal {
   F(ForInStep, 1, 1)
 
 
+#define FOR_EACH_INTRINSIC_INTERPRETER(F) \
+  F(InterpreterEquals, 2, 1)              \
+  F(InterpreterNotEquals, 2, 1)           \
+  F(InterpreterStrictEquals, 2, 1)        \
+  F(InterpreterStrictNotEquals, 2, 1)     \
+  F(InterpreterLessThan, 2, 1)            \
+  F(InterpreterGreaterThan, 2, 1)         \
+  F(InterpreterLessThanOrEqual, 2, 1)     \
+  F(InterpreterGreaterThanOrEqual, 2, 1)  \
+  F(InterpreterToBoolean, 1, 1)
+
+
 #define FOR_EACH_INTRINSIC_FUNCTION(F)                      \
   F(FunctionGetName, 1, 1)                                  \
   F(FunctionSetName, 2, 1)                                  \
@@ -1058,6 +1070,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_DATE(F)                \
   FOR_EACH_INTRINSIC_DEBUG(F)               \
   FOR_EACH_INTRINSIC_FORIN(F)               \
+  FOR_EACH_INTRINSIC_INTERPRETER(F)         \
   FOR_EACH_INTRINSIC_FUNCTION(F)            \
   FOR_EACH_INTRINSIC_FUTEX(F)               \
   FOR_EACH_INTRINSIC_GENERATOR(F)           \

@@ -108,6 +108,7 @@
         'heap/heap-unittest.cc',
         'heap/scavenge-job-unittest.cc',
         'run-all-unittests.cc',
+        'runtime/runtime-interpreter-unittest.cc',
         'test-utils.h',
         'test-utils.cc',
       ],

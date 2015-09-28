@@ -68,8 +68,8 @@ namespace interpreter {
   V(TestNotEqualStrict, OperandType::kReg)                                 \
   V(TestLessThan, OperandType::kReg)                                       \
   V(TestGreaterThan, OperandType::kReg)                                    \
-  V(TestLessThanEqual, OperandType::kReg)                                  \
-  V(TestGreaterThanEqual, OperandType::kReg)                               \
+  V(TestLessThanOrEqual, OperandType::kReg)                                \
+  V(TestGreaterThanOrEqual, OperandType::kReg)                             \
   V(TestInstanceOf, OperandType::kReg)                                     \
   V(TestIn, OperandType::kReg)                                             \
                                                                            \

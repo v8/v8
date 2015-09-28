@@ -18,7 +18,7 @@ class BytecodeGeneratorHelper {
  public:
   const char* kFunctionName = "f";
 
-  const int kLastParamIndex =
+  static const int kLastParamIndex =
       -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
 
   BytecodeGeneratorHelper() {
@@ -470,7 +470,7 @@ TEST(PropertyLoads) {
        {"name"}}};
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(snippets[i].code_snippet, "f");
+        helper.MakeBytecode(snippets[i].code_snippet, helper.kFunctionName);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
@@ -573,7 +573,7 @@ TEST(PropertyStores) {
        {"name"}}};
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(snippets[i].code_snippet, "f");
+        helper.MakeBytecode(snippets[i].code_snippet, helper.kFunctionName);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
@@ -651,7 +651,7 @@ TEST(PropertyCall) {
        {"func"}}};
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(snippets[i].code_snippet, "f");
+        helper.MakeBytecode(snippets[i].code_snippet, helper.kFunctionName);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
@@ -681,7 +681,6 @@ TEST(LoadGlobal) {
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
-    bytecode_array->Print();
     CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
   }
 }
@@ -737,7 +736,7 @@ TEST(IfConditions) {
   Handle<Object> unused = helper.factory()->undefined_value();
 
   ExpectedSnippet<Handle<Object>> snippets[] = {
-      {"function f() { if (0) { return 1; } else { return -1; } }",
+      {"function f() { if (0) { return 1; } else { return -1; } } f()",
        0,
        1,
        14,
@@ -753,7 +752,7 @@ TEST(IfConditions) {
         B(Return)},             //
        0,
        {unused, unused, unused, unused}},
-      {"function f() { if ('lucky') { return 1; } else { return -1; } }",
+      {"function f() { if ('lucky') { return 1; } else { return -1; } } f();",
        0,
        1,
        15,
@@ -768,9 +767,9 @@ TEST(IfConditions) {
         B(LdaUndefined),        //
         B(Return)},             //
        1,
-       {helper.factory()->NewStringFromStaticChars("lucky"), unused,
-        unused, unused}},
-      {"function f() { if (false) { return 1; } else { return -1; } }",
+       {helper.factory()->NewStringFromStaticChars("lucky"), unused, unused,
+        unused}},
+      {"function f() { if (false) { return 1; } else { return -1; } } f();",
        0,
        1,
        13,
@@ -785,26 +784,28 @@ TEST(IfConditions) {
         B(Return)},             //
        0,
        {unused, unused, unused, unused}},
-      {"function f(a) { if (a <= 0) { return 200; } else { return -200; } }",
+      {"function f(a) { if (a <= 0) { return 200; } else { return -200; } }"
+       "f(99);",
        kPointerSize,
        2,
        19,
-       {B(Ldar), R(-5),              //
-        B(Star), R(0),               //
-        B(LdaZero),                  //
-        B(TestLessThanEqual), R(0),  //
-        B(JumpIfFalse), U8(7),       //
-        B(LdaConstant), U8(0),       //
-        B(Return),                   //
-        B(Jump), U8(5),              // TODO(oth): Unreachable jump after return
-        B(LdaConstant), U8(1),       //
-        B(Return),                   //
-        B(LdaUndefined),             //
-        B(Return)},                  //
+       {B(Ldar), R(-5),                //
+        B(Star), R(0),                 //
+        B(LdaZero),                    //
+        B(TestLessThanOrEqual), R(0),  //
+        B(JumpIfFalse), U8(7),         //
+        B(LdaConstant), U8(0),         //
+        B(Return),                     //
+        B(Jump), U8(5),         // TODO(oth): Unreachable jump after return
+        B(LdaConstant), U8(1),  //
+        B(Return),              //
+        B(LdaUndefined),        //
+        B(Return)},             //
        2,
        {helper.factory()->NewNumberFromInt(200),
         helper.factory()->NewNumberFromInt(-200), unused, unused}},
-      {"function f(a, b) { if (a in b) { return 200; } }",
+      {"function f(a, b) { if (a in b) { return 200; } }"
+       "f('prop', { prop: 'yes'});",
        kPointerSize,
        3,
        17,
@@ -820,27 +821,11 @@ TEST(IfConditions) {
         B(Return)},             //
        1,
        {helper.factory()->NewNumberFromInt(200), unused, unused, unused}},
-      {"function f(a, b) { if (a instanceof b) { return 200; } }",
-       kPointerSize,
-       3,
-       17,
-       {B(Ldar), R(-6),           //
-        B(Star), R(0),            //
-        B(Ldar), R(-5),           //
-        B(TestInstanceOf), R(0),  //
-        B(JumpIfFalse), U8(7),    //
-        B(LdaConstant), U8(0),    //
-        B(Return),                //
-        B(Jump), U8(2),           // TODO(oth): Unreachable jump after return
-        B(LdaUndefined),          //
-        B(Return)},               //
-       1,
-       {helper.factory()->NewNumberFromInt(200), unused, unused, unused}},
       {"function f(z) { var a = 0; var b = 0; if (a === 0.01) { "
 #define X "b = a; a = b; "
        X X X X X X X X X X X X X X X X X X X X X X X X
 #undef X
-       " return 200; } else { return -200; } }",
+       " return 200; } else { return -200; } } f(0.001)",
        3 * kPointerSize,
        2,
        218,
@@ -868,11 +853,51 @@ TEST(IfConditions) {
        {helper.factory()->NewHeapNumber(0.01),
         helper.factory()->NewNumberFromInt(200),
         helper.factory()->NewNumberFromInt(199),
-        helper.factory()->NewNumberFromInt(-200)}}};
+        helper.factory()->NewNumberFromInt(-200)}},
+      {"function f(a, b) {\n"
+       "  if (a == b) { return 1; }\n"
+       "  if (a === b) { return 1; }\n"
+       "  if (a < b) { return 1; }\n"
+       "  if (a > b) { return 1; }\n"
+       "  if (a <= b) { return 1; }\n"
+       "  if (a >= b) { return 1; }\n"
+       "  if (a in b) { return 1; }\n"
+       "  if (a instanceof b) { return 1; }\n"
+       "  /* if (a != b) { return 1; } */"   // TODO(oth) Ast visitor yields
+       "  /* if (a !== b) { return 1; } */"  // UNARY NOT, rather than !=/!==.
+       "  return 0;\n"
+       "} f(1, 1);",
+       kPointerSize,
+       3,
+       122,
+       {
+#define IF_CONDITION_RETURN(condition) \
+  B(Ldar), R(-6),                      \
+  B(Star), R(0),                       \
+  B(Ldar), R(-5),                      \
+  B(condition), R(0),                  \
+  B(JumpIfFalse), U8(7),               \
+  B(LdaSmi8), U8(1),                   \
+  B(Return),                           \
+  B(Jump), U8(2),
+           IF_CONDITION_RETURN(TestEqual)               //
+           IF_CONDITION_RETURN(TestEqualStrict)         //
+           IF_CONDITION_RETURN(TestLessThan)            //
+           IF_CONDITION_RETURN(TestGreaterThan)         //
+           IF_CONDITION_RETURN(TestLessThanOrEqual)     //
+           IF_CONDITION_RETURN(TestGreaterThanOrEqual)  //
+           IF_CONDITION_RETURN(TestIn)                  //
+           IF_CONDITION_RETURN(TestInstanceOf)          //
+#undef IF_CONDITION_RETURN
+           B(LdaZero),  //
+           B(Return)},  //
+       0,
+       {unused, unused, unused, unused}},
+  };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecodeForFunction(snippets[i].code_snippet);
+        helper.MakeBytecode(snippets[i].code_snippet, helper.kFunctionName);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
