@@ -305,7 +305,7 @@ void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
 }
 
 
-void IncrementalMarking::SetNewSpacePageFlags(NewSpacePage* chunk,
+void IncrementalMarking::SetNewSpacePageFlags(MemoryChunk* chunk,
                                               bool is_marking) {
   chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
   if (is_marking) {

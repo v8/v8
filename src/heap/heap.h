@@ -8,12 +8,14 @@
 #include <cmath>
 #include <map>
 
+// Clients of this interface shouldn't depend on lots of heap internals.
+// Do not include anything from src/heap here!
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/atomic-utils.h"
 #include "src/globals.h"
+// TODO(mstarzinger): Three more includes to kill!
 #include "src/heap/incremental-marking.h"
-#include "src/heap/mark-compact.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
 #include "src/list.h"
@@ -1097,7 +1099,7 @@ class Heap {
   inline Isolate* isolate();
 
   MarkCompactCollector* mark_compact_collector() {
-    return &mark_compact_collector_;
+    return mark_compact_collector_;
   }
 
   // ===========================================================================
@@ -2266,7 +2268,7 @@ class Heap {
 
   Scavenger* scavenge_collector_;
 
-  MarkCompactCollector mark_compact_collector_;
+  MarkCompactCollector* mark_compact_collector_;
 
   StoreBuffer store_buffer_;
 
