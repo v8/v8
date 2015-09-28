@@ -446,7 +446,7 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
 
 AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes) {
   Address top = allocation_info_.top();
-  if (allocation_info_.limit() < top + size_in_bytes) {
+  if (allocation_info_.limit() - top < size_in_bytes) {
     // See if we can create room.
     if (!EnsureAllocation(size_in_bytes, kWordAligned)) {
       return AllocationResult::Retry();

@@ -11,8 +11,7 @@
 
 #include "src/base/build_config.h"
 
-extern "C" V8_NORETURN void V8_Fatal(const char* file, int line,
-                                     const char* format, ...);
+extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 
 
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
