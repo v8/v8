@@ -36,9 +36,9 @@ void TypeFeedbackVector::SetKind(FeedbackVectorICSlot slot,
 
 
 template Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
-    Isolate* isolate, const FeedbackVectorSpec* spec);
+    Isolate* isolate, const StaticFeedbackVectorSpec* spec);
 template Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
-    Isolate* isolate, const ZoneFeedbackVectorSpec* spec);
+    Isolate* isolate, const FeedbackVectorSpec* spec);
 
 
 // static
@@ -84,9 +84,9 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
 }
 
 
-template int TypeFeedbackVector::GetIndexFromSpec(const ZoneFeedbackVectorSpec*,
+template int TypeFeedbackVector::GetIndexFromSpec(const FeedbackVectorSpec*,
                                                   FeedbackVectorICSlot);
-template int TypeFeedbackVector::GetIndexFromSpec(const ZoneFeedbackVectorSpec*,
+template int TypeFeedbackVector::GetIndexFromSpec(const FeedbackVectorSpec*,
                                                   FeedbackVectorSlot);
 
 
@@ -123,7 +123,7 @@ int TypeFeedbackVector::PushAppliedArgumentsIndex() {
 Handle<TypeFeedbackVector> TypeFeedbackVector::CreatePushAppliedArgumentsVector(
     Isolate* isolate) {
   FeedbackVectorSlotKind kinds[] = {FeedbackVectorSlotKind::KEYED_LOAD_IC};
-  FeedbackVectorSpec spec(0, 1, kinds);
+  StaticFeedbackVectorSpec spec(0, 1, kinds);
   Handle<TypeFeedbackVector> feedback_vector =
       isolate->factory()->NewTypeFeedbackVector(&spec);
   DCHECK(PushAppliedArgumentsIndex() ==
@@ -143,7 +143,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 
 
 bool TypeFeedbackVector::SpecDiffersFrom(
-    const ZoneFeedbackVectorSpec* other_spec) const {
+    const FeedbackVectorSpec* other_spec) const {
   if (other_spec->slots() != Slots() || other_spec->ic_slots() != ICSlots()) {
     return true;
   }

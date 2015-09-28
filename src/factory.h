@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-class FeedbackVectorSpec;
+class StaticFeedbackVectorSpec;
 
 // Interface for handle based allocation.
 class Factory final {

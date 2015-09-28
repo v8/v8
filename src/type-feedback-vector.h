@@ -33,13 +33,11 @@ enum class FeedbackVectorSlotKind {
 std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind);
 
 
-class FeedbackVectorSpec {
+class StaticFeedbackVectorSpec {
  public:
-  FeedbackVectorSpec() : slots_(0), ic_slots_(0), ic_kinds_(NULL) {}
-  explicit FeedbackVectorSpec(int slots)
-      : slots_(slots), ic_slots_(0), ic_kinds_(NULL) {}
-  FeedbackVectorSpec(int slots, int ic_slots,
-                     FeedbackVectorSlotKind* ic_slot_kinds)
+  StaticFeedbackVectorSpec() : slots_(0), ic_slots_(0), ic_kinds_(NULL) {}
+  StaticFeedbackVectorSpec(int slots, int ic_slots,
+                           FeedbackVectorSlotKind* ic_slot_kinds)
       : slots_(slots), ic_slots_(ic_slots), ic_kinds_(ic_slot_kinds) {}
 
   int slots() const { return slots_; }
@@ -58,25 +56,70 @@ class FeedbackVectorSpec {
 };
 
 
-class ZoneFeedbackVectorSpec {
+class FeedbackVectorSpec {
  public:
-  explicit ZoneFeedbackVectorSpec(Zone* zone)
+  explicit FeedbackVectorSpec(Zone* zone)
       : slots_(0), ic_slots_(0), ic_slot_kinds_(zone) {}
 
-  ZoneFeedbackVectorSpec(Zone* zone, int slots, int ic_slots)
-      : slots_(slots), ic_slots_(ic_slots), ic_slot_kinds_(ic_slots, zone) {}
-
   int slots() const { return slots_; }
-  void increase_slots(int count) { slots_ += count; }
+  void increase_slots(int count) {
+    DCHECK_LT(0, count);
+    slots_ += count;
+  }
 
   int ic_slots() const { return ic_slots_; }
   void increase_ic_slots(int count) {
+    DCHECK_LT(0, count);
     ic_slots_ += count;
     ic_slot_kinds_.resize(ic_slots_);
   }
 
-  void SetKind(int ic_slot, FeedbackVectorSlotKind kind) {
-    ic_slot_kinds_[ic_slot] = static_cast<unsigned char>(kind);
+  FeedbackVectorICSlot AddSlot(FeedbackVectorSlotKind kind) {
+    int slot = ic_slots_;
+    increase_ic_slots(1);
+    ic_slot_kinds_[slot] = static_cast<unsigned char>(kind);
+    return FeedbackVectorICSlot(slot);
+  }
+
+  FeedbackVectorICSlot AddSlots(FeedbackVectorSlotKind kind, int count) {
+    int slot = ic_slots_;
+    increase_ic_slots(count);
+    for (int i = 0; i < count; i++) {
+      ic_slot_kinds_[slot + i] = static_cast<unsigned char>(kind);
+    }
+    return FeedbackVectorICSlot(slot);
+  }
+
+  FeedbackVectorICSlot AddCallICSlot() {
+    return AddSlot(FeedbackVectorSlotKind::CALL_IC);
+  }
+
+  FeedbackVectorICSlot AddLoadICSlot() {
+    return AddSlot(FeedbackVectorSlotKind::LOAD_IC);
+  }
+
+  FeedbackVectorICSlot AddLoadICSlots(int count) {
+    return AddSlots(FeedbackVectorSlotKind::LOAD_IC, count);
+  }
+
+  FeedbackVectorICSlot AddKeyedLoadICSlot() {
+    return AddSlot(FeedbackVectorSlotKind::KEYED_LOAD_IC);
+  }
+
+  FeedbackVectorICSlot AddStoreICSlots(int count) {
+    return AddSlots(FeedbackVectorSlotKind::STORE_IC, count);
+  }
+
+  FeedbackVectorSlot AddStubSlot() {
+    int slot = slots_;
+    increase_slots(1);
+    return FeedbackVectorSlot(slot);
+  }
+
+  FeedbackVectorSlot AddStubSlots(int count) {
+    int slot = slots_;
+    increase_slots(count);
+    return FeedbackVectorSlot(slot);
   }
 
   FeedbackVectorSlotKind GetKind(int ic_slot) const {
@@ -120,7 +163,7 @@ class TypeFeedbackVector : public FixedArray {
   inline void change_ic_generic_count(int delta);
   inline int ic_metadata_length() const;
 
-  bool SpecDiffersFrom(const ZoneFeedbackVectorSpec* other_spec) const;
+  bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
   inline int Slots() const;
   inline int ICSlots() const;

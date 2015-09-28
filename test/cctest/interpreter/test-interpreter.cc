@@ -553,7 +553,7 @@ TEST(InterpreterLoadNamedProperty) {
   i::Factory* factory = isolate->factory();
 
   i::FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC};
-  i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
 
@@ -608,7 +608,7 @@ TEST(InterpreterLoadKeyedProperty) {
 
   i::FeedbackVectorSlotKind ic_kinds[] = {
       i::FeedbackVectorSlotKind::KEYED_LOAD_IC};
-  i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
 
@@ -650,7 +650,7 @@ TEST(InterpreterStoreNamedProperty) {
   i::Factory* factory = isolate->factory();
 
   i::FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::STORE_IC};
-  i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
 
@@ -711,7 +711,7 @@ TEST(InterpreterStoreKeyedProperty) {
 
   i::FeedbackVectorSlotKind ic_kinds[] = {
       i::FeedbackVectorSlotKind::KEYED_STORE_IC};
-  i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
 
@@ -758,7 +758,7 @@ TEST(InterpreterCall) {
   i::Factory* factory = isolate->factory();
 
   i::FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC};
-  i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
 

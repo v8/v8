@@ -2700,7 +2700,7 @@ void Heap::CreateInitialObjects() {
                                       FeedbackVectorSlotKind::KEYED_LOAD_IC,
                                       FeedbackVectorSlotKind::STORE_IC,
                                       FeedbackVectorSlotKind::KEYED_STORE_IC};
-    FeedbackVectorSpec spec(0, 4, kinds);
+    StaticFeedbackVectorSpec spec(0, 4, kinds);
     Handle<TypeFeedbackVector> dummy_vector =
         factory->NewTypeFeedbackVector(&spec);
     for (int i = 0; i < 4; i++) {

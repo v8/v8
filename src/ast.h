@@ -138,20 +138,6 @@ typedef ZoneList<Handle<Object>> ZoneObjectList;
   friend class AstNodeFactory;
 
 
-class FeedbackVectorRequirements {
- public:
-  FeedbackVectorRequirements(int slots, int ic_slots)
-      : slots_(slots), ic_slots_(ic_slots) {}
-
-  int slots() const { return slots_; }
-  int ic_slots() const { return ic_slots_; }
-
- private:
-  int slots_;
-  int ic_slots_;
-};
-
-
 class ICSlotCache {
  public:
   explicit ICSlotCache(Zone* zone)
@@ -192,20 +178,13 @@ class AstProperties final BASE_EMBEDDED {
   int node_count() { return node_count_; }
   void add_node_count(int count) { node_count_ += count; }
 
-  int slots() const { return spec_.slots(); }
-  void increase_slots(int count) { spec_.increase_slots(count); }
-
-  int ic_slots() const { return spec_.ic_slots(); }
-  void increase_ic_slots(int count) { spec_.increase_ic_slots(count); }
-  void SetKind(int ic_slot, FeedbackVectorSlotKind kind) {
-    spec_.SetKind(ic_slot, kind);
-  }
-  const ZoneFeedbackVectorSpec* get_spec() const { return &spec_; }
+  const FeedbackVectorSpec* get_spec() const { return &spec_; }
+  FeedbackVectorSpec* get_spec() { return &spec_; }
 
  private:
   Flags flags_;
   int node_count_;
-  ZoneFeedbackVectorSpec spec_;
+  FeedbackVectorSpec spec_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(AstProperties::Flags)
@@ -249,15 +228,10 @@ class AstNode: public ZoneObject {
   // node types which don't actually have this. Note that this is conceptually
   // not really nice, but multiple inheritance would introduce yet another
   // vtable entry per node, something we don't want for space reasons.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) {
-    return FeedbackVectorRequirements(0, 0);
-  }
-  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) { UNREACHABLE(); }
-  virtual void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                                      ICSlotCache* cache) {
-    UNREACHABLE();
-  }
+  virtual void AssignFeedbackVectorSlots(Isolate* isolate,
+                                         FeedbackVectorSpec* spec,
+                                         ICSlotCache* cache) {}
+
   // Each ICSlot stores a kind of IC which the participating node should know.
   virtual FeedbackVectorSlotKind FeedbackICSlotKind(int index) {
     UNREACHABLE();
@@ -808,13 +782,8 @@ class ForEachStatement : public IterationStatement {
   Expression* each() const { return each_; }
   Expression* subject() const { return subject_; }
 
-  FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override;
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override {
-    each_slot_ = slot;
-  }
-  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override;
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override;
   FeedbackVectorICSlot EachFeedbackSlot() const { return each_slot_; }
 
  protected:
@@ -840,15 +809,10 @@ class ForInStatement final : public ForEachStatement {
   }
 
   // Type feedback information.
-  FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override {
-    FeedbackVectorRequirements base =
-        ForEachStatement::ComputeFeedbackRequirements(isolate, cache);
-    DCHECK(base.slots() == 0 && base.ic_slots() <= 1);
-    return FeedbackVectorRequirements(1, base.ic_slots());
-  }
-  void SetFirstFeedbackSlot(FeedbackVectorSlot slot) override {
-    for_in_feedback_slot_ = slot;
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override {
+    ForEachStatement::AssignFeedbackVectorSlots(isolate, spec, cache);
+    for_in_feedback_slot_ = spec->AddStubSlot();
   }
 
   FeedbackVectorSlot ForInFeedbackSlot() {
@@ -1550,15 +1514,8 @@ class ObjectLiteral final : public MaterializedLiteral {
 
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
-  FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override;
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override {
-    slot_ = slot;
-  }
-  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
-    return FeedbackVectorSlotKind::STORE_IC;
-  }
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override;
 
   // After feedback slots were assigned, propagate information to the properties
   // which need it.
@@ -1731,14 +1688,9 @@ class VariableProxy final : public Expression {
     return var()->IsUnallocated() || var()->IsLookupSlot();
   }
 
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override;
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override;
 
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override;
-  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
-    return FeedbackVectorSlotKind::LOAD_IC;
-  }
   FeedbackVectorICSlot VariableFeedbackSlot() {
     return variable_feedback_slot_;
   }
@@ -1835,17 +1787,12 @@ class Property final : public Expression {
 
   bool IsSuperAccess() { return obj()->IsSuperPropertyReference(); }
 
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override {
-    return FeedbackVectorRequirements(0, 1);
-  }
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override {
-    property_feedback_slot_ = slot;
-  }
-  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
-    return key()->IsPropertyName() ? FeedbackVectorSlotKind::LOAD_IC
-                                   : FeedbackVectorSlotKind::KEYED_LOAD_IC;
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override {
+    FeedbackVectorSlotKind kind = key()->IsPropertyName()
+                                      ? FeedbackVectorSlotKind::LOAD_IC
+                                      : FeedbackVectorSlotKind::KEYED_LOAD_IC;
+    property_feedback_slot_ = spec->AddSlot(kind);
   }
 
   FeedbackVectorICSlot PropertyFeedbackSlot() const {
@@ -1894,16 +1841,8 @@ class Call final : public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override;
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override {
-    ic_slot_ = slot;
-  }
-  void SetFirstFeedbackSlot(FeedbackVectorSlot slot) override { slot_ = slot; }
-  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
-    return FeedbackVectorSlotKind::CALL_IC;
-  }
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override;
 
   FeedbackVectorSlot CallFeedbackSlot() const { return slot_; }
 
@@ -2013,12 +1952,9 @@ class CallNew final : public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
 
   // Type feedback information.
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override {
-    return FeedbackVectorRequirements(1, 0);
-  }
-  void SetFirstFeedbackSlot(FeedbackVectorSlot slot) override {
-    callnew_feedback_slot_ = slot;
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override {
+    callnew_feedback_slot_ = spec->AddStubSlot();
   }
 
   FeedbackVectorSlot CallNewFeedbackSlot() {
@@ -2247,13 +2183,8 @@ class CountOperation final : public Expression {
     return TypeFeedbackId(local_id(3));
   }
 
-  FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override;
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override {
-    slot_ = slot;
-  }
-  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override;
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override;
   FeedbackVectorICSlot CountSlot() const { return slot_; }
 
  protected:
@@ -2425,13 +2356,8 @@ class Assignment final : public Expression {
     bit_field_ = StoreModeField::update(bit_field_, mode);
   }
 
-  FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override;
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override {
-    slot_ = slot;
-  }
-  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override;
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override;
   FeedbackVectorICSlot AssignmentSlot() const { return slot_; }
 
  protected:
@@ -2475,17 +2401,12 @@ class Yield final : public Expression {
 
   // Type feedback information.
   bool HasFeedbackSlots() const { return yield_kind() == kDelegating; }
-  virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override {
-    return FeedbackVectorRequirements(0, HasFeedbackSlots() ? 3 : 0);
-  }
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override {
-    yield_first_feedback_slot_ = slot;
-  }
-  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
-    return index == 0 ? FeedbackVectorSlotKind::KEYED_LOAD_IC
-                      : FeedbackVectorSlotKind::LOAD_IC;
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override {
+    if (HasFeedbackSlots()) {
+      yield_first_feedback_slot_ = spec->AddKeyedLoadICSlot();
+      spec->AddLoadICSlots(2);
+    }
   }
 
   FeedbackVectorICSlot KeyedLoadFeedbackSlot() {
@@ -2654,7 +2575,7 @@ class FunctionLiteral final : public Expression {
   void set_ast_properties(AstProperties* ast_properties) {
     ast_properties_ = *ast_properties;
   }
-  const ZoneFeedbackVectorSpec* feedback_vector_spec() const {
+  const FeedbackVectorSpec* feedback_vector_spec() const {
     return ast_properties_.get_spec();
   }
   bool dont_optimize() { return dont_optimize_reason_ != kNoReason; }
@@ -2753,15 +2674,8 @@ class ClassLiteral final : public Expression {
 
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
-  FeedbackVectorRequirements ComputeFeedbackRequirements(
-      Isolate* isolate, const ICSlotCache* cache) override;
-  void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
-                              ICSlotCache* cache) override {
-    slot_ = slot;
-  }
-  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
-    return FeedbackVectorSlotKind::STORE_IC;
-  }
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 ICSlotCache* cache) override;
 
   bool NeedsProxySlot() const {
     return FLAG_vector_stores && scope() != NULL &&

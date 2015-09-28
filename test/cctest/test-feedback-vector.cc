@@ -29,7 +29,7 @@ TEST(VectorStructure) {
   Zone* zone = isolate->runtime_zone();
 
   // Empty vectors are the empty fixed array.
-  FeedbackVectorSpec empty;
+  StaticFeedbackVectorSpec empty;
   Handle<TypeFeedbackVector> vector = factory->NewTypeFeedbackVector(&empty);
   CHECK(Handle<FixedArray>::cast(vector)
             .is_identical_to(factory->empty_fixed_array()));
@@ -39,19 +39,21 @@ TEST(VectorStructure) {
   CHECK_EQ(0, vector->Slots());
   CHECK_EQ(0, vector->ICSlots());
 
-  FeedbackVectorSpec one_slot(1);
+  FeedbackVectorSpec one_slot(zone);
+  one_slot.AddStubSlot();
   vector = factory->NewTypeFeedbackVector(&one_slot);
   CHECK_EQ(1, vector->Slots());
   CHECK_EQ(0, vector->ICSlots());
 
-  ZoneFeedbackVectorSpec one_icslot(zone, 0, 1);
-  one_icslot.SetKind(0, FeedbackVectorSlotKind::CALL_IC);
+  FeedbackVectorSpec one_icslot(zone);
+  one_icslot.AddSlot(FeedbackVectorSlotKind::CALL_IC);
   vector = factory->NewTypeFeedbackVector(&one_icslot);
   CHECK_EQ(0, vector->Slots());
   CHECK_EQ(1, vector->ICSlots());
 
-  ZoneFeedbackVectorSpec spec(zone, 3, 5);
-  for (int i = 0; i < 5; i++) spec.SetKind(i, FeedbackVectorSlotKind::CALL_IC);
+  FeedbackVectorSpec spec(zone);
+  spec.AddStubSlots(3);
+  spec.AddSlots(FeedbackVectorSlotKind::CALL_IC, 5);
   vector = factory->NewTypeFeedbackVector(&spec);
   CHECK_EQ(3, vector->Slots());
   CHECK_EQ(5, vector->ICSlots());
@@ -82,18 +84,21 @@ TEST(VectorICMetadata) {
   Factory* factory = isolate->factory();
   Zone* zone = isolate->runtime_zone();
 
-  ZoneFeedbackVectorSpec spec(zone, 10, 3 * 10);
+  FeedbackVectorSpec spec(zone);
   // Set metadata.
+  spec.AddStubSlots(10);
   for (int i = 0; i < 30; i++) {
-    FeedbackVectorSlotKind kind;
-    if (i % 3 == 0) {
-      kind = FeedbackVectorSlotKind::CALL_IC;
-    } else if (i % 3 == 1) {
-      kind = FeedbackVectorSlotKind::LOAD_IC;
-    } else {
-      kind = FeedbackVectorSlotKind::KEYED_LOAD_IC;
+    switch (i % 3) {
+      case 0:
+        spec.AddSlot(FeedbackVectorSlotKind::CALL_IC);
+        break;
+      case 1:
+        spec.AddSlot(FeedbackVectorSlotKind::LOAD_IC);
+        break;
+      case 2:
+        spec.AddSlot(FeedbackVectorSlotKind::KEYED_LOAD_IC);
+        break;
     }
-    spec.SetKind(i, kind);
   }
 
   Handle<TypeFeedbackVector> vector = factory->NewTypeFeedbackVector(&spec);
@@ -125,11 +130,13 @@ TEST(VectorSlotClearing) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
+  Zone* zone = isolate->runtime_zone();
 
   // We only test clearing FeedbackVectorSlots, not FeedbackVectorICSlots.
   // The reason is that FeedbackVectorICSlots need a full code environment
   // to fully test (See VectorICProfilerStatistics test below).
-  FeedbackVectorSpec spec(5);
+  FeedbackVectorSpec spec(zone);
+  spec.AddStubSlots(5);
   Handle<TypeFeedbackVector> vector = factory->NewTypeFeedbackVector(&spec);
 
   // Fill with information

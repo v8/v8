@@ -2058,9 +2058,9 @@ void Factory::BecomeJSFunction(Handle<JSProxy> proxy) {
 
 
 template Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(
-    const ZoneFeedbackVectorSpec* spec);
-template Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(
     const FeedbackVectorSpec* spec);
+template Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(
+    const StaticFeedbackVectorSpec* spec);
 
 template <typename Spec>
 Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(const Spec* spec) {
@@ -2128,7 +2128,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
-  FeedbackVectorSpec empty_spec(0);
+  StaticFeedbackVectorSpec empty_spec;
   Handle<TypeFeedbackVector> feedback_vector =
       NewTypeFeedbackVector(&empty_spec);
   share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);
