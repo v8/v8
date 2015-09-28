@@ -813,19 +813,15 @@ void ScopeInfo::Print() {
   }
   PrintF("{");
 
-  PrintList("parameters", 0,
-            ParameterEntriesIndex(),
-            ParameterEntriesIndex() + ParameterCount(),
-            this);
-  PrintList("stack slots", 0,
-            StackLocalEntriesIndex(),
-            StackLocalEntriesIndex() + StackLocalCount(),
-            this);
-  PrintList("context slots",
-            Context::MIN_CONTEXT_SLOTS,
-            ContextLocalNameEntriesIndex(),
-            ContextLocalNameEntriesIndex() + ContextLocalCount(),
-            this);
+  if (length() > 0) {
+    PrintList("parameters", 0, ParameterEntriesIndex(),
+              ParameterEntriesIndex() + ParameterCount(), this);
+    PrintList("stack slots", 0, StackLocalEntriesIndex(),
+              StackLocalEntriesIndex() + StackLocalCount(), this);
+    PrintList("context slots", Context::MIN_CONTEXT_SLOTS,
+              ContextLocalNameEntriesIndex(),
+              ContextLocalNameEntriesIndex() + ContextLocalCount(), this);
+  }
 
   PrintF("}\n");
 }
