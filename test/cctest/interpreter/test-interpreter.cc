@@ -349,109 +349,148 @@ TEST(InterpreterLoadStoreRegisters) {
 }
 
 
-TEST(InterpreterAdd) {
-  HandleAndZoneScope handles;
-  // TODO(rmcilroy): Do add tests for heap numbers and strings once we support
-  // them.
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(1);
-  builder.set_parameter_count(1);
-  Register reg(0);
-  builder.LoadLiteral(Smi::FromInt(1))
-      .StoreAccumulatorInRegister(reg)
-      .LoadLiteral(Smi::FromInt(2))
-      .BinaryOperation(Token::Value::ADD, reg)
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+static const Token::Value kArithmeticOperators[] = {
+    Token::Value::ADD, Token::Value::SUB, Token::Value::MUL, Token::Value::DIV,
+    Token::Value::MOD};
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
-  auto callable = tester.GetCallable<>();
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(3));
+
+static double BinaryOpC(Token::Value op, double lhs, double rhs) {
+  switch (op) {
+    case Token::Value::ADD:
+      return lhs + rhs;
+    case Token::Value::SUB:
+      return lhs - rhs;
+    case Token::Value::MUL:
+      return lhs * rhs;
+    case Token::Value::DIV:
+      return lhs / rhs;
+    case Token::Value::MOD:
+      return std::fmod(lhs, rhs);
+    default:
+      UNREACHABLE();
+      return std::numeric_limits<double>::min();
+  }
 }
 
 
-TEST(InterpreterSub) {
-  HandleAndZoneScope handles;
-  // TODO(rmcilroy): Do add tests for heap numbers once we support them.
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(1);
-  builder.set_parameter_count(1);
-  Register reg(0);
-  builder.LoadLiteral(Smi::FromInt(5))
-      .StoreAccumulatorInRegister(reg)
-      .LoadLiteral(Smi::FromInt(31))
-      .BinaryOperation(Token::Value::SUB, reg)
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+TEST(InterpreterBinaryOpsSmi) {
+  int lhs_inputs[] = {3266, 1024, 0, -17, -18000};
+  int rhs_inputs[] = {3266, 5, 4, 3, 2, 1, -1, -2};
+  for (size_t l = 0; l < arraysize(lhs_inputs); l++) {
+    for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
+      for (size_t o = 0; o < arraysize(kArithmeticOperators); o++) {
+        HandleAndZoneScope handles;
+        i::Factory* factory = handles.main_isolate()->factory();
+        BytecodeArrayBuilder builder(handles.main_isolate(),
+                                     handles.main_zone());
+        builder.set_locals_count(1);
+        builder.set_parameter_count(1);
+        Register reg(0);
+        int lhs = lhs_inputs[l];
+        int rhs = rhs_inputs[l];
+        builder.LoadLiteral(Smi::FromInt(lhs))
+            .StoreAccumulatorInRegister(reg)
+            .LoadLiteral(Smi::FromInt(rhs))
+            .BinaryOperation(kArithmeticOperators[o], reg)
+            .Return();
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
-  auto callable = tester.GetCallable<>();
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(-26));
+        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        auto callable = tester.GetCallable<>();
+        Handle<Object> return_value = callable().ToHandleChecked();
+        Handle<Object> expected_value =
+            factory->NewNumber(BinaryOpC(kArithmeticOperators[o], lhs, rhs));
+        CHECK(return_value->SameValue(*expected_value));
+      }
+    }
+  }
 }
 
 
-TEST(InterpreterMul) {
-  HandleAndZoneScope handles;
-  // TODO(rmcilroy): Do add tests for heap numbers once we support them.
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(1);
-  builder.set_parameter_count(1);
-  Register reg(0);
-  builder.LoadLiteral(Smi::FromInt(111))
-      .StoreAccumulatorInRegister(reg)
-      .LoadLiteral(Smi::FromInt(6))
-      .BinaryOperation(Token::Value::MUL, reg)
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+TEST(InterpreterBinaryOpsHeapNumber) {
+  double lhs_inputs[] = {3266.101, 1024.12, 0.01, -17.99, -18000.833, 9.1e17};
+  double rhs_inputs[] = {3266.101, 5.999, 4.778, 3.331,  2.643,
+                         1.1,      -1.8,  -2.9,  8.3e-27};
+  for (size_t l = 0; l < arraysize(lhs_inputs); l++) {
+    for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
+      for (size_t o = 0; o < arraysize(kArithmeticOperators); o++) {
+        HandleAndZoneScope handles;
+        i::Factory* factory = handles.main_isolate()->factory();
+        BytecodeArrayBuilder builder(handles.main_isolate(),
+                                     handles.main_zone());
+        builder.set_locals_count(1);
+        builder.set_parameter_count(1);
+        Register reg(0);
+        double lhs = lhs_inputs[l];
+        double rhs = rhs_inputs[l];
+        builder.LoadLiteral(factory->NewNumber(lhs))
+            .StoreAccumulatorInRegister(reg)
+            .LoadLiteral(factory->NewNumber(rhs))
+            .BinaryOperation(kArithmeticOperators[o], reg)
+            .Return();
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
-  auto callable = tester.GetCallable<>();
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(666));
+        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        auto callable = tester.GetCallable<>();
+        Handle<Object> return_value = callable().ToHandleChecked();
+        Handle<Object> expected_value =
+            factory->NewNumber(BinaryOpC(kArithmeticOperators[o], lhs, rhs));
+        CHECK(return_value->SameValue(*expected_value));
+      }
+    }
+  }
 }
 
 
-TEST(InterpreterDiv) {
+TEST(InterpreterStringAdd) {
   HandleAndZoneScope handles;
-  // TODO(rmcilroy): Do add tests for heap numbers once we support them.
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(1);
-  builder.set_parameter_count(1);
-  Register reg(0);
-  builder.LoadLiteral(Smi::FromInt(-20))
-      .StoreAccumulatorInRegister(reg)
-      .LoadLiteral(Smi::FromInt(5))
-      .BinaryOperation(Token::Value::DIV, reg)
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  i::Factory* factory = handles.main_isolate()->factory();
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
-  auto callable = tester.GetCallable<>();
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(-4));
-}
+  struct TestCase {
+    Handle<Object> lhs;
+    Handle<Object> rhs;
+    Handle<Object> expected_value;
+  } test_cases[] = {
+      {factory->NewStringFromStaticChars("a"),
+       factory->NewStringFromStaticChars("b"),
+       factory->NewStringFromStaticChars("ab")},
+      {factory->NewStringFromStaticChars("aaaaaa"),
+       factory->NewStringFromStaticChars("b"),
+       factory->NewStringFromStaticChars("aaaaaab")},
+      {factory->NewStringFromStaticChars("aaa"),
+       factory->NewStringFromStaticChars("bbbbb"),
+       factory->NewStringFromStaticChars("aaabbbbb")},
+      {factory->NewStringFromStaticChars(""),
+       factory->NewStringFromStaticChars("b"),
+       factory->NewStringFromStaticChars("b")},
+      {factory->NewStringFromStaticChars("a"),
+       factory->NewStringFromStaticChars(""),
+       factory->NewStringFromStaticChars("a")},
+      {factory->NewStringFromStaticChars("1.11"), factory->NewHeapNumber(2.5),
+       factory->NewStringFromStaticChars("1.112.5")},
+      {factory->NewStringFromStaticChars("-1.11"), factory->NewHeapNumber(2.56),
+       factory->NewStringFromStaticChars("-1.112.56")},
+      {factory->NewStringFromStaticChars(""), factory->NewHeapNumber(2.5),
+       factory->NewStringFromStaticChars("2.5")},
+  };
 
+  for (size_t i = 0; i < arraysize(test_cases); i++) {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    builder.set_locals_count(1);
+    builder.set_parameter_count(1);
+    Register reg(0);
+    builder.LoadLiteral(test_cases[i].lhs)
+        .StoreAccumulatorInRegister(reg)
+        .LoadLiteral(test_cases[i].rhs)
+        .BinaryOperation(Token::Value::ADD, reg)
+        .Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
-TEST(InterpreterMod) {
-  HandleAndZoneScope handles;
-  // TODO(rmcilroy): Do add tests for heap numbers once we support them.
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(1);
-  builder.set_parameter_count(1);
-  Register reg(0);
-  builder.LoadLiteral(Smi::FromInt(121))
-      .StoreAccumulatorInRegister(reg)
-      .LoadLiteral(Smi::FromInt(100))
-      .BinaryOperation(Token::Value::MOD, reg)
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
-  auto callable = tester.GetCallable<>();
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(21));
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*test_cases[i].expected_value));
+  }
 }
 
 
