@@ -1528,7 +1528,7 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyDefaultParameters));
   parser->set_allow_harmony_rest_parameters(
       flags.Contains(kAllowHarmonyRestParameters));
-  parser->set_allow_harmony_spreadcalls(
+  parser->set_allow_harmony_spread_calls(
       flags.Contains(kAllowHarmonySpreadCalls));
   parser->set_allow_harmony_sloppy(flags.Contains(kAllowHarmonySloppy));
   parser->set_allow_harmony_sloppy_let(flags.Contains(kAllowHarmonySloppyLet));

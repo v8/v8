@@ -26,7 +26,7 @@
       "path": ["SpreadCalls"],
       "main": "run.js",
       "resources": ["spreadcalls.js"],
-      "flags": ["--harmony-spreadcalls"],
+      "flags": ["--harmony-spread_calls"],
       "run_count": 5,
       "units": "score",
       "results_regexp": "^%s\\-SpreadCalls\\(Score\\): (.+)$",

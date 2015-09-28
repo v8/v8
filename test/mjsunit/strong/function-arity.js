@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --strong-mode --harmony-arrow-functions --harmony-reflect
-// Flags: --harmony-spreadcalls --harmony-rest-parameters --allow-natives-syntax
+// Flags: --harmony-spread-calls --harmony-rest-parameters --allow-natives-syntax
 
 'use strict';
 

@@ -1861,7 +1861,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy_function)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy_let)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rest_parameters)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_default_parameters)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spreadcalls)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spread_calls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_destructuring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_observe)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_spread_arrays)
@@ -2565,7 +2565,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_default_parameters_natives[] = {nullptr};
   static const char* harmony_reflect_natives[] = {"native harmony-reflect.js",
                                                   nullptr};
-  static const char* harmony_spreadcalls_natives[] = {
+  static const char* harmony_spread_calls_natives[] = {
       "native harmony-spread.js", nullptr};
   static const char* harmony_destructuring_natives[] = {nullptr};
   static const char* harmony_object_observe_natives[] = {
