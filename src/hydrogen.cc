@@ -8,6 +8,7 @@
 
 #include "src/allocation-site-scopes.h"
 #include "src/ast-numbering.h"
+#include "src/code-factory.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/hydrogen-bce.h"
 #include "src/hydrogen-bch.h"
@@ -12221,6 +12222,24 @@ void HOptimizedGraphBuilder::GenerateToObject(CallRuntime* call) {
   HValue* value = Pop();
   HValue* result = BuildToObject(value);
   return ast_context()->ReturnValue(result);
+}
+
+
+void HOptimizedGraphBuilder::GenerateToString(CallRuntime* call) {
+  DCHECK_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  Callable callable = CodeFactory::ToString(isolate());
+  HValue* input = Pop();
+  if (input->type().IsString()) {
+    return ast_context()->ReturnValue(input);
+  } else {
+    HValue* stub = Add<HConstant>(callable.code());
+    HValue* values[] = {context(), input};
+    HInstruction* result =
+        New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
+                                 Vector<HValue*>(values, arraysize(values)));
+    return ast_context()->ReturnInstruction(result, call->id());
+  }
 }
 
 
