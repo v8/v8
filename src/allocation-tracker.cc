@@ -273,7 +273,7 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
         Name* name = Name::cast(script->name());
         info->script_name = names_->GetName(name);
       }
-      info->script_id = script->id()->value();
+      info->script_id = script->id();
       // Converting start offset into line and column may cause heap
       // allocations so we postpone them until snapshot serialization.
       unresolved_locations_.Add(new UnresolvedLocation(

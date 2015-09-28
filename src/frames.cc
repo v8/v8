@@ -184,7 +184,7 @@ bool StackTraceFrameIterator::IsValidFrame() {
     Object* script = frame()->function()->shared()->script();
     // Don't show functions from native scripts to user.
     return (script->IsScript() &&
-            Script::TYPE_NATIVE != Script::cast(script)->type()->value());
+            Script::TYPE_NATIVE != Script::cast(script)->type());
 }
 
 

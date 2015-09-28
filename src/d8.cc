@@ -1046,7 +1046,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
           i::JSFunction::cast(*compiled_script)->shared()->script()))
       : i::Handle<i::Script>(i::Script::cast(
           i::SharedFunctionInfo::cast(*compiled_script)->script()));
-  script_object->set_type(i::Smi::FromInt(i::Script::TYPE_NATIVE));
+  script_object->set_type(i::Script::TYPE_NATIVE);
 }
 #endif  // !V8_SHARED
 

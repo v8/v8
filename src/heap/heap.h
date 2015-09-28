@@ -961,7 +961,7 @@ class Heap {
 
   inline uint32_t HashSeed();
 
-  inline Smi* NextScriptId();
+  inline int NextScriptId();
 
   inline void SetArgumentsAdaptorDeoptPCOffset(int pc_offset);
   inline void SetConstructStubDeoptPCOffset(int pc_offset);

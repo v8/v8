@@ -86,14 +86,6 @@ int PropertyDetails::field_width_in_words() const {
   }
 
 
-// Getter that returns a tagged Smi and setter that writes a tagged Smi.
-#define ACCESSORS_TO_SMI(holder, name, offset)                              \
-  Smi* holder::name() const { return Smi::cast(READ_FIELD(this, offset)); } \
-  void holder::set_##name(Smi* value, WriteBarrierMode mode) {              \
-    WRITE_FIELD(this, offset, value);                                       \
-  }
-
-
 // Getter that returns a Smi as an int and writes an int as a Smi.
 #define SMI_ACCESSORS(holder, name, offset)             \
   int holder::name() const {                            \
@@ -1676,8 +1668,8 @@ void AllocationSite::Initialize() {
   set_transition_info(Smi::FromInt(0));
   SetElementsKind(GetInitialFastElementsKind());
   set_nested_site(Smi::FromInt(0));
-  set_pretenure_data(Smi::FromInt(0));
-  set_pretenure_create_count(Smi::FromInt(0));
+  set_pretenure_data(0);
+  set_pretenure_create_count(0);
   set_dependent_code(DependentCode::cast(GetHeap()->empty_fixed_array()),
                      SKIP_WRITE_BARRIER);
 }
@@ -1772,59 +1764,52 @@ inline bool AllocationSite::CanTrack(InstanceType type) {
 
 
 AllocationSite::PretenureDecision AllocationSite::pretenure_decision() {
-  int value = pretenure_data()->value();
+  int value = pretenure_data();
   return PretenureDecisionBits::decode(value);
 }
 
 
 void AllocationSite::set_pretenure_decision(PretenureDecision decision) {
-  int value = pretenure_data()->value();
-  set_pretenure_data(
-      Smi::FromInt(PretenureDecisionBits::update(value, decision)),
-      SKIP_WRITE_BARRIER);
+  int value = pretenure_data();
+  set_pretenure_data(PretenureDecisionBits::update(value, decision));
 }
 
 
 bool AllocationSite::deopt_dependent_code() {
-  int value = pretenure_data()->value();
+  int value = pretenure_data();
   return DeoptDependentCodeBit::decode(value);
 }
 
 
 void AllocationSite::set_deopt_dependent_code(bool deopt) {
-  int value = pretenure_data()->value();
-  set_pretenure_data(Smi::FromInt(DeoptDependentCodeBit::update(value, deopt)),
-                     SKIP_WRITE_BARRIER);
+  int value = pretenure_data();
+  set_pretenure_data(DeoptDependentCodeBit::update(value, deopt));
 }
 
 
 int AllocationSite::memento_found_count() {
-  int value = pretenure_data()->value();
+  int value = pretenure_data();
   return MementoFoundCountBits::decode(value);
 }
 
 
 inline void AllocationSite::set_memento_found_count(int count) {
-  int value = pretenure_data()->value();
+  int value = pretenure_data();
   // Verify that we can count more mementos than we can possibly find in one
   // new space collection.
   DCHECK((GetHeap()->MaxSemiSpaceSize() /
           (Heap::kMinObjectSizeInWords * kPointerSize +
            AllocationMemento::kSize)) < MementoFoundCountBits::kMax);
   DCHECK(count < MementoFoundCountBits::kMax);
-  set_pretenure_data(
-      Smi::FromInt(MementoFoundCountBits::update(value, count)),
-      SKIP_WRITE_BARRIER);
+  set_pretenure_data(MementoFoundCountBits::update(value, count));
 }
 
 
-int AllocationSite::memento_create_count() {
-  return pretenure_create_count()->value();
-}
+int AllocationSite::memento_create_count() { return pretenure_create_count(); }
 
 
 void AllocationSite::set_memento_create_count(int count) {
-  set_pretenure_create_count(Smi::FromInt(count), SKIP_WRITE_BARRIER);
+  set_pretenure_create_count(count);
 }
 
 
@@ -3611,7 +3596,7 @@ bool Name::Equals(Handle<Name> one, Handle<Name> two) {
 
 
 ACCESSORS(Symbol, name, Object, kNameOffset)
-ACCESSORS(Symbol, flags, Smi, kFlagsOffset)
+SMI_ACCESSORS(Symbol, flags, kFlagsOffset)
 BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
 
 
@@ -5519,7 +5504,7 @@ ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 ACCESSORS(JSGlobalProxy, hash, Object, kHashOffset)
 
 ACCESSORS(AccessorInfo, name, Object, kNameOffset)
-ACCESSORS_TO_SMI(AccessorInfo, flag, kFlagOffset)
+SMI_ACCESSORS(AccessorInfo, flag, kFlagOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)
 
@@ -5583,7 +5568,7 @@ ACCESSORS(FunctionTemplateInfo, instance_call_handler, Object,
           kInstanceCallHandlerOffset)
 ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
           kAccessCheckInfoOffset)
-ACCESSORS_TO_SMI(FunctionTemplateInfo, flag, kFlagOffset)
+SMI_ACCESSORS(FunctionTemplateInfo, flag, kFlagOffset)
 
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, internal_field_count, Object,
@@ -5593,9 +5578,9 @@ ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
-ACCESSORS_TO_SMI(AllocationSite, pretenure_data, kPretenureDataOffset)
-ACCESSORS_TO_SMI(AllocationSite, pretenure_create_count,
-                 kPretenureCreateCountOffset)
+SMI_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
+SMI_ACCESSORS(AllocationSite, pretenure_create_count,
+              kPretenureCreateCountOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode,
           kDependentCodeOffset)
 ACCESSORS(AllocationSite, weak_next, Object, kWeakNextOffset)
@@ -5603,18 +5588,18 @@ ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)
-ACCESSORS(Script, id, Smi, kIdOffset)
-ACCESSORS_TO_SMI(Script, line_offset, kLineOffsetOffset)
-ACCESSORS_TO_SMI(Script, column_offset, kColumnOffsetOffset)
+SMI_ACCESSORS(Script, id, kIdOffset)
+SMI_ACCESSORS(Script, line_offset, kLineOffsetOffset)
+SMI_ACCESSORS(Script, column_offset, kColumnOffsetOffset)
 ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, HeapObject, kWrapperOffset)
-ACCESSORS_TO_SMI(Script, type, kTypeOffset)
+SMI_ACCESSORS(Script, type, kTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
-ACCESSORS_TO_SMI(Script, eval_from_instructions_offset,
-                 kEvalFrominstructionsOffsetOffset)
+SMI_ACCESSORS(Script, eval_from_instructions_offset,
+              kEvalFrominstructionsOffsetOffset)
 ACCESSORS(Script, shared_function_infos, Object, kSharedFunctionInfosOffset)
-ACCESSORS_TO_SMI(Script, flags, kFlagsOffset)
+SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
 
@@ -5639,13 +5624,13 @@ void Script::set_compilation_state(CompilationState state) {
       state == COMPILATION_STATE_COMPILED));
 }
 ScriptOriginOptions Script::origin_options() {
-  return ScriptOriginOptions((flags()->value() & kOriginOptionsMask) >>
+  return ScriptOriginOptions((flags() & kOriginOptionsMask) >>
                              kOriginOptionsShift);
 }
 void Script::set_origin_options(ScriptOriginOptions origin_options) {
   DCHECK(!(origin_options.Flags() & ~((1 << kOriginOptionsSize) - 1)));
-  set_flags(Smi::FromInt((flags()->value() & ~kOriginOptionsMask) |
-                         (origin_options.Flags() << kOriginOptionsShift)));
+  set_flags((flags() & ~kOriginOptionsMask) |
+            (origin_options.Flags() << kOriginOptionsShift));
 }
 
 
@@ -5653,9 +5638,9 @@ ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, code, Code, kCodeIndex)
 ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateIndex)
 
-ACCESSORS_TO_SMI(BreakPointInfo, code_position, kCodePositionIndex)
-ACCESSORS_TO_SMI(BreakPointInfo, source_position, kSourcePositionIndex)
-ACCESSORS_TO_SMI(BreakPointInfo, statement_position, kStatementPositionIndex)
+SMI_ACCESSORS(BreakPointInfo, code_position, kCodePositionIndex)
+SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionIndex)
+SMI_ACCESSORS(BreakPointInfo, statement_position, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
@@ -6099,7 +6084,7 @@ bool SharedFunctionInfo::IsBuiltin() {
   Object* script_obj = script();
   if (script_obj->IsUndefined()) return true;
   Script* script = Script::cast(script_obj);
-  Script::Type type = static_cast<Script::Type>(script->type()->value());
+  Script::Type type = static_cast<Script::Type>(script->type());
   return type != Script::TYPE_NORMAL;
 }
 
@@ -7292,12 +7277,12 @@ void AccessorInfo::set_is_special_data_property(bool value) {
 
 
 PropertyAttributes AccessorInfo::property_attributes() {
-  return AttributesField::decode(static_cast<uint32_t>(flag()->value()));
+  return AttributesField::decode(static_cast<uint32_t>(flag()));
 }
 
 
 void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
-  set_flag(Smi::FromInt(AttributesField::update(flag()->value(), attributes)));
+  set_flag(AttributesField::update(flag(), attributes));
 }
 
 
@@ -7967,7 +7952,6 @@ String::SubStringRange::iterator String::SubStringRange::end() {
 #undef CAST_ACCESSOR
 #undef INT_ACCESSORS
 #undef ACCESSORS
-#undef ACCESSORS_TO_SMI
 #undef SMI_ACCESSORS
 #undef SYNCHRONIZED_SMI_ACCESSORS
 #undef NOBARRIER_SMI_ACCESSORS

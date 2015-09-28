@@ -278,7 +278,7 @@ int CallSite::GetColumnNumber() {
 bool CallSite::IsNative() {
   Handle<Object> script(fun_->shared()->script(), isolate_);
   return script->IsScript() &&
-         Handle<Script>::cast(script)->type()->value() == Script::TYPE_NATIVE;
+         Handle<Script>::cast(script)->type() == Script::TYPE_NATIVE;
 }
 
 

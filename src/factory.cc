@@ -851,16 +851,16 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_source(*source);
   script->set_name(heap->undefined_value());
   script->set_id(isolate()->heap()->NextScriptId());
-  script->set_line_offset(Smi::FromInt(0));
-  script->set_column_offset(Smi::FromInt(0));
+  script->set_line_offset(0);
+  script->set_column_offset(0);
   script->set_context_data(heap->undefined_value());
-  script->set_type(Smi::FromInt(Script::TYPE_NORMAL));
+  script->set_type(Script::TYPE_NORMAL);
   script->set_wrapper(heap->undefined_value());
   script->set_line_ends(heap->undefined_value());
   script->set_eval_from_shared(heap->undefined_value());
-  script->set_eval_from_instructions_offset(Smi::FromInt(0));
+  script->set_eval_from_instructions_offset(0);
   script->set_shared_function_infos(Smi::FromInt(0));
-  script->set_flags(Smi::FromInt(0));
+  script->set_flags(0);
 
   heap->set_script_list(*WeakFixedArray::Add(script_list(), script));
   return script;

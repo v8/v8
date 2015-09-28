@@ -820,9 +820,13 @@ enum class ComparisonResult {
 };
 
 
-#define DECL_BOOLEAN_ACCESSORS(name)   \
-  inline bool name() const;            \
-  inline void set_##name(bool value);  \
+#define DECL_BOOLEAN_ACCESSORS(name) \
+  inline bool name() const;          \
+  inline void set_##name(bool value);
+
+#define DECL_INT_ACCESSORS(name) \
+  inline int name() const;       \
+  inline void set_##name(int value);
 
 
 #define DECL_ACCESSORS(name, type)                                      \
@@ -6070,14 +6074,14 @@ class Script: public Struct {
   DECL_ACCESSORS(name, Object)
 
   // [id]: the script id.
-  DECL_ACCESSORS(id, Smi)
+  DECL_INT_ACCESSORS(id)
 
   // [line_offset]: script line offset in resource from where it was extracted.
-  DECL_ACCESSORS(line_offset, Smi)
+  DECL_INT_ACCESSORS(line_offset)
 
   // [column_offset]: script column offset in resource from where it was
   // extracted.
-  DECL_ACCESSORS(column_offset, Smi)
+  DECL_INT_ACCESSORS(column_offset)
 
   // [context_data]: context data for the context this script was compiled in.
   DECL_ACCESSORS(context_data, Object)
@@ -6086,7 +6090,7 @@ class Script: public Struct {
   DECL_ACCESSORS(wrapper, HeapObject)
 
   // [type]: the script type.
-  DECL_ACCESSORS(type, Smi)
+  DECL_INT_ACCESSORS(type)
 
   // [line_ends]: FixedArray of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
@@ -6097,14 +6101,14 @@ class Script: public Struct {
 
   // [eval_from_instructions_offset]: the instruction offset in the code for the
   // function from which eval was called where eval was called.
-  DECL_ACCESSORS(eval_from_instructions_offset, Smi)
+  DECL_INT_ACCESSORS(eval_from_instructions_offset)
 
   // [shared_function_infos]: weak fixed array containing all shared
   // function infos created from this script.
   DECL_ACCESSORS(shared_function_infos, Object)
 
   // [flags]: Holds an exciting bitfield.
-  DECL_ACCESSORS(flags, Smi)
+  DECL_INT_ACCESSORS(flags)
 
   // [source_url]: sourceURL from magic comment
   DECL_ACCESSORS(source_url, Object)
@@ -7921,8 +7925,8 @@ class AllocationSite: public Struct {
   // walked in a particular order. So [[1, 2], 1, 2] will have one
   // nested_site, but [[1, 2], 3, [4]] will have a list of two.
   DECL_ACCESSORS(nested_site, Object)
-  DECL_ACCESSORS(pretenure_data, Smi)
-  DECL_ACCESSORS(pretenure_create_count, Smi)
+  DECL_INT_ACCESSORS(pretenure_data)
+  DECL_INT_ACCESSORS(pretenure_create_count)
   DECL_ACCESSORS(dependent_code, DependentCode)
   DECL_ACCESSORS(weak_next, Object)
 
@@ -8311,7 +8315,7 @@ class Symbol: public Name {
   // [name]: The print name of a symbol, or undefined if none.
   DECL_ACCESSORS(name, Object)
 
-  DECL_ACCESSORS(flags, Smi)
+  DECL_INT_ACCESSORS(flags)
 
   // [is_private]: Whether this is a private symbol.  Private symbols can only
   // be used to designate own properties of objects.
@@ -9969,7 +9973,7 @@ class JSRegExpResult: public JSArray {
 class AccessorInfo: public Struct {
  public:
   DECL_ACCESSORS(name, Object)
-  DECL_ACCESSORS(flag, Smi)
+  DECL_INT_ACCESSORS(flag)
   DECL_ACCESSORS(expected_receiver_type, Object)
 
   inline bool all_can_read();
@@ -10217,7 +10221,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(signature, Object)
   DECL_ACCESSORS(instance_call_handler, Object)
   DECL_ACCESSORS(access_check_info, Object)
-  DECL_ACCESSORS(flag, Smi)
+  DECL_INT_ACCESSORS(flag)
 
   inline int length() const;
   inline void set_length(int value);
@@ -10378,12 +10382,12 @@ class DebugInfo: public Struct {
 class BreakPointInfo: public Struct {
  public:
   // The position in the code for the break point.
-  DECL_ACCESSORS(code_position, Smi)
+  DECL_INT_ACCESSORS(code_position)
   // The position in the source for the break position.
-  DECL_ACCESSORS(source_position, Smi)
+  DECL_INT_ACCESSORS(source_position)
   // The position in the source for the last statement before this break
   // position.
-  DECL_ACCESSORS(statement_position, Smi)
+  DECL_INT_ACCESSORS(statement_position)
   // List of related JavaScript break points.
   DECL_ACCESSORS(break_point_objects, Object)
 
@@ -10527,20 +10531,11 @@ class StructBodyDescriptor : public
 };
 
 
-// BooleanBit is a helper class for setting and getting a bit in an
-// integer or Smi.
+// BooleanBit is a helper class for setting and getting a bit in an integer.
 class BooleanBit : public AllStatic {
  public:
-  static inline bool get(Smi* smi, int bit_position) {
-    return get(smi->value(), bit_position);
-  }
-
   static inline bool get(int value, int bit_position) {
     return (value & (1 << bit_position)) != 0;
-  }
-
-  static inline Smi* set(Smi* smi, int bit_position, bool v) {
-    return Smi::FromInt(set(smi->value(), bit_position, v));
   }
 
   static inline int set(int value, int bit_position, bool v) {

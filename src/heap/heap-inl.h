@@ -682,12 +682,15 @@ uint32_t Heap::HashSeed() {
 }
 
 
-Smi* Heap::NextScriptId() {
-  int next_id = last_script_id()->value() + 1;
-  if (!Smi::IsValid(next_id) || next_id < 0) next_id = 1;
-  Smi* next_id_smi = Smi::FromInt(next_id);
-  set_last_script_id(next_id_smi);
-  return next_id_smi;
+int Heap::NextScriptId() {
+  int last_id = last_script_id()->value();
+  if (last_id == Smi::kMaxValue) {
+    last_id = 1;
+  } else {
+    last_id++;
+  }
+  set_last_script_id(Smi::FromInt(last_id));
+  return last_id;
 }
 
 

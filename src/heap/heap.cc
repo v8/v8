@@ -2727,12 +2727,12 @@ void Heap::CreateInitialObjects() {
 
   set_materialized_objects(*factory->NewFixedArray(0, TENURED));
 
-  // Handling of script id generation is in Factory::NewScript.
+  // Handling of script id generation is in Heap::NextScriptId().
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
 
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
-  script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
+  script->set_type(Script::TYPE_NATIVE);
   set_empty_script(*script);
 
   Handle<PropertyCell> cell = factory->NewPropertyCell();
@@ -3911,7 +3911,7 @@ AllocationResult Heap::AllocateSymbol() {
   Symbol::cast(result)
       ->set_hash_field(Name::kIsNotArrayIndexMask | (hash << Name::kHashShift));
   Symbol::cast(result)->set_name(undefined_value());
-  Symbol::cast(result)->set_flags(Smi::FromInt(0));
+  Symbol::cast(result)->set_flags(0);
 
   DCHECK(!Symbol::cast(result)->is_private());
   return result;

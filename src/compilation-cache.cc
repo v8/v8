@@ -124,8 +124,8 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
     return script->name()->IsUndefined();
   }
   // Do the fast bailout checks first.
-  if (line_offset != script->line_offset()->value()) return false;
-  if (column_offset != script->column_offset()->value()) return false;
+  if (line_offset != script->line_offset()) return false;
+  if (column_offset != script->column_offset()) return false;
   // Check that both names are strings. If not, no match.
   if (!name->IsString() || !script->name()->IsString()) return false;
   // Are the origin_options same?

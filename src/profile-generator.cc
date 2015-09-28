@@ -106,7 +106,7 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
 void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
   if (!shared->script()->IsScript()) return;
   Script* script = Script::cast(shared->script());
-  set_script_id(script->id()->value());
+  set_script_id(script->id());
   set_position(shared->start_position());
   set_bailout_reason(GetBailoutReason(shared->disable_optimization_reason()));
 }
