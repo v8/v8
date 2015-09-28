@@ -901,7 +901,8 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
                                   CompletionAction action,
                                   ForceMarkingAction marking,
                                   ForceCompletionAction completion) {
-  DCHECK(allocated_bytes >= 0);
+  // Temporarily removed for crbug.com/536163
+  // DCHECK(allocated_bytes >= 0);
 
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
       (state_ != SWEEPING && state_ != MARKING)) {
