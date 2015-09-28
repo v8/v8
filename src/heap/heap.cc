@@ -2373,7 +2373,7 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
   int size = HeapNumber::kSize;
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxRegularHeapObjectSize);
 
-  AllocationSpace space = SelectSpace(size, pretenure);
+  AllocationSpace space = SelectSpace(pretenure);
 
   HeapObject* result = nullptr;
   {
@@ -2394,7 +2394,7 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
     int size = Type::kSize;                                               \
     STATIC_ASSERT(Type::kSize <= Page::kMaxRegularHeapObjectSize);        \
                                                                           \
-    AllocationSpace space = SelectSpace(size, pretenure);                 \
+    AllocationSpace space = SelectSpace(pretenure);                       \
                                                                           \
     HeapObject* result = nullptr;                                         \
     {                                                                     \
@@ -2934,7 +2934,7 @@ AllocationResult Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
   int size = ByteArray::SizeFor(length);
-  AllocationSpace space = SelectSpace(size, pretenure);
+  AllocationSpace space = SelectSpace(pretenure);
   HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
@@ -3145,7 +3145,7 @@ AllocationResult Heap::AllocateFixedTypedArrayWithExternalPointer(
     int length, ExternalArrayType array_type, void* external_pointer,
     PretenureFlag pretenure) {
   int size = FixedTypedArrayBase::kHeaderSize;
-  AllocationSpace space = SelectSpace(size, pretenure);
+  AllocationSpace space = SelectSpace(pretenure);
   HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
@@ -3189,7 +3189,7 @@ AllocationResult Heap::AllocateFixedTypedArray(int length,
   ForFixedTypedArray(array_type, &element_size, &elements_kind);
   int size = OBJECT_POINTER_ALIGN(length * element_size +
                                   FixedTypedArrayBase::kDataOffset);
-  AllocationSpace space = SelectSpace(size, pretenure);
+  AllocationSpace space = SelectSpace(pretenure);
 
   HeapObject* object = nullptr;
   AllocationResult allocation = AllocateRaw(
@@ -3404,8 +3404,7 @@ AllocationResult Heap::AllocateJSObjectFromMap(
   FixedArray* properties = empty_fixed_array();
 
   // Allocate the JSObject.
-  int size = map->instance_size();
-  AllocationSpace space = SelectSpace(size, pretenure);
+  AllocationSpace space = SelectSpace(pretenure);
   JSObject* js_obj = nullptr;
   AllocationResult allocation = Allocate(map, space, allocation_site);
   if (!allocation.To(&js_obj)) return allocation;
@@ -3606,12 +3605,11 @@ AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
     map = internalized_string_map();
     size = SeqTwoByteString::SizeFor(chars);
   }
-  AllocationSpace space = SelectSpace(size, TENURED);
 
   // Allocate string.
   HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
 
@@ -3649,7 +3647,7 @@ AllocationResult Heap::AllocateRawOneByteString(int length,
   DCHECK_GE(String::kMaxLength, length);
   int size = SeqOneByteString::SizeFor(length);
   DCHECK(size <= SeqOneByteString::kMaxSize);
-  AllocationSpace space = SelectSpace(size, pretenure);
+  AllocationSpace space = SelectSpace(pretenure);
 
   HeapObject* result = nullptr;
   {
@@ -3673,7 +3671,7 @@ AllocationResult Heap::AllocateRawTwoByteString(int length,
   DCHECK_GE(String::kMaxLength, length);
   int size = SeqTwoByteString::SizeFor(length);
   DCHECK(size <= SeqTwoByteString::kMaxSize);
-  AllocationSpace space = SelectSpace(size, pretenure);
+  AllocationSpace space = SelectSpace(pretenure);
 
   HeapObject* result = nullptr;
   {
@@ -3808,7 +3806,7 @@ AllocationResult Heap::AllocateRawFixedArray(int length,
     v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
   int size = FixedArray::SizeFor(length);
-  AllocationSpace space = SelectSpace(size, pretenure);
+  AllocationSpace space = SelectSpace(pretenure);
 
   return AllocateRaw(size, space, OLD_SPACE);
 }
@@ -3877,7 +3875,7 @@ AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
                                                 kDoubleAligned);
   }
   int size = FixedDoubleArray::SizeFor(length);
-  AllocationSpace space = SelectSpace(size, pretenure);
+  AllocationSpace space = SelectSpace(pretenure);
 
   HeapObject* object = nullptr;
   {
@@ -3934,10 +3932,9 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
       return exception();
   }
   int size = map->instance_size();
-  AllocationSpace space = SelectSpace(size, TENURED);
   Struct* result = nullptr;
   {
-    AllocationResult allocation = Allocate(map, space);
+    AllocationResult allocation = Allocate(map, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
   result->InitializeBody(size);
