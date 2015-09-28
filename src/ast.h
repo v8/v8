@@ -1390,37 +1390,14 @@ class ObjectLiteralProperty final : public ZoneObject {
   bool is_computed_name() const { return is_computed_name_; }
 
   FeedbackVectorICSlot GetSlot(int offset = 0) const {
-    if (ic_slot_or_count_ == FeedbackVectorICSlot::Invalid().ToInt()) {
-      return FeedbackVectorICSlot::Invalid();
-    }
-    return FeedbackVectorICSlot(ic_slot_or_count_ + offset);
+    if (slot_.IsInvalid()) return slot_;
+    int slot = slot_.ToInt();
+    return FeedbackVectorICSlot(slot + offset);
   }
-
-  int ic_slot_count() const {
-    if (ic_slot_or_count_ == FeedbackVectorICSlot::Invalid().ToInt()) {
-      return 0;
-    }
-    return ic_slot_or_count_;
-  }
+  FeedbackVectorICSlot slot() const { return slot_; }
+  void set_slot(FeedbackVectorICSlot slot) { slot_ = slot; }
 
   void set_receiver_type(Handle<Map> map) { receiver_type_ = map; }
-  void set_ic_slot_count(int count) {
-    // Should only be called once.
-    if (count == 0) {
-      ic_slot_or_count_ = FeedbackVectorICSlot::Invalid().ToInt();
-    } else {
-      ic_slot_or_count_ = count;
-    }
-  }
-
-  int set_base_slot(int slot) {
-    if (ic_slot_count() > 0) {
-      int count = ic_slot_count();
-      ic_slot_or_count_ = slot;
-      return count;
-    }
-    return 0;
-  }
 
  protected:
   friend class AstNodeFactory;
@@ -1434,7 +1411,7 @@ class ObjectLiteralProperty final : public ZoneObject {
  private:
   Expression* key_;
   Expression* value_;
-  int ic_slot_or_count_;
+  FeedbackVectorICSlot slot_;
   Kind kind_;
   bool emit_store_;
   bool is_static_;
@@ -1516,10 +1493,6 @@ class ObjectLiteral final : public MaterializedLiteral {
   // as some slots for home objects.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                  ICSlotCache* cache) override;
-
-  // After feedback slots were assigned, propagate information to the properties
-  // which need it.
-  void LayoutFeedbackSlots();
 
  protected:
   ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
@@ -2683,10 +2656,6 @@ class ClassLiteral final : public Expression {
   }
 
   FeedbackVectorICSlot ProxySlot() const { return slot_; }
-
-  // After feedback slots were assigned, propagate information to the properties
-  // which need it.
-  void LayoutFeedbackSlots();
 
  protected:
   ClassLiteral(Zone* zone, const AstRawString* name, Scope* scope,

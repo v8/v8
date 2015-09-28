@@ -106,8 +106,8 @@ class FeedbackVectorSpec {
     return AddSlot(FeedbackVectorSlotKind::KEYED_LOAD_IC);
   }
 
-  FeedbackVectorICSlot AddStoreICSlots(int count) {
-    return AddSlots(FeedbackVectorSlotKind::STORE_IC, count);
+  FeedbackVectorICSlot AddStoreICSlot() {
+    return AddSlot(FeedbackVectorSlotKind::STORE_IC);
   }
 
   FeedbackVectorSlot AddStubSlot() {
