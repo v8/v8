@@ -141,9 +141,10 @@ static int GetStoreICSlots(Expression* expr) {
 }
 
 
-static Code::Kind GetStoreICKind(Expression* expr) {
+static FeedbackVectorSlotKind GetStoreICKind(Expression* expr) {
   LhsKind assign_type = Property::GetAssignType(expr->AsProperty());
-  return assign_type == KEYED_PROPERTY ? Code::KEYED_STORE_IC : Code::STORE_IC;
+  return assign_type == KEYED_PROPERTY ? FeedbackVectorSlotKind::KEYED_STORE_IC
+                                       : FeedbackVectorSlotKind::STORE_IC;
 }
 
 
@@ -154,7 +155,7 @@ FeedbackVectorRequirements ForEachStatement::ComputeFeedbackRequirements(
 }
 
 
-Code::Kind ForEachStatement::FeedbackICSlotKind(int index) {
+FeedbackVectorSlotKind ForEachStatement::FeedbackICSlotKind(int index) {
   return GetStoreICKind(each());
 }
 
@@ -178,7 +179,7 @@ FeedbackVectorRequirements Assignment::ComputeFeedbackRequirements(
 }
 
 
-Code::Kind Assignment::FeedbackICSlotKind(int index) {
+FeedbackVectorSlotKind Assignment::FeedbackICSlotKind(int index) {
   return GetStoreICKind(target());
 }
 
@@ -190,7 +191,7 @@ FeedbackVectorRequirements CountOperation::ComputeFeedbackRequirements(
 }
 
 
-Code::Kind CountOperation::FeedbackICSlotKind(int index) {
+FeedbackVectorSlotKind CountOperation::FeedbackICSlotKind(int index) {
   return GetStoreICKind(expression());
 }
 

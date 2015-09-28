@@ -17,6 +17,10 @@ using namespace v8::internal;
 
 namespace {
 
+#define CHECK_SLOT_KIND(vector, slot, expected_kind) \
+  CHECK_EQ(expected_kind, vector->GetKind(FeedbackVectorICSlot(slot)));
+
+
 TEST(VectorStructure) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -41,13 +45,13 @@ TEST(VectorStructure) {
   CHECK_EQ(0, vector->ICSlots());
 
   ZoneFeedbackVectorSpec one_icslot(zone, 0, 1);
-  one_icslot.SetKind(0, Code::CALL_IC);
+  one_icslot.SetKind(0, FeedbackVectorSlotKind::CALL_IC);
   vector = factory->NewTypeFeedbackVector(&one_icslot);
   CHECK_EQ(0, vector->Slots());
   CHECK_EQ(1, vector->ICSlots());
 
   ZoneFeedbackVectorSpec spec(zone, 3, 5);
-  for (int i = 0; i < 5; i++) spec.SetKind(i, Code::CALL_IC);
+  for (int i = 0; i < 5; i++) spec.SetKind(i, FeedbackVectorSlotKind::CALL_IC);
   vector = factory->NewTypeFeedbackVector(&spec);
   CHECK_EQ(3, vector->Slots());
   CHECK_EQ(5, vector->ICSlots());
@@ -81,13 +85,13 @@ TEST(VectorICMetadata) {
   ZoneFeedbackVectorSpec spec(zone, 10, 3 * 10);
   // Set metadata.
   for (int i = 0; i < 30; i++) {
-    Code::Kind kind;
+    FeedbackVectorSlotKind kind;
     if (i % 3 == 0) {
-      kind = Code::CALL_IC;
+      kind = FeedbackVectorSlotKind::CALL_IC;
     } else if (i % 3 == 1) {
-      kind = Code::LOAD_IC;
+      kind = FeedbackVectorSlotKind::LOAD_IC;
     } else {
-      kind = Code::KEYED_LOAD_IC;
+      kind = FeedbackVectorSlotKind::KEYED_LOAD_IC;
     }
     spec.SetKind(i, kind);
   }
@@ -104,13 +108,13 @@ TEST(VectorICMetadata) {
 
   // Verify the metadata is correctly set up from the spec.
   for (int i = 0; i < 30; i++) {
-    Code::Kind kind = vector->GetKind(FeedbackVectorICSlot(i));
+    FeedbackVectorSlotKind kind = vector->GetKind(FeedbackVectorICSlot(i));
     if (i % 3 == 0) {
-      CHECK_EQ(Code::CALL_IC, kind);
+      CHECK_EQ(FeedbackVectorSlotKind::CALL_IC, kind);
     } else if (i % 3 == 1) {
-      CHECK_EQ(Code::LOAD_IC, kind);
+      CHECK_EQ(FeedbackVectorSlotKind::LOAD_IC, kind);
     } else {
-      CHECK_EQ(Code::KEYED_LOAD_IC, kind);
+      CHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, kind);
     }
   }
 }
@@ -418,14 +422,14 @@ TEST(ReferenceContextAllocatesNoSlots) {
       handle(f->shared()->feedback_vector(), isolate);
   if (FLAG_vector_stores) {
     CHECK_EQ(4, feedback_vector->ICSlots());
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::STORE_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::STORE_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 0, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(feedback_vector, 1, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 2, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(feedback_vector, 3, FeedbackVectorSlotKind::LOAD_IC);
   } else {
     CHECK_EQ(2, feedback_vector->ICSlots());
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 0, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 1, FeedbackVectorSlotKind::LOAD_IC);
   }
 
   CompileRun(
@@ -458,17 +462,17 @@ TEST(ReferenceContextAllocatesNoSlots) {
   feedback_vector = handle(f->shared()->feedback_vector(), isolate);
   if (FLAG_vector_stores) {
     CHECK_EQ(5, feedback_vector->ICSlots());
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::CALL_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::STORE_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::CALL_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(4)) == Code::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 0, FeedbackVectorSlotKind::CALL_IC);
+    CHECK_SLOT_KIND(feedback_vector, 1, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 2, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(feedback_vector, 3, FeedbackVectorSlotKind::CALL_IC);
+    CHECK_SLOT_KIND(feedback_vector, 4, FeedbackVectorSlotKind::LOAD_IC);
   } else {
     CHECK_EQ(4, feedback_vector->ICSlots());
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::CALL_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::CALL_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 0, FeedbackVectorSlotKind::CALL_IC);
+    CHECK_SLOT_KIND(feedback_vector, 1, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 2, FeedbackVectorSlotKind::CALL_IC);
+    CHECK_SLOT_KIND(feedback_vector, 3, FeedbackVectorSlotKind::LOAD_IC);
   }
 
   CompileRun(
@@ -485,16 +489,13 @@ TEST(ReferenceContextAllocatesNoSlots) {
   feedback_vector = handle(f->shared()->feedback_vector(), isolate);
   if (FLAG_vector_stores) {
     CHECK_EQ(3, feedback_vector->ICSlots());
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) ==
-          Code::KEYED_STORE_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) ==
-          Code::KEYED_LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 0, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 1, FeedbackVectorSlotKind::KEYED_STORE_IC);
+    CHECK_SLOT_KIND(feedback_vector, 2, FeedbackVectorSlotKind::KEYED_LOAD_IC);
   } else {
     CHECK_EQ(2, feedback_vector->ICSlots());
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) ==
-          Code::KEYED_LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 0, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 1, FeedbackVectorSlotKind::KEYED_LOAD_IC);
   }
 
   CompileRun(
@@ -510,17 +511,17 @@ TEST(ReferenceContextAllocatesNoSlots) {
   feedback_vector = handle(f->shared()->feedback_vector(), isolate);
   if (FLAG_vector_stores) {
     CHECK_EQ(6, feedback_vector->ICSlots());
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::STORE_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::STORE_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::STORE_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(4)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(5)) == Code::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 0, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 1, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(feedback_vector, 2, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(feedback_vector, 3, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(feedback_vector, 4, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 5, FeedbackVectorSlotKind::LOAD_IC);
   } else {
     CHECK_EQ(3, feedback_vector->ICSlots());
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
-    CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 0, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 1, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(feedback_vector, 2, FeedbackVectorSlotKind::LOAD_IC);
   }
 }
 

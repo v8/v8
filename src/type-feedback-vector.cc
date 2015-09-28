@@ -13,65 +13,24 @@
 namespace v8 {
 namespace internal {
 
-// static
-TypeFeedbackVector::VectorICKind TypeFeedbackVector::FromCodeKind(
-    Code::Kind kind) {
-  switch (kind) {
-    case Code::CALL_IC:
-      return KindCallIC;
-    case Code::LOAD_IC:
-      return KindLoadIC;
-    case Code::KEYED_LOAD_IC:
-      return KindKeyedLoadIC;
-    case Code::STORE_IC:
-      return KindStoreIC;
-    case Code::KEYED_STORE_IC:
-      return KindKeyedStoreIC;
-    default:
-      // Shouldn't get here.
-      UNREACHABLE();
-  }
-
-  return KindUnused;
+std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind) {
+  return os << TypeFeedbackVector::Kind2String(kind);
 }
 
 
-// static
-Code::Kind TypeFeedbackVector::FromVectorICKind(VectorICKind kind) {
-  switch (kind) {
-    case KindCallIC:
-      return Code::CALL_IC;
-    case KindLoadIC:
-      return Code::LOAD_IC;
-    case KindKeyedLoadIC:
-      return Code::KEYED_LOAD_IC;
-    case KindStoreIC:
-      DCHECK(FLAG_vector_stores);
-      return Code::STORE_IC;
-    case KindKeyedStoreIC:
-      DCHECK(FLAG_vector_stores);
-      return Code::KEYED_STORE_IC;
-    case KindUnused:
-      break;
-  }
-  // Sentinel for no information.
-  return Code::NUMBER_OF_KINDS;
-}
-
-
-Code::Kind TypeFeedbackVector::GetKind(FeedbackVectorICSlot slot) const {
+FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
+    FeedbackVectorICSlot slot) const {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
   int data = Smi::cast(get(index))->value();
-  VectorICKind b = VectorICComputer::decode(data, slot.ToInt());
-  return FromVectorICKind(b);
+  return VectorICComputer::decode(data, slot.ToInt());
 }
 
 
-void TypeFeedbackVector::SetKind(FeedbackVectorICSlot slot, Code::Kind kind) {
-  VectorICKind b = FromCodeKind(kind);
+void TypeFeedbackVector::SetKind(FeedbackVectorICSlot slot,
+                                 FeedbackVectorSlotKind kind) {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
   int data = Smi::cast(get(index))->value();
-  int new_data = VectorICComputer::encode(data, slot.ToInt(), b);
+  int new_data = VectorICComputer::encode(data, slot.ToInt(), kind);
   set(index, Smi::FromInt(new_data));
 }
 
@@ -163,7 +122,7 @@ int TypeFeedbackVector::PushAppliedArgumentsIndex() {
 // static
 Handle<TypeFeedbackVector> TypeFeedbackVector::CreatePushAppliedArgumentsVector(
     Isolate* isolate) {
-  Code::Kind kinds[] = {Code::KEYED_LOAD_IC};
+  FeedbackVectorSlotKind kinds[] = {FeedbackVectorSlotKind::KEYED_LOAD_IC};
   FeedbackVectorSpec spec(0, 1, kinds);
   Handle<TypeFeedbackVector> feedback_vector =
       isolate->factory()->NewTypeFeedbackVector(&spec);
@@ -247,24 +206,39 @@ void TypeFeedbackVector::ClearICSlotsImpl(SharedFunctionInfo* shared,
     FeedbackVectorICSlot slot(i);
     Object* obj = Get(slot);
     if (obj != uninitialized_sentinel) {
-      Code::Kind kind = GetKind(slot);
-      if (kind == Code::CALL_IC) {
-        CallICNexus nexus(this, slot);
-        nexus.Clear(host);
-      } else if (kind == Code::LOAD_IC) {
-        LoadICNexus nexus(this, slot);
-        nexus.Clear(host);
-      } else if (kind == Code::KEYED_LOAD_IC) {
-        KeyedLoadICNexus nexus(this, slot);
-        nexus.Clear(host);
-      } else if (kind == Code::STORE_IC) {
-        DCHECK(FLAG_vector_stores);
-        StoreICNexus nexus(this, slot);
-        nexus.Clear(host);
-      } else if (kind == Code::KEYED_STORE_IC) {
-        DCHECK(FLAG_vector_stores);
-        KeyedStoreICNexus nexus(this, slot);
-        nexus.Clear(host);
+      FeedbackVectorSlotKind kind = GetKind(slot);
+      switch (kind) {
+        case FeedbackVectorSlotKind::CALL_IC: {
+          CallICNexus nexus(this, slot);
+          nexus.Clear(host);
+          break;
+        }
+        case FeedbackVectorSlotKind::LOAD_IC: {
+          LoadICNexus nexus(this, slot);
+          nexus.Clear(host);
+          break;
+        }
+        case FeedbackVectorSlotKind::KEYED_LOAD_IC: {
+          KeyedLoadICNexus nexus(this, slot);
+          nexus.Clear(host);
+          break;
+        }
+        case FeedbackVectorSlotKind::STORE_IC: {
+          DCHECK(FLAG_vector_stores);
+          StoreICNexus nexus(this, slot);
+          nexus.Clear(host);
+          break;
+        }
+        case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+          DCHECK(FLAG_vector_stores);
+          KeyedStoreICNexus nexus(this, slot);
+          nexus.Clear(host);
+          break;
+        }
+        case FeedbackVectorSlotKind::UNUSED:
+        case FeedbackVectorSlotKind::KINDS_NUMBER:
+          UNREACHABLE();
+          break;
       }
     }
   }
@@ -294,8 +268,8 @@ void TypeFeedbackVector::ClearKeyedStoreICs(SharedFunctionInfo* shared) {
     FeedbackVectorICSlot slot(i);
     Object* obj = Get(slot);
     if (obj != uninitialized_sentinel) {
-      Code::Kind kind = GetKind(slot);
-      if (kind == Code::KEYED_STORE_IC) {
+      FeedbackVectorSlotKind kind = GetKind(slot);
+      if (kind == FeedbackVectorSlotKind::KEYED_STORE_IC) {
         DCHECK(FLAG_vector_stores);
         KeyedStoreICNexus nexus(this, slot);
         nexus.Clear(host);
@@ -308,6 +282,28 @@ void TypeFeedbackVector::ClearKeyedStoreICs(SharedFunctionInfo* shared) {
 // static
 Handle<TypeFeedbackVector> TypeFeedbackVector::DummyVector(Isolate* isolate) {
   return Handle<TypeFeedbackVector>::cast(isolate->factory()->dummy_vector());
+}
+
+
+const char* TypeFeedbackVector::Kind2String(FeedbackVectorSlotKind kind) {
+  switch (kind) {
+    case FeedbackVectorSlotKind::UNUSED:
+      return "UNUSED";
+    case FeedbackVectorSlotKind::CALL_IC:
+      return "CALL_IC";
+    case FeedbackVectorSlotKind::LOAD_IC:
+      return "LOAD_IC";
+    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
+      return "KEYED_LOAD_IC";
+    case FeedbackVectorSlotKind::STORE_IC:
+      return "STORE_IC";
+    case FeedbackVectorSlotKind::KEYED_STORE_IC:
+      return "KEYED_STORE_IC";
+    case FeedbackVectorSlotKind::KINDS_NUMBER:
+      break;
+  }
+  UNREACHABLE();
+  return "?";
 }
 
 

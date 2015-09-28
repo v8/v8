@@ -434,7 +434,8 @@ static int FormatICSlotNode(Vector<char>* buf, Expression* node,
                             const char* node_name, FeedbackVectorICSlot slot) {
   int pos = SNPrintF(*buf, "%s", node_name);
   if (!slot.IsInvalid()) {
-    const char* str = Code::Kind2String(node->FeedbackICSlotKind(0));
+    const char* str =
+        TypeFeedbackVector::Kind2String(node->FeedbackICSlotKind(0));
     pos = SNPrintF(*buf + pos, " ICSlot(%d, %s)", slot.ToInt(), str);
   }
   return pos;

@@ -552,7 +552,7 @@ TEST(InterpreterLoadNamedProperty) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  i::Code::Kind ic_kinds[] = {i::Code::LOAD_IC};
+  i::FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC};
   i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
@@ -606,7 +606,8 @@ TEST(InterpreterLoadKeyedProperty) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  i::Code::Kind ic_kinds[] = { i::Code::KEYED_LOAD_IC };
+  i::FeedbackVectorSlotKind ic_kinds[] = {
+      i::FeedbackVectorSlotKind::KEYED_LOAD_IC};
   i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
@@ -648,7 +649,7 @@ TEST(InterpreterStoreNamedProperty) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  i::Code::Kind ic_kinds[] = {i::Code::STORE_IC};
+  i::FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::STORE_IC};
   i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
@@ -708,7 +709,8 @@ TEST(InterpreterStoreKeyedProperty) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  i::Code::Kind ic_kinds[] = {i::Code::KEYED_STORE_IC};
+  i::FeedbackVectorSlotKind ic_kinds[] = {
+      i::FeedbackVectorSlotKind::KEYED_STORE_IC};
   i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);
@@ -755,7 +757,7 @@ TEST(InterpreterCall) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  i::Code::Kind ic_kinds[] = { i::Code::LOAD_IC };
+  i::FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC};
   i::FeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       factory->NewTypeFeedbackVector(&feedback_spec);

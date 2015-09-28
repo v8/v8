@@ -7276,7 +7276,8 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     return result;
   } else {
     if (FLAG_vector_stores &&
-        current_feedback_vector()->GetKind(slot) == Code::KEYED_STORE_IC) {
+        current_feedback_vector()->GetKind(slot) ==
+            FeedbackVectorSlotKind::KEYED_STORE_IC) {
       // It's possible that a keyed store of a constant string was converted
       // to a named store. Here, at the last minute, we need to make sure to
       // use a generic Keyed Store if we are using the type vector, because

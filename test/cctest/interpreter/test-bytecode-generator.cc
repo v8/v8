@@ -392,7 +392,8 @@ TEST(PropertyLoads) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  Code::Kind ic_kinds[] = { i::Code::LOAD_IC, i::Code::LOAD_IC };
+  FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC,
+                                       i::FeedbackVectorSlotKind::LOAD_IC};
   FeedbackVectorSpec feedback_spec(0, 2, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       helper.factory()->NewTypeFeedbackVector(&feedback_spec);
@@ -479,7 +480,8 @@ TEST(PropertyStores) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  Code::Kind ic_kinds[] = { i::Code::STORE_IC, i::Code::STORE_IC };
+  FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::STORE_IC,
+                                       i::FeedbackVectorSlotKind::STORE_IC};
   FeedbackVectorSpec feedback_spec(0, 2, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       helper.factory()->NewTypeFeedbackVector(&feedback_spec);
@@ -584,7 +586,8 @@ TEST(PropertyCall) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;  //
 
-  Code::Kind ic_kinds[] = { i::Code::LOAD_IC, i::Code::LOAD_IC  };
+  FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC,
+                                       i::FeedbackVectorSlotKind::LOAD_IC};
   FeedbackVectorSpec feedback_spec(0, 2, ic_kinds);
   Handle<i::TypeFeedbackVector> vector =
       helper.factory()->NewTypeFeedbackVector(&feedback_spec);

@@ -2696,8 +2696,10 @@ void Heap::CreateInitialObjects() {
   set_microtask_queue(empty_fixed_array());
 
   {
-    Code::Kind kinds[] = {Code::LOAD_IC, Code::KEYED_LOAD_IC, Code::STORE_IC,
-                          Code::KEYED_STORE_IC};
+    FeedbackVectorSlotKind kinds[] = {FeedbackVectorSlotKind::LOAD_IC,
+                                      FeedbackVectorSlotKind::KEYED_LOAD_IC,
+                                      FeedbackVectorSlotKind::STORE_IC,
+                                      FeedbackVectorSlotKind::KEYED_STORE_IC};
     FeedbackVectorSpec spec(0, 4, kinds);
     Handle<TypeFeedbackVector> dummy_vector =
         factory->NewTypeFeedbackVector(&spec);

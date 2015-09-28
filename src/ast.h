@@ -197,7 +197,9 @@ class AstProperties final BASE_EMBEDDED {
 
   int ic_slots() const { return spec_.ic_slots(); }
   void increase_ic_slots(int count) { spec_.increase_ic_slots(count); }
-  void SetKind(int ic_slot, Code::Kind kind) { spec_.SetKind(ic_slot, kind); }
+  void SetKind(int ic_slot, FeedbackVectorSlotKind kind) {
+    spec_.SetKind(ic_slot, kind);
+  }
   const ZoneFeedbackVectorSpec* get_spec() const { return &spec_; }
 
  private:
@@ -257,9 +259,9 @@ class AstNode: public ZoneObject {
     UNREACHABLE();
   }
   // Each ICSlot stores a kind of IC which the participating node should know.
-  virtual Code::Kind FeedbackICSlotKind(int index) {
+  virtual FeedbackVectorSlotKind FeedbackICSlotKind(int index) {
     UNREACHABLE();
-    return Code::NUMBER_OF_KINDS;
+    return FeedbackVectorSlotKind::UNUSED;
   }
 
  private:
@@ -812,7 +814,7 @@ class ForEachStatement : public IterationStatement {
                               ICSlotCache* cache) override {
     each_slot_ = slot;
   }
-  Code::Kind FeedbackICSlotKind(int index) override;
+  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override;
   FeedbackVectorICSlot EachFeedbackSlot() const { return each_slot_; }
 
  protected:
@@ -1554,7 +1556,9 @@ class ObjectLiteral final : public MaterializedLiteral {
                               ICSlotCache* cache) override {
     slot_ = slot;
   }
-  Code::Kind FeedbackICSlotKind(int index) override { return Code::STORE_IC; }
+  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
+    return FeedbackVectorSlotKind::STORE_IC;
+  }
 
   // After feedback slots were assigned, propagate information to the properties
   // which need it.
@@ -1732,7 +1736,9 @@ class VariableProxy final : public Expression {
 
   void SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
                               ICSlotCache* cache) override;
-  Code::Kind FeedbackICSlotKind(int index) override { return Code::LOAD_IC; }
+  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
+    return FeedbackVectorSlotKind::LOAD_IC;
+  }
   FeedbackVectorICSlot VariableFeedbackSlot() {
     return variable_feedback_slot_;
   }
@@ -1837,8 +1843,9 @@ class Property final : public Expression {
                               ICSlotCache* cache) override {
     property_feedback_slot_ = slot;
   }
-  Code::Kind FeedbackICSlotKind(int index) override {
-    return key()->IsPropertyName() ? Code::LOAD_IC : Code::KEYED_LOAD_IC;
+  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
+    return key()->IsPropertyName() ? FeedbackVectorSlotKind::LOAD_IC
+                                   : FeedbackVectorSlotKind::KEYED_LOAD_IC;
   }
 
   FeedbackVectorICSlot PropertyFeedbackSlot() const {
@@ -1894,7 +1901,9 @@ class Call final : public Expression {
     ic_slot_ = slot;
   }
   void SetFirstFeedbackSlot(FeedbackVectorSlot slot) override { slot_ = slot; }
-  Code::Kind FeedbackICSlotKind(int index) override { return Code::CALL_IC; }
+  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
+    return FeedbackVectorSlotKind::CALL_IC;
+  }
 
   FeedbackVectorSlot CallFeedbackSlot() const { return slot_; }
 
@@ -2244,7 +2253,7 @@ class CountOperation final : public Expression {
                               ICSlotCache* cache) override {
     slot_ = slot;
   }
-  Code::Kind FeedbackICSlotKind(int index) override;
+  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override;
   FeedbackVectorICSlot CountSlot() const { return slot_; }
 
  protected:
@@ -2422,7 +2431,7 @@ class Assignment final : public Expression {
                               ICSlotCache* cache) override {
     slot_ = slot;
   }
-  Code::Kind FeedbackICSlotKind(int index) override;
+  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override;
   FeedbackVectorICSlot AssignmentSlot() const { return slot_; }
 
  protected:
@@ -2474,8 +2483,9 @@ class Yield final : public Expression {
                               ICSlotCache* cache) override {
     yield_first_feedback_slot_ = slot;
   }
-  Code::Kind FeedbackICSlotKind(int index) override {
-    return index == 0 ? Code::KEYED_LOAD_IC : Code::LOAD_IC;
+  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
+    return index == 0 ? FeedbackVectorSlotKind::KEYED_LOAD_IC
+                      : FeedbackVectorSlotKind::LOAD_IC;
   }
 
   FeedbackVectorICSlot KeyedLoadFeedbackSlot() {
@@ -2749,7 +2759,9 @@ class ClassLiteral final : public Expression {
                               ICSlotCache* cache) override {
     slot_ = slot;
   }
-  Code::Kind FeedbackICSlotKind(int index) override { return Code::STORE_IC; }
+  FeedbackVectorSlotKind FeedbackICSlotKind(int index) override {
+    return FeedbackVectorSlotKind::STORE_IC;
+  }
 
   bool NeedsProxySlot() const {
     return FLAG_vector_stores && scope() != NULL &&

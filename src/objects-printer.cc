@@ -570,26 +570,38 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
 
     for (int i = 0; i < ICSlots(); i++) {
       FeedbackVectorICSlot slot(i);
-      Code::Kind kind = GetKind(slot);
-      os << "\n ICSlot " << i;
-      if (kind == Code::LOAD_IC) {
-        LoadICNexus nexus(this, slot);
-        os << " LOAD_IC " << Code::ICState2String(nexus.StateFromFeedback());
-      } else if (kind == Code::KEYED_LOAD_IC) {
-        KeyedLoadICNexus nexus(this, slot);
-        os << " KEYED_LOAD_IC "
-           << Code::ICState2String(nexus.StateFromFeedback());
-      } else if (kind == Code::CALL_IC) {
-        CallICNexus nexus(this, slot);
-        os << " CALL_IC " << Code::ICState2String(nexus.StateFromFeedback());
-      } else if (kind == Code::STORE_IC) {
-        StoreICNexus nexus(this, slot);
-        os << " STORE_IC " << Code::ICState2String(nexus.StateFromFeedback());
-      } else {
-        DCHECK(kind == Code::KEYED_STORE_IC);
-        KeyedStoreICNexus nexus(this, slot);
-        os << " KEYED_STORE_IC "
-           << Code::ICState2String(nexus.StateFromFeedback());
+      FeedbackVectorSlotKind kind = GetKind(slot);
+      os << "\n ICSlot " << i << " " << kind << " ";
+      switch (kind) {
+        case FeedbackVectorSlotKind::LOAD_IC: {
+          LoadICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::KEYED_LOAD_IC: {
+          KeyedLoadICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::CALL_IC: {
+          CallICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::STORE_IC: {
+          StoreICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+          KeyedStoreICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::UNUSED:
+        case FeedbackVectorSlotKind::KINDS_NUMBER:
+          UNREACHABLE();
+          break;
       }
 
       os << "\n  [" << GetIndex(slot) << "]: " << Brief(Get(slot));
