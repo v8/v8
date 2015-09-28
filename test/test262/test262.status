@@ -740,6 +740,8 @@
 
 ['no_i18n == True and mode == debug', {
   # BUG(v8:4437).
+  'built-ins/String/prototype/normalize/return-normalized-string': [SKIP],
+  'built-ins/String/prototype/normalize/return-normalized-string-from-coerced-form': [SKIP],
   'built-ins/String/prototype/normalize/return-normalized-string-using-default-parameter': [SKIP],
 }],  # no_i18n == True and mode == debug
 
