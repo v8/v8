@@ -9,7 +9,6 @@
 #include "src/base/sys-info.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
-#include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
@@ -24,9 +23,9 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/slots-buffer.h"
 #include "src/heap/spaces-inl.h"
-#include "src/heap-profiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/v8.h"
 
 namespace v8 {

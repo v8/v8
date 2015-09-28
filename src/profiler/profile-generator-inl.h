@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PROFILE_GENERATOR_INL_H_
-#define V8_PROFILE_GENERATOR_INL_H_
+#ifndef V8_PROFILER_PROFILE_GENERATOR_INL_H_
+#define V8_PROFILER_PROFILE_GENERATOR_INL_H_
 
-#include "src/profile-generator.h"
+#include "src/profiler/profile-generator.h"
 
 namespace v8 {
 namespace internal {
@@ -45,4 +45,4 @@ inline unsigned ProfileNode::function_id() const {
 }
 } }  // namespace v8::internal
 
-#endif  // V8_PROFILE_GENERATOR_INL_H_
+#endif  // V8_PROFILER_PROFILE_GENERATOR_INL_H_

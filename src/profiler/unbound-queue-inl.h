@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNBOUND_QUEUE_INL_H_
-#define V8_UNBOUND_QUEUE_INL_H_
+#ifndef V8_PROFILER_UNBOUND_QUEUE_INL_H_
+#define V8_PROFILER_UNBOUND_QUEUE_INL_H_
 
-#include "src/unbound-queue.h"
+#include "src/profiler/unbound-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -79,4 +79,4 @@ Record* UnboundQueue<Record>::Peek() const {
 
 } }  // namespace v8::internal
 
-#endif  // V8_UNBOUND_QUEUE_INL_H_
+#endif  // V8_PROFILER_UNBOUND_QUEUE_INL_H_

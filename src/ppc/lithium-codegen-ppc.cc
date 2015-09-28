@@ -5,12 +5,12 @@
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
-#include "src/cpu-profiler.h"
 #include "src/hydrogen-osr.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/ppc/lithium-codegen-ppc.h"
 #include "src/ppc/lithium-gap-resolver-ppc.h"
+#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {

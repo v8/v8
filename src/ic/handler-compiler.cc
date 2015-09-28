@@ -4,11 +4,11 @@
 
 #include "src/ic/handler-compiler.h"
 
-#include "src/cpu-profiler.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
 #include "src/ic/ic-inl.h"
 #include "src/isolate-inl.h"
+#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {

@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CPU_PROFILER_INL_H_
-#define V8_CPU_PROFILER_INL_H_
+#ifndef V8_PROFILER_CPU_PROFILER_INL_H_
+#define V8_PROFILER_CPU_PROFILER_INL_H_
 
-#include "src/cpu-profiler.h"
+#include "src/profiler/cpu-profiler.h"
 
 #include <new>
-#include "src/circular-queue-inl.h"
-#include "src/profile-generator-inl.h"
-#include "src/unbound-queue-inl.h"
+#include "src/profiler/circular-queue-inl.h"
+#include "src/profiler/profile-generator-inl.h"
+#include "src/profiler/unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -76,4 +76,4 @@ void ProfilerEventsProcessor::FinishTickSample() {
 
 } }  // namespace v8::internal
 
-#endif  // V8_CPU_PROFILER_INL_H_
+#endif  // V8_PROFILER_CPU_PROFILER_INL_H_

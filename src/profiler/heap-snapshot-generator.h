@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_SNAPSHOT_GENERATOR_H_
-#define V8_HEAP_SNAPSHOT_GENERATOR_H_
+#ifndef V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
+#define V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
@@ -618,4 +618,4 @@ class HeapSnapshotJSONSerializer {
 
 } }  // namespace v8::internal
 
-#endif  // V8_HEAP_SNAPSHOT_GENERATOR_H_
+#endif  // V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_

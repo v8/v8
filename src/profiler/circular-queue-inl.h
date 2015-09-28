@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CIRCULAR_QUEUE_INL_H_
-#define V8_CIRCULAR_QUEUE_INL_H_
+#ifndef V8_PROFILER_CIRCULAR_QUEUE_INL_H_
+#define V8_PROFILER_CIRCULAR_QUEUE_INL_H_
 
-#include "src/circular-queue.h"
+#include "src/profiler/circular-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -66,4 +66,4 @@ typename SamplingCircularQueue<T, L>::Entry* SamplingCircularQueue<T, L>::Next(
 
 } }  // namespace v8::internal
 
-#endif  // V8_CIRCULAR_QUEUE_INL_H_
+#endif  // V8_PROFILER_CIRCULAR_QUEUE_INL_H_

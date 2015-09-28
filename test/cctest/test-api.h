@@ -4,8 +4,8 @@
 
 #include "src/v8.h"
 
-#include "src/cpu-profiler.h"
 #include "src/isolate.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/vm-state.h"
 #include "test/cctest/cctest.h"
 

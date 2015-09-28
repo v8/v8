@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/cpu-profiler.h"
+#include "src/profiler/cpu-profiler.h"
 
 #include "src/compiler.h"
-#include "src/cpu-profiler-inl.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/hashmap.h"
 #include "src/log-inl.h"
+#include "src/profiler/cpu-profiler-inl.h"
 #include "src/vm-state-inl.h"
 
 #include "include/v8-profiler.h"

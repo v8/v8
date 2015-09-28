@@ -9,10 +9,10 @@
 #endif
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
-#include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/rewriter.h"
 #include "src/runtime/runtime.h"
 

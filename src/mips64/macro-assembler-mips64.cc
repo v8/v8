@@ -9,7 +9,6 @@
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
-#include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
 #include "src/mips64/macro-assembler-mips64.h"
 #include "src/runtime/runtime.h"

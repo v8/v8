@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNBOUND_QUEUE_
-#define V8_UNBOUND_QUEUE_
+#ifndef V8_PROFILER_UNBOUND_QUEUE_
+#define V8_PROFILER_UNBOUND_QUEUE_
 
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
@@ -44,4 +44,4 @@ class UnboundQueue BASE_EMBEDDED {
 
 } }  // namespace v8::internal
 
-#endif  // V8_UNBOUND_QUEUE_
+#endif  // V8_PROFILER_UNBOUND_QUEUE_

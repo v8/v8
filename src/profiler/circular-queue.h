@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CIRCULAR_QUEUE_H_
-#define V8_CIRCULAR_QUEUE_H_
+#ifndef V8_PROFILER_CIRCULAR_QUEUE_H_
+#define V8_PROFILER_CIRCULAR_QUEUE_H_
 
 #include "src/base/atomicops.h"
 #include "src/globals.h"
@@ -65,4 +65,4 @@ class SamplingCircularQueue {
 
 } }  // namespace v8::internal
 
-#endif  // V8_CIRCULAR_QUEUE_H_
+#endif  // V8_PROFILER_CIRCULAR_QUEUE_H_

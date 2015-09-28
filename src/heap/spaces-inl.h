@@ -6,9 +6,9 @@
 #define V8_HEAP_SPACES_INL_H_
 
 #include "src/heap/spaces.h"
-#include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/msan.h"
+#include "src/profiler/heap-profiler.h"
 #include "src/v8memory.h"
 
 namespace v8 {

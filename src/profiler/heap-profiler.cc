@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap-profiler.h"
+#include "src/profiler/heap-profiler.h"
 
-#include "src/allocation-tracker.h"
 #include "src/api.h"
-#include "src/heap-snapshot-generator-inl.h"
+#include "src/profiler/allocation-tracker.h"
+#include "src/profiler/heap-snapshot-generator-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -30,7 +30,7 @@
 
 #include "test/cctest/trace-extension.h"
 
-#include "src/sampler.h"
+#include "src/profiler/sampler.h"
 #include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/sampler.h"
+#include "src/profiler/sampler.h"
 
 #if V8_OS_POSIX && !V8_OS_CYGWIN
 
@@ -43,10 +43,10 @@
 #endif
 
 #include "src/base/platform/platform.h"
-#include "src/cpu-profiler-inl.h"
 #include "src/flags.h"
 #include "src/frames-inl.h"
 #include "src/log.h"
+#include "src/profiler/cpu-profiler-inl.h"
 #include "src/simulator.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"

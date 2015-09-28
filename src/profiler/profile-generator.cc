@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/profile-generator.h"
+#include "src/profiler/profile-generator.h"
 
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
-#include "src/profile-generator-inl.h"
-#include "src/sampler.h"
+#include "src/profiler/profile-generator-inl.h"
+#include "src/profiler/sampler.h"
 #include "src/scopeinfo.h"
 #include "src/splay-tree-inl.h"
 #include "src/unicode.h"
