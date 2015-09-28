@@ -127,7 +127,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
   // Allocate string.
   HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, OLD_SPACE, OLD_SPACE);
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
 
@@ -158,7 +158,7 @@ AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   // Allocate string.
   HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, OLD_SPACE, OLD_SPACE);
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
 
@@ -190,7 +190,6 @@ AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
 
 
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
-                                   AllocationSpace retry_space,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
@@ -208,19 +207,14 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
-    if (!large_object) {
-      allocation = new_space_.AllocateRaw(size_in_bytes, alignment);
-      if (always_allocate() && allocation.IsRetry() &&
-          retry_space != NEW_SPACE) {
-        space = retry_space;
-      } else {
-        if (allocation.To(&object)) {
-          OnAllocationEvent(object, size_in_bytes);
-        }
-        return allocation;
-      }
-    } else {
+    if (large_object) {
       space = LO_SPACE;
+    } else {
+      allocation = new_space_.AllocateRaw(size_in_bytes, alignment);
+      if (allocation.To(&object)) {
+        OnAllocationEvent(object, size_in_bytes);
+      }
+      return allocation;
     }
   }
 
