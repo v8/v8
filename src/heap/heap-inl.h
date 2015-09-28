@@ -546,27 +546,27 @@ Isolate* Heap::isolate() {
 // Calls the FUNCTION_CALL function and retries it up to three times
 // to guarantee that any allocations performed during the call will
 // succeed if there's enough memory.
+//
+// Warning: Do not use the identifiers __object__, __maybe_object__,
+// __allocation__ or __scope__ in a call to this macro.
 
-// Warning: Do not use the identifiers __object__, __maybe_object__ or
-// __scope__ in a call to this macro.
-
-#define RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE) \
+#define RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)         \
   if (__allocation__.To(&__object__)) {                   \
     DCHECK(__object__ != (ISOLATE)->heap()->exception()); \
-    RETURN_VALUE;                                         \
+    return Handle<TYPE>(TYPE::cast(__object__), ISOLATE); \
   }
 
-#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)    \
+#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
   do {                                                                        \
     AllocationResult __allocation__ = FUNCTION_CALL;                          \
     Object* __object__ = NULL;                                                \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                 \
     /* Two GCs before panicking.  In newspace will almost always succeed. */  \
     for (int __i__ = 0; __i__ < 2; __i__++) {                                 \
       (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),          \
                                         "allocation failure");                \
       __allocation__ = FUNCTION_CALL;                                         \
-      RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                       \
+      RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                               \
     }                                                                         \
     (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();        \
     (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");          \
@@ -574,24 +574,11 @@ Isolate* Heap::isolate() {
       AlwaysAllocateScope __scope__(ISOLATE);                                 \
       __allocation__ = FUNCTION_CALL;                                         \
     }                                                                         \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                 \
     /* TODO(1181417): Fix this. */                                            \
     v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true); \
-    RETURN_EMPTY;                                                             \
+    return Handle<TYPE>();                                                    \
   } while (false)
-
-#define CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL, RETURN_VALUE, \
-                              RETURN_EMPTY)                         \
-  CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)
-
-#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
-  CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL,                               \
-                        return Handle<TYPE>(TYPE::cast(__object__), ISOLATE), \
-                        return Handle<TYPE>())
-
-
-#define CALL_HEAP_FUNCTION_VOID(ISOLATE, FUNCTION_CALL) \
-  CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL, return, return)
 
 
 void Heap::ExternalStringTable::AddString(String* string) {
