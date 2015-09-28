@@ -212,9 +212,7 @@ class TyperTest : public TypedGraphTest {
       Type* type2 = types_.Fuzz();
       Type* type = TypeBinaryOp(op, type1, type2);
       Type* subtype1 = RandomSubtype(type1);
-      ;
       Type* subtype2 = RandomSubtype(type2);
-      ;
       Type* subtype = TypeBinaryOp(op, subtype1, subtype2);
       EXPECT_TRUE(subtype->Is(type));
     }

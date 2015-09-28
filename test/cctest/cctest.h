@@ -621,8 +621,8 @@ static inline void DisableDebugger() { v8::Debug::SetDebugEventListener(NULL); }
 
 static inline void EmptyMessageQueues(v8::Isolate* isolate) {
   while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
-                                       isolate))
-    ;
+                                       isolate)) {
+  }
 }
 
 

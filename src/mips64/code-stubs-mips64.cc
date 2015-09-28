@@ -2526,7 +2526,7 @@ static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
 
   // Do not transform the receiver for strict mode functions.
   int32_t strict_mode_function_mask =
-      1 <<  SharedFunctionInfo::kStrictModeBitWithinByte ;
+      1 << SharedFunctionInfo::kStrictModeBitWithinByte;
   // Do not transform the receiver for native (Compilerhints already in a3).
   int32_t native_mask = 1 << SharedFunctionInfo::kNativeBitWithinByte;
 

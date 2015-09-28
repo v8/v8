@@ -16040,8 +16040,7 @@ THREADED_TEST(FunctionGetDisplayName) {
                      "}};"
                      "var g = function() {"
                      "  arguments.callee.displayName = 'set_in_runtime';"
-                     "}; g();"
-                     ;
+                     "}; g();";
   v8::ScriptOrigin origin =
       v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "test"));
   v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), code), &origin)
@@ -17857,7 +17856,7 @@ TEST(SetErrorMessageForCodeGenFromStrings) {
   v8::HandleScope scope(context->GetIsolate());
   TryCatch try_catch(context->GetIsolate());
 
-  Handle<String> message = v8_str("Message") ;
+  Handle<String> message = v8_str("Message");
   Handle<String> expected_message = v8_str("Uncaught EvalError: Message");
   V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationDisallowed);
   context->AllowCodeGenerationFromStrings(false);

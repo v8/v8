@@ -39,7 +39,6 @@ RUNTIME_FUNCTION(Runtime_DateSetValue) {
   DateCache* date_cache = isolate->date_cache();
 
   Handle<Object> value;
-  ;
   bool is_value_nan = false;
   if (std::isnan(time)) {
     value = isolate->factory()->nan_value();

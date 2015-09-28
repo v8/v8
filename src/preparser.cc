@@ -122,7 +122,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   int start_position = peek_position();
   ParseLazyFunctionLiteralBody(&ok, bookmark);
   if (bookmark && bookmark->HasBeenReset()) {
-    ;  // Do nothing, as we've just aborted scanning this function.
+    // Do nothing, as we've just aborted scanning this function.
   } else if (stack_overflow()) {
     return kPreParseStackOverflow;
   } else if (!ok) {

@@ -79,7 +79,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 2;
-  for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
+  for (; reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
     Register reg = Register::from_code(reg_num);
     if (!reg.is(destination_reg)) {
       __ push(reg);

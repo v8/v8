@@ -307,9 +307,8 @@ class Types {
       case 8: {  // simd
         static const int num_simd_types =
             #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) +1
-            SIMD128_TYPES(COUNT_SIMD_TYPE)
+            SIMD128_TYPES(COUNT_SIMD_TYPE);
             #undef COUNT_SIMD_TYPE
-            ;
         TypeHandle (*simd_constructors[num_simd_types])(Isolate*, Region*) = {
           #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
           &Type::Name,

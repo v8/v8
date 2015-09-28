@@ -474,7 +474,7 @@ class Debug {
 
   void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
   bool live_edit_enabled() const {
-    return FLAG_enable_liveedit && live_edit_enabled_ ;
+    return FLAG_enable_liveedit && live_edit_enabled_;
   }
 
   inline bool is_active() const { return is_active_; }

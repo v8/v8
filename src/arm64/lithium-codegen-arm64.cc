@@ -4195,7 +4195,7 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
   Register result =
       is_smi ? ToRegister(instr->result()) : ToRegister32(instr->result());
   Register left =
-      is_smi ? ToRegister(instr->left()) : ToRegister32(instr->left()) ;
+      is_smi ? ToRegister(instr->left()) : ToRegister32(instr->left());
   int32_t right = ToInteger32(instr->right());
   DCHECK((right > -kMaxInt) && (right < kMaxInt));
 

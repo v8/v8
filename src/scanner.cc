@@ -1579,7 +1579,7 @@ uint32_t DuplicateFinder::Hash(Vector<const uint8_t> key, bool is_one_byte) {
   // Primitive hash function, almost identical to the one used
   // for strings (except that it's seeded by the length and representation).
   int length = key.length();
-  uint32_t hash = (length << 1) | (is_one_byte ? 1 : 0) ;
+  uint32_t hash = (length << 1) | (is_one_byte ? 1 : 0);
   for (int i = 0; i < length; i++) {
     uint32_t c = key[i];
     hash = (hash + c) * 1025;

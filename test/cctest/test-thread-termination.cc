@@ -455,7 +455,7 @@ TEST(PostponeTerminateException) {
 
   { // Postpone terminate execution interrupts.
     i::PostponeInterruptsScope p1(CcTest::i_isolate(),
-                                  i::StackGuard::TERMINATE_EXECUTION) ;
+                                  i::StackGuard::TERMINATE_EXECUTION);
 
     // API interrupts should still be triggered.
     CcTest::isolate()->RequestInterrupt(&CounterCallback, NULL);
