@@ -6,6 +6,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/verifier.h"
 
 namespace v8 {
 namespace internal {
@@ -198,10 +199,7 @@ void NodeProperties::ReplaceUses(Node* node, Node* value, Node* effect,
 // static
 void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
   node->set_op(new_op);
-
-#ifdef DEBUG
-  Verify(node);
-#endif  // DEBUG
+  Verifier::VerifyNode(node);
 }
 
 
@@ -267,51 +265,6 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
     DCHECK_NOT_NULL(projections[index]);
   }
 #endif
-}
-
-
-// static
-void NodeProperties::Verify(Node* node) {
-  CHECK_EQ(OperatorProperties::GetTotalInputCount(node->op()),
-           node->InputCount());
-  // If this node has no effect or no control outputs,
-  // we check that no its uses are effect or control inputs.
-  bool check_no_control = node->op()->ControlOutputCount() == 0;
-  bool check_no_effect = node->op()->EffectOutputCount() == 0;
-  bool check_no_frame_state = node->opcode() != IrOpcode::kFrameState;
-  if (check_no_effect || check_no_control) {
-    for (Edge edge : node->use_edges()) {
-      Node* const user = edge.from();
-      CHECK(!user->IsDead());
-      if (NodeProperties::IsControlEdge(edge)) {
-        CHECK(!check_no_control);
-      } else if (NodeProperties::IsEffectEdge(edge)) {
-        CHECK(!check_no_effect);
-      } else if (NodeProperties::IsFrameStateEdge(edge)) {
-        CHECK(!check_no_frame_state);
-      }
-    }
-  }
-  // Frame state inputs should be frame states (or sentinels).
-  for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(node->op());
-       i++) {
-    Node* input = NodeProperties::GetFrameStateInput(node, i);
-    CHECK(input->opcode() == IrOpcode::kFrameState ||
-          input->opcode() == IrOpcode::kStart ||
-          input->opcode() == IrOpcode::kDead);
-  }
-  // Effect inputs should be effect-producing nodes (or sentinels).
-  for (int i = 0; i < node->op()->EffectInputCount(); i++) {
-    Node* input = NodeProperties::GetEffectInput(node, i);
-    CHECK(input->op()->EffectOutputCount() > 0 ||
-          input->opcode() == IrOpcode::kDead);
-  }
-  // Control inputs should be control-producing nodes (or sentinels).
-  for (int i = 0; i < node->op()->ControlInputCount(); i++) {
-    Node* input = NodeProperties::GetControlInput(node, i);
-    CHECK(input->op()->ControlOutputCount() > 0 ||
-          input->opcode() == IrOpcode::kDead);
-  }
 }
 
 

@@ -110,17 +110,6 @@ class NodeProperties final {
   //  - Switch: [ IfValue, ..., IfDefault ]
   static void CollectControlProjections(Node* node, Node** proj, size_t count);
 
-  // Verifies consistency of node inputs and uses:
-  // - node inputs should agree with the input count computed from
-  //   the node's operator.
-  // - effect inputs should have effect outputs.
-  // - control inputs should have control outputs.
-  // - frame state inputs should be frame states.
-  // - if the node has control uses, it should produce control.
-  // - if the node has effect uses, it should produce effect.
-  // - if the node has frame state uses, it must be a frame state.
-  static void Verify(Node* node);
-
   // ---------------------------------------------------------------------------
   // Type.
 

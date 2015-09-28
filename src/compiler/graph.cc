@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/verifier.h"
 
 namespace v8 {
 namespace internal {
@@ -45,9 +46,7 @@ void Graph::RemoveDecorator(GraphDecorator* decorator) {
 Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs,
                      bool incomplete) {
   Node* node = NewNodeUnchecked(op, input_count, inputs, incomplete);
-#ifdef DEBUG
-  NodeProperties::Verify(node);
-#endif  // DEBUG
+  Verifier::VerifyNode(node);
   return node;
 }
 
