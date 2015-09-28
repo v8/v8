@@ -37,17 +37,7 @@ using namespace v8::internal;
 
 
 AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
-  static int attempts = 0;
-
-  // The first 4 times we simulate a full heap, by returning retry.
-  if (++attempts < 4) return AllocationResult::Retry();
-
-  // Expose some private stuff on Heap.
   Heap* heap = CcTest::heap();
-
-  // Now that we have returned 'retry' 4 times, we are in a last-chance
-  // scenario, with always_allocate.  See CALL_AND_RETRY.  Test that all
-  // allocations succeed.
 
   // New space.
   heap->AllocateByteArray(100).ToObjectChecked();
@@ -98,7 +88,12 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
 
 
 Handle<Object> v8::internal::HeapTester::TestAllocateAfterFailures() {
-  CALL_HEAP_FUNCTION(CcTest::i_isolate(), AllocateAfterFailures(), Object);
+  // Similar to what the CALL_AND_RETRY macro does in the last-resort case, we
+  // are wrapping the allocator function in an AlwaysAllocateScope.  Test that
+  // all allocations succeed immediately without any retry.
+  CcTest::heap()->CollectAllAvailableGarbage("panic");
+  AlwaysAllocateScope scope(CcTest::i_isolate());
+  return handle(AllocateAfterFailures().ToObjectChecked(), CcTest::i_isolate());
 }
 
 
