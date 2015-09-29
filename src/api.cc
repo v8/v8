@@ -6839,7 +6839,7 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
 
 void Isolate::ReportExternalAllocationLimitReached() {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
-  DCHECK_EQ(heap->gc_state(), i::Heap::NOT_IN_GC);
+  if (heap->gc_state() != i::Heap::NOT_IN_GC) return;
   heap->ReportExternalMemoryPressure(
       "external memory allocation limit reached.");
 }
