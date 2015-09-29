@@ -232,12 +232,6 @@ class AstNode: public ZoneObject {
                                          FeedbackVectorSpec* spec,
                                          ICSlotCache* cache) {}
 
-  // Each ICSlot stores a kind of IC which the participating node should know.
-  virtual FeedbackVectorSlotKind FeedbackICSlotKind(int index) {
-    UNREACHABLE();
-    return FeedbackVectorSlotKind::UNUSED;
-  }
-
  private:
   // Hidden to prevent accidental usage. It would have to load the
   // current zone from the TLS.
