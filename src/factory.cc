@@ -1342,7 +1342,9 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   } else if (!info->bound()) {
     int number_of_literals = info->num_literals();
-    Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
+    Handle<LiteralsArray> literals =
+        LiteralsArray::New(isolate(), handle(info->feedback_vector()),
+                           number_of_literals, pretenure);
     result->set_literals(*literals);
     // Cache context-specific literals.
     if (FLAG_cache_optimized_code) {

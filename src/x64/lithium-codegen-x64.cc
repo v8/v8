@@ -5458,7 +5458,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   // rbx = regexp literal.
   // rax = regexp literal clone.
   int literal_offset =
-      FixedArray::OffsetOfElementAt(instr->hydrogen()->literal_index());
+      LiteralsArray::OffsetOfLiteralAt(instr->hydrogen()->literal_index());
   __ Move(rcx, instr->hydrogen()->literals());
   __ movp(rbx, FieldOperand(rcx, literal_offset));
   __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);

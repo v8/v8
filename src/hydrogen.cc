@@ -5769,7 +5769,7 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
   Handle<JSFunction> closure = function_state()->compilation_info()->closure();
-  Handle<FixedArray> literals(closure->literals());
+  Handle<LiteralsArray> literals(closure->literals());
   HRegExpLiteral* instr = New<HRegExpLiteral>(literals,
                                               expr->pattern(),
                                               expr->flags(),
@@ -5865,8 +5865,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
   // Check whether to use fast or slow deep-copying for boilerplate.
   int max_properties = kMaxFastLiteralProperties;
-  Handle<Object> literals_cell(closure->literals()->get(expr->literal_index()),
-                               isolate());
+  Handle<Object> literals_cell(
+      closure->literals()->literal(expr->literal_index()), isolate());
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
   if (!literals_cell->IsUndefined()) {
@@ -5884,7 +5884,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     site_context.ExitScope(site, boilerplate);
   } else {
     NoObservableSideEffectsScope no_effects(this);
-    Handle<FixedArray> closure_literals(closure->literals(), isolate());
+    Handle<LiteralsArray> closure_literals(closure->literals(), isolate());
     Handle<FixedArray> constant_properties = expr->constant_properties();
     int literal_index = expr->literal_index();
     int flags = expr->ComputeFlags(true);
@@ -5995,9 +5995,10 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   HInstruction* literal;
 
   Handle<AllocationSite> site;
-  Handle<FixedArray> literals(environment()->closure()->literals(), isolate());
+  Handle<LiteralsArray> literals(environment()->closure()->literals(),
+                                 isolate());
   bool uninitialized = false;
-  Handle<Object> literals_cell(literals->get(expr->literal_index()),
+  Handle<Object> literals_cell(literals->literal(expr->literal_index()),
                                isolate());
   Handle<JSObject> boilerplate_object;
   if (literals_cell->IsUndefined()) {
@@ -6017,7 +6018,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       return Bailout(kArrayBoilerplateCreationFailed);
     }
     creation_context.ExitScope(site, boilerplate_object);
-    literals->set(expr->literal_index(), *site);
+    literals->set_literal(expr->literal_index(), *site);
 
     if (boilerplate_object->elements()->map() ==
         isolate()->heap()->fixed_cow_array_map()) {

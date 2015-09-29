@@ -8782,6 +8782,19 @@ Handle<DeoptimizationOutputData> DeoptimizationOutputData::New(
 }
 
 
+// static
+Handle<LiteralsArray> LiteralsArray::New(Isolate* isolate,
+                                         Handle<TypeFeedbackVector> vector,
+                                         int number_of_literals,
+                                         PretenureFlag pretenure) {
+  Handle<FixedArray> literals = isolate->factory()->NewFixedArray(
+      number_of_literals + kFirstLiteralIndex, pretenure);
+  Handle<LiteralsArray> casted_literals = Handle<LiteralsArray>::cast(literals);
+  casted_literals->set_feedback_vector(*vector);
+  return casted_literals;
+}
+
+
 int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out,
                               CatchPrediction* prediction_out) {
   int innermost_handler = -1, innermost_start = -1;
@@ -10191,7 +10204,7 @@ void SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(
 
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
-    Handle<HeapObject> code, Handle<FixedArray> literals,
+    Handle<HeapObject> code, Handle<LiteralsArray> literals,
     BailoutId osr_ast_id) {
   Isolate* isolate = shared->GetIsolate();
   DCHECK(*code == isolate->heap()->undefined_value() ||
@@ -11381,7 +11394,7 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
       DCHECK_LE(entry + kEntryLength, code_map->length());
       Object* code = code_map->get(entry + kCachedCodeOffset);
       result = {code->IsUndefined() ? nullptr : Code::cast(code),
-                FixedArray::cast(code_map->get(entry + kLiteralsOffset))};
+                LiteralsArray::cast(code_map->get(entry + kLiteralsOffset))};
     }
   }
   if (FLAG_trace_opt && !optimized_code_map()->IsSmi() &&

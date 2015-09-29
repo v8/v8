@@ -985,7 +985,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
 RUNTIME_FUNCTION(Runtime_MaterializeRegExpLiteral) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
   CONVERT_SMI_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 3);
@@ -996,7 +996,7 @@ RUNTIME_FUNCTION(Runtime_MaterializeRegExpLiteral) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, regexp,
       RegExpImpl::CreateRegExpLiteral(constructor, pattern, flags));
-  literals->set(index, *regexp);
+  literals->set_literal(index, *regexp);
   return *regexp;
 }
 

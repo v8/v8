@@ -5599,7 +5599,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   // a0 = regexp literal clone.
   // a2 and a4-a6 are used as temporaries.
   int literal_offset =
-      FixedArray::OffsetOfElementAt(instr->hydrogen()->literal_index());
+      LiteralsArray::OffsetOfLiteralAt(instr->hydrogen()->literal_index());
   __ li(a7, instr->hydrogen()->literals());
   __ ld(a1, FieldMemOperand(a7, literal_offset));
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);

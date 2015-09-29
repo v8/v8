@@ -236,10 +236,12 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   // Make sure we get a fresh copy of the literal vector to avoid cross
   // context contamination.
   Handle<Context> context(source->context());
-  int number_of_literals = source->NumberOfLiterals();
-  Handle<FixedArray> literals =
-      isolate->factory()->NewFixedArray(number_of_literals, TENURED);
   target->set_context(*context);
+
+  int number_of_literals = source->NumberOfLiterals();
+  Handle<LiteralsArray> literals =
+      LiteralsArray::New(isolate, handle(target_shared->feedback_vector()),
+                         number_of_literals, TENURED);
   target->set_literals(*literals);
 
   if (isolate->logger()->is_logging_code_events() ||

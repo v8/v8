@@ -1212,7 +1212,7 @@ class Runtime : public AllStatic {
 
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
   MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
-      Isolate* isolate, Handle<FixedArray> literals,
+      Isolate* isolate, Handle<LiteralsArray> literals,
       Handle<FixedArray> elements, bool is_strong);
 
   static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,

@@ -4464,7 +4464,9 @@ TEST(Regress513507) {
     if (!code->is_optimized_code()) return;
   }
 
-  Handle<FixedArray> lit = isolate->factory()->empty_fixed_array();
+  Handle<TypeFeedbackVector> vector = handle(shared->feedback_vector());
+  Handle<LiteralsArray> lit =
+      LiteralsArray::New(isolate, vector, shared->num_literals(), TENURED);
   Handle<Context> context(isolate->context());
 
   // Add the new code several times to the optimized code map and also set an
@@ -4520,7 +4522,9 @@ TEST(Regress514122) {
     if (!code->is_optimized_code()) return;
   }
 
-  Handle<FixedArray> lit = isolate->factory()->empty_fixed_array();
+  Handle<TypeFeedbackVector> vector = handle(shared->feedback_vector());
+  Handle<LiteralsArray> lit =
+      LiteralsArray::New(isolate, vector, shared->num_literals(), TENURED);
   Handle<Context> context(isolate->context());
 
   // Add the code several times to the optimized code map.
@@ -4538,7 +4542,11 @@ TEST(Regress514122) {
     AlwaysAllocateScope always_allocate(isolate);
     // Make sure literal is placed on an old-space evacuation candidate.
     SimulateFullSpace(heap->old_space());
-    Handle<FixedArray> lit = isolate->factory()->NewFixedArray(23, TENURED);
+
+    // Make sure there the number of literals is > 0.
+    Handle<LiteralsArray> lit =
+        LiteralsArray::New(isolate, vector, 23, TENURED);
+
     evac_page = Page::FromAddress(lit->address());
     BailoutId id = BailoutId(100);
     SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);

@@ -730,6 +730,9 @@ bool Object::IsTransitionArray() const {
 bool Object::IsTypeFeedbackVector() const { return IsFixedArray(); }
 
 
+bool Object::IsLiteralsArray() const { return IsFixedArray(); }
+
+
 bool Object::IsDeoptimizationInputData() const {
   // Must be a fixed array.
   if (!IsFixedArray()) return false;
@@ -3451,6 +3454,55 @@ Smi* DeoptimizationOutputData::PcAndState(int index) {
 
 void DeoptimizationOutputData::SetPcAndState(int index, Smi* offset) {
   set(1 + index * 2, offset);
+}
+
+
+Object* LiteralsArray::get(int index) const { return FixedArray::get(index); }
+
+
+void LiteralsArray::set(int index, Object* value) {
+  FixedArray::set(index, value);
+}
+
+
+void LiteralsArray::set(int index, Smi* value) {
+  FixedArray::set(index, value);
+}
+
+
+void LiteralsArray::set(int index, Object* value, WriteBarrierMode mode) {
+  FixedArray::set(index, value, mode);
+}
+
+
+LiteralsArray* LiteralsArray::cast(Object* object) {
+  SLOW_DCHECK(object->IsLiteralsArray());
+  return reinterpret_cast<LiteralsArray*>(object);
+}
+
+
+TypeFeedbackVector* LiteralsArray::feedback_vector() const {
+  return TypeFeedbackVector::cast(get(kVectorIndex));
+}
+
+
+void LiteralsArray::set_feedback_vector(TypeFeedbackVector* vector) {
+  set(kVectorIndex, vector);
+}
+
+
+Object* LiteralsArray::literal(int literal_index) const {
+  return get(kFirstLiteralIndex + literal_index);
+}
+
+
+void LiteralsArray::set_literal(int literal_index, Object* literal) {
+  set(kFirstLiteralIndex + literal_index, literal);
+}
+
+
+int LiteralsArray::literals_count() const {
+  return length() - kFirstLiteralIndex;
 }
 
 
@@ -6258,13 +6310,13 @@ bool JSFunction::has_simple_parameters() {
 }
 
 
-FixedArray* JSFunction::literals() {
+LiteralsArray* JSFunction::literals() {
   DCHECK(!shared()->bound());
-  return literals_or_bindings();
+  return LiteralsArray::cast(literals_or_bindings());
 }
 
 
-void JSFunction::set_literals(FixedArray* literals) {
+void JSFunction::set_literals(LiteralsArray* literals) {
   DCHECK(!shared()->bound());
   set_literals_or_bindings(literals);
 }

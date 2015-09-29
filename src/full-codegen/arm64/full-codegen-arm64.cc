@@ -1487,8 +1487,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // x0 = RegExp literal clone
   __ Ldr(x10, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ Ldr(x4, FieldMemOperand(x10, JSFunction::kLiteralsOffset));
-  int literal_offset =
-      FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
+  int literal_offset = LiteralsArray::OffsetOfLiteralAt(expr->literal_index());
   __ Ldr(x5, FieldMemOperand(x4, literal_offset));
   __ JumpIfNotRoot(x5, Heap::kUndefinedValueRootIndex, &materialized);
 

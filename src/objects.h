@@ -76,6 +76,7 @@
 //       - BytecodeArray
 //       - FixedArray
 //         - DescriptorArray
+//         - LiteralsArray
 //         - HashTable
 //           - Dictionary
 //           - StringTable
@@ -852,6 +853,7 @@ class FunctionLiteral;
 class GlobalObject;
 class JSBuiltinsObject;
 class LayoutDescriptor;
+class LiteralsArray;
 class LookupIterator;
 class ObjectHashTable;
 class ObjectVisitor;
@@ -940,6 +942,7 @@ template <class C> inline bool Is(Object* obj);
   V(Map)                           \
   V(DescriptorArray)               \
   V(TransitionArray)               \
+  V(LiteralsArray)                 \
   V(TypeFeedbackVector)            \
   V(DeoptimizationInputData)       \
   V(DeoptimizationOutputData)      \
@@ -4568,6 +4571,40 @@ class DeoptimizationOutputData: public FixedArray {
 };
 
 
+// A literals array contains the literals for a JSFunction. It also holds
+// the type feedback vector.
+class LiteralsArray : public FixedArray {
+ public:
+  static const int kVectorIndex = 0;
+  static const int kFirstLiteralIndex = 1;
+  static const int kOffsetToFirstLiteral =
+      FixedArray::kHeaderSize + kPointerSize;
+
+  static int OffsetOfLiteralAt(int index) {
+    return SizeFor(index + kFirstLiteralIndex);
+  }
+
+  inline TypeFeedbackVector* feedback_vector() const;
+  inline void set_feedback_vector(TypeFeedbackVector* vector);
+  inline Object* literal(int literal_index) const;
+  inline void set_literal(int literal_index, Object* literal);
+  inline int literals_count() const;
+
+  static Handle<LiteralsArray> New(Isolate* isolate,
+                                   Handle<TypeFeedbackVector> vector,
+                                   int number_of_literals,
+                                   PretenureFlag pretenure);
+
+  DECLARE_CAST(LiteralsArray)
+
+ private:
+  inline Object* get(int index) const;
+  inline void set(int index, Object* value);
+  inline void set(int index, Smi* value);
+  inline void set(int index, Object* value, WriteBarrierMode mode);
+};
+
+
 // HandlerTable is a fixed array containing entries for exception handlers in
 // the code object it is associated with. The tables comes in two flavors:
 // 1) Based on ranges: Used for unoptimized code. Contains one entry per
@@ -6292,7 +6329,7 @@ enum BuiltinFunctionId {
 // that both {code} and {literals} can be NULL to pass search result status.
 struct CodeAndLiterals {
   Code* code;            // Cached optimized code.
-  FixedArray* literals;  // Cached literals array.
+  LiteralsArray* literals;  // Cached literals array.
 };
 
 
@@ -6339,7 +6376,7 @@ class SharedFunctionInfo: public HeapObject {
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,
                                     Handle<HeapObject> code,
-                                    Handle<FixedArray> literals,
+                                    Handle<LiteralsArray> literals,
                                     BailoutId osr_ast_id);
 
   // Set up the link between shared function info and the script. The shared
@@ -7135,8 +7172,8 @@ class JSFunction: public JSObject {
   // arguments. Bound functions never contain literals.
   DECL_ACCESSORS(literals_or_bindings, FixedArray)
 
-  inline FixedArray* literals();
-  inline void set_literals(FixedArray* literals);
+  inline LiteralsArray* literals();
+  inline void set_literals(LiteralsArray* literals);
 
   inline FixedArray* function_bindings();
   inline void set_function_bindings(FixedArray* bindings);
