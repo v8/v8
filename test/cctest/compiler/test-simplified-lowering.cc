@@ -698,6 +698,13 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     CHECK_EQ(expected, node->opcode());
   }
 
+  void CheckLoweringStringBinop(IrOpcode::Value expected, const Operator* op) {
+    Node* node = Return(
+        graph()->NewNode(op, p0, p1, graph()->start(), graph()->start()));
+    Lower();
+    CHECK_EQ(expected, node->opcode());
+  }
+
   void CheckLoweringTruncatedBinop(IrOpcode::Value expected, const Operator* op,
                                    const Operator* trunc) {
     Node* node = graph()->NewNode(op, p0, p1);
@@ -1173,9 +1180,10 @@ TEST(LowerStringOps_to_call_and_compare) {
         static_cast<IrOpcode::Value>(t.machine()->IntLessThan()->opcode());
     IrOpcode::Value compare_le = static_cast<IrOpcode::Value>(
         t.machine()->IntLessThanOrEqual()->opcode());
-    t.CheckLoweringBinop(compare_eq, t.simplified()->StringEqual());
-    t.CheckLoweringBinop(compare_lt, t.simplified()->StringLessThan());
-    t.CheckLoweringBinop(compare_le, t.simplified()->StringLessThanOrEqual());
+    t.CheckLoweringStringBinop(compare_eq, t.simplified()->StringEqual());
+    t.CheckLoweringStringBinop(compare_lt, t.simplified()->StringLessThan());
+    t.CheckLoweringStringBinop(compare_le,
+                               t.simplified()->StringLessThanOrEqual());
   }
 
 

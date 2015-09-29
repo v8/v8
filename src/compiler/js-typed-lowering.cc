@@ -181,6 +181,32 @@ class JSBinopReduction final {
     return lowering_->Changed(node_);
   }
 
+  Reduction ChangeToStringComparisonOperator(const Operator* op,
+                                             bool invert = false) {
+    if (node_->op()->ControlInputCount() > 0) {
+      lowering_->RelaxControls(node_);
+    }
+    // String comparison operators need effect and control inputs, so copy them
+    // over.
+    Node* effect = NodeProperties::GetEffectInput(node_);
+    Node* control = NodeProperties::GetControlInput(node_);
+    node_->ReplaceInput(2, effect);
+    node_->ReplaceInput(3, control);
+
+    node_->TrimInputCount(4);
+    NodeProperties::ChangeOp(node_, op);
+
+    if (invert) {
+      // Insert a boolean-not to invert the value.
+      Node* value = graph()->NewNode(simplified()->BooleanNot(), node_);
+      node_->ReplaceUses(value);
+      // Note: ReplaceUses() smashes all uses, so smash it back here.
+      value->ReplaceInput(0, node_);
+      return lowering_->Replace(value);
+    }
+    return lowering_->Changed(node_);
+  }
+
   Reduction ChangeToPureOperator(const Operator* op, Type* type) {
     return ChangeToPureOperator(op, false, type);
   }
@@ -503,7 +529,8 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
       default:
         return NoChange();
     }
-    return r.ChangeToPureOperator(stringOp);
+    r.ChangeToStringComparisonOperator(stringOp);
+    return Changed(node);
   }
   if (r.OneInputCannotBe(Type::StringOrReceiver())) {
     const Operator* less_than;
@@ -557,7 +584,8 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
   }
   if (r.BothInputsAre(Type::String())) {
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
+    return r.ChangeToStringComparisonOperator(simplified()->StringEqual(),
+                                              invert);
   }
   if (r.BothInputsAre(Type::Receiver())) {
     return r.ChangeToPureOperator(
@@ -614,7 +642,8 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
                                   invert);
   }
   if (r.BothInputsAre(Type::String())) {
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
+    return r.ChangeToStringComparisonOperator(simplified()->StringEqual(),
+                                              invert);
   }
   if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);

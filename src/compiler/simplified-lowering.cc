@@ -1363,7 +1363,9 @@ Node* SimplifiedLowering::StringComparison(Node* node) {
   return graph()->NewNode(
       common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
       NodeProperties::GetValueInput(node, 0),
-      NodeProperties::GetValueInput(node, 1), jsgraph()->NoContextConstant());
+      NodeProperties::GetValueInput(node, 1), jsgraph()->NoContextConstant(),
+      NodeProperties::GetEffectInput(node),
+      NodeProperties::GetControlInput(node));
 }
 
 
@@ -1627,23 +1629,49 @@ void SimplifiedLowering::DoShift(Node* node, Operator const* op) {
 }
 
 
+namespace {
+
+void ReplaceEffectUses(Node* node, Node* replacement) {
+  // Requires distinguishing between value and effect edges.
+  DCHECK(replacement->op()->EffectOutputCount() > 0);
+  for (Edge edge : node->use_edges()) {
+    if (NodeProperties::IsEffectEdge(edge)) {
+      edge.UpdateTo(replacement);
+    } else {
+      DCHECK(NodeProperties::IsValueEdge(edge));
+    }
+  }
+}
+
+}  // namespace
+
+
 void SimplifiedLowering::DoStringEqual(Node* node) {
-  node->ReplaceInput(0, StringComparison(node));
+  Node* comparison = StringComparison(node);
+  ReplaceEffectUses(node, comparison);
+  node->ReplaceInput(0, comparison);
   node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
+  node->TrimInputCount(2);
   NodeProperties::ChangeOp(node, machine()->WordEqual());
 }
 
 
 void SimplifiedLowering::DoStringLessThan(Node* node) {
-  node->ReplaceInput(0, StringComparison(node));
+  Node* comparison = StringComparison(node);
+  ReplaceEffectUses(node, comparison);
+  node->ReplaceInput(0, comparison);
   node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
+  node->TrimInputCount(2);
   NodeProperties::ChangeOp(node, machine()->IntLessThan());
 }
 
 
 void SimplifiedLowering::DoStringLessThanOrEqual(Node* node) {
-  node->ReplaceInput(0, StringComparison(node));
+  Node* comparison = StringComparison(node);
+  ReplaceEffectUses(node, comparison);
+  node->ReplaceInput(0, comparison);
   node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
+  node->TrimInputCount(2);
   NodeProperties::ChangeOp(node, machine()->IntLessThanOrEqual());
 }
 
