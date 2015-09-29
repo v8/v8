@@ -576,7 +576,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
     // x === x is always true if x != NaN
     if (!r.left_type()->Maybe(Type::NaN())) {
       Node* replacement = jsgraph()->BooleanConstant(!invert);
-      Replace(node, replacement);
+      ReplaceWithValue(node, replacement);
       return Replace(replacement);
     }
   }
@@ -585,7 +585,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
     // empty type intersection means the values cannot be strictly equal.
     if (!r.left_type()->Maybe(r.right_type())) {
       Node* replacement = jsgraph()->BooleanConstant(invert);
-      Replace(node, replacement);
+      ReplaceWithValue(node, replacement);
       return Replace(replacement);
     }
   }
@@ -629,12 +629,15 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
   Type* const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::Boolean())) {
     // JSUnaryNot(x:boolean) => BooleanNot(x)
+    RelaxEffectsAndControls(node);
     node->TrimInputCount(1);
     NodeProperties::ChangeOp(node, simplified()->BooleanNot());
     return Changed(node);
   } else if (input_type->Is(Type::OrderedNumber())) {
     // JSUnaryNot(x:number) => NumberEqual(x,#0)
+    RelaxEffectsAndControls(node);
     node->ReplaceInput(1, jsgraph()->ZeroConstant());
+    node->TrimInputCount(2);
     NodeProperties::ChangeOp(node, simplified()->NumberEqual());
     return Changed(node);
   } else if (input_type->Is(Type::String())) {
@@ -647,6 +650,7 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
     ReplaceWithValue(node, node, length);
     node->ReplaceInput(0, length);
     node->ReplaceInput(1, jsgraph()->ZeroConstant());
+    node->TrimInputCount(2);
     NodeProperties::ChangeOp(node, simplified()->NumberEqual());
     return Changed(node);
   }
@@ -659,9 +663,11 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
   Type* const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::Boolean())) {
     // JSToBoolean(x:boolean) => x
+    ReplaceWithValue(node, input);
     return Replace(input);
   } else if (input_type->Is(Type::OrderedNumber())) {
     // JSToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x,#0))
+    RelaxEffectsAndControls(node);
     node->ReplaceInput(0, graph()->NewNode(simplified()->NumberEqual(), input,
                                            jsgraph()->ZeroConstant()));
     node->TrimInputCount(1);
@@ -674,8 +680,10 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     // chain) because we assume String::length to be immutable.
     Node* length = graph()->NewNode(simplified()->LoadField(access), input,
                                     graph()->start(), graph()->start());
+    ReplaceWithValue(node, node, length);
     node->ReplaceInput(0, jsgraph()->ZeroConstant());
     node->ReplaceInput(1, length);
+    node->TrimInputCount(2);
     NodeProperties::ChangeOp(node, simplified()->NumberLessThan());
     return Changed(node);
   }

@@ -835,19 +835,17 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
     Node* p1 = j == 1 ? l : r;
 
     {
-      Node* eq = strict
-                     ? R->graph.NewNode(R->javascript.StrictEqual(), p0, p1,
-                                        R->context())
-                     : R->Binop(R->javascript.Equal(), p0, p1);
+      const Operator* op =
+          strict ? R->javascript.StrictEqual() : R->javascript.Equal();
+      Node* eq = R->Binop(op, p0, p1);
       Node* r = R->reduce(eq);
       R->CheckPureBinop(expected, r);
     }
 
     {
-      Node* ne = strict
-                     ? R->graph.NewNode(R->javascript.StrictNotEqual(), p0, p1,
-                                        R->context())
-                     : R->Binop(R->javascript.NotEqual(), p0, p1);
+      const Operator* op =
+          strict ? R->javascript.StrictNotEqual() : R->javascript.NotEqual();
+      Node* ne = R->Binop(op, p0, p1);
       Node* n = R->reduce(ne);
       CHECK_EQ(IrOpcode::kBooleanNot, n->opcode());
       Node* r = n->InputAt(0);

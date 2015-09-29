@@ -149,17 +149,19 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
   inputs.push_back(NodeProperties::GetValueInput(node, 0));
   inputs.push_back(NodeProperties::GetValueInput(node, 1));
   inputs.push_back(NodeProperties::GetContextInput(node));
-  if (node->op()->HasProperty(Operator::kPure)) {
-    // A pure (strict) comparison doesn't have an effect, control or frame
-    // state.  But for the graph, we need to add control and effect inputs.
-    DCHECK(OperatorProperties::GetFrameStateInputCount(node->op()) == 0);
-    inputs.push_back(graph()->start());
-    inputs.push_back(graph()->start());
-  } else {
+  // Some comparisons (StrictEqual) don't have an effect, control or frame
+  // state inputs, so handle those cases here.
+  if (OperatorProperties::GetFrameStateInputCount(node->op()) > 0) {
     inputs.push_back(NodeProperties::GetFrameStateInput(node, 0));
-    inputs.push_back(NodeProperties::GetEffectInput(node));
-    inputs.push_back(NodeProperties::GetControlInput(node));
   }
+  Node* effect = (node->op()->EffectInputCount() > 0)
+                     ? NodeProperties::GetEffectInput(node)
+                     : graph()->start();
+  inputs.push_back(effect);
+  Node* control = (node->op()->ControlInputCount() > 0)
+                      ? NodeProperties::GetControlInput(node)
+                      : graph()->start();
+  inputs.push_back(control);
   CallDescriptor* desc_compare = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 0,
       CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node),

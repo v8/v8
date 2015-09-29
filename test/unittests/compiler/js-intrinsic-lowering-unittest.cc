@@ -310,7 +310,7 @@ TEST_F(JSIntrinsicLoweringTest, Likely) {
       graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineLikely, 1),
                        input, context, effect, control);
   Node* const to_boolean =
-      graph()->NewNode(javascript()->ToBoolean(), likely, context);
+      graph()->NewNode(javascript()->ToBoolean(), likely, context, effect);
   Diamond d(graph(), common(), to_boolean);
   graph()->SetEnd(graph()->NewNode(common()->End(1), d.merge));
 
@@ -405,7 +405,7 @@ TEST_F(JSIntrinsicLoweringTest, Unlikely) {
       graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineUnlikely, 1),
                        input, context, effect, control);
   Node* const to_boolean =
-      graph()->NewNode(javascript()->ToBoolean(), unlikely, context);
+      graph()->NewNode(javascript()->ToBoolean(), unlikely, context, effect);
   Diamond d(graph(), common(), to_boolean);
   graph()->SetEnd(graph()->NewNode(common()->End(1), d.merge));
 
