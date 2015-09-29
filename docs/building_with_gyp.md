@@ -1,4 +1,4 @@
-<font color='darkred'><b>Build issues? File a bug at code.google.com/p/v8/issues or ask for help on v8-users@googlegroups.com.</b></font>
+**Build issues? File a bug at code.google.com/p/v8/issues or ask for help on v8-users@googlegroups.com.**
 
 # Building V8
 
@@ -211,7 +211,7 @@ build/gyp_v8
 
 #### Custom build settings
 
-See the "custom build settings" section for [Xcode](#Xcode.md) above.
+See the "custom build settings" section for [Xcode](#Xcode) above.
 
 
 #### Running tests
