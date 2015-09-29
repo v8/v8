@@ -2550,11 +2550,6 @@ class NewSpace : public Space {
     return allocation_info_.top();
   }
 
-  void set_top(Address top) {
-    DCHECK(to_space_.current_page()->ContainsLimit(top));
-    allocation_info_.set_top(top);
-  }
-
   // Return the address of the allocation pointer limit in the active semispace.
   Address limit() {
     DCHECK(to_space_.current_page()->ContainsLimit(allocation_info_.limit()));
