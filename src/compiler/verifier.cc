@@ -51,11 +51,6 @@ class Verifier::Visitor {
   Typing typing;
 
  private:
-  // TODO(rossberg): Get rid of these once we got rid of NodeProperties.
-  Type* type_of(Node* node) { return NodeProperties::GetType(node); }
-  Node* ValueInput(Node* node, int i = 0) {
-    return NodeProperties::GetValueInput(node, i);
-  }
   void CheckNotTyped(Node* node) {
     if (NodeProperties::IsTyped(node)) {
       std::ostringstream str;
@@ -65,35 +60,35 @@ class Verifier::Visitor {
     }
   }
   void CheckUpperIs(Node* node, Type* type) {
-    if (typing == TYPED && !type_of(node)->Is(type)) {
+    if (typing == TYPED && !NodeProperties::GetType(node)->Is(type)) {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
           << " type ";
-      type_of(node)->PrintTo(str);
+      NodeProperties::GetType(node)->PrintTo(str);
       str << " is not ";
       type->PrintTo(str);
       FATAL(str.str().c_str());
     }
   }
   void CheckUpperMaybe(Node* node, Type* type) {
-    if (typing == TYPED && !type_of(node)->Maybe(type)) {
+    if (typing == TYPED && !NodeProperties::GetType(node)->Maybe(type)) {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
           << " type ";
-      type_of(node)->PrintTo(str);
+      NodeProperties::GetType(node)->PrintTo(str);
       str << " must intersect ";
       type->PrintTo(str);
       FATAL(str.str().c_str());
     }
   }
   void CheckValueInputIs(Node* node, int i, Type* type) {
-    Node* input = ValueInput(node, i);
-    if (typing == TYPED && !type_of(input)->Is(type)) {
+    Node* input = NodeProperties::GetValueInput(node, i);
+    if (typing == TYPED && !NodeProperties::GetType(input)->Is(type)) {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
           << "(input @" << i << " = " << input->opcode() << ":"
           << input->op()->mnemonic() << ") type ";
-      type_of(input)->PrintTo(str);
+      NodeProperties::GetType(input)->PrintTo(str);
       str << " is not ";
       type->PrintTo(str);
       FATAL(str.str().c_str());
@@ -425,7 +420,8 @@ void Verifier::Visitor::Check(Node* node) {
       // TODO(rossberg): what are the constraints on these?
       // Type must be subsumed by input type.
       if (typing == TYPED) {
-        CHECK(type_of(ValueInput(node))->Is(type_of(node)));
+        Node* val = NodeProperties::GetValueInput(node, 0);
+        CHECK(NodeProperties::GetType(val)->Is(NodeProperties::GetType(node)));
       }
       break;
     }
@@ -565,7 +561,7 @@ void Verifier::Visitor::Check(Node* node) {
       // TODO(rossberg): This should really be Is(Internal), but the typer
       // currently can't do backwards propagation.
       CheckUpperMaybe(context, Type::Internal());
-      if (typing == TYPED) CHECK(type_of(node)->IsContext());
+      if (typing == TYPED) CHECK(NodeProperties::GetType(node)->IsContext());
       break;
     }
 
