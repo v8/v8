@@ -35,6 +35,16 @@ enum ArchVariants {
 #endif
 
 
+  enum Endianness { kLittle, kBig };
+
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  static const Endianness kArchEndian = kLittle;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  static const Endianness kArchEndian = kBig;
+#else
+#error Unknown endianness
+#endif
+
 // TODO(plind): consider deriving ABI from compiler flags or build system.
 
 // ABI-dependent definitions are made with #define in simulator-mips64.h,

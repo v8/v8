@@ -1052,18 +1052,26 @@ void Simulator::set_fpu_register(int fpureg, int64_t value) {
 
 void Simulator::set_fpu_register_word(int fpureg, int32_t value) {
   // Set ONLY lower 32-bits, leaving upper bits untouched.
-  // TODO(plind): big endian issue.
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  int32_t *pword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg]);
+  int32_t* pword;
+  if (kArchEndian == kLittle) {
+    pword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg]);
+  } else {
+    pword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg]) + 1;
+  }
   *pword = value;
 }
 
 
 void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
   // Set ONLY upper 32-bits, leaving lower bits untouched.
-  // TODO(plind): big endian issue.
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  int32_t *phiword = (reinterpret_cast<int32_t*>(&FPUregisters_[fpureg])) + 1;
+  int32_t* phiword;
+  if (kArchEndian == kLittle) {
+    phiword = (reinterpret_cast<int32_t*>(&FPUregisters_[fpureg])) + 1;
+  } else {
+    phiword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg]);
+  }
   *phiword = value;
 }
 

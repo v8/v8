@@ -590,11 +590,19 @@ TEST(MIPS6) {
   USE(dummy);
 
   CHECK_EQ(static_cast<int32_t>(0x11223344), t.r1);
-  CHECK_EQ(static_cast<int32_t>(0x3344), t.r2);
-  CHECK_EQ(static_cast<int32_t>(0xffffbbcc), t.r3);
-  CHECK_EQ(static_cast<int32_t>(0x0000bbcc), t.r4);
-  CHECK_EQ(static_cast<int32_t>(0xffffffcc), t.r5);
-  CHECK_EQ(static_cast<int32_t>(0x3333bbcc), t.r6);
+  if (kArchEndian == kLittle)  {
+    CHECK_EQ(static_cast<int32_t>(0x3344), t.r2);
+    CHECK_EQ(static_cast<int32_t>(0xffffbbcc), t.r3);
+    CHECK_EQ(static_cast<int32_t>(0x0000bbcc), t.r4);
+    CHECK_EQ(static_cast<int32_t>(0xffffffcc), t.r5);
+    CHECK_EQ(static_cast<int32_t>(0x3333bbcc), t.r6);
+  } else {
+    CHECK_EQ(static_cast<int32_t>(0x1122), t.r2);
+    CHECK_EQ(static_cast<int32_t>(0xffff99aa), t.r3);
+    CHECK_EQ(static_cast<int32_t>(0x000099aa), t.r4);
+    CHECK_EQ(static_cast<int32_t>(0xffffff99), t.r5);
+    CHECK_EQ(static_cast<int32_t>(0x99aa3333), t.r6);
+  }
 }
 
 
@@ -1026,25 +1034,47 @@ TEST(MIPS11) {
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
 
-    CHECK_EQ(static_cast<int32_t>(0x44bbccdd), t.lwl_0);
-    CHECK_EQ(static_cast<int32_t>(0x3344ccdd), t.lwl_1);
-    CHECK_EQ(static_cast<int32_t>(0x223344dd), t.lwl_2);
-    CHECK_EQ(static_cast<int32_t>(0x11223344), t.lwl_3);
+    if (kArchEndian == kLittle) {
+      CHECK_EQ(static_cast<int32_t>(0x44bbccdd), t.lwl_0);
+      CHECK_EQ(static_cast<int32_t>(0x3344ccdd), t.lwl_1);
+      CHECK_EQ(static_cast<int32_t>(0x223344dd), t.lwl_2);
+      CHECK_EQ(static_cast<int32_t>(0x11223344), t.lwl_3);
 
-    CHECK_EQ(static_cast<int32_t>(0x11223344), t.lwr_0);
-    CHECK_EQ(static_cast<int32_t>(0xaa112233), t.lwr_1);
-    CHECK_EQ(static_cast<int32_t>(0xaabb1122), t.lwr_2);
-    CHECK_EQ(static_cast<int32_t>(0xaabbcc11), t.lwr_3);
+      CHECK_EQ(static_cast<int32_t>(0x11223344), t.lwr_0);
+      CHECK_EQ(static_cast<int32_t>(0xaa112233), t.lwr_1);
+      CHECK_EQ(static_cast<int32_t>(0xaabb1122), t.lwr_2);
+      CHECK_EQ(static_cast<int32_t>(0xaabbcc11), t.lwr_3);
 
-    CHECK_EQ(static_cast<int32_t>(0x112233aa), t.swl_0);
-    CHECK_EQ(static_cast<int32_t>(0x1122aabb), t.swl_1);
-    CHECK_EQ(static_cast<int32_t>(0x11aabbcc), t.swl_2);
-    CHECK_EQ(static_cast<int32_t>(0xaabbccdd), t.swl_3);
+      CHECK_EQ(static_cast<int32_t>(0x112233aa), t.swl_0);
+      CHECK_EQ(static_cast<int32_t>(0x1122aabb), t.swl_1);
+      CHECK_EQ(static_cast<int32_t>(0x11aabbcc), t.swl_2);
+      CHECK_EQ(static_cast<int32_t>(0xaabbccdd), t.swl_3);
 
-    CHECK_EQ(static_cast<int32_t>(0xaabbccdd), t.swr_0);
-    CHECK_EQ(static_cast<int32_t>(0xbbccdd44), t.swr_1);
-    CHECK_EQ(static_cast<int32_t>(0xccdd3344), t.swr_2);
-    CHECK_EQ(static_cast<int32_t>(0xdd223344), t.swr_3);
+      CHECK_EQ(static_cast<int32_t>(0xaabbccdd), t.swr_0);
+      CHECK_EQ(static_cast<int32_t>(0xbbccdd44), t.swr_1);
+      CHECK_EQ(static_cast<int32_t>(0xccdd3344), t.swr_2);
+      CHECK_EQ(static_cast<int32_t>(0xdd223344), t.swr_3);
+    } else {
+      CHECK_EQ(static_cast<int32_t>(0x11223344), t.lwl_0);
+      CHECK_EQ(static_cast<int32_t>(0x223344dd), t.lwl_1);
+      CHECK_EQ(static_cast<int32_t>(0x3344ccdd), t.lwl_2);
+      CHECK_EQ(static_cast<int32_t>(0x44bbccdd), t.lwl_3);
+
+      CHECK_EQ(static_cast<int32_t>(0xaabbcc11), t.lwr_0);
+      CHECK_EQ(static_cast<int32_t>(0xaabb1122), t.lwr_1);
+      CHECK_EQ(static_cast<int32_t>(0xaa112233), t.lwr_2);
+      CHECK_EQ(static_cast<int32_t>(0x11223344), t.lwr_3);
+
+      CHECK_EQ(static_cast<int32_t>(0xaabbccdd), t.swl_0);
+      CHECK_EQ(static_cast<int32_t>(0x11aabbcc), t.swl_1);
+      CHECK_EQ(static_cast<int32_t>(0x1122aabb), t.swl_2);
+      CHECK_EQ(static_cast<int32_t>(0x112233aa), t.swl_3);
+
+      CHECK_EQ(static_cast<int32_t>(0xdd223344), t.swr_0);
+      CHECK_EQ(static_cast<int32_t>(0xccdd3344), t.swr_1);
+      CHECK_EQ(static_cast<int32_t>(0xbbccdd44), t.swr_2);
+      CHECK_EQ(static_cast<int32_t>(0xaabbccdd), t.swr_3);
+    }
   }
 }
 

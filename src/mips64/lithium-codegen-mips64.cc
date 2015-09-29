@@ -2981,7 +2981,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     // Read int value directly from upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
-    offset += kPointerSize / 2;
+    offset = SmiWordOffset(offset);
     representation = Representation::Integer32();
   }
   __ Load(result, FieldMemOperand(object, offset), representation);
@@ -3255,7 +3255,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // Read int value directly from upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
-    offset += kPointerSize / 2;
+    offset = SmiWordOffset(offset);
   }
 
   __ Load(result, MemOperand(store_base, offset), representation);
@@ -4202,7 +4202,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ AssertSmi(scratch2);
     }
     // Store int value directly to upper half of the smi.
-    offset += kPointerSize / 2;
+    offset = SmiWordOffset(offset);
     representation = Representation::Integer32();
   }
   MemOperand operand = FieldMemOperand(destination, offset);
@@ -4468,7 +4468,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // Store int value directly to upper half of the smi.
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
-    offset += kPointerSize / 2;
+    offset = SmiWordOffset(offset);
     representation = Representation::Integer32();
   }
 

@@ -79,6 +79,16 @@ struct Register {
   static const int kSizeInBytes = 8;
   static const int kCpRegister = 23;  // cp (s7) is the 23rd register.
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  static const int kMantissaOffset = 0;
+  static const int kExponentOffset = 4;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  static const int kMantissaOffset = 4;
+  static const int kExponentOffset = 0;
+#else
+#error Unknown endianness
+#endif
+
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {

@@ -361,7 +361,7 @@ void NamedStoreHandlerCompiler::GenerateRestoreMap(Handle<Map> transition,
   DCHECK(!map_reg.is(scratch));
   __ LoadWeakValue(map_reg, cell, miss);
   if (transition->CanBeDeprecated()) {
-    __ ld(scratch, FieldMemOperand(map_reg, Map::kBitField3Offset));
+    __ lwu(scratch, FieldMemOperand(map_reg, Map::kBitField3Offset));
     __ And(at, scratch, Operand(Map::Deprecated::kMask));
     __ Branch(miss, ne, at, Operand(zero_reg));
   }

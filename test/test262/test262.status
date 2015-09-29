@@ -746,7 +746,7 @@
 }],  # no_i18n == True and mode == debug
 
 
-['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64el', {
+['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64 or arch == mips64el', {
 
   # TODO(mstarzinger): Causes stack overflow on simulators due to eager
   # compilation of parenthesized function literals. Needs investigation.

@@ -493,9 +493,10 @@ class Simulator {
 
 #ifdef MIPS_ABI_N64
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  static_cast<int>(                                                           \
-      Simulator::current(Isolate::Current())                                  \
-          ->Call(entry, 10, p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
+  static_cast<int>(Simulator::current(Isolate::Current())                     \
+                       ->Call(entry, 10, p0, p1, p2, p3, p4,                  \
+                              reinterpret_cast<int64_t*>(p5), p6, p7, NULL,   \
+                              p8))
 #else  // Must be O32 Abi.
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
   static_cast<int>(                                                           \

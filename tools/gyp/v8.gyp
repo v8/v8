@@ -1255,7 +1255,7 @@
             '../../src/regexp/mips/regexp-macro-assembler-mips.h',
           ],
         }],
-        ['v8_target_arch=="mips64el"', {
+        ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
           'sources': [  ### gcmole(arch:mips64el) ###
             '../../src/mips64/assembler-mips64.cc',
             '../../src/mips64/assembler-mips64.h',
