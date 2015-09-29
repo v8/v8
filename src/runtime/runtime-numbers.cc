@@ -171,15 +171,6 @@ RUNTIME_FUNCTION(Runtime_NumberToStringSkipCache) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberToInteger) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
-  return *isolate->factory()->NewNumber(DoubleToInteger(number));
-}
-
-
 RUNTIME_FUNCTION(Runtime_NumberToIntegerMapMinusZero) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

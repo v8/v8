@@ -3476,6 +3476,23 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  // Load the argument into x0 and convert it.
+  VisitForAccumulatorValue(args->at(0));
+
+  // Convert the object to an integer.
+  Label done_convert;
+  __ JumpIfSmi(x0, &done_convert);
+  __ Push(x0);
+  __ CallRuntime(Runtime::kToInteger, 1);
+  __ bind(&done_convert);
+  context()->Plug(x0);
+}
+
+
 void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(args->length(), 1);

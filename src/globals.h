@@ -774,6 +774,10 @@ const uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;
 
 
+// ES6 section 20.1.2.6 Number.MAX_SAFE_INTEGER
+const double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
+
+
 // The order of this enum has to be kept in sync with the predicates below.
 enum VariableMode {
   // User declared variables:

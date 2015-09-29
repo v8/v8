@@ -413,7 +413,6 @@ namespace internal {
   F(StringParseFloat, 1, 1)            \
   F(NumberToString, 1, 1)              \
   F(NumberToStringSkipCache, 1, 1)     \
-  F(NumberToInteger, 1, 1)             \
   F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToSmi, 1, 1)                 \
   F(NumberImul, 2, 1)                  \
@@ -485,6 +484,8 @@ namespace internal {
   F(ToPrimitive_Number, 1, 1)                        \
   F(ToPrimitive_String, 1, 1)                        \
   F(ToNumber, 1, 1)                                  \
+  F(ToInteger, 1, 1)                                 \
+  F(ToLength, 1, 1)                                  \
   F(ToString, 1, 1)                                  \
   F(ToName, 1, 1)                                    \
   F(Equals, 2, 1)                                    \

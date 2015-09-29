@@ -83,7 +83,6 @@ enum BindingFlags {
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)               \
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                 \
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                   \
-  V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                       \
   V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)
 
 
@@ -159,7 +158,6 @@ enum BindingFlags {
   V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction,                        \
     to_complete_property_descriptor)                                          \
   V(TO_DETAIL_STRING_FUN_INDEX, JSFunction, to_detail_string_fun)             \
-  V(TO_INTEGER_FUN_INDEX, JSFunction, to_integer_fun)                         \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)               \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                 \
   NATIVE_CONTEXT_JS_BUILTINS(V)

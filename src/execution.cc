@@ -438,18 +438,6 @@ MaybeHandle<Object> Execution::ToDetailString(
 }
 
 
-MaybeHandle<Object> Execution::ToInteger(
-    Isolate* isolate, Handle<Object> obj) {
-  RETURN_NATIVE_CALL(to_integer, { obj });
-}
-
-
-MaybeHandle<Object> Execution::ToLength(
-    Isolate* isolate, Handle<Object> obj) {
-  RETURN_NATIVE_CALL(to_length, { obj });
-}
-
-
 MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
   Handle<Object> time_obj = isolate->factory()->NewNumber(time);
   RETURN_NATIVE_CALL(create_date, { time_obj });
@@ -459,12 +447,6 @@ MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
 #undef RETURN_NATIVE_CALL
 
 
-MaybeHandle<Object> Execution::ToInt32(Isolate* isolate, Handle<Object> obj) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToNumber(obj), Object);
-  return isolate->factory()->NewNumberFromInt(DoubleToInt32(obj->Number()));
-}
-
-
 MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {
   Handle<JSReceiver> receiver;
   if (JSReceiver::ToObject(isolate, obj).ToHandle(&receiver)) {
@@ -472,12 +454,6 @@ MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {
   }
   THROW_NEW_ERROR(
       isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject), Object);
-}
-
-
-MaybeHandle<Object> Execution::ToUint32(Isolate* isolate, Handle<Object> obj) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToNumber(obj), Object);
-  return isolate->factory()->NewNumberFromUint(DoubleToUint32(obj->Number()));
 }
 
 

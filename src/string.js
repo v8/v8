@@ -155,8 +155,7 @@ function StringMatchJS(regexp) {
   if (IS_REGEXP(regexp)) {
     // Emulate RegExp.prototype.exec's side effect in step 5, even though
     // value is discarded.
-    var lastIndex = regexp.lastIndex;
-    TO_INTEGER_FOR_SIDE_EFFECT(lastIndex);
+    var lastIndex = TO_INTEGER(regexp.lastIndex);
     if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
     var result = %StringMatch(subject, regexp, RegExpLastMatchInfo);
     if (result !== null) $regexpLastMatchInfoOverride = null;
@@ -227,8 +226,7 @@ function StringReplace(search, replace) {
   if (IS_REGEXP(search)) {
     // Emulate RegExp.prototype.exec's side effect in step 5, even if
     // value is discarded.
-    var lastIndex = search.lastIndex;
-    TO_INTEGER_FOR_SIDE_EFFECT(lastIndex);
+    var lastIndex = TO_INTEGER(search.lastIndex);
 
     if (!IS_CALLABLE(replace)) {
       replace = TO_STRING(replace);
@@ -936,7 +934,7 @@ function StringRepeat(count) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.repeat");
 
   var s = TO_STRING(this);
-  var n = $toInteger(count);
+  var n = TO_INTEGER(count);
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
   if (n < 0 || n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
@@ -966,7 +964,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   if (%_ArgumentsLength() > 1) {
     var arg = %_Arguments(1);  // position
     if (!IS_UNDEFINED(arg)) {
-      pos = $toInteger(arg);
+      pos = TO_INTEGER(arg);
     }
   }
 
@@ -1005,7 +1003,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
   if (%_ArgumentsLength() > 1) {
     var arg = %_Arguments(1);  // position
     if (!IS_UNDEFINED(arg)) {
-      pos = $toInteger(arg);
+      pos = TO_INTEGER(arg);
     }
   }
 
@@ -1115,7 +1113,7 @@ function StringRaw(callSite) {
   var numberOfSubstitutions = %_ArgumentsLength();
   var cooked = TO_OBJECT(callSite);
   var raw = TO_OBJECT(cooked.raw);
-  var literalSegments = $toLength(raw.length);
+  var literalSegments = TO_LENGTH(raw.length);
   if (literalSegments <= 0) return "";
 
   var result = TO_STRING(raw[0]);

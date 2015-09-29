@@ -12217,6 +12217,33 @@ void HOptimizedGraphBuilder::GenerateIsRegExp(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateToInteger(CallRuntime* call) {
+  DCHECK_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* input = Pop();
+  if (input->type().IsSmi()) {
+    return ast_context()->ReturnValue(input);
+  } else {
+    IfBuilder if_inputissmi(this);
+    if_inputissmi.If<HIsSmiAndBranch>(input);
+    if_inputissmi.Then();
+    {
+      // Return the input value.
+      Push(input);
+      Add<HSimulate>(call->id(), FIXED_SIMULATE);
+    }
+    if_inputissmi.Else();
+    {
+      Add<HPushArguments>(input);
+      Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kToInteger), 1));
+      Add<HSimulate>(call->id(), FIXED_SIMULATE);
+    }
+    if_inputissmi.End();
+    return ast_context()->ReturnValue(Pop());
+  }
+}
+
+
 void HOptimizedGraphBuilder::GenerateToObject(CallRuntime* call) {
   DCHECK_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

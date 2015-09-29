@@ -334,7 +334,7 @@ function TypedArraySet(obj, offset) {
         }
         return;
       }
-      l = $toLength(l);
+      l = TO_LENGTH(l);
       if (intOffset + l > this.length) {
         throw MakeRangeError(kTypedArraySetSourceTooLarge);
       }

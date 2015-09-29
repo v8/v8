@@ -85,7 +85,7 @@ function ArrayCopyWithin(target, start, end) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
 
   var array = TO_OBJECT(this);
-  var length = $toLength(array.length);
+  var length = TO_LENGTH(array.length);
 
   return InnerArrayCopyWithin(target, start, end, array, length);
 }
@@ -110,7 +110,7 @@ function ArrayFind(predicate, thisArg) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.find");
 
   var array = TO_OBJECT(this);
-  var length = $toInteger(array.length);
+  var length = TO_INTEGER(array.length);
 
   return InnerArrayFind(predicate, thisArg, array, length);
 }
@@ -135,7 +135,7 @@ function ArrayFindIndex(predicate, thisArg) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.findIndex");
 
   var array = TO_OBJECT(this);
-  var length = $toInteger(array.length);
+  var length = TO_INTEGER(array.length);
 
   return InnerArrayFindIndex(predicate, thisArg, array, length);
 }
@@ -233,7 +233,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       k++;
     }
   } else {
-    var len = $toLength(items.length);
+    var len = TO_LENGTH(items.length);
     result = %IsConstructor(this) ? new this(len) : new GlobalArray(len);
 
     for (k = 0; k < len; ++k) {

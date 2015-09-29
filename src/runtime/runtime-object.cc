@@ -1446,6 +1446,28 @@ RUNTIME_FUNCTION(Runtime_ToNumber) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ToInteger) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     Object::ToInteger(isolate, input));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ToLength) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     Object::ToLength(isolate, input));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_ToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

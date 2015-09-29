@@ -224,7 +224,7 @@ void Accessors::ArrayLengthSetter(
   uint32_t length = 0;
   if (!FastAsArrayLength(isolate, length_obj, &length)) {
     Handle<Object> uint32_v;
-    if (!Execution::ToUint32(isolate, length_obj).ToHandle(&uint32_v)) {
+    if (!Object::ToUint32(isolate, length_obj).ToHandle(&uint32_v)) {
       isolate->OptionalRescheduleException(false);
       return;
     }

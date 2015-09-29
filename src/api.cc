@@ -2937,7 +2937,7 @@ MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   PREPARE_FOR_EXECUTION(context, "ToInteger", Integer);
   Local<Integer> result;
   has_pending_exception =
-      !ToLocal<Integer>(i::Execution::ToInteger(isolate, obj), &result);
+      !ToLocal<Integer>(i::Object::ToInteger(isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Integer);
   RETURN_ESCAPED(result);
 }
@@ -2954,7 +2954,7 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   Local<Int32> result;
   PREPARE_FOR_EXECUTION(context, "ToInt32", Int32);
   has_pending_exception =
-      !ToLocal<Int32>(i::Execution::ToInt32(isolate, obj), &result);
+      !ToLocal<Int32>(i::Object::ToInt32(isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Int32);
   RETURN_ESCAPED(result);
 }
@@ -2969,9 +2969,9 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return ToApiHandle<Uint32>(obj);
   Local<Uint32> result;
-  PREPARE_FOR_EXECUTION(context, "ToUInt32", Uint32);
+  PREPARE_FOR_EXECUTION(context, "ToUint32", Uint32);
   has_pending_exception =
-      !ToLocal<Uint32>(i::Execution::ToUint32(isolate, obj), &result);
+      !ToLocal<Uint32>(i::Object::ToUint32(isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Uint32);
   RETURN_ESCAPED(result);
 }
@@ -3265,8 +3265,7 @@ Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
     num = obj;
   } else {
     PREPARE_FOR_EXECUTION_PRIMITIVE(context, "IntegerValue", int64_t);
-    has_pending_exception =
-        !i::Execution::ToInteger(isolate, obj).ToHandle(&num);
+    has_pending_exception = !i::Object::ToInteger(isolate, obj).ToHandle(&num);
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int64_t);
   }
   return Just(num->IsSmi() ? static_cast<int64_t>(i::Smi::cast(*num)->value())
@@ -3292,7 +3291,7 @@ Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
   if (obj->IsNumber()) return Just(NumberToInt32(*obj));
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "Int32Value", int32_t);
   i::Handle<i::Object> num;
-  has_pending_exception = !i::Execution::ToInt32(isolate, obj).ToHandle(&num);
+  has_pending_exception = !i::Object::ToInt32(isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int32_t);
   return Just(num->IsSmi() ? i::Smi::cast(*num)->value()
                            : static_cast<int32_t>(num->Number()));
@@ -3311,7 +3310,7 @@ Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
   if (obj->IsNumber()) return Just(NumberToUint32(*obj));
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "Uint32Value", uint32_t);
   i::Handle<i::Object> num;
-  has_pending_exception = !i::Execution::ToUint32(isolate, obj).ToHandle(&num);
+  has_pending_exception = !i::Object::ToUint32(isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(uint32_t);
   return Just(num->IsSmi() ? static_cast<uint32_t>(i::Smi::cast(*num)->value())
                            : static_cast<uint32_t>(num->Number()));

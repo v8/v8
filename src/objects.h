@@ -1127,8 +1127,24 @@ class Object {
   // ES6 section 7.1.3 ToNumber
   MUST_USE_RESULT static MaybeHandle<Object> ToNumber(Handle<Object> input);
 
+  // ES6 section 7.1.4 ToInteger
+  MUST_USE_RESULT static MaybeHandle<Object> ToInteger(Isolate* isolate,
+                                                       Handle<Object> input);
+
+  // ES6 section 7.1.5 ToInt32
+  MUST_USE_RESULT static MaybeHandle<Object> ToInt32(Isolate* isolate,
+                                                     Handle<Object> input);
+
+  // ES6 section 7.1.6 ToUint32
+  MUST_USE_RESULT static MaybeHandle<Object> ToUint32(Isolate* isolate,
+                                                      Handle<Object> input);
+
   // ES6 section 7.1.12 ToString
   MUST_USE_RESULT static MaybeHandle<String> ToString(Isolate* isolate,
+                                                      Handle<Object> input);
+
+  // ES6 section 7.1.15 ToLength
+  MUST_USE_RESULT static MaybeHandle<Object> ToLength(Isolate* isolate,
                                                       Handle<Object> input);
 
   // ES6 section 7.3.9 GetMethod

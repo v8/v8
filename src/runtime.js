@@ -15,8 +15,6 @@ var $NaN;
 var $nonNumberToNumber;
 var $sameValue;
 var $sameValueZero;
-var $toInteger;
-var $toLength;
 var $toNumber;
 var $toPositiveInteger;
 
@@ -97,7 +95,7 @@ function REFLECT_APPLY_PREPARE(args) {
     throw %make_type_error(kWrongArgs, "Reflect.apply");
   }
 
-  length = %to_length_fun(args.length);
+  length = TO_LENGTH(args.length);
 
   // We can handle any number of apply arguments if the stack is
   // big enough, but sanity check the value to avoid overflow when
@@ -147,7 +145,7 @@ function REFLECT_CONSTRUCT_PREPARE(
     throw %make_type_error(kWrongArgs, "Reflect.construct");
   }
 
-  length = %to_length_fun(args.length);
+  length = TO_LENGTH(args.length);
 
   // We can handle any number of apply arguments if the stack is
   // big enough, but sanity check the value to avoid overflow when
@@ -213,21 +211,6 @@ function ToString(x) {
   if (IS_UNDEFINED(x)) return 'undefined';
   // Types that can't be converted to string are caught in DefaultString.
   return (IS_NULL(x)) ? 'null' : ToString(DefaultString(x));
-}
-
-
-// ECMA-262, section 9.4, page 34.
-function ToInteger(x) {
-  if (%_IsSmi(x)) return x;
-  return %NumberToInteger(ToNumber(x));
-}
-
-
-// ES6, draft 08-24-14, section 7.1.15
-function ToLength(arg) {
-  arg = ToInteger(arg);
-  if (arg < 0) return 0;
-  return arg < kMaxSafeInteger ? arg : kMaxSafeInteger;
 }
 
 
@@ -348,8 +331,6 @@ $NaN = %GetRootNaN();
 $nonNumberToNumber = NonNumberToNumber;
 $sameValue = SameValue;
 $sameValueZero = SameValueZero;
-$toInteger = ToInteger;
-$toLength = ToLength;
 $toNumber = ToNumber;
 $toPositiveInteger = ToPositiveInteger;
 
@@ -363,14 +344,11 @@ $toPositiveInteger = ToPositiveInteger;
 %InstallToContext([
   "concat_iterable_to_array", ConcatIterableToArray,
   "non_number_to_number", NonNumberToNumber,
-  "to_integer_fun", ToInteger,
-  "to_length_fun", ToLength,
   "to_number_fun", ToNumber,
 ]);
 
 utils.Export(function(to) {
   to.ToBoolean = ToBoolean;
-  to.ToLength = ToLength;
   to.ToNumber = ToNumber;
   to.ToString = ToString;
 });

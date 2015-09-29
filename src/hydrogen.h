@@ -2223,6 +2223,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(OneByteSeqStringSetChar)           \
   F(TwoByteSeqStringSetChar)           \
   F(ObjectEquals)                      \
+  F(ToInteger)                         \
   F(ToObject)                          \
   F(ToString)                          \
   F(IsFunction)                        \

@@ -1000,11 +1000,11 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, val, Runtime::GetObjectProperty(isolate, receiver, key),
         false);
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, val,
+                                     Object::ToLength(isolate, val), false);
     // TODO(caitp): Support larger element indexes (up to 2^53-1).
     if (!val->ToUint32(&length)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, val, Execution::ToLength(isolate, val), false);
-      val->ToUint32(&length);
+      length = 0;
     }
   }
 

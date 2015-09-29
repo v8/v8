@@ -133,6 +133,27 @@ MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
 
 
 // static
+MaybeHandle<Object> Object::ToInteger(Isolate* isolate, Handle<Object> input) {
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+  return isolate->factory()->NewNumber(DoubleToInteger(input->Number()));
+}
+
+
+// static
+MaybeHandle<Object> Object::ToInt32(Isolate* isolate, Handle<Object> input) {
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+  return isolate->factory()->NewNumberFromInt(DoubleToInt32(input->Number()));
+}
+
+
+// static
+MaybeHandle<Object> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+  return isolate->factory()->NewNumberFromUint(DoubleToUint32(input->Number()));
+}
+
+
+// static
 MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
   while (true) {
     if (input->IsString()) {
@@ -156,6 +177,19 @@ MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
                                                 ToPrimitiveHint::kString),
         String);
   }
+}
+
+
+// static
+MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+  double len = DoubleToInteger(input->Number());
+  if (len <= 0.0) {
+    len = 0.0;
+  } else if (len >= kMaxSafeInteger) {
+    len = kMaxSafeInteger;
+  }
+  return isolate->factory()->NewNumber(len);
 }
 
 
