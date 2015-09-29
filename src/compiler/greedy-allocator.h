@@ -185,6 +185,10 @@ class GreedyAllocator final : public RegisterAllocator {
   // between spill ranges of group members.
   void TryReuseSpillRangesForGroups();
 
+  LifetimePosition GetLastResortSplitPosition(const LiveRange* range);
+
+  bool IsProgressPossible(const LiveRange* range);
+
   // Necessary heuristic: spill when all else failed.
   void SpillRangeAsLastResort(LiveRange* range);
 

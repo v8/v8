@@ -63,53 +63,6 @@ LifetimePosition GetSplitPositionForInstruction(const LiveRange* range,
 }
 
 
-int GetFirstGapIndex(const UseInterval* interval) {
-  LifetimePosition start = interval->start();
-  int ret = start.ToInstructionIndex();
-  return ret;
-}
-
-
-int GetLastGapIndex(const UseInterval* interval) {
-  LifetimePosition end = interval->end();
-  return end.ToInstructionIndex();
-}
-
-
-// Basic heuristic for advancing the algorithm, if any other splitting heuristic
-// failed.
-LifetimePosition GetLastResortSplitPosition(const LiveRange* range,
-                                            const InstructionSequence* code) {
-  if (range->first_interval()->next() != nullptr) {
-    return range->first_interval()->next()->start();
-  }
-
-  UseInterval* interval = range->first_interval();
-  int first = GetFirstGapIndex(interval);
-  int last = GetLastGapIndex(interval);
-  if (first == last) return LifetimePosition::Invalid();
-
-  // TODO(mtrofin:) determine why we can't just split somewhere arbitrary
-  // within the range, e.g. it's middle.
-  for (UsePosition* pos = range->first_pos(); pos != nullptr;
-       pos = pos->next()) {
-    if (pos->type() != UsePositionType::kRequiresRegister) continue;
-    LifetimePosition before =
-        GetSplitPositionForInstruction(range, pos->pos().ToInstructionIndex());
-    if (before.IsValid()) return before;
-    LifetimePosition after = GetSplitPositionForInstruction(
-        range, pos->pos().ToInstructionIndex() + 1);
-    if (after.IsValid()) return after;
-  }
-  return LifetimePosition::Invalid();
-}
-
-
-bool IsProgressPossible(const LiveRange* range,
-                        const InstructionSequence* code) {
-  return range->CanBeSpilled(range->Start()) ||
-         GetLastResortSplitPosition(range, code).IsValid();
-}
 }  // namespace
 
 
@@ -556,7 +509,7 @@ void GreedyAllocator::EnsureValidRangeWeight(LiveRange* range) {
     range->set_weight(LiveRange::kMaxWeight);
     return;
   }
-  if (!IsProgressPossible(range, code())) {
+  if (!IsProgressPossible(range)) {
     range->set_weight(LiveRange::kMaxWeight);
     return;
   }
@@ -682,7 +635,7 @@ void GreedyAllocator::SplitOrSpillBlockedRange(LiveRange* range) {
 
   LifetimePosition pos = FindSplitPositionBeforeLoops(range);
 
-  if (!pos.IsValid()) pos = GetLastResortSplitPosition(range, code());
+  if (!pos.IsValid()) pos = GetLastResortSplitPosition(range);
   if (pos.IsValid()) {
     LiveRange* tail = Split(range, data(), pos);
     DCHECK(tail != range);
@@ -693,6 +646,31 @@ void GreedyAllocator::SplitOrSpillBlockedRange(LiveRange* range) {
   SpillRangeAsLastResort(range);
 }
 
+
+// Basic heuristic for advancing the algorithm, if any other splitting heuristic
+// failed.
+LifetimePosition GreedyAllocator::GetLastResortSplitPosition(
+    const LiveRange* range) {
+  LifetimePosition previous = range->Start();
+  for (UsePosition *pos = range->NextRegisterPosition(previous); pos != nullptr;
+       previous = previous.NextFullStart(),
+                   pos = range->NextRegisterPosition(previous)) {
+    LifetimePosition optimal = FindOptimalSplitPos(previous, pos->pos());
+    LifetimePosition before =
+        GetSplitPositionForInstruction(range, optimal.ToInstructionIndex());
+    if (before.IsValid()) return before;
+    LifetimePosition after = GetSplitPositionForInstruction(
+        range, pos->pos().ToInstructionIndex() + 1);
+    if (after.IsValid()) return after;
+  }
+  return LifetimePosition::Invalid();
+}
+
+
+bool GreedyAllocator::IsProgressPossible(const LiveRange* range) {
+  return range->CanBeSpilled(range->Start()) ||
+         GetLastResortSplitPosition(range).IsValid();
+}
 
 }  // namespace compiler
 }  // namespace internal
