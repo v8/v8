@@ -1302,6 +1302,14 @@ class Assembler : public AssemblerBase {
     add(sp, sp, Operand(kPointerSize));
   }
 
+  void vpush(DwVfpRegister src, Condition cond = al) {
+    vstm(db_w, sp, src, src, cond);
+  }
+
+  void vpop(DwVfpRegister dst, Condition cond = al) {
+    vldm(ia_w, sp, dst, dst, cond);
+  }
+
   // Jump unconditionally to given label.
   void jmp(Label* L) { b(L, al); }
 

@@ -302,6 +302,13 @@ MemOperand::MemOperand(Register rn, int32_t offset, AddrMode am) {
   rm_ = no_reg;
   offset_ = offset;
   am_ = am;
+
+  // Accesses below the stack pointer are not safe, and are prohibited by the
+  // ABI. We can check obvious violations here.
+  if (rn.is(sp)) {
+    if (am == Offset) DCHECK_LE(0, offset);
+    if (am == NegOffset) DCHECK_GE(0, offset);
+  }
 }
 
 
