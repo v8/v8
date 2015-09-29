@@ -114,19 +114,10 @@ REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSGreaterThanOrEqual, Token::GTE)
   void JSGenericLowering::Lower##op(Node* node) { \
     ReplaceWithRuntimeCall(node, fun);            \
   }
-REPLACE_RUNTIME_CALL(JSCreate, Runtime::kAbort)
 REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
-REPLACE_RUNTIME_CALL(JSCreateBlockContext, Runtime::kPushBlockContext)
 REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
-REPLACE_RUNTIME_CALL(JSCreateScriptContext, Runtime::kNewScriptContext)
 #undef REPLACE_RUNTIME
-
-
-#define REPLACE_UNIMPLEMENTED(op) \
-  void JSGenericLowering::Lower##op(Node* node) { UNIMPLEMENTED(); }
-REPLACE_UNIMPLEMENTED(JSYield)
-#undef REPLACE_UNIMPLEMENTED
 
 
 static CallDescriptor::Flags FlagsForNode(Node* node) {
@@ -491,6 +482,9 @@ void JSGenericLowering::LowerJSLoadDynamicContext(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSCreate(Node* node) { UNIMPLEMENTED(); }
+
+
 void JSGenericLowering::LowerJSCreateArguments(Node* node) {
   const CreateArgumentsParameters& p = CreateArgumentsParametersOf(node->op());
   switch (p.type()) {
@@ -534,6 +528,20 @@ void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
   Handle<String> name = OpParameter<Handle<String>>(node);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(name));
   ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
+}
+
+
+void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {
+  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
+  ReplaceWithRuntimeCall(node, Runtime::kPushBlockContext);
+}
+
+
+void JSGenericLowering::LowerJSCreateScriptContext(Node* node) {
+  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(scope_info));
+  ReplaceWithRuntimeCall(node, Runtime::kNewScriptContext);
 }
 
 
@@ -784,6 +792,9 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
 void JSGenericLowering::LowerJSForInStep(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kForInStep);
 }
+
+
+void JSGenericLowering::LowerJSYield(Node* node) { UNIMPLEMENTED(); }
 
 
 void JSGenericLowering::LowerJSStackCheck(Node* node) {

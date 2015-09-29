@@ -1296,16 +1296,15 @@ Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  HeapObjectMatcher minput(input);
-  DCHECK(minput.HasValue());  // TODO(mstarzinger): Make ScopeInfo static.
-  int context_length = Handle<ScopeInfo>::cast(minput.Value())->ContextLength();
+  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
+  int context_length = scope_info->ContextLength();
   if (FLAG_turbo_allocate && context_length < kBlockContextAllocationLimit) {
     // JSCreateBlockContext(s:scope[length < limit], f)
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);
     Node* const closure = NodeProperties::GetValueInput(node, 1);
     Node* const context = NodeProperties::GetContextInput(node);
+    Node* const extension = jsgraph()->Constant(scope_info);
     Node* const load = graph()->NewNode(
         simplified()->LoadField(
             AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
@@ -1315,7 +1314,7 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
     a.AllocateArray(context_length, factory()->block_context_map());
     a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
-    a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), input);
+    a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
     a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), load);
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->TheHoleConstant());

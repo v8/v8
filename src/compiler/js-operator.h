@@ -559,13 +559,12 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* StackCheck();
 
-  // TODO(titzer): nail down the static parts of each of these context flavors.
   const Operator* CreateFunctionContext();
   const Operator* CreateCatchContext(const Handle<String>& name);
   const Operator* CreateWithContext();
-  const Operator* CreateBlockContext();
+  const Operator* CreateBlockContext(const Handle<ScopeInfo>& scpope_info);
   const Operator* CreateModuleContext();
-  const Operator* CreateScriptContext();
+  const Operator* CreateScriptContext(const Handle<ScopeInfo>& scpope_info);
 
  private:
   Zone* zone() const { return zone_; }

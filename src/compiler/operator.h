@@ -217,6 +217,13 @@ inline Handle<String> const& OpParameter(const Operator* op) {
       ->parameter();
 }
 
+template <>
+inline Handle<ScopeInfo> const& OpParameter(const Operator* op) {
+  return reinterpret_cast<
+             const Operator1<Handle<ScopeInfo>, Handle<ScopeInfo>::equal_to,
+                             Handle<ScopeInfo>::hash>*>(op)->parameter();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
