@@ -578,30 +578,10 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
             NewRawTwoByteString(length).ToHandleChecked(), left, right);
   }
 
-  return (is_one_byte || is_one_byte_data_in_two_byte_string)
-             ? NewOneByteConsString(length, left, right)
-             : NewTwoByteConsString(length, left, right);
-}
-
-
-MaybeHandle<String> Factory::NewOneByteConsString(int length,
-                                                  Handle<String> left,
-                                                  Handle<String> right) {
-  return NewRawConsString(cons_one_byte_string_map(), length, left, right);
-}
-
-
-MaybeHandle<String> Factory::NewTwoByteConsString(int length,
-                                                  Handle<String> left,
-                                                  Handle<String> right) {
-  return NewRawConsString(cons_string_map(), length, left, right);
-}
-
-
-MaybeHandle<String> Factory::NewRawConsString(Handle<Map> map, int length,
-                                              Handle<String> left,
-                                              Handle<String> right) {
-  Handle<ConsString> result = New<ConsString>(map, NEW_SPACE);
+  Handle<ConsString> result =
+      (is_one_byte || is_one_byte_data_in_two_byte_string)
+          ? New<ConsString>(cons_one_byte_string_map(), NEW_SPACE)
+          : New<ConsString>(cons_string_map(), NEW_SPACE);
 
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);

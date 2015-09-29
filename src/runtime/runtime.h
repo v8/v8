@@ -915,7 +915,6 @@ namespace internal {
   F(StringTrim, 3, 1)                           \
   F(TruncateString, 2, 1)                       \
   F(NewString, 2, 1)                            \
-  F(NewConsString, 4, 1)                        \
   F(StringEquals, 2, 1)                         \
   F(FlattenString, 1, 1)                        \
   F(StringCharFromCode, 1, 1)                   \

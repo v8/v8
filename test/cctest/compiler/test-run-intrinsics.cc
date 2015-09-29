@@ -217,17 +217,6 @@ TEST(OneByteSeqStringSetChar) {
 }
 
 
-TEST(NewConsString) {
-  FunctionTester T(
-      "(function() { "
-      "   return %_NewConsString(14, true, 'abcdefghi', 'jklmn');"
-      " })",
-      flags);
-
-  T.CheckCall(T.Val("abcdefghijklmn"));
-}
-
-
 TEST(SetValueOf) {
   FunctionTester T("(function(a,b) { return %_SetValueOf(a,b); })", flags);
 
