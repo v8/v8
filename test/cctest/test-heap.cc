@@ -4596,8 +4596,8 @@ TEST(LargeObjectSlotRecording) {
 
   // Start incremental marking to active write barrier.
   SimulateIncrementalMarking(heap, false);
-  heap->AdvanceIncrementalMarking(10000000, 10000000,
-                                  IncrementalMarking::IdleStepActions());
+  heap->incremental_marking()->AdvanceIncrementalMarking(
+      10000000, 10000000, IncrementalMarking::IdleStepActions());
 
   // Create references from the large object to the object on the evacuation
   // candidate.

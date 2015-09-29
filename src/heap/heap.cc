@@ -124,7 +124,7 @@ Heap::Heap()
       scavenge_collector_(nullptr),
       mark_compact_collector_(nullptr),
       store_buffer_(this),
-      incremental_marking_(this),
+      incremental_marking_(nullptr),
       gc_idle_time_handler_(nullptr),
       memory_reducer_(nullptr),
       object_stats_(nullptr),
@@ -862,6 +862,32 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   set_current_gc_flags(kNoGCFlags);
   new_space_.Shrink();
   UncommitFromSpace();
+}
+
+
+void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
+  if (incremental_marking()->IsStopped()) {
+    if (incremental_marking()->CanBeActivated()) {
+      StartIncrementalMarking(
+          i::Heap::kNoGCFlags,
+          kGCCallbackFlagSynchronousPhantomCallbackProcessing, gc_reason);
+    } else {
+      CollectAllGarbage(i::Heap::kNoGCFlags, gc_reason,
+                        kGCCallbackFlagSynchronousPhantomCallbackProcessing);
+    }
+  } else {
+    // Incremental marking is turned on an has already been started.
+
+    // TODO(mlippautz): Compute the time slice for incremental marking based on
+    // memory pressure.
+    double deadline = MonotonicallyIncreasingTimeInMs() +
+                      FLAG_external_allocation_limit_incremental_time;
+    incremental_marking()->AdvanceIncrementalMarking(
+        0, deadline,
+        IncrementalMarking::StepActions(IncrementalMarking::GC_VIA_STACK_GUARD,
+                                        IncrementalMarking::FORCE_MARKING,
+                                        IncrementalMarking::FORCE_COMPLETION));
+  }
 }
 
 
@@ -4058,32 +4084,6 @@ GCIdleTimeHeapState Heap::ComputeHeapState() {
 }
 
 
-double Heap::AdvanceIncrementalMarking(
-    intptr_t step_size_in_bytes, double deadline_in_ms,
-    IncrementalMarking::StepActions step_actions) {
-  DCHECK(!incremental_marking()->IsStopped());
-
-  if (step_size_in_bytes == 0) {
-    step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
-        static_cast<size_t>(GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs),
-        static_cast<size_t>(
-            tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()));
-  }
-
-  double remaining_time_in_ms = 0.0;
-  do {
-    incremental_marking()->Step(
-        step_size_in_bytes, step_actions.completion_action,
-        step_actions.force_marking, step_actions.force_completion);
-    remaining_time_in_ms = deadline_in_ms - MonotonicallyIncreasingTimeInMs();
-  } while (remaining_time_in_ms >=
-               2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
-           !incremental_marking()->IsComplete() &&
-           !mark_compact_collector()->marking_deque()->IsEmpty());
-  return remaining_time_in_ms;
-}
-
-
 bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
                                  GCIdleTimeHeapState heap_state,
                                  double deadline_in_ms) {
@@ -4981,6 +4981,9 @@ bool Heap::SetUp() {
   if (!isolate_->memory_allocator()->SetUp(MaxReserved(), MaxExecutableSize()))
     return false;
 
+  // Initialize incremental marking.
+  incremental_marking_ = new IncrementalMarking(this);
+
   // Set up new space.
   if (!new_space_.SetUp(reserved_semispace_size_, max_semi_space_size_)) {
     return false;
@@ -5159,6 +5162,9 @@ void Heap::TearDown() {
     delete mark_compact_collector_;
     mark_compact_collector_ = nullptr;
   }
+
+  delete incremental_marking_;
+  incremental_marking_ = nullptr;
 
   delete gc_idle_time_handler_;
   gc_idle_time_handler_ = nullptr;

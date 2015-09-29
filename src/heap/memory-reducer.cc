@@ -67,7 +67,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       const int kIncrementalMarkingDelayMs = 500;
       double deadline = heap()->MonotonicallyIncreasingTimeInMs() +
                         kIncrementalMarkingDelayMs;
-      heap()->AdvanceIncrementalMarking(
+      heap()->incremental_marking()->AdvanceIncrementalMarking(
           0, deadline, i::IncrementalMarking::StepActions(
                            i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                            i::IncrementalMarking::FORCE_MARKING,

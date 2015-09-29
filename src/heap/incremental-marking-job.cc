@@ -77,8 +77,9 @@ IncrementalMarkingJob::IdleTask::Progress IncrementalMarkingJob::IdleTask::Step(
     }
     return kMoreWork;
   }
-  const double remaining_idle_time_in_ms = heap->AdvanceIncrementalMarking(
-      0, deadline_in_ms, IncrementalMarking::IdleStepActions());
+  const double remaining_idle_time_in_ms =
+      incremental_marking->AdvanceIncrementalMarking(
+          0, deadline_in_ms, IncrementalMarking::IdleStepActions());
   if (remaining_idle_time_in_ms > 0.0) {
     heap->TryFinalizeIdleIncrementalMarking(remaining_idle_time_in_ms);
   }
@@ -115,7 +116,7 @@ void IncrementalMarkingJob::DelayedTask::Step(Heap* heap) {
   const int kIncrementalMarkingDelayMs = 50;
   double deadline =
       heap->MonotonicallyIncreasingTimeInMs() + kIncrementalMarkingDelayMs;
-  heap->AdvanceIncrementalMarking(
+  heap->incremental_marking()->AdvanceIncrementalMarking(
       0, deadline, i::IncrementalMarking::StepActions(
                        i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                        i::IncrementalMarking::FORCE_MARKING,

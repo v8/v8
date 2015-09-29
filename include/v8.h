@@ -5919,7 +5919,7 @@ class V8_EXPORT Isolate {
   void SetObjectGroupId(internal::Object** object, UniqueId id);
   void SetReferenceFromGroup(UniqueId id, internal::Object** object);
   void SetReference(internal::Object** parent, internal::Object** child);
-  void CollectAllGarbage(const char* gc_reason);
+  void ReportExternalAllocationLimitReached();
 };
 
 class V8_EXPORT StartupData {
@@ -8170,7 +8170,7 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
   if (change_in_bytes > 0 &&
       amount - *amount_of_external_allocated_memory_at_last_global_gc >
           I::kExternalAllocationLimit) {
-    CollectAllGarbage("external memory allocation limit reached.");
+    ReportExternalAllocationLimitReached();
   }
   *amount_of_external_allocated_memory = amount;
   return *amount_of_external_allocated_memory;

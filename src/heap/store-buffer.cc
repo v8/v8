@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "src/counters.h"
+#include "src/heap/incremental-marking.h"
 #include "src/heap/store-buffer-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"

@@ -14,8 +14,7 @@
 #include "src/assert-scope.h"
 #include "src/atomic-utils.h"
 #include "src/globals.h"
-// TODO(mstarzinger): Three more includes to kill!
-#include "src/heap/incremental-marking.h"
+// TODO(mstarzinger): Two more includes to kill!
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
 #include "src/list.h"
@@ -1215,6 +1214,10 @@ class Heap {
   // Last hope GC, should try to squeeze as much as possible.
   void CollectAllAvailableGarbage(const char* gc_reason = NULL);
 
+  // Reports and external memory pressure event, either performs a major GC or
+  // completes incremental marking in order to free external resources.
+  void ReportExternalMemoryPressure(const char* gc_reason = NULL);
+
   // Invoked when GC was requested via the stack guard.
   void HandleGCRequest();
 
@@ -1267,20 +1270,11 @@ class Heap {
                                    GCCallbackFlags::kNoGCCallbackFlags,
                                const char* reason = nullptr);
 
-  // Performs incremental marking steps of step_size_in_bytes as long as
-  // deadline_ins_ms is not reached. step_size_in_bytes can be 0 to compute
-  // an estimate increment. Returns the remaining time that cannot be used
-  // for incremental marking anymore because a single step would exceed the
-  // deadline.
-  double AdvanceIncrementalMarking(
-      intptr_t step_size_in_bytes, double deadline_in_ms,
-      IncrementalMarking::StepActions step_actions);
-
   void FinalizeIncrementalMarkingIfComplete(const char* comment);
 
   bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms);
 
-  IncrementalMarking* incremental_marking() { return &incremental_marking_; }
+  IncrementalMarking* incremental_marking() { return incremental_marking_; }
 
   // ===========================================================================
   // External string table API. ================================================
@@ -2270,7 +2264,7 @@ class Heap {
 
   StoreBuffer store_buffer_;
 
-  IncrementalMarking incremental_marking_;
+  IncrementalMarking* incremental_marking_;
 
   GCIdleTimeHandler* gc_idle_time_handler_;
 
