@@ -171,9 +171,11 @@ SLOW_ARCHS = ["android_arm",
 
 def BuildOptions():
   result = optparse.OptionParser()
+  result.usage = '%prog [options] [tests]'
+  result.description = """TESTS: %s""" % (DEFAULT_TESTS)
   result.add_option("--arch",
                     help=("The architecture to run tests for, "
-                          "'auto' or 'native' for auto-detect"),
+                          "'auto' or 'native' for auto-detect: %s" % SUPPORTED_ARCHS),
                     default="ia32,x64,arm")
   result.add_option("--arch-and-mode",
                     help="Architecture and mode in the format 'arch.mode'",
@@ -220,7 +222,8 @@ def BuildOptions():
   result.add_option("-j", help="The number of parallel tasks to run",
                     default=0, type="int")
   result.add_option("-m", "--mode",
-                    help="The test modes in which to run (comma-separated)",
+                    help="The test modes in which to run (comma-separated,"
+                    " uppercase for ninja and buildbot builds): %s" % MODES.keys(),
                     default="release,debug")
   result.add_option("--no-harness", "--noharness",
                     help="Run without test harness of a given suite",
@@ -248,7 +251,7 @@ def BuildOptions():
                     help="Don't run any testing variants",
                     default=False, dest="no_variants", action="store_true")
   result.add_option("--variants",
-                    help="Comma-separated list of testing variants")
+                    help="Comma-separated list of testing variants: %s" % VARIANTS)
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
   result.add_option("--predictable",
@@ -548,6 +551,8 @@ def Execute(arch, mode, args, options, suites, workspace):
           "%s.%s" % (arch, MODES[mode]["output_folder"]),
       )
   shell_dir = os.path.relpath(shell_dir)
+  if not os.path.exists(shell_dir):
+      raise Exception('Could not find shell_dir: "%s"' % shell_dir)
 
   # Populate context object.
   mode_flags = MODES[mode]["flags"]
