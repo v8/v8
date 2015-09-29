@@ -4027,6 +4027,13 @@ class V8_EXPORT Template : public Data {
      PropertyAttribute attribute = None,
      AccessControl settings = DEFAULT);
 
+#ifdef V8_JS_ACCESSORS
+  void SetAccessorProperty(Local<Name> name,
+                           Local<Function> getter = Local<Function>(),
+                           Local<Function> setter = Local<Function>(),
+                           PropertyAttribute attribute = None);
+#endif  // V8_JS_ACCESSORS
+
   /**
    * Whenever the property with the given name is accessed on objects
    * created from this Template the getter and setter callbacks

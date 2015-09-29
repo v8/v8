@@ -99,6 +99,7 @@
         'test-alloc.cc',
         'test-api.cc',
         'test-api.h',
+        'test-api-accessors.cc',
         'test-api-interceptors.cc',
         'test-array-list.cc',
         'test-ast.cc',

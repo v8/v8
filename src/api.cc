@@ -955,6 +955,25 @@ void Template::SetAccessorProperty(
 }
 
 
+#ifdef V8_JS_ACCESSORS
+void Template::SetAccessorProperty(v8::Local<v8::Name> name,
+                                   v8::Local<Function> getter,
+                                   v8::Local<Function> setter,
+                                   v8::PropertyAttribute attribute) {
+  auto templ = Utils::OpenHandle(this);
+  auto isolate = templ->GetIsolate();
+  ENTER_V8(isolate);
+  DCHECK(!name.IsEmpty());
+  DCHECK(!getter.IsEmpty() || !setter.IsEmpty());
+  i::HandleScope scope(isolate);
+  i::ApiNatives::AddAccessorProperty(
+      isolate, templ, Utils::OpenHandle(*name),
+      Utils::OpenHandle(*getter, true), Utils::OpenHandle(*setter, true),
+      static_cast<PropertyAttributes>(attribute));
+}
+#endif  // V8_JS_ACCESSORS
+
+
 // --- F u n c t i o n   T e m p l a t e ---
 static void InitializeFunctionTemplate(
     i::Handle<i::FunctionTemplateInfo> info) {
