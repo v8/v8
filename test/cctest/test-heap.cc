@@ -1181,6 +1181,85 @@ TEST(Iteration) {
 }
 
 
+static int LenFromSize(int size) {
+  return (size - FixedArray::kHeaderSize) / kPointerSize;
+}
+
+
+HEAP_TEST(Regression39128) {
+  // Test case for crbug.com/39128.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = CcTest::heap();
+
+  // Increase the chance of 'bump-the-pointer' allocation in old space.
+  heap->CollectAllGarbage();
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  // The plan: create JSObject which references objects in new space.
+  // Then clone this object (forcing it to go into old space) and check
+  // that region dirty marks are updated correctly.
+
+  // Step 1: prepare a map for the object.  We add 1 inobject property to it.
+  // Create a map with single inobject property.
+  Handle<Map> my_map = Map::Create(CcTest::i_isolate(), 1);
+  int n_properties = my_map->GetInObjectProperties();
+  CHECK_GT(n_properties, 0);
+
+  int object_size = my_map->instance_size();
+
+  // Step 2: allocate a lot of objects so to almost fill new space: we need
+  // just enough room to allocate JSObject and thus fill the newspace.
+
+  int allocation_amount = Min(FixedArray::kMaxSize,
+                              Page::kMaxRegularHeapObjectSize + kPointerSize);
+  int allocation_len = LenFromSize(allocation_amount);
+  NewSpace* new_space = heap->new_space();
+  DisableInlineAllocationSteps(new_space);
+  Address* top_addr = new_space->allocation_top_address();
+  Address* limit_addr = new_space->allocation_limit_address();
+  while ((*limit_addr - *top_addr) > allocation_amount) {
+    CHECK(!heap->always_allocate());
+    Object* array = heap->AllocateFixedArray(allocation_len).ToObjectChecked();
+    CHECK(new_space->Contains(array));
+  }
+
+  // Step 3: now allocate fixed array and JSObject to fill the whole new space.
+  int to_fill = static_cast<int>(*limit_addr - *top_addr - object_size);
+  int fixed_array_len = LenFromSize(to_fill);
+  CHECK(fixed_array_len < FixedArray::kMaxLength);
+
+  CHECK(!heap->always_allocate());
+  Object* array = heap->AllocateFixedArray(fixed_array_len).ToObjectChecked();
+  CHECK(new_space->Contains(array));
+
+  Object* object = heap->AllocateJSObjectFromMap(*my_map).ToObjectChecked();
+  CHECK(new_space->Contains(object));
+  JSObject* jsobject = JSObject::cast(object);
+  CHECK_EQ(0, FixedArray::cast(jsobject->elements())->length());
+  CHECK_EQ(0, jsobject->properties()->length());
+  // Create a reference to object in new space in jsobject.
+  FieldIndex index = FieldIndex::ForInObjectOffset(
+      JSObject::kHeaderSize - kPointerSize);
+  jsobject->FastPropertyAtPut(index, array);
+
+  CHECK_EQ(0, static_cast<int>(*limit_addr - *top_addr));
+
+  // Step 4: clone jsobject, but force always allocate first to create a clone
+  // in old pointer space.
+  Address old_space_top = heap->old_space()->top();
+  AlwaysAllocateScope aa_scope(isolate);
+  Object* clone_obj = heap->CopyJSObject(jsobject).ToObjectChecked();
+  JSObject* clone = JSObject::cast(clone_obj);
+  if (clone->address() != old_space_top) {
+    // Alas, got allocated from free list, we cannot do checks.
+    return;
+  }
+  CHECK(heap->old_space()->Contains(clone->address()));
+}
+
+
 UNINITIALIZED_TEST(TestCodeFlushing) {
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code) return;
@@ -3609,6 +3688,38 @@ TEST(CountForcedGC) {
   const char* source = "gc();";
   CompileRun(source);
   CHECK_GT(forced_gc_counter, 0);
+}
+
+
+TEST(Regress2237) {
+  i::FLAG_stress_compaction = false;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(CcTest::isolate());
+  Handle<String> slice(CcTest::heap()->empty_string());
+
+  {
+    // Generate a parent that lives in new-space.
+    v8::HandleScope inner_scope(CcTest::isolate());
+    const char* c = "This text is long enough to trigger sliced strings.";
+    Handle<String> s = factory->NewStringFromAsciiChecked(c);
+    CHECK(s->IsSeqOneByteString());
+    CHECK(CcTest::heap()->InNewSpace(*s));
+
+    // Generate a sliced string that is based on the above parent and
+    // lives in old-space.
+    SimulateFullSpace(CcTest::heap()->new_space());
+    AlwaysAllocateScope always_allocate(isolate);
+    Handle<String> t = factory->NewProperSubString(s, 5, 35);
+    CHECK(t->IsSlicedString());
+    CHECK(!CcTest::heap()->InNewSpace(*t));
+    *slice.location() = *t.location();
+  }
+
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqOneByteString());
+  CcTest::heap()->CollectAllGarbage();
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqOneByteString());
 }
 
 

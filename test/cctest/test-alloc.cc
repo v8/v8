@@ -40,6 +40,7 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   Heap* heap = CcTest::heap();
 
   // New space.
+  SimulateFullSpace(heap->new_space());
   heap->AllocateByteArray(100).ToObjectChecked();
   heap->AllocateFixedArray(100, NOT_TENURED).ToObjectChecked();
 

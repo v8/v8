@@ -1967,7 +1967,7 @@ class Heap {
   // performed by the runtime and should not be bypassed (to extend this to
   // inlined allocations, use the Heap::DisableInlineAllocation() support).
   MUST_USE_RESULT inline AllocationResult AllocateRaw(
-      int size_in_bytes, AllocationSpace space,
+      int size_in_bytes, AllocationSpace space, AllocationSpace retry_space,
       AllocationAlignment aligment = kWordAligned);
 
   // Allocates a heap object based on the map.
