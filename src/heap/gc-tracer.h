@@ -555,7 +555,7 @@ class GCTracer {
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_GC_TRACER_H_

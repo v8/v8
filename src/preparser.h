@@ -4183,6 +4183,7 @@ void ParserBase<Traits>::ClassLiteralChecker::CheckProperty(
     return;
   }
 }
-} }  // v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PREPARSER_H

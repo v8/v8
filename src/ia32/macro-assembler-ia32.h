@@ -1129,6 +1129,7 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
 #endif
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_MACRO_ASSEMBLER_IA32_H_

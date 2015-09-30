@@ -41,7 +41,7 @@ class ContextMeasure : public ObjectVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(ContextMeasure);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CONTEXT_MEASURE_H_

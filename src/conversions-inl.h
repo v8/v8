@@ -758,6 +758,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
   return (sign == NEGATIVE) ? -converted : converted;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CONVERSIONS_INL_H_

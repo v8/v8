@@ -1640,6 +1640,7 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
 #define ACCESS_MASM(masm) masm->
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_MACRO_ASSEMBLER_X64_H_

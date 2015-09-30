@@ -183,6 +183,7 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   size_t bookmark_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SCANNER_CHARACTER_STREAMS_H_

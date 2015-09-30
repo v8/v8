@@ -902,7 +902,7 @@ void Code::CodeIterateBody(Heap* heap) {
     it.rinfo()->template Visit<StaticVisitor>(heap);
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_OBJECTS_VISITING_INL_H_

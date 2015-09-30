@@ -20,7 +20,7 @@ class TypingReseter : public AstExpressionVisitor {
  protected:
   void VisitExpression(Expression* expression) override;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPING_RESET_H_

@@ -89,7 +89,7 @@ class AsmTyper : public AstVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(AsmTyper);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPING_ASM_H_

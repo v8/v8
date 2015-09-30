@@ -268,7 +268,8 @@ class StoreICState final BASE_EMBEDDED {
  private:
   const ExtraICState state_;
 };
-}
-}
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_STATE_H_

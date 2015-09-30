@@ -178,7 +178,7 @@ class InterpreterAssembler {
   DISALLOW_COPY_AND_ASSIGN(InterpreterAssembler);
 };
 
-}  // namespace interpreter
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 

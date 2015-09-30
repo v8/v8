@@ -148,6 +148,7 @@ class HGlobalValueNumberingPhase final : public HPhase {
   DISALLOW_COPY_AND_ASSIGN(HGlobalValueNumberingPhase);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HYDROGEN_GVN_H_

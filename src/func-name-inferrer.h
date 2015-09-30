@@ -109,6 +109,7 @@ class FuncNameInferrer : public ZoneObject {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FUNC_NAME_INFERRER_H_

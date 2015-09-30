@@ -133,6 +133,7 @@ class AstPrinter: public PrettyPrinter {
 
 #endif  // DEBUG
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PRETTYPRINTER_H_

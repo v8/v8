@@ -1072,5 +1072,5 @@ void AsmTyper::VisitWithExpectation(Expression* expr, Type* expected_type,
   }
   expected_type_ = save;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -385,6 +385,7 @@ class RecordWriteStub: public PlatformCodeStub {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_CODE_STUBS_IA32_H_

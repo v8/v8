@@ -53,6 +53,7 @@ class LGapResolver final BASE_EMBEDDED {
   LOperand* saved_destination_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MIPS_LITHIUM_GAP_RESOLVER_MIPS_H_

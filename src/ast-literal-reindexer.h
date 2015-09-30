@@ -39,7 +39,7 @@ class AstLiteralReindexer final : public AstVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(AstLiteralReindexer);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_AST_LITERAL_REINDEXER

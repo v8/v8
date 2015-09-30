@@ -592,7 +592,7 @@ class FPRegisters {
  private:
   static const char* names_[kNumFPRegisters];
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_CONSTANTS_PPC_H_

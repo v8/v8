@@ -134,6 +134,7 @@ class Log {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LOG_UTILS_H_

@@ -225,5 +225,5 @@ void MemoryReducer::ScheduleTimer(double delay_ms) {
 
 void MemoryReducer::TearDown() { state_ = State(kDone, 0, 0, 0.0); }
 
-}  // internal
-}  // v8
+}  // namespace internal
+}  // namespace v8

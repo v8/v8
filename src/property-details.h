@@ -371,6 +371,7 @@ class PropertyDetails BASE_EMBEDDED {
 std::ostream& operator<<(std::ostream& os,
                          const PropertyAttributes& attributes);
 std::ostream& operator<<(std::ostream& os, const PropertyDetails& details);
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROPERTY_DETAILS_H_

@@ -438,6 +438,7 @@ class EternalHandles {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_GLOBAL_HANDLES_H_

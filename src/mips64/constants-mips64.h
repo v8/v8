@@ -1252,6 +1252,7 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
 
 #undef OpcodeToBitNumber
 #undef FunctionFieldToBitNumber
-} }   // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif    // #ifndef V8_MIPS_CONSTANTS_H_

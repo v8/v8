@@ -675,6 +675,7 @@ void BasicJsonStringifier::SerializeString(Handle<String> object) {
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_JSON_STRINGIFIER_H_

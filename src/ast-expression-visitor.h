@@ -43,7 +43,7 @@ class AstExpressionVisitor : public AstVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(AstExpressionVisitor);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_AST_EXPRESSION_VISITOR_H_

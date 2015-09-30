@@ -1020,7 +1020,8 @@ inline FunctionKind WithObjectLiteralBit(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 namespace i = v8::internal;
 

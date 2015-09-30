@@ -239,4 +239,4 @@ TEST(ObjectHashTableCausesGC) {
 }
 #endif
 
-}
+}  // namespace

@@ -597,7 +597,8 @@ class RuntimeCallHelper {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/code-stubs-ia32.h"

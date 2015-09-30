@@ -41,7 +41,7 @@ class StringsStorage {
 
   DISALLOW_COPY_AND_ASSIGN(StringsStorage);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STRINGS_STORAGE_H_

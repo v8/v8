@@ -247,6 +247,7 @@ class StackGuard final {
   DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXECUTION_H_

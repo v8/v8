@@ -3251,7 +3251,8 @@ void DatabaseSetter(Local<Name> name, Local<Value> value,
   db->Set(context, name, value).FromJust();
   info.GetReturnValue().Set(value);
 }
-}
+
+}  // namespace
 
 
 THREADED_TEST(NonMaskingInterceptorGlobalEvalRegression) {

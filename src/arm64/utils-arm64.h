@@ -151,6 +151,7 @@ inline float FusedMultiplyAdd(float op1, float op2, float a) {
   return fmaf(op1, op2, a);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_UTILS_ARM64_H_

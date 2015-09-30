@@ -701,7 +701,7 @@ void VerifySmisVisitor::VisitPointers(Object** start, Object** end) {
     CHECK((*current)->IsSmi());
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_HEAP_INL_H_

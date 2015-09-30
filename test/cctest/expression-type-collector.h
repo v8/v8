@@ -33,7 +33,7 @@ class ExpressionTypeCollector : public AstExpressionVisitor {
  private:
   ZoneVector<ExpressionTypeEntry>* result_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXPRESSION_TYPE_COLLECTOR_H_

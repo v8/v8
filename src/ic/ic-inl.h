@@ -193,7 +193,7 @@ bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
   return (host->kind() == Code::OPTIMIZED_FUNCTION &&
           host->marked_for_deoptimization());
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_INL_H_

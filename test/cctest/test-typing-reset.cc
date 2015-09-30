@@ -222,7 +222,8 @@ void CheckAllSame(ZoneVector<ExpressionTypeEntry>& types,
   }
   CHECK_TYPES_END
 }
-}
+
+}  // namespace
 
 
 TEST(ResetTypingInfo) {

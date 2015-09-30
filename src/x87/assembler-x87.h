@@ -1097,6 +1097,7 @@ class EnsureSpace BASE_EMBEDDED {
 #endif
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_ASSEMBLER_X87_H_

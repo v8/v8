@@ -166,7 +166,7 @@ void FeedbackNexus::SetFeedbackExtra(Object* feedback_extra,
 
 
 Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPE_FEEDBACK_VECTOR_INL_H_

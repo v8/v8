@@ -86,6 +86,7 @@ class HType final {
 
 
 std::ostream& operator<<(std::ostream& os, const HType& t);
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // HYDROGEN_TYPES_H_

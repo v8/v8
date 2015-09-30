@@ -720,6 +720,7 @@ class Factory final {
   void ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type, int size);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FACTORY_H_

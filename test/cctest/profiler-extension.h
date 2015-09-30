@@ -49,6 +49,7 @@ class ProfilerExtension : public v8::Extension {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif

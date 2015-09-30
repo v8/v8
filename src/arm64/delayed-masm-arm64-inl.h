@@ -50,6 +50,7 @@ void DelayedMasm::LoadObject(Register result, Handle<Object> object) {
 
 #undef __
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_DELAYED_MASM_ARM64_INL_H_

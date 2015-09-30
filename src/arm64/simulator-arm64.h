@@ -911,6 +911,7 @@ class SimulatorStack : public v8::internal::AllStatic {
 
 #endif  // !defined(USE_SIMULATOR)
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_SIMULATOR_ARM64_H_

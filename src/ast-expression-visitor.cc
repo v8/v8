@@ -350,7 +350,7 @@ void AstExpressionVisitor::VisitSuperPropertyReference(
 
 
 void AstExpressionVisitor::VisitSuperCallReference(SuperCallReference* expr) {}
-}
 
 
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

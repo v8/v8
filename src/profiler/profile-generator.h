@@ -383,6 +383,7 @@ class ProfileGenerator {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_PROFILE_GENERATOR_H_

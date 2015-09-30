@@ -29,7 +29,7 @@ Type* AnyTagged(Zone* zone) {
 Type* ExternalPointer(Zone* zone) {
   return Type::Intersect(Type::Internal(), Type::UntaggedPointer(), zone);
 }
-}
+}  // namespace
 
 
 Type::FunctionType* CallInterfaceDescriptor::BuildDefaultFunctionType(

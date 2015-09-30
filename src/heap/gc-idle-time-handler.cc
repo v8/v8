@@ -186,5 +186,5 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
 }
 
 
-}
-}
+}  // namespace internal
+}  // namespace v8

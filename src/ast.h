@@ -3622,6 +3622,7 @@ class AstNodeFactory final BASE_EMBEDDED {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_AST_H_

@@ -479,6 +479,7 @@ class Thread {
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_PLATFORM_H_

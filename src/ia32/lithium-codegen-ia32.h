@@ -398,6 +398,7 @@ class LDeferredCode : public ZoneObject {
   int instruction_index_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_LITHIUM_CODEGEN_IA32_H_

@@ -80,6 +80,7 @@ class LGapResolver final BASE_EMBEDDED {
   int spilled_register_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_LITHIUM_GAP_RESOLVER_X87_H_

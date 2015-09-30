@@ -54,8 +54,8 @@ class SimulatorStack : public v8::internal::AllStatic {
 
   static inline void UnregisterCTryCatch() {}
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #else  // !defined(USE_SIMULATOR)
 // Running with a simulator.
@@ -422,8 +422,8 @@ class SimulatorStack : public v8::internal::AllStatic {
     Simulator::current(Isolate::Current())->PopAddress();
   }
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // !defined(USE_SIMULATOR)
 #endif  // V8_PPC_SIMULATOR_PPC_H_

@@ -374,6 +374,7 @@ class RecordWriteStub: public PlatformCodeStub {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_CODE_STUBS_X87_H_

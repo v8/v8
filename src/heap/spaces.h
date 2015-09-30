@@ -2973,7 +2973,7 @@ struct CommentStatistic {
   static const int kMaxComments = 64;
 };
 #endif
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_SPACES_H_

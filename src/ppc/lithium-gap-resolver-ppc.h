@@ -52,7 +52,7 @@ class LGapResolver final BASE_EMBEDDED {
   bool in_cycle_;
   LOperand* saved_destination_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_LITHIUM_GAP_RESOLVER_PPC_H_

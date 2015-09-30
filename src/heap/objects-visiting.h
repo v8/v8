@@ -491,7 +491,7 @@ class WeakObjectRetainer;
 // access the next-element pointers.
 template <class T>
 Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer);
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_OBJECTS_VISITING_H_

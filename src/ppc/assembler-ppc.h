@@ -1612,7 +1612,7 @@ class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_ASSEMBLER_PPC_H_

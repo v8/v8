@@ -1237,6 +1237,7 @@ enum UnallocatedOp {
   UnallocatedFMask = 0x00000000
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_CONSTANTS_ARM64_H_

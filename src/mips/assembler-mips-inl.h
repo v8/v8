@@ -485,6 +485,7 @@ void Assembler::emit(Instr x) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MIPS_ASSEMBLER_MIPS_INL_H_

@@ -185,7 +185,7 @@ class JavaScriptFrameConstants : public AllStatic {
 };
 
 
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_FRAMES_PPC_H_

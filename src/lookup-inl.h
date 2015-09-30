@@ -136,7 +136,7 @@ LookupIterator::State LookupIterator::LookupNonMaskingInterceptorInHolder(
   UNREACHABLE();
   return state_;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LOOKUP_INL_H_

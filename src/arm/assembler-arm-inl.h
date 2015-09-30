@@ -666,6 +666,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_ASSEMBLER_ARM_INL_H_

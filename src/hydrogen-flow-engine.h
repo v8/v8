@@ -214,6 +214,7 @@ class HFlowEngine {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HYDROGEN_FLOW_ENGINE_H_

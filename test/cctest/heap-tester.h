@@ -53,7 +53,8 @@ class HeapTester {
   /* test-api.cc */
   static void ResetWeakHandle(bool global_gc);
 };
-}
-}
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // HEAP_TESTER_H_

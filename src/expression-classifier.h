@@ -279,7 +279,8 @@ class ExpressionClassifier {
   Error strong_mode_formal_parameter_error_;
   DuplicateFinder* duplicate_finder_;
 };
-}
-}  // v8::internal
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXPRESSION_CLASSIFIER_H

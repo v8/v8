@@ -886,6 +886,7 @@ class Counters {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COUNTERS_H_

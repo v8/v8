@@ -720,8 +720,8 @@ class PushArgsAndCallDescriptor : public CallInterfaceDescriptor {
   CallDescriptors::Key name##Descriptor::key() { return CallDescriptors::name; }
 INTERFACE_DESCRIPTOR_LIST(DEF_KEY)
 #undef DEF_KEY
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 #if V8_TARGET_ARCH_ARM64

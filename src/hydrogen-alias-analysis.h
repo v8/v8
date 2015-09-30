@@ -68,6 +68,7 @@ class HAliasAnalyzer : public ZoneObject {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HYDROGEN_ALIAS_ANALYSIS_H_

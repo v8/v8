@@ -24,7 +24,8 @@ struct {
     AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 };
-}
+
+}  // namespace
 
 
 ExpressionTypeCollector::ExpressionTypeCollector(
@@ -57,5 +58,6 @@ void ExpressionTypeCollector::VisitExpression(Expression* expression) {
   }
   result_->push_back(e);
 }
-}
-}
+
+}  // namespace internal
+}  // namespace v8

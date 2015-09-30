@@ -75,7 +75,8 @@ bool IsParallelMovePresent(int instr_index, Instruction::GapPosition gap_pos,
   }
   return found_match;
 }
-}
+
+}  // namespace
 
 
 class RegisterAllocatorTest : public InstructionSequenceTest {
@@ -722,7 +723,8 @@ class SlotConstraintTest : public RegisterAllocatorTest,
  private:
   typedef ::testing::WithParamInterface<::testing::tuple<ParameterType, int>> B;
 };
-}
+
+}  // namespace
 
 
 #if GTEST_HAS_COMBINE

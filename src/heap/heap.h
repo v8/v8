@@ -2712,7 +2712,7 @@ class PathTracer : public ObjectVisitor {
   DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
 };
 #endif  // DEBUG
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_HEAP_H_

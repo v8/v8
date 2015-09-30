@@ -22,6 +22,7 @@ class HLoadEliminationPhase : public HPhase {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HYDROGEN_LOAD_ELIMINATION_H_

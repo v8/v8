@@ -1564,6 +1564,7 @@ inline MemOperand GlobalObjectOperand()  {
 #endif
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_MACRO_ASSEMBLER_ARM_H_

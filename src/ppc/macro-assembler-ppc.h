@@ -1566,7 +1566,7 @@ inline MemOperand GlobalObjectOperand() {
 #else
 #define ACCESS_MASM(masm) masm->
 #endif
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_MACRO_ASSEMBLER_PPC_H_

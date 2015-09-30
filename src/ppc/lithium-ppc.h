@@ -2760,7 +2760,7 @@ class LChunkBuilder final : public LChunkBuilderBase {
 
 #undef DECLARE_HYDROGEN_ACCESSOR
 #undef DECLARE_CONCRETE_INSTRUCTION
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_LITHIUM_PPC_H_

@@ -189,6 +189,7 @@ MUST_USE_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
     Handle<JSArray> array,
     Arguments* args);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ELEMENTS_H_

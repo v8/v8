@@ -499,6 +499,7 @@ class LDeferredCode : public ZoneObject {
   LCodeGen::X87Stack x87_stack_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_LITHIUM_CODEGEN_X87_H_

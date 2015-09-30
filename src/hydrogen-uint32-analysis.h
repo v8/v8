@@ -31,6 +31,7 @@ class HUint32AnalysisPhase : public HPhase {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HYDROGEN_UINT32_ANALYSIS_H_

@@ -452,6 +452,6 @@ Schedule* InterpreterAssembler::schedule() {
 Zone* InterpreterAssembler::zone() { return raw_assembler_->zone(); }
 
 
-}  // namespace interpreter
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8

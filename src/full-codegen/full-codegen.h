@@ -1081,6 +1081,7 @@ class BackEdgeTable {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FULL_CODEGEN_FULL_CODEGEN_H_

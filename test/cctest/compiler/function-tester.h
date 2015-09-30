@@ -212,8 +212,8 @@ class FunctionTester : public InitializedHandleScope {
     return function;
   }
 };
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CCTEST_COMPILER_FUNCTION_TESTER_H_

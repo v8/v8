@@ -95,6 +95,7 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ALLOCATION_SITE_SCOPES_H_

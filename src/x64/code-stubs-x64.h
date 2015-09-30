@@ -360,6 +360,7 @@ class RecordWriteStub: public PlatformCodeStub {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_CODE_STUBS_X64_H_

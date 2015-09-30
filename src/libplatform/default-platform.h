@@ -68,7 +68,8 @@ class DefaultPlatform : public Platform {
 };
 
 
-} }  // namespace v8::platform
+}  // namespace platform
+}  // namespace v8
 
 
 #endif  // V8_LIBPLATFORM_DEFAULT_PLATFORM_H_

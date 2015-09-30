@@ -201,4 +201,5 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 
 #endif  // V8_OS_MACOSX
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

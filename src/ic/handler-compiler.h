@@ -297,7 +297,7 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
 
   static void GenerateStoreSlow(MacroAssembler* masm);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_HANDLER_COMPILER_H_

@@ -250,7 +250,7 @@ bool LayoutDescriptorHelper::IsTagged(int offset_in_bytes) {
 
   return layout_descriptor_->IsTagged(field_index);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LAYOUT_DESCRIPTOR_INL_H_

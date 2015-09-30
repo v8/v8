@@ -223,6 +223,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       CallDescriptor::kNoFlags,      // flags
       "c-call");
 }
-}
-}
-}
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

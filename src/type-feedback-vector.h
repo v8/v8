@@ -497,7 +497,7 @@ class KeyedStoreICNexus : public FeedbackNexus {
   InlineCacheState StateFromFeedback() const override;
   Name* FindFirstName() const override;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TRANSITIONS_H_

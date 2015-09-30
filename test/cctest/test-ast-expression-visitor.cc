@@ -45,7 +45,8 @@ static void CollectTypes(HandleAndZoneScope* handles, const char* source,
       info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun(), dst)
       .Run();
 }
-}
+
+}  // namespace
 
 
 TEST(VisitExpressions) {

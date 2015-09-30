@@ -326,6 +326,7 @@ class Builtins {
   DISALLOW_COPY_AND_ASSIGN(Builtins);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BUILTINS_H_

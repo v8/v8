@@ -44,6 +44,7 @@ class LGapResolver final BASE_EMBEDDED {
   ZoneList<LMoveOperands> moves_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_LITHIUM_GAP_RESOLVER_X64_H_

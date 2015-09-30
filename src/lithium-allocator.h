@@ -568,6 +568,7 @@ class LAllocatorPhase : public CompilationPhase {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LITHIUM_ALLOCATOR_H_

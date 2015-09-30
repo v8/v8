@@ -276,7 +276,7 @@ class IncrementalMarking {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_INCREMENTAL_MARKING_H_

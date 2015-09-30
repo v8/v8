@@ -763,6 +763,7 @@ class Scanner {
   bool has_multiline_comment_before_next_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SCANNER_H_

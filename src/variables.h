@@ -193,6 +193,7 @@ class ClassVariable : public Variable {
   // checks for functions too.
   int declaration_group_start_;
 };
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_VARIABLES_H_

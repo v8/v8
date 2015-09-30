@@ -393,6 +393,7 @@ class LDeferredCode : public ZoneObject {
   int instruction_index_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_LITHIUM_CODEGEN_ARM_H_

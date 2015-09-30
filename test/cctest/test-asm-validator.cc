@@ -74,7 +74,8 @@ std::string Validate(Zone* zone, const char* source,
     return typer.error_message();
   }
 }
-}
+
+}  // namespace
 
 
 TEST(ValidateMinimum) {
@@ -439,7 +440,8 @@ void CheckStdlibShortcuts(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
   CHECK_VAR_NEW_SHORTCUT(f32, Bounds(cache.kFloat32Array));
   CHECK_VAR_NEW_SHORTCUT(f64, Bounds(cache.kFloat64Array));
 }
-}
+
+}  // namespace
 
 
 #define CHECK_FUNC_TYPES_BEGIN(func)                   \

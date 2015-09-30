@@ -54,6 +54,7 @@ void LAllocator::SetLiveRangeAssignedRegister(LiveRange* range, int reg) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LITHIUM_ALLOCATOR_INL_H_

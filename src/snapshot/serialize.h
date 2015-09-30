@@ -981,6 +981,7 @@ class SerializedCodeData : public SerializedData {
   static const int kChecksum2Offset = kChecksum1Offset + kInt32Size;
   static const int kHeaderSize = kChecksum2Offset + kInt32Size;
 };
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SNAPSHOT_SERIALIZE_H_

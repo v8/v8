@@ -1351,7 +1351,8 @@ class TestActivityControl : public v8::ActivityControl {
   int total_;
   int abort_count_;
 };
-}
+
+}  // namespace
 
 
 TEST(TakeHeapSnapshotAborting) {
@@ -1444,7 +1445,8 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
 
 i::List<TestRetainedObjectInfo*> TestRetainedObjectInfo::instances;
-}
+
+}  // namespace
 
 
 static const v8::HeapGraphNode* GetNode(const v8::HeapGraphNode* parent,

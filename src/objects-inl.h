@@ -8046,6 +8046,7 @@ String::SubStringRange::iterator String::SubStringRange::end() {
 #undef NOBARRIER_READ_BYTE_FIELD
 #undef NOBARRIER_WRITE_BYTE_FIELD
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_OBJECTS_INL_H_

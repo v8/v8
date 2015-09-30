@@ -176,6 +176,7 @@ class NativesExternalStringResource final
   size_t length_;
 };
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BOOTSTRAPPER_H_

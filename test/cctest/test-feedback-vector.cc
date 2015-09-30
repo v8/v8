@@ -559,4 +559,5 @@ TEST(VectorStoreICBasic) {
   StoreICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
-}
+
+}  // namespace

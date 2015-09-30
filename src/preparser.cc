@@ -1237,4 +1237,5 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
 #undef CHECK_OK
 
 
-} }  // v8::internal
+}  // namespace internal
+}  // namespace v8

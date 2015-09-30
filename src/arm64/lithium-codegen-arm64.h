@@ -460,6 +460,7 @@ class BranchGenerator BASE_EMBEDDED {
   LCodeGen* codegen_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_LITHIUM_CODEGEN_ARM64_H_

@@ -490,6 +490,7 @@ class ErrorToStringHelper {
 
   List<Handle<JSObject> > visited_;
 };
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MESSAGES_H_

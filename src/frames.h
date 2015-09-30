@@ -949,6 +949,7 @@ class StackFrameLocator BASE_EMBEDDED {
 // zone memory.
 Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FRAMES_H_

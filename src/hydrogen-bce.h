@@ -46,6 +46,7 @@ class HBoundsCheckEliminationPhase : public HPhase {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HYDROGEN_BCE_H_

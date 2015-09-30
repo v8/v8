@@ -155,6 +155,7 @@ class TypeFeedbackOracle: public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPE_INFO_H_

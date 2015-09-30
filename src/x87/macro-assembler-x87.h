@@ -1083,6 +1083,7 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
 #endif
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_MACRO_ASSEMBLER_X87_H_

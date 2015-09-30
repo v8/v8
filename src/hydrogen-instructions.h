@@ -7983,6 +7983,7 @@ class HAllocateBlockContext: public HTemplateInstruction<2> {
 #undef DECLARE_INSTRUCTION
 #undef DECLARE_CONCRETE_INSTRUCTION
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HYDROGEN_INSTRUCTIONS_H_

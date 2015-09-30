@@ -335,5 +335,6 @@ TEST(ExplicitGC) {
     t.CheckGet(num_keys[i], &num_keys[i]);
   }
 }
-}
-}
+
+}  // namespace internal
+}  // namespace v8

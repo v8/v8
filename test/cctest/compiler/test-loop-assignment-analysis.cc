@@ -59,7 +59,7 @@ struct TestHelper : public HandleAndZoneScope {
     }
   }
 };
-}
+}  // namespace
 
 
 TEST(SimpleLoop1) {

@@ -2278,7 +2278,8 @@ class InlineSmiCheckInfo {
   class DeltaBits : public BitField<uint32_t, 5, 32-5> {};
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #ifdef GENERATED_CODE_COVERAGE
 #error "Unsupported option"

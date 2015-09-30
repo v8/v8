@@ -366,7 +366,8 @@ class AstValueFactory {
   OTHER_CONSTANTS(F)
 #undef F
 };
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #undef STRING_CONSTANTS
 #undef OTHER_CONSTANTS

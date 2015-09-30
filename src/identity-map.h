@@ -92,7 +92,7 @@ class IdentityMap : public IdentityMapBase {
     *(reinterpret_cast<V*>(GetEntry(key))) = value;
   }
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IDENTITY_MAP_H_

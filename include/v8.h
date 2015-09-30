@@ -146,7 +146,7 @@ template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
 class GlobalHandles;
-}
+}  // namespace internal
 
 
 /**

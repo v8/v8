@@ -57,6 +57,7 @@ class LGapResolver final BASE_EMBEDDED {
   bool need_to_restore_root_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_LITHIUM_GAP_RESOLVER_ARM_H_

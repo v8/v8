@@ -821,6 +821,7 @@ class Scope: public ZoneObject {
   int class_declaration_group_start_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SCOPES_H_

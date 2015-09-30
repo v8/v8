@@ -1816,6 +1816,6 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
 
 #undef __
 
-}  // namespace internal
 }  // namespace compiler
+}  // namespace internal
 }  // namespace v8

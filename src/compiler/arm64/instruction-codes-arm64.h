@@ -158,8 +158,8 @@ namespace compiler {
   V(Operand2_R_SXTB)  /* %r0 SXTB (signed extend byte) */       \
   V(Operand2_R_SXTH)  /* %r0 SXTH (signed extend halfword) */
 
-}  // namespace internal
 }  // namespace compiler
+}  // namespace internal
 }  // namespace v8
 
 #endif  // V8_COMPILER_ARM64_INSTRUCTION_CODES_ARM64_H_

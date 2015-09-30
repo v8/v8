@@ -716,6 +716,7 @@ class CompilationPhase BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(CompilationPhase);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_H_

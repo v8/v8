@@ -316,5 +316,5 @@ void AstLiteralReindexer::VisitFunctionLiteral(FunctionLiteral* node) {
 void AstLiteralReindexer::Reindex(Expression* pattern) {
   pattern->Accept(this);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

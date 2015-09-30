@@ -108,7 +108,7 @@ LOperand* UseIterator::Current() {
 void UseIterator::Advance() {
   input_iterator_.Done() ? env_iterator_.Advance() : input_iterator_.Advance();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LITHIUM_INL_H_

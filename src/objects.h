@@ -10624,6 +10624,8 @@ class KeyAccumulator final BASE_EMBEDDED {
   int length_;
   DISALLOW_COPY_AND_ASSIGN(KeyAccumulator);
 };
-} }  // namespace v8::internal
+
+}  // NOLINT, false-positive due to second-order macros.
+}  // NOLINT, false-positive due to second-order macros.
 
 #endif  // V8_OBJECTS_H_

@@ -1550,6 +1550,7 @@ class CodeTracer final : public Malloced {
   int scope_depth_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ISOLATE_H_

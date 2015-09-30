@@ -487,7 +487,7 @@ intptr_t LargeObjectSpace::Available() {
   return ObjectSizeFor(heap()->isolate()->memory_allocator()->Available());
 }
 
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_SPACES_INL_H_

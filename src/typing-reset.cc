@@ -22,5 +22,5 @@ TypingReseter::TypingReseter(Isolate* isolate, Zone* zone,
 void TypingReseter::VisitExpression(Expression* expression) {
   expression->set_bounds(Bounds::Unbounded());
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

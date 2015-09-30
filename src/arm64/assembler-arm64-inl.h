@@ -1259,6 +1259,7 @@ void Assembler::ClearRecordedAstId() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_ASSEMBLER_ARM64_INL_H_

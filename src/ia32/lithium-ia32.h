@@ -2885,6 +2885,7 @@ class LChunkBuilder final : public LChunkBuilderBase {
 #undef DECLARE_HYDROGEN_ACCESSOR
 #undef DECLARE_CONCRETE_INSTRUCTION
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_LITHIUM_IA32_H_

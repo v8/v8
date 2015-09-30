@@ -43,6 +43,7 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
 inline unsigned ProfileNode::function_id() const {
   return tree_->GetFunctionId(this);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_PROFILE_GENERATOR_INL_H_
