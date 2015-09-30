@@ -5893,7 +5893,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   // eax = regexp literal clone.
   // esi = context.
   int literal_offset =
-      FixedArray::OffsetOfElementAt(instr->hydrogen()->literal_index());
+      LiteralsArray::OffsetOfLiteralAt(instr->hydrogen()->literal_index());
   __ LoadHeapObject(ecx, instr->hydrogen()->literals());
   __ mov(ebx, FieldOperand(ecx, literal_offset));
   __ cmp(ebx, factory()->undefined_value());
