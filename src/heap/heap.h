@@ -303,7 +303,8 @@ namespace internal {
   V(minus_zero_string, "-0")                                   \
   V(Array_string, "Array")                                     \
   V(Error_string, "Error")                                     \
-  V(RegExp_string, "RegExp")
+  V(RegExp_string, "RegExp")                                   \
+  V(anonymous_string, "anonymous")
 
 #define PRIVATE_SYMBOL_LIST(V)              \
   V(array_iteration_kind_symbol)            \

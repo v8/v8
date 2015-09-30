@@ -423,8 +423,6 @@
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=3699
-  'built-ins/Function/instance-name': [FAIL],
-  'built-ins/GeneratorFunction/instance-name': [FAIL],
   'language/expressions/assignment/fn-name-arrow': [FAIL],
   'language/expressions/assignment/fn-name-class': [FAIL],
   'language/expressions/assignment/fn-name-cover': [FAIL],
