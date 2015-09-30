@@ -30,7 +30,7 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
 
 void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   Expression* value = current_value_;
-  descriptor_->scope->RemoveUnresolved(pattern->AsVariableProxy());
+  descriptor_->scope->RemoveUnresolved(pattern);
 
   // Declare variable.
   // Note that we *always* must treat the initial value via a separate init
@@ -361,16 +361,6 @@ void Parser::PatternRewriter::VisitAssignment(Assignment* node) {
 }
 
 
-void Parser::PatternRewriter::VisitSpread(Spread* node) {
-  UNREACHABLE();
-}
-
-
-void Parser::PatternRewriter::VisitEmptyParentheses(EmptyParentheses* node) {
-  UNREACHABLE();
-}
-
-
 // =============== UNREACHABLE =============================
 
 void Parser::PatternRewriter::Visit(AstNode* node) { UNREACHABLE(); }
@@ -395,7 +385,7 @@ NOT_A_PATTERN(CountOperation)
 NOT_A_PATTERN(DebuggerStatement)
 NOT_A_PATTERN(DoWhileStatement)
 NOT_A_PATTERN(EmptyStatement)
-NOT_A_PATTERN(SloppyBlockFunctionStatement)
+NOT_A_PATTERN(EmptyParentheses)
 NOT_A_PATTERN(ExportDeclaration)
 NOT_A_PATTERN(ExpressionStatement)
 NOT_A_PATTERN(ForInStatement)
@@ -410,6 +400,8 @@ NOT_A_PATTERN(NativeFunctionLiteral)
 NOT_A_PATTERN(Property)
 NOT_A_PATTERN(RegExpLiteral)
 NOT_A_PATTERN(ReturnStatement)
+NOT_A_PATTERN(SloppyBlockFunctionStatement)
+NOT_A_PATTERN(Spread)
 NOT_A_PATTERN(SuperPropertyReference)
 NOT_A_PATTERN(SuperCallReference)
 NOT_A_PATTERN(SwitchStatement)
