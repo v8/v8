@@ -1066,6 +1066,13 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     if (ok && is_strict(language_mode())) {
       CheckStrictOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
     }
+    if (ok && is_sloppy(language_mode()) && allow_harmony_sloppy_function()) {
+      // TODO(littledan): Function bindings on the global object that modify
+      // pre-existing bindings should be made writable, enumerable and
+      // nonconfigurable if possible, whereas this code will leave attributes
+      // unchanged if the property already exists.
+      InsertSloppyBlockFunctionVarBindings(scope, &ok);
+    }
     if (ok && (is_strict(language_mode()) || allow_harmony_sloppy())) {
       CheckConflictingVarDeclarations(scope_, &ok);
     }
