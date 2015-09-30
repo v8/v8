@@ -188,16 +188,17 @@ DEFINE_IMPLICATION(es_staging, harmony)
 DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                 \
-  V(harmony_modules, "harmony modules")                       \
-  V(harmony_regexps, "harmony regular expression extensions") \
-  V(harmony_proxies, "harmony proxies")                       \
-  V(harmony_unicode_regexps, "harmony unicode regexps")       \
-  V(harmony_tolength, "harmony ToLength")                     \
-  V(harmony_reflect, "harmony Reflect API")                   \
-  V(harmony_destructuring, "harmony destructuring")           \
-  V(harmony_default_parameters, "harmony default parameters") \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")   \
+#define HARMONY_INPROGRESS(V)                                         \
+  V(harmony_modules, "harmony modules")                               \
+  V(harmony_regexps, "harmony regular expression extensions")         \
+  V(harmony_proxies, "harmony proxies")                               \
+  V(harmony_unicode_regexps, "harmony unicode regexps")               \
+  V(harmony_tolength, "harmony ToLength")                             \
+  V(harmony_reflect, "harmony Reflect API")                           \
+  V(harmony_sloppy_function, "harmony sloppy function block scoping") \
+  V(harmony_destructuring, "harmony destructuring")                   \
+  V(harmony_default_parameters, "harmony default parameters")         \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
   V(harmony_simd, "harmony simd")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
@@ -205,7 +206,6 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_tostring, "harmony toString")                             \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")          \
   V(harmony_sloppy, "harmony features in sloppy mode")                \
-  V(harmony_sloppy_function, "harmony sloppy function block scoping") \
   V(harmony_sloppy_let, "harmony let in sloppy mode")
 
 // Features that are shipping (turned on by default, but internal flag remains).
