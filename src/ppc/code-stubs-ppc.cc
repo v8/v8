@@ -1581,74 +1581,75 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
-  // sp[0] : number of parameters
-  // sp[1] : receiver displacement
-  // sp[2] : function
+  // r4 : function
+  // r5 : number of parameters (tagged)
+  // r6 : parameters pointer
+
+  DCHECK(r4.is(ArgumentsAccessNewDescriptor::function()));
+  DCHECK(r5.is(ArgumentsAccessNewDescriptor::parameter_count()));
+  DCHECK(r6.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
 
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
-  __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(r5, MemOperand(r6, StandardFrameConstants::kContextOffset));
-  STATIC_ASSERT(StackFrame::ARGUMENTS_ADAPTOR < 0x3fffu);
-  __ CmpSmiLiteral(r5, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ LoadP(r7, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ LoadP(r3, MemOperand(r7, StandardFrameConstants::kContextOffset));
+  __ CmpSmiLiteral(r3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ bne(&runtime);
 
   // Patch the arguments.length and the parameters pointer in the current frame.
-  __ LoadP(r5, MemOperand(r6, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ StoreP(r5, MemOperand(sp, 0 * kPointerSize));
-  __ SmiToPtrArrayOffset(r5, r5);
-  __ add(r6, r6, r5);
+  __ LoadP(r5, MemOperand(r7, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiToPtrArrayOffset(r6, r5);
+  __ add(r6, r6, r7);
   __ addi(r6, r6, Operand(StandardFrameConstants::kCallerSPOffset));
-  __ StoreP(r6, MemOperand(sp, 1 * kPointerSize));
 
   __ bind(&runtime);
+  __ Push(r4, r6, r5);
   __ TailCallRuntime(Runtime::kNewSloppyArguments, 3, 1);
 }
 
 
 void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
-  // Stack layout:
-  //  sp[0] : number of parameters (tagged)
-  //  sp[1] : address of receiver argument
-  //  sp[2] : function
+  // r4 : function
+  // r5 : number of parameters (tagged)
+  // r6 : parameters pointer
   // Registers used over whole function:
-  //  r9 : allocated object (tagged)
-  //  r11 : mapped parameter count (tagged)
+  //  r8 : arguments count (tagged)
+  //  r9 : mapped parameter count (tagged)
 
-  __ LoadP(r4, MemOperand(sp, 0 * kPointerSize));
-  // r4 = parameter count (tagged)
+  DCHECK(r4.is(ArgumentsAccessNewDescriptor::function()));
+  DCHECK(r5.is(ArgumentsAccessNewDescriptor::parameter_count()));
+  DCHECK(r6.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
 
   // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
-  Label adaptor_frame, try_allocate;
-  __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(r5, MemOperand(r6, StandardFrameConstants::kContextOffset));
-  STATIC_ASSERT(StackFrame::ARGUMENTS_ADAPTOR < 0x3fffu);
-  __ CmpSmiLiteral(r5, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  Label adaptor_frame, try_allocate, runtime;
+  __ LoadP(r7, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ LoadP(r3, MemOperand(r7, StandardFrameConstants::kContextOffset));
+  __ CmpSmiLiteral(r3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ beq(&adaptor_frame);
 
   // No adaptor, parameter count = argument count.
-  __ mr(r5, r4);
+  __ mr(r8, r5);
+  __ mr(r9, r5);
   __ b(&try_allocate);
 
   // We have an adaptor frame. Patch the parameters pointer.
   __ bind(&adaptor_frame);
-  __ LoadP(r5, MemOperand(r6, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiToPtrArrayOffset(r7, r5);
+  __ LoadP(r8, MemOperand(r7, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiToPtrArrayOffset(r6, r8);
   __ add(r6, r6, r7);
   __ addi(r6, r6, Operand(StandardFrameConstants::kCallerSPOffset));
-  __ StoreP(r6, MemOperand(sp, 1 * kPointerSize));
 
-  // r4 = parameter count (tagged)
-  // r5 = argument count (tagged)
-  // Compute the mapped parameter count = min(r4, r5) in r4.
-  __ cmp(r4, r5);
+  // r8 = argument count (tagged)
+  // r9 = parameter count (tagged)
+  // Compute the mapped parameter count = min(r5, r8) in r9.
+  __ cmp(r5, r8);
   if (CpuFeatures::IsSupported(ISELECT)) {
-    __ isel(lt, r4, r4, r5);
+    __ isel(lt, r9, r5, r8);
   } else {
     Label skip;
+    __ mr(r9, r5);
     __ blt(&skip);
-    __ mr(r4, r5);
+    __ mr(r9, r8);
     __ bind(&skip);
   }
 
@@ -1659,9 +1660,9 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   const int kParameterMapHeaderSize =
       FixedArray::kHeaderSize + 2 * kPointerSize;
   // If there are no mapped parameters, we do not need the parameter_map.
-  __ CmpSmiLiteral(r4, Smi::FromInt(0), r0);
+  __ CmpSmiLiteral(r9, Smi::FromInt(0), r0);
   if (CpuFeatures::IsSupported(ISELECT)) {
-    __ SmiToPtrArrayOffset(r11, r4);
+    __ SmiToPtrArrayOffset(r11, r9);
     __ addi(r11, r11, Operand(kParameterMapHeaderSize));
     __ isel(eq, r11, r0, r11);
   } else {
@@ -1670,13 +1671,13 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
     __ li(r11, Operand::Zero());
     __ b(&skip3);
     __ bind(&skip2);
-    __ SmiToPtrArrayOffset(r11, r4);
+    __ SmiToPtrArrayOffset(r11, r9);
     __ addi(r11, r11, Operand(kParameterMapHeaderSize));
     __ bind(&skip3);
   }
 
   // 2. Backing store.
-  __ SmiToPtrArrayOffset(r7, r5);
+  __ SmiToPtrArrayOffset(r7, r8);
   __ add(r11, r11, r7);
   __ addi(r11, r11, Operand(FixedArray::kHeaderSize));
 
@@ -1684,7 +1685,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ addi(r11, r11, Operand(Heap::kSloppyArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
-  __ Allocate(r11, r3, r6, r7, &runtime, TAG_OBJECT);
+  __ Allocate(r11, r3, r7, r11, &runtime, TAG_OBJECT);
 
   // r3 = address of new object(s) (tagged)
   // r5 = argument count (smi-tagged)
@@ -1697,7 +1698,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ LoadP(r7,
            MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ LoadP(r7, FieldMemOperand(r7, GlobalObject::kNativeContextOffset));
-  __ cmpi(r4, Operand::Zero());
+  __ cmpi(r9, Operand::Zero());
   if (CpuFeatures::IsSupported(ISELECT)) {
     __ LoadP(r11, MemOperand(r7, kNormalOffset));
     __ LoadP(r7, MemOperand(r7, kAliasedOffset));
@@ -1713,28 +1714,27 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   }
 
   // r3 = address of new object (tagged)
-  // r4 = mapped parameter count (tagged)
   // r5 = argument count (smi-tagged)
   // r7 = address of arguments map (tagged)
+  // r9 = mapped parameter count (tagged)
   __ StoreP(r7, FieldMemOperand(r3, JSObject::kMapOffset), r0);
-  __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
-  __ StoreP(r6, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
-  __ StoreP(r6, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
+  __ LoadRoot(r11, Heap::kEmptyFixedArrayRootIndex);
+  __ StoreP(r11, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
+  __ StoreP(r11, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
 
   // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
-  __ LoadP(r6, MemOperand(sp, 2 * kPointerSize));
-  __ AssertNotSmi(r6);
+  __ AssertNotSmi(r4);
   const int kCalleeOffset =
       JSObject::kHeaderSize + Heap::kArgumentsCalleeIndex * kPointerSize;
-  __ StoreP(r6, FieldMemOperand(r3, kCalleeOffset), r0);
+  __ StoreP(r4, FieldMemOperand(r3, kCalleeOffset), r0);
 
   // Use the length (smi tagged) and set that as an in-object property too.
-  __ AssertSmi(r5);
+  __ AssertSmi(r8);
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
   const int kLengthOffset =
       JSObject::kHeaderSize + Heap::kArgumentsLengthIndex * kPointerSize;
-  __ StoreP(r5, FieldMemOperand(r3, kLengthOffset), r0);
+  __ StoreP(r8, FieldMemOperand(r3, kLengthOffset), r0);
 
   // Set up the elements pointer in the allocated arguments object.
   // If we allocated a parameter map, r7 will point there, otherwise
@@ -1743,35 +1743,35 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ StoreP(r7, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
 
   // r3 = address of new object (tagged)
-  // r4 = mapped parameter count (tagged)
   // r5 = argument count (tagged)
   // r7 = address of parameter map or backing store (tagged)
+  // r9 = mapped parameter count (tagged)
   // Initialize parameter map. If there are no mapped arguments, we're done.
   Label skip_parameter_map;
-  __ CmpSmiLiteral(r4, Smi::FromInt(0), r0);
+  __ CmpSmiLiteral(r9, Smi::FromInt(0), r0);
   if (CpuFeatures::IsSupported(ISELECT)) {
-    __ isel(eq, r6, r7, r6);
+    __ isel(eq, r4, r7, r4);
     __ beq(&skip_parameter_map);
   } else {
     Label skip6;
     __ bne(&skip6);
-    // Move backing store address to r6, because it is
+    // Move backing store address to r4, because it is
     // expected there when filling in the unmapped arguments.
-    __ mr(r6, r7);
+    __ mr(r4, r7);
     __ b(&skip_parameter_map);
     __ bind(&skip6);
   }
 
-  __ LoadRoot(r9, Heap::kSloppyArgumentsElementsMapRootIndex);
-  __ StoreP(r9, FieldMemOperand(r7, FixedArray::kMapOffset), r0);
-  __ AddSmiLiteral(r9, r4, Smi::FromInt(2), r0);
-  __ StoreP(r9, FieldMemOperand(r7, FixedArray::kLengthOffset), r0);
+  __ LoadRoot(r8, Heap::kSloppyArgumentsElementsMapRootIndex);
+  __ StoreP(r8, FieldMemOperand(r7, FixedArray::kMapOffset), r0);
+  __ AddSmiLiteral(r8, r9, Smi::FromInt(2), r0);
+  __ StoreP(r8, FieldMemOperand(r7, FixedArray::kLengthOffset), r0);
   __ StoreP(cp, FieldMemOperand(r7, FixedArray::kHeaderSize + 0 * kPointerSize),
             r0);
-  __ SmiToPtrArrayOffset(r9, r4);
-  __ add(r9, r7, r9);
-  __ addi(r9, r9, Operand(kParameterMapHeaderSize));
-  __ StoreP(r9, FieldMemOperand(r7, FixedArray::kHeaderSize + 1 * kPointerSize),
+  __ SmiToPtrArrayOffset(r8, r9);
+  __ add(r8, r8, r7);
+  __ addi(r8, r8, Operand(kParameterMapHeaderSize));
+  __ StoreP(r8, FieldMemOperand(r7, FixedArray::kHeaderSize + 1 * kPointerSize),
             r0);
 
   // Copy the parameter slots and the holes in the arguments.
@@ -1782,72 +1782,72 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   //   MIN_CONTEXT_SLOTS+parameter_count-1 ..
   //       MIN_CONTEXT_SLOTS+parameter_count-mapped_parameter_count
   // We loop from right to left.
-  Label parameters_loop, parameters_test;
-  __ mr(r9, r4);
-  __ LoadP(r11, MemOperand(sp, 0 * kPointerSize));
-  __ AddSmiLiteral(r11, r11, Smi::FromInt(Context::MIN_CONTEXT_SLOTS), r0);
-  __ sub(r11, r11, r4);
-  __ LoadRoot(r10, Heap::kTheHoleValueRootIndex);
-  __ SmiToPtrArrayOffset(r6, r9);
-  __ add(r6, r7, r6);
-  __ addi(r6, r6, Operand(kParameterMapHeaderSize));
+  Label parameters_loop;
+  __ mr(r8, r9);
+  __ AddSmiLiteral(r11, r5, Smi::FromInt(Context::MIN_CONTEXT_SLOTS), r0);
+  __ sub(r11, r11, r9);
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ SmiToPtrArrayOffset(r4, r8);
+  __ add(r4, r4, r7);
+  __ addi(r4, r4, Operand(kParameterMapHeaderSize));
 
-  // r9 = loop variable (tagged)
-  // r4 = mapping index (tagged)
-  // r6 = address of backing store (tagged)
+  // r4 = address of backing store (tagged)
   // r7 = address of parameter map (tagged)
   // r8 = temporary scratch (a.o., for address calculation)
-  // r10 = the hole value
-  __ b(&parameters_test);
+  // r10 = temporary scratch (a.o., for address calculation)
+  // ip = the hole value
+  __ SmiUntag(r8);
+  __ mtctr(r8);
+  __ ShiftLeftImm(r8, r8, Operand(kPointerSizeLog2));
+  __ add(r10, r4, r8);
+  __ add(r8, r7, r8);
+  __ addi(r10, r10, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ addi(r8, r8, Operand(kParameterMapHeaderSize - kHeapObjectTag));
 
   __ bind(&parameters_loop);
-  __ SubSmiLiteral(r9, r9, Smi::FromInt(1), r0);
-  __ SmiToPtrArrayOffset(r8, r9);
-  __ addi(r8, r8, Operand(kParameterMapHeaderSize - kHeapObjectTag));
-  __ StorePX(r11, MemOperand(r8, r7));
-  __ subi(r8, r8, Operand(kParameterMapHeaderSize - FixedArray::kHeaderSize));
-  __ StorePX(r10, MemOperand(r8, r6));
+  __ StorePU(r11, MemOperand(r8, -kPointerSize));
+  __ StorePU(ip, MemOperand(r10, -kPointerSize));
   __ AddSmiLiteral(r11, r11, Smi::FromInt(1), r0);
-  __ bind(&parameters_test);
-  __ CmpSmiLiteral(r9, Smi::FromInt(0), r0);
-  __ bne(&parameters_loop);
+  __ bdnz(&parameters_loop);
+
+  // Restore r8 = argument count (tagged).
+  __ LoadP(r8, FieldMemOperand(r3, kLengthOffset));
 
   __ bind(&skip_parameter_map);
-  // r5 = argument count (tagged)
-  // r6 = address of backing store (tagged)
-  // r8 = scratch
+  // r3 = address of new object (tagged)
+  // r4 = address of backing store (tagged)
+  // r8 = argument count (tagged)
+  // r9 = mapped parameter count (tagged)
+  // r11 = scratch
   // Copy arguments header and remaining slots (if there are any).
-  __ LoadRoot(r8, Heap::kFixedArrayMapRootIndex);
-  __ StoreP(r8, FieldMemOperand(r6, FixedArray::kMapOffset), r0);
-  __ StoreP(r5, FieldMemOperand(r6, FixedArray::kLengthOffset), r0);
+  __ LoadRoot(r11, Heap::kFixedArrayMapRootIndex);
+  __ StoreP(r11, FieldMemOperand(r4, FixedArray::kMapOffset), r0);
+  __ StoreP(r8, FieldMemOperand(r4, FixedArray::kLengthOffset), r0);
+  __ sub(r11, r8, r9, LeaveOE, SetRC);
+  __ Ret(eq, cr0);
 
-  Label arguments_loop, arguments_test;
-  __ mr(r11, r4);
-  __ LoadP(r7, MemOperand(sp, 1 * kPointerSize));
-  __ SmiToPtrArrayOffset(r8, r11);
-  __ sub(r7, r7, r8);
-  __ b(&arguments_test);
+  Label arguments_loop;
+  __ SmiUntag(r11);
+  __ mtctr(r11);
+
+  __ SmiToPtrArrayOffset(r0, r9);
+  __ sub(r6, r6, r0);
+  __ add(r11, r4, r0);
+  __ addi(r11, r11,
+          Operand(FixedArray::kHeaderSize - kHeapObjectTag - kPointerSize));
 
   __ bind(&arguments_loop);
-  __ subi(r7, r7, Operand(kPointerSize));
-  __ LoadP(r9, MemOperand(r7, 0));
-  __ SmiToPtrArrayOffset(r8, r11);
-  __ add(r8, r6, r8);
-  __ StoreP(r9, FieldMemOperand(r8, FixedArray::kHeaderSize), r0);
-  __ AddSmiLiteral(r11, r11, Smi::FromInt(1), r0);
+  __ LoadPU(r7, MemOperand(r6, -kPointerSize));
+  __ StorePU(r7, MemOperand(r11, kPointerSize));
+  __ bdnz(&arguments_loop);
 
-  __ bind(&arguments_test);
-  __ cmp(r11, r5);
-  __ blt(&arguments_loop);
-
-  // Return and remove the on-stack parameters.
-  __ addi(sp, sp, Operand(3 * kPointerSize));
+  // Return.
   __ Ret();
 
   // Do the runtime call to allocate the arguments object.
-  // r5 = argument count (tagged)
+  // r8 = argument count (tagged)
   __ bind(&runtime);
-  __ StoreP(r5, MemOperand(sp, 0 * kPointerSize));  // Patch argument count.
+  __ Push(r4, r6, r8);
   __ TailCallRuntime(Runtime::kNewSloppyArguments, 3, 1);
 }
 
@@ -1876,43 +1876,39 @@ void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
-  // sp[0] : number of parameters
-  // sp[4] : receiver displacement
-  // sp[8] : function
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor_frame, try_allocate, runtime;
-  __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(r6, MemOperand(r5, StandardFrameConstants::kContextOffset));
-  STATIC_ASSERT(StackFrame::ARGUMENTS_ADAPTOR < 0x3fffu);
-  __ CmpSmiLiteral(r6, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
-  __ beq(&adaptor_frame);
+  // r4 : function
+  // r5 : number of parameters (tagged)
+  // r6 : parameters pointer
 
-  // Get the length from the frame.
-  __ LoadP(r4, MemOperand(sp, 0));
-  __ b(&try_allocate);
+  DCHECK(r4.is(ArgumentsAccessNewDescriptor::function()));
+  DCHECK(r5.is(ArgumentsAccessNewDescriptor::parameter_count()));
+  DCHECK(r6.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label try_allocate, runtime;
+  __ LoadP(r7, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ LoadP(r3, MemOperand(r7, StandardFrameConstants::kContextOffset));
+  __ CmpSmiLiteral(r3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ bne(&try_allocate);
 
   // Patch the arguments.length and the parameters pointer.
-  __ bind(&adaptor_frame);
-  __ LoadP(r4, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ StoreP(r4, MemOperand(sp, 0));
-  __ SmiToPtrArrayOffset(r6, r4);
-  __ add(r6, r5, r6);
+  __ LoadP(r5, MemOperand(r7, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiToPtrArrayOffset(r6, r5);
+  __ add(r6, r6, r7);
   __ addi(r6, r6, Operand(StandardFrameConstants::kCallerSPOffset));
-  __ StoreP(r6, MemOperand(sp, 1 * kPointerSize));
 
   // Try the new space allocation. Start out with computing the size
   // of the arguments object and the elements array in words.
   Label add_arguments_object;
   __ bind(&try_allocate);
-  __ cmpi(r4, Operand::Zero());
-  __ beq(&add_arguments_object);
-  __ SmiUntag(r4);
-  __ addi(r4, r4, Operand(FixedArray::kHeaderSize / kPointerSize));
+  __ SmiUntag(r11, r5, SetRC);
+  __ beq(&add_arguments_object, cr0);
+  __ addi(r11, r11, Operand(FixedArray::kHeaderSize / kPointerSize));
   __ bind(&add_arguments_object);
-  __ addi(r4, r4, Operand(Heap::kStrictArgumentsObjectSize / kPointerSize));
+  __ addi(r11, r11, Operand(Heap::kStrictArgumentsObjectSize / kPointerSize));
 
   // Do the allocation of both objects in one go.
-  __ Allocate(r4, r3, r5, r6, &runtime,
+  __ Allocate(r11, r3, r7, r8, &runtime,
               static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
 
   // Get the arguments boilerplate from the current native context.
@@ -1924,58 +1920,50 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
       MemOperand(r7, Context::SlotOffset(Context::STRICT_ARGUMENTS_MAP_INDEX)));
 
   __ StoreP(r7, FieldMemOperand(r3, JSObject::kMapOffset), r0);
-  __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
-  __ StoreP(r6, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
-  __ StoreP(r6, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
+  __ LoadRoot(r8, Heap::kEmptyFixedArrayRootIndex);
+  __ StoreP(r8, FieldMemOperand(r3, JSObject::kPropertiesOffset), r0);
+  __ StoreP(r8, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
-  __ LoadP(r4, MemOperand(sp, 0 * kPointerSize));
-  __ AssertSmi(r4);
-  __ StoreP(r4,
+  __ AssertSmi(r5);
+  __ StoreP(r5,
             FieldMemOperand(r3, JSObject::kHeaderSize +
                                     Heap::kArgumentsLengthIndex * kPointerSize),
             r0);
 
   // If there are no actual arguments, we're done.
-  Label done;
-  __ cmpi(r4, Operand::Zero());
-  __ beq(&done);
-
-  // Get the parameters pointer from the stack.
-  __ LoadP(r5, MemOperand(sp, 1 * kPointerSize));
+  __ SmiUntag(r9, r5, SetRC);
+  __ Ret(eq, cr0);
 
   // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
   __ addi(r7, r3, Operand(Heap::kStrictArgumentsObjectSize));
   __ StoreP(r7, FieldMemOperand(r3, JSObject::kElementsOffset), r0);
-  __ LoadRoot(r6, Heap::kFixedArrayMapRootIndex);
-  __ StoreP(r6, FieldMemOperand(r7, FixedArray::kMapOffset), r0);
-  __ StoreP(r4, FieldMemOperand(r7, FixedArray::kLengthOffset), r0);
-  // Untag the length for the loop.
-  __ SmiUntag(r4);
+  __ LoadRoot(r8, Heap::kFixedArrayMapRootIndex);
+  __ StoreP(r8, FieldMemOperand(r7, FixedArray::kMapOffset), r0);
+  __ StoreP(r5, FieldMemOperand(r7, FixedArray::kLengthOffset), r0);
 
   // Copy the fixed array slots.
   Label loop;
   // Set up r7 to point just prior to the first array slot.
   __ addi(r7, r7,
           Operand(FixedArray::kHeaderSize - kHeapObjectTag - kPointerSize));
-  __ mtctr(r4);
+  __ mtctr(r9);
   __ bind(&loop);
-  // Pre-decrement r5 with kPointerSize on each iteration.
+  // Pre-decrement r6 with kPointerSize on each iteration.
   // Pre-decrement in order to skip receiver.
-  __ LoadPU(r6, MemOperand(r5, -kPointerSize));
+  __ LoadPU(r8, MemOperand(r6, -kPointerSize));
   // Pre-increment r7 with kPointerSize on each iteration.
-  __ StorePU(r6, MemOperand(r7, kPointerSize));
+  __ StorePU(r8, MemOperand(r7, kPointerSize));
   __ bdnz(&loop);
 
-  // Return and remove the on-stack parameters.
-  __ bind(&done);
-  __ addi(sp, sp, Operand(3 * kPointerSize));
+  // Return.
   __ Ret();
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
+  __ Push(r4, r6, r5);
   __ TailCallRuntime(Runtime::kNewStrictArguments, 3, 1);
 }
 
