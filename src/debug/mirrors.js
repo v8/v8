@@ -2233,8 +2233,10 @@ FrameMirror.prototype.toText = function(opt_locals) {
 };
 
 
+// This indexes correspond definitions in debug-scopes.h.
 var kScopeDetailsTypeIndex = 0;
 var kScopeDetailsObjectIndex = 1;
+var kScopeDetailsNameIndex = 2;
 
 function ScopeDetails(frame, fun, index, opt_details) {
   if (frame) {
@@ -2268,6 +2270,14 @@ ScopeDetails.prototype.object = function() {
     %CheckExecutionState(this.break_id_);
   }
   return this.details_[kScopeDetailsObjectIndex];
+};
+
+
+ScopeDetails.prototype.name = function() {
+  if (!IS_UNDEFINED(this.break_id_)) {
+    %CheckExecutionState(this.break_id_);
+  }
+  return this.details_[kScopeDetailsNameIndex];
 };
 
 

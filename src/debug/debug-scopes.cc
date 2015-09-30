@@ -132,6 +132,12 @@ MUST_USE_RESULT MaybeHandle<JSObject> ScopeIterator::MaterializeScopeDetails() {
   Handle<JSObject> scope_object;
   ASSIGN_RETURN_ON_EXCEPTION(isolate_, scope_object, ScopeObject(), JSObject);
   details->set(kScopeDetailsObjectIndex, *scope_object);
+  if (HasContext() && CurrentContext()->closure() != NULL) {
+    Handle<String> closure_name = JSFunction::GetDebugName(
+        Handle<JSFunction>(CurrentContext()->closure()));
+    if (!closure_name.is_null() && (closure_name->length() != 0))
+      details->set(kScopeDetailsNameIndex, *closure_name);
+  }
   return isolate_->factory()->NewJSArrayWithElements(details);
 }
 
