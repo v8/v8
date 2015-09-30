@@ -18,7 +18,6 @@ class Processor: public AstVisitor {
       : result_(result),
         result_assigned_(false),
         is_set_(false),
-        in_try_(false),
         factory_(ast_value_factory) {
     InitializeAstVisitor(isolate, ast_value_factory->zone());
   }
@@ -42,9 +41,8 @@ class Processor: public AstVisitor {
   // To avoid storing to .result all the time, we eliminate some of
   // the stores by keeping track of whether or not we're sure .result
   // will be overwritten anyway. This is a bit more tricky than what I
-  // was hoping for
+  // was hoping for.
   bool is_set_;
-  bool in_try_;
 
   AstNodeFactory factory_;
 
@@ -88,29 +86,30 @@ void Processor::VisitBlock(Block* node) {
 
 void Processor::VisitExpressionStatement(ExpressionStatement* node) {
   // Rewrite : <x>; -> .result = <x>;
-  if (!is_set_ && !node->expression()->IsThrow()) {
+  if (!is_set_) {
     node->set_expression(SetResult(node->expression()));
-    if (!in_try_) is_set_ = true;
+    is_set_ = true;
   }
 }
 
 
 void Processor::VisitIfStatement(IfStatement* node) {
-  // Rewrite both then and else parts (reversed).
-  bool save = is_set_;
-  Visit(node->else_statement());
-  bool set_after_then = is_set_;
-  is_set_ = save;
+  // Rewrite both branches.
+  bool set_after = is_set_;
   Visit(node->then_statement());
-  is_set_ = is_set_ && set_after_then;
+  bool set_in_then = is_set_;
+  is_set_ = set_after;
+  Visit(node->else_statement());
+  is_set_ = is_set_ && set_in_then;
 }
 
 
 void Processor::VisitIterationStatement(IterationStatement* node) {
   // Rewrite the body.
-  bool set_after_loop = is_set_;
+  bool set_after = is_set_;
+  is_set_ = false;  // We are in a loop, so we can't rely on [set_after].
   Visit(node->body());
-  is_set_ = is_set_ && set_after_loop;
+  is_set_ = is_set_ && set_after;
 }
 
 
@@ -140,36 +139,32 @@ void Processor::VisitForOfStatement(ForOfStatement* node) {
 
 
 void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
-  // Rewrite both try and catch blocks (reversed order).
-  bool set_after_catch = is_set_;
-  Visit(node->catch_block());
-  is_set_ = is_set_ && set_after_catch;
-  bool save = in_try_;
-  in_try_ = true;
+  // Rewrite both try and catch block.
+  bool set_after = is_set_;
   Visit(node->try_block());
-  in_try_ = save;
+  bool set_in_try = is_set_;
+  is_set_ = set_after;
+  Visit(node->catch_block());
+  is_set_ = is_set_ && set_in_try;
 }
 
 
 void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
-  // Rewrite both try and finally block (reversed order).
+  // Rewrite both try and finally block (in reverse order).
   Visit(node->finally_block());
-  bool save = in_try_;
-  in_try_ = true;
   Visit(node->try_block());
-  in_try_ = save;
 }
 
 
 void Processor::VisitSwitchStatement(SwitchStatement* node) {
-  // Rewrite statements in all case clauses in reversed order.
+  // Rewrite statements in all case clauses (in reverse order).
   ZoneList<CaseClause*>* clauses = node->cases();
-  bool set_after_switch = is_set_;
+  bool set_after = is_set_;
   for (int i = clauses->length() - 1; i >= 0; --i) {
     CaseClause* clause = clauses->at(i);
     Process(clause->statements());
   }
-  is_set_ = is_set_ && set_after_switch;
+  is_set_ = is_set_ && set_after;
 }
 
 
@@ -184,9 +179,7 @@ void Processor::VisitBreakStatement(BreakStatement* node) {
 
 
 void Processor::VisitWithStatement(WithStatement* node) {
-  bool set_after_body = is_set_;
   Visit(node->statement());
-  is_set_ = is_set_ && set_after_body;
 }
 
 
@@ -196,20 +189,25 @@ void Processor::VisitSloppyBlockFunctionStatement(
 }
 
 
+void Processor::VisitReturnStatement(ReturnStatement* node) { is_set_ = true; }
+
+
 // Do nothing:
-void Processor::VisitVariableDeclaration(VariableDeclaration* node) {}
-void Processor::VisitFunctionDeclaration(FunctionDeclaration* node) {}
-void Processor::VisitImportDeclaration(ImportDeclaration* node) {}
-void Processor::VisitExportDeclaration(ExportDeclaration* node) {}
 void Processor::VisitEmptyStatement(EmptyStatement* node) {}
-void Processor::VisitReturnStatement(ReturnStatement* node) {}
 void Processor::VisitDebuggerStatement(DebuggerStatement* node) {}
 
 
-// Expressions are never visited yet.
+// Expressions are never visited.
 #define DEF_VISIT(type)                                         \
   void Processor::Visit##type(type* expr) { UNREACHABLE(); }
 EXPRESSION_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+
+// Declarations are never visited.
+#define DEF_VISIT(type) \
+  void Processor::Visit##type(type* expr) { UNREACHABLE(); }
+DECLARATION_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
 
