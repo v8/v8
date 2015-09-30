@@ -592,7 +592,6 @@ class Debug {
   bool is_active_;
   bool is_suppressed_;
   bool live_edit_enabled_;
-  bool has_break_points_;
   bool break_disabled_;
   bool in_debug_event_listener_;
   bool break_on_exception_;
