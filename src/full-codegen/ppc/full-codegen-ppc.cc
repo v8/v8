@@ -3830,8 +3830,8 @@ void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   __ CompareObjectType(r3, r4, r4, LAST_NAME_TYPE);
   __ ble(&done_convert);
   __ bind(&convert);
-  ToStringStub stub(isolate());
-  __ CallStub(&stub);
+  __ Push(r3);
+  __ CallRuntime(Runtime::kToName, 1);
   __ bind(&done_convert);
   context()->Plug(r3);
 }
