@@ -141,7 +141,7 @@
     },
   ],
   'conditions': [
-    ['test_isolation_mode != "noop"', {
+    ['test_isolation_mode != "noop" and v8_toolset_for_d8 == "target"', {
       'targets': [
         {
           'target_name': 'd8_run',
