@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrow-functions
-
 var object = {};
 var global = this;
 var call = Function.call.bind(Function.call);

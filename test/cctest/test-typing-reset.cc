@@ -274,7 +274,6 @@ TEST(ResetTypingInfo) {
 
   i::ParseInfo info(handles.main_zone(), script);
   i::Parser parser(&info);
-  parser.set_allow_harmony_arrow_functions(true);
   parser.set_allow_harmony_sloppy(true);
   info.set_global();
   info.set_lazy(false);

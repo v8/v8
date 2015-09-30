@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrow-functions
-
 // This used to trigger crash because of an unhandled stack overflow.
 function f() {
   var a = [10];

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrow-functions
-
 // See: http://code.google.com/p/v8/issues/detail?id=3501
 
 "use strict";

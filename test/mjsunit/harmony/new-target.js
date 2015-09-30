@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-new-target --harmony-reflect --harmony-destructuring
-// Flags: --harmony-rest-parameters --harmony-arrow-functions
+// Flags: --harmony-rest-parameters
 
 
 (function TestClass() {

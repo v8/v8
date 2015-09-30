@@ -107,7 +107,6 @@ class ParserBase : public Traits {
         stack_overflow_(false),
         allow_lazy_(false),
         allow_natives_(false),
-        allow_harmony_arrow_functions_(false),
         allow_harmony_sloppy_(false),
         allow_harmony_sloppy_function_(false),
         allow_harmony_sloppy_let_(false),
@@ -126,7 +125,6 @@ class ParserBase : public Traits {
 
   ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
-  ALLOW_ACCESSORS(harmony_arrow_functions);
   ALLOW_ACCESSORS(harmony_sloppy);
   ALLOW_ACCESSORS(harmony_sloppy_function);
   ALLOW_ACCESSORS(harmony_sloppy_let);
@@ -827,7 +825,6 @@ class ParserBase : public Traits {
 
   bool allow_lazy_;
   bool allow_natives_;
-  bool allow_harmony_arrow_functions_;
   bool allow_harmony_sloppy_;
   bool allow_harmony_sloppy_function_;
   bool allow_harmony_sloppy_let_;
@@ -2915,7 +2912,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   }
   ExpressionT expression = this->ParseConditionalExpression(
       accept_IN, &arrow_formals_classifier, CHECK_OK);
-  if (allow_harmony_arrow_functions() && peek() == Token::ARROW) {
+  if (peek() == Token::ARROW) {
     BindingPatternUnexpectedToken(classifier);
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
                                   parenthesized_formals, CHECK_OK);

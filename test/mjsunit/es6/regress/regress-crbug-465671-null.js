@@ -2,6 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrow-functions
-
-assertThrows("(x, x, y) => 10;", SyntaxError);
+// This used to trigger a segfault because of NULL being accessed.
+function f() {
+  var a = [10];
+  try {
+    f();
+  } catch(e) {
+    a.map((v) => v + 1);
+  }
+}
+f();
