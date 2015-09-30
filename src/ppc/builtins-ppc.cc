@@ -696,8 +696,7 @@ enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
 
 
 // Clobbers r5; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        const int calleeOffset, Register argc,
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
                                         IsTagged argc_is_tagged) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
@@ -718,11 +717,6 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
   __ bgt(&okay);  // Signed comparison.
 
   // Out of stack space.
-  __ LoadP(r4, MemOperand(fp, calleeOffset));
-  if (argc_is_tagged == kArgcIsUntaggedInt) {
-    __ SmiTag(argc);
-  }
-  __ Push(r4, argc);
   __ CallRuntime(Runtime::kThrowStackOverflow, 0);
 
   __ bind(&okay);
@@ -759,12 +753,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Push(r4, r5);
 
     // Check if we have enough stack space to push all arguments.
-    // The function is the first thing that was pushed above after entering
-    // the internal frame.
-    const int kFunctionOffset =
-        InternalFrameConstants::kCodeOffset - kPointerSize;
     // Clobbers r5.
-    Generate_CheckStackOverflow(masm, kFunctionOffset, r6, kArgcIsUntaggedInt);
+    Generate_CheckStackOverflow(masm, r6, kArgcIsUntaggedInt);
 
     // Copy arguments to the stack in a loop.
     // r4: function
@@ -1349,7 +1339,7 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
       __ InvokeBuiltin(Context::APPLY_PREPARE_BUILTIN_INDEX, CALL_FUNCTION);
     }
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset, r3, kArgcIsSmiTagged);
+    Generate_CheckStackOverflow(masm, r3, kArgcIsSmiTagged);
 
     // Push current limit and index.
     const int kIndexOffset = kVectorOffset - (2 * kPointerSize);
@@ -1411,7 +1401,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ InvokeBuiltin(Context::REFLECT_CONSTRUCT_PREPARE_BUILTIN_INDEX,
                      CALL_FUNCTION);
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset, r3, kArgcIsSmiTagged);
+    Generate_CheckStackOverflow(masm, r3, kArgcIsSmiTagged);
 
     // Push current limit and index.
     const int kIndexOffset = kVectorOffset - (2 * kPointerSize);
