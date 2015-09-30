@@ -870,7 +870,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
                                            KeyAccumulator* accumulator,
-                                           FixedArray::KeyFilter filter) final {
+                                           KeyFilter filter) final {
     Handle<FixedArrayBase> from(receiver->elements());
     uint32_t add_length =
         ElementsAccessorSubclass::GetCapacityImpl(*receiver, *from);
@@ -883,7 +883,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       DCHECK(!value->IsTheHole());
       DCHECK(!value->IsAccessorPair());
       DCHECK(!value->IsExecutableAccessorInfo());
-      if (filter == FixedArray::NON_SYMBOL_KEYS && value->IsSymbol()) {
+      if (filter == SKIP_SYMBOLS && value->IsSymbol()) {
         continue;
       }
       accumulator->AddKey(value, prev_key_count);

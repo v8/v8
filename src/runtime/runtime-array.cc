@@ -220,7 +220,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     Handle<FixedArray> current_keys =
         isolate->factory()->NewFixedArray(current->NumberOfOwnElements(NONE));
     current->GetOwnElementKeys(*current_keys, NONE);
-    accumulator.AddKeys(current_keys, FixedArray::ALL_KEYS);
+    accumulator.AddKeys(current_keys, INCLUDE_SYMBOLS);
   }
   // Erase any keys >= length.
   // TODO(adamk): Remove this step when the contract of %GetArrayKeys

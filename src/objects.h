@@ -1775,6 +1775,9 @@ enum AccessorComponent {
 };
 
 
+enum KeyFilter { SKIP_SYMBOLS, INCLUDE_SYMBOLS };
+
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
@@ -1854,8 +1857,8 @@ class JSReceiver: public HeapObject {
   // Computes the enumerable keys for a JSObject. Used for implementing
   // "for (n in object) { }".
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetKeys(
-      Handle<JSReceiver> object,
-      KeyCollectionType type);
+      Handle<JSReceiver> object, KeyCollectionType type,
+      KeyFilter filter = SKIP_SYMBOLS);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
@@ -2518,8 +2521,6 @@ class FixedArray: public FixedArrayBase {
 
   // Shrink length and insert filler objects.
   void Shrink(int length);
-
-  enum KeyFilter { ALL_KEYS, NON_SYMBOL_KEYS };
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
@@ -10607,8 +10608,8 @@ class KeyAccumulator final BASE_EMBEDDED {
   explicit KeyAccumulator(Isolate* isolate) : isolate_(isolate), length_(0) {}
 
   void AddKey(Handle<Object> key, int check_limit);
-  void AddKeys(Handle<FixedArray> array, FixedArray::KeyFilter filter);
-  void AddKeys(Handle<JSObject> array, FixedArray::KeyFilter filter);
+  void AddKeys(Handle<FixedArray> array, KeyFilter filter);
+  void AddKeys(Handle<JSObject> array, KeyFilter filter);
   void PrepareForComparisons(int count);
   Handle<FixedArray> GetKeys();
 

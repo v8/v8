@@ -6759,11 +6759,10 @@ void KeyAccumulator::AddKey(Handle<Object> key, int check_limit) {
 }
 
 
-void KeyAccumulator::AddKeys(Handle<FixedArray> array,
-                             FixedArray::KeyFilter filter) {
+void KeyAccumulator::AddKeys(Handle<FixedArray> array, KeyFilter filter) {
   int add_length = array->length();
   if (add_length == 0) return;
-  if (keys_.is_null() && filter == FixedArray::ALL_KEYS) {
+  if (keys_.is_null() && filter == INCLUDE_SYMBOLS) {
     keys_ = array;
     length_ = keys_->length();
     return;
@@ -6772,14 +6771,13 @@ void KeyAccumulator::AddKeys(Handle<FixedArray> array,
   int previous_key_count = length_;
   for (int i = 0; i < add_length; i++) {
     Handle<Object> current(array->get(i), isolate_);
-    if (filter == FixedArray::NON_SYMBOL_KEYS && current->IsSymbol()) continue;
+    if (filter == SKIP_SYMBOLS && current->IsSymbol()) continue;
     AddKey(current, previous_key_count);
   }
 }
 
 
-void KeyAccumulator::AddKeys(Handle<JSObject> array_like,
-                             FixedArray::KeyFilter filter) {
+void KeyAccumulator::AddKeys(Handle<JSObject> array_like, KeyFilter filter) {
   DCHECK(array_like->IsJSArray() || array_like->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = array_like->GetElementsAccessor();
   accessor->AddElementsToKeyAccumulator(array_like, this, filter);
@@ -6831,7 +6829,8 @@ void KeyAccumulator::Grow() {
 
 
 MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
-                                            KeyCollectionType type) {
+                                            KeyCollectionType type,
+                                            KeyFilter filter) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   KeyAccumulator accumulator(isolate);
@@ -6857,7 +6856,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                           arraysize(args),
                           args),
           FixedArray);
-      accumulator.AddKeys(Handle<JSObject>::cast(names), FixedArray::ALL_KEYS);
+      accumulator.AddKeys(Handle<JSObject>::cast(names), filter);
       break;
     }
 
@@ -6876,7 +6875,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
     Handle<FixedArray> element_keys =
         isolate->factory()->NewFixedArray(current->NumberOfEnumElements());
     current->GetEnumElementKeys(*element_keys);
-    accumulator.AddKeys(element_keys, FixedArray::ALL_KEYS);
+    accumulator.AddKeys(element_keys, filter);
     DCHECK(ContainsOnlyValidKeys(accumulator.GetKeys()));
 
     // Add the element keys from the interceptor.
@@ -6884,38 +6883,49 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       Handle<JSObject> result;
       if (JSObject::GetKeysForIndexedInterceptor(
               current, object).ToHandle(&result)) {
-        accumulator.AddKeys(result, FixedArray::ALL_KEYS);
+        accumulator.AddKeys(result, filter);
       }
       DCHECK(ContainsOnlyValidKeys(accumulator.GetKeys()));
     }
 
-    // We can cache the computed property keys if access checks are
-    // not needed and no interceptors are involved.
-    //
-    // We do not use the cache if the object has elements and
-    // therefore it does not make sense to cache the property names
-    // for arguments objects.  Arguments objects will always have
-    // elements.
-    // Wrapped strings have elements, but don't have an elements
-    // array or dictionary.  So the fast inline test for whether to
-    // use the cache says yes, so we should not create a cache.
-    bool cache_enum_length =
-        ((current->map()->GetConstructor() != *arguments_function) &&
-         !current->IsJSValue() && !current->IsAccessCheckNeeded() &&
-         !current->HasNamedInterceptor() && !current->HasIndexedInterceptor());
-    // Compute the property keys and cache them if possible.
+    if (filter == SKIP_SYMBOLS) {
+      // We can cache the computed property keys if access checks are
+      // not needed and no interceptors are involved.
+      //
+      // We do not use the cache if the object has elements and
+      // therefore it does not make sense to cache the property names
+      // for arguments objects.  Arguments objects will always have
+      // elements.
+      // Wrapped strings have elements, but don't have an elements
+      // array or dictionary.  So the fast inline test for whether to
+      // use the cache says yes, so we should not create a cache.
+      bool cache_enum_length =
+          ((current->map()->GetConstructor() != *arguments_function) &&
+           !current->IsJSValue() && !current->IsAccessCheckNeeded() &&
+           !current->HasNamedInterceptor() &&
+           !current->HasIndexedInterceptor());
+      // Compute the property keys and cache them if possible.
 
-    Handle<FixedArray> enum_keys =
-        JSObject::GetEnumPropertyKeys(current, cache_enum_length);
-    accumulator.AddKeys(enum_keys, FixedArray::ALL_KEYS);
+      Handle<FixedArray> enum_keys =
+          JSObject::GetEnumPropertyKeys(current, cache_enum_length);
+      accumulator.AddKeys(enum_keys, filter);
+    } else {
+      DCHECK(filter == INCLUDE_SYMBOLS);
+      PropertyAttributes attr_filter =
+          static_cast<PropertyAttributes>(DONT_ENUM | PRIVATE_SYMBOL);
+      Handle<FixedArray> property_keys = isolate->factory()->NewFixedArray(
+          current->NumberOfOwnProperties(attr_filter));
+      current->GetOwnPropertyNames(*property_keys, 0, attr_filter);
+      accumulator.AddKeys(property_keys, filter);
+    }
     DCHECK(ContainsOnlyValidKeys(accumulator.GetKeys()));
 
-    // Add the non-symbol property keys from the interceptor.
+    // Add the property keys from the interceptor.
     if (current->HasNamedInterceptor()) {
       Handle<JSObject> result;
       if (JSObject::GetKeysForNamedInterceptor(
               current, object).ToHandle(&result)) {
-        accumulator.AddKeys(result, FixedArray::NON_SYMBOL_KEYS);
+        accumulator.AddKeys(result, filter);
       }
       DCHECK(ContainsOnlyValidKeys(accumulator.GetKeys()));
     }
@@ -13833,13 +13843,8 @@ int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
 
 
 int JSObject::NumberOfOwnElements(PropertyAttributes filter) {
-  return GetOwnElementKeys(NULL, filter);
-}
-
-
-int JSObject::NumberOfEnumElements() {
   // Fast case for objects with no elements.
-  if (!IsJSValue() && HasFastObjectElements()) {
+  if (!IsJSValue() && HasFastElements()) {
     uint32_t length = IsJSArray() ?
         static_cast<uint32_t>(
             Smi::cast(JSArray::cast(this)->length())->value()) :
@@ -13847,6 +13852,11 @@ int JSObject::NumberOfEnumElements() {
     if (length == 0) return 0;
   }
   // Compute the number of enumerable elements.
+  return GetOwnElementKeys(NULL, filter);
+}
+
+
+int JSObject::NumberOfEnumElements() {
   return NumberOfOwnElements(static_cast<PropertyAttributes>(DONT_ENUM));
 }
 

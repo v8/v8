@@ -102,7 +102,7 @@ class ElementsAccessor {
 
   virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
                                            KeyAccumulator* accumulator,
-                                           FixedArray::KeyFilter filter) = 0;
+                                           KeyFilter filter) = 0;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
