@@ -158,6 +158,10 @@ class LookupIterator final BASE_EMBEDDED {
     return it;
   }
 
+  static LookupIterator PropertyOrElement(
+      Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
+      bool* success, Configuration configuration = DEFAULT);
+
   Isolate* isolate() const { return isolate_; }
   State state() const { return state_; }
 

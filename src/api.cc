@@ -3526,20 +3526,12 @@ static i::MaybeHandle<i::Object> DefineObjectProperty(
     i::Handle<i::JSObject> js_object, i::Handle<i::Object> key,
     i::Handle<i::Object> value, PropertyAttributes attrs) {
   i::Isolate* isolate = js_object->GetIsolate();
-  // Check if the given key is an array index.
-  uint32_t index = 0;
-  if (key->ToArrayIndex(&index)) {
-    return i::JSObject::SetOwnElementIgnoreAttributes(js_object, index, value,
-                                                      attrs);
-  }
+  bool success = false;
+  i::LookupIterator it = i::LookupIterator::PropertyOrElement(
+      isolate, js_object, key, &success, i::LookupIterator::OWN);
+  if (!success) return i::MaybeHandle<i::Object>();
 
-  i::Handle<i::Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, name,
-                                   i::Object::ToName(isolate, key),
-                                   i::MaybeHandle<i::Object>());
-
-  return i::JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name,
-                                                              value, attrs);
+  return i::JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs);
 }
 
 

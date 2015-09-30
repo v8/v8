@@ -13,6 +13,38 @@ namespace v8 {
 namespace internal {
 
 
+// static
+LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
+                                                 Handle<Object> receiver,
+                                                 Handle<Object> key,
+                                                 bool* success,
+                                                 Configuration configuration) {
+  uint32_t index = 0;
+  if (key->ToArrayIndex(&index)) {
+    *success = true;
+    return LookupIterator(isolate, receiver, index, configuration);
+  }
+
+  Handle<Name> name;
+  *success = Object::ToName(isolate, key).ToHandle(&name);
+  if (!*success) {
+    DCHECK(isolate->has_pending_exception());
+    // Return an unusable dummy.
+    return LookupIterator(receiver, isolate->factory()->empty_string());
+  }
+
+  if (name->AsArrayIndex(&index)) {
+    LookupIterator it(isolate, receiver, index, configuration);
+    // Here we try to avoid having to rebuild the string later
+    // by storing it on the indexed LookupIterator.
+    it.name_ = name;
+    return it;
+  }
+
+  return LookupIterator(receiver, name, configuration);
+}
+
+
 void LookupIterator::Next() {
   DCHECK_NE(JSPROXY, state_);
   DCHECK_NE(TRANSITION, state_);

@@ -26,26 +26,12 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
         Object);
   }
 
-  // Check if the given key is an array index.
-  uint32_t index = 0;
-  if (key->ToArrayIndex(&index)) {
-    return Object::GetElement(isolate, object, index, language_mode);
-  }
+  bool success = false;
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(isolate, object, key, &success);
+  if (!success) return MaybeHandle<Object>();
 
-  // Convert the key to a name - possibly by calling back into JavaScript.
-  Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
-                             Object);
-
-  // Check if the name is trivially convertible to an index and get
-  // the element if so.
-  // TODO(verwaest): Make sure GetProperty(LookupIterator*) can handle this, and
-  // remove the special casing here.
-  if (name->AsArrayIndex(&index)) {
-    return Object::GetElement(isolate, object, index);
-  } else {
-    return Object::GetProperty(object, name, language_mode);
-  }
+  return Object::GetProperty(&it, language_mode);
 }
 
 
@@ -135,17 +121,12 @@ MaybeHandle<Object> Runtime::DeleteObjectProperty(Isolate* isolate,
                                                   Handle<JSReceiver> receiver,
                                                   Handle<Object> key,
                                                   LanguageMode language_mode) {
-  // Check if the given key is an array index.
-  uint32_t index = 0;
-  if (key->ToArrayIndex(&index)) {
-    return JSReceiver::DeleteElement(receiver, index, language_mode);
-  }
+  bool success = false;
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, receiver, key, &success, LookupIterator::HIDDEN);
+  if (!success) return MaybeHandle<Object>();
 
-  Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
-                             Object);
-
-  return JSReceiver::DeletePropertyOrElement(receiver, name, language_mode);
+  return JSReceiver::DeleteProperty(&it, language_mode);
 }
 
 
@@ -162,16 +143,11 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   }
 
   // Check if the given key is an array index.
-  uint32_t index = 0;
-  if (key->ToArrayIndex(&index)) {
-    return Object::SetElement(isolate, object, index, value, language_mode);
-  }
+  bool success = false;
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(isolate, object, key, &success);
+  if (!success) return MaybeHandle<Object>();
 
-  Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
-                             Object);
-
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name);
   return Object::SetProperty(&it, value, language_mode,
                              Object::MAY_BE_STORE_FROM_KEYED);
 }
