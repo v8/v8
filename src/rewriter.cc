@@ -17,6 +17,7 @@ class Processor: public AstVisitor {
             AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
+        replacement_(nullptr),
         is_set_(false),
         factory_(ast_value_factory) {
     InitializeAstVisitor(isolate, ast_value_factory->zone());
@@ -37,6 +38,10 @@ class Processor: public AstVisitor {
   // usage analyzer). Instead we simple remember if
   // there was ever an assignment to result_.
   bool result_assigned_;
+
+  // When visiting a node, we "return" a replacement for that node in
+  // [replacement_].  In many cases this will just be the original node.
+  Statement* replacement_;
 
   // To avoid storing to .result all the time, we eliminate some of
   // the stores by keeping track of whether or not we're sure .result
@@ -67,6 +72,7 @@ class Processor: public AstVisitor {
 void Processor::Process(ZoneList<Statement*>* statements) {
   for (int i = statements->length() - 1; i >= 0; --i) {
     Visit(statements->at(i));
+    statements->Set(i, replacement_);
   }
 }
 
@@ -81,6 +87,7 @@ void Processor::VisitBlock(Block* node) {
   // returns 'undefined'. To obtain the same behavior with v8, we need
   // to prevent rewriting in that case.
   if (!node->ignore_completion_value()) Process(node->statements());
+  replacement_ = node;
 }
 
 
@@ -90,6 +97,7 @@ void Processor::VisitExpressionStatement(ExpressionStatement* node) {
     node->set_expression(SetResult(node->expression()));
     is_set_ = true;
   }
+  replacement_ = node;
 }
 
 
@@ -97,10 +105,13 @@ void Processor::VisitIfStatement(IfStatement* node) {
   // Rewrite both branches.
   bool set_after = is_set_;
   Visit(node->then_statement());
+  node->set_then_statement(replacement_);
   bool set_in_then = is_set_;
   is_set_ = set_after;
   Visit(node->else_statement());
+  node->set_else_statement(replacement_);
   is_set_ = is_set_ && set_in_then;
+  replacement_ = node;
 }
 
 
@@ -109,7 +120,9 @@ void Processor::VisitIterationStatement(IterationStatement* node) {
   bool set_after = is_set_;
   is_set_ = false;  // We are in a loop, so we can't rely on [set_after].
   Visit(node->body());
+  node->set_body(replacement_);
   is_set_ = is_set_ && set_after;
+  replacement_ = node;
 }
 
 
@@ -142,17 +155,23 @@ void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   // Rewrite both try and catch block.
   bool set_after = is_set_;
   Visit(node->try_block());
+  node->set_try_block(static_cast<Block*>(replacement_));
   bool set_in_try = is_set_;
   is_set_ = set_after;
   Visit(node->catch_block());
+  node->set_catch_block(static_cast<Block*>(replacement_));
   is_set_ = is_set_ && set_in_try;
+  replacement_ = node;
 }
 
 
 void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   // Rewrite both try and finally block (in reverse order).
   Visit(node->finally_block());
-  Visit(node->try_block());
+  node->set_finally_block(replacement_->AsBlock());
+  Visit(node->try_block());  // Exception will not be caught.
+  node->set_try_block(replacement_->AsBlock());
+  replacement_ = node;
 }
 
 
@@ -165,36 +184,51 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
     Process(clause->statements());
   }
   is_set_ = is_set_ && set_after;
+  replacement_ = node;
 }
 
 
 void Processor::VisitContinueStatement(ContinueStatement* node) {
   is_set_ = false;
+  replacement_ = node;
 }
 
 
 void Processor::VisitBreakStatement(BreakStatement* node) {
   is_set_ = false;
+  replacement_ = node;
 }
 
 
 void Processor::VisitWithStatement(WithStatement* node) {
   Visit(node->statement());
+  node->set_statement(replacement_);
+  replacement_ = node;
 }
 
 
 void Processor::VisitSloppyBlockFunctionStatement(
     SloppyBlockFunctionStatement* node) {
   Visit(node->statement());
+  node->set_statement(replacement_);
+  replacement_ = node;
 }
 
 
-void Processor::VisitReturnStatement(ReturnStatement* node) { is_set_ = true; }
+void Processor::VisitEmptyStatement(EmptyStatement* node) {
+  replacement_ = node;
+}
 
 
-// Do nothing:
-void Processor::VisitEmptyStatement(EmptyStatement* node) {}
-void Processor::VisitDebuggerStatement(DebuggerStatement* node) {}
+void Processor::VisitReturnStatement(ReturnStatement* node) {
+  is_set_ = true;
+  replacement_ = node;
+}
+
+
+void Processor::VisitDebuggerStatement(DebuggerStatement* node) {
+  replacement_ = node;
+}
 
 
 // Expressions are never visited.

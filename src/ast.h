@@ -640,6 +640,7 @@ class IterationStatement : public BreakableStatement {
   IterationStatement* AsIterationStatement() final { return this; }
 
   Statement* body() const { return body_; }
+  void set_body(Statement* s) { body_ = s; }
 
   static int num_ids() { return parent_num_ids() + 1; }
   BailoutId OsrEntryId() const { return BailoutId(local_id(0)); }
@@ -988,6 +989,7 @@ class WithStatement final : public Statement {
   Scope* scope() { return scope_; }
   Expression* expression() const { return expression_; }
   Statement* statement() const { return statement_; }
+  void set_statement(Statement* s) { statement_ = s; }
 
   void set_base_id(int id) { base_id_ = id; }
   static int num_ids() { return parent_num_ids() + 1; }
@@ -1092,6 +1094,9 @@ class IfStatement final : public Statement {
   Statement* then_statement() const { return then_statement_; }
   Statement* else_statement() const { return else_statement_; }
 
+  void set_then_statement(Statement* s) { then_statement_ = s; }
+  void set_else_statement(Statement* s) { else_statement_ = s; }
+
   bool IsJump() const override {
     return HasThenStatement() && then_statement()->IsJump()
         && HasElseStatement() && else_statement()->IsJump();
@@ -1131,6 +1136,7 @@ class IfStatement final : public Statement {
 class TryStatement : public Statement {
  public:
   Block* try_block() const { return try_block_; }
+  void set_try_block(Block* b) { try_block_ = b; }
 
   void set_base_id(int id) { base_id_ = id; }
   static int num_ids() { return parent_num_ids() + 1; }
@@ -1163,6 +1169,7 @@ class TryCatchStatement final : public TryStatement {
   Scope* scope() { return scope_; }
   Variable* variable() { return variable_; }
   Block* catch_block() const { return catch_block_; }
+  void set_catch_block(Block* b) { catch_block_ = b; }
 
  protected:
   TryCatchStatement(Zone* zone, Block* try_block, Scope* scope,
@@ -1184,6 +1191,7 @@ class TryFinallyStatement final : public TryStatement {
   DECLARE_NODE_TYPE(TryFinallyStatement)
 
   Block* finally_block() const { return finally_block_; }
+  void set_finally_block(Block* b) { finally_block_ = b; }
 
  protected:
   TryFinallyStatement(Zone* zone, Block* try_block, Block* finally_block,
