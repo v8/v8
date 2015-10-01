@@ -8,7 +8,7 @@
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
-#include "src/strings-storage.h"
+#include "src/profiler/strings-storage.h"
 
 namespace v8 {
 namespace internal {

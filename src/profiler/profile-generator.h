@@ -10,7 +10,7 @@
 #include "src/allocation.h"
 #include "src/compiler.h"
 #include "src/hashmap.h"
-#include "src/strings-storage.h"
+#include "src/profiler/strings-storage.h"
 
 namespace v8 {
 namespace internal {
