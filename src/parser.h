@@ -1123,8 +1123,8 @@ class Parser : public ParserBase<ParserTraits> {
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
 
-  // For harmony block scoping mode: Check if the scope has conflicting var/let
-  // declarations from different scopes. It covers for example
+  // Check if the scope has conflicting var/let declarations from different
+  // scopes. This covers for example
   //
   // function f() { { { var x; } let x; } }
   // function g() { { var x; let x; } }
@@ -1133,6 +1133,10 @@ class Parser : public ParserBase<ParserTraits> {
   // a scope where the name has also been let bound or the var declaration is
   // hoisted over such a scope.
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
+
+  // Insert initializer statements for var-bindings shadowing parameter bindings
+  // from a non-simple parameter list.
+  void InsertShadowingVarBindingInitializers(Block* block);
 
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
   void InsertSloppyBlockFunctionVarBindings(Scope* scope, bool* ok);

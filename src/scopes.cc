@@ -601,10 +601,6 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
     const AstRawString* name = decl->proxy()->raw_name();
 
     // Iterate through all scopes until and including the declaration scope.
-    // If the declaration scope is a (declaration) block scope, also continue
-    // (that is to handle the special inner scope of functions with
-    // destructuring parameters, which may not shadow any variables from
-    // the surrounding function scope).
     Scope* previous = NULL;
     Scope* current = decl->scope();
     // Lexical vs lexical conflicts within the same scope have already been
@@ -620,7 +616,7 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
       }
       previous = current;
       current = current->outer_scope_;
-    } while (!previous->is_declaration_scope() || previous->is_block_scope());
+    } while (!previous->is_declaration_scope());
   }
   return NULL;
 }

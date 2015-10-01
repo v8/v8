@@ -4682,6 +4682,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     inner_scope = inner_scope->FinalizeBlockScope();
     if (inner_scope != nullptr) {
       CheckConflictingVarDeclarations(inner_scope, CHECK_OK);
+      InsertShadowingVarBindingInitializers(inner_block);
     }
 
     result->Add(init_block, zone());
@@ -4941,8 +4942,7 @@ Literal* Parser::GetLiteralUndefined(int position) {
 void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
   Declaration* decl = scope->CheckConflictingVarDeclarations();
   if (decl != NULL) {
-    // In harmony mode we treat conflicting variable bindinds as early
-    // errors. See ES5 16 for a definition of early errors.
+    // In ES6, conflicting variable bindings are early errors.
     const AstRawString* name = decl->proxy()->raw_name();
     int position = decl->proxy()->position();
     Scanner::Location location = position == RelocInfo::kNoPosition
@@ -4951,6 +4951,31 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
     ParserTraits::ReportMessageAt(location, MessageTemplate::kVarRedeclaration,
                                   name);
     *ok = false;
+  }
+}
+
+
+void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
+  // For each var-binding that shadows a parameter, insert an assignment
+  // initializing the variable with the parameter.
+  Scope* inner_scope = inner_block->scope();
+  DCHECK(inner_scope->is_declaration_scope());
+  Scope* function_scope = inner_scope->outer_scope();
+  DCHECK(function_scope->is_function_scope());
+  ZoneList<Declaration*>* decls = inner_scope->declarations();
+  for (int i = 0; i < decls->length(); ++i) {
+    Declaration* decl = decls->at(i);
+    if (decl->mode() != VAR || !decl->IsVariableDeclaration()) continue;
+    const AstRawString* name = decl->proxy()->raw_name();
+    Variable* parameter = function_scope->LookupLocal(name);
+    if (parameter == nullptr) continue;
+    VariableProxy* to = inner_scope->NewUnresolved(factory(), name);
+    VariableProxy* from = factory()->NewVariableProxy(parameter);
+    Expression* assignment = factory()->NewAssignment(
+        Token::ASSIGN, to, from, RelocInfo::kNoPosition);
+    Statement* statement = factory()->NewExpressionStatement(
+        assignment, RelocInfo::kNoPosition);
+    inner_block->statements()->InsertAt(0, statement, zone());
   }
 }
 
