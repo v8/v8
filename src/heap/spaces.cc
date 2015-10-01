@@ -2074,7 +2074,6 @@ intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
       category->end()->set_next(top());
     }
     set_top(category->top());
-    base::NoBarrier_Store(&top_, category->top_);
     available_ += category->available();
     category->Reset();
   }
@@ -2083,9 +2082,9 @@ intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
 
 
 void FreeListCategory::Reset() {
-  set_top(NULL);
-  set_end(NULL);
-  set_available(0);
+  set_top(nullptr);
+  set_end(nullptr);
+  available_ = 0;
 }
 
 
@@ -2160,6 +2159,55 @@ FreeSpace* FreeListCategory::PickNodeFromList(int size_in_bytes,
 }
 
 
+FreeSpace* FreeListCategory::SearchForNodeInList(int size_in_bytes,
+                                                 int* node_size) {
+  FreeSpace* return_node = nullptr;
+  FreeSpace* top_node = top();
+
+  for (FreeSpace** node_it = &top_node; *node_it != NULL;
+       node_it = (*node_it)->next_address()) {
+    FreeSpace* cur_node = *node_it;
+    while (cur_node != NULL &&
+           Page::FromAddress(cur_node->address())->IsEvacuationCandidate()) {
+      int size = cur_node->Size();
+      available_ -= size;
+      Page::FromAddress(cur_node->address())
+          ->add_available_in_free_list(type_, -size);
+      cur_node = cur_node->next();
+    }
+
+    // Update iterator.
+    *node_it = cur_node;
+
+    if (cur_node == nullptr) {
+      set_end(nullptr);
+      break;
+    }
+
+    int size = cur_node->Size();
+    if (size >= size_in_bytes) {
+      // Large enough node found.  Unlink it from the list.
+      return_node = cur_node;
+      *node_it = cur_node->next();
+      *node_size = size;
+      available_ -= size;
+      Page::FromAddress(return_node->address())
+          ->add_available_in_free_list(type_, -size);
+      break;
+    }
+  }
+
+  // Top could've changed if we took the first node. Update top and end
+  // accordingly.
+  set_top(top_node);
+  if (top() == nullptr) {
+    set_end(nullptr);
+  }
+
+  return return_node;
+}
+
+
 void FreeListCategory::Free(FreeSpace* free_space, int size_in_bytes) {
   free_space->set_next(top());
   set_top(free_space);
@@ -2188,10 +2236,10 @@ FreeList::FreeList(PagedSpace* owner)
     : owner_(owner),
       heap_(owner->heap()),
       wasted_bytes_(0),
-      small_list_(this),
-      medium_list_(this),
-      large_list_(this),
-      huge_list_(this) {
+      small_list_(this, kSmall),
+      medium_list_(this, kMedium),
+      large_list_(this, kLarge),
+      huge_list_(this, kHuge) {
   Reset();
 }
 
@@ -2302,44 +2350,7 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
     }
   }
 
-  int huge_list_available = huge_list_.available();
-  FreeSpace* top_node = huge_list_.top();
-  for (FreeSpace** cur = &top_node; *cur != NULL;
-       cur = (*cur)->next_address()) {
-    FreeSpace* cur_node = *cur;
-    while (cur_node != NULL &&
-           Page::FromAddress(cur_node->address())->IsEvacuationCandidate()) {
-      int size = cur_node->Size();
-      huge_list_available -= size;
-      page = Page::FromAddress(cur_node->address());
-      page->add_available_in_huge_free_list(-size);
-      cur_node = cur_node->next();
-    }
-
-    *cur = cur_node;
-    if (cur_node == NULL) {
-      huge_list_.set_end(NULL);
-      break;
-    }
-
-    int size = cur_node->Size();
-    if (size >= size_in_bytes) {
-      // Large enough node found.  Unlink it from the list.
-      node = *cur;
-      *cur = node->next();
-      *node_size = size;
-      huge_list_available -= size;
-      page = Page::FromAddress(node->address());
-      page->add_available_in_huge_free_list(-size);
-      break;
-    }
-  }
-
-  huge_list_.set_top(top_node);
-  if (huge_list_.top() == NULL) {
-    huge_list_.set_end(NULL);
-  }
-  huge_list_.set_available(huge_list_available);
+  node = huge_list_.SearchForNodeInList(size_in_bytes, node_size);
 
   if (node != NULL) {
     DCHECK(IsVeryLong() || available() == SumFreeLists());

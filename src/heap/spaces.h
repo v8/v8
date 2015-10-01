@@ -752,6 +752,9 @@ class MemoryChunk {
 };
 
 
+enum FreeListCategoryType { kSmall, kMedium, kLarge, kHuge };
+
+
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.
 //
@@ -852,6 +855,25 @@ class Page : public MemoryChunk {
   FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_huge_free_list)
 
 #undef FRAGMENTATION_STATS_ACCESSORS
+
+  void add_available_in_free_list(FreeListCategoryType type, intptr_t bytes) {
+    switch (type) {
+      case kSmall:
+        add_available_in_small_free_list(bytes);
+        break;
+      case kMedium:
+        add_available_in_medium_free_list(bytes);
+        break;
+      case kLarge:
+        add_available_in_large_free_list(bytes);
+        break;
+      case kHuge:
+        add_available_in_huge_free_list(bytes);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
 
 #ifdef DEBUG
   void Print();
@@ -1518,8 +1540,12 @@ class AllocationStats BASE_EMBEDDED {
 // the end element of the linked list of free memory blocks.
 class FreeListCategory {
  public:
-  explicit FreeListCategory(FreeList* owner)
-      : top_(0), end_(NULL), available_(0), owner_(owner) {}
+  explicit FreeListCategory(FreeList* owner, FreeListCategoryType type)
+      : type_(type),
+        top_(nullptr),
+        end_(nullptr),
+        available_(0),
+        owner_(owner) {}
 
   intptr_t Concatenate(FreeListCategory* category);
 
@@ -1527,45 +1553,52 @@ class FreeListCategory {
 
   void Free(FreeSpace* node, int size_in_bytes);
 
+  // Pick a node from the list.
   FreeSpace* PickNodeFromList(int* node_size);
+
+  // Pick a node from the list and compare it against {size_in_bytes}. If the
+  // node's size is greater or equal return the node and null otherwise.
   FreeSpace* PickNodeFromList(int size_in_bytes, int* node_size);
+
+  // Search for a node of size {size_in_bytes}.
+  FreeSpace* SearchForNodeInList(int size_in_bytes, int* node_size);
 
   intptr_t EvictFreeListItemsInList(Page* p);
   bool ContainsPageFreeListItemsInList(Page* p);
 
   void RepairFreeList(Heap* heap);
 
-  FreeSpace* top() const {
-    return reinterpret_cast<FreeSpace*>(base::NoBarrier_Load(&top_));
-  }
+  bool IsEmpty() { return top() == nullptr; }
 
-  void set_top(FreeSpace* top) {
-    base::NoBarrier_Store(&top_, reinterpret_cast<base::AtomicWord>(top));
-  }
-
-  FreeSpace* end() const { return end_; }
-  void set_end(FreeSpace* end) { end_ = end; }
-
-  int* GetAvailableAddress() { return &available_; }
+  FreeList* owner() { return owner_; }
   int available() const { return available_; }
-  void set_available(int available) { available_ = available; }
-
-  bool IsEmpty() { return top() == 0; }
 
 #ifdef DEBUG
   intptr_t SumFreeList();
   int FreeListLength();
 #endif
 
-  FreeList* owner() { return owner_; }
-
  private:
-  // top_ points to the top FreeSpace* in the free list category.
-  base::AtomicWord top_;
+  FreeSpace* top() { return top_.Value(); }
+  void set_top(FreeSpace* top) { top_.SetValue(top); }
+
+  FreeSpace* end() const { return end_; }
+  void set_end(FreeSpace* end) { end_ = end; }
+
+  // |type_|: The type of this free list category.
+  FreeListCategoryType type_;
+
+  // |top_|: Points to the top FreeSpace* in the free list category.
+  AtomicValue<FreeSpace*> top_;
+
+  // |end_|: Points to the end FreeSpace* in the free list category.
   FreeSpace* end_;
-  // Total available bytes in all blocks of this free list category.
+
+  // |available_|: Total available bytes in all blocks of this free list
+  //   category.
   int available_;
 
+  // |owner_|: The owning free list of this category.
   FreeList* owner_;
 };
 
