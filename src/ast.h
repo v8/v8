@@ -462,6 +462,10 @@ class Block final : public BreakableStatement {
     statements_.Add(statement, zone);
   }
 
+  void InsertStatementAt(int index, Statement* statement, Zone* zone) {
+    statements_.InsertAt(index, statement, zone);
+  }
+
   ZoneList<Statement*>* statements() { return &statements_; }
   bool ignore_completion_value() const { return ignore_completion_value_; }
 
@@ -3189,6 +3193,8 @@ class AstNodeFactory final BASE_EMBEDDED {
       : local_zone_(ast_value_factory->zone()),
         parser_zone_(ast_value_factory->zone()),
         ast_value_factory_(ast_value_factory) {}
+
+  AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
 
   VariableDeclaration* NewVariableDeclaration(
       VariableProxy* proxy, VariableMode mode, Scope* scope, int pos,

@@ -41,7 +41,7 @@ shouldBe('eval("1; try { foo = [2,3,throwFunc(), 4]; } catch (e){}")', "1");
 shouldBe('eval("1; try { 2; throw \\"\\"; } catch (e){}")', "1");
 shouldBe('eval("1; try { 2; throwFunc(); } catch (e){}")', "1");
 shouldBe('eval("1; try { 2; throwFunc(); } catch (e){3;} finally {}")', "3");
-shouldBe('eval("1; try { 2; throwFunc(); } catch (e){3;} finally {4;}")', "4");
+shouldBe('eval("1; try { 2; throwFunc(); } catch (e){3;} finally {4;}")', "3");
 shouldBe('eval("function blah() { 1; }\\n blah();")', "undefined");
 shouldBe('eval("var x = 1;")', "undefined");
 shouldBe('eval("if (true) { 1; } else { 2; }")', "1");

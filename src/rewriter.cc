@@ -13,12 +13,13 @@ namespace internal {
 
 class Processor: public AstVisitor {
  public:
-  Processor(Isolate* isolate, Variable* result,
+  Processor(Isolate* isolate, Scope* scope, Variable* result,
             AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
+        scope_(scope),
         factory_(ast_value_factory) {
     InitializeAstVisitor(isolate, ast_value_factory->zone());
   }
@@ -28,6 +29,7 @@ class Processor: public AstVisitor {
   void Process(ZoneList<Statement*>* statements);
   bool result_assigned() const { return result_assigned_; }
 
+  Scope* scope() { return scope_; }
   AstNodeFactory* factory() { return &factory_; }
 
  private:
@@ -49,8 +51,10 @@ class Processor: public AstVisitor {
   // was hoping for.
   bool is_set_;
 
+  Scope* scope_;
   AstNodeFactory factory_;
 
+  // Returns ".result = value"
   Expression* SetResult(Expression* value) {
     result_assigned_ = true;
     VariableProxy* result_proxy = factory()->NewVariableProxy(result_);
@@ -167,9 +171,31 @@ void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
 
 void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   // Rewrite both try and finally block (in reverse order).
+  bool set_after = is_set_;
+  is_set_ = true;  // Don't normally need to assign in finally block.
   Visit(node->finally_block());
   node->set_finally_block(replacement_->AsBlock());
-  Visit(node->try_block());  // Exception will not be caught.
+  {  // Save .result value at the beginning of the finally block and restore it
+     // at the end again: ".backup = .result; ...; .result = .backup"
+     // This is necessary because the finally block does not normally contribute
+     // to the completion value.
+    Variable* backup = scope()->NewTemporary(
+        factory()->ast_value_factory()->dot_result_string());
+    Expression* backup_proxy = factory()->NewVariableProxy(backup);
+    Expression* result_proxy = factory()->NewVariableProxy(result_);
+    Expression* save = factory()->NewAssignment(
+        Token::ASSIGN, backup_proxy, result_proxy, RelocInfo::kNoPosition);
+    Expression* restore = factory()->NewAssignment(
+        Token::ASSIGN, result_proxy, backup_proxy, RelocInfo::kNoPosition);
+    node->finally_block()->statements()->InsertAt(
+        0, factory()->NewExpressionStatement(save, RelocInfo::kNoPosition),
+        zone());
+    node->finally_block()->statements()->Add(
+        factory()->NewExpressionStatement(restore, RelocInfo::kNoPosition),
+        zone());
+  }
+  is_set_ = set_after;
+  Visit(node->try_block());
   node->set_try_block(replacement_->AsBlock());
   replacement_ = node;
 }
@@ -260,7 +286,8 @@ bool Rewriter::Rewrite(ParseInfo* info) {
         scope->NewTemporary(info->ast_value_factory()->dot_result_string());
     // The name string must be internalized at this point.
     DCHECK(!result->name().is_null());
-    Processor processor(info->isolate(), result, info->ast_value_factory());
+    Processor processor(info->isolate(), scope, result,
+                        info->ast_value_factory());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
 

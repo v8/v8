@@ -31,7 +31,7 @@ PASS eval("1; try { foo = [2,3,throwFunc(), 4]; } catch (e){}") is 1
 PASS eval("1; try { 2; throw \"\"; } catch (e){}") is 1
 PASS eval("1; try { 2; throwFunc(); } catch (e){}") is 1
 PASS eval("1; try { 2; throwFunc(); } catch (e){3;} finally {}") is 3
-PASS eval("1; try { 2; throwFunc(); } catch (e){3;} finally {4;}") is 4
+PASS eval("1; try { 2; throwFunc(); } catch (e){3;} finally {4;}") is 3
 PASS eval("function blah() { 1; }\n blah();") is undefined
 PASS eval("var x = 1;") is undefined
 PASS eval("if (true) { 1; } else { 2; }") is 1
