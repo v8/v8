@@ -3553,7 +3553,6 @@ static intptr_t Free(PagedSpace* space, FreeList* free_list, Address start,
     DCHECK(free_list == NULL);
     return space->Free(start, size);
   } else {
-    // TODO(hpayer): account for wasted bytes in concurrent sweeping too.
     return size - free_list->Free(start, size);
   }
 }

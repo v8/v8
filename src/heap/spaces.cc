@@ -2066,12 +2066,6 @@ size_t NewSpace::CommittedPhysicalMemory() {
 intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
   intptr_t free_bytes = 0;
   if (category->top() != NULL) {
-    // This is safe (not going to deadlock) since Concatenate operations
-    // are never performed on the same free lists at the same time in
-    // reverse order. Furthermore, we only lock if the PagedSpace containing
-    // the free list is know to be globally available, i.e., not local.
-    if (!this->owner()->owner()->is_local()) mutex()->Lock();
-    if (!category->owner()->owner()->is_local()) category->mutex()->Lock();
     DCHECK(category->end_ != NULL);
     free_bytes = category->available();
     if (end_ == NULL) {
@@ -2083,8 +2077,6 @@ intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
     base::NoBarrier_Store(&top_, category->top_);
     available_ += category->available();
     category->Reset();
-    if (!category->owner()->owner()->is_local()) category->mutex()->Unlock();
-    if (!this->owner()->owner()->is_local()) mutex()->Unlock();
   }
   return free_bytes;
 }
@@ -2195,6 +2187,7 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
 FreeList::FreeList(PagedSpace* owner)
     : owner_(owner),
       heap_(owner->heap()),
+      wasted_bytes_(0),
       small_list_(this),
       medium_list_(this),
       large_list_(this),
@@ -2203,12 +2196,26 @@ FreeList::FreeList(PagedSpace* owner)
 }
 
 
-intptr_t FreeList::Concatenate(FreeList* free_list) {
+intptr_t FreeList::Concatenate(FreeList* other) {
   intptr_t free_bytes = 0;
-  free_bytes += small_list_.Concatenate(free_list->small_list());
-  free_bytes += medium_list_.Concatenate(free_list->medium_list());
-  free_bytes += large_list_.Concatenate(free_list->large_list());
-  free_bytes += huge_list_.Concatenate(free_list->huge_list());
+
+  // This is safe (not going to deadlock) since Concatenate operations
+  // are never performed on the same free lists at the same time in
+  // reverse order. Furthermore, we only lock if the PagedSpace containing
+  // the free list is know to be globally available, i.e., not local.
+  if (!owner()->is_local()) mutex_.Lock();
+  if (!other->owner()->is_local()) other->mutex()->Lock();
+
+  wasted_bytes_ += other->wasted_bytes_;
+  other->wasted_bytes_ = 0;
+
+  free_bytes += small_list_.Concatenate(other->small_list());
+  free_bytes += medium_list_.Concatenate(other->medium_list());
+  free_bytes += large_list_.Concatenate(other->large_list());
+  free_bytes += huge_list_.Concatenate(other->huge_list());
+
+  if (!other->owner()->is_local()) other->mutex()->Unlock();
+  if (!owner()->is_local()) mutex_.Unlock();
   return free_bytes;
 }
 
@@ -2218,6 +2225,7 @@ void FreeList::Reset() {
   medium_list_.Reset();
   large_list_.Reset();
   huge_list_.Reset();
+  ResetStats();
 }
 
 
@@ -2231,6 +2239,7 @@ int FreeList::Free(Address start, int size_in_bytes) {
   // Early return to drop too-small blocks on the floor.
   if (size_in_bytes <= kSmallListMin) {
     page->add_non_available_small_blocks(size_in_bytes);
+    wasted_bytes_ += size_in_bytes;
     return size_in_bytes;
   }
 
