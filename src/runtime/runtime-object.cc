@@ -310,10 +310,10 @@ RUNTIME_FUNCTION(Runtime_PreventExtensions) {
 
 
 RUNTIME_FUNCTION(Runtime_IsExtensible) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsExtensible());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  return isolate->heap()->ToBoolean(JSObject::IsExtensible(obj));
 }
 
 

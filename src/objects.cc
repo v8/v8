@@ -4867,7 +4867,8 @@ Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
   if (it->IsFound()) {
     if (!it->IsConfigurable()) return Just(false);
   } else {
-    if (!JSObject::cast(*it->GetReceiver())->IsExtensible()) return Just(false);
+    if (!JSObject::IsExtensible(Handle<JSObject>::cast(it->GetReceiver())))
+      return Just(false);
   }
 
   RETURN_ON_EXCEPTION_VALUE(
@@ -6016,14 +6017,18 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
 }
 
 
-bool JSObject::IsExtensible() {
-  if (IsJSGlobalProxy()) {
-    PrototypeIterator iter(GetIsolate(), this);
+bool JSObject::IsExtensible(Handle<JSObject> object) {
+  Isolate* isolate = object->GetIsolate();
+  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+    return true;
+  }
+  if (object->IsJSGlobalProxy()) {
+    PrototypeIterator iter(isolate, *object);
     if (iter.IsAtEnd()) return false;
     DCHECK(iter.GetCurrent()->IsJSGlobalObject());
     return iter.GetCurrent<JSObject>()->map()->is_extensible();
   }
-  return map()->is_extensible();
+  return object->map()->is_extensible();
 }
 
 

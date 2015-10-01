@@ -2271,7 +2271,7 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> PreventExtensions(
       Handle<JSObject> object);
 
-  bool IsExtensible();
+  static bool IsExtensible(Handle<JSObject> object);
 
   // ES5 Object.seal
   MUST_USE_RESULT static MaybeHandle<Object> Seal(Handle<JSObject> object);
