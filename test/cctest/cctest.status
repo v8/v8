@@ -126,6 +126,7 @@
   'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
+  'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
 
   # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
@@ -198,6 +199,10 @@
 
 ##############################################################################
 ['no_snap == True', {
+  # Slow tests.
+  'test-api/ExternalWrap': [PASS, SLOW],
+  'test-api/FastReturnValues*': [PASS, SLOW],
+  'test-decls/CrossScriptReferences_Simple2': [PASS, SLOW],
 }],  # 'no_snap == True'
 
 ##############################################################################

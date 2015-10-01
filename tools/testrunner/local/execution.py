@@ -72,6 +72,8 @@ class Runner(object):
     if not context.no_sorting:
       for t in self.tests:
         t.duration = self.perfdata.FetchPerfData(t) or 1.0
+      slow_key = lambda t: statusfile.IsSlow(t.outcomes)
+      self.tests.sort(key=slow_key, reverse=True)
       self.tests.sort(key=lambda t: t.duration, reverse=True)
     self._CommonInit(suites, progress_indicator, context)
 

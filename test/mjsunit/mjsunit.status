@@ -197,7 +197,7 @@
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
   'migrations': [SKIP],
-  'array-functions-prototype-misc': [PASS, ['mode == debug', SKIP]],
+  'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -251,6 +251,17 @@
   # BUG(chromium:508074). Remove this once the issue is fixed.
   'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
   'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
+
+  # Slow tests.
+  'copy-on-write-assert': [PASS, SLOW],
+  'debug-scopes': [PASS, SLOW],
+  'es7/object-observe': [PASS, ['mode == debug', SLOW]],
+  'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
+  'readonly': [PASS, SLOW],
+  'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
+  'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
+  'strong/implicit-conversions': [PASS, SLOW],
+  'strong/load-element-mutate-backing-store': [PASS, SLOW],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -321,6 +332,12 @@
 
   # BUG(v8:4381)
   'for-in-opt': [PASS, FAIL],
+
+  # Slow tests.
+  'array-constructor': [PASS, SLOW],
+  'json': [PASS, SLOW],
+  'regress/regress-446389': [PASS, SLOW],
+  'regress/regress-inline-getter-near-stack-limit': [PASS, SLOW],
 }],  # 'gc_stress == True'
 
 ##############################################################################
