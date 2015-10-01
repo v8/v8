@@ -76,40 +76,54 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
 
 
 template <size_t N>
-void BytecodeArrayBuilder::Output(uint8_t(&bytes)[N]) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(Bytecodes::FromByte(bytes[0])),
-            static_cast<int>(N) - 1);
+void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t(&operands)[N]) {
+  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), N);
   last_bytecode_start_ = bytecodes()->size();
-  for (int i = 1; i < static_cast<int>(N); i++) {
-    DCHECK(OperandIsValid(Bytecodes::FromByte(bytes[0]), i - 1, bytes[i]));
+  bytecodes()->push_back(Bytecodes::ToByte(bytecode));
+  for (int i = 0; i < static_cast<int>(N); i++) {
+    DCHECK(OperandIsValid(bytecode, i, operands[i]));
+    switch (Bytecodes::GetOperandSize(bytecode, i)) {
+      case OperandSize::kNone:
+        UNREACHABLE();
+      case OperandSize::kByte:
+        bytecodes()->push_back(static_cast<uint8_t>(operands[i]));
+        break;
+      case OperandSize::kShort: {
+        uint8_t operand_bytes[2];
+        Bytecodes::ShortOperandToBytes(operands[i], operand_bytes);
+        bytecodes()->insert(bytecodes()->end(), operand_bytes,
+                            operand_bytes + 2);
+        break;
+      }
+    }
   }
-  bytecodes()->insert(bytecodes()->end(), bytes, bytes + N);
 }
 
 
-void BytecodeArrayBuilder::Output(Bytecode bytecode, uint8_t operand0,
-                                  uint8_t operand1, uint8_t operand2) {
-  uint8_t bytes[] = {Bytecodes::ToByte(bytecode), operand0, operand1, operand2};
-  Output(bytes);
+void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t operand0,
+                                  uint32_t operand1, uint32_t operand2) {
+  uint32_t operands[] = {operand0, operand1, operand2};
+  Output(bytecode, operands);
 }
 
 
-void BytecodeArrayBuilder::Output(Bytecode bytecode, uint8_t operand0,
-                                  uint8_t operand1) {
-  uint8_t bytes[] = {Bytecodes::ToByte(bytecode), operand0, operand1};
-  Output(bytes);
+void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t operand0,
+                                  uint32_t operand1) {
+  uint32_t operands[] = {operand0, operand1};
+  Output(bytecode, operands);
 }
 
 
-void BytecodeArrayBuilder::Output(Bytecode bytecode, uint8_t operand0) {
-  uint8_t bytes[] = {Bytecodes::ToByte(bytecode), operand0};
-  Output(bytes);
+void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t operand0) {
+  uint32_t operands[] = {operand0};
+  Output(bytecode, operands);
 }
 
 
 void BytecodeArrayBuilder::Output(Bytecode bytecode) {
-  uint8_t bytes[] = {Bytecodes::ToByte(bytecode)};
-  Output(bytes);
+  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
+  last_bytecode_start_ = bytecodes()->size();
+  bytecodes()->push_back(Bytecodes::ToByte(bytecode));
 }
 
 
@@ -295,11 +309,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
       case Bytecode::kTestGreaterThanOrEqual:
       case Bytecode::kTestInstanceOf:
       case Bytecode::kTestIn:
-        break;
+        return *this;
       default:
-        Output(Bytecode::kToBoolean);
+        // Fall through to output kToBoolean.
+        break;
     }
   }
+  Output(Bytecode::kToBoolean);
   return *this;
 }
 
@@ -499,17 +515,19 @@ void BytecodeArrayBuilder::ReturnTemporaryRegister(int reg_index) {
 
 
 bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
-                                          uint8_t operand_value) const {
+                                          uint32_t operand_value) const {
   OperandType operand_type = Bytecodes::GetOperandType(bytecode, operand_index);
   switch (operand_type) {
     case OperandType::kNone:
       return false;
-    case OperandType::kCount:
+    case OperandType::kIdx16:
+      return static_cast<uint16_t>(operand_value) == operand_value;
+    case OperandType::kCount8:
     case OperandType::kImm8:
-    case OperandType::kIdx:
-      return true;
-    case OperandType::kReg: {
-      Register reg = Register::FromOperand(operand_value);
+    case OperandType::kIdx8:
+      return static_cast<uint8_t>(operand_value) == operand_value;
+    case OperandType::kReg8: {
+      Register reg = Register::FromOperand(static_cast<uint8_t>(operand_value));
       if (reg.is_parameter()) {
         int parameter_index = reg.ToParameterIndex(parameter_count_);
         return parameter_index >= 0 && parameter_index < parameter_count_;

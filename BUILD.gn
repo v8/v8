@@ -1051,6 +1051,7 @@ source_set("v8_base") {
     "src/interpreter/bytecode-array-iterator.h",
     "src/interpreter/bytecode-generator.cc",
     "src/interpreter/bytecode-generator.h",
+    "src/interpreter/bytecode-traits.h",
     "src/interpreter/control-flow-builders.cc",
     "src/interpreter/control-flow-builders.h",
     "src/interpreter/interpreter.cc",

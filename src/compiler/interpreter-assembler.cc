@@ -126,17 +126,25 @@ Node* InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
 
 Node* InterpreterAssembler::BytecodeOperand(int operand_index) {
   DCHECK_LT(operand_index, interpreter::Bytecodes::NumberOfOperands(bytecode_));
+  DCHECK_EQ(interpreter::OperandSize::kByte,
+            interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
   return raw_assembler_->Load(
       kMachUint8, BytecodeArrayTaggedPointer(),
-      IntPtrAdd(BytecodeOffset(), Int32Constant(1 + operand_index)));
+      IntPtrAdd(BytecodeOffset(),
+                Int32Constant(interpreter::Bytecodes::GetOperandOffset(
+                    bytecode_, operand_index))));
 }
 
 
 Node* InterpreterAssembler::BytecodeOperandSignExtended(int operand_index) {
   DCHECK_LT(operand_index, interpreter::Bytecodes::NumberOfOperands(bytecode_));
+  DCHECK_EQ(interpreter::OperandSize::kByte,
+            interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
   Node* load = raw_assembler_->Load(
       kMachInt8, BytecodeArrayTaggedPointer(),
-      IntPtrAdd(BytecodeOffset(), Int32Constant(1 + operand_index)));
+      IntPtrAdd(BytecodeOffset(),
+                Int32Constant(interpreter::Bytecodes::GetOperandOffset(
+                    bytecode_, operand_index))));
   // Ensure that we sign extend to full pointer size
   if (kPointerSize == 8) {
     load = raw_assembler_->ChangeInt32ToInt64(load);
@@ -145,8 +153,40 @@ Node* InterpreterAssembler::BytecodeOperandSignExtended(int operand_index) {
 }
 
 
-Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
-  DCHECK_EQ(interpreter::OperandType::kCount,
+Node* InterpreterAssembler::BytecodeOperandShort(int operand_index) {
+  DCHECK_LT(operand_index, interpreter::Bytecodes::NumberOfOperands(bytecode_));
+  DCHECK_EQ(interpreter::OperandSize::kShort,
+            interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
+  if (TargetSupportsUnalignedAccess()) {
+    return raw_assembler_->Load(
+        kMachUint16, BytecodeArrayTaggedPointer(),
+        IntPtrAdd(BytecodeOffset(),
+                  Int32Constant(interpreter::Bytecodes::GetOperandOffset(
+                      bytecode_, operand_index))));
+  } else {
+    int offset =
+        interpreter::Bytecodes::GetOperandOffset(bytecode_, operand_index);
+    Node* first_byte = raw_assembler_->Load(
+        kMachUint8, BytecodeArrayTaggedPointer(),
+        IntPtrAdd(BytecodeOffset(), Int32Constant(offset)));
+    Node* second_byte = raw_assembler_->Load(
+        kMachUint8, BytecodeArrayTaggedPointer(),
+        IntPtrAdd(BytecodeOffset(), Int32Constant(offset + 1)));
+#if V8_TARGET_LITTLE_ENDIAN
+    return raw_assembler_->WordOr(WordShl(second_byte, kBitsPerByte),
+                                  first_byte);
+#elif V8_TARGET_BIG_ENDIAN
+    return raw_assembler_->WordOr(WordShl(first_byte, kBitsPerByte),
+                                  second_byte);
+#else
+#error "Unknown Architecture"
+#endif
+  }
+}
+
+
+Node* InterpreterAssembler::BytecodeOperandCount8(int operand_index) {
+  DCHECK_EQ(interpreter::OperandType::kCount8,
             interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
   return BytecodeOperand(operand_index);
 }
@@ -159,17 +199,24 @@ Node* InterpreterAssembler::BytecodeOperandImm8(int operand_index) {
 }
 
 
-Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
-  DCHECK_EQ(interpreter::OperandType::kIdx,
+Node* InterpreterAssembler::BytecodeOperandIdx8(int operand_index) {
+  DCHECK_EQ(interpreter::OperandType::kIdx8,
             interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
   return BytecodeOperand(operand_index);
 }
 
 
-Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
-  DCHECK_EQ(interpreter::OperandType::kReg,
+Node* InterpreterAssembler::BytecodeOperandReg8(int operand_index) {
+  DCHECK_EQ(interpreter::OperandType::kReg8,
             interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
   return BytecodeOperandSignExtended(operand_index);
+}
+
+
+Node* InterpreterAssembler::BytecodeOperandIdx16(int operand_index) {
+  DCHECK_EQ(interpreter::OperandType::kIdx16,
+            interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+  return BytecodeOperandShort(operand_index);
 }
 
 
@@ -429,6 +476,20 @@ void InterpreterAssembler::End() {
   Node* end = graph()->NewNode(raw_assembler_->common()->End(end_count),
                                end_count, &end_nodes_[0]);
   graph()->SetEnd(end);
+}
+
+
+// static
+bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+  return false;
+#elif V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC
+  return CpuFeatures::IsSupported(UNALIGNED_ACCESSES);
+#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X87
+  return true;
+#else
+#error "Unknown Architecture"
+#endif
 }
 
 

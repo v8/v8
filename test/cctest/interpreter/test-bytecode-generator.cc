@@ -130,22 +130,37 @@ static void CheckBytecodeArrayEqual(struct ExpectedSnippet<T> expected,
              << " but got " << Bytecodes::ToString(bytecode);
       FATAL(stream.str().c_str());
     }
-    for (int j = 0; j < Bytecodes::NumberOfOperands(bytecode); ++j, ++i) {
-      uint8_t raw_operand =
-          iterator.GetRawOperand(j, Bytecodes::GetOperandType(bytecode, j));
+    for (int j = 0; j < Bytecodes::NumberOfOperands(bytecode); ++j) {
+      OperandType operand_type = Bytecodes::GetOperandType(bytecode, j);
+      int operand_index = i;
+      i += static_cast<int>(Bytecodes::SizeOfOperand(operand_type));
+      uint32_t raw_operand = iterator.GetRawOperand(j, operand_type);
       if (has_unknown) {
         // Check actual bytecode array doesn't have the same byte as the
         // one we use to specify an unknown byte.
         CHECK_NE(raw_operand, _);
-        if (expected.bytecode[i] == _) {
+        if (expected.bytecode[operand_index] == _) {
           continue;
         }
       }
-      if (raw_operand != expected.bytecode[i]) {
+      uint32_t expected_operand;
+      switch (Bytecodes::SizeOfOperand(operand_type)) {
+        case OperandSize::kNone:
+          UNREACHABLE();
+        case OperandSize::kByte:
+          expected_operand =
+              static_cast<uint32_t>(expected.bytecode[operand_index]);
+          break;
+        case OperandSize::kShort:
+          expected_operand = Bytecodes::ShortOperandFromBytes(
+              &expected.bytecode[operand_index]);
+          break;
+      }
+      if (raw_operand != expected_operand) {
         std::ostringstream stream;
         stream << "Check failed: expected operand [" << j << "] for bytecode ["
                << bytecode_index << "] to be "
-               << static_cast<unsigned int>(expected.bytecode[i]) << " but got "
+               << static_cast<unsigned int>(expected_operand) << " but got "
                << static_cast<unsigned int>(raw_operand);
         FATAL(stream.str().c_str());
       }

@@ -37,6 +37,9 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Register reg_2 = Register::FromParameterIndex(2, builder.parameter_count());
   int feedback_slot = 97;
 
+  // TODO(rmcilroy): Add a test for a bytecode with a short operand when
+  // the CallRuntime bytecode is landed.
+
   builder.LoadLiteral(heap_num_0)
       .LoadLiteral(heap_num_1)
       .LoadLiteral(zero)
@@ -64,7 +67,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaSmi8);
-  CHECK_EQ(Smi::FromInt(iterator.GetSmi8Operand(0)), smi_0);
+  CHECK_EQ(Smi::FromInt(iterator.GetImmediateOperand(0)), smi_0);
   CHECK(!iterator.done());
   iterator.Advance();
 

@@ -113,21 +113,21 @@ class BytecodeArrayBuilder {
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_with_smi8_operand);
 
   template <size_t N>
-  INLINE(void Output(uint8_t(&bytes)[N]));
-  void Output(Bytecode bytecode, uint8_t operand0, uint8_t operand1,
-              uint8_t operand2);
-  void Output(Bytecode bytecode, uint8_t operand0, uint8_t operand1);
-  void Output(Bytecode bytecode, uint8_t operand0);
+  INLINE(void Output(Bytecode bytecode, uint32_t(&oprands)[N]));
+  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+              uint32_t operand2);
+  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1);
+  void Output(Bytecode bytecode, uint32_t operand0);
   void Output(Bytecode bytecode);
-  void PatchJump(const ZoneVector<uint8_t>::iterator& jump_target,
-                 ZoneVector<uint8_t>::iterator jump_location);
   BytecodeArrayBuilder& OutputJump(Bytecode jump_bytecode,
                                    BytecodeLabel* label);
+  void PatchJump(const ZoneVector<uint8_t>::iterator& jump_target,
+                 ZoneVector<uint8_t>::iterator jump_location);
 
   void EnsureReturn();
 
   bool OperandIsValid(Bytecode bytecode, int operand_index,
-                      uint8_t operand_value) const;
+                      uint32_t operand_value) const;
   bool LastBytecodeInSameBlock() const;
 
   size_t GetConstantPoolEntry(Handle<Object> object);

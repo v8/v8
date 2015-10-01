@@ -41,16 +41,20 @@ class InterpreterAssembler {
 
   // Returns the count immediate for bytecode operand |operand_index| in the
   // current bytecode.
-  Node* BytecodeOperandCount(int operand_index);
+  Node* BytecodeOperandCount8(int operand_index);
   // Returns the index immediate for bytecode operand |operand_index| in the
   // current bytecode.
-  Node* BytecodeOperandIdx(int operand_index);
+  Node* BytecodeOperandIdx8(int operand_index);
   // Returns the Imm8 immediate for bytecode operand |operand_index| in the
   // current bytecode.
   Node* BytecodeOperandImm8(int operand_index);
   // Returns the register index for bytecode operand |operand_index| in the
   // current bytecode.
-  Node* BytecodeOperandReg(int operand_index);
+  Node* BytecodeOperandReg8(int operand_index);
+
+  // Returns the index immediate for the short (16 bit) bytecode operand
+  // |operand_index| in the current bytecode.
+  Node* BytecodeOperandIdx16(int operand_index);
 
   // Accumulator.
   Node* GetAccumulator();
@@ -126,6 +130,8 @@ class InterpreterAssembler {
   // Close the graph.
   void End();
 
+  static bool TargetSupportsUnalignedAccess();
+
   // Protected helpers (for testing) which delegate to RawMachineAssembler.
   CallDescriptor* call_descriptor() const;
   Graph* graph();
@@ -148,6 +154,7 @@ class InterpreterAssembler {
   Node* SmiShiftBitsConstant();
   Node* BytecodeOperand(int operand_index);
   Node* BytecodeOperandSignExtended(int operand_index);
+  Node* BytecodeOperandShort(int operand_index);
 
   Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node** args);
   Node* CallJSBuiltin(int context_index, Node* receiver, Node** js_args,

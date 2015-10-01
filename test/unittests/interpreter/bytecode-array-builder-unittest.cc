@@ -94,13 +94,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Build scorecard of bytecodes encountered in the BytecodeArray.
   std::vector<int> scorecard(Bytecodes::ToByte(Bytecode::kLast) + 1);
   Bytecode final_bytecode = Bytecode::kLdaZero;
-  for (int i = 0; i < the_array->length(); i++) {
+  int i = 0;
+  while (i < the_array->length()) {
     uint8_t code = the_array->get(i);
     scorecard[code] += 1;
-    int operands = Bytecodes::NumberOfOperands(Bytecodes::FromByte(code));
-    CHECK_LE(operands, Bytecodes::MaximumNumberOfOperands());
     final_bytecode = Bytecodes::FromByte(code);
-    i += operands;
+    i += Bytecodes::Size(Bytecodes::FromByte(code));
   }
 
   // Check return occurs at the end and only once in the BytecodeArray.
@@ -240,15 +239,15 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
   BytecodeArrayIterator iterator(array);
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-  CHECK_EQ(iterator.GetSmi8Operand(0), 6);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 6);
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrue);
-  CHECK_EQ(iterator.GetSmi8Operand(0), 4);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 4);
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfFalse);
-  CHECK_EQ(iterator.GetSmi8Operand(0), 2);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 2);
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpConstant);
@@ -303,17 +302,17 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   Handle<BytecodeArray> array = builder.ToBytecodeArray();
   BytecodeArrayIterator iterator(array);
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-  CHECK_EQ(iterator.GetSmi8Operand(0), 0);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrue);
-  CHECK_EQ(iterator.GetSmi8Operand(0), 0);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfFalse);
-  CHECK_EQ(iterator.GetSmi8Operand(0), 0);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
   iterator.Advance();
   for (int i = 0; i < 64; i++) {
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-    CHECK_EQ(iterator.GetSmi8Operand(0), -i * 2 - 2);
+    CHECK_EQ(iterator.GetImmediateOperand(0), -i * 2 - 2);
     iterator.Advance();
   }
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfFalseConstant);
@@ -345,13 +344,13 @@ TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
   Handle<BytecodeArray> array = builder.ToBytecodeArray();
   BytecodeArrayIterator iterator(array);
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-  CHECK_EQ(iterator.GetSmi8Operand(0), 2);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 2);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-  CHECK_EQ(iterator.GetSmi8Operand(0), 0);
+  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-  CHECK_EQ(iterator.GetSmi8Operand(0), -2);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -2);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();
@@ -377,15 +376,62 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   BytecodeArrayIterator iterator(array);
   for (int i = 0; i < kRepeats; i++) {
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-    CHECK_EQ(iterator.GetSmi8Operand(0), 2);
+    CHECK_EQ(iterator.GetImmediateOperand(0), 2);
     iterator.Advance();
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-    CHECK_EQ(iterator.GetSmi8Operand(0), 0);
+    CHECK_EQ(iterator.GetImmediateOperand(0), 0);
     iterator.Advance();
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-    CHECK_EQ(iterator.GetSmi8Operand(0), -2);
+    CHECK_EQ(iterator.GetImmediateOperand(0), -2);
     iterator.Advance();
   }
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
+  iterator.Advance();
+  CHECK(iterator.done());
+}
+
+
+TEST_F(BytecodeArrayBuilderTest, ToBoolean) {
+  BytecodeArrayBuilder builder(isolate(), zone());
+  builder.set_parameter_count(0);
+  builder.set_locals_count(0);
+
+  // Check ToBoolean emitted at start of block.
+  builder.EnterBlock().CastAccumulatorToBoolean();
+
+  // Check ToBoolean emitted preceding bytecode is non-boolean.
+  builder.LoadNull().CastAccumulatorToBoolean();
+
+  // Check ToBoolean omitted if preceding bytecode is boolean.
+  builder.LoadFalse().CastAccumulatorToBoolean();
+
+  // Check ToBoolean emitted if it is at the start of the next block.
+  builder.LoadFalse()
+      .LeaveBlock()
+      .EnterBlock()
+      .CastAccumulatorToBoolean()
+      .LeaveBlock();
+
+  builder.Return();
+
+  Handle<BytecodeArray> array = builder.ToBytecodeArray();
+  BytecodeArrayIterator iterator(array);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
+  iterator.Advance();
+
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaNull);
+  iterator.Advance();
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
+  iterator.Advance();
+
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
+  iterator.Advance();
+
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
+  iterator.Advance();
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
+  iterator.Advance();
+
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();
   CHECK(iterator.done());

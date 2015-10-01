@@ -188,7 +188,7 @@ void BytecodeGraphBuilder::VisitLdaZero(
 
 void BytecodeGraphBuilder::VisitLdaSmi8(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* node = jsgraph()->Constant(iterator.GetSmi8Operand(0));
+  Node* node = jsgraph()->Constant(iterator.GetImmediateOperand(0));
   environment()->BindAccumulator(node);
 }
 

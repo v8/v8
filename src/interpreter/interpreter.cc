@@ -111,7 +111,7 @@ void Interpreter::DoLdaSmi8(compiler::InterpreterAssembler* assembler) {
 //
 // Load constant literal at |idx| in the constant pool into the accumulator.
 void Interpreter::DoLdaConstant(compiler::InterpreterAssembler* assembler) {
-  Node* index = __ BytecodeOperandIdx(0);
+  Node* index = __ BytecodeOperandIdx8(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   __ SetAccumulator(constant);
   __ Dispatch();
@@ -173,7 +173,7 @@ void Interpreter::DoLdaFalse(compiler::InterpreterAssembler* assembler) {
 //
 // Load accumulator with value from register <src>.
 void Interpreter::DoLdar(compiler::InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* reg_index = __ BytecodeOperandReg8(0);
   Node* value = __ LoadRegister(reg_index);
   __ SetAccumulator(value);
   __ Dispatch();
@@ -184,7 +184,7 @@ void Interpreter::DoLdar(compiler::InterpreterAssembler* assembler) {
 //
 // Store accumulator to register <dst>.
 void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* reg_index = __ BytecodeOperandReg8(0);
   Node* accumulator = __ GetAccumulator();
   __ StoreRegister(accumulator, reg_index);
   __ Dispatch();
@@ -195,7 +195,7 @@ void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
 //
 // Load the global at |slot_index| into the accumulator.
 void Interpreter::DoLdaGlobal(compiler::InterpreterAssembler* assembler) {
-  Node* slot_index = __ BytecodeOperandIdx(0);
+  Node* slot_index = __ BytecodeOperandIdx8(0);
   Node* smi_slot_index = __ SmiTag(slot_index);
   Node* result = __ CallRuntime(Runtime::kLoadGlobalViaContext, smi_slot_index);
   __ SetAccumulator(result);
@@ -206,10 +206,10 @@ void Interpreter::DoLdaGlobal(compiler::InterpreterAssembler* assembler) {
 void Interpreter::DoPropertyLoadIC(Callable ic,
                                    compiler::InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());
-  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* reg_index = __ BytecodeOperandReg8(0);
   Node* object = __ LoadRegister(reg_index);
   Node* name = __ GetAccumulator();
-  Node* raw_slot = __ BytecodeOperandIdx(1);
+  Node* raw_slot = __ BytecodeOperandIdx8(1);
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* result = __ CallIC(ic.descriptor(), code_target, object, name, smi_slot,
@@ -244,12 +244,12 @@ void Interpreter::DoKeyedLoadIC(compiler::InterpreterAssembler* assembler) {
 void Interpreter::DoPropertyStoreIC(Callable ic,
                                     compiler::InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());
-  Node* object_reg_index = __ BytecodeOperandReg(0);
+  Node* object_reg_index = __ BytecodeOperandReg8(0);
   Node* object = __ LoadRegister(object_reg_index);
-  Node* name_reg_index = __ BytecodeOperandReg(1);
+  Node* name_reg_index = __ BytecodeOperandReg8(1);
   Node* name = __ LoadRegister(name_reg_index);
   Node* value = __ GetAccumulator();
-  Node* raw_slot = __ BytecodeOperandIdx(2);
+  Node* raw_slot = __ BytecodeOperandIdx8(2);
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* result = __ CallIC(ic.descriptor(), code_target, object, name, value,
@@ -285,7 +285,7 @@ void Interpreter::DoBinaryOp(Runtime::FunctionId function_id,
                              compiler::InterpreterAssembler* assembler) {
   // TODO(rmcilroy): Call ICs which back-patch bytecode with type specialized
   // operations, instead of calling builtins directly.
-  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* reg_index = __ BytecodeOperandReg8(0);
   Node* lhs = __ LoadRegister(reg_index);
   Node* rhs = __ GetAccumulator();
   Node* result = __ CallRuntime(function_id, lhs, rhs);
@@ -339,11 +339,11 @@ void Interpreter::DoMod(compiler::InterpreterAssembler* assembler) {
 // Call a JS function with receiver and |arg_count| arguments in subsequent
 // registers. The JSfunction or Callable to call is in the accumulator.
 void Interpreter::DoCall(compiler::InterpreterAssembler* assembler) {
-  Node* function_reg = __ BytecodeOperandReg(0);
+  Node* function_reg = __ BytecodeOperandReg8(0);
   Node* function = __ LoadRegister(function_reg);
-  Node* receiver_reg = __ BytecodeOperandReg(1);
+  Node* receiver_reg = __ BytecodeOperandReg8(1);
   Node* first_arg = __ RegisterLocation(receiver_reg);
-  Node* args_count = __ BytecodeOperandCount(2);
+  Node* args_count = __ BytecodeOperandCount8(2);
   Node* result = __ CallJS(function, first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -461,7 +461,7 @@ void Interpreter::DoJump(compiler::InterpreterAssembler* assembler) {
 //
 // Jump by number of bytes in the Smi in the |idx| entry in the constant pool.
 void Interpreter::DoJumpConstant(compiler::InterpreterAssembler* assembler) {
-  Node* index = __ BytecodeOperandIdx(0);
+  Node* index = __ BytecodeOperandIdx8(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   Node* relative_jump = __ SmiUntag(constant);
   __ Jump(relative_jump);
@@ -487,7 +487,7 @@ void Interpreter::DoJumpIfTrue(compiler::InterpreterAssembler* assembler) {
 void Interpreter::DoJumpIfTrueConstant(
     compiler::InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* index = __ BytecodeOperandIdx(0);
+  Node* index = __ BytecodeOperandIdx8(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   Node* relative_jump = __ SmiUntag(constant);
   Node* true_value = __ BooleanConstant(true);
@@ -514,7 +514,7 @@ void Interpreter::DoJumpIfFalse(compiler::InterpreterAssembler* assembler) {
 void Interpreter::DoJumpIfFalseConstant(
     compiler::InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* index = __ BytecodeOperandIdx(0);
+  Node* index = __ BytecodeOperandIdx8(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   Node* relative_jump = __ SmiUntag(constant);
   Node* false_value = __ BooleanConstant(false);
