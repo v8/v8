@@ -10,6 +10,7 @@ namespace interpreter {
 
 BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
     : isolate_(isolate),
+      zone_(zone),
       bytecodes_(zone),
       bytecode_generated_(false),
       last_block_end_(0),
@@ -314,11 +315,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
 }
 
 
-// static
-bool BytecodeArrayBuilder::IsJumpWithImm8Operand(Bytecode jump_bytecode) {
-  return jump_bytecode == Bytecode::kJump ||
-         jump_bytecode == Bytecode::kJumpIfTrue ||
-         jump_bytecode == Bytecode::kJumpIfFalse;
+BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
+                                                 BytecodeLabel* label) {
+  DCHECK_EQ(label->is_bound(), false);
+  DCHECK_EQ(target.is_bound(), true);
+  PatchJump(bytecodes()->begin() + target.offset(),
+            bytecodes()->begin() + label->offset());
+  label->bind_to(target.offset());
+  return *this;
 }
 
 
@@ -345,9 +349,9 @@ void BytecodeArrayBuilder::PatchJump(
   Bytecode jump_bytecode = Bytecodes::FromByte(*jump_location);
   int delta = static_cast<int>(jump_target - jump_location);
 
-  DCHECK(IsJumpWithImm8Operand(jump_bytecode));
+  DCHECK(Bytecodes::IsJump(jump_bytecode));
   DCHECK_EQ(Bytecodes::Size(jump_bytecode), 2);
-  DCHECK_GE(delta, 0);
+  DCHECK_NE(delta, 0);
 
   if (FitsInImm8Operand(delta)) {
     // Just update the operand
@@ -357,8 +361,8 @@ void BytecodeArrayBuilder::PatchJump(
     // Update the jump type and operand
     size_t entry = GetConstantPoolEntry(handle(Smi::FromInt(delta), isolate()));
     if (FitsInIdxOperand(entry)) {
-      *jump_location++ =
-          Bytecodes::ToByte(GetJumpWithConstantOperand(jump_bytecode));
+      jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
+      *jump_location++ = Bytecodes::ToByte(jump_bytecode);
       *jump_location = static_cast<uint8_t>(entry);
     } else {
       // TODO(oth): OutputJump should reserve a constant pool entry

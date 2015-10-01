@@ -87,6 +87,8 @@ class BytecodeArrayBuilder {
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
+  BytecodeArrayBuilder& Bind(const BytecodeLabel& target, BytecodeLabel* label);
+
   BytecodeArrayBuilder& Jump(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfTrue(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(BytecodeLabel* label);
@@ -94,6 +96,9 @@ class BytecodeArrayBuilder {
 
   BytecodeArrayBuilder& EnterBlock();
   BytecodeArrayBuilder& LeaveBlock();
+
+  // Accessors
+  Zone* zone() const { return zone_; }
 
  private:
   ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
@@ -105,7 +110,6 @@ class BytecodeArrayBuilder {
   static bool FitsInIdxOperand(int value);
   static bool FitsInIdxOperand(size_t value);
   static bool FitsInImm8Operand(int value);
-  static bool IsJumpWithImm8Operand(Bytecode jump_bytecode);
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_with_smi8_operand);
 
   template <size_t N>
@@ -133,6 +137,7 @@ class BytecodeArrayBuilder {
   void ReturnTemporaryRegister(int reg_index);
 
   Isolate* isolate_;
+  Zone* zone_;
   ZoneVector<uint8_t> bytecodes_;
   bool bytecode_generated_;
   size_t last_block_end_;
@@ -159,7 +164,6 @@ class BytecodeArrayBuilder {
 class BytecodeLabel final {
  public:
   BytecodeLabel() : bound_(false), offset_(kInvalidOffset) {}
-  ~BytecodeLabel() { DCHECK(bound_ && offset_ != kInvalidOffset); }
 
  private:
   static const size_t kInvalidOffset = static_cast<size_t>(-1);
@@ -188,7 +192,6 @@ class BytecodeLabel final {
   size_t offset_;
 
   friend class BytecodeArrayBuilder;
-  DISALLOW_COPY_AND_ASSIGN(BytecodeLabel);
 };
 
 

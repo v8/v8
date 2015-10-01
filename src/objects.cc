@@ -12557,6 +12557,16 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     SNPrintF(buf, "%p", bytecode_start);
     os << buf.start() << " : ";
     interpreter::Bytecodes::Decode(os, bytecode_start, parameter_count());
+    if (interpreter::Bytecodes::IsJump(bytecode)) {
+      int offset = static_cast<int8_t>(bytecode_start[1]);
+      SNPrintF(buf, " (%p)", bytecode_start + offset);
+      os << buf.start();
+    } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
+      int index = static_cast<int>(bytecode_start[1]);
+      int offset = Smi::cast(constant_pool()->get(index))->value();
+      SNPrintF(buf, " (%p)", bytecode_start + offset);
+      os << buf.start();
+    }
     os << "\n";
   }
 

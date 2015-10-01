@@ -178,6 +178,14 @@ class Bytecodes {
   // Maximum size of a bytecode and its operands.
   static int MaximumSize();
 
+  // Return true if the bytecode is a jump or a conditional jump taking
+  // an immediate byte operand (OperandType::kImm8).
+  static bool IsJump(Bytecode bytecode);
+
+  // Return true if the bytecode is a jump or conditional jump taking a
+  // constant pool entry (OperandType::kIdx).
+  static bool IsJumpConstant(Bytecode bytecode);
+
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
                               int number_of_parameters);

@@ -816,6 +816,8 @@
         '../../src/interpreter/bytecode-array-builder.h',
         '../../src/interpreter/bytecode-array-iterator.cc',
         '../../src/interpreter/bytecode-array-iterator.h',
+        '../../src/interpreter/control-flow-builders.cc',
+        '../../src/interpreter/control-flow-builders.h',
         '../../src/interpreter/interpreter.cc',
         '../../src/interpreter/interpreter.h',
         '../../src/isolate-inl.h',

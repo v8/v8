@@ -103,6 +103,21 @@ int Bytecodes::MaximumSize() { return 1 + kMaxOperands; }
 
 
 // static
+bool Bytecodes::IsJump(Bytecode bytecode) {
+  return bytecode == Bytecode::kJump || bytecode == Bytecode::kJumpIfTrue ||
+         bytecode == Bytecode::kJumpIfFalse;
+}
+
+
+// static
+bool Bytecodes::IsJumpConstant(Bytecode bytecode) {
+  return bytecode == Bytecode::kJumpConstant ||
+         bytecode == Bytecode::kJumpIfTrueConstant ||
+         bytecode == Bytecode::kJumpIfFalseConstant;
+}
+
+
+// static
 std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
                                 int parameter_count) {
   Vector<char> buf = Vector<char>::New(50);

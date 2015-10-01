@@ -7,6 +7,7 @@
 #include <stack>
 
 #include "src/compiler.h"
+#include "src/interpreter/control-flow-builders.h"
 #include "src/objects.h"
 #include "src/scopes.h"
 #include "src/token.h"
@@ -15,8 +16,84 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+
+// Scoped class for tracking control statements entered by the
+// visitor. The pattern derives AstGraphBuilder::ControlScope.
+class BytecodeGenerator::ControlScope BASE_EMBEDDED {
+ public:
+  explicit ControlScope(BytecodeGenerator* generator)
+      : generator_(generator), outer_(generator->control_scope()) {
+    generator_->set_control_scope(this);
+  }
+  virtual ~ControlScope() { generator_->set_control_scope(outer()); }
+
+  void Break(Statement* stmt) { PerformCommand(CMD_BREAK, stmt); }
+  void Continue(Statement* stmt) { PerformCommand(CMD_CONTINUE, stmt); }
+
+ protected:
+  enum Command { CMD_BREAK, CMD_CONTINUE };
+  void PerformCommand(Command command, Statement* statement);
+  virtual bool Execute(Command command, Statement* statement) = 0;
+
+  BytecodeGenerator* generator() const { return generator_; }
+  ControlScope* outer() const { return outer_; }
+
+ private:
+  BytecodeGenerator* generator_;
+  ControlScope* outer_;
+
+  DISALLOW_COPY_AND_ASSIGN(ControlScope);
+};
+
+
+// Scoped class for enabling 'break' and 'continue' in iteration
+// constructs, e.g. do...while, while..., for...
+class BytecodeGenerator::ControlScopeForIteration
+    : public BytecodeGenerator::ControlScope {
+ public:
+  ControlScopeForIteration(BytecodeGenerator* generator,
+                           IterationStatement* statement,
+                           LoopBuilder* loop_builder)
+      : ControlScope(generator),
+        statement_(statement),
+        loop_builder_(loop_builder) {}
+
+ protected:
+  virtual bool Execute(Command command, Statement* statement) {
+    if (statement != statement_) return false;
+    switch (command) {
+      case CMD_BREAK:
+        loop_builder_->Break();
+        return true;
+      case CMD_CONTINUE:
+        loop_builder_->Continue();
+        return true;
+    }
+    return false;
+  }
+
+ private:
+  Statement* statement_;
+  LoopBuilder* loop_builder_;
+};
+
+
+void BytecodeGenerator::ControlScope::PerformCommand(Command command,
+                                                     Statement* statement) {
+  ControlScope* current = this;
+  do {
+    if (current->Execute(command, statement)) return;
+    current = current->outer();
+  } while (current != nullptr);
+  UNREACHABLE();
+}
+
+
 BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
-    : builder_(isolate, zone) {
+    : builder_(isolate, zone),
+      info_(nullptr),
+      scope_(nullptr),
+      control_scope_(nullptr) {
   InitializeAstVisitor(isolate, zone);
 }
 
@@ -31,8 +108,8 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   // This a temporary guard (oth).
   DCHECK(scope()->is_function_scope());
 
-  builder().set_parameter_count(info->num_parameters_including_this());
-  builder().set_locals_count(scope()->num_stack_slots());
+  builder()->set_parameter_count(info->num_parameters_including_this());
+  builder()->set_locals_count(scope()->num_stack_slots());
 
   // Visit implicit declaration of the function name.
   if (scope()->is_function_scope() && scope()->function() != NULL) {
@@ -52,7 +129,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
 
 
 void BytecodeGenerator::VisitBlock(Block* node) {
-  builder().EnterBlock();
+  builder()->EnterBlock();
   if (node->scope() == NULL) {
     // Visit statements in the same scope, no declarations.
     VisitStatements(node->statements());
@@ -65,7 +142,7 @@ void BytecodeGenerator::VisitBlock(Block* node) {
       VisitStatements(node->statements());
     }
   }
-  builder().LeaveBlock();
+  builder()->LeaveBlock();
 }
 
 
@@ -114,20 +191,24 @@ void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
-  BytecodeLabel else_start, else_end;
   // TODO(oth): Spot easy cases where there code would not need to
   // emit the then block or the else block, e.g. condition is
   // obviously true/1/false/0.
+
+  BytecodeLabel else_label, end_label;
+
   Visit(stmt->condition());
-  builder().CastAccumulatorToBoolean();
-  builder().JumpIfFalse(&else_start);
-
+  builder()->CastAccumulatorToBoolean();
+  builder()->JumpIfFalse(&else_label);
   Visit(stmt->then_statement());
-  builder().Jump(&else_end);
-  builder().Bind(&else_start);
-
-  Visit(stmt->else_statement());
-  builder().Bind(&else_end);
+  if (stmt->HasElseStatement()) {
+    builder()->Jump(&end_label);
+    builder()->Bind(&else_label);
+    Visit(stmt->else_statement());
+  } else {
+    builder()->Bind(&else_label);
+  }
+  builder()->Bind(&end_label);
 }
 
 
@@ -138,18 +219,18 @@ void BytecodeGenerator::VisitSloppyBlockFunctionStatement(
 
 
 void BytecodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
-  UNIMPLEMENTED();
+  control_scope()->Continue(stmt->target());
 }
 
 
 void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
-  UNIMPLEMENTED();
+  control_scope()->Break(stmt->target());
 }
 
 
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Visit(stmt->expression());
-  builder().Return();
+  builder()->Return();
 }
 
 
@@ -167,17 +248,69 @@ void BytecodeGenerator::VisitCaseClause(CaseClause* clause) { UNIMPLEMENTED(); }
 
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  UNIMPLEMENTED();
+  LoopBuilder loop_builder(builder());
+  ControlScopeForIteration control_scope(this, stmt, &loop_builder);
+
+  BytecodeLabel body_label, condition_label, done_label;
+  builder()->Bind(&body_label);
+  Visit(stmt->body());
+  builder()->Bind(&condition_label);
+  Visit(stmt->cond());
+  builder()->JumpIfTrue(&body_label);
+  builder()->Bind(&done_label);
+
+  loop_builder.SetBreakTarget(done_label);
+  loop_builder.SetContinueTarget(condition_label);
 }
 
 
 void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
-  UNIMPLEMENTED();
+  LoopBuilder loop_builder(builder());
+  ControlScopeForIteration control_scope(this, stmt, &loop_builder);
+
+  BytecodeLabel body_label, condition_label, done_label;
+  builder()->Jump(&condition_label);
+  builder()->Bind(&body_label);
+  Visit(stmt->body());
+  builder()->Bind(&condition_label);
+  Visit(stmt->cond());
+  builder()->JumpIfTrue(&body_label);
+  builder()->Bind(&done_label);
+
+  loop_builder.SetBreakTarget(done_label);
+  loop_builder.SetContinueTarget(condition_label);
 }
 
 
 void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
-  UNIMPLEMENTED();
+  LoopBuilder loop_builder(builder());
+  ControlScopeForIteration control_scope(this, stmt, &loop_builder);
+
+  if (stmt->init() != nullptr) {
+    Visit(stmt->init());
+  }
+
+  BytecodeLabel body_label, condition_label, next_label, done_label;
+  if (stmt->cond() != nullptr) {
+    builder()->Jump(&condition_label);
+  }
+  builder()->Bind(&body_label);
+  Visit(stmt->body());
+  builder()->Bind(&next_label);
+  if (stmt->next() != nullptr) {
+    Visit(stmt->next());
+  }
+  if (stmt->cond()) {
+    builder()->Bind(&condition_label);
+    Visit(stmt->cond());
+    builder()->JumpIfTrue(&body_label);
+  } else {
+    builder()->Jump(&body_label);
+  }
+  builder()->Bind(&done_label);
+
+  loop_builder.SetBreakTarget(done_label);
+  loop_builder.SetContinueTarget(next_label);
 }
 
 
@@ -228,19 +361,19 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) { UNIMPLEMENTED(); }
 void BytecodeGenerator::VisitLiteral(Literal* expr) {
   Handle<Object> value = expr->value();
   if (value->IsSmi()) {
-    builder().LoadLiteral(Smi::cast(*value));
+    builder()->LoadLiteral(Smi::cast(*value));
   } else if (value->IsUndefined()) {
-    builder().LoadUndefined();
+    builder()->LoadUndefined();
   } else if (value->IsTrue()) {
-    builder().LoadTrue();
+    builder()->LoadTrue();
   } else if (value->IsFalse()) {
-    builder().LoadFalse();
+    builder()->LoadFalse();
   } else if (value->IsNull()) {
-    builder().LoadNull();
+    builder()->LoadNull();
   } else if (value->IsTheHole()) {
-    builder().LoadTheHole();
+    builder()->LoadTheHole();
   } else {
-    builder().LoadLiteral(value);
+    builder()->LoadLiteral(value);
   }
 }
 
@@ -269,14 +402,14 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable) {
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
       Register source(variable->index());
-      builder().LoadAccumulatorWithRegister(source);
+      builder()->LoadAccumulatorWithRegister(source);
       break;
     }
     case VariableLocation::PARAMETER: {
       // The parameter indices are shifted by 1 (receiver is variable
       // index -1 but is parameter index 0 in BytecodeArrayBuilder).
-      Register source(builder().Parameter(variable->index() + 1));
-      builder().LoadAccumulatorWithRegister(source);
+      Register source(builder()->Parameter(variable->index() + 1));
+      builder()->LoadAccumulatorWithRegister(source);
       break;
     }
     case VariableLocation::GLOBAL: {
@@ -285,7 +418,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable) {
       // a generic version of LoadGlobalViaContextStub rather than calling the
       // runtime.
       DCHECK(variable->IsStaticGlobalObjectProperty());
-      builder().LoadGlobal(variable->index());
+      builder()->LoadGlobal(variable->index());
       break;
     }
     case VariableLocation::UNALLOCATED:
@@ -314,17 +447,17 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       object = temporary_register_scope.NewRegister();
       key = temporary_register_scope.NewRegister();
       Visit(property->obj());
-      builder().StoreAccumulatorInRegister(object);
-      builder().LoadLiteral(property->key()->AsLiteral()->AsPropertyName());
-      builder().StoreAccumulatorInRegister(key);
+      builder()->StoreAccumulatorInRegister(object);
+      builder()->LoadLiteral(property->key()->AsLiteral()->AsPropertyName());
+      builder()->StoreAccumulatorInRegister(key);
       break;
     case KEYED_PROPERTY:
       object = temporary_register_scope.NewRegister();
       key = temporary_register_scope.NewRegister();
       Visit(property->obj());
-      builder().StoreAccumulatorInRegister(object);
+      builder()->StoreAccumulatorInRegister(object);
       Visit(property->key());
-      builder().StoreAccumulatorInRegister(key);
+      builder()->StoreAccumulatorInRegister(key);
       break;
     case NAMED_SUPER_PROPERTY:
     case KEYED_SUPER_PROPERTY:
@@ -346,16 +479,16 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       Variable* variable = expr->target()->AsVariableProxy()->var();
       DCHECK(variable->location() == VariableLocation::LOCAL);
       Register destination(variable->index());
-      builder().StoreAccumulatorInRegister(destination);
+      builder()->StoreAccumulatorInRegister(destination);
       break;
     }
     case NAMED_PROPERTY:
-      builder().StoreNamedProperty(object, key, feedback_index(slot),
-                                   language_mode());
+      builder()->StoreNamedProperty(object, key, feedback_index(slot),
+                                    language_mode());
       break;
     case KEYED_PROPERTY:
-      builder().StoreKeyedProperty(object, key, feedback_index(slot),
-                                   language_mode());
+      builder()->StoreKeyedProperty(object, key, feedback_index(slot),
+                                    language_mode());
       break;
     case NAMED_SUPER_PROPERTY:
     case KEYED_SUPER_PROPERTY:
@@ -377,13 +510,13 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
     case VARIABLE:
       UNREACHABLE();
     case NAMED_PROPERTY: {
-      builder().LoadLiteral(expr->key()->AsLiteral()->AsPropertyName());
-      builder().LoadNamedProperty(obj, feedback_index(slot), language_mode());
+      builder()->LoadLiteral(expr->key()->AsLiteral()->AsPropertyName());
+      builder()->LoadNamedProperty(obj, feedback_index(slot), language_mode());
       break;
     }
     case KEYED_PROPERTY: {
       Visit(expr->key());
-      builder().LoadKeyedProperty(obj, feedback_index(slot), language_mode());
+      builder()->LoadKeyedProperty(obj, feedback_index(slot), language_mode());
       break;
     }
     case NAMED_SUPER_PROPERTY:
@@ -397,7 +530,7 @@ void BytecodeGenerator::VisitProperty(Property* expr) {
   TemporaryRegisterScope temporary_register_scope(&builder_);
   Register obj = temporary_register_scope.NewRegister();
   Visit(expr->obj());
-  builder().StoreAccumulatorInRegister(obj);
+  builder()->StoreAccumulatorInRegister(obj);
   VisitPropertyLoad(obj, expr);
 }
 
@@ -419,19 +552,19 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         UNIMPLEMENTED();
       }
       Visit(property->obj());
-      builder().StoreAccumulatorInRegister(receiver);
+      builder()->StoreAccumulatorInRegister(receiver);
       // Perform a property load of the callee.
       VisitPropertyLoad(receiver, property);
-      builder().StoreAccumulatorInRegister(callee);
+      builder()->StoreAccumulatorInRegister(callee);
       break;
     }
     case Call::GLOBAL_CALL: {
       // Receiver is undefined for global calls.
-      builder().LoadUndefined().StoreAccumulatorInRegister(receiver);
+      builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
       // Load callee as a global variable.
       VariableProxy* proxy = callee_expr->AsVariableProxy();
       VisitVariableLoad(proxy->var());
-      builder().StoreAccumulatorInRegister(callee);
+      builder()->StoreAccumulatorInRegister(callee);
       break;
     }
     case Call::LOOKUP_SLOT_CALL:
@@ -448,12 +581,12 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     Visit(args->at(i));
     Register arg = temporary_register_scope.NewRegister();
     DCHECK(arg.index() - i == receiver.index() + 1);
-    builder().StoreAccumulatorInRegister(arg);
+    builder()->StoreAccumulatorInRegister(arg);
   }
 
   // TODO(rmcilroy): Deal with possible direct eval here?
   // TODO(rmcilroy): Use CallIC to allow call type feedback.
-  builder().Call(callee, receiver, args->length());
+  builder()->Call(callee, receiver, args->length());
 }
 
 
@@ -496,9 +629,9 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Register temporary = temporary_register_scope.NewRegister();
 
   Visit(left);
-  builder().StoreAccumulatorInRegister(temporary);
+  builder()->StoreAccumulatorInRegister(temporary);
   Visit(right);
-  builder().CompareOperation(op, temporary, language_mode());
+  builder()->CompareOperation(op, temporary, language_mode());
 }
 
 
@@ -535,9 +668,9 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* binop) {
   Register temporary = temporary_register_scope.NewRegister();
 
   Visit(left);
-  builder().StoreAccumulatorInRegister(temporary);
+  builder()->StoreAccumulatorInRegister(temporary);
   Visit(right);
-  builder().BinaryOperation(op, temporary);
+  builder()->BinaryOperation(op, temporary);
 }
 
 
