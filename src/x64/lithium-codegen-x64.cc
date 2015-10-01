@@ -153,7 +153,6 @@ bool LCodeGen::GeneratePrologue() {
     } else {
       __ Prologue(info()->IsCodePreAgingActive());
     }
-    info()->AddNoFrameRange(0, masm_->pc_offset());
   }
 
   // Reserve space for the stack slots needed by the code.
@@ -2712,11 +2711,9 @@ void LCodeGen::DoReturn(LReturn* instr) {
   if (info()->saves_caller_doubles()) {
     RestoreCallerDoubles();
   }
-  int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ movp(rsp, rbp);
     __ popq(rbp);
-    no_frame_start = masm_->pc_offset();
   }
   if (instr->has_constant_parameter_count()) {
     __ Ret((ToInteger32(instr->constant_parameter_count()) + 1) * kPointerSize,
@@ -2731,9 +2728,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ shlp(reg, Immediate(kPointerSizeLog2));
     __ addp(rsp, reg);
     __ jmp(return_addr_reg);
-  }
-  if (no_frame_start != -1) {
-    info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }
 }
 

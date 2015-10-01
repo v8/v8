@@ -15,7 +15,6 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
@@ -147,7 +146,6 @@ void FullCodeGenerator::Generate() {
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
   info->set_prologue_offset(masm_->pc_offset());
   __ Prologue(info->IsCodePreAgingActive());
-  info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
@@ -472,11 +470,9 @@ void FullCodeGenerator::EmitReturnSequence() {
       int32_t sp_delta = arg_count * kPointerSize;
       SetReturnPosition(literal());
       masm_->mov(sp, fp);
-      int no_frame_start = masm_->pc_offset();
       masm_->MultiPop(static_cast<RegList>(fp.bit() | ra.bit()));
       masm_->Daddu(sp, sp, Operand(sp_delta));
       masm_->Jump(ra);
-      info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
   }
 }

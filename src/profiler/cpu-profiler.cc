@@ -4,10 +4,8 @@
 
 #include "src/profiler/cpu-profiler.h"
 
-#include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
-#include "src/hashmap.h"
 #include "src/log-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/vm-state-inl.h"
@@ -254,7 +252,6 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       NULL, code->instruction_start());
   if (info) {
-    rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
     rec->entry->set_inlined_function_infos(info->inlined_function_infos());
   }
   rec->entry->FillFunctionInfo(shared);
@@ -291,7 +288,6 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
       CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name), line,
       column, line_table, code->instruction_start());
   if (info) {
-    rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
     rec->entry->set_inlined_function_infos(info->inlined_function_infos());
   }
   rec->entry->FillFunctionInfo(shared);

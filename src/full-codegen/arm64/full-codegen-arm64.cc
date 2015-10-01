@@ -7,7 +7,6 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
@@ -144,7 +143,6 @@ void FullCodeGenerator::Generate() {
   //  Add(fp, jssp, 2 * kPointerSize);
   info->set_prologue_offset(masm_->pc_offset());
   __ Prologue(info->IsCodePreAgingActive());
-  info->AddNoFrameRange(0, masm_->pc_offset());
 
   // Reserve space on the stack for locals.
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -469,7 +467,6 @@ void FullCodeGenerator::EmitReturnSequence() {
     // Nothing ensures 16 bytes alignment here.
     DCHECK(!current_sp.Is(csp));
     __ Mov(current_sp, fp);
-    int no_frame_start = masm_->pc_offset();
     __ Ldp(fp, lr, MemOperand(current_sp, 2 * kXRegSize, PostIndex));
     // Drop the arguments and receiver and return.
     // TODO(all): This implementation is overkill as it supports 2**31+1
@@ -480,7 +477,6 @@ void FullCodeGenerator::EmitReturnSequence() {
     __ Ret();
     int32_t arg_count = info_->scope()->num_parameters() + 1;
     __ dc64(kXRegSize * arg_count);
-    info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }
 }
 

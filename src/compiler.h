@@ -21,12 +21,6 @@ class JavaScriptFrame;
 class ParseInfo;
 class ScriptData;
 
-struct OffsetRange {
-  OffsetRange(int from, int to) : from(from), to(to) {}
-  int from;
-  int to;
-};
-
 
 // This class encapsulates encoding and decoding of sources positions from
 // which hydrogen values originated.
@@ -361,19 +355,6 @@ class CompilationInfo {
     prologue_offset_ = prologue_offset;
   }
 
-  // Adds offset range [from, to) where fp register does not point
-  // to the current frame base. Used in CPU profiler to detect stack
-  // samples where top frame is not set up.
-  inline void AddNoFrameRange(int from, int to) {
-    if (no_frame_ranges_) no_frame_ranges_->Add(OffsetRange(from, to));
-  }
-
-  List<OffsetRange>* ReleaseNoFrameRanges() {
-    List<OffsetRange>* result = no_frame_ranges_;
-    no_frame_ranges_ = NULL;
-    return result;
-  }
-
   int start_position_for(uint32_t inlining_id) {
     return inlined_function_infos_.at(inlining_id).start_position;
   }
@@ -491,7 +472,6 @@ class CompilationInfo {
 
   int prologue_offset_;
 
-  List<OffsetRange>* no_frame_ranges_;
   std::vector<InlinedFunctionInfo> inlined_function_infos_;
   bool track_positions_;
 

@@ -11,8 +11,6 @@
 namespace v8 {
 namespace internal {
 
-struct OffsetRange;
-
 // Provides a storage of strings allocated in C++ heap, to hold them
 // forever, even if they disappear from JS heap or external storage.
 class StringsStorage {

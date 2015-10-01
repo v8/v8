@@ -152,7 +152,6 @@ bool LCodeGen::GeneratePrologue() {
       __ Prologue(info()->IsCodePreAgingActive(), prologue_offset);
     }
     frame_is_built_ = true;
-    info_->AddNoFrameRange(0, masm_->pc_offset());
   }
 
   // Reserve space for the stack slots needed by the code.
@@ -2845,12 +2844,11 @@ void LCodeGen::DoReturn(LReturn* instr) {
   if (info()->saves_caller_doubles()) {
     RestoreCallerDoubles();
   }
-  int no_frame_start = -1;
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());
     int32_t sp_delta = (parameter_count + 1) * kPointerSize;
     if (NeedsEagerFrame()) {
-      no_frame_start = masm_->LeaveFrame(StackFrame::JAVA_SCRIPT, sp_delta);
+      masm_->LeaveFrame(StackFrame::JAVA_SCRIPT, sp_delta);
     } else if (sp_delta != 0) {
       __ addi(sp, sp, Operand(sp_delta));
     }
@@ -2859,17 +2857,13 @@ void LCodeGen::DoReturn(LReturn* instr) {
     Register reg = ToRegister(instr->parameter_count());
     // The argument count parameter is a smi
     if (NeedsEagerFrame()) {
-      no_frame_start = masm_->LeaveFrame(StackFrame::JAVA_SCRIPT);
+      masm_->LeaveFrame(StackFrame::JAVA_SCRIPT);
     }
     __ SmiToPtrArrayOffset(r0, reg);
     __ add(sp, sp, r0);
   }
 
   __ blr();
-
-  if (no_frame_start != -1) {
-    info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
-  }
 }
 
 

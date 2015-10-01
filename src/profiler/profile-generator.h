@@ -15,8 +15,6 @@
 namespace v8 {
 namespace internal {
 
-struct OffsetRange;
-
 // Provides a mapping from the offsets within generated code to
 // the source line.
 class JITLineInfoTable : public Malloced {
@@ -83,10 +81,6 @@ class CodeEntry {
 
   void FillFunctionInfo(SharedFunctionInfo* shared);
 
-  List<OffsetRange>* no_frame_ranges() const { return no_frame_ranges_; }
-  void set_no_frame_ranges(List<OffsetRange>* ranges) {
-    no_frame_ranges_ = ranges;
-  }
   void set_inlined_function_infos(
       const std::vector<InlinedFunctionInfo>& infos) {
     inlined_function_infos_ = infos;
@@ -125,7 +119,6 @@ class CodeEntry {
   int column_number_;
   int script_id_;
   int position_;
-  List<OffsetRange>* no_frame_ranges_;
   const char* bailout_reason_;
   const char* deopt_reason_;
   SourcePosition deopt_position_;

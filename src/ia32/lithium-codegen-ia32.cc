@@ -192,7 +192,6 @@ bool LCodeGen::GeneratePrologue() {
     } else {
       __ Prologue(info()->IsCodePreAgingActive());
     }
-    info()->AddNoFrameRange(0, masm_->pc_offset());
   }
 
   if (info()->IsOptimizing() &&
@@ -2701,11 +2700,9 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ mov(edx, Operand(ebp,
       JavaScriptFrameConstants::kDynamicAlignmentStateOffset));
   }
-  int no_frame_start = -1;
   if (NeedsEagerFrame()) {
     __ mov(esp, ebp);
     __ pop(ebp);
-    no_frame_start = masm_->pc_offset();
   }
   if (dynamic_frame_alignment_) {
     Label no_padding;
@@ -2717,9 +2714,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
 
   EmitReturn(instr, false);
-  if (no_frame_start != -1) {
-    info()->AddNoFrameRange(no_frame_start, masm_->pc_offset());
-  }
 }
 
 

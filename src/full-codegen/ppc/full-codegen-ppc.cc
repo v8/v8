@@ -7,7 +7,6 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
@@ -146,7 +145,6 @@ void FullCodeGenerator::Generate() {
   }
   info->set_prologue_offset(prologue_offset);
   __ Prologue(info->IsCodePreAgingActive(), prologue_offset);
-  info->AddNoFrameRange(0, masm_->pc_offset());
 
   {
     Comment cmnt(masm_, "[ Allocate locals");
@@ -467,9 +465,8 @@ void FullCodeGenerator::EmitReturnSequence() {
       int32_t arg_count = info_->scope()->num_parameters() + 1;
       int32_t sp_delta = arg_count * kPointerSize;
       SetReturnPosition(literal());
-      int no_frame_start = __ LeaveFrame(StackFrame::JAVA_SCRIPT, sp_delta);
+      __ LeaveFrame(StackFrame::JAVA_SCRIPT, sp_delta);
       __ blr();
-      info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
   }
 }

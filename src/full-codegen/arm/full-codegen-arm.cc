@@ -7,7 +7,6 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
@@ -142,7 +141,6 @@ void FullCodeGenerator::Generate() {
 
   info->set_prologue_offset(masm_->pc_offset());
   __ Prologue(info->IsCodePreAgingActive());
-  info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();
@@ -474,11 +472,10 @@ void FullCodeGenerator::EmitReturnSequence() {
       SetReturnPosition(literal());
       // TODO(svenpanne) The code below is sometimes 4 words, sometimes 5!
       PredictableCodeSizeScope predictable(masm_, -1);
-      int no_frame_start = __ LeaveFrame(StackFrame::JAVA_SCRIPT);
+      __ LeaveFrame(StackFrame::JAVA_SCRIPT);
       { ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
         __ add(sp, sp, Operand(sp_delta));
         __ Jump(lr);
-        info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
       }
     }
   }

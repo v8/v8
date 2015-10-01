@@ -172,9 +172,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       dependencies_(isolate, zone),
       bailout_reason_(kNoReason),
       prologue_offset_(Code::kPrologueOffsetNotSet),
-      no_frame_ranges_(isolate->cpu_profiler()->is_profiling()
-                           ? new List<OffsetRange>(2)
-                           : nullptr),
       track_positions_(FLAG_hydrogen_track_positions ||
                        isolate->cpu_profiler()->is_profiling()),
       opt_count_(has_shared_info() ? shared_info()->opt_count() : 0),
@@ -200,7 +197,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
 CompilationInfo::~CompilationInfo() {
   DisableFutureOptimization();
   delete deferred_handles_;
-  delete no_frame_ranges_;
 #ifdef DEBUG
   // Check that no dependent maps have been added or added dependent maps have
   // been rolled back or committed.
