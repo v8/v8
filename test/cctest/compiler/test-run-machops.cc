@@ -5387,3 +5387,52 @@ TEST(RunBitcastInt32ToFloat32) {
     CHECK_EQ(bit_cast<int32_t>(expected), bit_cast<int32_t>(output));
   }
 }
+
+
+TEST(RunComputedCodeObject) {
+  RawMachineAssemblerTester<int32_t> a;
+  a.Return(a.Int32Constant(33));
+  CHECK_EQ(33, a.Call());
+
+  RawMachineAssemblerTester<int32_t> b;
+  b.Return(b.Int32Constant(44));
+  CHECK_EQ(44, b.Call());
+
+  RawMachineAssemblerTester<int32_t> r(kMachInt32);
+  RawMachineAssembler::Label tlabel;
+  RawMachineAssembler::Label flabel;
+  RawMachineAssembler::Label merge;
+  r.Branch(r.Parameter(0), &tlabel, &flabel);
+  r.Bind(&tlabel);
+  Node* fa = r.HeapConstant(a.GetCode());
+  r.Goto(&merge);
+  r.Bind(&flabel);
+  Node* fb = r.HeapConstant(b.GetCode());
+  r.Goto(&merge);
+  r.Bind(&merge);
+  Node* phi = r.Phi(kMachInt32, fa, fb);
+
+  // TODO(titzer): all this descriptor hackery is just to call the above
+  // functions as code objects instead of direct addresses.
+  CSignature0<int32_t> sig;
+  CallDescriptor* c = Linkage::GetSimplifiedCDescriptor(r.zone(), &sig);
+  LinkageLocation ret[] = {c->GetReturnLocation(0)};
+  Signature<LinkageLocation> loc(1, 0, ret);
+  CallDescriptor* desc = new (r.zone()) CallDescriptor(  // --
+      CallDescriptor::kCallCodeObject,                   // kind
+      kMachAnyTagged,                                    // target_type
+      c->GetInputLocation(0),                            // target_loc
+      &sig,                                              // machine_sig
+      &loc,                                              // location_sig
+      0,                                                 // stack count
+      Operator::kNoProperties,                           // properties
+      c->CalleeSavedRegisters(),                         // callee saved
+      c->CalleeSavedFPRegisters(),                       // callee saved FP
+      CallDescriptor::kNoFlags,                          // flags
+      "c-call-as-code");
+  Node* call = r.AddNode(r.common()->Call(desc), phi);
+  r.Return(call);
+
+  CHECK_EQ(33, r.Call(1));
+  CHECK_EQ(44, r.Call(0));
+}

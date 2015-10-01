@@ -52,6 +52,11 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   void GenerateCode() { Generate(); }
 
+  Handle<Code> GetCode() {
+    Generate();
+    return code_.ToHandleChecked();
+  }
+
  protected:
   virtual byte* Generate() {
     if (code_.is_null()) {
