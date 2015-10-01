@@ -443,6 +443,7 @@ class String;
 class Symbol;
 class Name;
 class Struct;
+class TypeFeedbackVector;
 class Variable;
 class RelocInfo;
 class Deserializer;

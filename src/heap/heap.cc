@@ -2720,18 +2720,30 @@ void Heap::CreateInitialObjects() {
   set_microtask_queue(empty_fixed_array());
 
   {
-    FeedbackVectorSlotKind kinds[] = {FeedbackVectorSlotKind::LOAD_IC,
-                                      FeedbackVectorSlotKind::KEYED_LOAD_IC,
-                                      FeedbackVectorSlotKind::STORE_IC,
-                                      FeedbackVectorSlotKind::KEYED_STORE_IC};
-    StaticFeedbackVectorSpec spec(0, 4, kinds);
+    StaticFeedbackVectorSpec spec;
+    FeedbackVectorSlot load_ic_slot = spec.AddLoadICSlot();
+    FeedbackVectorSlot keyed_load_ic_slot = spec.AddKeyedLoadICSlot();
+    FeedbackVectorSlot store_ic_slot = spec.AddStoreICSlot();
+    FeedbackVectorSlot keyed_store_ic_slot = spec.AddKeyedStoreICSlot();
+
+    DCHECK_EQ(load_ic_slot,
+              FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot));
+    DCHECK_EQ(keyed_load_ic_slot,
+              FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
+    DCHECK_EQ(store_ic_slot,
+              FeedbackVectorSlot(TypeFeedbackVector::kDummyStoreICSlot));
+    DCHECK_EQ(keyed_store_ic_slot,
+              FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
+
     Handle<TypeFeedbackVector> dummy_vector =
-        factory->NewTypeFeedbackVector(&spec);
-    for (int i = 0; i < 4; i++) {
-      dummy_vector->Set(FeedbackVectorICSlot(0),
-                        *TypeFeedbackVector::MegamorphicSentinel(isolate()),
-                        SKIP_WRITE_BARRIER);
-    }
+        TypeFeedbackVector::New(isolate(), &spec);
+
+    Object* megamorphic = *TypeFeedbackVector::MegamorphicSentinel(isolate());
+    dummy_vector->Set(load_ic_slot, megamorphic, SKIP_WRITE_BARRIER);
+    dummy_vector->Set(keyed_load_ic_slot, megamorphic, SKIP_WRITE_BARRIER);
+    dummy_vector->Set(store_ic_slot, megamorphic, SKIP_WRITE_BARRIER);
+    dummy_vector->Set(keyed_store_ic_slot, megamorphic, SKIP_WRITE_BARRIER);
+
     set_dummy_vector(*dummy_vector);
   }
 

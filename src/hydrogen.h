@@ -2483,15 +2483,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                    const char* failure_reason);
 
   void HandleGlobalVariableAssignment(Variable* var, HValue* value,
-                                      FeedbackVectorICSlot ic_slot,
+                                      FeedbackVectorSlot slot,
                                       BailoutId ast_id);
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
   void HandlePolymorphicNamedFieldAccess(
-      PropertyAccessType access_type, Expression* expr,
-      FeedbackVectorICSlot slot, BailoutId ast_id, BailoutId return_id,
-      HValue* object, HValue* value, SmallMapList* types, Handle<String> name);
+      PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
+      BailoutId ast_id, BailoutId return_id, HValue* object, HValue* value,
+      SmallMapList* types, Handle<String> name);
 
   HValue* BuildAllocateExternalElements(
       ExternalArrayType array_type,
@@ -2740,7 +2740,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   HValue* BuildNamedAccess(PropertyAccessType access, BailoutId ast_id,
                            BailoutId reutrn_id, Expression* expr,
-                           FeedbackVectorICSlot slot, HValue* object,
+                           FeedbackVectorSlot slot, HValue* object,
                            Handle<String> name, HValue* value,
                            bool is_uninitialized = false);
 
@@ -2777,7 +2777,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
   HInstruction* BuildKeyedGeneric(PropertyAccessType access_type,
-                                  Expression* expr, FeedbackVectorICSlot slot,
+                                  Expression* expr, FeedbackVectorSlot slot,
                                   HValue* object, HValue* key, HValue* value);
 
   HInstruction* TryBuildConsolidatedElementLoad(HValue* object,
@@ -2796,18 +2796,18 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                               KeyedAccessStoreMode store_mode);
 
   HValue* HandlePolymorphicElementAccess(
-      Expression* expr, FeedbackVectorICSlot slot, HValue* object, HValue* key,
+      Expression* expr, FeedbackVectorSlot slot, HValue* object, HValue* key,
       HValue* val, SmallMapList* maps, PropertyAccessType access_type,
       KeyedAccessStoreMode store_mode, bool* has_side_effects);
 
   HValue* HandleKeyedElementAccess(HValue* obj, HValue* key, HValue* val,
-                                   Expression* expr, FeedbackVectorICSlot slot,
+                                   Expression* expr, FeedbackVectorSlot slot,
                                    BailoutId ast_id, BailoutId return_id,
                                    PropertyAccessType access_type,
                                    bool* has_side_effects);
 
   HInstruction* BuildNamedGeneric(PropertyAccessType access, Expression* expr,
-                                  FeedbackVectorICSlot slot, HValue* object,
+                                  FeedbackVectorSlot slot, HValue* object,
                                   Handle<Name> name, HValue* value,
                                   bool is_uninitialized = false);
 
@@ -2820,12 +2820,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                 HValue* key);
 
   void BuildStoreForEffect(Expression* expression, Property* prop,
-                           FeedbackVectorICSlot slot, BailoutId ast_id,
+                           FeedbackVectorSlot slot, BailoutId ast_id,
                            BailoutId return_id, HValue* object, HValue* key,
                            HValue* value);
 
   void BuildStore(Expression* expression, Property* prop,
-                  FeedbackVectorICSlot slot, BailoutId ast_id,
+                  FeedbackVectorSlot slot, BailoutId ast_id,
                   BailoutId return_id, bool is_uninitialized = false);
 
   HInstruction* BuildLoadNamedField(PropertyAccessInfo* info,

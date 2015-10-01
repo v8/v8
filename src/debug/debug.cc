@@ -1502,7 +1502,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
   // Make sure IC state is clean. This is so that we correctly flood
   // accessor pairs when stepping in.
   shared->code()->ClearInlineCaches();
-  shared->feedback_vector()->ClearICSlots(*shared);
+  shared->ClearTypeFeedbackInfo();
 
   // Create the debug info object.
   DCHECK(shared->HasDebugCode());

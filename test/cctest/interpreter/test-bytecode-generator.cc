@@ -9,6 +9,7 @@
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/interpreter.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/test-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +30,7 @@ class BytecodeGeneratorHelper {
     CcTest::i_isolate()->interpreter()->Initialize();
   }
 
-
+  Isolate* isolate() { return CcTest::i_isolate(); }
   Factory* factory() { return CcTest::i_isolate()->factory(); }
 
 
@@ -391,12 +392,14 @@ TEST(StringConstants) {
 TEST(PropertyLoads) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
+  Zone zone;
 
-  FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC,
-                                       i::FeedbackVectorSlotKind::LOAD_IC};
-  StaticFeedbackVectorSpec feedback_spec(0, 2, ic_kinds);
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddLoadICSlot();
+
   Handle<i::TypeFeedbackVector> vector =
-      helper.factory()->NewTypeFeedbackVector(&feedback_spec);
+      i::TypeFeedbackVector::New(helper.isolate(), &feedback_spec);
 
   ExpectedSnippet<const char*> snippets[] = {
       {"function f(a) { return a.name; }\nf({name : \"test\"})",
@@ -404,11 +407,11 @@ TEST(PropertyLoads) {
        2,
        10,
        {
-           B(Ldar), R(helper.kLastParamIndex),                  //
-           B(Star), R(0),                                       //
-           B(LdaConstant), U8(0),                               //
-           B(LoadIC), R(0), U8(vector->first_ic_slot_index()),  //
-           B(Return)                                            //
+           B(Ldar), R(helper.kLastParamIndex),            //
+           B(Star), R(0),                                 //
+           B(LdaConstant), U8(0),                         //
+           B(LoadIC), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                      //
        },
        1,
        {"name"}},
@@ -417,11 +420,11 @@ TEST(PropertyLoads) {
        2,
        10,
        {
-           B(Ldar), R(helper.kLastParamIndex),                  //
-           B(Star), R(0),                                       //
-           B(LdaConstant), U8(0),                               //
-           B(LoadIC), R(0), U8(vector->first_ic_slot_index()),  //
-           B(Return)                                            //
+           B(Ldar), R(helper.kLastParamIndex),            //
+           B(Star), R(0),                                 //
+           B(LdaConstant), U8(0),                         //
+           B(LoadIC), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                      //
        },
        1,
        {"key"}},
@@ -430,11 +433,11 @@ TEST(PropertyLoads) {
        2,
        10,
        {
-           B(Ldar), R(helper.kLastParamIndex),                       //
-           B(Star), R(0),                                            //
-           B(LdaSmi8), U8(100),                                      //
-           B(KeyedLoadIC), R(0), U8(vector->first_ic_slot_index()),  //
-           B(Return)                                                 //
+           B(Ldar), R(helper.kLastParamIndex),                 //
+           B(Star), R(0),                                      //
+           B(LdaSmi8), U8(100),                                //
+           B(KeyedLoadIC), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                           //
        },
        0},
       {"function f(a, b) { return a[b]; }\nf({arg : \"test\"}, \"arg\")",
@@ -442,11 +445,11 @@ TEST(PropertyLoads) {
        3,
        10,
        {
-           B(Ldar), R(helper.kLastParamIndex - 1),                   //
-           B(Star), R(0),                                            //
-           B(Ldar), R(helper.kLastParamIndex),                       //
-           B(KeyedLoadIC), R(0), U8(vector->first_ic_slot_index()),  //
-           B(Return)                                                 //
+           B(Ldar), R(helper.kLastParamIndex - 1),             //
+           B(Star), R(0),                                      //
+           B(Ldar), R(helper.kLastParamIndex),                 //
+           B(KeyedLoadIC), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                           //
        },
        0},
       {"function f(a) { var b = a.name; return a[-124]; }\n"
@@ -455,16 +458,16 @@ TEST(PropertyLoads) {
        2,
        21,
        {
-           B(Ldar), R(helper.kLastParamIndex),                           //
-           B(Star), R(1),                                                //
-           B(LdaConstant), U8(0),                                        //
-           B(LoadIC), R(1), U8(vector->first_ic_slot_index()),           //
-           B(Star), R(0),                                                //
-           B(Ldar), R(helper.kLastParamIndex),                           //
-           B(Star), R(1),                                                //
-           B(LdaSmi8), U8(-124),                                         //
-           B(KeyedLoadIC), R(1), U8(vector->first_ic_slot_index() + 2),  //
-           B(Return)                                                     //
+           B(Ldar), R(helper.kLastParamIndex),                 //
+           B(Star), R(1),                                      //
+           B(LdaConstant), U8(0),                              //
+           B(LoadIC), R(1), U8(vector->GetIndex(slot1)),       //
+           B(Star), R(0),                                      //
+           B(Ldar), R(helper.kLastParamIndex),                 //
+           B(Star), R(1),                                      //
+           B(LdaSmi8), U8(-124),                               //
+           B(KeyedLoadIC), R(1), U8(vector->GetIndex(slot2)),  //
+           B(Return)                                           //
        },
        1,
        {"name"}}};
@@ -479,12 +482,14 @@ TEST(PropertyLoads) {
 TEST(PropertyStores) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
+  Zone zone;
 
-  FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::STORE_IC,
-                                       i::FeedbackVectorSlotKind::STORE_IC};
-  StaticFeedbackVectorSpec feedback_spec(0, 2, ic_kinds);
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddStoreICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddStoreICSlot();
+
   Handle<i::TypeFeedbackVector> vector =
-      helper.factory()->NewTypeFeedbackVector(&feedback_spec);
+      i::TypeFeedbackVector::New(helper.isolate(), &feedback_spec);
 
   ExpectedSnippet<const char*> snippets[] = {
       {"function f(a) { a.name = \"val\"; }\nf({name : \"test\"})",
@@ -492,14 +497,14 @@ TEST(PropertyStores) {
        2,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex),                         //
-           B(Star), R(0),                                              //
-           B(LdaConstant), U8(0),                                      //
-           B(Star), R(1),                                              //
-           B(LdaConstant), U8(1),                                      //
-           B(StoreIC), R(0), R(1), U8(vector->first_ic_slot_index()),  //
-           B(LdaUndefined),                                            //
-           B(Return)                                                   //
+           B(Ldar), R(helper.kLastParamIndex),                   //
+           B(Star), R(0),                                        //
+           B(LdaConstant), U8(0),                                //
+           B(Star), R(1),                                        //
+           B(LdaConstant), U8(1),                                //
+           B(StoreIC), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                      //
+           B(Return)                                             //
        },
        2,
        {"name", "val"}},
@@ -508,14 +513,14 @@ TEST(PropertyStores) {
        2,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex),                         //
-           B(Star), R(0),                                              //
-           B(LdaConstant), U8(0),                                      //
-           B(Star), R(1),                                              //
-           B(LdaConstant), U8(1),                                      //
-           B(StoreIC), R(0), R(1), U8(vector->first_ic_slot_index()),  //
-           B(LdaUndefined),                                            //
-           B(Return)                                                   //
+           B(Ldar), R(helper.kLastParamIndex),                   //
+           B(Star), R(0),                                        //
+           B(LdaConstant), U8(0),                                //
+           B(Star), R(1),                                        //
+           B(LdaConstant), U8(1),                                //
+           B(StoreIC), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                      //
+           B(Return)                                             //
        },
        2,
        {"key", "val"}},
@@ -524,14 +529,14 @@ TEST(PropertyStores) {
        2,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex),                              //
-           B(Star), R(0),                                                   //
-           B(LdaSmi8), U8(100),                                             //
-           B(Star), R(1),                                                   //
-           B(LdaConstant), U8(0),                                           //
-           B(KeyedStoreIC), R(0), R(1), U8(vector->first_ic_slot_index()),  //
-           B(LdaUndefined),                                                 //
-           B(Return)                                                        //
+           B(Ldar), R(helper.kLastParamIndex),                        //
+           B(Star), R(0),                                             //
+           B(LdaSmi8), U8(100),                                       //
+           B(Star), R(1),                                             //
+           B(LdaConstant), U8(0),                                     //
+           B(KeyedStoreIC), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                           //
+           B(Return)                                                  //
        },
        1,
        {"val"}},
@@ -540,14 +545,14 @@ TEST(PropertyStores) {
        3,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex - 1),                          //
-           B(Star), R(0),                                                   //
-           B(Ldar), R(helper.kLastParamIndex),                              //
-           B(Star), R(1),                                                   //
-           B(LdaConstant), U8(0),                                           //
-           B(KeyedStoreIC), R(0), R(1), U8(vector->first_ic_slot_index()),  //
-           B(LdaUndefined),                                                 //
-           B(Return)                                                        //
+           B(Ldar), R(helper.kLastParamIndex - 1),                    //
+           B(Star), R(0),                                             //
+           B(Ldar), R(helper.kLastParamIndex),                        //
+           B(Star), R(1),                                             //
+           B(LdaConstant), U8(0),                                     //
+           B(KeyedStoreIC), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                           //
+           B(Return)                                                  //
        },
        1,
        {"val"}},
@@ -557,17 +562,17 @@ TEST(PropertyStores) {
        2,
        23,
        {
-           B(Ldar), R(helper.kLastParamIndex),                             //
-           B(Star), R(0),                                                  //
-           B(LdaConstant), U8(0),                                          //
-           B(Star), R(1),                                                  //
-           B(Ldar), R(helper.kLastParamIndex),                             //
-           B(Star), R(2),                                                  //
-           B(LdaSmi8), U8(-124),                                           //
-           B(KeyedLoadIC), R(2), U8(vector->first_ic_slot_index()),        //
-           B(StoreIC), R(0), R(1), U8(vector->first_ic_slot_index() + 2),  //
-           B(LdaUndefined),                                                //
-           B(Return)                                                       //
+           B(Ldar), R(helper.kLastParamIndex),                   //
+           B(Star), R(0),                                        //
+           B(LdaConstant), U8(0),                                //
+           B(Star), R(1),                                        //
+           B(Ldar), R(helper.kLastParamIndex),                   //
+           B(Star), R(2),                                        //
+           B(LdaSmi8), U8(-124),                                 //
+           B(KeyedLoadIC), R(2), U8(vector->GetIndex(slot1)),    //
+           B(StoreIC), R(0), R(1), U8(vector->GetIndex(slot2)),  //
+           B(LdaUndefined),                                      //
+           B(Return)                                             //
        },
        1,
        {"name"}}};
@@ -585,12 +590,15 @@ TEST(PropertyStores) {
 TEST(PropertyCall) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;  //
+  Zone zone;
 
-  FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC,
-                                       i::FeedbackVectorSlotKind::LOAD_IC};
-  StaticFeedbackVectorSpec feedback_spec(0, 2, ic_kinds);
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddLoadICSlot();
+  USE(slot1);
+
   Handle<i::TypeFeedbackVector> vector =
-      helper.factory()->NewTypeFeedbackVector(&feedback_spec);
+      i::TypeFeedbackVector::New(helper.isolate(), &feedback_spec);
 
   ExpectedSnippet<const char*> snippets[] = {
       {"function f(a) { return a.func(); }\nf(" FUNC_ARG ")",
@@ -598,13 +606,13 @@ TEST(PropertyCall) {
        2,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex),                      //
-           B(Star), R(1),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(LoadIC), R(1), U8(vector->first_ic_slot_index() + 2),  //
-           B(Star), R(0),                                           //
-           B(Call), R(0), R(1), U8(0),                              //
-           B(Return)                                                //
+           B(Ldar), R(helper.kLastParamIndex),            //
+           B(Star), R(1),                                 //
+           B(LdaConstant), U8(0),                         //
+           B(LoadIC), R(1), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                 //
+           B(Call), R(0), R(1), U8(0),                    //
+           B(Return)                                      //
        },
        1,
        {"func"}},
@@ -613,17 +621,17 @@ TEST(PropertyCall) {
        4,
        24,
        {
-           B(Ldar), R(helper.kLastParamIndex - 2),                  //
-           B(Star), R(1),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(LoadIC), R(1), U8(vector->first_ic_slot_index() + 2),  //
-           B(Star), R(0),                                           //
-           B(Ldar), R(helper.kLastParamIndex - 1),                  //
-           B(Star), R(2),                                           //
-           B(Ldar), R(helper.kLastParamIndex),                      //
-           B(Star), R(3),                                           //
-           B(Call), R(0), R(1), U8(2),                              //
-           B(Return)                                                //
+           B(Ldar), R(helper.kLastParamIndex - 2),        //
+           B(Star), R(1),                                 //
+           B(LdaConstant), U8(0),                         //
+           B(LoadIC), R(1), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                 //
+           B(Ldar), R(helper.kLastParamIndex - 1),        //
+           B(Star), R(2),                                 //
+           B(Ldar), R(helper.kLastParamIndex),            //
+           B(Star), R(3),                                 //
+           B(Call), R(0), R(1), U8(2),                    //
+           B(Return)                                      //
        },
        1,
        {"func"}},
@@ -632,20 +640,20 @@ TEST(PropertyCall) {
        3,
        30,
        {
-           B(Ldar), R(helper.kLastParamIndex - 1),                  //
-           B(Star), R(1),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(LoadIC), R(1), U8(vector->first_ic_slot_index() + 2),  //
-           B(Star), R(0),                                           //
-           B(Ldar), R(helper.kLastParamIndex),                      //
-           B(Star), R(2),                                           //
-           B(Ldar), R(helper.kLastParamIndex),                      //
-           B(Add), R(2),                                            //
-           B(Star), R(2),                                           //
-           B(Ldar), R(helper.kLastParamIndex),                      //
-           B(Star), R(3),                                           //
-           B(Call), R(0), R(1), U8(2),                              //
-           B(Return)                                                //
+           B(Ldar), R(helper.kLastParamIndex - 1),        //
+           B(Star), R(1),                                 //
+           B(LdaConstant), U8(0),                         //
+           B(LoadIC), R(1), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                 //
+           B(Ldar), R(helper.kLastParamIndex),            //
+           B(Star), R(2),                                 //
+           B(Ldar), R(helper.kLastParamIndex),            //
+           B(Add), R(2),                                  //
+           B(Star), R(2),                                 //
+           B(Ldar), R(helper.kLastParamIndex),            //
+           B(Star), R(3),                                 //
+           B(Call), R(0), R(1), U8(2),                    //
+           B(Return)                                      //
        },
        1,
        {"func"}}};

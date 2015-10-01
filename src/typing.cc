@@ -402,7 +402,7 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
           prop->emit_store()) {
         // Record type feed back for the property.
         TypeFeedbackId id = prop->key()->AsLiteral()->LiteralFeedbackId();
-        FeedbackVectorICSlot slot = prop->GetSlot();
+        FeedbackVectorSlot slot = prop->GetSlot();
         SmallMapList maps;
         if (FLAG_vector_stores) {
           oracle()->CollectReceiverTypes(slot, &maps);
@@ -437,7 +437,7 @@ void AstTyper::VisitAssignment(Assignment* expr) {
   Property* prop = expr->target()->AsProperty();
   if (prop != NULL) {
     TypeFeedbackId id = expr->AssignmentFeedbackId();
-    FeedbackVectorICSlot slot = expr->AssignmentSlot();
+    FeedbackVectorSlot slot = expr->AssignmentSlot();
     expr->set_is_uninitialized(FLAG_vector_stores
                                    ? oracle()->StoreIsUninitialized(slot)
                                    : oracle()->StoreIsUninitialized(id));
@@ -499,8 +499,7 @@ void AstTyper::VisitThrow(Throw* expr) {
 
 void AstTyper::VisitProperty(Property* expr) {
   // Collect type feedback.
-  FeedbackVectorICSlot slot(FeedbackVectorICSlot::Invalid());
-  slot = expr->PropertyFeedbackSlot();
+  FeedbackVectorSlot slot = expr->PropertyFeedbackSlot();
   expr->set_inline_cache_state(oracle()->LoadInlineCacheState(slot));
 
   if (!expr->IsUninitialized()) {
@@ -531,7 +530,7 @@ void AstTyper::VisitCall(Call* expr) {
   RECURSE(Visit(expr->expression()));
   bool is_uninitialized = true;
   if (expr->IsUsingCallFeedbackICSlot(isolate())) {
-    FeedbackVectorICSlot slot = expr->CallFeedbackICSlot();
+    FeedbackVectorSlot slot = expr->CallFeedbackICSlot();
     is_uninitialized = oracle()->CallIsUninitialized(slot);
     if (!expr->expression()->IsProperty() &&
         oracle()->CallIsMonomorphic(slot)) {
@@ -622,7 +621,7 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 void AstTyper::VisitCountOperation(CountOperation* expr) {
   // Collect type feedback.
   TypeFeedbackId store_id = expr->CountStoreFeedbackId();
-  FeedbackVectorICSlot slot = expr->CountSlot();
+  FeedbackVectorSlot slot = expr->CountSlot();
   KeyedAccessStoreMode store_mode;
   IcCheckType key_type;
   if (FLAG_vector_stores) {

@@ -2077,17 +2077,6 @@ void Factory::BecomeJSFunction(Handle<JSProxy> proxy) {
 }
 
 
-template Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(
-    const FeedbackVectorSpec* spec);
-template Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(
-    const StaticFeedbackVectorSpec* spec);
-
-template <typename Spec>
-Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(const Spec* spec) {
-  return TypeFeedbackVector::Allocate<Spec>(isolate(), spec);
-}
-
-
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name, int number_of_literals, FunctionKind kind,
     Handle<Code> code, Handle<ScopeInfo> scope_info,
@@ -2150,7 +2139,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
   StaticFeedbackVectorSpec empty_spec;
   Handle<TypeFeedbackVector> feedback_vector =
-      NewTypeFeedbackVector(&empty_spec);
+      TypeFeedbackVector::New(isolate(), &empty_spec);
   share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);
 #if TRACE_MAPS
   share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());

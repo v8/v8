@@ -1043,39 +1043,29 @@ class TypeFeedbackId {
 };
 
 
-template <int dummy_parameter>
-class VectorSlot {
+class FeedbackVectorSlot {
  public:
-  explicit VectorSlot(int id) : id_(id) {}
+  FeedbackVectorSlot() : id_(kInvalidSlot) {}
+  explicit FeedbackVectorSlot(int id) : id_(id) {}
 
   int ToInt() const { return id_; }
 
-  static VectorSlot Invalid() { return VectorSlot(kInvalidSlot); }
+  static FeedbackVectorSlot Invalid() { return FeedbackVectorSlot(); }
   bool IsInvalid() const { return id_ == kInvalidSlot; }
 
-  VectorSlot next() const {
-    DCHECK_NE(kInvalidSlot, id_);
-    return VectorSlot(id_ + 1);
+  bool operator==(FeedbackVectorSlot that) const {
+    return this->id_ == that.id_;
   }
+  bool operator!=(FeedbackVectorSlot that) const { return !(*this == that); }
 
-  bool operator==(VectorSlot that) const { return this->id_ == that.id_; }
-  bool operator!=(VectorSlot that) const { return !(*this == that); }
+  friend size_t hash_value(FeedbackVectorSlot slot) { return slot.ToInt(); }
+  friend std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot);
 
  private:
   static const int kInvalidSlot = -1;
 
   int id_;
 };
-
-
-template <int dummy_parameter>
-size_t hash_value(VectorSlot<dummy_parameter> slot) {
-  return slot.ToInt();
-}
-
-
-typedef VectorSlot<0> FeedbackVectorSlot;
-typedef VectorSlot<1> FeedbackVectorICSlot;
 
 
 class BailoutId {

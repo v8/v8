@@ -16,24 +16,24 @@ class Operator;
 struct JSOperatorGlobalCache;
 
 
-// Defines a pair of {TypeFeedbackVector} and {TypeFeedbackVectorICSlot}, which
+// Defines a pair of {TypeFeedbackVector} and {TypeFeedbackVectorSlot}, which
 // is used to access the type feedback for a certain {Node}.
 class VectorSlotPair {
  public:
   VectorSlotPair();
-  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
+  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : vector_(vector), slot_(slot) {}
 
   bool IsValid() const { return !vector_.is_null(); }
 
   Handle<TypeFeedbackVector> vector() const { return vector_; }
-  FeedbackVectorICSlot slot() const { return slot_; }
+  FeedbackVectorSlot slot() const { return slot_; }
 
   int index() const;
 
  private:
   const Handle<TypeFeedbackVector> vector_;
-  const FeedbackVectorICSlot slot_;
+  const FeedbackVectorSlot slot_;
 };
 
 bool operator==(VectorSlotPair const&, VectorSlotPair const&);

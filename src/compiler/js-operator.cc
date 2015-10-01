@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-VectorSlotPair::VectorSlotPair() : slot_(FeedbackVectorICSlot::Invalid()) {}
+VectorSlotPair::VectorSlotPair() {}
 
 
 int VectorSlotPair::index() const {

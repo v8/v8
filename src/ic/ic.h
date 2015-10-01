@@ -210,7 +210,7 @@ class IC {
   inline void UpdateTarget();
 
   Handle<TypeFeedbackVector> vector() const { return nexus()->vector_handle(); }
-  FeedbackVectorICSlot slot() const { return nexus()->slot(); }
+  FeedbackVectorSlot slot() const { return nexus()->slot(); }
   State saved_state() const {
     return state() == PROTOTYPE_FAILURE ? old_state_ : state();
   }

@@ -249,8 +249,8 @@ bool CompilationInfo::ShouldSelfOptimize() {
 
 void CompilationInfo::EnsureFeedbackVector() {
   if (feedback_vector_.is_null()) {
-    feedback_vector_ = isolate()->factory()->NewTypeFeedbackVector(
-        literal()->feedback_vector_spec());
+    feedback_vector_ =
+        TypeFeedbackVector::New(isolate(), literal()->feedback_vector_spec());
   }
 
   // It's very important that recompiles do not alter the structure of the

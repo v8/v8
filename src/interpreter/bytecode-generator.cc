@@ -340,7 +340,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   }
 
   // Store the value.
-  FeedbackVectorICSlot slot = expr->AssignmentSlot();
+  FeedbackVectorSlot slot = expr->AssignmentSlot();
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->target()->AsVariableProxy()->var();
@@ -372,7 +372,7 @@ void BytecodeGenerator::VisitThrow(Throw* expr) { UNIMPLEMENTED(); }
 
 void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
   LhsKind property_kind = Property::GetAssignType(expr);
-  FeedbackVectorICSlot slot = expr->PropertyFeedbackSlot();
+  FeedbackVectorSlot slot = expr->PropertyFeedbackSlot();
   switch (property_kind) {
     case VARIABLE:
       UNREACHABLE();
@@ -546,7 +546,7 @@ LanguageMode BytecodeGenerator::language_mode() const {
 }
 
 
-int BytecodeGenerator::feedback_index(FeedbackVectorICSlot slot) const {
+int BytecodeGenerator::feedback_index(FeedbackVectorSlot slot) const {
   return info()->feedback_vector()->GetIndex(slot);
 }
 

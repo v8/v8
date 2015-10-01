@@ -28,18 +28,17 @@ class JSTypeFeedbackTable : public ZoneObject {
   explicit JSTypeFeedbackTable(Zone* zone);
 
   void Record(Node* node, TypeFeedbackId id);
-  void Record(Node* node, FeedbackVectorICSlot slot);
+  void Record(Node* node, FeedbackVectorSlot slot);
 
  private:
   friend class JSTypeFeedbackSpecializer;
   typedef std::map<NodeId, TypeFeedbackId, std::less<NodeId>,
                    zone_allocator<TypeFeedbackId> > TypeFeedbackIdMap;
-  typedef std::map<NodeId, FeedbackVectorICSlot, std::less<NodeId>,
-                   zone_allocator<FeedbackVectorICSlot> >
-      FeedbackVectorICSlotMap;
+  typedef std::map<NodeId, FeedbackVectorSlot, std::less<NodeId>,
+                   zone_allocator<FeedbackVectorSlot> > FeedbackVectorSlotMap;
 
   TypeFeedbackIdMap type_feedback_id_map_;
-  FeedbackVectorICSlotMap feedback_vector_ic_slot_map_;
+  FeedbackVectorSlotMap feedback_vector_slot_map_;
 
   TypeFeedbackId FindTypeFeedbackId(Node* node) {
     TypeFeedbackIdMap::const_iterator it =
@@ -48,12 +47,11 @@ class JSTypeFeedbackTable : public ZoneObject {
                                              : it->second;
   }
 
-  FeedbackVectorICSlot FindFeedbackVectorICSlot(Node* node) {
-    FeedbackVectorICSlotMap::const_iterator it =
-        feedback_vector_ic_slot_map_.find(node->id());
-    return it == feedback_vector_ic_slot_map_.end()
-               ? FeedbackVectorICSlot::Invalid()
-               : it->second;
+  FeedbackVectorSlot FindFeedbackVectorSlot(Node* node) {
+    FeedbackVectorSlotMap::const_iterator it =
+        feedback_vector_slot_map_.find(node->id());
+    return it == feedback_vector_slot_map_.end() ? FeedbackVectorSlot::Invalid()
+                                                 : it->second;
   }
 };
 

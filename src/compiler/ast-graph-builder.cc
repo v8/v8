@@ -1644,7 +1644,7 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     FrameStateBeforeAndAfter states(this, BailoutId::None());
     VectorSlotPair feedback = CreateVectorSlotPair(
         expr->NeedsProxySlot() ? expr->ProxySlot()
-                               : FeedbackVectorICSlot::Invalid());
+                               : FeedbackVectorSlot::Invalid());
     BuildVariableAssignment(var, literal, Token::INIT_CONST, feedback,
                             BailoutId::None(), states);
   }
@@ -3017,7 +3017,7 @@ LanguageMode AstGraphBuilder::language_mode() const {
 
 
 VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
-    FeedbackVectorICSlot slot) const {
+    FeedbackVectorSlot slot) const {
   return VectorSlotPair(handle(info()->shared_info()->feedback_vector()), slot);
 }
 
@@ -3557,7 +3557,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
 
 
 static inline Node* Record(JSTypeFeedbackTable* js_type_feedback, Node* node,
-                           FeedbackVectorICSlot slot) {
+                           FeedbackVectorSlot slot) {
   if (js_type_feedback) {
     js_type_feedback->Record(node, slot);
   }

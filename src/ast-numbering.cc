@@ -16,7 +16,7 @@ class AstNumberingVisitor final : public AstVisitor {
       : AstVisitor(),
         next_id_(BailoutId::FirstUsable().ToInt()),
         properties_(zone),
-        ic_slot_cache_(zone),
+        slot_cache_(zone),
         dont_optimize_reason_(kNoReason) {
     InitializeAstVisitor(isolate, zone);
   }
@@ -66,15 +66,15 @@ class AstNumberingVisitor final : public AstVisitor {
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
     node->AssignFeedbackVectorSlots(isolate(), properties_.get_spec(),
-                                    &ic_slot_cache_);
+                                    &slot_cache_);
   }
 
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
 
   int next_id_;
   AstProperties properties_;
-  // The slot cache allows us to reuse certain vector IC slots.
-  ICSlotCache ic_slot_cache_;
+  // The slot cache allows us to reuse certain feedback vector slots.
+  FeedbackVectorSlotCache slot_cache_;
   BailoutReason dont_optimize_reason_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();

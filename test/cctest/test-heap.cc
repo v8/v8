@@ -40,6 +40,7 @@
 #include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap-tester.h"
+#include "test/cctest/test-feedback-vector.h"
 
 using v8::Just;
 
@@ -3661,20 +3662,21 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
               CcTest::global()->Get(v8_str("f"))));
 
   Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
+  FeedbackVectorHelper feedback_helper(feedback_vector);
 
   int expected_slots = 2;
-  CHECK_EQ(expected_slots, feedback_vector->ICSlots());
+  CHECK_EQ(expected_slots, feedback_helper.slot_count());
   int slot1 = 0;
   int slot2 = 1;
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot1))->IsWeakCell());
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot2))->IsWeakCell());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeakCell());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeakCell());
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  CHECK(!WeakCell::cast(feedback_vector->Get(FeedbackVectorICSlot(slot1)))
+  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot1)))
              ->cleared());
-  CHECK(!WeakCell::cast(feedback_vector->Get(FeedbackVectorICSlot(slot2)))
+  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot2)))
              ->cleared());
 }
 
@@ -3694,11 +3696,12 @@ static Code* FindFirstIC(Code* code, Code::Kind kind) {
 }
 
 
-static void CheckVectorIC(Handle<JSFunction> f, int ic_slot_index,
+static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
   Handle<TypeFeedbackVector> vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector());
-  FeedbackVectorICSlot slot(ic_slot_index);
+  FeedbackVectorHelper helper(vector);
+  FeedbackVectorSlot slot = helper.slot(slot_index);
   if (vector->GetKind(slot) == FeedbackVectorSlotKind::LOAD_IC) {
     LoadICNexus nexus(vector, slot);
     CHECK(nexus.StateFromFeedback() == desired_state);
@@ -3710,10 +3713,10 @@ static void CheckVectorIC(Handle<JSFunction> f, int ic_slot_index,
 }
 
 
-static void CheckVectorICCleared(Handle<JSFunction> f, int ic_slot_index) {
+static void CheckVectorICCleared(Handle<JSFunction> f, int slot_index) {
   Handle<TypeFeedbackVector> vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector());
-  FeedbackVectorICSlot slot(ic_slot_index);
+  FeedbackVectorSlot slot(slot_index);
   LoadICNexus nexus(vector, slot);
   CHECK(IC::IsCleared(&nexus));
 }
@@ -3731,8 +3734,9 @@ TEST(ICInBuiltInIsClearedAppropriately) {
     Handle<JSObject> maybe_apply =
         v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
     apply = Handle<JSFunction>::cast(maybe_apply);
-    TypeFeedbackVector* vector = apply->shared()->feedback_vector();
-    CHECK(vector->ICSlots() == 1);
+    Handle<TypeFeedbackVector> vector(apply->shared()->feedback_vector());
+    FeedbackVectorHelper feedback_helper(vector);
+    CHECK_EQ(1, feedback_helper.slot_count());
     CheckVectorIC(apply, 0, UNINITIALIZED);
     CompileRun(
         "function b(a1, a2, a3) { return a1 + a2 + a3; }"
@@ -5240,11 +5244,11 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
 
 
 void CheckIC(Code* code, Code::Kind kind, SharedFunctionInfo* shared,
-             int ic_slot, InlineCacheState state) {
+             int slot_index, InlineCacheState state) {
   if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
       kind == Code::CALL_IC) {
     TypeFeedbackVector* vector = shared->feedback_vector();
-    FeedbackVectorICSlot slot(ic_slot);
+    FeedbackVectorSlot slot(slot_index);
     if (kind == Code::LOAD_IC) {
       LoadICNexus nexus(vector, slot);
       CHECK_EQ(nexus.StateFromFeedback(), state);
@@ -6367,7 +6371,7 @@ TEST(SharedFunctionInfoIterator) {
       // consider adding these to the iterator.
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
       if (shared->script()->IsUndefined()) {
-        CHECK(shared->native() || 0 == shared->feedback_vector()->ICSlots());
+        CHECK(shared->native() || shared->feedback_vector()->is_empty());
       } else {
         sfi_count++;
       }

@@ -557,56 +557,50 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
   os << "\n - ics with type info: " << ic_with_type_info_count();
   os << "\n - generic ics: " << ic_generic_count();
 
-  if (Slots() > 0) {
-    for (int i = 0; i < Slots(); i++) {
-      FeedbackVectorSlot slot(i);
-      os << "\n Slot " << i << " [" << GetIndex(slot)
-         << "]: " << Brief(Get(slot));
-    }
-  }
+  TypeFeedbackMetadataIterator iter(this);
+  while (iter.HasNext()) {
+    FeedbackVectorSlot slot = iter.Next();
+    FeedbackVectorSlotKind kind = iter.kind();
 
-  if (ICSlots() > 0) {
-    DCHECK(elements_per_ic_slot() == 2);
-
-    for (int i = 0; i < ICSlots(); i++) {
-      FeedbackVectorICSlot slot(i);
-      FeedbackVectorSlotKind kind = GetKind(slot);
-      os << "\n ICSlot " << i << " " << kind << " ";
-      switch (kind) {
-        case FeedbackVectorSlotKind::LOAD_IC: {
-          LoadICNexus nexus(this, slot);
-          os << Code::ICState2String(nexus.StateFromFeedback());
-          break;
-        }
-        case FeedbackVectorSlotKind::KEYED_LOAD_IC: {
-          KeyedLoadICNexus nexus(this, slot);
-          os << Code::ICState2String(nexus.StateFromFeedback());
-          break;
-        }
-        case FeedbackVectorSlotKind::CALL_IC: {
-          CallICNexus nexus(this, slot);
-          os << Code::ICState2String(nexus.StateFromFeedback());
-          break;
-        }
-        case FeedbackVectorSlotKind::STORE_IC: {
-          StoreICNexus nexus(this, slot);
-          os << Code::ICState2String(nexus.StateFromFeedback());
-          break;
-        }
-        case FeedbackVectorSlotKind::KEYED_STORE_IC: {
-          KeyedStoreICNexus nexus(this, slot);
-          os << Code::ICState2String(nexus.StateFromFeedback());
-          break;
-        }
-        case FeedbackVectorSlotKind::UNUSED:
-        case FeedbackVectorSlotKind::KINDS_NUMBER:
-          UNREACHABLE();
-          break;
+    os << "\n ICSlot " << slot.ToInt() << " " << kind << " ";
+    switch (kind) {
+      case FeedbackVectorSlotKind::LOAD_IC: {
+        LoadICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
       }
+      case FeedbackVectorSlotKind::KEYED_LOAD_IC: {
+        KeyedLoadICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
+      case FeedbackVectorSlotKind::CALL_IC: {
+        CallICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
+      case FeedbackVectorSlotKind::STORE_IC: {
+        StoreICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
+      case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+        KeyedStoreICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
+      case FeedbackVectorSlotKind::GENERAL:
+        break;
+      case FeedbackVectorSlotKind::INVALID:
+      case FeedbackVectorSlotKind::KINDS_NUMBER:
+        UNREACHABLE();
+        break;
+    }
 
-      os << "\n  [" << GetIndex(slot) << "]: " << Brief(Get(slot));
-      os << "\n  [" << (GetIndex(slot) + 1)
-         << "]: " << Brief(get(GetIndex(slot) + 1));
+    int entry_size = iter.entry_size();
+    for (int i = 0; i < entry_size; i++) {
+      int index = GetIndex(slot) + i;
+      os << "\n  [" << index << "]: " << Brief(get(index));
     }
   }
   os << "\n";

@@ -429,12 +429,12 @@ void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
 
 #ifdef DEBUG
 
-// A helper for ast nodes that use FeedbackVectorICSlots.
-static int FormatICSlotNode(Vector<char>* buf, Expression* node,
-                            const char* node_name, FeedbackVectorICSlot slot) {
+// A helper for ast nodes that use FeedbackVectorSlots.
+static int FormatSlotNode(Vector<char>* buf, Expression* node,
+                          const char* node_name, FeedbackVectorSlot slot) {
   int pos = SNPrintF(*buf, "%s", node_name);
   if (!slot.IsInvalid()) {
-    pos = SNPrintF(*buf + pos, " ICSlot(%d)", slot.ToInt());
+    pos = SNPrintF(*buf + pos, " Slot(%d)", slot.ToInt());
   }
   return pos;
 }
@@ -1478,7 +1478,7 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
   Variable* var = node->var();
   EmbeddedVector<char, 128> buf;
   int pos =
-      FormatICSlotNode(&buf, node, "VAR PROXY", node->VariableFeedbackSlot());
+      FormatSlotNode(&buf, node, "VAR PROXY", node->VariableFeedbackSlot());
 
   switch (var->location()) {
     case VariableLocation::UNALLOCATED:
@@ -1524,7 +1524,7 @@ void AstPrinter::VisitThrow(Throw* node) {
 
 void AstPrinter::VisitProperty(Property* node) {
   EmbeddedVector<char, 128> buf;
-  FormatICSlotNode(&buf, node, "PROPERTY", node->PropertyFeedbackSlot());
+  FormatSlotNode(&buf, node, "PROPERTY", node->PropertyFeedbackSlot());
   IndentedScope indent(this, buf.start(), node->position());
 
   Visit(node->obj());
@@ -1539,7 +1539,7 @@ void AstPrinter::VisitProperty(Property* node) {
 
 void AstPrinter::VisitCall(Call* node) {
   EmbeddedVector<char, 128> buf;
-  FormatICSlotNode(&buf, node, "CALL", node->CallFeedbackICSlot());
+  FormatSlotNode(&buf, node, "CALL", node->CallFeedbackICSlot());
   IndentedScope indent(this, buf.start());
 
   Visit(node->expression());

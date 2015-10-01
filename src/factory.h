@@ -11,8 +11,6 @@
 namespace v8 {
 namespace internal {
 
-class StaticFeedbackVectorSpec;
-
 // Interface for handle based allocation.
 class Factory final {
  public:
@@ -625,10 +623,6 @@ class Factory final {
       Handle<TypeFeedbackVector> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name,
                                                    MaybeHandle<Code> code);
-
-  // Allocate a new type feedback vector
-  template <typename Spec>
-  Handle<TypeFeedbackVector> NewTypeFeedbackVector(const Spec* spec);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(MessageTemplate::Template message,

@@ -2404,13 +2404,13 @@ class HCallFunction final : public HBinaryCall {
   HValue* function() const { return second(); }
   CallFunctionFlags function_flags() const { return function_flags_; }
 
-  FeedbackVectorICSlot slot() const { return slot_; }
+  FeedbackVectorSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
   bool HasVectorAndSlot() const { return !feedback_vector_.is_null(); }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
-                        FeedbackVectorICSlot slot) {
+                        FeedbackVectorSlot slot) {
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -2425,11 +2425,10 @@ class HCallFunction final : public HBinaryCall {
   HCallFunction(HValue* context, HValue* function, int argument_count,
                 CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS)
       : HBinaryCall(context, function, argument_count),
-        function_flags_(flags),
-        slot_(FeedbackVectorICSlot::Invalid()) {}
+        function_flags_(flags) {}
   CallFunctionFlags function_flags_;
   Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorICSlot slot_;
+  FeedbackVectorSlot slot_;
 };
 
 
@@ -5415,13 +5414,13 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
   HValue* global_object() { return OperandAt(1); }
   Handle<String> name() const { return name_; }
   TypeofMode typeof_mode() const { return typeof_mode_; }
-  FeedbackVectorICSlot slot() const { return slot_; }
+  FeedbackVectorSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
   bool HasVectorAndSlot() const { return true; }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
-                        FeedbackVectorICSlot slot) {
+                        FeedbackVectorSlot slot) {
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -5437,9 +5436,7 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
  private:
   HLoadGlobalGeneric(HValue* context, HValue* global_object,
                      Handle<String> name, TypeofMode typeof_mode)
-      : name_(name),
-        typeof_mode_(typeof_mode),
-        slot_(FeedbackVectorICSlot::Invalid()) {
+      : name_(name), typeof_mode_(typeof_mode) {
     SetOperandAt(0, context);
     SetOperandAt(1, global_object);
     set_representation(Representation::Tagged());
@@ -5449,7 +5446,7 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
   Handle<String> name_;
   TypeofMode typeof_mode_;
   Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorICSlot slot_;
+  FeedbackVectorSlot slot_;
 };
 
 
@@ -6475,13 +6472,13 @@ class HLoadNamedGeneric final : public HTemplateInstruction<2> {
   InlineCacheState initialization_state() const {
     return initialization_state_;
   }
-  FeedbackVectorICSlot slot() const { return slot_; }
+  FeedbackVectorSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
   bool HasVectorAndSlot() const { return true; }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
-                        FeedbackVectorICSlot slot) {
+                        FeedbackVectorSlot slot) {
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -6501,7 +6498,6 @@ class HLoadNamedGeneric final : public HTemplateInstruction<2> {
                     LanguageMode language_mode,
                     InlineCacheState initialization_state)
       : name_(name),
-        slot_(FeedbackVectorICSlot::Invalid()),
         language_mode_(language_mode),
         initialization_state_(initialization_state) {
     SetOperandAt(0, context);
@@ -6512,7 +6508,7 @@ class HLoadNamedGeneric final : public HTemplateInstruction<2> {
 
   Handle<Name> name_;
   Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorICSlot slot_;
+  FeedbackVectorSlot slot_;
   LanguageMode language_mode_;
   InlineCacheState initialization_state_;
 };
@@ -6753,7 +6749,7 @@ class HLoadKeyedGeneric final : public HTemplateInstruction<3> {
   InlineCacheState initialization_state() const {
     return initialization_state_;
   }
-  FeedbackVectorICSlot slot() const { return slot_; }
+  FeedbackVectorSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
@@ -6762,7 +6758,7 @@ class HLoadKeyedGeneric final : public HTemplateInstruction<3> {
     return !feedback_vector_.is_null();
   }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
-                        FeedbackVectorICSlot slot) {
+                        FeedbackVectorSlot slot) {
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -6784,8 +6780,7 @@ class HLoadKeyedGeneric final : public HTemplateInstruction<3> {
   HLoadKeyedGeneric(HValue* context, HValue* obj, HValue* key,
                     LanguageMode language_mode,
                     InlineCacheState initialization_state)
-      : slot_(FeedbackVectorICSlot::Invalid()),
-        initialization_state_(initialization_state),
+      : initialization_state_(initialization_state),
         language_mode_(language_mode) {
     set_representation(Representation::Tagged());
     SetOperandAt(0, obj);
@@ -6795,7 +6790,7 @@ class HLoadKeyedGeneric final : public HTemplateInstruction<3> {
   }
 
   Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorICSlot slot_;
+  FeedbackVectorSlot slot_;
   InlineCacheState initialization_state_;
   LanguageMode language_mode_;
 };
@@ -6980,13 +6975,13 @@ class HStoreNamedGeneric final : public HTemplateInstruction<3> {
     return Representation::Tagged();
   }
 
-  FeedbackVectorICSlot slot() const { return slot_; }
+  FeedbackVectorSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
   bool HasVectorAndSlot() const { return FLAG_vector_stores; }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
-                        FeedbackVectorICSlot slot) {
+                        FeedbackVectorSlot slot) {
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -6998,7 +6993,6 @@ class HStoreNamedGeneric final : public HTemplateInstruction<3> {
                      HValue* value, LanguageMode language_mode,
                      InlineCacheState initialization_state)
       : name_(name),
-        slot_(FeedbackVectorICSlot::Invalid()),
         language_mode_(language_mode),
         initialization_state_(initialization_state) {
     SetOperandAt(0, object);
@@ -7009,7 +7003,7 @@ class HStoreNamedGeneric final : public HTemplateInstruction<3> {
 
   Handle<Name> name_;
   Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorICSlot slot_;
+  FeedbackVectorSlot slot_;
   LanguageMode language_mode_;
   InlineCacheState initialization_state_;
 };
@@ -7239,7 +7233,7 @@ class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
     return Representation::Tagged();
   }
 
-  FeedbackVectorICSlot slot() const { return slot_; }
+  FeedbackVectorSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
@@ -7249,7 +7243,7 @@ class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
     return !feedback_vector_.is_null();
   }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
-                        FeedbackVectorICSlot slot) {
+                        FeedbackVectorSlot slot) {
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -7262,8 +7256,7 @@ class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
   HStoreKeyedGeneric(HValue* context, HValue* object, HValue* key,
                      HValue* value, LanguageMode language_mode,
                      InlineCacheState initialization_state)
-      : slot_(FeedbackVectorICSlot::Invalid()),
-        language_mode_(language_mode),
+      : language_mode_(language_mode),
         initialization_state_(initialization_state) {
     SetOperandAt(0, object);
     SetOperandAt(1, key);
@@ -7273,7 +7266,7 @@ class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
   }
 
   Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorICSlot slot_;
+  FeedbackVectorSlot slot_;
   LanguageMode language_mode_;
   InlineCacheState initialization_state_;
 };

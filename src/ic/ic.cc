@@ -2349,7 +2349,7 @@ RUNTIME_FUNCTION(Runtime_CallIC_Miss) {
   Handle<Object> function = args.at<Object>(0);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
   Handle<Smi> slot = args.at<Smi>(2);
-  FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   CallICNexus nexus(vector, vector_slot);
   CallIC ic(isolate, &nexus);
   ic.HandleMiss(function);
@@ -2368,7 +2368,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   DCHECK(args.length() == 4);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
-  FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
   // LoadIC miss handler if the handler misses. Since the vector Nexus is
   // set up outside the IC, handle that here.
@@ -2400,7 +2400,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   DCHECK(args.length() == 4);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
-  FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedLoadICNexus nexus(vector, vector_slot);
   KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
@@ -2419,7 +2419,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
   DCHECK(args.length() == 4);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
-  FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedLoadICNexus nexus(vector, vector_slot);
   KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
@@ -2442,7 +2442,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
     DCHECK(args.length() == 5 || args.length() == 6);
     Handle<Smi> slot = args.at<Smi>(3);
     Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
-    FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+    FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
     if (vector->GetKind(vector_slot) == FeedbackVectorSlotKind::STORE_IC) {
       StoreICNexus nexus(vector, vector_slot);
       StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2481,7 +2481,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
     DCHECK(args.length() == 5 || args.length() == 6);
     Handle<Smi> slot = args.at<Smi>(3);
     Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
-    FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+    FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
     if (vector->GetKind(vector_slot) == FeedbackVectorSlotKind::STORE_IC) {
       StoreICNexus nexus(vector, vector_slot);
       StoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
@@ -2521,7 +2521,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
     DCHECK(args.length() == 5);
     Handle<Smi> slot = args.at<Smi>(3);
     Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
-    FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+    FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
     KeyedStoreICNexus nexus(vector, vector_slot);
     KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
@@ -2550,7 +2550,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_MissFromStubFailure) {
     DCHECK(args.length() == 5);
     Handle<Smi> slot = args.at<Smi>(3);
     Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
-    FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+    FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
     KeyedStoreICNexus nexus(vector, vector_slot);
     KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
@@ -3109,7 +3109,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_MissFromStubFailure) {
   DCHECK(args.length() == 4);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
-  FeedbackVectorICSlot vector_slot = vector->ToICSlot(slot->value());
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
   // LoadIC miss handler if the handler misses. Since the vector Nexus is
   // set up outside the IC, handle that here.

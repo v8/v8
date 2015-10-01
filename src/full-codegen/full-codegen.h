@@ -427,11 +427,6 @@ class FullCodeGenerator: public AstVisitor {
         literal()->feedback_vector_spec(), slot));
   }
 
-  Smi* SmiFromSlot(FeedbackVectorICSlot slot) const {
-    return Smi::FromInt(TypeFeedbackVector::GetIndexFromSpec(
-        literal()->feedback_vector_spec(), slot));
-  }
-
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
   void RecordJSReturnSite(Call* call);
@@ -598,12 +593,12 @@ class FullCodeGenerator: public AstVisitor {
   // Assign to the given expression as if via '='. The right-hand-side value
   // is expected in the accumulator. slot is only used if FLAG_vector_stores
   // is true.
-  void EmitAssignment(Expression* expr, FeedbackVectorICSlot slot);
+  void EmitAssignment(Expression* expr, FeedbackVectorSlot slot);
 
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
   void EmitVariableAssignment(Variable* var, Token::Value op,
-                              FeedbackVectorICSlot slot);
+                              FeedbackVectorSlot slot);
 
   // Helper functions to EmitVariableAssignment
   void EmitStoreToStackLocalOrContextSlot(Variable* var,
@@ -634,10 +629,10 @@ class FullCodeGenerator: public AstVisitor {
   // The value of the initializer is expected to be at the top of the stack.
   // |offset| is the offset in the stack where the home object can be found.
   void EmitSetHomeObject(Expression* initializer, int offset,
-                         FeedbackVectorICSlot slot);
+                         FeedbackVectorSlot slot);
 
   void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
-                                    FeedbackVectorICSlot slot);
+                                    FeedbackVectorSlot slot);
 
   void EmitLoadSuperConstructor(SuperCallReference* super_call_ref);
 
@@ -736,7 +731,7 @@ class FullCodeGenerator: public AstVisitor {
   bool MustCreateObjectLiteralWithRuntime(ObjectLiteral* expr) const;
   bool MustCreateArrayLiteralWithRuntime(ArrayLiteral* expr) const;
 
-  void EmitLoadStoreICSlot(FeedbackVectorICSlot slot);
+  void EmitLoadStoreICSlot(FeedbackVectorSlot slot);
 
   int NewHandlerTableEntry();
 

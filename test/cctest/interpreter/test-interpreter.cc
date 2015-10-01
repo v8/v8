@@ -591,11 +591,13 @@ TEST(InterpreterLoadNamedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
+  i::Zone zone;
 
-  i::FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC};
-  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+
   Handle<i::TypeFeedbackVector> vector =
-      factory->NewTypeFeedbackVector(&feedback_spec);
+      i::TypeFeedbackVector::New(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
@@ -604,7 +606,7 @@ TEST(InterpreterLoadNamedProperty) {
   builder.set_locals_count(0);
   builder.set_parameter_count(1);
   builder.LoadLiteral(name)
-      .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
+      .LoadNamedProperty(builder.Parameter(0), vector->GetIndex(slot),
                          i::SLOPPY)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -645,12 +647,13 @@ TEST(InterpreterLoadKeyedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
+  i::Zone zone;
 
-  i::FeedbackVectorSlotKind ic_kinds[] = {
-      i::FeedbackVectorSlotKind::KEYED_LOAD_IC};
-  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
+
   Handle<i::TypeFeedbackVector> vector =
-      factory->NewTypeFeedbackVector(&feedback_spec);
+      i::TypeFeedbackVector::New(isolate, &feedback_spec);
 
   Handle<i::String> key = factory->NewStringFromAsciiChecked("key");
   key = factory->string_table()->LookupString(isolate, key);
@@ -659,7 +662,7 @@ TEST(InterpreterLoadKeyedProperty) {
   builder.set_locals_count(1);
   builder.set_parameter_count(1);
   builder.LoadLiteral(key)
-      .LoadKeyedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
+      .LoadKeyedProperty(builder.Parameter(0), vector->GetIndex(slot),
                          i::SLOPPY)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -688,11 +691,13 @@ TEST(InterpreterStoreNamedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
+  i::Zone zone;
 
-  i::FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::STORE_IC};
-  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
+
   Handle<i::TypeFeedbackVector> vector =
-      factory->NewTypeFeedbackVector(&feedback_spec);
+      i::TypeFeedbackVector::New(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
@@ -704,7 +709,7 @@ TEST(InterpreterStoreNamedProperty) {
       .StoreAccumulatorInRegister(Register(0))
       .LoadLiteral(Smi::FromInt(999))
       .StoreNamedProperty(builder.Parameter(0), Register(0),
-                          vector->first_ic_slot_index(), i::SLOPPY)
+                          vector->GetIndex(slot), i::SLOPPY)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -748,12 +753,13 @@ TEST(InterpreterStoreKeyedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
+  i::Zone zone;
 
-  i::FeedbackVectorSlotKind ic_kinds[] = {
-      i::FeedbackVectorSlotKind::KEYED_STORE_IC};
-  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot();
+
   Handle<i::TypeFeedbackVector> vector =
-      factory->NewTypeFeedbackVector(&feedback_spec);
+      i::TypeFeedbackVector::New(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
@@ -765,7 +771,7 @@ TEST(InterpreterStoreKeyedProperty) {
       .StoreAccumulatorInRegister(Register(0))
       .LoadLiteral(Smi::FromInt(999))
       .StoreKeyedProperty(builder.Parameter(0), Register(0),
-                          vector->first_ic_slot_index(), i::SLOPPY)
+                          vector->GetIndex(slot), i::SLOPPY)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -796,11 +802,14 @@ TEST(InterpreterCall) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
+  i::Zone zone;
 
-  i::FeedbackVectorSlotKind ic_kinds[] = {i::FeedbackVectorSlotKind::LOAD_IC};
-  i::StaticFeedbackVectorSpec feedback_spec(0, 1, ic_kinds);
+  i::FeedbackVectorSpec feedback_spec(&zone);
+  i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+
   Handle<i::TypeFeedbackVector> vector =
-      factory->NewTypeFeedbackVector(&feedback_spec);
+      i::TypeFeedbackVector::New(isolate, &feedback_spec);
+  int slot_index = vector->GetIndex(slot);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("func");
   name = factory->string_table()->LookupString(isolate, name);
@@ -811,8 +820,7 @@ TEST(InterpreterCall) {
     builder.set_locals_count(1);
     builder.set_parameter_count(1);
     builder.LoadLiteral(name)
-        .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
-                           i::SLOPPY)
+        .LoadNamedProperty(builder.Parameter(0), slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
         .Call(Register(0), builder.Parameter(0), 0)
         .Return();
@@ -833,8 +841,7 @@ TEST(InterpreterCall) {
     builder.set_locals_count(1);
     builder.set_parameter_count(1);
     builder.LoadLiteral(name)
-        .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
-                           i::SLOPPY)
+        .LoadNamedProperty(builder.Parameter(0), slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
         .Call(Register(0), builder.Parameter(0), 0)
         .Return();
@@ -858,8 +865,7 @@ TEST(InterpreterCall) {
     builder.set_locals_count(4);
     builder.set_parameter_count(1);
     builder.LoadLiteral(name)
-        .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
-                           i::SLOPPY)
+        .LoadNamedProperty(builder.Parameter(0), slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
         .LoadAccumulatorWithRegister(builder.Parameter(0))
         .StoreAccumulatorInRegister(Register(1))
@@ -888,8 +894,7 @@ TEST(InterpreterCall) {
     builder.set_locals_count(12);
     builder.set_parameter_count(1);
     builder.LoadLiteral(name)
-        .LoadNamedProperty(builder.Parameter(0), vector->first_ic_slot_index(),
-                           i::SLOPPY)
+        .LoadNamedProperty(builder.Parameter(0), slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
         .LoadAccumulatorWithRegister(builder.Parameter(0))
         .StoreAccumulatorInRegister(Register(1))
