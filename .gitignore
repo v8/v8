@@ -78,6 +78,9 @@ shell_g
 /tools/clang
 /tools/jsfunfuzz
 /tools/jsfunfuzz.zip
+/tools/luci-go/linux64/isolate
+/tools/luci-go/mac64/isolate
+/tools/luci-go/win64/isolate.exe
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/swarming_client

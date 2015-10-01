@@ -93,6 +93,40 @@ hooks = [
                 "-s", "v8/buildtools/linux64/clang-format.sha1",
     ],
   },
+  # Pull luci-go binaries (isolate, swarming) using checked-in hashes.
+  {
+    'name': 'luci-go_win',
+    'pattern': '.',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=win32',
+                '--no_auth',
+                '--bucket', 'chromium-luci',
+                '-d', 'v8/tools/luci-go/win64',
+    ],
+  },
+  {
+    'name': 'luci-go_mac',
+    'pattern': '.',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=darwin',
+                '--no_auth',
+                '--bucket', 'chromium-luci',
+                '-d', 'v8/tools/luci-go/mac64',
+    ],
+  },
+  {
+    'name': 'luci-go_linux',
+    'pattern': '.',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=linux*',
+                '--no_auth',
+                '--bucket', 'chromium-luci',
+                '-d', 'v8/tools/luci-go/linux64',
+    ],
+  },
   # Pull binutils for linux, enabled debug fission for faster linking /
   # debugging when used with clang on Ubuntu Precise.
   # https://code.google.com/p/chromium/issues/detail?id=352046
