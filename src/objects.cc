@@ -8815,6 +8815,47 @@ Handle<LiteralsArray> LiteralsArray::New(Isolate* isolate,
 }
 
 
+// static
+Handle<BindingsArray> BindingsArray::New(Isolate* isolate,
+                                         Handle<TypeFeedbackVector> vector,
+                                         Handle<JSReceiver> bound_function,
+                                         Handle<Object> bound_this,
+                                         int number_of_bindings) {
+  Handle<FixedArray> bindings = isolate->factory()->NewFixedArray(
+      number_of_bindings + kFirstBindingIndex);
+  Handle<BindingsArray> casted_bindings = Handle<BindingsArray>::cast(bindings);
+  casted_bindings->set_feedback_vector(*vector);
+  casted_bindings->set_bound_function(*bound_function);
+  casted_bindings->set_bound_this(*bound_this);
+  return casted_bindings;
+}
+
+
+// static
+Handle<JSArray> BindingsArray::CreateBoundArguments(
+    Handle<BindingsArray> bindings) {
+  int bound_argument_count = bindings->bindings_count();
+  Factory* factory = bindings->GetIsolate()->factory();
+  Handle<FixedArray> arguments = factory->NewFixedArray(bound_argument_count);
+  bindings->CopyTo(kFirstBindingIndex, *arguments, 0, bound_argument_count);
+  return factory->NewJSArrayWithElements(arguments);
+}
+
+
+// static
+Handle<JSArray> BindingsArray::CreateRuntimeBindings(
+    Handle<BindingsArray> bindings) {
+  Factory* factory = bindings->GetIsolate()->factory();
+  // A runtime bindings array consists of
+  // [bound function, bound this, [arg0, arg1, ...]].
+  Handle<FixedArray> runtime_bindings =
+      factory->NewFixedArray(2 + bindings->bindings_count());
+  bindings->CopyTo(kBoundFunctionIndex, *runtime_bindings, 0,
+                   2 + bindings->bindings_count());
+  return factory->NewJSArrayWithElements(runtime_bindings);
+}
+
+
 int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out,
                               CatchPrediction* prediction_out) {
   int innermost_handler = -1, innermost_start = -1;

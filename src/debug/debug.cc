@@ -746,9 +746,8 @@ void Debug::FloodWithOneShot(Handle<JSFunction> function,
 
 
 void Debug::FloodBoundFunctionWithOneShot(Handle<JSFunction> function) {
-  Handle<FixedArray> new_bindings(function->function_bindings());
-  Handle<Object> bindee(new_bindings->get(JSFunction::kBoundFunctionIndex),
-                        isolate_);
+  Handle<BindingsArray> new_bindings(function->function_bindings());
+  Handle<Object> bindee(new_bindings->bound_function(), isolate_);
 
   if (!bindee.is_null() && bindee->IsJSFunction()) {
     Handle<JSFunction> bindee_function(JSFunction::cast(*bindee));

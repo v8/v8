@@ -731,6 +731,7 @@ bool Object::IsTypeFeedbackVector() const { return IsFixedArray(); }
 
 
 bool Object::IsLiteralsArray() const { return IsFixedArray(); }
+bool Object::IsBindingsArray() const { return IsFixedArray(); }
 
 
 bool Object::IsDeoptimizationInputData() const {
@@ -3503,6 +3504,75 @@ void LiteralsArray::set_literal(int literal_index, Object* literal) {
 
 int LiteralsArray::literals_count() const {
   return length() - kFirstLiteralIndex;
+}
+
+
+Object* BindingsArray::get(int index) const { return FixedArray::get(index); }
+
+
+void BindingsArray::set(int index, Object* value) {
+  FixedArray::set(index, value);
+}
+
+
+void BindingsArray::set(int index, Smi* value) {
+  FixedArray::set(index, value);
+}
+
+
+void BindingsArray::set(int index, Object* value, WriteBarrierMode mode) {
+  FixedArray::set(index, value, mode);
+}
+
+
+int BindingsArray::length() const { return FixedArray::length(); }
+
+
+BindingsArray* BindingsArray::cast(Object* object) {
+  SLOW_DCHECK(object->IsBindingsArray());
+  return reinterpret_cast<BindingsArray*>(object);
+}
+
+void BindingsArray::set_feedback_vector(TypeFeedbackVector* vector) {
+  set(kVectorIndex, vector);
+}
+
+
+TypeFeedbackVector* BindingsArray::feedback_vector() const {
+  return TypeFeedbackVector::cast(get(kVectorIndex));
+}
+
+
+JSReceiver* BindingsArray::bound_function() const {
+  return JSReceiver::cast(get(kBoundFunctionIndex));
+}
+
+
+void BindingsArray::set_bound_function(JSReceiver* function) {
+  set(kBoundFunctionIndex, function);
+}
+
+
+Object* BindingsArray::bound_this() const { return get(kBoundThisIndex); }
+
+
+void BindingsArray::set_bound_this(Object* bound_this) {
+  set(kBoundThisIndex, bound_this);
+}
+
+
+Object* BindingsArray::binding(int binding_index) const {
+  return get(kFirstBindingIndex + binding_index);
+}
+
+
+void BindingsArray::set_binding(int binding_index, Object* binding) {
+  set(kFirstBindingIndex + binding_index, binding);
+}
+
+
+int BindingsArray::bindings_count() const {
+  return length() - kFirstBindingIndex;
 }
 
 
@@ -6322,13 +6392,13 @@ void JSFunction::set_literals(LiteralsArray* literals) {
 }
 
 
-FixedArray* JSFunction::function_bindings() {
+BindingsArray* JSFunction::function_bindings() {
   DCHECK(shared()->bound());
-  return literals_or_bindings();
+  return BindingsArray::cast(literals_or_bindings());
 }
 
 
-void JSFunction::set_function_bindings(FixedArray* bindings) {
+void JSFunction::set_function_bindings(BindingsArray* bindings) {
   DCHECK(shared()->bound());
   // Bound function literal may be initialized to the empty fixed array
   // before the bindings are set.

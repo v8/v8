@@ -1562,9 +1562,8 @@ RUNTIME_FUNCTION(Runtime_InstanceOf) {
   if (callable->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
     if (function->shared()->bound()) {
-      Handle<FixedArray> bindings(function->function_bindings(), isolate);
-      callable =
-          handle(bindings->get(JSFunction::kBoundFunctionIndex), isolate);
+      Handle<BindingsArray> bindings(function->function_bindings(), isolate);
+      callable = handle(bindings->bound_function(), isolate);
     }
   }
   DCHECK(callable->IsCallable());

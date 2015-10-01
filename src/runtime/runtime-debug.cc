@@ -156,29 +156,24 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
       RUNTIME_ASSERT_HANDLIFIED(function->function_bindings()->IsFixedArray(),
                                 JSArray);
 
-      Handle<FixedArray> bindings(function->function_bindings());
+      Handle<BindingsArray> bindings(function->function_bindings());
 
       Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
       Handle<String> target =
           factory->NewStringFromAsciiChecked("[[TargetFunction]]");
       result->set(0, *target);
-      result->set(1, bindings->get(JSFunction::kBoundFunctionIndex));
+      result->set(1, bindings->bound_function());
 
       Handle<String> bound_this =
           factory->NewStringFromAsciiChecked("[[BoundThis]]");
       result->set(2, *bound_this);
-      result->set(3, bindings->get(JSFunction::kBoundThisIndex));
+      result->set(3, bindings->bound_this());
 
-      Handle<FixedArray> arguments = factory->NewFixedArray(
-          bindings->length() - JSFunction::kBoundArgumentsStartIndex);
-      bindings->CopyTo(
-          JSFunction::kBoundArgumentsStartIndex, *arguments, 0,
-          bindings->length() - JSFunction::kBoundArgumentsStartIndex);
       Handle<String> bound_args =
           factory->NewStringFromAsciiChecked("[[BoundArgs]]");
       result->set(4, *bound_args);
       Handle<JSArray> arguments_array =
-          factory->NewJSArrayWithElements(arguments);
+          BindingsArray::CreateBoundArguments(bindings);
       result->set(5, *arguments_array);
       return factory->NewJSArrayWithElements(result);
     }

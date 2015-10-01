@@ -77,6 +77,7 @@
 //       - FixedArray
 //         - DescriptorArray
 //         - LiteralsArray
+//         - BindingsArray
 //         - HashTable
 //           - Dictionary
 //           - StringTable
@@ -941,6 +942,7 @@ template <class C> inline bool Is(Object* obj);
   V(LayoutDescriptor)              \
   V(Map)                           \
   V(DescriptorArray)               \
+  V(BindingsArray)                 \
   V(TransitionArray)               \
   V(LiteralsArray)                 \
   V(TypeFeedbackVector)            \
@@ -4606,6 +4608,48 @@ class LiteralsArray : public FixedArray {
 };
 
 
+// A bindings array contains the bindings for a bound function. It also holds
+// the type feedback vector.
+class BindingsArray : public FixedArray {
+ public:
+  inline TypeFeedbackVector* feedback_vector() const;
+  inline void set_feedback_vector(TypeFeedbackVector* vector);
+
+  inline JSReceiver* bound_function() const;
+  inline void set_bound_function(JSReceiver* function);
+  inline Object* bound_this() const;
+  inline void set_bound_this(Object* bound_this);
+
+  inline Object* binding(int binding_index) const;
+  inline void set_binding(int binding_index, Object* binding);
+  inline int bindings_count() const;
+
+  static Handle<BindingsArray> New(Isolate* isolate,
+                                   Handle<TypeFeedbackVector> vector,
+                                   Handle<JSReceiver> bound_function,
+                                   Handle<Object> bound_this,
+                                   int number_of_bindings);
+
+  static Handle<JSArray> CreateBoundArguments(Handle<BindingsArray> bindings);
+  static Handle<JSArray> CreateRuntimeBindings(Handle<BindingsArray> bindings);
+
+  DECLARE_CAST(BindingsArray)
+
+ private:
+  static const int kVectorIndex = 0;
+  static const int kBoundFunctionIndex = 1;
+  static const int kBoundThisIndex = 2;
+  static const int kFirstBindingIndex = 3;
+
+  inline Object* get(int index) const;
+  inline void set(int index, Object* value);
+  inline void set(int index, Smi* value);
+  inline void set(int index, Object* value, WriteBarrierMode mode);
+
+  inline int length() const;
+};
+
+
 // HandlerTable is a fixed array containing entries for exception handlers in
 // the code object it is associated with. The tables comes in two flavors:
 // 1) Based on ranges: Used for unoptimized code. Contains one entry per
@@ -7176,8 +7220,8 @@ class JSFunction: public JSObject {
   inline LiteralsArray* literals();
   inline void set_literals(LiteralsArray* literals);
 
-  inline FixedArray* function_bindings();
-  inline void set_function_bindings(FixedArray* bindings);
+  inline BindingsArray* function_bindings();
+  inline void set_function_bindings(BindingsArray* bindings);
 
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
@@ -7263,11 +7307,6 @@ class JSFunction: public JSObject {
   static const int kNonWeakFieldsEndOffset = kLiteralsOffset + kPointerSize;
   static const int kNextFunctionLinkOffset = kNonWeakFieldsEndOffset;
   static const int kSize = kNextFunctionLinkOffset + kPointerSize;
-
-  // Layout of the bound-function binding array.
-  static const int kBoundFunctionIndex = 0;
-  static const int kBoundThisIndex = 1;
-  static const int kBoundArgumentsStartIndex = 2;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);

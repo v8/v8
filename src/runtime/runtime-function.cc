@@ -357,7 +357,7 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, bound_function, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, bindee, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, bindee, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, this_object, 2);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(new_length, 3);
 
@@ -378,30 +378,28 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   }
   // Initialize array of bindings (function, this, and any existing arguments
   // if the function was already bound).
-  Handle<FixedArray> new_bindings;
-  int i;
+  Handle<BindingsArray> new_bindings;
+  int out_index = 0;
+  Handle<TypeFeedbackVector> vector(
+      bound_function->shared()->feedback_vector());
   if (bindee->IsJSFunction() && JSFunction::cast(*bindee)->shared()->bound()) {
-    Handle<FixedArray> old_bindings(
+    Handle<BindingsArray> old_bindings(
         JSFunction::cast(*bindee)->function_bindings());
-    RUNTIME_ASSERT(old_bindings->length() > JSFunction::kBoundFunctionIndex);
-    new_bindings =
-        isolate->factory()->NewFixedArray(old_bindings->length() + argc);
-    bindee = Handle<Object>(old_bindings->get(JSFunction::kBoundFunctionIndex),
-                            isolate);
-    i = 0;
-    for (int n = old_bindings->length(); i < n; i++) {
-      new_bindings->set(i, old_bindings->get(i));
+    RUNTIME_ASSERT(old_bindings->bindings_count() >= 0);
+    bindee = handle(old_bindings->bound_function(), isolate);
+    Handle<Object> old_bound_this(old_bindings->bound_this(), isolate);
+    new_bindings = BindingsArray::New(isolate, vector, bindee, old_bound_this,
+                                      old_bindings->bindings_count() + argc);
+    for (int n = old_bindings->bindings_count(); out_index < n; out_index++) {
+      new_bindings->set_binding(out_index, old_bindings->binding(out_index));
     }
   } else {
-    int array_size = JSFunction::kBoundArgumentsStartIndex + argc;
-    new_bindings = isolate->factory()->NewFixedArray(array_size);
-    new_bindings->set(JSFunction::kBoundFunctionIndex, *bindee);
-    new_bindings->set(JSFunction::kBoundThisIndex, *this_object);
-    i = 2;
+    new_bindings =
+        BindingsArray::New(isolate, vector, bindee, this_object, argc);
   }
   // Copy arguments, skipping the first which is "this_arg".
-  for (int j = 0; j < argc; j++, i++) {
-    new_bindings->set(i, *arguments[j + 1]);
+  for (int j = 0; j < argc; j++, out_index++) {
+    new_bindings->set_binding(out_index, *arguments[j + 1]);
   }
   new_bindings->set_map_no_write_barrier(isolate->heap()->fixed_array_map());
   bound_function->set_function_bindings(*new_bindings);
@@ -445,9 +443,9 @@ RUNTIME_FUNCTION(Runtime_BoundFunctionGetBindings) {
   if (callable->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
     if (function->shared()->bound()) {
-      RUNTIME_ASSERT(function->function_bindings()->IsFixedArray());
-      Handle<FixedArray> bindings(function->function_bindings());
-      return *isolate->factory()->NewJSArrayWithElements(bindings);
+      RUNTIME_ASSERT(function->function_bindings()->IsBindingsArray());
+      Handle<BindingsArray> bindings(function->function_bindings());
+      return *BindingsArray::CreateRuntimeBindings(bindings);
     }
   }
   return isolate->heap()->undefined_value();
@@ -463,12 +461,10 @@ RUNTIME_FUNCTION(Runtime_NewObjectFromBound) {
 
   // The argument is a bound function. Extract its bound arguments
   // and callable.
-  Handle<FixedArray> bound_args =
-      Handle<FixedArray>(FixedArray::cast(function->function_bindings()));
-  int bound_argc = bound_args->length() - JSFunction::kBoundArgumentsStartIndex;
-  Handle<Object> bound_function(
-      JSReceiver::cast(bound_args->get(JSFunction::kBoundFunctionIndex)),
-      isolate);
+  Handle<BindingsArray> bound_args =
+      handle(BindingsArray::cast(function->function_bindings()));
+  int bound_argc = bound_args->bindings_count();
+  Handle<Object> bound_function(bound_args->bound_function(), isolate);
   DCHECK(!bound_function->IsJSFunction() ||
          !Handle<JSFunction>::cast(bound_function)->shared()->bound());
 
@@ -476,8 +472,7 @@ RUNTIME_FUNCTION(Runtime_NewObjectFromBound) {
   base::SmartArrayPointer<Handle<Object>> param_data =
       Runtime::GetCallerArguments(isolate, bound_argc, &total_argc);
   for (int i = 0; i < bound_argc; i++) {
-    param_data[i] = Handle<Object>(
-        bound_args->get(JSFunction::kBoundArgumentsStartIndex + i), isolate);
+    param_data[i] = handle(bound_args->binding(i), isolate);
   }
 
   Handle<Object> result;

@@ -1593,18 +1593,14 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj, int entry) {
 
   JSFunction* func = JSFunction::cast(js_obj);
   if (func->shared()->bound()) {
-    FixedArray* bindings = func->function_bindings();
-    SetNativeBindReference(js_obj, entry, "bound_this",
-                           bindings->get(JSFunction::kBoundThisIndex));
+    BindingsArray* bindings = func->function_bindings();
+    SetNativeBindReference(js_obj, entry, "bound_this", bindings->bound_this());
     SetNativeBindReference(js_obj, entry, "bound_function",
-                           bindings->get(JSFunction::kBoundFunctionIndex));
-    for (int i = JSFunction::kBoundArgumentsStartIndex;
-         i < bindings->length(); i++) {
-      const char* reference_name = names_->GetFormatted(
-          "bound_argument_%d",
-          i - JSFunction::kBoundArgumentsStartIndex);
+                           bindings->bound_function());
+    for (int i = 0; i < bindings->bindings_count(); i++) {
+      const char* reference_name = names_->GetFormatted("bound_argument_%d", i);
       SetNativeBindReference(js_obj, entry, reference_name,
-                             bindings->get(i));
+                             bindings->binding(i));
     }
   }
 }
