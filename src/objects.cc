@@ -6789,8 +6789,10 @@ void KeyAccumulator::PrepareForComparisons(int count) {
   // hash-table-based checks which have a one-time overhead for
   // initializing but O(1) for HasKey checks.
   if (!set_.is_null()) return;
-  // This limit was obtained through evaluation of a microbench.
-  if (length_ * count < 50) return;
+  // These limits were obtained through evaluation of several microbenchmarks.
+  if (length_ * count < 100) return;
+  // Don't use a set for few elements
+  if (length_ < 100 && count < 20) return;
   set_ = OrderedHashSet::Allocate(isolate_, length_);
   for (int i = 0; i < length_; i++) {
     Handle<Object> value(keys_->get(i), isolate_);
