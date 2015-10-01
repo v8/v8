@@ -789,13 +789,13 @@ TEST(IfConditions) {
        kPointerSize,
        2,
        19,
-       {B(Ldar), R(-5),                //
-        B(Star), R(0),                 //
-        B(LdaZero),                    //
-        B(TestLessThanOrEqual), R(0),  //
-        B(JumpIfFalse), U8(7),         //
-        B(LdaConstant), U8(0),         //
-        B(Return),                     //
+       {B(Ldar), R(helper.kLastParamIndex),  //
+        B(Star), R(0),                       //
+        B(LdaZero),                          //
+        B(TestLessThanOrEqual), R(0),        //
+        B(JumpIfFalse), U8(7),               //
+        B(LdaConstant), U8(0),               //
+        B(Return),                           //
         B(Jump), U8(5),         // TODO(oth): Unreachable jump after return
         B(LdaConstant), U8(1),  //
         B(Return),              //
@@ -809,16 +809,16 @@ TEST(IfConditions) {
        kPointerSize,
        3,
        17,
-       {B(Ldar), R(-6),         //
-        B(Star), R(0),          //
-        B(Ldar), R(-5),         //
-        B(TestIn), R(0),        //
-        B(JumpIfFalse), U8(7),  //
-        B(LdaConstant), U8(0),  //
-        B(Return),              //
-        B(Jump), U8(2),         // TODO(oth): Unreachable jump after return
-        B(LdaUndefined),        //
-        B(Return)},             //
+       {B(Ldar), R(helper.kLastParamIndex - 1),  //
+        B(Star), R(0),                           //
+        B(Ldar), R(helper.kLastParamIndex),      //
+        B(TestIn), R(0),                         //
+        B(JumpIfFalse), U8(7),                   //
+        B(LdaConstant), U8(0),                   //
+        B(Return),                               //
+        B(Jump), U8(2),   // TODO(oth): Unreachable jump after return
+        B(LdaUndefined),  //
+        B(Return)},       //
        1,
        {helper.factory()->NewNumberFromInt(200), unused, unused, unused}},
       {"function f(z) { var a = 0; var b = 0; if (a === 0.01) { "
@@ -871,14 +871,14 @@ TEST(IfConditions) {
        3,
        122,
        {
-#define IF_CONDITION_RETURN(condition) \
-  B(Ldar), R(-6),                      \
-  B(Star), R(0),                       \
-  B(Ldar), R(-5),                      \
-  B(condition), R(0),                  \
-  B(JumpIfFalse), U8(7),               \
-  B(LdaSmi8), U8(1),                   \
-  B(Return),                           \
+#define IF_CONDITION_RETURN(condition)    \
+  B(Ldar), R(helper.kLastParamIndex - 1), \
+  B(Star), R(0),                          \
+  B(Ldar), R(helper.kLastParamIndex),     \
+  B(condition), R(0),                     \
+  B(JumpIfFalse), U8(7),                  \
+  B(LdaSmi8), U8(1),                      \
+  B(Return),                              \
   B(Jump), U8(2),
            IF_CONDITION_RETURN(TestEqual)               //
            IF_CONDITION_RETURN(TestEqualStrict)         //
