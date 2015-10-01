@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noalways-opt
+// Flags: --allow-natives-syntax --noalways-opt --no-vector-stores
+
+// We disable vector store ICs because slot indices change when this option
+// is enabled.
 
 // Locations in the type feedback vector where call counts are maintained for
 // the two calls made from bar();
