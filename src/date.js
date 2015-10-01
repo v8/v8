@@ -21,13 +21,11 @@ var InternalArray = utils.InternalArray;
 var IsFinite;
 var MathAbs;
 var MathFloor;
-var ToNumber;
 
 utils.Import(function(from) {
   IsFinite = from.IsFinite;
   MathAbs = from.MathAbs;
   MathFloor = from.MathFloor;
-  ToNumber = from.ToNumber;
 });
 
 // -------------------------------------------------------------------
@@ -168,17 +166,17 @@ function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
 
     } else {
       var time = TO_PRIMITIVE(year);
-      value = IS_STRING(time) ? DateParse(time) : ToNumber(time);
+      value = IS_STRING(time) ? DateParse(time) : TO_NUMBER(time);
     }
     SET_UTC_DATE_VALUE(this, value);
   } else {
-    year = ToNumber(year);
-    month = ToNumber(month);
-    date = argc > 2 ? ToNumber(date) : 1;
-    hours = argc > 3 ? ToNumber(hours) : 0;
-    minutes = argc > 4 ? ToNumber(minutes) : 0;
-    seconds = argc > 5 ? ToNumber(seconds) : 0;
-    ms = argc > 6 ? ToNumber(ms) : 0;
+    year = TO_NUMBER(year);
+    month = TO_NUMBER(month);
+    date = argc > 2 ? TO_NUMBER(date) : 1;
+    hours = argc > 3 ? TO_NUMBER(hours) : 0;
+    minutes = argc > 4 ? TO_NUMBER(minutes) : 0;
+    seconds = argc > 5 ? TO_NUMBER(seconds) : 0;
+    ms = argc > 6 ? TO_NUMBER(ms) : 0;
     year = (!NUMBER_IS_NAN(year) &&
             0 <= TO_INTEGER(year) &&
             TO_INTEGER(year) <= 99) ? 1900 + TO_INTEGER(year) : year;
@@ -283,14 +281,14 @@ function DateParse(string) {
 
 // ECMA 262 - 15.9.4.3
 function DateUTC(year, month, date, hours, minutes, seconds, ms) {
-  year = ToNumber(year);
-  month = ToNumber(month);
+  year = TO_NUMBER(year);
+  month = TO_NUMBER(month);
   var argc = %_ArgumentsLength();
-  date = argc > 2 ? ToNumber(date) : 1;
-  hours = argc > 3 ? ToNumber(hours) : 0;
-  minutes = argc > 4 ? ToNumber(minutes) : 0;
-  seconds = argc > 5 ? ToNumber(seconds) : 0;
-  ms = argc > 6 ? ToNumber(ms) : 0;
+  date = argc > 2 ? TO_NUMBER(date) : 1;
+  hours = argc > 3 ? TO_NUMBER(hours) : 0;
+  minutes = argc > 4 ? TO_NUMBER(minutes) : 0;
+  seconds = argc > 5 ? TO_NUMBER(seconds) : 0;
+  ms = argc > 6 ? TO_NUMBER(ms) : 0;
   year = (!NUMBER_IS_NAN(year) &&
           0 <= TO_INTEGER(year) &&
           TO_INTEGER(year) <= 99) ? 1900 + TO_INTEGER(year) : year;
@@ -496,7 +494,7 @@ function DateGetTimezoneOffset() {
 // ECMA 262 - 15.9.5.27
 function DateSetTime(ms) {
   CHECK_DATE(this);
-  SET_UTC_DATE_VALUE(this, ToNumber(ms));
+  SET_UTC_DATE_VALUE(this, TO_NUMBER(ms));
   return UTC_DATE_VALUE(this);
 }
 
@@ -505,7 +503,7 @@ function DateSetTime(ms) {
 function DateSetMilliseconds(ms) {
   CHECK_DATE(this);
   var t = LOCAL_DATE_VALUE(this);
-  ms = ToNumber(ms);
+  ms = TO_NUMBER(ms);
   var time = MakeTime(LOCAL_HOUR(this), LOCAL_MIN(this), LOCAL_SEC(this), ms);
   return SET_LOCAL_DATE_VALUE(this, MakeDate(LOCAL_DAYS(this), time));
 }
@@ -515,7 +513,7 @@ function DateSetMilliseconds(ms) {
 function DateSetUTCMilliseconds(ms) {
   CHECK_DATE(this);
   var t = UTC_DATE_VALUE(this);
-  ms = ToNumber(ms);
+  ms = TO_NUMBER(ms);
   var time = MakeTime(UTC_HOUR(this),
                       UTC_MIN(this),
                       UTC_SEC(this),
@@ -528,8 +526,8 @@ function DateSetUTCMilliseconds(ms) {
 function DateSetSeconds(sec, ms) {
   CHECK_DATE(this);
   var t = LOCAL_DATE_VALUE(this);
-  sec = ToNumber(sec);
-  ms = %_ArgumentsLength() < 2 ? LOCAL_MS(this) : ToNumber(ms);
+  sec = TO_NUMBER(sec);
+  ms = %_ArgumentsLength() < 2 ? LOCAL_MS(this) : TO_NUMBER(ms);
   var time = MakeTime(LOCAL_HOUR(this), LOCAL_MIN(this), sec, ms);
   return SET_LOCAL_DATE_VALUE(this, MakeDate(LOCAL_DAYS(this), time));
 }
@@ -539,8 +537,8 @@ function DateSetSeconds(sec, ms) {
 function DateSetUTCSeconds(sec, ms) {
   CHECK_DATE(this);
   var t = UTC_DATE_VALUE(this);
-  sec = ToNumber(sec);
-  ms = %_ArgumentsLength() < 2 ? UTC_MS(this) : ToNumber(ms);
+  sec = TO_NUMBER(sec);
+  ms = %_ArgumentsLength() < 2 ? UTC_MS(this) : TO_NUMBER(ms);
   var time = MakeTime(UTC_HOUR(this), UTC_MIN(this), sec, ms);
   return SET_UTC_DATE_VALUE(this, MakeDate(UTC_DAYS(this), time));
 }
@@ -550,10 +548,10 @@ function DateSetUTCSeconds(sec, ms) {
 function DateSetMinutes(min, sec, ms) {
   CHECK_DATE(this);
   var t = LOCAL_DATE_VALUE(this);
-  min = ToNumber(min);
+  min = TO_NUMBER(min);
   var argc = %_ArgumentsLength();
-  sec = argc < 2 ? LOCAL_SEC(this) : ToNumber(sec);
-  ms = argc < 3 ? LOCAL_MS(this) : ToNumber(ms);
+  sec = argc < 2 ? LOCAL_SEC(this) : TO_NUMBER(sec);
+  ms = argc < 3 ? LOCAL_MS(this) : TO_NUMBER(ms);
   var time = MakeTime(LOCAL_HOUR(this), min, sec, ms);
   return SET_LOCAL_DATE_VALUE(this, MakeDate(LOCAL_DAYS(this), time));
 }
@@ -563,10 +561,10 @@ function DateSetMinutes(min, sec, ms) {
 function DateSetUTCMinutes(min, sec, ms) {
   CHECK_DATE(this);
   var t = UTC_DATE_VALUE(this);
-  min = ToNumber(min);
+  min = TO_NUMBER(min);
   var argc = %_ArgumentsLength();
-  sec = argc < 2 ? UTC_SEC(this) : ToNumber(sec);
-  ms = argc < 3 ? UTC_MS(this) : ToNumber(ms);
+  sec = argc < 2 ? UTC_SEC(this) : TO_NUMBER(sec);
+  ms = argc < 3 ? UTC_MS(this) : TO_NUMBER(ms);
   var time = MakeTime(UTC_HOUR(this), min, sec, ms);
   return SET_UTC_DATE_VALUE(this, MakeDate(UTC_DAYS(this), time));
 }
@@ -576,11 +574,11 @@ function DateSetUTCMinutes(min, sec, ms) {
 function DateSetHours(hour, min, sec, ms) {
   CHECK_DATE(this);
   var t = LOCAL_DATE_VALUE(this);
-  hour = ToNumber(hour);
+  hour = TO_NUMBER(hour);
   var argc = %_ArgumentsLength();
-  min = argc < 2 ? LOCAL_MIN(this) : ToNumber(min);
-  sec = argc < 3 ? LOCAL_SEC(this) : ToNumber(sec);
-  ms = argc < 4 ? LOCAL_MS(this) : ToNumber(ms);
+  min = argc < 2 ? LOCAL_MIN(this) : TO_NUMBER(min);
+  sec = argc < 3 ? LOCAL_SEC(this) : TO_NUMBER(sec);
+  ms = argc < 4 ? LOCAL_MS(this) : TO_NUMBER(ms);
   var time = MakeTime(hour, min, sec, ms);
   return SET_LOCAL_DATE_VALUE(this, MakeDate(LOCAL_DAYS(this), time));
 }
@@ -590,11 +588,11 @@ function DateSetHours(hour, min, sec, ms) {
 function DateSetUTCHours(hour, min, sec, ms) {
   CHECK_DATE(this);
   var t = UTC_DATE_VALUE(this);
-  hour = ToNumber(hour);
+  hour = TO_NUMBER(hour);
   var argc = %_ArgumentsLength();
-  min = argc < 2 ? UTC_MIN(this) : ToNumber(min);
-  sec = argc < 3 ? UTC_SEC(this) : ToNumber(sec);
-  ms = argc < 4 ? UTC_MS(this) : ToNumber(ms);
+  min = argc < 2 ? UTC_MIN(this) : TO_NUMBER(min);
+  sec = argc < 3 ? UTC_SEC(this) : TO_NUMBER(sec);
+  ms = argc < 4 ? UTC_MS(this) : TO_NUMBER(ms);
   var time = MakeTime(hour, min, sec, ms);
   return SET_UTC_DATE_VALUE(this, MakeDate(UTC_DAYS(this), time));
 }
@@ -604,7 +602,7 @@ function DateSetUTCHours(hour, min, sec, ms) {
 function DateSetDate(date) {
   CHECK_DATE(this);
   var t = LOCAL_DATE_VALUE(this);
-  date = ToNumber(date);
+  date = TO_NUMBER(date);
   var day = MakeDay(LOCAL_YEAR(this), LOCAL_MONTH(this), date);
   return SET_LOCAL_DATE_VALUE(this, MakeDate(day, LOCAL_TIME_IN_DAY(this)));
 }
@@ -614,7 +612,7 @@ function DateSetDate(date) {
 function DateSetUTCDate(date) {
   CHECK_DATE(this);
   var t = UTC_DATE_VALUE(this);
-  date = ToNumber(date);
+  date = TO_NUMBER(date);
   var day = MakeDay(UTC_YEAR(this), UTC_MONTH(this), date);
   return SET_UTC_DATE_VALUE(this, MakeDate(day, UTC_TIME_IN_DAY(this)));
 }
@@ -624,8 +622,8 @@ function DateSetUTCDate(date) {
 function DateSetMonth(month, date) {
   CHECK_DATE(this);
   var t = LOCAL_DATE_VALUE(this);
-  month = ToNumber(month);
-  date = %_ArgumentsLength() < 2 ? LOCAL_DAY(this) : ToNumber(date);
+  month = TO_NUMBER(month);
+  date = %_ArgumentsLength() < 2 ? LOCAL_DAY(this) : TO_NUMBER(date);
   var day = MakeDay(LOCAL_YEAR(this), month, date);
   return SET_LOCAL_DATE_VALUE(this, MakeDate(day, LOCAL_TIME_IN_DAY(this)));
 }
@@ -635,8 +633,8 @@ function DateSetMonth(month, date) {
 function DateSetUTCMonth(month, date) {
   CHECK_DATE(this);
   var t = UTC_DATE_VALUE(this);
-  month = ToNumber(month);
-  date = %_ArgumentsLength() < 2 ? UTC_DAY(this) : ToNumber(date);
+  month = TO_NUMBER(month);
+  date = %_ArgumentsLength() < 2 ? UTC_DAY(this) : TO_NUMBER(date);
   var day = MakeDay(UTC_YEAR(this), month, date);
   return SET_UTC_DATE_VALUE(this, MakeDate(day, UTC_TIME_IN_DAY(this)));
 }
@@ -646,16 +644,16 @@ function DateSetUTCMonth(month, date) {
 function DateSetFullYear(year, month, date) {
   CHECK_DATE(this);
   var t = LOCAL_DATE_VALUE(this);
-  year = ToNumber(year);
+  year = TO_NUMBER(year);
   var argc = %_ArgumentsLength();
   var time ;
   if (NUMBER_IS_NAN(t)) {
-    month = argc < 2 ? 0 : ToNumber(month);
-    date = argc < 3 ? 1 : ToNumber(date);
+    month = argc < 2 ? 0 : TO_NUMBER(month);
+    date = argc < 3 ? 1 : TO_NUMBER(date);
     time = 0;
   } else {
-    month = argc < 2 ? LOCAL_MONTH(this) : ToNumber(month);
-    date = argc < 3 ? LOCAL_DAY(this) : ToNumber(date);
+    month = argc < 2 ? LOCAL_MONTH(this) : TO_NUMBER(month);
+    date = argc < 3 ? LOCAL_DAY(this) : TO_NUMBER(date);
     time = LOCAL_TIME_IN_DAY(this);
   }
   var day = MakeDay(year, month, date);
@@ -667,16 +665,16 @@ function DateSetFullYear(year, month, date) {
 function DateSetUTCFullYear(year, month, date) {
   CHECK_DATE(this);
   var t = UTC_DATE_VALUE(this);
-  year = ToNumber(year);
+  year = TO_NUMBER(year);
   var argc = %_ArgumentsLength();
   var time ;
   if (NUMBER_IS_NAN(t)) {
-    month = argc < 2 ? 0 : ToNumber(month);
-    date = argc < 3 ? 1 : ToNumber(date);
+    month = argc < 2 ? 0 : TO_NUMBER(month);
+    date = argc < 3 ? 1 : TO_NUMBER(date);
     time = 0;
   } else {
-    month = argc < 2 ? UTC_MONTH(this) : ToNumber(month);
-    date = argc < 3 ? UTC_DAY(this) : ToNumber(date);
+    month = argc < 2 ? UTC_MONTH(this) : TO_NUMBER(month);
+    date = argc < 3 ? UTC_DAY(this) : TO_NUMBER(date);
     time = UTC_TIME_IN_DAY(this);
   }
   var day = MakeDay(year, month, date);
@@ -708,7 +706,7 @@ function DateGetYear() {
 // ECMA 262 - B.2.5
 function DateSetYear(year) {
   CHECK_DATE(this);
-  year = ToNumber(year);
+  year = TO_NUMBER(year);
   if (NUMBER_IS_NAN(year)) return SET_UTC_DATE_VALUE(this, NAN);
   year = (0 <= TO_INTEGER(year) && TO_INTEGER(year) <= 99)
       ? 1900 + TO_INTEGER(year) : year;

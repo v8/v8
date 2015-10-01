@@ -162,7 +162,7 @@ endmacro
 
 macro DECLARE_NUMERIC_FUNCTIONS(NAME, TYPE, LANES)
 function NAMEReplaceLaneJS(instance, lane, value) {
-  return %NAMEReplaceLane(instance, lane, TO_NUMBER_INLINE(value));
+  return %NAMEReplaceLane(instance, lane, TO_NUMBER(value));
 }
 
 function NAMESelectJS(selector, a, b) {
@@ -426,22 +426,22 @@ SIMD_X16_TYPES(DECLARE_X16_FUNCTIONS)
 
 function Float32x4Constructor(c0, c1, c2, c3) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Float32x4");
-  return %CreateFloat32x4(TO_NUMBER_INLINE(c0), TO_NUMBER_INLINE(c1),
-                          TO_NUMBER_INLINE(c2), TO_NUMBER_INLINE(c3));
+  return %CreateFloat32x4(TO_NUMBER(c0), TO_NUMBER(c1),
+                          TO_NUMBER(c2), TO_NUMBER(c3));
 }
 
 
 function Int32x4Constructor(c0, c1, c2, c3) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Int32x4");
-  return %CreateInt32x4(TO_NUMBER_INLINE(c0), TO_NUMBER_INLINE(c1),
-                        TO_NUMBER_INLINE(c2), TO_NUMBER_INLINE(c3));
+  return %CreateInt32x4(TO_NUMBER(c0), TO_NUMBER(c1),
+                        TO_NUMBER(c2), TO_NUMBER(c3));
 }
 
 
 function Uint32x4Constructor(c0, c1, c2, c3) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Uint32x4");
-  return %CreateUint32x4(TO_NUMBER_INLINE(c0), TO_NUMBER_INLINE(c1),
-                         TO_NUMBER_INLINE(c2), TO_NUMBER_INLINE(c3));
+  return %CreateUint32x4(TO_NUMBER(c0), TO_NUMBER(c1),
+                         TO_NUMBER(c2), TO_NUMBER(c3));
 }
 
 
@@ -453,19 +453,19 @@ function Bool32x4Constructor(c0, c1, c2, c3) {
 
 function Int16x8Constructor(c0, c1, c2, c3, c4, c5, c6, c7) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Int16x8");
-  return %CreateInt16x8(TO_NUMBER_INLINE(c0), TO_NUMBER_INLINE(c1),
-                        TO_NUMBER_INLINE(c2), TO_NUMBER_INLINE(c3),
-                        TO_NUMBER_INLINE(c4), TO_NUMBER_INLINE(c5),
-                        TO_NUMBER_INLINE(c6), TO_NUMBER_INLINE(c7));
+  return %CreateInt16x8(TO_NUMBER(c0), TO_NUMBER(c1),
+                        TO_NUMBER(c2), TO_NUMBER(c3),
+                        TO_NUMBER(c4), TO_NUMBER(c5),
+                        TO_NUMBER(c6), TO_NUMBER(c7));
 }
 
 
 function Uint16x8Constructor(c0, c1, c2, c3, c4, c5, c6, c7) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Uint16x8");
-  return %CreateUint16x8(TO_NUMBER_INLINE(c0), TO_NUMBER_INLINE(c1),
-                         TO_NUMBER_INLINE(c2), TO_NUMBER_INLINE(c3),
-                         TO_NUMBER_INLINE(c4), TO_NUMBER_INLINE(c5),
-                         TO_NUMBER_INLINE(c6), TO_NUMBER_INLINE(c7));
+  return %CreateUint16x8(TO_NUMBER(c0), TO_NUMBER(c1),
+                         TO_NUMBER(c2), TO_NUMBER(c3),
+                         TO_NUMBER(c4), TO_NUMBER(c5),
+                         TO_NUMBER(c6), TO_NUMBER(c7));
 }
 
 
@@ -478,28 +478,28 @@ function Bool16x8Constructor(c0, c1, c2, c3, c4, c5, c6, c7) {
 function Int8x16Constructor(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
                             c12, c13, c14, c15) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Int8x16");
-  return %CreateInt8x16(TO_NUMBER_INLINE(c0), TO_NUMBER_INLINE(c1),
-                        TO_NUMBER_INLINE(c2), TO_NUMBER_INLINE(c3),
-                        TO_NUMBER_INLINE(c4), TO_NUMBER_INLINE(c5),
-                        TO_NUMBER_INLINE(c6), TO_NUMBER_INLINE(c7),
-                        TO_NUMBER_INLINE(c8), TO_NUMBER_INLINE(c9),
-                        TO_NUMBER_INLINE(c10), TO_NUMBER_INLINE(c11),
-                        TO_NUMBER_INLINE(c12), TO_NUMBER_INLINE(c13),
-                        TO_NUMBER_INLINE(c14), TO_NUMBER_INLINE(c15));
+  return %CreateInt8x16(TO_NUMBER(c0), TO_NUMBER(c1),
+                        TO_NUMBER(c2), TO_NUMBER(c3),
+                        TO_NUMBER(c4), TO_NUMBER(c5),
+                        TO_NUMBER(c6), TO_NUMBER(c7),
+                        TO_NUMBER(c8), TO_NUMBER(c9),
+                        TO_NUMBER(c10), TO_NUMBER(c11),
+                        TO_NUMBER(c12), TO_NUMBER(c13),
+                        TO_NUMBER(c14), TO_NUMBER(c15));
 }
 
 
 function Uint8x16Constructor(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
                              c12, c13, c14, c15) {
   if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Uint8x16");
-  return %CreateUint8x16(TO_NUMBER_INLINE(c0), TO_NUMBER_INLINE(c1),
-                         TO_NUMBER_INLINE(c2), TO_NUMBER_INLINE(c3),
-                         TO_NUMBER_INLINE(c4), TO_NUMBER_INLINE(c5),
-                         TO_NUMBER_INLINE(c6), TO_NUMBER_INLINE(c7),
-                         TO_NUMBER_INLINE(c8), TO_NUMBER_INLINE(c9),
-                         TO_NUMBER_INLINE(c10), TO_NUMBER_INLINE(c11),
-                         TO_NUMBER_INLINE(c12), TO_NUMBER_INLINE(c13),
-                         TO_NUMBER_INLINE(c14), TO_NUMBER_INLINE(c15));
+  return %CreateUint8x16(TO_NUMBER(c0), TO_NUMBER(c1),
+                         TO_NUMBER(c2), TO_NUMBER(c3),
+                         TO_NUMBER(c4), TO_NUMBER(c5),
+                         TO_NUMBER(c6), TO_NUMBER(c7),
+                         TO_NUMBER(c8), TO_NUMBER(c9),
+                         TO_NUMBER(c10), TO_NUMBER(c11),
+                         TO_NUMBER(c12), TO_NUMBER(c13),
+                         TO_NUMBER(c14), TO_NUMBER(c15));
 }
 
 

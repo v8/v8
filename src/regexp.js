@@ -15,11 +15,6 @@ var FLAG_harmony_regexps;
 var FLAG_harmony_unicode_regexps;
 var GlobalRegExp = global.RegExp;
 var InternalPackedArray = utils.InternalPackedArray;
-var ToNumber;
-
-utils.Import(function(from) {
-  ToNumber = from.ToNumber;
-});
 
 utils.ImportFromExperimental(function(from) {
   FLAG_harmony_regexps = from.FLAG_harmony_regexps;

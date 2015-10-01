@@ -13,12 +13,10 @@
 
 var GlobalObject = global.Object;
 var MathMax;
-var ToNumber;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
-  ToNumber = from.ToNumber;
 });
 
 // -------------------------------------------------------------------
@@ -45,8 +43,8 @@ function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
   if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
   }
-  oldValue = ToNumber(oldValue);
-  newValue = ToNumber(newValue);
+  oldValue = TO_NUMBER(oldValue);
+  newValue = TO_NUMBER(newValue);
   return %_AtomicsCompareExchange(sta, index, oldValue, newValue);
 }
 
@@ -65,7 +63,7 @@ function AtomicsStoreJS(sta, index, value) {
   if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
   }
-  value = ToNumber(value);
+  value = TO_NUMBER(value);
   return %_AtomicsStore(sta, index, value);
 }
 
@@ -75,7 +73,7 @@ function AtomicsAddJS(ia, index, value) {
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
-  value = ToNumber(value);
+  value = TO_NUMBER(value);
   return %_AtomicsAdd(ia, index, value);
 }
 
@@ -85,7 +83,7 @@ function AtomicsSubJS(ia, index, value) {
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
-  value = ToNumber(value);
+  value = TO_NUMBER(value);
   return %_AtomicsSub(ia, index, value);
 }
 
@@ -95,7 +93,7 @@ function AtomicsAndJS(ia, index, value) {
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
-  value = ToNumber(value);
+  value = TO_NUMBER(value);
   return %_AtomicsAnd(ia, index, value);
 }
 
@@ -105,7 +103,7 @@ function AtomicsOrJS(ia, index, value) {
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
-  value = ToNumber(value);
+  value = TO_NUMBER(value);
   return %_AtomicsOr(ia, index, value);
 }
 
@@ -115,7 +113,7 @@ function AtomicsXorJS(ia, index, value) {
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
-  value = ToNumber(value);
+  value = TO_NUMBER(value);
   return %_AtomicsXor(ia, index, value);
 }
 
@@ -125,7 +123,7 @@ function AtomicsExchangeJS(ia, index, value) {
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
-  value = ToNumber(value);
+  value = TO_NUMBER(value);
   return %_AtomicsExchange(ia, index, value);
 }
 
@@ -144,7 +142,7 @@ function AtomicsFutexWaitJS(ia, index, value, timeout) {
   if (IS_UNDEFINED(timeout)) {
     timeout = INFINITY;
   } else {
-    timeout = ToNumber(timeout);
+    timeout = TO_NUMBER(timeout);
     if (NUMBER_IS_NAN(timeout)) {
       timeout = INFINITY;
     } else {

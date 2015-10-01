@@ -12270,6 +12270,24 @@ void HOptimizedGraphBuilder::GenerateToString(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateToNumber(CallRuntime* call) {
+  DCHECK_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  Callable callable = CodeFactory::ToNumber(isolate());
+  HValue* input = Pop();
+  if (input->type().IsTaggedNumber()) {
+    return ast_context()->ReturnValue(input);
+  } else {
+    HValue* stub = Add<HConstant>(callable.code());
+    HValue* values[] = {context(), input};
+    HInstruction* result =
+        New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
+                                 Vector<HValue*>(values, arraysize(values)));
+    return ast_context()->ReturnInstruction(result, call->id());
+  }
+}
+
+
 void HOptimizedGraphBuilder::GenerateIsJSProxy(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

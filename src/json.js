@@ -16,14 +16,12 @@ var InternalArray = utils.InternalArray;
 var MathMax;
 var MathMin;
 var ObjectHasOwnProperty;
-var ToNumber;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
-  ToNumber = from.ToNumber;
 });
 
 // -------------------------------------------------------------------
@@ -164,7 +162,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     if (IS_ARRAY(value)) {
       return SerializeArray(value, replacer, stack, indent, gap);
     } else if (IS_NUMBER_WRAPPER(value)) {
-      value = ToNumber(value);
+      value = TO_NUMBER(value);
       return JSON_NUMBER_TO_STRING(value);
     } else if (IS_STRING_WRAPPER(value)) {
       return %QuoteJSONString(TO_STRING(value));
@@ -210,7 +208,7 @@ function JSONStringify(value, replacer, space) {
   if (IS_OBJECT(space)) {
     // Unwrap 'space' if it is wrapped
     if (IS_NUMBER_WRAPPER(space)) {
-      space = ToNumber(space);
+      space = TO_NUMBER(space);
     } else if (IS_STRING_WRAPPER(space)) {
       space = TO_STRING(space);
     }

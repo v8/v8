@@ -20,8 +20,6 @@ var ObjectHasOwnProperty;
 var ObjectIsFrozen;
 var ObjectIsSealed;
 var ObjectToString;
-var ToNumber;
-var ToString;
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
@@ -31,8 +29,6 @@ utils.Import(function(from) {
   ObjectIsFrozen = from.ObjectIsFrozen;
   ObjectIsSealed = from.ObjectIsSealed;
   ObjectToString = from.ObjectToString;
-  ToNumber = from.ToNumber;
-  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -892,8 +888,8 @@ function InnerArraySort(array, length, comparefn) {
       if (%_IsSmi(x) && %_IsSmi(y)) {
         return %SmiLexicographicCompare(x, y);
       }
-      x = ToString(x);
-      y = ToString(y);
+      x = TO_STRING(x);
+      y = TO_STRING(y);
       if (x == y) return 0;
       else return x < y ? -1 : 1;
     };

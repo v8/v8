@@ -23,7 +23,6 @@ var ProxyDerivedHasOwnTrap;
 var ProxyDerivedKeysTrap;
 var StringIndexOf;
 var ToBoolean = utils.ImportNow("ToBoolean");
-var ToNumber = utils.ImportNow("ToNumber");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -43,14 +42,14 @@ utils.ImportFromExperimental(function(from) {
 
 // ECMA 262 - 15.1.4
 function GlobalIsNaN(number) {
-  number = TO_NUMBER_INLINE(number);
+  number = TO_NUMBER(number);
   return NUMBER_IS_NAN(number);
 }
 
 
 // ECMA 262 - 15.1.5
 function GlobalIsFinite(number) {
-  number = TO_NUMBER_INLINE(number);
+  number = TO_NUMBER(number);
   return NUMBER_IS_FINITE(number);
 }
 
@@ -1423,7 +1422,7 @@ utils.InstallFunctions(GlobalBoolean.prototype, DONT_ENUM, [
 function NumberConstructor(x) {
   // TODO(bmeurer): Move this to toplevel.
   "use strict";
-  var value = %_ArgumentsLength() == 0 ? 0 : ToNumber(x);
+  var value = %_ArgumentsLength() == 0 ? 0 : TO_NUMBER(x);
   if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {

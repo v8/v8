@@ -51,7 +51,6 @@ var IsNaN;
 var MathMax;
 var MathMin;
 var PackedArrayReverse;
-var ToNumber;
 
 utils.Import(function(from) {
   ArrayFrom = from.ArrayFrom;
@@ -76,7 +75,6 @@ utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
   PackedArrayReverse = from.PackedArrayReverse;
-  ToNumber = from.ToNumber;
 });
 
 // -------------------------------------------------------------------

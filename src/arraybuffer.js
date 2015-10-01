@@ -15,13 +15,11 @@ var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalObject = global.Object;
 var MathMax;
 var MathMin;
-var ToNumber;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
-  ToNumber = from.ToNumber;
 });
 
 // -------------------------------------------------------------------

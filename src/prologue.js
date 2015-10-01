@@ -188,8 +188,6 @@ function PostNatives(utils) {
     "SymbolToString",
     "ToNameArray",
     "ToBoolean",
-    "ToNumber",
-    "ToString",
     // From runtime:
     "is_concat_spreadable_symbol",
     "iterator_symbol",

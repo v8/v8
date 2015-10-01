@@ -516,6 +516,7 @@ class FullCodeGenerator: public AstVisitor {
   F(ToInteger)                          \
   F(NumberToString)                     \
   F(ToString)                           \
+  F(ToNumber)                           \
   F(ToName)                             \
   F(ToObject)                           \
   F(DebugIsActive)                      \

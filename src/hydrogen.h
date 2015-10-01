@@ -2226,6 +2226,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(ToInteger)                         \
   F(ToObject)                          \
   F(ToString)                          \
+  F(ToNumber)                          \
   F(IsFunction)                        \
   F(IsSpecObject)                      \
   F(MathPow)                           \

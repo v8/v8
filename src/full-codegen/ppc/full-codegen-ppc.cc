@@ -3817,6 +3817,19 @@ void FullCodeGenerator::EmitToString(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  // Load the argument into r3 and convert it.
+  VisitForAccumulatorValue(args->at(0));
+
+  ToNumberStub stub(isolate());
+  __ CallStub(&stub);
+  context()->Plug(r3);
+}
+
+
 void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(1, args->length());

@@ -17,13 +17,11 @@ var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
 var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
 var SymbolToString;
 var ToBoolean;
-var ToString;
 
 utils.Import(function(from) {
   FunctionSourceString = from.FunctionSourceString;
   SymbolToString = from.SymbolToString;
   ToBoolean = from.ToBoolean;
-  ToString = from.ToString;
 });
 
 // ----------------------------------------------------------------------------
@@ -1174,7 +1172,7 @@ ArrayMirror.prototype.indexedPropertiesFromRange = function(opt_from_index,
   if (from_index > to_index) return new GlobalArray();
   var values = new GlobalArray(to_index - from_index + 1);
   for (var i = from_index; i <= to_index; i++) {
-    var details = %DebugGetPropertyDetails(this.value_, ToString(i));
+    var details = %DebugGetPropertyDetails(this.value_, TO_STRING(i));
     var value;
     if (details) {
       value = new PropertyMirror(this, i, details);

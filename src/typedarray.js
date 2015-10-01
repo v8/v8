@@ -37,12 +37,6 @@ endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
 
-var ToNumber;
-
-utils.Import(function(from) {
-  ToNumber = from.ToNumber;
-});
-
 var InternalArray = utils.InternalArray;
 
 // --------------- Typed Arrays ---------------------
@@ -463,7 +457,7 @@ function DataViewSetTYPENAMEJS(offset, value, little_endian) {
   }
   if (%_ArgumentsLength() < 2) throw MakeTypeError(kInvalidArgument);
   offset = $toPositiveInteger(offset, kInvalidDataViewAccessorOffset);
-  %DataViewSetTYPENAME(this, offset, TO_NUMBER_INLINE(value), !!little_endian);
+  %DataViewSetTYPENAME(this, offset, TO_NUMBER(value), !!little_endian);
 }
 endmacro
 

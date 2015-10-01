@@ -12,10 +12,8 @@
 // The following declarations are shared with other native JS files.
 // They are all declared at this one spot to avoid redeclaration errors.
 var $NaN;
-var $nonNumberToNumber;
 var $sameValue;
 var $sameValueZero;
-var $toNumber;
 var $toPositiveInteger;
 
 var harmony_tolength = false;
@@ -178,42 +176,6 @@ function ToBoolean(x) {
 }
 
 
-// ECMA-262, section 9.3, page 31.
-function ToNumber(x) {
-  if (IS_NUMBER(x)) return x;
-  if (IS_STRING(x)) {
-    return %_HasCachedArrayIndex(x) ? %_GetCachedArrayIndex(x)
-                                    : %StringToNumber(x);
-  }
-  if (IS_BOOLEAN(x)) return x ? 1 : 0;
-  if (IS_UNDEFINED(x)) return NAN;
-  // Types that can't be converted to number are caught in DefaultNumber.
-  return (IS_NULL(x)) ? 0 : ToNumber(DefaultNumber(x));
-}
-
-function NonNumberToNumber(x) {
-  if (IS_STRING(x)) {
-    return %_HasCachedArrayIndex(x) ? %_GetCachedArrayIndex(x)
-                                    : %StringToNumber(x);
-  }
-  if (IS_BOOLEAN(x)) return x ? 1 : 0;
-  if (IS_UNDEFINED(x)) return NAN;
-  // Types that can't be converted to number are caught in DefaultNumber.
-  return (IS_NULL(x)) ? 0 : ToNumber(DefaultNumber(x));
-}
-
-
-// ECMA-262, section 9.8, page 35.
-function ToString(x) {
-  if (IS_STRING(x)) return x;
-  if (IS_NUMBER(x)) return %_NumberToString(x);
-  if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
-  if (IS_UNDEFINED(x)) return 'undefined';
-  // Types that can't be converted to string are caught in DefaultString.
-  return (IS_NULL(x)) ? 'null' : ToString(DefaultString(x));
-}
-
-
 // ES5, section 9.12
 function SameValue(x, y) {
   if (typeof x != typeof y) return false;
@@ -254,15 +216,6 @@ function ConcatIterableToArray(target, iterable) {
    ---------------------------------
 */
 
-// Returns if the given x is a primitive value - not an object or a
-// function.
-function IsPrimitive(x) {
-  // Even though the type of null is "object", null is still
-  // considered a primitive value. IS_SPEC_OBJECT handles this correctly
-  // (i.e., it will return false if x is null).
-  return !IS_SPEC_OBJECT(x);
-}
-
 
 // ES6, draft 10-14-14, section 22.1.3.1.1
 function IsConcatSpreadable(O) {
@@ -272,42 +225,6 @@ function IsConcatSpreadable(O) {
   return ToBoolean(spreadable);
 }
 
-
-// ECMA-262, section 8.6.2.6, page 28.
-function DefaultNumber(x) {
-  var valueOf = x.valueOf;
-  if (IS_CALLABLE(valueOf)) {
-    var v = %_Call(valueOf, x);
-    if (IS_SYMBOL(v)) throw MakeTypeError(kSymbolToNumber);
-    if (IS_SIMD_VALUE(x)) throw MakeTypeError(kSimdToNumber);
-    if (IsPrimitive(v)) return v;
-  }
-  var toString = x.toString;
-  if (IS_CALLABLE(toString)) {
-    var s = %_Call(toString, x);
-    if (IsPrimitive(s)) return s;
-  }
-  throw MakeTypeError(kCannotConvertToPrimitive);
-}
-
-// ECMA-262, section 8.6.2.6, page 28.
-function DefaultString(x) {
-  if (!IS_SYMBOL_WRAPPER(x)) {
-    if (IS_SYMBOL(x)) throw MakeTypeError(kSymbolToString);
-    var toString = x.toString;
-    if (IS_CALLABLE(toString)) {
-      var s = %_Call(toString, x);
-      if (IsPrimitive(s)) return s;
-    }
-
-    var valueOf = x.valueOf;
-    if (IS_CALLABLE(valueOf)) {
-      var v = %_Call(valueOf, x);
-      if (IsPrimitive(v)) return v;
-    }
-  }
-  throw MakeTypeError(kCannotConvertToPrimitive);
-}
 
 function ToPositiveInteger(x, rangeErrorIndex) {
   var i = TO_INTEGER_MAP_MINUS_ZERO(x);
@@ -328,10 +245,8 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 // Exports
 
 $NaN = %GetRootNaN();
-$nonNumberToNumber = NonNumberToNumber;
 $sameValue = SameValue;
 $sameValueZero = SameValueZero;
-$toNumber = ToNumber;
 $toPositiveInteger = ToPositiveInteger;
 
 %InstallToContext([
@@ -343,14 +258,10 @@ $toPositiveInteger = ToPositiveInteger;
 
 %InstallToContext([
   "concat_iterable_to_array", ConcatIterableToArray,
-  "non_number_to_number", NonNumberToNumber,
-  "to_number_fun", ToNumber,
 ]);
 
 utils.Export(function(to) {
   to.ToBoolean = ToBoolean;
-  to.ToNumber = ToNumber;
-  to.ToString = ToString;
 });
 
 })

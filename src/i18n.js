@@ -54,7 +54,6 @@ utils.Import(function(from) {
   StringSplit = from.StringSplit;
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
-  ToNumber = from.ToNumber;
 });
 
 // -------------------------------------------------------------------
@@ -1278,7 +1277,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
  */
 function formatNumber(formatter, value) {
   // Spec treats -0 and +0 as 0.
-  var number = ToNumber(value) + 0;
+  var number = TO_NUMBER(value) + 0;
 
   return %InternalNumberFormat(%GetImplFromInitializedIntlObject(formatter),
                                number);
@@ -1703,7 +1702,7 @@ function formatDate(formatter, dateValue) {
   if (IS_UNDEFINED(dateValue)) {
     dateMs = %DateCurrentTime();
   } else {
-    dateMs = ToNumber(dateValue);
+    dateMs = TO_NUMBER(dateValue);
   }
 
   if (!IsFinite(dateMs)) throw MakeRangeError(kDateRange);
