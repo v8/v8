@@ -2425,23 +2425,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // esp: stack pointer  (restored after C call)
   // esi: current context (C callee-saved)
   // edi: JS function of the caller (C callee-saved)
-  //
-  // If argv_in_register():
-  // ecx: pointer to the first argument
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  if (argv_in_register()) {
-    DCHECK(!save_doubles());
-    __ EnterApiExitFrame(3);
-
-    // Move argc and argv into the correct registers.
-    __ mov(esi, ecx);
-    __ mov(edi, eax);
-  } else {
-    __ EnterExitFrame(save_doubles());
-  }
+  __ EnterExitFrame(save_doubles());
 
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)

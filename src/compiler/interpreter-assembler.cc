@@ -316,11 +316,11 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
 
 Node* InterpreterAssembler::CallJS(Node* function, Node* first_arg,
                                    Node* arg_count) {
-  Callable callable = CodeFactory::InterpreterPushArgsAndCall(isolate());
+  Callable builtin = CodeFactory::PushArgsAndCall(isolate());
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags);
+      isolate(), zone(), builtin.descriptor(), 0, CallDescriptor::kNoFlags);
 
-  Node* code_target = HeapConstant(callable.code());
+  Node* code_target = HeapConstant(builtin.code());
 
   Node** args = zone()->NewArray<Node*>(4);
   args[0] = arg_count;
@@ -364,33 +364,6 @@ Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
   args[4] = arg5;
   args[5] = ContextTaggedPointer();
   return CallIC(descriptor, target, args);
-}
-
-
-Node* InterpreterAssembler::CallRuntime(Node* function_id, Node* first_arg,
-                                        Node* arg_count) {
-  Callable callable = CodeFactory::InterpreterCEntry(isolate());
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags);
-
-  Node* code_target = HeapConstant(callable.code());
-
-  // Get the function entry from the function id.
-  Node* function_table = raw_assembler_->ExternalConstant(
-      ExternalReference::runtime_function_table_address(isolate()));
-  Node* function_offset = raw_assembler_->Int32Mul(
-      function_id, Int32Constant(sizeof(Runtime::Function)));
-  Node* function = IntPtrAdd(function_table, function_offset);
-  Node* function_entry = raw_assembler_->Load(
-      kMachPtr, function, Int32Constant(offsetof(Runtime::Function, entry)));
-
-  Node** args = zone()->NewArray<Node*>(4);
-  args[0] = arg_count;
-  args[1] = first_arg;
-  args[2] = function_entry;
-  args[3] = ContextTaggedPointer();
-
-  return raw_assembler_->CallN(descriptor, code_target, args);
 }
 
 

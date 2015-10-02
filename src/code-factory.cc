@@ -262,19 +262,9 @@ Callable CodeFactory::CallFunction(Isolate* isolate, int argc,
 
 
 // static
-Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate) {
-  return Callable(isolate->builtins()->InterpreterPushArgsAndCall(),
-                  InterpreterPushArgsAndCallDescriptor(isolate));
-}
-
-
-// static
-Callable CodeFactory::InterpreterCEntry(Isolate* isolate) {
-  // TODO(rmcilroy): Deal with runtime functions that return two values.
-  // Note: If we ever use fpregs in the interpreter then we will need to
-  // save fpregs too.
-  CEntryStub stub(isolate, 1, kDontSaveFPRegs, kArgvInRegister);
-  return Callable(stub.GetCode(), InterpreterCEntryDescriptor(isolate));
+Callable CodeFactory::PushArgsAndCall(Isolate* isolate) {
+  return Callable(isolate->builtins()->PushArgsAndCall(),
+                  PushArgsAndCallDescriptor(isolate));
 }
 
 }  // namespace internal

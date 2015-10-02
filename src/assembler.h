@@ -319,8 +319,6 @@ class Label {
 
 enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
 
-enum ArgvMode { kArgvOnStack, kArgvInRegister };
-
 // Specifies whether to perform icache flush operations on RelocInfo updates.
 // If FLUSH_ICACHE_IF_NEEDED, the icache will always be flushed if an
 // instruction was modified. If SKIP_ICACHE_FLUSH the flush will always be
@@ -993,8 +991,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
 
   static ExternalReference vector_store_virtual_register(Isolate* isolate);
-
-  static ExternalReference runtime_function_table_address(Isolate* isolate);
 
   Address address() const { return reinterpret_cast<Address>(address_); }
 

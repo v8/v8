@@ -392,23 +392,12 @@ void MathRoundVariantCallFromOptimizedCodeDescriptor::
 }
 
 
-void InterpreterPushArgsAndCallDescriptor::InitializePlatformSpecific(
+void PushArgsAndCallDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      a0,  // argument count (not including receiver)
+      a0,  // argument count (including receiver)
       a2,  // address of first argument
       a1   // the target callable to be call
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void InterpreterCEntryDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      a0,  // argument count (argc)
-      a2,  // address of first argument (argv)
-      a1   // the runtime function to call
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

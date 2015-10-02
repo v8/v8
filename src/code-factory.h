@@ -96,8 +96,7 @@ class CodeFactory final {
   static Callable CallFunction(Isolate* isolate, int argc,
                                CallFunctionFlags flags);
 
-  static Callable InterpreterPushArgsAndCall(Isolate* isolate);
-  static Callable InterpreterCEntry(Isolate* isolate);
+  static Callable PushArgsAndCall(Isolate* isolate);
 };
 
 }  // namespace internal

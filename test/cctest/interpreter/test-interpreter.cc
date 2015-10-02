@@ -1289,25 +1289,3 @@ TEST(InterpreterTestIn) {
     CHECK_EQ(return_value->BooleanValue(), expected_value);
   }
 }
-
-
-TEST(InterpreterCallRuntime) {
-  HandleAndZoneScope handles;
-
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(2);
-  builder.set_parameter_count(1);
-  builder.LoadLiteral(Smi::FromInt(15))
-      .StoreAccumulatorInRegister(Register(0))
-      .LoadLiteral(Smi::FromInt(40))
-      .StoreAccumulatorInRegister(Register(1))
-      .CallRuntime(Runtime::kAdd, Register(0), 2)
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
-  auto callable = tester.GetCallable<>();
-
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(55));
-}

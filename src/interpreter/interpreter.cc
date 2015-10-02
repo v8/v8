@@ -334,10 +334,10 @@ void Interpreter::DoMod(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// Call <callable> <receiver> <arg_count>
+// Call <receiver> <arg_count>
 //
-// Call a JSfunction or Callable in |callable| with receiver and |arg_count|
-// arguments in subsequent registers.
+// Call a JS function with receiver and |arg_count| arguments in subsequent
+// registers. The JSfunction or Callable to call is in the accumulator.
 void Interpreter::DoCall(compiler::InterpreterAssembler* assembler) {
   Node* function_reg = __ BytecodeOperandReg8(0);
   Node* function = __ LoadRegister(function_reg);
@@ -345,21 +345,6 @@ void Interpreter::DoCall(compiler::InterpreterAssembler* assembler) {
   Node* first_arg = __ RegisterLocation(receiver_reg);
   Node* args_count = __ BytecodeOperandCount8(2);
   Node* result = __ CallJS(function, first_arg, args_count);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-
-// CallRuntime <function_id> <first_arg> <arg_count>
-//
-// Call the runtime function |function_id| with first argument in register
-// |first_arg| and |arg_count| arguments in subsequent registers.
-void Interpreter::DoCallRuntime(compiler::InterpreterAssembler* assembler) {
-  Node* function_id = __ BytecodeOperandIdx16(0);
-  Node* first_arg_reg = __ BytecodeOperandReg8(1);
-  Node* first_arg = __ RegisterLocation(first_arg_reg);
-  Node* args_count = __ BytecodeOperandCount8(2);
-  Node* result = __ CallRuntime(function_id, first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
 }

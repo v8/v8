@@ -110,7 +110,6 @@ class InterpreterAssembler {
                Node* arg2, Node* arg3, Node* arg4, Node* arg5);
 
   // Call runtime function.
-  Node* CallRuntime(Node* function_id, Node* first_arg, Node* arg_count);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2);
 
