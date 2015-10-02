@@ -5587,6 +5587,7 @@ TEST(ArrayShiftSweeping) {
 UNINITIALIZED_TEST(PromotionQueue) {
   i::FLAG_expose_gc = true;
   i::FLAG_max_semi_space_size = 2 * (Page::kPageSize / MB);
+  i::FLAG_min_semi_space_size = i::FLAG_max_semi_space_size;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -5597,12 +5598,11 @@ UNINITIALIZED_TEST(PromotionQueue) {
     v8::Context::New(isolate)->Enter();
     Heap* heap = i_isolate->heap();
     NewSpace* new_space = heap->new_space();
-    DisableInlineAllocationSteps(new_space);
 
     // In this test we will try to overwrite the promotion queue which is at the
     // end of to-space. To actually make that possible, we need at least two
     // semi-space pages and take advantage of fragmentation.
-    // (1) Grow semi-space to two pages.
+    // (1) Use a semi-space consisting of two pages.
     // (2) Create a few small long living objects and call the scavenger to
     // move them to the other semi-space.
     // (3) Create a huge object, i.e., remainder of first semi-space page and
@@ -5618,18 +5618,9 @@ UNINITIALIZED_TEST(PromotionQueue) {
     // are in the second semi-space page. If the right guards are in place, the
     // promotion queue will be evacuated in that case.
 
-    // Grow the semi-space to two pages to make semi-space copy overwrite the
-    // promotion queue, which will be at the end of the second page.
-    intptr_t old_capacity = new_space->TotalCapacity();
 
-    // If we are in a low memory config, we can't grow to two pages and we can't
-    // run this test. This also means the issue we are testing cannot arise, as
-    // there is no fragmentation.
-    if (new_space->IsAtMaximumCapacity()) return;
-
-    new_space->Grow();
     CHECK(new_space->IsAtMaximumCapacity());
-    CHECK(2 * old_capacity == new_space->TotalCapacity());
+    CHECK(i::FLAG_min_semi_space_size * MB == new_space->TotalCapacity());
 
     // Call the scavenger two times to get an empty new space
     heap->CollectGarbage(NEW_SPACE);
@@ -5643,25 +5634,35 @@ UNINITIALIZED_TEST(PromotionQueue) {
     for (int i = 0; i < number_handles; i++) {
       handles[i] = i_isolate->factory()->NewFixedArray(1, NOT_TENURED);
     }
+
     heap->CollectGarbage(NEW_SPACE);
+    CHECK(i::FLAG_min_semi_space_size * MB == new_space->TotalCapacity());
 
     // Create the first huge object which will exactly fit the first semi-space
     // page.
+    DisableInlineAllocationSteps(new_space);
     int new_linear_size =
         static_cast<int>(*heap->new_space()->allocation_limit_address() -
                          *heap->new_space()->allocation_top_address());
-    int length = new_linear_size / kPointerSize - FixedArray::kHeaderSize;
+    int length = (new_linear_size - FixedArray::kHeaderSize) / kPointerSize;
     Handle<FixedArray> first =
         i_isolate->factory()->NewFixedArray(length, NOT_TENURED);
     CHECK(heap->InNewSpace(*first));
 
+    // Create a small object to initialize the bump pointer on the second
+    // semi-space page.
+    Handle<FixedArray> small =
+        i_isolate->factory()->NewFixedArray(1, NOT_TENURED);
+    CHECK(heap->InNewSpace(*small));
+
+
     // Create the second huge object of maximum allocatable second semi-space
     // page size.
+    DisableInlineAllocationSteps(new_space);
     new_linear_size =
         static_cast<int>(*heap->new_space()->allocation_limit_address() -
                          *heap->new_space()->allocation_top_address());
-    length = Page::kMaxRegularHeapObjectSize / kPointerSize -
-             FixedArray::kHeaderSize;
+    length = (new_linear_size - FixedArray::kHeaderSize) / kPointerSize;
     Handle<FixedArray> second =
         i_isolate->factory()->NewFixedArray(length, NOT_TENURED);
     CHECK(heap->InNewSpace(*second));
