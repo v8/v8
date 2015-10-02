@@ -5479,6 +5479,38 @@ static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 
+UNINITIALIZED_TEST(Regress538257) {
+  i::FLAG_manual_evacuation_candidates_selection = true;
+  v8::Isolate::CreateParams create_params;
+  // Set heap limits.
+  create_params.constraints.set_max_semi_space_size(1 * Page::kPageSize / MB);
+  create_params.constraints.set_max_old_space_size(6 * Page::kPageSize / MB);
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    HandleScope handle_scope(i_isolate);
+    PagedSpace* old_space = i_isolate->heap()->old_space();
+    const int kMaxObjects = 10000;
+    const int kFixedArrayLen = 512;
+    Handle<FixedArray> objects[kMaxObjects];
+    for (int i = 0; (i < kMaxObjects) && old_space->CanExpand(Page::kPageSize);
+         i++) {
+      objects[i] = i_isolate->factory()->NewFixedArray(kFixedArrayLen, TENURED);
+      Page::FromAddress(objects[i]->address())
+          ->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+    }
+    SimulateFullSpace(old_space);
+    i_isolate->heap()->CollectGarbage(OLD_SPACE);
+    // If we get this far, we've successfully aborted compaction. Any further
+    // allocations might trigger OOM.
+  }
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+
 TEST(Regress357137) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();

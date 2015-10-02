@@ -3783,6 +3783,14 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
         SkipList* list = p->skip_list();
         if (list != NULL) list->Clear();
       }
+
+      if (p->IsEvacuationCandidate() &&
+          p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
+        // Case where we've aborted compacting a page. Clear the flag here to
+        // avoid release the page later on.
+        p->ClearEvacuationCandidate();
+      }
+
       if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
         if (FLAG_gc_verbose) {
           PrintF("Sweeping 0x%" V8PRIxPTR " during evacuation.\n",
@@ -3812,12 +3820,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
             UNREACHABLE();
             break;
         }
-      }
-      if (p->IsEvacuationCandidate() &&
-          p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
-        // Case where we've aborted compacting a page. Clear the flag here to
-        // avoid release the page later on.
-        p->ClearEvacuationCandidate();
       }
     }
   }
