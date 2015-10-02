@@ -1087,11 +1087,49 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
 
 
 // -----------------------------------------------------------------------------
+// JSCreateFunctionContext
+
+
+TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
+  if (!FLAG_turbo_allocate) return;
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = Parameter(Type::Any());
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r =
+      Reduce(graph()->NewNode(javascript()->CreateFunctionContext(8), closure,
+                              context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsFinish(IsAllocate(IsNumberConstant(Context::SizeFor(
+                                      8 + Context::MIN_CONTEXT_SLOTS)),
+                                  effect, control),
+                       _));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaStub) {
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = Parameter(Type::Any());
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r =
+      Reduce(graph()->NewNode(javascript()->CreateFunctionContext(32), closure,
+                              context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsCall(_, IsHeapConstant(
+                            CodeFactory::FastNewContext(isolate(), 32).code()),
+                     closure, context, effect, control));
+}
+
+
+// -----------------------------------------------------------------------------
 // JSCreateWithContext
 
 
 TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
-  FLAG_turbo_allocate = true;
+  if (!FLAG_turbo_allocate) return;
   Node* const object = Parameter(Type::Receiver());
   Node* const closure = Parameter(Type::Any());
   Node* const context = Parameter(Type::Any());

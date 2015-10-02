@@ -249,7 +249,8 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildPatchReceiverToGlobalProxy(Node* receiver);
 
   // Builders to create local function, script and block contexts.
-  Node* BuildLocalFunctionContext(Node* context);
+  Node* BuildLocalActivationContext(Node* context);
+  Node* BuildLocalFunctionContext(Scope* scope);
   Node* BuildLocalScriptContext(Scope* scope);
   Node* BuildLocalBlockContext(Scope* scope);
 

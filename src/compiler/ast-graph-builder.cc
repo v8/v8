@@ -535,10 +535,10 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
     env.RawParameterBind(0, patched_receiver);
   }
 
-  // Build function context only if there are context allocated variables.
+  // Build local context only if there are context allocated variables.
   if (info()->num_heap_slots() > 0) {
-    // Push a new inner context scope for the function.
-    Node* inner_context = BuildLocalFunctionContext(GetFunctionContext());
+    // Push a new inner context scope for the current activation.
+    Node* inner_context = BuildLocalActivationContext(GetFunctionContext());
     ContextScope top_context(this, scope, inner_context);
     CreateGraphBody(stack_check);
   } else {
@@ -3093,15 +3093,13 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
 }
 
 
-Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context) {
+Node* AstGraphBuilder::BuildLocalActivationContext(Node* context) {
   Scope* scope = info()->scope();
-  Node* closure = GetFunctionClosure();
 
   // Allocate a new local context.
-  Node* local_context =
-      scope->is_script_scope()
-          ? BuildLocalScriptContext(scope)
-          : NewNode(javascript()->CreateFunctionContext(), closure);
+  Node* local_context = scope->is_script_scope()
+                            ? BuildLocalScriptContext(scope)
+                            : BuildLocalFunctionContext(scope);
 
   if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
     Node* receiver = environment()->RawParameterLookup(0);
@@ -3123,6 +3121,18 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context) {
     const Operator* op = javascript()->StoreContext(0, variable->index());
     NewNode(op, local_context, parameter);
   }
+
+  return local_context;
+}
+
+
+Node* AstGraphBuilder::BuildLocalFunctionContext(Scope* scope) {
+  DCHECK(scope->is_function_scope());
+
+  // Allocate a new local context.
+  int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  const Operator* op = javascript()->CreateFunctionContext(slot_count);
+  Node* local_context = NewNode(op, GetFunctionClosure());
 
   return local_context;
 }

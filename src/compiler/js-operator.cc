@@ -472,7 +472,6 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
   V(ForInPrepare, Operator::kNoProperties, 1, 3)          \
   V(ForInStep, Operator::kPure, 1, 1)                     \
   V(StackCheck, Operator::kNoProperties, 0, 0)            \
-  V(CreateFunctionContext, Operator::kNoProperties, 1, 1) \
   V(CreateWithContext, Operator::kNoProperties, 2, 1)     \
   V(CreateModuleContext, Operator::kNoProperties, 2, 1)
 
@@ -770,6 +769,15 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(int literal_flags) {
       "JSCreateLiteralObject",                                    // name
       3, 1, 1, 1, 1, 2,                                           // counts
       literal_flags);                                             // parameter
+}
+
+
+const Operator* JSOperatorBuilder::CreateFunctionContext(int slot_count) {
+  return new (zone()) Operator1<int>(                               // --
+      IrOpcode::kJSCreateFunctionContext, Operator::kNoProperties,  // opcode
+      "JSCreateFunctionContext",                                    // name
+      1, 1, 1, 1, 1, 2,                                             // counts
+      slot_count);                                                  // parameter
 }
 
 

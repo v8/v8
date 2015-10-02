@@ -274,7 +274,7 @@ TEST_F(JSContextRelaxationTest,
   Node* const input1 = Parameter(1);
   Node* const context = Parameter(2);
   Node* const outer_context = Parameter(3);
-  const Operator* op = javascript()->CreateFunctionContext();
+  const Operator* op = javascript()->CreateFunctionContext(0);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Node* nested_context =

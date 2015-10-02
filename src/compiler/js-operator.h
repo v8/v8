@@ -559,7 +559,7 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* StackCheck();
 
-  const Operator* CreateFunctionContext();
+  const Operator* CreateFunctionContext(int slot_count);
   const Operator* CreateCatchContext(const Handle<String>& name);
   const Operator* CreateWithContext();
   const Operator* CreateBlockContext(const Handle<ScopeInfo>& scpope_info);

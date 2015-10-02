@@ -1260,12 +1260,69 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
+  int slot_count = OpParameter<int>(node->op());
+
+  // Use inline allocation for function contexts up to a size limit.
+  if (FLAG_turbo_allocate && slot_count < kFunctionContextAllocationLimit) {
+    // JSCreateFunctionContext[slot_count < limit]](fun)
+    Node* const effect = NodeProperties::GetEffectInput(node);
+    Node* const control = NodeProperties::GetControlInput(node);
+    Node* const closure = NodeProperties::GetValueInput(node, 0);
+    Node* const context = NodeProperties::GetContextInput(node);
+    Node* const extension = jsgraph()->ZeroConstant();
+    Node* const load = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
+        context, effect, control);
+    AllocationBuilder a(jsgraph(), simplified(), effect, control);
+    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
+    int context_length = slot_count + Context::MIN_CONTEXT_SLOTS;
+    a.AllocateArray(context_length, factory()->function_context_map());
+    a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
+    a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
+    a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
+    a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), load);
+    for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
+      a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->TheHoleConstant());
+    }
+    // TODO(mstarzinger): We could mutate {node} into the allocation instead.
+    NodeProperties::SetType(a.allocation(), NodeProperties::GetType(node));
+    ReplaceWithValue(node, node, a.effect());
+    node->ReplaceInput(0, a.allocation());
+    node->ReplaceInput(1, a.effect());
+    node->TrimInputCount(2);
+    NodeProperties::ChangeOp(node, common()->Finish(1));
+    return Changed(node);
+  }
+
+  // Use the FastNewContextStub only for function contexts up maximum size.
+  if (slot_count <= FastNewContextStub::kMaximumSlots) {
+    Isolate* isolate = jsgraph()->isolate();
+    Callable callable = CodeFactory::FastNewContext(isolate, slot_count);
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate, graph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNoFlags);
+    const Operator* new_op = common()->Call(desc);
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    node->InsertInput(graph()->zone(), 0, stub_code);
+    NodeProperties::ChangeOp(node, new_op);
+    return Changed(node);
+  }
+
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type* input_type = NodeProperties::GetType(input);
+
+  // Use inline allocation for with contexts for regular objects.
   if (FLAG_turbo_allocate && input_type->Is(Type::Receiver())) {
-    // JSCreateWithContext(o:receiver, f)
+    // JSCreateWithContext(o:receiver, fun)
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);
     Node* const closure = NodeProperties::GetValueInput(node, 1);
@@ -1290,6 +1347,7 @@ Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
     NodeProperties::ChangeOp(node, common()->Finish(1));
     return Changed(node);
   }
+
   return NoChange();
 }
 
@@ -1298,8 +1356,10 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
   Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
   int context_length = scope_info->ContextLength();
+
+  // Use inline allocation for block contexts up to a size limit.
   if (FLAG_turbo_allocate && context_length < kBlockContextAllocationLimit) {
-    // JSCreateBlockContext(s:scope[length < limit], f)
+    // JSCreateBlockContext[scope[length < limit]](fun)
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);
     Node* const closure = NodeProperties::GetValueInput(node, 1);
@@ -1328,6 +1388,7 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
     NodeProperties::ChangeOp(node, common()->Finish(1));
     return Changed(node);
   }
+
   return NoChange();
 }
 
@@ -1735,6 +1796,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCreateLiteralArray(node);
     case IrOpcode::kJSCreateLiteralObject:
       return ReduceJSCreateLiteralObject(node);
+    case IrOpcode::kJSCreateFunctionContext:
+      return ReduceJSCreateFunctionContext(node);
     case IrOpcode::kJSCreateWithContext:
       return ReduceJSCreateWithContext(node);
     case IrOpcode::kJSCreateBlockContext:

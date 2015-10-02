@@ -82,7 +82,6 @@ const SharedOperator kSharedOperators[] = {
     SHARED(HasProperty, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
     SHARED(TypeOf, Operator::kEliminatable, 1, 0, 1, 0, 1, 1, 0),
     SHARED(InstanceOf, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(CreateFunctionContext, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
     SHARED(CreateWithContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
     SHARED(CreateModuleContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2),
 #undef SHARED
