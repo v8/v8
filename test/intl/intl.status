@@ -47,4 +47,10 @@
   # BUG(v8:4459).
   'collator/default-locale': [FAIL],
 }],  # 'system == macos'
+
+##############################################################################
+['arch == arm or arch == arm64', {
+  # BUG(v8:4459).
+  'collator/default-locale': [PASS, FAIL],
+}],  # 'arch == arm64'
 ]
