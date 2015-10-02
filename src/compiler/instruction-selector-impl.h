@@ -51,15 +51,13 @@ class OperandGenerator {
 
   InstructionOperand DefineAsFixed(Node* node, Register reg) {
     return Define(node, UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
-                                           Register::ToAllocationIndex(reg),
-                                           GetVReg(node)));
+                                           reg.code(), GetVReg(node)));
   }
 
   InstructionOperand DefineAsFixed(Node* node, DoubleRegister reg) {
     return Define(node,
                   UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
-                                     DoubleRegister::ToAllocationIndex(reg),
-                                     GetVReg(node)));
+                                     reg.code(), GetVReg(node)));
   }
 
   InstructionOperand DefineAsConstant(Node* node) {
@@ -107,15 +105,13 @@ class OperandGenerator {
 
   InstructionOperand UseFixed(Node* node, Register reg) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
-                                        Register::ToAllocationIndex(reg),
-                                        GetVReg(node)));
+                                        reg.code(), GetVReg(node)));
   }
 
   InstructionOperand UseFixed(Node* node, DoubleRegister reg) {
     return Use(node,
                UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
-                                  DoubleRegister::ToAllocationIndex(reg),
-                                  GetVReg(node)));
+                                  reg.code(), GetVReg(node)));
   }
 
   InstructionOperand UseImmediate(Node* node) {
@@ -142,8 +138,7 @@ class OperandGenerator {
   }
 
   InstructionOperand TempRegister(Register reg) {
-    return UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
-                              Register::ToAllocationIndex(reg),
+    return UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER, reg.code(),
                               InstructionOperand::kInvalidVirtualRegister);
   }
 

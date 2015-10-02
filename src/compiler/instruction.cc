@@ -74,11 +74,15 @@ std::ostream& operator<<(std::ostream& os,
         case UnallocatedOperand::NONE:
           return os;
         case UnallocatedOperand::FIXED_REGISTER:
-          return os << "(=" << conf->general_register_name(
-                                   unalloc->fixed_register_index()) << ")";
+          return os << "(="
+                    << conf->GetGeneralRegisterName(
+                           unalloc->fixed_register_index())
+                    << ")";
         case UnallocatedOperand::FIXED_DOUBLE_REGISTER:
-          return os << "(=" << conf->double_register_name(
-                                   unalloc->fixed_register_index()) << ")";
+          return os << "(="
+                    << conf->GetDoubleRegisterName(
+                           unalloc->fixed_register_index())
+                    << ")";
         case UnallocatedOperand::MUST_HAVE_REGISTER:
           return os << "(R)";
         case UnallocatedOperand::MUST_HAVE_SLOT:
@@ -111,14 +115,12 @@ std::ostream& operator<<(std::ostream& os,
           os << "[double_stack:" << DoubleStackSlotOperand::cast(op).index();
           break;
         case AllocatedOperand::REGISTER:
-          os << "["
-             << conf->general_register_name(RegisterOperand::cast(op).index())
+          os << "[" << RegisterOperand::cast(op).GetRegister().ToString()
              << "|R";
           break;
         case AllocatedOperand::DOUBLE_REGISTER:
-          os << "["
-             << conf->double_register_name(
-                    DoubleRegisterOperand::cast(op).index()) << "|R";
+          os << "[" << DoubleRegisterOperand::cast(op).GetRegister().ToString()
+             << "|R";
           break;
       }
       switch (allocated.machine_type()) {

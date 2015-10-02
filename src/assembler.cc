@@ -53,6 +53,7 @@
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serialize.h"
@@ -103,6 +104,37 @@
 
 namespace v8 {
 namespace internal {
+
+// -----------------------------------------------------------------------------
+// Common register code.
+
+const char* Register::ToString() {
+  // This is the mapping of allocation indices to registers.
+  DCHECK(reg_code >= 0 && reg_code < kNumRegisters);
+  return RegisterConfiguration::ArchDefault()->GetGeneralRegisterName(reg_code);
+}
+
+
+bool Register::IsAllocatable() const {
+  return ((1 << reg_code) &
+          RegisterConfiguration::ArchDefault()
+              ->allocatable_general_codes_mask()) != 0;
+}
+
+
+const char* DoubleRegister::ToString() {
+  // This is the mapping of allocation indices to registers.
+  DCHECK(reg_code >= 0 && reg_code < kMaxNumRegisters);
+  return RegisterConfiguration::ArchDefault()->GetDoubleRegisterName(reg_code);
+}
+
+
+bool DoubleRegister::IsAllocatable() const {
+  return ((1 << reg_code) &
+          RegisterConfiguration::ArchDefault()
+              ->allocatable_double_codes_mask()) != 0;
+}
+
 
 // -----------------------------------------------------------------------------
 // Common double constants.

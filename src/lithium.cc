@@ -56,24 +56,22 @@ void LOperand::PrintTo(StringStream* stream) {
           break;
         case LUnallocated::FIXED_REGISTER: {
           int reg_index = unalloc->fixed_register_index();
-          if (reg_index < 0 ||
-              reg_index >= Register::kMaxNumAllocatableRegisters) {
+          if (reg_index < 0 || reg_index >= Register::kNumRegisters) {
             stream->Add("(=invalid_reg#%d)", reg_index);
           } else {
             const char* register_name =
-                Register::AllocationIndexToString(reg_index);
+                Register::from_code(reg_index).ToString();
             stream->Add("(=%s)", register_name);
           }
           break;
         }
         case LUnallocated::FIXED_DOUBLE_REGISTER: {
           int reg_index = unalloc->fixed_register_index();
-          if (reg_index < 0 ||
-              reg_index >= DoubleRegister::kMaxNumAllocatableRegisters) {
+          if (reg_index < 0 || reg_index >= DoubleRegister::kMaxNumRegisters) {
             stream->Add("(=invalid_double_reg#%d)", reg_index);
           } else {
             const char* double_register_name =
-                DoubleRegister::AllocationIndexToString(reg_index);
+                DoubleRegister::from_code(reg_index).ToString();
             stream->Add("(=%s)", double_register_name);
           }
           break;
@@ -106,21 +104,19 @@ void LOperand::PrintTo(StringStream* stream) {
       break;
     case REGISTER: {
       int reg_index = index();
-      if (reg_index < 0 || reg_index >= Register::kMaxNumAllocatableRegisters) {
+      if (reg_index < 0 || reg_index >= Register::kNumRegisters) {
         stream->Add("(=invalid_reg#%d|R)", reg_index);
       } else {
-        stream->Add("[%s|R]", Register::AllocationIndexToString(reg_index));
+        stream->Add("[%s|R]", Register::from_code(reg_index).ToString());
       }
       break;
     }
     case DOUBLE_REGISTER: {
       int reg_index = index();
-      if (reg_index < 0 ||
-          reg_index >= DoubleRegister::kMaxNumAllocatableRegisters) {
+      if (reg_index < 0 || reg_index >= DoubleRegister::kMaxNumRegisters) {
         stream->Add("(=invalid_double_reg#%d|R)", reg_index);
       } else {
-        stream->Add("[%s|R]",
-                    DoubleRegister::AllocationIndexToString(reg_index));
+        stream->Add("[%s|R]", DoubleRegister::from_code(reg_index).ToString());
       }
       break;
     }

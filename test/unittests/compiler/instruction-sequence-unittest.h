@@ -15,7 +15,7 @@ namespace compiler {
 
 class InstructionSequenceTest : public TestWithIsolateAndZone {
  public:
-  static const int kDefaultNRegs = 4;
+  static const int kDefaultNRegs = 8;
   static const int kNoValue = kMinInt;
 
   typedef RpoNumber Rpo;

@@ -2072,7 +2072,7 @@ void Translation::StoreBoolRegister(Register reg) {
 
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
   buffer_->Add(DOUBLE_REGISTER, zone());
-  buffer_->Add(DoubleRegister::ToAllocationIndex(reg), zone());
+  buffer_->Add(reg.code(), zone());
 }
 
 
@@ -2925,7 +2925,7 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
       double value = registers->GetDoubleRegister(input_reg);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%e ; %s (bool)", value,
-               DoubleRegister::AllocationIndexToString(input_reg));
+               DoubleRegister::from_code(input_reg).ToString());
       }
       return TranslatedValue::NewDouble(this, value);
     }

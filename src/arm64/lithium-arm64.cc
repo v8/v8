@@ -375,14 +375,13 @@ const char* LArithmeticT::Mnemonic() const {
 
 
 LUnallocated* LChunkBuilder::ToUnallocated(Register reg) {
-  return new(zone()) LUnallocated(LUnallocated::FIXED_REGISTER,
-                                  Register::ToAllocationIndex(reg));
+  return new (zone()) LUnallocated(LUnallocated::FIXED_REGISTER, reg.code());
 }
 
 
 LUnallocated* LChunkBuilder::ToUnallocated(DoubleRegister reg) {
-  return new(zone()) LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER,
-                                  DoubleRegister::ToAllocationIndex(reg));
+  return new (zone())
+      LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER, reg.code());
 }
 
 
