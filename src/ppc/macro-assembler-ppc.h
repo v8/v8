@@ -1416,6 +1416,9 @@ class MacroAssembler : public Assembler {
     DecodeFieldToSmi<Field>(reg, reg);
   }
 
+  // Load the type feedback vector from a JavaScript frame.
+  void EmitLoadTypeFeedbackVector(Register vector);
+
   // Activation support.
   void EnterFrame(StackFrame::Type type,
                   bool load_constant_pool_pointer_reg = false);

@@ -294,31 +294,26 @@ void FullCodeGenerator::Generate() {
   if (arguments != NULL) {
     // Function uses arguments object.
     Comment cmnt(masm_, "[ Allocate arguments object");
+    DCHECK(r4.is(ArgumentsAccessNewDescriptor::function()));
     if (!function_in_register_r4) {
       // Load this again, if it's used by the local context below.
-      __ LoadP(r6, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-    } else {
-      __ mr(r6, r4);
+      __ LoadP(r4, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     }
     // Receiver is just before the parameters on the caller's stack.
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
-    __ addi(r5, fp, Operand(StandardFrameConstants::kCallerSPOffset + offset));
-    __ LoadSmiLiteral(r4, Smi::FromInt(num_parameters));
-    __ Push(r6, r5, r4);
+    __ LoadSmiLiteral(ArgumentsAccessNewDescriptor::parameter_count(),
+                      Smi::FromInt(num_parameters));
+    __ addi(ArgumentsAccessNewDescriptor::parameter_pointer(), fp,
+            Operand(StandardFrameConstants::kCallerSPOffset + offset));
 
     // Arguments to ArgumentsAccessStub:
-    //   function, receiver address, parameter count.
-    // The stub will rewrite receiver and parameter count if the previous
-    // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub::Type type;
-    if (is_strict(language_mode()) || !has_simple_parameters()) {
-      type = ArgumentsAccessStub::NEW_STRICT;
-    } else if (literal()->has_duplicate_parameters()) {
-      type = ArgumentsAccessStub::NEW_SLOPPY_SLOW;
-    } else {
-      type = ArgumentsAccessStub::NEW_SLOPPY_FAST;
-    }
+    //   function, parameter pointer, parameter count.
+    // The stub will rewrite parameter pointer and parameter count if the
+    // previous stack frame was an arguments adapter frame.
+    bool is_unmapped = is_strict(language_mode()) || !has_simple_parameters();
+    ArgumentsAccessStub::Type type = ArgumentsAccessStub::ComputeType(
+        is_unmapped, literal()->has_duplicate_parameters());
     ArgumentsAccessStub stub(isolate(), type);
     __ CallStub(&stub);
 
@@ -1095,9 +1090,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label non_proxy;
   __ bind(&fixed_array);
 
-  __ Move(r4, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(r4);
   __ mov(r5, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  int vector_index = FeedbackVector()->GetIndex(slot);
+  int vector_index = SmiFromSlot(slot)->value();
   __ StoreP(
       r5, FieldMemOperand(r4, FixedArray::OffsetOfElementAt(vector_index)), r0);
 
@@ -1469,8 +1464,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // r3 = RegExp literal clone
   __ LoadP(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ LoadP(r7, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
-  int literal_offset =
-      FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
+  int literal_offset = LiteralsArray::OffsetOfLiteralAt(expr->literal_index());
   __ LoadP(r8, FieldMemOperand(r7, literal_offset), r0);
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmp(r8, ip);
@@ -3182,7 +3176,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ LoadP(r4, MemOperand(sp, arg_count * kPointerSize), r0);
 
   // Record call targets in unoptimized code.
-  __ Move(r5, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(r5);
   __ LoadSmiLiteral(r6, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
@@ -3222,7 +3216,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ LoadP(r4, MemOperand(sp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ Move(r5, FeedbackVector());
+  __ EmitLoadTypeFeedbackVector(r5);
   __ LoadSmiLiteral(r6, SmiFromSlot(expr->CallFeedbackSlot()));
 
   CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);
@@ -3835,8 +3829,8 @@ void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   __ CompareObjectType(r3, r4, r4, LAST_NAME_TYPE);
   __ ble(&done_convert);
   __ bind(&convert);
-  ToStringStub stub(isolate());
-  __ CallStub(&stub);
+  __ Push(r3);
+  __ CallRuntime(Runtime::kToName, 1);
   __ bind(&done_convert);
   context()->Plug(r3);
 }
