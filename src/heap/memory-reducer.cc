@@ -150,7 +150,7 @@ bool MemoryReducer::WatchdogGC(const State& state, const Event& event) {
 // For specification of this function see the comment for MemoryReducer class.
 MemoryReducer::State MemoryReducer::Step(const State& state,
                                          const Event& event) {
-  if (!FLAG_incremental_marking) {
+  if (!FLAG_incremental_marking || !FLAG_memory_reducer) {
     return State(kDone, 0, 0, state.last_gc_time_ms);
   }
   switch (state.action) {
