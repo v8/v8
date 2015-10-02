@@ -37,9 +37,6 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Register reg_2 = Register::FromParameterIndex(2, builder.parameter_count());
   int feedback_slot = 97;
 
-  // TODO(rmcilroy): Add a test for a bytecode with a short operand when
-  // the CallRuntime bytecode is landed.
-
   builder.LoadLiteral(heap_num_0)
       .LoadLiteral(heap_num_1)
       .LoadLiteral(zero)
@@ -48,6 +45,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadAccumulatorWithRegister(reg_0)
       .LoadNamedProperty(reg_1, feedback_slot, LanguageMode::SLOPPY)
       .StoreAccumulatorInRegister(reg_2)
+      .CallRuntime(Runtime::kLoadIC_Miss, reg_0, 1)
       .Return();
 
   // Test iterator sees the expected output from the builder.
@@ -89,6 +87,14 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kStar);
   CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_2.index());
+  CHECK(!iterator.done());
+  iterator.Advance();
+
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kCallRuntime);
+  CHECK_EQ(static_cast<Runtime::FunctionId>(iterator.GetIndexOperand(0)),
+           Runtime::kLoadIC_Miss);
+  CHECK_EQ(iterator.GetRegisterOperand(1).index(), reg_0.index());
+  CHECK_EQ(iterator.GetCountOperand(2), 1);
   CHECK(!iterator.done());
   iterator.Advance();
 

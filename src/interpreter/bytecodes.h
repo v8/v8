@@ -67,6 +67,8 @@ namespace interpreter {
                                                                               \
   /* Call operations. */                                                      \
   V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)       \
+  V(CallRuntime, OperandType::kIdx16, OperandType::kReg8,                     \
+    OperandType::kCount8)                                                     \
                                                                               \
   /* Test Operators */                                                        \
   V(TestEqual, OperandType::kReg8)                                            \

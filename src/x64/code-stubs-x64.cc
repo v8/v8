@@ -2268,6 +2268,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // rbp: frame pointer of calling JS frame (restored after C call)
   // rsp: stack pointer  (restored after C call)
   // rsi: current context (restored)
+  //
+  // If argv_in_register():
+  // r15: pointer to the first argument
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
@@ -2277,7 +2280,14 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 #else   // _WIN64
   int arg_stack_space = 0;
 #endif  // _WIN64
-  __ EnterExitFrame(arg_stack_space, save_doubles());
+  if (argv_in_register()) {
+    DCHECK(!save_doubles());
+    __ EnterApiExitFrame(arg_stack_space);
+    // Move argc into r14 (argv is already in r15).
+    __ movp(r14, rax);
+  } else {
+    __ EnterExitFrame(arg_stack_space, save_doubles());
+  }
 
   // rbx: pointer to builtin function  (C callee-saved).
   // rbp: frame pointer of exit frame  (restored after C call).

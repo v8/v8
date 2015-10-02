@@ -1413,6 +1413,13 @@ ExternalReference ExternalReference::vector_store_virtual_register(
 }
 
 
+ExternalReference ExternalReference::runtime_function_table_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      const_cast<Runtime::Function*>(Runtime::RuntimeFunctionTable(isolate)));
+}
+
+
 double power_helper(double x, double y) {
   int y_int = static_cast<int>(y);
   if (y == y_int) {
