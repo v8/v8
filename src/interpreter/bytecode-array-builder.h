@@ -75,6 +75,12 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& Call(Register callable, Register receiver,
                              size_t arg_count);
 
+  // Call the runtime function with |function_id|. The first argument should be
+  // in |first_arg| and all subsequent arguments should be in registers
+  // <first_arg + 1> to <first_arg + 1 + arg_count>.
+  BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
+                                    Register first_arg, size_t arg_count);
+
   // Operators (register == lhs, accumulator = rhs).
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg);
 
@@ -107,9 +113,12 @@ class BytecodeArrayBuilder {
 
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
   static Bytecode BytecodeForCompareOperation(Token::Value op);
-  static bool FitsInIdxOperand(int value);
-  static bool FitsInIdxOperand(size_t value);
+
+  static bool FitsInIdx8Operand(int value);
+  static bool FitsInIdx8Operand(size_t value);
   static bool FitsInImm8Operand(int value);
+  static bool FitsInIdx16Operand(int value);
+
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_with_smi8_operand);
 
   template <size_t N>
@@ -119,6 +128,7 @@ class BytecodeArrayBuilder {
   void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1);
   void Output(Bytecode bytecode, uint32_t operand0);
   void Output(Bytecode bytecode);
+
   BytecodeArrayBuilder& OutputJump(Bytecode jump_bytecode,
                                    BytecodeLabel* label);
   void PatchJump(const ZoneVector<uint8_t>::iterator& jump_target,

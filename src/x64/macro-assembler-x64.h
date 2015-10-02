@@ -342,8 +342,8 @@ class MacroAssembler: public Assembler {
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
-  // argument in register rsi.
-  void LeaveExitFrame(bool save_doubles = false);
+  // argument in register rsi (if pop_arguments == true).
+  void LeaveExitFrame(bool save_doubles = false, bool pop_arguments = true);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax (untouched).

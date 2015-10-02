@@ -3757,7 +3757,7 @@ void MacroAssembler::EnterApiExitFrame(int arg_stack_space) {
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles) {
+void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
   // Registers:
   // r15 : argv
   if (save_doubles) {
@@ -3769,15 +3769,21 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
       movsd(reg, Operand(rbp, offset - ((i + 1) * kDoubleSize)));
     }
   }
-  // Get the return address from the stack and restore the frame pointer.
-  movp(rcx, Operand(rbp, kFPOnStackSize));
-  movp(rbp, Operand(rbp, 0 * kPointerSize));
 
-  // Drop everything up to and including the arguments and the receiver
-  // from the caller stack.
-  leap(rsp, Operand(r15, 1 * kPointerSize));
+  if (pop_arguments) {
+    // Get the return address from the stack and restore the frame pointer.
+    movp(rcx, Operand(rbp, kFPOnStackSize));
+    movp(rbp, Operand(rbp, 0 * kPointerSize));
 
-  PushReturnAddressFrom(rcx);
+    // Drop everything up to and including the arguments and the receiver
+    // from the caller stack.
+    leap(rsp, Operand(r15, 1 * kPointerSize));
+
+    PushReturnAddressFrom(rcx);
+  } else {
+    // Otherwise just leave the exit frame.
+    leave();
+  }
 
   LeaveExitFrameEpilogue(true);
 }

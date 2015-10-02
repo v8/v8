@@ -51,6 +51,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Call operations.
   builder.Call(reg, reg, 0);
+  builder.CallRuntime(Runtime::kIsArray, reg, 1);
 
   // Emit binary operator invocations.
   builder.BinaryOperation(Token::Value::ADD, reg)
