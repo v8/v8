@@ -1067,8 +1067,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Register parameters:
   //    x0: argc (including receiver, untagged)
   //    x1: target
-  // If argv_in_register():
-  //    x11: argv (pointer to first argument)
   //
   // The stack on entry holds the arguments and the receiver, with the receiver
   // at the highest address:
@@ -1100,11 +1098,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // (arg[argc-2]), or just below the receiver in case there are no arguments.
   //  - Adjust for the arg[] array.
   Register temp_argv = x11;
-  if (!argv_in_register()) {
-    __ Add(temp_argv, jssp, Operand(x0, LSL, kPointerSizeLog2));
-    //  - Adjust for the receiver.
-    __ Sub(temp_argv, temp_argv, 1 * kPointerSize);
-  }
+  __ Add(temp_argv, jssp, Operand(x0, LSL, kPointerSizeLog2));
+  //  - Adjust for the receiver.
+  __ Sub(temp_argv, temp_argv, 1 * kPointerSize);
 
   // Enter the exit frame. Reserve three slots to preserve x21-x23 callee-saved
   // registers.
@@ -1208,10 +1204,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   __ LeaveExitFrame(save_doubles(), x10, true);
   DCHECK(jssp.Is(__ StackPointer()));
-  if (!argv_in_register()) {
-    // Drop the remaining stack slots and return from the stub.
-    __ Drop(x11);
-  }
+  // Pop or drop the remaining stack slots and return from the stub.
+  //         jssp[24]:    Arguments array (of size argc), including receiver.
+  //         jssp[16]:    Preserved x23 (used for target).
+  //         jssp[8]:     Preserved x22 (used for argc).
+  //         jssp[0]:     Preserved x21 (used for argv).
+  __ Drop(x11);
   __ AssertFPCRState();
   __ Ret();
 

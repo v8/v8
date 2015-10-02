@@ -966,35 +966,6 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 }
 
 
-// static
-void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r0 : the number of arguments (not including the receiver)
-  //  -- r2 : the address of the first argument to be pushed. Subsequent
-  //          arguments should be consecutive above this, in the same order as
-  //          they are to be pushed onto the stack.
-  //  -- r1 : the target to call (can be any Object).
-
-  // Find the address of the last argument.
-  __ add(r3, r0, Operand(1));  // Add one for receiver.
-  __ mov(r3, Operand(r3, LSL, kPointerSizeLog2));
-  __ sub(r3, r2, r3);
-
-  // Push the arguments.
-  Label loop_header, loop_check;
-  __ b(al, &loop_check);
-  __ bind(&loop_header);
-  __ ldr(r4, MemOperand(r2, -kPointerSize, PostIndex));
-  __ push(r4);
-  __ bind(&loop_check);
-  __ cmp(r2, r3);
-  __ b(gt, &loop_header);
-
-  // Call the target.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-}
-
-
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   CallRuntimePassFunction(masm, Runtime::kCompileLazy);
   GenerateTailCallToReturnedCode(masm);
@@ -1722,6 +1693,35 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
     __ Push(r1);
     __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
+}
+
+
+// static
+void Builtins::Generate_PushArgsAndCall(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0 : the number of arguments (not including the receiver)
+  //  -- r2 : the address of the first argument to be pushed. Subsequent
+  //          arguments should be consecutive above this, in the same order as
+  //          they are to be pushed onto the stack.
+  //  -- r1 : the target to call (can be any Object).
+
+  // Find the address of the last argument.
+  __ add(r3, r0, Operand(1));  // Add one for receiver.
+  __ mov(r3, Operand(r3, LSL, kPointerSizeLog2));
+  __ sub(r3, r2, r3);
+
+  // Push the arguments.
+  Label loop_header, loop_check;
+  __ b(al, &loop_check);
+  __ bind(&loop_header);
+  __ ldr(r4, MemOperand(r2, -kPointerSize, PostIndex));
+  __ push(r4);
+  __ bind(&loop_check);
+  __ cmp(r2, r3);
+  __ b(gt, &loop_header);
+
+  // Call the target.
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 

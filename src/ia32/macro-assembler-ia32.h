@@ -278,8 +278,8 @@ class MacroAssembler: public Assembler {
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
-  // argument in register esi (if pop_arguments == true).
-  void LeaveExitFrame(bool save_doubles, bool pop_arguments = true);
+  // argument in register esi.
+  void LeaveExitFrame(bool save_doubles);
 
   // Leave the current exit frame. Expects the return value in
   // register eax (untouched).

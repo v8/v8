@@ -503,7 +503,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadObjectField) {
 }
 
 
-TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime2) {
+TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* arg1 = m.Int32Constant(2);
@@ -511,33 +511,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime2) {
     Node* call_runtime = m.CallRuntime(Runtime::kAdd, arg1, arg2);
     EXPECT_THAT(call_runtime,
                 m.IsCall(_, _, arg1, arg2, _, IsInt32Constant(2),
-                         IsParameter(Linkage::kInterpreterContextParameter)));
-  }
-}
-
-
-TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    Callable builtin = CodeFactory::InterpreterCEntry(isolate());
-
-    Node* function_id = m.Int32Constant(0);
-    Node* first_arg = m.Int32Constant(1);
-    Node* arg_count = m.Int32Constant(2);
-
-    Matcher<Node*> function_table = IsExternalConstant(
-        ExternalReference::runtime_function_table_address(isolate()));
-    Matcher<Node*> function = IsIntPtrAdd(
-        function_table,
-        IsInt32Mul(function_id, IsInt32Constant(sizeof(Runtime::Function))));
-    Matcher<Node*> function_entry =
-        m.IsLoad(kMachPtr, function,
-                 IsInt32Constant(offsetof(Runtime::Function, entry)));
-
-    Node* call_runtime = m.CallRuntime(function_id, first_arg, arg_count);
-    EXPECT_THAT(call_runtime,
-                m.IsCall(_, IsHeapConstant(builtin.code()), arg_count,
-                         first_arg, function_entry,
                          IsParameter(Linkage::kInterpreterContextParameter)));
   }
 }
@@ -563,7 +536,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallIC) {
 TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
-    Callable builtin = CodeFactory::InterpreterPushArgsAndCall(isolate());
+    Callable builtin = CodeFactory::PushArgsAndCall(isolate());
     Node* function = m.Int32Constant(0);
     Node* first_arg = m.Int32Constant(1);
     Node* arg_count = m.Int32Constant(2);

@@ -1110,6 +1110,27 @@ FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 //---------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.
 
+class RuntimeState {
+ public:
+  unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
+    return &to_upper_mapping_;
+  }
+  unibrow::Mapping<unibrow::ToLowercase, 128>* to_lower_mapping() {
+    return &to_lower_mapping_;
+  }
+
+ private:
+  RuntimeState() {}
+  unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
+  unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
+
+  friend class Isolate;
+  friend class Runtime;
+
+  DISALLOW_COPY_AND_ASSIGN(RuntimeState);
+};
+
+
 class Runtime : public AllStatic {
  public:
   enum FunctionId {
@@ -1158,9 +1179,6 @@ class Runtime : public AllStatic {
   // Get the intrinsic function with the given function entry address.
   static const Function* FunctionForEntry(Address ref);
 
-  // Get the runtime intrinsic function table.
-  static const Function* RuntimeFunctionTable(Isolate* isolate);
-
   MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
       Isolate* isolate, Handle<JSReceiver> receiver, Handle<Object> key,
       LanguageMode language_mode);
@@ -1208,38 +1226,6 @@ class Runtime : public AllStatic {
   // runtime-scopes.cc then.
   static base::SmartArrayPointer<Handle<Object>> GetCallerArguments(
       Isolate* isolate, int prefix_argc, int* total_argc);
-};
-
-
-class RuntimeState {
- public:
-  unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
-    return &to_upper_mapping_;
-  }
-  unibrow::Mapping<unibrow::ToLowercase, 128>* to_lower_mapping() {
-    return &to_lower_mapping_;
-  }
-
-  Runtime::Function* redirected_intrinsic_functions() {
-    return redirected_intrinsic_functions_.get();
-  }
-
-  void set_redirected_intrinsic_functions(
-      Runtime::Function* redirected_intrinsic_functions) {
-    redirected_intrinsic_functions_.Reset(redirected_intrinsic_functions);
-  }
-
- private:
-  RuntimeState() {}
-  unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
-  unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
-
-  base::SmartArrayPointer<Runtime::Function> redirected_intrinsic_functions_;
-
-  friend class Isolate;
-  friend class Runtime;
-
-  DISALLOW_COPY_AND_ASSIGN(RuntimeState);
 };
 
 

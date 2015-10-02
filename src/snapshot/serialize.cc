@@ -131,8 +131,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Isolate::stress_deopt_count_address()");
   Add(ExternalReference::vector_store_virtual_register(isolate).address(),
       "Isolate::vector_store_virtual_register()");
-  Add(ExternalReference::runtime_function_table_address(isolate).address(),
-      "Runtime::runtime_function_table_address()");
 
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),

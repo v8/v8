@@ -593,30 +593,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 void BytecodeGenerator::VisitCallNew(CallNew* expr) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
-  if (expr->is_jsruntime()) {
-    UNIMPLEMENTED();
-  }
-
-  // Evaluate all arguments to the runtime call.
-  ZoneList<Expression*>* args = expr->arguments();
-  TemporaryRegisterScope temporary_register_scope(&builder_);
-  // Ensure we always have a valid first_arg register even if there are no
-  // arguments to pass.
-  Register first_arg = temporary_register_scope.NewRegister();
-  for (int i = 0; i < args->length(); ++i) {
-    Register arg =
-        (i == 0) ? first_arg : temporary_register_scope.NewRegister();
-    Visit(args->at(i));
-    DCHECK_EQ(arg.index() - i, first_arg.index());
-    builder()->StoreAccumulatorInRegister(arg);
-  }
-
-  // TODO(rmcilroy): support multiple return values.
-  DCHECK_LE(expr->function()->result_size, 1);
-  Runtime::FunctionId function_id = expr->function()->function_id;
-  builder()->CallRuntime(function_id, first_arg, args->length());
-}
+void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) { UNIMPLEMENTED(); }
 
 
 void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {

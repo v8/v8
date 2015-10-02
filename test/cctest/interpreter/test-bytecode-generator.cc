@@ -27,7 +27,6 @@ class BytecodeGeneratorHelper {
     i::FLAG_ignition = true;
     i::FLAG_ignition_filter = StrDup(kFunctionName);
     i::FLAG_always_opt = false;
-    i::FLAG_allow_natives_syntax = true;
     CcTest::i_isolate()->interpreter()->Initialize();
   }
 
@@ -65,15 +64,6 @@ class BytecodeGeneratorHelper {
 #define U8(x) static_cast<uint8_t>((x) & 0xff)
 #define R(x) static_cast<uint8_t>(-(x) & 0xff)
 #define _ static_cast<uint8_t>(0x5a)
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-#define U16(x) static_cast<uint8_t>((x) & 0xff),                    \
-               static_cast<uint8_t>(((x) >> kBitsPerByte) & 0xff)
-#elif defined(V8_TARGET_BIG_ENDIAN)
-#define U16(x) static_cast<uint8_t>(((x) >> kBitsPerByte) & 0xff),   \
-               static_cast<uint8_t>((x) & 0xff)
-#else
-#error Unknown byte ordering
-#endif
 
 
 // Structure for containing expected bytecode snippets.
@@ -694,26 +684,20 @@ TEST(LoadGlobal) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<int> snippets[] = {
-      {
-          "var a = 1;\nfunction f() { return a; }\nf()",
-          0,
-          1,
-          3,
-          {
-              B(LdaGlobal), _,  //
-              B(Return)         //
-          },
+  ExpectedSnippet<const char*> snippets[] = {
+      {"var a = 1;\nfunction f() { return a; }\nf()",
+       0, 1, 3,
+       {
+          B(LdaGlobal), _,
+          B(Return)
+       },
       },
-      {
-          "function t() { }\nfunction f() { return t; }\nf()",
-          0,
-          1,
-          3,
-          {
-              B(LdaGlobal), _,  //
-              B(Return)         //
-          },
+      {"function t() { }\nfunction f() { return t; }\nf()",
+       0, 1, 3,
+       {
+          B(LdaGlobal), _,
+          B(Return)
+       },
       },
   };
 
@@ -729,93 +713,34 @@ TEST(CallGlobal) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<int> snippets[] = {
-      {
-          "function t() { }\nfunction f() { return t(); }\nf()",
-          2 * kPointerSize,
-          1,
-          12,
-          {
-              B(LdaUndefined),             //
-              B(Star), R(1),               //
-              B(LdaGlobal), _,             //
-              B(Star), R(0),               //
-              B(Call), R(0), R(1), U8(0),  //
-              B(Return)                    //
-          },
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function t() { }\nfunction f() { return t(); }\nf()",
+       2 * kPointerSize, 1, 12,
+       {
+          B(LdaUndefined),
+          B(Star), R(1),
+          B(LdaGlobal), _,
+          B(Star), R(0),
+          B(Call), R(0), R(1), U8(0),
+          B(Return)
+       },
       },
-      {
-          "function t(a, b, c) { }\nfunction f() { return t(1, 2, 3); }\nf()",
-          5 * kPointerSize,
-          1,
-          24,
-          {
-              B(LdaUndefined),             //
-              B(Star), R(1),               //
-              B(LdaGlobal), _,             //
-              B(Star), R(0),               //
-              B(LdaSmi8), U8(1),           //
-              B(Star), R(2),               //
-              B(LdaSmi8), U8(2),           //
-              B(Star), R(3),               //
-              B(LdaSmi8), U8(3),           //
-              B(Star), R(4),               //
-              B(Call), R(0), R(1), U8(3),  //
-              B(Return)                    //
-          },
-      },
-  };
-
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
-    Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
-  }
-}
-
-
-TEST(CallRuntime) {
-  InitializedHandleScope handle_scope;
-  BytecodeGeneratorHelper helper;
-
-  ExpectedSnippet<int> snippets[] = {
-      {
-          "function f() { %TheHole() }\nf()",
-          1 * kPointerSize,
-          1,
-          7,
-          {
-              B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),  //
-              B(LdaUndefined),                                      //
-              B(Return)                                             //
-          },
-      },
-      {
-          "function f(a) { return %IsArray(a) }\nf(undefined)",
-          1 * kPointerSize,
-          2,
-          10,
-          {
-              B(Ldar), R(helper.kLastParamIndex),                   //
-              B(Star), R(0),                                        //
-              B(CallRuntime), U16(Runtime::kIsArray), R(0), U8(1),  //
-              B(Return)                                             //
-          },
-      },
-      {
-          "function f() { return %Add(1, 2) }\nf()",
-          2 * kPointerSize,
-          1,
-          14,
-          {
-              B(LdaSmi8), U8(1),                                //
-              B(Star), R(0),                                    //
-              B(LdaSmi8), U8(2),                                //
-              B(Star), R(1),                                    //
-              B(CallRuntime), U16(Runtime::kAdd), R(0), U8(2),  //
-              B(Return)                                         //
-          },
+      {"function t(a, b, c) { }\nfunction f() { return t(1, 2, 3); }\nf()",
+       5 * kPointerSize, 1, 24,
+       {
+          B(LdaUndefined),
+          B(Star), R(1),
+          B(LdaGlobal), _,
+          B(Star), R(0),
+          B(LdaSmi8), U8(1),
+          B(Star), R(2),
+          B(LdaSmi8), U8(2),
+          B(Star), R(3),
+          B(LdaSmi8), U8(3),
+          B(Star), R(4),
+          B(Call), R(0), R(1), U8(3),
+          B(Return)
+       },
       },
   };
 
