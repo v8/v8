@@ -172,7 +172,10 @@ enum BindingFlags {
   V(BOOL32X4_FUNCTION_INDEX, JSFunction, bool32x4_function)                    \
   V(BOOL8X16_FUNCTION_INDEX, JSFunction, bool8x16_function)                    \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
-  V(BOUND_FUNCTION_MAP_INDEX, Map, bound_function_map)                         \
+  V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
+    bound_function_with_constructor_map)                                       \
+  V(BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX, Map,                         \
+    bound_function_without_constructor_map)                                    \
   V(CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, JSFunction,                            \
     call_as_constructor_delegate)                                              \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
