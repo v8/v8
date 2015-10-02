@@ -77,7 +77,7 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
 
 template <size_t N>
 void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t(&operands)[N]) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), N);
+  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), static_cast<int>(N));
   last_bytecode_start_ = bytecodes()->size();
   bytecodes()->push_back(Bytecodes::ToByte(bytecode));
   for (int i = 0; i < static_cast<int>(N); i++) {
