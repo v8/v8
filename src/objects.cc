@@ -13901,10 +13901,11 @@ int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
 int JSObject::NumberOfOwnElements(PropertyAttributes filter) {
   // Fast case for objects with no elements.
   if (!IsJSValue() && HasFastElements()) {
-    uint32_t length = IsJSArray() ?
-        static_cast<uint32_t>(
-            Smi::cast(JSArray::cast(this)->length())->value()) :
-        static_cast<uint32_t>(FixedArray::cast(elements())->length());
+    uint32_t length =
+        IsJSArray()
+            ? static_cast<uint32_t>(
+                  Smi::cast(JSArray::cast(this)->length())->value())
+            : static_cast<uint32_t>(FixedArrayBase::cast(elements())->length());
     if (length == 0) return 0;
   }
   // Compute the number of enumerable elements.
