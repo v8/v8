@@ -719,13 +719,13 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
     os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
-      int assigned_reg = op.index();
       if (op.IsDoubleRegister()) {
-        os_ << " \"" << DoubleRegister::AllocationIndexToString(assigned_reg)
-            << "\"";
+        DoubleRegister assigned_reg = op.GetDoubleRegister();
+        os_ << " \"" << assigned_reg.ToString() << "\"";
       } else {
         DCHECK(op.IsRegister());
-        os_ << " \"" << Register::AllocationIndexToString(assigned_reg) << "\"";
+        Register assigned_reg = op.GetRegister();
+        os_ << " \"" << assigned_reg.ToString() << "\"";
       }
     } else if (range->spilled()) {
       auto top = range->TopLevel();
