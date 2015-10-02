@@ -11,7 +11,6 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
-#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
 #include "src/arm/macro-assembler-arm.h"
@@ -760,8 +759,7 @@ MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
   // Number of d-regs not known at snapshot time.
   DCHECK(!serializer_enabled());
   // General purpose registers are pushed last on the stack.
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
-  int doubles_size = config->num_allocatable_double_registers() * kDoubleSize;
+  int doubles_size = DwVfpRegister::NumAllocatableRegisters() * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
   return MemOperand(sp, doubles_size + register_offset);
 }
@@ -3580,10 +3578,8 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   if (reg5.is_valid()) regs |= reg5.bit();
   if (reg6.is_valid()) regs |= reg6.bit();
 
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
-  for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
-    int code = config->GetAllocatableGeneralCode(i);
-    Register candidate = Register::from_code(code);
+  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
+    Register candidate = Register::FromAllocationIndex(i);
     if (regs & candidate.bit()) continue;
     return candidate;
   }

@@ -127,7 +127,8 @@ bool InstructionSelectorTest::Stream::IsFixed(const InstructionOperand* operand,
   if (!operand->IsUnallocated()) return false;
   const UnallocatedOperand* unallocated = UnallocatedOperand::cast(operand);
   if (!unallocated->HasFixedRegisterPolicy()) return false;
-  return unallocated->fixed_register_index() == reg.code();
+  const int index = Register::ToAllocationIndex(reg);
+  return unallocated->fixed_register_index() == index;
 }
 
 

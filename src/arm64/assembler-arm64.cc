@@ -35,7 +35,6 @@
 #include "src/arm64/frames-arm64.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/register-configuration.h"
 
 namespace v8 {
 namespace internal {
@@ -193,10 +192,8 @@ bool RelocInfo::IsInConstantPool() {
 Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
                                               Register reg3, Register reg4) {
   CPURegList regs(reg1, reg2, reg3, reg4);
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    Register candidate = Register::from_code(code);
+  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
+    Register candidate = Register::FromAllocationIndex(i);
     if (regs.IncludesAliasOf(candidate)) continue;
     return candidate;
   }

@@ -7,7 +7,6 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
-#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
@@ -96,7 +95,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   }
   input_->SetRegister(rsp.code(), reinterpret_cast<intptr_t>(frame->sp()));
   input_->SetRegister(rbp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
+  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
     input_->SetDoubleRegister(i, 0.0);
   }
 
@@ -118,7 +117,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
 
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  for (int i = 0; i < XMMRegister::kMaxNumRegisters; ++i) {
+  for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
     double double_value = input_->GetDoubleRegister(i);
     output_frame->SetDoubleRegister(i, double_value);
   }
@@ -139,14 +138,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
 
-  const int kDoubleRegsSize = kDoubleSize * XMMRegister::kMaxNumRegisters;
+  const int kDoubleRegsSize = kDoubleSize *
+      XMMRegister::NumAllocatableRegisters();
   __ subp(rsp, Immediate(kDoubleRegsSize));
 
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    XMMRegister xmm_reg = XMMRegister::from_code(code);
-    int offset = code * kDoubleSize;
+  for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
+    XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
+    int offset = i * kDoubleSize;
     __ movsd(Operand(rsp, offset), xmm_reg);
   }
 
@@ -212,7 +210,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Fill in the double input registers.
   int double_regs_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+  for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
     int dst_offset = i * kDoubleSize + double_regs_offset;
     __ popq(Operand(rbx, dst_offset));
   }
@@ -276,10 +274,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ cmpp(rax, rdx);
   __ j(below, &outer_push_loop);
 
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    XMMRegister xmm_reg = XMMRegister::from_code(code);
-    int src_offset = code * kDoubleSize + double_regs_offset;
+  for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
+    XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
+    int src_offset = i * kDoubleSize + double_regs_offset;
     __ movsd(xmm_reg, Operand(rbx, src_offset));
   }
 

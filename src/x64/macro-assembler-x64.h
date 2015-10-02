@@ -16,17 +16,17 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {Register::kCode_rax};
-const Register kReturnRegister1 = {Register::kCode_rdx};
-const Register kJSFunctionRegister = {Register::kCode_rdi};
-const Register kContextRegister = {Register::kCode_rsi};
-const Register kInterpreterAccumulatorRegister = {Register::kCode_rax};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_r11};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r12};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r14};
-const Register kInterpreterDispatchTableRegister = {Register::kCode_r15};
-const Register kRuntimeCallFunctionRegister = {Register::kCode_rbx};
-const Register kRuntimeCallArgCountRegister = {Register::kCode_rax};
+const Register kReturnRegister0 = {kRegister_rax_Code};
+const Register kReturnRegister1 = {kRegister_rdx_Code};
+const Register kJSFunctionRegister = {kRegister_rdi_Code};
+const Register kContextRegister = {kRegister_rsi_Code};
+const Register kInterpreterAccumulatorRegister = {kRegister_rax_Code};
+const Register kInterpreterRegisterFileRegister = {kRegister_r11_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_r12_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_r14_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_r15_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_rbx_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_rax_Code};
 
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the

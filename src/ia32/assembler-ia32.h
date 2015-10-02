@@ -42,47 +42,9 @@
 #include "src/assembler.h"
 #include "src/compiler.h"
 #include "src/isolate.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
-
-#define GENERAL_REGISTERS(V) \
-  V(eax)                     \
-  V(ecx)                     \
-  V(edx)                     \
-  V(ebx)                     \
-  V(esp)                     \
-  V(ebp)                     \
-  V(esi)                     \
-  V(edi)
-
-#define ALLOCATABLE_GENERAL_REGISTERS(V) \
-  V(eax)                                 \
-  V(ecx)                                 \
-  V(edx)                                 \
-  V(ebx)                                 \
-  V(esi)                                 \
-  V(edi)
-
-#define DOUBLE_REGISTERS(V) \
-  V(xmm0)                   \
-  V(xmm1)                   \
-  V(xmm2)                   \
-  V(xmm3)                   \
-  V(xmm4)                   \
-  V(xmm5)                   \
-  V(xmm6)                   \
-  V(xmm7)
-
-#define ALLOCATABLE_DOUBLE_REGISTERS(V) \
-  V(xmm1)                               \
-  V(xmm2)                               \
-  V(xmm3)                               \
-  V(xmm4)                               \
-  V(xmm5)                               \
-  V(xmm6)                               \
-  V(xmm7)
 
 // CPU Registers.
 //
@@ -106,86 +68,151 @@ namespace internal {
 // and best performance in optimized code.
 //
 struct Register {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    GENERAL_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
+  static const int kMaxNumAllocatableRegisters = 6;
+  static int NumAllocatableRegisters() {
+    return kMaxNumAllocatableRegisters;
+  }
+  static const int kNumRegisters = 8;
 
-  static const int kNumRegisters = Code::kAfterLast;
+  static inline const char* AllocationIndexToString(int index);
+
+  static inline int ToAllocationIndex(Register reg);
+
+  static inline Register FromAllocationIndex(int index);
 
   static Register from_code(int code) {
     DCHECK(code >= 0);
     DCHECK(code < kNumRegisters);
-    Register r = {code};
+    Register r = { code };
     return r;
   }
-  const char* ToString();
-  bool IsAllocatable() const;
-  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
-  bool is(Register reg) const { return reg_code == reg.reg_code; }
+  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
+  bool is(Register reg) const { return code_ == reg.code_; }
+  // eax, ebx, ecx and edx are byte registers, the rest are not.
+  bool is_byte_register() const { return code_ <= 3; }
   int code() const {
     DCHECK(is_valid());
-    return reg_code;
+    return code_;
   }
   int bit() const {
     DCHECK(is_valid());
-    return 1 << reg_code;
+    return 1 << code_;
   }
 
-  bool is_byte_register() const { return reg_code <= 3; }
-
   // Unfortunately we can't make this private in a struct.
-  int reg_code;
+  int code_;
 };
 
+const int kRegister_eax_Code = 0;
+const int kRegister_ecx_Code = 1;
+const int kRegister_edx_Code = 2;
+const int kRegister_ebx_Code = 3;
+const int kRegister_esp_Code = 4;
+const int kRegister_ebp_Code = 5;
+const int kRegister_esi_Code = 6;
+const int kRegister_edi_Code = 7;
+const int kRegister_no_reg_Code = -1;
 
-#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
-GENERAL_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const Register no_reg = {Register::kCode_no_reg};
+const Register eax = { kRegister_eax_Code };
+const Register ecx = { kRegister_ecx_Code };
+const Register edx = { kRegister_edx_Code };
+const Register ebx = { kRegister_ebx_Code };
+const Register esp = { kRegister_esp_Code };
+const Register ebp = { kRegister_ebp_Code };
+const Register esi = { kRegister_esi_Code };
+const Register edi = { kRegister_edi_Code };
+const Register no_reg = { kRegister_no_reg_Code };
 
 
-struct DoubleRegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    DOUBLE_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
+inline const char* Register::AllocationIndexToString(int index) {
+  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
+  // This is the mapping of allocation indices to registers.
+  const char* const kNames[] = { "eax", "ecx", "edx", "ebx", "esi", "edi" };
+  return kNames[index];
+}
 
-  static const int kMaxNumRegisters = Code::kAfterLast;
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister result = {code};
+inline int Register::ToAllocationIndex(Register reg) {
+  DCHECK(reg.is_valid() && !reg.is(esp) && !reg.is(ebp));
+  return (reg.code() >= 6) ? reg.code() - 2 : reg.code();
+}
+
+
+inline Register Register::FromAllocationIndex(int index)  {
+  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
+  return (index >= 4) ? from_code(index + 2) : from_code(index);
+}
+
+
+struct XMMRegister {
+  static const int kMaxNumAllocatableRegisters = 7;
+  static const int kMaxNumRegisters = 8;
+  static int NumAllocatableRegisters() {
+    return kMaxNumAllocatableRegisters;
+  }
+
+  // TODO(turbofan): Proper support for float32.
+  static int NumAllocatableAliasedRegisters() {
+    return NumAllocatableRegisters();
+  }
+
+  static int ToAllocationIndex(XMMRegister reg) {
+    DCHECK(reg.code() != 0);
+    return reg.code() - 1;
+  }
+
+  static XMMRegister FromAllocationIndex(int index) {
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
+    return from_code(index + 1);
+  }
+
+  static XMMRegister from_code(int code) {
+    XMMRegister result = { code };
     return result;
   }
 
-  bool IsAllocatable() const;
-  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
+  bool is_valid() const {
+    return 0 <= code_ && code_ < kMaxNumRegisters;
+  }
 
   int code() const {
     DCHECK(is_valid());
-    return reg_code;
+    return code_;
   }
 
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
+  bool is(XMMRegister reg) const { return code_ == reg.code_; }
 
-  const char* ToString();
+  static const char* AllocationIndexToString(int index) {
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
+    const char* const names[] = {
+      "xmm1",
+      "xmm2",
+      "xmm3",
+      "xmm4",
+      "xmm5",
+      "xmm6",
+      "xmm7"
+    };
+    return names[index];
+  }
 
-  int reg_code;
+  int code_;
 };
 
-#define DECLARE_REGISTER(R) \
-  const DoubleRegister R = {DoubleRegister::kCode_##R};
-DOUBLE_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
 
-typedef DoubleRegister XMMRegister;
+typedef XMMRegister DoubleRegister;
+
+
+const XMMRegister xmm0 = { 0 };
+const XMMRegister xmm1 = { 1 };
+const XMMRegister xmm2 = { 2 };
+const XMMRegister xmm3 = { 3 };
+const XMMRegister xmm4 = { 4 };
+const XMMRegister xmm5 = { 5 };
+const XMMRegister xmm6 = { 6 };
+const XMMRegister xmm7 = { 7 };
+const XMMRegister no_xmm_reg = { -1 };
+
 
 enum Condition {
   // any value < 0 is considered no_condition

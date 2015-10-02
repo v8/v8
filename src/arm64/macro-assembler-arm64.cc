@@ -9,7 +9,6 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
-#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
 #include "src/arm64/frames-arm64.h"
@@ -3985,16 +3984,14 @@ void MacroAssembler::PushSafepointRegisters() {
 
 void MacroAssembler::PushSafepointRegistersAndDoubles() {
   PushSafepointRegisters();
-  PushCPURegList(CPURegList(
-      CPURegister::kFPRegister, kDRegSizeInBits,
-      RegisterConfiguration::ArchDefault()->allocatable_double_codes_mask()));
+  PushCPURegList(CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
+                            FPRegister::kAllocatableFPRegisters));
 }
 
 
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
-  PopCPURegList(CPURegList(
-      CPURegister::kFPRegister, kDRegSizeInBits,
-      RegisterConfiguration::ArchDefault()->allocatable_double_codes_mask()));
+  PopCPURegList(CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
+                           FPRegister::kAllocatableFPRegisters));
   PopSafepointRegisters();
 }
 

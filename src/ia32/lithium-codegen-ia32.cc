@@ -101,7 +101,7 @@ void LCodeGen::SaveCallerDoubles() {
   BitVector::Iterator save_iterator(doubles);
   while (!save_iterator.Done()) {
     __ movsd(MemOperand(esp, count * kDoubleSize),
-             XMMRegister::from_code(save_iterator.Current()));
+              XMMRegister::FromAllocationIndex(save_iterator.Current()));
     save_iterator.Advance();
     count++;
   }
@@ -116,8 +116,8 @@ void LCodeGen::RestoreCallerDoubles() {
   BitVector::Iterator save_iterator(doubles);
   int count = 0;
   while (!save_iterator.Done()) {
-    __ movsd(XMMRegister::from_code(save_iterator.Current()),
-             MemOperand(esp, count * kDoubleSize));
+    __ movsd(XMMRegister::FromAllocationIndex(save_iterator.Current()),
+              MemOperand(esp, count * kDoubleSize));
     save_iterator.Advance();
     count++;
   }
@@ -514,13 +514,13 @@ bool LCodeGen::GenerateSafepointTable() {
 }
 
 
-Register LCodeGen::ToRegister(int code) const {
-  return Register::from_code(code);
+Register LCodeGen::ToRegister(int index) const {
+  return Register::FromAllocationIndex(index);
 }
 
 
-XMMRegister LCodeGen::ToDoubleRegister(int code) const {
-  return XMMRegister::from_code(code);
+XMMRegister LCodeGen::ToDoubleRegister(int index) const {
+  return XMMRegister::FromAllocationIndex(index);
 }
 
 

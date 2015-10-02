@@ -6,7 +6,6 @@
 
 #include "src/ia32/lithium-codegen-ia32.h"
 #include "src/ia32/lithium-gap-resolver-ia32.h"
-#include "src/register-configuration.h"
 
 namespace v8 {
 namespace internal {
@@ -166,13 +165,10 @@ int LGapResolver::CountSourceUses(LOperand* operand) {
 
 
 Register LGapResolver::GetFreeRegisterNot(Register reg) {
-  int skip_index = reg.is(no_reg) ? -1 : reg.code();
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
-  for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
-    int code = config->GetAllocatableGeneralCode(i);
-    if (source_uses_[code] == 0 && destination_uses_[code] > 0 &&
-        code != skip_index) {
-      return Register::from_code(code);
+  int skip_index = reg.is(no_reg) ? -1 : Register::ToAllocationIndex(reg);
+  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
+    if (source_uses_[i] == 0 && destination_uses_[i] > 0 && i != skip_index) {
+      return Register::FromAllocationIndex(i);
     }
   }
   return no_reg;
@@ -182,11 +178,10 @@ Register LGapResolver::GetFreeRegisterNot(Register reg) {
 bool LGapResolver::HasBeenReset() {
   if (!moves_.is_empty()) return false;
   if (spilled_register_ >= 0) return false;
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
-  for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
-    int code = config->GetAllocatableGeneralCode(i);
-    if (source_uses_[code] != 0) return false;
-    if (destination_uses_[code] != 0) return false;
+
+  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
+    if (source_uses_[i] != 0) return false;
+    if (destination_uses_[i] != 0) return false;
   }
   return true;
 }
@@ -209,7 +204,7 @@ void LGapResolver::Verify() {
 
 void LGapResolver::Finish() {
   if (spilled_register_ >= 0) {
-    __ pop(Register::from_code(spilled_register_));
+    __ pop(Register::FromAllocationIndex(spilled_register_));
     spilled_register_ = -1;
   }
   moves_.Rewind(0);
@@ -218,7 +213,7 @@ void LGapResolver::Finish() {
 
 void LGapResolver::EnsureRestored(LOperand* operand) {
   if (operand->IsRegister() && operand->index() == spilled_register_) {
-    __ pop(Register::from_code(spilled_register_));
+    __ pop(Register::FromAllocationIndex(spilled_register_));
     spilled_register_ = -1;
   }
 }
@@ -227,7 +222,7 @@ void LGapResolver::EnsureRestored(LOperand* operand) {
 Register LGapResolver::EnsureTempRegister() {
   // 1. We may have already spilled to create a temp register.
   if (spilled_register_ >= 0) {
-    return Register::from_code(spilled_register_);
+    return Register::FromAllocationIndex(spilled_register_);
   }
 
   // 2. We may have a free register that we can use without spilling.
@@ -236,21 +231,19 @@ Register LGapResolver::EnsureTempRegister() {
 
   // 3. Prefer to spill a register that is not used in any remaining move
   // because it will not need to be restored until the end.
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
-  for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
-    int code = config->GetAllocatableGeneralCode(i);
-    if (source_uses_[code] == 0 && destination_uses_[code] == 0) {
-      Register scratch = Register::from_code(code);
+  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
+    if (source_uses_[i] == 0 && destination_uses_[i] == 0) {
+      Register scratch = Register::FromAllocationIndex(i);
       __ push(scratch);
-      spilled_register_ = code;
+      spilled_register_ = i;
       return scratch;
     }
   }
 
   // 4. Use an arbitrary register.  Register 0 is as arbitrary as any other.
-  spilled_register_ = config->GetAllocatableGeneralCode(0);
-  Register scratch = Register::from_code(spilled_register_);
+  Register scratch = Register::FromAllocationIndex(0);
   __ push(scratch);
+  spilled_register_ = 0;
   return scratch;
 }
 

@@ -14,17 +14,17 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {Register::kCode_eax};
-const Register kReturnRegister1 = {Register::kCode_edx};
-const Register kJSFunctionRegister = {Register::kCode_edi};
-const Register kContextRegister = {Register::kCode_esi};
-const Register kInterpreterAccumulatorRegister = {Register::kCode_eax};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_edx};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_ecx};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_edi};
-const Register kInterpreterDispatchTableRegister = {Register::kCode_ebx};
-const Register kRuntimeCallFunctionRegister = {Register::kCode_ebx};
-const Register kRuntimeCallArgCountRegister = {Register::kCode_eax};
+const Register kReturnRegister0 = {kRegister_eax_Code};
+const Register kReturnRegister1 = {kRegister_edx_Code};
+const Register kJSFunctionRegister = {kRegister_edi_Code};
+const Register kContextRegister = {kRegister_esi_Code};
+const Register kInterpreterAccumulatorRegister = {kRegister_eax_Code};
+const Register kInterpreterRegisterFileRegister = {kRegister_edx_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_ecx_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_edi_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_ebx_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_ebx_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_eax_Code};
 
 // Spill slots used by interpreter dispatch calling convention.
 const int kInterpreterContextSpillSlot = -1;

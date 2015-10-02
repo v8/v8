@@ -249,8 +249,7 @@ void GreedyAllocator::TryAllocateGroup(LiveRangeGroup* group) {
   float eviction_weight = group_weight;
   int eviction_reg = -1;
   int free_reg = -1;
-  for (int i = 0; i < num_allocatable_registers(); ++i) {
-    int reg = allocatable_register_code(i);
+  for (int reg = 0; reg < num_registers(); ++reg) {
     float weight = GetMaximumConflictingWeight(reg, group, group_weight);
     if (weight == LiveRange::kInvalidWeight) {
       free_reg = reg;
@@ -314,20 +313,19 @@ void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
     // Seek either the first free register, or, from the set of registers
     // where the maximum conflict is lower than the candidate's weight, the one
     // with the smallest such weight.
-    for (int i = 0; i < num_allocatable_registers(); i++) {
-      int reg = allocatable_register_code(i);
+    for (int i = 0; i < num_registers(); i++) {
       // Skip unnecessarily re-visiting the hinted register, if any.
-      if (reg == hinted_reg) continue;
+      if (i == hinted_reg) continue;
       float max_conflict_weight =
-          GetMaximumConflictingWeight(reg, range, competing_weight);
+          GetMaximumConflictingWeight(i, range, competing_weight);
       if (max_conflict_weight == LiveRange::kInvalidWeight) {
-        free_reg = reg;
+        free_reg = i;
         break;
       }
       if (max_conflict_weight < range->weight() &&
           max_conflict_weight < smallest_weight) {
         smallest_weight = max_conflict_weight;
-        evictable_reg = reg;
+        evictable_reg = i;
       }
     }
   }

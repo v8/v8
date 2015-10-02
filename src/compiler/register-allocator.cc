@@ -27,23 +27,8 @@ void RemoveElement(ZoneVector<LiveRange*>* v, LiveRange* range) {
 
 
 int GetRegisterCount(const RegisterConfiguration* cfg, RegisterKind kind) {
-  return kind == DOUBLE_REGISTERS ? cfg->num_double_registers()
+  return kind == DOUBLE_REGISTERS ? cfg->num_aliased_double_registers()
                                   : cfg->num_general_registers();
-}
-
-
-int GetAllocatableRegisterCount(const RegisterConfiguration* cfg,
-                                RegisterKind kind) {
-  return kind == DOUBLE_REGISTERS
-             ? cfg->num_allocatable_aliased_double_registers()
-             : cfg->num_allocatable_general_registers();
-}
-
-
-const int* GetAllocatableRegisterCodes(const RegisterConfiguration* cfg,
-                                       RegisterKind kind) {
-  return kind == DOUBLE_REGISTERS ? cfg->allocatable_double_codes()
-                                  : cfg->allocatable_general_codes();
 }
 
 
@@ -67,11 +52,11 @@ Instruction* GetLastInstruction(InstructionSequence* code,
 }
 
 
-bool IsOutputRegisterOf(Instruction* instr, Register reg) {
+bool IsOutputRegisterOf(Instruction* instr, int index) {
   for (size_t i = 0; i < instr->OutputCount(); i++) {
     auto output = instr->OutputAt(i);
     if (output->IsRegister() &&
-        RegisterOperand::cast(output)->GetRegister().is(reg)) {
+        RegisterOperand::cast(output)->index() == index) {
       return true;
     }
   }
@@ -79,11 +64,11 @@ bool IsOutputRegisterOf(Instruction* instr, Register reg) {
 }
 
 
-bool IsOutputDoubleRegisterOf(Instruction* instr, DoubleRegister reg) {
+bool IsOutputDoubleRegisterOf(Instruction* instr, int index) {
   for (size_t i = 0; i < instr->OutputCount(); i++) {
     auto output = instr->OutputAt(i);
     if (output->IsDoubleRegister() &&
-        DoubleRegisterOperand::cast(output)->GetDoubleRegister().is(reg)) {
+        DoubleRegisterOperand::cast(output)->index() == index) {
       return true;
     }
   }
@@ -144,7 +129,7 @@ bool UsePosition::HasHint() const {
 }
 
 
-bool UsePosition::HintRegister(int* register_code) const {
+bool UsePosition::HintRegister(int* register_index) const {
   if (hint_ == nullptr) return false;
   switch (HintTypeField::decode(flags_)) {
     case UsePositionHintType::kNone:
@@ -154,25 +139,20 @@ bool UsePosition::HintRegister(int* register_code) const {
       auto use_pos = reinterpret_cast<UsePosition*>(hint_);
       int assigned_register = AssignedRegisterField::decode(use_pos->flags_);
       if (assigned_register == kUnassignedRegister) return false;
-      *register_code = assigned_register;
+      *register_index = assigned_register;
       return true;
     }
     case UsePositionHintType::kOperand: {
       auto operand = reinterpret_cast<InstructionOperand*>(hint_);
-      int assigned_register =
-          operand->IsRegister()
-              ? RegisterOperand::cast(operand)->GetRegister().code()
-              : DoubleRegisterOperand::cast(operand)
-                    ->GetDoubleRegister()
-                    .code();
-      *register_code = assigned_register;
+      int assigned_register = AllocatedOperand::cast(operand)->index();
+      *register_index = assigned_register;
       return true;
     }
     case UsePositionHintType::kPhi: {
       auto phi = reinterpret_cast<RegisterAllocationData::PhiMapValue*>(hint_);
       int assigned_register = phi->assigned_register();
       if (assigned_register == kUnassignedRegister) return false;
-      *register_code = assigned_register;
+      *register_index = assigned_register;
       return true;
     }
   }
@@ -1233,10 +1213,6 @@ RegisterAllocationData::RegisterAllocationData(
       debug_name_(debug_name),
       config_(config),
       phi_map_(allocation_zone()),
-      allocatable_codes_(this->config()->num_general_registers(), -1,
-                         allocation_zone()),
-      allocatable_double_codes_(this->config()->num_double_registers(), -1,
-                                allocation_zone()),
       live_in_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
       live_out_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, nullptr,
@@ -1257,7 +1233,7 @@ RegisterAllocationData::RegisterAllocationData(
   assigned_registers_ = new (code_zone())
       BitVector(this->config()->num_general_registers(), code_zone());
   assigned_double_registers_ = new (code_zone())
-      BitVector(this->config()->num_double_registers(), code_zone());
+      BitVector(this->config()->num_aliased_double_registers(), code_zone());
   this->frame()->SetAllocatedRegisters(assigned_registers_);
   this->frame()->SetAllocatedDoubleRegisters(assigned_double_registers_);
 }
@@ -1796,7 +1772,7 @@ TopLevelLiveRange* LiveRangeBuilder::FixedLiveRangeFor(int index) {
 
 
 TopLevelLiveRange* LiveRangeBuilder::FixedDoubleLiveRangeFor(int index) {
-  DCHECK(index < config()->num_double_registers());
+  DCHECK(index < config()->num_aliased_double_registers());
   auto result = data()->fixed_double_live_ranges()[index];
   if (result == nullptr) {
     result = data()->NewLiveRange(FixedDoubleLiveRangeID(index), kRepFloat64);
@@ -1817,11 +1793,10 @@ TopLevelLiveRange* LiveRangeBuilder::LiveRangeFor(InstructionOperand* operand) {
     return data()->GetOrCreateLiveRangeFor(
         ConstantOperand::cast(operand)->virtual_register());
   } else if (operand->IsRegister()) {
-    return FixedLiveRangeFor(
-        RegisterOperand::cast(operand)->GetRegister().code());
+    return FixedLiveRangeFor(RegisterOperand::cast(operand)->index());
   } else if (operand->IsDoubleRegister()) {
     return FixedDoubleLiveRangeFor(
-        DoubleRegisterOperand::cast(operand)->GetDoubleRegister().code());
+        DoubleRegisterOperand::cast(operand)->index());
   } else {
     return nullptr;
   }
@@ -1911,10 +1886,9 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
     }
 
     if (instr->ClobbersRegisters()) {
-      for (int i = 0; i < config()->num_allocatable_general_registers(); ++i) {
-        int code = config()->GetAllocatableGeneralCode(i);
-        if (!IsOutputRegisterOf(instr, Register::from_code(code))) {
-          auto range = FixedLiveRangeFor(code);
+      for (int i = 0; i < config()->num_general_registers(); ++i) {
+        if (!IsOutputRegisterOf(instr, i)) {
+          auto range = FixedLiveRangeFor(i);
           range->AddUseInterval(curr_position, curr_position.End(),
                                 allocation_zone());
         }
@@ -1922,11 +1896,9 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
     }
 
     if (instr->ClobbersDoubleRegisters()) {
-      for (int i = 0; i < config()->num_allocatable_aliased_double_registers();
-           ++i) {
-        int code = config()->GetAllocatableDoubleCode(i);
-        if (!IsOutputDoubleRegisterOf(instr, DoubleRegister::from_code(code))) {
-          auto range = FixedDoubleLiveRangeFor(code);
+      for (int i = 0; i < config()->num_aliased_double_registers(); ++i) {
+        if (!IsOutputDoubleRegisterOf(instr, i)) {
+          auto range = FixedDoubleLiveRangeFor(i);
           range->AddUseInterval(curr_position, curr_position.End(),
                                 allocation_zone());
         }
@@ -2172,11 +2144,7 @@ RegisterAllocator::RegisterAllocator(RegisterAllocationData* data,
                                      RegisterKind kind)
     : data_(data),
       mode_(kind),
-      num_registers_(GetRegisterCount(data->config(), kind)),
-      num_allocatable_registers_(
-          GetAllocatableRegisterCount(data->config(), kind)),
-      allocatable_register_codes_(
-          GetAllocatableRegisterCodes(data->config(), kind)) {}
+      num_registers_(GetRegisterCount(data->config(), kind)) {}
 
 
 LiveRange* RegisterAllocator::SplitRangeAt(LiveRange* range,
@@ -2299,11 +2267,11 @@ const ZoneVector<TopLevelLiveRange*>& RegisterAllocator::GetFixedRegisters()
 }
 
 
-const char* RegisterAllocator::RegisterName(int register_code) const {
+const char* RegisterAllocator::RegisterName(int allocation_index) const {
   if (mode() == GENERAL_REGISTERS) {
-    return data()->config()->GetGeneralRegisterName(register_code);
+    return data()->config()->general_register_name(allocation_index);
   } else {
-    return data()->config()->GetDoubleRegisterName(register_code);
+    return data()->config()->double_register_name(allocation_index);
   }
 }
 
@@ -2542,9 +2510,6 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
   for (auto cur_active : active_live_ranges()) {
     free_until_pos[cur_active->assigned_register()] =
         LifetimePosition::GapFromInstructionIndex(0);
-    TRACE("Register %s is free until pos %d (1)\n",
-          RegisterName(cur_active->assigned_register()),
-          LifetimePosition::GapFromInstructionIndex(0).value());
   }
 
   for (auto cur_inactive : inactive_live_ranges()) {
@@ -2553,8 +2518,6 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
     if (!next_intersection.IsValid()) continue;
     int cur_reg = cur_inactive->assigned_register();
     free_until_pos[cur_reg] = Min(free_until_pos[cur_reg], next_intersection);
-    TRACE("Register %s is free until pos %d (2)\n", RegisterName(cur_reg),
-          Min(free_until_pos[cur_reg], next_intersection).value());
   }
 
   int hint_register;
@@ -2576,11 +2539,10 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
   }
 
   // Find the register which stays free for the longest time.
-  int reg = allocatable_register_code(0);
-  for (int i = 1; i < num_allocatable_registers(); ++i) {
-    int code = allocatable_register_code(i);
-    if (free_until_pos[code] > free_until_pos[reg]) {
-      reg = code;
+  int reg = 0;
+  for (int i = 1; i < num_registers(); ++i) {
+    if (free_until_pos[i] > free_until_pos[reg]) {
+      reg = i;
     }
   }
 
@@ -2655,11 +2617,10 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
     }
   }
 
-  int reg = allocatable_register_code(0);
-  for (int i = 1; i < num_allocatable_registers(); ++i) {
-    int code = allocatable_register_code(i);
-    if (use_pos[code] > use_pos[reg]) {
-      reg = code;
+  int reg = 0;
+  for (int i = 1; i < num_registers(); ++i) {
+    if (use_pos[i] > use_pos[reg]) {
+      reg = i;
     }
   }
 

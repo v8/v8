@@ -444,13 +444,14 @@ LPlatformChunk* LChunkBuilder::Build() {
 
 
 LUnallocated* LChunkBuilder::ToUnallocated(Register reg) {
-  return new (zone()) LUnallocated(LUnallocated::FIXED_REGISTER, reg.code());
+  return new(zone()) LUnallocated(LUnallocated::FIXED_REGISTER,
+                                  Register::ToAllocationIndex(reg));
 }
 
 
 LUnallocated* LChunkBuilder::ToUnallocated(DoubleRegister reg) {
-  return new (zone())
-      LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER, reg.code());
+  return new(zone()) LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER,
+                                  DoubleRegister::ToAllocationIndex(reg));
 }
 
 

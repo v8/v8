@@ -72,8 +72,8 @@ class LGapResolver final BASE_EMBEDDED {
   ZoneList<LMoveOperands> moves_;
 
   // Source and destination use counts for the general purpose registers.
-  int source_uses_[Register::kNumRegisters];
-  int destination_uses_[DoubleRegister::kMaxNumRegisters];
+  int source_uses_[Register::kMaxNumAllocatableRegisters];
+  int destination_uses_[Register::kMaxNumAllocatableRegisters];
 
   // If we had to spill on demand, the currently spilled register's
   // allocation index.

@@ -23,36 +23,12 @@ namespace internal {
 
 // -----------------------------------------------------------------------------
 // Registers.
-// clang-format off
-#define GENERAL_REGISTER_CODE_LIST(R)                     \
-  R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)          \
-  R(8)  R(9)  R(10) R(11) R(12) R(13) R(14) R(15)         \
-  R(16) R(17) R(18) R(19) R(20) R(21) R(22) R(23)         \
-  R(24) R(25) R(26) R(27) R(28) R(29) R(30) R(31)
+#define REGISTER_CODE_LIST(R)                                                  \
+R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \
+R(8)  R(9)  R(10) R(11) R(12) R(13) R(14) R(15)                                \
+R(16) R(17) R(18) R(19) R(20) R(21) R(22) R(23)                                \
+R(24) R(25) R(26) R(27) R(28) R(29) R(30) R(31)
 
-#define GENERAL_REGISTERS(R)                              \
-  R(x0)  R(x1)  R(x2)  R(x3)  R(x4)  R(x5)  R(x6)  R(x7)  \
-  R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
-  R(x16) R(x17) R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) \
-  R(x24) R(x25) R(x26) R(x27) R(x28) R(x29) R(x30) R(x31)
-
-#define ALLOCATABLE_GENERAL_REGISTERS(R)                  \
-  R(x0)  R(x1)  R(x2)  R(x3)  R(x4)  R(x5)  R(x6)  R(x7)  \
-  R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
-  R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x27)
-
-#define DOUBLE_REGISTERS(R)                               \
-  R(d0)  R(d1)  R(d2)  R(d3)  R(d4)  R(d5)  R(d6)  R(d7)  \
-  R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d15) \
-  R(d16) R(d17) R(d18) R(d19) R(d20) R(d21) R(d22) R(d23) \
-  R(d24) R(d25) R(d26) R(d27) R(d28) R(d29) R(d30) R(d31)
-
-#define ALLOCATABLE_DOUBLE_REGISTERS(R)                   \
-  R(d0)  R(d1)  R(d2)  R(d3)  R(d4)  R(d5)  R(d6)  R(d7)  \
-  R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d16) \
-  R(d17) R(d18) R(d19) R(d20) R(d21) R(d22) R(d23) R(d24) \
-  R(d25) R(d26) R(d27) R(d28)
-// clang-format on
 
 static const int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 
@@ -64,14 +40,6 @@ struct FPRegister;
 
 
 struct CPURegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    GENERAL_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-
   enum RegisterType {
     // The kInvalid value is used to detect uninitialized static instances,
     // which are always zero-initialized before any constructors are called.
@@ -149,8 +117,6 @@ struct Register : public CPURegister {
     DCHECK(IsValidOrNone());
   }
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool IsValid() const {
     DCHECK(IsRegister() || IsNone());
     return IsValidRegister();
@@ -164,7 +130,6 @@ struct Register : public CPURegister {
   // A few of them may be unused for now.
 
   static const int kNumRegisters = kNumberOfRegisters;
-  STATIC_ASSERT(kNumRegisters == Code::kAfterLast);
   static int NumRegisters() { return kNumRegisters; }
 
   // We allow crankshaft to use the following registers:
@@ -181,6 +146,70 @@ struct Register : public CPURegister {
   //   - "low range"
   //   - "high range"
   //   - "context"
+  static const unsigned kAllocatableLowRangeBegin = 0;
+  static const unsigned kAllocatableLowRangeEnd = 15;
+  static const unsigned kAllocatableHighRangeBegin = 18;
+  static const unsigned kAllocatableHighRangeEnd = 24;
+  static const unsigned kAllocatableContext = 27;
+
+  // Gap between low and high ranges.
+  static const int kAllocatableRangeGapSize =
+      (kAllocatableHighRangeBegin - kAllocatableLowRangeEnd) - 1;
+
+  static const int kMaxNumAllocatableRegisters =
+      (kAllocatableLowRangeEnd - kAllocatableLowRangeBegin + 1) +
+      (kAllocatableHighRangeEnd - kAllocatableHighRangeBegin + 1) + 1;  // cp
+  static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
+
+  // Return true if the register is one that crankshaft can allocate.
+  bool IsAllocatable() const {
+    return ((reg_code == kAllocatableContext) ||
+            (reg_code <= kAllocatableLowRangeEnd) ||
+            ((reg_code >= kAllocatableHighRangeBegin) &&
+             (reg_code <= kAllocatableHighRangeEnd)));
+  }
+
+  static Register FromAllocationIndex(unsigned index) {
+    DCHECK(index < static_cast<unsigned>(NumAllocatableRegisters()));
+    // cp is the last allocatable register.
+    if (index == (static_cast<unsigned>(NumAllocatableRegisters() - 1))) {
+      return from_code(kAllocatableContext);
+    }
+
+    // Handle low and high ranges.
+    return (index <= kAllocatableLowRangeEnd)
+        ? from_code(index)
+        : from_code(index + kAllocatableRangeGapSize);
+  }
+
+  static const char* AllocationIndexToString(int index) {
+    DCHECK((index >= 0) && (index < NumAllocatableRegisters()));
+    DCHECK((kAllocatableLowRangeBegin == 0) &&
+           (kAllocatableLowRangeEnd == 15) &&
+           (kAllocatableHighRangeBegin == 18) &&
+           (kAllocatableHighRangeEnd == 24) &&
+           (kAllocatableContext == 27));
+    const char* const names[] = {
+      "x0", "x1", "x2", "x3", "x4",
+      "x5", "x6", "x7", "x8", "x9",
+      "x10", "x11", "x12", "x13", "x14",
+      "x15", "x18", "x19", "x20", "x21",
+      "x22", "x23", "x24", "x27",
+    };
+    return names[index];
+  }
+
+  static int ToAllocationIndex(Register reg) {
+    DCHECK(reg.IsAllocatable());
+    unsigned code = reg.code();
+    if (code == kAllocatableContext) {
+      return NumAllocatableRegisters() - 1;
+    }
+
+    return (code <= kAllocatableLowRangeEnd)
+        ? code
+        : code - kAllocatableRangeGapSize;
+  }
 
   static Register from_code(int code) {
     // Always return an X register.
@@ -192,14 +221,6 @@ struct Register : public CPURegister {
 
 
 struct FPRegister : public CPURegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    DOUBLE_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-
   static FPRegister Create(unsigned code, unsigned size) {
     return FPRegister(
         CPURegister::Create(code, size, CPURegister::kFPRegister));
@@ -225,8 +246,6 @@ struct FPRegister : public CPURegister {
     DCHECK(IsValidOrNone());
   }
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool IsValid() const {
     DCHECK(IsFPRegister() || IsNone());
     return IsValidFPRegister();
@@ -237,12 +256,69 @@ struct FPRegister : public CPURegister {
 
   // Start of V8 compatibility section ---------------------
   static const int kMaxNumRegisters = kNumberOfFPRegisters;
-  STATIC_ASSERT(kMaxNumRegisters == Code::kAfterLast);
 
   // Crankshaft can use all the FP registers except:
   //   - d15 which is used to keep the 0 double value
   //   - d30 which is used in crankshaft as a double scratch register
   //   - d31 which is used in the MacroAssembler as a double scratch register
+  static const unsigned kAllocatableLowRangeBegin = 0;
+  static const unsigned kAllocatableLowRangeEnd = 14;
+  static const unsigned kAllocatableHighRangeBegin = 16;
+  static const unsigned kAllocatableHighRangeEnd = 28;
+
+  static const RegList kAllocatableFPRegisters = 0x1fff7fff;
+
+  // Gap between low and high ranges.
+  static const int kAllocatableRangeGapSize =
+      (kAllocatableHighRangeBegin - kAllocatableLowRangeEnd) - 1;
+
+  static const int kMaxNumAllocatableRegisters =
+      (kAllocatableLowRangeEnd - kAllocatableLowRangeBegin + 1) +
+      (kAllocatableHighRangeEnd - kAllocatableHighRangeBegin + 1);
+  static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
+
+  // TODO(turbofan): Proper float32 support.
+  static int NumAllocatableAliasedRegisters() {
+    return NumAllocatableRegisters();
+  }
+
+  // Return true if the register is one that crankshaft can allocate.
+  bool IsAllocatable() const {
+    return (Bit() & kAllocatableFPRegisters) != 0;
+  }
+
+  static FPRegister FromAllocationIndex(unsigned int index) {
+    DCHECK(index < static_cast<unsigned>(NumAllocatableRegisters()));
+
+    return (index <= kAllocatableLowRangeEnd)
+        ? from_code(index)
+        : from_code(index + kAllocatableRangeGapSize);
+  }
+
+  static const char* AllocationIndexToString(int index) {
+    DCHECK((index >= 0) && (index < NumAllocatableRegisters()));
+    DCHECK((kAllocatableLowRangeBegin == 0) &&
+           (kAllocatableLowRangeEnd == 14) &&
+           (kAllocatableHighRangeBegin == 16) &&
+           (kAllocatableHighRangeEnd == 28));
+    const char* const names[] = {
+      "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
+      "d8", "d9", "d10", "d11", "d12", "d13", "d14",
+      "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
+      "d24", "d25", "d26", "d27", "d28"
+    };
+    return names[index];
+  }
+
+  static int ToAllocationIndex(FPRegister reg) {
+    DCHECK(reg.IsAllocatable());
+    unsigned code = reg.code();
+
+    return (code <= kAllocatableLowRangeEnd)
+        ? code
+        : code - kAllocatableRangeGapSize;
+  }
+
   static FPRegister from_code(int code) {
     // Always return a D register.
     return FPRegister::Create(code, kDRegSizeInBits);
@@ -285,7 +361,7 @@ INITIALIZE_REGISTER(Register, no_reg, 0, 0, CPURegister::kNoRegister);
                       kWRegSizeInBits, CPURegister::kRegister);              \
   INITIALIZE_REGISTER(Register, x##N, N,                                     \
                       kXRegSizeInBits, CPURegister::kRegister);
-GENERAL_REGISTER_CODE_LIST(DEFINE_REGISTERS)
+REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
 INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits,
@@ -298,7 +374,7 @@ INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits,
                       kSRegSizeInBits, CPURegister::kFPRegister);              \
   INITIALIZE_REGISTER(FPRegister, d##N, N,                                     \
                       kDRegSizeInBits, CPURegister::kFPRegister);
-GENERAL_REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
+REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
 #undef INITIALIZE_REGISTER

@@ -12252,7 +12252,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
 
         case Translation::DOUBLE_REGISTER: {
           int reg_code = iterator.Next();
-          os << "{input=" << DoubleRegister::from_code(reg_code).ToString()
+          os << "{input=" << DoubleRegister::AllocationIndexToString(reg_code)
              << "}";
           break;
         }
