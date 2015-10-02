@@ -178,6 +178,13 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   }
 
   ReloadPropertyInformation();
+  WriteDataValue(value);
+
+#if VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    holder->JSObjectVerify();
+  }
+#endif
 }
 
 
@@ -290,6 +297,12 @@ void LookupIterator::TransitionToAccessorProperty(
   }
 
   TransitionToAccessorPair(pair, attributes);
+
+#if VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    receiver->JSObjectVerify();
+  }
+#endif
 }
 
 

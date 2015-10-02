@@ -2224,10 +2224,23 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
 }
 
 
+bool FieldTypeIsCleared(Representation rep, Handle<HeapType> type) {
+  return type->Is(HeapType::None()) && rep.IsHeapObject();
+}
+
+
 // static
-Handle<HeapType> Map::GeneralizeFieldType(Handle<HeapType> type1,
+Handle<HeapType> Map::GeneralizeFieldType(Representation rep1,
+                                          Handle<HeapType> type1,
+                                          Representation rep2,
                                           Handle<HeapType> type2,
                                           Isolate* isolate) {
+  // Cleared field types need special treatment. They represent lost knowledge,
+  // so we must be conservative, so their generalization with any other type
+  // is "Any".
+  if (FieldTypeIsCleared(rep1, type1) || FieldTypeIsCleared(rep2, type2)) {
+    return HeapType::Any(isolate);
+  }
   if (type1->NowIs(type2)) return type2;
   if (type2->NowIs(type1)) return type1;
   return HeapType::Any(isolate);
@@ -2248,10 +2261,13 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
                                   isolate);
 
   if (old_representation.Equals(new_representation) &&
+      !FieldTypeIsCleared(new_representation, new_field_type) &&
+      // Checking old_field_type for being cleared is not necessary because
+      // the NowIs check below would fail anyway in that case.
       new_field_type->NowIs(old_field_type)) {
-    DCHECK(Map::GeneralizeFieldType(old_field_type,
-                                    new_field_type,
-                                    isolate)->NowIs(old_field_type));
+    DCHECK(Map::GeneralizeFieldType(old_representation, old_field_type,
+                                    new_representation, new_field_type, isolate)
+               ->NowIs(old_field_type));
     return;
   }
 
@@ -2260,17 +2276,10 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
   Handle<DescriptorArray> descriptors(
       field_owner->instance_descriptors(), isolate);
   DCHECK_EQ(*old_field_type, descriptors->GetFieldType(modify_index));
-  bool old_field_type_was_cleared =
-      old_field_type->Is(HeapType::None()) && old_representation.IsHeapObject();
 
-  // Determine the generalized new field type. Conservatively assume type Any
-  // for cleared field types because the cleared type could have been a
-  // deprecated map and there still could be live instances with a non-
-  // deprecated version of the map.
   new_field_type =
-      old_field_type_was_cleared
-          ? HeapType::Any(isolate)
-          : Map::GeneralizeFieldType(old_field_type, new_field_type, isolate);
+      Map::GeneralizeFieldType(old_representation, old_field_type,
+                               new_representation, new_field_type, isolate);
 
   PropertyDetails details = descriptors->GetDetails(modify_index);
   Handle<Name> name(descriptors->GetKey(modify_index));
@@ -2494,8 +2503,10 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
             Handle<HeapType> old_field_type =
                 GetFieldType(isolate, old_descriptors, i,
                              old_details.location(), tmp_representation);
-            next_field_type =
-                GeneralizeFieldType(next_field_type, old_field_type, isolate);
+            Representation old_representation = old_details.representation();
+            next_field_type = GeneralizeFieldType(
+                old_representation, old_field_type, new_representation,
+                next_field_type, isolate);
           }
         } else {
           Handle<HeapType> old_field_type =
@@ -2659,21 +2670,24 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
 
         Handle<HeapType> next_field_type;
         if (modify_index == i) {
-          next_field_type =
-              GeneralizeFieldType(target_field_type, new_field_type, isolate);
+          next_field_type = GeneralizeFieldType(
+              target_details.representation(), target_field_type,
+              new_representation, new_field_type, isolate);
           if (!property_kind_reconfiguration) {
             Handle<HeapType> old_field_type =
                 GetFieldType(isolate, old_descriptors, i,
                              old_details.location(), next_representation);
-            next_field_type =
-                GeneralizeFieldType(next_field_type, old_field_type, isolate);
+            next_field_type = GeneralizeFieldType(
+                old_details.representation(), old_field_type,
+                next_representation, next_field_type, isolate);
           }
         } else {
           Handle<HeapType> old_field_type =
               GetFieldType(isolate, old_descriptors, i, old_details.location(),
                            next_representation);
-          next_field_type =
-              GeneralizeFieldType(target_field_type, old_field_type, isolate);
+          next_field_type = GeneralizeFieldType(
+              old_details.representation(), old_field_type, next_representation,
+              target_field_type, isolate);
         }
         Handle<Object> wrapped_type(WrapType(next_field_type));
         DataDescriptor d(target_key, current_offset, wrapped_type,
@@ -2734,8 +2748,9 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
             Handle<HeapType> old_field_type =
                 GetFieldType(isolate, old_descriptors, i,
                              old_details.location(), next_representation);
-            next_field_type =
-                GeneralizeFieldType(next_field_type, old_field_type, isolate);
+            next_field_type = GeneralizeFieldType(
+                old_details.representation(), old_field_type,
+                next_representation, next_field_type, isolate);
           }
         } else {
           Handle<HeapType> old_field_type =
@@ -3297,6 +3312,11 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
                         Object);
   }
 
+#if VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    receiver->JSObjectVerify();
+  }
+#endif
   return value;
 }
 
@@ -3419,6 +3439,11 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
                                        it->factory()->the_hole_value()),
                           Object);
     }
+#if VERIFY_HEAP
+    if (FLAG_verify_heap) {
+      receiver->JSObjectVerify();
+    }
+#endif
   }
 
   return value;
@@ -4063,6 +4088,11 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
   if (FLAG_trace_migration) {
     object->PrintInstanceMigration(stdout, *original_map, *map);
   }
+#if VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    object->JSObjectVerify();
+  }
+#endif
 }
 
 
@@ -4079,6 +4109,11 @@ bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
   if (FLAG_trace_migration) {
     object->PrintInstanceMigration(stdout, *original_map, object->map());
   }
+#if VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    object->JSObjectVerify();
+  }
+#endif
   return true;
 }
 
@@ -4187,7 +4222,6 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
           it->TransitionToAccessorPair(new_data, attributes);
         } else {
           it->ReconfigureDataProperty(value, attributes);
-          it->WriteDataValue(value);
         }
 
         if (is_observed) {
@@ -4223,7 +4257,6 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
         if (is_observed) old_value = it->GetDataValue();
 
         it->ReconfigureDataProperty(value, attributes);
-        it->WriteDataValue(value);
 
         if (is_observed) {
           if (old_value->SameValue(*value)) {
