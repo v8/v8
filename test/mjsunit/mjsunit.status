@@ -248,6 +248,10 @@
   # BUG(v8:3838).
   'regress/regress-3116': [PASS, ['isolates', FLAKY]],
 
+  # BUG(v:4458). TODO(mvstanton): reenable the test once --vector-stores is
+  # prermanently enabled.
+  'call-counts': [SKIP],
+
   # BUG(chromium:508074). Remove this once the issue is fixed.
   'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
   'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
