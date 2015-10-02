@@ -254,6 +254,7 @@ namespace internal {
     "Unexpected number of pre-allocated property fields")                      \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                              \
   V(kUnexpectedSmi, "Unexpected smi value")                                    \
+  V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedStringFunction, "Unexpected String function")                   \
   V(kUnexpectedStringType, "Unexpected string type")                           \
   V(kUnexpectedStringWrapperInstanceSize,                                      \

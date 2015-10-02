@@ -314,13 +314,30 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
 }
 
 
+Node* InterpreterAssembler::CallN(CallDescriptor* descriptor,
+                                  Node* code_target,
+                                  Node** args) {
+  Node* stack_pointer_before_call = nullptr;
+  if (FLAG_debug_code) {
+    stack_pointer_before_call = raw_assembler_->LoadStackPointer();
+  }
+  Node* return_val = raw_assembler_->CallN(descriptor, code_target, args);
+  if (FLAG_debug_code) {
+    Node* stack_pointer_after_call = raw_assembler_->LoadStackPointer();
+    AbortIfWordNotEqual(stack_pointer_before_call, stack_pointer_after_call,
+                        kUnexpectedStackPointer);
+  }
+  return return_val;
+}
+
+
 Node* InterpreterAssembler::CallJS(Node* function, Node* first_arg,
                                    Node* arg_count) {
-  Callable builtin = CodeFactory::PushArgsAndCall(isolate());
+  Callable callable = CodeFactory::InterpreterPushArgsAndCall(isolate());
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), builtin.descriptor(), 0, CallDescriptor::kNoFlags);
+      isolate(), zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags);
 
-  Node* code_target = HeapConstant(builtin.code());
+  Node* code_target = HeapConstant(callable.code());
 
   Node** args = zone()->NewArray<Node*>(4);
   args[0] = arg_count;
@@ -328,7 +345,7 @@ Node* InterpreterAssembler::CallJS(Node* function, Node* first_arg,
   args[2] = function;
   args[3] = ContextTaggedPointer();
 
-  return raw_assembler_->CallN(descriptor, code_target, args);
+  return CallN(descriptor, code_target, args);
 }
 
 
@@ -336,7 +353,7 @@ Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
                                    Node* target, Node** args) {
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, 0, CallDescriptor::kNoFlags);
-  return raw_assembler_->CallN(call_descriptor, target, args);
+  return CallN(call_descriptor, target, args);
 }
 
 
@@ -364,6 +381,33 @@ Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
   args[4] = arg5;
   args[5] = ContextTaggedPointer();
   return CallIC(descriptor, target, args);
+}
+
+
+Node* InterpreterAssembler::CallRuntime(Node* function_id, Node* first_arg,
+                                        Node* arg_count) {
+  Callable callable = CodeFactory::InterpreterCEntry(isolate());
+  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags);
+
+  Node* code_target = HeapConstant(callable.code());
+
+  // Get the function entry from the function id.
+  Node* function_table = raw_assembler_->ExternalConstant(
+      ExternalReference::runtime_function_table_address(isolate()));
+  Node* function_offset = raw_assembler_->Int32Mul(
+      function_id, Int32Constant(sizeof(Runtime::Function)));
+  Node* function = IntPtrAdd(function_table, function_offset);
+  Node* function_entry = raw_assembler_->Load(
+      kMachPtr, function, Int32Constant(offsetof(Runtime::Function, entry)));
+
+  Node** args = zone()->NewArray<Node*>(4);
+  args[0] = arg_count;
+  args[1] = first_arg;
+  args[2] = function_entry;
+  args[3] = ContextTaggedPointer();
+
+  return CallN(descriptor, code_target, args);
 }
 
 
@@ -461,6 +505,19 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
       raw_assembler_->TailCallN(call_descriptor(), target_code_object, args);
   // This should always be the end node.
   AddEndInput(tail_call);
+}
+
+
+void InterpreterAssembler::AbortIfWordNotEqual(
+    Node* lhs, Node* rhs, BailoutReason bailout_reason) {
+  RawMachineAssembler::Label match, no_match;
+  Node* condition = raw_assembler_->WordEqual(lhs, rhs);
+  raw_assembler_->Branch(condition, &match, &no_match);
+  raw_assembler_->Bind(&no_match);
+  Node* abort_id = SmiTag(Int32Constant(bailout_reason));
+  CallRuntime(Runtime::kAbort, abort_id);
+  Return();
+  raw_assembler_->Bind(&match);
 }
 
 

@@ -81,16 +81,12 @@ enum BuiltinExtraArguments {
   V(ConstructProxy, BUILTIN, UNINITIALIZED, kNoExtraICState)                  \
   V(Construct, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
                                                                               \
-  V(PushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
-                                                                              \
   V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)             \
   V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
   V(JSConstructStubForDerived, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(JSConstructStubApi, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
   V(JSEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(InterpreterEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(InterpreterExitTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(CompileLazy, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
   V(CompileOptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(CompileOptimizedConcurrent, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
@@ -99,6 +95,10 @@ enum BuiltinExtraArguments {
   V(NotifyLazyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
   V(NotifyStubFailure, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
   V(NotifyStubFailureSaveDoubles, BUILTIN, UNINITIALIZED, kNoExtraICState)    \
+                                                                              \
+  V(InterpreterEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
+  V(InterpreterExitTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(InterpreterPushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
                                                                               \
   V(LoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
   V(KeyedLoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
@@ -266,8 +266,6 @@ class Builtins {
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
-  static void Generate_InterpreterEntryTrampoline(MacroAssembler* masm);
-  static void Generate_InterpreterExitTrampoline(MacroAssembler* masm);
   static void Generate_NotifyDeoptimized(MacroAssembler* masm);
   static void Generate_NotifySoftDeoptimized(MacroAssembler* masm);
   static void Generate_NotifyLazyDeoptimized(MacroAssembler* masm);
@@ -287,8 +285,6 @@ class Builtins {
   // ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget])
   static void Generate_Construct(MacroAssembler* masm);
 
-  static void Generate_PushArgsAndCall(MacroAssembler* masm);
-
   static void Generate_FunctionCall(MacroAssembler* masm);
   static void Generate_FunctionApply(MacroAssembler* masm);
   static void Generate_ReflectApply(MacroAssembler* masm);
@@ -303,6 +299,10 @@ class Builtins {
   static void Generate_OsrAfterStackCheck(MacroAssembler* masm);
   static void Generate_InterruptCheck(MacroAssembler* masm);
   static void Generate_StackCheck(MacroAssembler* masm);
+
+  static void Generate_InterpreterEntryTrampoline(MacroAssembler* masm);
+  static void Generate_InterpreterExitTrampoline(MacroAssembler* masm);
+  static void Generate_InterpreterPushArgsAndCall(MacroAssembler* masm);
 
 #define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \
   static void Generate_Make##C##CodeYoungAgainEvenMarking(   \

@@ -708,6 +708,41 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 }
 
 
+// static
+void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax : the number of arguments (not including the receiver)
+  //  -- ebx : the address of the first argument to be pushed. Subsequent
+  //           arguments should be consecutive above this, in the same order as
+  //           they are to be pushed onto the stack.
+  //  -- edi : the target to call (can be any Object).
+
+  // Pop return address to allow tail-call after pushing arguments.
+  __ Pop(edx);
+
+  // Find the address of the last argument.
+  __ mov(ecx, eax);
+  __ add(ecx, Immediate(1));  // Add one for receiver.
+  __ shl(ecx, kPointerSizeLog2);
+  __ neg(ecx);
+  __ add(ecx, ebx);
+
+  // Push the arguments.
+  Label loop_header, loop_check;
+  __ jmp(&loop_check);
+  __ bind(&loop_header);
+  __ Push(Operand(ebx, 0));
+  __ sub(ebx, Immediate(kPointerSize));
+  __ bind(&loop_check);
+  __ cmp(ebx, ecx);
+  __ j(greater, &loop_header, Label::kNear);
+
+  // Call the target.
+  __ Push(edx);  // Re-push return address.
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+}
+
+
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   CallRuntimePassFunction(masm, Runtime::kCompileLazy);
   GenerateTailCallToReturnedCode(masm);
@@ -1623,41 +1658,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
     __ Push(edi);
     __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
-}
-
-
-// static
-void Builtins::Generate_PushArgsAndCall(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax : the number of arguments (not including the receiver)
-  //  -- ebx : the address of the first argument to be pushed. Subsequent
-  //           arguments should be consecutive above this, in the same order as
-  //           they are to be pushed onto the stack.
-  //  -- edi : the target to call (can be any Object).
-
-  // Pop return address to allow tail-call after pushing arguments.
-  __ Pop(edx);
-
-  // Find the address of the last argument.
-  __ mov(ecx, eax);
-  __ add(ecx, Immediate(1));  // Add one for receiver.
-  __ shl(ecx, kPointerSizeLog2);
-  __ neg(ecx);
-  __ add(ecx, ebx);
-
-  // Push the arguments.
-  Label loop_header, loop_check;
-  __ jmp(&loop_check);
-  __ bind(&loop_header);
-  __ Push(Operand(ebx, 0));
-  __ sub(ebx, Immediate(kPointerSize));
-  __ bind(&loop_check);
-  __ cmp(ebx, ecx);
-  __ j(greater, &loop_header, Label::kNear);
-
-  // Call the target.
-  __ Push(edx);  // Re-push return address.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 

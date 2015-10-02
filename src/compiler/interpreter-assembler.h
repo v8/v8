@@ -110,6 +110,7 @@ class InterpreterAssembler {
                Node* arg2, Node* arg3, Node* arg4, Node* arg5);
 
   // Call runtime function.
+  Node* CallRuntime(Node* function_id, Node* first_arg, Node* arg_count);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2);
 
@@ -156,6 +157,7 @@ class InterpreterAssembler {
   Node* BytecodeOperandSignExtended(int operand_index);
   Node* BytecodeOperandShort(int operand_index);
 
+  Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node** args);
   Node* CallJSBuiltin(int context_index, Node* receiver, Node** js_args,
                       int js_arg_count);
@@ -167,6 +169,9 @@ class InterpreterAssembler {
 
   // Starts next instruction dispatch at |new_bytecode_offset|.
   void DispatchTo(Node* new_bytecode_offset);
+
+  // Abort operations for debug code.
+  void AbortIfWordNotEqual(Node* lhs, Node* rhs, BailoutReason bailout_reason);
 
   // Adds an end node of the graph.
   void AddEndInput(Node* input);

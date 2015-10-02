@@ -38,7 +38,6 @@ class PlatformInterfaceDescriptor;
   V(CallFunctionWithFeedbackAndVector)        \
   V(CallConstruct)                            \
   V(CallTrampoline)                           \
-  V(PushArgsAndCall)                          \
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
   V(AllocateHeapNumber)                       \
@@ -70,7 +69,9 @@ class PlatformInterfaceDescriptor;
   V(ContextOnly)                              \
   V(GrowArrayElements)                        \
   V(MathRoundVariantCallFromUnoptimizedCode)  \
-  V(MathRoundVariantCallFromOptimizedCode)
+  V(MathRoundVariantCallFromOptimizedCode)    \
+  V(InterpreterPushArgsAndCall)               \
+  V(InterpreterCEntry)
 
 
 class CallInterfaceDescriptorData {
@@ -706,10 +707,18 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
 };
 
 
-class PushArgsAndCallDescriptor : public CallInterfaceDescriptor {
+class InterpreterPushArgsAndCallDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(PushArgsAndCallDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(InterpreterPushArgsAndCallDescriptor,
+                     CallInterfaceDescriptor)
 };
+
+
+class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(InterpreterCEntryDescriptor, CallInterfaceDescriptor)
+};
+
 
 #undef DECLARE_DESCRIPTOR
 
