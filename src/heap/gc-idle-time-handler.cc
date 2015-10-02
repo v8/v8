@@ -44,12 +44,6 @@ void GCIdleTimeHeapState::Print() {
   PrintF("contexts_disposal_rate=%f ", contexts_disposal_rate);
   PrintF("size_of_objects=%" V8_PTR_PREFIX "d ", size_of_objects);
   PrintF("incremental_marking_stopped=%d ", incremental_marking_stopped);
-  PrintF("sweeping_in_progress=%d ", sweeping_in_progress);
-  PrintF("has_low_allocation_rate=%d", has_low_allocation_rate);
-  PrintF("mark_compact_speed=%" V8_PTR_PREFIX "d ",
-         mark_compact_speed_in_bytes_per_ms);
-  PrintF("incremental_marking_speed=%" V8_PTR_PREFIX "d ",
-         incremental_marking_speed_in_bytes_per_ms);
 }
 
 

@@ -24,7 +24,6 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
     result.contexts_disposed = 0;
     result.contexts_disposal_rate = GCIdleTimeHandler::kHighContextDisposalRate;
     result.incremental_marking_stopped = false;
-    result.mark_compact_speed_in_bytes_per_ms = kMarkCompactSpeed;
     return result;
   }
 
@@ -164,7 +163,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate =
       GCIdleTimeHandler::kHighContextDisposalRate;
-  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
+  size_t speed = kMarkCompactSpeed;
   double idle_time_ms = static_cast<double>(kSizeOfObjects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
@@ -176,7 +175,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate =
       GCIdleTimeHandler::kHighContextDisposalRate;
-  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
+  size_t speed = kMarkCompactSpeed;
   double idle_time_ms = static_cast<double>(kSizeOfObjects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
@@ -194,7 +193,7 @@ TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
 TEST_F(GCIdleTimeHandlerTest, NotEnoughTime) {
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
-  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
+  size_t speed = kMarkCompactSpeed;
   double idle_time_ms = static_cast<double>(kSizeOfObjects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DONE, action.type);

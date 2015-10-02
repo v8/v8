@@ -4089,9 +4089,8 @@ GCIdleTimeHeapState Heap::ComputeHeapState() {
   heap_state.contexts_disposed = contexts_disposed_;
   heap_state.contexts_disposal_rate =
       tracer()->ContextDisposalRateInMilliseconds();
+  heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
-  heap_state.mark_compact_speed_in_bytes_per_ms =
-      static_cast<size_t>(tracer()->MarkCompactSpeedInBytesPerMillisecond());
   return heap_state;
 }
 
