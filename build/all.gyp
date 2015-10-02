@@ -19,16 +19,6 @@
             '../tools/parser-shell.gyp:parser-shell',
           ],
         }],
-        ['test_isolation_mode != "noop"', {
-          'dependencies': [
-            '../test/default.gyp:*',
-            '../test/developer_default.gyp:*',
-            '../test/intl/intl.gyp:*',
-            '../test/message/message.gyp:*',
-            '../test/mjsunit/mjsunit.gyp:*',
-            '../test/preparser/preparser.gyp:*',
-          ],
-        }],
       ]
     }
   ]
