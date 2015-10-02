@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <utility>
 
+#include "test/cctest/test-api.h"
+
 #include "src/v8.h"
 
 #include "src/compilation-cache.h"
@@ -13,7 +15,6 @@
 #include "src/global-handles.h"
 #include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
-#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -286,7 +287,8 @@ class Expectations {
 
     Handle<String> name = MakeName("prop", property_index);
     return Map::CopyWithField(map, name, heap_type, attributes, representation,
-                              INSERT_TRANSITION).ToHandleChecked();
+                              INSERT_TRANSITION)
+        .ToHandleChecked();
   }
 
   Handle<Map> AddDataConstant(Handle<Map> map, PropertyAttributes attributes,
@@ -297,7 +299,8 @@ class Expectations {
 
     Handle<String> name = MakeName("prop", property_index);
     return Map::CopyWithConstant(map, name, value, attributes,
-                                 INSERT_TRANSITION).ToHandleChecked();
+                                 INSERT_TRANSITION)
+        .ToHandleChecked();
   }
 
   Handle<Map> TransitionToDataField(Handle<Map> map,
@@ -1583,7 +1586,8 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
     CHECK(TransitionArray::CanHaveMoreTransitions(map2));
     Handle<String> name = MakeName("foo", i);
     Map::CopyWithField(map2, name, any_type, NONE, Representation::Smi(),
-                       INSERT_TRANSITION).ToHandleChecked();
+                       INSERT_TRANSITION)
+        .ToHandleChecked();
   }
   CHECK(!TransitionArray::CanHaveMoreTransitions(map2));
 
@@ -1751,8 +1755,8 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       // ownership.
       CHECK(map->owns_descriptors());
       Map::CopyWithField(map, MakeString("foo"), any_type, NONE,
-                         Representation::Smi(),
-                         INSERT_TRANSITION).ToHandleChecked();
+                         Representation::Smi(), INSERT_TRANSITION)
+          .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
       return Map::CopyAsElementsKind(map, DICTIONARY_ELEMENTS,
@@ -1809,8 +1813,8 @@ TEST(ForObservedTransitionFromMapNotOwningDescriptor) {
       // ownership.
       CHECK(map->owns_descriptors());
       Map::CopyWithField(map, MakeString("foo"), any_type, NONE,
-                         Representation::Smi(),
-                         INSERT_TRANSITION).ToHandleChecked();
+                         Representation::Smi(), INSERT_TRANSITION)
+          .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
       return Map::CopyForObserved(map);
@@ -1886,8 +1890,8 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
       // ownership.
       CHECK(map->owns_descriptors());
       Map::CopyWithField(map, MakeString("foo"), any_type, NONE,
-                         Representation::Smi(),
-                         INSERT_TRANSITION).ToHandleChecked();
+                         Representation::Smi(), INSERT_TRANSITION)
+          .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
       return Map::TransitionToPrototype(map, prototype_, REGULAR_PROTOTYPE);
