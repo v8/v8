@@ -41,4 +41,10 @@
   'number-format/parse-decimal': [FAIL],
   'number-format/parse-percent': [FAIL],
 }],  # ALWAYS
+
+##############################################################################
+['system == macos', {
+  # BUG(v8:4459).
+  'collator/default-locale': [FAIL],
+}],  # 'system == macos'
 ]

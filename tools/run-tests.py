@@ -58,6 +58,7 @@ DEFAULT_TESTS = [
   "cctest",
   "message",
   "preparser",
+  "intl",
 ]
 
 # Map of test name synonyms to lists of test suites. Should be ordered by
@@ -69,11 +70,13 @@ TEST_MAP = {
     "cctest",
     "message",
     "preparser",
+    "intl",
   ],
   "optimize_for_size": [
     "mjsunit",
     "cctest",
     "webkit",
+    "intl",
   ],
   "unittests": [
     "unittests",
@@ -457,8 +460,9 @@ def ProcessOptions(options):
     return False
   if not CheckTestMode("pass|fail test", options.pass_fail_tests):
     return False
-  if not options.no_i18n:
-    DEFAULT_TESTS.append("intl")
+  if options.no_i18n:
+    DEFAULT_TESTS.remove("intl")
+    TEST_MAP["default"].remove("intl")
   return True
 
 
