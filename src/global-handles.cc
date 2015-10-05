@@ -64,7 +64,11 @@ class GlobalHandles::Node {
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     index_ = 0;
     set_independent(false);
-    set_partially_dependent(false);
+    if (FLAG_scavenge_reclaim_unmodified_objects) {
+      set_unmodified(false);
+    } else {
+      set_partially_dependent(false);
+    }
     set_in_new_space_list(false);
     parameter_or_next_free_.next_free = NULL;
     weak_callback_ = NULL;
@@ -77,6 +81,9 @@ class GlobalHandles::Node {
     set_state(FREE);
     set_weakness_type(NORMAL_WEAK);
     set_in_new_space_list(false);
+    if (FLAG_scavenge_reclaim_unmodified_objects) {
+      set_unmodified(false);
+    }
     parameter_or_next_free_.next_free = *first_free;
     *first_free = this;
   }
@@ -86,7 +93,11 @@ class GlobalHandles::Node {
     object_ = object;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
-    set_partially_dependent(false);
+    if (FLAG_scavenge_reclaim_unmodified_objects) {
+      set_unmodified(false);
+    } else {
+      set_partially_dependent(false);
+    }
     set_state(NORMAL);
     parameter_or_next_free_.parameter = NULL;
     weak_callback_ = NULL;
@@ -106,7 +117,11 @@ class GlobalHandles::Node {
     object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
-    set_partially_dependent(false);
+    if (FLAG_scavenge_reclaim_unmodified_objects) {
+      set_unmodified(false);
+    } else {
+      set_partially_dependent(false);
+    }
     weak_callback_ = NULL;
     DecreaseBlockUses();
   }
@@ -140,10 +155,21 @@ class GlobalHandles::Node {
   }
 
   bool is_partially_dependent() {
+    CHECK(!FLAG_scavenge_reclaim_unmodified_objects);
     return IsPartiallyDependent::decode(flags_);
   }
   void set_partially_dependent(bool v) {
+    CHECK(!FLAG_scavenge_reclaim_unmodified_objects);
     flags_ = IsPartiallyDependent::update(flags_, v);
+  }
+
+  bool is_unmodified() {
+    CHECK(FLAG_scavenge_reclaim_unmodified_objects);
+    return IsUnmodified::decode(flags_);
+  }
+  void set_unmodified(bool v) {
+    CHECK(FLAG_scavenge_reclaim_unmodified_objects);
+    flags_ = IsUnmodified::update(flags_, v);
   }
 
   bool is_in_new_space_list() {
@@ -349,6 +375,8 @@ class GlobalHandles::Node {
   // in_new_space_list) and a State.
   class NodeState : public BitField<State, 0, 3> {};
   class IsIndependent : public BitField<bool, 3, 1> {};
+  // The following two fields are mutually exclusive
+  class IsUnmodified : public BitField<bool, 4, 1> {};
   class IsPartiallyDependent : public BitField<bool, 4, 1> {};
   class IsInNewSpaceList : public BitField<bool, 5, 1> {};
   class NodeWeaknessType : public BitField<WeaknessType, 6, 2> {};
@@ -646,10 +674,18 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
 void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
-    if (node->IsStrongRetainer() ||
-        (node->IsWeakRetainer() && !node->is_independent() &&
-         !node->is_partially_dependent())) {
+    if (FLAG_scavenge_reclaim_unmodified_objects) {
+      if (node->IsStrongRetainer() ||
+          (node->IsWeakRetainer() && !node->is_independent() &&
+           !node->is_unmodified())) {
         v->VisitPointer(node->location());
+      }
+    } else {
+      if (node->IsStrongRetainer() ||
+          (node->IsWeakRetainer() && !node->is_independent() &&
+           !node->is_partially_dependent())) {
+        v->VisitPointer(node->location());
+      }
     }
   }
 }
@@ -673,6 +709,49 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
     Node* node = new_space_nodes_[i];
     DCHECK(node->is_in_new_space_list());
     if ((node->is_independent() || node->is_partially_dependent()) &&
+        node->IsWeakRetainer()) {
+      // Pending weak phantom handles die immediately. Everything else survives.
+      if (node->state() == Node::PENDING &&
+          node->weakness_type() != NORMAL_WEAK) {
+        node->CollectPhantomCallbackData(isolate(),
+                                         &pending_phantom_callbacks_);
+      } else {
+        v->VisitPointer(node->location());
+      }
+    }
+  }
+}
+
+
+void GlobalHandles::IdentifyWeakUnmodifiedObjects(
+    WeakSlotCallback is_unmodified) {
+  for (int i = 0; i < new_space_nodes_.length(); ++i) {
+    Node* node = new_space_nodes_[i];
+    if (node->IsWeak() && is_unmodified(node->location())) {
+      node->set_unmodified(true);
+    }
+  }
+}
+
+
+void GlobalHandles::MarkNewSpaceWeakUnmodifiedObjectsPending(
+    WeakSlotCallbackWithHeap is_unscavenged) {
+  for (int i = 0; i < new_space_nodes_.length(); ++i) {
+    Node* node = new_space_nodes_[i];
+    DCHECK(node->is_in_new_space_list());
+    if ((node->is_independent() || node->is_unmodified()) && node->IsWeak() &&
+        is_unscavenged(isolate_->heap(), node->location())) {
+      node->MarkPending();
+    }
+  }
+}
+
+
+void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v) {
+  for (int i = 0; i < new_space_nodes_.length(); ++i) {
+    Node* node = new_space_nodes_[i];
+    DCHECK(node->is_in_new_space_list());
+    if ((node->is_independent() || node->is_unmodified()) &&
         node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
       if (node->state() == Node::PENDING &&
@@ -757,13 +836,22 @@ int GlobalHandles::PostScavengeProcessing(
       // the freed_nodes.
       continue;
     }
-    // Skip dependent handles. Their weak callbacks might expect to be
+    // Skip dependent or unmodified handles. Their weak callbacks might expect
+    // to be
     // called between two global garbage collection callbacks which
     // are not called for minor collections.
-    if (!node->is_independent() && !node->is_partially_dependent()) {
-      continue;
+    if (FLAG_scavenge_reclaim_unmodified_objects) {
+      if (!node->is_independent() && !node->is_unmodified()) {
+        continue;
+      }
+      node->set_unmodified(false);
+    } else {
+      if (!node->is_independent() && !node->is_partially_dependent()) {
+        continue;
+      }
+      node->clear_partially_dependent();
     }
-    node->clear_partially_dependent();
+
     if (node->PostGarbageCollectionProcessing(isolate_)) {
       if (initial_post_gc_processing_count != post_gc_processing_count_) {
         // Weak callback triggered another GC and another round of
@@ -790,7 +878,11 @@ int GlobalHandles::PostMarkSweepProcessing(
       // the freed_nodes.
       continue;
     }
-    it.node()->clear_partially_dependent();
+    if (FLAG_scavenge_reclaim_unmodified_objects) {
+      it.node()->set_unmodified(false);
+    } else {
+      it.node()->clear_partially_dependent();
+    }
     if (it.node()->PostGarbageCollectionProcessing(isolate_)) {
       if (initial_post_gc_processing_count != post_gc_processing_count_) {
         // See the comment above.
