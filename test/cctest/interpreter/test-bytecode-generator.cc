@@ -157,7 +157,6 @@ static void CheckBytecodeArrayEqual(struct ExpectedSnippet<T> expected,
       switch (Bytecodes::SizeOfOperand(operand_type)) {
         case OperandSize::kNone:
           UNREACHABLE();
-          return;
         case OperandSize::kByte:
           expected_operand =
               static_cast<uint32_t>(expected.bytecode[operand_index]);
@@ -166,9 +165,6 @@ static void CheckBytecodeArrayEqual(struct ExpectedSnippet<T> expected,
           expected_operand = Bytecodes::ShortOperandFromBytes(
               &expected.bytecode[operand_index]);
           break;
-        default:
-          UNREACHABLE();
-          return;
       }
       if (raw_operand != expected_operand) {
         std::ostringstream stream;
