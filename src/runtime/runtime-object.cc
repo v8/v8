@@ -896,11 +896,23 @@ RUNTIME_FUNCTION(Runtime_GetOwnElementNames) {
   if (!args[0]->IsJSObject()) {
     return isolate->heap()->undefined_value();
   }
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
 
-  int n = obj->NumberOfOwnElements(NONE);
+  // TODO(cbruni): implement proper prototype lookup like in GetOwnPropertyNames
+  if (object->IsJSGlobalProxy()) {
+    // All the elements are stored on the globa_object and not directly on the
+    // global object proxy.
+    PrototypeIterator iter(isolate, object,
+                           PrototypeIterator::START_AT_PROTOTYPE);
+    if (iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
+      return *isolate->factory()->NewJSArray(0);
+    }
+    object = PrototypeIterator::GetCurrent<JSObject>(iter);
+  }
+
+  int n = object->NumberOfOwnElements(NONE);
   Handle<FixedArray> names = isolate->factory()->NewFixedArray(n);
-  obj->GetOwnElementKeys(*names, NONE);
+  object->GetOwnElementKeys(*names, NONE);
   return *isolate->factory()->NewJSArrayWithElements(names);
 }
 
