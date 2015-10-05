@@ -253,7 +253,7 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
         can_use_type_feedback = false;
       } else if (value != 0) {
         holey = true;
-        if (value >= JSObject::kInitialMaxFastElementArray) {
+        if (value >= JSArray::kInitialMaxFastElementArray) {
           can_inline_array_constructor = false;
         }
       }

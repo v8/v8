@@ -158,7 +158,7 @@ bool FullCodeGenerator::MustCreateArrayLiteralWithRuntime(
     ArrayLiteral* expr) const {
   // TODO(rossberg): Teach strong mode to FastCloneShallowArrayStub.
   return expr->depth() > 1 || expr->is_strong() ||
-         expr->values()->length() > JSObject::kInitialMaxFastElementArray;
+         expr->values()->length() > JSArray::kInitialMaxFastElementArray;
 }
 
 

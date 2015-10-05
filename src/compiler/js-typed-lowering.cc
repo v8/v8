@@ -1211,7 +1211,7 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
   // TODO(rossberg): Teach strong mode to FastCloneShallowArrayStub.
   if ((flags & ArrayLiteral::kShallowElements) != 0 &&
       (flags & ArrayLiteral::kIsStrong) == 0 &&
-      length < JSObject::kInitialMaxFastElementArray) {
+      length < JSArray::kInitialMaxFastElementArray) {
     Isolate* isolate = jsgraph()->isolate();
     Callable callable = CodeFactory::FastCloneShallowArray(isolate);
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(

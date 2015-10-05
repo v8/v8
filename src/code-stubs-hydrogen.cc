@@ -1215,7 +1215,7 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
   // trigger it.
   HValue* length = GetArgumentsLength();
   HConstant* max_alloc_length =
-      Add<HConstant>(JSObject::kInitialMaxFastElementArray);
+      Add<HConstant>(JSArray::kInitialMaxFastElementArray);
   HValue* checked_length = Add<HBoundsCheck>(length, max_alloc_length);
 
   // We need to fill with the hole if it's a smi array in the multi-argument
