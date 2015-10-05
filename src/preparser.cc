@@ -534,6 +534,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   //   BindingPattern '=' AssignmentExpression
   bool require_initializer = false;
   bool is_strict_const = false;
+  bool lexical = false;
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
       Scanner::Location location = scanner()->peek_location();
@@ -559,10 +560,12 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       DCHECK(var_context != kStatement);
       is_strict_const = true;
       require_initializer = var_context != kForStatement;
+      lexical = true;
     }
   } else if (peek() == Token::LET && allow_let()) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
+    lexical = true;
   } else {
     *ok = false;
     return Statement::Default();
@@ -583,6 +586,9 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       PreParserExpression pattern =
           ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
       ValidateBindingPattern(&pattern_classifier, CHECK_OK);
+      if (lexical) {
+        ValidateLetPattern(&pattern_classifier, CHECK_OK);
+      }
 
       if (!allow_harmony_destructuring() && !pattern.IsIdentifier()) {
         ReportUnexpectedToken(next);

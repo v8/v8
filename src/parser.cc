@@ -2535,6 +2535,10 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       if (!*ok) return;
       ValidateBindingPattern(&pattern_classifier, ok);
       if (!*ok) return;
+      if (IsLexicalVariableMode(parsing_result->descriptor.mode)) {
+        ValidateLetPattern(&pattern_classifier, ok);
+        if (!*ok) return;
+      }
       if (!allow_harmony_destructuring() && !pattern->IsVariableProxy()) {
         ReportUnexpectedToken(next);
         *ok = false;

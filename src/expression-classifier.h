@@ -35,11 +35,12 @@ class ExpressionClassifier {
     StrictModeFormalParametersProduction = 1 << 5,
     StrongModeFormalParametersProduction = 1 << 6,
     ArrowFormalParametersProduction = 1 << 7,
+    LetPatternProduction = 1 << 8,
 
     ExpressionProductions =
         (ExpressionProduction | FormalParameterInitializerProduction),
-    PatternProductions =
-        (BindingPatternProduction | AssignmentPatternProduction),
+    PatternProductions = (BindingPatternProduction |
+                          AssignmentPatternProduction | LetPatternProduction),
     FormalParametersProductions = (DistinctFormalParametersProduction |
                                    StrictModeFormalParametersProduction |
                                    StrongModeFormalParametersProduction),
@@ -100,6 +101,8 @@ class ExpressionClassifier {
     return is_valid(StrongModeFormalParametersProduction);
   }
 
+  bool is_valid_let_pattern() const { return is_valid(LetPatternProduction); }
+
   const Error& expression_error() const { return expression_error_; }
 
   const Error& formal_parameter_initializer_error() const {
@@ -127,6 +130,8 @@ class ExpressionClassifier {
   const Error& strong_mode_formal_parameter_error() const {
     return strong_mode_formal_parameter_error_;
   }
+
+  const Error& let_pattern_error() const { return let_pattern_error_; }
 
   bool is_simple_parameter_list() const {
     return !(function_properties_ & NonSimpleParameter);
@@ -217,6 +222,16 @@ class ExpressionClassifier {
     strong_mode_formal_parameter_error_.arg = arg;
   }
 
+  void RecordLetPatternError(const Scanner::Location& loc,
+                             MessageTemplate::Template message,
+                             const char* arg = nullptr) {
+    if (!is_valid_let_pattern()) return;
+    invalid_productions_ |= LetPatternProduction;
+    let_pattern_error_.location = loc;
+    let_pattern_error_.message = message;
+    let_pattern_error_.arg = arg;
+  }
+
   void Accumulate(const ExpressionClassifier& inner,
                   unsigned productions = StandardProductions) {
     // Propagate errors from inner, but don't overwrite already recorded
@@ -277,6 +292,7 @@ class ExpressionClassifier {
   Error duplicate_formal_parameter_error_;
   Error strict_mode_formal_parameter_error_;
   Error strong_mode_formal_parameter_error_;
+  Error let_pattern_error_;
   DuplicateFinder* duplicate_finder_;
 };
 

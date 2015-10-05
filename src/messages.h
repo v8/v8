@@ -268,6 +268,7 @@ class CallSite {
   T(InvalidTypedArrayAlignment, "% of % should be a multiple of %")            \
   T(InvalidTypedArrayLength, "Invalid typed array length")                     \
   T(InvalidTypedArrayOffset, "Start offset is too large:")                     \
+  T(LetInLexicalBinding, "let is disallowed as a lexically bound name")        \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
   T(NormalizationForm, "The normalization form should be one of %.")           \
   T(NumberFormatRange, "% argument must be between 0 and 20")                  \

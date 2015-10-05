@@ -129,9 +129,6 @@
   # This times out in sloppy mode because sloppy const assignment does not throw.
   'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [PASS, FAIL, TIMEOUT],
 
-  # https://code.google.com/p/v8/issues/detail?id=4403
-  'language/statements/let/syntax/identifier-let-disallowed-as-boundname': [PASS, FAIL_SLOPPY],
-
   # Number/Boolean.prototype is a plain object in ES6
   # https://code.google.com/p/v8/issues/detail?id=4001
   'built-ins/Boolean/prototype/S15.6.3.1_A1': [FAIL],

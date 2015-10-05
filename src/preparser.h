@@ -618,6 +618,13 @@ class ParserBase : public Traits {
     }
   }
 
+  void ValidateLetPattern(const ExpressionClassifier* classifier, bool* ok) {
+    if (!classifier->is_valid_let_pattern()) {
+      ReportClassifierError(classifier->let_pattern_error());
+      *ok = false;
+    }
+  }
+
   void ExpressionUnexpectedToken(ExpressionClassifier* classifier) {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
     const char* arg;
@@ -2092,6 +2099,10 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
               (next == Token::YIELD && !is_generator()))) {
     classifier->RecordStrictModeFormalParameterError(
         scanner()->location(), MessageTemplate::kUnexpectedStrictReserved);
+    if (next == Token::LET) {
+      classifier->RecordLetPatternError(scanner()->location(),
+                                        MessageTemplate::kLetInLexicalBinding);
+    }
     return this->GetSymbol(scanner());
   } else {
     this->ReportUnexpectedToken(next);

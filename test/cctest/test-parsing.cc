@@ -7165,25 +7165,66 @@ TEST(LetSloppyOnly) {
   const char* context_data[][2] = {
     {"", ""},
     {"{", "}"},
+    {"(function() {", "})()"},
     {NULL, NULL}
   };
 
   const char* data[] = {
-    "let let",
     "let",
-    "let let = 1",
     "let = 1",
-    "for (let let = 1; let < 1; let++) {}",
     "for (let = 1; let < 1; let++) {}",
-    "for (let let in {}) {}",
-    "for (let let of []) {}",
     "for (let in {}) {}",
+    "for (var let = 1; let < 1; let++) {}",
+    "for (var let in {}) {}",
+    "for (var [let] = 1; let < 1; let++) {}",
+    "for (var [let] in {}) {}",
+    "var let",
+    // Unrelated parser crash BUG(v8:4462)
+    // "var [let]",
+    "for (const let = 1; let < 1; let++) {}",
+    "for (const let in {}) {}",
+    "for (const [let] = 1; let < 1; let++) {}",
+    // Unrelated parser crash BUG(v8:4461)
+    // "for (const [let] in {}) {}",
+    "const let",
+    "const [let]",
     NULL
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
-                                            kAllowHarmonySloppyLet};
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kAllowHarmonyDestructuring};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
+
+  // Some things should be rejected even in sloppy mode
+  // This addresses BUG(v8:4403).
+
+  // clang-format off
+  const char* fail_data[] = {
+    "let let = 1",
+    "for (let let = 1; let < 1; let++) {}",
+    "for (let let in {}) {}",
+    "for (let let of []) {}",
+    "const let = 1",
+    "for (const let = 1; let < 1; let++) {}",
+    "for (const let in {}) {}",
+    "for (const let of []) {}",
+    "let [let] = 1",
+    "for (let [let] = 1; let < 1; let++) {}",
+    "for (let [let] in {}) {}",
+    "for (let [let] of []) {}",
+    "const [let] = 1",
+    "for (const [let] = 1; let < 1; let++) {}",
+    "for (const [let] in {}) {}",
+    "for (const [let] of []) {}",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag fail_flags[] = {
+      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst,
+      kAllowHarmonyDestructuring};
+  RunParserSyncTest(context_data, fail_data, kError, NULL, 0, fail_flags,
+                    arraysize(fail_flags));
 }
