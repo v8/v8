@@ -285,8 +285,11 @@ function PromiseThen(onResolve, onReject) {
 // Combinators.
 
 function PromiseCast(x) {
-  // TODO(rossberg): cannot do better until we support @@create.
-  return IsPromise(x) ? x : new this(function(resolve) { resolve(x) });
+  if (IsPromise(x) && x.constructor === this) {
+    return x;
+  } else {
+    return new this(function(resolve) { resolve(x) });
+  }
 }
 
 function PromiseAll(iterable) {

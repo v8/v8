@@ -288,9 +288,6 @@
   'built-ins/Promise/race/S25.4.4.3_A3.1_T2': [FAIL],
   'built-ins/Promise/reject/S25.4.4.4_A3.1_T1': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4341
-  'built-ins/Promise/resolve/arg-uniq-ctor': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4119
   'built-ins/RegExp/15.10.4.1-1': [FAIL],
   'built-ins/RegExp/S15.10.3.1_A2_T1': [FAIL],
