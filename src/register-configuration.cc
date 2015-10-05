@@ -69,6 +69,10 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
             kMaxAllocatableGeneralRegisterCount,
             kMaxAllocatableDoubleRegisterCount,
             kMaxAllocatableDoubleRegisterCount,
+#elif V8_TARGET_ARCH_PPC
+            kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
 #else
             GetAllocatableGeneralRegisterCount(),
             GetAllocatableDoubleRegisterCount(),

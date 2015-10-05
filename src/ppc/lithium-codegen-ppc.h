@@ -137,7 +137,7 @@ class LCodeGen : public LCodeGenBase {
 
   Scope* scope() const { return scope_; }
 
-  Register scratch0() { return r11; }
+  Register scratch0() { return kLithiumScratch; }
   DoubleRegister double_scratch0() { return kScratchDoubleReg; }
 
   LInstruction* GetNextInstruction();

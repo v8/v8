@@ -70,6 +70,8 @@ const RegList kCallerSavedDoubles = 1 << 0 |   // d0
                                     1 << 12 |  // d12
                                     1 << 13;   // d13
 
+const int kNumCallerSavedDoubles = 14;
+
 const RegList kCalleeSavedDoubles = 1 << 14 |  // d14
                                     1 << 15 |  // d15
                                     1 << 16 |  // d16

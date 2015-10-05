@@ -18,8 +18,7 @@ namespace internal {
 const int kNumRegisters = 32;
 
 // FP support.
-const int kNumFPDoubleRegisters = 32;
-const int kNumFPRegisters = kNumFPDoubleRegisters;
+const int kNumDoubleRegisters = 32;
 
 const int kNoRegister = -1;
 
@@ -564,33 +563,21 @@ class Instruction {
 // Helper functions for converting between register numbers and names.
 class Registers {
  public:
-  // Return the name of the register.
-  static const char* Name(int reg);
-
   // Lookup the register number for the name provided.
   static int Number(const char* name);
-
-  struct RegisterAlias {
-    int reg;
-    const char* name;
-  };
 
  private:
   static const char* names_[kNumRegisters];
-  static const RegisterAlias aliases_[];
 };
 
 // Helper functions for converting between FP register numbers and names.
-class FPRegisters {
+class DoubleRegisters {
  public:
-  // Return the name of the register.
-  static const char* Name(int reg);
-
   // Lookup the register number for the name provided.
   static int Number(const char* name);
 
  private:
-  static const char* names_[kNumFPRegisters];
+  static const char* names_[kNumDoubleRegisters];
 };
 }  // namespace internal
 }  // namespace v8

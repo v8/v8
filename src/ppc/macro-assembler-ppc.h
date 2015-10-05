@@ -14,17 +14,17 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {kRegister_r3_Code};
-const Register kReturnRegister1 = {kRegister_r4_Code};
-const Register kJSFunctionRegister = {kRegister_r4_Code};
-const Register kContextRegister = {kRegister_r30_Code};
-const Register kInterpreterAccumulatorRegister = {kRegister_r3_Code};
-const Register kInterpreterRegisterFileRegister = {kRegister_r14_Code};
-const Register kInterpreterBytecodeOffsetRegister = {kRegister_r15_Code};
-const Register kInterpreterBytecodeArrayRegister = {kRegister_r16_Code};
-const Register kInterpreterDispatchTableRegister = {kRegister_r17_Code};
-const Register kRuntimeCallFunctionRegister = {kRegister_r4_Code};
-const Register kRuntimeCallArgCountRegister = {kRegister_r3_Code};
+const Register kReturnRegister0 = {Register::kCode_r3};
+const Register kReturnRegister1 = {Register::kCode_r4};
+const Register kJSFunctionRegister = {Register::kCode_r4};
+const Register kContextRegister = {Register::kCode_r30};
+const Register kInterpreterAccumulatorRegister = {Register::kCode_r3};
+const Register kInterpreterRegisterFileRegister = {Register::kCode_r14};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r15};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r16};
+const Register kInterpreterDispatchTableRegister = {Register::kCode_r17};
+const Register kRuntimeCallFunctionRegister = {Register::kCode_r4};
+const Register kRuntimeCallArgCountRegister = {Register::kCode_r3};
 
 // ----------------------------------------------------------------------------
 // Static helper functions

@@ -164,7 +164,7 @@ bool PPCDebugger::GetValue(const char* desc, intptr_t* value) {
 
 
 bool PPCDebugger::GetFPDoubleValue(const char* desc, double* value) {
-  int regnum = FPRegisters::Number(desc);
+  int regnum = DoubleRegisters::Number(desc);
   if (regnum != kNoRegister) {
     *value = sim_->get_double_from_d_register(regnum);
     return true;
@@ -313,7 +313,8 @@ void PPCDebugger::Debug() {
           if (strcmp(arg1, "all") == 0) {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
-              PrintF("    %3s: %08" V8PRIxPTR, Registers::Name(i), value);
+              PrintF("    %3s: %08" V8PRIxPTR,
+                     Register::from_code(i).ToString(), value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -332,7 +333,7 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("     %3s: %08" V8PRIxPTR " %11" V8PRIdPTR,
-                     Registers::Name(i), value, value);
+                     Register::from_code(i).ToString(), value, value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -351,7 +352,8 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < DoubleRegister::kNumRegisters; i++) {
               dvalue = GetFPDoubleRegisterValue(i);
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
-              PrintF("%3s: %f 0x%08x %08x\n", FPRegisters::Name(i), dvalue,
+              PrintF("%3s: %f 0x%08x %08x\n",
+                     DoubleRegister::from_code(i).ToString(), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
                      static_cast<uint32_t>(as_words & 0xffffffff));
             }
