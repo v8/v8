@@ -1097,3 +1097,9 @@
   assertThrows(
     function(){ eval("(class{foo(a, {}) {'use strict';}});") }, SyntaxError);
 })();
+
+(function TestLegacyConstDestructuringInForLoop() {
+  var result;
+  for (const {foo} of [{foo: 1}]) { result = foo; }
+  assertEquals(1, result);
+})();

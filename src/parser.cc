@@ -2557,7 +2557,9 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     is_for_iteration_variable =
         var_context == kForStatement &&
         (peek() == Token::IN || PeekContextualKeyword(CStrVector("of")));
-    if (is_for_iteration_variable && parsing_result->descriptor.mode == CONST) {
+    if (is_for_iteration_variable &&
+        (parsing_result->descriptor.mode == CONST ||
+         parsing_result->descriptor.mode == CONST_LEGACY)) {
       parsing_result->descriptor.needs_init = false;
     }
 

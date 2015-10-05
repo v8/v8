@@ -175,7 +175,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
           factory()->NewExpressionStatement(initialize, RelocInfo::kNoPosition),
           zone());
     }
-  } else if (value != nullptr && (descriptor_->needs_init ||
+  } else if (value != nullptr && (descriptor_->mode == CONST_LEGACY ||
                                   IsLexicalVariableMode(descriptor_->mode))) {
     // Constant initializations always assign to the declared constant which
     // is always at the function scope level. This is only relevant for
