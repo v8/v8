@@ -8,14 +8,11 @@
 #include "src/cancelable-task.h"
 #include "src/execution.h"
 #include "src/heap/incremental-marking-job.h"
+#include "src/heap/mark-compact.h"
 #include "src/objects.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class MarkBit;
-class PagedSpace;
 
 class IncrementalMarking {
  public:
@@ -184,7 +181,7 @@ class IncrementalMarking {
     SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
   }
 
-  inline void SetNewSpacePageFlags(MemoryChunk* chunk) {
+  inline void SetNewSpacePageFlags(NewSpacePage* chunk) {
     SetNewSpacePageFlags(chunk, IsMarking());
   }
 
@@ -234,7 +231,7 @@ class IncrementalMarking {
   static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking,
                                    bool is_compacting);
 
-  static void SetNewSpacePageFlags(MemoryChunk* chunk, bool is_marking);
+  static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
 
   INLINE(void ProcessMarkingDeque());
 

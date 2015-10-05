@@ -122,7 +122,7 @@ Heap::Heap()
       last_idle_notification_time_(0.0),
       last_gc_time_(0.0),
       scavenge_collector_(nullptr),
-      mark_compact_collector_(nullptr),
+      mark_compact_collector_(this),
       store_buffer_(this),
       incremental_marking_(nullptr),
       gc_idle_time_handler_(nullptr),
@@ -941,8 +941,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
     incremental_marking()->Step(kStepSizeWhenDelayedByScavenge,
                                 IncrementalMarking::NO_GC_VIA_STACK_GUARD);
     if (!incremental_marking()->IsComplete() &&
-        !mark_compact_collector()->marking_deque_.IsEmpty() &&
-        !FLAG_gc_global) {
+        !mark_compact_collector_.marking_deque_.IsEmpty() && !FLAG_gc_global) {
       if (FLAG_trace_incremental_marking) {
         PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
       }
@@ -1283,8 +1282,8 @@ bool Heap::PerformGarbageCollection(
 
     // We finished a marking cycle. We can uncommit the marking deque until
     // we start marking again.
-    mark_compact_collector()->marking_deque()->Uninitialize();
-    mark_compact_collector()->EnsureMarkingDequeIsCommitted(
+    mark_compact_collector_.marking_deque()->Uninitialize();
+    mark_compact_collector_.EnsureMarkingDequeIsCommitted(
         MarkCompactCollector::kMinMarkingDequeSize);
   }
 
@@ -1378,13 +1377,13 @@ void Heap::MarkCompact() {
 
   uint64_t size_of_objects_before_gc = SizeOfObjects();
 
-  mark_compact_collector()->Prepare();
+  mark_compact_collector_.Prepare();
 
   ms_count_++;
 
   MarkCompactPrologue();
 
-  mark_compact_collector()->CollectGarbage();
+  mark_compact_collector_.CollectGarbage();
 
   LOG(isolate_, ResourceEvent("markcompact", "end"));
 
@@ -4048,10 +4047,10 @@ void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
   if (FLAG_overapproximate_weak_closure && incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->weak_closure_was_overapproximated() &&
-        mark_compact_collector()->marking_deque()->IsEmpty()))) {
+        mark_compact_collector_.marking_deque()->IsEmpty()))) {
     OverApproximateWeakClosure(comment);
   } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_deque()->IsEmpty())) {
+             (mark_compact_collector_.marking_deque()->IsEmpty())) {
     CollectAllGarbage(current_gc_flags_, comment);
   }
 }
@@ -4065,14 +4064,14 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
   if (FLAG_overapproximate_weak_closure &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->weak_closure_was_overapproximated() &&
-        mark_compact_collector()->marking_deque()->IsEmpty() &&
+        mark_compact_collector_.marking_deque()->IsEmpty() &&
         gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
             static_cast<size_t>(idle_time_in_ms))))) {
     OverApproximateWeakClosure(
         "Idle notification: overapproximate weak closure");
     return true;
   } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_deque()->IsEmpty() &&
+             (mark_compact_collector_.marking_deque()->IsEmpty() &&
               gc_idle_time_handler_->ShouldDoFinalIncrementalMarkCompact(
                   static_cast<size_t>(idle_time_in_ms), size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
@@ -4394,9 +4393,9 @@ void Heap::Verify() {
 
   lo_space_->Verify();
 
-  mark_compact_collector()->VerifyWeakEmbeddedObjectsInCode();
+  mark_compact_collector_.VerifyWeakEmbeddedObjectsInCode();
   if (FLAG_omit_map_checks_for_leaf_maps) {
-    mark_compact_collector()->VerifyOmittedMapChecks();
+    mark_compact_collector_.VerifyOmittedMapChecks();
   }
 }
 #endif
@@ -5046,8 +5045,6 @@ bool Heap::SetUp() {
 
   scavenge_collector_ = new Scavenger(this);
 
-  mark_compact_collector_ = new MarkCompactCollector(this);
-
   gc_idle_time_handler_ = new GCIdleTimeHandler();
 
   memory_reducer_ = new MemoryReducer(this);
@@ -5168,12 +5165,6 @@ void Heap::TearDown() {
   delete scavenge_collector_;
   scavenge_collector_ = nullptr;
 
-  if (mark_compact_collector_ != nullptr) {
-    mark_compact_collector_->TearDown();
-    delete mark_compact_collector_;
-    mark_compact_collector_ = nullptr;
-  }
-
   delete incremental_marking_;
   incremental_marking_ = nullptr;
 
@@ -5200,6 +5191,8 @@ void Heap::TearDown() {
   isolate_->global_handles()->TearDown();
 
   external_string_table_.TearDown();
+
+  mark_compact_collector()->TearDown();
 
   delete tracer_;
   tracer_ = nullptr;

@@ -14,7 +14,8 @@
 #include "src/assert-scope.h"
 #include "src/atomic-utils.h"
 #include "src/globals.h"
-// TODO(mstarzinger): Two more includes to kill!
+// TODO(mstarzinger): Three more includes to kill!
+#include "src/heap/mark-compact.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
 #include "src/list.h"
@@ -1099,7 +1100,7 @@ class Heap {
   inline Isolate* isolate();
 
   MarkCompactCollector* mark_compact_collector() {
-    return mark_compact_collector_;
+    return &mark_compact_collector_;
   }
 
   // ===========================================================================
@@ -2261,7 +2262,7 @@ class Heap {
 
   Scavenger* scavenge_collector_;
 
-  MarkCompactCollector* mark_compact_collector_;
+  MarkCompactCollector mark_compact_collector_;
 
   StoreBuffer store_buffer_;
 
