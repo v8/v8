@@ -5961,33 +5961,35 @@ bool JSObject::ReferencesObject(Object* obj) {
 }
 
 
-MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
-  if (!object->map()->is_extensible()) return object;
+Maybe<bool> JSObject::PreventExtensionsInternal(Handle<JSObject> object) {
+  Isolate* isolate = object->GetIsolate();
+
+  if (!object->map()->is_extensible()) return Just(true);
 
   if (!object->HasSloppyArgumentsElements() && !object->map()->is_observed()) {
     return PreventExtensionsWithTransition<NONE>(object);
   }
 
-  Isolate* isolate = object->GetIsolate();
-
   if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
     isolate->ReportFailedAccessCheck(object);
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    return isolate->factory()->false_value();
+    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+    UNREACHABLE();
+    return Just(false);
   }
 
   if (object->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, object);
-    if (iter.IsAtEnd()) return object;
+    if (iter.IsAtEnd()) return Just(true);
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return PreventExtensions(PrototypeIterator::GetCurrent<JSObject>(iter));
+    return PreventExtensionsInternal(
+        PrototypeIterator::GetCurrent<JSObject>(iter));
   }
 
   // It's not possible to seal objects with external array elements
   if (object->HasFixedTypedArrayElements()) {
-    THROW_NEW_ERROR(
-        isolate, NewTypeError(MessageTemplate::kCannotPreventExtExternalArray),
-        Object);
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kCannotPreventExtExternalArray));
+    return Nothing<bool>();
   }
 
   // If there are fast elements we normalize.
@@ -6007,13 +6009,28 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   DCHECK(!object->map()->is_extensible());
 
   if (object->map()->is_observed()) {
-    RETURN_ON_EXCEPTION(
+    RETURN_ON_EXCEPTION_VALUE(
         isolate,
         EnqueueChangeRecord(object, "preventExtensions", Handle<Name>(),
                             isolate->factory()->the_hole_value()),
-        Object);
+        Nothing<bool>());
   }
-  return object;
+  return Just(true);
+}
+
+
+static MaybeHandle<Object> ReturnObjectOrThrowTypeError(
+    Handle<JSObject> object, Maybe<bool> maybe, MessageTemplate::Template msg) {
+  if (!maybe.IsJust()) return MaybeHandle<Object>();
+  if (maybe.FromJust()) return object;
+  Isolate* isolate = object->GetIsolate();
+  THROW_NEW_ERROR(isolate, NewTypeError(msg), Object);
+}
+
+
+MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
+  return ReturnObjectOrThrowTypeError(object, PreventExtensionsInternal(object),
+                                      MessageTemplate::kCannotPreventExt);
 }
 
 
@@ -6057,8 +6074,7 @@ static void ApplyAttributesToDictionary(Dictionary* dictionary,
 
 
 template <PropertyAttributes attrs>
-MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
-    Handle<JSObject> object) {
+Maybe<bool> JSObject::PreventExtensionsWithTransition(Handle<JSObject> object) {
   STATIC_ASSERT(attrs == NONE || attrs == SEALED || attrs == FROZEN);
 
   // Sealing/freezing sloppy arguments should be handled elsewhere.
@@ -6068,13 +6084,13 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
   Isolate* isolate = object->GetIsolate();
   if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
     isolate->ReportFailedAccessCheck(object);
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    return isolate->factory()->false_value();
+    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+    UNREACHABLE();
   }
 
   if (object->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, object);
-    if (iter.IsAtEnd()) return object;
+    if (iter.IsAtEnd()) return Just(true);
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return PreventExtensionsWithTransition<attrs>(
         PrototypeIterator::GetCurrent<JSObject>(iter));
@@ -6082,9 +6098,9 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
 
   // It's not possible to seal or freeze objects with external array elements
   if (object->HasFixedTypedArrayElements()) {
-    THROW_NEW_ERROR(
-        isolate, NewTypeError(MessageTemplate::kCannotPreventExtExternalArray),
-        Object);
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kCannotPreventExtExternalArray));
+    return Nothing<bool>();
   }
 
   Handle<SeededNumberDictionary> new_element_dictionary;
@@ -6159,17 +6175,21 @@ MaybeHandle<Object> JSObject::PreventExtensionsWithTransition(
     }
   }
 
-  return object;
+  return Just(true);
 }
 
 
 MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
-  return PreventExtensionsWithTransition<FROZEN>(object);
+  return ReturnObjectOrThrowTypeError(
+      object, PreventExtensionsWithTransition<FROZEN>(object),
+      MessageTemplate::kCannotPreventExt);
 }
 
 
 MaybeHandle<Object> JSObject::Seal(Handle<JSObject> object) {
-  return PreventExtensionsWithTransition<SEALED>(object);
+  return ReturnObjectOrThrowTypeError(
+      object, PreventExtensionsWithTransition<SEALED>(object),
+      MessageTemplate::kCannotPreventExt);
 }
 
 
