@@ -82,9 +82,6 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
   const char* double_register_name_table_[DoubleRegister::kMaxNumRegisters];
 
  private:
-  friend struct Register;
-  friend struct DoubleRegister;
-
   static const int* GetAllocatableGeneralCodes() {
 #define REGISTER_CODE(R) Register::kCode_##R,
     static const int general_codes[] = {
