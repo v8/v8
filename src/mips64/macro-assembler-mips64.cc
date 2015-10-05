@@ -5795,8 +5795,12 @@ void MacroAssembler::EnsureNotWhite(
   // Since both black and grey have a 1 in the first position and white does
   // not have a 1 there we only need to check one bit.
   // Note that we are using a 4-byte aligned 8-byte load.
-  LoadWordPair(load_scratch,
-               MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  if (emit_debug_code()) {
+    LoadWordPair(load_scratch,
+                 MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  } else {
+    lwu(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  }
   And(t8, mask_scratch, load_scratch);
   Branch(&done, ne, t8, Operand(zero_reg));
 
@@ -5875,14 +5879,14 @@ void MacroAssembler::EnsureNotWhite(
   bind(&is_data_object);
   // Value is a data object, and it is white.  Mark it black.  Since we know
   // that the object is white we can make it black by flipping one bit.
-  LoadWordPair(t8, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  lw(t8, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
   Or(t8, t8, Operand(mask_scratch));
-  StoreWordPair(t8, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  sw(t8, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
 
   And(bitmap_scratch, bitmap_scratch, Operand(~Page::kPageAlignmentMask));
-  LoadWordPair(t8, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
-  Daddu(t8, t8, Operand(length));
-  StoreWordPair(t8, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
+  lw(t8, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
+  Addu(t8, t8, Operand(length));
+  sw(t8, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
 
   bind(&done);
 }
