@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-const int MemoryReducer::kLongDelayMs = 5000;
+const int MemoryReducer::kLongDelayMs = 20000;
 const int MemoryReducer::kShortDelayMs = 500;
 const int MemoryReducer::kWatchdogDelayMs = 100000;
 const int MemoryReducer::kMaxNumberOfGCs = 3;
