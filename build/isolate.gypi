@@ -69,6 +69,7 @@
 
         '--config-variable', 'OS=<(OS)',
         '--config-variable', 'v8_use_external_startup_data=<(v8_use_external_startup_data)',
+        '--config-variable', 'v8_use_snapshot=<(v8_use_snapshot)',
       ],
     },
   ],

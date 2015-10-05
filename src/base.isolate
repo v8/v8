@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 {
   'conditions': [
-    ['v8_use_external_startup_data==1', {
+    ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
       'variables': {
         'files': [
           '<(PRODUCT_DIR)/natives_blob.bin',

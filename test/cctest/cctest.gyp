@@ -331,4 +331,23 @@
       ],
     },
   ],
+  'conditions': [
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'cctest_run',
+          'type': 'none',
+          'dependencies': [
+            'cctest',
+          ],
+          'includes': [
+            '../../build/isolate.gypi',
+          ],
+          'sources': [
+            'cctest.isolate',
+          ],
+        },
+      ],
+    }],
+  ],
 }
