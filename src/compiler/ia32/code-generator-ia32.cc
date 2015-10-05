@@ -1363,7 +1363,7 @@ void CodeGenerator::AssembleReturn() {
   }
   size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
   // Might need ecx for scratch if pop_size is too big.
-  DCHECK_EQ(0, descriptor->CalleeSavedRegisters() & ecx.bit());
+  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & ecx.bit());
   __ Ret(static_cast<int>(pop_size), ecx);
 }
 
