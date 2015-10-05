@@ -970,16 +970,16 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   //  -- a1 : the target to call (can be any Object).
 
   // Find the address of the last argument.
-  __ Addu(a3, a0, Operand(1));  // Add one for receiver.
-  __ sll(a3, a3, kPointerSizeLog2);
-  __ Subu(a3, a2, Operand(a3));
+  __ Daddu(a3, a0, Operand(1));  // Add one for receiver.
+  __ dsll(a3, a3, kPointerSizeLog2);
+  __ Dsubu(a3, a2, Operand(a3));
 
   // Push the arguments.
   Label loop_header, loop_check;
   __ Branch(&loop_check);
   __ bind(&loop_header);
-  __ lw(t0, MemOperand(a2));
-  __ Addu(a2, a2, Operand(-kPointerSize));
+  __ ld(t0, MemOperand(a2));
+  __ Daddu(a2, a2, Operand(-kPointerSize));
   __ push(t0);
   __ bind(&loop_check);
   __ Branch(&loop_header, gt, a2, Operand(a3));
