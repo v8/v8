@@ -819,6 +819,23 @@ void Heap::OverApproximateWeakClosure(const char* gc_reason) {
 }
 
 
+HistogramTimer* Heap::GCTypeTimer(GarbageCollector collector) {
+  if (collector == SCAVENGER) {
+    return isolate_->counters()->gc_scavenger();
+  } else {
+    if (!incremental_marking()->IsStopped()) {
+      if (ShouldReduceMemory()) {
+        return isolate_->counters()->gc_finalize_reduce_memory();
+      } else {
+        return isolate_->counters()->gc_finalize();
+      }
+    } else {
+      return isolate_->counters()->gc_compactor();
+    }
+  }
+}
+
+
 void Heap::CollectAllGarbage(int flags, const char* gc_reason,
                              const v8::GCCallbackFlags gc_callback_flags) {
   // Since we are ignoring the return value, the exact choice of space does
@@ -964,9 +981,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
     GarbageCollectionPrologue();
 
     {
-      HistogramTimerScope histogram_timer_scope(
-          (collector == SCAVENGER) ? isolate_->counters()->gc_scavenger()
-                                   : isolate_->counters()->gc_compactor());
+      HistogramTimerScope histogram_timer_scope(GCTypeTimer(collector));
+
       next_gc_likely_to_collect_more =
           PerformGarbageCollection(collector, gc_callback_flags);
     }
