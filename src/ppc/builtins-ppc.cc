@@ -956,6 +956,32 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 }
 
 
+// static
+void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r5 : the address of the first argument to be pushed. Subsequent
+  //          arguments should be consecutive above this, in the same order as
+  //          they are to be pushed onto the stack.
+  //  -- r4 : the target to call (can be any Object).
+
+  // Calculate number of arguments (add one for receiver).
+  __ addi(r6, r3, Operand(1));
+
+  // Push the arguments.
+  Label loop;
+  __ addi(r5, r5, Operand(kPointerSize));  // Bias up for LoadPU
+  __ mtctr(r6);
+  __ bind(&loop);
+  __ LoadPU(r6, MemOperand(r5, -kPointerSize));
+  __ push(r6);
+  __ bdnz(&loop);
+
+  // Call the target.
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+}
+
+
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   CallRuntimePassFunction(masm, Runtime::kCompileLazy);
   GenerateTailCallToReturnedCode(masm);
@@ -1716,32 +1742,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
     __ Push(r4);
     __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
-}
-
-
-// static
-void Builtins::Generate_PushArgsAndCall(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r3 : the number of arguments (not including the receiver)
-  //  -- r5 : the address of the first argument to be pushed. Subsequent
-  //          arguments should be consecutive above this, in the same order as
-  //          they are to be pushed onto the stack.
-  //  -- r4 : the target to call (can be any Object).
-
-  // Calculate number of arguments (add one for receiver).
-  __ addi(r6, r3, Operand(1));
-
-  // Push the arguments.
-  Label loop;
-  __ addi(r5, r5, Operand(kPointerSize));  // Bias up for LoadPU
-  __ mtctr(r6);
-  __ bind(&loop);
-  __ LoadPU(r6, MemOperand(r5, -kPointerSize));
-  __ push(r6);
-  __ bdnz(&loop);
-
-  // Call the target.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 

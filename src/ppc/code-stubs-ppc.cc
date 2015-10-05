@@ -1034,15 +1034,22 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // fp: frame pointer  (restored after C call)
   // sp: stack pointer  (restored as callee's sp after C call)
   // cp: current context  (C callee-saved)
-
+  //
+  // If argv_in_register():
+  // r5: pointer to the first argument
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   __ mr(r15, r4);
 
-  // Compute the argv pointer.
-  __ ShiftLeftImm(r4, r3, Operand(kPointerSizeLog2));
-  __ add(r4, r4, sp);
-  __ subi(r4, r4, Operand(kPointerSize));
+  if (argv_in_register()) {
+    // Move argv into the correct register.
+    __ mr(r4, r5);
+  } else {
+    // Compute the argv pointer.
+    __ ShiftLeftImm(r4, r3, Operand(kPointerSizeLog2));
+    __ add(r4, r4, sp);
+    __ subi(r4, r4, Operand(kPointerSize));
+  }
 
   // Enter the exit frame that transitions from JavaScript to C++.
   FrameScope scope(masm, StackFrame::MANUAL);
@@ -1141,8 +1148,15 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // r3:r4: result
   // sp: stack pointer
   // fp: frame pointer
-  // r14: still holds argc (callee-saved).
-  __ LeaveExitFrame(save_doubles(), r14, true);
+  Register argc;
+  if (argv_in_register()) {
+    // We don't want to pop arguments so set argc to no_reg.
+    argc = no_reg;
+  } else {
+    // r14: still holds argc (callee-saved).
+    argc = r14;
+  }
+  __ LeaveExitFrame(save_doubles(), argc, true);
   __ blr();
 
   // Handling of exception.
