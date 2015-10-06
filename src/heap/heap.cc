@@ -1255,10 +1255,7 @@ bool Heap::PerformGarbageCollection(
       GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
-      if (!(FLAG_scavenge_reclaim_unmodified_objects &&
-            (gc_type == kGCTypeScavenge))) {
-        CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
-      }
+      CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
     }
   }
 
@@ -1343,10 +1340,7 @@ bool Heap::PerformGarbageCollection(
       GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
-      if (!(FLAG_scavenge_reclaim_unmodified_objects &&
-            (gc_type == kGCTypeScavenge))) {
-        CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
-      }
+      CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
     }
   }
 
@@ -1506,22 +1500,6 @@ static bool IsUnscavengedHeapObject(Heap* heap, Object** p) {
 }
 
 
-static bool IsUnmodifiedHeapObject(Object** p) {
-  Object* object = *p;
-  DCHECK(object->IsHeapObject());
-  HeapObject* heap_object = HeapObject::cast(object);
-  if (!object->IsJSObject()) return false;
-  Object* obj_constructor = (JSObject::cast(object))->map()->GetConstructor();
-  if (!obj_constructor->IsJSFunction()) return false;
-  JSFunction* constructor = JSFunction::cast(obj_constructor);
-  if (constructor != nullptr &&
-      constructor->initial_map() == heap_object->map()) {
-    return true;
-  }
-  return false;
-}
-
-
 void Heap::ScavengeStoreBufferCallback(Heap* heap, MemoryChunk* page,
                                        StoreBufferEvent event) {
   heap->store_buffer_rebuilder_.Callback(page, event);
@@ -1640,12 +1618,6 @@ void Heap::Scavenge() {
   promotion_queue_.Initialize();
 
   ScavengeVisitor scavenge_visitor(this);
-
-  if (FLAG_scavenge_reclaim_unmodified_objects) {
-    isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
-        &IsUnmodifiedHeapObject);
-  }
-
   {
     // Copy roots.
     GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::SCAVENGER_ROOTS);
@@ -1684,14 +1656,7 @@ void Heap::Scavenge() {
     new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
 
-  if (FLAG_scavenge_reclaim_unmodified_objects) {
-    isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
-        &IsUnscavengedHeapObject);
-
-    isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
-        &scavenge_visitor);
-    new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-  } else {
+  {
     GCTracer::Scope gc_scope(tracer(),
                              GCTracer::Scope::SCAVENGER_OBJECT_GROUPS);
     while (isolate()->global_handles()->IterateObjectGroups(
@@ -1700,14 +1665,14 @@ void Heap::Scavenge() {
     }
     isolate()->global_handles()->RemoveObjectGroups();
     isolate()->global_handles()->RemoveImplicitRefGroups();
-
-    isolate()->global_handles()->IdentifyNewSpaceWeakIndependentHandles(
-        &IsUnscavengedHeapObject);
-
-    isolate()->global_handles()->IterateNewSpaceWeakIndependentRoots(
-        &scavenge_visitor);
-    new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
+
+  isolate()->global_handles()->IdentifyNewSpaceWeakIndependentHandles(
+      &IsUnscavengedHeapObject);
+
+  isolate()->global_handles()->IterateNewSpaceWeakIndependentRoots(
+      &scavenge_visitor);
+  new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);

@@ -6536,8 +6536,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
     Local<Object> b(v8::Object::New(iso));
     object_a.handle.Reset(iso, a);
     object_b.handle.Reset(iso, b);
-    if (interlinked &&
-        !v8::internal::FLAG_scavenge_reclaim_unmodified_objects) {
+    if (interlinked) {
       a->Set(v8_str("x"), b);
       b->Set(v8_str("x"), a);
     }
@@ -6549,8 +6548,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
     // We are relying on this creating a big flag array and reserving the space
     // up front.
     v8::Handle<Value> big_array = CompileRun("new Array(50000)");
-    if (!v8::internal::FLAG_scavenge_reclaim_unmodified_objects)
-      a->Set(v8_str("y"), big_array);
+    a->Set(v8_str("y"), big_array);
     big_heap_size = CcTest::heap()->SizeOfObjects();
   }
 
