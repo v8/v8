@@ -8416,6 +8416,11 @@ class Symbol: public Name {
   // be used to designate own properties of objects.
   DECL_BOOLEAN_ACCESSORS(is_private)
 
+  // [is_well_known_symbol]: Whether this is a spec-defined well-known symbol,
+  // or not. Well-known symbols do not throw when an access check fails during
+  // a load.
+  DECL_BOOLEAN_ACCESSORS(is_well_known_symbol)
+
   DECLARE_CAST(Symbol)
 
   // Dispatched behavior.
@@ -8433,6 +8438,7 @@ class Symbol: public Name {
 
  private:
   static const int kPrivateBit = 0;
+  static const int kWellKnownSymbolBit = 1;
 
   const char* PrivateSymbolToName() const;
 

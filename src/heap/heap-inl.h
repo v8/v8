@@ -70,6 +70,7 @@ PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #define SYMBOL_ACCESSOR(name, description) \
   Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
 PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
+WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                 \

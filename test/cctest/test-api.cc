@@ -21865,32 +21865,38 @@ TEST(EstimatedContextSize) {
 }
 
 
-static int nb_uncaught_exception_callback_calls = 0;
-
-
-bool NoAbortOnUncaughtException(v8::Isolate* isolate) {
-  ++nb_uncaught_exception_callback_calls;
-  return false;
-}
-
-
-TEST(AbortOnUncaughtExceptionNoAbort) {
+TEST(AccessCheckedIsConcatSpreadable) {
+  i::FLAG_harmony_concat_spreadable = true;
   v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global_template =
-      v8::ObjectTemplate::New(isolate);
-  LocalContext env(NULL, global_template);
+  HandleScope scope(isolate);
+  LocalContext env;
 
-  i::FLAG_abort_on_uncaught_exception = true;
-  isolate->SetAbortOnUncaughtExceptionCallback(NoAbortOnUncaughtException);
+  // Object with access check
+  Local<ObjectTemplate> spreadable_template = v8::ObjectTemplate::New(isolate);
+  spreadable_template->SetAccessCheckCallbacks(AccessBlocker, nullptr);
+  spreadable_template->Set(v8::Symbol::GetIsConcatSpreadable(isolate),
+                           v8::Boolean::New(isolate, true));
+  Local<Object> object = spreadable_template->NewInstance();
 
-  CompileRun("function boom() { throw new Error(\"boom\") }");
+  allowed_access = true;
+  env->Global()->Set(v8_str("object"), object);
+  object->Set(v8_str("length"), v8_num(2));
+  object->Set(0U, v8_str("a"));
+  object->Set(1U, v8_str("b"));
 
-  v8::Local<v8::Object> global_object = env->Global();
-  v8::Local<v8::Function> foo =
-      v8::Local<v8::Function>::Cast(global_object->Get(v8_str("boom")));
+  // Access check is allowed, and the object is spread
+  CompileRun("var result = [].concat(object)");
+  ExpectTrue("Array.isArray(result)");
+  ExpectString("result[0]", "a");
+  ExpectString("result[1]", "b");
+  ExpectTrue("result.length === 2");
+  ExpectTrue("object[Symbol.isConcatSpreadable]");
 
-  foo->Call(global_object, 0, NULL);
-
-  CHECK_EQ(1, nb_uncaught_exception_callback_calls);
+  // If access check fails, the value of @@isConcatSpreadable is ignored
+  allowed_access = false;
+  CompileRun("var result = [].concat(object)");
+  ExpectTrue("Array.isArray(result)");
+  ExpectTrue("result[0] === object");
+  ExpectTrue("result.length === 1");
+  ExpectTrue("object[Symbol.isConcatSpreadable] === undefined");
 }

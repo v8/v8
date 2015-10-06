@@ -350,12 +350,18 @@ namespace internal {
 
 #define PUBLIC_SYMBOL_LIST(V)                               \
   V(has_instance_symbol, Symbol.hasInstance)                \
-  V(is_concat_spreadable_symbol, Symbol.isConcatSpreadable) \
   V(is_regexp_symbol, Symbol.isRegExp)                      \
   V(iterator_symbol, Symbol.iterator)                       \
   V(to_primitive_symbol, Symbol.toPrimitive)                \
   V(to_string_tag_symbol, Symbol.toStringTag)               \
   V(unscopables_symbol, Symbol.unscopables)
+
+// Well-Known Symbols are "Public" symbols, which have a bit set which causes
+// them to produce an undefined value when a load results in a failed access
+// check. Because this behaviour is not specified properly as of yet, it only
+// applies to a subset of spec-defined Well-Known Symbols.
+#define WELL_KNOWN_SYMBOL_LIST(V) \
+  V(is_concat_spreadable_symbol, Symbol.isConcatSpreadable)
 
 // Heap roots that are known to be immortal immovable, for which we can safely
 // skip write barriers. This list is not complete and has omissions.
@@ -568,13 +574,14 @@ class Heap {
 
 #define SYMBOL_INDEX_DECLARATION(name, description) k##name##RootIndex,
                 PUBLIC_SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
+                    WELL_KNOWN_SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
 #undef SYMBOL_INDEX_DECLARATION
 
 // Utility type maps
 #define DECLARE_STRUCT_MAP(NAME, Name, name) k##Name##MapRootIndex,
-                    STRUCT_LIST(DECLARE_STRUCT_MAP)
+                        STRUCT_LIST(DECLARE_STRUCT_MAP)
 #undef DECLARE_STRUCT_MAP
-                        kStringTableRootIndex,
+                            kStringTableRootIndex,
 
 #define ROOT_INDEX_DECLARATION(type, name, camel_name) k##camel_name##RootIndex,
     SMI_ROOT_LIST(ROOT_INDEX_DECLARATION)
@@ -1128,6 +1135,7 @@ class Heap {
 
 #define SYMBOL_ACCESSOR(name, description) inline Symbol* name();
   PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
+  WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
   Object* root(RootListIndex index) { return roots_[index]; }

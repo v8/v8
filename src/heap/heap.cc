@@ -2682,6 +2682,15 @@ void Heap::CreateInitialObjects() {
   roots_[k##name##RootIndex] = *name;
     PUBLIC_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
+
+#define SYMBOL_INIT(name, description)                                      \
+  Handle<Symbol> name = factory->NewSymbol();                               \
+  Handle<String> name##d = factory->NewStringFromStaticChars(#description); \
+  name->set_is_well_known_symbol(true);                                     \
+  name->set_name(*name##d);                                                 \
+  roots_[k##name##RootIndex] = *name;
+    WELL_KNOWN_SYMBOL_LIST(SYMBOL_INIT)
+#undef SYMBOL_INIT
   }
 
   CreateFixedStubs();

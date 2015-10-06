@@ -1811,6 +1811,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   JSObject::AddProperty(container, NAME##_name, isolate->factory()->NAME(), \
                         NONE);
   PUBLIC_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
+  WELL_KNOWN_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
 #undef EXPORT_PUBLIC_SYMBOL
 
   {

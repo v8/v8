@@ -2465,6 +2465,7 @@ class V8_EXPORT Symbol : public Name {
   static Local<Symbol> GetIterator(Isolate* isolate);
   static Local<Symbol> GetUnscopables(Isolate* isolate);
   static Local<Symbol> GetToStringTag(Isolate* isolate);
+  static Local<Symbol> GetIsConcatSpreadable(Isolate* isolate);
 
   V8_INLINE static Symbol* Cast(v8::Value* obj);
 

@@ -995,6 +995,14 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
                                GetPropertyWithInterceptor(it, &done), Object);
     if (done) return result;
   }
+
+  // Cross-Origin [[Get]] of Well-Known Symbols does not throw, and returns
+  // undefined.
+  Handle<Name> name = it->GetName();
+  if (name->IsSymbol() && Symbol::cast(*name)->is_well_known_symbol()) {
+    return it->factory()->undefined_value();
+  }
+
   it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
   return it->factory()->undefined_value();

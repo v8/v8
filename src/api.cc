@@ -6792,6 +6792,12 @@ Local<Symbol> v8::Symbol::GetToStringTag(Isolate* isolate) {
 }
 
 
+Local<Symbol> v8::Symbol::GetIsConcatSpreadable(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return Utils::ToLocal(i_isolate->factory()->is_concat_spreadable_symbol());
+}
+
+
 Local<Number> v8::Number::New(Isolate* isolate, double value) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (std::isnan(value)) {
