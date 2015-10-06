@@ -143,6 +143,10 @@ function RegExpExecNoTests(regexp, string, start) {
   var matchInfo = %_RegExpExec(regexp, string, start, RegExpLastMatchInfo);
   if (matchInfo !== null) {
     $regexpLastMatchInfoOverride = null;
+    // ES6 21.2.5.2.2 step 18.
+    if (FLAG_harmony_regexps && regexp.sticky) {
+      regexp.lastIndex = matchInfo[CAPTURE1];
+    }
     RETURN_NEW_RESULT_FROM_MATCH_INFO(matchInfo, string);
   }
   regexp.lastIndex = 0;
