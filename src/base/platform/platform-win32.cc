@@ -751,9 +751,19 @@ void* OS::GetRandomMmapAddr() {
 
 static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
   LPVOID base = NULL;
+  static BOOL use_aslr = -1;
+#ifdef V8_HOST_ARCH_32_BIT
+  // Don't bother randomizing on 32-bit hosts, because they lack the room and
+  // don't have viable ASLR anyway.
+  if (use_aslr == -1 && !IsWow64Process(GetCurrentProcess(), &use_aslr))
+    use_aslr = FALSE;
+#else
+  use_aslr = TRUE;
+#endif
 
-  if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
-    // For exectutable pages try and randomize the allocation address
+  if (use_aslr &&
+      (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS)) {
+    // For executable pages try and randomize the allocation address
     for (size_t attempts = 0; base == NULL && attempts < 3; ++attempts) {
       base = VirtualAlloc(OS::GetRandomMmapAddr(), size, action, protection);
     }
