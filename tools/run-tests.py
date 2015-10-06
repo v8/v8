@@ -52,14 +52,6 @@ from testrunner.objects import context
 
 
 ARCH_GUESS = utils.DefaultArch()
-DEFAULT_TESTS = [
-  "mjsunit",
-  "unittests",
-  "cctest",
-  "message",
-  "preparser",
-  "intl",
-]
 
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
@@ -71,6 +63,7 @@ TEST_MAP = {
     "message",
     "preparser",
     "intl",
+    "unittests",
   ],
   "optimize_for_size": [
     "mjsunit",
@@ -177,7 +170,7 @@ SLOW_ARCHS = ["android_arm",
 def BuildOptions():
   result = optparse.OptionParser()
   result.usage = '%prog [options] [tests]'
-  result.description = """TESTS: %s""" % (DEFAULT_TESTS)
+  result.description = """TESTS: %s""" % (TEST_MAP["default"])
   result.add_option("--arch",
                     help=("The architecture to run tests for, "
                           "'auto' or 'native' for auto-detect: %s" % SUPPORTED_ARCHS),
@@ -461,7 +454,6 @@ def ProcessOptions(options):
   if not CheckTestMode("pass|fail test", options.pass_fail_tests):
     return False
   if options.no_i18n:
-    DEFAULT_TESTS.remove("intl")
     TEST_MAP["default"].remove("intl")
   return True
 
@@ -498,6 +490,10 @@ def Main():
 
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
 
+  # Use default tests if no test configuration was provided at the cmd line.
+  if len(args) == 0:
+    args = ["default"]
+
   # Expand arguments with grouped tests. The args should reflect the list of
   # suites as otherwise filters would break.
   def ExpandTestGroups(name):
@@ -509,13 +505,10 @@ def Main():
          [ExpandTestGroups(arg) for arg in args],
          [])
 
-  if len(args) == 0:
-    suite_paths = [ s for s in DEFAULT_TESTS if s in suite_paths ]
-  else:
-    args_suites = OrderedDict() # Used as set
-    for arg in args:
-      args_suites[arg.split('/')[0]] = True
-    suite_paths = [ s for s in args_suites if s in suite_paths ]
+  args_suites = OrderedDict() # Used as set
+  for arg in args:
+    args_suites[arg.split('/')[0]] = True
+  suite_paths = [ s for s in args_suites if s in suite_paths ]
 
   suites = []
   for root in suite_paths:

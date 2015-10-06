@@ -15,6 +15,7 @@
             'message/message.gyp:message_run',
             'mjsunit/mjsunit.gyp:mjsunit_run',
             'preparser/preparser.gyp:preparser_run',
+            'unittests/unittests.gyp:unittests_run',
           ],
           'includes': [
             '../build/features.gypi',

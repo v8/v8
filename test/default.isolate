@@ -8,5 +8,6 @@
     'message/message.isolate',
     'mjsunit/mjsunit.isolate',
     'preparser/preparser.isolate',
+    'unittests/unittests.isolate',
   ],
 }
