@@ -4744,7 +4744,7 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
   // We rely on being able to allocate new arrays in paged spaces.
   DCHECK(Page::kMaxRegularHeapObjectSize >=
          (JSArray::kSize +
-          FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray) +
+          FixedArray::SizeFor(JSObject::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));
 
   code_range_size_ = code_range_size * MB;

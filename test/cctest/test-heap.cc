@@ -5565,8 +5565,8 @@ TEST(ArrayShiftSweeping) {
   Heap* heap = isolate->heap();
 
   v8::Local<v8::Value> result = CompileRun(
-      "var array = new Array(400);"
-      "var tmp = new Array(1000);"
+      "var array = new Array(40000);"
+      "var tmp = new Array(100000);"
       "array[0] = 10;"
       "gc();"
       "gc();"
@@ -5638,8 +5638,16 @@ UNINITIALIZED_TEST(PromotionQueue) {
     heap->CollectGarbage(NEW_SPACE);
     CHECK(i::FLAG_min_semi_space_size * MB == new_space->TotalCapacity());
 
-    // Fill-up the first semi-space page.
-    FillUpOnePage(new_space);
+    // Create the first huge object which will exactly fit the first semi-space
+    // page.
+    DisableInlineAllocationSteps(new_space);
+    int new_linear_size =
+        static_cast<int>(*heap->new_space()->allocation_limit_address() -
+                         *heap->new_space()->allocation_top_address());
+    int length = (new_linear_size - FixedArray::kHeaderSize) / kPointerSize;
+    Handle<FixedArray> first =
+        i_isolate->factory()->NewFixedArray(length, NOT_TENURED);
+    CHECK(heap->InNewSpace(*first));
 
     // Create a small object to initialize the bump pointer on the second
     // semi-space page.
@@ -5647,8 +5655,17 @@ UNINITIALIZED_TEST(PromotionQueue) {
         i_isolate->factory()->NewFixedArray(1, NOT_TENURED);
     CHECK(heap->InNewSpace(*small));
 
-    // Fill-up the second semi-space page.
-    FillUpOnePage(new_space);
+
+    // Create the second huge object of maximum allocatable second semi-space
+    // page size.
+    DisableInlineAllocationSteps(new_space);
+    new_linear_size =
+        static_cast<int>(*heap->new_space()->allocation_limit_address() -
+                         *heap->new_space()->allocation_top_address());
+    length = (new_linear_size - FixedArray::kHeaderSize) / kPointerSize;
+    Handle<FixedArray> second =
+        i_isolate->factory()->NewFixedArray(length, NOT_TENURED);
+    CHECK(heap->InNewSpace(*second));
 
     // This scavenge will corrupt memory if the promotion queue is not
     // evacuated.
@@ -5674,11 +5691,19 @@ TEST(Regress388880) {
 
   int desired_offset = Page::kPageSize - map1->instance_size();
 
-  // Allocate padding objects in old pointer space so, that object allocated
+  // Allocate fixed array in old pointer space so, that object allocated
   // afterwards would end at the end of the page.
-  SimulateFullSpace(heap->old_space());
-  int padding_size = desired_offset - Page::kObjectStartOffset;
-  CreatePadding(heap, padding_size, TENURED);
+  {
+    SimulateFullSpace(heap->old_space());
+    int padding_size = desired_offset - Page::kObjectStartOffset;
+    int padding_array_length =
+        (padding_size - FixedArray::kHeaderSize) / kPointerSize;
+
+    Handle<FixedArray> temp2 =
+        factory->NewFixedArray(padding_array_length, TENURED);
+    Page* page = Page::FromAddress(temp2->address());
+    CHECK_EQ(Page::kObjectStartOffset, page->Offset(temp2->address()));
+  }
 
   Handle<JSObject> o = factory->NewJSObjectFromMap(map1, TENURED);
   o->set_properties(*factory->empty_fixed_array());

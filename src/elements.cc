@@ -2170,7 +2170,7 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
 
     // Optimize the case where there is one argument and the argument is a small
     // smi.
-    if (length > 0 && length < JSArray::kInitialMaxFastElementArray) {
+    if (length > 0 && length < JSObject::kInitialMaxFastElementArray) {
       ElementsKind elements_kind = array->GetElementsKind();
       JSArray::Initialize(array, length, length);
 
