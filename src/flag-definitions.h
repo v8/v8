@@ -204,7 +204,6 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                             \
   V(harmony_tostring, "harmony toString")                             \
-  V(harmony_concat_spreadable, "harmony isConcatSpreadable")          \
   V(harmony_sloppy, "harmony features in sloppy mode")                \
   V(harmony_sloppy_let, "harmony let in sloppy mode")
 
@@ -215,7 +214,8 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_object_observe, "harmony Object.observe")           \
   V(harmony_rest_parameters, "harmony rest parameters")         \
   V(harmony_spread_calls, "harmony spread-calls")               \
-  V(harmony_spread_arrays, "harmony spread in array literals")
+  V(harmony_spread_arrays, "harmony spread in array literals")  \
+  V(harmony_concat_spreadable, "harmony isConcatSpreadable")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
