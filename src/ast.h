@@ -458,14 +458,6 @@ class Block final : public BreakableStatement {
  public:
   DECLARE_NODE_TYPE(Block)
 
-  void AddStatement(Statement* statement, Zone* zone) {
-    statements_.Add(statement, zone);
-  }
-
-  void InsertStatementAt(int index, Statement* statement, Zone* zone) {
-    statements_.InsertAt(index, statement, zone);
-  }
-
   ZoneList<Statement*>* statements() { return &statements_; }
   bool ignore_completion_value() const { return ignore_completion_value_; }
 
