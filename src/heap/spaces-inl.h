@@ -188,7 +188,7 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
   page->mutex_ = new base::Mutex();
-  DCHECK(page->area_size() <= kAllocatableMemory);
+  DCHECK(page->area_size() <= kMaxRegularHeapObjectSize);
   DCHECK(chunk->owner() == owner);
   owner->IncreaseCapacity(page->area_size());
   owner->Free(page->area_start(), page->area_size());

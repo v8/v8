@@ -814,14 +814,11 @@ class Page : public MemoryChunk {
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
 
-  // Maximum object size that gets allocated into regular pages. Objects larger
-  // than that size are allocated in large object space and are never moved in
-  // memory. This also applies to new space allocation, since objects are never
-  // migrated from new space to large object space. Takes double alignment into
-  // account.
+  // Maximum object size that fits in a page. Objects larger than that size
+  // are allocated in large object space and are never moved in memory. This
+  // also applies to new space allocation, since objects are never migrated
+  // from new space to large object space.  Takes double alignment into account.
   static const int kMaxRegularHeapObjectSize = kPageSize - kObjectStartOffset;
-
-  static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
 
   // Page size mask.
   static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
@@ -1172,7 +1169,7 @@ class MemoryAllocator {
 
   // Returns maximum available bytes that the old space can have.
   intptr_t MaxAvailable() {
-    return (Available() / Page::kPageSize) * Page::kAllocatableMemory;
+    return (Available() / Page::kPageSize) * Page::kMaxRegularHeapObjectSize;
   }
 
   // Returns an indication of whether a pointer is in a space that has
@@ -1248,7 +1245,7 @@ class MemoryAllocator {
   static int PageAreaSize(AllocationSpace space) {
     DCHECK_NE(LO_SPACE, space);
     return (space == CODE_SPACE) ? CodePageAreaSize()
-                                 : Page::kAllocatableMemory;
+                                 : Page::kMaxRegularHeapObjectSize;
   }
 
   MUST_USE_RESULT bool CommitExecutableMemory(base::VirtualMemory* vm,
@@ -1703,7 +1700,7 @@ class FreeList {
  private:
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
-  static const int kMaxBlockSize = Page::kAllocatableMemory;
+  static const int kMaxBlockSize = Page::kMaxRegularHeapObjectSize;
 
   static const int kSmallListMin = 0x1f * kPointerSize;
   static const int kSmallListMax = 0xff * kPointerSize;
@@ -2123,7 +2120,7 @@ class NewSpacePage : public MemoryChunk {
       (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
       (1 << MemoryChunk::SCAN_ON_SCAVENGE);
 
-  static const int kAreaSize = Page::kAllocatableMemory;
+  static const int kAreaSize = Page::kMaxRegularHeapObjectSize;
 
   inline NewSpacePage* next_page() {
     return static_cast<NewSpacePage*>(next_chunk());
@@ -2842,7 +2839,7 @@ class MapSpace : public PagedSpace {
   virtual void VerifyObject(HeapObject* obj);
 
  private:
-  static const int kMapsPerPage = Page::kAllocatableMemory / Map::kSize;
+  static const int kMapsPerPage = Page::kMaxRegularHeapObjectSize / Map::kSize;
 
   // Do map space compaction if there is a page gap.
   int CompactionThreshold() {

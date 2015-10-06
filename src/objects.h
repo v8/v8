@@ -2366,6 +2366,10 @@ class JSObject: public JSReceiver {
   // don't want to be wasteful with long lived objects.
   static const int kMaxUncheckedOldFastElementsLength = 500;
 
+  // Note that Page::kMaxRegularHeapObjectSize puts a limit on
+  // permissible values (see the DCHECK in heap.cc).
+  static const int kInitialMaxFastElementArray = 100000;
+
   // This constant applies only to the initial map of "global.Object" and
   // not to arbitrary other JSObject maps.
   static const int kInitialGlobalObjectUnusedPropertiesCount = 4;
@@ -10031,10 +10035,6 @@ class JSArray: public JSObject {
   // Layout description.
   static const int kLengthOffset = JSObject::kHeaderSize;
   static const int kSize = kLengthOffset + kPointerSize;
-
-  // Note that Page::kMaxRegularHeapObjectSize puts a limit on
-  // permissible values (see the DCHECK in heap.cc).
-  static const int kInitialMaxFastElementArray = 100000;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArray);
