@@ -338,6 +338,18 @@ void BytecodeGraphBuilder::VisitMod(
 }
 
 
+void BytecodeGraphBuilder::VisitLogicalNot(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitTypeOf(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitTestEqual(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

@@ -96,7 +96,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterGreaterThanOrEqual) {
 
 
 RUNTIME_FUNCTION(Runtime_InterpreterStrictEquals) {
-  SealHandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   CONVERT_ARG_CHECKED(Object, y, 1);
@@ -105,7 +105,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterStrictEquals) {
 
 
 RUNTIME_FUNCTION(Runtime_InterpreterStrictNotEquals) {
-  SealHandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   CONVERT_ARG_CHECKED(Object, y, 1);
@@ -114,10 +114,26 @@ RUNTIME_FUNCTION(Runtime_InterpreterStrictNotEquals) {
 
 
 RUNTIME_FUNCTION(Runtime_InterpreterToBoolean) {
-  SealHandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   return isolate->heap()->ToBoolean(x->BooleanValue());
+}
+
+
+RUNTIME_FUNCTION(Runtime_InterpreterLogicalNot) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  return isolate->heap()->ToBoolean(!x->BooleanValue());
+}
+
+
+RUNTIME_FUNCTION(Runtime_InterpreterTypeOf) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  return Object::cast(*Object::TypeOf(isolate, x));
 }
 
 

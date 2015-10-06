@@ -60,6 +60,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::DIV, reg)
       .BinaryOperation(Token::Value::MOD, reg);
 
+  // Emit unary operator invocations.
+  builder.LogicalNot().TypeOf();
+
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, LanguageMode::SLOPPY)
       .CompareOperation(Token::Value::NE, reg, LanguageMode::SLOPPY)

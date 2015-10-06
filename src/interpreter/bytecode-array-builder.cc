@@ -134,6 +134,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LogicalNot() {
+  Output(Bytecode::kLogicalNot);
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf() {
+  Output(Bytecode::kTypeOf);
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     Token::Value op, Register reg, LanguageMode language_mode) {
   if (!is_sloppy(language_mode)) {
@@ -299,6 +311,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
         UNREACHABLE();
       case Bytecode::kLdaTrue:
       case Bytecode::kLdaFalse:
+      case Bytecode::kLogicalNot:
       case Bytecode::kTestEqual:
       case Bytecode::kTestNotEqual:
       case Bytecode::kTestEqualStrict:

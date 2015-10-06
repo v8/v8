@@ -34,6 +34,11 @@ class BytecodeGenerator : public AstVisitor {
   void VisitPropertyLoad(Register obj, Property* expr);
   void VisitVariableLoad(Variable* variable);
 
+  // Dispatched from VisitUnaryOperation.
+  void VisitVoid(UnaryOperation* expr);
+  void VisitTypeOf(UnaryOperation* expr);
+  void VisitNot(UnaryOperation* expr);
+
   inline BytecodeArrayBuilder* builder() { return &builder_; }
   inline Scope* scope() const { return scope_; }
   inline void set_scope(Scope* scope) { scope_ = scope; }

@@ -1260,6 +1260,124 @@ TEST(BasicLoops) {
   }
 }
 
+
+TEST(UnaryOperators) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<int> snippets[] = {
+      {"var x = 0;"
+       "while (x != 10) {"
+       "  x = x + 10;"
+       "}"
+       "return x;",
+       2 * kPointerSize,
+       1,
+       29,
+       {
+           B(LdaZero),              //
+           B(Star), R(0),           //
+           B(Jump), U8(12),         //
+           B(Ldar), R(0),           //
+           B(Star), R(1),           //
+           B(LdaSmi8), U8(10),      //
+           B(Add), R(1),            //
+           B(Star), R(0),           //
+           B(Ldar), R(0),           //
+           B(Star), R(1),           //
+           B(LdaSmi8), U8(10),      //
+           B(TestEqual), R(1),      //
+           B(LogicalNot),           //
+           B(JumpIfTrue), U8(-19),  //
+           B(Ldar), R(0),           //
+           B(Return),               //
+       },
+       0},
+      {"var x = false;"
+       "do {"
+       "  x = !x;"
+       "} while(x == false);"
+       "return x;",
+       2 * kPointerSize,
+       1,
+       20,
+       {
+           B(LdaFalse),             //
+           B(Star), R(0),           //
+           B(Ldar), R(0),           //
+           B(LogicalNot),           //
+           B(Star), R(0),           //
+           B(Ldar), R(0),           //
+           B(Star), R(1),           //
+           B(LdaFalse),             //
+           B(TestEqual), R(1),      //
+           B(JumpIfTrue), U8(-12),  //
+           B(Ldar), R(0),           //
+           B(Return),               //
+       },
+       0},
+      {"var x = 101;"
+       "return void(x * 3);",
+       2 * kPointerSize,
+       1,
+       14,
+       {
+           B(LdaSmi8), U8(101),  //
+           B(Star), R(0),        //
+           B(Ldar), R(0),        //
+           B(Star), R(1),        //
+           B(LdaSmi8), U8(3),    //
+           B(Mul), R(1),         //
+           B(LdaUndefined),      //
+           B(Return),            //
+       },
+       0},
+      {"var x = 1234;"
+       "var y = void (x * x - 1);"
+       "return y;",
+       4 * kPointerSize,
+       1,
+       24,
+       {
+           B(LdaConstant), U8(0),  //
+           B(Star), R(0),          //
+           B(Ldar), R(0),          //
+           B(Star), R(3),          //
+           B(Ldar), R(0),          //
+           B(Mul), R(3),           //
+           B(Star), R(2),          //
+           B(LdaSmi8), U8(1),      //
+           B(Sub), R(2),           //
+           B(LdaUndefined),        //
+           B(Star), R(1),          //
+           B(Ldar), R(1),          //
+           B(Return),              //
+       },
+       1,
+       {1234}},
+      {"var x = 13;"
+       "return typeof(x);",
+       1 * kPointerSize,
+       1,
+       8,
+       {
+           B(LdaSmi8), U8(13),  //
+           B(Star), R(0),       //
+           B(Ldar), R(0),       //
+           B(TypeOf),           //
+           B(Return),           //
+       },
+       0},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

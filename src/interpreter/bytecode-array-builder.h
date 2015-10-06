@@ -84,6 +84,10 @@ class BytecodeArrayBuilder {
   // Operators (register == lhs, accumulator = rhs).
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg);
 
+  // Unary Operators.
+  BytecodeArrayBuilder& LogicalNot();
+  BytecodeArrayBuilder& TypeOf();
+
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
                                          LanguageMode language_mode);

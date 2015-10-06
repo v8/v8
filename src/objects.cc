@@ -381,6 +381,7 @@ Handle<String> Object::TypeOf(Isolate* isolate, Handle<Object> object) {
     return isolate->factory()->undefined_string();
   }
   if (object->IsBoolean()) return isolate->factory()->boolean_string();
+  if (object->IsString()) return isolate->factory()->string_string();
   if (object->IsSymbol()) return isolate->factory()->symbol_string();
 #define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
   if (object->Is##Type()) return isolate->factory()->type##_string();

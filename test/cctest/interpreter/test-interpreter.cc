@@ -1291,6 +1291,164 @@ TEST(InterpreterTestIn) {
 }
 
 
+TEST(InterpreterUnaryNot) {
+  HandleAndZoneScope handles;
+  for (size_t i = 1; i < 10; i++) {
+    bool expected_value = ((i & 1) == 1);
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    Register r0(0);
+    builder.set_locals_count(0);
+    builder.set_parameter_count(0);
+    builder.EnterBlock();
+    builder.LoadFalse();
+    for (size_t j = 0; j < i; j++) {
+      builder.LogicalNot();
+    }
+    builder.LeaveBlock().Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->IsBoolean());
+    CHECK_EQ(return_value->BooleanValue(), expected_value);
+  }
+}
+
+
+static void LoadAny(BytecodeArrayBuilder* builder,
+                    v8::internal::Factory* factory, Handle<Object> obj) {
+  if (obj->IsOddball()) {
+    if (obj->SameValue(*factory->true_value())) {
+      builder->LoadTrue();
+    } else if (obj->SameValue(*factory->false_value())) {
+      builder->LoadFalse();
+    } else if (obj->SameValue(*factory->the_hole_value())) {
+      builder->LoadTheHole();
+    } else if (obj->SameValue(*factory->null_value())) {
+      builder->LoadNull();
+    } else if (obj->SameValue(*factory->undefined_value())) {
+      builder->LoadUndefined();
+    } else {
+      UNREACHABLE();
+    }
+  } else if (obj->IsSmi()) {
+    builder->LoadLiteral(*Handle<Smi>::cast(obj));
+  } else {
+    builder->LoadLiteral(obj);
+  }
+}
+
+
+TEST(InterpreterToBoolean) {
+  HandleAndZoneScope handles;
+  i::Factory* factory = handles.main_isolate()->factory();
+
+  std::pair<Handle<Object>, bool> object_type_tuples[] = {
+      std::make_pair(factory->undefined_value(), false),
+      std::make_pair(factory->null_value(), false),
+      std::make_pair(factory->false_value(), false),
+      std::make_pair(factory->true_value(), true),
+      std::make_pair(factory->NewNumber(9.1), true),
+      std::make_pair(factory->NewNumberFromInt(0), false),
+      std::make_pair(
+          Handle<Object>::cast(factory->NewStringFromStaticChars("hello")),
+          true),
+      std::make_pair(
+          Handle<Object>::cast(factory->NewStringFromStaticChars("")), false),
+  };
+
+  for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    Register r0(0);
+    builder.set_locals_count(0);
+    builder.set_parameter_count(0);
+    builder.EnterBlock();
+    LoadAny(&builder, factory, object_type_tuples[i].first);
+    builder.CastAccumulatorToBoolean();
+    builder.LeaveBlock().Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->IsBoolean());
+    CHECK_EQ(return_value->BooleanValue(), object_type_tuples[i].second);
+  }
+}
+
+
+TEST(InterpreterUnaryNotNonBoolean) {
+  HandleAndZoneScope handles;
+  i::Factory* factory = handles.main_isolate()->factory();
+
+  std::pair<Handle<Object>, bool> object_type_tuples[] = {
+      std::make_pair(factory->undefined_value(), true),
+      std::make_pair(factory->null_value(), true),
+      std::make_pair(factory->false_value(), true),
+      std::make_pair(factory->true_value(), false),
+      std::make_pair(factory->NewNumber(9.1), false),
+      std::make_pair(factory->NewNumberFromInt(0), true),
+      std::make_pair(
+          Handle<Object>::cast(factory->NewStringFromStaticChars("hello")),
+          false),
+      std::make_pair(
+          Handle<Object>::cast(factory->NewStringFromStaticChars("")), true),
+  };
+
+  for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    Register r0(0);
+    builder.set_locals_count(0);
+    builder.set_parameter_count(0);
+    builder.EnterBlock();
+    LoadAny(&builder, factory, object_type_tuples[i].first);
+    builder.LogicalNot();
+    builder.LeaveBlock().Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->IsBoolean());
+    CHECK_EQ(return_value->BooleanValue(), object_type_tuples[i].second);
+  }
+}
+
+
+TEST(InterpreterTypeOf) {
+  HandleAndZoneScope handles;
+  i::Factory* factory = handles.main_isolate()->factory();
+
+  std::pair<Handle<Object>, const char*> object_type_tuples[] = {
+      std::make_pair(factory->undefined_value(), "undefined"),
+      std::make_pair(factory->null_value(), "object"),
+      std::make_pair(factory->true_value(), "boolean"),
+      std::make_pair(factory->false_value(), "boolean"),
+      std::make_pair(factory->NewNumber(9.1), "number"),
+      std::make_pair(factory->NewNumberFromInt(7771), "number"),
+      std::make_pair(
+          Handle<Object>::cast(factory->NewStringFromStaticChars("hello")),
+          "string"),
+  };
+
+  for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
+    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    Register r0(0);
+    builder.set_locals_count(0);
+    builder.set_parameter_count(0);
+    builder.EnterBlock();
+    LoadAny(&builder, factory, object_type_tuples[i].first);
+    builder.TypeOf();
+    builder.LeaveBlock().Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    auto callable = tester.GetCallable<>();
+    Handle<v8::internal::String> return_value =
+        Handle<v8::internal::String>::cast(callable().ToHandleChecked());
+    auto actual = return_value->ToCString();
+    CHECK_EQ(strcmp(&actual[0], object_type_tuples[i].second), 0);
+  }
+}
+
+
 TEST(InterpreterCallRuntime) {
   HandleAndZoneScope handles;
 

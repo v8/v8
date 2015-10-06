@@ -619,8 +619,41 @@ void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 }
 
 
+void BytecodeGenerator::VisitVoid(UnaryOperation* expr) {
+  Visit(expr->expression());
+  builder()->LoadUndefined();
+}
+
+
+void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
+  Visit(expr->expression());
+  builder()->TypeOf();
+}
+
+
+void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
+  Visit(expr->expression());
+  builder()->LogicalNot();
+}
+
+
 void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
-  UNIMPLEMENTED();
+  switch (expr->op()) {
+    case Token::Value::NOT:
+      VisitNot(expr);
+      break;
+    case Token::Value::TYPEOF:
+      VisitTypeOf(expr);
+      break;
+    case Token::Value::VOID:
+      VisitVoid(expr);
+      break;
+    case Token::Value::BIT_NOT:
+    case Token::Value::DELETE:
+      UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
 }
 
 

@@ -65,6 +65,10 @@ namespace interpreter {
   V(Div, OperandType::kReg8)                                                  \
   V(Mod, OperandType::kReg8)                                                  \
                                                                               \
+  /* Unary Operators */                                                       \
+  V(LogicalNot, OperandType::kNone)                                           \
+  V(TypeOf, OperandType::kNone)                                               \
+                                                                              \
   /* Call operations. */                                                      \
   V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)       \
   V(CallRuntime, OperandType::kIdx16, OperandType::kReg8,                     \

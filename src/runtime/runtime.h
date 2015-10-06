@@ -225,7 +225,9 @@ namespace internal {
   F(InterpreterGreaterThan, 2, 1)         \
   F(InterpreterLessThanOrEqual, 2, 1)     \
   F(InterpreterGreaterThanOrEqual, 2, 1)  \
-  F(InterpreterToBoolean, 1, 1)
+  F(InterpreterToBoolean, 1, 1)           \
+  F(InterpreterLogicalNot, 1, 1)          \
+  F(InterpreterTypeOf, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)                      \

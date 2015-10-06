@@ -334,10 +334,34 @@ void Interpreter::DoMod(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// LogicalNot
+//
+// Perform logical-not on the accumulator, first casting the
+// accumulator to a boolean value if required.
+void Interpreter::DoLogicalNot(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* result = __ CallRuntime(Runtime::kInterpreterLogicalNot, accumulator);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// TypeOf
+//
+// Load the accumulator with the string representating type of the
+// object in the accumulator.
+void Interpreter::DoTypeOf(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* result = __ CallRuntime(Runtime::kInterpreterTypeOf, accumulator);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 // Call <callable> <receiver> <arg_count>
 //
-// Call a JSfunction or Callable in |callable| with receiver and |arg_count|
-// arguments in subsequent registers.
+// Call a JSfunction or Callable in |callable| with the |receiver| and
+// |arg_count| arguments in subsequent registers.
 void Interpreter::DoCall(compiler::InterpreterAssembler* assembler) {
   Node* function_reg = __ BytecodeOperandReg8(0);
   Node* function = __ LoadRegister(function_reg);
@@ -352,8 +376,9 @@ void Interpreter::DoCall(compiler::InterpreterAssembler* assembler) {
 
 // CallRuntime <function_id> <first_arg> <arg_count>
 //
-// Call the runtime function |function_id| with first argument in register
-// |first_arg| and |arg_count| arguments in subsequent registers.
+// Call the runtime function |function_id| with the first argument in
+// register |first_arg| and |arg_count| arguments in subsequent
+// registers.
 void Interpreter::DoCallRuntime(compiler::InterpreterAssembler* assembler) {
   Node* function_id = __ BytecodeOperandIdx16(0);
   Node* first_arg_reg = __ BytecodeOperandReg8(1);
@@ -457,15 +482,16 @@ void Interpreter::DoTestInstanceOf(compiler::InterpreterAssembler* assembler) {
 //
 // Cast the object referenced by the accumulator to a boolean.
 void Interpreter::DoToBoolean(compiler::InterpreterAssembler* assembler) {
-  // TODO(oth): The next CL for test operations has interpreter specific
-  // runtime calls. This looks like another candidate.
+  Node* accumulator = __ GetAccumulator();
+  Node* result = __ CallRuntime(Runtime::kInterpreterToBoolean, accumulator);
+  __ SetAccumulator(result);
   __ Dispatch();
 }
 
 
 // Jump <imm8>
 //
-// Jump by number of bytes represented by an immediate operand.
+// Jump by number of bytes represented by the immediate operand |imm8|.
 void Interpreter::DoJump(compiler::InterpreterAssembler* assembler) {
   Node* relative_jump = __ BytecodeOperandImm8(0);
   __ Jump(relative_jump);
@@ -539,7 +565,7 @@ void Interpreter::DoJumpIfFalseConstant(
 
 // Return
 //
-// Return the value in register 0.
+// Return the value in the accumulator.
 void Interpreter::DoReturn(compiler::InterpreterAssembler* assembler) {
   __ Return();
 }
