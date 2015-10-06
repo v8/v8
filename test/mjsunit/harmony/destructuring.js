@@ -1103,3 +1103,7 @@
   for (const {foo} of [{foo: 1}]) { result = foo; }
   assertEquals(1, result);
 })();
+
+(function TestDestructuringArrayWithoutInitializer() {
+  assertThrows('var [foo]', TypeError);
+})();

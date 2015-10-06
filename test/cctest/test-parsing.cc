@@ -7179,13 +7179,11 @@ TEST(LetSloppyOnly) {
     "for (var [let] = 1; let < 1; let++) {}",
     "for (var [let] in {}) {}",
     "var let",
-    // Unrelated parser crash BUG(v8:4462)
-    // "var [let]",
+    "var [let]",
     "for (const let = 1; let < 1; let++) {}",
     "for (const let in {}) {}",
     "for (const [let] = 1; let < 1; let++) {}",
-    // Unrelated parser crash BUG(v8:4461)
-    // "for (const [let] in {}) {}",
+    "for (const [let] in {}) {}",
     "const let",
     "const [let]",
     NULL

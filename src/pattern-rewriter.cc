@@ -244,8 +244,13 @@ void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern) {
 
 
 void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
-  auto iterator = CreateTempVar(
-      descriptor_->parser->GetIterator(current_value_, factory()));
+  auto temp = CreateTempVar(current_value_);
+
+  block_->statements()->Add(descriptor_->parser->BuildAssertIsCoercible(temp),
+                            zone());
+
+  auto iterator = CreateTempVar(descriptor_->parser->GetIterator(
+      factory()->NewVariableProxy(temp), factory()));
   auto done = CreateTempVar(
       factory()->NewBooleanLiteral(false, RelocInfo::kNoPosition));
   auto result = CreateTempVar();
