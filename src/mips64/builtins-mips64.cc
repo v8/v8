@@ -56,7 +56,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   __ ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(a2,
         FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Branch(&argc, ne, a2,
+  __ Branch(&argc, eq, a2,
             Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ Daddu(a0, a2, num_extra_args + 1);
   __ jmp(&done_argc);

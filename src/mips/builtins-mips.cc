@@ -58,7 +58,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   __ lw(a2,
         FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
   __ SmiUntag(a2);
-  __ Branch(&argc, ne, a2,
+  __ Branch(&argc, eq, a2,
             Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ Addu(a0, a2, num_extra_args + 1);
   __ jmp(&done_argc);
