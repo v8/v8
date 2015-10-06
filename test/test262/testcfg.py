@@ -107,6 +107,7 @@ class Test262TestSuite(testsuite.TestSuite):
     self.harness = [os.path.join(self.harnesspath, f)
                     for f in TEST_262_HARNESS_FILES]
     self.harness += [os.path.join(self.root, "harness-adapt.js")]
+    self.ignition_filter = "--ignition-filter=" + self.testroot + "/*"
     self.ParseTestRecord = None
 
   def ListTests(self, context):
@@ -128,7 +129,12 @@ class Test262TestSuite(testsuite.TestSuite):
     return tests
 
   def GetFlagsForTestCase(self, testcase, context):
-    return (testcase.flags + context.mode_flags + self.harness +
+    # TODO(rmcilroy) Remove ignition filter modification once ignition can
+    # support the test262 test harness code.
+    flags = [ self.ignition_filter if "ignition-filter" in flag else flag
+              for flag in testcase.flags]
+
+    return (flags + context.mode_flags + self.harness +
             self.GetIncludesForTest(testcase) + ["--harmony"] +
             [os.path.join(self.testroot, testcase.path + ".js")])
 

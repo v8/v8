@@ -40,6 +40,7 @@ ALL_VARIANT_FLAGS = {
   "stress": [["--stress-opt", "--always-opt"]],
   "turbofan": [["--turbo", "--always-opt"]],
   "nocrankshaft": [["--nocrankshaft"]],
+  "ignition": [["--ignition", "--ignition-filter=*"]],
 }
 
 # FAST_VARIANTS implies no --always-opt.
@@ -48,9 +49,11 @@ FAST_VARIANT_FLAGS = {
   "stress": [["--stress-opt"]],
   "turbofan": [["--turbo"]],
   "nocrankshaft": [["--nocrankshaft"]],
+  "ignition": [["--ignition", "--ignition-filter=*"]],
 }
 
-ALL_VARIANTS = set(["default", "stress", "turbofan", "nocrankshaft"])
+ALL_VARIANTS = set(["default", "stress", "turbofan", "nocrankshaft",
+                    "ignition"])
 FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
 
