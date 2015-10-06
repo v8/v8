@@ -49,11 +49,12 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- x0                 : number of arguments excluding receiver
-  //  -- x1                 : called function (only guaranteed when
-  //                          extra_args requires it)
+  //                          (only guaranteed when the called function
+  //                           is not marked as DontAdaptArguments)
+  //  -- x1                 : called function
   //  -- sp[0]              : last argument
   //  -- ...
-  //  -- sp[4 * (argc - 1)] : first argument (argc == x0)
+  //  -- sp[4 * (argc - 1)] : first argument
   //  -- sp[4 * argc]       : receiver
   // -----------------------------------
   __ AssertFunction(x1);
@@ -75,8 +76,16 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   }
 
   // JumpToExternalReference expects x0 to contain the number of arguments
-  // including the receiver and the extra arguments.
+  // including the receiver and the extra arguments.  But x0 is only valid
+  // if the called function is marked as DontAdaptArguments, otherwise we
+  // need to load the argument count from the SharedFunctionInfo.
+  __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldrsw(
+      x2, FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ Cmp(x2, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+  __ Csel(x0, x0, x2, eq);
   __ Add(x0, x0, num_extra_args + 1);
+
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 

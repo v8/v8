@@ -21,12 +21,13 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments excluding receiver
-  //  -- rdi                 : called function (only guaranteed when
-  //                           extra_args requires it)
+  //                           (only guaranteed when the called function
+  //                            is not marked as DontAdaptArguments)
+  //  -- rdi                 : called function
   //  -- rsp[0]              : return address
   //  -- rsp[8]              : last argument
   //  -- ...
-  //  -- rsp[8 * argc]       : first argument (argc == rax)
+  //  -- rsp[8 * argc]       : first argument
   //  -- rsp[8 * (argc + 1)] : receiver
   // -----------------------------------
   __ AssertFunction(rdi);
@@ -50,8 +51,21 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   }
 
   // JumpToExternalReference expects rax to contain the number of arguments
-  // including the receiver and the extra arguments.
+  // including the receiver and the extra arguments.  But rax is only valid
+  // if the called function is marked as DontAdaptArguments, otherwise we
+  // need to load the argument count from the SharedFunctionInfo.
+  Label argc, done_argc;
+  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadSharedFunctionInfoSpecialField(
+      rbx, rdx, SharedFunctionInfo::kFormalParameterCountOffset);
+  __ cmpp(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+  __ j(equal, &argc, Label::kNear);
+  __ leap(rax, Operand(rbx, num_extra_args + 1));
+  __ jmp(&done_argc, Label::kNear);
+  __ bind(&argc);
   __ addp(rax, Immediate(num_extra_args + 1));
+  __ bind(&done_argc);
+
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()), 1);
 }
 
