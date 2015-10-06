@@ -4866,7 +4866,7 @@ TEST(RunChangeFloat32ToFloat64) {
   FOR_FLOAT32_INPUTS(i) {
     expected = *i;
     CHECK_EQ(0, m.Call());
-    CHECK_EQ(expected, actual);
+    CHECK_EQ(static_cast<double>(expected), actual);
   }
 }
 

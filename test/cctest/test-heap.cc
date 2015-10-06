@@ -260,7 +260,7 @@ TEST(SimdObjects) {
 
     // Check special lane values.
     value->set_lane(1, -0.0);
-    CHECK_EQ(-0.0, value->get_lane(1));
+    CHECK_EQ(-0.0f, value->get_lane(1));
     CHECK(std::signbit(value->get_lane(1)));  // Sign bit should be preserved.
     value->set_lane(2, quiet_NaN);
     CHECK(std::isnan(value->get_lane(2)));

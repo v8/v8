@@ -1276,7 +1276,7 @@ TEST(SerializeToplevelExternalString) {
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
 
-  CHECK_EQ(15.0f, copy_result->Number());
+  CHECK_EQ(15.0, copy_result->Number());
 
   delete cache;
 }
@@ -1334,7 +1334,7 @@ TEST(SerializeToplevelLargeExternalString) {
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
 
-  CHECK_EQ(42.0f, copy_result->Number());
+  CHECK_EQ(42.0, copy_result->Number());
 
   delete cache;
   string.Dispose();
@@ -1385,7 +1385,7 @@ TEST(SerializeToplevelExternalScriptName) {
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
 
-  CHECK_EQ(10.0f, copy_result->Number());
+  CHECK_EQ(10.0, copy_result->Number());
 
   delete cache;
 }

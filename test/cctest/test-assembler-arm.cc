@@ -337,8 +337,8 @@ TEST(4) {
     t.y = 9.0;
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
-    CHECK_EQ(4.5, t.y);
-    CHECK_EQ(9.0, t.x);
+    CHECK_EQ(4.5f, t.y);
+    CHECK_EQ(9.0f, t.x);
     CHECK_EQ(-123.456, t.n);
     CHECK_EQ(2718.2818, t.m);
     CHECK_EQ(2, t.i);
@@ -704,14 +704,14 @@ TEST(8) {
   CHECK_EQ(5.5, d.g);
   CHECK_EQ(6.6, d.h);
 
-  CHECK_EQ(7.0, f.a);
-  CHECK_EQ(8.0, f.b);
-  CHECK_EQ(1.0, f.c);
-  CHECK_EQ(2.0, f.d);
-  CHECK_EQ(3.0, f.e);
-  CHECK_EQ(4.0, f.f);
-  CHECK_EQ(5.0, f.g);
-  CHECK_EQ(6.0, f.h);
+  CHECK_EQ(7.0f, f.a);
+  CHECK_EQ(8.0f, f.b);
+  CHECK_EQ(1.0f, f.c);
+  CHECK_EQ(2.0f, f.d);
+  CHECK_EQ(3.0f, f.e);
+  CHECK_EQ(4.0f, f.f);
+  CHECK_EQ(5.0f, f.g);
+  CHECK_EQ(6.0f, f.h);
 }
 
 
@@ -814,14 +814,14 @@ TEST(9) {
   CHECK_EQ(5.5, d.g);
   CHECK_EQ(6.6, d.h);
 
-  CHECK_EQ(7.0, f.a);
-  CHECK_EQ(8.0, f.b);
-  CHECK_EQ(1.0, f.c);
-  CHECK_EQ(2.0, f.d);
-  CHECK_EQ(3.0, f.e);
-  CHECK_EQ(4.0, f.f);
-  CHECK_EQ(5.0, f.g);
-  CHECK_EQ(6.0, f.h);
+  CHECK_EQ(7.0f, f.a);
+  CHECK_EQ(8.0f, f.b);
+  CHECK_EQ(1.0f, f.c);
+  CHECK_EQ(2.0f, f.d);
+  CHECK_EQ(3.0f, f.e);
+  CHECK_EQ(4.0f, f.f);
+  CHECK_EQ(5.0f, f.g);
+  CHECK_EQ(6.0f, f.h);
 }
 
 
@@ -920,14 +920,14 @@ TEST(10) {
   CHECK_EQ(5.5, d.g);
   CHECK_EQ(6.6, d.h);
 
-  CHECK_EQ(7.0, f.a);
-  CHECK_EQ(8.0, f.b);
-  CHECK_EQ(1.0, f.c);
-  CHECK_EQ(2.0, f.d);
-  CHECK_EQ(3.0, f.e);
-  CHECK_EQ(4.0, f.f);
-  CHECK_EQ(5.0, f.g);
-  CHECK_EQ(6.0, f.h);
+  CHECK_EQ(7.0f, f.a);
+  CHECK_EQ(8.0f, f.b);
+  CHECK_EQ(1.0f, f.c);
+  CHECK_EQ(2.0f, f.d);
+  CHECK_EQ(3.0f, f.e);
+  CHECK_EQ(4.0f, f.f);
+  CHECK_EQ(5.0f, f.g);
+  CHECK_EQ(6.0f, f.h);
 }
 
 
