@@ -246,13 +246,17 @@ Reduction JSInliner::Reduce(Node* node) {
 
   JSCallFunctionAccessor call(node);
   HeapObjectMatcher match(call.jsfunction());
-  if (!match.HasValue()) return NoChange();
-
-  if (!match.Value()->IsJSFunction()) return NoChange();
+  if (!match.HasValue() || !match.Value()->IsJSFunction()) return NoChange();
   Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
-  if (mode_ == kRestrictedInlining && !function->shared()->force_inline()) {
-    return NoChange();
-  }
+
+  return ReduceJSCallFunction(node, function);
+}
+
+
+Reduction JSInliner::ReduceJSCallFunction(Node* node,
+                                          Handle<JSFunction> function) {
+  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  JSCallFunctionAccessor call(node);
 
   if (!function->shared()->IsInlineable()) {
     // Function must be inlineable.

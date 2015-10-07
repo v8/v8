@@ -526,6 +526,8 @@
         '../../src/compiler/js-graph.h',
         '../../src/compiler/js-inlining.cc',
         '../../src/compiler/js-inlining.h',
+        '../../src/compiler/js-inlining-heuristic.cc',
+        '../../src/compiler/js-inlining-heuristic.h',
         '../../src/compiler/js-intrinsic-lowering.cc',
         '../../src/compiler/js-intrinsic-lowering.h',
         '../../src/compiler/js-operator.cc',

@@ -31,7 +31,7 @@
 #include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-global-specialization.h"
-#include "src/compiler/js-inlining.h"
+#include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-type-feedback.h"
 #include "src/compiler/js-type-feedback-lowering.h"
@@ -526,10 +526,11 @@ struct InliningPhase {
             ? handle(data->info()->global_object())
             : Handle<GlobalObject>(),
         data->info()->dependencies());
-    JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
-                                          ? JSInliner::kGeneralInlining
-                                          : JSInliner::kRestrictedInlining,
-                      temp_zone, data->info(), data->jsgraph());
+    JSInliningHeuristic inlining(&graph_reducer,
+                                 data->info()->is_inlining_enabled()
+                                     ? JSInliningHeuristic::kGeneralInlining
+                                     : JSInliningHeuristic::kRestrictedInlining,
+                                 temp_zone, data->info(), data->jsgraph());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     if (data->info()->is_frame_specializing()) {
@@ -539,7 +540,7 @@ struct InliningPhase {
       AddReducer(data, &graph_reducer, &global_specialization);
     }
     AddReducer(data, &graph_reducer, &context_specialization);
-    AddReducer(data, &graph_reducer, &inliner);
+    AddReducer(data, &graph_reducer, &inlining);
     graph_reducer.ReduceGraph();
   }
 };
