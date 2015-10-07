@@ -151,6 +151,9 @@
   # TODO(titzer): too slow in --turbo mode due to O(n^2) graph verification.
   'regress/regress-1122': [PASS, NO_VARIANTS],
 
+  # TODO(mstarzinger): try..catch and lazy deopts don't seem to work correctly.
+  'regress/regress-crbug-450960': [PASS, NO_VARIANTS],
+
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
 
