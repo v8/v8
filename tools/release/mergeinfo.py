@@ -57,10 +57,6 @@ def get_branches_for_commit(git_working_dir, hash_to_search):
   branches = branches.splitlines()
   return map(str.strip, branches)
 
-def is_rolling(git_working_dir, hash_to_search):
-  branches = get_branches_for_commit(git_working_dir, hash_to_search)
-  return 'remotes/origin/roll' in branches
-
 def is_lkgr(git_working_dir, hash_to_search):
   branches = get_branches_for_commit(git_working_dir, hash_to_search)
   return 'remotes/origin/lkgr' in branches
@@ -79,9 +75,7 @@ def print_analysis(git_working_dir, hash_to_search):
   print '=====================ORIGINAL COMMIT START==================='
   print describe_commit(git_working_dir, hash_to_search)
   print '=====================ORIGINAL COMMIT END====================='
-
   print '2.) General information:'
-  print 'Is rolling: ' + str(is_rolling(git_working_dir, hash_to_search))
   print 'Is LKGR: ' + str(is_lkgr(git_working_dir, hash_to_search))
   print 'Is on Canary: ' + (
     str(get_first_canary(git_working_dir, hash_to_search)))

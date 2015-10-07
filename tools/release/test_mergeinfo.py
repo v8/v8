@@ -151,18 +151,6 @@ class TestMergeInfo(unittest.TestCase):
     self.assertTrue(hash_of_hit in merges)
     self.assertTrue(hash_of_ignored not in merges)
 
-  def testIsRolling(self):
-    commits = self._get_commits()
-    hash_of_first_commit = commits[0]
-    self._make_empty_commit('This one is the roll head')
-    self._execute_git(['branch', 'remotes/origin/roll'])
-    hash_of_not_rolled = self._make_empty_commit('This one is not yet rolled')
-
-    self.assertTrue(mergeinfo.is_rolling(
-      self.base_dir, hash_of_first_commit))
-    self.assertFalse(mergeinfo.is_rolling(
-      self.base_dir, hash_of_not_rolled))
-
   def testIsLkgr(self):
     commits = self._get_commits()
     hash_of_first_commit = commits[0]
