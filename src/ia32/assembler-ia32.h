@@ -40,7 +40,6 @@
 #include <deque>
 
 #include "src/assembler.h"
-#include "src/compiler.h"
 #include "src/isolate.h"
 #include "src/utils.h"
 

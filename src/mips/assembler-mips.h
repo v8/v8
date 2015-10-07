@@ -41,7 +41,6 @@
 #include <set>
 
 #include "src/assembler.h"
-#include "src/compiler.h"
 #include "src/mips/constants-mips.h"
 
 namespace v8 {

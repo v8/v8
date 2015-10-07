@@ -12,7 +12,6 @@
 
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
-#include "src/compiler.h"
 #include "src/globals.h"
 #include "src/utils.h"
 

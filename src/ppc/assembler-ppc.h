@@ -44,7 +44,6 @@
 #include <vector>
 
 #include "src/assembler.h"
-#include "src/compiler.h"
 #include "src/ppc/constants-ppc.h"
 
 #define ABI_USES_FUNCTION_DESCRIPTORS \

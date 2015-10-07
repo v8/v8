@@ -45,7 +45,6 @@
 
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
-#include "src/compiler.h"
 
 namespace v8 {
 namespace internal {

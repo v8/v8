@@ -40,7 +40,6 @@
 #include <deque>
 
 #include "src/assembler.h"
-#include "src/compiler.h"
 
 namespace v8 {
 namespace internal {
