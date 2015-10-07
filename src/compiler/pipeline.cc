@@ -30,7 +30,6 @@
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
-#include "src/compiler/js-global-specialization.h"
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-type-feedback.h"
@@ -512,20 +511,6 @@ struct InliningPhase {
             : MaybeHandle<Context>());
     JSFrameSpecialization frame_specialization(data->info()->osr_frame(),
                                                data->jsgraph());
-    JSGlobalSpecialization::Flags global_flags =
-        JSGlobalSpecialization::kNoFlags;
-    if (data->info()->is_deoptimization_enabled()) {
-      global_flags |= JSGlobalSpecialization::kDeoptimizationEnabled;
-    }
-    if (data->info()->is_typing_enabled()) {
-      global_flags |= JSGlobalSpecialization::kTypingEnabled;
-    }
-    JSGlobalSpecialization global_specialization(
-        &graph_reducer, data->jsgraph(), global_flags,
-        data->info()->has_global_object()
-            ? handle(data->info()->global_object())
-            : Handle<GlobalObject>(),
-        data->info()->dependencies());
     JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
                                           ? JSInliner::kGeneralInlining
                                           : JSInliner::kRestrictedInlining,
@@ -534,9 +519,6 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &common_reducer);
     if (data->info()->is_frame_specializing()) {
       AddReducer(data, &graph_reducer, &frame_specialization);
-    }
-    if (data->info()->is_native_context_specializing()) {
-      AddReducer(data, &graph_reducer, &global_specialization);
     }
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &inliner);

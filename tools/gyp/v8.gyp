@@ -520,8 +520,6 @@
         '../../src/compiler/js-frame-specialization.h',
         '../../src/compiler/js-generic-lowering.cc',
         '../../src/compiler/js-generic-lowering.h',
-        '../../src/compiler/js-global-specialization.cc',
-        '../../src/compiler/js-global-specialization.h',
         '../../src/compiler/js-graph.cc',
         '../../src/compiler/js-graph.h',
         '../../src/compiler/js-inlining.cc',

@@ -1401,7 +1401,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
           function, effect, control);
       NodeProperties::ReplaceContextInput(node, context);
       CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
-      if (p.AllowTailCalls()) {
+      if (is_strict(p.language_mode())) {
         flags |= CallDescriptor::kSupportsTailCalls;
       }
       NodeProperties::ChangeOp(node,

@@ -432,8 +432,6 @@ DEFINE_BOOL(turbo_source_positions, false,
 DEFINE_IMPLICATION(trace_turbo, turbo_source_positions)
 DEFINE_BOOL(function_context_specialization, false,
             "enable function context specialization in TurboFan")
-DEFINE_BOOL(native_context_specialization, true,
-            "enable native context specialization in TurboFan")
 DEFINE_BOOL(turbo_inlining, false, "enable inlining in TurboFan")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(loop_assignment_analysis, true, "perform loop assignment analysis")

@@ -400,7 +400,6 @@ TEST(OptimizedCodeSharing2) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
   FLAG_cache_optimized_code = true;
-  FLAG_native_context_specialization = false;
   FLAG_turbo_cache_shared_code = true;
   const char* flag = "--turbo-filter=*";
   FlagList::SetFlagsFromString(flag, StrLength(flag));
@@ -456,7 +455,6 @@ TEST(OptimizedCodeSharing3) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
   FLAG_cache_optimized_code = true;
-  FLAG_native_context_specialization = false;
   FLAG_turbo_cache_shared_code = true;
   const char* flag = "--turbo-filter=*";
   FlagList::SetFlagsFromString(flag, StrLength(flag));
