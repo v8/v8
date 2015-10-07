@@ -255,25 +255,49 @@ void BytecodeGraphBuilder::VisitLdaGlobal(
 }
 
 
-void BytecodeGraphBuilder::VisitLoadIC(
+void BytecodeGraphBuilder::VisitLoadICSloppy(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGraphBuilder::VisitKeyedLoadIC(
+void BytecodeGraphBuilder::VisitLoadICStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGraphBuilder::VisitStoreIC(
+void BytecodeGraphBuilder::VisitKeyedLoadICSloppy(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGraphBuilder::VisitKeyedStoreIC(
+void BytecodeGraphBuilder::VisitKeyedLoadICStrict(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitStoreICSloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitStoreICStrict(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitKeyedStoreICSloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitKeyedStoreICStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }

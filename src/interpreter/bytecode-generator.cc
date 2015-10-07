@@ -687,7 +687,7 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Visit(left);
   builder()->StoreAccumulatorInRegister(temporary);
   Visit(right);
-  builder()->CompareOperation(op, temporary, language_mode());
+  builder()->CompareOperation(op, temporary, language_mode_strength());
 }
 
 
@@ -726,12 +726,17 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* binop) {
   Visit(left);
   builder()->StoreAccumulatorInRegister(temporary);
   Visit(right);
-  builder()->BinaryOperation(op, temporary);
+  builder()->BinaryOperation(op, temporary, language_mode_strength());
 }
 
 
 LanguageMode BytecodeGenerator::language_mode() const {
   return info()->language_mode();
+}
+
+
+Strength BytecodeGenerator::language_mode_strength() const {
+  return strength(language_mode());
 }
 
 

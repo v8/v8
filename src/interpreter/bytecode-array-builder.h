@@ -82,7 +82,8 @@ class BytecodeArrayBuilder {
                                     Register first_arg, size_t arg_count);
 
   // Operators (register == lhs, accumulator = rhs).
-  BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg);
+  BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
+                                        Strength strength);
 
   // Unary Operators.
   BytecodeArrayBuilder& LogicalNot();
@@ -90,7 +91,7 @@ class BytecodeArrayBuilder {
 
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
-                                         LanguageMode language_mode);
+                                         Strength strength);
 
   // Casts
   BytecodeArrayBuilder& CastAccumulatorToBoolean();
@@ -117,6 +118,10 @@ class BytecodeArrayBuilder {
 
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
   static Bytecode BytecodeForCompareOperation(Token::Value op);
+  static Bytecode BytecodeForLoadIC(LanguageMode language_mode);
+  static Bytecode BytecodeForKeyedLoadIC(LanguageMode language_mode);
+  static Bytecode BytecodeForStoreIC(LanguageMode language_mode);
+  static Bytecode BytecodeForKeyedStoreIC(LanguageMode language_mode);
 
   static bool FitsInIdx8Operand(int value);
   static bool FitsInIdx8Operand(size_t value);

@@ -207,7 +207,8 @@ TEST_F(BytecodeGraphBuilderTest, SimpleExpressionWithParameters) {
   array_builder()->set_parameter_count(3);
   array_builder()
       ->LoadAccumulatorWithRegister(array_builder()->Parameter(1))
-      .BinaryOperation(Token::Value::ADD, array_builder()->Parameter(2))
+      .BinaryOperation(Token::Value::ADD, array_builder()->Parameter(2),
+                       Strength::WEAK)
       .StoreAccumulatorInRegister(interpreter::Register(0))
       .Return();
 
@@ -231,7 +232,8 @@ TEST_F(BytecodeGraphBuilderTest, SimpleExpressionWithRegister) {
       ->LoadLiteral(Smi::FromInt(kLeft))
       .StoreAccumulatorInRegister(interpreter::Register(0))
       .LoadLiteral(Smi::FromInt(kRight))
-      .BinaryOperation(Token::Value::ADD, interpreter::Register(0))
+      .BinaryOperation(Token::Value::ADD, interpreter::Register(0),
+                       Strength::WEAK)
       .Return();
 
   Graph* graph = GetCompletedGraph();

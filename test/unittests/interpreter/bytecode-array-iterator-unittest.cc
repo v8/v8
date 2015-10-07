@@ -79,7 +79,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK(!iterator.done());
   iterator.Advance();
 
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLoadIC);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLoadICSloppy);
   CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_1.index());
   CHECK_EQ(iterator.GetIndexOperand(1), feedback_slot);
   CHECK(!iterator.done());

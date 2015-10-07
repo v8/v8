@@ -47,33 +47,37 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadNamedProperty(reg, 0, LanguageMode::SLOPPY)
       .LoadKeyedProperty(reg, 0, LanguageMode::SLOPPY)
       .StoreNamedProperty(reg, reg, 0, LanguageMode::SLOPPY)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY);
+      .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY)
+      .LoadNamedProperty(reg, 0, LanguageMode::STRICT)
+      .LoadKeyedProperty(reg, 0, LanguageMode::STRICT)
+      .StoreNamedProperty(reg, reg, 0, LanguageMode::STRICT)
+      .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT);
 
   // Call operations.
   builder.Call(reg, reg, 0);
   builder.CallRuntime(Runtime::kIsArray, reg, 1);
 
   // Emit binary operator invocations.
-  builder.BinaryOperation(Token::Value::ADD, reg)
-      .BinaryOperation(Token::Value::SUB, reg)
-      .BinaryOperation(Token::Value::MUL, reg)
-      .BinaryOperation(Token::Value::DIV, reg)
-      .BinaryOperation(Token::Value::MOD, reg);
+  builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::SUB, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::MUL, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::DIV, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::MOD, reg, Strength::WEAK);
 
   // Emit unary operator invocations.
   builder.LogicalNot().TypeOf();
 
   // Emit test operator invocations.
-  builder.CompareOperation(Token::Value::EQ, reg, LanguageMode::SLOPPY)
-      .CompareOperation(Token::Value::NE, reg, LanguageMode::SLOPPY)
-      .CompareOperation(Token::Value::EQ_STRICT, reg, LanguageMode::SLOPPY)
-      .CompareOperation(Token::Value::NE_STRICT, reg, LanguageMode::SLOPPY)
-      .CompareOperation(Token::Value::LT, reg, LanguageMode::SLOPPY)
-      .CompareOperation(Token::Value::GT, reg, LanguageMode::SLOPPY)
-      .CompareOperation(Token::Value::LTE, reg, LanguageMode::SLOPPY)
-      .CompareOperation(Token::Value::GTE, reg, LanguageMode::SLOPPY)
-      .CompareOperation(Token::Value::INSTANCEOF, reg, LanguageMode::SLOPPY)
-      .CompareOperation(Token::Value::IN, reg, LanguageMode::SLOPPY);
+  builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::NE, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ_STRICT, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::NE_STRICT, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::LT, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::GT, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::LTE, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::GTE, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::INSTANCEOF, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::IN, reg, Strength::WEAK);
 
   // Emit cast operator invocations.
   builder.LoadNull().CastAccumulatorToBoolean();

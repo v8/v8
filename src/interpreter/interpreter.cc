@@ -219,24 +219,48 @@ void Interpreter::DoPropertyLoadIC(Callable ic,
 }
 
 
-// LoadIC <object> <slot>
+// LoadICSloppy <object> <slot>
 //
-// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name
-// in the accumulator.
-void Interpreter::DoLoadIC(compiler::InterpreterAssembler* assembler) {
+// Calls the sloppy mode LoadIC at FeedBackVector slot <slot> for <object> and
+// the name in the accumulator.
+void Interpreter::DoLoadICSloppy(compiler::InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
                                                    SLOPPY, UNINITIALIZED);
   DoPropertyLoadIC(ic, assembler);
 }
 
 
-// KeyedLoadIC <object> <slot>
+// LoadICStrict <object> <slot>
 //
-// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
-// in the accumulator.
-void Interpreter::DoKeyedLoadIC(compiler::InterpreterAssembler* assembler) {
+// Calls the strict mode LoadIC at FeedBackVector slot <slot> for <object> and
+// the name in the accumulator.
+void Interpreter::DoLoadICStrict(compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
+                                                   STRICT, UNINITIALIZED);
+  DoPropertyLoadIC(ic, assembler);
+}
+
+
+// KeyedLoadICSloppy <object> <slot>
+//
+// Calls the sloppy mode KeyedLoadIC at FeedBackVector slot <slot> for <object>
+// and the key in the accumulator.
+void Interpreter::DoKeyedLoadICSloppy(
+    compiler::InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedLoadICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  DoPropertyLoadIC(ic, assembler);
+}
+
+
+// KeyedLoadICStrict <object> <slot>
+//
+// Calls the strict mode KeyedLoadIC at FeedBackVector slot <slot> for <object>
+// and the key in the accumulator.
+void Interpreter::DoKeyedLoadICStrict(
+    compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
   DoPropertyLoadIC(ic, assembler);
 }
 
@@ -259,24 +283,48 @@ void Interpreter::DoPropertyStoreIC(Callable ic,
 }
 
 
-// StoreIC <object> <name> <slot>
+// StoreICSloppy <object> <name> <slot>
 //
-// Calls the StoreIC at FeedBackVector slot <slot> for <object> and the name
-// <name> with the value in the accumulator.
-void Interpreter::DoStoreIC(compiler::InterpreterAssembler* assembler) {
+// Calls the sloppy mode StoreIC at FeedBackVector slot <slot> for <object> and
+// the name <name> with the value in the accumulator.
+void Interpreter::DoStoreICSloppy(compiler::InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
   DoPropertyStoreIC(ic, assembler);
 }
 
 
-// KeyedStoreIC <object> <key> <slot>
+// StoreICStrict <object> <name> <slot>
 //
-// Calls the KeyStoreIC at FeedBackVector slot <slot> for <object> and the key
-// <key> with the value in the accumulator.
-void Interpreter::DoKeyedStoreIC(compiler::InterpreterAssembler* assembler) {
+// Calls the strict mode StoreIC at FeedBackVector slot <slot> for <object> and
+// the name <name> with the value in the accumulator.
+void Interpreter::DoStoreICStrict(compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::StoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
+  DoPropertyStoreIC(ic, assembler);
+}
+
+
+// KeyedStoreICSloppy <object> <key> <slot>
+//
+// Calls the sloppy mode KeyStoreIC at FeedBackVector slot <slot> for <object>
+// and the key <key> with the value in the accumulator.
+void Interpreter::DoKeyedStoreICSloppy(
+    compiler::InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedStoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  DoPropertyStoreIC(ic, assembler);
+}
+
+
+// KeyedStoreICStore <object> <key> <slot>
+//
+// Calls the strict mode KeyStoreIC at FeedBackVector slot <slot> for <object>
+// and the key <key> with the value in the accumulator.
+void Interpreter::DoKeyedStoreICStrict(
+    compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::KeyedStoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
   DoPropertyStoreIC(ic, assembler);
 }
 

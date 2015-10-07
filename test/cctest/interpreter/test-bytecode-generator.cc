@@ -432,11 +432,11 @@ TEST(PropertyLoads) {
        2,
        10,
        {
-           B(Ldar), R(helper.kLastParamIndex),            //
-           B(Star), R(0),                                 //
-           B(LdaConstant), U8(0),                         //
-           B(LoadIC), R(0), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                      //
+           B(Ldar), R(helper.kLastParamIndex),                  //
+           B(Star), R(0),                                       //
+           B(LdaConstant), U8(0),                               //
+           B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                            //
        },
        1,
        {"name"}},
@@ -445,11 +445,11 @@ TEST(PropertyLoads) {
        2,
        10,
        {
-           B(Ldar), R(helper.kLastParamIndex),            //
-           B(Star), R(0),                                 //
-           B(LdaConstant), U8(0),                         //
-           B(LoadIC), R(0), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                      //
+           B(Ldar), R(helper.kLastParamIndex),                  //
+           B(Star), R(0),                                       //
+           B(LdaConstant), U8(0),                               //
+           B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                            //
        },
        1,
        {"key"}},
@@ -458,11 +458,11 @@ TEST(PropertyLoads) {
        2,
        10,
        {
-           B(Ldar), R(helper.kLastParamIndex),                 //
-           B(Star), R(0),                                      //
-           B(LdaSmi8), U8(100),                                //
-           B(KeyedLoadIC), R(0), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                           //
+           B(Ldar), R(helper.kLastParamIndex),                       //
+           B(Star), R(0),                                            //
+           B(LdaSmi8), U8(100),                                      //
+           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                                 //
        },
        0},
       {"function f(a, b) { return a[b]; }\nf({arg : \"test\"}, \"arg\")",
@@ -470,11 +470,11 @@ TEST(PropertyLoads) {
        3,
        10,
        {
-           B(Ldar), R(helper.kLastParamIndex - 1),             //
-           B(Star), R(0),                                      //
-           B(Ldar), R(helper.kLastParamIndex),                 //
-           B(KeyedLoadIC), R(0), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                           //
+           B(Ldar), R(helper.kLastParamIndex - 1),                   //
+           B(Star), R(0),                                            //
+           B(Ldar), R(helper.kLastParamIndex),                       //
+           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                                 //
        },
        0},
       {"function f(a) { var b = a.name; return a[-124]; }\n"
@@ -483,19 +483,52 @@ TEST(PropertyLoads) {
        2,
        21,
        {
-           B(Ldar), R(helper.kLastParamIndex),                 //
-           B(Star), R(1),                                      //
-           B(LdaConstant), U8(0),                              //
-           B(LoadIC), R(1), U8(vector->GetIndex(slot1)),       //
-           B(Star), R(0),                                      //
-           B(Ldar), R(helper.kLastParamIndex),                 //
-           B(Star), R(1),                                      //
-           B(LdaSmi8), U8(-124),                               //
-           B(KeyedLoadIC), R(1), U8(vector->GetIndex(slot2)),  //
-           B(Return)                                           //
+           B(Ldar), R(helper.kLastParamIndex),                       //
+           B(Star), R(1),                                            //
+           B(LdaConstant), U8(0),                                    //
+           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot1)),       //
+           B(Star), R(0),                                            //
+           B(Ldar), R(helper.kLastParamIndex),                       //
+           B(Star), R(1),                                            //
+           B(LdaSmi8), U8(-124),                                     //
+           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
+           B(Return)                                                 //
        },
        1,
-       {"name"}}};
+       {"name"}},
+      {"function f(a) { \"use strict\"; return a.name; }\nf({name : \"test\"})",
+       1 * kPointerSize,
+       2,
+       12,
+       {
+           // TODO(rmcilroy) Avoid unnecessary LdaConstant for "use strict"
+           // expression, or any other unused literal expression.
+           B(LdaConstant), U8(0),                               //
+           B(Ldar), R(helper.kLastParamIndex),                  //
+           B(Star), R(0),                                       //
+           B(LdaConstant), U8(1),                               //
+           B(LoadICStrict), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                            //
+       },
+       2,
+       {"use strict", "name"}},
+      {"function f(a, b) { \"use strict\"; return a[b]; }\n"
+       "f({arg : \"test\"}, \"arg\")",
+       1 * kPointerSize,
+       3,
+       12,
+       {
+           // TODO(rmcilroy) Avoid unnecessary LdaConstant for "use strict"
+           // expression, or any other unused literal expression.
+           B(LdaConstant), U8(0),                                    //
+           B(Ldar), R(helper.kLastParamIndex - 1),                   //
+           B(Star), R(0),                                            //
+           B(Ldar), R(helper.kLastParamIndex),                       //
+           B(KeyedLoadICStrict), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                                 //
+       },
+       1,
+       {"use strict"}}};
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, helper.kFunctionName);
@@ -522,14 +555,14 @@ TEST(PropertyStores) {
        2,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex),                   //
-           B(Star), R(0),                                        //
-           B(LdaConstant), U8(0),                                //
-           B(Star), R(1),                                        //
-           B(LdaConstant), U8(1),                                //
-           B(StoreIC), R(0), R(1), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                      //
-           B(Return)                                             //
+           B(Ldar), R(helper.kLastParamIndex),                         //
+           B(Star), R(0),                                              //
+           B(LdaConstant), U8(0),                                      //
+           B(Star), R(1),                                              //
+           B(LdaConstant), U8(1),                                      //
+           B(StoreICSloppy), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                            //
+           B(Return)                                                   //
        },
        2,
        {"name", "val"}},
@@ -538,14 +571,14 @@ TEST(PropertyStores) {
        2,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex),                   //
-           B(Star), R(0),                                        //
-           B(LdaConstant), U8(0),                                //
-           B(Star), R(1),                                        //
-           B(LdaConstant), U8(1),                                //
-           B(StoreIC), R(0), R(1), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                      //
-           B(Return)                                             //
+           B(Ldar), R(helper.kLastParamIndex),                         //
+           B(Star), R(0),                                              //
+           B(LdaConstant), U8(0),                                      //
+           B(Star), R(1),                                              //
+           B(LdaConstant), U8(1),                                      //
+           B(StoreICSloppy), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                            //
+           B(Return)                                                   //
        },
        2,
        {"key", "val"}},
@@ -554,14 +587,14 @@ TEST(PropertyStores) {
        2,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex),                        //
-           B(Star), R(0),                                             //
-           B(LdaSmi8), U8(100),                                       //
-           B(Star), R(1),                                             //
-           B(LdaConstant), U8(0),                                     //
-           B(KeyedStoreIC), R(0), R(1), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                           //
-           B(Return)                                                  //
+           B(Ldar), R(helper.kLastParamIndex),                              //
+           B(Star), R(0),                                                   //
+           B(LdaSmi8), U8(100),                                             //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(0),                                           //
+           B(KeyedStoreICSloppy), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                                 //
+           B(Return)                                                        //
        },
        1,
        {"val"}},
@@ -570,14 +603,14 @@ TEST(PropertyStores) {
        3,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex - 1),                    //
-           B(Star), R(0),                                             //
-           B(Ldar), R(helper.kLastParamIndex),                        //
-           B(Star), R(1),                                             //
-           B(LdaConstant), U8(0),                                     //
-           B(KeyedStoreIC), R(0), R(1), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                           //
-           B(Return)                                                  //
+           B(Ldar), R(helper.kLastParamIndex - 1),                          //
+           B(Star), R(0),                                                   //
+           B(Ldar), R(helper.kLastParamIndex),                              //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(0),                                           //
+           B(KeyedStoreICSloppy), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                                 //
+           B(Return)                                                        //
        },
        1,
        {"val"}},
@@ -587,20 +620,60 @@ TEST(PropertyStores) {
        2,
        23,
        {
-           B(Ldar), R(helper.kLastParamIndex),                   //
-           B(Star), R(0),                                        //
-           B(LdaConstant), U8(0),                                //
-           B(Star), R(1),                                        //
-           B(Ldar), R(helper.kLastParamIndex),                   //
-           B(Star), R(2),                                        //
-           B(LdaSmi8), U8(-124),                                 //
-           B(KeyedLoadIC), R(2), U8(vector->GetIndex(slot1)),    //
-           B(StoreIC), R(0), R(1), U8(vector->GetIndex(slot2)),  //
-           B(LdaUndefined),                                      //
-           B(Return)                                             //
+           B(Ldar), R(helper.kLastParamIndex),                         //
+           B(Star), R(0),                                              //
+           B(LdaConstant), U8(0),                                      //
+           B(Star), R(1),                                              //
+           B(Ldar), R(helper.kLastParamIndex),                         //
+           B(Star), R(2),                                              //
+           B(LdaSmi8), U8(-124),                                       //
+           B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot1)),    //
+           B(StoreICSloppy), R(0), R(1), U8(vector->GetIndex(slot2)),  //
+           B(LdaUndefined),                                            //
+           B(Return)                                                   //
        },
        1,
-       {"name"}}};
+       {"name"}},
+      {"function f(a) { \"use strict\"; a.name = \"val\"; }\n"
+       "f({name : \"test\"})",
+       2 * kPointerSize,
+       2,
+       18,
+       {
+           // TODO(rmcilroy) Avoid unnecessary LdaConstant for "use strict"
+           // expression, or any other unused literal expression.
+           B(LdaConstant), U8(0),                                      //
+           B(Ldar), R(helper.kLastParamIndex),                         //
+           B(Star), R(0),                                              //
+           B(LdaConstant), U8(1),                                      //
+           B(Star), R(1),                                              //
+           B(LdaConstant), U8(2),                                      //
+           B(StoreICStrict), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                            //
+           B(Return)                                                   //
+       },
+       3,
+       {"use strict", "name", "val"}},
+      {"function f(a, b) { \"use strict\"; a[b] = \"val\"; }\n"
+       "f({arg : \"test\"}, \"arg\")",
+       2 * kPointerSize,
+       3,
+       18,
+       {
+           // TODO(rmcilroy) Avoid unnecessary LdaConstant for "use strict"
+           // expression, or any other unused literal expression.
+           B(LdaConstant), U8(0),                                           //
+           B(Ldar), R(helper.kLastParamIndex - 1),                          //
+           B(Star), R(0),                                                   //
+           B(Ldar), R(helper.kLastParamIndex),                              //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(1),                                           //
+           B(KeyedStoreICStrict), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                                 //
+           B(Return)                                                        //
+       },
+       2,
+       {"use strict", "val"}}};
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, helper.kFunctionName);
@@ -631,13 +704,13 @@ TEST(PropertyCall) {
        2,
        16,
        {
-           B(Ldar), R(helper.kLastParamIndex),            //
-           B(Star), R(1),                                 //
-           B(LdaConstant), U8(0),                         //
-           B(LoadIC), R(1), U8(vector->GetIndex(slot2)),  //
-           B(Star), R(0),                                 //
-           B(Call), R(0), R(1), U8(0),                    //
-           B(Return)                                      //
+           B(Ldar), R(helper.kLastParamIndex),                  //
+           B(Star), R(1),                                       //
+           B(LdaConstant), U8(0),                               //
+           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                       //
+           B(Call), R(0), R(1), U8(0),                          //
+           B(Return)                                            //
        },
        1,
        {"func"}},
@@ -646,17 +719,17 @@ TEST(PropertyCall) {
        4,
        24,
        {
-           B(Ldar), R(helper.kLastParamIndex - 2),        //
-           B(Star), R(1),                                 //
-           B(LdaConstant), U8(0),                         //
-           B(LoadIC), R(1), U8(vector->GetIndex(slot2)),  //
-           B(Star), R(0),                                 //
-           B(Ldar), R(helper.kLastParamIndex - 1),        //
-           B(Star), R(2),                                 //
-           B(Ldar), R(helper.kLastParamIndex),            //
-           B(Star), R(3),                                 //
-           B(Call), R(0), R(1), U8(2),                    //
-           B(Return)                                      //
+           B(Ldar), R(helper.kLastParamIndex - 2),              //
+           B(Star), R(1),                                       //
+           B(LdaConstant), U8(0),                               //
+           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                       //
+           B(Ldar), R(helper.kLastParamIndex - 1),              //
+           B(Star), R(2),                                       //
+           B(Ldar), R(helper.kLastParamIndex),                  //
+           B(Star), R(3),                                       //
+           B(Call), R(0), R(1), U8(2),                          //
+           B(Return)                                            //
        },
        1,
        {"func"}},
@@ -665,20 +738,20 @@ TEST(PropertyCall) {
        3,
        30,
        {
-           B(Ldar), R(helper.kLastParamIndex - 1),        //
-           B(Star), R(1),                                 //
-           B(LdaConstant), U8(0),                         //
-           B(LoadIC), R(1), U8(vector->GetIndex(slot2)),  //
-           B(Star), R(0),                                 //
-           B(Ldar), R(helper.kLastParamIndex),            //
-           B(Star), R(2),                                 //
-           B(Ldar), R(helper.kLastParamIndex),            //
-           B(Add), R(2),                                  //
-           B(Star), R(2),                                 //
-           B(Ldar), R(helper.kLastParamIndex),            //
-           B(Star), R(3),                                 //
-           B(Call), R(0), R(1), U8(2),                    //
-           B(Return)                                      //
+           B(Ldar), R(helper.kLastParamIndex - 1),              //
+           B(Star), R(1),                                       //
+           B(LdaConstant), U8(0),                               //
+           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                       //
+           B(Ldar), R(helper.kLastParamIndex),                  //
+           B(Star), R(2),                                       //
+           B(Ldar), R(helper.kLastParamIndex),                  //
+           B(Add), R(2),                                        //
+           B(Star), R(2),                                       //
+           B(Ldar), R(helper.kLastParamIndex),                  //
+           B(Star), R(3),                                       //
+           B(Call), R(0), R(1), U8(2),                          //
+           B(Return)                                            //
        },
        1,
        {"func"}}};

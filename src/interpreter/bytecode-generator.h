@@ -48,6 +48,7 @@ class BytecodeGenerator : public AstVisitor {
   inline void set_info(CompilationInfo* info) { info_ = info; }
 
   LanguageMode language_mode() const;
+  Strength language_mode_strength() const;
   int feedback_index(FeedbackVectorSlot slot) const;
 
   BytecodeArrayBuilder builder_;

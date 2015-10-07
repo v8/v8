@@ -31,71 +31,77 @@ namespace interpreter {
   V(Idx16, OperandSize::kShort)
 
 // The list of bytecodes which are interpreted by the interpreter.
-#define BYTECODE_LIST(V)                                                      \
-                                                                              \
-  /* Loading the accumulator */                                               \
-  V(LdaZero, OperandType::kNone)                                              \
-  V(LdaSmi8, OperandType::kImm8)                                              \
-  V(LdaConstant, OperandType::kIdx8)                                          \
-  V(LdaUndefined, OperandType::kNone)                                         \
-  V(LdaNull, OperandType::kNone)                                              \
-  V(LdaTheHole, OperandType::kNone)                                           \
-  V(LdaTrue, OperandType::kNone)                                              \
-  V(LdaFalse, OperandType::kNone)                                             \
-                                                                              \
-  /* Load globals */                                                          \
-  V(LdaGlobal, OperandType::kIdx8)                                            \
-                                                                              \
-  /* Reg8ister-accumulator transfers */                                       \
-  V(Ldar, OperandType::kReg8)                                                 \
-  V(Star, OperandType::kReg8)                                                 \
-                                                                              \
-  /* LoadIC operations */                                                     \
-  V(LoadIC, OperandType::kReg8, OperandType::kIdx8)                           \
-  V(KeyedLoadIC, OperandType::kReg8, OperandType::kIdx8)                      \
-                                                                              \
-  /* StoreIC operations */                                                    \
-  V(StoreIC, OperandType::kReg8, OperandType::kReg8, OperandType::kIdx8)      \
-  V(KeyedStoreIC, OperandType::kReg8, OperandType::kReg8, OperandType::kIdx8) \
-                                                                              \
-  /* Binary Operators */                                                      \
-  V(Add, OperandType::kReg8)                                                  \
-  V(Sub, OperandType::kReg8)                                                  \
-  V(Mul, OperandType::kReg8)                                                  \
-  V(Div, OperandType::kReg8)                                                  \
-  V(Mod, OperandType::kReg8)                                                  \
-                                                                              \
-  /* Unary Operators */                                                       \
-  V(LogicalNot, OperandType::kNone)                                           \
-  V(TypeOf, OperandType::kNone)                                               \
-                                                                              \
-  /* Call operations. */                                                      \
-  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)       \
-  V(CallRuntime, OperandType::kIdx16, OperandType::kReg8,                     \
-    OperandType::kCount8)                                                     \
-                                                                              \
-  /* Test Operators */                                                        \
-  V(TestEqual, OperandType::kReg8)                                            \
-  V(TestNotEqual, OperandType::kReg8)                                         \
-  V(TestEqualStrict, OperandType::kReg8)                                      \
-  V(TestNotEqualStrict, OperandType::kReg8)                                   \
-  V(TestLessThan, OperandType::kReg8)                                         \
-  V(TestGreaterThan, OperandType::kReg8)                                      \
-  V(TestLessThanOrEqual, OperandType::kReg8)                                  \
-  V(TestGreaterThanOrEqual, OperandType::kReg8)                               \
-  V(TestInstanceOf, OperandType::kReg8)                                       \
-  V(TestIn, OperandType::kReg8)                                               \
-                                                                              \
-  /* Cast operators */                                                        \
-  V(ToBoolean, OperandType::kNone)                                            \
-                                                                              \
-  /* Control Flow */                                                          \
-  V(Jump, OperandType::kImm8)                                                 \
-  V(JumpConstant, OperandType::kIdx8)                                         \
-  V(JumpIfTrue, OperandType::kImm8)                                           \
-  V(JumpIfTrueConstant, OperandType::kIdx8)                                   \
-  V(JumpIfFalse, OperandType::kImm8)                                          \
-  V(JumpIfFalseConstant, OperandType::kIdx8)                                  \
+#define BYTECODE_LIST(V)                                                       \
+                                                                               \
+  /* Loading the accumulator */                                                \
+  V(LdaZero, OperandType::kNone)                                               \
+  V(LdaSmi8, OperandType::kImm8)                                               \
+  V(LdaConstant, OperandType::kIdx8)                                           \
+  V(LdaUndefined, OperandType::kNone)                                          \
+  V(LdaNull, OperandType::kNone)                                               \
+  V(LdaTheHole, OperandType::kNone)                                            \
+  V(LdaTrue, OperandType::kNone)                                               \
+  V(LdaFalse, OperandType::kNone)                                              \
+                                                                               \
+  /* Load globals */                                                           \
+  V(LdaGlobal, OperandType::kIdx8)                                             \
+                                                                               \
+  /* Register-accumulator transfers */                                         \
+  V(Ldar, OperandType::kReg8)                                                  \
+  V(Star, OperandType::kReg8)                                                  \
+                                                                               \
+  /* LoadIC operations */                                                      \
+  V(LoadICSloppy, OperandType::kReg8, OperandType::kIdx8)                      \
+  V(LoadICStrict, OperandType::kReg8, OperandType::kIdx8)                      \
+  V(KeyedLoadICSloppy, OperandType::kReg8, OperandType::kIdx8)                 \
+  V(KeyedLoadICStrict, OperandType::kReg8, OperandType::kIdx8)                 \
+                                                                               \
+  /* StoreIC operations */                                                     \
+  V(StoreICSloppy, OperandType::kReg8, OperandType::kReg8, OperandType::kIdx8) \
+  V(StoreICStrict, OperandType::kReg8, OperandType::kReg8, OperandType::kIdx8) \
+  V(KeyedStoreICSloppy, OperandType::kReg8, OperandType::kReg8,                \
+    OperandType::kIdx8)                                                        \
+  V(KeyedStoreICStrict, OperandType::kReg8, OperandType::kReg8,                \
+    OperandType::kIdx8)                                                        \
+                                                                               \
+  /* Binary Operators */                                                       \
+  V(Add, OperandType::kReg8)                                                   \
+  V(Sub, OperandType::kReg8)                                                   \
+  V(Mul, OperandType::kReg8)                                                   \
+  V(Div, OperandType::kReg8)                                                   \
+  V(Mod, OperandType::kReg8)                                                   \
+                                                                               \
+  /* Unary Operators */                                                        \
+  V(LogicalNot, OperandType::kNone)                                            \
+  V(TypeOf, OperandType::kNone)                                                \
+                                                                               \
+  /* Call operations. */                                                       \
+  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)        \
+  V(CallRuntime, OperandType::kIdx16, OperandType::kReg8,                      \
+    OperandType::kCount8)                                                      \
+                                                                               \
+  /* Test Operators */                                                         \
+  V(TestEqual, OperandType::kReg8)                                             \
+  V(TestNotEqual, OperandType::kReg8)                                          \
+  V(TestEqualStrict, OperandType::kReg8)                                       \
+  V(TestNotEqualStrict, OperandType::kReg8)                                    \
+  V(TestLessThan, OperandType::kReg8)                                          \
+  V(TestGreaterThan, OperandType::kReg8)                                       \
+  V(TestLessThanOrEqual, OperandType::kReg8)                                   \
+  V(TestGreaterThanOrEqual, OperandType::kReg8)                                \
+  V(TestInstanceOf, OperandType::kReg8)                                        \
+  V(TestIn, OperandType::kReg8)                                                \
+                                                                               \
+  /* Cast operators */                                                         \
+  V(ToBoolean, OperandType::kNone)                                             \
+                                                                               \
+  /* Control Flow */                                                           \
+  V(Jump, OperandType::kImm8)                                                  \
+  V(JumpConstant, OperandType::kIdx8)                                          \
+  V(JumpIfTrue, OperandType::kImm8)                                            \
+  V(JumpIfTrueConstant, OperandType::kIdx8)                                    \
+  V(JumpIfFalse, OperandType::kImm8)                                           \
+  V(JumpIfFalseConstant, OperandType::kIdx8)                                   \
   V(Return, OperandType::kNone)
 
 
@@ -133,8 +139,8 @@ enum class Bytecode : uint8_t {
 };
 
 
-// An interpreter Reg8ister which is located in the function's Reg8ister file
-// in its stack-frame. Reg8ister hold parameters, this, and expression values.
+// An interpreter Register which is located in the function's Register file
+// in its stack-frame. Register hold parameters, this, and expression values.
 class Register {
  public:
   static const int kMaxRegisterIndex = 127;
