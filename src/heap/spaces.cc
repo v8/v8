@@ -1016,6 +1016,8 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   accounting_stats_.Merge(other->accounting_stats_);
   other->accounting_stats_.Reset();
 
+  AccountCommitted(other->CommittedMemory());
+
   // Move over pages.
   PageIterator it(other);
   Page* p = nullptr;
@@ -1094,6 +1096,8 @@ bool PagedSpace::Expand() {
                                                                 executable());
   if (p == NULL) return false;
 
+  AccountCommitted(static_cast<intptr_t>(p->size()));
+
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!heap()->deserialization_complete()) p->MarkNeverEvacuate();
 
@@ -1160,6 +1164,7 @@ void PagedSpace::ReleasePage(Page* page) {
     page->Unlink();
   }
 
+  AccountUncommitted(static_cast<intptr_t>(page->size()));
   heap()->QueueMemoryChunkForFree(page);
 
   DCHECK(Capacity() > 0);
@@ -1586,7 +1591,6 @@ void SemiSpace::SetUp(Address start, int initial_capacity, int target_capacity,
   total_capacity_ = initial_capacity;
   target_capacity_ = RoundDown(target_capacity, Page::kPageSize);
   maximum_total_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
-  maximum_committed_ = 0;
   committed_ = false;
   start_ = start;
   address_mask_ = ~(maximum_capacity - 1);
@@ -1609,6 +1613,7 @@ bool SemiSpace::Commit() {
           start_, total_capacity_, executable())) {
     return false;
   }
+  AccountCommitted(total_capacity_);
 
   NewSpacePage* current = anchor();
   for (int i = 0; i < pages; i++) {
@@ -1632,6 +1637,8 @@ bool SemiSpace::Uncommit() {
                                                             total_capacity_)) {
     return false;
   }
+  AccountUncommitted(total_capacity_);
+
   anchor()->set_next_page(anchor());
   anchor()->set_prev_page(anchor());
 
@@ -1668,6 +1675,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
           start_ + total_capacity_, delta, executable())) {
     return false;
   }
+  AccountCommitted(static_cast<intptr_t>(delta));
   SetCapacity(new_capacity);
   NewSpacePage* last_page = anchor()->prev_page();
   DCHECK(last_page != anchor());
@@ -1698,6 +1706,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
     if (!allocator->UncommitBlock(start_ + new_capacity, delta)) {
       return false;
     }
+    AccountUncommitted(static_cast<intptr_t>(delta));
 
     int pages_after = new_capacity / Page::kPageSize;
     NewSpacePage* new_last_page =
@@ -1783,9 +1792,6 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
 
 void SemiSpace::SetCapacity(int new_capacity) {
   total_capacity_ = new_capacity;
-  if (total_capacity_ > maximum_committed_) {
-    maximum_committed_ = total_capacity_;
-  }
 }
 
 
@@ -2863,7 +2869,6 @@ LargeObjectSpace::~LargeObjectSpace() {}
 bool LargeObjectSpace::SetUp() {
   first_page_ = NULL;
   size_ = 0;
-  maximum_committed_ = 0;
   page_count_ = 0;
   objects_size_ = 0;
   chunk_map_.Clear();
@@ -2901,14 +2906,11 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   DCHECK(page->area_size() >= object_size);
 
   size_ += static_cast<int>(page->size());
+  AccountCommitted(static_cast<intptr_t>(page->size()));
   objects_size_ += object_size;
   page_count_++;
   page->set_next_page(first_page_);
   first_page_ = page;
-
-  if (size_ > maximum_committed_) {
-    maximum_committed_ = size_;
-  }
 
   // Register all MemoryChunk::kAlignment-aligned chunks covered by
   // this large page in the chunk map.
@@ -3013,6 +3015,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       heap()->mark_compact_collector()->ReportDeleteIfNeeded(object,
                                                              heap()->isolate());
       size_ -= static_cast<int>(page->size());
+      AccountUncommitted(static_cast<intptr_t>(page->size()));
       objects_size_ -= object->Size();
       page_count_--;
 
