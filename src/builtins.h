@@ -59,6 +59,11 @@ enum BuiltinExtraArguments {
                                                              \
   V(DateToPrimitive, NO_EXTRA_ARGUMENTS)                     \
                                                              \
+  V(ReflectDeleteProperty, NO_EXTRA_ARGUMENTS)               \
+  V(ReflectGet, NO_EXTRA_ARGUMENTS)                          \
+  V(ReflectHas, NO_EXTRA_ARGUMENTS)                          \
+  V(ReflectIsExtensible, NO_EXTRA_ARGUMENTS)                 \
+                                                             \
   V(SymbolConstructor, NO_EXTRA_ARGUMENTS)                   \
   V(SymbolConstructor_ConstructStub, NO_EXTRA_ARGUMENTS)     \
                                                              \

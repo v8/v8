@@ -5858,7 +5858,7 @@ MaybeHandle<Object> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
                                                Handle<Name> name,
                                                LanguageMode language_mode) {
   LookupIterator it(object, name, LookupIterator::HIDDEN);
-  return JSObject::DeleteProperty(&it, language_mode);
+  return DeleteProperty(&it, language_mode);
 }
 
 
@@ -5866,7 +5866,7 @@ MaybeHandle<Object> JSReceiver::DeletePropertyOrElement(
     Handle<JSReceiver> object, Handle<Name> name, LanguageMode language_mode) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       name->GetIsolate(), object, name, LookupIterator::HIDDEN);
-  return JSObject::DeleteProperty(&it, language_mode);
+  return DeleteProperty(&it, language_mode);
 }
 
 
