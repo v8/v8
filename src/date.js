@@ -116,7 +116,7 @@ function MakeDate(day, time) {
 function TimeClip(time) {
   if (!IsFinite(time)) return NAN;
   if (MathAbs(time) > MAX_TIME_MS) return NAN;
-  return TO_INTEGER(time);
+  return TO_INTEGER(time) + 0;
 }
 
 
@@ -144,7 +144,7 @@ function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
     SET_UTC_DATE_VALUE(this, value);
   } else if (argc == 1) {
     if (IS_NUMBER(year)) {
-      value = year;
+      value = TimeClip(year);
 
     } else if (IS_STRING(year)) {
       // Probe the Date cache. If we already have a time value for the
