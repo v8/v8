@@ -254,6 +254,14 @@ Reduction JSInliner::Reduce(Node* node) {
     return NoChange();
   }
 
+  if (!function->shared()->IsInlineable()) {
+    // Function must be inlineable.
+    TRACE("Not inlining %s into %s because callee is not inlineable\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
   if (function->shared()->HasDebugInfo()) {
     // Function contains break points.
     TRACE("Not inlining %s into %s because callee may contain break points\n",
