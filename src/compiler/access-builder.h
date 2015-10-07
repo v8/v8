@@ -69,6 +69,7 @@ class AccessBuilder final : public AllStatic {
 
   // Provides access to PropertyCell::value() field.
   static FieldAccess ForPropertyCellValue();
+  static FieldAccess ForPropertyCellValue(Type* type);
 
   // Provides access to SharedFunctionInfo::feedback_vector() field.
   static FieldAccess ForSharedFunctionInfoTypeFeedbackVector();

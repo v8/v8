@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --nostress-opt --turbo
+// Flags: --nonative-context-specialization
 
 var p0 = new Object();
 var p1 = new Object();

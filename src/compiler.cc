@@ -445,6 +445,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
         FLAG_turbo_asm_deoptimization) {
       info()->MarkAsDeoptimizationEnabled();
     }
+    if (info()->has_global_object() && FLAG_native_context_specialization) {
+      info()->MarkAsNativeContextSpecializing();
+    }
 
     Timer t(this, &time_taken_to_create_graph_);
     compiler::Pipeline pipeline(info());
@@ -772,7 +775,8 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   Handle<Code> code = info->code();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
 
-  // Context specialization folds-in the context, so no sharing can occur.
+  // Function context specialization folds-in the function context,
+  // so no sharing can occur.
   if (info->is_function_context_specializing()) return;
   // Frame specialization implies function context specialization.
   DCHECK(!info->is_frame_specializing());
@@ -790,11 +794,12 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
                                               literals, info->osr_ast_id());
   }
 
-  // Do not cache context-independent code compiled for OSR.
+  // Do not cache (native) context-independent code compiled for OSR.
   if (code->is_turbofanned() && info->is_osr()) return;
 
-  // Cache optimized context-independent code.
-  if (FLAG_turbo_cache_shared_code && code->is_turbofanned()) {
+  // Cache optimized (native) context-independent code.
+  if (FLAG_turbo_cache_shared_code && code->is_turbofanned() &&
+      !info->is_native_context_specializing()) {
     DCHECK(!info->is_function_context_specializing());
     DCHECK(info->osr_ast_id().IsNone());
     Handle<SharedFunctionInfo> shared(function->shared());

@@ -117,14 +117,15 @@ class CompilationInfo {
     kSerializing = 1 << 7,
     kFunctionContextSpecializing = 1 << 8,
     kFrameSpecializing = 1 << 9,
-    kInliningEnabled = 1 << 10,
-    kTypingEnabled = 1 << 11,
-    kDisableFutureOptimization = 1 << 12,
-    kSplittingEnabled = 1 << 13,
-    kTypeFeedbackEnabled = 1 << 14,
-    kDeoptimizationEnabled = 1 << 15,
-    kSourcePositionsEnabled = 1 << 16,
-    kFirstCompile = 1 << 17,
+    kNativeContextSpecializing = 1 << 10,
+    kInliningEnabled = 1 << 11,
+    kTypingEnabled = 1 << 12,
+    kDisableFutureOptimization = 1 << 13,
+    kSplittingEnabled = 1 << 14,
+    kTypeFeedbackEnabled = 1 << 15,
+    kDeoptimizationEnabled = 1 << 16,
+    kSourcePositionsEnabled = 1 << 17,
+    kFirstCompile = 1 << 18,
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -226,6 +227,14 @@ class CompilationInfo {
   void MarkAsFrameSpecializing() { SetFlag(kFrameSpecializing); }
 
   bool is_frame_specializing() const { return GetFlag(kFrameSpecializing); }
+
+  void MarkAsNativeContextSpecializing() {
+    SetFlag(kNativeContextSpecializing);
+  }
+
+  bool is_native_context_specializing() const {
+    return GetFlag(kNativeContextSpecializing);
+  }
 
   void MarkAsTypeFeedbackEnabled() { SetFlag(kTypeFeedbackEnabled); }
 
