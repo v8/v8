@@ -694,6 +694,24 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 }
 
 
+// Checks whether top level functions should be passed by {raw_filter}.
+// TODO(rmcilroy): Remove filtering once ignition can handle test262 harness.
+static bool TopLevelFunctionPassesFilter(const char* raw_filter) {
+  Vector<const char> filter = CStrVector(raw_filter);
+  return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
+}
+
+
+// Checks whether the passed {raw_filter} is a prefix of the given scripts name.
+// TODO(rmcilroy): Remove filtering once ignition can handle test262 harness.
+static bool ScriptPassesFilter(const char* raw_filter, Handle<Script> script) {
+  Vector<const char> filter = CStrVector(raw_filter);
+  if (!script->name()->IsString()) return filter.length() == 0;
+  String* name = String::cast(script->name());
+  return name->IsUtf8EqualTo(filter, true);
+}
+
+
 static bool CompileUnoptimizedCode(CompilationInfo* info) {
   DCHECK(AllowCompilation::IsAllowed(info->isolate()));
   if (!Compiler::Analyze(info->parse_info()) ||
@@ -731,7 +749,8 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
   MaybeDisableOptimization(shared, lit->dont_optimize_reason());
 
-  if (FLAG_ignition && info->closure()->PassesFilter(FLAG_ignition_filter)) {
+  if (FLAG_ignition && info->closure()->PassesFilter(FLAG_ignition_filter) &&
+      ScriptPassesFilter(FLAG_ignition_script_filter, info->script())) {
     // Compile bytecode for the interpreter.
     if (!GenerateBytecode(info)) return MaybeHandle<Code>();
   } else {
@@ -1153,18 +1172,6 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
 }
 
 
-// Checks whether the passed {raw_filter} is a script filter (i.e. it matches
-// the "s:{name}" pattern) and {name} is a prefix of the given scripts name.
-// TODO(rmcilroy): Remove filtering once ignition can handle test262 harness.
-static bool ScriptPassesFilter(const char* raw_filter, Handle<Script> script) {
-  if (!script->name()->IsString()) return false;
-  String* name = String::cast(script->name());
-  Vector<const char> filter = CStrVector(raw_filter);
-  if (filter.length() < 2 || filter[0] != 's' || filter[1] != ':') return false;
-  return name->IsUtf8EqualTo(filter.SubVector(2, filter.length()), true);
-}
-
-
 static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   PostponeInterruptsScope postpone(isolate);
@@ -1228,7 +1235,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     HistogramTimerScope timer(rate);
 
     // Compile the code.
-    if (FLAG_ignition && ScriptPassesFilter(FLAG_ignition_filter, script)) {
+    if (FLAG_ignition && TopLevelFunctionPassesFilter(FLAG_ignition_filter) &&
+        ScriptPassesFilter(FLAG_ignition_script_filter, script)) {
       if (!GenerateBytecode(info)) {
         return Handle<SharedFunctionInfo>::null();
       }
