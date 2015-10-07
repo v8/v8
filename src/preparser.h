@@ -307,16 +307,14 @@ class ParserBase : public Traits {
   };
 
   Scope* NewScope(Scope* parent, ScopeType scope_type) {
-    // Must always pass the function kind for FUNCTION_SCOPE and ARROW_SCOPE.
+    // Must always pass the function kind for FUNCTION_SCOPE.
     DCHECK(scope_type != FUNCTION_SCOPE);
-    DCHECK(scope_type != ARROW_SCOPE);
     return NewScope(parent, scope_type, kNormalFunction);
   }
 
   Scope* NewScope(Scope* parent, ScopeType scope_type, FunctionKind kind) {
     DCHECK(ast_value_factory());
     DCHECK(scope_type != MODULE_SCOPE || FLAG_harmony_modules);
-    DCHECK(!IsArrowFunction(kind) || scope_type == ARROW_SCOPE);
     Scope* result = new (zone())
         Scope(zone(), parent, scope_type, ast_value_factory(), kind);
     result->Initialize();
@@ -2929,7 +2927,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
                                   parenthesized_formals, CHECK_OK);
     Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
     Scope* scope =
-        this->NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
+        this->NewScope(scope_, FUNCTION_SCOPE, FunctionKind::kArrowFunction);
     FormalParametersT parameters(scope);
     if (!arrow_formals_classifier.is_simple_parameter_list()) {
       scope->SetHasNonSimpleParameters();

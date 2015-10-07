@@ -757,8 +757,7 @@ enum ScopeType {
   SCRIPT_SCOPE,    // The top-level scope for a script or a top-level eval.
   CATCH_SCOPE,     // The scope introduced by catch.
   BLOCK_SCOPE,     // The scope introduced by a new block.
-  WITH_SCOPE,      // The scope introduced by with.
-  ARROW_SCOPE      // The top-level scope for an arrow function literal.
+  WITH_SCOPE       // The scope introduced by with.
 };
 
 // The mips architecture prior to revision 5 has inverted encoding for sNaN.

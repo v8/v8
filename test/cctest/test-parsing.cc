@@ -1211,9 +1211,9 @@ TEST(ScopePositions) {
       "  }", "\n"
       "  more;", i::FUNCTION_SCOPE, i::SLOPPY },
     { "  start;\n", "(a,b) => a + b", "; more;",
-      i::ARROW_SCOPE, i::SLOPPY },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     { "  start;\n", "(a,b) => { return a+b; }", "\nmore;",
-      i::ARROW_SCOPE, i::SLOPPY },
+      i::FUNCTION_SCOPE, i::SLOPPY },
     { "  start;\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
       i::FUNCTION_SCOPE, i::SLOPPY },

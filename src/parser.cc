@@ -1190,7 +1190,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
 
     if (shared_info->is_arrow()) {
       Scope* scope =
-          NewScope(scope_, ARROW_SCOPE, FunctionKind::kArrowFunction);
+          NewScope(scope_, FUNCTION_SCOPE, FunctionKind::kArrowFunction);
       scope->SetLanguageMode(shared_info->language_mode());
       scope->set_start_position(shared_info->start_position());
       ExpressionClassifier formals_classifier;

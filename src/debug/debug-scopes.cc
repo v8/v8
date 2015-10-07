@@ -75,8 +75,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
         context_ = Handle<Context>(context_->previous(), isolate_);
       }
     }
-    if (scope_info->scope_type() == FUNCTION_SCOPE ||
-        scope_info->scope_type() == ARROW_SCOPE) {
+    if (scope_info->scope_type() == FUNCTION_SCOPE) {
       nested_scope_chain_.Add(scope_info);
     }
   } else {
@@ -86,8 +85,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 
     // Check whether we are in global, eval or function code.
     Zone zone;
-    if (scope_info->scope_type() != FUNCTION_SCOPE &&
-        scope_info->scope_type() != ARROW_SCOPE) {
+    if (scope_info->scope_type() != FUNCTION_SCOPE) {
       // Global or eval code.
       ParseInfo info(&zone, script);
       if (scope_info->scope_type() == SCRIPT_SCOPE) {
@@ -183,7 +181,6 @@ ScopeIterator::ScopeType ScopeIterator::Type() {
     Handle<ScopeInfo> scope_info = nested_scope_chain_.last();
     switch (scope_info->scope_type()) {
       case FUNCTION_SCOPE:
-      case ARROW_SCOPE:
         DCHECK(context_->IsFunctionContext() || !scope_info->HasContext());
         return ScopeTypeLocal;
       case MODULE_SCOPE:

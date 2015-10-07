@@ -844,16 +844,18 @@ void Scope::ReportMessage(int start_position, int end_position,
 
 
 #ifdef DEBUG
-static const char* Header(ScopeType scope_type, bool is_declaration_scope) {
+static const char* Header(ScopeType scope_type, FunctionKind function_kind,
+                          bool is_declaration_scope) {
   switch (scope_type) {
     case EVAL_SCOPE: return "eval";
-    case FUNCTION_SCOPE: return "function";
+    // TODO(adamk): Should we print concise method scopes specially?
+    case FUNCTION_SCOPE:
+      return IsArrowFunction(function_kind) ? "arrow" : "function";
     case MODULE_SCOPE: return "module";
     case SCRIPT_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
     case BLOCK_SCOPE: return is_declaration_scope ? "varblock" : "block";
     case WITH_SCOPE: return "with";
-    case ARROW_SCOPE: return "arrow";
   }
   UNREACHABLE();
   return NULL;
@@ -935,7 +937,7 @@ void Scope::Print(int n) {
   int n1 = n0 + 2;  // indentation
 
   // Print header.
-  Indent(n0, Header(scope_type_, is_declaration_scope()));
+  Indent(n0, Header(scope_type_, function_kind_, is_declaration_scope()));
   if (!scope_name_->IsEmpty()) {
     PrintF(" ");
     PrintName(scope_name_);
