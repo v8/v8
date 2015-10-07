@@ -59,8 +59,6 @@ void Interpreter::Initialize() {
 
 
 bool Interpreter::MakeBytecode(CompilationInfo* info) {
-  Handle<SharedFunctionInfo> shared_info = info->shared_info();
-
   BytecodeGenerator generator(info->isolate(), info->zone());
   info->EnsureFeedbackVector();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
@@ -68,12 +66,7 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
     bytecodes->Print();
   }
 
-  DCHECK(shared_info->function_data()->IsUndefined());
-  if (!shared_info->function_data()->IsUndefined()) {
-    return false;
-  }
-
-  shared_info->set_function_data(*bytecodes);
+  info->SetBytecodeArray(bytecodes);
   info->SetCode(info->isolate()->builtins()->InterpreterEntryTrampoline());
   return true;
 }

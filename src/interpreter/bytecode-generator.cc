@@ -105,9 +105,6 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   set_info(info);
   set_scope(info->scope());
 
-  // This a temporary guard (oth).
-  DCHECK(scope()->is_function_scope());
-
   builder()->set_parameter_count(info->num_parameters_including_this());
   builder()->set_locals_count(scope()->num_stack_slots());
 

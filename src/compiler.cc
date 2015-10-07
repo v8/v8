@@ -749,6 +749,10 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   // Update the code and feedback vector for the shared function info.
   shared->ReplaceCode(*info->code());
   shared->set_feedback_vector(*info->feedback_vector());
+  if (info->has_bytecode_array()) {
+    DCHECK(shared->function_data()->IsUndefined());
+    shared->set_function_data(*info->bytecode_array());
+  }
 
   return info->code();
 }
@@ -1209,9 +1213,20 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
           : info->isolate()->counters()->compile();
     HistogramTimerScope timer(rate);
 
+    Handle<String> script_name =
+        script->name()->IsString()
+            ? Handle<String>(String::cast(script->name()))
+            : isolate->factory()->empty_string();
+
     // Compile the code.
-    if (!CompileUnoptimizedCode(info)) {
-      return Handle<SharedFunctionInfo>::null();
+    if (FLAG_ignition && script_name->PassesFilter(FLAG_ignition_filter)) {
+      if (!GenerateBytecode(info)) {
+        return Handle<SharedFunctionInfo>::null();
+      }
+    } else {
+      if (!CompileUnoptimizedCode(info)) {
+        return Handle<SharedFunctionInfo>::null();
+      }
     }
 
     // Allocate function.
@@ -1221,6 +1236,10 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         info->code(),
         ScopeInfo::Create(info->isolate(), info->zone(), info->scope()),
         info->feedback_vector());
+    if (info->has_bytecode_array()) {
+      DCHECK(result->function_data()->IsUndefined());
+      result->set_function_data(*info->bytecode_array());
+    }
 
     DCHECK_EQ(RelocInfo::kNoPosition, lit->function_token_position());
     SharedFunctionInfo::InitFromFunctionLiteral(result, lit);
@@ -1231,9 +1250,6 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       result->set_allows_lazy_compilation_without_context(false);
     }
 
-    Handle<String> script_name = script->name()->IsString()
-        ? Handle<String>(String::cast(script->name()))
-        : isolate->factory()->empty_string();
     Logger::LogEventsAndTags log_tag = info->is_eval()
         ? Logger::EVAL_TAG
         : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script);

@@ -1552,6 +1552,41 @@ void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT
 }
 
 
+// The filter is a pattern that matches string names in this way:
+//   "*"      all; the default
+//   "-name"  all but "name"
+//   "name"   only the function "name"
+//   "name*"  only functions starting with "name"
+//   "~"      none; the tilde is not an identifier
+bool String::PassesFilter(const char* raw_filter) {
+  if (*raw_filter == '*') return true;
+
+  Vector<const char> filter = CStrVector(raw_filter);
+  if (filter.length() == 0) return length() == 0;
+  if (filter[0] == '-') {
+    // Negative filter.
+    if (filter.length() == 1) {
+      return (length() != 0);
+    } else if (IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+      return false;
+    }
+    if (filter[filter.length() - 1] == '*' &&
+        IsUtf8EqualTo(filter.SubVector(1, filter.length() - 1), true)) {
+      return false;
+    }
+    return true;
+
+  } else if (IsUtf8EqualTo(filter)) {
+    return true;
+  }
+  if (filter[filter.length() - 1] == '*' &&
+      IsUtf8EqualTo(filter.SubVector(0, filter.length() - 1), true)) {
+    return true;
+  }
+  return false;
+}
+
+
 void JSObject::JSObjectShortPrint(StringStream* accumulator) {
   switch (map()->instance_type()) {
     case JS_ARRAY_TYPE: {
@@ -10972,31 +11007,8 @@ void JSFunction::PrintName(FILE* out) {
 //   "name*"  only functions starting with "name"
 //   "~"      none; the tilde is not an identifier
 bool JSFunction::PassesFilter(const char* raw_filter) {
-  if (*raw_filter == '*') return true;
   String* name = shared()->DebugName();
-  Vector<const char> filter = CStrVector(raw_filter);
-  if (filter.length() == 0) return name->length() == 0;
-  if (filter[0] == '-') {
-    // Negative filter.
-    if (filter.length() == 1) {
-      return (name->length() != 0);
-    } else if (name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
-      return false;
-    }
-    if (filter[filter.length() - 1] == '*' &&
-        name->IsUtf8EqualTo(filter.SubVector(1, filter.length() - 1), true)) {
-      return false;
-    }
-    return true;
-
-  } else if (name->IsUtf8EqualTo(filter)) {
-    return true;
-  }
-  if (filter[filter.length() - 1] == '*' &&
-      name->IsUtf8EqualTo(filter.SubVector(0, filter.length() - 1), true)) {
-    return true;
-  }
-  return false;
+  return name->PassesFilter(raw_filter);
 }
 
 
