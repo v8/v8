@@ -14,11 +14,11 @@ namespace v8 {
 namespace internal {
 
 std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind) {
-  return os << TypeFeedbackVector::Kind2String(kind);
+  return os << TypeFeedbackMetadata::Kind2String(kind);
 }
 
 
-FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
+FeedbackVectorSlotKind TypeFeedbackMetadata::GetKind(
     FeedbackVectorSlot slot) const {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
   int data = Smi::cast(get(index))->value();
@@ -26,8 +26,8 @@ FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
 }
 
 
-void TypeFeedbackVector::SetKind(FeedbackVectorSlot slot,
-                                 FeedbackVectorSlotKind kind) {
+void TypeFeedbackMetadata::SetKind(FeedbackVectorSlot slot,
+                                   FeedbackVectorSlotKind kind) {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
   int data = Smi::cast(get(index))->value();
   int new_data = VectorICComputer::encode(data, slot.ToInt(), kind);
@@ -35,27 +35,27 @@ void TypeFeedbackVector::SetKind(FeedbackVectorSlot slot,
 }
 
 
-template Handle<TypeFeedbackVector> TypeFeedbackVector::New(
+template Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(
     Isolate* isolate, const StaticFeedbackVectorSpec* spec);
-template Handle<TypeFeedbackVector> TypeFeedbackVector::New(
+template Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(
     Isolate* isolate, const FeedbackVectorSpec* spec);
 
 
 // static
 template <typename Spec>
-Handle<TypeFeedbackVector> TypeFeedbackVector::New(Isolate* isolate,
-                                                   const Spec* spec) {
+Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
+                                                       const Spec* spec) {
   const int slot_count = spec->slots();
-  const int index_count = VectorICComputer::word_count(slot_count);
-  const int length = slot_count + index_count + kReservedIndexCount;
+  const int slot_kinds_length = VectorICComputer::word_count(slot_count);
+  const int length = slot_kinds_length + kReservedIndexCount;
   if (length == kReservedIndexCount) {
-    return Handle<TypeFeedbackVector>::cast(
+    return Handle<TypeFeedbackMetadata>::cast(
         isolate->factory()->empty_fixed_array());
   }
 #ifdef DEBUG
   for (int i = 0; i < slot_count;) {
     FeedbackVectorSlotKind kind = spec->GetKind(i);
-    int entry_size = TypeFeedbackVector::GetSlotSize(kind);
+    int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
     for (int j = 1; j < entry_size; j++) {
       FeedbackVectorSlotKind kind = spec->GetKind(i + j);
       DCHECK_EQ(FeedbackVectorSlotKind::INVALID, kind);
@@ -66,41 +66,97 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(Isolate* isolate,
 
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(length, TENURED);
   array->set(kSlotsCountIndex, Smi::FromInt(slot_count));
-  array->set(kWithTypesIndex, Smi::FromInt(0));
-  array->set(kGenericCountIndex, Smi::FromInt(0));
-  // Fill the indexes with zeros.
-  for (int i = 0; i < index_count; i++) {
+  // Fill the bit-vector part with zeros.
+  for (int i = 0; i < slot_kinds_length; i++) {
     array->set(kReservedIndexCount + i, Smi::FromInt(0));
   }
 
+  Handle<TypeFeedbackMetadata> metadata =
+      Handle<TypeFeedbackMetadata>::cast(array);
+  for (int i = 0; i < slot_count; i++) {
+    metadata->SetKind(FeedbackVectorSlot(i), spec->GetKind(i));
+  }
+  return metadata;
+}
+
+
+bool TypeFeedbackMetadata::SpecDiffersFrom(
+    const FeedbackVectorSpec* other_spec) const {
+  if (other_spec->slots() != slot_count()) {
+    return true;
+  }
+
+  int slots = slot_count();
+  for (int i = 0; i < slots; i++) {
+    if (GetKind(FeedbackVectorSlot(i)) != other_spec->GetKind(i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
+  switch (kind) {
+    case FeedbackVectorSlotKind::INVALID:
+      return "INVALID";
+    case FeedbackVectorSlotKind::CALL_IC:
+      return "CALL_IC";
+    case FeedbackVectorSlotKind::LOAD_IC:
+      return "LOAD_IC";
+    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
+      return "KEYED_LOAD_IC";
+    case FeedbackVectorSlotKind::STORE_IC:
+      return "STORE_IC";
+    case FeedbackVectorSlotKind::KEYED_STORE_IC:
+      return "KEYED_STORE_IC";
+    case FeedbackVectorSlotKind::GENERAL:
+      return "STUB";
+    case FeedbackVectorSlotKind::KINDS_NUMBER:
+      break;
+  }
+  UNREACHABLE();
+  return "?";
+}
+
+
+// static
+Handle<TypeFeedbackVector> TypeFeedbackVector::New(
+    Isolate* isolate, Handle<TypeFeedbackMetadata> metadata) {
+  Factory* factory = isolate->factory();
+
+  const int slot_count = metadata->slot_count();
+  const int length = slot_count + kReservedIndexCount;
+  if (length == kReservedIndexCount) {
+    return Handle<TypeFeedbackVector>::cast(factory->empty_fixed_array());
+  }
+
+  Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
+  array->set(kMetadataIndex, *metadata);
+  array->set(kWithTypesIndex, Smi::FromInt(0));
+  array->set(kGenericCountIndex, Smi::FromInt(0));
+
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
-  DCHECK_EQ(isolate->heap()->uninitialized_symbol(), *uninitialized_sentinel);
-  for (int i = kReservedIndexCount + index_count; i < length; i++) {
+  DCHECK_EQ(*factory->uninitialized_symbol(), *uninitialized_sentinel);
+  for (int i = kReservedIndexCount; i < length; i++) {
     array->set(i, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
   }
 
-  Handle<TypeFeedbackVector> vector = Handle<TypeFeedbackVector>::cast(array);
-  for (int i = 0; i < slot_count; i++) {
-    vector->SetKind(FeedbackVectorSlot(i), spec->GetKind(i));
-  }
-  return vector;
+  return Handle<TypeFeedbackVector>::cast(array);
 }
 
 
 // static
 int TypeFeedbackVector::GetIndexFromSpec(const FeedbackVectorSpec* spec,
                                          FeedbackVectorSlot slot) {
-  const int slot_count = spec->slots();
-  const int index_count = VectorICComputer::word_count(slot_count);
-  return kReservedIndexCount + index_count + slot.ToInt();
+  return kReservedIndexCount + slot.ToInt();
 }
 
 
 // static
 int TypeFeedbackVector::PushAppliedArgumentsIndex() {
-  const int index_count = VectorICComputer::word_count(1);
-  return kReservedIndexCount + index_count;
+  return kReservedIndexCount;
 }
 
 
@@ -109,8 +165,11 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::CreatePushAppliedArgumentsVector(
     Isolate* isolate) {
   StaticFeedbackVectorSpec spec;
   FeedbackVectorSlot slot = spec.AddKeyedLoadICSlot();
+  // TODO(ishell): allocate this metadata only once.
+  Handle<TypeFeedbackMetadata> feedback_metadata =
+      TypeFeedbackMetadata::New(isolate, &spec);
   Handle<TypeFeedbackVector> feedback_vector =
-      TypeFeedbackVector::New(isolate, &spec);
+      TypeFeedbackVector::New(isolate, feedback_metadata);
   DCHECK_EQ(PushAppliedArgumentsIndex(), feedback_vector->GetIndex(slot));
   USE(slot);
   return feedback_vector;
@@ -124,22 +183,6 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
   result = Handle<TypeFeedbackVector>::cast(
       isolate->factory()->CopyFixedArray(Handle<FixedArray>::cast(vector)));
   return result;
-}
-
-
-bool TypeFeedbackVector::SpecDiffersFrom(
-    const FeedbackVectorSpec* other_spec) const {
-  if (other_spec->slots() != Slots()) {
-    return true;
-  }
-
-  int slots = Slots();
-  for (int i = 0; i < slots; i++) {
-    if (GetKind(FeedbackVectorSlot(i)) != other_spec->GetKind(i)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 
@@ -159,7 +202,7 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
   Object* uninitialized_sentinel =
       TypeFeedbackVector::RawUninitializedSentinel(isolate);
 
-  TypeFeedbackMetadataIterator iter(this);
+  TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
@@ -236,7 +279,7 @@ void TypeFeedbackVector::ClearKeyedStoreICs(SharedFunctionInfo* shared) {
   Object* uninitialized_sentinel =
       TypeFeedbackVector::RawUninitializedSentinel(isolate);
 
-  TypeFeedbackMetadataIterator iter(this);
+  TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
@@ -254,30 +297,6 @@ void TypeFeedbackVector::ClearKeyedStoreICs(SharedFunctionInfo* shared) {
 // static
 Handle<TypeFeedbackVector> TypeFeedbackVector::DummyVector(Isolate* isolate) {
   return isolate->factory()->dummy_vector();
-}
-
-
-const char* TypeFeedbackVector::Kind2String(FeedbackVectorSlotKind kind) {
-  switch (kind) {
-    case FeedbackVectorSlotKind::INVALID:
-      return "INVALID";
-    case FeedbackVectorSlotKind::CALL_IC:
-      return "CALL_IC";
-    case FeedbackVectorSlotKind::LOAD_IC:
-      return "LOAD_IC";
-    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
-      return "KEYED_LOAD_IC";
-    case FeedbackVectorSlotKind::STORE_IC:
-      return "STORE_IC";
-    case FeedbackVectorSlotKind::KEYED_STORE_IC:
-      return "KEYED_STORE_IC";
-    case FeedbackVectorSlotKind::GENERAL:
-      return "STUB";
-    case FeedbackVectorSlotKind::KINDS_NUMBER:
-      break;
-  }
-  UNREACHABLE();
-  return "?";
 }
 
 

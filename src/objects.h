@@ -88,6 +88,7 @@
 //           - OrderedHashSet
 //           - OrderedHashMap
 //         - Context
+//         - TypeFeedbackMetadata
 //         - TypeFeedbackVector
 //         - ScopeInfo
 //         - TransitionArray
@@ -945,6 +946,7 @@ template <class C> inline bool Is(Object* obj);
   V(BindingsArray)                 \
   V(TransitionArray)               \
   V(LiteralsArray)                 \
+  V(TypeFeedbackMetadata)          \
   V(TypeFeedbackVector)            \
   V(DeoptimizationInputData)       \
   V(DeoptimizationOutputData)      \

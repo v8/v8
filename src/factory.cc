@@ -2138,8 +2138,10 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
   StaticFeedbackVectorSpec empty_spec;
+  Handle<TypeFeedbackMetadata> feedback_metadata =
+      TypeFeedbackMetadata::New(isolate(), &empty_spec);
   Handle<TypeFeedbackVector> feedback_vector =
-      TypeFeedbackVector::New(isolate(), &empty_spec);
+      TypeFeedbackVector::New(isolate(), feedback_metadata);
   share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);
 #if TRACE_MAPS
   share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());

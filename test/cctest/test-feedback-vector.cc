@@ -31,7 +31,7 @@ TEST(VectorStructure) {
 
   // Empty vectors are the empty fixed array.
   StaticFeedbackVectorSpec empty;
-  Handle<TypeFeedbackVector> vector = TypeFeedbackVector::New(isolate, &empty);
+  Handle<TypeFeedbackVector> vector = NewTypeFeedbackVector(isolate, &empty);
   CHECK(Handle<FixedArray>::cast(vector)
             .is_identical_to(factory->empty_fixed_array()));
   // Which can nonetheless be queried.
@@ -42,7 +42,7 @@ TEST(VectorStructure) {
   {
     FeedbackVectorSpec one_slot(zone);
     one_slot.AddGeneralSlot();
-    vector = TypeFeedbackVector::New(isolate, &one_slot);
+    vector = NewTypeFeedbackVector(isolate, &one_slot);
     FeedbackVectorHelper helper(vector);
     CHECK_EQ(1, helper.slot_count());
   }
@@ -50,7 +50,7 @@ TEST(VectorStructure) {
   {
     FeedbackVectorSpec one_icslot(zone);
     one_icslot.AddCallICSlot();
-    vector = TypeFeedbackVector::New(isolate, &one_icslot);
+    vector = NewTypeFeedbackVector(isolate, &one_icslot);
     FeedbackVectorHelper helper(vector);
     CHECK_EQ(1, helper.slot_count());
   }
@@ -63,32 +63,28 @@ TEST(VectorStructure) {
     for (int i = 0; i < 5; i++) {
       spec.AddCallICSlot();
     }
-    vector = TypeFeedbackVector::New(isolate, &spec);
+    vector = NewTypeFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);
     CHECK_EQ(8, helper.slot_count());
 
-    int metadata_length = vector->ic_metadata_length();
-    CHECK(metadata_length > 0);
-
     int index = vector->GetIndex(helper.slot(0));
 
-    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + metadata_length, index);
-    CHECK(helper.slot(0) == vector->ToSlot(index));
+    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount, index);
+    CHECK_EQ(helper.slot(0), vector->ToSlot(index));
 
     index = vector->GetIndex(helper.slot(3));
-    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + metadata_length + 3,
-             index);
-    CHECK(helper.slot(3) == vector->ToSlot(index));
+    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + 3, index);
+    CHECK_EQ(helper.slot(3), vector->ToSlot(index));
 
     index = vector->GetIndex(helper.slot(7));
-    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + metadata_length + 3 +
-                 4 * TypeFeedbackVector::GetSlotSize(
+    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + 3 +
+                 4 * TypeFeedbackMetadata::GetSlotSize(
                          FeedbackVectorSlotKind::CALL_IC),
              index);
-    CHECK(helper.slot(7) == vector->ToSlot(index));
+    CHECK_EQ(helper.slot(7), vector->ToSlot(index));
 
-    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + metadata_length + 3 +
-                 5 * TypeFeedbackVector::GetSlotSize(
+    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + 3 +
+                 5 * TypeFeedbackMetadata::GetSlotSize(
                          FeedbackVectorSlotKind::CALL_IC),
              vector->length());
   }
@@ -121,7 +117,7 @@ TEST(VectorICMetadata) {
     }
   }
 
-  Handle<TypeFeedbackVector> vector = TypeFeedbackVector::New(isolate, &spec);
+  Handle<TypeFeedbackVector> vector = NewTypeFeedbackVector(isolate, &spec);
   FeedbackVectorHelper helper(vector);
   CHECK_EQ(40, helper.slot_count());
 
@@ -166,7 +162,7 @@ TEST(VectorSlotClearing) {
   for (int i = 0; i < 5; i++) {
     spec.AddGeneralSlot();
   }
-  Handle<TypeFeedbackVector> vector = TypeFeedbackVector::New(isolate, &spec);
+  Handle<TypeFeedbackVector> vector = NewTypeFeedbackVector(isolate, &spec);
   FeedbackVectorHelper helper(vector);
 
   // Fill with information

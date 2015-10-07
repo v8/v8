@@ -245,13 +245,15 @@ bool CompilationInfo::ShouldSelfOptimize() {
 
 void CompilationInfo::EnsureFeedbackVector() {
   if (feedback_vector_.is_null()) {
-    feedback_vector_ =
-        TypeFeedbackVector::New(isolate(), literal()->feedback_vector_spec());
+    Handle<TypeFeedbackMetadata> feedback_metadata =
+        TypeFeedbackMetadata::New(isolate(), literal()->feedback_vector_spec());
+    feedback_vector_ = TypeFeedbackVector::New(isolate(), feedback_metadata);
   }
 
   // It's very important that recompiles do not alter the structure of the
   // type feedback vector.
-  CHECK(!feedback_vector_->SpecDiffersFrom(literal()->feedback_vector_spec()));
+  CHECK(!feedback_vector_->metadata()->SpecDiffersFrom(
+      literal()->feedback_vector_spec()));
 }
 
 

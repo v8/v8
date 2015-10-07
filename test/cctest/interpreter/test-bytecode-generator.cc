@@ -424,7 +424,7 @@ TEST(PropertyLoads) {
   FeedbackVectorSlot slot2 = feedback_spec.AddLoadICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::TypeFeedbackVector::New(helper.isolate(), &feedback_spec);
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   ExpectedSnippet<const char*> snippets[] = {
       {"function f(a) { return a.name; }\nf({name : \"test\"})",
@@ -547,7 +547,7 @@ TEST(PropertyStores) {
   FeedbackVectorSlot slot2 = feedback_spec.AddStoreICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::TypeFeedbackVector::New(helper.isolate(), &feedback_spec);
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   ExpectedSnippet<const char*> snippets[] = {
       {"function f(a) { a.name = \"val\"; }\nf({name : \"test\"})",
@@ -696,7 +696,7 @@ TEST(PropertyCall) {
   USE(slot1);
 
   Handle<i::TypeFeedbackVector> vector =
-      i::TypeFeedbackVector::New(helper.isolate(), &feedback_spec);
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   ExpectedSnippet<const char*> snippets[] = {
       {"function f(a) { return a.func(); }\nf(" FUNC_ARG ")",

@@ -17,9 +17,9 @@ class FeedbackVectorHelper {
  public:
   explicit FeedbackVectorHelper(Handle<TypeFeedbackVector> vector)
       : vector_(vector) {
-    int slot_count = vector->Slots();
+    int slot_count = vector->slot_count();
     slots_.reserve(slot_count);
-    TypeFeedbackMetadataIterator iter(vector);
+    TypeFeedbackMetadataIterator iter(vector->metadata());
     while (iter.HasNext()) {
       FeedbackVectorSlot slot = iter.Next();
       slots_.push_back(slot);
@@ -38,6 +38,14 @@ class FeedbackVectorHelper {
   Handle<TypeFeedbackVector> vector_;
   std::vector<FeedbackVectorSlot> slots_;
 };
+
+template <typename Spec>
+Handle<TypeFeedbackVector> NewTypeFeedbackVector(Isolate* isolate, Spec* spec) {
+  Handle<TypeFeedbackMetadata> metadata =
+      TypeFeedbackMetadata::New(isolate, spec);
+  return TypeFeedbackVector::New(isolate, metadata);
+}
+
 
 }  // namespace internal
 }  // namespace v8

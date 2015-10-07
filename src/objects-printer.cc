@@ -539,6 +539,32 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
 }
 
 
+void TypeFeedbackMetadata::Print() {
+  OFStream os(stdout);
+  TypeFeedbackMetadataPrint(os);
+  os << std::flush;
+}
+
+
+void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "TypeFeedbackMetadata");
+  os << " - length: " << length();
+  if (length() == 0) {
+    os << " (empty)\n";
+    return;
+  }
+
+  TypeFeedbackMetadataIterator iter(this);
+  while (iter.HasNext()) {
+    FeedbackVectorSlot slot = iter.Next();
+    FeedbackVectorSlotKind kind = iter.kind();
+    os << "\n Slot " << slot << " " << kind;
+  }
+  os << "\n";
+}
+
+
 void TypeFeedbackVector::Print() {
   OFStream os(stdout);
   TypeFeedbackVectorPrint(os);
@@ -557,12 +583,12 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
   os << "\n - ics with type info: " << ic_with_type_info_count();
   os << "\n - generic ics: " << ic_generic_count();
 
-  TypeFeedbackMetadataIterator iter(this);
+  TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
 
-    os << "\n ICSlot " << slot.ToInt() << " " << kind << " ";
+    os << "\n Slot " << slot << " " << kind << " ";
     switch (kind) {
       case FeedbackVectorSlotKind::LOAD_IC: {
         LoadICNexus nexus(this, slot);

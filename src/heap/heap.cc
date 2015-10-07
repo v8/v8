@@ -2759,8 +2759,10 @@ void Heap::CreateInitialObjects() {
     DCHECK_EQ(keyed_store_ic_slot,
               FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
 
+    Handle<TypeFeedbackMetadata> dummy_metadata =
+        TypeFeedbackMetadata::New(isolate(), &spec);
     Handle<TypeFeedbackVector> dummy_vector =
-        TypeFeedbackVector::New(isolate(), &spec);
+        TypeFeedbackVector::New(isolate(), dummy_metadata);
 
     Object* megamorphic = *TypeFeedbackVector::MegamorphicSentinel(isolate());
     dummy_vector->Set(load_ic_slot, megamorphic, SKIP_WRITE_BARRIER);

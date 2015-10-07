@@ -9,6 +9,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/test-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -598,7 +599,7 @@ TEST(InterpreterLoadNamedProperty) {
   i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::TypeFeedbackVector::New(isolate, &feedback_spec);
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
@@ -654,7 +655,7 @@ TEST(InterpreterLoadKeyedProperty) {
   i::FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::TypeFeedbackVector::New(isolate, &feedback_spec);
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> key = factory->NewStringFromAsciiChecked("key");
   key = factory->string_table()->LookupString(isolate, key);
@@ -698,7 +699,7 @@ TEST(InterpreterStoreNamedProperty) {
   i::FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::TypeFeedbackVector::New(isolate, &feedback_spec);
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
@@ -760,7 +761,7 @@ TEST(InterpreterStoreKeyedProperty) {
   i::FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::TypeFeedbackVector::New(isolate, &feedback_spec);
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
@@ -809,7 +810,7 @@ TEST(InterpreterCall) {
   i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::TypeFeedbackVector::New(isolate, &feedback_spec);
+      i::NewTypeFeedbackVector(isolate, &feedback_spec);
   int slot_index = vector->GetIndex(slot);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("func");

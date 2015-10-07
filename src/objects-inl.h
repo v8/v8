@@ -730,6 +730,9 @@ bool Object::IsTransitionArray() const {
 bool Object::IsTypeFeedbackVector() const { return IsFixedArray(); }
 
 
+bool Object::IsTypeFeedbackMetadata() const { return IsFixedArray(); }
+
+
 bool Object::IsLiteralsArray() const { return IsFixedArray(); }
 bool Object::IsBindingsArray() const { return IsFixedArray(); }
 

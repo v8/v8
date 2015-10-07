@@ -121,13 +121,60 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
 };
 
 
-// The shape of the TypeFeedbackVector is an array with:
+// The shape of the TypeFeedbackMetadata is an array with:
 // 0: slot_count
+// 1..N: slot kinds packed into a bit vector
+//
+class TypeFeedbackMetadata : public FixedArray {
+ public:
+  // Casting.
+  static inline TypeFeedbackMetadata* cast(Object* obj);
+
+  static const int kSlotsCountIndex = 0;
+  static const int kReservedIndexCount = 1;
+
+  // Returns number of feedback vector elements used by given slot kind.
+  static inline int GetSlotSize(FeedbackVectorSlotKind kind);
+
+  bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
+
+  // Returns number of slots in the vector.
+  inline int slot_count() const;
+
+  // Returns slot kind for given slot.
+  FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
+
+  template <typename Spec>
+  static Handle<TypeFeedbackMetadata> New(Isolate* isolate, const Spec* spec);
+
+#ifdef OBJECT_PRINT
+  // For gdb debugging.
+  void Print();
+#endif  // OBJECT_PRINT
+
+  DECLARE_PRINTER(TypeFeedbackMetadata)
+
+  static const char* Kind2String(FeedbackVectorSlotKind kind);
+
+ private:
+  static const int kFeedbackVectorSlotKindBits = 3;
+  STATIC_ASSERT(static_cast<int>(FeedbackVectorSlotKind::KINDS_NUMBER) <
+                (1 << kFeedbackVectorSlotKindBits));
+
+  void SetKind(FeedbackVectorSlot slot, FeedbackVectorSlotKind kind);
+
+  typedef BitSetComputer<FeedbackVectorSlotKind, kFeedbackVectorSlotKindBits,
+                         kSmiValueSize, uint32_t> VectorICComputer;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackMetadata);
+};
+
+
+// The shape of the TypeFeedbackVector is an array with:
+// 0: feedback metadata
 // 1: ics_with_types
 // 2: ics_with_generic_info
-// 3: slots metadata (a bit vector of slot kinds)
-// ...
-// N: feedback slot #0 (N >= 3)
+// 3: feedback slot #0 (N >= 3)
 // ...
 // N + slot_count - 1: feedback slot #(slot_count-1)
 //
@@ -136,26 +183,22 @@ class TypeFeedbackVector : public FixedArray {
   // Casting.
   static inline TypeFeedbackVector* cast(Object* obj);
 
-  static const int kSlotsCountIndex = 0;
+  static const int kMetadataIndex = 0;
   static const int kWithTypesIndex = 1;
   static const int kGenericCountIndex = 2;
   static const int kReservedIndexCount = 3;
-
-  // Returns number of feedback vector elements used by given slot kind.
-  static inline int GetSlotSize(FeedbackVectorSlotKind kind);
 
   inline int ic_with_type_info_count();
   inline void change_ic_with_type_info_count(int delta);
   inline int ic_generic_count();
   inline void change_ic_generic_count(int delta);
-  inline int ic_metadata_length() const;
-
-  bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
   inline bool is_empty() const;
 
   // Returns number of slots in the vector.
-  inline int Slots() const;
+  inline int slot_count() const;
+
+  inline TypeFeedbackMetadata* metadata() const;
 
   // Conversion from a slot to an integer index to the underlying array.
   inline int GetIndex(FeedbackVectorSlot slot) const;
@@ -169,10 +212,10 @@ class TypeFeedbackVector : public FixedArray {
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns slot kind for given slot.
-  FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
+  inline FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
 
-  template <typename Spec>
-  static Handle<TypeFeedbackVector> New(Isolate* isolate, const Spec* spec);
+  static Handle<TypeFeedbackVector> New(Isolate* isolate,
+                                        Handle<TypeFeedbackMetadata> metadata);
 
   static Handle<TypeFeedbackVector> Copy(Isolate* isolate,
                                          Handle<TypeFeedbackVector> vector);
@@ -222,18 +265,7 @@ class TypeFeedbackVector : public FixedArray {
   static Handle<TypeFeedbackVector> CreatePushAppliedArgumentsVector(
       Isolate* isolate);
 
-  static const char* Kind2String(FeedbackVectorSlotKind kind);
-
  private:
-  static const int kFeedbackVectorSlotKindBits = 3;
-  STATIC_ASSERT(static_cast<int>(FeedbackVectorSlotKind::KINDS_NUMBER) <
-                (1 << kFeedbackVectorSlotKindBits));
-
-  void SetKind(FeedbackVectorSlot slot, FeedbackVectorSlotKind kind);
-
-  typedef BitSetComputer<FeedbackVectorSlotKind, kFeedbackVectorSlotKindBits,
-                         kSmiValueSize, uint32_t> VectorICComputer;
-
   void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackVector);
@@ -257,17 +289,17 @@ STATIC_ASSERT(Name::kHashNotComputedMask == kHeapObjectTag);
 
 class TypeFeedbackMetadataIterator {
  public:
-  explicit TypeFeedbackMetadataIterator(Handle<TypeFeedbackVector> metadata)
+  explicit TypeFeedbackMetadataIterator(Handle<TypeFeedbackMetadata> metadata)
       : metadata_handle_(metadata),
         slot_(FeedbackVectorSlot(0)),
         slot_kind_(FeedbackVectorSlotKind::INVALID) {}
 
-  explicit TypeFeedbackMetadataIterator(TypeFeedbackVector* metadata)
+  explicit TypeFeedbackMetadataIterator(TypeFeedbackMetadata* metadata)
       : metadata_(metadata),
         slot_(FeedbackVectorSlot(0)),
         slot_kind_(FeedbackVectorSlotKind::INVALID) {}
 
-  bool HasNext() const { return slot_.ToInt() < metadata()->Slots(); }
+  bool HasNext() const { return slot_.ToInt() < metadata()->slot_count(); }
 
   FeedbackVectorSlot Next() {
     DCHECK(HasNext());
@@ -285,18 +317,18 @@ class TypeFeedbackMetadataIterator {
   }
 
   // Returns entry size of the last slot returned by Next().
-  int entry_size() const { return TypeFeedbackVector::GetSlotSize(kind()); }
+  int entry_size() const { return TypeFeedbackMetadata::GetSlotSize(kind()); }
 
  private:
-  TypeFeedbackVector* metadata() const {
+  TypeFeedbackMetadata* metadata() const {
     return !metadata_handle_.is_null() ? *metadata_handle_ : metadata_;
   }
 
   // The reason for having a handle and a raw pointer to the meta data is
   // to have a single iterator implementation for both "handlified" and raw
   // pointer use cases.
-  Handle<TypeFeedbackVector> metadata_handle_;
-  TypeFeedbackVector* metadata_;
+  Handle<TypeFeedbackMetadata> metadata_handle_;
+  TypeFeedbackMetadata* metadata_;
   FeedbackVectorSlot slot_;
   FeedbackVectorSlotKind slot_kind_;
 };
