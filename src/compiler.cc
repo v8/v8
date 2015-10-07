@@ -1153,6 +1153,18 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
 }
 
 
+// Checks whether the passed {raw_filter} is a script filter (i.e. it matches
+// the "s:{name}" pattern) and {name} is a prefix of the given scripts name.
+// TODO(rmcilroy): Remove filtering once ignition can handle test262 harness.
+static bool ScriptPassesFilter(const char* raw_filter, Handle<Script> script) {
+  if (!script->name()->IsString()) return false;
+  String* name = String::cast(script->name());
+  Vector<const char> filter = CStrVector(raw_filter);
+  if (filter.length() < 2 || filter[0] != 's' || filter[1] != ':') return false;
+  return name->IsUtf8EqualTo(filter.SubVector(2, filter.length()), true);
+}
+
+
 static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   PostponeInterruptsScope postpone(isolate);
@@ -1215,13 +1227,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
           : info->isolate()->counters()->compile();
     HistogramTimerScope timer(rate);
 
-    Handle<String> script_name =
-        script->name()->IsString()
-            ? Handle<String>(String::cast(script->name()))
-            : isolate->factory()->empty_string();
-
     // Compile the code.
-    if (FLAG_ignition && script_name->PassesFilter(FLAG_ignition_filter)) {
+    if (FLAG_ignition && ScriptPassesFilter(FLAG_ignition_filter, script)) {
       if (!GenerateBytecode(info)) {
         return Handle<SharedFunctionInfo>::null();
       }
@@ -1252,6 +1259,10 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       result->set_allows_lazy_compilation_without_context(false);
     }
 
+    Handle<String> script_name =
+        script->name()->IsString()
+            ? Handle<String>(String::cast(script->name()))
+            : isolate->factory()->empty_string();
     Logger::LogEventsAndTags log_tag = info->is_eval()
         ? Logger::EVAL_TAG
         : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script);

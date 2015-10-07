@@ -7289,8 +7289,6 @@ class JSFunction: public JSObject {
   inline int NumberOfLiterals();
 
   // Used for flags such as --hydrogen-filter.
-  // TODO(rmcilroy/mstarzinger): Move this back to JSFunction when compiler.cc
-  // is refactored to allow use of JSFunction::PassesFilter for top-level code.
   bool PassesFilter(const char* raw_filter);
 
   // The function's name if it is configured, otherwise shared function info
@@ -8692,9 +8690,6 @@ class String: public Name {
 
   // For use during stack traces.  Performs rudimentary sanity check.
   bool LooksValid();
-
-  // Used for flags such as --hydrogen-filter.
-  bool PassesFilter(const char* raw_filter);
 
   // Dispatched behavior.
   void StringShortPrint(StringStream* accumulator);

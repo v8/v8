@@ -107,7 +107,7 @@ class Test262TestSuite(testsuite.TestSuite):
     self.harness = [os.path.join(self.harnesspath, f)
                     for f in TEST_262_HARNESS_FILES]
     self.harness += [os.path.join(self.root, "harness-adapt.js")]
-    self.ignition_filter = "--ignition-filter=" + self.testroot + "/*"
+    self.ignition_filter = "--ignition-filter=s:" + self.testroot
     self.ParseTestRecord = None
 
   def ListTests(self, context):
