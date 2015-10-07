@@ -1061,8 +1061,8 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
   def testAutoPush(self):
     self.Expect([
       Cmd("git fetch", ""),
-      Cmd("git fetch origin +refs/heads/roll:refs/heads/roll", ""),
-      Cmd("git show-ref -s refs/heads/roll", "abc123\n"),
+      Cmd("git fetch origin +refs/heads/lkgr:refs/heads/lkgr", ""),
+      Cmd("git show-ref -s refs/heads/lkgr", "abc123\n"),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
       Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),
