@@ -6094,6 +6094,33 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 }
 
 
+Local<Function> Array::GetKeysIterator(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSFunction> keys(
+      i_isolate->native_context()->array_keys_iterator(), i_isolate);
+  DCHECK(!keys.is_null());
+  return Utils::ToLocal(keys);
+}
+
+
+Local<Function> Array::GetValuesIterator(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSFunction> values(
+      i_isolate->native_context()->array_values_iterator(), i_isolate);
+  DCHECK(!values.is_null());
+  return Utils::ToLocal(values);
+}
+
+
+Local<Function> Array::GetEntriesIterator(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSFunction> entries(
+      i_isolate->native_context()->array_entries_iterator(), i_isolate);
+  DCHECK(!entries.is_null());
+  return Utils::ToLocal(entries);
+}
+
+
 Local<v8::Map> v8::Map::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "Map::New");

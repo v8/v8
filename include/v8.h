@@ -2962,7 +2962,15 @@ class V8_EXPORT Array : public Object {
    */
   static Local<Array> New(Isolate* isolate, int length = 0);
 
+  /**
+   * Access to Array Iterator methods
+   */
+  static Local<Function> GetKeysIterator(Isolate* isolate);
+  static Local<Function> GetValuesIterator(Isolate* isolate);
+  static Local<Function> GetEntriesIterator(Isolate* isolate);
+
   V8_INLINE static Array* Cast(Value* obj);
+
  private:
   Array();
   static void CheckCast(Value* obj);

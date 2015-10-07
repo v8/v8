@@ -21900,3 +21900,18 @@ TEST(AccessCheckedIsConcatSpreadable) {
   ExpectTrue("result.length === 1");
   ExpectTrue("object[Symbol.isConcatSpreadable] === undefined");
 }
+
+
+TEST(ArrayIteratorMethods) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  env->Global()->Set(v8_str("keys"), v8::Array::GetKeysIterator(isolate));
+  env->Global()->Set(v8_str("values"), v8::Array::GetValuesIterator(isolate));
+  env->Global()->Set(v8_str("entries"), v8::Array::GetEntriesIterator(isolate));
+
+  ExpectString("typeof keys", "function");
+  ExpectString("typeof values", "function");
+  ExpectString("typeof entries", "function");
+}

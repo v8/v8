@@ -163,6 +163,10 @@ TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
 
 $arrayValues = ArrayValues;
 
-%InstallToContext(["array_values_iterator", ArrayValues]);
+%InstallToContext([
+  "array_keys_iterator", ArrayKeys,
+  "array_values_iterator", ArrayValues,
+  "array_entries_iterator", ArrayEntries
+]);
 
 })
