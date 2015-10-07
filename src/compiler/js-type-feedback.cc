@@ -191,16 +191,6 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadGlobal(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadGlobal);
   Handle<String> name =
       Handle<String>::cast(LoadGlobalParametersOf(node->op()).name());
-  // Try to optimize loads from the global object.
-  Handle<Object> constant_value =
-      jsgraph()->isolate()->factory()->GlobalConstantFor(name);
-  if (!constant_value.is_null()) {
-    // Always optimize global constants.
-    Node* constant = jsgraph()->Constant(constant_value);
-    ReplaceWithValue(node, constant);
-    return Replace(constant);
-  }
-
   if (global_object_.is_null()) {
     // Nothing else can be done if we don't have a global object.
     return NoChange();

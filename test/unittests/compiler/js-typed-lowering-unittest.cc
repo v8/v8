@@ -862,41 +862,6 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
 
 
 // -----------------------------------------------------------------------------
-// JSLoadGlobal
-
-
-TEST_F(JSTypedLoweringTest, JSLoadGlobalConstants) {
-  Handle<String> names[] = {
-      Handle<String>(isolate()->heap()->undefined_string(), isolate()),
-      Handle<String>(isolate()->heap()->infinity_string(), isolate()),
-      Handle<String>(isolate()->heap()->nan_string(), isolate())  // --
-  };
-  Matcher<Node*> matches[] = {
-      IsHeapConstant(
-          Handle<HeapObject>(isolate()->heap()->undefined_value(), isolate())),
-      IsNumberConstant(std::numeric_limits<double>::infinity()),
-      IsNumberConstant(IsNaN())  // --
-  };
-
-  VectorSlotPair feedback;
-  Node* global = UndefinedConstant();
-  Node* vector = UndefinedConstant();
-  Node* context = UndefinedConstant();
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-
-  for (size_t i = 0; i < arraysize(names); i++) {
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadGlobal(names[i], feedback), context, global, vector,
-        context, EmptyFrameState(), EmptyFrameState(), effect, control));
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), matches[i]);
-  }
-}
-
-
-// -----------------------------------------------------------------------------
 // JSLoadNamed
 
 

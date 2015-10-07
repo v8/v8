@@ -3289,6 +3289,13 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       // Global var, const, or let variable.
+      Handle<Name> name = variable->name();
+      Handle<Object> constant_value =
+          jsgraph()->isolate()->factory()->GlobalConstantFor(name);
+      if (!constant_value.is_null()) {
+        // Optimize global constants like "undefined", "Infinity", and "NaN".
+        return jsgraph()->Constant(constant_value);
+      }
       Node* script_context = current_context();
       int slot_index = -1;
       if (variable->index() > 0) {
@@ -3302,7 +3309,6 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
         }
       }
       Node* global = BuildLoadGlobalObject();
-      Handle<Name> name = variable->name();
       Node* value = BuildGlobalLoad(script_context, global, name, feedback,
                                     typeof_mode, slot_index);
       states.AddToNode(value, bailout_id, combine);

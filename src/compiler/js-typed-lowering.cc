@@ -815,19 +815,6 @@ Reduction JSTypedLowering::ReduceJSToString(Node* node) {
 }
 
 
-Reduction JSTypedLowering::ReduceJSLoadGlobal(Node* node) {
-  // Optimize global constants like "undefined", "Infinity", and "NaN".
-  Handle<Name> name = LoadGlobalParametersOf(node->op()).name();
-  Handle<Object> constant_value = factory()->GlobalConstantFor(name);
-  if (!constant_value.is_null()) {
-    Node* constant = jsgraph()->Constant(constant_value);
-    ReplaceWithValue(node, constant);
-    return Replace(constant);
-  }
-  return NoChange();
-}
-
-
 Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -1772,8 +1759,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToNumber(node);
     case IrOpcode::kJSToString:
       return ReduceJSToString(node);
-    case IrOpcode::kJSLoadGlobal:
-      return ReduceJSLoadGlobal(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSLoadProperty:
