@@ -1689,9 +1689,6 @@ void Heap::Scavenge() {
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
 
-  new_space_.LowerInlineAllocationLimit(
-      new_space_.inline_allocation_limit_step());
-
   array_buffer_tracker()->FreeDead(true);
 
   // Update how much has survived scavenge.
