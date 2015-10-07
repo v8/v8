@@ -217,11 +217,7 @@ function ConvertToLocaleString(e) {
   if (IS_NULL_OR_UNDEFINED(e)) {
     return '';
   } else {
-    // According to ES5, section 15.4.4.3, the toLocaleString conversion
-    // must throw a TypeError if ToObject(e).toLocaleString isn't
-    // callable.
-    var e_obj = TO_OBJECT(e);
-    return TO_STRING(e_obj.toLocaleString());
+    return TO_STRING(e.toLocaleString());
   }
 }
 
