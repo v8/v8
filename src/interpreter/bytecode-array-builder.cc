@@ -241,6 +241,35 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(int slot_index) {
   return *this;
 }
 
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
+    int slot_index, LanguageMode language_mode) {
+  if (!is_sloppy(language_mode)) {
+    UNIMPLEMENTED();
+  }
+  DCHECK(slot_index >= 0);
+  if (FitsInIdx8Operand(slot_index)) {
+    Output(Bytecode::kStaGlobal, static_cast<uint8_t>(slot_index));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
+                                                            int slot_index) {
+  DCHECK(slot_index >= 0);
+  if (FitsInIdx8Operand(slot_index)) {
+    Output(Bytecode::kLdaContextSlot, context.ToOperand(),
+           static_cast<uint8_t>(slot_index));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
     Register object, int feedback_slot, LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForLoadIC(language_mode);
@@ -542,7 +571,9 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
       return static_cast<uint8_t>(operand_value) == operand_value;
     case OperandType::kReg8: {
       Register reg = Register::FromOperand(static_cast<uint8_t>(operand_value));
-      if (reg.is_parameter()) {
+      if (reg.is_function_context()) {
+        return true;
+      } else if (reg.is_parameter()) {
         int parameter_index = reg.ToParameterIndex(parameter_count_);
         return parameter_index >= 0 && parameter_index < parameter_count_;
       } else {

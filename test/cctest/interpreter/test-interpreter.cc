@@ -555,6 +555,27 @@ TEST(InterpreterParameter8) {
 }
 
 
+TEST(InterpreterParameter1Assign) {
+  HandleAndZoneScope handles;
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+  builder.set_locals_count(0);
+  builder.set_parameter_count(1);
+  builder.LoadLiteral(Smi::FromInt(5))
+      .StoreAccumulatorInRegister(builder.Parameter(0))
+      .LoadAccumulatorWithRegister(builder.Parameter(0))
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  auto callable = tester.GetCallable<Handle<Object>>();
+
+  Handle<Object> return_val =
+      callable(Handle<Smi>(Smi::FromInt(3), handles.main_isolate()))
+          .ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(5));
+}
+
+
 TEST(InterpreterLoadGlobal) {
   HandleAndZoneScope handles;
 
@@ -572,6 +593,28 @@ TEST(InterpreterLoadGlobal) {
 }
 
 
+TEST(InterpreterStoreGlobal) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  // Test storing to a global.
+  std::string source(
+      "var global = 321;\n"
+      "function " + InterpreterTester::function_name() + "() {\n"
+      "  global = 999;\n"
+      "}");
+  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  auto callable = tester.GetCallable<>();
+
+  callable().ToHandleChecked();
+  Handle<i::String> name = factory->InternalizeUtf8String("global");
+  Handle<i::Object> global_obj =
+      Object::GetProperty(isolate->global_object(), name).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*global_obj), Smi::FromInt(999));
+}
+
+
 TEST(InterpreterCallGlobal) {
   HandleAndZoneScope handles;
 
@@ -586,6 +629,45 @@ TEST(InterpreterCallGlobal) {
 
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(15));
+}
+
+
+TEST(InterpreterLoadUnallocated) {
+  HandleAndZoneScope handles;
+
+  // Test loading an unallocated global.
+  std::string source(
+      "unallocated = 123;\n"
+      "function " + InterpreterTester::function_name() + "() {\n"
+      "  return unallocated;\n"
+      "}");
+  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  auto callable = tester.GetCallable<>();
+
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(123));
+}
+
+
+TEST(InterpreterStoreUnallocated) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  // Test storing to an unallocated global.
+  std::string source(
+      "unallocated = 321;\n"
+      "function " + InterpreterTester::function_name() + "() {\n"
+      "  unallocated = 999;\n"
+      "}");
+  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  auto callable = tester.GetCallable<>();
+
+  callable().ToHandleChecked();
+  Handle<i::String> name = factory->InternalizeUtf8String("unallocated");
+  Handle<i::Object> global_obj =
+      Object::GetProperty(isolate->global_object(), name).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*global_obj), Smi::FromInt(999));
 }
 
 

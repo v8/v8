@@ -24,6 +24,9 @@ class BytecodeGenerator : public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
+  // Visiting function for declarations list is overridden.
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+
  private:
   class ControlScope;
   class ControlScopeForIteration;
@@ -32,7 +35,8 @@ class BytecodeGenerator : public AstVisitor {
 
   void VisitArithmeticExpression(BinaryOperation* binop);
   void VisitPropertyLoad(Register obj, Property* expr);
-  void VisitVariableLoad(Variable* variable);
+  void VisitVariableLoad(Variable* variable, FeedbackVectorSlot slot);
+  void VisitVariableAssignment(Variable* variable, FeedbackVectorSlot slot);
 
   // Dispatched from VisitUnaryOperation.
   void VisitVoid(UnaryOperation* expr);
@@ -46,15 +50,21 @@ class BytecodeGenerator : public AstVisitor {
   inline void set_control_scope(ControlScope* scope) { control_scope_ = scope; }
   inline CompilationInfo* info() const { return info_; }
   inline void set_info(CompilationInfo* info) { info_ = info; }
+  ZoneVector<Handle<Object>>* globals() { return &globals_; }
 
   LanguageMode language_mode() const;
   Strength language_mode_strength() const;
   int feedback_index(FeedbackVectorSlot slot) const;
+  Register current_context() const;
 
   BytecodeArrayBuilder builder_;
   CompilationInfo* info_;
   Scope* scope_;
+  ZoneVector<Handle<Object>> globals_;
   ControlScope* control_scope_;
+
+  // TODO(rmcilroy): Encapsulate this in an environment object.
+  Register current_context_;
 };
 
 }  // namespace interpreter

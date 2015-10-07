@@ -93,7 +93,9 @@ BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
     : builder_(isolate, zone),
       info_(nullptr),
       scope_(nullptr),
-      control_scope_(nullptr) {
+      globals_(0, zone),
+      control_scope_(nullptr),
+      current_context_(Register::function_context()) {
   InitializeAstVisitor(isolate, zone);
 }
 
@@ -145,11 +147,21 @@ void BytecodeGenerator::VisitBlock(Block* node) {
 
 void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
+  VariableMode mode = decl->mode();
+  bool hole_init = mode == CONST || mode == CONST_LEGACY || mode == LET;
+  if (hole_init) {
+    UNIMPLEMENTED();
+  }
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
-    case VariableLocation::UNALLOCATED:
-      UNIMPLEMENTED();
+    case VariableLocation::UNALLOCATED: {
+      Handle<Oddball> value = variable->binding_needs_init()
+                                  ? isolate()->factory()->the_hole_value()
+                                  : isolate()->factory()->undefined_value();
+      globals()->push_back(variable->name());
+      globals()->push_back(value);
       break;
+    }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
       // Details stored in scope, i.e. variable index.
@@ -163,7 +175,24 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 
 
 void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
-  UNIMPLEMENTED();
+  Variable* variable = decl->proxy()->var();
+  switch (variable->location()) {
+    case VariableLocation::GLOBAL:
+    case VariableLocation::UNALLOCATED: {
+      Handle<SharedFunctionInfo> function = Compiler::GetSharedFunctionInfo(
+          decl->fun(), info()->script(), info());
+      // Check for stack-overflow exception.
+      if (function.is_null()) return SetStackOverflow();
+      globals()->push_back(variable->name());
+      globals()->push_back(function);
+      break;
+    }
+    case VariableLocation::PARAMETER:
+    case VariableLocation::LOCAL:
+    case VariableLocation::CONTEXT:
+    case VariableLocation::LOOKUP:
+      UNIMPLEMENTED();
+  }
 }
 
 
@@ -174,6 +203,34 @@ void BytecodeGenerator::VisitImportDeclaration(ImportDeclaration* decl) {
 
 void BytecodeGenerator::VisitExportDeclaration(ExportDeclaration* decl) {
   UNIMPLEMENTED();
+}
+
+
+void BytecodeGenerator::VisitDeclarations(
+    ZoneList<Declaration*>* declarations) {
+  DCHECK(globals()->empty());
+  AstVisitor::VisitDeclarations(declarations);
+  if (globals()->empty()) return;
+  int array_index = 0;
+  Handle<FixedArray> data = isolate()->factory()->NewFixedArray(
+      static_cast<int>(globals()->size()), TENURED);
+  for (Handle<Object> obj : *globals()) data->set(array_index++, *obj);
+  int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
+                      DeclareGlobalsNativeFlag::encode(info()->is_native()) |
+                      DeclareGlobalsLanguageMode::encode(language_mode());
+
+  TemporaryRegisterScope temporary_register_scope(&builder_);
+  Register pairs = temporary_register_scope.NewRegister();
+  builder()->LoadLiteral(data);
+  builder()->StoreAccumulatorInRegister(pairs);
+
+  Register flags = temporary_register_scope.NewRegister();
+  builder()->LoadLiteral(Smi::FromInt(encoded_flags));
+  builder()->StoreAccumulatorInRegister(flags);
+  DCHECK(flags.index() == pairs.index() + 1);
+
+  builder()->CallRuntime(Runtime::kDeclareGlobals, pairs, 2);
+  globals()->clear();
 }
 
 
@@ -391,11 +448,12 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 
 void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
-  VisitVariableLoad(proxy->var());
+  VisitVariableLoad(proxy->var(), proxy->VariableFeedbackSlot());
 }
 
 
-void BytecodeGenerator::VisitVariableLoad(Variable* variable) {
+void BytecodeGenerator::VisitVariableLoad(Variable* variable,
+                                          FeedbackVectorSlot slot) {
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
       Register source(variable->index());
@@ -418,7 +476,66 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable) {
       builder()->LoadGlobal(variable->index());
       break;
     }
-    case VariableLocation::UNALLOCATED:
+    case VariableLocation::UNALLOCATED: {
+      TemporaryRegisterScope temporary_register_scope(&builder_);
+      Register obj = temporary_register_scope.NewRegister();
+      builder()->LoadContextSlot(current_context(),
+                                 Context::GLOBAL_OBJECT_INDEX);
+      builder()->StoreAccumulatorInRegister(obj);
+      builder()->LoadLiteral(variable->name());
+      builder()->LoadNamedProperty(obj, feedback_index(slot), language_mode());
+      break;
+    }
+    case VariableLocation::CONTEXT:
+    case VariableLocation::LOOKUP:
+      UNIMPLEMENTED();
+  }
+}
+
+
+void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
+                                                FeedbackVectorSlot slot) {
+  switch (variable->location()) {
+    case VariableLocation::LOCAL: {
+      // TODO(rmcilroy): support const mode initialization.
+      Register destination(variable->index());
+      builder()->StoreAccumulatorInRegister(destination);
+      break;
+    }
+    case VariableLocation::PARAMETER: {
+      // The parameter indices are shifted by 1 (receiver is variable
+      // index -1 but is parameter index 0 in BytecodeArrayBuilder).
+      Register destination(builder()->Parameter(variable->index() + 1));
+      builder()->StoreAccumulatorInRegister(destination);
+      break;
+    }
+    case VariableLocation::GLOBAL: {
+      // Global var, const, or let variable.
+      // TODO(rmcilroy): If context chain depth is short enough, do this using
+      // a generic version of LoadGlobalViaContextStub rather than calling the
+      // runtime.
+      DCHECK(variable->IsStaticGlobalObjectProperty());
+      builder()->StoreGlobal(variable->index(), language_mode());
+      break;
+    }
+    case VariableLocation::UNALLOCATED: {
+      TemporaryRegisterScope temporary_register_scope(&builder_);
+      Register value = temporary_register_scope.NewRegister();
+      Register obj = temporary_register_scope.NewRegister();
+      Register name = temporary_register_scope.NewRegister();
+      // TODO(rmcilroy): Investigate whether we can avoid having to stash the
+      // value in a register.
+      builder()->StoreAccumulatorInRegister(value);
+      builder()->LoadContextSlot(current_context(),
+                                 Context::GLOBAL_OBJECT_INDEX);
+      builder()->StoreAccumulatorInRegister(obj);
+      builder()->LoadLiteral(variable->name());
+      builder()->StoreAccumulatorInRegister(name);
+      builder()->LoadAccumulatorWithRegister(value);
+      builder()->StoreNamedProperty(obj, name, feedback_index(slot),
+                                    language_mode());
+      break;
+    }
     case VariableLocation::CONTEXT:
     case VariableLocation::LOOKUP:
       UNIMPLEMENTED();
@@ -474,9 +591,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->target()->AsVariableProxy()->var();
-      DCHECK(variable->location() == VariableLocation::LOCAL);
-      Register destination(variable->index());
-      builder()->StoreAccumulatorInRegister(destination);
+      VisitVariableAssignment(variable, slot);
       break;
     }
     case NAMED_PROPERTY:
@@ -560,7 +675,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
       // Load callee as a global variable.
       VariableProxy* proxy = callee_expr->AsVariableProxy();
-      VisitVariableLoad(proxy->var());
+      VisitVariableLoad(proxy->var(), proxy->VariableFeedbackSlot());
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
@@ -740,6 +855,9 @@ Strength BytecodeGenerator::language_mode_strength() const {
 int BytecodeGenerator::feedback_index(FeedbackVectorSlot slot) const {
   return info()->feedback_vector()->GetIndex(slot);
 }
+
+
+Register BytecodeGenerator::current_context() const { return current_context_; }
 
 }  // namespace interpreter
 }  // namespace internal

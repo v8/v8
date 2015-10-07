@@ -35,6 +35,16 @@ class BytecodeGeneratorHelper {
   Factory* factory() { return CcTest::i_isolate()->factory(); }
 
 
+  Handle<BytecodeArray> MakeTopLevelBytecode(const char* source) {
+    const char* old_ignition_filter = i::FLAG_ignition_filter;
+    i::FLAG_ignition_filter = "*";
+    Local<v8::Script> script = v8_compile(source);
+    i::FLAG_ignition_filter = old_ignition_filter;
+    i::Handle<i::JSFunction> js_function = v8::Utils::OpenHandle(*script);
+    return handle(js_function->shared()->bytecode_array(), CcTest::i_isolate());
+  }
+
+
   Handle<BytecodeArray> MakeBytecode(const char* script,
                                      const char* function_name) {
     CompileRun(script);
@@ -118,12 +128,14 @@ static void CheckBytecodeArrayEqual(struct ExpectedSnippet<T> expected,
   CHECK_EQ(actual->frame_size(), expected.frame_size);
   CHECK_EQ(actual->parameter_count(), expected.parameter_count);
   CHECK_EQ(actual->length(), expected.bytecode_length);
-  if (expected.constant_count == 0) {
-    CHECK_EQ(actual->constant_pool(), CcTest::heap()->empty_fixed_array());
-  } else {
-    CHECK_EQ(actual->constant_pool()->length(), expected.constant_count);
-    for (int i = 0; i < expected.constant_count; i++) {
-      CheckConstant(expected.constants[i], actual->constant_pool()->get(i));
+  if (expected.constant_count != -1) {
+    if (expected.constant_count == 0) {
+      CHECK_EQ(actual->constant_pool(), CcTest::heap()->empty_fixed_array());
+    } else {
+      CHECK_EQ(actual->constant_pool()->length(), expected.constant_count);
+      for (int i = 0; i < expected.constant_count; i++) {
+        CheckConstant(expected.constants[i], actual->constant_pool()->get(i));
+      }
     }
   }
 
@@ -264,7 +276,21 @@ TEST(Parameters) {
       {"function f(arg1, arg2, arg3, arg4, arg5, arg6, arg7) { return arg4; }",
        0, 8, 3, {B(Ldar), R(helper.kLastParamIndex - 3), B(Return)}, 0},
       {"function f(arg1, arg2, arg3, arg4, arg5, arg6, arg7) { return this; }",
-       0, 8, 3, {B(Ldar), R(helper.kLastParamIndex - 7), B(Return)}, 0}
+       0, 8, 3, {B(Ldar), R(helper.kLastParamIndex - 7), B(Return)}, 0},
+      {"function f(arg1) { arg1 = 1; }",
+       0, 2, 6,
+       {B(LdaSmi8), U8(1),                   //
+        B(Star), R(helper.kLastParamIndex),  //
+        B(LdaUndefined),                     //
+        B(Return)},
+       0},
+      {"function f(arg1, arg2, arg3, arg4) { arg2 = 1; }",
+       0, 5, 6,
+       {B(LdaSmi8), U8(1),                       //
+        B(Star), R(helper.kLastParamIndex - 2),  //
+        B(LdaUndefined),                         //
+        B(Return)},
+       0},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -691,7 +717,7 @@ TEST(PropertyStores) {
 
 TEST(PropertyCall) {
   InitializedHandleScope handle_scope;
-  BytecodeGeneratorHelper helper;  //
+  BytecodeGeneratorHelper helper;
   Zone zone;
 
   FeedbackVectorSpec feedback_spec(&zone);
@@ -802,6 +828,45 @@ TEST(LoadGlobal) {
 }
 
 
+TEST(StoreGlobal) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<int> snippets[] = {
+      {
+          "var a = 1;\nfunction f() { a = 2; }\nf()",
+          0,
+          1,
+          6,
+          {
+              B(LdaSmi8), U8(2),  //
+              B(StaGlobal), _,    //
+              B(LdaUndefined),    //
+              B(Return)           //
+          },
+      },
+      {
+          "var a = \"test\"; function f(b) { a = b; }\nf(\"global\")",
+          0,
+          2,
+          6,
+          {
+              B(Ldar), R(helper.kLastParamIndex),  //
+              B(StaGlobal), _,                     //
+              B(LdaUndefined),                     //
+              B(Return)                            //
+          },
+      },
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
+  }
+}
+
+
 TEST(CallGlobal) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
@@ -845,6 +910,110 @@ TEST(CallGlobal) {
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
+  }
+}
+
+
+TEST(LoadUnallocated) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  int context_reg = Register::function_context().index();
+  int global_index = Context::GLOBAL_OBJECT_INDEX;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddStoreICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"a = 1;\nfunction f() { return a; }\nf()",
+       1 * kPointerSize,
+       1,
+       11,
+       {B(LdaContextSlot), R(context_reg), U8(global_index),  //
+        B(Star), R(0),                                        //
+        B(LdaConstant), U8(0),                                //
+        B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),   //
+        B(Return)},
+       1,
+       {"a"}},
+      {"function f() { return t; }\nt = 1;\nf()",
+       1 * kPointerSize,
+       1,
+       11,
+       {B(LdaContextSlot), R(context_reg), U8(global_index),  //
+        B(Star), R(0),                                        //
+        B(LdaConstant), U8(0),                                //
+        B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),   //
+        B(Return)},
+       1,
+       {"t"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
+  }
+}
+
+
+TEST(StoreUnallocated) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  int context_reg = Register::function_context().index();
+  int global_index = Context::GLOBAL_OBJECT_INDEX;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddStoreICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"a = 1;\nfunction f() { a = 2; }\nf()",
+       3 * kPointerSize,
+       1,
+       21,
+       {B(LdaSmi8), U8(2),                                          //
+        B(Star), R(0),                                              //
+        B(LdaContextSlot), R(context_reg), U8(global_index),        //
+        B(Star), R(1),                                              //
+        B(LdaConstant), U8(0),                                      //
+        B(Star), R(2),                                              //
+        B(Ldar), R(0),                                              //
+        B(StoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot1)),  //
+        B(LdaUndefined),                                            //
+        B(Return)},
+       1,
+       {"a"}},
+      {"function f() { t = 4; }\nf()\nt = 1;",
+       3 * kPointerSize,
+       1,
+       21,
+       {B(LdaSmi8), U8(4),                                          //
+        B(Star), R(0),                                              //
+        B(LdaContextSlot), R(context_reg), U8(global_index),        //
+        B(Star), R(1),                                              //
+        B(LdaConstant), U8(0),                                      //
+        B(Star), R(2),                                              //
+        B(Ldar), R(0),                                              //
+        B(StoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot1)),  //
+        B(LdaUndefined),                                            //
+        B(Return)},
+       1,
+       {"t"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
     CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
@@ -1071,6 +1240,57 @@ TEST(IfConditions) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, helper.kFunctionName);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(DeclareGlobals) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<int> snippets[] = {
+      {"var a = 1;",
+       4 * kPointerSize,
+       1,
+       30,
+       {
+           B(LdaConstant), U8(0),                                       //
+           B(Star), R(1),                                               //
+           B(LdaZero),                                                  //
+           B(Star), R(2),                                               //
+           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),  //
+           B(LdaConstant), U8(1),                                       //
+           B(Star), R(1),                                               //
+           B(LdaZero),                                                  //
+           B(Star), R(2),                                               //
+           B(LdaSmi8), U8(1),                                           //
+           B(Star), R(3),                                               //
+           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1),    //
+           U8(3),                                                       //
+           B(LdaUndefined),                                             //
+           B(Return)                                                    //
+       },
+       -1},
+      {"function f() {}",
+       2 * kPointerSize,
+       1,
+       14,
+       {
+           B(LdaConstant), U8(0),                                       //
+           B(Star), R(0),                                               //
+           B(LdaZero),                                                  //
+           B(Star), R(1),                                               //
+           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(0), U8(2),  //
+           B(LdaUndefined),                                             //
+           B(Return)                                                    //
+       },
+       -1},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeTopLevelBytecode(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
   }
 }
 

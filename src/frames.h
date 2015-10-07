@@ -181,6 +181,7 @@ class InterpreterFrameConstants : public AllStatic {
   static const int kLastParamFromRegisterPointer =
       StandardFrameConstants::kFixedFrameSize + kPointerSize;
   static const int kFunctionFromRegisterPointer = kPointerSize;
+  static const int kContextFromRegisterPointer = 2 * kPointerSize;
 };
 
 

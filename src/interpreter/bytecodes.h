@@ -43,8 +43,12 @@ namespace interpreter {
   V(LdaTrue, OperandType::kNone)                                               \
   V(LdaFalse, OperandType::kNone)                                              \
                                                                                \
-  /* Load globals */                                                           \
+  /* Globals */                                                                \
   V(LdaGlobal, OperandType::kIdx8)                                             \
+  V(StaGlobal, OperandType::kIdx8)                                             \
+                                                                               \
+  /* Context operations */                                                     \
+  V(LdaContextSlot, OperandType::kReg8, OperandType::kIdx8)                    \
                                                                                \
   /* Register-accumulator transfers */                                         \
   V(Ldar, OperandType::kReg8)                                                  \
@@ -162,6 +166,10 @@ class Register {
   static Register FromParameterIndex(int index, int parameter_count);
   int ToParameterIndex(int parameter_count) const;
   static int MaxParameterIndex();
+
+  // Returns the register for the function's outer context.
+  static Register function_context();
+  bool is_function_context() const;
 
   static Register FromOperand(uint8_t operand);
   uint8_t ToOperand() const;

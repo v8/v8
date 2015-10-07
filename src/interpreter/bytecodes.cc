@@ -266,6 +266,8 @@ std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size) {
 
 static const int kLastParamRegisterIndex =
     -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
+static const int kFunctionContextRegisterIndex =
+    -InterpreterFrameConstants::kContextFromRegisterPointer / kPointerSize;
 
 
 // Registers occupy range 0-127 in 8-bit value leaving 128 unused values.
@@ -288,6 +290,16 @@ Register Register::FromParameterIndex(int index, int parameter_count) {
 int Register::ToParameterIndex(int parameter_count) const {
   DCHECK(is_parameter());
   return index() - kLastParamRegisterIndex + parameter_count - 1;
+}
+
+
+Register Register::function_context() {
+  return Register(kFunctionContextRegisterIndex);
+}
+
+
+bool Register::is_function_context() const {
+  return index() == kFunctionContextRegisterIndex;
 }
 
 

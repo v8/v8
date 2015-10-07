@@ -47,8 +47,12 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
 
-  // Global loads to accumulator.
+  // Global loads to accumulator and stores from accumulator.
   BytecodeArrayBuilder& LoadGlobal(int slot_index);
+  BytecodeArrayBuilder& StoreGlobal(int slot_index, LanguageMode language_mode);
+
+  // Load the object at |slot_index| in |context| into the accumulator.
+  BytecodeArrayBuilder& LoadContextSlot(Register context, int slot_index);
 
   // Register-accumulator transfers.
   BytecodeArrayBuilder& LoadAccumulatorWithRegister(Register reg);

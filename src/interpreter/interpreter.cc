@@ -196,6 +196,31 @@ void Interpreter::DoLdaGlobal(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// StaGlobal <slot_index>
+//
+// Store the global at |slot_index| with the value in the the accumulator.
+void Interpreter::DoStaGlobal(compiler::InterpreterAssembler* assembler) {
+  Node* slot_index = __ BytecodeOperandIdx8(0);
+  Node* smi_slot_index = __ SmiTag(slot_index);
+  Node* value = __ GetAccumulator();
+  __ CallRuntime(Runtime::kStoreGlobalViaContext_Sloppy, smi_slot_index, value);
+  __ Dispatch();
+}
+
+
+// LdaContextSlot <context> <slot_index>
+//
+// Load the object in |slot_index| of |context| into the accumulator.
+void Interpreter::DoLdaContextSlot(compiler::InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg8(0);
+  Node* context = __ LoadRegister(reg_index);
+  Node* slot_index = __ BytecodeOperandIdx8(1);
+  Node* result = __ LoadContextSlot(context, slot_index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 void Interpreter::DoPropertyLoadIC(Callable ic,
                                    compiler::InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());

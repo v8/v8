@@ -90,11 +90,8 @@ class InterpreterAssembler {
   // Load a field from an object on the heap.
   Node* LoadObjectField(Node* object, int offset);
 
-  // Load |slot_index| from a context.
-  Node* LoadContextSlot(Node* context, int slot_index);
-
-  // Load |slot_index| from the current context.
-  Node* LoadContextSlot(int slot_index);
+  // Load |slot_index| from |context|.
+  Node* LoadContextSlot(Node* context, Node* slot_index);
 
   // Load the TypeFeedbackVector for the current function.
   Node* LoadTypeFeedbackVector();

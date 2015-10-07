@@ -474,18 +474,14 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
 TARGET_TEST_F(InterpreterAssemblerTest, LoadContextSlot) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
-    Node* load_from_current_context = m.LoadContextSlot(22);
-    Matcher<Node*> load_from_current_context_matcher = m.IsLoad(
-        kMachAnyTagged, IsParameter(Linkage::kInterpreterContextParameter),
-        IsIntPtrConstant(Context::SlotOffset(22)));
-    EXPECT_THAT(load_from_current_context, load_from_current_context_matcher);
+    Node* context = m.Int32Constant(1);
+    Node* slot_index = m.Int32Constant(22);
+    Node* load_context_slot = m.LoadContextSlot(context, slot_index);
 
-    // Let's imagine that the loaded context slot is another context.
-    Node* load_from_any_context =
-        m.LoadContextSlot(load_from_current_context, 23);
-    EXPECT_THAT(load_from_any_context,
-                m.IsLoad(kMachAnyTagged, load_from_current_context_matcher,
-                         IsIntPtrConstant(Context::SlotOffset(23))));
+    Matcher<Node*> offset =
+        IsIntPtrAdd(IsWordShl(slot_index, IsInt32Constant(kPointerSizeLog2)),
+                    IsInt32Constant(Context::kHeaderSize - kHeapObjectTag));
+    EXPECT_THAT(load_context_slot, m.IsLoad(kMachAnyTagged, context, offset));
   }
 }
 

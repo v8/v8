@@ -291,14 +291,11 @@ Node* InterpreterAssembler::LoadObjectField(Node* object, int offset) {
 }
 
 
-Node* InterpreterAssembler::LoadContextSlot(Node* context, int slot_index) {
-  return raw_assembler_->Load(kMachAnyTagged, context,
-                              IntPtrConstant(Context::SlotOffset(slot_index)));
-}
-
-
-Node* InterpreterAssembler::LoadContextSlot(int slot_index) {
-  return LoadContextSlot(ContextTaggedPointer(), slot_index);
+Node* InterpreterAssembler::LoadContextSlot(Node* context, Node* slot_index) {
+  Node* offset =
+      IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
+                Int32Constant(Context::kHeaderSize - kHeapObjectTag));
+  return raw_assembler_->Load(kMachAnyTagged, context, offset);
 }
 
 
@@ -314,8 +311,7 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
 }
 
 
-Node* InterpreterAssembler::CallN(CallDescriptor* descriptor,
-                                  Node* code_target,
+Node* InterpreterAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
                                   Node** args) {
   Node* stack_pointer_before_call = nullptr;
   if (FLAG_debug_code) {
@@ -508,8 +504,8 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
 }
 
 
-void InterpreterAssembler::AbortIfWordNotEqual(
-    Node* lhs, Node* rhs, BailoutReason bailout_reason) {
+void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
+                                               BailoutReason bailout_reason) {
   RawMachineAssembler::Label match, no_match;
   Node* condition = raw_assembler_->WordEqual(lhs, rhs);
   raw_assembler_->Branch(condition, &match, &no_match);
