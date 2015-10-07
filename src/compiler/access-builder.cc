@@ -151,8 +151,14 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
 
 // static
 FieldAccess AccessBuilder::ForPropertyCellValue() {
+  return ForPropertyCellValue(Type::Tagged());
+}
+
+
+// static
+FieldAccess AccessBuilder::ForPropertyCellValue(Type* type) {
   FieldAccess access = {kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(),
-                        Type::Any(), kMachAnyTagged};
+                        type, kMachAnyTagged};
   return access;
 }
 
