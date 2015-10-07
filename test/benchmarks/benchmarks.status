@@ -34,7 +34,6 @@
 
   # Slow tests.
   'kraken/imaging-gaussian-blur': [PASS, SLOW],
-  'octane/mandreel': [PASS, SLOW],
   'octane/typescript': [PASS, SLOW],
 }],  # ALWAYS
 ]
