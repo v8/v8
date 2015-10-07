@@ -6547,7 +6547,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
     }
     // We are relying on this creating a big flag array and reserving the space
     // up front.
-    v8::Handle<Value> big_array = CompileRun("new Array(50000)");
+    v8::Handle<Value> big_array = CompileRun("new Array(5000)");
     a->Set(v8_str("y"), big_array);
     big_heap_size = CcTest::heap()->SizeOfObjects();
   }
@@ -6569,7 +6569,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
   }
   // A single GC should be enough to reclaim the memory, since we are using
   // phantom handles.
-  CHECK_LT(CcTest::heap()->SizeOfObjects(), big_heap_size - 200000);
+  CHECK_LT(CcTest::heap()->SizeOfObjects(), big_heap_size - 20000);
   CHECK(object_a.flag);
   CHECK(object_b.flag);
 }

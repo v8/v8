@@ -1852,7 +1852,7 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
                                                   HValue* index,
                                                   HValue* input) {
   NoObservableSideEffectsScope scope(this);
-  HConstant* max_length = Add<HConstant>(JSObject::kInitialMaxFastElementArray);
+  HConstant* max_length = Add<HConstant>(JSArray::kInitialMaxFastElementArray);
   Add<HBoundsCheck>(length, max_length);
 
   // Generate size calculation code here in order to make it dominate
@@ -2658,7 +2658,7 @@ HValue* HGraphBuilder::BuildAllocateArrayFromLength(
 
   HValue* constant_zero = graph()->GetConstant0();
   HConstant* max_alloc_length =
-      Add<HConstant>(JSObject::kInitialMaxFastElementArray);
+      Add<HConstant>(JSArray::kInitialMaxFastElementArray);
   HInstruction* checked_length = Add<HBoundsCheck>(length_argument,
                                                    max_alloc_length);
   IfBuilder if_builder(this);
@@ -3128,10 +3128,10 @@ HValue* HGraphBuilder::BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
 
   // This function implicitly relies on the fact that the
   // FastCloneShallowArrayStub is called only for literals shorter than
-  // JSObject::kInitialMaxFastElementArray.
+  // JSArray::kInitialMaxFastElementArray.
   // Can't add HBoundsCheck here because otherwise the stub will eager a frame.
   HConstant* size_upper_bound = EstablishElementsAllocationSize(
-      kind, JSObject::kInitialMaxFastElementArray);
+      kind, JSArray::kInitialMaxFastElementArray);
   elements->set_size_upper_bound(size_upper_bound);
 
   Add<HStoreNamedField>(result, HObjectAccess::ForElementsPointer(), elements);

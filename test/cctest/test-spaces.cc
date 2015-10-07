@@ -426,7 +426,8 @@ TEST(CompactionSpace) {
   // Cannot loop until "Available()" since we initially have 0 bytes available
   // and would thus neither grow, nor be able to allocate an object.
   const int kNumObjects = 100;
-  const int kExpectedPages = kNumObjects;
+  const int kExpectedPages = (kNumObjects / (compaction_space->AreaSize() /
+                                             Page::kMaxRegularHeapObjectSize));
   for (int i = 0; i < kNumObjects; i++) {
     compaction_space->AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize)
         .ToObjectChecked();
