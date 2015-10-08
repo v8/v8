@@ -41,7 +41,7 @@ void RelocInfo::set_target_address(Address target,
 }
 
 
-inline unsigned CPURegister::code() const {
+inline int CPURegister::code() const {
   DCHECK(IsValid());
   return reg_code;
 }
@@ -54,12 +54,12 @@ inline CPURegister::RegisterType CPURegister::type() const {
 
 
 inline RegList CPURegister::Bit() const {
-  DCHECK(reg_code < (sizeof(RegList) * kBitsPerByte));
+  DCHECK(static_cast<size_t>(reg_code) < (sizeof(RegList) * kBitsPerByte));
   return IsValid() ? 1UL << reg_code : 0;
 }
 
 
-inline unsigned CPURegister::SizeInBits() const {
+inline int CPURegister::SizeInBits() const {
   DCHECK(IsValid());
   return reg_size;
 }

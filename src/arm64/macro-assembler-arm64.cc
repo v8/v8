@@ -209,7 +209,7 @@ void MacroAssembler::Mov(const Register& rd, uint64_t imm) {
     // halfword, and movk for subsequent halfwords.
     DCHECK((reg_size % 16) == 0);
     bool first_mov_done = false;
-    for (unsigned i = 0; i < (rd.SizeInBits() / 16); i++) {
+    for (int i = 0; i < (rd.SizeInBits() / 16); i++) {
       uint64_t imm16 = (imm >> (16 * i)) & 0xffffL;
       if (imm16 != ignored_halfword) {
         if (!first_mov_done) {
