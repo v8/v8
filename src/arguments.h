@@ -29,13 +29,10 @@ namespace internal {
 class Arguments BASE_EMBEDDED {
  public:
   Arguments(int length, Object** arguments)
-      : length_(length), arguments_(arguments) {
-    DCHECK_GE(length_, 0);
-  }
+      : length_(length), arguments_(arguments) { }
 
   Object*& operator[] (int index) {
-    DCHECK_GE(index, 0);
-    DCHECK_LT(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
+    DCHECK(0 <= index && index < length_);
     return *(reinterpret_cast<Object**>(reinterpret_cast<intptr_t>(arguments_) -
                                         index * kPointerSize));
   }
