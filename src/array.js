@@ -15,6 +15,7 @@ var Delete;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
+var MathMin;
 var ObjectHasOwnProperty;
 var ObjectIsFrozen;
 var ObjectIsSealed;
@@ -23,6 +24,7 @@ var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
   Delete = from.Delete;
+  MathMin = from.MathMin;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   ObjectIsFrozen = from.ObjectIsFrozen;
   ObjectIsSealed = from.ObjectIsSealed;
@@ -258,7 +260,7 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
   // Move data to new array.
   var new_array = new InternalArray(
       // Clamp array length to 2^32-1 to avoid early RangeError.
-      MIN_SIMPLE(len - del_count + num_additional_args, 0xffffffff));
+      MathMin(len - del_count + num_additional_args, 0xffffffff));
   var big_indices;
   var indices = %GetArrayKeys(array, len);
   if (IS_NUMBER(indices)) {

@@ -15,12 +15,16 @@ var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var MathMax;
+var MathMin;
 var ObjectIsFrozen;
 var ObjectDefineProperty;
 
 utils.Import(function(from) {
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
+  MathMax = from.MathMax;
+  MathMin = from.MathMin;
   ObjectIsFrozen = from.ObjectIsFrozen;
   ObjectDefineProperty = from.ObjectDefineProperty;
 });
@@ -31,28 +35,28 @@ function InnerArrayCopyWithin(target, start, end, array, length) {
   target = TO_INTEGER(target);
   var to;
   if (target < 0) {
-    to = MAX_SIMPLE(length + target, 0);
+    to = MathMax(length + target, 0);
   } else {
-    to = MIN_SIMPLE(target, length);
+    to = MathMin(target, length);
   }
 
   start = TO_INTEGER(start);
   var from;
   if (start < 0) {
-    from = MAX_SIMPLE(length + start, 0);
+    from = MathMax(length + start, 0);
   } else {
-    from = MIN_SIMPLE(start, length);
+    from = MathMin(start, length);
   }
 
   end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
   var final;
   if (end < 0) {
-    final = MAX_SIMPLE(length + end, 0);
+    final = MathMax(length + end, 0);
   } else {
-    final = MIN_SIMPLE(end, length);
+    final = MathMin(end, length);
   }
 
-  var count = MIN_SIMPLE(final - from, length - to);
+  var count = MathMin(final - from, length - to);
   var direction = 1;
   if (from < to && to < (from + count)) {
     direction = -1;

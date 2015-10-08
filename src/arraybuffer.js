@@ -13,7 +13,14 @@
 
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalObject = global.Object;
+var MathMax;
+var MathMin;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+
+utils.Import(function(from) {
+  MathMax = from.MathMax;
+  MathMin = from.MathMin;
+});
 
 // -------------------------------------------------------------------
 
@@ -48,16 +55,16 @@ function ArrayBufferSlice(start, end) {
   var first;
   var byte_length = %_ArrayBufferGetByteLength(this);
   if (relativeStart < 0) {
-    first = MAX_SIMPLE(byte_length + relativeStart, 0);
+    first = MathMax(byte_length + relativeStart, 0);
   } else {
-    first = MIN_SIMPLE(relativeStart, byte_length);
+    first = MathMin(relativeStart, byte_length);
   }
   var relativeEnd = IS_UNDEFINED(end) ? byte_length : end;
   var fin;
   if (relativeEnd < 0) {
-    fin = MAX_SIMPLE(byte_length + relativeEnd, 0);
+    fin = MathMax(byte_length + relativeEnd, 0);
   } else {
-    fin = MIN_SIMPLE(relativeEnd, byte_length);
+    fin = MathMin(relativeEnd, byte_length);
   }
 
   if (fin < first) {
