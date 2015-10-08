@@ -264,7 +264,7 @@ class Bitmap {
   // Clears all bits starting from {cell_base_index} up to and excluding
   // {index}. Note that {cell_base_index} is required to be cell aligned.
   void ClearRange(uint32_t cell_base_index, uint32_t index) {
-    DCHECK_EQ(IndexInCell(cell_base_index), 0);
+    DCHECK_EQ(IndexInCell(cell_base_index), 0u);
     DCHECK_GE(index, cell_base_index);
     uint32_t start_cell_index = IndexToCell(cell_base_index);
     uint32_t end_cell_index = IndexToCell(index);
