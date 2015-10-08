@@ -938,7 +938,7 @@ void Scope::Print(int n) {
 
   // Print header.
   Indent(n0, Header(scope_type_, function_kind_, is_declaration_scope()));
-  if (!scope_name_->IsEmpty()) {
+  if (scope_name_ != nullptr && !scope_name_->IsEmpty()) {
     PrintF(" ");
     PrintName(scope_name_);
   }
