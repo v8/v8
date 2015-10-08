@@ -199,7 +199,8 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_destructuring, "harmony destructuring")                   \
   V(harmony_default_parameters, "harmony default parameters")         \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
-  V(harmony_simd, "harmony simd")
+  V(harmony_simd, "harmony simd")                                     \
+  V(harmony_completion, "harmony completion value semantics")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                             \

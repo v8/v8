@@ -62,6 +62,9 @@ class Processor: public AstVisitor {
         Token::ASSIGN, result_proxy, value, RelocInfo::kNoPosition);
   }
 
+  // Inserts '.result = undefined' in front of the given statement.
+  Statement* AssignUndefinedBefore(Statement* s);
+
   // Node visitors.
 #define DEF_VISIT(type) virtual void Visit##type(type* node) override;
   AST_NODE_LIST(DEF_VISIT)
@@ -71,6 +74,20 @@ class Processor: public AstVisitor {
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 };
+
+
+Statement* Processor::AssignUndefinedBefore(Statement* s) {
+  Expression* result_proxy = factory()->NewVariableProxy(result_);
+  Expression* undef = factory()->NewUndefinedLiteral(RelocInfo::kNoPosition);
+  Expression* assignment = factory()->NewAssignment(
+      Token::ASSIGN, result_proxy, undef, RelocInfo::kNoPosition);
+  Block* b = factory()->NewBlock(NULL, 2, false, RelocInfo::kNoPosition);
+  b->statements()->Add(
+      factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
+      zone());
+  b->statements()->Add(s, zone());
+  return b;
+}
 
 
 void Processor::Process(ZoneList<Statement*>* statements) {
@@ -116,6 +133,11 @@ void Processor::VisitIfStatement(IfStatement* node) {
   node->set_else_statement(replacement_);
   is_set_ = is_set_ && set_in_then;
   replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
@@ -127,6 +149,11 @@ void Processor::VisitIterationStatement(IterationStatement* node) {
   node->set_body(replacement_);
   is_set_ = is_set_ && set_after;
   replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
@@ -166,6 +193,11 @@ void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   node->set_catch_block(static_cast<Block*>(replacement_));
   is_set_ = is_set_ && set_in_try;
   replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
@@ -198,6 +230,11 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   Visit(node->try_block());
   node->set_try_block(replacement_->AsBlock());
   replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
@@ -211,6 +248,11 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
   }
   is_set_ = is_set_ && set_after;
   replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
@@ -230,6 +272,11 @@ void Processor::VisitWithStatement(WithStatement* node) {
   Visit(node->statement());
   node->set_statement(replacement_);
   replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
