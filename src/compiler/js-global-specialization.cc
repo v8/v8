@@ -145,17 +145,16 @@ Reduction JSGlobalSpecialization::ReduceLoadFromPropertyCell(
   if (property_details.cell_type() == PropertyCellType::kConstantType &&
       (flags() & kDeoptimizationEnabled)) {
     dependencies()->AssumePropertyCell(property_cell);
-    Type* property_cell_value_type = Type::Any();
-    switch (property_cell->GetConstantType()) {
-      case PropertyCellConstantType::kSmi:
-        property_cell_value_type = Type::Intersect(
-            Type::SignedSmall(), Type::TaggedSigned(), graph()->zone());
-        break;
-      case PropertyCellConstantType::kStableMap: {
-        // TODO(bmeurer): Determine type based on the map's instance type.
-        property_cell_value_type = Type::TaggedPointer();
-        break;
-      }
+    // Compute proper type based on the current value in the cell.
+    Type* property_cell_value_type;
+    if (property_cell_value->IsSmi()) {
+      property_cell_value_type = Type::Intersect(
+          Type::SignedSmall(), Type::TaggedSigned(), graph()->zone());
+    } else if (property_cell_value->IsNumber()) {
+      property_cell_value_type = Type::Intersect(
+          Type::Number(), Type::TaggedPointer(), graph()->zone());
+    } else {
+      property_cell_value_type = Type::Of(property_cell_value, graph()->zone());
     }
     Node* value = effect = graph()->NewNode(
         simplified()->LoadField(
