@@ -184,6 +184,7 @@ Reduction JSGlobalSpecialization::ReduceStoreToPropertyCell(
   Node* value = NodeProperties::GetValueInput(node, 2);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   // We only specialize global data property access.
   PropertyDetails property_details = property_cell->property_details();
   DCHECK_EQ(kData, property_details.kind());
@@ -193,19 +194,75 @@ Reduction JSGlobalSpecialization::ReduceStoreToPropertyCell(
   if (property_details.IsReadOnly()) return NoChange();
   // Not much we can do if we run the generic pipeline here.
   if (!(flags() & kTypingEnabled)) return NoChange();
-  // TODO(bmeurer): For now we deal only with cells in mutable state.
-  if (property_details.cell_type() != PropertyCellType::kMutable) {
-    return NoChange();
-  }
-  // Store to non-configurable, data property on the global can be lowered to
-  // a field store, even without deoptimization, because the property cannot be
-  // deleted or reconfigured to an accessor/interceptor property.
-  if (property_details.IsConfigurable()) {
-    // With deoptimization support, we can lower stores even to configurable
-    // data properties on the global object, by adding a code dependency on
-    // the cell.
-    if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-    dependencies()->AssumePropertyCell(property_cell);
+  switch (property_details.cell_type()) {
+    case PropertyCellType::kUndefined: {
+      return NoChange();
+    }
+    case PropertyCellType::kConstant: {
+      // Store to constant property cell requires deoptimization support,
+      // because we might even need to eager deoptimize for mismatch.
+      if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+      dependencies()->AssumePropertyCell(property_cell);
+      Node* check =
+          graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()), value,
+                           jsgraph()->Constant(property_cell_value));
+      Node* branch =
+          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
+                                          effect, if_false);
+      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+      control = graph()->NewNode(common()->IfTrue(), branch);
+      return Replace(node, value, effect, control);
+    }
+    case PropertyCellType::kConstantType: {
+      // Store to constant-type property cell requires deoptimization support,
+      // because we might even need to eager deoptimize for mismatch.
+      if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+      dependencies()->AssumePropertyCell(property_cell);
+      Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+      if (property_cell_value->IsHeapObject()) {
+        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                        check, control);
+        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+        Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
+                                            effect, if_true);
+        // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+        NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+        control = graph()->NewNode(common()->IfFalse(), branch);
+        Node* value_map =
+            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                             value, effect, control);
+        Handle<Map> property_cell_value_map(
+            Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
+        check = graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
+                                 value_map,
+                                 jsgraph()->Constant(property_cell_value_map));
+      }
+      Node* branch =
+          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
+                                          effect, if_false);
+      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+      control = graph()->NewNode(common()->IfTrue(), branch);
+      break;
+    }
+    case PropertyCellType::kMutable: {
+      // Store to non-configurable, data property on the global can be lowered
+      // to a field store, even without deoptimization, because the property
+      // cannot be deleted or reconfigured to an accessor/interceptor property.
+      if (property_details.IsConfigurable()) {
+        // With deoptimization support, we can lower stores even to configurable
+        // data properties on the global object, by adding a code dependency on
+        // the cell.
+        if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+        dependencies()->AssumePropertyCell(property_cell);
+      }
+      break;
+    }
   }
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForPropertyCellValue()),
@@ -227,6 +284,11 @@ Graph* JSGlobalSpecialization::graph() const { return jsgraph()->graph(); }
 
 Isolate* JSGlobalSpecialization::isolate() const {
   return jsgraph()->isolate();
+}
+
+
+CommonOperatorBuilder* JSGlobalSpecialization::common() const {
+  return jsgraph()->common();
 }
 
 

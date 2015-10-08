@@ -1359,7 +1359,7 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         // Bind value and do loop body.
         VectorSlotPair feedback =
             CreateVectorSlotPair(stmt->EachFeedbackSlot());
-        VisitForInAssignment(stmt->each(), value, feedback,
+        VisitForInAssignment(stmt->each(), value, feedback, stmt->FilterId(),
                              stmt->AssignmentId());
         VisitIterationBody(stmt, &for_loop);
       }
@@ -1987,7 +1987,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
 void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
                                            const VectorSlotPair& feedback,
-                                           BailoutId bailout_id) {
+                                           BailoutId bailout_id_before,
+                                           BailoutId bailout_id_after) {
   DCHECK(expr->IsValidReferenceExpressionOrThis());
 
   // Left-hand side can only be a property, a global or a variable slot.
@@ -1998,9 +1999,11 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
   switch (assign_type) {
     case VARIABLE: {
       Variable* var = expr->AsVariableProxy()->var();
-      FrameStateBeforeAndAfter states(this, BailoutId::None());
-      BuildVariableAssignment(var, value, Token::ASSIGN, feedback, bailout_id,
-                              states);
+      environment()->Push(value);
+      FrameStateBeforeAndAfter states(this, bailout_id_before);
+      value = environment()->Pop();
+      BuildVariableAssignment(var, value, Token::ASSIGN, feedback,
+                              bailout_id_after, states);
       break;
     }
     case NAMED_PROPERTY: {
@@ -2012,7 +2015,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
       Node* store = BuildNamedStore(object, name, value, feedback,
                                     TypeFeedbackId::None());
-      states.AddToNode(store, bailout_id, OutputFrameStateCombine::Ignore());
+      states.AddToNode(store, bailout_id_after,
+                       OutputFrameStateCombine::Ignore());
       break;
     }
     case KEYED_PROPERTY: {
@@ -2025,7 +2029,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       value = environment()->Pop();
       Node* store =
           BuildKeyedStore(object, key, value, feedback, TypeFeedbackId::None());
-      states.AddToNode(store, bailout_id, OutputFrameStateCombine::Ignore());
+      states.AddToNode(store, bailout_id_after,
+                       OutputFrameStateCombine::Ignore());
       break;
     }
     case NAMED_SUPER_PROPERTY: {
@@ -2039,7 +2044,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
       Node* store = BuildNamedSuperStore(receiver, home_object, name, value,
                                          TypeFeedbackId::None());
-      states.AddToNode(store, bailout_id, OutputFrameStateCombine::Ignore());
+      states.AddToNode(store, bailout_id_after,
+                       OutputFrameStateCombine::Ignore());
       break;
     }
     case KEYED_SUPER_PROPERTY: {
@@ -2054,7 +2060,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       value = environment()->Pop();
       Node* store = BuildKeyedSuperStore(receiver, home_object, key, value,
                                          TypeFeedbackId::None());
-      states.AddToNode(store, bailout_id, OutputFrameStateCombine::Ignore());
+      states.AddToNode(store, bailout_id_after,
+                       OutputFrameStateCombine::Ignore());
       break;
     }
   }
@@ -2675,13 +2682,16 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
                       OutputFrameStateCombine::Push());
   }
 
-  // TODO(titzer): combine this framestate with the above?
-  FrameStateBeforeAndAfter store_states(this, assign_type == KEYED_PROPERTY
-                                                  ? expr->ToNumberId()
-                                                  : BailoutId::None());
-
   // Save result for postfix expressions at correct stack depth.
-  if (is_postfix) environment()->Poke(stack_depth, old_value);
+  if (is_postfix) {
+    environment()->Poke(stack_depth, old_value);
+  } else {
+    environment()->Push(old_value);
+  }
+  // TODO(bmeurer): This might not match the fullcodegen in case of non VARIABLE
+  // eager deoptimization; we will figure out when we get there.
+  FrameStateBeforeAndAfter store_states(this, expr->ToNumberId());
+  if (!is_postfix) old_value = environment()->Pop();
 
   // Create node to perform +1/-1 operation.
   Node* value;

@@ -19,6 +19,7 @@ class CompilationDependencies;
 namespace compiler {
 
 // Forward declarations.
+class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
 
@@ -60,6 +61,7 @@ class JSGlobalSpecialization final : public AdvancedReducer {
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
+  CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   Flags flags() const { return flags_; }
