@@ -337,8 +337,6 @@ TEST(4) {
     t.y = 9.0;
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
-    CHECK_EQ(4.5f, t.y);
-    CHECK_EQ(9.0f, t.x);
     CHECK_EQ(-123.456, t.n);
     CHECK_EQ(2718.2818, t.m);
     CHECK_EQ(2, t.i);
@@ -351,6 +349,8 @@ TEST(4) {
     CHECK_EQ(4.25, t.c);
     CHECK_EQ(-4.1875, t.b);
     CHECK_EQ(1.5, t.a);
+    CHECK_EQ(4.5f, t.y);
+    CHECK_EQ(9.0f, t.x);
   }
 }
 
