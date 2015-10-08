@@ -569,9 +569,6 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   RefillFreeList(heap()->paged_space(OLD_SPACE));
   RefillFreeList(heap()->paged_space(CODE_SPACE));
   RefillFreeList(heap()->paged_space(MAP_SPACE));
-  heap()->paged_space(OLD_SPACE)->ResetUnsweptFreeBytes();
-  heap()->paged_space(CODE_SPACE)->ResetUnsweptFreeBytes();
-  heap()->paged_space(MAP_SPACE)->ResetUnsweptFreeBytes();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !evacuation()) {
@@ -606,9 +603,8 @@ void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
     return;
   }
 
-  intptr_t freed_bytes = space->free_list()->Concatenate(free_list);
-  space->AddToAccountingStats(freed_bytes);
-  space->DecrementUnsweptFreeBytes(freed_bytes);
+  intptr_t added = space->free_list()->Concatenate(free_list);
+  space->accounting_stats_.IncreaseCapacity(added);
 }
 
 
@@ -3864,6 +3860,7 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     space->Free(p->area_start(), p->area_size());
     p->set_scan_on_scavenge(false);
     p->ResetLiveBytes();
+    CHECK(p->WasSwept());
     space->ReleasePage(p);
   }
   evacuation_candidates_.Rewind(0);
@@ -4355,9 +4352,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
           PrintF("Sweeping 0x%" V8PRIxPTR " released page.\n",
                  reinterpret_cast<intptr_t>(p));
         }
-        // Adjust unswept free bytes because releasing a page expects said
-        // counter to be accurate for unswept pages.
-        space->IncreaseUnsweptFreeBytes(p);
         space->ReleasePage(p);
         continue;
       }
@@ -4391,7 +4385,8 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
                    reinterpret_cast<intptr_t>(p));
           }
           p->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingPending);
-          space->IncreaseUnsweptFreeBytes(p);
+          int to_sweep = p->area_size() - p->LiveBytes();
+          space->accounting_stats_.ShrinkSpace(to_sweep);
         }
         space->set_end_of_unswept_pages(p);
         break;

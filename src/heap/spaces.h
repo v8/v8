@@ -1530,7 +1530,7 @@ class AllocationStats BASE_EMBEDDED {
   // Free allocated bytes, making them available (size -> available).
   void DeallocateBytes(intptr_t size_in_bytes) {
     size_ -= size_in_bytes;
-    DCHECK(size_ >= 0);
+    DCHECK_GE(size_, 0);
   }
 
   // Merge {other} into {this}.
@@ -1545,6 +1545,7 @@ class AllocationStats BASE_EMBEDDED {
   void DecreaseCapacity(intptr_t size_in_bytes) {
     capacity_ -= size_in_bytes;
     DCHECK_GE(capacity_, 0);
+    DCHECK_GE(capacity_, size_);
   }
 
   void IncreaseCapacity(intptr_t size_in_bytes) { capacity_ += size_in_bytes; }
@@ -1659,6 +1660,10 @@ class FreeList {
  public:
   explicit FreeList(PagedSpace* owner);
 
+  // The method concatenates {other} into {this} and returns the added bytes,
+  // including waste.
+  //
+  // Can be used concurrently.
   intptr_t Concatenate(FreeList* other);
 
   // Clear the free list.
@@ -1977,22 +1982,6 @@ class PagedSpace : public Space {
            !p->IsFlagSet(Page::RESCAN_ON_EVACUATION) && !p->WasSwept();
   }
 
-  void IncrementUnsweptFreeBytes(intptr_t by) { unswept_free_bytes_ += by; }
-
-  void IncreaseUnsweptFreeBytes(Page* p) {
-    DCHECK(ShouldBeSweptBySweeperThreads(p));
-    unswept_free_bytes_ += (p->area_size() - p->LiveBytes());
-  }
-
-  void DecrementUnsweptFreeBytes(intptr_t by) { unswept_free_bytes_ -= by; }
-
-  void DecreaseUnsweptFreeBytes(Page* p) {
-    DCHECK(ShouldBeSweptBySweeperThreads(p));
-    unswept_free_bytes_ -= (p->area_size() - p->LiveBytes());
-  }
-
-  void ResetUnsweptFreeBytes() { unswept_free_bytes_ = 0; }
-
   // This function tries to steal size_in_bytes memory from the sweeper threads
   // free-lists. If it does not succeed stealing enough memory, it will wait
   // for the sweeper threads to finish sweeping.
@@ -2074,10 +2063,6 @@ class PagedSpace : public Space {
 
   // Normal allocation information.
   AllocationInfo allocation_info_;
-
-  // The number of free bytes which could be reclaimed by advancing the
-  // concurrent sweeper threads.
-  intptr_t unswept_free_bytes_;
 
   // The sweeper threads iterate over the list of pointer and data space pages
   // and sweep these pages concurrently. They will stop sweeping after the
