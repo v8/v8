@@ -1,3 +1,124 @@
+2015-10-08: Version 4.8.19
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.18
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.17
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.16
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.15
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.14
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.13
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.11
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.10
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.9
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.8
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.7
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.5
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.4
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.3
+
+        Destructuring array without initializer throws an exception (issue
+        4462).
+
+        Disable VirtualAlloc randomization on 32-bit Windows hosts (Chromium
+        issue 394591).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-06: Version 4.8.2
+
+        Fix legacy const for-of/in destructuring (issue 4461).
+
+        [es6] Align Promise.resolve with the spec (issues 4161, 4341).
+
+        Prohibit let in lexical bindings (issue 4403).
+
+        Ensure scopes are backed by blocks in the body of for loops (Chromium
+        issues 536750, 536751).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-04: Version 4.8.1
+
+        [cross-context] create new function prototypes in the context of the
+        function (issue 4217).
+
+        Fix completion of try..finally (issue 2529).
+
+        Extend Annex B 3.3 sloppy-mode block-scoped hoisting to scripts, eval
+        (issue 4441).
+
+        [V8] Add name of function for function's closure scope (Chromium issue
+        493156).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-05-17: Sentinel
 
         The ChangeLog file is no longer maintained on bleeding_edge. This
