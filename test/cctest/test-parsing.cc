@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(mythria): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -225,21 +228,26 @@ TEST(UsingCachedData) {
   int source_length = i::StrLength(source);
 
   // ScriptResource will be deleted when the corresponding String is GCd.
-  v8::ScriptCompiler::Source script_source(v8::String::NewExternal(
-      isolate, new ScriptResource(source, source_length)));
+  v8::ScriptCompiler::Source script_source(
+      v8::String::NewExternalOneByte(isolate,
+                                     new ScriptResource(source, source_length))
+          .ToLocalChecked());
   i::FLAG_min_preparse_length = 0;
-  v8::ScriptCompiler::Compile(isolate, &script_source,
-                              v8::ScriptCompiler::kProduceParserCache);
+  v8::ScriptCompiler::Compile(isolate->GetCurrentContext(), &script_source,
+                              v8::ScriptCompiler::kProduceParserCache)
+      .ToLocalChecked();
   CHECK(script_source.GetCachedData());
 
   // Compile the script again, using the cached data.
   bool lazy_flag = i::FLAG_lazy;
   i::FLAG_lazy = true;
-  v8::ScriptCompiler::Compile(isolate, &script_source,
-                              v8::ScriptCompiler::kConsumeParserCache);
+  v8::ScriptCompiler::Compile(isolate->GetCurrentContext(), &script_source,
+                              v8::ScriptCompiler::kConsumeParserCache)
+      .ToLocalChecked();
   i::FLAG_lazy = false;
-  v8::ScriptCompiler::CompileUnbound(isolate, &script_source,
-                                     v8::ScriptCompiler::kConsumeParserCache);
+  v8::ScriptCompiler::CompileUnboundScript(
+      isolate, &script_source, v8::ScriptCompiler::kConsumeParserCache)
+      .ToLocalChecked();
   i::FLAG_lazy = lazy_flag;
 }
 
@@ -271,8 +279,9 @@ TEST(PreparseFunctionDataIsUsed) {
 
   for (unsigned i = 0; i < arraysize(good_code); i++) {
     v8::ScriptCompiler::Source good_source(v8_str(good_code[i]));
-    v8::ScriptCompiler::Compile(isolate, &good_source,
-                                v8::ScriptCompiler::kProduceParserCache);
+    v8::ScriptCompiler::Compile(isolate->GetCurrentContext(), &good_source,
+                                v8::ScriptCompiler::kProduceParserCache)
+        .ToLocalChecked();
 
     const v8::ScriptCompiler::CachedData* cached_data =
         good_source.GetCachedData();
@@ -286,11 +295,10 @@ TEST(PreparseFunctionDataIsUsed) {
         v8_str(bad_code[i]), new v8::ScriptCompiler::CachedData(
                                  cached_data->data, cached_data->length));
     v8::Local<v8::Value> result =
-        v8::ScriptCompiler::Compile(isolate, &bad_source,
-                                    v8::ScriptCompiler::kConsumeParserCache)
-            ->Run();
+        CompileRun(isolate->GetCurrentContext(), &bad_source,
+                   v8::ScriptCompiler::kConsumeParserCache);
     CHECK(result->IsInt32());
-    CHECK_EQ(25, result->Int32Value());
+    CHECK_EQ(25, result->Int32Value(isolate->GetCurrentContext()).FromJust());
   }
 }
 
@@ -1034,7 +1042,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
   i::Factory* factory = isolate->factory();
 
   v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
@@ -1339,7 +1347,7 @@ TEST(ScopePositions) {
   i::Factory* factory = isolate->factory();
 
   v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
@@ -1474,8 +1482,7 @@ i::Handle<i::String> FormatMessage(i::Vector<unsigned> data) {
     // length field content words.
     const char* arg =
         ReadString(&data[i::PreparseDataConstants::kMessageArgPos]);
-    arg_object =
-        v8::Utils::OpenHandle(*v8::String::NewFromUtf8(CcTest::isolate(), arg));
+    arg_object = v8::Utils::OpenHandle(*v8_str(arg));
     i::DeleteArray(arg);
   } else {
     CHECK_EQ(0, arg_count);
@@ -1753,7 +1760,7 @@ TEST(ParserSync) {
   };
 
   v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
@@ -1809,7 +1816,7 @@ TEST(StrictOctal) {
       "    01;               \n"
       "  };                  \n"
       "};                    \n";
-  v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(), script));
+  v8_compile(v8_str(script));
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value exception(try_catch.Exception());
   CHECK_EQ(0,
@@ -1828,7 +1835,7 @@ void RunParserSyncTest(const char* context_data[][2],
                        const ParserFlag* always_false_flags = NULL,
                        int always_false_len = 0) {
   v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
@@ -3197,12 +3204,16 @@ TEST(FuncNameInferrerTwoByte) {
   // Make it really non-Latin1 (replace the Xs with a non-Latin1 character).
   two_byte_source[14] = two_byte_source[78] = two_byte_name[6] = 0x010d;
   v8::Local<v8::String> source =
-      v8::String::NewFromTwoByte(isolate, two_byte_source);
+      v8::String::NewFromTwoByte(isolate, two_byte_source,
+                                 v8::NewStringType::kNormal)
+          .ToLocalChecked();
   v8::Local<v8::Value> result = CompileRun(source);
   CHECK(result->IsString());
   v8::Local<v8::String> expected_name =
-      v8::String::NewFromTwoByte(isolate, two_byte_name);
-  CHECK(result->Equals(expected_name));
+      v8::String::NewFromTwoByte(isolate, two_byte_name,
+                                 v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  CHECK(result->Equals(isolate->GetCurrentContext(), expected_name).FromJust());
   i::DeleteArray(two_byte_source);
   i::DeleteArray(two_byte_name);
 }
@@ -3222,12 +3233,16 @@ TEST(FuncNameInferrerEscaped) {
   // Fix to correspond to the non-ASCII name in two_byte_source.
   two_byte_name[6] = 0x010d;
   v8::Local<v8::String> source =
-      v8::String::NewFromTwoByte(isolate, two_byte_source);
+      v8::String::NewFromTwoByte(isolate, two_byte_source,
+                                 v8::NewStringType::kNormal)
+          .ToLocalChecked();
   v8::Local<v8::Value> result = CompileRun(source);
   CHECK(result->IsString());
   v8::Local<v8::String> expected_name =
-      v8::String::NewFromTwoByte(isolate, two_byte_name);
-  CHECK(result->Equals(expected_name));
+      v8::String::NewFromTwoByte(isolate, two_byte_name,
+                                 v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  CHECK(result->Equals(isolate->GetCurrentContext(), expected_name).FromJust());
   i::DeleteArray(two_byte_source);
   i::DeleteArray(two_byte_name);
 }
@@ -5491,7 +5506,7 @@ TEST(BasicImportExportParsing) {
   i::Factory* factory = isolate->factory();
 
   v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
@@ -5608,7 +5623,7 @@ TEST(ImportExportParsingErrors) {
   i::Factory* factory = isolate->factory();
 
   v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
@@ -5634,7 +5649,7 @@ TEST(ModuleParsingInternals) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
   isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
                                         128 * 1024);
@@ -5766,7 +5781,7 @@ void TestLanguageMode(const char* source,
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   v8::HandleScope handles(CcTest::isolate());
-  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
   isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
                                         128 * 1024);
@@ -6454,7 +6469,7 @@ TEST(StrongModeFreeVariablesNotDeclared) {
         "  not_there2;           \n"
         "}                       \n";
     v8::TryCatch try_catch2(CcTest::isolate());
-    v8::Script::Compile(v8_str(script2));
+    v8_compile(v8_str(script2));
     CHECK(try_catch2.HasCaught());
     v8::String::Utf8Value exception(try_catch2.Exception());
     CHECK_EQ(0,
@@ -6475,7 +6490,7 @@ TEST(StrongModeFreeVariablesNotDeclared) {
         "  }                     \n"
         "})();                   \n";
     v8::TryCatch try_catch2(CcTest::isolate());
-    v8::Script::Compile(v8_str(script3));
+    v8_compile(v8_str(script3));
     CHECK(try_catch2.HasCaught());
     v8::String::Utf8Value exception(try_catch2.Exception());
     CHECK_EQ(0,

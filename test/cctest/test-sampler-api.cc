@@ -4,6 +4,9 @@
 //
 // Tests the sampling API in include/v8.h
 
+// TODO(mythria): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <map>
 #include <string>
 #include "include/v8.h"
@@ -94,14 +97,13 @@ class SamplingTestHelper {
     DCHECK(!instance_);
     instance_ = this;
     v8::HandleScope scope(isolate_);
-    v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
-    global->Set(v8::String::NewFromUtf8(isolate_, "CollectSample"),
+    v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
+    global->Set(v8_str("CollectSample"),
                 v8::FunctionTemplate::New(isolate_, CollectSample));
     LocalContext env(isolate_, NULL, global);
     isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
                                      JitCodeEventHandler);
-    v8::Script::Compile(
-        v8::String::NewFromUtf8(isolate_, test_function.c_str()))->Run();
+    CompileRun(v8_str(test_function.c_str()));
   }
 
   ~SamplingTestHelper() {
