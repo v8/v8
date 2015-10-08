@@ -19,6 +19,8 @@ deps = {
     Var("git_url") + "/external/github.com/google/googletest.git" + "@" + "6f8a66431cb592dad629028a50b3dd418a408c87",
   "v8/testing/gmock":
     Var("git_url") + "/external/googlemock.git" + "@" + "0421b6f358139f02e102c9c332ce19a33faf75be",
+  "v8/test/test262/data":
+    Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "26e6fd7c1779a63913cc7720cbc6c87b3b7b3285",
   "v8/tools/clang":
     Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "ee2cf312005aa4d47268041d36bfc50921afea29",
 }

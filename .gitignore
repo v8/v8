@@ -64,11 +64,6 @@ shell_g
 /test/simdjs/ecmascript_simd*
 /test/simdjs/data*
 /test/test262/data
-/test/test262/data.old
-/test/test262/tc39-test262-*
-/test/test262-es6/data
-/test/test262-es6/data.old
-/test/test262-es6/tc39-test262-*
 /testing/gmock
 /testing/gtest
 /third_party
