@@ -7259,6 +7259,16 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
 }
 
 
+MaybeHandle<Object> Object::GetPropertyOrElement(Handle<JSReceiver> holder,
+                                                 Handle<Name> name,
+                                                 Handle<Object> receiver,
+                                                 LanguageMode language_mode) {
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      name->GetIsolate(), receiver, name, holder);
+  return GetProperty(&it, language_mode);
+}
+
+
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
                                     Handle<Name> name) {
   // Call the "has" trap on proxies.

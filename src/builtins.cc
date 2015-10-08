@@ -1474,14 +1474,10 @@ BUILTIN(ReflectDeleteProperty) {
 // ES6 section 26.1.6 Reflect.get
 BUILTIN(ReflectGet) {
   HandleScope scope(isolate);
-  DCHECK_LE(3, args.length());
-  DCHECK_LE(args.length(), 4);
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> key = args.at<Object>(2);
-  // Handle<Object> receiver = args.length() == 4 ? args.at<Object>(3) : target;
-  //
-  // TODO(neis): We ignore the receiver argument for now because
-  // GetPropertyOrElement doesn't support it yet.
+  Handle<Object> undef = isolate->factory()->undefined_value();
+  Handle<Object> target = args.length() > 1 ? args.at<Object>(1) : undef;
+  Handle<Object> key = args.length() > 2 ? args.at<Object>(2) : undef;
+  Handle<Object> receiver = args.length() > 3 ? args.at<Object>(3) : target;
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -1496,7 +1492,8 @@ BUILTIN(ReflectGet) {
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::GetPropertyOrElement(target, name));
+      isolate, result, Object::GetPropertyOrElement(
+          Handle<JSReceiver>::cast(target), name, receiver));
 
   return *result;
 }

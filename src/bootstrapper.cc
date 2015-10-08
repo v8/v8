@@ -1892,12 +1892,16 @@ void Genesis::InitializeGlobal_harmony_tolength() {
 }
 
 
-static void SimpleInstallFunction(
-    Handle<JSObject>& base, const char* name, Builtins::Name call, int len) {
+static void SimpleInstallFunction(Handle<JSObject>& base, const char* name,
+                                  Builtins::Name call, int len, bool adapt) {
   Handle<JSFunction> fun =
       InstallFunction(base, name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
                       MaybeHandle<JSObject>(), call);
-  fun->shared()->set_internal_formal_parameter_count(len);
+  if (adapt) {
+    fun->shared()->set_internal_formal_parameter_count(len);
+  } else {
+    fun->shared()->DontAdaptArguments();
+  }
   fun->shared()->set_length(len);
 }
 
@@ -1914,13 +1918,13 @@ void Genesis::InitializeGlobal_harmony_reflect() {
   JSObject::AddProperty(global, reflect_string, reflect, DONT_ENUM);
 
   SimpleInstallFunction(reflect, "deleteProperty",
-                        Builtins::kReflectDeleteProperty, 2);
+                        Builtins::kReflectDeleteProperty, 2, true);
   SimpleInstallFunction(reflect, "get",
-                        Builtins::kReflectGet, 3);
+                        Builtins::kReflectGet, 3, false);
   SimpleInstallFunction(reflect, "has",
-                        Builtins::kReflectHas, 2);
+                        Builtins::kReflectHas, 2, true);
   SimpleInstallFunction(reflect, "isExtensible",
-                        Builtins::kReflectIsExtensible, 1);
+                        Builtins::kReflectIsExtensible, 1, true);
 }
 
 
