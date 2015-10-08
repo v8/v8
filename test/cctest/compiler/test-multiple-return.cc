@@ -29,17 +29,22 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
                                   int param_count) {
   MachineSignature::Builder msig(zone, return_count, param_count);
   LocationSignature::Builder locations(zone, return_count, param_count);
+  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
 
   // Add return location(s).
+  DCHECK(return_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < return_count; i++) {
     msig.AddReturn(compiler::kMachInt32);
-    locations.AddReturn(LinkageLocation::ForRegister(i));
+    locations.AddReturn(
+        LinkageLocation::ForRegister(config->allocatable_general_codes()[i]));
   }
 
   // Add register and/or stack parameter(s).
+  DCHECK(param_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < param_count; i++) {
     msig.AddParam(compiler::kMachInt32);
-    locations.AddParam(LinkageLocation::ForRegister(i));
+    locations.AddParam(
+        LinkageLocation::ForRegister(config->allocatable_general_codes()[i]));
   }
 
   const RegList kCalleeSaveRegisters = 0;
