@@ -1415,8 +1415,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // eax = regexp literal clone.
   __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ mov(ecx, FieldOperand(edi, JSFunction::kLiteralsOffset));
-  int literal_offset =
-      FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
+  int literal_offset = LiteralsArray::OffsetOfLiteralAt(expr->literal_index());
   __ mov(ebx, FieldOperand(ecx, literal_offset));
   __ cmp(ebx, isolate()->factory()->undefined_value());
   __ j(not_equal, &materialized, Label::kNear);
