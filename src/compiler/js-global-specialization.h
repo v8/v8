@@ -75,6 +75,8 @@ class JSGlobalSpecialization final : public AdvancedReducer {
   DISALLOW_COPY_AND_ASSIGN(JSGlobalSpecialization);
 };
 
+DEFINE_OPERATORS_FOR_FLAGS(JSGlobalSpecialization::Flags)
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
