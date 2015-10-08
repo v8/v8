@@ -53,7 +53,6 @@ const SharedOperator kSharedOperators[] = {
     SHARED(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
     SHARED(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
     SHARED(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1),
-    SHARED(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1),
     SHARED(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)
 #undef SHARED
 };
@@ -184,6 +183,23 @@ TEST_F(CommonOperatorTest, End) {
     EXPECT_EQ(0, op->ValueOutputCount());
     EXPECT_EQ(0, op->EffectOutputCount());
     EXPECT_EQ(0, op->ControlOutputCount());
+  }
+}
+
+
+TEST_F(CommonOperatorTest, Return) {
+  TRACED_FOREACH(int, input_count, kArguments) {
+    const Operator* const op = common()->Return(input_count);
+    EXPECT_EQ(IrOpcode::kReturn, op->opcode());
+    EXPECT_EQ(Operator::kNoThrow, op->properties());
+    EXPECT_EQ(input_count, op->ValueInputCount());
+    EXPECT_EQ(1, op->EffectInputCount());
+    EXPECT_EQ(1, static_cast<uint32_t>(op->ControlInputCount()));
+    EXPECT_EQ(2 + input_count, static_cast<uint32_t>(
+                                   OperatorProperties::GetTotalInputCount(op)));
+    EXPECT_EQ(0, op->ValueOutputCount());
+    EXPECT_EQ(0, op->EffectOutputCount());
+    EXPECT_EQ(1, op->ControlOutputCount());
   }
 }
 

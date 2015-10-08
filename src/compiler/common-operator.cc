@@ -123,10 +123,15 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
   V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
   V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
-  V(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)          \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)       \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)
+
+
+#define CACHED_RETURN_LIST(V) \
+  V(1)                        \
+  V(2)                        \
+  V(3)
 
 
 #define CACHED_END_LIST(V) \
@@ -248,6 +253,19 @@ struct CommonOperatorGlobalCache final {
   EndOperator<input_count> kEnd##input_count##Operator;
   CACHED_END_LIST(CACHED_END)
 #undef CACHED_END
+
+  template <size_t kInputCount>
+  struct ReturnOperator final : public Operator {
+    ReturnOperator()
+        : Operator(                                   // --
+              IrOpcode::kReturn, Operator::kNoThrow,  // opcode
+              "Return",                               // name
+              kInputCount, 1, 1, 0, 0, 1) {}          // counts
+  };
+#define CACHED_RETURN(input_count) \
+  ReturnOperator<input_count> kReturn##input_count##Operator;
+  CACHED_RETURN_LIST(CACHED_RETURN)
+#undef CACHED_RETURN
 
   template <BranchHint kBranchHint>
   struct BranchOperator final : public Operator1<BranchHint> {
@@ -394,6 +412,24 @@ const Operator* CommonOperatorBuilder::End(size_t control_input_count) {
       IrOpcode::kEnd, Operator::kKontrol,   // opcode
       "End",                                // name
       0, 0, control_input_count, 0, 0, 0);  // counts
+}
+
+
+const Operator* CommonOperatorBuilder::Return(int value_input_count) {
+  switch (value_input_count) {
+#define CACHED_RETURN(input_count) \
+  case input_count:                \
+    return &cache_.kReturn##input_count##Operator;
+    CACHED_RETURN_LIST(CACHED_RETURN)
+#undef CACHED_RETURN
+    default:
+      break;
+  }
+  // Uncached.
+  return new (zone()) Operator(               //--
+      IrOpcode::kReturn, Operator::kNoThrow,  // opcode
+      "Return",                               // name
+      value_input_count, 1, 1, 0, 0, 1);      // counts
 }
 
 

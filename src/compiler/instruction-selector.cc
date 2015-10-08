@@ -504,7 +504,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlock::kReturn: {
       DCHECK_EQ(IrOpcode::kReturn, input->opcode());
-      return VisitReturn(input->InputAt(0));
+      return VisitReturn(input);
     }
     case BasicBlock::kDeoptimize: {
       // If the result itself is a return, return its input.
@@ -1009,15 +1009,19 @@ void InstructionSelector::VisitGoto(BasicBlock* target) {
 }
 
 
-void InstructionSelector::VisitReturn(Node* value) {
-  DCHECK_NOT_NULL(value);
+void InstructionSelector::VisitReturn(Node* ret) {
   OperandGenerator g(this);
   if (linkage()->GetIncomingDescriptor()->ReturnCount() == 0) {
     Emit(kArchRet, g.NoOutput());
   } else {
-    Emit(kArchRet, g.NoOutput(),
-         g.UseLocation(value, linkage()->GetReturnLocation(),
-                       linkage()->GetReturnType()));
+    const int ret_count = ret->op()->ValueInputCount();
+    auto value_locations = zone()->NewArray<InstructionOperand>(ret_count);
+    for (int i = 0; i < ret_count; ++i) {
+      value_locations[i] =
+          g.UseLocation(ret->InputAt(i), linkage()->GetReturnLocation(i),
+                        linkage()->GetReturnType(i));
+    }
+    Emit(kArchRet, 0, nullptr, ret_count, value_locations);
   }
 }
 

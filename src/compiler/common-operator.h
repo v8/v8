@@ -121,7 +121,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* IfDefault();
   const Operator* Throw();
   const Operator* Deoptimize();
-  const Operator* Return();
+  const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 
   const Operator* Start(int value_output_count);

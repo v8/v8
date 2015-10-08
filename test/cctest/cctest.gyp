@@ -63,6 +63,7 @@
         'compiler/test-loop-assignment-analysis.cc',
         'compiler/test-loop-analysis.cc',
         'compiler/test-machine-operator-reducer.cc',
+        'compiler/test-multiple-return.cc',
         'compiler/test-node.cc',
         'compiler/test-operator.cc',
         'compiler/test-osr.cc',

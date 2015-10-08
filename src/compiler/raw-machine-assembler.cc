@@ -101,6 +101,22 @@ void RawMachineAssembler::Return(Node* value) {
 }
 
 
+void RawMachineAssembler::Return(Node* v1, Node* v2) {
+  Node* values[] = {v1, v2};
+  Node* ret = MakeNode(common()->Return(2), 2, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+
+void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3) {
+  Node* values[] = {v1, v2, v3};
+  Node* ret = MakeNode(common()->Return(3), 3, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+
 Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
                                  Node** args) {
   int param_count =

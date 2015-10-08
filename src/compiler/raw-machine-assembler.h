@@ -536,6 +536,8 @@ class RawMachineAssembler {
   void Switch(Node* index, Label* default_label, int32_t* case_values,
               Label** case_labels, size_t case_count);
   void Return(Node* value);
+  void Return(Node* v1, Node* v2);
+  void Return(Node* v1, Node* v2, Node* v3);
   void Bind(Label* label);
   void Deoptimize(Node* state);
 

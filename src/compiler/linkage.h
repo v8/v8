@@ -304,12 +304,14 @@ class Linkage : public ZoneObject {
   }
 
   // Get the location where this function should place its return value.
-  LinkageLocation GetReturnLocation() const {
-    return incoming_->GetReturnLocation(0);
+  LinkageLocation GetReturnLocation(size_t index = 0) const {
+    return incoming_->GetReturnLocation(index);
   }
 
   // Get the machine type of this function's return value.
-  MachineType GetReturnType() const { return incoming_->GetReturnType(0); }
+  MachineType GetReturnType(size_t index = 0) const {
+    return incoming_->GetReturnType(index);
+  }
 
   // Get the frame offset for a given spill slot. The location depends on the
   // calling convention and the specific frame layout, and may thus be
