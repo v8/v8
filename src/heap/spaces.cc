@@ -2262,10 +2262,10 @@ intptr_t FreeList::Concatenate(FreeList* other) {
   wasted_bytes_ += wasted_bytes;
   other->wasted_bytes_ = 0;
 
-  usable_bytes += small_list_.Concatenate(other->small_list());
-  usable_bytes += medium_list_.Concatenate(other->medium_list());
-  usable_bytes += large_list_.Concatenate(other->large_list());
-  usable_bytes += huge_list_.Concatenate(other->huge_list());
+  usable_bytes += small_list_.Concatenate(other->GetFreeListCategory(kSmall));
+  usable_bytes += medium_list_.Concatenate(other->GetFreeListCategory(kMedium));
+  usable_bytes += large_list_.Concatenate(other->GetFreeListCategory(kLarge));
+  usable_bytes += huge_list_.Concatenate(other->GetFreeListCategory(kHuge));
 
   if (!other->owner()->is_local()) other->mutex()->Unlock();
   if (!owner()->is_local()) mutex_.Unlock();
@@ -2318,38 +2318,40 @@ int FreeList::Free(Address start, int size_in_bytes) {
 }
 
 
+FreeSpace* FreeList::FindNodeIn(FreeListCategoryType category, int* node_size) {
+  FreeSpace* node = GetFreeListCategory(category)->PickNodeFromList(node_size);
+  if (node != nullptr) {
+    Page::FromAddress(node->address())
+        ->add_available_in_free_list(category, -(*node_size));
+    DCHECK(IsVeryLong() || available() == SumFreeLists());
+  }
+  return node;
+}
+
+
 FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   FreeSpace* node = NULL;
   Page* page = NULL;
 
   if (size_in_bytes <= kSmallAllocationMax) {
-    node = small_list_.PickNodeFromList(node_size);
+    node = FindNodeIn(kSmall, node_size);
     if (node != NULL) {
-      DCHECK(size_in_bytes <= *node_size);
-      page = Page::FromAddress(node->address());
-      page->add_available_in_small_free_list(-(*node_size));
       DCHECK(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
 
   if (size_in_bytes <= kMediumAllocationMax) {
-    node = medium_list_.PickNodeFromList(node_size);
+    node = FindNodeIn(kMedium, node_size);
     if (node != NULL) {
-      DCHECK(size_in_bytes <= *node_size);
-      page = Page::FromAddress(node->address());
-      page->add_available_in_medium_free_list(-(*node_size));
       DCHECK(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
 
   if (size_in_bytes <= kLargeAllocationMax) {
-    node = large_list_.PickNodeFromList(node_size);
+    node = FindNodeIn(kLarge, node_size);
     if (node != NULL) {
-      DCHECK(size_in_bytes <= *node_size);
-      page = Page::FromAddress(node->address());
-      page->add_available_in_large_free_list(-(*node_size));
       DCHECK(IsVeryLong() || available() == SumFreeLists());
       return node;
     }

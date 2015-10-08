@@ -1743,11 +1743,6 @@ class FreeList {
   intptr_t EvictFreeListItems(Page* p);
   bool ContainsPageFreeListItems(Page* p);
 
-  FreeListCategory* small_list() { return &small_list_; }
-  FreeListCategory* medium_list() { return &medium_list_; }
-  FreeListCategory* large_list() { return &large_list_; }
-  FreeListCategory* huge_list() { return &huge_list_; }
-
   PagedSpace* owner() { return owner_; }
   intptr_t wasted_bytes() { return wasted_bytes_; }
   base::Mutex* mutex() { return &mutex_; }
@@ -1766,6 +1761,25 @@ class FreeList {
   static const int kLargeAllocationMax = kMediumListMax;
 
   FreeSpace* FindNodeFor(int size_in_bytes, int* node_size);
+  FreeSpace* FindNodeIn(FreeListCategoryType category, int* node_size);
+
+  FreeListCategory* GetFreeListCategory(FreeListCategoryType category) {
+    switch (category) {
+      case kSmall:
+        return &small_list_;
+      case kMedium:
+        return &medium_list_;
+      case kLarge:
+        return &large_list_;
+      case kHuge:
+        return &huge_list_;
+      default:
+        UNREACHABLE();
+    }
+    UNREACHABLE();
+    return nullptr;
+  }
+
 
   PagedSpace* owner_;
   Heap* heap_;
