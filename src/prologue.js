@@ -187,7 +187,6 @@ function PostNatives(utils) {
     "OwnPropertyKeys",
     "SymbolToString",
     "ToNameArray",
-    "ToBoolean",
     // From runtime:
     "is_concat_spreadable_symbol",
     "iterator_symbol",

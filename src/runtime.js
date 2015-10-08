@@ -166,16 +166,6 @@ function CONCAT_ITERABLE_TO_ARRAY(iterable) {
    -------------------------------------
 */
 
-// ECMA-262, section 9.2, page 30
-function ToBoolean(x) {
-  if (IS_BOOLEAN(x)) return x;
-  if (IS_STRING(x)) return x.length != 0;
-  if (x == null) return false;
-  if (IS_NUMBER(x)) return !((x == 0) || NUMBER_IS_NAN(x));
-  return true;
-}
-
-
 // ES5, section 9.12
 function SameValue(x, y) {
   if (typeof x != typeof y) return false;
@@ -222,7 +212,7 @@ function IsConcatSpreadable(O) {
   if (!IS_SPEC_OBJECT(O)) return false;
   var spreadable = O[isConcatSpreadableSymbol];
   if (IS_UNDEFINED(spreadable)) return IS_ARRAY(O);
-  return ToBoolean(spreadable);
+  return TO_BOOLEAN(spreadable);
 }
 
 
@@ -259,9 +249,5 @@ $toPositiveInteger = ToPositiveInteger;
 %InstallToContext([
   "concat_iterable_to_array", ConcatIterableToArray,
 ]);
-
-utils.Export(function(to) {
-  to.ToBoolean = ToBoolean;
-});
 
 })

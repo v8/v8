@@ -21,12 +21,10 @@ var MathMin = global.Math.min;
 var Mirror = global.Mirror;
 var MirrorType;
 var ParseInt = global.parseInt;
-var ToBoolean;
 var ValueMirror = global.ValueMirror;
 
 utils.Import(function(from) {
   MirrorType = from.MirrorType;
-  ToBoolean = from.ToBoolean;
 });
 
 //----------------------------------------------------------------------------
@@ -230,7 +228,7 @@ BreakPoint.prototype.isTriggered = function(exec_state) {
     try {
       var mirror = exec_state.frame(0).evaluate(this.condition());
       // If no sensible mirror or non true value break point not triggered.
-      if (!(mirror instanceof ValueMirror) || !ToBoolean(mirror.value_)) {
+      if (!(mirror instanceof ValueMirror) || !mirror.value_) {
         return false;
       }
     } catch (e) {
@@ -959,7 +957,7 @@ ExecutionState.prototype.prepareStep = function(opt_action, opt_count,
 ExecutionState.prototype.evaluateGlobal = function(source, disable_break,
     opt_additional_context) {
   return MakeMirror(%DebugEvaluateGlobal(this.break_id, source,
-                                         ToBoolean(disable_break),
+                                         TO_BOOLEAN(disable_break),
                                          opt_additional_context));
 };
 
@@ -1988,7 +1986,7 @@ DebugCommandProcessor.resolveValue_ = function(value_description) {
     return value_mirror.value();
   } else if ("stringDescription" in value_description) {
     if (value_description.type == MirrorType.BOOLEAN_TYPE) {
-      return ToBoolean(value_description.stringDescription);
+      return TO_BOOLEAN(value_description.stringDescription);
     } else if (value_description.type == MirrorType.NUMBER_TYPE) {
       return TO_NUMBER(value_description.stringDescription);
     } if (value_description.type == MirrorType.STRING_TYPE) {
@@ -2090,7 +2088,7 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   if (global) {
     // Evaluate in the native context.
     response.body = this.exec_state_.evaluateGlobal(
-        expression, ToBoolean(disable_break), additional_context_object);
+        expression, TO_BOOLEAN(disable_break), additional_context_object);
     return;
   }
 
@@ -2112,12 +2110,12 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
     }
     // Evaluate in the specified frame.
     response.body = this.exec_state_.frame(frame_number).evaluate(
-        expression, ToBoolean(disable_break), additional_context_object);
+        expression, TO_BOOLEAN(disable_break), additional_context_object);
     return;
   } else {
     // Evaluate in the selected frame.
     response.body = this.exec_state_.frame().evaluate(
-        expression, ToBoolean(disable_break), additional_context_object);
+        expression, TO_BOOLEAN(disable_break), additional_context_object);
     return;
   }
 };
@@ -2138,7 +2136,7 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
 
   // Set 'includeSource' option for script lookup.
   if (!IS_UNDEFINED(request.arguments.includeSource)) {
-    var includeSource = ToBoolean(request.arguments.includeSource);
+    var includeSource = TO_BOOLEAN(request.arguments.includeSource);
     response.setOption('includeSource', includeSource);
   }
 
@@ -2250,7 +2248,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
     }
 
     if (!IS_UNDEFINED(request.arguments.includeSource)) {
-      includeSource = ToBoolean(request.arguments.includeSource);
+      includeSource = TO_BOOLEAN(request.arguments.includeSource);
       response.setOption('includeSource', includeSource);
     }
 

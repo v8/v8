@@ -16,12 +16,10 @@ var MathMin = global.Math.min;
 var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
 var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
 var SymbolToString;
-var ToBoolean;
 
 utils.Import(function(from) {
   FunctionSourceString = from.FunctionSourceString;
   SymbolToString = from.SymbolToString;
-  ToBoolean = from.ToBoolean;
 });
 
 // ----------------------------------------------------------------------------
@@ -2072,7 +2070,7 @@ FrameMirror.prototype.evaluate = function(source, disable_break,
                                    this.details_.frameId(),
                                    this.details_.inlinedFrameIndex(),
                                    source,
-                                   ToBoolean(disable_break),
+                                   TO_BOOLEAN(disable_break),
                                    opt_context_object));
 };
 

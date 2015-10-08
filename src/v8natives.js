@@ -22,7 +22,6 @@ var ProxyDelegateCallAndConstruct;
 var ProxyDerivedHasOwnTrap;
 var ProxyDerivedKeysTrap;
 var StringIndexOf;
-var ToBoolean = utils.ImportNow("ToBoolean");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -348,11 +347,11 @@ function ToPropertyDescriptor(obj) {
   var desc = new PropertyDescriptor();
 
   if ("enumerable" in obj) {
-    desc.setEnumerable(ToBoolean(obj.enumerable));
+    desc.setEnumerable(TO_BOOLEAN(obj.enumerable));
   }
 
   if ("configurable" in obj) {
-    desc.setConfigurable(ToBoolean(obj.configurable));
+    desc.setConfigurable(TO_BOOLEAN(obj.configurable));
   }
 
   if ("value" in obj) {
@@ -360,7 +359,7 @@ function ToPropertyDescriptor(obj) {
   }
 
   if ("writable" in obj) {
-    desc.setWritable(ToBoolean(obj.writable));
+    desc.setWritable(TO_BOOLEAN(obj.writable));
   }
 
   if ("get" in obj) {
@@ -614,7 +613,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
   var handler = %GetHandler(obj);
   var result = CallTrap2(handler, "defineProperty", UNDEFINED, p, attributes);
-  if (!ToBoolean(result)) {
+  if (!result) {
     if (should_throw) {
       throw MakeTypeError(kProxyHandlerReturned,
                           handler, "false", "defineProperty");
@@ -1372,9 +1371,9 @@ function BooleanConstructor(x) {
   // TODO(bmeurer): Move this to toplevel.
   "use strict";
   if (%_IsConstructCall()) {
-    %_SetValueOf(this, ToBoolean(x));
+    %_SetValueOf(this, TO_BOOLEAN(x));
   } else {
-    return ToBoolean(x);
+    return TO_BOOLEAN(x);
   }
 }
 
