@@ -411,19 +411,18 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   RUNTIME_ASSERT(bound_function->RemovePrototype());
 
   // The new function should have the same [[Prototype]] as the bindee.
-  Handle<Map> bound_function_map(
-      isolate->native_context()->bound_function_map());
+  Handle<Map> bound_function_map =
+      bindee->IsConstructor()
+          ? isolate->bound_function_with_constructor_map()
+          : isolate->bound_function_without_constructor_map();
   PrototypeIterator iter(isolate, bindee);
   Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
   if (bound_function_map->prototype() != *proto) {
     bound_function_map = Map::TransitionToPrototype(bound_function_map, proto,
                                                     REGULAR_PROTOTYPE);
   }
-  if (bound_function_map->is_constructor() != bindee->IsConstructor()) {
-    bound_function_map = Map::Copy(bound_function_map, "IsConstructor");
-    bound_function_map->set_is_constructor(bindee->IsConstructor());
-  }
   JSObject::MigrateToMap(bound_function, bound_function_map);
+  DCHECK_EQ(bindee->IsConstructor(), bound_function->IsConstructor());
 
   Handle<String> length_string = isolate->factory()->length_string();
   // These attributes must be kept in sync with how the bootstrapper

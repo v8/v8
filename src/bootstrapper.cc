@@ -766,10 +766,20 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   strict_function_map_writable_prototype_ =
       CreateStrictFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE, empty);
 
-  // Special map for bound functions.
-  Handle<Map> bound_function_map =
+  // Special map for non-constructor bound functions.
+  // TODO(bmeurer): Bound functions should not be represented as JSFunctions.
+  Handle<Map> bound_function_without_constructor_map =
       CreateStrictFunctionMap(BOUND_FUNCTION, empty);
-  native_context()->set_bound_function_map(*bound_function_map);
+  native_context()->set_bound_function_without_constructor_map(
+      *bound_function_without_constructor_map);
+
+  // Special map for constructor bound functions.
+  // TODO(bmeurer): Bound functions should not be represented as JSFunctions.
+  Handle<Map> bound_function_with_constructor_map =
+      Map::Copy(bound_function_without_constructor_map, "IsConstructor");
+  bound_function_with_constructor_map->set_is_constructor(true);
+  native_context()->set_bound_function_with_constructor_map(
+      *bound_function_with_constructor_map);
 }
 
 
