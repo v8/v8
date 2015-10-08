@@ -103,6 +103,7 @@
         'libplatform/default-platform-unittest.cc',
         'libplatform/task-queue-unittest.cc',
         'libplatform/worker-thread-unittest.cc',
+        'heap/bitmap-unittest.cc',
         'heap/gc-idle-time-handler-unittest.cc',
         'heap/memory-reducer-unittest.cc',
         'heap/heap-unittest.cc',

@@ -3349,6 +3349,12 @@ bool MarkCompactCollector::EvacuateLiveObjectsFromPage(
       HeapObject* target_object = nullptr;
       AllocationResult allocation = target_space->AllocateRaw(size, alignment);
       if (!allocation.To(&target_object)) {
+        // We need to abort compaction for this page. Make sure that we reset
+        // the mark bits for objects that have already been migrated.
+        if (i > 0) {
+          p->markbits()->ClearRange(p->AddressToMarkbitIndex(p->area_start()),
+                                    p->AddressToMarkbitIndex(object_addr));
+        }
         return false;
       }
 
