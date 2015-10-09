@@ -579,9 +579,7 @@ class Scope: public ZoneObject {
 
   // ---------------------------------------------------------------------------
   // Implementation.
- protected:
-  friend class ParserFactory;
-
+ private:
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
@@ -791,7 +789,6 @@ class Scope: public ZoneObject {
   MUST_USE_RESULT
   bool AllocateVariables(ParseInfo* info, AstNodeFactory* factory);
 
- private:
   // Construct a scope based on the scope info.
   Scope(Zone* zone, Scope* inner_scope, ScopeType type,
         Handle<ScopeInfo> scope_info, AstValueFactory* value_factory);
