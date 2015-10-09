@@ -33,7 +33,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
           holder, isolate, allocated_length, true,
           is_shared ? SharedFlag::kShared : SharedFlag::kNotShared)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
+        isolate, NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
   }
   return *holder;
 }
