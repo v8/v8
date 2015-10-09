@@ -39,7 +39,7 @@ function MjsUnitAssertionError(message) {
 
 
 MjsUnitAssertionError.prototype.toString = function () {
-  return this.message;
+  return this.message + "\n\nStack: " + this.stack;
 };
 
 
