@@ -123,9 +123,8 @@ class CodeEventLogger::NameBuffer {
   }
 
   void AppendInt(int n) {
-    int space = kUtf8BufferSize - utf8_pos_;
-    if (space <= 0) return;
-    Vector<char> buffer(utf8_buffer_ + utf8_pos_, space);
+    Vector<char> buffer(utf8_buffer_ + utf8_pos_,
+                        kUtf8BufferSize - utf8_pos_);
     int size = SNPrintF(buffer, "%d", n);
     if (size > 0 && utf8_pos_ + size <= kUtf8BufferSize) {
       utf8_pos_ += size;
@@ -133,9 +132,8 @@ class CodeEventLogger::NameBuffer {
   }
 
   void AppendHex(uint32_t n) {
-    int space = kUtf8BufferSize - utf8_pos_;
-    if (space <= 0) return;
-    Vector<char> buffer(utf8_buffer_ + utf8_pos_, space);
+    Vector<char> buffer(utf8_buffer_ + utf8_pos_,
+                        kUtf8BufferSize - utf8_pos_);
     int size = SNPrintF(buffer, "%x", n);
     if (size > 0 && utf8_pos_ + size <= kUtf8BufferSize) {
       utf8_pos_ += size;
@@ -147,7 +145,7 @@ class CodeEventLogger::NameBuffer {
 
  private:
   static const int kUtf8BufferSize = 512;
-  static const int kUtf16BufferSize = kUtf8BufferSize;
+  static const int kUtf16BufferSize = 128;
 
   int utf8_pos_;
   char utf8_buffer_[kUtf8BufferSize];
