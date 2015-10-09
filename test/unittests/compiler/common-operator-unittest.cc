@@ -194,9 +194,8 @@ TEST_F(CommonOperatorTest, Return) {
     EXPECT_EQ(Operator::kNoThrow, op->properties());
     EXPECT_EQ(input_count, op->ValueInputCount());
     EXPECT_EQ(1, op->EffectInputCount());
-    EXPECT_EQ(1, static_cast<uint32_t>(op->ControlInputCount()));
-    EXPECT_EQ(2 + input_count, static_cast<uint32_t>(
-                                   OperatorProperties::GetTotalInputCount(op)));
+    EXPECT_EQ(1, op->ControlInputCount());
+    EXPECT_EQ(2 + input_count, OperatorProperties::GetTotalInputCount(op));
     EXPECT_EQ(0, op->ValueOutputCount());
     EXPECT_EQ(0, op->EffectOutputCount());
     EXPECT_EQ(1, op->ControlOutputCount());
