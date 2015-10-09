@@ -1234,6 +1234,11 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<Object> ReadAbsentProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
       LanguageMode language_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> CannotCreateProperty(
+      LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> CannotCreateProperty(
+      Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
+      Handle<Object> value, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(

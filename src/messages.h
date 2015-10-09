@@ -214,7 +214,9 @@ class CallSite {
   T(StrictPoisonPill,                                                          \
     "'caller', 'callee', and 'arguments' properties may not be accessed on "   \
     "strict mode functions or the arguments objects for calls to them")        \
-  T(StrictReadOnlyProperty, "Cannot assign to read only property '%' of %")    \
+  T(StrictReadOnlyProperty,                                                    \
+    "Cannot assign to read only property '%' of % '%'")                        \
+  T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
   T(StrongArity,                                                               \
     "In strong mode, calling a function with too few arguments is deprecated") \
   T(StrongDeleteProperty,                                                      \

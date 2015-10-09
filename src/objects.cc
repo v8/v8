@@ -383,6 +383,7 @@ Handle<String> Object::TypeOf(Isolate* isolate, Handle<Object> object) {
   if (object->IsBoolean()) return isolate->factory()->boolean_string();
   if (object->IsString()) return isolate->factory()->string_string();
   if (object->IsSymbol()) return isolate->factory()->symbol_string();
+  if (object->IsString()) return isolate->factory()->string_string();
 #define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
   if (object->Is##Type()) return isolate->factory()->type##_string();
   SIMD128_TYPES(SIMD128_TYPE)
@@ -3697,8 +3698,7 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
   if (found) return result;
 
   if (!it->GetReceiver()->IsJSReceiver()) {
-    return WriteToReadOnlyProperty(it->isolate(), it->GetReceiver(),
-                                   it->GetName(), value, language_mode);
+    return WriteToReadOnlyProperty(it, value, language_mode);
   }
 
   LookupIterator::Configuration c = LookupIterator::OWN;
@@ -3784,6 +3784,28 @@ MaybeHandle<Object> Object::ReadAbsentProperty(Isolate* isolate,
 }
 
 
+MaybeHandle<Object> Object::CannotCreateProperty(LookupIterator* it,
+                                                 Handle<Object> value,
+                                                 LanguageMode language_mode) {
+  return CannotCreateProperty(it->isolate(), it->GetReceiver(), it->GetName(),
+                              value, language_mode);
+}
+
+
+MaybeHandle<Object> Object::CannotCreateProperty(Isolate* isolate,
+                                                 Handle<Object> receiver,
+                                                 Handle<Object> name,
+                                                 Handle<Object> value,
+                                                 LanguageMode language_mode) {
+  if (is_sloppy(language_mode)) return value;
+  Handle<String> typeof_string = Object::TypeOf(isolate, receiver);
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kStrictCannotCreateProperty,
+                               name, typeof_string, receiver),
+                  Object);
+}
+
+
 MaybeHandle<Object> Object::WriteToReadOnlyProperty(
     LookupIterator* it, Handle<Object> value, LanguageMode language_mode) {
   return WriteToReadOnlyProperty(it->isolate(), it->GetReceiver(),
@@ -3795,10 +3817,11 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(
     Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
     Handle<Object> value, LanguageMode language_mode) {
   if (is_sloppy(language_mode)) return value;
-  THROW_NEW_ERROR(
-      isolate,
-      NewTypeError(MessageTemplate::kStrictReadOnlyProperty, name, receiver),
-      Object);
+  Handle<String> typeof_string = Object::TypeOf(isolate, receiver);
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kStrictReadOnlyProperty, name,
+                               typeof_string, receiver),
+                  Object);
 }
 
 
@@ -3923,8 +3946,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
                                             StoreFromKeyed store_mode) {
   DCHECK(!it->GetReceiver()->IsJSProxy());
   if (!it->GetReceiver()->IsJSObject()) {
-    // TODO(verwaest): Throw a TypeError with a more specific message.
-    return WriteToReadOnlyProperty(it, value, language_mode);
+    return CannotCreateProperty(it, value, language_mode);
   }
 
   DCHECK_NE(LookupIterator::INTEGER_INDEXED_EXOTIC, it->state());
@@ -13529,10 +13551,11 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
 MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
   Isolate* isolate = array->GetIsolate();
   Handle<Name> length = isolate->factory()->length_string();
-  THROW_NEW_ERROR(
-      isolate,
-      NewTypeError(MessageTemplate::kStrictReadOnlyProperty, length, array),
-      Object);
+  Handle<String> typeof_string = Object::TypeOf(isolate, array);
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kStrictReadOnlyProperty, length,
+                               typeof_string, array),
+                  Object);
 }
 
 

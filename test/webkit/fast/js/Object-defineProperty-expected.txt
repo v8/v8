@@ -138,14 +138,14 @@ PASS 'use strict'; var o = Object.defineProperty(Object.defineProperty({foo:1}, 
 PASS 0 in Object.prototype is true
 PASS '0' in Object.prototype is true
 PASS var o = {}; o.readOnly = false; o.readOnly is true
-PASS 'use strict'; var o = {}; o.readOnly = false; o.readOnly threw exception TypeError: Cannot assign to read only property 'readOnly' of #<Object>.
+PASS 'use strict'; var o = {}; o.readOnly = false; o.readOnly threw exception TypeError: Cannot assign to read only property 'readOnly' of object '#<Object>'.
 PASS Object.getOwnPropertyDescriptor(Object.defineProperty(Object.defineProperty({}, 'foo', {get: function() { return false; }, configurable: true}), 'foo', {value:false}), 'foo').writable is false
 PASS Object.getOwnPropertyDescriptor(Object.defineProperty(Object.defineProperty({}, 'foo', {get: function() { return false; }, configurable: true}), 'foo', {value:false, writable: false}), 'foo').writable is false
 PASS Object.getOwnPropertyDescriptor(Object.defineProperty(Object.defineProperty({}, 'foo', {get: function() { return false; }, configurable: true}), 'foo', {value:false, writable: true}), 'foo').writable is true
 PASS var a = Object.defineProperty([], 'length', {writable: false}); a[0] = 42; 0 in a; is false
-PASS 'use strict'; var a = Object.defineProperty([], 'length', {writable: false}); a[0] = 42; 0 in a; threw exception TypeError: Cannot assign to read only property 'length' of [object Array].
+PASS 'use strict'; var a = Object.defineProperty([], 'length', {writable: false}); a[0] = 42; 0 in a; threw exception TypeError: Cannot assign to read only property 'length' of object '[object Array]'.
 PASS var a = Object.defineProperty([42], '0', {writable: false}); a[0] = false; a[0]; is 42
-PASS 'use strict'; var a = Object.defineProperty([42], '0', {writable: false}); a[0] = false; a[0]; threw exception TypeError: Cannot assign to read only property '0' of [object Array].
+PASS 'use strict'; var a = Object.defineProperty([42], '0', {writable: false}); a[0] = false; a[0]; threw exception TypeError: Cannot assign to read only property '0' of object '[object Array]'.
 PASS var a = Object.defineProperty([], '0', {set: undefined}); a[0] = 42; a[0]; is undefined.
 PASS 'use strict'; var a = Object.defineProperty([], '0', {set: undefined}); a[0] = 42; a[0]; threw exception TypeError: Cannot set property 0 of [object Array] which has only a getter.
 PASS anObj.slot1 is "foo"

@@ -1076,7 +1076,7 @@
       }
       assertInstanceof(ex, TypeError);
       assertEquals(
-          "Cannot assign to read only property 'ownReadOnly' of #<Base>",
+          "Cannot assign to read only property 'ownReadOnly' of object '#<Base>'",
           ex.message);
       assertEquals(42, this.ownReadOnly);
 
@@ -1323,7 +1323,7 @@ function TestKeyedSetterCreatingOwnPropertiesNonConfigurable(
       assertInstanceof(ex, TypeError);
       assertEquals(
           "Cannot assign to read only property '" + ownReadOnly +
-              "' of #<Base>",
+              "' of object '#<Base>'",
           ex.message);
       assertEquals(42, this[ownReadOnly]);
 

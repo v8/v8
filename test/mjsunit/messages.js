@@ -301,7 +301,7 @@ test(function() {
 test(function() {
   "use strict";
   (1).a = 1;
-}, "Cannot assign to read only property 'a' of 1", TypeError);
+}, "Cannot create property 'a' on number '1'", TypeError);
 
 // kStrongImplicitCast
 test(function() {
