@@ -68,3 +68,16 @@ assertEquals([5, 10], fives);
   assertThrows(function() { return arrowFn.caller; }, TypeError);
   assertThrows(function() { arrowFn.caller = {}; }, TypeError);
 })();
+
+
+// v8:4474
+(function testConciseBodyReturnsRegexp() {
+  var arrow1 = () => /foo/
+  var arrow2 = () => /foo/;
+  var arrow3 = () => /foo/i
+  var arrow4 = () => /foo/i;
+  assertEquals(arrow1.toString(), "() => /foo/");
+  assertEquals(arrow2.toString(), "() => /foo/");
+  assertEquals(arrow3.toString(), "() => /foo/i");
+  assertEquals(arrow4.toString(), "() => /foo/i");
+});
