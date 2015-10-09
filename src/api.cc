@@ -3498,7 +3498,8 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   auto key_obj = Utils::OpenHandle(*key);
   auto value_obj = Utils::OpenHandle(*value);
 
-  if (self->IsAccessCheckNeeded() && !isolate->MayAccess(self)) {
+  if (self->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), self)) {
     isolate->ReportFailedAccessCheck(self);
     return Nothing<bool>();
   }

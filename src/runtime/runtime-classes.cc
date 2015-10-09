@@ -269,7 +269,8 @@ static MaybeHandle<Object> LoadFromSuper(Isolate* isolate,
                                          Handle<JSObject> home_object,
                                          Handle<Name> name,
                                          LanguageMode language_mode) {
-  if (home_object->IsAccessCheckNeeded() && !isolate->MayAccess(home_object)) {
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   }
@@ -293,7 +294,8 @@ static MaybeHandle<Object> LoadElementFromSuper(Isolate* isolate,
                                                 Handle<JSObject> home_object,
                                                 uint32_t index,
                                                 LanguageMode language_mode) {
-  if (home_object->IsAccessCheckNeeded() && !isolate->MayAccess(home_object)) {
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   }
@@ -369,7 +371,8 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
 static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
                             Handle<Object> receiver, Handle<Name> name,
                             Handle<Object> value, LanguageMode language_mode) {
-  if (home_object->IsAccessCheckNeeded() && !isolate->MayAccess(home_object)) {
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   }
@@ -393,7 +396,8 @@ static Object* StoreElementToSuper(Isolate* isolate,
                                    Handle<Object> receiver, uint32_t index,
                                    Handle<Object> value,
                                    LanguageMode language_mode) {
-  if (home_object->IsAccessCheckNeeded() && !isolate->MayAccess(home_object)) {
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   }

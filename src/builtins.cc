@@ -1646,7 +1646,7 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
     Handle<Object> receiver(&args[0]);
     if (receiver->IsJSObject() && receiver->IsAccessCheckNeeded()) {
       Handle<JSObject> js_receiver = Handle<JSObject>::cast(receiver);
-      if (!isolate->MayAccess(js_receiver)) {
+      if (!isolate->MayAccess(handle(isolate->context()), js_receiver)) {
         isolate->ReportFailedAccessCheck(js_receiver);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
       }

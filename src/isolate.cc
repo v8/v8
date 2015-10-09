@@ -782,12 +782,12 @@ bool Isolate::IsInternallyUsedPropertyName(Object* name) {
 }
 
 
-bool Isolate::MayAccess(Handle<JSObject> receiver) {
+bool Isolate::MayAccess(Handle<Context> accessing_context,
+                        Handle<JSObject> receiver) {
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
-  DCHECK(context());
 
   {
     DisallowHeapAllocation no_gc;
@@ -801,7 +801,8 @@ bool Isolate::MayAccess(Handle<JSObject> receiver) {
 
       // Get the native context of current top context.
       // avoid using Isolate::native_context() because it uses Handle.
-      Context* native_context = context()->global_object()->native_context();
+      Context* native_context =
+          accessing_context->global_object()->native_context();
       if (receiver_context == native_context) return true;
 
       if (Context::cast(receiver_context)->security_token() ==
@@ -824,11 +825,16 @@ bool Isolate::MayAccess(Handle<JSObject> receiver) {
 
   LOG(this, ApiSecurityCheck());
 
-  // Leaving JavaScript.
-  VMState<EXTERNAL> state(this);
-  Handle<Object> key = factory()->undefined_value();
-  return callback(v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(key),
-                  v8::ACCESS_HAS, v8::Utils::ToLocal(data));
+  {
+    SaveContext save(this);
+    set_context(accessing_context->native_context());
+
+    // Leaving JavaScript.
+    VMState<EXTERNAL> state(this);
+    Handle<Object> key = factory()->undefined_value();
+    return callback(v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(key),
+                    v8::ACCESS_HAS, v8::Utils::ToLocal(data));
+  }
 }
 
 

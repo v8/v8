@@ -134,7 +134,8 @@ Handle<JSObject> LookupIterator::GetStoreTarget() const {
 
 bool LookupIterator::HasAccess() const {
   DCHECK_EQ(ACCESS_CHECK, state_);
-  return isolate_->MayAccess(GetHolder<JSObject>());
+  return isolate_->MayAccess(handle(isolate_->context()),
+                             GetHolder<JSObject>());
 }
 
 

@@ -6001,7 +6001,8 @@ Maybe<bool> JSObject::PreventExtensionsInternal(Handle<JSObject> object) {
     return PreventExtensionsWithTransition<NONE>(object);
   }
 
-  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     UNREACHABLE();
@@ -6067,7 +6068,8 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
 
 bool JSObject::IsExtensible(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
-  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), object)) {
     return true;
   }
   if (object->IsJSGlobalProxy()) {
@@ -6113,7 +6115,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(Handle<JSObject> object) {
   DCHECK(!object->map()->is_observed());
 
   Isolate* isolate = object->GetIsolate();
-  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     UNREACHABLE();
@@ -6921,7 +6924,8 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
 
     // Check access rights if required.
-    if (current->IsAccessCheckNeeded() && !isolate->MayAccess(current)) {
+    if (current->IsAccessCheckNeeded() &&
+        !isolate->MayAccess(handle(isolate->context()), current)) {
       if (iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
         isolate->ReportFailedAccessCheck(current);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);

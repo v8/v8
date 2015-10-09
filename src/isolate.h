@@ -679,11 +679,11 @@ class Isolate {
   Handle<JSArray> GetDetailedFromSimpleStackTrace(
       Handle<JSObject> error_object);
 
-  // Returns if the top context may access the given global object. If
+  // Returns if the given context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
   // set.
+  bool MayAccess(Handle<Context> accessing_context, Handle<JSObject> receiver);
 
-  bool MayAccess(Handle<JSObject> receiver);
   bool IsInternallyUsedPropertyName(Handle<Object> name);
   bool IsInternallyUsedPropertyName(Object* name);
 

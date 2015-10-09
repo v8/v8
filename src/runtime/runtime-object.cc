@@ -160,9 +160,11 @@ RUNTIME_FUNCTION(Runtime_GetPrototype) {
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
+  Handle<Context> context(isolate->context());
   do {
     if (PrototypeIterator::GetCurrent(iter)->IsAccessCheckNeeded() &&
-        !isolate->MayAccess(PrototypeIterator::GetCurrent<JSObject>(iter))) {
+        !isolate->MayAccess(context,
+                            PrototypeIterator::GetCurrent<JSObject>(iter))) {
       return isolate->heap()->null_value();
     }
     iter.AdvanceIgnoringProxies();
@@ -193,7 +195,8 @@ RUNTIME_FUNCTION(Runtime_SetPrototype) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  if (obj->IsAccessCheckNeeded() && !isolate->MayAccess(obj)) {
+  if (obj->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), obj)) {
     isolate->ReportFailedAccessCheck(obj);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->undefined_value();
@@ -849,7 +852,8 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
 
   CHECK_EQ(total_property_count, next_copy_index);
 
-  if (object->IsAccessCheckNeeded() && !isolate->MayAccess(object)) {
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), object)) {
     for (int i = 0; i < total_property_count; i++) {
       Handle<Name> name(Name::cast(names->get(i)));
       if (name.is_identical_to(hidden_string)) continue;
