@@ -4731,8 +4731,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
         proxy, fvar_mode, scope_, RelocInfo::kNoPosition);
     scope_->DeclareFunctionVar(fvar_declaration);
 
-    VariableProxy* fproxy = scope_->NewUnresolved(factory(), function_name);
-    fproxy->BindTo(fvar);
+    VariableProxy* fproxy = factory()->NewVariableProxy(fvar);
     result->Set(kFunctionNameAssignmentIndex,
                 factory()->NewExpressionStatement(
                     factory()->NewAssignment(fvar_init_op, fproxy,
