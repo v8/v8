@@ -9,6 +9,7 @@
 #include "test/cctest/cctest.h"
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/operator-properties.h"
@@ -25,7 +26,8 @@ class GraphAndBuilders {
   explicit GraphAndBuilders(Zone* zone)
       : main_graph_(new (zone) Graph(zone)),
         main_common_(zone),
-        main_machine_(zone),
+        main_machine_(zone, kMachPtr,
+                      InstructionSelector::SupportedMachineOperatorFlags()),
         main_simplified_(zone) {}
 
   Graph* graph() const { return main_graph_; }
