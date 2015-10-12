@@ -223,10 +223,22 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
 
   int index;
   PropertyAttributes attributes;
-  ContextLookupFlags flags = DONT_FOLLOW_CHAINS;
   BindingFlags binding_flags;
-  Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes, &binding_flags);
+
+  if ((attr & EVAL_DECLARED) != 0) {
+    // Check for a conflict with a lexically scoped variable
+    context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes,
+                        &binding_flags);
+    if (attributes != ABSENT &&
+        (binding_flags == MUTABLE_CHECK_INITIALIZED ||
+         binding_flags == IMMUTABLE_CHECK_INITIALIZED)) {
+      return ThrowRedeclarationError(isolate, name);
+    }
+    attr = static_cast<PropertyAttributes>(attr & ~EVAL_DECLARED);
+  }
+
+  Handle<Object> holder = context->Lookup(name, DONT_FOLLOW_CHAINS, &index,
+                                          &attributes, &binding_flags);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return isolate->heap()->exception();
@@ -307,21 +319,14 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
 
 RUNTIME_FUNCTION(Runtime_DeclareLookupSlot) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, initial_value, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, property_attributes, 2);
 
-  return DeclareLookupSlot(isolate, name, initial_value, NONE);
-}
-
-
-RUNTIME_FUNCTION(Runtime_DeclareReadOnlyLookupSlot) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, initial_value, 1);
-
-  return DeclareLookupSlot(isolate, name, initial_value, READ_ONLY);
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(property_attributes->value());
+  return DeclareLookupSlot(isolate, name, initial_value, attributes);
 }
 
 

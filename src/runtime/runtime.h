@@ -566,8 +566,7 @@ namespace internal {
   F(DeclareGlobals, 2, 1)                  \
   F(InitializeVarGlobal, 3, 1)             \
   F(InitializeConstGlobal, 2, 1)           \
-  F(DeclareLookupSlot, 2, 1)               \
-  F(DeclareReadOnlyLookupSlot, 2, 1)       \
+  F(DeclareLookupSlot, 3, 1)               \
   F(InitializeLegacyConstLookupSlot, 3, 1) \
   F(NewSloppyArguments_Generic, 1, 1)      \
   F(NewStrictArguments_Generic, 1, 1)      \

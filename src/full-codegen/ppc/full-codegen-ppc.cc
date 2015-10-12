@@ -817,10 +817,10 @@ void FullCodeGenerator::VisitVariableDeclaration(
         __ LoadSmiLiteral(r3, Smi::FromInt(0));  // Indicates no initial value.
         __ Push(r5, r3);
       }
-      __ CallRuntime(IsImmutableVariableMode(mode)
-                         ? Runtime::kDeclareReadOnlyLookupSlot
-                         : Runtime::kDeclareLookupSlot,
-                     2);
+      __ LoadSmiLiteral(
+          r3, Smi::FromInt(variable->DeclarationPropertyAttributes()));
+      __ Push(r3);
+      __ CallRuntime(Runtime::kDeclareLookupSlot, 3);
       break;
     }
   }
@@ -871,7 +871,10 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       __ Push(r5);
       // Push initial value for function declaration.
       VisitForStackValue(declaration->fun());
-      __ CallRuntime(Runtime::kDeclareLookupSlot, 2);
+      __ LoadSmiLiteral(
+          r5, Smi::FromInt(variable->DeclarationPropertyAttributes()));
+      __ Push(r5);
+      __ CallRuntime(Runtime::kDeclareLookupSlot, 3);
       break;
     }
   }

@@ -2114,6 +2114,7 @@ Variable* Parser::Declare(Declaration* declaration,
     var = new (zone()) Variable(declaration_scope, name, mode, kind,
                                 declaration->initialization(), kNotAssigned);
     var->AllocateTo(VariableLocation::LOOKUP, -1);
+    var->SetFromEval();
     resolve = true;
   }
 
