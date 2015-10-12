@@ -74,6 +74,9 @@ namespace interpreter {
   V(Mul, OperandType::kReg8)                                                   \
   V(Div, OperandType::kReg8)                                                   \
   V(Mod, OperandType::kReg8)                                                   \
+  V(BitwiseOr, OperandType::kReg8)                                             \
+  V(BitwiseXor, OperandType::kReg8)                                            \
+  V(BitwiseAnd, OperandType::kReg8)                                            \
   V(ShiftLeft, OperandType::kReg8)                                             \
   V(ShiftRight, OperandType::kReg8)                                            \
   V(ShiftRightLogical, OperandType::kReg8)                                     \

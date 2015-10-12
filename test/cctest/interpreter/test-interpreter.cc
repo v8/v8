@@ -351,13 +351,15 @@ TEST(InterpreterLoadStoreRegisters) {
 }
 
 
-static const Token::Value kArithmeticOperators[] = {
-    Token::Value::SHL, Token::Value::SAR, Token::Value::SHR, Token::Value::ADD,
-    Token::Value::SUB, Token::Value::MUL, Token::Value::DIV, Token::Value::MOD};
-
-
 static const Token::Value kShiftOperators[] = {
     Token::Value::SHL, Token::Value::SAR, Token::Value::SHR};
+
+
+static const Token::Value kArithmeticOperators[] = {
+    Token::Value::BIT_OR, Token::Value::BIT_XOR, Token::Value::BIT_AND,
+    Token::Value::SHL,    Token::Value::SAR,     Token::Value::SHR,
+    Token::Value::ADD,    Token::Value::SUB,     Token::Value::MUL,
+    Token::Value::DIV,    Token::Value::MOD};
 
 
 static double BinaryOpC(Token::Value op, double lhs, double rhs) {
@@ -372,6 +374,15 @@ static double BinaryOpC(Token::Value op, double lhs, double rhs) {
       return lhs / rhs;
     case Token::Value::MOD:
       return std::fmod(lhs, rhs);
+    case Token::Value::BIT_OR:
+      return (v8::internal::DoubleToInt32(lhs) |
+              v8::internal::DoubleToInt32(rhs));
+    case Token::Value::BIT_XOR:
+      return (v8::internal::DoubleToInt32(lhs) ^
+              v8::internal::DoubleToInt32(rhs));
+    case Token::Value::BIT_AND:
+      return (v8::internal::DoubleToInt32(lhs) &
+              v8::internal::DoubleToInt32(rhs));
     case Token::Value::SHL: {
       int32_t val = v8::internal::DoubleToInt32(lhs);
       uint32_t count = v8::internal::DoubleToUint32(rhs) & 0x1F;
@@ -415,7 +426,7 @@ TEST(InterpreterShiftOpsSmi) {
         builder.LoadLiteral(Smi::FromInt(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
-            .BinaryOperation(kArithmeticOperators[o], reg, Strength::WEAK)
+            .BinaryOperation(kShiftOperators[o], reg, Strength::WEAK)
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -445,7 +456,7 @@ TEST(InterpreterBinaryOpsSmi) {
         builder.set_parameter_count(1);
         Register reg(0);
         int lhs = lhs_inputs[l];
-        int rhs = rhs_inputs[l];
+        int rhs = rhs_inputs[r];
         builder.LoadLiteral(Smi::FromInt(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
@@ -480,7 +491,7 @@ TEST(InterpreterBinaryOpsHeapNumber) {
         builder.set_parameter_count(1);
         Register reg(0);
         double lhs = lhs_inputs[l];
-        double rhs = rhs_inputs[l];
+        double rhs = rhs_inputs[r];
         builder.LoadLiteral(factory->NewNumber(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(factory->NewNumber(rhs))

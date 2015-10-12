@@ -400,6 +400,30 @@ void Interpreter::DoMod(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// BitwiseOr <src>
+//
+// BitwiseOr register <src> to accumulator.
+void Interpreter::DoBitwiseOr(compiler::InterpreterAssembler* assembler) {
+  DoBinaryOp(Runtime::kBitwiseOr, assembler);
+}
+
+
+// BitwiseXor <src>
+//
+// BitwiseXor register <src> to accumulator.
+void Interpreter::DoBitwiseXor(compiler::InterpreterAssembler* assembler) {
+  DoBinaryOp(Runtime::kBitwiseXor, assembler);
+}
+
+
+// BitwiseAnd <src>
+//
+// BitwiseAnd register <src> to accumulator.
+void Interpreter::DoBitwiseAnd(compiler::InterpreterAssembler* assembler) {
+  DoBinaryOp(Runtime::kBitwiseAnd, assembler);
+}
+
+
 // ShiftLeft <src>
 //
 // Left shifts register <src> by the count specified in the accumulator.

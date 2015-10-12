@@ -604,6 +604,12 @@ Bytecode BytecodeArrayBuilder::BytecodeForBinaryOperation(Token::Value op) {
       return Bytecode::kDiv;
     case Token::Value::MOD:
       return Bytecode::kMod;
+    case Token::Value::BIT_OR:
+      return Bytecode::kBitwiseOr;
+    case Token::Value::BIT_XOR:
+      return Bytecode::kBitwiseXor;
+    case Token::Value::BIT_AND:
+      return Bytecode::kBitwiseAnd;
     case Token::Value::SHL:
       return Bytecode::kShiftLeft;
     case Token::Value::SAR:
