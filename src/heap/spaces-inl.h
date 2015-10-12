@@ -133,12 +133,7 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
     }
 
     if (!obj->IsFiller()) {
-      if (obj->IsCode()) {
-        DCHECK_EQ(space_, space_->heap()->code_space());
-        DCHECK_CODEOBJECT_SIZE(obj_size, space_);
-      } else {
-        DCHECK_OBJECT_SIZE(obj_size);
-      }
+      DCHECK_OBJECT_SIZE(obj_size);
       return obj;
     }
   }
