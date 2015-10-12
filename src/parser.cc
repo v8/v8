@@ -4717,12 +4717,9 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     // NOTE: We create a proxy and resolve it here so that in the
     // future we can change the AST to only refer to VariableProxies
     // instead of Variables and Proxies as is the case now.
-    Token::Value fvar_init_op = Token::INIT_CONST_LEGACY;
-    bool use_strict_const = is_strict(scope_->language_mode()) ||
-                            (!allow_legacy_const() && allow_harmony_sloppy());
-    if (use_strict_const) {
-      fvar_init_op = Token::INIT_CONST;
-    }
+    const bool use_strict_const = is_strict(scope_->language_mode());
+    Token::Value fvar_init_op =
+        use_strict_const ? Token::INIT_CONST : Token::INIT_CONST_LEGACY;
     VariableMode fvar_mode = use_strict_const ? CONST : CONST_LEGACY;
     Variable* fvar = new (zone())
         Variable(scope_, function_name, fvar_mode, Variable::NORMAL,
