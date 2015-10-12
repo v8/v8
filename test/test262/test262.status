@@ -734,6 +734,11 @@
   'language/types/number/S8.5_A2.1': [PASS, FAIL_OK],
   'language/types/number/S8.5_A2.2': [PASS, FAIL_OK],
 
+  # 'if' should never return a completion whose value component is empty.
+  # https://bugs.ecmascript.org/show_bug.cgi?id=4540
+  'language/statements/for/S12.6.3_A9.1': [FAIL],
+  'language/statements/for/S12.6.3_A9': [FAIL],
+
   ############################ INVALID TESTS #############################
 
   # The reference value calculated by Test262 is incorrect if you run these
