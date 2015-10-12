@@ -10048,9 +10048,14 @@ class JSArray: public JSObject {
   static const int kLengthOffset = JSObject::kHeaderSize;
   static const int kSize = kLengthOffset + kPointerSize;
 
-  // Note that Page::kMaxRegularHeapObjectSize puts a limit on
-  // permissible values (see the DCHECK in heap.cc).
-  static const int kInitialMaxFastElementArray = 100000;
+  // 128 * KB is the Page::kMaxRegularHeapObjectSize defined in spaces.h which
+  // we do not want to include in objects.h
+  // Note that Page::kMaxRegularHeapObjectSize has to be in sync with
+  // kInitialMaxFastElementArray which is checked in a DCHECK in heap.cc.
+  static const int kInitialMaxFastElementArray =
+      (128 * KB * (i::kPointerSize / 4) - FixedArray::kHeaderSize - kSize -
+       AllocationMemento::kSize) /
+      kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArray);
