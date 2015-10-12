@@ -374,6 +374,24 @@ void BytecodeGraphBuilder::VisitMod(
 }
 
 
+void BytecodeGraphBuilder::VisitShiftLeft(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildBinaryOp(javascript()->ShiftLeft(language_mode()), iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitShiftRight(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildBinaryOp(javascript()->ShiftRight(language_mode()), iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitShiftRightLogical(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildBinaryOp(javascript()->ShiftRightLogical(language_mode()), iterator);
+}
+
+
 void BytecodeGraphBuilder::VisitLogicalNot(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

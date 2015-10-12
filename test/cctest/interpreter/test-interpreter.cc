@@ -352,8 +352,12 @@ TEST(InterpreterLoadStoreRegisters) {
 
 
 static const Token::Value kArithmeticOperators[] = {
-    Token::Value::ADD, Token::Value::SUB, Token::Value::MUL, Token::Value::DIV,
-    Token::Value::MOD};
+    Token::Value::SHL, Token::Value::SAR, Token::Value::SHR, Token::Value::ADD,
+    Token::Value::SUB, Token::Value::MUL, Token::Value::DIV, Token::Value::MOD};
+
+
+static const Token::Value kShiftOperators[] = {
+    Token::Value::SHL, Token::Value::SAR, Token::Value::SHR};
 
 
 static double BinaryOpC(Token::Value op, double lhs, double rhs) {
@@ -368,9 +372,61 @@ static double BinaryOpC(Token::Value op, double lhs, double rhs) {
       return lhs / rhs;
     case Token::Value::MOD:
       return std::fmod(lhs, rhs);
+    case Token::Value::SHL: {
+      int32_t val = v8::internal::DoubleToInt32(lhs);
+      uint32_t count = v8::internal::DoubleToUint32(rhs) & 0x1F;
+      int32_t result = val << count;
+      return result;
+    }
+    case Token::Value::SAR: {
+      int32_t val = v8::internal::DoubleToInt32(lhs);
+      uint32_t count = v8::internal::DoubleToUint32(rhs) & 0x1F;
+      int32_t result = val >> count;
+      return result;
+    }
+    case Token::Value::SHR: {
+      uint32_t val = v8::internal::DoubleToUint32(lhs);
+      uint32_t count = v8::internal::DoubleToUint32(rhs) & 0x1F;
+      uint32_t result = val >> count;
+      return result;
+    }
     default:
       UNREACHABLE();
       return std::numeric_limits<double>::min();
+  }
+}
+
+
+TEST(InterpreterShiftOpsSmi) {
+  int lhs_inputs[] = {0, -17, -182, 1073741823, -1};
+  int rhs_inputs[] = {5, 2, 1, -1, -2, 0, 31, 32, -32, 64, 37};
+  for (size_t l = 0; l < arraysize(lhs_inputs); l++) {
+    for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
+      for (size_t o = 0; o < arraysize(kShiftOperators); o++) {
+        HandleAndZoneScope handles;
+        i::Factory* factory = handles.main_isolate()->factory();
+        BytecodeArrayBuilder builder(handles.main_isolate(),
+                                     handles.main_zone());
+        builder.set_locals_count(1);
+        builder.set_parameter_count(1);
+        Register reg(0);
+        int lhs = lhs_inputs[l];
+        int rhs = rhs_inputs[r];
+        builder.LoadLiteral(Smi::FromInt(lhs))
+            .StoreAccumulatorInRegister(reg)
+            .LoadLiteral(Smi::FromInt(rhs))
+            .BinaryOperation(kArithmeticOperators[o], reg, Strength::WEAK)
+            .Return();
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+
+        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        auto callable = tester.GetCallable<>();
+        Handle<Object> return_value = callable().ToHandleChecked();
+        Handle<Object> expected_value =
+            factory->NewNumber(BinaryOpC(kShiftOperators[o], lhs, rhs));
+        CHECK(return_value->SameValue(*expected_value));
+      }
+    }
   }
 }
 

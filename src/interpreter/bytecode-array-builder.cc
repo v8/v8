@@ -604,6 +604,12 @@ Bytecode BytecodeArrayBuilder::BytecodeForBinaryOperation(Token::Value op) {
       return Bytecode::kDiv;
     case Token::Value::MOD:
       return Bytecode::kMod;
+    case Token::Value::SHL:
+      return Bytecode::kShiftLeft;
+    case Token::Value::SAR:
+      return Bytecode::kShiftRight;
+    case Token::Value::SHR:
+      return Bytecode::kShiftRightLogical;
     default:
       UNREACHABLE();
       return static_cast<Bytecode>(-1);

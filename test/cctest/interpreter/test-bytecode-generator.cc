@@ -236,8 +236,7 @@ TEST(PrimitiveExpressions) {
            B(Ldar), R(0),  //
            B(Return)       //
        },
-       0
-      },
+       0},
       {"var x = 0; return x + 3;",
        2 * kPointerSize,
        1,
@@ -251,8 +250,49 @@ TEST(PrimitiveExpressions) {
            B(Add), R(1),       //
            B(Return)           //
        },
-       0
-     }};
+       0},
+      {"var x = 10; return x << 3;",
+       2 * kPointerSize,
+       1,
+       13,
+       {
+           B(LdaSmi8), U8(10),  //
+           B(Star), R(0),       //
+           B(Ldar), R(0),       // Easy to spot r1 not really needed here.
+           B(Star), R(1),       // Dead store.
+           B(LdaSmi8), U8(3),   //
+           B(ShiftLeft), R(1),  //
+           B(Return)            //
+       },
+       0},
+      {"var x = 10; return x >> 3;",
+       2 * kPointerSize,
+       1,
+       13,
+       {
+           B(LdaSmi8), U8(10),   //
+           B(Star), R(0),        //
+           B(Ldar), R(0),        // Easy to spot r1 not really needed here.
+           B(Star), R(1),        // Dead store.
+           B(LdaSmi8), U8(3),    //
+           B(ShiftRight), R(1),  //
+           B(Return)             //
+       },
+       0},
+      {"var x = 10; return x >>> 3;",
+       2 * kPointerSize,
+       1,
+       13,
+       {
+           B(LdaSmi8), U8(10),  //
+           B(Star), R(0),       //
+           B(Ldar), R(0),       // Easy to spot r1 not really needed here.
+           B(Star), R(1),       // Dead store.
+           B(LdaSmi8), U8(3),   //
+           B(ShiftRightLogical), R(1),  //
+           B(Return)                    //
+       },
+       0}};
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =

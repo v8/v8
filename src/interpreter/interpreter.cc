@@ -400,6 +400,40 @@ void Interpreter::DoMod(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// ShiftLeft <src>
+//
+// Left shifts register <src> by the count specified in the accumulator.
+// Register <src> is converted to an int32 and the accumulator to uint32
+// before the operation. 5 lsb bits from the accumulator are used as count
+// i.e. <src> << (accumulator & 0x1F).
+void Interpreter::DoShiftLeft(compiler::InterpreterAssembler* assembler) {
+  DoBinaryOp(Runtime::kShiftLeft, assembler);
+}
+
+
+// ShiftRight <src>
+//
+// Right shifts register <src> by the count specified in the accumulator.
+// Result is sign extended. Register <src> is converted to an int32 and the
+// accumulator to uint32 before the operation. 5 lsb bits from the accumulator
+// are used as count i.e. <src> >> (accumulator & 0x1F).
+void Interpreter::DoShiftRight(compiler::InterpreterAssembler* assembler) {
+  DoBinaryOp(Runtime::kShiftRight, assembler);
+}
+
+
+// ShiftRightLogical <src>
+//
+// Right Shifts register <src> by the count specified in the accumulator.
+// Result is zero-filled. The accumulator and register <src> are converted to
+// uint32 before the operation 5 lsb bits from the accumulator are used as
+// count i.e. <src> << (accumulator & 0x1F).
+void Interpreter::DoShiftRightLogical(
+    compiler::InterpreterAssembler* assembler) {
+  DoBinaryOp(Runtime::kShiftRightLogical, assembler);
+}
+
+
 // LogicalNot
 //
 // Perform logical-not on the accumulator, first casting the

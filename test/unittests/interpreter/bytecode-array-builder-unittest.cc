@@ -68,6 +68,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::DIV, reg, Strength::WEAK)
       .BinaryOperation(Token::Value::MOD, reg, Strength::WEAK);
 
+  // Emit shift operator invocations
+  builder.BinaryOperation(Token::Value::SHL, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::SAR, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::SHR, reg, Strength::WEAK);
+
   // Emit unary operator invocations.
   builder.LogicalNot().TypeOf();
 
