@@ -458,7 +458,27 @@ def ProcessOptions(options):
   return True
 
 
-def ShardTests(tests, shard_count, shard_run):
+def ShardTests(tests, options):
+  # Read gtest shard configuration from environment (e.g. set by swarming).
+  # If none is present, use values passed on the command line.
+  shard_count = int(os.environ.get('GTEST_TOTAL_SHARDS', options.shard_count))
+  shard_run = os.environ.get('GTEST_SHARD_INDEX')
+  if shard_run is not None:
+    # The v8 shard_run starts at 1, while GTEST_SHARD_INDEX starts at 0.
+    shard_run = int(shard_run) + 1
+  else:
+    shard_run = options.shard_run
+
+  if options.shard_count > 1:
+    # Log if a value was passed on the cmd line and it differs from the
+    # environment variables.
+    if options.shard_count != shard_count:
+      print("shard_count from cmd line differs from environment variable "
+            "GTEST_TOTAL_SHARDS")
+    if options.shard_run > 1 and options.shard_run != shard_run:
+      print("shard_run from cmd line differs from environment variable "
+            "GTEST_SHARD_INDEX")
+
   if shard_count < 2:
     return tests
   if shard_run < 1 or shard_run > shard_count:
@@ -650,7 +670,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     else:
       s.tests = variant_tests
 
-    s.tests = ShardTests(s.tests, options.shard_count, options.shard_run)
+    s.tests = ShardTests(s.tests, options)
     num_tests += len(s.tests)
 
   if options.cat:
