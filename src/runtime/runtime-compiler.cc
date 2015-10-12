@@ -352,59 +352,6 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 }
 
 
-// Walk up the stack expecting:
-//  - Runtime_CompileString
-//  - JSFunction callee (eval, Function constructor, etc)
-//  - call() (maybe)
-//  - apply() (maybe)
-//  - bind() (maybe)
-// - JSFunction caller (maybe)
-//
-// return true if the caller has access to the callee or if an exit frame was
-// hit, in which case allow it through, as it could have come through the api.
-bool HasAccessToContextForCompileString(Isolate* isolate) {
-  MaybeHandle<JSFunction> callee;
-  bool exit_handled = true;
-  bool has_access = true;
-  bool done = false;
-  for (StackFrameIterator it(isolate); !it.done() && !done; it.Advance()) {
-    StackFrame* raw_frame = it.frame();
-    if (!raw_frame->is_java_script()) {
-      if (raw_frame->is_exit()) exit_handled = false;
-      continue;
-    }
-    JavaScriptFrame* outer_frame = JavaScriptFrame::cast(raw_frame);
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    outer_frame->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0 && !done; --i) {
-      FrameSummary& frame = frames[i];
-      Handle<JSFunction> fun = frame.function();
-      // Capture the callee function.
-      if (callee.is_null()) {
-        callee = fun;
-        exit_handled = true;
-        continue;
-      }
-      // Exit condition.
-      Handle<JSObject> callee_global_proxy(
-          callee.ToHandleChecked()->context()->global_proxy());
-      if (!isolate->MayAccess(handle(fun->context()), callee_global_proxy)) {
-        has_access = false;
-        done = true;
-        continue;
-      }
-      // Skip bound functions in correct origin.
-      if (fun->shared()->bound()) {
-        exit_handled = true;
-        continue;
-      }
-      done = true;
-    }
-  }
-  return !exit_handled || has_access;
-}
-
-
 RUNTIME_FUNCTION(Runtime_CompileString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -413,11 +360,6 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
 
   // Extract native context.
   Handle<Context> context(isolate->native_context());
-
-  // Filter cross security context calls.
-  if (!HasAccessToContextForCompileString(isolate)) {
-    return isolate->heap()->undefined_value();
-  }
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
