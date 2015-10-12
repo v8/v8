@@ -140,6 +140,17 @@ Worker* GetWorkerFromInternalField(Isolate* isolate, Local<Object> object) {
 #endif  // !V8_SHARED
 
 
+bool NamedAccessCheck(v8::Local<v8::Object> host, v8::Local<v8::Value> key,
+                      v8::AccessType type, v8::Local<v8::Value> data) {
+  return false;
+}
+
+
+bool IndexedAccessCheck(v8::Local<v8::Object> host, uint32_t index,
+                        v8::AccessType type, v8::Local<v8::Value> data) {
+  return false;
+}
+
 }  // namespace
 
 
@@ -1177,6 +1188,9 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "os", NewStringType::kNormal)
           .ToLocalChecked(),
       os_templ);
+
+  global_template->SetAccessCheckCallbacks(NamedAccessCheck,
+                                           IndexedAccessCheck);
 
   return global_template;
 }

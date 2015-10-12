@@ -1779,7 +1779,9 @@ function FunctionConstructor(arg1) {  // length == 1
   var global_proxy = %GlobalProxy(FunctionConstructor);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
-  var f = %_CallFunction(global_proxy, %CompileString(source, true));
+  var f = %CompileString(source, true);
+  if (!IS_FUNCTION(f)) return f;
+  f = %_CallFunction(global_proxy, f);
   %FunctionMarkNameShouldPrintAsAnonymous(f);
   return f;
 }
