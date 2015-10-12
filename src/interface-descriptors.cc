@@ -109,6 +109,21 @@ void StoreTransitionDescriptor::InitializePlatformSpecific(
 }
 
 
+void VectorStoreTransitionDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  if (SlotRegister().is(no_reg)) {
+    Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
+                            MapRegister(), VectorRegister()};
+    data->InitializePlatformSpecific(arraysize(registers), registers);
+  } else {
+    Register registers[] = {ReceiverRegister(), NameRegister(),
+                            ValueRegister(),    MapRegister(),
+                            SlotRegister(),     VectorRegister()};
+    data->InitializePlatformSpecific(arraysize(registers), registers);
+  }
+}
+
+
 Type::FunctionType*
 StoreTransitionDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
@@ -228,14 +243,19 @@ Type::FunctionType*
 VectorStoreTransitionDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
-  Type::FunctionType* function =
-      Type::FunctionType::New(AnyTagged(zone), Type::Undefined(), 6, zone);
-  function->InitParameter(0, AnyTagged(zone));  // receiver
-  function->InitParameter(1, AnyTagged(zone));  // name
-  function->InitParameter(2, AnyTagged(zone));  // value
-  function->InitParameter(3, SmiType(zone));    // slot
-  function->InitParameter(4, AnyTagged(zone));  // vector
-  function->InitParameter(5, AnyTagged(zone));  // map
+  bool has_slot = !VectorStoreTransitionDescriptor::SlotRegister().is(no_reg);
+  int arg_count = has_slot ? 6 : 5;
+  Type::FunctionType* function = Type::FunctionType::New(
+      AnyTagged(zone), Type::Undefined(), arg_count, zone);
+  int index = 0;
+  function->InitParameter(index++, AnyTagged(zone));  // receiver
+  function->InitParameter(index++, AnyTagged(zone));  // name
+  function->InitParameter(index++, AnyTagged(zone));  // value
+  function->InitParameter(index++, AnyTagged(zone));  // map
+  if (has_slot) {
+    function->InitParameter(index++, SmiType(zone));  // slot
+  }
+  function->InitParameter(index++, AnyTagged(zone));  // vector
   return function;
 }
 

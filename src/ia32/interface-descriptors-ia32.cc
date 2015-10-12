@@ -35,12 +35,10 @@ const Register VectorStoreTransitionDescriptor::SlotRegister() {
 }
 
 
-const Register VectorStoreTransitionDescriptor::VectorRegister() {
-  return no_reg;
-}
+const Register VectorStoreTransitionDescriptor::VectorRegister() { return ebx; }
 
 
-const Register VectorStoreTransitionDescriptor::MapRegister() { return no_reg; }
+const Register VectorStoreTransitionDescriptor::MapRegister() { return edi; }
 
 
 const Register StoreTransitionDescriptor::MapRegister() { return ebx; }
@@ -83,14 +81,6 @@ const Register MathPowIntegerDescriptor::exponent() {
 
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return ebx; }
-
-
-void VectorStoreTransitionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister()};
-  // The other three parameters are on the stack in ia32.
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
 
 
 void FastNewClosureDescriptor::InitializePlatformSpecific(

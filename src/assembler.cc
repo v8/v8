@@ -1439,9 +1439,14 @@ ExternalReference
 }
 
 
-ExternalReference ExternalReference::vector_store_virtual_register(
+ExternalReference ExternalReference::virtual_handler_register(
     Isolate* isolate) {
-  return ExternalReference(isolate->vector_store_virtual_register_address());
+  return ExternalReference(isolate->virtual_handler_register_address());
+}
+
+
+ExternalReference ExternalReference::virtual_slot_register(Isolate* isolate) {
+  return ExternalReference(isolate->virtual_slot_register_address());
 }
 
 

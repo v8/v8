@@ -78,14 +78,6 @@ const Register GrowArrayElementsDescriptor::ObjectRegister() { return x0; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return x3; }
 
 
-void VectorStoreTransitionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(),   ValueRegister(),
-                          SlotRegister(),     VectorRegister(), MapRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // x2: function info

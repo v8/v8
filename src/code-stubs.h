@@ -1244,8 +1244,10 @@ class StoreTransitionHelper {
   }
 
   static Register MapRegister() {
-    return FLAG_vector_stores ? VectorStoreTransitionDescriptor::MapRegister()
-                              : StoreTransitionDescriptor::MapRegister();
+    if (FLAG_vector_stores) {
+      return VectorStoreTransitionDescriptor::MapRegister();
+    }
+    return StoreTransitionDescriptor::MapRegister();
   }
 
   static int ReceiverIndex() {
@@ -1256,26 +1258,25 @@ class StoreTransitionHelper {
 
   static int ValueIndex() { return StoreTransitionDescriptor::kValueIndex; }
 
-  static int SlotIndex() {
-    DCHECK(FLAG_vector_stores);
-    return VectorStoreTransitionDescriptor::kSlotIndex;
+  static int MapIndex() {
+    DCHECK(static_cast<int>(VectorStoreTransitionDescriptor::kMapIndex) ==
+           static_cast<int>(StoreTransitionDescriptor::kMapIndex));
+    return StoreTransitionDescriptor::kMapIndex;
   }
 
   static int VectorIndex() {
     DCHECK(FLAG_vector_stores);
+    if (HasVirtualSlotArg()) {
+      return VectorStoreTransitionDescriptor::kVirtualSlotVectorIndex;
+    }
     return VectorStoreTransitionDescriptor::kVectorIndex;
   }
 
-  static int MapIndex() {
-    if (FLAG_vector_stores) {
-      return VectorStoreTransitionDescriptor::kMapIndex;
-    }
-    return StoreTransitionDescriptor::kMapIndex;
+  // Some platforms don't have a slot arg.
+  static bool HasVirtualSlotArg() {
+    if (!FLAG_vector_stores) return false;
+    return SlotRegister().is(no_reg);
   }
-
-  // Some platforms push Slot, Vector, Map on the stack instead of in
-  // registers.
-  static bool UsesStackArgs() { return MapRegister().is(no_reg); }
 };
 
 

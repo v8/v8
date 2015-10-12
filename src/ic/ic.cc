@@ -2478,9 +2478,29 @@ RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
   Handle<Object> result;
 
   if (FLAG_vector_stores) {
-    DCHECK(args.length() == 5 || args.length() == 6);
-    Handle<Smi> slot = args.at<Smi>(3);
-    Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
+    int length = args.length();
+    DCHECK(length == 5 || length == 6);
+    // We might have slot and vector, for a normal miss (slot(3), vector(4)).
+    // Or, map and vector for a transitioning store miss (map(3), vector(4)).
+    // In this case, we need to recover the slot from a virtual register.
+    // If length == 6, then a map is included (map(3), slot(4), vector(5)).
+    Handle<Smi> slot;
+    Handle<TypeFeedbackVector> vector;
+    if (length == 5) {
+      if (args.at<Object>(3)->IsMap()) {
+        vector = args.at<TypeFeedbackVector>(4);
+        slot = handle(
+            *reinterpret_cast<Smi**>(isolate->virtual_slot_register_address()),
+            isolate);
+      } else {
+        vector = args.at<TypeFeedbackVector>(4);
+        slot = args.at<Smi>(3);
+      }
+    } else {
+      vector = args.at<TypeFeedbackVector>(5);
+      slot = args.at<Smi>(4);
+    }
+
     FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
     if (vector->GetKind(vector_slot) == FeedbackVectorSlotKind::STORE_IC) {
       StoreICNexus nexus(vector, vector_slot);
@@ -2616,11 +2636,14 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
 RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK(args.length() == (FLAG_vector_stores ? 6 : 4));
+  // Without vector stores, length == 4.
+  // With vector stores, length == 5 or 6, depending on whether the vector slot
+  // is passed in a virtual register or not.
+  DCHECK(!FLAG_vector_stores || args.length() == 5 || args.length() == 6);
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  Handle<Map> map = args.at<Map>(FLAG_vector_stores ? 5 : 3);
+  Handle<Map> map = args.at<Map>(3);
   LanguageMode language_mode;
   if (FLAG_vector_stores) {
     KeyedStoreICNexus nexus(isolate);

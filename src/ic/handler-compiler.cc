@@ -456,17 +456,18 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   DCHECK(!transition->is_access_check_needed());
 
   // Call to respective StoreTransitionStub.
-  Register transition_map_reg = StoreTransitionHelper::MapRegister();
-  bool stack_args = StoreTransitionHelper::UsesStackArgs();
-  Register map_reg = stack_args ? scratch1() : transition_map_reg;
+  bool virtual_args = StoreTransitionHelper::HasVirtualSlotArg();
+  Register map_reg = StoreTransitionHelper::MapRegister();
 
   if (details.type() == DATA_CONSTANT) {
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
-    GenerateRestoreMap(transition, map_reg, scratch2(), &miss);
-    GenerateConstantCheck(map_reg, descriptor, value(), scratch2(), &miss);
-    if (stack_args) {
-      // Also pushes vector and slot.
-      GeneratePushMap(map_reg, scratch2());
+    Register tmp =
+        virtual_args ? VectorStoreICDescriptor::VectorRegister() : map_reg;
+    GenerateRestoreMap(transition, tmp, scratch2(), &miss);
+    GenerateConstantCheck(tmp, descriptor, value(), scratch2(), &miss);
+    if (virtual_args) {
+      // This will move the map from tmp into map_reg.
+      RearrangeVectorAndSlot(tmp, map_reg);
     } else if (FLAG_vector_stores) {
       PopVectorAndSlot();
     }
@@ -484,10 +485,11 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
             ? StoreTransitionStub::ExtendStorageAndStoreMapAndValue
             : StoreTransitionStub::StoreMapAndValue;
 
-    GenerateRestoreMap(transition, map_reg, scratch2(), &miss);
-    if (stack_args) {
-      // Also pushes vector and slot.
-      GeneratePushMap(map_reg, scratch2());
+    Register tmp =
+        virtual_args ? VectorStoreICDescriptor::VectorRegister() : map_reg;
+    GenerateRestoreMap(transition, tmp, scratch2(), &miss);
+    if (virtual_args) {
+      RearrangeVectorAndSlot(tmp, map_reg);
     } else if (FLAG_vector_stores) {
       PopVectorAndSlot();
     }

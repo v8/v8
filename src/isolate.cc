@@ -1784,7 +1784,8 @@ Isolate::Isolate(bool enable_serializer)
       deferred_handles_head_(NULL),
       optimizing_compile_dispatcher_(NULL),
       stress_deopt_count_(0),
-      vector_store_virtual_register_(NULL),
+      virtual_handler_register_(NULL),
+      virtual_slot_register_(NULL),
       next_optimization_id_(0),
 #if TRACE_MAPS
       next_unique_sfi_id_(0),

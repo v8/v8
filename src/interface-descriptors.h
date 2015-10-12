@@ -281,19 +281,21 @@ class VectorStoreTransitionDescriptor : public StoreDescriptor {
 
   // Extends StoreDescriptor with Map parameter.
   enum ParameterIndices {
-    kReceiverIndex,
-    kNameIndex,
-    kValueIndex,
-    kSlotIndex,
-    kVectorIndex,
-    kMapIndex,
-    kParameterCount
+    kReceiverIndex = 0,
+    kNameIndex = 1,
+    kValueIndex = 2,
+
+    kMapIndex = 3,
+
+    kSlotIndex = 4,  // not present on ia32.
+    kVirtualSlotVectorIndex = 4,
+
+    kVectorIndex = 5
   };
 
-  // These registers are no_reg for ia32, using the stack instead.
+  static const Register MapRegister();
   static const Register SlotRegister();
   static const Register VectorRegister();
-  static const Register MapRegister();
 };
 
 
