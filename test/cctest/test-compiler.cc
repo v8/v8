@@ -366,7 +366,6 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
 TEST(OptimizedCodeSharing1) {
   FLAG_stress_compaction = false;
   FLAG_allow_natives_syntax = true;
-  FLAG_cache_optimized_code = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   for (int i = 0; i < 3; i++) {
@@ -399,7 +398,6 @@ TEST(OptimizedCodeSharing1) {
 TEST(OptimizedCodeSharing2) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
-  FLAG_cache_optimized_code = true;
   FLAG_native_context_specialization = false;
   FLAG_turbo_cache_shared_code = true;
   const char* flag = "--turbo-filter=*";
@@ -455,7 +453,6 @@ TEST(OptimizedCodeSharing2) {
 TEST(OptimizedCodeSharing3) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
-  FLAG_cache_optimized_code = true;
   FLAG_native_context_specialization = false;
   FLAG_turbo_cache_shared_code = true;
   const char* flag = "--turbo-filter=*";

@@ -1346,12 +1346,11 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
         LiteralsArray::New(isolate(), handle(info->feedback_vector()),
                            number_of_literals, pretenure);
     result->set_literals(*literals);
+
     // Cache context-specific literals.
-    if (FLAG_cache_optimized_code) {
-      Handle<Context> native_context(context->native_context());
-      SharedFunctionInfo::AddToOptimizedCodeMap(
-          info, native_context, undefined_value(), literals, BailoutId::None());
-    }
+    Handle<Context> native_context(context->native_context());
+    SharedFunctionInfo::AddToOptimizedCodeMap(
+        info, native_context, undefined_value(), literals, BailoutId::None());
   }
 
   return result;
