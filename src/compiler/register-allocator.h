@@ -342,7 +342,8 @@ class LiveRange : public ZoneObject {
   // live range to the result live range.
   // The current range will terminate at position, while result will start from
   // position.
-  void DetachAt(LifetimePosition position, LiveRange* result, Zone* zone);
+  UsePosition* DetachAt(LifetimePosition position, LiveRange* result,
+                        Zone* zone);
 
   // Detaches at position, and then links the resulting ranges. Returns the
   // child, which starts at position.
@@ -425,7 +426,8 @@ class LiveRange : public ZoneObject {
   mutable UsePosition* last_processed_use_;
   // This is used as a cache, it's invalid outside of BuildLiveRanges.
   mutable UsePosition* current_hint_position_;
-
+  // Cache the last position splintering stopped at.
+  mutable UsePosition* splitting_pointer_;
   // greedy: the number of LifetimePositions covered by this range. Used to
   // prioritize selecting live ranges for register assignment, as well as
   // in weight calculations.

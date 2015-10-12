@@ -266,6 +266,7 @@ LiveRange::LiveRange(int relative_id, MachineType machine_type,
       current_interval_(nullptr),
       last_processed_use_(nullptr),
       current_hint_position_(nullptr),
+      splitting_pointer_(nullptr),
       size_(kInvalidSize),
       weight_(kInvalidWeight),
       group_(nullptr) {
@@ -455,8 +456,8 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
 }
 
 
-void LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
-                         Zone* zone) {
+UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
+                                 Zone* zone) {
   DCHECK(Start() < position);
   DCHECK(End() > position);
   DCHECK(result->IsEmpty());
@@ -502,7 +503,10 @@ void LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
 
   // Find the last use position before the split and the first use
   // position after it.
-  auto use_after = first_pos_;
+  auto use_after =
+      splitting_pointer_ == nullptr || splitting_pointer_->pos() > position
+          ? first_pos()
+          : splitting_pointer_;
   UsePosition* use_before = nullptr;
   if (split_at_start) {
     // The split position coincides with the beginning of a use interval (the
@@ -540,6 +544,7 @@ void LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
   Verify();
   result->Verify();
 #endif
+  return use_before;
 }
 
 
@@ -865,7 +870,7 @@ void TopLevelLiveRange::Splinter(LifetimePosition start, LifetimePosition end,
 
     const int kInvalidId = std::numeric_limits<int>::max();
 
-    DetachAt(start, result, zone);
+    UsePosition* last = DetachAt(start, result, zone);
 
     LiveRange end_part(kInvalidId, this->machine_type(), nullptr);
     result->DetachAt(end, &end_part, zone);
@@ -878,14 +883,11 @@ void TopLevelLiveRange::Splinter(LifetimePosition start, LifetimePosition end,
     current_interval_ = last_interval_;
     last_interval_ = end_part.last_interval_;
 
-
     if (first_pos_ == nullptr) {
       first_pos_ = end_part.first_pos_;
     } else {
-      UsePosition* pos = first_pos_;
-      for (; pos->next() != nullptr; pos = pos->next()) {
-      }
-      pos->set_next(end_part.first_pos_);
+      splitting_pointer_ = last;
+      if (last != nullptr) last->set_next(end_part.first_pos_);
     }
   }
   result->next_ = nullptr;
