@@ -566,9 +566,9 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 
   ParallelSweepSpacesComplete();
   sweeping_in_progress_ = false;
-  heap()->old_space()->RefillFreeList();
-  heap()->code_space()->RefillFreeList();
-  heap()->map_space()->RefillFreeList();
+  RefillFreeList(heap()->paged_space(OLD_SPACE));
+  RefillFreeList(heap()->paged_space(CODE_SPACE));
+  RefillFreeList(heap()->paged_space(MAP_SPACE));
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !evacuation()) {
@@ -585,6 +585,26 @@ bool MarkCompactCollector::IsSweepingCompleted() {
   }
   pending_sweeper_tasks_semaphore_.Signal();
   return true;
+}
+
+
+void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
+  FreeList* free_list;
+
+  if (space == heap()->old_space()) {
+    free_list = free_list_old_space_.get();
+  } else if (space == heap()->code_space()) {
+    free_list = free_list_code_space_.get();
+  } else if (space == heap()->map_space()) {
+    free_list = free_list_map_space_.get();
+  } else {
+    // Any PagedSpace might invoke RefillFreeLists, so we need to make sure
+    // to only refill them for the old space.
+    return;
+  }
+
+  intptr_t added = space->free_list()->Concatenate(free_list);
+  space->accounting_stats_.IncreaseCapacity(added);
 }
 
 
@@ -3378,10 +3398,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     compaction_spaces_for_tasks[i] = new CompactionSpaceCollection(heap());
   }
 
-  heap()->old_space()->DivideUponCompactionSpaces(compaction_spaces_for_tasks,
-                                                  num_tasks);
-  heap()->code_space()->DivideUponCompactionSpaces(compaction_spaces_for_tasks,
-                                                   num_tasks);
+  compaction_spaces_for_tasks[0]->Get(OLD_SPACE)->MoveOverFreeMemory(
+      heap()->old_space());
+  compaction_spaces_for_tasks[0]
+      ->Get(CODE_SPACE)
+      ->MoveOverFreeMemory(heap()->code_space());
 
   compaction_in_progress_ = true;
   // Kick off parallel tasks.
@@ -3393,7 +3414,9 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   // Contribute in main thread. Counter and signal are in principal not needed.
+  concurrent_compaction_tasks_active_++;
   EvacuatePages(compaction_spaces_for_tasks[0], &migration_slots_buffer_);
+  pending_compaction_tasks_semaphore_.Signal();
 
   WaitUntilCompactionCompleted();
 

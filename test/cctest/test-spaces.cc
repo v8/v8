@@ -34,7 +34,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap-tester.h"
+
 
 using namespace v8::internal;
 
@@ -463,8 +463,8 @@ TEST(CompactionSpaceUsingExternalMemory) {
   CHECK(allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize()));
   TestMemoryAllocatorScope test_scope(isolate, allocator);
 
-  CompactionSpaceCollection* collection = new CompactionSpaceCollection(heap);
-  CompactionSpace* compaction_space = collection->Get(OLD_SPACE);
+  CompactionSpace* compaction_space =
+      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
   CHECK(compaction_space != NULL);
   CHECK(compaction_space->SetUp());
 
@@ -503,11 +503,17 @@ TEST(CompactionSpaceUsingExternalMemory) {
   // We expect two pages to be reachable from old_space in the end.
   const intptr_t kExpectedOldSpacePagesAfterMerge = 2;
 
+  Object* chunk =
+      old_space->AllocateRawUnaligned(static_cast<int>(rest)).ToObjectChecked();
   CHECK_EQ(old_space->CountTotalPages(), kExpectedInitialOldSpacePages);
+  CHECK(chunk != nullptr);
+  CHECK(chunk->IsHeapObject());
+
   CHECK_EQ(compaction_space->CountTotalPages(), 0);
   CHECK_EQ(compaction_space->Capacity(), 0);
   // Make the rest of memory available for compaction.
-  old_space->DivideUponCompactionSpaces(&collection, 1, rest);
+  compaction_space->AddExternalMemory(HeapObject::cast(chunk)->address(),
+                                      static_cast<int>(rest));
   CHECK_EQ(compaction_space->CountTotalPages(), 0);
   CHECK_EQ(compaction_space->Capacity(), rest);
   while (num_rest_objects-- > 0) {
@@ -524,162 +530,11 @@ TEST(CompactionSpaceUsingExternalMemory) {
   old_space->MergeCompactionSpace(compaction_space);
   CHECK_EQ(old_space->CountTotalPages(), kExpectedOldSpacePagesAfterMerge);
 
-  delete collection;
+  delete compaction_space;
   delete old_space;
 
   allocator->TearDown();
   delete allocator;
-}
-
-
-CompactionSpaceCollection** HeapTester::InitializeCompactionSpaces(
-    Heap* heap, int num_spaces) {
-  CompactionSpaceCollection** spaces =
-      new CompactionSpaceCollection*[num_spaces];
-  for (int i = 0; i < num_spaces; i++) {
-    spaces[i] = new CompactionSpaceCollection(heap);
-  }
-  return spaces;
-}
-
-
-void HeapTester::DestroyCompactionSpaces(CompactionSpaceCollection** spaces,
-                                         int num_spaces) {
-  for (int i = 0; i < num_spaces; i++) {
-    delete spaces[i];
-  }
-  delete[] spaces;
-}
-
-
-void HeapTester::MergeCompactionSpaces(PagedSpace* space,
-                                       CompactionSpaceCollection** spaces,
-                                       int num_spaces) {
-  AllocationSpace id = space->identity();
-  for (int i = 0; i < num_spaces; i++) {
-    space->MergeCompactionSpace(spaces[i]->Get(id));
-    CHECK_EQ(spaces[i]->Get(id)->accounting_stats_.Size(), 0);
-    CHECK_EQ(spaces[i]->Get(id)->accounting_stats_.Capacity(), 0);
-    CHECK_EQ(spaces[i]->Get(id)->Waste(), 0);
-  }
-}
-
-
-void HeapTester::AllocateInCompactionSpaces(CompactionSpaceCollection** spaces,
-                                            AllocationSpace id, int num_spaces,
-                                            int num_objects, int object_size) {
-  for (int i = 0; i < num_spaces; i++) {
-    for (int j = 0; j < num_objects; j++) {
-      spaces[i]->Get(id)->AllocateRawUnaligned(object_size).ToObjectChecked();
-    }
-    spaces[i]->Get(id)->EmptyAllocationInfo();
-    CHECK_EQ(spaces[i]->Get(id)->accounting_stats_.Size(),
-             num_objects * object_size);
-    CHECK_GE(spaces[i]->Get(id)->accounting_stats_.Capacity(),
-             spaces[i]->Get(id)->accounting_stats_.Size());
-  }
-}
-
-
-void HeapTester::CompactionStats(CompactionSpaceCollection** spaces,
-                                 AllocationSpace id, int num_spaces,
-                                 intptr_t* capacity, intptr_t* size) {
-  *capacity = 0;
-  *size = 0;
-  for (int i = 0; i < num_spaces; i++) {
-    *capacity += spaces[i]->Get(id)->accounting_stats_.Capacity();
-    *size += spaces[i]->Get(id)->accounting_stats_.Size();
-  }
-}
-
-
-void HeapTester::TestCompactionSpaceDivide(int num_additional_objects,
-                                           int object_size,
-                                           int num_compaction_spaces,
-                                           int additional_capacity_in_bytes) {
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  OldSpace* old_space = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
-  CHECK(old_space != nullptr);
-  CHECK(old_space->SetUp());
-  old_space->AllocateRawUnaligned(object_size).ToObjectChecked();
-  old_space->EmptyAllocationInfo();
-
-  intptr_t rest_capacity = old_space->accounting_stats_.Capacity() -
-                           old_space->accounting_stats_.Size();
-  intptr_t capacity_for_compaction_space =
-      rest_capacity / num_compaction_spaces;
-  int num_objects_in_compaction_space =
-      static_cast<int>(capacity_for_compaction_space) / object_size +
-      num_additional_objects;
-  CHECK_GT(num_objects_in_compaction_space, 0);
-  intptr_t initial_old_space_capacity = old_space->accounting_stats_.Capacity();
-
-  CompactionSpaceCollection** spaces =
-      InitializeCompactionSpaces(heap, num_compaction_spaces);
-  old_space->DivideUponCompactionSpaces(spaces, num_compaction_spaces,
-                                        capacity_for_compaction_space);
-
-  intptr_t compaction_capacity = 0;
-  intptr_t compaction_size = 0;
-  CompactionStats(spaces, OLD_SPACE, num_compaction_spaces,
-                  &compaction_capacity, &compaction_size);
-
-  intptr_t old_space_capacity = old_space->accounting_stats_.Capacity();
-  intptr_t old_space_size = old_space->accounting_stats_.Size();
-  // Compaction space memory is subtracted from the original space's capacity.
-  CHECK_EQ(old_space_capacity,
-           initial_old_space_capacity - compaction_capacity);
-  CHECK_EQ(compaction_size, 0);
-
-  AllocateInCompactionSpaces(spaces, OLD_SPACE, num_compaction_spaces,
-                             num_objects_in_compaction_space, object_size);
-
-  // Old space size and capacity should be the same as after dividing.
-  CHECK_EQ(old_space->accounting_stats_.Size(), old_space_size);
-  CHECK_EQ(old_space->accounting_stats_.Capacity(), old_space_capacity);
-
-  CompactionStats(spaces, OLD_SPACE, num_compaction_spaces,
-                  &compaction_capacity, &compaction_size);
-  MergeCompactionSpaces(old_space, spaces, num_compaction_spaces);
-
-  CHECK_EQ(old_space->accounting_stats_.Capacity(),
-           old_space_capacity + compaction_capacity);
-  CHECK_EQ(old_space->accounting_stats_.Size(),
-           old_space_size + compaction_size);
-  // We check against the expected end capacity.
-  CHECK_EQ(old_space->accounting_stats_.Capacity(),
-           initial_old_space_capacity + additional_capacity_in_bytes);
-
-  DestroyCompactionSpaces(spaces, num_compaction_spaces);
-  delete old_space;
-}
-
-
-HEAP_TEST(CompactionSpaceDivideSinglePage) {
-  const int kObjectSize = KB;
-  const int kCompactionSpaces = 4;
-  // Since the bound for objects is tight and the dividing is best effort, we
-  // subtract some objects to make sure we still fit in the initial page.
-  // A CHECK makes sure that the overall number of allocated objects stays
-  // > 0.
-  const int kAdditionalObjects = -10;
-  const int kAdditionalCapacityRequired = 0;
-  TestCompactionSpaceDivide(kAdditionalObjects, kObjectSize, kCompactionSpaces,
-                            kAdditionalCapacityRequired);
-}
-
-
-HEAP_TEST(CompactionSpaceDivideMultiplePages) {
-  const int kObjectSize = KB;
-  const int kCompactionSpaces = 4;
-  // Allocate half a page of objects to ensure that we need one more page per
-  // compaction space.
-  const int kAdditionalObjects = (Page::kPageSize / kObjectSize / 2);
-  const int kAdditionalCapacityRequired =
-      Page::kAllocatableMemory * kCompactionSpaces;
-  TestCompactionSpaceDivide(kAdditionalObjects, kObjectSize, kCompactionSpaces,
-                            kAdditionalCapacityRequired);
 }
 
 
