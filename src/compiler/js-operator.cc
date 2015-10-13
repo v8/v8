@@ -423,7 +423,7 @@ const CreateArgumentsParameters& CreateArgumentsParametersOf(
 bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
   return lhs.pretenure() == rhs.pretenure() &&
-         lhs.shared_info().is_identical_to(rhs.shared_info());
+         lhs.shared_info().location() == rhs.shared_info().location();
 }
 
 
@@ -434,9 +434,7 @@ bool operator!=(CreateClosureParameters const& lhs,
 
 
 size_t hash_value(CreateClosureParameters const& p) {
-  // TODO(mstarzinger): Include hash of the SharedFunctionInfo here.
-  base::hash<PretenureFlag> h;
-  return h(p.pretenure());
+  return base::hash_combine(p.pretenure(), p.shared_info().location());
 }
 
 
