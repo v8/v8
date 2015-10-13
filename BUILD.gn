@@ -194,35 +194,35 @@ action("js2c") {
   inputs = [ "tools/jsmin.py" ]
 
   sources = [
-    "src/macros.py",
+    "src/js/macros.py",
     "src/messages.h",
-    "src/prologue.js",
-    "src/runtime.js",
-    "src/v8natives.js",
-    "src/symbol.js",
-    "src/array.js",
-    "src/string.js",
-    "src/uri.js",
-    "src/math.js",
+    "src/js/prologue.js",
+    "src/js/runtime.js",
+    "src/js/v8natives.js",
+    "src/js/symbol.js",
+    "src/js/array.js",
+    "src/js/string.js",
+    "src/js/uri.js",
+    "src/js/math.js",
     "src/third_party/fdlibm/fdlibm.js",
-    "src/date.js",
-    "src/regexp.js",
-    "src/arraybuffer.js",
-    "src/typedarray.js",
-    "src/iterator-prototype.js",
-    "src/generator.js",
-    "src/object-observe.js",
-    "src/collection.js",
-    "src/weak-collection.js",
-    "src/collection-iterator.js",
-    "src/promise.js",
-    "src/messages.js",
-    "src/json.js",
-    "src/array-iterator.js",
-    "src/string-iterator.js",
-    "src/templates.js",
-    "src/harmony-array.js",
-    "src/harmony-typedarray.js",
+    "src/js/date.js",
+    "src/js/regexp.js",
+    "src/js/arraybuffer.js",
+    "src/js/typedarray.js",
+    "src/js/iterator-prototype.js",
+    "src/js/generator.js",
+    "src/js/object-observe.js",
+    "src/js/collection.js",
+    "src/js/weak-collection.js",
+    "src/js/collection-iterator.js",
+    "src/js/promise.js",
+    "src/js/messages.js",
+    "src/js/json.js",
+    "src/js/array-iterator.js",
+    "src/js/string-iterator.js",
+    "src/js/templates.js",
+    "src/js/harmony-array.js",
+    "src/js/harmony-typedarray.js",
     "src/debug/mirrors.js",
     "src/debug/debug.js",
     "src/debug/liveedit.js",
@@ -233,7 +233,7 @@ action("js2c") {
   ]
 
   if (v8_enable_i18n_support) {
-    sources += [ "src/i18n.js" ]
+    sources += [ "src/js/i18n.js" ]
   }
 
   args = [
@@ -260,9 +260,9 @@ action("js2c_code_stubs") {
   inputs = [ "tools/jsmin.py" ]
 
   sources = [
-    "src/macros.py",
+    "src/js/macros.py",
     "src/messages.h",
-    "src/code-stubs.js"
+    "src/js/code-stubs.js"
   ]
 
   outputs = [
@@ -294,20 +294,20 @@ action("js2c_experimental") {
   inputs = [ "tools/jsmin.py" ]
 
   sources = [
-    "src/macros.py",
+    "src/js/macros.py",
     "src/messages.h",
-    "src/proxy.js",
-    "src/generator.js",
-    "src/harmony-atomics.js",
-    "src/harmony-array-includes.js",
-    "src/harmony-concat-spreadable.js",
-    "src/harmony-tostring.js",
-    "src/harmony-regexp.js",
-    "src/harmony-reflect.js",
-    "src/harmony-spread.js",
-    "src/harmony-object-observe.js",
-    "src/harmony-sharedarraybuffer.js",
-    "src/harmony-simd.js"
+    "src/js/proxy.js",
+    "src/js/generator.js",
+    "src/js/harmony-atomics.js",
+    "src/js/harmony-array-includes.js",
+    "src/js/harmony-concat-spreadable.js",
+    "src/js/harmony-tostring.js",
+    "src/js/harmony-regexp.js",
+    "src/js/harmony-reflect.js",
+    "src/js/harmony-spread.js",
+    "src/js/harmony-object-observe.js",
+    "src/js/harmony-sharedarraybuffer.js",
+    "src/js/harmony-simd.js"
   ]
 
   outputs = [
@@ -396,7 +396,7 @@ action("d8_js2c") {
 
   inputs = [
     "src/d8.js",
-    "src/macros.py",
+    "src/js/macros.py",
   ]
 
   outputs = [
