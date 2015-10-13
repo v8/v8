@@ -2424,9 +2424,10 @@ void MacroAssembler::JumpIfEitherInstanceTypeIsNotSequentialOneByte(
     Label* failure) {
   DCHECK(!AreAliased(scratch1, second));
   DCHECK(!AreAliased(scratch1, scratch2));
-  static const int kFlatOneByteStringMask =
+  const int kFlatOneByteStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  static const int kFlatOneByteStringTag = ONE_BYTE_STRING_TYPE;
+  const int kFlatOneByteStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
   And(scratch1, first, kFlatOneByteStringMask);
   And(scratch2, second, kFlatOneByteStringMask);
   Cmp(scratch1, kFlatOneByteStringTag);
