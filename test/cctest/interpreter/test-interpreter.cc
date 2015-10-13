@@ -1620,3 +1620,20 @@ TEST(InterpreterCallRuntime) {
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(55));
 }
+
+
+TEST(InterpreterFunctionLiteral) {
+  HandleAndZoneScope handles;
+
+  // Test calling a function literal.
+  std::string source(
+      "function " + InterpreterTester::function_name() + "(a) {\n"
+      "  return (function(x){ return x + 2; })(a);\n"
+      "}");
+  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  auto callable = tester.GetCallable<Handle<Object>>();
+
+  Handle<i::Object> return_val = callable(
+      Handle<Smi>(Smi::FromInt(3), handles.main_isolate())).ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(5));
+}

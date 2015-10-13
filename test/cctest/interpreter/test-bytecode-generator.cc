@@ -121,6 +121,11 @@ static void CheckConstant(Handle<Object> expected, Object* actual) {
 }
 
 
+static void CheckConstant(InstanceType expected, Object* actual) {
+  CHECK_EQ(expected, HeapObject::cast(actual)->map()->instance_type());
+}
+
+
 template <typename T>
 static void CheckBytecodeArrayEqual(struct ExpectedSnippet<T> expected,
                                     Handle<BytecodeArray> actual,
@@ -1812,6 +1817,63 @@ TEST(UnaryOperators) {
   }
 }
 
+
+TEST(FunctionLiterals) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"return function(){ }",
+       0,
+       1,
+       5,
+       {
+           B(LdaConstant), U8(0),    //
+           B(CreateClosure), U8(0),  //
+           B(Return)                 //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"return (function(){ })()",
+       2 * kPointerSize,
+       1,
+       14,
+       {
+           B(LdaUndefined),             //
+           B(Star), R(1),               //
+           B(LdaConstant), U8(0),       //
+           B(CreateClosure), U8(0),     //
+           B(Star), R(0),               //
+           B(Call), R(0), R(1), U8(0),  //
+           B(Return)                    //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"return (function(x){ return x; })(1)",
+       3 * kPointerSize,
+       1,
+       18,
+       {
+           B(LdaUndefined),             //
+           B(Star), R(1),               //
+           B(LdaConstant), U8(0),       //
+           B(CreateClosure), U8(0),     //
+           B(Star), R(0),               //
+           B(LdaSmi8), U8(1),           //
+           B(Star), R(2),               //
+           B(Call), R(0), R(1), U8(1),  //
+           B(Return)                    //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
 
 }  // namespace interpreter
 }  // namespace internal

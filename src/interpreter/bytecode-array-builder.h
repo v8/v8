@@ -72,6 +72,9 @@ class BytecodeArrayBuilder {
                                            int feedback_slot,
                                            LanguageMode language_mode);
 
+  // Create a new closure for the SharedFunctionInfo in the accumulator.
+  BytecodeArrayBuilder& CreateClosure(PretenureFlag tenured);
+
   // Call a JS function. The JSFunction or Callable to be called should be in
   // |callable|, the receiver should be in |receiver| and all subsequent
   // arguments should be in registers <receiver + 1> to

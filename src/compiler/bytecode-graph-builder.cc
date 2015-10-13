@@ -315,6 +315,12 @@ void BytecodeGraphBuilder::VisitKeyedStoreICStrict(
 }
 
 
+void BytecodeGraphBuilder::VisitCreateClosure(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitCall(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

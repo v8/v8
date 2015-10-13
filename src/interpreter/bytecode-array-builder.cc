@@ -322,6 +322,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
+    PretenureFlag tenured) {
+  DCHECK(FitsInImm8Operand(tenured));
+  Output(Bytecode::kCreateClosure, static_cast<uint8_t>(tenured));
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
   if (LastBytecodeInSameBlock()) {
     // If the previous bytecode puts a boolean in the accumulator

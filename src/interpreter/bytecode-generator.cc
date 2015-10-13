@@ -394,7 +394,14 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 
 
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  UNIMPLEMENTED();
+  // Find or build a shared function info.
+  Handle<SharedFunctionInfo> shared_info =
+      Compiler::GetSharedFunctionInfo(expr, info()->script(), info());
+  CHECK(!shared_info.is_null());  // TODO(rmcilroy): Set stack overflow?
+
+  builder()
+      ->LoadLiteral(shared_info)
+      .CreateClosure(expr->pretenure() ? TENURED : NOT_TENURED);
 }
 
 
@@ -679,10 +686,15 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
+    case Call::OTHER_CALL: {
+      builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
+      Visit(callee_expr);
+      builder()->StoreAccumulatorInRegister(callee);
+      break;
+    }
     case Call::LOOKUP_SLOT_CALL:
     case Call::SUPER_CALL:
     case Call::POSSIBLY_EVAL_CALL:
-    case Call::OTHER_CALL:
       UNIMPLEMENTED();
   }
 

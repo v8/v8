@@ -687,6 +687,23 @@ void Interpreter::DoJumpIfFalseConstant(
 }
 
 
+// CreateClosure <tenured>
+//
+// Creates a new closure for SharedFunctionInfo in the accumulator with the
+// PretenureFlag <tenured>.
+void Interpreter::DoCreateClosure(compiler::InterpreterAssembler* assembler) {
+  // TODO(rmcilroy): Possibly call FastNewClosureStub when possible instead of
+  // calling into the runtime.
+  Node* shared = __ GetAccumulator();
+  Node* tenured_raw = __ BytecodeOperandImm8(0);
+  Node* tenured = __ SmiTag(tenured_raw);
+  Node* result =
+      __ CallRuntime(Runtime::kInterpreterNewClosure, shared, tenured);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 // Return
 //
 // Return the value in the accumulator.

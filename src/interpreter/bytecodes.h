@@ -105,6 +105,9 @@ namespace interpreter {
   /* Cast operators */                                                         \
   V(ToBoolean, OperandType::kNone)                                             \
                                                                                \
+  /* Closure allocation */                                                     \
+  V(CreateClosure, OperandType::kImm8)                                         \
+                                                                               \
   /* Control Flow */                                                           \
   V(Jump, OperandType::kImm8)                                                  \
   V(JumpConstant, OperandType::kIdx8)                                          \
