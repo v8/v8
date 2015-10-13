@@ -704,22 +704,19 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
 
   // Add the receiver (same as in function frame).
-  // THIS MUST BE DONE LAST SINCE WE MIGHT ADVANCE
-  // THE FRAME ITERATOR TO WRAP THE RECEIVER.
   Handle<Object> receiver(it.frame()->receiver(), isolate);
   DCHECK(!function->IsBuiltin());
   if (!receiver->IsJSObject() && is_sloppy(shared->language_mode())) {
-    // If the receiver is not a JSObject and the function is not a
-    // builtin or strict-mode we have hit an optimization where a
-    // value object is not converted into a wrapped JS objects. To
-    // hide this optimization from the debugger, we wrap the receiver
-    // by creating correct wrapper object based on the calling frame's
-    // native context.
-    it.Advance();
+    // If the receiver is not a JSObject and the function is not a builtin or
+    // strict-mode we have hit an optimization where a value object is not
+    // converted into a wrapped JS objects. To hide this optimization from the
+    // debugger, we wrap the receiver by creating correct wrapper object based
+    // on the function's native context.
+    // See ECMA-262 6.0, 9.2.1.2, 6 b iii.
     if (receiver->IsUndefined()) {
       receiver = handle(function->global_proxy());
     } else {
-      Context* context = Context::cast(it.frame()->context());
+      Context* context = function->context();
       Handle<Context> native_context(Context::cast(context->native_context()));
       if (!Object::ToObject(isolate, receiver, native_context)
                .ToHandle(&receiver)) {
