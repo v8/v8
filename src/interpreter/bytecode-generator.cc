@@ -17,6 +17,47 @@ namespace internal {
 namespace interpreter {
 
 
+// Scoped class tracking context objects created by the visitor. Represents
+// mutations of the context chain within the function body, allowing pushing and
+// popping of the current {context_register} during visitation.
+class BytecodeGenerator::ContextScope BASE_EMBEDDED {
+ public:
+  explicit ContextScope(BytecodeGenerator* generator,
+                        bool is_function_context = false)
+      : generator_(generator),
+        outer_(generator_->current_context()),
+        is_function_context_(is_function_context) {
+    DCHECK(!is_function_context ||
+           outer_.index() == Register::function_context().index());
+    Register new_context_reg = NewContextRegister();
+    generator_->builder()->PushContext(new_context_reg);
+    generator_->set_current_context(new_context_reg);
+  }
+
+  ~ContextScope() {
+    if (!is_function_context_) {
+      generator_->builder()->PopContext(outer_);
+    }
+    generator_->set_current_context(outer_);
+  }
+
+ private:
+  Register NewContextRegister() const {
+    if (outer_.index() == Register::function_context().index()) {
+      return generator_->builder()->first_context_register();
+    } else {
+      DCHECK_LT(outer_.index(),
+                generator_->builder()->last_context_register().index());
+      return Register(outer_.index() + 1);
+    }
+  }
+
+  BytecodeGenerator* generator_;
+  Register outer_;
+  bool is_function_context_;
+};
+
+
 // Scoped class for tracking control statements entered by the
 // visitor. The pattern derives AstGraphBuilder::ControlScope.
 class BytecodeGenerator::ControlScope BASE_EMBEDDED {
@@ -109,21 +150,31 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
 
   builder()->set_parameter_count(info->num_parameters_including_this());
   builder()->set_locals_count(scope()->num_stack_slots());
+  // TODO(rmcilroy): Set correct context count.
+  builder()->set_context_count(info->num_heap_slots() > 0 ? 1 : 0);
 
-  // Visit implicit declaration of the function name.
-  if (scope()->is_function_scope() && scope()->function() != NULL) {
-    VisitVariableDeclaration(scope()->function());
+  // Build function context only if there are context allocated variables.
+  if (info->num_heap_slots() > 0) {
+    // Push a new inner context scope for the function.
+    VisitNewLocalFunctionContext();
+    ContextScope top_context(this, true);
+    MakeBytecodeBody();
+  } else {
+    MakeBytecodeBody();
   }
-
-  // Visit declarations within the function scope.
-  VisitDeclarations(scope()->declarations());
-
-  // Visit statements in the function body.
-  VisitStatements(info->literal()->body());
 
   set_scope(nullptr);
   set_info(nullptr);
   return builder_.ToBytecodeArray();
+}
+
+
+void BytecodeGenerator::MakeBytecodeBody() {
+  // Visit declarations within the function scope.
+  VisitDeclarations(scope()->declarations());
+
+  // Visit statements in the function body.
+  VisitStatements(info()->literal()->body());
 }
 
 
@@ -219,7 +270,7 @@ void BytecodeGenerator::VisitDeclarations(
                       DeclareGlobalsNativeFlag::encode(info()->is_native()) |
                       DeclareGlobalsLanguageMode::encode(language_mode());
 
-  TemporaryRegisterScope temporary_register_scope(&builder_);
+  TemporaryRegisterScope temporary_register_scope(builder());
   Register pairs = temporary_register_scope.NewRegister();
   builder()->LoadLiteral(data);
   builder()->StoreAccumulatorInRegister(pairs);
@@ -484,7 +535,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       break;
     }
     case VariableLocation::UNALLOCATED: {
-      TemporaryRegisterScope temporary_register_scope(&builder_);
+      TemporaryRegisterScope temporary_register_scope(builder());
       Register obj = temporary_register_scope.NewRegister();
       builder()->LoadContextSlot(current_context(),
                                  Context::GLOBAL_OBJECT_INDEX);
@@ -526,7 +577,7 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
       break;
     }
     case VariableLocation::UNALLOCATED: {
-      TemporaryRegisterScope temporary_register_scope(&builder_);
+      TemporaryRegisterScope temporary_register_scope(builder());
       Register value = temporary_register_scope.NewRegister();
       Register obj = temporary_register_scope.NewRegister();
       Register name = temporary_register_scope.NewRegister();
@@ -552,7 +603,7 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
 
 void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   DCHECK(expr->target()->IsValidReferenceExpression());
-  TemporaryRegisterScope temporary_register_scope(&builder_);
+  TemporaryRegisterScope temporary_register_scope(builder());
   Register object, key;
 
   // Left-hand side can only be a property, a global or a variable slot.
@@ -646,7 +697,7 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
 
 
 void BytecodeGenerator::VisitProperty(Property* expr) {
-  TemporaryRegisterScope temporary_register_scope(&builder_);
+  TemporaryRegisterScope temporary_register_scope(builder());
   Register obj = temporary_register_scope.NewRegister();
   Visit(expr->obj());
   builder()->StoreAccumulatorInRegister(obj);
@@ -660,7 +711,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   // Prepare the callee and the receiver to the function call. This depends on
   // the semantics of the underlying call type.
-  TemporaryRegisterScope temporary_register_scope(&builder_);
+  TemporaryRegisterScope temporary_register_scope(builder());
   Register callee = temporary_register_scope.NewRegister();
   Register receiver = temporary_register_scope.NewRegister();
 
@@ -724,7 +775,7 @@ void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   // Evaluate all arguments to the runtime call.
   ZoneList<Expression*>* args = expr->arguments();
-  TemporaryRegisterScope temporary_register_scope(&builder_);
+  TemporaryRegisterScope temporary_register_scope(builder());
   // Ensure we always have a valid first_arg register even if there are no
   // arguments to pass.
   Register first_arg = temporary_register_scope.NewRegister();
@@ -805,7 +856,7 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* left = expr->left();
   Expression* right = expr->right();
 
-  TemporaryRegisterScope temporary_register_scope(&builder_);
+  TemporaryRegisterScope temporary_register_scope(builder());
   Register temporary = temporary_register_scope.NewRegister();
 
   Visit(left);
@@ -839,12 +890,47 @@ void BytecodeGenerator::VisitSuperPropertyReference(
 }
 
 
+void BytecodeGenerator::VisitNewLocalFunctionContext() {
+  Scope* scope = this->scope();
+
+  // Allocate a new local context.
+  if (scope->is_script_scope()) {
+    TemporaryRegisterScope temporary_register_scope(builder());
+    Register closure = temporary_register_scope.NewRegister();
+    Register scope_info = temporary_register_scope.NewRegister();
+    DCHECK_EQ(closure.index() + 1, scope_info.index());
+    builder()
+        ->LoadAccumulatorWithRegister(Register::function_closure())
+        .StoreAccumulatorInRegister(closure)
+        .LoadLiteral(scope->GetScopeInfo(isolate()))
+        .StoreAccumulatorInRegister(scope_info)
+        .CallRuntime(Runtime::kNewScriptContext, closure, 2);
+  } else {
+    builder()->CallRuntime(Runtime::kNewFunctionContext,
+                           Register::function_closure(), 1);
+  }
+
+  if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
+    UNIMPLEMENTED();
+  }
+
+  // Copy parameters into context if necessary.
+  int num_parameters = scope->num_parameters();
+  for (int i = 0; i < num_parameters; i++) {
+    Variable* variable = scope->parameter(i);
+    if (variable->IsContextSlot()) {
+      UNIMPLEMENTED();
+    }
+  }
+}
+
+
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* binop) {
   Token::Value op = binop->op();
   Expression* left = binop->left();
   Expression* right = binop->right();
 
-  TemporaryRegisterScope temporary_register_scope(&builder_);
+  TemporaryRegisterScope temporary_register_scope(builder());
   Register temporary = temporary_register_scope.NewRegister();
 
   Visit(left);
@@ -867,9 +953,6 @@ Strength BytecodeGenerator::language_mode_strength() const {
 int BytecodeGenerator::feedback_index(FeedbackVectorSlot slot) const {
   return info()->feedback_vector()->GetIndex(slot);
 }
-
-
-Register BytecodeGenerator::current_context() const { return current_context_; }
 
 }  // namespace interpreter
 }  // namespace internal

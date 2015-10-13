@@ -347,6 +347,29 @@ void Interpreter::DoKeyedStoreICStrict(
 }
 
 
+// PushContext <context>
+//
+// Pushes the accumulator as the current context, and saves it in <context>
+void Interpreter::DoPushContext(compiler::InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg8(0);
+  Node* context = __ GetAccumulator();
+  __ SetContext(context);
+  __ StoreRegister(context, reg_index);
+  __ Dispatch();
+}
+
+
+// PopContext <context>
+//
+// Pops the current context and sets <context> as the new context.
+void Interpreter::DoPopContext(compiler::InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg8(0);
+  Node* context = __ LoadRegister(reg_index);
+  __ SetContext(context);
+  __ Dispatch();
+}
+
+
 void Interpreter::DoBinaryOp(Runtime::FunctionId function_id,
                              compiler::InterpreterAssembler* assembler) {
   // TODO(rmcilroy): Call ICs which back-patch bytecode with type specialized

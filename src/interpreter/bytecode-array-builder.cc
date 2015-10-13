@@ -20,12 +20,14 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
       constants_(zone),
       parameter_count_(-1),
       local_register_count_(-1),
+      context_register_count_(-1),
       temporary_register_count_(0),
       temporary_register_next_(0) {}
 
 
 void BytecodeArrayBuilder::set_locals_count(int number_of_locals) {
   local_register_count_ = number_of_locals;
+  DCHECK_LE(context_register_count_, 0);
   temporary_register_next_ = local_register_count_;
 }
 
@@ -41,7 +43,26 @@ void BytecodeArrayBuilder::set_parameter_count(int number_of_parameters) {
 int BytecodeArrayBuilder::parameter_count() const { return parameter_count_; }
 
 
-Register BytecodeArrayBuilder::Parameter(int parameter_index) {
+void BytecodeArrayBuilder::set_context_count(int number_of_contexts) {
+  context_register_count_ = number_of_contexts;
+  DCHECK_GE(local_register_count_, 0);
+  temporary_register_next_ = local_register_count_ + context_register_count_;
+}
+
+
+Register BytecodeArrayBuilder::first_context_register() const {
+  DCHECK_GT(context_register_count_, 0);
+  return Register(local_register_count_);
+}
+
+
+Register BytecodeArrayBuilder::last_context_register() const {
+  DCHECK_GT(context_register_count_, 0);
+  return Register(local_register_count_ + context_register_count_ - 1);
+}
+
+
+Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
   DCHECK_GE(parameter_index, 0);
   DCHECK_LT(parameter_index, parameter_count_);
   return Register::FromParameterIndex(parameter_index, parameter_count_);
@@ -330,6 +351,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::PushContext(Register context) {
+  Output(Bytecode::kPushContext, context.ToOperand());
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::PopContext(Register context) {
+  Output(Bytecode::kPopContext, context.ToOperand());
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
   if (LastBytecodeInSameBlock()) {
     // If the previous bytecode puts a boolean in the accumulator
@@ -579,7 +612,7 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
       return static_cast<uint8_t>(operand_value) == operand_value;
     case OperandType::kReg8: {
       Register reg = Register::FromOperand(static_cast<uint8_t>(operand_value));
-      if (reg.is_function_context()) {
+      if (reg.is_function_context() || reg.is_function_closure()) {
         return true;
       } else if (reg.is_parameter()) {
         int parameter_index = reg.ToParameterIndex(parameter_count_);

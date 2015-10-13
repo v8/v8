@@ -60,6 +60,10 @@ class InterpreterAssembler {
   Node* GetAccumulator();
   void SetAccumulator(Node* value);
 
+  // Context.
+  Node* GetContext();
+  void SetContext(Node* value);
+
   // Loads from and stores to the interpreter register file.
   Node* LoadRegister(Node* reg_index);
   Node* StoreRegister(Node* value, Node* reg_index);
@@ -143,8 +147,6 @@ class InterpreterAssembler {
   Node* BytecodeOffset();
   // Returns a raw pointer to first entry in the interpreter dispatch table.
   Node* DispatchTableRawPointer();
-  // Returns a tagged pointer to the current context.
-  Node* ContextTaggedPointer();
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
   Node* RegisterFrameOffset(Node* index);
@@ -182,6 +184,7 @@ class InterpreterAssembler {
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
   ZoneVector<Node*> end_nodes_;
   Node* accumulator_;
+  Node* context_;
   bool code_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterAssembler);

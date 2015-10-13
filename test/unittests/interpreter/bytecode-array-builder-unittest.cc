@@ -44,7 +44,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadGlobal(1);
   builder.StoreGlobal(1, LanguageMode::SLOPPY);
 
-  // Emit context load operations.
+  // Emit context operations.
+  builder.PushContext(reg);
+  builder.PopContext(reg);
   builder.LoadContextSlot(reg, 1);
 
   // Emit load / store property operations.

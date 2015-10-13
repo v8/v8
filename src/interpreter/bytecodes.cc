@@ -225,7 +225,11 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
         break;
       case interpreter::OperandType::kReg8: {
         Register reg = Register::FromOperand(*operand_start);
-        if (reg.is_parameter()) {
+        if (reg.is_function_context()) {
+          os << "<context>";
+        } else if (reg.is_function_closure()) {
+          os << "<closure>";
+        } else if (reg.is_parameter()) {
           int parameter_index = reg.ToParameterIndex(parameter_count);
           if (parameter_index == 0) {
             os << "<this>";
@@ -266,6 +270,8 @@ std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size) {
 
 static const int kLastParamRegisterIndex =
     -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
+static const int kFunctionClosureRegisterIndex =
+    -InterpreterFrameConstants::kFunctionFromRegisterPointer / kPointerSize;
 static const int kFunctionContextRegisterIndex =
     -InterpreterFrameConstants::kContextFromRegisterPointer / kPointerSize;
 
@@ -290,6 +296,16 @@ Register Register::FromParameterIndex(int index, int parameter_count) {
 int Register::ToParameterIndex(int parameter_count) const {
   DCHECK(is_parameter());
   return index() - kLastParamRegisterIndex + parameter_count - 1;
+}
+
+
+Register Register::function_closure() {
+  return Register(kFunctionClosureRegisterIndex);
+}
+
+
+bool Register::is_function_closure() const {
+  return index() == kFunctionClosureRegisterIndex;
 }
 
 

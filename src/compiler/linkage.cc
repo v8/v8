@@ -420,16 +420,18 @@ CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
 
   STATIC_ASSERT(4 == Linkage::kInterpreterDispatchTableParameter);
   types.AddParam(kMachPtr);
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
+  // TODO(rmcilroy): Make the context param the one spilled to the stack once
+  // Turbofan supports modified stack arguments in tail calls.
+  locations.AddParam(
+      LinkageLocation::ForCallerFrameSlot(kInterpreterDispatchTableSpillSlot));
+#else
   locations.AddParam(regloc(kInterpreterDispatchTableRegister));
+#endif
 
   STATIC_ASSERT(5 == Linkage::kInterpreterContextParameter);
   types.AddParam(kMachAnyTagged);
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
-  locations.AddParam(
-      LinkageLocation::ForCallerFrameSlot(kInterpreterContextSpillSlot));
-#else
   locations.AddParam(regloc(kContextRegister));
-#endif
 
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
   return new (zone) CallDescriptor(         // --

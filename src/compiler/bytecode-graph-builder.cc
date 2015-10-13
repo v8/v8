@@ -321,6 +321,18 @@ void BytecodeGraphBuilder::VisitCreateClosure(
 }
 
 
+void BytecodeGraphBuilder::VisitPushContext(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitPopContext(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitCall(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

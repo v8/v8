@@ -1102,7 +1102,7 @@ TEST(LoadUnallocated) {
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
 
@@ -1159,7 +1159,7 @@ TEST(StoreUnallocated) {
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
 
@@ -1211,7 +1211,7 @@ TEST(CallRuntime) {
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
 
@@ -1393,39 +1393,108 @@ TEST(DeclareGlobals) {
 
   ExpectedSnippet<int> snippets[] = {
       {"var a = 1;",
-       4 * kPointerSize,
+       5 * kPointerSize,
        1,
-       30,
+       45,
        {
-           B(LdaConstant), U8(0),                                       //
-           B(Star), R(1),                                               //
-           B(LdaZero),                                                  //
-           B(Star), R(2),                                               //
-           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),  //
-           B(LdaConstant), U8(1),                                       //
-           B(Star), R(1),                                               //
-           B(LdaZero),                                                  //
-           B(Star), R(2),                                               //
-           B(LdaSmi8), U8(1),                                           //
-           B(Star), R(3),                                               //
-           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1),    //
-           U8(3),                                                       //
-           B(LdaUndefined),                                             //
-           B(Return)                                                    //
+           B(Ldar), R(Register::function_closure().index()),              //
+           B(Star), R(2),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(3),                                                 //
+           B(CallRuntime), U16(Runtime::kNewScriptContext), R(2), U8(2),  //
+           B(PushContext), R(1),                                          //
+           B(LdaConstant), U8(1),                                         //
+           B(Star), R(2),                                                 //
+           B(LdaZero),                                                    //
+           B(Star), R(3),                                                 //
+           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(2), U8(2),    //
+           B(LdaConstant), U8(2),                                         //
+           B(Star), R(2),                                                 //
+           B(LdaZero),                                                    //
+           B(Star), R(3),                                                 //
+           B(LdaSmi8), U8(1),                                             //
+           B(Star), R(4),                                                 //
+           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(2),      //
+                           U8(3),                                         //
+           B(LdaUndefined),                                               //
+           B(Return)                                                      //
        },
        -1},
       {"function f() {}",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       14,
+       29,
        {
-           B(LdaConstant), U8(0),                                       //
-           B(Star), R(0),                                               //
-           B(LdaZero),                                                  //
-           B(Star), R(1),                                               //
-           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(0), U8(2),  //
-           B(LdaUndefined),                                             //
-           B(Return)                                                    //
+           B(Ldar), R(Register::function_closure().index()),              //
+           B(Star), R(1),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(2),                                                 //
+           B(CallRuntime), U16(Runtime::kNewScriptContext), R(1), U8(2),  //
+           B(PushContext), R(0),                                          //
+           B(LdaConstant), U8(1),                                         //
+           B(Star), R(1),                                                 //
+           B(LdaZero),                                                    //
+           B(Star), R(2),                                                 //
+           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),    //
+           B(LdaUndefined),                                               //
+           B(Return)                                                      //
+       },
+       -1},
+      {"var a = 1;\na=2;",
+       5 * kPointerSize,
+       1,
+       52,
+       {
+           B(Ldar), R(Register::function_closure().index()),              //
+           B(Star), R(2),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(3),                                                 //
+           B(CallRuntime), U16(Runtime::kNewScriptContext), R(2), U8(2),  //
+           B(PushContext), R(1),                                          //
+           B(LdaConstant), U8(1),                                         //
+           B(Star), R(2),                                                 //
+           B(LdaZero),                                                    //
+           B(Star), R(3),                                                 //
+           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(2), U8(2),    //
+           B(LdaConstant), U8(2),                                         //
+           B(Star), R(2),                                                 //
+           B(LdaZero),                                                    //
+           B(Star), R(3),                                                 //
+           B(LdaSmi8), U8(1),                                             //
+           B(Star), R(4),                                                 //
+           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(2),      //
+                           U8(3),                                         //
+           B(LdaSmi8), U8(2),                                             //
+           B(StaGlobal), _,                                               //
+           B(Star), R(0),                                                 //
+           B(Ldar), R(0),                                                 //
+           B(Return)                                                      //
+       },
+       -1},
+      {"function f() {}\nf();",
+       4 * kPointerSize,
+       1,
+       43,
+       {
+           B(Ldar), R(Register::function_closure().index()),              //
+           B(Star), R(2),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(3),                                                 //
+           B(CallRuntime), U16(Runtime::kNewScriptContext), R(2), U8(2),  //
+           B(PushContext), R(1),                                          //
+           B(LdaConstant), U8(1),                                         //
+           B(Star), R(2),                                                 //
+           B(LdaZero),                                                    //
+           B(Star), R(3),                                                 //
+           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(2), U8(2),    //
+           B(LdaUndefined),                                               //
+           B(Star), R(3),                                                 //
+           B(LdaGlobal), _,                                               //
+           B(Star), R(2),                                                 //
+           B(Call), R(2), R(3), U8(0),                                    //
+           B(Star), R(0),                                                 //
+           B(Ldar), R(0),                                                 //
+           B(Return)                                                      //
        },
        -1},
   };

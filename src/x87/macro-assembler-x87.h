@@ -22,12 +22,11 @@ const Register kInterpreterAccumulatorRegister = {kRegister_eax_Code};
 const Register kInterpreterRegisterFileRegister = {kRegister_edx_Code};
 const Register kInterpreterBytecodeOffsetRegister = {kRegister_ecx_Code};
 const Register kInterpreterBytecodeArrayRegister = {kRegister_edi_Code};
-const Register kInterpreterDispatchTableRegister = {kRegister_ebx_Code};
 const Register kRuntimeCallFunctionRegister = {kRegister_ebx_Code};
 const Register kRuntimeCallArgCountRegister = {kRegister_eax_Code};
 
 // Spill slots used by interpreter dispatch calling convention.
-const int kInterpreterContextSpillSlot = -1;
+const int kInterpreterDispatchTableSpillSlot = -1;
 
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.

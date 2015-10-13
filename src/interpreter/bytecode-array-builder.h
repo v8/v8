@@ -36,7 +36,14 @@ class BytecodeArrayBuilder {
   void set_locals_count(int number_of_locals);
   int locals_count() const;
 
-  Register Parameter(int parameter_index);
+  // Set number of contexts required for bytecode array.
+  void set_context_count(int number_of_contexts);
+  int context_count() const;
+
+  Register first_context_register() const;
+  Register last_context_register() const;
+
+  Register Parameter(int parameter_index) const;
 
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
@@ -74,6 +81,12 @@ class BytecodeArrayBuilder {
 
   // Create a new closure for the SharedFunctionInfo in the accumulator.
   BytecodeArrayBuilder& CreateClosure(PretenureFlag tenured);
+
+  // Push the context in accumulator as the new context, and store in register
+  // |context|.
+  BytecodeArrayBuilder& PushContext(Register context);
+  // Pop the current context and replace with |context|.
+  BytecodeArrayBuilder& PopContext(Register context);
 
   // Call a JS function. The JSFunction or Callable to be called should be in
   // |callable|, the receiver should be in |receiver| and all subsequent
@@ -175,6 +188,7 @@ class BytecodeArrayBuilder {
 
   int parameter_count_;
   int local_register_count_;
+  int context_register_count_;
   int temporary_register_count_;
   int temporary_register_next_;
 

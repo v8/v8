@@ -680,24 +680,25 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
   // Since the dispatch table root might be set after builtins are generated,
   // load directly from the roots table.
-  __ LoadRoot(kInterpreterDispatchTableRegister,
-              Heap::kInterpreterTableRootIndex);
-  __ add(kInterpreterDispatchTableRegister,
-         Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ LoadRoot(ebx, Heap::kInterpreterTableRootIndex);
+  __ add(ebx, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Push context as a stack located parameter to the bytecode handler.
-  DCHECK_EQ(-1, kInterpreterContextSpillSlot);
-  __ push(esi);
+  DCHECK_EQ(-1, kInterpreterDispatchTableSpillSlot);
+  __ push(ebx);
 
   // Dispatch to the first bytecode handler for the function.
-  __ movzx_b(esi, Operand(kInterpreterBytecodeArrayRegister,
+  __ movzx_b(eax, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ mov(esi, Operand(kInterpreterDispatchTableRegister, esi,
-                      times_pointer_size, 0));
+  __ mov(ebx, Operand(ebx, eax, times_pointer_size, 0));
+  // Restore undefined_value in accumulator (eax)
+  // TODO(rmcilroy): Remove this once we move the dispatch table back into a
+  // register.
+  __ mov(eax, Immediate(masm->isolate()->factory()->undefined_value()));
   // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
   // and header removal.
-  __ add(esi, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ call(esi);
+  __ add(ebx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ call(ebx);
 }
 
 

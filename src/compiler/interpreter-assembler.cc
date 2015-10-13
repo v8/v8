@@ -35,6 +35,8 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
       end_nodes_(zone),
       accumulator_(
           raw_assembler_->Parameter(Linkage::kInterpreterAccumulatorParameter)),
+      context_(
+          raw_assembler_->Parameter(Linkage::kInterpreterContextParameter)),
       code_generated_(false) {}
 
 
@@ -66,19 +68,16 @@ Handle<Code> InterpreterAssembler::GenerateCode() {
 }
 
 
-Node* InterpreterAssembler::GetAccumulator() {
-  return accumulator_;
-}
+Node* InterpreterAssembler::GetAccumulator() { return accumulator_; }
 
 
-void InterpreterAssembler::SetAccumulator(Node* value) {
-  accumulator_ = value;
-}
+void InterpreterAssembler::SetAccumulator(Node* value) { accumulator_ = value; }
 
 
-Node* InterpreterAssembler::ContextTaggedPointer() {
-  return raw_assembler_->Parameter(Linkage::kInterpreterContextParameter);
-}
+Node* InterpreterAssembler::GetContext() { return context_; }
+
+
+void InterpreterAssembler::SetContext(Node* value) { context_ = value; }
 
 
 Node* InterpreterAssembler::RegisterFileRawPointer() {
@@ -339,7 +338,7 @@ Node* InterpreterAssembler::CallJS(Node* function, Node* first_arg,
   args[0] = arg_count;
   args[1] = first_arg;
   args[2] = function;
-  args[3] = ContextTaggedPointer();
+  args[3] = GetContext();
 
   return CallN(descriptor, code_target, args);
 }
@@ -361,7 +360,7 @@ Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
   args[1] = arg2;
   args[2] = arg3;
   args[3] = arg4;
-  args[4] = ContextTaggedPointer();
+  args[4] = GetContext();
   return CallIC(descriptor, target, args);
 }
 
@@ -375,7 +374,7 @@ Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
   args[2] = arg3;
   args[3] = arg4;
   args[4] = arg5;
-  args[5] = ContextTaggedPointer();
+  args[5] = GetContext();
   return CallIC(descriptor, target, args);
 }
 
@@ -401,7 +400,7 @@ Node* InterpreterAssembler::CallRuntime(Node* function_id, Node* first_arg,
   args[0] = arg_count;
   args[1] = first_arg;
   args[2] = function_entry;
-  args[3] = ContextTaggedPointer();
+  args[3] = GetContext();
 
   return CallN(descriptor, code_target, args);
 }
@@ -409,15 +408,13 @@ Node* InterpreterAssembler::CallRuntime(Node* function_id, Node* first_arg,
 
 Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
                                         Node* arg1) {
-  return raw_assembler_->CallRuntime1(function_id, arg1,
-                                      ContextTaggedPointer());
+  return raw_assembler_->CallRuntime1(function_id, arg1, GetContext());
 }
 
 
 Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
                                         Node* arg1, Node* arg2) {
-  return raw_assembler_->CallRuntime2(function_id, arg1, arg2,
-                                      ContextTaggedPointer());
+  return raw_assembler_->CallRuntime2(function_id, arg1, arg2, GetContext());
 }
 
 
@@ -436,7 +433,7 @@ void InterpreterAssembler::Return() {
                    BytecodeOffset(),
                    BytecodeArrayTaggedPointer(),
                    DispatchTableRawPointer(),
-                   ContextTaggedPointer() };
+                   GetContext() };
   Node* tail_call = raw_assembler_->TailCallN(
       call_descriptor(), exit_trampoline_code_object, args);
   // This should always be the end node.
@@ -496,7 +493,7 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
                    new_bytecode_offset,
                    BytecodeArrayTaggedPointer(),
                    DispatchTableRawPointer(),
-                   ContextTaggedPointer() };
+                   GetContext() };
   Node* tail_call =
       raw_assembler_->TailCallN(call_descriptor(), target_code_object, args);
   // This should always be the end node.

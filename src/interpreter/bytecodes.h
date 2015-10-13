@@ -68,6 +68,10 @@ namespace interpreter {
   V(KeyedStoreICStrict, OperandType::kReg8, OperandType::kReg8,                \
     OperandType::kIdx8)                                                        \
                                                                                \
+  /* Context operations */                                                     \
+  V(PushContext, OperandType::kReg8)                                           \
+  V(PopContext, OperandType::kReg8)                                            \
+                                                                               \
   /* Binary Operators */                                                       \
   V(Add, OperandType::kReg8)                                                   \
   V(Sub, OperandType::kReg8)                                                   \
@@ -175,6 +179,10 @@ class Register {
   static Register FromParameterIndex(int index, int parameter_count);
   int ToParameterIndex(int parameter_count) const;
   static int MaxParameterIndex();
+
+  // Returns the register for the function's closure object.
+  static Register function_closure();
+  bool is_function_closure() const;
 
   // Returns the register for the function's outer context.
   static Register function_context();
