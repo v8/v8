@@ -38,6 +38,7 @@ Debug::Debug(Isolate* isolate)
       is_suppressed_(false),
       live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
       break_disabled_(false),
+      break_points_active_(true),
       in_debug_event_listener_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
@@ -457,7 +458,7 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
   // If there is one or more real break points check whether any of these are
   // triggered.
   Handle<Object> break_points_hit(heap->undefined_value(), isolate_);
-  if (break_location.HasBreakPoint()) {
+  if (break_points_active_ && break_location.HasBreakPoint()) {
     Handle<Object> break_point_objects = break_location.BreakPointObjects();
     break_points_hit = CheckBreakPoints(break_point_objects);
   }

@@ -482,7 +482,7 @@ class Debug {
   inline bool in_debug_scope() const {
     return !!base::NoBarrier_Load(&thread_local_.current_debug_scope_);
   }
-  void set_disable_break(bool v) { break_disabled_ = v; }
+  void set_break_points_active(bool v) { break_points_active_ = v; }
 
   StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
   int break_id() { return thread_local_.break_id_; }
@@ -593,6 +593,7 @@ class Debug {
   bool is_suppressed_;
   bool live_edit_enabled_;
   bool break_disabled_;
+  bool break_points_active_;
   bool in_debug_event_listener_;
   bool break_on_exception_;
   bool break_on_uncaught_exception_;

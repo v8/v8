@@ -100,7 +100,7 @@ var debugger_flags = {
     getValue: function() { return this.value; },
     setValue: function(value) {
       this.value = !!value;
-      %SetDisableBreak(!this.value);
+      %SetBreakPointsActive(this.value);
     }
   },
   breakOnCaughtException: {

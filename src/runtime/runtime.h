@@ -176,7 +176,7 @@ namespace internal {
   F(DebugPrintScopes, 0, 1)                    \
   F(GetThreadCount, 1, 1)                      \
   F(GetThreadDetails, 2, 1)                    \
-  F(SetDisableBreak, 1, 1)                     \
+  F(SetBreakPointsActive, 1, 1)                \
   F(GetBreakLocations, 2, 1)                   \
   F(SetFunctionBreakPoint, 3, 1)               \
   F(SetScriptBreakPoint, 4, 1)                 \

@@ -1062,11 +1062,11 @@ RUNTIME_FUNCTION(Runtime_GetThreadDetails) {
 
 // Sets the disable break state
 // args[0]: disable break state
-RUNTIME_FUNCTION(Runtime_SetDisableBreak) {
+RUNTIME_FUNCTION(Runtime_SetBreakPointsActive) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 0);
-  isolate->debug()->set_disable_break(disable_break);
+  CONVERT_BOOLEAN_ARG_CHECKED(active, 0);
+  isolate->debug()->set_break_points_active(active);
   return isolate->heap()->undefined_value();
 }
 
