@@ -1223,15 +1223,15 @@ TEST(SerializeToplevelThreeBigStrings) {
       CompileRun("a")
           ->ToString(CcTest::isolate()->GetCurrentContext())
           .ToLocalChecked();
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
   result_str = CompileRun("b")
                    ->ToString(CcTest::isolate()->GetCurrentContext())
                    .ToLocalChecked();
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
   result_str = CompileRun("c")
                    ->ToString(CcTest::isolate()->GetCurrentContext())
                    .ToLocalChecked();
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
 
   delete cache;
   source_a.Dispose();

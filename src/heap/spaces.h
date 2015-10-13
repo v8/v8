@@ -86,9 +86,6 @@ class Isolate;
 #define DCHECK_OBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= Page::kMaxRegularHeapObjectSize))
 
-#define DCHECK_CODEOBJECT_SIZE(size, code_space) \
-  DCHECK((0 < size) && (size <= code_space->AreaSize()))
-
 #define DCHECK_PAGE_OFFSET(offset) \
   DCHECK((Page::kObjectStartOffset <= offset) && (offset <= Page::kPageSize))
 
@@ -843,7 +840,7 @@ class Page : public MemoryChunk {
   // memory. This also applies to new space allocation, since objects are never
   // migrated from new space to large object space. Takes double alignment into
   // account.
-  static const int kMaxRegularHeapObjectSize = 128 * KB * (i::kPointerSize / 4);
+  static const int kMaxRegularHeapObjectSize = kPageSize - kObjectStartOffset;
 
   static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
 
