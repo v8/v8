@@ -493,8 +493,7 @@ class TopLevelLiveRange final : public LiveRange {
   // result.
   // The current range is pointed to as "splintered_from". No parent/child
   // relationship is established between this and result.
-  void Splinter(LifetimePosition start, LifetimePosition end,
-                TopLevelLiveRange* result, Zone* zone);
+  void Splinter(LifetimePosition start, LifetimePosition end, Zone* zone);
 
   // Assuming other was splintered from this range, embeds other and its
   // children as part of the children sequence of this range.
@@ -538,7 +537,6 @@ class TopLevelLiveRange final : public LiveRange {
     spill_start_index_ = Min(start, spill_start_index_);
   }
 
-  void SetSplinteredFrom(TopLevelLiveRange* splinter_parent);
   void CommitSpillsAtDefinition(InstructionSequence* sequence,
                                 const InstructionOperand& operand,
                                 bool might_be_duplicated);
@@ -578,8 +576,20 @@ class TopLevelLiveRange final : public LiveRange {
   }
   void set_last_child(LiveRange* range) { last_child_ = range; }
   LiveRange* last_child() const { return last_child_; }
+  TopLevelLiveRange* splinter() const { return splinter_; }
+  void SetSplinter(TopLevelLiveRange* splinter) {
+    DCHECK_NULL(splinter_);
+    DCHECK_NOT_NULL(splinter);
+
+    splinter_ = splinter;
+    splinter->relative_id_ = GetNextChildId();
+    splinter->set_spill_type(spill_type());
+    splinter->SetSplinteredFrom(this);
+  }
 
  private:
+  void SetSplinteredFrom(TopLevelLiveRange* splinter_parent);
+
   typedef BitField<bool, 1, 1> HasSlotUseField;
   typedef BitField<bool, 2, 1> IsPhiField;
   typedef BitField<bool, 3, 1> IsNonLoopPhiField;
@@ -599,7 +609,8 @@ class TopLevelLiveRange final : public LiveRange {
   bool spilled_in_deferred_blocks_;
   int spill_start_index_;
   LiveRange* last_child_;
-  LiveRange* last_insertion_point_;
+  UsePosition* last_pos_;
+  TopLevelLiveRange* splinter_;
 
   DISALLOW_COPY_AND_ASSIGN(TopLevelLiveRange);
 };
