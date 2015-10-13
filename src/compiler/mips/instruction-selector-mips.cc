@@ -44,11 +44,10 @@ class MipsOperandGenerator final : public OperandGenerator {
         return is_uint16(value);
       case kMipsLdc1:
       case kMipsSdc1:
-      case kCheckedLoadFloat32:
       case kCheckedLoadFloat64:
-      case kCheckedStoreFloat32:
       case kCheckedStoreFloat64:
-        return is_int16(value + kIntSize);
+        return std::numeric_limits<int16_t>::min() <= (value + kIntSize) &&
+               std::numeric_limits<int16_t>::max() >= (value + kIntSize);
       default:
         return is_int16(value);
     }
@@ -826,6 +825,16 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, opcode)) {
     switch (cont->condition()) {
+      case kEqual:
+      case kNotEqual:
+        if (cont->IsSet()) {
+          VisitCompare(selector, opcode, g.UseRegister(left),
+                       g.UseImmediate(right), cont);
+        } else {
+          VisitCompare(selector, opcode, g.UseRegister(left),
+                       g.UseRegister(right), cont);
+        }
+        break;
       case kSignedLessThan:
       case kSignedGreaterThanOrEqual:
       case kUnsignedLessThan:
@@ -840,6 +849,16 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   } else if (g.CanBeImmediate(left, opcode)) {
     if (!commutative) cont->Commute();
     switch (cont->condition()) {
+      case kEqual:
+      case kNotEqual:
+        if (cont->IsSet()) {
+          VisitCompare(selector, opcode, g.UseRegister(right),
+                       g.UseImmediate(left), cont);
+        } else {
+          VisitCompare(selector, opcode, g.UseRegister(right),
+                       g.UseRegister(left), cont);
+        }
+        break;
       case kSignedLessThan:
       case kSignedGreaterThanOrEqual:
       case kUnsignedLessThan:

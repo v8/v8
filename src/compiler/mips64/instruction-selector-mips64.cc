@@ -1019,6 +1019,16 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, opcode)) {
     switch (cont->condition()) {
+      case kEqual:
+      case kNotEqual:
+        if (cont->IsSet()) {
+          VisitCompare(selector, opcode, g.UseRegister(left),
+                       g.UseImmediate(right), cont);
+        } else {
+          VisitCompare(selector, opcode, g.UseRegister(left),
+                       g.UseRegister(right), cont);
+        }
+        break;
       case kSignedLessThan:
       case kSignedGreaterThanOrEqual:
       case kUnsignedLessThan:
@@ -1033,6 +1043,16 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   } else if (g.CanBeImmediate(left, opcode)) {
     if (!commutative) cont->Commute();
     switch (cont->condition()) {
+      case kEqual:
+      case kNotEqual:
+        if (cont->IsSet()) {
+          VisitCompare(selector, opcode, g.UseRegister(right),
+                       g.UseImmediate(left), cont);
+        } else {
+          VisitCompare(selector, opcode, g.UseRegister(right),
+                       g.UseRegister(left), cont);
+        }
+        break;
       case kSignedLessThan:
       case kSignedGreaterThanOrEqual:
       case kUnsignedLessThan:
