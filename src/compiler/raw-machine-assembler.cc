@@ -217,6 +217,22 @@ Node* RawMachineAssembler::CallRuntime2(Runtime::FunctionId function,
 }
 
 
+Node* RawMachineAssembler::CallRuntime4(Runtime::FunctionId function,
+                                        Node* arg1, Node* arg2, Node* arg3,
+                                        Node* arg4, Node* context) {
+  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, 4, Operator::kNoProperties, false);
+
+  Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
+  Node* ref = AddNode(
+      common()->ExternalConstant(ExternalReference(function, isolate())));
+  Node* arity = Int32Constant(4);
+
+  return AddNode(common()->Call(descriptor), centry, arg1, arg2, arg3, arg4,
+                 ref, arity, context, graph()->start(), graph()->start());
+}
+
+
 Node* RawMachineAssembler::CallCFunction0(MachineType return_type,
                                           Node* function) {
   MachineSignature::Builder builder(zone(), 1, 0);

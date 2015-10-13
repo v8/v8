@@ -508,6 +508,9 @@ class RawMachineAssembler {
   // Call to a runtime function with two arguments.
   Node* CallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
                      Node* context);
+  // Call to a runtime function with four arguments.
+  Node* CallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                     Node* arg3, Node* arg4, Node* context);
   // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
   // Call to a C function with one parameter.

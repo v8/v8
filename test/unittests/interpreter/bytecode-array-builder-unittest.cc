@@ -57,10 +57,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadNamedProperty(reg, 0, LanguageMode::STRICT)
       .LoadKeyedProperty(reg, 0, LanguageMode::STRICT)
       .StoreNamedProperty(reg, reg, 0, LanguageMode::STRICT)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT);
+      .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT)
+      .GenericStoreKeyedProperty(reg, reg);
 
   // Emit closure operations.
   builder.CreateClosure(NOT_TENURED);
+
+  // Emit literal creation operations
+  builder.CreateArrayLiteral(0, 0);
 
   // Call operations.
   builder.Call(reg, reg, 0);

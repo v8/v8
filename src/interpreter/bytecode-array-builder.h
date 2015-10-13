@@ -45,7 +45,7 @@ class BytecodeArrayBuilder {
 
   Register Parameter(int parameter_index) const;
 
-  // Constant loads to accumulator.
+  // Constant loads to the accumulator.
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
   BytecodeArrayBuilder& LoadLiteral(Handle<Object> object);
   BytecodeArrayBuilder& LoadUndefined();
@@ -54,7 +54,7 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
 
-  // Global loads to accumulator and stores from accumulator.
+  // Global loads to accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(int slot_index);
   BytecodeArrayBuilder& StoreGlobal(int slot_index, LanguageMode language_mode);
 
@@ -78,13 +78,19 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
                                            int feedback_slot,
                                            LanguageMode language_mode);
+  BytecodeArrayBuilder& GenericStoreKeyedProperty(Register object,
+                                                  Register key);
 
   // Create a new closure for the SharedFunctionInfo in the accumulator.
   BytecodeArrayBuilder& CreateClosure(PretenureFlag tenured);
 
+  // Literals creation.  Constant elements should be in the accumulator.
+  BytecodeArrayBuilder& CreateArrayLiteral(int literal_index, int flags);
+
   // Push the context in accumulator as the new context, and store in register
   // |context|.
   BytecodeArrayBuilder& PushContext(Register context);
+
   // Pop the current context and replace with |context|.
   BytecodeArrayBuilder& PopContext(Register context);
 

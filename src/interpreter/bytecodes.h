@@ -67,6 +67,8 @@ namespace interpreter {
     OperandType::kIdx8)                                                        \
   V(KeyedStoreICStrict, OperandType::kReg8, OperandType::kReg8,                \
     OperandType::kIdx8)                                                        \
+  /* TODO(rmcilroy): Remove once literal stores have type feedback slots. */   \
+  V(KeyedStoreICGeneric, OperandType::kReg8, OperandType::kReg8)               \
                                                                                \
   /* Context operations */                                                     \
   V(PushContext, OperandType::kReg8)                                           \
@@ -108,6 +110,9 @@ namespace interpreter {
                                                                                \
   /* Cast operators */                                                         \
   V(ToBoolean, OperandType::kNone)                                             \
+                                                                               \
+  /* Literals */                                                               \
+  V(CreateArrayLiteral, OperandType::kIdx8, OperandType::kImm8)                \
                                                                                \
   /* Closure allocation */                                                     \
   V(CreateClosure, OperandType::kImm8)                                         \

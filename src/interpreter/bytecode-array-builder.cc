@@ -343,10 +343,30 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::GenericStoreKeyedProperty(
+    Register object, Register key) {
+  Output(Bytecode::kKeyedStoreICGeneric, object.ToOperand(), key.ToOperand());
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
     PretenureFlag tenured) {
   DCHECK(FitsInImm8Operand(tenured));
   Output(Bytecode::kCreateClosure, static_cast<uint8_t>(tenured));
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
+    int literal_index, int flags) {
+  DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bytes.
+  if (FitsInIdx8Operand(literal_index)) {
+    Output(Bytecode::kCreateArrayLiteral, static_cast<uint8_t>(literal_index),
+           static_cast<uint8_t>(flags));
+  } else {
+    UNIMPLEMENTED();
+  }
   return *this;
 }
 

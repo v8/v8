@@ -9,6 +9,7 @@
 #include "src/compiler.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/objects.h"
+#include "src/parser.h"
 #include "src/scopes.h"
 #include "src/token.h"
 
@@ -501,7 +502,45 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
 
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
-  UNIMPLEMENTED();
+  // Deep-copy the literal boilerplate.
+  expr->BuildConstantElements(isolate());
+  builder()
+      ->LoadLiteral(expr->constant_elements())
+      .CreateArrayLiteral(expr->literal_index(), expr->ComputeFlags(true));
+
+  TemporaryRegisterScope temporary_register_scope(builder());
+  Register index, literal_array;
+
+  // Create nodes to evaluate all the non-constant subexpressions and to store
+  // them into the newly cloned array.
+  bool literal_array_in_accumulator = true;
+  for (int array_index = 0; array_index < expr->values()->length();
+       array_index++) {
+    Expression* subexpr = expr->values()->at(array_index);
+    if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
+    if (subexpr->IsSpread()) {
+      // TODO(rmcilroy): Deal with spread expressions.
+      UNIMPLEMENTED();
+    }
+
+    if (literal_array_in_accumulator) {
+      index = temporary_register_scope.NewRegister();
+      literal_array = temporary_register_scope.NewRegister();
+      builder()->StoreAccumulatorInRegister(literal_array);
+      literal_array_in_accumulator = false;
+    }
+
+    builder()
+        ->LoadLiteral(Smi::FromInt(array_index))
+        .StoreAccumulatorInRegister(index);
+    Visit(subexpr);
+    builder()->GenericStoreKeyedProperty(literal_array, index);
+  }
+
+  if (!literal_array_in_accumulator) {
+    // Restore literal array into accumulator.
+    builder()->LoadAccumulatorWithRegister(literal_array);
+  }
 }
 
 

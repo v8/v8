@@ -102,6 +102,10 @@ class InterpreterTester {
     return isolate->factory()->string_table()->LookupString(isolate, result);
   }
 
+  static std::string SourceForBody(const char* body) {
+    return "function " + function_name() + "() {\n" + std::string(body) + "\n}";
+  }
+
   static std::string function_name() {
     return std::string(kFunctionName);
   }
@@ -1636,4 +1640,35 @@ TEST(InterpreterFunctionLiteral) {
   Handle<i::Object> return_val = callable(
       Handle<Smi>(Smi::FromInt(3), handles.main_isolate())).ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(5));
+}
+
+
+TEST(InterpreterArrayLiterals) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> literals[6] = {
+      std::make_pair("return [][0];\n",
+                     factory->undefined_value()),
+      std::make_pair("return [1, 3, 2][1];\n",
+                     Handle<Object>(Smi::FromInt(3), isolate)),
+      std::make_pair("return ['a', 'b', 'c'][2];\n",
+                     factory->NewStringFromStaticChars("c")),
+      std::make_pair("var a = 100; return [a, a + 1, a + 2, a + 3][2];\n",
+                     Handle<Object>(Smi::FromInt(102), isolate)),
+      std::make_pair("return [[1, 2, 3], ['a', 'b', 'c']][1][0];\n",
+                     factory->NewStringFromStaticChars("a")),
+      std::make_pair("var t = 't'; return [[t, t + 'est'], [1 + t]][0][1];\n",
+                     factory->NewStringFromStaticChars("test"))
+  };
+
+  for (size_t i = 0; i < arraysize(literals); i++) {
+    std::string source(InterpreterTester::SourceForBody(literals[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*literals[i].second));
+  }
 }

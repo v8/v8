@@ -1944,6 +1944,113 @@ TEST(FunctionLiterals) {
   }
 }
 
+
+TEST(ArrayLiterals) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int simple_flags =
+      ArrayLiteral::kDisableMementos | ArrayLiteral::kShallowElements;
+  int deep_elements_flags = ArrayLiteral::kDisableMementos;
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"return [ 1, 2 ];",
+       0,
+       1,
+       6,
+       {
+           B(LdaConstant), U8(0),                           //
+           B(CreateArrayLiteral), U8(0), U8(simple_flags),  //
+           B(Return)                                        //
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
+      {"var a = 1; return [ a, a + 1 ];",
+       4 * kPointerSize,
+       1,
+       37,
+       {
+           B(LdaSmi8), U8(1),                    //
+           B(Star), R(0),                        //
+           B(LdaConstant), U8(0),                //
+           B(CreateArrayLiteral), U8(0), U8(3),  //
+           B(Star), R(2),                        //
+           B(LdaZero),                           //
+           B(Star), R(1),                        //
+           B(Ldar), R(0),                        //
+           B(KeyedStoreICGeneric), R(2), R(1),   //
+           B(LdaSmi8), U8(1),                    //
+           B(Star), R(1),                        //
+           B(Ldar), R(0),                        //
+           B(Star), R(3),                        //
+           B(LdaSmi8), U8(1),                    //
+           B(Add), R(3),                         //
+           B(KeyedStoreICGeneric), R(2), R(1),   //
+           B(Ldar), R(2),                        //
+           B(Return)                             //
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
+      {"return [ [ 1, 2 ], [ 3 ] ];",
+       0,
+       1,
+       6,
+       {
+           B(LdaConstant), U8(0),                                  //
+           B(CreateArrayLiteral), U8(2), U8(deep_elements_flags),  //
+           B(Return)                                               //
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
+      {"var a = 1; return [ [ a, 2 ], [ a + 2 ] ];",
+       6 * kPointerSize,
+       1,
+       67,
+       {
+           B(LdaSmi8), U8(1),                                      //
+           B(Star), R(0),                                          //
+           B(LdaConstant), U8(0),                                  //
+           B(CreateArrayLiteral), U8(2), U8(deep_elements_flags),  //
+           B(Star), R(2),                                          //
+           B(LdaZero),                                             //
+           B(Star), R(1),                                          //
+           B(LdaConstant), U8(1),                                  //
+           B(CreateArrayLiteral), U8(0), U8(simple_flags),         //
+           B(Star), R(4),                                          //
+           B(LdaZero),                                             //
+           B(Star), R(3),                                          //
+           B(Ldar), R(0),                                          //
+           B(KeyedStoreICGeneric), R(4), R(3),                     //
+           B(Ldar), R(4),                                          //
+           B(KeyedStoreICGeneric), R(2), R(1),                     //
+           B(LdaSmi8), U8(1),                                      //
+           B(Star), R(1),                                          //
+           B(LdaConstant), U8(2),                                  //
+           B(CreateArrayLiteral), U8(1), U8(simple_flags),         //
+           B(Star), R(4),                                          //
+           B(LdaZero),                                             //
+           B(Star), R(3),                                          //
+           B(Ldar), R(0),                                          //
+           B(Star), R(5),                                          //
+           B(LdaSmi8), U8(2),                                      //
+           B(Add), R(5),                                           //
+           B(KeyedStoreICGeneric), R(4), R(3),                     //
+           B(Ldar), R(4),                                          //
+           B(KeyedStoreICGeneric), R(2), R(1),                     //
+           B(Ldar), R(2),                                          //
+           B(Return),                                              //
+       },
+       3,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

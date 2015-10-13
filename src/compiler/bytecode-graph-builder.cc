@@ -333,6 +333,18 @@ void BytecodeGraphBuilder::VisitPopContext(
 }
 
 
+void BytecodeGraphBuilder::VisitCreateArrayLiteral(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitKeyedStoreICGeneric(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitCall(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

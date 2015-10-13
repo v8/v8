@@ -347,6 +347,26 @@ void Interpreter::DoKeyedStoreICStrict(
 }
 
 
+// KeyedStoreICGeneric <object> <key>
+//
+// Calls the generic KeyStoreIC for <object> and the key <key> with the value in
+// the accumulator.
+void Interpreter::DoKeyedStoreICGeneric(
+    compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::KeyedStoreICInOptimizedCode(isolate_, SLOPPY, MEGAMORPHIC);
+  Node* code_target = __ HeapConstant(ic.code());
+  Node* object_reg_index = __ BytecodeOperandReg8(0);
+  Node* object = __ LoadRegister(object_reg_index);
+  Node* name_reg_index = __ BytecodeOperandReg8(1);
+  Node* name = __ LoadRegister(name_reg_index);
+  Node* value = __ GetAccumulator();
+  Node* result = __ CallIC(ic.descriptor(), code_target, object, name, value);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 // PushContext <context>
 //
 // Pushes the accumulator as the current context, and saves it in <context>
@@ -707,6 +727,27 @@ void Interpreter::DoJumpIfFalseConstant(
   Node* relative_jump = __ SmiUntag(constant);
   Node* false_value = __ BooleanConstant(false);
   __ JumpIfWordEqual(accumulator, false_value, relative_jump);
+}
+
+
+// CreateArrayLiteral <idx> <flags>
+//
+// Creates an array literal for literal index <idx> with flags <flags> and
+// constant elements in the accumulator.
+void Interpreter::DoCreateArrayLiteral(
+    compiler::InterpreterAssembler* assembler) {
+  Node* constant_elements = __ GetAccumulator();
+  Node* literal_index_raw = __ BytecodeOperandIdx8(0);
+  Node* literal_index = __ SmiTag(literal_index_raw);
+  Node* flags_raw = __ BytecodeOperandImm8(1);
+  Node* flags = __ SmiTag(flags_raw);
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* literals_array =
+      __ LoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* result = __ CallRuntime(Runtime::kCreateArrayLiteral, literals_array,
+                                literal_index, constant_elements, flags);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 

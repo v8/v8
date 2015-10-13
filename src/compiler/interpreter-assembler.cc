@@ -111,6 +111,13 @@ Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
 }
 
 
+Node* InterpreterAssembler::LoadRegister(interpreter::Register reg) {
+  return raw_assembler_->Load(
+      kMachAnyTagged, RegisterFileRawPointer(),
+      RegisterFrameOffset(Int32Constant(reg.ToOperand())));
+}
+
+
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
   return raw_assembler_->Load(kMachAnyTagged, RegisterFileRawPointer(),
                               RegisterFrameOffset(reg_index));
@@ -354,6 +361,18 @@ Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
 
 Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
                                    Node* target, Node* arg1, Node* arg2,
+                                   Node* arg3) {
+  Node** args = zone()->NewArray<Node*>(4);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = GetContext();
+  return CallIC(descriptor, target, args);
+}
+
+
+Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
+                                   Node* target, Node* arg1, Node* arg2,
                                    Node* arg3, Node* arg4) {
   Node** args = zone()->NewArray<Node*>(5);
   args[0] = arg1;
@@ -415,6 +434,14 @@ Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
 Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
                                         Node* arg1, Node* arg2) {
   return raw_assembler_->CallRuntime2(function_id, arg1, arg2, GetContext());
+}
+
+
+Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
+                                        Node* arg1, Node* arg2, Node* arg3,
+                                        Node* arg4) {
+  return raw_assembler_->CallRuntime4(function_id, arg1, arg2, arg3, arg4,
+                                      GetContext());
 }
 
 

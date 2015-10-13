@@ -65,6 +65,7 @@ class InterpreterAssembler {
   void SetContext(Node* value);
 
   // Loads from and stores to the interpreter register file.
+  Node* LoadRegister(interpreter::Register reg);
   Node* LoadRegister(Node* reg_index);
   Node* StoreRegister(Node* value, Node* reg_index);
 
@@ -106,6 +107,8 @@ class InterpreterAssembler {
 
   // Call an IC code stub.
   Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node* arg1,
+               Node* arg2, Node* arg3);
+  Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node* arg1,
                Node* arg2, Node* arg3, Node* arg4);
   Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node* arg1,
                Node* arg2, Node* arg3, Node* arg4, Node* arg5);
@@ -114,6 +117,8 @@ class InterpreterAssembler {
   Node* CallRuntime(Node* function_id, Node* first_arg, Node* arg_count);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2);
+  Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2,
+                    Node* arg3, Node* arg4);
 
   // Jump relative to the current bytecode by |jump_offset|.
   void Jump(Node* jump_offset);
