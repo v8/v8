@@ -1997,11 +1997,10 @@ TEST(movz_movn) {
     __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
     __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, c)) );
     __ lw(t0, MemOperand(a0, offsetof(TestFloat, rt)) );
-    __ li(t1, 0x0);
-    __ mtc1(t1, f12);
-    __ mtc1(t1, f10);
-    __ mtc1(t1, f16);
-    __ mtc1(t1, f14);
+    __ Move(f12, 0.0);
+    __ Move(f10, 0.0);
+    __ Move(f16, 0.0);
+    __ Move(f14, 0.0);
     __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, bold)) );
     __ swc1(f10, MemOperand(a0, offsetof(TestFloat, dold)) );
     __ sdc1(f16, MemOperand(a0, offsetof(TestFloat, bold1)) );
