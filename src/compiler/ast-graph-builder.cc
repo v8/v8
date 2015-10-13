@@ -1911,7 +1911,6 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Node* closure = GetFunctionClosure();
 
   // Create node to deep-copy the literal boilerplate.
-  expr->BuildConstantElements(isolate());
   Node* literals_array =
       BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
@@ -1938,13 +1937,11 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     VisitForValue(subexpr);
     {
       FrameStateBeforeAndAfter states(this, subexpr->id());
+      VectorSlotPair pair = CreateVectorSlotPair(expr->LiteralFeedbackSlot());
       Node* value = environment()->Pop();
       Node* index = jsgraph()->Constant(array_index);
-      // TODO(turbofan): More efficient code could be generated here. Consider
-      // that the store will be generic because we don't have a feedback vector
-      // slot.
-      Node* store = BuildKeyedStore(literal, index, value, VectorSlotPair(),
-                                    TypeFeedbackId::None());
+      Node* store =
+          BuildKeyedStore(literal, index, value, pair, TypeFeedbackId::None());
       states.AddToNode(store, expr->GetIdForElement(array_index),
                        OutputFrameStateCombine::Ignore());
     }

@@ -489,6 +489,8 @@ void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
   for (int i = 0; i < node->values()->length(); i++) {
     Visit(node->values()->at(i));
   }
+  node->BuildConstantElements(isolate());
+  ReserveFeedbackSlots(node);
 }
 
 

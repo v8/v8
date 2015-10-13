@@ -5989,7 +5989,6 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
-  expr->BuildConstantElements(isolate());
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
   HInstruction* literal;

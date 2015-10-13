@@ -1701,7 +1701,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  expr->BuildConstantElements(isolate());
   Handle<FixedArray> constant_elements = expr->constant_elements();
   bool has_constant_fast_elements =
       IsFastObjectElementsKind(expr->constant_elements_kind());
@@ -1752,7 +1751,14 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     }
     VisitForAccumulatorValue(subexpr);
 
-    if (has_constant_fast_elements) {
+    if (FLAG_vector_stores) {
+      __ Move(StoreDescriptor::NameRegister(), Smi::FromInt(array_index));
+      __ movp(StoreDescriptor::ReceiverRegister(), Operand(rsp, kPointerSize));
+      EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
+      Handle<Code> ic =
+          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
+      CallIC(ic);
+    } else if (has_constant_fast_elements) {
       // Fast-case array literal with ElementsKind of FAST_*_ELEMENTS, they
       // cannot transition and don't need to call the runtime stub.
       int offset = FixedArray::kHeaderSize + (array_index * kPointerSize);

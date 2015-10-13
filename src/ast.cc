@@ -547,6 +547,27 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
 }
 
 
+void ArrayLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
+                                             FeedbackVectorSpec* spec,
+                                             FeedbackVectorSlotCache* cache) {
+  if (!FLAG_vector_stores) return;
+
+  // This logic that computes the number of slots needed for vector store
+  // ics must mirror FullCodeGenerator::VisitArrayLiteral.
+  int array_index = 0;
+  for (; array_index < values()->length(); array_index++) {
+    Expression* subexpr = values()->at(array_index);
+    if (subexpr->IsSpread()) break;
+    if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
+
+    // We'll reuse the same literal slot for all of the non-constant
+    // subexpressions that use a keyed store IC.
+    literal_slot_ = spec->AddKeyedStoreICSlot();
+    return;
+  }
+}
+
+
 Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
                                                         Isolate* isolate) {
   if (expression->IsLiteral()) {

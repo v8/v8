@@ -1749,8 +1749,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  expr->BuildConstantElements(isolate());
-
   Handle<FixedArray> constant_elements = expr->constant_elements();
   bool has_fast_elements =
       IsFastObjectElementsKind(expr->constant_elements_kind());
@@ -1800,7 +1798,16 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     VisitForAccumulatorValue(subexpr);
 
-    if (has_fast_elements) {
+    if (FLAG_vector_stores) {
+      __ li(StoreDescriptor::NameRegister(),
+            Operand(Smi::FromInt(array_index)));
+      __ lw(StoreDescriptor::ReceiverRegister(), MemOperand(sp, kPointerSize));
+      __ mov(StoreDescriptor::ValueRegister(), result_register());
+      EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
+      Handle<Code> ic =
+          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
+      CallIC(ic);
+    } else if (has_fast_elements) {
       int offset = FixedArray::kHeaderSize + (array_index * kPointerSize);
       __ lw(t2, MemOperand(sp, kPointerSize));  // Copy of array literal.
       __ lw(a1, FieldMemOperand(t2, JSObject::kElementsOffset));

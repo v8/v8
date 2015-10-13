@@ -1584,6 +1584,10 @@ class ArrayLiteral final : public MaterializedLiteral {
     kIsStrong = 1 << 2
   };
 
+  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+                                 FeedbackVectorSlotCache* cache) override;
+  FeedbackVectorSlot LiteralFeedbackSlot() const { return literal_slot_; }
+
  protected:
   ArrayLiteral(Zone* zone, ZoneList<Expression*>* values,
                int first_spread_index, int literal_index, bool is_strong,
@@ -1599,6 +1603,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   Handle<FixedArray> constant_elements_;
   ZoneList<Expression*>* values_;
   int first_spread_index_;
+  FeedbackVectorSlot literal_slot_;
 };
 
 
