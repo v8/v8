@@ -19,6 +19,7 @@
 namespace v8 {
 namespace internal {
 
+class CompactionSpaceCollection;
 class Isolate;
 
 // -----------------------------------------------------------------------------
@@ -1729,6 +1730,14 @@ class FreeList {
   // The size should be a non-zero multiple of the word size.
   MUST_USE_RESULT HeapObject* Allocate(int size_in_bytes);
 
+  // The method tries to find a {FreeSpace} node of at least {size_in_bytes}
+  // size in the free list category exactly matching the size. If no suitable
+  // node could be found, the method falls back to retrieving a {FreeSpace}
+  // from the large or huge free list category.
+  //
+  // Can be used concurrently.
+  MUST_USE_RESULT FreeSpace* TryRemoveMemory(intptr_t hint_size_in_bytes);
+
   bool IsEmpty() {
     return small_list_.IsEmpty() && medium_list_.IsEmpty() &&
            large_list_.IsEmpty() && huge_list_.IsEmpty();
@@ -1782,7 +1791,6 @@ class FreeList {
     UNREACHABLE();
     return nullptr;
   }
-
 
   PagedSpace* owner_;
   Heap* heap_;
@@ -1842,6 +1850,8 @@ STATIC_ASSERT(sizeof(AllocationResult) == kPointerSize);
 
 class PagedSpace : public Space {
  public:
+  static const intptr_t kCompactionMemoryWanted = 500 * KB;
+
   // Creates a space with an id.
   PagedSpace(Heap* heap, AllocationSpace id, Executability executable);
 
@@ -2043,15 +2053,26 @@ class PagedSpace : public Space {
   // Return size of allocatable area on a page in this space.
   inline int AreaSize() { return area_size_; }
 
+  virtual bool is_local() { return false; }
+
   // Merges {other} into the current space. Note that this modifies {other},
   // e.g., removes its bump pointer area and resets statistics.
   void MergeCompactionSpace(CompactionSpace* other);
 
-  void MoveOverFreeMemory(PagedSpace* other);
+  void DivideUponCompactionSpaces(CompactionSpaceCollection** other, int num,
+                                  intptr_t limit = kCompactionMemoryWanted);
 
-  virtual bool is_local() { return false; }
+  // Refills the free list from the corresponding free list filled by the
+  // sweeper.
+  virtual void RefillFreeList();
 
  protected:
+  void AddMemory(Address start, intptr_t size);
+
+  FreeSpace* TryRemoveMemory(intptr_t size_in_bytes);
+
+  void MoveOverFreeMemory(PagedSpace* other);
+
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
   virtual bool snapshotable() { return true; }
@@ -2112,6 +2133,9 @@ class PagedSpace : public Space {
 
   friend class MarkCompactCollector;
   friend class PageIterator;
+
+  // Used in cctest.
+  friend class HeapTester;
 };
 
 
@@ -2789,11 +2813,13 @@ class CompactionSpace : public PagedSpace {
     Free(start, size_in_bytes);
   }
 
-  virtual bool is_local() { return true; }
+  virtual bool is_local() override { return true; }
+
+  virtual void RefillFreeList() override;
 
  protected:
   // The space is temporary and not included in any snapshots.
-  virtual bool snapshotable() { return false; }
+  virtual bool snapshotable() override { return false; }
 };
 
 
