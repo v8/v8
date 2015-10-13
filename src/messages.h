@@ -62,6 +62,8 @@ class CallSite {
   bool IsEval();
   bool IsConstructor();
 
+  bool IsValid() { return !fun_.is_null(); }
+
  private:
   Isolate* isolate_;
   Handle<Object> receiver_;

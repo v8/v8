@@ -144,10 +144,13 @@ base::SmartArrayPointer<char> MessageHandler::GetLocalizedMessage(
 
 CallSite::CallSite(Isolate* isolate, Handle<JSObject> call_site_obj)
     : isolate_(isolate) {
+  Handle<Object> maybe_function = JSObject::GetDataProperty(
+      call_site_obj, isolate->factory()->call_site_function_symbol());
+  if (!maybe_function->IsJSFunction()) return;
+
+  fun_ = Handle<JSFunction>::cast(maybe_function);
   receiver_ = JSObject::GetDataProperty(
       call_site_obj, isolate->factory()->call_site_receiver_symbol());
-  fun_ = Handle<JSFunction>::cast(JSObject::GetDataProperty(
-      call_site_obj, isolate->factory()->call_site_function_symbol()));
   pos_ = Handle<Smi>::cast(JSObject::GetDataProperty(
                                call_site_obj,
                                isolate->factory()->call_site_position_symbol()))

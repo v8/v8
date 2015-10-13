@@ -318,6 +318,7 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
     CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
     Handle<String> result;                                  \
     CallSite call_site(isolate, call_site_obj);             \
+    RUNTIME_ASSERT(call_site.IsValid())                     \
     return RETURN(call_site.NAME(), isolate);               \
   }
 
