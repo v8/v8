@@ -37,6 +37,7 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/property-descriptor.h"
 #include "src/prototype.h"
 #include "src/safepoint-table.h"
 #include "src/string-builder.h"
@@ -5857,6 +5858,731 @@ MaybeHandle<Object> JSReceiver::DeletePropertyOrElement(
 }
 
 
+// ES6 7.1.14
+MaybeHandle<Object> ToPropertyKey(Isolate* isolate, Handle<Object> value) {
+  // 1. Let key be ToPrimitive(argument, hint String).
+  MaybeHandle<Object> maybe_key =
+      Object::ToPrimitive(value, ToPrimitiveHint::kString);
+  // 2. ReturnIfAbrupt(key).
+  Handle<Object> key;
+  if (!maybe_key.ToHandle(&key)) return key;
+  // 3. If Type(key) is Symbol, then return key.
+  if (key->IsSymbol()) return key;
+  // 4. Return ToString(key).
+  // Extending spec'ed behavior, we'd be happy to return an element index.
+  if (key->IsSmi()) return key;
+  if (key->IsHeapNumber()) {
+    uint32_t uint_value;
+    if (value->ToArrayLength(&uint_value) &&
+        uint_value <= static_cast<uint32_t>(Smi::kMaxValue)) {
+      return handle(Smi::FromInt(static_cast<int>(uint_value)), isolate);
+    }
+  }
+  return Object::ToString(isolate, key);
+}
+
+
+// ES6 19.1.2.4
+// static
+Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
+                                   Handle<Object> key,
+                                   Handle<Object> attributes) {
+  // 1. If Type(O) is not Object, throw a TypeError exception.
+  // TODO(jkummerow): Implement Proxy support, change to "IsSpecObject".
+  if (!object->IsJSObject()) {
+    Handle<String> fun_name =
+        isolate->factory()->InternalizeUtf8String("Object.defineProperty");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject, fun_name));
+  }
+  // 2. Let key be ToPropertyKey(P).
+  // 3. ReturnIfAbrupt(key).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key, ToPropertyKey(isolate, key));
+  // 4. Let desc be ToPropertyDescriptor(Attributes).
+  // 5. ReturnIfAbrupt(desc).
+  PropertyDescriptor desc;
+  if (!PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc)) {
+    return isolate->heap()->exception();
+  }
+  // 6. Let success be DefinePropertyOrThrow(O,key, desc).
+  bool success = DefineOwnProperty(isolate, Handle<JSObject>::cast(object), key,
+                                   &desc, THROW_ON_ERROR);
+  // 7. ReturnIfAbrupt(success).
+  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  CHECK(success == true);
+  // 8. Return O.
+  return *object;
+}
+
+
+// ES6 19.1.2.3.1
+// static
+Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
+                                     Handle<Object> properties) {
+  // 1. If Type(O) is not Object, throw a TypeError exception.
+  // TODO(jkummerow): Implement Proxy support, change to "IsSpecObject".
+  if (!object->IsJSObject()) {
+    Handle<String> fun_name =
+        isolate->factory()->InternalizeUtf8String("Object.defineProperties");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject, fun_name));
+  }
+  // 2. Let props be ToObject(Properties).
+  // 3. ReturnIfAbrupt(props).
+  Handle<JSReceiver> props;
+  if (!Object::ToObject(isolate, properties).ToHandle(&props)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
+  }
+  // 4. Let keys be props.[[OwnPropertyKeys]]().
+  // 5. ReturnIfAbrupt(keys).
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys,
+      JSReceiver::GetKeys(props, JSReceiver::OWN_ONLY, INCLUDE_SYMBOLS));
+  // 6. Let descriptors be an empty List.
+  int capacity = keys->length();
+  std::vector<PropertyDescriptor> descriptors(capacity);
+  // 7. Repeat for each element nextKey of keys in List order,
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Object> next_key(keys->get(i), isolate);
+    // 7a. Let propDesc be props.[[GetOwnProperty]](nextKey).
+    // 7b. ReturnIfAbrupt(propDesc).
+    bool success = false;
+    LookupIterator it = LookupIterator::PropertyOrElement(
+        isolate, props, next_key, &success, LookupIterator::HIDDEN);
+    DCHECK(success);
+    // TODO(jkummerow): Support JSProxies. Make sure we call the correct
+    // getOwnPropertyDescriptor trap, and convert the result object to a
+    // PropertyDescriptor.
+    Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
+    if (!maybe.IsJust()) return isolate->heap()->exception();
+    PropertyAttributes attrs = maybe.FromJust();
+    // 7c. If propDesc is not undefined and propDesc.[[Enumerable]] is true:
+    if (attrs == ABSENT) continue;
+    // GetKeys() only returns enumerable keys.
+    DCHECK((attrs & DONT_ENUM) == 0);
+    // 7c i. Let descObj be Get(props, nextKey).
+    // 7c ii. ReturnIfAbrupt(descObj).
+    Handle<Object> desc_obj;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, desc_obj,
+                                       JSObject::GetProperty(&it));
+    // 7c iii. Let desc be ToPropertyDescriptor(descObj).
+    success = PropertyDescriptor::ToPropertyDescriptor(isolate, desc_obj,
+                                                       &descriptors[i]);
+    // 7c iv. ReturnIfAbrupt(desc).
+    if (!success) return isolate->heap()->exception();
+    // 7c v. Append the pair (a two element List) consisting of nextKey and
+    //       desc to the end of descriptors.
+    descriptors[i].set_name(next_key);
+  }
+  // 8. For each pair from descriptors in list order,
+  for (size_t i = 0; i < descriptors.size(); ++i) {
+    PropertyDescriptor* desc = &descriptors[i];
+    // 8a. Let P be the first element of pair.
+    // 8b. Let desc be the second element of pair.
+    // 8c. Let status be DefinePropertyOrThrow(O, P, desc).
+    bool status = DefineOwnProperty(isolate, Handle<JSObject>::cast(object),
+                                    desc->name(), desc, THROW_ON_ERROR);
+    // 8d. ReturnIfAbrupt(status).
+    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+    CHECK(status == true);
+  }
+  // 9. Return o.
+  return *object;
+}
+
+
+// static
+bool JSReceiver::DefineOwnProperty(Isolate* isolate, Handle<JSObject> object,
+                                   Handle<Object> key, PropertyDescriptor* desc,
+                                   ShouldThrow should_throw) {
+  if (object->IsJSArray()) {
+    return JSArray::DefineOwnProperty(isolate, Handle<JSArray>::cast(object),
+                                      key, desc, should_throw);
+  }
+  // TODO(jkummerow): Support Modules (ES6 9.4.6.6)
+  // TODO(jkummerow): Support Proxies (ES6 9.5.6)
+
+  // OrdinaryDefineOwnProperty, by virtue of calling
+  // DefineOwnPropertyIgnoreAttributes, can handle arguments (ES6 9.4.4.2)
+  // and IntegerIndexedExotics (ES6 9.4.5.3), with one exception:
+  // TODO(jkummerow): Setting an indexed accessor on a typed array should throw.
+  return OrdinaryDefineOwnProperty(isolate, object, key, desc, should_throw);
+}
+
+
+// static
+bool JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
+                                           Handle<JSObject> object,
+                                           Handle<Object> key,
+                                           PropertyDescriptor* desc,
+                                           ShouldThrow should_throw) {
+  bool success = false;
+  DCHECK(key->IsName() || key->IsNumber());  // |key| is a PropertyKey...
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, key, &success, LookupIterator::HIDDEN);
+  DCHECK(success);  // ...so creating a LookupIterator can't fail.
+  return OrdinaryDefineOwnProperty(&it, desc, should_throw);
+}
+
+
+// ES6 9.1.6.1
+// static
+bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
+                                           PropertyDescriptor* desc,
+                                           ShouldThrow should_throw) {
+  Isolate* isolate = it->isolate();
+  // == OrdinaryDefineOwnProperty (O, P, Desc) ==
+  // 1. Let current be O.[[GetOwnProperty]](P).
+  // 2. ReturnIfAbrupt(current).
+  PropertyDescriptor current;
+  if (!GetOwnPropertyDescriptor(it, &current) &&
+      isolate->has_pending_exception()) {
+    return false;
+  }
+  // 3. Let extensible be the value of the [[Extensible]] internal slot of O.
+  Handle<JSObject> o = Handle<JSObject>::cast(it->GetReceiver());
+  bool extensible = JSObject::IsExtensible(o);
+
+  bool desc_is_data_descriptor = PropertyDescriptor::IsDataDescriptor(desc);
+  bool desc_is_accessor_descriptor =
+      PropertyDescriptor::IsAccessorDescriptor(desc);
+  bool desc_is_generic_descriptor =
+      PropertyDescriptor::IsGenericDescriptor(desc);
+
+  // == ValidateAndApplyPropertyDescriptor (O, P, extensible, Desc, current) ==
+  // 2. If current is undefined, then
+  if (current.is_empty()) {
+    // 2a. If extensible is false, return false.
+    if (!extensible) {
+      if (should_throw == THROW_ON_ERROR) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::kDefineDisallowed, it->GetName()));
+      }
+      return false;
+    }
+    // 2c. If IsGenericDescriptor(Desc) or IsDataDescriptor(Desc) is true, then:
+    // (This is equivalent to !IsAccessorDescriptor(desc).)
+    DCHECK((desc_is_generic_descriptor || desc_is_data_descriptor) ==
+           !desc_is_accessor_descriptor);
+    if (!desc_is_accessor_descriptor) {
+      // 2c i. If O is not undefined, create an own data property named P of
+      // object O whose [[Value]], [[Writable]], [[Enumerable]] and
+      // [[Configurable]] attribute values are described by Desc. If the value
+      // of an attribute field of Desc is absent, the attribute of the newly
+      // created property is set to its default value.
+      if (!o->IsUndefined()) {
+        if (!desc->has_writable()) desc->set_writable(false);
+        if (!desc->has_enumerable()) desc->set_enumerable(false);
+        if (!desc->has_configurable()) desc->set_configurable(false);
+        Handle<Object> value(
+            desc->has_value()
+                ? desc->value()
+                : Handle<Object>::cast(isolate->factory()->undefined_value()));
+        MaybeHandle<Object> result =
+            JSObject::DefineOwnPropertyIgnoreAttributes(it, value,
+                                                        desc->ToAttributes());
+        if (result.is_null()) return false;
+      }
+    } else {
+      // 2d. Else Desc must be an accessor Property Descriptor,
+      DCHECK(desc_is_accessor_descriptor);
+      // 2d i. If O is not undefined, create an own accessor property named P
+      // of object O whose [[Get]], [[Set]], [[Enumerable]] and
+      // [[Configurable]] attribute values are described by Desc. If the value
+      // of an attribute field of Desc is absent, the attribute of the newly
+      // created property is set to its default value.
+      if (!o->IsUndefined()) {
+        if (!desc->has_enumerable()) desc->set_enumerable(false);
+        if (!desc->has_configurable()) desc->set_configurable(false);
+        Handle<Object> getter(
+            desc->has_get()
+                ? desc->get()
+                : Handle<Object>::cast(isolate->factory()->undefined_value()));
+        Handle<Object> setter(
+            desc->has_set()
+                ? desc->set()
+                : Handle<Object>::cast(isolate->factory()->undefined_value()));
+        MaybeHandle<Object> result =
+            JSObject::DefineAccessor(it, getter, setter, desc->ToAttributes());
+        if (result.is_null()) return false;
+      }
+    }
+    // 2e. Return true.
+    return true;
+  }
+  // 3. Return true, if every field in Desc is absent.
+  // 4. Return true, if every field in Desc also occurs in current and the
+  // value of every field in Desc is the same value as the corresponding field
+  // in current when compared using the SameValue algorithm.
+  if ((!desc->has_enumerable() || desc->enumerable() == current.enumerable()) &&
+      (!desc->has_configurable() ||
+       desc->configurable() == current.configurable()) &&
+      (!desc->has_value() ||
+       (current.has_value() && current.value()->SameValue(*desc->value()))) &&
+      (!desc->has_writable() ||
+       (current.has_writable() && current.writable() == desc->writable())) &&
+      (!desc->has_get() ||
+       (current.has_get() && current.get()->SameValue(*desc->get()))) &&
+      (!desc->has_set() ||
+       (current.has_set() && current.set()->SameValue(*desc->set())))) {
+    return true;
+  }
+  // 5. If the [[Configurable]] field of current is false, then
+  if (!current.configurable()) {
+    // 5a. Return false, if the [[Configurable]] field of Desc is true.
+    if (desc->has_configurable() && desc->configurable()) {
+      if (should_throw == THROW_ON_ERROR) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::kRedefineDisallowed, it->GetName()));
+      }
+      return false;
+    }
+    // 5b. Return false, if the [[Enumerable]] field of Desc is present and the
+    // [[Enumerable]] fields of current and Desc are the Boolean negation of
+    // each other.
+    if (desc->has_enumerable() && desc->enumerable() != current.enumerable()) {
+      if (should_throw == THROW_ON_ERROR) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::kRedefineDisallowed, it->GetName()));
+      }
+      return false;
+    }
+  }
+
+  bool current_is_data_descriptor =
+      PropertyDescriptor::IsDataDescriptor(&current);
+  // 6. If IsGenericDescriptor(Desc) is true, no further validation is required.
+  if (desc_is_generic_descriptor) {
+    // Nothing to see here.
+
+    // 7. Else if IsDataDescriptor(current) and IsDataDescriptor(Desc) have
+    // different results, then:
+  } else if (current_is_data_descriptor != desc_is_data_descriptor) {
+    // 7a. Return false, if the [[Configurable]] field of current is false.
+    if (!current.configurable()) {
+      if (should_throw == THROW_ON_ERROR) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::kRedefineDisallowed, it->GetName()));
+      }
+      return false;
+    }
+    // 7b. If IsDataDescriptor(current) is true, then:
+    if (current_is_data_descriptor) {
+      // 7b i. If O is not undefined, convert the property named P of object O
+      // from a data property to an accessor property. Preserve the existing
+      // values of the converted property's [[Configurable]] and [[Enumerable]]
+      // attributes and set the rest of the property's attributes to their
+      // default values.
+      // --> Folded into step 10.
+    } else {
+      // 7c i. If O is not undefined, convert the property named P of object O
+      // from an accessor property to a data property. Preserve the existing
+      // values of the converted property’s [[Configurable]] and [[Enumerable]]
+      // attributes and set the rest of the property’s attributes to their
+      // default values.
+      // --> Folded into step 10.
+    }
+
+    // 8. Else if IsDataDescriptor(current) and IsDataDescriptor(Desc) are both
+    // true, then:
+  } else if (current_is_data_descriptor && desc_is_data_descriptor) {
+    // 8a. If the [[Configurable]] field of current is false, then:
+    if (!current.configurable()) {
+      // [Strong mode] Disallow changing writable -> readonly for
+      // non-configurable properties.
+      if (current.writable() && desc->has_writable() && !desc->writable() &&
+          o->map()->is_strong()) {
+        if (should_throw == THROW_ON_ERROR) {
+          isolate->Throw(*isolate->factory()->NewTypeError(
+              MessageTemplate::kStrongRedefineDisallowed, o, it->GetName()));
+        }
+        return false;
+      }
+      // 8a i. Return false, if the [[Writable]] field of current is false and
+      // the [[Writable]] field of Desc is true.
+      if (!current.writable() && desc->has_writable() && desc->writable()) {
+        if (should_throw == THROW_ON_ERROR) {
+          isolate->Throw(*isolate->factory()->NewTypeError(
+              MessageTemplate::kRedefineDisallowed, it->GetName()));
+        }
+        return false;
+      }
+      // 8a ii. If the [[Writable]] field of current is false, then:
+      if (!current.writable()) {
+        // 8a ii 1. Return false, if the [[Value]] field of Desc is present and
+        // SameValue(Desc.[[Value]], current.[[Value]]) is false.
+        if (desc->has_value() && !desc->value()->SameValue(*current.value())) {
+          if (should_throw == THROW_ON_ERROR) {
+            isolate->Throw(*isolate->factory()->NewTypeError(
+                MessageTemplate::kRedefineDisallowed, it->GetName()));
+          }
+          return false;
+        }
+      }
+    }
+  } else {
+    // 9. Else IsAccessorDescriptor(current) and IsAccessorDescriptor(Desc)
+    // are both true,
+    DCHECK(PropertyDescriptor::IsAccessorDescriptor(&current) &&
+           desc_is_accessor_descriptor);
+    // 9a. If the [[Configurable]] field of current is false, then:
+    if (!current.configurable()) {
+      // 9a i. Return false, if the [[Set]] field of Desc is present and
+      // SameValue(Desc.[[Set]], current.[[Set]]) is false.
+      if (desc->has_set() && !desc->set()->SameValue(*current.set())) {
+        if (should_throw == THROW_ON_ERROR) {
+          isolate->Throw(*isolate->factory()->NewTypeError(
+              MessageTemplate::kRedefineDisallowed, it->GetName()));
+        }
+        return false;
+      }
+      // 9a ii. Return false, if the [[Get]] field of Desc is present and
+      // SameValue(Desc.[[Get]], current.[[Get]]) is false.
+      if (desc->has_get() && !desc->get()->SameValue(*current.get())) {
+        if (should_throw == THROW_ON_ERROR) {
+          isolate->Throw(*isolate->factory()->NewTypeError(
+              MessageTemplate::kRedefineDisallowed, it->GetName()));
+        }
+        return false;
+      }
+    }
+  }
+
+  // 10. If O is not undefined, then:
+  if (!o->IsUndefined()) {
+    // 10a. For each field of Desc that is present, set the corresponding
+    // attribute of the property named P of object O to the value of the field.
+    PropertyAttributes attrs = NONE;
+
+    if (desc->has_enumerable()) {
+      attrs = static_cast<PropertyAttributes>(
+          attrs | (desc->enumerable() ? NONE : DONT_ENUM));
+    } else {
+      attrs = static_cast<PropertyAttributes>(
+          attrs | (current.enumerable() ? NONE : DONT_ENUM));
+    }
+    if (desc->has_configurable()) {
+      attrs = static_cast<PropertyAttributes>(
+          attrs | (desc->configurable() ? NONE : DONT_DELETE));
+    } else {
+      attrs = static_cast<PropertyAttributes>(
+          attrs | (current.configurable() ? NONE : DONT_DELETE));
+    }
+    if (desc_is_data_descriptor ||
+        (desc_is_generic_descriptor && current_is_data_descriptor)) {
+      if (desc->has_writable()) {
+        attrs = static_cast<PropertyAttributes>(
+            attrs | (desc->writable() ? NONE : READ_ONLY));
+      } else {
+        attrs = static_cast<PropertyAttributes>(
+            attrs | (current.writable() ? NONE : READ_ONLY));
+      }
+      Handle<Object> value(
+          desc->has_value() ? desc->value()
+                            : current.has_value()
+                                  ? current.value()
+                                  : Handle<Object>::cast(
+                                        isolate->factory()->undefined_value()));
+      MaybeHandle<Object> result = JSObject::DefineOwnPropertyIgnoreAttributes(
+          it, value, attrs, JSObject::DONT_FORCE_FIELD);
+      if (result.is_null()) return false;
+    } else {
+      DCHECK(desc_is_accessor_descriptor ||
+             (desc_is_generic_descriptor &&
+              PropertyDescriptor::IsAccessorDescriptor(&current)));
+      Handle<Object> getter(
+          desc->has_get()
+              ? desc->get()
+              : current.has_get() ? current.get()
+                                  : Handle<Object>::cast(
+                                        isolate->factory()->undefined_value()));
+      Handle<Object> setter(
+          desc->has_set()
+              ? desc->set()
+              : current.has_set() ? current.set()
+                                  : Handle<Object>::cast(
+                                        isolate->factory()->undefined_value()));
+      MaybeHandle<Object> result =
+          JSObject::DefineAccessor(it, getter, setter, attrs);
+      if (result.is_null()) return false;
+    }
+  }
+
+  // 11. Return true.
+  return true;
+}
+
+
+// TODO(jkummerow): Consider unification with FastAsArrayLength() in
+// accessors.cc.
+bool PropertyKeyToArrayLength(Handle<Object> value, uint32_t* length) {
+  DCHECK(value->IsNumber() || value->IsName());
+  if (value->ToArrayLength(length)) return true;
+  if (value->IsString()) return String::cast(*value)->AsArrayIndex(length);
+  return false;
+}
+
+
+bool PropertyKeyToArrayIndex(Handle<Object> index_obj, uint32_t* output) {
+  return PropertyKeyToArrayLength(index_obj, output) && *output != kMaxUInt32;
+}
+
+
+// ES6 9.4.2.1
+// static
+bool JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
+                                Handle<Object> name, PropertyDescriptor* desc,
+                                ShouldThrow should_throw) {
+  // 1. Assert: IsPropertyKey(P) is true. ("P" is |name|.)
+  // 2. If P is "length", then:
+  // TODO(jkummerow): Check if we need slow string comparison.
+  if (*name == isolate->heap()->length_string()) {
+    // 2a. Return ArraySetLength(A, Desc).
+    return ArraySetLength(isolate, o, desc, should_throw);
+  }
+  // 3. Else if P is an array index, then:
+  uint32_t index = 0;
+  if (PropertyKeyToArrayIndex(name, &index)) {
+    // 3a. Let oldLenDesc be OrdinaryGetOwnProperty(A, "length").
+    PropertyDescriptor old_len_desc;
+    bool success = GetOwnPropertyDescriptor(
+        isolate, o, isolate->factory()->length_string(), &old_len_desc);
+    // 3b. (Assert)
+    DCHECK(success);
+    USE(success);
+    // 3c. Let oldLen be oldLenDesc.[[Value]].
+    uint32_t old_len = 0;
+    CHECK(old_len_desc.value()->ToArrayLength(&old_len));
+    // 3d. Let index be ToUint32(P).
+    // (Already done above.)
+    // 3e. (Assert)
+    // 3f. If index >= oldLen and oldLenDesc.[[Writable]] is false,
+    //     return false.
+    if (index >= old_len && old_len_desc.has_writable() &&
+        !old_len_desc.writable()) {
+      if (should_throw == THROW_ON_ERROR) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::kDefineDisallowed, name));
+      }
+      return false;
+    }
+    // 3g. Let succeeded be OrdinaryDefineOwnProperty(A, P, Desc).
+    bool succeeded =
+        OrdinaryDefineOwnProperty(isolate, o, name, desc, should_throw);
+    // 3h. (Assert)
+    // 3i. If succeeded is false, return false.
+    if (!succeeded) return false;
+    // 3j. If index >= oldLen, then:
+    if (index >= old_len) {
+      // 3j i. Set oldLenDesc.[[Value]] to index + 1.
+      old_len_desc.set_value(isolate->factory()->NewNumberFromUint(index + 1));
+      // 3j ii. Let succeeded be
+      //        OrdinaryDefineOwnProperty(A, "length", oldLenDesc).
+      OrdinaryDefineOwnProperty(isolate, o, isolate->factory()->length_string(),
+                                &old_len_desc, should_throw);
+      // 3j iii. (Assert)
+    }
+    // 3k. Return true.
+    return true;
+  }
+
+  // 4. Return OrdinaryDefineOwnProperty(A, P, Desc).
+  return OrdinaryDefineOwnProperty(isolate, o, name, desc, should_throw);
+}
+
+
+// TODO(jkummerow): Consider unification with ArrayLengthSetter in accessors.cc.
+bool AnythingToArrayLength(Isolate* isolate, Handle<Object> length_obj,
+                           uint32_t* output) {
+  // Fast path: check numbers and strings that can be converted directly
+  // and unobservably.
+  if (length_obj->ToUint32(output)) return true;
+  if (length_obj->IsString() &&
+      Handle<String>::cast(length_obj)->AsArrayIndex(output)) {
+    return true;
+  }
+  // Slow path: follow steps in ES6 9.4.2.4 "ArraySetLength".
+  // 3. Let newLen be ToUint32(Desc.[[Value]]).
+  Handle<Object> uint32_v;
+  if (!Object::ToUint32(isolate, length_obj).ToHandle(&uint32_v)) {
+    // 4. ReturnIfAbrupt(newLen).
+    return false;
+  }
+  // 5. Let numberLen be ToNumber(Desc.[[Value]]).
+  Handle<Object> number_v;
+  if (!Object::ToNumber(length_obj).ToHandle(&number_v)) {
+    // 6. ReturnIfAbrupt(newLen).
+    return false;
+  }
+  // 7. If newLen != numberLen, throw a RangeError exception.
+  if (uint32_v->Number() != number_v->Number()) {
+    Handle<Object> exception =
+        isolate->factory()->NewRangeError(MessageTemplate::kInvalidArrayLength);
+    isolate->Throw(*exception);
+    return false;
+  }
+  return uint32_v->ToArrayLength(output);
+}
+
+
+// ES6 9.4.2.4
+// static
+bool JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
+                             PropertyDescriptor* desc,
+                             ShouldThrow should_throw) {
+  // 1. If the [[Value]] field of Desc is absent, then
+  if (!desc->has_value()) {
+    // 1a. Return OrdinaryDefineOwnProperty(A, "length", Desc).
+    return OrdinaryDefineOwnProperty(
+        isolate, a, isolate->factory()->length_string(), desc, should_throw);
+  }
+  // 2. Let newLenDesc be a copy of Desc.
+  // (Actual copying is not necessary.)
+  PropertyDescriptor* new_len_desc = desc;
+  // 3. - 7. Convert Desc.[[Value]] to newLen.
+  uint32_t new_len = 0;
+  if (!AnythingToArrayLength(isolate, desc->value(), &new_len)) {
+    if (should_throw == THROW_ON_ERROR && !isolate->has_pending_exception()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kCannotConvertToPrimitive));
+    }
+    return false;
+  }
+  // 8. Set newLenDesc.[[Value]] to newLen.
+  // (Done below, if needed.)
+  // 9. Let oldLenDesc be OrdinaryGetOwnProperty(A, "length").
+  PropertyDescriptor old_len_desc;
+  bool success = GetOwnPropertyDescriptor(
+      isolate, a, isolate->factory()->length_string(), &old_len_desc);
+  // 10. (Assert)
+  DCHECK(success);
+  USE(success);
+  // 11. Let oldLen be oldLenDesc.[[Value]].
+  uint32_t old_len = 0;
+  CHECK(old_len_desc.value()->ToArrayLength(&old_len));
+  // 12. If newLen >= oldLen, then
+  if (new_len >= old_len) {
+    // 8. Set newLenDesc.[[Value]] to newLen.
+    // 12a. Return OrdinaryDefineOwnProperty(A, "length", newLenDesc).
+    new_len_desc->set_value(isolate->factory()->NewNumberFromUint(new_len));
+    return OrdinaryDefineOwnProperty(isolate, a,
+                                     isolate->factory()->length_string(),
+                                     new_len_desc, should_throw);
+  }
+  // 13. If oldLenDesc.[[Writable]] is false, return false.
+  if (!old_len_desc.writable()) {
+    if (should_throw == THROW_ON_ERROR)
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kRedefineDisallowed,
+          isolate->factory()->length_string()));
+    return false;
+  }
+  // 14. If newLenDesc.[[Writable]] is absent or has the value true,
+  // let newWritable be true.
+  bool new_writable = false;
+  if (!new_len_desc->has_writable() || new_len_desc->writable()) {
+    new_writable = true;
+  } else {
+    // 15. Else,
+    // 15a. Need to defer setting the [[Writable]] attribute to false in case
+    //      any elements cannot be deleted.
+    // 15b. Let newWritable be false. (It's initialized as "false" anyway.)
+    // 15c. Set newLenDesc.[[Writable]] to true.
+    // (Not needed.)
+  }
+  // Most of steps 16 through 19 is implemented by JSArray::SetLength.
+  if (JSArray::ObservableSetLength(a, new_len).is_null()) {
+    DCHECK(isolate->has_pending_exception());
+    return false;
+  }
+  // Steps 19d-ii, 20.
+  if (!new_writable) {
+    PropertyDescriptor readonly;
+    readonly.set_writable(false);
+    OrdinaryDefineOwnProperty(isolate, a, isolate->factory()->length_string(),
+                              &readonly, should_throw);
+  }
+  uint32_t actual_new_len = 0;
+  CHECK(a->length()->ToArrayLength(&actual_new_len));
+  // Steps 19d-v, 21. Return false if there were non-deletable elements.
+  success = actual_new_len == new_len;
+  if (!success && should_throw == THROW_ON_ERROR) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kStrictDeleteProperty,
+        isolate->factory()->NewNumberFromUint(actual_new_len - 1)));
+  }
+  return success;
+}
+
+
+// static
+bool JSReceiver::GetOwnPropertyDescriptor(Isolate* isolate,
+                                          Handle<JSObject> object,
+                                          Handle<Object> key,
+                                          PropertyDescriptor* desc) {
+  bool success = false;
+  DCHECK(key->IsName() || key->IsNumber());  // |key| is a PropertyKey...
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, key, &success, LookupIterator::HIDDEN);
+  DCHECK(success);  // ...so creating a LookupIterator can't fail.
+  return GetOwnPropertyDescriptor(&it, desc);
+}
+
+
+// TODO(jkummerow): Any chance to unify this with
+// "MaybeHandle<Object> GetOwnProperty()" in runtime-object.cc?
+
+// TODO(jkummerow/verwaest): Proxy support: call getOwnPropertyDescriptor trap
+// and convert the result (if it's an object) with ToPropertyDescriptor.
+
+// ES6 9.1.5.1
+// Returns true on success; false if there was an exception or no property.
+// static
+bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
+                                          PropertyDescriptor* desc) {
+  Isolate* isolate = it->isolate();
+  // 1. (Assert)
+  // 2. If O does not have an own property with key P, return undefined.
+  Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(it);
+
+  if (!maybe.IsJust()) return false;
+  PropertyAttributes attrs = maybe.FromJust();
+  if (attrs == ABSENT) return false;
+  DCHECK(!isolate->has_pending_exception());
+
+  // 3. Let D be a newly created Property Descriptor with no fields.
+  DCHECK(desc->is_empty());
+  // 4. Let X be O's own property whose key is P.
+  // 5. If X is a data property, then
+  bool is_accessor_pair = it->state() == LookupIterator::ACCESSOR &&
+                          it->GetAccessors()->IsAccessorPair();
+  if (!is_accessor_pair) {
+    // 5a. Set D.[[Value]] to the value of X's [[Value]] attribute.
+    Handle<Object> value = JSObject::GetProperty(it).ToHandleChecked();
+    desc->set_value(value);
+    // 5b. Set D.[[Writable]] to the value of X's [[Writable]] attribute
+    desc->set_writable((attrs & READ_ONLY) == 0);
+  } else {
+    // 6. Else X is an accessor property, so
+    Handle<AccessorPair> accessors =
+        Handle<AccessorPair>::cast(it->GetAccessors());
+    // 6a. Set D.[[Get]] to the value of X's [[Get]] attribute.
+    desc->set_get(handle(accessors->GetComponent(ACCESSOR_GETTER), isolate));
+    // 6b. Set D.[[Set]] to the value of X's [[Set]] attribute.
+    desc->set_set(handle(accessors->GetComponent(ACCESSOR_SETTER), isolate));
+  }
+
+  // 7. Set D.[[Enumerable]] to the value of X's [[Enumerable]] attribute.
+  desc->set_enumerable((attrs & DONT_ENUM) == 0);
+  // 8. Set D.[[Configurable]] to the value of X's [[Configurable]] attribute.
+  desc->set_configurable((attrs & DONT_DELETE) == 0);
+  // 9. Return D.
+  return true;
+}
+
+
 bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
                                             ElementsKind kind,
                                             Object* object) {
@@ -7038,31 +7764,41 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
 
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+  return DefineAccessor(&it, getter, setter, attributes);
+}
 
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
-    if (!it.HasAccess()) {
-      isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
+
+MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
+                                             Handle<Object> getter,
+                                             Handle<Object> setter,
+                                             PropertyAttributes attributes) {
+  Isolate* isolate = it->isolate();
+
+  if (it->state() == LookupIterator::ACCESS_CHECK) {
+    if (!it->HasAccess()) {
+      isolate->ReportFailedAccessCheck(it->GetHolder<JSObject>());
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
       return isolate->factory()->undefined_value();
     }
-    it.Next();
+    it->Next();
   }
 
+  Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   // Ignore accessors on typed arrays.
-  if (it.IsElement() && object->HasFixedTypedArrayElements()) {
-    return it.factory()->undefined_value();
+  if (it->IsElement() && object->HasFixedTypedArrayElements()) {
+    return it->factory()->undefined_value();
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   bool is_observed = object->map()->is_observed() &&
-                     !isolate->IsInternallyUsedPropertyName(name);
+                     !isolate->IsInternallyUsedPropertyName(it->GetName());
   bool preexists = false;
   if (is_observed) {
-    CHECK(GetPropertyAttributes(&it).IsJust());
-    preexists = it.IsFound();
-    if (preexists && (it.state() == LookupIterator::DATA ||
-                      it.GetAccessors()->IsAccessorInfo())) {
-      old_value = GetProperty(&it).ToHandleChecked();
+    CHECK(GetPropertyAttributes(it).IsJust());
+    preexists = it->IsFound();
+    if (preexists && (it->state() == LookupIterator::DATA ||
+                      it->GetAccessors()->IsAccessorInfo())) {
+      old_value = GetProperty(it).ToHandleChecked();
     }
   }
 
@@ -7071,10 +7807,10 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   // At least one of the accessors needs to be a new value.
   DCHECK(!getter->IsNull() || !setter->IsNull());
   if (!getter->IsNull()) {
-    it.TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
+    it->TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
   }
   if (!setter->IsNull()) {
-    it.TransitionToAccessorProperty(ACCESSOR_SETTER, setter, attributes);
+    it->TransitionToAccessorProperty(ACCESSOR_SETTER, setter, attributes);
   }
 
   if (is_observed) {
@@ -7082,7 +7818,8 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
     AssertNoContextChange ncc(isolate);
     const char* type = preexists ? "reconfigure" : "add";
     RETURN_ON_EXCEPTION(
-        isolate, EnqueueChangeRecord(object, type, name, old_value), Object);
+        isolate, EnqueueChangeRecord(object, type, it->GetName(), old_value),
+        Object);
   }
 
   return isolate->factory()->undefined_value();

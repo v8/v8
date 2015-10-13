@@ -860,6 +860,7 @@ class LookupIterator;
 class ObjectHashTable;
 class ObjectVisitor;
 class PropertyCell;
+class PropertyDescriptor;
 class SafepointEntry;
 class SharedFunctionInfo;
 class StringStream;
@@ -1790,6 +1791,9 @@ enum AccessorComponent {
 enum KeyFilter { SKIP_SYMBOLS, INCLUDE_SYMBOLS };
 
 
+enum ShouldThrow { THROW_ON_ERROR, DONT_THROW };
+
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
@@ -1825,6 +1829,35 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
       Handle<JSReceiver> object, uint32_t index,
       LanguageMode language_mode = SLOPPY);
+
+  MUST_USE_RESULT static Object* DefineProperty(Isolate* isolate,
+                                                Handle<Object> object,
+                                                Handle<Object> name,
+                                                Handle<Object> attributes);
+  MUST_USE_RESULT static Object* DefineProperties(Isolate* isolate,
+                                                  Handle<Object> object,
+                                                  Handle<Object> properties);
+
+  // "virtual" dispatcher to the correct [[DefineOwnProperty]] implementation.
+  static bool DefineOwnProperty(Isolate* isolate, Handle<JSObject> object,
+                                Handle<Object> key, PropertyDescriptor* desc,
+                                ShouldThrow should_throw);
+
+  static bool OrdinaryDefineOwnProperty(Isolate* isolate,
+                                        Handle<JSObject> object,
+                                        Handle<Object> key,
+                                        PropertyDescriptor* desc,
+                                        ShouldThrow should_throw);
+  static bool OrdinaryDefineOwnProperty(LookupIterator* it,
+                                        PropertyDescriptor* desc,
+                                        ShouldThrow should_throw);
+
+  static bool GetOwnPropertyDescriptor(Isolate* isolate,
+                                       Handle<JSObject> object,
+                                       Handle<Object> key,
+                                       PropertyDescriptor* desc);
+  static bool GetOwnPropertyDescriptor(LookupIterator* it,
+                                       PropertyDescriptor* desc);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -2069,6 +2102,10 @@ class JSObject: public JSReceiver {
   // TODO(mstarzinger): Rename to SetAccessor().
   static MaybeHandle<Object> DefineAccessor(Handle<JSObject> object,
                                             Handle<Name> name,
+                                            Handle<Object> getter,
+                                            Handle<Object> setter,
+                                            PropertyAttributes attributes);
+  static MaybeHandle<Object> DefineAccessor(LookupIterator* it,
                                             Handle<Object> getter,
                                             Handle<Object> setter,
                                             PropertyAttributes attributes);
@@ -10034,6 +10071,14 @@ class JSArray: public JSObject {
   // Set the content of the array to the content of storage.
   static inline void SetContent(Handle<JSArray> array,
                                 Handle<FixedArrayBase> storage);
+
+  static bool DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
+                                Handle<Object> name, PropertyDescriptor* desc,
+                                ShouldThrow should_throw);
+
+  static bool ArraySetLength(Isolate* isolate, Handle<JSArray> a,
+                             PropertyDescriptor* desc,
+                             ShouldThrow should_throw);
 
   DECLARE_CAST(JSArray)
 

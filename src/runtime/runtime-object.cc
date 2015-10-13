@@ -1627,5 +1627,22 @@ RUNTIME_FUNCTION(Runtime_IsAccessCheckNeeded) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ObjectDefineProperty) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, o, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, attributes, 2);
+  return JSReceiver::DefineProperty(isolate, o, name, attributes);
+}
+
+
+RUNTIME_FUNCTION(Runtime_ObjectDefineProperties) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, o, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, properties, 1);
+  return JSReceiver::DefineProperties(isolate, o, properties);
+}
 }  // namespace internal
 }  // namespace v8

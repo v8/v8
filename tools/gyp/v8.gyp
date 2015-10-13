@@ -896,6 +896,8 @@
         '../../src/profiler/strings-storage.h',
         '../../src/profiler/unbound-queue-inl.h',
         '../../src/profiler/unbound-queue.h',
+        '../../src/property-descriptor.cc',
+        '../../src/property-descriptor.h',
         '../../src/property-details.h',
         '../../src/property.cc',
         '../../src/property.h',
