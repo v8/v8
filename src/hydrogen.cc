@@ -2411,55 +2411,65 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
       STATIC_ASSERT((SeqString::kHeaderSize & kObjectAlignmentMask) == 0);
       HValue* size = BuildObjectSizeAlignment(Pop(), SeqString::kHeaderSize);
 
-      // Allocate the string object. HAllocate does not care whether we pass
-      // STRING_TYPE or ONE_BYTE_STRING_TYPE here, so we just use STRING_TYPE.
-      HAllocate* result = BuildAllocate(
-          size, HType::String(), STRING_TYPE, allocation_mode);
-      Add<HStoreNamedField>(result, HObjectAccess::ForMap(), map);
-
-      // Initialize the string fields.
-      Add<HStoreNamedField>(result, HObjectAccess::ForStringHashField(),
-                            Add<HConstant>(String::kEmptyHashField));
-      Add<HStoreNamedField>(result, HObjectAccess::ForStringLength(), length);
-
-      // Copy characters to the result string.
-      IfBuilder if_twobyte(this);
-      if_twobyte.If<HCompareObjectEqAndBranch>(map, string_map);
-      if_twobyte.Then();
+      IfBuilder if_size(this);
+      if_size.If<HCompareNumericAndBranch>(
+          size, Add<HConstant>(Page::kMaxRegularHeapObjectSize), Token::LT);
+      if_size.Then();
       {
-        // Copy characters from the left string.
-        BuildCopySeqStringChars(
-            left, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
-            result, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
-            left_length);
+        // Allocate the string object. HAllocate does not care whether we pass
+        // STRING_TYPE or ONE_BYTE_STRING_TYPE here, so we just use STRING_TYPE.
+        HAllocate* result =
+            BuildAllocate(size, HType::String(), STRING_TYPE, allocation_mode);
+        Add<HStoreNamedField>(result, HObjectAccess::ForMap(), map);
 
-        // Copy characters from the right string.
-        BuildCopySeqStringChars(
-            right, graph()->GetConstant0(), String::TWO_BYTE_ENCODING,
-            result, left_length, String::TWO_BYTE_ENCODING,
-            right_length);
+        // Initialize the string fields.
+        Add<HStoreNamedField>(result, HObjectAccess::ForStringHashField(),
+                              Add<HConstant>(String::kEmptyHashField));
+        Add<HStoreNamedField>(result, HObjectAccess::ForStringLength(), length);
+
+        // Copy characters to the result string.
+        IfBuilder if_twobyte(this);
+        if_twobyte.If<HCompareObjectEqAndBranch>(map, string_map);
+        if_twobyte.Then();
+        {
+          // Copy characters from the left string.
+          BuildCopySeqStringChars(
+              left, graph()->GetConstant0(), String::TWO_BYTE_ENCODING, result,
+              graph()->GetConstant0(), String::TWO_BYTE_ENCODING, left_length);
+
+          // Copy characters from the right string.
+          BuildCopySeqStringChars(
+              right, graph()->GetConstant0(), String::TWO_BYTE_ENCODING, result,
+              left_length, String::TWO_BYTE_ENCODING, right_length);
+        }
+        if_twobyte.Else();
+        {
+          // Copy characters from the left string.
+          BuildCopySeqStringChars(
+              left, graph()->GetConstant0(), String::ONE_BYTE_ENCODING, result,
+              graph()->GetConstant0(), String::ONE_BYTE_ENCODING, left_length);
+
+          // Copy characters from the right string.
+          BuildCopySeqStringChars(
+              right, graph()->GetConstant0(), String::ONE_BYTE_ENCODING, result,
+              left_length, String::ONE_BYTE_ENCODING, right_length);
+        }
+        if_twobyte.End();
+
+        // Count the native string addition.
+        AddIncrementCounter(isolate()->counters()->string_add_native());
+
+        // Return the sequential string.
+        Push(result);
       }
-      if_twobyte.Else();
+      if_size.Else();
       {
-        // Copy characters from the left string.
-        BuildCopySeqStringChars(
-            left, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
-            result, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
-            left_length);
-
-        // Copy characters from the right string.
-        BuildCopySeqStringChars(
-            right, graph()->GetConstant0(), String::ONE_BYTE_ENCODING,
-            result, left_length, String::ONE_BYTE_ENCODING,
-            right_length);
+        // Fallback to the runtime to add the two strings. The string has to be
+        // allocated in LO space.
+        Add<HPushArguments>(left, right);
+        Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kStringAdd), 2));
       }
-      if_twobyte.End();
-
-      // Count the native string addition.
-      AddIncrementCounter(isolate()->counters()->string_add_native());
-
-      // Return the sequential string.
-      Push(result);
+      if_size.End();
     }
     if_sameencodingandsequential.Else();
     {
