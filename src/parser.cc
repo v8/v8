@@ -3793,17 +3793,26 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
         // Make a block around the statement in case a lexical binding
         // is introduced, e.g. by a FunctionDeclaration.
+        // This block must not use for_scope as its scope because if a
+        // lexical binding is introduced which overlaps with the for-in/of,
+        // expressions in head of the loop should actually have variables
+        // resolved in the outer scope.
+        Scope* body_scope = NewScope(for_scope, BLOCK_SCOPE);
+        scope_ = body_scope;
         Block* block =
             factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
         Statement* body = ParseSubStatement(NULL, CHECK_OK);
         block->statements()->Add(body, zone());
         InitializeForEachStatement(loop, expression, enumerable, block);
         scope_ = saved_scope;
+        body_scope->set_end_position(scanner()->location().end_pos);
+        body_scope = body_scope->FinalizeBlockScope();
+        if (body_scope != nullptr) {
+          block->set_scope(body_scope);
+        }
         for_scope->set_end_position(scanner()->location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
-        if (for_scope != nullptr) {
-          block->set_scope(for_scope);
-        }
+        DCHECK(for_scope == nullptr);
         // Parsed for-in loop.
         return loop;
 
