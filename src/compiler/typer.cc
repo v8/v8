@@ -554,13 +554,13 @@ Type* Typer::Visitor::TypeEffectSet(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeValueEffect(Node* node) {
+Type* Typer::Visitor::TypeBeginRegion(Node* node) {
   UNREACHABLE();
   return nullptr;
 }
 
 
-Type* Typer::Visitor::TypeFinish(Node* node) { return Operand(node, 0); }
+Type* Typer::Visitor::TypeFinishRegion(Node* node) { return Operand(node, 0); }
 
 
 Type* Typer::Visitor::TypeFrameState(Node* node) {

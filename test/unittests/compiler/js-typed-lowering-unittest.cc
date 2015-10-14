@@ -1066,10 +1066,10 @@ TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
                               context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
-              IsFinish(IsAllocate(IsNumberConstant(Context::SizeFor(
-                                      8 + Context::MIN_CONTEXT_SLOTS)),
-                                  effect, control),
-                       _));
+              IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
+                                            8 + Context::MIN_CONTEXT_SLOTS)),
+                                        IsBeginRegion(effect), control),
+                             _));
 }
 
 
@@ -1106,10 +1106,10 @@ TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
                               closure, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
-              IsFinish(IsAllocate(IsNumberConstant(Context::SizeFor(
-                                      Context::MIN_CONTEXT_SLOTS)),
-                                  effect, control),
-                       _));
+              IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
+                                            Context::MIN_CONTEXT_SLOTS)),
+                                        IsBeginRegion(effect), control),
+                             _));
 }
 
 }  // namespace compiler

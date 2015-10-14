@@ -241,13 +241,14 @@ TARGET_TEST_F(InstructionSelectorTest, ReferenceParameter) {
 
 
 // -----------------------------------------------------------------------------
-// Finish.
+// FinishRegion.
 
 
-TARGET_TEST_F(InstructionSelectorTest, Finish) {
+TARGET_TEST_F(InstructionSelectorTest, FinishRegion) {
   StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged);
   Node* param = m.Parameter(0);
-  Node* finish = m.AddNode(m.common()->Finish(1), param, m.graph()->start());
+  Node* finish =
+      m.AddNode(m.common()->FinishRegion(), param, m.graph()->start());
   m.Return(finish);
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(4U, s.size());
@@ -333,8 +334,9 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
   Stream s1 = m1.Build(kAllInstructions);
   StreamBuilder m2(this, kMachInt32, kMachPtr);
   Node* p2 = m2.Parameter(0);
-  m2.Return(m2.AddNode(m2.machine()->Load(kMachInt32), p2, m2.Int32Constant(0),
-                       m2.AddNode(m2.common()->ValueEffect(1), p2)));
+  m2.Return(
+      m2.AddNode(m2.machine()->Load(kMachInt32), p2, m2.Int32Constant(0),
+                 m2.AddNode(m2.common()->BeginRegion(), m2.graph()->start())));
   Stream s2 = m2.Build(kAllInstructions);
   EXPECT_LE(3U, s1.size());
   ASSERT_EQ(s1.size(), s2.size());

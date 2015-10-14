@@ -145,8 +145,8 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* Phi(MachineType type, int value_input_count);
   const Operator* EffectPhi(int effect_input_count);
   const Operator* EffectSet(int arguments);
-  const Operator* ValueEffect(int arguments);
-  const Operator* Finish(int arguments);
+  const Operator* BeginRegion();
+  const Operator* FinishRegion();
   const Operator* StateValues(int arguments);
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types);
   const Operator* FrameState(BailoutId bailout_id,

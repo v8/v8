@@ -44,8 +44,8 @@
   V(Phi)                 \
   V(EffectSet)           \
   V(EffectPhi)           \
-  V(ValueEffect)         \
-  V(Finish)              \
+  V(BeginRegion)         \
+  V(FinishRegion)        \
   V(FrameState)          \
   V(StateValues)         \
   V(TypedStateValues)    \

@@ -545,12 +545,13 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kEffectPhi:
     case IrOpcode::kMerge:
     case IrOpcode::kTerminate:
+    case IrOpcode::kBeginRegion:
       // No code needed for these graph artifacts.
       return;
     case IrOpcode::kIfException:
       return MarkAsReference(node), VisitIfException(node);
-    case IrOpcode::kFinish:
-      return MarkAsReference(node), VisitFinish(node);
+    case IrOpcode::kFinishRegion:
+      return MarkAsReference(node), VisitFinishRegion(node);
     case IrOpcode::kParameter: {
       MachineType type =
           linkage()->GetParameterType(ParameterIndexOf(node->op()));
@@ -925,7 +926,7 @@ void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
 #endif  // V8_TARGET_ARCH_32_BIT
 
 
-void InstructionSelector::VisitFinish(Node* node) {
+void InstructionSelector::VisitFinishRegion(Node* node) {
   OperandGenerator g(this);
   Node* value = node->InputAt(0);
   Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));

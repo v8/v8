@@ -413,10 +413,10 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_LT(1, effect_count);
       break;
     }
-    case IrOpcode::kValueEffect:
+    case IrOpcode::kBeginRegion:
       // TODO(rossberg): what are the constraints on these?
       break;
-    case IrOpcode::kFinish: {
+    case IrOpcode::kFinishRegion: {
       // TODO(rossberg): what are the constraints on these?
       // Type must be subsumed by input type.
       if (typing == TYPED) {

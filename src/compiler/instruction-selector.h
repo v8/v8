@@ -200,7 +200,7 @@ class InstructionSelector final {
   MACHINE_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
-  void VisitFinish(Node* node);
+  void VisitFinishRegion(Node* node);
   void VisitParameter(Node* node);
   void VisitIfException(Node* node);
   void VisitOsrValue(Node* node);

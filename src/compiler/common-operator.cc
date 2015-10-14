@@ -125,7 +125,9 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)       \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
-  V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)
+  V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
+  V(BeginRegion, Operator::kNoThrow, 0, 1, 0, 0, 1, 0)     \
+  V(FinishRegion, Operator::kNoThrow, 1, 1, 0, 1, 1, 0)
 
 
 #define CACHED_RETURN_LIST(V) \
@@ -675,24 +677,6 @@ const Operator* CommonOperatorBuilder::EffectSet(int arguments) {
       IrOpcode::kEffectSet, Operator::kPure,  // opcode
       "EffectSet",                            // name
       0, arguments, 0, 0, 1, 0);              // counts
-}
-
-
-const Operator* CommonOperatorBuilder::ValueEffect(int arguments) {
-  DCHECK(arguments > 0);                        // Disallow empty value effects.
-  return new (zone()) Operator(                 // --
-      IrOpcode::kValueEffect, Operator::kPure,  // opcode
-      "ValueEffect",                            // name
-      arguments, 0, 0, 0, 1, 0);                // counts
-}
-
-
-const Operator* CommonOperatorBuilder::Finish(int arguments) {
-  DCHECK(arguments > 0);                   // Disallow empty finishes.
-  return new (zone()) Operator(            // --
-      IrOpcode::kFinish, Operator::kPure,  // opcode
-      "Finish",                            // name
-      1, arguments, 0, 1, 0, 0);           // counts
 }
 
 

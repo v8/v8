@@ -66,7 +66,7 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   Callable callable = CodeFactory::AllocateHeapNumber(isolate());
   Node* target = jsgraph()->HeapConstant(callable.code());
   Node* context = jsgraph()->NoContextConstant();
-  Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
+  Node* effect = graph()->NewNode(common()->BeginRegion(), graph()->start());
   if (!allocate_heap_number_operator_.is_set()) {
     CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
         isolate(), jsgraph()->zone(), callable.descriptor(), 0,
@@ -78,7 +78,7 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   Node* store = graph()->NewNode(
       machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
       heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);
-  return graph()->NewNode(common()->Finish(1), heap_number, store);
+  return graph()->NewNode(common()->FinishRegion(), heap_number, store);
 }
 
 

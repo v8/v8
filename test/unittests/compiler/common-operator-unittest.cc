@@ -358,28 +358,24 @@ TEST_F(CommonOperatorTest, NumberConstant) {
 }
 
 
-TEST_F(CommonOperatorTest, ValueEffect) {
-  TRACED_FOREACH(int, arguments, kArguments) {
-    const Operator* op = common()->ValueEffect(arguments);
-    EXPECT_EQ(arguments, op->ValueInputCount());
-    EXPECT_EQ(arguments, OperatorProperties::GetTotalInputCount(op));
-    EXPECT_EQ(0, op->ControlOutputCount());
-    EXPECT_EQ(1, op->EffectOutputCount());
-    EXPECT_EQ(0, op->ValueOutputCount());
-  }
+TEST_F(CommonOperatorTest, BeginRegion) {
+  const Operator* op = common()->BeginRegion();
+  EXPECT_EQ(1, op->EffectInputCount());
+  EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
+  EXPECT_EQ(0, op->ControlOutputCount());
+  EXPECT_EQ(1, op->EffectOutputCount());
+  EXPECT_EQ(0, op->ValueOutputCount());
 }
 
 
-TEST_F(CommonOperatorTest, Finish) {
-  TRACED_FOREACH(int, arguments, kArguments) {
-    const Operator* op = common()->Finish(arguments);
-    EXPECT_EQ(1, op->ValueInputCount());
-    EXPECT_EQ(arguments, op->EffectInputCount());
-    EXPECT_EQ(arguments + 1, OperatorProperties::GetTotalInputCount(op));
-    EXPECT_EQ(0, op->ControlOutputCount());
-    EXPECT_EQ(0, op->EffectOutputCount());
-    EXPECT_EQ(1, op->ValueOutputCount());
-  }
+TEST_F(CommonOperatorTest, FinishRegion) {
+  const Operator* op = common()->FinishRegion();
+  EXPECT_EQ(1, op->ValueInputCount());
+  EXPECT_EQ(1, op->EffectInputCount());
+  EXPECT_EQ(2, OperatorProperties::GetTotalInputCount(op));
+  EXPECT_EQ(0, op->ControlOutputCount());
+  EXPECT_EQ(1, op->EffectOutputCount());
+  EXPECT_EQ(1, op->ValueOutputCount());
 }
 
 }  // namespace compiler

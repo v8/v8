@@ -63,9 +63,9 @@ Matcher<Node*> IsSwitch(const Matcher<Node*>& value_matcher,
 Matcher<Node*> IsIfValue(const Matcher<int32_t>& value_matcher,
                          const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfDefault(const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsValueEffect(const Matcher<Node*>& value_matcher);
-Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
-                        const Matcher<Node*>& effect_matcher);
+Matcher<Node*> IsBeginRegion(const Matcher<Node*>& effect_matcher);
+Matcher<Node*> IsFinishRegion(const Matcher<Node*>& value_matcher,
+                              const Matcher<Node*>& effect_matcher);
 Matcher<Node*> IsReturn(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& effect_matcher,
                         const Matcher<Node*>& control_matcher);

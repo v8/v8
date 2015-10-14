@@ -261,11 +261,34 @@ class IsControl3Matcher final : public NodeMatcher {
 };
 
 
-class IsFinishMatcher final : public NodeMatcher {
+class IsBeginRegionMatcher final : public NodeMatcher {
  public:
-  IsFinishMatcher(const Matcher<Node*>& value_matcher,
-                  const Matcher<Node*>& effect_matcher)
-      : NodeMatcher(IrOpcode::kFinish),
+  explicit IsBeginRegionMatcher(const Matcher<Node*>& effect_matcher)
+      : NodeMatcher(IrOpcode::kBeginRegion), effect_matcher_(effect_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> effect_matcher_;
+};
+
+
+class IsFinishRegionMatcher final : public NodeMatcher {
+ public:
+  IsFinishRegionMatcher(const Matcher<Node*>& value_matcher,
+                        const Matcher<Node*>& effect_matcher)
+      : NodeMatcher(IrOpcode::kFinishRegion),
         value_matcher_(value_matcher),
         effect_matcher_(effect_matcher) {}
 
@@ -1501,14 +1524,14 @@ Matcher<Node*> IsIfDefault(const Matcher<Node*>& control_matcher) {
 }
 
 
-Matcher<Node*> IsValueEffect(const Matcher<Node*>& value_matcher) {
-  return MakeMatcher(new IsUnopMatcher(IrOpcode::kValueEffect, value_matcher));
+Matcher<Node*> IsBeginRegion(const Matcher<Node*>& effect_matcher) {
+  return MakeMatcher(new IsBeginRegionMatcher(effect_matcher));
 }
 
 
-Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
-                        const Matcher<Node*>& effect_matcher) {
-  return MakeMatcher(new IsFinishMatcher(value_matcher, effect_matcher));
+Matcher<Node*> IsFinishRegion(const Matcher<Node*>& value_matcher,
+                              const Matcher<Node*>& effect_matcher) {
+  return MakeMatcher(new IsFinishRegionMatcher(value_matcher, effect_matcher));
 }
 
 

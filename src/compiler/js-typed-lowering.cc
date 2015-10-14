@@ -46,6 +46,7 @@ class AllocationBuilder final {
 
   // Primitive allocation of static size.
   void Allocate(int size) {
+    effect_ = graph()->NewNode(jsgraph()->common()->BeginRegion(), effect_);
     allocation_ = graph()->NewNode(
         simplified()->Allocate(), jsgraph()->Constant(size), effect_, control_);
     effect_ = allocation_;
@@ -70,8 +71,13 @@ class AllocationBuilder final {
     Store(access, jsgraph()->Constant(value));
   }
 
-  Node* allocation() const { return allocation_; }
-  Node* effect() const { return effect_; }
+  void Finish(Node* node) {
+    NodeProperties::SetType(allocation_, NodeProperties::GetType(node));
+    node->ReplaceInput(0, allocation_);
+    node->ReplaceInput(1, effect_);
+    node->TrimInputCount(2);
+    NodeProperties::ChangeOp(node, jsgraph()->common()->FinishRegion());
+  }
 
  protected:
   JSGraph* jsgraph() { return jsgraph_; }
@@ -1274,13 +1280,8 @@ Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->TheHoleConstant());
     }
-    // TODO(mstarzinger): We could mutate {node} into the allocation instead.
-    NodeProperties::SetType(a.allocation(), NodeProperties::GetType(node));
-    ReplaceWithValue(node, node, a.effect());
-    node->ReplaceInput(0, a.allocation());
-    node->ReplaceInput(1, a.effect());
-    node->TrimInputCount(2);
-    NodeProperties::ChangeOp(node, common()->Finish(1));
+    RelaxControls(node);
+    a.Finish(node);
     return Changed(node);
   }
 
@@ -1325,13 +1326,8 @@ Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), input);
     a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), load);
-    // TODO(mstarzinger): We could mutate {node} into the allocation instead.
-    NodeProperties::SetType(a.allocation(), NodeProperties::GetType(node));
-    ReplaceWithValue(node, node, a.effect());
-    node->ReplaceInput(0, a.allocation());
-    node->ReplaceInput(1, a.effect());
-    node->TrimInputCount(2);
-    NodeProperties::ChangeOp(node, common()->Finish(1));
+    RelaxControls(node);
+    a.Finish(node);
     return Changed(node);
   }
 
@@ -1366,13 +1362,8 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->TheHoleConstant());
     }
-    // TODO(mstarzinger): We could mutate {node} into the allocation instead.
-    NodeProperties::SetType(a.allocation(), NodeProperties::GetType(node));
-    ReplaceWithValue(node, node, a.effect());
-    node->ReplaceInput(0, a.allocation());
-    node->ReplaceInput(1, a.effect());
-    node->TrimInputCount(2);
-    NodeProperties::ChangeOp(node, common()->Finish(1));
+    RelaxControls(node);
+    a.Finish(node);
     return Changed(node);
   }
 
