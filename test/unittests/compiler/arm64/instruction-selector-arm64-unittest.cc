@@ -583,7 +583,6 @@ TEST_F(InstructionSelectorTest, AddImmediateOnLeft) {
 
 
 TEST_F(InstructionSelectorTest, SubZeroOnLeft) {
-  // Subtraction with zero on the left maps to Neg.
   {
     // 32-bit subtract.
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
@@ -591,8 +590,10 @@ TEST_F(InstructionSelectorTest, SubZeroOnLeft) {
     Stream s = m.Build();
 
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Neg32, s[0]->arch_opcode());
-    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(kArm64Sub32, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE(s[0]->InputAt(0)->IsImmediate());
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(0)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   {
@@ -602,9 +603,67 @@ TEST_F(InstructionSelectorTest, SubZeroOnLeft) {
     Stream s = m.Build();
 
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64Neg, s[0]->arch_opcode());
-    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(kArm64Sub, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE(s[0]->InputAt(0)->IsImmediate());
+    EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(0)));
     EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, SubZeroOnLeftWithShift) {
+  TRACED_FOREACH(Shift, shift, kShiftInstructions) {
+    {
+      // Test 32-bit operations. Ignore ROR shifts, as subtract does not
+      // support them.
+      if ((shift.mi.machine_type != kMachInt32) ||
+          (shift.mi.arch_opcode == kArm64Ror32) ||
+          (shift.mi.arch_opcode == kArm64Ror))
+        continue;
+
+      TRACED_FORRANGE(int, imm, -32, 63) {
+        StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+        m.Return(m.Int32Sub(
+            m.Int32Constant(0),
+            (m.*shift.mi.constructor)(m.Parameter(1), m.Int32Constant(imm))));
+        Stream s = m.Build();
+
+        ASSERT_EQ(1U, s.size());
+        EXPECT_EQ(kArm64Sub32, s[0]->arch_opcode());
+        ASSERT_EQ(3U, s[0]->InputCount());
+        EXPECT_TRUE(s[0]->InputAt(0)->IsImmediate());
+        EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(0)));
+        EXPECT_EQ(shift.mode, s[0]->addressing_mode());
+        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(2)));
+        EXPECT_EQ(1U, s[0]->OutputCount());
+      }
+    }
+    {
+      // Test 64-bit operations. Ignore ROR shifts, as subtract does not
+      // support them.
+      if ((shift.mi.machine_type != kMachInt64) ||
+          (shift.mi.arch_opcode == kArm64Ror32) ||
+          (shift.mi.arch_opcode == kArm64Ror))
+        continue;
+
+      TRACED_FORRANGE(int, imm, -32, 127) {
+        StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
+        m.Return(m.Int64Sub(
+            m.Int64Constant(0),
+            (m.*shift.mi.constructor)(m.Parameter(1), m.Int64Constant(imm))));
+        Stream s = m.Build();
+
+        ASSERT_EQ(1U, s.size());
+        EXPECT_EQ(kArm64Sub, s[0]->arch_opcode());
+        ASSERT_EQ(3U, s[0]->InputCount());
+        EXPECT_TRUE(s[0]->InputAt(0)->IsImmediate());
+        EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(0)));
+        EXPECT_EQ(shift.mode, s[0]->addressing_mode());
+        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(2)));
+        EXPECT_EQ(1U, s[0]->OutputCount());
+      }
+    }
   }
 }
 

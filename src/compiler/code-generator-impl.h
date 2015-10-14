@@ -43,6 +43,10 @@ class InstructionOperandConverter {
     return ToConstant(instr_->InputAt(index)).ToInt32();
   }
 
+  int64_t InputInt64(size_t index) {
+    return ToConstant(instr_->InputAt(index)).ToInt64();
+  }
+
   int8_t InputInt8(size_t index) {
     return static_cast<int8_t>(InputInt32(index));
   }

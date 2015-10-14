@@ -41,7 +41,25 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     return ToRegister(instr_->InputAt(index)).W();
   }
 
+  Register InputOrZeroRegister32(size_t index) {
+    DCHECK(instr_->InputAt(index)->IsRegister() ||
+           (instr_->InputAt(index)->IsImmediate() && (InputInt32(index) == 0)));
+    if (instr_->InputAt(index)->IsImmediate()) {
+      return wzr;
+    }
+    return InputRegister32(index);
+  }
+
   Register InputRegister64(size_t index) { return InputRegister(index); }
+
+  Register InputOrZeroRegister64(size_t index) {
+    DCHECK(instr_->InputAt(index)->IsRegister() ||
+           (instr_->InputAt(index)->IsImmediate() && (InputInt64(index) == 0)));
+    if (instr_->InputAt(index)->IsImmediate()) {
+      return xzr;
+    }
+    return InputRegister64(index);
+  }
 
   Operand InputImmediate(size_t index) {
     return ToImmediate(instr_->InputAt(index));
@@ -519,28 +537,33 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Frintp(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kArm64Add:
-      __ Add(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
+      __ Add(i.OutputRegister(), i.InputOrZeroRegister64(0),
+             i.InputOperand2_64(1));
       break;
     case kArm64Add32:
       if (FlagsModeField::decode(opcode) != kFlags_none) {
-        __ Adds(i.OutputRegister32(), i.InputRegister32(0),
+        __ Adds(i.OutputRegister32(), i.InputOrZeroRegister32(0),
                 i.InputOperand2_32(1));
       } else {
-        __ Add(i.OutputRegister32(), i.InputRegister32(0),
+        __ Add(i.OutputRegister32(), i.InputOrZeroRegister32(0),
                i.InputOperand2_32(1));
       }
       break;
     case kArm64And:
-      __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
+      __ And(i.OutputRegister(), i.InputOrZeroRegister64(0),
+             i.InputOperand2_64(1));
       break;
     case kArm64And32:
-      __ And(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
+      __ And(i.OutputRegister32(), i.InputOrZeroRegister32(0),
+             i.InputOperand2_32(1));
       break;
     case kArm64Bic:
-      __ Bic(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
+      __ Bic(i.OutputRegister(), i.InputOrZeroRegister64(0),
+             i.InputOperand2_64(1));
       break;
     case kArm64Bic32:
-      __ Bic(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
+      __ Bic(i.OutputRegister32(), i.InputOrZeroRegister32(0),
+             i.InputOperand2_32(1));
       break;
     case kArm64Mul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
@@ -624,45 +647,48 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Not32:
       __ Mvn(i.OutputRegister32(), i.InputOperand32(0));
       break;
-    case kArm64Neg:
-      __ Neg(i.OutputRegister(), i.InputOperand(0));
-      break;
-    case kArm64Neg32:
-      __ Neg(i.OutputRegister32(), i.InputOperand32(0));
-      break;
     case kArm64Or:
-      __ Orr(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
+      __ Orr(i.OutputRegister(), i.InputOrZeroRegister64(0),
+             i.InputOperand2_64(1));
       break;
     case kArm64Or32:
-      __ Orr(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
+      __ Orr(i.OutputRegister32(), i.InputOrZeroRegister32(0),
+             i.InputOperand2_32(1));
       break;
     case kArm64Orn:
-      __ Orn(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
+      __ Orn(i.OutputRegister(), i.InputOrZeroRegister64(0),
+             i.InputOperand2_64(1));
       break;
     case kArm64Orn32:
-      __ Orn(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
+      __ Orn(i.OutputRegister32(), i.InputOrZeroRegister32(0),
+             i.InputOperand2_32(1));
       break;
     case kArm64Eor:
-      __ Eor(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
+      __ Eor(i.OutputRegister(), i.InputOrZeroRegister64(0),
+             i.InputOperand2_64(1));
       break;
     case kArm64Eor32:
-      __ Eor(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
+      __ Eor(i.OutputRegister32(), i.InputOrZeroRegister32(0),
+             i.InputOperand2_32(1));
       break;
     case kArm64Eon:
-      __ Eon(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
+      __ Eon(i.OutputRegister(), i.InputOrZeroRegister64(0),
+             i.InputOperand2_64(1));
       break;
     case kArm64Eon32:
-      __ Eon(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
+      __ Eon(i.OutputRegister32(), i.InputOrZeroRegister32(0),
+             i.InputOperand2_32(1));
       break;
     case kArm64Sub:
-      __ Sub(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
+      __ Sub(i.OutputRegister(), i.InputOrZeroRegister64(0),
+             i.InputOperand2_64(1));
       break;
     case kArm64Sub32:
       if (FlagsModeField::decode(opcode) != kFlags_none) {
-        __ Subs(i.OutputRegister32(), i.InputRegister32(0),
+        __ Subs(i.OutputRegister32(), i.InputOrZeroRegister32(0),
                 i.InputOperand2_32(1));
       } else {
-        __ Sub(i.OutputRegister32(), i.InputRegister32(0),
+        __ Sub(i.OutputRegister32(), i.InputOrZeroRegister32(0),
                i.InputOperand2_32(1));
       }
       break;
@@ -747,10 +773,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Clz(i.OutputRegister32(), i.InputRegister32(0));
       break;
     case kArm64Cmp:
-      __ Cmp(i.InputRegister(0), i.InputOperand(1));
+      __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand(1));
       break;
     case kArm64Cmp32:
-      __ Cmp(i.InputRegister32(0), i.InputOperand2_32(1));
+      __ Cmp(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Cmn:
       __ Cmn(i.InputRegister(0), i.InputOperand(1));

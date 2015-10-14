@@ -55,8 +55,6 @@ namespace compiler {
   V(Arm64Umod32)                   \
   V(Arm64Not)                      \
   V(Arm64Not32)                    \
-  V(Arm64Neg)                      \
-  V(Arm64Neg32)                    \
   V(Arm64Lsl)                      \
   V(Arm64Lsl32)                    \
   V(Arm64Lsr)                      \
