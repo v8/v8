@@ -712,7 +712,9 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         ->LoadLiteral(Smi::FromInt(array_index))
         .StoreAccumulatorInRegister(index);
     Visit(subexpr);
-    builder()->GenericStoreKeyedProperty(literal, index);
+    FeedbackVectorSlot slot = expr->LiteralFeedbackSlot();
+    builder()->StoreKeyedProperty(literal, index, feedback_index(slot),
+                                  language_mode());
   }
 
   if (!literal_in_accumulator) {

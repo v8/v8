@@ -315,12 +315,6 @@ void BytecodeGraphBuilder::VisitKeyedStoreICStrict(
 }
 
 
-void BytecodeGraphBuilder::VisitKeyedStoreICGeneric(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
 void BytecodeGraphBuilder::VisitPushContext(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

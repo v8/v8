@@ -343,13 +343,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
 }
 
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::GenericStoreKeyedProperty(
-    Register object, Register key) {
-  Output(Bytecode::kKeyedStoreICGeneric, object.ToOperand(), key.ToOperand());
-  return *this;
-}
-
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
     PretenureFlag tenured) {
   DCHECK(FitsInImm8Operand(tenured));

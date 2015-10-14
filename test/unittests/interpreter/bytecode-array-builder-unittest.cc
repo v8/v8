@@ -57,8 +57,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadNamedProperty(reg, 0, LanguageMode::STRICT)
       .LoadKeyedProperty(reg, 0, LanguageMode::STRICT)
       .StoreNamedProperty(reg, reg, 0, LanguageMode::STRICT)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT)
-      .GenericStoreKeyedProperty(reg, reg);
+      .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT);
 
   // Emit closure operations.
   builder.CreateClosure(NOT_TENURED);

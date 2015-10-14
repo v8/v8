@@ -1951,6 +1951,15 @@ TEST(FunctionLiterals) {
 TEST(ArrayLiterals) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddKeyedStoreICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddKeyedStoreICSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddKeyedStoreICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   int simple_flags =
       ArrayLiteral::kDisableMementos | ArrayLiteral::kShallowElements;
@@ -1970,26 +1979,26 @@ TEST(ArrayLiterals) {
       {"var a = 1; return [ a, a + 1 ];",
        4 * kPointerSize,
        1,
-       37,
+       39,
        {
-           B(LdaSmi8), U8(1),                    //
-           B(Star), R(0),                        //
-           B(LdaConstant), U8(0),                //
-           B(CreateArrayLiteral), U8(0), U8(3),  //
-           B(Star), R(2),                        //
-           B(LdaZero),                           //
-           B(Star), R(1),                        //
-           B(Ldar), R(0),                        //
-           B(KeyedStoreICGeneric), R(2), R(1),   //
-           B(LdaSmi8), U8(1),                    //
-           B(Star), R(1),                        //
-           B(Ldar), R(0),                        //
-           B(Star), R(3),                        //
-           B(LdaSmi8), U8(1),                    //
-           B(Add), R(3),                         //
-           B(KeyedStoreICGeneric), R(2), R(1),   //
-           B(Ldar), R(2),                        //
-           B(Return)                             //
+           B(LdaSmi8), U8(1),                                               //
+           B(Star), R(0),                                                   //
+           B(LdaConstant), U8(0),                                           //
+           B(CreateArrayLiteral), U8(0), U8(3),                             //
+           B(Star), R(2),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(1),                                                   //
+           B(Ldar), R(0),                                                   //
+           B(KeyedStoreICSloppy), R(2), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaSmi8), U8(1),                                               //
+           B(Star), R(1),                                                   //
+           B(Ldar), R(0),                                                   //
+           B(Star), R(3),                                                   //
+           B(LdaSmi8), U8(1),                                               //
+           B(Add), R(3),                                                    //
+           B(KeyedStoreICSloppy), R(2), R(1), U8(vector->GetIndex(slot1)),  //
+           B(Ldar), R(2),                                                   //
+           B(Return)                                                        //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
@@ -2007,40 +2016,40 @@ TEST(ArrayLiterals) {
       {"var a = 1; return [ [ a, 2 ], [ a + 2 ] ];",
        6 * kPointerSize,
        1,
-       67,
+       71,
        {
-           B(LdaSmi8), U8(1),                                      //
-           B(Star), R(0),                                          //
-           B(LdaConstant), U8(0),                                  //
-           B(CreateArrayLiteral), U8(2), U8(deep_elements_flags),  //
-           B(Star), R(2),                                          //
-           B(LdaZero),                                             //
-           B(Star), R(1),                                          //
-           B(LdaConstant), U8(1),                                  //
-           B(CreateArrayLiteral), U8(0), U8(simple_flags),         //
-           B(Star), R(4),                                          //
-           B(LdaZero),                                             //
-           B(Star), R(3),                                          //
-           B(Ldar), R(0),                                          //
-           B(KeyedStoreICGeneric), R(4), R(3),                     //
-           B(Ldar), R(4),                                          //
-           B(KeyedStoreICGeneric), R(2), R(1),                     //
-           B(LdaSmi8), U8(1),                                      //
-           B(Star), R(1),                                          //
-           B(LdaConstant), U8(2),                                  //
-           B(CreateArrayLiteral), U8(1), U8(simple_flags),         //
-           B(Star), R(4),                                          //
-           B(LdaZero),                                             //
-           B(Star), R(3),                                          //
-           B(Ldar), R(0),                                          //
-           B(Star), R(5),                                          //
-           B(LdaSmi8), U8(2),                                      //
-           B(Add), R(5),                                           //
-           B(KeyedStoreICGeneric), R(4), R(3),                     //
-           B(Ldar), R(4),                                          //
-           B(KeyedStoreICGeneric), R(2), R(1),                     //
-           B(Ldar), R(2),                                          //
-           B(Return),                                              //
+           B(LdaSmi8), U8(1),                                               //
+           B(Star), R(0),                                                   //
+           B(LdaConstant), U8(0),                                           //
+           B(CreateArrayLiteral), U8(2), U8(deep_elements_flags),           //
+           B(Star), R(2),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(1),                                           //
+           B(CreateArrayLiteral), U8(0), U8(simple_flags),                  //
+           B(Star), R(4),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(3),                                                   //
+           B(Ldar), R(0),                                                   //
+           B(KeyedStoreICSloppy), R(4), R(3), U8(vector->GetIndex(slot1)),  //
+           B(Ldar), R(4),                                                   //
+           B(KeyedStoreICSloppy), R(2), R(1), U8(vector->GetIndex(slot3)),  //
+           B(LdaSmi8), U8(1),                                               //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(2),                                           //
+           B(CreateArrayLiteral), U8(1), U8(simple_flags),                  //
+           B(Star), R(4),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(3),                                                   //
+           B(Ldar), R(0),                                                   //
+           B(Star), R(5),                                                   //
+           B(LdaSmi8), U8(2),                                               //
+           B(Add), R(5),                                                    //
+           B(KeyedStoreICSloppy), R(4), R(3), U8(vector->GetIndex(slot2)),  //
+           B(Ldar), R(4),                                                   //
+           B(KeyedStoreICSloppy), R(2), R(1), U8(vector->GetIndex(slot3)),  //
+           B(Ldar), R(2),                                                   //
+           B(Return),                                                       //
        },
        3,
        {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE,

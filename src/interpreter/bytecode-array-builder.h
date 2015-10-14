@@ -78,8 +78,6 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
                                            int feedback_slot,
                                            LanguageMode language_mode);
-  BytecodeArrayBuilder& GenericStoreKeyedProperty(Register object,
-                                                  Register key);
 
   // Create a new closure for the SharedFunctionInfo in the accumulator.
   BytecodeArrayBuilder& CreateClosure(PretenureFlag tenured);

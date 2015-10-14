@@ -67,8 +67,6 @@ namespace interpreter {
     OperandType::kIdx8)                                                        \
   V(KeyedStoreICStrict, OperandType::kReg8, OperandType::kReg8,                \
     OperandType::kIdx8)                                                        \
-  /* TODO(rmcilroy): Remove once literal stores have type feedback slots. */   \
-  V(KeyedStoreICGeneric, OperandType::kReg8, OperandType::kReg8)               \
                                                                                \
   /* Context operations */                                                     \
   V(PushContext, OperandType::kReg8)                                           \

@@ -347,26 +347,6 @@ void Interpreter::DoKeyedStoreICStrict(
 }
 
 
-// KeyedStoreICGeneric <object> <key>
-//
-// Calls the generic KeyedStoreIC for <object> and the key <key> with the value
-// in the accumulator.
-void Interpreter::DoKeyedStoreICGeneric(
-    compiler::InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::KeyedStoreICInOptimizedCode(isolate_, SLOPPY, MEGAMORPHIC);
-  Node* code_target = __ HeapConstant(ic.code());
-  Node* object_reg_index = __ BytecodeOperandReg8(0);
-  Node* object = __ LoadRegister(object_reg_index);
-  Node* name_reg_index = __ BytecodeOperandReg8(1);
-  Node* name = __ LoadRegister(name_reg_index);
-  Node* value = __ GetAccumulator();
-  Node* result = __ CallIC(ic.descriptor(), code_target, object, name, value);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-
 // PushContext <context>
 //
 // Pushes the accumulator as the current context, and saves it in <context>
