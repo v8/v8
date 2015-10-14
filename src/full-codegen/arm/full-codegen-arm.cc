@@ -4245,6 +4245,10 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   __ b(vs, &bailout);
   __ SmiUntag(string_length);
 
+  // Bailout for large object allocations.
+  __ cmp(string_length, Operand(Page::kMaxRegularHeapObjectSize));
+  __ b(gt, &bailout);
+
   // Get first element in the array to free up the elements register to be used
   // for the result.
   __ add(element,

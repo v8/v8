@@ -3961,6 +3961,10 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   __ Umaddl(string_length, array_length.W(), separator_length.W(),
             string_length);
 
+  // Bailout for large object allocations.
+  __ Cmp(string_length, Page::kMaxRegularHeapObjectSize);
+  __ B(gt, &bailout);
+
   // Get first element in the array.
   __ Add(element, elements, FixedArray::kHeaderSize - kHeapObjectTag);
   // Live values in registers:

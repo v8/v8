@@ -4276,6 +4276,10 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   __ BranchOnOverflow(&bailout, scratch3);
   __ SmiUntag(string_length);
 
+  // Bailout for large object allocations.
+  __ Branch(&bailout, gt, string_length,
+            Operand(Page::kMaxRegularHeapObjectSize));
+
   // Get first element in the array to free up the elements register to be used
   // for the result.
   __ Addu(element,
