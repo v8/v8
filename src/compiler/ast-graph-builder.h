@@ -129,6 +129,7 @@ class AstGraphBuilder : public AstVisitor {
   ContextScope* execution_context() const { return execution_context_; }
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   CompilationInfo* info() const { return info_; }
+  Isolate* isolate() const;
   LanguageMode language_mode() const;
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }

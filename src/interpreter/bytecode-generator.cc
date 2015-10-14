@@ -132,7 +132,8 @@ void BytecodeGenerator::ControlScope::PerformCommand(Command command,
 
 
 BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
-    : builder_(isolate, zone),
+    : isolate_(isolate),
+      builder_(isolate, zone),
       info_(nullptr),
       scope_(nullptr),
       globals_(0, zone),

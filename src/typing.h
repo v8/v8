@@ -33,6 +33,7 @@ class AstTyper: public AstVisitor {
   typedef v8::internal::Effects<int, kNoVar> Effects;
   typedef v8::internal::NestedEffects<int, kNoVar> Store;
 
+  Isolate* isolate_;
   Handle<JSFunction> closure_;
   Scope* scope_;
   BailoutId osr_ast_id_;

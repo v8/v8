@@ -3017,6 +3017,9 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 }
 
 
+Isolate* AstGraphBuilder::isolate() const { return info()->isolate(); }
+
+
 LanguageMode AstGraphBuilder::language_mode() const {
   return info()->language_mode();
 }

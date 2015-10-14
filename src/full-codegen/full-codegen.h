@@ -688,6 +688,7 @@ class FullCodeGenerator: public AstVisitor {
   const ExpressionContext* context() { return context_; }
   void set_new_context(const ExpressionContext* context) { context_ = context; }
 
+  Isolate* isolate() const { return info_->isolate(); }
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }

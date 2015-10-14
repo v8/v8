@@ -17,7 +17,8 @@ namespace internal {
 
 AstTyper::AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
                    Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root)
-    : closure_(closure),
+    : isolate_(isolate),
+      closure_(closure),
       scope_(scope),
       osr_ast_id_(osr_ast_id),
       root_(root),
@@ -51,7 +52,7 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
   if (stmt->OsrEntryId() != osr_ast_id_) return;
 
   DisallowHeapAllocation no_gc;
-  JavaScriptFrameIterator it(isolate());
+  JavaScriptFrameIterator it(isolate_);
   JavaScriptFrame* frame = it.frame();
 
   // Assert that the frame on the stack belongs to the function we want to OSR.
@@ -529,7 +530,7 @@ void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
   RECURSE(Visit(expr->expression()));
   bool is_uninitialized = true;
-  if (expr->IsUsingCallFeedbackICSlot(isolate())) {
+  if (expr->IsUsingCallFeedbackICSlot(isolate_)) {
     FeedbackVectorSlot slot = expr->CallFeedbackICSlot();
     is_uninitialized = oracle()->CallIsUninitialized(slot);
     if (!expr->expression()->IsProperty() &&
@@ -549,7 +550,7 @@ void AstTyper::VisitCall(Call* expr) {
   }
 
   VariableProxy* proxy = expr->expression()->AsVariableProxy();
-  if (proxy != NULL && proxy->var()->is_possibly_eval(isolate())) {
+  if (proxy != NULL && proxy->var()->is_possibly_eval(isolate_)) {
     store_.Forget();  // Eval could do whatever to local variables.
   }
 

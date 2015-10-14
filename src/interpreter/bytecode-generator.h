@@ -54,6 +54,8 @@ class BytecodeGenerator : public AstVisitor {
 
   inline BytecodeArrayBuilder* builder() { return &builder_; }
 
+  inline Isolate* isolate() const { return isolate_; }
+
   inline Scope* scope() const { return scope_; }
   inline void set_scope(Scope* scope) { scope_ = scope; }
   inline CompilationInfo* info() const { return info_; }
@@ -71,6 +73,7 @@ class BytecodeGenerator : public AstVisitor {
   Strength language_mode_strength() const;
   int feedback_index(FeedbackVectorSlot slot) const;
 
+  Isolate* isolate_;
   BytecodeArrayBuilder builder_;
   CompilationInfo* info_;
   Scope* scope_;
