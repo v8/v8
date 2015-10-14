@@ -3514,11 +3514,6 @@ HAllocate* HGraphBuilder::JSArrayBuilder::AllocateArray(
   HValue* elements_size =
       builder()->BuildCalculateElementsSize(kind_, capacity);
 
-  // Bail out for large objects.
-  HValue* max_regular_heap_object_size =
-      builder()->Add<HConstant>(Page::kMaxRegularHeapObjectSize);
-  builder()->Add<HBoundsCheck>(elements_size, max_regular_heap_object_size);
-
   // Allocate (dealing with failure appropriately)
   HAllocate* array_object = builder()->AllocateJSArrayObject(mode_);
 
