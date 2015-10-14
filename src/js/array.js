@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, utils) {
+(function(global, utils, extrasUtils) {
 
 "use strict";
 
@@ -1622,6 +1622,17 @@ utils.SetUpLockedPrototype(InternalPackedArray, GlobalArray(), [
   "pop", getFunction("pop", ArrayPop),
   "push", getFunction("push", ArrayPush),
   "shift", getFunction("shift", ArrayShift)
+]);
+
+// V8 extras get a separate copy of InternalPackedArray. We give them the basic
+// manipulation methods.
+utils.SetUpLockedPrototype(extrasUtils.InternalPackedArray, GlobalArray(), [
+  "push", getFunction("push", ArrayPush),
+  "pop", getFunction("pop", ArrayPop),
+  "shift", getFunction("shift", ArrayShift),
+  "unshift", getFunction("unshift", ArrayUnshift),
+  "splice", getFunction("splice", ArraySplice),
+  "slice", getFunction("slice", ArraySlice)
 ]);
 
 // -------------------------------------------------------------------
