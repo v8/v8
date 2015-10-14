@@ -503,7 +503,6 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // Deep-copy the literal boilerplate.
-  expr->BuildConstantElements(isolate());
   builder()
       ->LoadLiteral(expr->constant_elements())
       .CreateArrayLiteral(expr->literal_index(), expr->ComputeFlags(true));
