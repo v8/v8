@@ -25,8 +25,10 @@
             '../test/intl/intl.gyp:*',
             '../test/message/message.gyp:*',
             '../test/mjsunit/mjsunit.gyp:*',
+            '../test/optimize_for_size.gyp:*',
             '../test/preparser/preparser.gyp:*',
             '../test/test262/test262.gyp:*',
+            '../test/webkit/webkit.gyp:*',
           ],
         }],
       ]
