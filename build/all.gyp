@@ -26,6 +26,7 @@
             '../test/message/message.gyp:*',
             '../test/mjsunit/mjsunit.gyp:*',
             '../test/preparser/preparser.gyp:*',
+            '../test/test262/test262.gyp:*',
           ],
         }],
       ]
