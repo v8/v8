@@ -2956,13 +2956,28 @@ Statement* Parser::ParseWithStatement(ZoneList<const AstRawString*>* labels,
 
   scope_->DeclarationScope()->RecordWithStatement();
   Scope* with_scope = NewScope(scope_, WITH_SCOPE);
-  Statement* stmt;
+  Block* body;
   { BlockState block_state(&scope_, with_scope);
     with_scope->set_start_position(scanner()->peek_location().beg_pos);
-    stmt = ParseSubStatement(labels, CHECK_OK);
+
+    // The body of the with statement must be enclosed in an additional
+    // lexical scope in case the body is a FunctionDeclaration.
+    body = factory()->NewBlock(labels, 1, false, RelocInfo::kNoPosition);
+    Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
+    block_scope->set_start_position(scanner()->location().beg_pos);
+    {
+      BlockState block_state(&scope_, block_scope);
+      Target target(&this->target_stack_, body);
+      Statement* stmt = ParseSubStatement(labels, CHECK_OK);
+      body->statements()->Add(stmt, zone());
+      block_scope->set_end_position(scanner()->location().end_pos);
+      block_scope = block_scope->FinalizeBlockScope();
+      body->set_scope(block_scope);
+    }
+
     with_scope->set_end_position(scanner()->location().end_pos);
   }
-  return factory()->NewWithStatement(with_scope, expr, stmt, pos);
+  return factory()->NewWithStatement(with_scope, expr, body, pos);
 }
 
 
