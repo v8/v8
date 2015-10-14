@@ -972,28 +972,6 @@ class FullCodeGenerator: public AstVisitor {
 };
 
 
-// A map from property names to getter/setter pairs allocated in the zone.
-class AccessorTable: public TemplateHashMap<Literal,
-                                            ObjectLiteral::Accessors,
-                                            ZoneAllocationPolicy> {
- public:
-  explicit AccessorTable(Zone* zone) :
-      TemplateHashMap<Literal, ObjectLiteral::Accessors,
-                      ZoneAllocationPolicy>(Literal::Match,
-                                            ZoneAllocationPolicy(zone)),
-      zone_(zone) { }
-
-  Iterator lookup(Literal* literal) {
-    Iterator it = find(literal, true, ZoneAllocationPolicy(zone_));
-    if (it->second == NULL) it->second = new(zone_) ObjectLiteral::Accessors();
-    return it;
-  }
-
- private:
-  Zone* zone_;
-};
-
-
 class BackEdgeTable {
  public:
   BackEdgeTable(Code* code, DisallowHeapAllocation* required) {

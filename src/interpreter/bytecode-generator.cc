@@ -7,7 +7,6 @@
 #include <stack>
 
 #include "src/compiler.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/objects.h"
 #include "src/parser.h"
