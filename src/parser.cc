@@ -1217,8 +1217,10 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
 
       if (ok) {
         checkpoint.Restore(&formals.materialized_literals_count);
+        // Pass `accept_IN=true` to ParseArrowFunctionLiteral --- This should
+        // not be observable, or else the preparser would have failed.
         Expression* expression =
-            ParseArrowFunctionLiteral(formals, formals_classifier, &ok);
+            ParseArrowFunctionLiteral(true, formals, formals_classifier, &ok);
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack

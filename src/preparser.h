@@ -714,9 +714,10 @@ class ParserBase : public Traits {
   ExpressionT ParseMemberExpression(ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseMemberExpressionContinuation(
       ExpressionT expression, ExpressionClassifier* classifier, bool* ok);
-  ExpressionT ParseArrowFunctionLiteral(
-      const FormalParametersT& parameters,
-      const ExpressionClassifier& classifier, bool* ok);
+  ExpressionT ParseArrowFunctionLiteral(bool accept_IN,
+                                        const FormalParametersT& parameters,
+                                        const ExpressionClassifier& classifier,
+                                        bool* ok);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start,
                                    ExpressionClassifier* classifier, bool* ok);
   void AddTemplateExpression(ExpressionT);
@@ -2946,7 +2947,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
           duplicate_loc);
     }
     expression = this->ParseArrowFunctionLiteral(
-        parameters, arrow_formals_classifier, CHECK_OK);
+        accept_IN, parameters, arrow_formals_classifier, CHECK_OK);
     return expression;
   }
 
@@ -3882,7 +3883,7 @@ bool ParserBase<Traits>::IsNextLetKeyword() {
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseArrowFunctionLiteral(
-    const FormalParametersT& formal_parameters,
+    bool accept_IN, const FormalParametersT& formal_parameters,
     const ExpressionClassifier& formals_classifier, bool* ok) {
   if (peek() == Token::ARROW && scanner_->HasAnyLineTerminatorBeforeNext()) {
     // ASI inserts `;` after arrow parameters if a line terminator is found.
@@ -3940,7 +3941,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       parenthesized_function_ = false;
       ExpressionClassifier classifier;
       ExpressionT expression =
-          ParseAssignmentExpression(true, &classifier, CHECK_OK);
+          ParseAssignmentExpression(accept_IN, &classifier, CHECK_OK);
       ValidateExpression(&classifier, CHECK_OK);
       body = this->NewStatementList(1, zone());
       this->AddParameterInitializationBlock(formal_parameters, body, CHECK_OK);

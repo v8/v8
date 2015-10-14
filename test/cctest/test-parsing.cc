@@ -3727,6 +3727,14 @@ TEST(ErrorsArrowFunctions) {
   static const ParserFlag flags[] = {kAllowLazy};
   RunParserSyncTest(context_data, statement_data, kError, flags,
                     arraysize(flags));
+
+  // In a context where a concise arrow body is parsed with [~In] variant,
+  // ensure that an error is reported in both full parser and preparser.
+  const char* loop_context_data[][2] = {{"for (", "; 0;);"},
+                                        {nullptr, nullptr}};
+  const char* loop_expr_data[] = {"f => 'key' in {}", nullptr};
+  RunParserSyncTest(loop_context_data, loop_expr_data, kError, flags,
+                    arraysize(flags));
 }
 
 
@@ -3801,6 +3809,15 @@ TEST(NoErrorsArrowFunctions) {
                                             kAllowHarmonyDestructuring};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
+
+  static const ParserFlag flags[] = {kAllowLazy};
+  // In a context where a concise arrow body is parsed with [~In] variant,
+  // ensure that nested expressions can still use the 'in' operator,
+  const char* loop_context_data[][2] = {{"for (", "; 0;);"},
+                                        {nullptr, nullptr}};
+  const char* loop_expr_data[] = {"f => ('key' in {})", nullptr};
+  RunParserSyncTest(loop_context_data, loop_expr_data, kSuccess, flags,
+                    arraysize(flags));
 }
 
 
