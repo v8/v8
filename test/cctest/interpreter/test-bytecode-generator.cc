@@ -2234,30 +2234,19 @@ TEST(ObjectLiterals) {
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
-      {"return { get a() { return this.x; }, set b(val) { this.y = val } };",
+      {"return { set b(val) { this.y = val } };",
        5 * kPointerSize,
        1,
-       52,
+       31,
        {
            B(LdaConstant), U8(0),                                           //
            B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
            B(Star), R(0),                                                   //
            B(LdaConstant), U8(1),                                           //
            B(Star), R(1),                                                   //
+           B(LdaNull),                                                      //
+           B(Star), R(2),                                                   //
            B(LdaConstant), U8(2),                                           //
-           B(CreateClosure), U8(0),                                         //
-           B(Star), R(2),                                                   //
-           B(LdaNull),                                                      //
-           B(Star), R(3),                                                   //
-           B(LdaZero),                                                      //
-           B(Star), R(4),                                                   //
-           B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked),  //
-                           R(0), U8(5),                                     //
-           B(LdaConstant), U8(3),                                           //
-           B(Star), R(1),                                                   //
-           B(LdaNull),                                                      //
-           B(Star), R(2),                                                   //
-           B(LdaConstant), U8(4),                                           //
            B(CreateClosure), U8(0),                                         //
            B(Star), R(3),                                                   //
            B(LdaZero),                                                      //
@@ -2267,10 +2256,8 @@ TEST(ObjectLiterals) {
            B(Ldar), R(0),                                                   //
            B(Return),                                                       //
        },
-       5,
+       3,
        {InstanceType::FIXED_ARRAY_TYPE,
-        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-        InstanceType::SHARED_FUNCTION_INFO_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
       {"var a = 1; return { 1: a };",
