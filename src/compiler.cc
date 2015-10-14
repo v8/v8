@@ -439,6 +439,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     if (info()->shared_info()->asm_function()) {
       if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
       info()->MarkAsFunctionContextSpecializing();
+    } else if (info()->has_global_object() &&
+               FLAG_native_context_specialization) {
+      info()->MarkAsNativeContextSpecializing();
     } else if (FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
       info()->EnsureFeedbackVector();
@@ -446,9 +449,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     if (!info()->shared_info()->asm_function() ||
         FLAG_turbo_asm_deoptimization) {
       info()->MarkAsDeoptimizationEnabled();
-    }
-    if (info()->has_global_object() && FLAG_native_context_specialization) {
-      info()->MarkAsNativeContextSpecializing();
     }
 
     Timer t(this, &time_taken_to_create_graph_);
