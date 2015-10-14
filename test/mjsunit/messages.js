@@ -332,8 +332,8 @@ test(function() {
 // kValueAndAccessor
 test(function() {
   Object.defineProperty({}, "x", { get: function(){}, value: 1});
-}, "Invalid property.  A property cannot both have accessors and be " +
-   "writable or have a value, #<Object>", TypeError);
+}, "Invalid property descriptor. Cannot both specify accessors " +
+   "and a value or writable attribute, #<Object>", TypeError);
 
 // kWithExpression
 test(function() {

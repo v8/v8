@@ -45,17 +45,17 @@ PASS Object.defineProperty(null) threw exception TypeError: Object.definePropert
 PASS Object.defineProperty('foo') threw exception TypeError: Object.defineProperty called on non-object.
 PASS Object.defineProperty({}) threw exception TypeError: Property description must be an object: undefined.
 PASS Object.defineProperty({}, 'foo') threw exception TypeError: Property description must be an object: undefined.
-PASS Object.defineProperty({}, 'foo', {get:undefined, value:true}).foo threw exception TypeError: Invalid property.  A property cannot both have accessors and be writable or have a value, #<Object>.
+PASS Object.defineProperty({}, 'foo', {get:undefined, value:true}).foo threw exception TypeError: Invalid property descriptor. Cannot both specify accessors and a value or writable attribute, #<Object>.
 PASS Object.defineProperty({get foo() { return true; } }, 'foo', {configurable:false}).foo is true
 PASS Object.defineProperty(createUnconfigurableProperty({}, 'foo'), 'foo', {configurable: true}) threw exception TypeError: Cannot redefine property: foo.
 PASS Object.defineProperty(createUnconfigurableProperty({}, 'foo'), 'foo', {writable: true}) threw exception TypeError: Cannot redefine property: foo.
 PASS Object.defineProperty(createUnconfigurableProperty({}, 'foo'), 'foo', {enumerable: true}) threw exception TypeError: Cannot redefine property: foo.
 PASS Object.defineProperty(createUnconfigurableProperty({}, 'foo', false, true), 'foo', {enumerable: false}), 'foo' threw exception TypeError: Cannot redefine property: foo.
 PASS JSON.stringify(Object.getOwnPropertyDescriptor(Object.defineProperty(createUnconfigurableProperty({}, 'foo', true), 'foo', {writable: false}), 'foo')) is JSON.stringify({value: 1, writable: false, enumerable: false, configurable: false})
-PASS Object.defineProperty({}, 'foo', {value:1, get: function(){}}) threw exception TypeError: Invalid property.  A property cannot both have accessors and be writable or have a value, #<Object>.
-PASS Object.defineProperty({}, 'foo', {value:1, set: function(){}}) threw exception TypeError: Invalid property.  A property cannot both have accessors and be writable or have a value, #<Object>.
-PASS Object.defineProperty({}, 'foo', {writable:true, get: function(){}}) threw exception TypeError: Invalid property.  A property cannot both have accessors and be writable or have a value, #<Object>.
-PASS Object.defineProperty({}, 'foo', {writable:true, set: function(){}}) threw exception TypeError: Invalid property.  A property cannot both have accessors and be writable or have a value, #<Object>.
+PASS Object.defineProperty({}, 'foo', {value:1, get: function(){}}) threw exception TypeError: Invalid property descriptor. Cannot both specify accessors and a value or writable attribute, #<Object>.
+PASS Object.defineProperty({}, 'foo', {value:1, set: function(){}}) threw exception TypeError: Invalid property descriptor. Cannot both specify accessors and a value or writable attribute, #<Object>.
+PASS Object.defineProperty({}, 'foo', {writable:true, get: function(){}}) threw exception TypeError: Invalid property descriptor. Cannot both specify accessors and a value or writable attribute, #<Object>.
+PASS Object.defineProperty({}, 'foo', {writable:true, set: function(){}}) threw exception TypeError: Invalid property descriptor. Cannot both specify accessors and a value or writable attribute, #<Object>.
 PASS Object.defineProperty({}, 'foo', {get: null}) threw exception TypeError: Getter must be a function: null.
 PASS Object.defineProperty({}, 'foo', {set: null}) threw exception TypeError: Setter must be a function: null.
 PASS Object.defineProperty({}, 'foo', {set: setter}).foo='test' threw exception called setter.

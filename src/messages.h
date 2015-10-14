@@ -237,8 +237,8 @@ class CallSite {
   T(SimdToNumber, "Cannot convert a SIMD value to a number")                   \
   T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")     \
   T(ValueAndAccessor,                                                          \
-    "Invalid property.  A property cannot both have accessors and be "         \
-    "writable or have a value, %")                                             \
+    "Invalid property descriptor. Cannot both specify accessors and a value "  \
+    "or writable attribute, %")                                                \
   T(VarRedeclaration, "Identifier '%' has already been declared")              \
   T(WithExpression, "% has no properties")                                     \
   T(WrongArgs, "%: Arguments list has wrong type")                             \
