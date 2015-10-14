@@ -64,7 +64,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateClosure(NOT_TENURED);
 
   // Emit literal creation operations
-  builder.CreateArrayLiteral(0, 0);
+  builder.CreateArrayLiteral(0, 0)
+      .CreateObjectLiteral(0, 0);
 
   // Call operations.
   builder.Call(reg, reg, 0);
@@ -103,7 +104,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::IN, reg, Strength::WEAK);
 
   // Emit cast operator invocations.
-  builder.LoadNull().CastAccumulatorToBoolean();
+  builder.LoadNull()
+      .CastAccumulatorToBoolean()
+      .CastAccumulatorToName();
 
   // Emit control flow. Return must be the last instruction.
   BytecodeLabel start;

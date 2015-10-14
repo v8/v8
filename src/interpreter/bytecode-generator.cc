@@ -7,6 +7,7 @@
 #include <stack>
 
 #include "src/compiler.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/objects.h"
 #include "src/parser.h"
@@ -497,7 +498,185 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
-  UNIMPLEMENTED();
+  // Deep-copy the literal boilerplate.
+  builder()
+      ->LoadLiteral(expr->constant_properties())
+      .CreateObjectLiteral(expr->literal_index(), expr->ComputeFlags(true));
+
+  TemporaryRegisterScope temporary_register_scope(builder());
+  Register literal;
+
+  // Store computed values into the literal.
+  bool literal_in_accumulator = true;
+  int property_index = 0;
+  AccessorTable accessor_table(zone());
+  for (; property_index < expr->properties()->length(); property_index++) {
+    TemporaryRegisterScope inner_temporary_register_scope(builder());
+    ObjectLiteral::Property* property = expr->properties()->at(property_index);
+    if (property->is_computed_name()) break;
+    if (property->IsCompileTimeValue()) continue;
+
+    if (literal_in_accumulator) {
+      literal = temporary_register_scope.NewRegister();
+      builder()->StoreAccumulatorInRegister(literal);
+      literal_in_accumulator = false;
+    }
+
+    Literal* literal_key = property->key()->AsLiteral();
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+        UNREACHABLE();
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        DCHECK(!CompileTimeValue::IsCompileTimeValue(property->value()));
+      // Fall through.
+      case ObjectLiteral::Property::COMPUTED: {
+        // It is safe to use [[Put]] here because the boilerplate already
+        // contains computed properties with an uninitialized value.
+        if (literal_key->value()->IsInternalizedString()) {
+          if (property->emit_store()) {
+            Register name = inner_temporary_register_scope.NewRegister();
+            builder()
+                ->LoadLiteral(literal_key->AsPropertyName())
+                .StoreAccumulatorInRegister(name);
+            Visit(property->value());
+            builder()->StoreNamedProperty(literal, name,
+                                          feedback_index(property->GetSlot(0)),
+                                          language_mode());
+          } else {
+            Visit(property->value());
+          }
+        } else {
+          Register key = inner_temporary_register_scope.NewRegister();
+          Register value = inner_temporary_register_scope.NewRegister();
+          Register language = inner_temporary_register_scope.NewRegister();
+          DCHECK(Register::AreContiguous(literal, key, value, language));
+          Visit(property->key());
+          builder()->StoreAccumulatorInRegister(key);
+          Visit(property->value());
+          builder()->StoreAccumulatorInRegister(value);
+          if (property->emit_store()) {
+            builder()
+                ->LoadLiteral(Smi::FromInt(SLOPPY))
+                .StoreAccumulatorInRegister(language)
+                .CallRuntime(Runtime::kSetProperty, literal, 4);
+            VisitSetHomeObject(value, literal, property);
+          }
+        }
+        break;
+      }
+      case ObjectLiteral::Property::PROTOTYPE: {
+        DCHECK(property->emit_store());
+        Register value = inner_temporary_register_scope.NewRegister();
+        DCHECK(Register::AreContiguous(literal, value));
+        Visit(property->value());
+        builder()->StoreAccumulatorInRegister(value).CallRuntime(
+            Runtime::kInternalSetPrototype, literal, 2);
+        break;
+      }
+      case ObjectLiteral::Property::GETTER:
+        if (property->emit_store()) {
+          accessor_table.lookup(literal_key)->second->getter = property;
+        }
+        break;
+      case ObjectLiteral::Property::SETTER:
+        if (property->emit_store()) {
+          accessor_table.lookup(literal_key)->second->setter = property;
+        }
+        break;
+    }
+  }
+
+  // Create nodes to define accessors, using only a single call to the runtime
+  // for each pair of corresponding getters and setters.
+  for (AccessorTable::Iterator it = accessor_table.begin();
+       it != accessor_table.end(); ++it) {
+    TemporaryRegisterScope inner_temporary_register_scope(builder());
+    Register name = inner_temporary_register_scope.NewRegister();
+    Register getter = inner_temporary_register_scope.NewRegister();
+    Register setter = inner_temporary_register_scope.NewRegister();
+    Register attr = inner_temporary_register_scope.NewRegister();
+    DCHECK(Register::AreContiguous(literal, name, getter, setter, attr));
+    Visit(it->first);
+    builder()->StoreAccumulatorInRegister(name);
+    VisitObjectLiteralAccessor(literal, it->second->getter, getter);
+    VisitObjectLiteralAccessor(literal, it->second->setter, setter);
+    builder()
+        ->LoadLiteral(Smi::FromInt(NONE))
+        .StoreAccumulatorInRegister(attr)
+        .CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, literal, 5);
+  }
+
+  // Object literals have two parts. The "static" part on the left contains no
+  // computed property names, and so we can compute its map ahead of time; see
+  // Runtime_CreateObjectLiteralBoilerplate. The second "dynamic" part starts
+  // with the first computed property name and continues with all properties to
+  // its right. All the code from above initializes the static component of the
+  // object literal, and arranges for the map of the result to reflect the
+  // static order in which the keys appear. For the dynamic properties, we
+  // compile them into a series of "SetOwnProperty" runtime calls. This will
+  // preserve insertion order.
+  for (; property_index < expr->properties()->length(); property_index++) {
+    ObjectLiteral::Property* property = expr->properties()->at(property_index);
+
+    if (literal_in_accumulator) {
+      literal = temporary_register_scope.NewRegister();
+      builder()->StoreAccumulatorInRegister(literal);
+      literal_in_accumulator = false;
+    }
+
+    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) {
+      DCHECK(property->emit_store());
+      TemporaryRegisterScope inner_temporary_register_scope(builder());
+      Register value = inner_temporary_register_scope.NewRegister();
+      DCHECK(Register::AreContiguous(literal, value));
+      Visit(property->value());
+      builder()->StoreAccumulatorInRegister(value).CallRuntime(
+          Runtime::kInternalSetPrototype, literal, 2);
+      continue;
+    }
+
+    TemporaryRegisterScope inner_temporary_register_scope(builder());
+    Register key = inner_temporary_register_scope.NewRegister();
+    Register value = inner_temporary_register_scope.NewRegister();
+    Register attr = inner_temporary_register_scope.NewRegister();
+    DCHECK(Register::AreContiguous(literal, key, value, attr));
+
+    Visit(property->key());
+    builder()->CastAccumulatorToName().StoreAccumulatorInRegister(key);
+    Visit(property->value());
+    builder()->StoreAccumulatorInRegister(value);
+    VisitSetHomeObject(value, literal, property);
+    builder()->LoadLiteral(Smi::FromInt(NONE)).StoreAccumulatorInRegister(attr);
+    Runtime::FunctionId function_id = static_cast<Runtime::FunctionId>(-1);
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+      case ObjectLiteral::Property::COMPUTED:
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        function_id = Runtime::kDefineDataPropertyUnchecked;
+        break;
+      case ObjectLiteral::Property::PROTOTYPE:
+        UNREACHABLE();  // Handled specially above.
+        break;
+      case ObjectLiteral::Property::GETTER:
+        function_id = Runtime::kDefineGetterPropertyUnchecked;
+        break;
+      case ObjectLiteral::Property::SETTER:
+        function_id = Runtime::kDefineSetterPropertyUnchecked;
+        break;
+    }
+    builder()->CallRuntime(function_id, literal, 4);
+  }
+
+  // Transform literals that contain functions to fast properties.
+  if (expr->has_function()) {
+    DCHECK(!literal_in_accumulator);
+    builder()->CallRuntime(Runtime::kToFastProperties, literal, 1);
+  }
+
+  if (!literal_in_accumulator) {
+    // Restore literal array into accumulator.
+    builder()->LoadAccumulatorWithRegister(literal);
+  }
 }
 
 
@@ -508,11 +687,11 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       .CreateArrayLiteral(expr->literal_index(), expr->ComputeFlags(true));
 
   TemporaryRegisterScope temporary_register_scope(builder());
-  Register index, literal_array;
+  Register index, literal;
 
   // Create nodes to evaluate all the non-constant subexpressions and to store
   // them into the newly cloned array.
-  bool literal_array_in_accumulator = true;
+  bool literal_in_accumulator = true;
   for (int array_index = 0; array_index < expr->values()->length();
        array_index++) {
     Expression* subexpr = expr->values()->at(array_index);
@@ -522,23 +701,23 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       UNIMPLEMENTED();
     }
 
-    if (literal_array_in_accumulator) {
+    if (literal_in_accumulator) {
       index = temporary_register_scope.NewRegister();
-      literal_array = temporary_register_scope.NewRegister();
-      builder()->StoreAccumulatorInRegister(literal_array);
-      literal_array_in_accumulator = false;
+      literal = temporary_register_scope.NewRegister();
+      builder()->StoreAccumulatorInRegister(literal);
+      literal_in_accumulator = false;
     }
 
     builder()
         ->LoadLiteral(Smi::FromInt(array_index))
         .StoreAccumulatorInRegister(index);
     Visit(subexpr);
-    builder()->GenericStoreKeyedProperty(literal_array, index);
+    builder()->GenericStoreKeyedProperty(literal, index);
   }
 
-  if (!literal_array_in_accumulator) {
+  if (!literal_in_accumulator) {
     // Restore literal array into accumulator.
-    builder()->LoadAccumulatorWithRegister(literal_array);
+    builder()->LoadAccumulatorWithRegister(literal);
   }
 }
 
@@ -936,7 +1115,7 @@ void BytecodeGenerator::VisitNewLocalFunctionContext() {
     TemporaryRegisterScope temporary_register_scope(builder());
     Register closure = temporary_register_scope.NewRegister();
     Register scope_info = temporary_register_scope.NewRegister();
-    DCHECK_EQ(closure.index() + 1, scope_info.index());
+    DCHECK(Register::AreContiguous(closure, scope_info));
     builder()
         ->LoadAccumulatorWithRegister(Register::function_closure())
         .StoreAccumulatorInRegister(closure)
@@ -975,6 +1154,41 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* binop) {
   builder()->StoreAccumulatorInRegister(temporary);
   Visit(right);
   builder()->BinaryOperation(op, temporary, language_mode_strength());
+}
+
+
+void BytecodeGenerator::VisitObjectLiteralAccessor(
+    Register home_object, ObjectLiteralProperty* property, Register value_out) {
+  // TODO(rmcilroy): Replace value_out with VisitForRegister();
+  if (property == nullptr) {
+    builder()->LoadNull().StoreAccumulatorInRegister(value_out);
+  } else {
+    Visit(property->value());
+    builder()->StoreAccumulatorInRegister(value_out);
+    VisitSetHomeObject(value_out, home_object, property);
+  }
+}
+
+
+void BytecodeGenerator::VisitSetHomeObject(Register value, Register home_object,
+                                           ObjectLiteralProperty* property,
+                                           int slot_number) {
+  Expression* expr = property->value();
+  if (!FunctionLiteral::NeedsHomeObject(expr)) return;
+
+  // TODO(rmcilroy): Remove UNIMPLEMENTED once we have tests for setting the
+  // home object.
+  UNIMPLEMENTED();
+
+  TemporaryRegisterScope temporary_register_scope(builder());
+  Register name = temporary_register_scope.NewRegister();
+  isolate()->factory()->home_object_symbol();
+  builder()
+      ->LoadLiteral(isolate()->factory()->home_object_symbol())
+      .StoreAccumulatorInRegister(name)
+      .StoreNamedProperty(home_object, name,
+                          feedback_index(property->GetSlot(slot_number)),
+                          language_mode());
 }
 
 

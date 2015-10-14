@@ -95,7 +95,7 @@ struct ExpectedSnippet {
   int bytecode_length;
   const uint8_t bytecode[512];
   int constant_count;
-  T constants[4];
+  T constants[6];
 };
 
 
@@ -1238,7 +1238,7 @@ TEST(IfConditions) {
         B(LdaUndefined),        //
         B(Return)},             //
        0,
-       {unused, unused, unused, unused}},
+       {unused, unused, unused, unused, unused, unused}},
       {"function f() { if ('lucky') { return 1; } else { return -1; } } f();",
        0,
        1,
@@ -1255,7 +1255,7 @@ TEST(IfConditions) {
         B(Return)},             //
        1,
        {helper.factory()->NewStringFromStaticChars("lucky"), unused, unused,
-        unused}},
+        unused, unused, unused}},
       {"function f() { if (false) { return 1; } else { return -1; } } f();",
        0,
        1,
@@ -1270,7 +1270,7 @@ TEST(IfConditions) {
         B(LdaUndefined),        //
         B(Return)},             //
        0,
-       {unused, unused, unused, unused}},
+       {unused, unused, unused, unused, unused, unused}},
       {"function f(a) { if (a <= 0) { return 200; } else { return -200; } }"
        "f(99);",
        kPointerSize,
@@ -1290,7 +1290,8 @@ TEST(IfConditions) {
         B(Return)},                          //
        2,
        {helper.factory()->NewNumberFromInt(200),
-        helper.factory()->NewNumberFromInt(-200), unused, unused}},
+        helper.factory()->NewNumberFromInt(-200), unused, unused, unused,
+        unused}},
       {"function f(a, b) { if (a in b) { return 200; } }"
        "f('prop', { prop: 'yes'});",
        kPointerSize,
@@ -1306,7 +1307,8 @@ TEST(IfConditions) {
         B(LdaUndefined),                         //
         B(Return)},                              //
        1,
-       {helper.factory()->NewNumberFromInt(200), unused, unused, unused}},
+       {helper.factory()->NewNumberFromInt(200), unused, unused, unused, unused,
+        unused}},
       {"function f(z) { var a = 0; var b = 0; if (a === 0.01) { "
 #define X "b = a; a = b; "
        X X X X X X X X X X X X X X X X X X X X X X X X
@@ -1338,7 +1340,8 @@ TEST(IfConditions) {
        {helper.factory()->NewHeapNumber(0.01),
         helper.factory()->NewNumberFromInt(200),
         helper.factory()->NewNumberFromInt(199),
-        helper.factory()->NewNumberFromInt(-200)}},
+        helper.factory()->NewNumberFromInt(-200),
+        unused, unused}},
       {"function f(a, b) {\n"
        "  if (a == b) { return 1; }\n"
        "  if (a === b) { return 1; }\n"
@@ -1376,7 +1379,7 @@ TEST(IfConditions) {
            B(LdaZero),  //
            B(Return)},  //
        0,
-       {unused, unused, unused, unused}},
+       {unused, unused, unused, unused, unused, unused}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -2047,6 +2050,455 @@ TEST(ArrayLiterals) {
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(ObjectLiterals) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int simple_flags = ObjectLiteral::kFastElements |
+                     ObjectLiteral::kShallowProperties |
+                     ObjectLiteral::kDisableMementos;
+  int deep_elements_flags =
+      ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"return { };",
+       0,
+       1,
+       6,
+       {
+           B(LdaConstant), U8(0),                            //
+           B(CreateObjectLiteral), U8(0), U8(simple_flags),  //
+           B(Return)                                         //
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
+      {"return { name: 'string', val: 9.2 };",
+       0,
+       1,
+       6,
+       {
+           B(LdaConstant), U8(0),                                   //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
+           B(Return)                                                //
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
+      {"var a = 1; return { name: 'string', val: a };",
+       3 * kPointerSize,
+       1,
+       24,
+       {
+           B(LdaSmi8), U8(1),                                       //
+           B(Star), R(0),                                           //
+           B(LdaConstant), U8(0),                                   //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(1),                                           //
+           B(LdaConstant), U8(1),                                   //
+           B(Star), R(2),                                           //
+           B(Ldar), R(0),                                           //
+           B(StoreICSloppy), R(1), R(2), U8(3),                     //
+           B(Ldar), R(1),                                           //
+           B(Return),                                               //
+       },
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"var a = 1; return { val: a, val: a + 1 };",
+       4 * kPointerSize,
+       1,
+       32,
+       {
+           B(LdaSmi8), U8(1),                                       //
+           B(Star), R(0),                                           //
+           B(LdaConstant), U8(0),                                   //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(1),                                           //
+           B(Ldar), R(0),                                           //
+           B(LdaConstant), U8(1),                                   //
+           B(Star), R(2),                                           //
+           B(Ldar), R(0),                                           //
+           B(Star), R(3),                                           //
+           B(LdaSmi8), U8(1),                                       //
+           B(Add), R(3),                                            //
+           B(StoreICSloppy), R(1), R(2), U8(3),                     //
+           B(Ldar), R(1),                                           //
+           B(Return),                                               //
+       },
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"return { func: function() { } };",
+       2 * kPointerSize,
+       1,
+       22,
+       {
+           B(LdaConstant), U8(0),                                   //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                           //
+           B(LdaConstant), U8(1),                                   //
+           B(Star), R(1),                                           //
+           B(LdaConstant), U8(2),                                   //
+           B(CreateClosure), U8(0),                                 //
+           B(StoreICSloppy), R(0), R(1), U8(3),                     //
+           B(Ldar), R(0),                                           //
+           B(Return),                                               //
+       },
+       3,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"return { func(a) { return a; } };",
+       2 * kPointerSize,
+       1,
+       22,
+       {
+           B(LdaConstant), U8(0),                                   //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                           //
+           B(LdaConstant), U8(1),                                   //
+           B(Star), R(1),                                           //
+           B(LdaConstant), U8(2),                                   //
+           B(CreateClosure), U8(0),                                 //
+           B(StoreICSloppy), R(0), R(1), U8(3),                     //
+           B(Ldar), R(0),                                           //
+           B(Return),                                               //
+       },
+       3,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"return { get a() { return 2; } };",
+       5 * kPointerSize,
+       1,
+       31,
+       {
+           B(LdaConstant), U8(0),                                           //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
+           B(Star), R(0),                                                   //
+           B(LdaConstant), U8(1),                                           //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(2),                                           //
+           B(CreateClosure), U8(0),                                         //
+           B(Star), R(2),                                                   //
+           B(LdaNull),                                                      //
+           B(Star), R(3),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(4),                                                   //
+           B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked),  //
+                           R(0), U8(5),                                     //
+           B(Ldar), R(0),                                                   //
+           B(Return),                                                       //
+       },
+       3,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"return { get a() { return this.x; }, set a(val) { this.x = val } };",
+       5 * kPointerSize,
+       1,
+       34,
+       {
+           B(LdaConstant), U8(0),                                           //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
+           B(Star), R(0),                                                   //
+           B(LdaConstant), U8(1),                                           //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(2),                                           //
+           B(CreateClosure), U8(0),                                         //
+           B(Star), R(2),                                                   //
+           B(LdaConstant), U8(3),                                           //
+           B(CreateClosure), U8(0),                                         //
+           B(Star), R(3),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(4),                                                   //
+           B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked),  //
+                           R(0), U8(5),                                     //
+           B(Ldar), R(0),                                                   //
+           B(Return),                                                       //
+       },
+       4,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"return { get a() { return this.x; }, set b(val) { this.y = val } };",
+       5 * kPointerSize,
+       1,
+       52,
+       {
+           B(LdaConstant), U8(0),                                           //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
+           B(Star), R(0),                                                   //
+           B(LdaConstant), U8(1),                                           //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(2),                                           //
+           B(CreateClosure), U8(0),                                         //
+           B(Star), R(2),                                                   //
+           B(LdaNull),                                                      //
+           B(Star), R(3),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(4),                                                   //
+           B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked),  //
+                           R(0), U8(5),                                     //
+           B(LdaConstant), U8(3),                                           //
+           B(Star), R(1),                                                   //
+           B(LdaNull),                                                      //
+           B(Star), R(2),                                                   //
+           B(LdaConstant), U8(4),                                           //
+           B(CreateClosure), U8(0),                                         //
+           B(Star), R(3),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(4),                                                   //
+           B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked),  //
+                           R(0), U8(5),                                     //
+           B(Ldar), R(0),                                                   //
+           B(Return),                                                       //
+       },
+       5,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"var a = 1; return { 1: a };",
+       5 * kPointerSize,
+       1,
+       30,
+       {
+           B(LdaSmi8), U8(1),                                        //
+           B(Star), R(0),                                            //
+           B(LdaConstant), U8(0),                                    //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),   //
+           B(Star), R(1),                                            //
+           B(LdaSmi8), U8(1),                                        //
+           B(Star), R(2),                                            //
+           B(Ldar), R(0),                                            //
+           B(Star), R(3),                                            //
+           B(LdaZero),                                               //
+           B(Star), R(4),                                            //
+           B(CallRuntime), U16(Runtime::kSetProperty), R(1), U8(4),  //
+           B(Ldar), R(1),                                            //
+           B(Return),                                                //
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
+      {"return { __proto__: null }",
+       2 * kPointerSize,
+       1,
+       18,
+       {
+           B(LdaConstant), U8(0),                                             //
+           B(CreateObjectLiteral), U8(0), U8(simple_flags),                   //
+           B(Star), R(0),                                                     //
+           B(LdaNull), B(Star), R(1),                                         //
+           B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(0), U8(2),  //
+           B(Ldar), R(0),                                                     //
+           B(Return),                                                         //
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
+      {"var a = 'test'; return { [a]: 1 }",
+       5 * kPointerSize,
+       1,
+       31,
+       {
+           B(LdaConstant), U8(0),                                             //
+           B(Star), R(0),                                                     //
+           B(LdaConstant), U8(1),                                             //
+           B(CreateObjectLiteral), U8(0), U8(simple_flags),                   //
+           B(Star), R(1),                                                     //
+           B(Ldar), R(0),                                                     //
+           B(ToName),                                                         //
+           B(Star), R(2),                                                     //
+           B(LdaSmi8), U8(1),                                                 //
+           B(Star), R(3),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(4),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
+                           U8(4),                                             //
+           B(Ldar), R(1),                                                     //
+           B(Return),                                                         //
+       },
+       2,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE}},
+      {"var a = 'test'; return { val: a, [a]: 1 }",
+       5 * kPointerSize,
+       1,
+       41,
+       {
+           B(LdaConstant), U8(0),                                             //
+           B(Star), R(0),                                                     //
+           B(LdaConstant), U8(1),                                             //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),            //
+           B(Star), R(1),                                                     //
+           B(LdaConstant), U8(2),                                             //
+           B(Star), R(2),                                                     //
+           B(Ldar), R(0),                                                     //
+           B(StoreICSloppy), R(1), R(2), U8(3),                               //
+           B(Ldar), R(0),                                                     //
+           B(ToName),                                                         //
+           B(Star), R(2),                                                     //
+           B(LdaSmi8), U8(1),                                                 //
+           B(Star), R(3),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(4),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
+                           U8(4),                                             //
+           B(Ldar), R(1),                                                     //
+           B(Return),                                                         //
+       },
+       3,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"var a = 'test'; return { [a]: 1, __proto__: {} }",
+       5 * kPointerSize,
+       1,
+       43,
+       {
+           B(LdaConstant), U8(0),                                             //
+           B(Star), R(0),                                                     //
+           B(LdaConstant), U8(1),                                             //
+           B(CreateObjectLiteral), U8(1), U8(simple_flags),                   //
+           B(Star), R(1),                                                     //
+           B(Ldar), R(0),                                                     //
+           B(ToName),                                                         //
+           B(Star), R(2),                                                     //
+           B(LdaSmi8), U8(1),                                                 //
+           B(Star), R(3),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(4),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
+                           U8(4),                                             //
+           B(LdaConstant), U8(1),                                             //
+           B(CreateObjectLiteral), U8(0), U8(13),                             //
+           B(Star), R(2),                                                     //
+           B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(1), U8(2),  //
+           B(Ldar), R(1),                                                     //
+           B(Return),                                                         //
+       },
+       2,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE}},
+      {"var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };",
+       5 * kPointerSize,
+       1,
+       69,
+       {
+           B(LdaConstant), U8(0),                                             //
+           B(Star), R(0),                                                     //
+           B(LdaConstant), U8(1),                                             //
+           B(CreateObjectLiteral), U8(0), U8(simple_flags),                   //
+           B(Star), R(1),                                                     //
+           B(Ldar), R(0),                                                     //
+           B(ToName),                                                         //
+           B(Star), R(2),                                                     //
+           B(LdaConstant), U8(2),                                             //
+           B(Star), R(3),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(4),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
+                           U8(4),                                             //
+           B(LdaConstant), U8(3),                                             //
+           B(ToName),                                                         //
+           B(Star), R(2),                                                     //
+           B(LdaConstant), U8(4),                                             //
+           B(CreateClosure), U8(0),                                           //
+           B(Star), R(3),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(4),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked),      //
+                           R(1), U8(4),                                       //
+           B(LdaConstant), U8(3),                                             //
+           B(ToName),                                                         //
+           B(Star), R(2),                                                     //
+           B(LdaConstant), U8(5),                                             //
+           B(CreateClosure), U8(0),                                           //
+           B(Star), R(3),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(4),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineSetterPropertyUnchecked),      //
+                           R(1), U8(4),                                       //
+           B(Ldar), R(1),                                                     //
+           B(Return),                                                         //
+       },
+       6,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(TopLevelObjectLiterals) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int has_function_flags = ObjectLiteral::kFastElements |
+                           ObjectLiteral::kHasFunction |
+                           ObjectLiteral::kDisableMementos;
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"var a = { func: function() { } };",
+       7 * kPointerSize,
+       1,
+       69,
+       {
+           B(Ldar), R(Register::function_closure().index()),                 //
+           B(Star), R(2),                                                    //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(3),                                                    //
+           B(CallRuntime), U16(Runtime::kNewScriptContext), R(2), U8(2),     //
+           B(PushContext), R(1),                                             //
+           B(LdaConstant), U8(1),                                            //
+           B(Star), R(2),                                                    //
+           B(LdaZero),                                                       //
+           B(Star), R(3),                                                    //
+           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(2), U8(2),       //
+           B(LdaConstant), U8(2),                                            //
+           B(Star), R(2),                                                    //
+           B(LdaZero),                                                       //
+           B(Star), R(3),                                                    //
+           B(LdaConstant), U8(3),                                            //
+           B(CreateObjectLiteral), U8(0), U8(has_function_flags),            //
+           B(Star), R(5),                                                    //
+           B(LdaConstant), U8(4),                                            //
+           B(Star), R(6),                                                    //
+           B(LdaConstant), U8(5),                                            //
+           B(CreateClosure), U8(1),                                          //
+           B(StoreICSloppy), R(5), R(6), U8(3),                              //
+           B(CallRuntime), U16(Runtime::kToFastProperties), R(5), U8(1),     //
+           B(Ldar), R(5),                                                    //
+           B(Star), R(4),                                                    //
+           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(2), U8(3),  //
+           B(LdaUndefined),                                                  //
+           B(Return),                                                        //
+       },
+       6,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeTopLevelBytecode(snippets[i].code_snippet);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }

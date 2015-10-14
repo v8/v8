@@ -349,8 +349,8 @@ void Interpreter::DoKeyedStoreICStrict(
 
 // KeyedStoreICGeneric <object> <key>
 //
-// Calls the generic KeyStoreIC for <object> and the key <key> with the value in
-// the accumulator.
+// Calls the generic KeyedStoreIC for <object> and the key <key> with the value
+// in the accumulator.
 void Interpreter::DoKeyedStoreICGeneric(
     compiler::InterpreterAssembler* assembler) {
   Callable ic =
@@ -656,6 +656,17 @@ void Interpreter::DoToBoolean(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// ToName
+//
+// Cast the object referenced by the accumulator to a name.
+void Interpreter::DoToName(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* result = __ CallRuntime(Runtime::kToName, accumulator);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 // Jump <imm8>
 //
 // Jump by number of bytes represented by the immediate operand |imm8|.
@@ -730,12 +741,8 @@ void Interpreter::DoJumpIfFalseConstant(
 }
 
 
-// CreateArrayLiteral <idx> <flags>
-//
-// Creates an array literal for literal index <idx> with flags <flags> and
-// constant elements in the accumulator.
-void Interpreter::DoCreateArrayLiteral(
-    compiler::InterpreterAssembler* assembler) {
+void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
+                                  compiler::InterpreterAssembler* assembler) {
   Node* constant_elements = __ GetAccumulator();
   Node* literal_index_raw = __ BytecodeOperandIdx8(0);
   Node* literal_index = __ SmiTag(literal_index_raw);
@@ -744,10 +751,30 @@ void Interpreter::DoCreateArrayLiteral(
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* literals_array =
       __ LoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* result = __ CallRuntime(Runtime::kCreateArrayLiteral, literals_array,
-                                literal_index, constant_elements, flags);
+  Node* result = __ CallRuntime(function_id, literals_array, literal_index,
+                                constant_elements, flags);
   __ SetAccumulator(result);
   __ Dispatch();
+}
+
+
+// CreateArrayLiteral <idx> <flags>
+//
+// Creates an array literal for literal index <idx> with flags <flags> and
+// constant elements in the accumulator.
+void Interpreter::DoCreateArrayLiteral(
+    compiler::InterpreterAssembler* assembler) {
+  DoCreateLiteral(Runtime::kCreateArrayLiteral, assembler);
+}
+
+
+// CreateObjectLiteral <idx> <flags>
+//
+// Creates an object literal for literal index <idx> with flags <flags> and
+// constant elements in the accumulator.
+void Interpreter::DoCreateObjectLiteral(
+    compiler::InterpreterAssembler* assembler) {
+  DoCreateLiteral(Runtime::kCreateObjectLiteral, assembler);
 }
 
 

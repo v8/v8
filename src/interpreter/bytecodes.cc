@@ -329,6 +329,24 @@ Register Register::FromOperand(uint8_t operand) {
   return Register(-static_cast<int8_t>(operand));
 }
 
+
+bool Register::AreContiguous(Register reg1, Register reg2, Register reg3,
+                             Register reg4, Register reg5) {
+  if (reg1.index() + 1 != reg2.index()) {
+    return false;
+  }
+  if (reg3.is_valid() && reg2.index() + 1 != reg3.index()) {
+    return false;
+  }
+  if (reg4.is_valid() && reg3.index() + 1 != reg4.index()) {
+    return false;
+  }
+  if (reg5.is_valid() && reg4.index() + 1 != reg5.index()) {
+    return false;
+  }
+  return true;
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

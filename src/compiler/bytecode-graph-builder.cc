@@ -315,7 +315,7 @@ void BytecodeGraphBuilder::VisitKeyedStoreICStrict(
 }
 
 
-void BytecodeGraphBuilder::VisitCreateClosure(
+void BytecodeGraphBuilder::VisitKeyedStoreICGeneric(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }
@@ -333,13 +333,19 @@ void BytecodeGraphBuilder::VisitPopContext(
 }
 
 
+void BytecodeGraphBuilder::VisitCreateClosure(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitCreateArrayLiteral(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }
 
 
-void BytecodeGraphBuilder::VisitKeyedStoreICGeneric(
+void BytecodeGraphBuilder::VisitCreateObjectLiteral(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }
@@ -513,7 +519,13 @@ void BytecodeGraphBuilder::VisitTestInstanceOf(
 
 
 void BytecodeGraphBuilder::VisitToBoolean(
-    const interpreter::BytecodeArrayIterator& ToBoolean) {
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitToName(
+    const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }
 

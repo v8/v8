@@ -110,9 +110,11 @@ namespace interpreter {
                                                                                \
   /* Cast operators */                                                         \
   V(ToBoolean, OperandType::kNone)                                             \
+  V(ToName, OperandType::kNone)                                                \
                                                                                \
   /* Literals */                                                               \
   V(CreateArrayLiteral, OperandType::kIdx8, OperandType::kImm8)                \
+  V(CreateObjectLiteral, OperandType::kIdx8, OperandType::kImm8)               \
                                                                                \
   /* Closure allocation */                                                     \
   V(CreateClosure, OperandType::kImm8)                                         \
@@ -180,6 +182,7 @@ class Register {
     return index_;
   }
   bool is_parameter() const { return index() < 0; }
+  bool is_valid() const { return index_ != kIllegalIndex; }
 
   static Register FromParameterIndex(int index, int parameter_count);
   int ToParameterIndex(int parameter_count) const;
@@ -195,6 +198,11 @@ class Register {
 
   static Register FromOperand(uint8_t operand);
   uint8_t ToOperand() const;
+
+  static bool AreContiguous(Register reg1, Register reg2,
+                            Register reg3 = Register(),
+                            Register reg4 = Register(),
+                            Register reg5 = Register());
 
  private:
   static const int kIllegalIndex = kMaxInt;

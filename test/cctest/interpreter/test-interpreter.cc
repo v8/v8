@@ -1672,3 +1672,56 @@ TEST(InterpreterArrayLiterals) {
     CHECK(return_value->SameValue(*literals[i].second));
   }
 }
+
+
+TEST(InterpreterObjectLiterals) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> literals[14] = {
+      std::make_pair("return { }.name;",
+                     factory->undefined_value()),
+      std::make_pair("return { name: 'string', val: 9.2 }.name;",
+                     factory->NewStringFromStaticChars("string")),
+      std::make_pair("var a = 15; return { name: 'string', val: a }.val;",
+                     Handle<Object>(Smi::FromInt(15), isolate)),
+      std::make_pair("var a = 5; return { val: a, val: a + 1 }.val;",
+                     Handle<Object>(Smi::FromInt(6), isolate)),
+      std::make_pair("return { func: function() { return 'test' } }.func();",
+                     factory->NewStringFromStaticChars("test")),
+      std::make_pair("return { func(a) { return a + 'st'; } }.func('te');",
+                     factory->NewStringFromStaticChars("test")),
+      std::make_pair("return { get a() { return 22; } }.a;",
+                     Handle<Object>(Smi::FromInt(22), isolate)),
+      std::make_pair("var a = { get b() { return this.x + 't'; },\n"
+                     "          set b(val) { this.x = val + 's' } };\n"
+                     "a.b = 'te';\n"
+                     "return a.b;",
+                     factory->NewStringFromStaticChars("test")),
+      std::make_pair("var a = 123; return { 1: a }[1];",
+                     Handle<Object>(Smi::FromInt(123), isolate)),
+      std::make_pair("return Object.getPrototypeOf({ __proto__: null });",
+                     factory->null_value()),
+      std::make_pair("var a = 'test'; return { [a]: 1 }.test;",
+                     Handle<Object>(Smi::FromInt(1), isolate)),
+      std::make_pair("var a = 'test'; return { b: a, [a]: a + 'ing' }['test']",
+                     factory->NewStringFromStaticChars("testing")),
+      std::make_pair("var a = 'proto_str';\n"
+                     "var b = { [a]: 1, __proto__: { var : a } };\n"
+                     "return Object.getPrototypeOf(b).var",
+                     factory->NewStringFromStaticChars("proto_str")),
+      std::make_pair("var n = 'name';\n"
+                     "return { [n]: 'val', get a() { return 987 } }['a'];",
+                     Handle<Object>(Smi::FromInt(987), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(literals); i++) {
+    std::string source(InterpreterTester::SourceForBody(literals[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*literals[i].second));
+  }
+}

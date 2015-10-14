@@ -41,6 +41,11 @@ class BytecodeGenerator : public AstVisitor {
   void VisitVariableLoad(Variable* variable, FeedbackVectorSlot slot);
   void VisitVariableAssignment(Variable* variable, FeedbackVectorSlot slot);
   void VisitNewLocalFunctionContext();
+  void VisitSetHomeObject(Register value, Register home_object,
+                          ObjectLiteralProperty* property, int slot_number = 0);
+  void VisitObjectLiteralAccessor(Register home_object,
+                                  ObjectLiteralProperty* property,
+                                  Register value_out);
 
   // Dispatched from VisitUnaryOperation.
   void VisitVoid(UnaryOperation* expr);

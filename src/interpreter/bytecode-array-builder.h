@@ -86,6 +86,7 @@ class BytecodeArrayBuilder {
 
   // Literals creation.  Constant elements should be in the accumulator.
   BytecodeArrayBuilder& CreateArrayLiteral(int literal_index, int flags);
+  BytecodeArrayBuilder& CreateObjectLiteral(int literal_index, int flags);
 
   // Push the context in accumulator as the new context, and store in register
   // |context|.
@@ -121,6 +122,7 @@ class BytecodeArrayBuilder {
 
   // Casts
   BytecodeArrayBuilder& CastAccumulatorToBoolean();
+  BytecodeArrayBuilder& CastAccumulatorToName();
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);

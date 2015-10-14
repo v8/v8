@@ -371,6 +371,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
+    int literal_index, int flags) {
+  DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bytes.
+  if (FitsInIdx8Operand(literal_index)) {
+    Output(Bytecode::kCreateObjectLiteral, static_cast<uint8_t>(literal_index),
+           static_cast<uint8_t>(flags));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::PushContext(Register context) {
   Output(Bytecode::kPushContext, context.ToOperand());
   return *this;
@@ -410,6 +423,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
     }
   }
   Output(Bytecode::kToBoolean);
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName() {
+  Output(Bytecode::kToName);
   return *this;
 }
 

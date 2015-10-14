@@ -66,6 +66,10 @@ class Interpreter {
   void DoPropertyStoreIC(Callable ic,
                          compiler::InterpreterAssembler* assembler);
 
+  // Generates code ro create a literal via |function_id|.
+  void DoCreateLiteral(Runtime::FunctionId function_id,
+                       compiler::InterpreterAssembler* assembler);
+
   bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);
 
   Isolate* isolate_;
