@@ -433,11 +433,20 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 
 
 void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  if (FLAG_ignition_fake_try_catch) {
+    Visit(stmt->try_block());
+    return;
+  }
   UNIMPLEMENTED();
 }
 
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
+  if (FLAG_ignition_fake_try_catch) {
+    Visit(stmt->try_block());
+    Visit(stmt->finally_block());
+    return;
+  }
   UNIMPLEMENTED();
 }
 

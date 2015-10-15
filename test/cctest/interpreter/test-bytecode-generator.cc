@@ -25,6 +25,7 @@ class BytecodeGeneratorHelper {
   BytecodeGeneratorHelper() {
     i::FLAG_vector_stores = true;
     i::FLAG_ignition = true;
+    i::FLAG_ignition_fake_try_catch = true;
     i::FLAG_ignition_filter = StrDup(kFunctionName);
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
@@ -2592,6 +2593,79 @@ TEST(TopLevelObjectLiterals) {
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeTopLevelBytecode(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(TryCatch) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  // TODO(rmcilroy): modify tests when we have real try catch support.
+  ExpectedSnippet<int> snippets[] = {
+      {"try { return 1; } catch(e) { return 2; }",
+       0,
+       1,
+       5,
+       {
+           B(LdaSmi8), U8(1),  //
+           B(Return),          //
+           B(LdaUndefined),    //
+           B(Return),          //
+       },
+       0},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(TryFinally) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  // TODO(rmcilroy): modify tests when we have real try finally support.
+  ExpectedSnippet<int> snippets[] = {
+      {"var a = 1; try { a = 2; } finally { a = 3; }",
+       1 * kPointerSize,
+       1,
+       14,
+       {
+           B(LdaSmi8), U8(1),  //
+           B(Star), R(0),      //
+           B(LdaSmi8), U8(2),  //
+           B(Star), R(0),      //
+           B(LdaSmi8), U8(3),  //
+           B(Star), R(0),      //
+           B(LdaUndefined),    //
+           B(Return),          //
+       },
+       0},
+      {"var a = 1; try { a = 2; } catch(e) { a = 20 } finally { a = 3; }",
+       1 * kPointerSize,
+       1,
+       14,
+       {
+           B(LdaSmi8), U8(1),  //
+           B(Star), R(0),      //
+           B(LdaSmi8), U8(2),  //
+           B(Star), R(0),      //
+           B(LdaSmi8), U8(3),  //
+           B(Star), R(0),      //
+           B(LdaUndefined),    //
+           B(Return),          //
+       },
+       0},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }

@@ -65,6 +65,7 @@ class InterpreterTester {
         feedback_vector_(feedback_vector) {
     i::FLAG_vector_stores = true;
     i::FLAG_ignition = true;
+    i::FLAG_ignition_fake_try_catch = true;
     i::FLAG_always_opt = false;
     // Set ignition filter flag via SetFlagsFromString to avoid double-free
     // (or potential leak with StrDup() based on ownership confusion).
@@ -1810,4 +1811,32 @@ TEST(InterpreterLogicalAnd) {
     Handle<i::Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*literals[i].second));
   }
+}
+
+
+TEST(InterpreterTryCatch) {
+  HandleAndZoneScope handles;
+
+  // TODO(rmcilroy): modify tests when we have real try catch support.
+  std::string source(InterpreterTester::SourceForBody(
+      "var a = 1; try { a = a + 1; } catch(e) { a = a + 2; }; return a;"));
+  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  auto callable = tester.GetCallable<>();
+
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(2));
+}
+
+
+TEST(InterpreterTryFinally) {
+  HandleAndZoneScope handles;
+
+  // TODO(rmcilroy): modify tests when we have real try finally support.
+  std::string source(InterpreterTester::SourceForBody(
+      "var a = 1; try { a = a + 1; } finally { a = a + 2; }; return a;"));
+  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  auto callable = tester.GetCallable<>();
+
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(4));
 }

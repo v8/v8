@@ -129,7 +129,7 @@ class Test262TestSuite(testsuite.TestSuite):
     # support the test262 test harness code.
     flags = testcase.flags
     if '--ignition' in flags:
-      flags += [self.ignition_script_filter]
+      flags += [self.ignition_script_filter, "--ignition-fake-try-catch"]
 
     return (flags + context.mode_flags + self.harness +
             self.GetIncludesForTest(testcase) + ["--harmony"] +
