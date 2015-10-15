@@ -696,6 +696,9 @@
   'readonly': [SKIP],
   'array-feedback': [SKIP],
 
+  # Bounds check triggers forced deopt for array constructors.
+  'array-constructor-feedback': [SKIP],
+
   # Deopting uses just enough memory to make this one OOM.
   'regress/regress-3976': [SKIP],
 
