@@ -3065,6 +3065,7 @@ void Assembler::cvttsd2siq(Register dst, const Operand& src) {
 
 
 void Assembler::cvtlsi2sd(XMMRegister dst, const Operand& src) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0xF2);
   emit_optional_rex_32(dst, src);
@@ -3075,6 +3076,7 @@ void Assembler::cvtlsi2sd(XMMRegister dst, const Operand& src) {
 
 
 void Assembler::cvtlsi2sd(XMMRegister dst, Register src) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0xF2);
   emit_optional_rex_32(dst, src);

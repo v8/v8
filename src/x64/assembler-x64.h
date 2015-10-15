@@ -1313,6 +1313,13 @@ class Assembler : public AssemblerBase {
   void vminsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vsd(0x5d, dst, src1, src2);
   }
+  void vcvtlsi2sd(XMMRegister dst, XMMRegister src1, Register src2) {
+    XMMRegister isrc2 = {src2.code()};
+    vsd(0x2a, dst, src1, isrc2);
+  }
+  void vcvtlsi2sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x2a, dst, src1, src2);
+  }
   void vucomisd(XMMRegister dst, XMMRegister src);
   void vucomisd(XMMRegister dst, const Operand& src);
   void vsd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
