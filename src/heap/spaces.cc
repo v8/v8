@@ -2237,7 +2237,6 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
 
 FreeList::FreeList(PagedSpace* owner)
     : owner_(owner),
-      heap_(owner->heap()),
       wasted_bytes_(0),
       small_list_(this, kSmall),
       medium_list_(this, kMedium),
@@ -2285,7 +2284,7 @@ void FreeList::Reset() {
 int FreeList::Free(Address start, int size_in_bytes) {
   if (size_in_bytes == 0) return 0;
 
-  heap_->CreateFillerObjectAt(start, size_in_bytes);
+  owner()->heap()->CreateFillerObjectAt(start, size_in_bytes);
 
   Page* page = Page::FromAddress(start);
 
@@ -2313,7 +2312,7 @@ int FreeList::Free(Address start, int size_in_bytes) {
     page->add_available_in_huge_free_list(size_in_bytes);
   }
 
-  DCHECK(IsVeryLong() || available() == SumFreeLists());
+  DCHECK(IsVeryLong() || Available() == SumFreeLists());
   return 0;
 }
 
@@ -2323,7 +2322,7 @@ FreeSpace* FreeList::FindNodeIn(FreeListCategoryType category, int* node_size) {
   if (node != nullptr) {
     Page::FromAddress(node->address())
         ->add_available_in_free_list(category, -(*node_size));
-    DCHECK(IsVeryLong() || available() == SumFreeLists());
+    DCHECK(IsVeryLong() || Available() == SumFreeLists());
   }
   return node;
 }
@@ -2336,7 +2335,7 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kSmallAllocationMax) {
     node = FindNodeIn(kSmall, node_size);
     if (node != NULL) {
-      DCHECK(IsVeryLong() || available() == SumFreeLists());
+      DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
     }
   }
@@ -2344,7 +2343,7 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kMediumAllocationMax) {
     node = FindNodeIn(kMedium, node_size);
     if (node != NULL) {
-      DCHECK(IsVeryLong() || available() == SumFreeLists());
+      DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
     }
   }
@@ -2352,7 +2351,7 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kLargeAllocationMax) {
     node = FindNodeIn(kLarge, node_size);
     if (node != NULL) {
-      DCHECK(IsVeryLong() || available() == SumFreeLists());
+      DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
     }
   }
@@ -2360,7 +2359,7 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   node = huge_list_.SearchForNodeInList(size_in_bytes, node_size);
 
   if (node != NULL) {
-    DCHECK(IsVeryLong() || available() == SumFreeLists());
+    DCHECK(IsVeryLong() || Available() == SumFreeLists());
     return node;
   }
 
@@ -2387,7 +2386,7 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
     }
   }
 
-  DCHECK(IsVeryLong() || available() == SumFreeLists());
+  DCHECK(IsVeryLong() || Available() == SumFreeLists());
   return node;
 }
 
@@ -2511,9 +2510,6 @@ intptr_t FreeListCategory::SumFreeList() {
 }
 
 
-static const int kVeryLongFreeList = 500;
-
-
 int FreeListCategory::FreeListLength() {
   int length = 0;
   FreeSpace* cur = top();
@@ -2526,12 +2522,14 @@ int FreeListCategory::FreeListLength() {
 }
 
 
+bool FreeListCategory::IsVeryLong() {
+  return FreeListLength() == kVeryLongFreeList;
+}
+
+
 bool FreeList::IsVeryLong() {
-  if (small_list_.FreeListLength() == kVeryLongFreeList) return true;
-  if (medium_list_.FreeListLength() == kVeryLongFreeList) return true;
-  if (large_list_.FreeListLength() == kVeryLongFreeList) return true;
-  if (huge_list_.FreeListLength() == kVeryLongFreeList) return true;
-  return false;
+  return small_list_.IsVeryLong() || medium_list_.IsVeryLong() ||
+         large_list_.IsVeryLong() || huge_list_.IsVeryLong();
 }
 
 
@@ -2659,7 +2657,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Try to expand the space and allocate in the new next page.
   if (Expand()) {
     DCHECK((CountTotalPages() > 1) ||
-           (size_in_bytes <= free_list_.available()));
+           (size_in_bytes <= free_list_.Available()));
     return free_list_.Allocate(size_in_bytes);
   }
 

@@ -1589,11 +1589,7 @@ class AllocationStats BASE_EMBEDDED {
 };
 
 
-// -----------------------------------------------------------------------------
-// Free lists for old object spaces
-
-// The free list category holds a pointer to the top element and a pointer to
-// the end element of the linked list of free memory blocks.
+// A free list category maintains a linked list of free memory blocks.
 class FreeListCategory {
  public:
   explicit FreeListCategory(FreeList* owner, FreeListCategoryType type)
@@ -1603,6 +1599,9 @@ class FreeListCategory {
         available_(0),
         owner_(owner) {}
 
+  // Concatenates {category} into {this}.
+  //
+  // Note: Thread-safe.
   intptr_t Concatenate(FreeListCategory* category);
 
   void Reset();
@@ -1632,9 +1631,14 @@ class FreeListCategory {
 #ifdef DEBUG
   intptr_t SumFreeList();
   int FreeListLength();
+  bool IsVeryLong();
 #endif
 
  private:
+  // For debug builds we accurately compute free lists lengths up until
+  // {kVeryLongFreeList} by manually walking the list.
+  static const int kVeryLongFreeList = 500;
+
   FreeSpace* top() { return top_.Value(); }
   void set_top(FreeSpace* top) { top_.SetValue(top); }
 
@@ -1658,59 +1662,28 @@ class FreeListCategory {
   FreeList* owner_;
 };
 
-
-// The free list for the old space.  The free list is organized in such a way
-// as to encourage objects allocated around the same time to be near each
-// other.  The normal way to allocate is intended to be by bumping a 'top'
+// A free list maintaining free blocks of memory. The free list is organized in
+// a way to encourage objects allocated around the same time to be near each
+// other. The normal way to allocate is intended to be by bumping a 'top'
 // pointer until it hits a 'limit' pointer.  When the limit is hit we need to
-// find a new space to allocate from.  This is done with the free list, which
-// is divided up into rough categories to cut down on waste.  Having finer
+// find a new space to allocate from. This is done with the free list, which is
+// divided up into rough categories to cut down on waste. Having finer
 // categories would scatter allocation more.
 
-// The old space free list is organized in categories.
-// 1-31 words:  Such small free areas are discarded for efficiency reasons.
-//     They can be reclaimed by the compactor.  However the distance between top
-//     and limit may be this small.
-// 32-255 words: There is a list of spaces this large.  It is used for top and
-//     limit when the object we need to allocate is 1-31 words in size.  These
-//     spaces are called small.
-// 256-2047 words: There is a list of spaces this large.  It is used for top and
-//     limit when the object we need to allocate is 32-255 words in size.  These
-//     spaces are called medium.
-// 1048-16383 words: There is a list of spaces this large.  It is used for top
-//     and limit when the object we need to allocate is 256-2047 words in size.
-//     These spaces are call large.
-// At least 16384 words.  This list is for objects of 2048 words or larger.
-//     Empty pages are added to this list.  These spaces are called huge.
+// The free list is organized in categories as follows:
+// 1-31 words (too small): Such small free areas are discarded for efficiency
+//   reasons. They can be reclaimed by the compactor. However the distance
+//   between top and limit may be this small.
+// 32-255 words (small): Used for allocating free space between 1-31 words in
+//   size.
+// 256-2047 words (medium): Used for allocating free space between 32-255 words
+//   in size.
+// 1048-16383 words (large): Used for allocating free space between 256-2047
+//   words in size.
+// At least 16384 words (huge): This list is for objects of 2048 words or
+//   larger. Empty pages are also added to this list.
 class FreeList {
  public:
-  explicit FreeList(PagedSpace* owner);
-
-  // The method concatenates {other} into {this} and returns the added bytes,
-  // including waste.
-  //
-  // Can be used concurrently.
-  intptr_t Concatenate(FreeList* other);
-
-  // Clear the free list.
-  void Reset();
-
-  void ResetStats() { wasted_bytes_ = 0; }
-
-  // Return the number of bytes available on the free list.
-  intptr_t available() {
-    return small_list_.available() + medium_list_.available() +
-           large_list_.available() + huge_list_.available();
-  }
-
-  // Place a node on the free list.  The block of size 'size_in_bytes'
-  // starting at 'start' is placed on the free list.  The return value is the
-  // number of bytes that have been lost due to internal fragmentation by
-  // freeing the block.  Bookkeeping information will be written to the block,
-  // i.e., its contents will be destroyed.  The start address should be word
-  // aligned, and the size should be a non-zero multiple of the word size.
-  int Free(Address start, int size_in_bytes);
-
   // This method returns how much memory can be allocated after freeing
   // maximum_freed memory.
   static inline int GuaranteedAllocatable(int maximum_freed) {
@@ -1726,21 +1699,42 @@ class FreeList {
     return maximum_freed;
   }
 
-  // Allocate a block of size 'size_in_bytes' from the free list.  The block
-  // is unitialized.  A failure is returned if no block is available.
-  // The size should be a non-zero multiple of the word size.
+  explicit FreeList(PagedSpace* owner);
+
+  // The method concatenates {other} into {this} and returns the added bytes,
+  // including waste.
+  //
+  // Note: Thread-safe.
+  intptr_t Concatenate(FreeList* other);
+
+  // Adds a node on the free list. The block of size {size_in_bytes} starting
+  // at {start} is placed on the free list. The return value is the number of
+  // bytes that were not added to the free list, because they freed memory block
+  // was too small. Bookkeeping information will be written to the block, i.e.,
+  // its contents will be destroyed. The start address should be word aligned,
+  // and the size should be a non-zero multiple of the word size.
+  int Free(Address start, int size_in_bytes);
+
+  // Allocate a block of size {size_in_bytes} from the free list. The block is
+  // unitialized. A failure is returned if no block is available. The size
+  // should be a non-zero multiple of the word size.
   MUST_USE_RESULT HeapObject* Allocate(int size_in_bytes);
+
+  // Clear the free list.
+  void Reset();
+
+  void ResetStats() { wasted_bytes_ = 0; }
+
+  // Return the number of bytes available on the free list.
+  intptr_t Available() {
+    return small_list_.available() + medium_list_.available() +
+           large_list_.available() + huge_list_.available();
+  }
 
   bool IsEmpty() {
     return small_list_.IsEmpty() && medium_list_.IsEmpty() &&
            large_list_.IsEmpty() && huge_list_.IsEmpty();
   }
-
-#ifdef DEBUG
-  void Zap();
-  intptr_t SumFreeLists();
-  bool IsVeryLong();
-#endif
 
   // Used after booting the VM.
   void RepairLists(Heap* heap);
@@ -1751,6 +1745,12 @@ class FreeList {
   PagedSpace* owner() { return owner_; }
   intptr_t wasted_bytes() { return wasted_bytes_; }
   base::Mutex* mutex() { return &mutex_; }
+
+#ifdef DEBUG
+  void Zap();
+  intptr_t SumFreeLists();
+  bool IsVeryLong();
+#endif
 
  private:
   // The size range of blocks, in bytes.
@@ -1785,9 +1785,7 @@ class FreeList {
     return nullptr;
   }
 
-
   PagedSpace* owner_;
-  Heap* heap_;
   base::Mutex mutex_;
   intptr_t wasted_bytes_;
   FreeListCategory small_list_;
@@ -1907,7 +1905,7 @@ class PagedSpace : public Space {
   // The bytes in the linear allocation area are not included in this total
   // because updating the stats would slow down allocation.  New pages are
   // immediately added to the free list so they show up here.
-  intptr_t Available() override { return free_list_.available(); }
+  intptr_t Available() override { return free_list_.Available(); }
 
   // Allocated bytes in this space.  Garbage bytes that were not found due to
   // concurrent sweeping are counted as being allocated!  The bytes in the
