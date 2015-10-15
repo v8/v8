@@ -2807,6 +2807,8 @@ void LCodeGen::DoDoubleToIntOrSmi(LDoubleToIntOrSmi* instr) {
 
 void LCodeGen::DoDrop(LDrop* instr) {
   __ Drop(instr->count());
+
+  RecordPushedArgumentsDelta(instr->hydrogen_value()->argument_delta());
 }
 
 
