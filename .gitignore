@@ -60,9 +60,7 @@ shell_g
 /test/promises-aplus/promises-tests
 /test/promises-aplus/promises-tests.tar.gz
 /test/promises-aplus/sinon
-/test/simdjs/CHECKED_OUT_*
-/test/simdjs/ecmascript_simd*
-/test/simdjs/data*
+/test/simdjs/data
 /test/test262/data
 /testing/gmock
 /testing/gtest
