@@ -147,7 +147,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableDoubleCode(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);
     int offset = code * kDoubleSize;
-    __ movsd(Operand(rsp, offset), xmm_reg);
+    __ Movsd(Operand(rsp, offset), xmm_reg);
   }
 
   // We push all registers onto the stack, even though we do not need
@@ -280,7 +280,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableDoubleCode(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);
     int src_offset = code * kDoubleSize + double_regs_offset;
-    __ movsd(xmm_reg, Operand(rbx, src_offset));
+    __ Movsd(xmm_reg, Operand(rbx, src_offset));
   }
 
   // Push state, pc, and continuation from the last output frame.

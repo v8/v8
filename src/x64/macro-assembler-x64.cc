@@ -761,7 +761,7 @@ void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
     subp(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      movsd(Operand(rsp, i * kDoubleSize), reg);
+      Movsd(Operand(rsp, i * kDoubleSize), reg);
     }
   }
 }
@@ -774,7 +774,7 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
   if (fp_mode == kSaveFPRegs) {
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
-      movsd(reg, Operand(rsp, i * kDoubleSize));
+      Movsd(reg, Operand(rsp, i * kDoubleSize));
     }
     addp(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
   }
@@ -2437,6 +2437,46 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
 }
 
 
+void MacroAssembler::Movapd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovapd(dst, src);
+  } else {
+    movapd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Movsd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovsd(dst, src);
+  } else {
+    movsd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Movsd(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovsd(dst, src);
+  } else {
+    movsd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Movsd(const Operand& dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovsd(dst, src);
+  } else {
+    movsd(dst, src);
+  }
+}
+
+
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
@@ -3045,7 +3085,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   SmiToInteger32(kScratchRegister, maybe_number);
   Cvtlsi2sd(xmm_scratch, kScratchRegister);
   bind(&done);
-  movsd(FieldOperand(elements, index, times_8,
+  Movsd(FieldOperand(elements, index, times_8,
                      FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
 }
@@ -3125,7 +3165,7 @@ void MacroAssembler::SlowTruncateToI(Register result_reg,
 void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
                                            Register input_reg) {
   Label done;
-  movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  Movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
   cvttsd2siq(result_reg, xmm0);
   cmpq(result_reg, Immediate(1));
   j(no_overflow, &done, Label::kNear);
@@ -3133,7 +3173,7 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
   // Slow case.
   if (input_reg.is(result_reg)) {
     subp(rsp, Immediate(kDoubleSize));
-    movsd(MemOperand(rsp, 0), xmm0);
+    Movsd(MemOperand(rsp, 0), xmm0);
     SlowTruncateToI(result_reg, rsp, 0);
     addp(rsp, Immediate(kDoubleSize));
   } else {
@@ -3154,7 +3194,7 @@ void MacroAssembler::TruncateDoubleToI(Register result_reg,
   j(no_overflow, &done, Label::kNear);
 
   subp(rsp, Immediate(kDoubleSize));
-  movsd(MemOperand(rsp, 0), input_reg);
+  Movsd(MemOperand(rsp, 0), input_reg);
   SlowTruncateToI(result_reg, rsp, 0);
   addp(rsp, Immediate(kDoubleSize));
 
@@ -3720,7 +3760,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
     for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
       DoubleRegister reg =
           DoubleRegister::from_code(config->GetAllocatableDoubleCode(i));
-      movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
+      Movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else if (arg_stack_space > 0) {
     subp(rsp, Immediate(arg_stack_space * kRegisterSize));
@@ -3766,7 +3806,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
     for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
       DoubleRegister reg =
           DoubleRegister::from_code(config->GetAllocatableDoubleCode(i));
-      movsd(reg, Operand(rbp, offset - ((i + 1) * kDoubleSize)));
+      Movsd(reg, Operand(rbp, offset - ((i + 1) * kDoubleSize)));
     }
   }
 

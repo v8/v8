@@ -181,7 +181,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 
   void Generate() final {
     __ subp(rsp, Immediate(kDoubleSize));
-    __ movsd(MemOperand(rsp, 0), input_);
+    __ Movsd(MemOperand(rsp, 0), input_);
     __ SlowTruncateToI(result_, rsp, 0);
     __ addp(rsp, Immediate(kDoubleSize));
   }
@@ -835,9 +835,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64Mod: {
       __ subq(rsp, Immediate(kDoubleSize));
       // Move values to st(0) and st(1).
-      __ movsd(Operand(rsp, 0), i.InputDoubleRegister(1));
+      __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(1));
       __ fld_d(Operand(rsp, 0));
-      __ movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
+      __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
       __ fld_d(Operand(rsp, 0));
       // Loop while fprem isn't done.
       Label mod_loop;
@@ -860,7 +860,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       // Move output to stack and clean up.
       __ fstp(1);
       __ fstp_d(Operand(rsp, 0));
-      __ movsd(i.OutputDoubleRegister(), Operand(rsp, 0));
+      __ Movsd(i.OutputDoubleRegister(), Operand(rsp, 0));
       __ addq(rsp, Immediate(kDoubleSize));
       break;
     }
@@ -1164,11 +1164,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kX64Movsd:
       if (instr->HasOutput()) {
-        __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());
+        __ Movsd(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
-        __ movsd(operand, i.InputDoubleRegister(index));
+        __ Movsd(operand, i.InputDoubleRegister(index));
       }
       break;
     case kX64BitcastFI:
@@ -1196,7 +1196,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->InputAt(0)->IsRegister()) {
         __ movq(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
-        __ movsd(i.OutputDoubleRegister(), i.InputOperand(0));
+        __ Movsd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kX64Lea32: {
@@ -1251,7 +1251,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         } else if (instr->InputAt(0)->IsDoubleRegister()) {
           // TODO(titzer): use another machine instruction?
           __ subq(rsp, Immediate(kDoubleSize));
-          __ movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
+          __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
         } else {
           __ pushq(i.InputOperand(0));
         }
@@ -1306,7 +1306,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_CHECKED_LOAD_FLOAT(movss);
       break;
     case kCheckedLoadFloat64:
-      ASSEMBLE_CHECKED_LOAD_FLOAT(movsd);
+      ASSEMBLE_CHECKED_LOAD_FLOAT(Movsd);
       break;
     case kCheckedStoreWord8:
       ASSEMBLE_CHECKED_STORE_INTEGER(movb);
@@ -1324,7 +1324,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_CHECKED_STORE_FLOAT(movss);
       break;
     case kCheckedStoreFloat64:
-      ASSEMBLE_CHECKED_STORE_FLOAT(movsd);
+      ASSEMBLE_CHECKED_STORE_FLOAT(Movsd);
       break;
     case kX64StackCheck:
       __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
@@ -1724,19 +1724,19 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else {
       DCHECK(destination->IsDoubleStackSlot());
       Operand dst = g.ToOperand(destination);
-      __ movsd(dst, src);
+      __ Movsd(dst, src);
     }
   } else if (source->IsDoubleStackSlot()) {
     DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
     Operand src = g.ToOperand(source);
     if (destination->IsDoubleRegister()) {
       XMMRegister dst = g.ToDoubleRegister(destination);
-      __ movsd(dst, src);
+      __ Movsd(dst, src);
     } else {
       // We rely on having xmm0 available as a fixed scratch register.
       Operand dst = g.ToOperand(destination);
-      __ movsd(xmm0, src);
-      __ movsd(dst, xmm0);
+      __ Movsd(xmm0, src);
+      __ Movsd(dst, xmm0);
     }
   } else {
     UNREACHABLE();
@@ -1779,9 +1779,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     // available as a fixed scratch register.
     XMMRegister src = g.ToDoubleRegister(source);
     Operand dst = g.ToOperand(destination);
-    __ movsd(xmm0, src);
-    __ movsd(src, dst);
-    __ movsd(dst, xmm0);
+    __ Movsd(xmm0, src);
+    __ Movsd(src, dst);
+    __ Movsd(dst, xmm0);
   } else {
     // No other combinations are possible.
     UNREACHABLE();

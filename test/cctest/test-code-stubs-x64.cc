@@ -88,7 +88,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Put the double argument into the designated double argument slot.
   __ subq(rsp, Immediate(kDoubleSize));
-  __ movsd(MemOperand(rsp, 0), xmm0);
+  __ Movsd(MemOperand(rsp, 0), xmm0);
 
   // Call through to the actual stub
   __ Call(start, RelocInfo::EXTERNAL_REFERENCE);

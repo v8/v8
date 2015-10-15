@@ -1267,6 +1267,14 @@ class Assembler : public AssemblerBase {
   void vfmass(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vfmass(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
+  void vmovapd(XMMRegister dst, XMMRegister src);
+  void vmovsd(XMMRegister dst, const Operand& src) {
+    vsd(0x10, dst, xmm0, src);
+  }
+  void vmovsd(XMMRegister dst, XMMRegister src) { vsd(0x10, dst, xmm0, src); }
+  void vmovsd(const Operand& dst, XMMRegister src) {
+    vsd(0x11, src, xmm0, dst);
+  }
   void vaddsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vsd(0x58, dst, src1, src2);
   }

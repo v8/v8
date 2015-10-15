@@ -214,16 +214,16 @@ void LGapResolver::EmitMove(int index) {
       __ movaps(cgen_->ToDoubleRegister(destination), src);
     } else {
       DCHECK(destination->IsDoubleStackSlot());
-      __ movsd(cgen_->ToOperand(destination), src);
+      __ Movsd(cgen_->ToOperand(destination), src);
     }
   } else if (source->IsDoubleStackSlot()) {
     Operand src = cgen_->ToOperand(source);
     if (destination->IsDoubleRegister()) {
-      __ movsd(cgen_->ToDoubleRegister(destination), src);
+      __ Movsd(cgen_->ToDoubleRegister(destination), src);
     } else {
       DCHECK(destination->IsDoubleStackSlot());
-      __ movsd(xmm0, src);
-      __ movsd(cgen_->ToOperand(destination), xmm0);
+      __ Movsd(xmm0, src);
+      __ Movsd(cgen_->ToOperand(destination), xmm0);
     }
   } else {
     UNREACHABLE();
@@ -261,9 +261,9 @@ void LGapResolver::EmitSwap(int index) {
     // Swap two stack slots or two double stack slots.
     Operand src = cgen_->ToOperand(source);
     Operand dst = cgen_->ToOperand(destination);
-    __ movsd(xmm0, src);
+    __ Movsd(xmm0, src);
     __ movp(kScratchRegister, dst);
-    __ movsd(dst, xmm0);
+    __ Movsd(dst, xmm0);
     __ movp(src, kScratchRegister);
 
   } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
@@ -284,8 +284,8 @@ void LGapResolver::EmitSwap(int index) {
     LOperand* other = source->IsDoubleRegister() ? destination : source;
     DCHECK(other->IsDoubleStackSlot());
     Operand other_operand = cgen_->ToOperand(other);
-    __ movsd(xmm0, other_operand);
-    __ movsd(other_operand, reg);
+    __ Movsd(xmm0, other_operand);
+    __ Movsd(other_operand, reg);
     __ movaps(reg, xmm0);
 
   } else {

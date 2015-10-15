@@ -88,7 +88,7 @@ void LCodeGen::SaveCallerDoubles() {
   BitVector* doubles = chunk()->allocated_double_registers();
   BitVector::Iterator save_iterator(doubles);
   while (!save_iterator.Done()) {
-    __ movsd(MemOperand(rsp, count * kDoubleSize),
+    __ Movsd(MemOperand(rsp, count * kDoubleSize),
              XMMRegister::from_code(save_iterator.Current()));
     save_iterator.Advance();
     count++;
@@ -104,7 +104,7 @@ void LCodeGen::RestoreCallerDoubles() {
   BitVector::Iterator save_iterator(doubles);
   int count = 0;
   while (!save_iterator.Done()) {
-    __ movsd(XMMRegister::from_code(save_iterator.Current()),
+    __ Movsd(XMMRegister::from_code(save_iterator.Current()),
              MemOperand(rsp, count * kDoubleSize));
     save_iterator.Advance();
     count++;
@@ -1991,7 +1991,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ ucomisd(left_reg, left_reg);  // NaN check.
     __ j(parity_even, &return_left, Label::kNear);
     __ bind(&return_right);
-    __ movaps(left_reg, right_reg);
+    __ Movapd(left_reg, right_reg);
 
     __ bind(&return_left);
   }
@@ -2040,16 +2040,16 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       }
       // Don't delete this mov. It may improve performance on some CPUs,
       // when there is a (v)mulsd depending on the result
-      __ movaps(result, result);
+      __ Movapd(result, result);
       break;
     case Token::MOD: {
       XMMRegister xmm_scratch = double_scratch0();
       __ PrepareCallCFunction(2);
-      __ movaps(xmm_scratch, left);
+      __ Movapd(xmm_scratch, left);
       DCHECK(right.is(xmm1));
       __ CallCFunction(
           ExternalReference::mod_two_doubles_operation(isolate()), 2);
-      __ movaps(result, xmm_scratch);
+      __ Movapd(result, xmm_scratch);
       break;
     }
     default:
@@ -2391,7 +2391,7 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
   EmitFalseBranch(instr, parity_odd);
 
   __ subp(rsp, Immediate(kDoubleSize));
-  __ movsd(MemOperand(rsp, 0), input_reg);
+  __ Movsd(MemOperand(rsp, 0), input_reg);
   __ addp(rsp, Immediate(kDoubleSize));
 
   int offset = sizeof(kHoleNanUpper32);
@@ -2869,7 +2869,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   if (instr->hydrogen()->representation().IsDouble()) {
     DCHECK(access.IsInobject());
     XMMRegister result = ToDoubleRegister(instr->result());
-    __ movsd(result, FieldOperand(object, offset));
+    __ Movsd(result, FieldOperand(object, offset));
     return;
   }
 
@@ -3002,7 +3002,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     __ movss(result, operand);
     __ cvtss2sd(result, result);
   } else if (elements_kind == FLOAT64_ELEMENTS) {
-    __ movsd(ToDoubleRegister(instr->result()), operand);
+    __ Movsd(ToDoubleRegister(instr->result()), operand);
   } else {
     Register result(ToRegister(instr->result()));
     switch (elements_kind) {
@@ -3073,7 +3073,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
       instr->hydrogen()->key()->representation(),
       FAST_DOUBLE_ELEMENTS,
       instr->base_offset());
-  __ movsd(result, double_load_operand);
+  __ Movsd(result, double_load_operand);
 }
 
 
@@ -3825,16 +3825,16 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   ExternalReference ninf =
       ExternalReference::address_of_negative_infinity();
   Operand ninf_operand = masm()->ExternalOperand(ninf);
-  __ movsd(input_reg, ninf_operand);
+  __ Movsd(input_reg, ninf_operand);
   __ jmp(&done, Label::kNear);
   __ bind(&positive);
   __ fldln2();
   __ subp(rsp, Immediate(kDoubleSize));
-  __ movsd(Operand(rsp, 0), input_reg);
+  __ Movsd(Operand(rsp, 0), input_reg);
   __ fld_d(Operand(rsp, 0));
   __ fyl2x();
   __ fstp_d(Operand(rsp, 0));
-  __ movsd(input_reg, Operand(rsp, 0));
+  __ Movsd(input_reg, Operand(rsp, 0));
   __ addp(rsp, Immediate(kDoubleSize));
   __ bind(&done);
 }
@@ -4025,7 +4025,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     DCHECK(!hinstr->has_transition());
     DCHECK(!hinstr->NeedsWriteBarrier());
     XMMRegister value = ToDoubleRegister(instr->value());
-    __ movsd(FieldOperand(object, offset), value);
+    __ Movsd(FieldOperand(object, offset), value);
     return;
   }
 
@@ -4073,7 +4073,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (FLAG_unbox_double_fields && representation.IsDouble()) {
     DCHECK(access.IsInobject());
     XMMRegister value = ToDoubleRegister(instr->value());
-    __ movsd(operand, value);
+    __ Movsd(operand, value);
 
   } else if (instr->value()->IsRegister()) {
     Register value = ToRegister(instr->value());
@@ -4246,7 +4246,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     __ cvtsd2ss(value, value);
     __ movss(operand, value);
   } else if (elements_kind == FLOAT64_ELEMENTS) {
-    __ movsd(operand, ToDoubleRegister(instr->value()));
+    __ Movsd(operand, ToDoubleRegister(instr->value()));
   } else {
     Register value(ToRegister(instr->value()));
     switch (elements_kind) {
@@ -4304,7 +4304,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       FAST_DOUBLE_ELEMENTS,
       instr->base_offset());
 
-  __ movsd(double_store_operand, value);
+  __ Movsd(double_store_operand, value);
 }
 
 
@@ -4811,7 +4811,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
   // Done. Put the value in temp_xmm into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), temp_xmm);
+  __ Movsd(FieldOperand(reg, HeapNumber::kValueOffset), temp_xmm);
 }
 
 
@@ -4838,7 +4838,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     __ jmp(deferred->entry());
   }
   __ bind(deferred->exit());
-  __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
+  __ Movsd(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
 }
 
 
@@ -4914,7 +4914,7 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
 
     // On x64 it is safe to load at heap number offset before evaluating the map
     // check, since all heap objects are at least two words long.
-    __ movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    __ Movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
 
     if (can_convert_undefined_to_nan) {
       __ j(not_equal, &convert, Label::kNear);
@@ -4993,7 +4993,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
     __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
     DeoptimizeIf(not_equal, instr, Deoptimizer::kNotAHeapNumber);
-    __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    __ Movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
     __ cvttsd2si(input_reg, xmm0);
     __ Cvtlsi2sd(scratch, input_reg);
     __ ucomisd(xmm0, scratch);
@@ -5305,7 +5305,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // Heap number
   __ bind(&heap_number);
-  __ movsd(xmm_scratch, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  __ Movsd(xmm_scratch, FieldOperand(input_reg, HeapNumber::kValueOffset));
   __ ClampDoubleToUint8(xmm_scratch, temp_xmm_reg, input_reg);
   __ jmp(&done, Label::kNear);
 

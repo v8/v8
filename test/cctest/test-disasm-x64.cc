@@ -511,6 +511,11 @@ TEST(DisasmX64) {
       __ vucomiss(xmm9, xmm1);
       __ vucomiss(xmm8, Operand(rbx, rdx, times_2, 10981));
 
+      __ vmovapd(xmm7, xmm0);
+      __ vmovsd(xmm6, xmm2);
+      __ vmovsd(xmm9, Operand(rbx, rcx, times_4, 10000));
+      __ vmovsd(Operand(rbx, rcx, times_4, 10000), xmm0);
+
       __ vaddsd(xmm0, xmm1, xmm2);
       __ vaddsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vmulsd(xmm0, xmm1, xmm2);

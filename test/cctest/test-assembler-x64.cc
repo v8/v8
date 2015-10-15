@@ -1353,7 +1353,14 @@ TEST(AssemblerX64AVX_sd) {
     // arguments in xmm0, xmm1 and xmm2
     __ movl(rax, Immediate(0));
 
-    __ vmaxsd(xmm3, xmm0, xmm1);
+    __ vmaxsd(xmm4, xmm0, xmm1);
+    __ subq(rsp, Immediate(kDoubleSize * 2));  // For memory operand
+    __ vmovsd(Operand(rsp, kDoubleSize), xmm4);
+    __ vmovsd(xmm5, Operand(rsp, kDoubleSize));
+    __ vmovsd(xmm6, xmm5);
+    __ vmovapd(xmm3, xmm6);
+    __ addq(rsp, Immediate(kDoubleSize * 2));
+
     __ vucomisd(xmm3, xmm1);
     __ j(parity_even, &exit);
     __ j(not_equal, &exit);
