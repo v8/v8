@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noalways-opt --no-vector-stores
+// Flags: --allow-natives-syntax --noalways-opt
 
 // We disable vector store ICs because slot indices change when this option
 // is enabled.

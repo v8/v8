@@ -252,7 +252,7 @@
   # BUG(v8:3838).
   'regress/regress-3116': [PASS, ['isolates', FLAKY]],
 
-  # BUG(v:4458). TODO(mvstanton): reenable the test once --vector-stores is
+  # BUG(v8:4458). TODO(mvstanton): reenable the test once --vector-stores is
   # prermanently enabled.
   'call-counts': [SKIP],
 
