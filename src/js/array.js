@@ -20,6 +20,9 @@ var ObjectHasOwnProperty;
 var ObjectIsFrozen;
 var ObjectIsSealed;
 var ObjectToString;
+var ObserveBeginPerformSplice;
+var ObserveEndPerformSplice;
+var ObserveEnqueueSpliceRecord;
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
@@ -29,6 +32,9 @@ utils.Import(function(from) {
   ObjectIsFrozen = from.ObjectIsFrozen;
   ObjectIsSealed = from.ObjectIsSealed;
   ObjectToString = from.ObjectToString;
+  ObserveBeginPerformSplice = from.ObserveBeginPerformSplice;
+  ObserveEndPerformSplice = from.ObserveEndPerformSplice;
+  ObserveEnqueueSpliceRecord = from.ObserveEnqueueSpliceRecord;
 });
 
 // -------------------------------------------------------------------
@@ -437,12 +443,12 @@ function ObservedArrayPop(n) {
   var value = this[n];
 
   try {
-    $observeBeginPerformSplice(this);
+    ObserveBeginPerformSplice(this);
     delete this[n];
     this.length = n;
   } finally {
-    $observeEndPerformSplice(this);
-    $observeEnqueueSpliceRecord(this, n, [value], 0);
+    ObserveEndPerformSplice(this);
+    ObserveEnqueueSpliceRecord(this, n, [value], 0);
   }
 
   return value;
@@ -477,15 +483,15 @@ function ObservedArrayPush() {
   var m = %_ArgumentsLength();
 
   try {
-    $observeBeginPerformSplice(this);
+    ObserveBeginPerformSplice(this);
     for (var i = 0; i < m; i++) {
       this[i+n] = %_Arguments(i);
     }
     var new_length = n + m;
     this.length = new_length;
   } finally {
-    $observeEndPerformSplice(this);
-    $observeEnqueueSpliceRecord(this, n, [], m);
+    ObserveEndPerformSplice(this);
+    ObserveEnqueueSpliceRecord(this, n, [], m);
   }
 
   return new_length;
@@ -617,12 +623,12 @@ function ObservedArrayShift(len) {
   var first = this[0];
 
   try {
-    $observeBeginPerformSplice(this);
+    ObserveBeginPerformSplice(this);
     SimpleMove(this, 0, 1, len, 0);
     this.length = len - 1;
   } finally {
-    $observeEndPerformSplice(this);
-    $observeEnqueueSpliceRecord(this, 0, [first], 0);
+    ObserveEndPerformSplice(this);
+    ObserveEnqueueSpliceRecord(this, 0, [first], 0);
   }
 
   return first;
@@ -664,7 +670,7 @@ function ObservedArrayUnshift() {
   var num_arguments = %_ArgumentsLength();
 
   try {
-    $observeBeginPerformSplice(this);
+    ObserveBeginPerformSplice(this);
     SimpleMove(this, 0, 0, len, num_arguments);
     for (var i = 0; i < num_arguments; i++) {
       this[i] = %_Arguments(i);
@@ -672,8 +678,8 @@ function ObservedArrayUnshift() {
     var new_length = len + num_arguments;
     this.length = new_length;
   } finally {
-    $observeEndPerformSplice(this);
-    $observeEnqueueSpliceRecord(this, 0, [], num_arguments);
+    ObserveEndPerformSplice(this);
+    ObserveEnqueueSpliceRecord(this, 0, [], num_arguments);
   }
 
   return new_length;
@@ -791,7 +797,7 @@ function ObservedArraySplice(start, delete_count) {
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
   try {
-    $observeBeginPerformSplice(this);
+    ObserveBeginPerformSplice(this);
 
     SimpleSlice(this, start_i, del_count, len, deleted_elements);
     SimpleMove(this, start_i, del_count, len, num_elements_to_add);
@@ -807,12 +813,12 @@ function ObservedArraySplice(start, delete_count) {
     this.length = len - del_count + num_elements_to_add;
 
   } finally {
-    $observeEndPerformSplice(this);
+    ObserveEndPerformSplice(this);
     if (deleted_elements.length || num_elements_to_add) {
-      $observeEnqueueSpliceRecord(this,
-                                  start_i,
-                                  deleted_elements.slice(),
-                                  num_elements_to_add);
+      ObserveEnqueueSpliceRecord(this,
+                                 start_i,
+                                 deleted_elements.slice(),
+                                 num_elements_to_add);
     }
   }
 

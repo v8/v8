@@ -18,6 +18,9 @@ var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MathAbs;
+var ObserveBeginPerformSplice;
+var ObserveEndPerformSplice;
+var ObserveEnqueueSpliceRecord;
 var ProxyDelegateCallAndConstruct;
 var ProxyDerivedHasOwnTrap;
 var ProxyDerivedKeysTrap;
@@ -26,6 +29,9 @@ var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathAbs = from.MathAbs;
+  ObserveBeginPerformSplice = from.ObserveBeginPerformSplice;
+  ObserveEndPerformSplice = from.ObserveEndPerformSplice;
+  ObserveEnqueueSpliceRecord = from.ObserveEnqueueSpliceRecord;
   StringIndexOf = from.StringIndexOf;
 });
 
@@ -806,14 +812,14 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
       var length = obj.length;
       if (index >= length && %IsObserved(obj)) {
         emit_splice = true;
-        $observeBeginPerformSplice(obj);
+        ObserveBeginPerformSplice(obj);
       }
 
       var length_desc = GetOwnPropertyJS(obj, "length");
       if ((index >= length && !length_desc.isWritable()) ||
           !DefineObjectProperty(obj, p, desc, true)) {
         if (emit_splice)
-          $observeEndPerformSplice(obj);
+          ObserveEndPerformSplice(obj);
         if (should_throw) {
           throw MakeTypeError(kDefineDisallowed, p);
         } else {
@@ -824,8 +830,8 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
         obj.length = index + 1;
       }
       if (emit_splice) {
-        $observeEndPerformSplice(obj);
-        $observeEnqueueSpliceRecord(obj, length, [], index + 1 - length);
+        ObserveEndPerformSplice(obj);
+        ObserveEnqueueSpliceRecord(obj, length, [], index + 1 - length);
       }
       return true;
     }

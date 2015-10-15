@@ -184,6 +184,8 @@ function PostNatives(utils) {
     "MathMin",
     "ObjectIsFrozen",
     "ObjectDefineProperty",
+    "ObserveArrayMethods",
+    "ObserveObjectMethods",
     "OwnPropertyKeys",
     "SymbolToString",
     "ToNameArray",

@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $observeEnqueueSpliceRecord;
-var $observeBeginPerformSplice;
-var $observeEndPerformSplice;
-
-var $observeObjectMethods;
-var $observeArrayMethods;
-
 (function(global, utils) {
 
 "use strict";
@@ -684,13 +677,14 @@ utils.InstallFunctions(notifierPrototype, DONT_ENUM, [
   "performChange", ObjectNotifierPerformChange
 ]);
 
-$observeObjectMethods = [
+var ObserveObjectMethods = [
   "deliverChangeRecords", ObjectDeliverChangeRecords,
   "getNotifier", ObjectGetNotifier,
   "observe", ObjectObserve,
   "unobserve", ObjectUnobserve
 ];
-$observeArrayMethods = [
+
+var ObserveArrayMethods = [
   "observe", ArrayObserve,
   "unobserve", ArrayUnobserve
 ];
@@ -700,12 +694,8 @@ $observeArrayMethods = [
 var removePrototypeFn = function(f, i) {
   if (i % 2 === 1) %FunctionRemovePrototype(f);
 };
-$observeObjectMethods.forEach(removePrototypeFn);
-$observeArrayMethods.forEach(removePrototypeFn);
-
-$observeEnqueueSpliceRecord = EnqueueSpliceRecord;
-$observeBeginPerformSplice = BeginPerformSplice;
-$observeEndPerformSplice = EndPerformSplice;
+ObserveObjectMethods.forEach(removePrototypeFn);
+ObserveArrayMethods.forEach(removePrototypeFn);
 
 %InstallToContext([
   "native_object_get_notifier", NativeObjectGetNotifier,
@@ -716,5 +706,13 @@ $observeEndPerformSplice = EndPerformSplice;
   "observers_enqueue_splice", EnqueueSpliceRecord,
   "observers_notify_change", NotifyChange,
 ]);
+
+utils.Export(function(to) {
+  to.ObserveArrayMethods = ObserveArrayMethods;
+  to.ObserveBeginPerformSplice = BeginPerformSplice;
+  to.ObserveEndPerformSplice = EndPerformSplice;
+  to.ObserveEnqueueSpliceRecord = EnqueueSpliceRecord;
+  to.ObserveObjectMethods = ObserveObjectMethods;
+});
 
 })

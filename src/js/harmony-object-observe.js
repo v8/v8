@@ -8,7 +8,10 @@
 
 %CheckIsBootstrapping();
 
-utils.InstallFunctions(global.Object, DONT_ENUM, $observeObjectMethods);
-utils.InstallFunctions(global.Array, DONT_ENUM, $observeArrayMethods);
+var ObserveArrayMethods = utils.ImportNow("ObserveArrayMethods");
+var ObserveObjectMethods = utils.ImportNow("ObserveObjectMethods");;
+
+utils.InstallFunctions(global.Object, DONT_ENUM, ObserveObjectMethods);
+utils.InstallFunctions(global.Array, DONT_ENUM, ObserveArrayMethods);
 
 })
