@@ -975,6 +975,18 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 }
 
 
+static void Generate_InterpreterPushArgs(MacroAssembler* masm, Register index,
+                                         Register count, Register scratch) {
+  Label loop;
+  __ addi(index, index, Operand(kPointerSize));  // Bias up for LoadPU
+  __ mtctr(count);
+  __ bind(&loop);
+  __ LoadPU(scratch, MemOperand(index, -kPointerSize));
+  __ push(scratch);
+  __ bdnz(&loop);
+}
+
+
 // static
 void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -989,13 +1001,7 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   __ addi(r6, r3, Operand(1));
 
   // Push the arguments.
-  Label loop;
-  __ addi(r5, r5, Operand(kPointerSize));  // Bias up for LoadPU
-  __ mtctr(r6);
-  __ bind(&loop);
-  __ LoadPU(r6, MemOperand(r5, -kPointerSize));
-  __ push(r6);
-  __ bdnz(&loop);
+  Generate_InterpreterPushArgs(masm, r5, r6, r7);
 
   // Call the target.
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
@@ -1011,26 +1017,15 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // -- r5 : address of the first argument
   // -----------------------------------
 
-  // Calculate number of arguments.
-  __ mr(r7, r3);
-
-  // Push a slot for the receiver.
+  // Push a slot for the receiver to be constructed.
   __ push(r3);
 
-  // Skip pushing arguments if none.
-  Label loop_end;
-  __ cmpi(r7, Operand(0));
-  __ beq(&loop_end);
-
-  // Push the arguments
-  Label loop;
-  __ addi(r5, r5, Operand(kPointerSize));  // Bias up for LoadPU
-  __ mtctr(r7);
-  __ bind(&loop);
-  __ LoadPU(r7, MemOperand(r5, -kPointerSize));
-  __ push(r7);
-  __ bdnz(&loop);
-  __ bind(&loop_end);
+  // Push the arguments (skip if none).
+  Label skip;
+  __ cmpi(r3, Operand::Zero());
+  __ beq(&skip);
+  Generate_InterpreterPushArgs(masm, r5, r3, r7);
+  __ bind(&skip);
 
   // Call the constructor with r3, r4, and r6 unmodified.
   __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
