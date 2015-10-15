@@ -98,6 +98,7 @@ class CodeFactory final {
                                CallFunctionFlags flags);
 
   static Callable InterpreterPushArgsAndCall(Isolate* isolate);
+  static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate);
 };
 

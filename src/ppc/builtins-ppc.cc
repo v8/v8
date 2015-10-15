@@ -983,6 +983,7 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   //          arguments should be consecutive above this, in the same order as
   //          they are to be pushed onto the stack.
   //  -- r4 : the target to call (can be any Object).
+  // -----------------------------------
 
   // Calculate number of arguments (add one for receiver).
   __ addi(r6, r3, Operand(1));
@@ -998,6 +999,32 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 
   // Call the target.
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+}
+
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- r3 : argument count (not including receiver)
+  // -- r6 : original constructor
+  // -- r4 : constructor to call
+  // -- r5 : address of the first argument
+  // -----------------------------------
+
+  // Calculate number of arguments (add one for receiver).
+  __ mr(r11, r3);
+
+  // Push the arguments.
+  Label loop;
+  __ addi(r5, r5, Operand(kPointerSize));  // Bias up for LoadPU
+  __ mtctr(r11);
+  __ bind(&loop);
+  __ LoadPU(r11, MemOperand(r5, -kPointerSize));
+  __ push(r11);
+  __ bdnz(&loop);
+
+  // Call the constructor with r3, r4, and r6 unmodified.
+  __ Jump(masm->isolate()->builtins()->Constuct(), RelocInfo::CONSTRUCT_CALL);
 }
 
 

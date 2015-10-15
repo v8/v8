@@ -90,6 +90,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit unary operator invocations.
   builder.LogicalNot().TypeOf();
 
+  // Emit new.
+  builder.New(reg, reg, 0);
+
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
       .CompareOperation(Token::Value::NE, reg, Strength::WEAK)
