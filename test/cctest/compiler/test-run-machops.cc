@@ -75,6 +75,51 @@ TEST(RunInt32Ctz) {
 }
 
 
+void TestWord32Clz(int32_t value, int32_t expected) {
+  RawMachineAssemblerTester<int32_t> m;
+  Node* clz = m.Word32Clz(m.Int32Constant(value));
+  m.Return(clz);
+  CHECK_EQ(expected, m.Call());
+}
+
+
+TEST(RunInt32Clz) {
+  TestWord32Clz(0x80001000, 0);
+  TestWord32Clz(0x40000500, 1);
+  TestWord32Clz(0x20000300, 2);
+  TestWord32Clz(0x10000003, 3);
+  TestWord32Clz(0x08050000, 4);
+  TestWord32Clz(0x04006000, 5);
+  TestWord32Clz(0x02000000, 6);
+  TestWord32Clz(0x010000a0, 7);
+  TestWord32Clz(0x00800c00, 8);
+  TestWord32Clz(0x00400000, 9);
+  TestWord32Clz(0x0020000d, 10);
+  TestWord32Clz(0x00100f00, 11);
+  TestWord32Clz(0x00080000, 12);
+  TestWord32Clz(0x00041000, 13);
+  TestWord32Clz(0x00020020, 14);
+  TestWord32Clz(0x00010300, 15);
+  TestWord32Clz(0x00008040, 16);
+  TestWord32Clz(0x00004005, 17);
+  TestWord32Clz(0x00002050, 18);
+  TestWord32Clz(0x00001700, 19);
+  TestWord32Clz(0x00000870, 20);
+  TestWord32Clz(0x00000405, 21);
+  TestWord32Clz(0x00000203, 22);
+  TestWord32Clz(0x00000101, 23);
+  TestWord32Clz(0x00000089, 24);
+  TestWord32Clz(0x00000041, 25);
+  TestWord32Clz(0x00000022, 26);
+  TestWord32Clz(0x00000013, 27);
+  TestWord32Clz(0x00000008, 28);
+  TestWord32Clz(0x00000004, 29);
+  TestWord32Clz(0x00000002, 30);
+  TestWord32Clz(0x00000001, 31);
+  TestWord32Clz(0x00000000, 32);
+}
+
+
 static Node* Int32Input(RawMachineAssemblerTester<int32_t>* m, int index) {
   switch (index) {
     case 0:
