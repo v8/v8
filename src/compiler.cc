@@ -1570,13 +1570,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
                     !LiveEditFunctionTracker::IsActive(isolate) &&
                     (!info.is_debug() || allow_lazy_without_ctx);
 
-  if (outer_info->parse_info()->is_toplevel() && outer_info->will_serialize()) {
-    // Make sure that if the toplevel code (possibly to be serialized),
-    // the inner function must be allowed to be compiled lazily.
-    // This is necessary to serialize toplevel code without inner functions.
-    DCHECK(allow_lazy);
-  }
-
   bool lazy = FLAG_lazy && allow_lazy && !literal->should_eager_compile();
 
   // Generate code

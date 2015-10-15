@@ -855,9 +855,8 @@ class CodeSerializer : public Serializer {
   const List<uint32_t>* stub_keys() const { return &stub_keys_; }
 
  private:
-  CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source,
-                 Code* main_code)
-      : Serializer(isolate, sink), source_(source), main_code_(main_code) {
+  CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source)
+      : Serializer(isolate, sink), source_(source) {
     back_reference_map_.AddSourceString(source);
   }
 
@@ -878,7 +877,6 @@ class CodeSerializer : public Serializer {
 
   DisallowHeapAllocation no_gc_;
   String* source_;
-  Code* main_code_;
   List<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };

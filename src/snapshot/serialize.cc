@@ -2422,7 +2422,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
 
   // Serialize code object.
   SnapshotByteSink sink(info->code()->CodeSize() * 2);
-  CodeSerializer cs(isolate, &sink, *source, info->code());
+  CodeSerializer cs(isolate, &sink, *source);
   DisallowHeapAllocation no_gc;
   Object** location = Handle<Object>::cast(info).location();
   cs.VisitPointer(location);
@@ -2476,14 +2476,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         return;
       case Code::FUNCTION:
         DCHECK(code_object->has_reloc_info_for_serialization());
-        // Only serialize the code for the toplevel function unless specified
-        // by flag. Replace code of inner functions by the lazy compile builtin.
-        // This is safe, as checked in Compiler::GetSharedFunctionInfo.
-        if (code_object != main_code_ && !FLAG_serialize_inner) {
-          SerializeBuiltin(Builtins::kCompileLazy, how_to_code, where_to_point);
-        } else {
-          SerializeGeneric(code_object, how_to_code, where_to_point);
-        }
+        SerializeGeneric(code_object, how_to_code, where_to_point);
         return;
       case Code::WASM_FUNCTION:
         UNREACHABLE();

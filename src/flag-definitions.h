@@ -557,7 +557,6 @@ DEFINE_BOOL(trace_stub_failures, false,
             "trace deoptimization of generated code stubs")
 
 DEFINE_BOOL(serialize_toplevel, true, "enable caching of toplevel scripts")
-DEFINE_BOOL(serialize_inner, true, "enable caching of inner functions")
 DEFINE_BOOL(trace_serializer, false, "print code serializer trace")
 
 // compiler.cc
