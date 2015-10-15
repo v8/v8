@@ -2649,6 +2649,10 @@ ParserBase<Traits>::ParsePropertyDefinition(
           scanner()->FindSymbol(classifier->duplicate_finder(), 1) != 0) {
         classifier->RecordDuplicateFormalParameterError(scanner()->location());
       }
+      if (name_token == Token::LET) {
+        classifier->RecordLetPatternError(
+            scanner()->location(), MessageTemplate::kLetInLexicalBinding);
+      }
 
       ExpressionT lhs = this->ExpressionFromIdentifier(
           name, next_beg_pos, next_end_pos, scope_, factory());
