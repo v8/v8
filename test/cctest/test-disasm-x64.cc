@@ -530,8 +530,6 @@ TEST(DisasmX64) {
       __ vmaxsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
       __ vucomisd(xmm9, xmm1);
       __ vucomisd(xmm8, Operand(rbx, rdx, times_2, 10981));
-      __ vcvtlsi2sd(xmm5, xmm9, rcx);
-      __ vcvtlsi2sd(xmm9, xmm3, Operand(rbx, r9, times_4, 10000));
 
       __ vandps(xmm0, xmm9, xmm2);
       __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));

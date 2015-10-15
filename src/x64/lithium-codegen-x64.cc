@@ -4774,7 +4774,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
     // the value in there. If that fails, call the runtime system.
     __ SmiToInteger32(reg, reg);
     __ xorl(reg, Immediate(0x80000000));
-    __ Cvtlsi2sd(temp_xmm, reg);
+    __ cvtlsi2sd(temp_xmm, reg);
   } else {
     DCHECK(signedness == UNSIGNED_INT32);
     __ LoadUint32(temp_xmm, reg);

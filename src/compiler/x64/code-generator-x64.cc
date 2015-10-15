@@ -915,9 +915,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kSSEInt32ToFloat64:
       if (instr->InputAt(0)->IsRegister()) {
-        __ Cvtlsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
+        __ cvtlsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
-        __ Cvtlsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
+        __ cvtlsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kSSEUint32ToFloat64:
