@@ -797,6 +797,16 @@
   'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [SKIP],
 }],  # ALWAYS
 
+['system == linux', {
+  # BUG(v8:4437).
+  'intl402/Collator/10.1.1_19_c': [PASS, FAIL],
+  'intl402/Collator/9.2.5_11_g_ii_2': [PASS, FAIL],
+  'intl402/NumberFormat/11.1.1_17': [PASS, FAIL],
+  'intl402/NumberFormat/11.1.1_19': [PASS, FAIL],
+  'intl402/NumberFormat/prototype/format/11.3.2_TRF': [PASS, FAIL],
+  'intl402/NumberFormat/prototype/format/11.3.2_TRP': [PASS, FAIL],
+}],  # system == linux
+
 ['system == macos', {
   'intl402/11.3.2_TRP': [FAIL],
   'intl402/9.2.5_11_g_ii_2': [FAIL],
