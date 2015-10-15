@@ -15,18 +15,20 @@ var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalObject = global.Object;
 var MathMax;
 var MathMin;
+var ToPositiveInteger;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
+  ToPositiveInteger = from.ToPositiveInteger;
 });
 
 // -------------------------------------------------------------------
 
 function ArrayBufferConstructor(length) { // length = 1
   if (%_IsConstructCall()) {
-    var byteLength = $toPositiveInteger(length, kInvalidArrayBufferLength);
+    var byteLength = ToPositiveInteger(length, kInvalidArrayBufferLength);
     %ArrayBufferInitialize(this, byteLength, kNotShared);
   } else {
     throw MakeTypeError(kConstructorNotFunction, "ArrayBuffer");

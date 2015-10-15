@@ -4,7 +4,6 @@
 
 // -------------------------------------------------------------------
 
-var $errorToString;
 var MakeError;
 var MakeEvalError;
 var MakeRangeError;
@@ -983,8 +982,6 @@ function ErrorToString() {
 utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
                        ['toString', ErrorToString]);
 
-$errorToString = ErrorToString;
-
 MakeError = function(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalError, type, arg0, arg1, arg2);
 }
@@ -1042,5 +1039,9 @@ GlobalError.captureStackTrace = captureStackTrace;
   "type_error_function", GlobalTypeError,
   "uri_error_function", GlobalURIError,
 ]);
+
+utils.Export(function(to) {
+  to.ErrorToString = ErrorToString;
+});
 
 });

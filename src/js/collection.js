@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $getHash;
-var $getExistingHash;
-
 (function(global, utils) {
 "use strict";
 
@@ -462,10 +459,6 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
   "forEach", MapForEach
 ]);
 
-// Expose to the global scope.
-$getHash = GetHash;
-$getExistingHash = GetExistingHash;
-
 function MapFromArray(array) {
   var map = new GlobalMap;
   var length = array.length;
@@ -500,5 +493,10 @@ function SetFromArray(array) {
   "map_from_array", MapFromArray,
   "set_from_array",SetFromArray,
 ]);
+
+utils.Export(function(to) {
+  to.GetExistingHash = GetExistingHash;
+  to.GetHash = GetHash;
+});
 
 })

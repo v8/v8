@@ -11,10 +11,8 @@
 
 // The following declarations are shared with other native JS files.
 // They are all declared at this one spot to avoid redeclaration errors.
-var $NaN;
 var $sameValue;
 var $sameValueZero;
-var $toPositiveInteger;
 
 var harmony_tolength = false;
 
@@ -234,10 +232,12 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 // ----------------------------------------------------------------------------
 // Exports
 
-$NaN = %GetRootNaN();
 $sameValue = SameValue;
 $sameValueZero = SameValueZero;
-$toPositiveInteger = ToPositiveInteger;
+
+utils.Export(function(to) {
+  to.ToPositiveInteger = ToPositiveInteger;
+});
 
 %InstallToContext([
   "apply_prepare_builtin", APPLY_PREPARE,

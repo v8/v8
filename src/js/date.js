@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $createDate;
-
 // -------------------------------------------------------------------
 
 (function(global, utils) {
@@ -21,6 +19,7 @@ var InternalArray = utils.InternalArray;
 var IsFinite;
 var MathAbs;
 var MathFloor;
+var NaN = %GetRootNaN();
 
 utils.Import(function(from) {
   IsFinite = from.IsFinite;
@@ -32,7 +31,7 @@ utils.Import(function(from) {
 
 // This file contains date support implemented in JavaScript.
 
-var timezone_cache_time = NAN;
+var timezone_cache_time = NaN;
 var timezone_cache_timezone;
 
 function LocalTimezone(t) {
@@ -58,10 +57,10 @@ function UTC(time) {
 
 // ECMA 262 - 15.9.1.11
 function MakeTime(hour, min, sec, ms) {
-  if (!IsFinite(hour)) return NAN;
-  if (!IsFinite(min)) return NAN;
-  if (!IsFinite(sec)) return NAN;
-  if (!IsFinite(ms)) return NAN;
+  if (!IsFinite(hour)) return NaN;
+  if (!IsFinite(min)) return NaN;
+  if (!IsFinite(sec)) return NaN;
+  if (!IsFinite(ms)) return NaN;
   return TO_INTEGER(hour) * msPerHour
       + TO_INTEGER(min) * msPerMinute
       + TO_INTEGER(sec) * msPerSecond
@@ -82,7 +81,7 @@ function TimeInYear(year) {
 //     MakeDay(2007, -33, 1) --> MakeDay(2004, 3, 1)
 //     MakeDay(2007, 14, -50) --> MakeDay(2007, 8, 11)
 function MakeDay(year, month, date) {
-  if (!IsFinite(year) || !IsFinite(month) || !IsFinite(date)) return NAN;
+  if (!IsFinite(year) || !IsFinite(month) || !IsFinite(date)) return NaN;
 
   // Convert to integer and map -0 to 0.
   year = TO_INTEGER_MAP_MINUS_ZERO(year);
@@ -91,7 +90,7 @@ function MakeDay(year, month, date) {
 
   if (year < kMinYear || year > kMaxYear ||
       month < kMinMonth || month > kMaxMonth) {
-    return NAN;
+    return NaN;
   }
 
   // Now we rely on year and month being SMIs.
@@ -107,15 +106,15 @@ function MakeDate(day, time) {
   // is no way that the time can be within range even after UTC
   // conversion we return NaN immediately instead of relying on
   // TimeClip to do it.
-  if (MathAbs(time) > MAX_TIME_BEFORE_UTC) return NAN;
+  if (MathAbs(time) > MAX_TIME_BEFORE_UTC) return NaN;
   return time;
 }
 
 
 // ECMA 262 - 15.9.1.14
 function TimeClip(time) {
-  if (!IsFinite(time)) return NAN;
-  if (MathAbs(time) > MAX_TIME_MS) return NAN;
+  if (!IsFinite(time)) return NaN;
+  if (MathAbs(time) > MAX_TIME_MS) return NaN;
   return TO_INTEGER(time) + 0;
 }
 
@@ -265,7 +264,7 @@ var parse_buffer = new InternalArray(8);
 // ECMA 262 - 15.9.4.2
 function DateParse(string) {
   var arr = %DateParseString(string, parse_buffer);
-  if (IS_NULL(arr)) return NAN;
+  if (IS_NULL(arr)) return NaN;
 
   var day = MakeDay(arr[0], arr[1], arr[2]);
   var time = MakeTime(arr[3], arr[4], arr[5], arr[6]);
@@ -707,7 +706,7 @@ function DateGetYear() {
 function DateSetYear(year) {
   CHECK_DATE(this);
   year = TO_NUMBER(year);
-  if (NUMBER_IS_NAN(year)) return SET_UTC_DATE_VALUE(this, NAN);
+  if (NUMBER_IS_NAN(year)) return SET_UTC_DATE_VALUE(this, NaN);
   year = (0 <= TO_INTEGER(year) && TO_INTEGER(year) <= 99)
       ? 1900 + TO_INTEGER(year) : year;
   var t = LOCAL_DATE_VALUE(this);
@@ -783,7 +782,7 @@ function DateToJSON(key) {
 
 
 var date_cache_version_holder;
-var date_cache_version = NAN;
+var date_cache_version = NaN;
 
 
 function CheckDateCacheCurrent() {
@@ -797,11 +796,11 @@ function CheckDateCacheCurrent() {
   date_cache_version = date_cache_version_holder[0];
 
   // Reset the timezone cache:
-  timezone_cache_time = NAN;
+  timezone_cache_time = NaN;
   timezone_cache_timezone = UNDEFINED;
 
   // Reset the date cache:
-  Date_cache.time = NAN;
+  Date_cache.time = NaN;
   Date_cache.string = null;
 }
 

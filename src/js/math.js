@@ -15,6 +15,7 @@ var rngstate;  // Initialized to a Uint32Array during genesis.
 var GlobalMath = global.Math;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
+var NaN = %GetRootNaN();
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 //-------------------------------------------------------------------
@@ -82,7 +83,7 @@ function MathMax(arg1, arg2) {  // length == 2
       return (arg1 === 0 && %_IsMinusZero(arg1)) ? arg2 : arg1;
     }
     // All comparisons failed, one of the arguments must be NaN.
-    return NAN;
+    return NaN;
   }
   var r = -INFINITY;
   for (var i = 0; i < length; i++) {
@@ -109,7 +110,7 @@ function MathMin(arg1, arg2) {  // length == 2
       return (arg1 === 0 && %_IsMinusZero(arg1)) ? arg1 : arg2;
     }
     // All comparisons failed, one of the arguments must be NaN.
-    return NAN;
+    return NaN;
   }
   var r = INFINITY;
   for (var i = 0; i < length; i++) {
@@ -206,7 +207,7 @@ function MathAsinh(x) {
 // ES6 draft 09-27-13, section 20.2.2.3.
 function MathAcosh(x) {
   x = TO_NUMBER(x);
-  if (x < 1) return NAN;
+  if (x < 1) return NaN;
   // Idempotent for NaN and +Infinity.
   if (!NUMBER_IS_FINITE(x)) return x;
   return MathLog(x + %_MathSqrt(x + 1) * %_MathSqrt(x - 1));
@@ -218,7 +219,7 @@ function MathAtanh(x) {
   // Idempotent for +/-0.
   if (x === 0) return x;
   // Returns NaN for NaN and +/- Infinity.
-  if (!NUMBER_IS_FINITE(x)) return NAN;
+  if (!NUMBER_IS_FINITE(x)) return NaN;
   return 0.5 * MathLog((1 + x) / (1 - x));
 }
 

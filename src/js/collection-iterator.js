@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $mapEntries;
-var $mapIteratorNext;
-var $setIteratorNext;
-var $setValues;
-
 (function(global, utils) {
 
 "use strict";
@@ -86,9 +81,6 @@ utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
 ]);
 
 %AddNamedProperty(GlobalSet.prototype, iteratorSymbol, SetValues, DONT_ENUM);
-
-$setIteratorNext = SetIteratorNextJS;
-$setValues = SetValues;
 
 // -------------------------------------------------------------------
 
@@ -170,7 +162,14 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
 
 %AddNamedProperty(GlobalMap.prototype, iteratorSymbol, MapEntries, DONT_ENUM);
 
-$mapEntries = MapEntries;
-$mapIteratorNext = MapIteratorNextJS;
+// -------------------------------------------------------------------
+// Exports
+
+utils.Export(function(to) {
+  to.MapEntries = MapEntries;
+  to.MapIteratorNext = MapIteratorNextJS;
+  to.SetIteratorNext = SetIteratorNextJS;
+  to.SetValues = SetValues;
+});
 
 })

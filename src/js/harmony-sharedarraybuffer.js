@@ -10,13 +10,18 @@
 
 var GlobalSharedArrayBuffer = global.SharedArrayBuffer;
 var GlobalObject = global.Object;
+var ToPositiveInteger;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+
+utils.Import(function(from) {
+  ToPositiveInteger = from.ToPositiveInteger;
+})
 
 // -------------------------------------------------------------------
 
 function SharedArrayBufferConstructor(length) { // length = 1
   if (%_IsConstructCall()) {
-    var byteLength = $toPositiveInteger(length, kInvalidArrayBufferLength);
+    var byteLength = ToPositiveInteger(length, kInvalidArrayBufferLength);
     %ArrayBufferInitialize(this, byteLength, kShared);
   } else {
     throw MakeTypeError(kConstructorNotFunction, "SharedArrayBuffer");

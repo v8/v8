@@ -11,11 +11,14 @@
 // -------------------------------------------------------------------
 // Imports
 
+var ArrayValues;
 var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
+var InternalArray = utils.InternalArray;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var ToPositiveInteger;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
@@ -37,18 +40,20 @@ endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
 
-var InternalArray = utils.InternalArray;
+utils.Import(function(from) {
+  ArrayValues = from.ArrayValues;
+  ToPositiveInteger = from.ToPositiveInteger;
+});
 
 // --------------- Typed Arrays ---------------------
 
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   if (!IS_UNDEFINED(byteOffset)) {
-      byteOffset =
-          $toPositiveInteger(byteOffset, kInvalidTypedArrayLength);
+    byteOffset = ToPositiveInteger(byteOffset, kInvalidTypedArrayLength);
   }
   if (!IS_UNDEFINED(length)) {
-      length = $toPositiveInteger(length, kInvalidTypedArrayLength);
+    length = ToPositiveInteger(length, kInvalidTypedArrayLength);
   }
 
   var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
@@ -89,7 +94,7 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
 
 function NAMEConstructByLength(obj, length) {
   var l = IS_UNDEFINED(length) ?
-    0 : $toPositiveInteger(length, kInvalidTypedArrayLength);
+    0 : ToPositiveInteger(length, kInvalidTypedArrayLength);
   if (l > %_MaxSmi()) {
     throw MakeRangeError(kInvalidTypedArrayLength);
   }
@@ -104,7 +109,7 @@ function NAMEConstructByLength(obj, length) {
 
 function NAMEConstructByArrayLike(obj, arrayLike) {
   var length = arrayLike.length;
-  var l = $toPositiveInteger(length, kInvalidTypedArrayLength);
+  var l = ToPositiveInteger(length, kInvalidTypedArrayLength);
 
   if (l > %_MaxSmi()) {
     throw MakeRangeError(kInvalidTypedArrayLength);
@@ -155,7 +160,7 @@ function NAMEConstructor(arg1, arg2, arg3) {
       NAMEConstructByLength(this, arg1);
     } else {
       var iteratorFn = arg1[iteratorSymbol];
-      if (IS_UNDEFINED(iteratorFn) || iteratorFn === $arrayValues) {
+      if (IS_UNDEFINED(iteratorFn) || iteratorFn === ArrayValues) {
         NAMEConstructByArrayLike(this, arg1);
       } else {
         NAMEConstructByIterable(this, arg1, iteratorFn);
@@ -381,10 +386,10 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
     // TODO(binji): support SharedArrayBuffers?
     if (!IS_ARRAYBUFFER(buffer)) throw MakeTypeError(kDataViewNotArrayBuffer);
     if (!IS_UNDEFINED(byteOffset)) {
-        byteOffset = $toPositiveInteger(byteOffset, kInvalidDataViewOffset);
+      byteOffset = ToPositiveInteger(byteOffset, kInvalidDataViewOffset);
     }
     if (!IS_UNDEFINED(byteLength)) {
-        byteLength = TO_INTEGER(byteLength);
+      byteLength = TO_INTEGER(byteLength);
     }
 
     var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
@@ -446,7 +451,7 @@ function DataViewGetTYPENAMEJS(offset, little_endian) {
                         'DataView.getTYPENAME', this);
   }
   if (%_ArgumentsLength() < 1) throw MakeTypeError(kInvalidArgument);
-  offset = $toPositiveInteger(offset, kInvalidDataViewAccessorOffset);
+  offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
   return %DataViewGetTYPENAME(this, offset, !!little_endian);
 }
 
@@ -456,7 +461,7 @@ function DataViewSetTYPENAMEJS(offset, value, little_endian) {
                         'DataView.setTYPENAME', this);
   }
   if (%_ArgumentsLength() < 2) throw MakeTypeError(kInvalidArgument);
-  offset = $toPositiveInteger(offset, kInvalidDataViewAccessorOffset);
+  offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
   %DataViewSetTYPENAME(this, offset, TO_NUMBER(value), !!little_endian);
 }
 endmacro

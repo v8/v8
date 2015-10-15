@@ -169,7 +169,6 @@ macro GET_PRIVATE(obj, sym) = (obj[sym]);
 macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
 
 # Constants.  The compiler constant folds them.
-define NAN = $NaN;
 define INFINITY = (1/0);
 define UNDEFINED = (void 0);
 

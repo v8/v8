@@ -18,6 +18,7 @@ var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MathAbs;
+var NaN = %GetRootNaN();
 var ObserveBeginPerformSplice;
 var ObserveEndPerformSplice;
 var ObserveEnqueueSpliceRecord;
@@ -81,7 +82,7 @@ function GlobalParseInt(string, radix) {
     string = TO_STRING(string);
     radix = TO_INT32(radix);
     if (!(radix == 0 || (2 <= radix && radix <= 36))) {
-      return NAN;
+      return NaN;
     }
   }
 
@@ -120,7 +121,7 @@ var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
 
 utils.InstallConstants(global, [
   // ECMA 262 - 15.1.1.1.
-  "NaN", NAN,
+  "NaN", NaN,
   // ECMA-262 - 15.1.1.2.
   "Infinity", INFINITY,
   // ECMA-262 - 15.1.1.2.
@@ -1600,7 +1601,7 @@ utils.InstallConstants(GlobalNumber, [
   // ECMA-262 section 15.7.3.2.
   "MIN_VALUE", 5e-324,
   // ECMA-262 section 15.7.3.3.
-  "NaN", NAN,
+  "NaN", NaN,
   // ECMA-262 section 15.7.3.4.
   "NEGATIVE_INFINITY", -INFINITY,
   // ECMA-262 section 15.7.3.5.

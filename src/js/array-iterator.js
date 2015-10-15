@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $arrayValues;
-
 (function(global, utils) {
 
 "use strict";
@@ -161,7 +159,9 @@ TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
 // -------------------------------------------------------------------
 // Exports
 
-$arrayValues = ArrayValues;
+utils.Export(function(to) {
+  to.ArrayValues = ArrayValues;
+});
 
 %InstallToContext([
   "array_keys_iterator", ArrayKeys,

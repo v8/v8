@@ -8,10 +8,20 @@
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
+var GetExistingHash;
+var GetHash;
 var GlobalObject = global.Object;
 var GlobalWeakMap = global.WeakMap;
 var GlobalWeakSet = global.WeakSet;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+
+utils.Import(function(from) {
+  GetExistingHash = from.GetExistingHash;
+  GetHash = from.GetHash;
+});
 
 // -------------------------------------------------------------------
 // Harmony WeakMap
@@ -44,7 +54,7 @@ function WeakMapGet(key) {
                         'WeakMap.prototype.get', this);
   }
   if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
-  var hash = $getExistingHash(key);
+  var hash = GetExistingHash(key);
   if (IS_UNDEFINED(hash)) return UNDEFINED;
   return %WeakCollectionGet(this, key, hash);
 }
@@ -56,7 +66,7 @@ function WeakMapSet(key, value) {
                         'WeakMap.prototype.set', this);
   }
   if (!IS_SPEC_OBJECT(key)) throw MakeTypeError(kInvalidWeakMapKey);
-  return %WeakCollectionSet(this, key, value, $getHash(key));
+  return %WeakCollectionSet(this, key, value, GetHash(key));
 }
 
 
@@ -66,7 +76,7 @@ function WeakMapHas(key) {
                         'WeakMap.prototype.has', this);
   }
   if (!IS_SPEC_OBJECT(key)) return false;
-  var hash = $getExistingHash(key);
+  var hash = GetExistingHash(key);
   if (IS_UNDEFINED(hash)) return false;
   return %WeakCollectionHas(this, key, hash);
 }
@@ -78,7 +88,7 @@ function WeakMapDelete(key) {
                         'WeakMap.prototype.delete', this);
   }
   if (!IS_SPEC_OBJECT(key)) return false;
-  var hash = $getExistingHash(key);
+  var hash = GetExistingHash(key);
   if (IS_UNDEFINED(hash)) return false;
   return %WeakCollectionDelete(this, key, hash);
 }
@@ -130,7 +140,7 @@ function WeakSetAdd(value) {
                         'WeakSet.prototype.add', this);
   }
   if (!IS_SPEC_OBJECT(value)) throw MakeTypeError(kInvalidWeakSetValue);
-  return %WeakCollectionSet(this, value, true, $getHash(value));
+  return %WeakCollectionSet(this, value, true, GetHash(value));
 }
 
 
@@ -140,7 +150,7 @@ function WeakSetHas(value) {
                         'WeakSet.prototype.has', this);
   }
   if (!IS_SPEC_OBJECT(value)) return false;
-  var hash = $getExistingHash(value);
+  var hash = GetExistingHash(value);
   if (IS_UNDEFINED(hash)) return false;
   return %WeakCollectionHas(this, value, hash);
 }
@@ -152,7 +162,7 @@ function WeakSetDelete(value) {
                         'WeakSet.prototype.delete', this);
   }
   if (!IS_SPEC_OBJECT(value)) return false;
-  var hash = $getExistingHash(value);
+  var hash = GetExistingHash(value);
   if (IS_UNDEFINED(hash)) return false;
   return %WeakCollectionDelete(this, value, hash);
 }

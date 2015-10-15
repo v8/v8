@@ -11,14 +11,15 @@
 // -------------------------------------------------------------------
 // Imports
 
+var GetHash;
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
-
 var ObjectFreeze;
 var ObjectIsFrozen;
 
 utils.Import(function(from) {
+  GetHash = from.GetHash;
   ObjectFreeze = from.ObjectFreeze;
   ObjectIsFrozen = from.ObjectIsFrozen;
 });
@@ -200,7 +201,7 @@ function ObjectInfoGetOrCreate(object) {
       performingCount: 0,
     };
     %WeakCollectionSet(GetObservationStateJS().objectInfoMap,
-                       object, objectInfo, $getHash(object));
+                       object, objectInfo, GetHash(object));
   }
   return objectInfo;
 }
@@ -208,13 +209,13 @@ function ObjectInfoGetOrCreate(object) {
 
 function ObjectInfoGet(object) {
   return %WeakCollectionGet(GetObservationStateJS().objectInfoMap, object,
-                            $getHash(object));
+                            GetHash(object));
 }
 
 
 function ObjectInfoGetFromNotifier(notifier) {
   return %WeakCollectionGet(GetObservationStateJS().notifierObjectInfoMap,
-                            notifier, $getHash(notifier));
+                            notifier, GetHash(notifier));
 }
 
 
@@ -223,7 +224,7 @@ function ObjectInfoGetNotifier(objectInfo) {
     var notifier = { __proto__: notifierPrototype };
     objectInfo.notifier = notifier;
     %WeakCollectionSet(GetObservationStateJS().notifierObjectInfoMap,
-                       notifier, objectInfo, $getHash(notifier));
+                       notifier, objectInfo, GetHash(notifier));
   }
 
   return objectInfo.notifier;
@@ -335,13 +336,13 @@ function ConvertAcceptListToTypeMap(arg) {
 // normalizes. When delivery clears any pending change records, it re-optimizes.
 function CallbackInfoGet(callback) {
   return %WeakCollectionGet(GetObservationStateJS().callbackInfoMap, callback,
-                            $getHash(callback));
+                            GetHash(callback));
 }
 
 
 function CallbackInfoSet(callback, callbackInfo) {
   %WeakCollectionSet(GetObservationStateJS().callbackInfoMap,
-                     callback, callbackInfo, $getHash(callback));
+                     callback, callbackInfo, GetHash(callback));
 }
 
 

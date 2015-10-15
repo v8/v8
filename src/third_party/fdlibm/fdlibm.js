@@ -36,9 +36,9 @@ var rempio2result;
 // Imports
 
 var GlobalMath = global.Math;
-
 var MathAbs;
 var MathExp;
+var NaN = %GetRootNaN();
 
 utils.Import(function(from) {
   MathAbs = from.MathAbs;
@@ -476,7 +476,7 @@ function MathLog1p(x) {
       if (x === -1) {
         return -INFINITY;  // log1p(-1) = -inf
       } else {
-        return NAN;  // log1p(x<-1) = NaN
+        return NaN;  // log1p(x<-1) = NaN
       }
     } else if (ax < 0x3c900000)  {
       // For |x| < 2^-54 we can return x.
@@ -492,7 +492,7 @@ function MathLog1p(x) {
     }
   }
 
-  // Handle Infinity and NAN
+  // Handle Infinity and NaN
   if (hx >= 0x7ff00000) return x;
 
   if (k !== 0) {
@@ -885,7 +885,7 @@ function MathLog10(x) {
     // log10(+/- 0) = -Infinity.
     if (((hx & 0x7fffffff) | lx) === 0) return -INFINITY;
     // log10 of negative number is NaN.
-    if (hx < 0) return NAN;
+    if (hx < 0) return NaN;
     // Subnormal number. Scale up x.
     k -= 54;
     x *= TWO54;
@@ -947,7 +947,7 @@ function MathLog2(x) {
   if ((ix | lx) == 0) return -INFINITY;
 
   // log(x) = NaN, if x < 0
-  if (hx < 0) return NAN;
+  if (hx < 0) return NaN;
 
   // log2(Infinity) = Infinity, log2(NaN) = NaN
   if (ix >= 0x7ff00000) return x;

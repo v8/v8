@@ -8,17 +8,27 @@
 // ----------------------------------------------------------------------------
 // Imports
 
+var ErrorToString;
 var FunctionSourceString;
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
+var MapEntries;
+var MapIteratorNext;
 var MathMin = global.Math.min;
 var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
 var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
+var SetIteratorNext;
+var SetValues;
 var SymbolToString;
 
 utils.Import(function(from) {
+  ErrorToString = from.ErrorToString;
   FunctionSourceString = from.FunctionSourceString;
+  MapEntries = from.MapEntries;
+  MapIteratorNext = from.MapIteratorNext;
+  SetIteratorNext = from.SetIteratorNext;
+  SetValues = from.SetValues;
   SymbolToString = from.SymbolToString;
 });
 
@@ -1298,7 +1308,7 @@ ErrorMirror.prototype.toText = function() {
   // Use the same text representation as in messages.js.
   var text;
   try {
-    text = %_CallFunction(this.value_, builtins.$errorToString);
+    text = %_CallFunction(this.value_, ErrorToString);
   } catch (e) {
     text = '#<Error>';
   }
@@ -1368,7 +1378,7 @@ MapMirror.prototype.entries = function(opt_limit) {
     return result;
   }
 
-  var iter = %_CallFunction(this.value_, builtins.$mapEntries);
+  var iter = %_CallFunction(this.value_, MapEntries);
   var next;
   while ((!opt_limit || result.length < opt_limit) &&
          !(next = iter.next()).done) {
@@ -1410,8 +1420,8 @@ SetMirror.prototype.values = function(opt_limit) {
     return %GetWeakSetValues(this.value_, opt_limit || 0);
   }
 
-  var iter = %_CallFunction(this.value_, builtins.$setValues);
-  return IteratorGetValues_(iter, builtins.$setIteratorNext, opt_limit);
+  var iter = %_CallFunction(this.value_, SetValues);
+  return IteratorGetValues_(iter, SetIteratorNext, opt_limit);
 };
 
 
@@ -1431,11 +1441,11 @@ inherits(IteratorMirror, ObjectMirror);
 IteratorMirror.prototype.preview = function(opt_limit) {
   if (IS_MAP_ITERATOR(this.value_)) {
     return IteratorGetValues_(%MapIteratorClone(this.value_),
-                              builtins.$mapIteratorNext,
+                              MapIteratorNext,
                               opt_limit);
   } else if (IS_SET_ITERATOR(this.value_)) {
     return IteratorGetValues_(%SetIteratorClone(this.value_),
-                              builtins.$setIteratorNext,
+                              SetIteratorNext,
                               opt_limit);
   }
 };

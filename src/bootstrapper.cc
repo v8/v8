@@ -2041,14 +2041,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
   builtins->set_native_context(*native_context());
   builtins->set_global_proxy(native_context()->global_proxy());
 
-
-  // Set up the 'builtin' property, which refers to the js builtins object.
-  static const PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  Handle<String> builtins_string =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("builtins"));
-  JSObject::AddProperty(builtins, builtins_string, builtins, attributes);
-
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(native_context()->global_object())->
       set_builtins(*builtins);
