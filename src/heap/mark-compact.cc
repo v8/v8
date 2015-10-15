@@ -286,8 +286,8 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
       TraceFragmentation(heap()->map_space());
     }
 
-    heap()->old_space()->EvictEvacuationCandidatesFromFreeLists();
-    heap()->code_space()->EvictEvacuationCandidatesFromFreeLists();
+    heap()->old_space()->EvictEvacuationCandidatesFromLinearAllocationArea();
+    heap()->code_space()->EvictEvacuationCandidatesFromLinearAllocationArea();
 
     compacting_ = evacuation_candidates_.length() > 0;
   }
