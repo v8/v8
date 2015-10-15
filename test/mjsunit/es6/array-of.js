@@ -4,8 +4,6 @@
 
 // Based on Mozilla Array.of() tests at http://dxr.mozilla.org/mozilla-central/source/js/src/jit-test/tests/collections
 
-// Flags: --harmony-arrays
-
 
 
 // Array.of makes real arrays.
