@@ -319,9 +319,6 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
   if (info_->is_native_context_specializing()) {
     info.MarkAsNativeContextSpecializing();
   }
-  if (info_->is_typing_enabled()) {
-    info.MarkAsTypingEnabled();
-  }
 
   if (!Compiler::ParseAndAnalyze(info.parse_info())) {
     TRACE("Not inlining %s into %s because parsing failed\n",
@@ -358,15 +355,11 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
                                               jsgraph.common());
     CommonOperatorReducer common_reducer(&graph_reducer, &graph,
                                          jsgraph.common(), jsgraph.machine());
-    JSGlobalSpecialization::Flags flags = JSGlobalSpecialization::kNoFlags;
-    if (info.is_deoptimization_enabled()) {
-      flags |= JSGlobalSpecialization::kDeoptimizationEnabled;
-    }
-    if (info.is_typing_enabled()) {
-      flags |= JSGlobalSpecialization::kTypingEnabled;
-    }
     JSGlobalSpecialization global_specialization(
-        &graph_reducer, &jsgraph, flags,
+        &graph_reducer, &jsgraph,
+        info.is_deoptimization_enabled()
+            ? JSGlobalSpecialization::kDeoptimizationEnabled
+            : JSGlobalSpecialization::kNoFlags,
         handle(info.global_object(), info.isolate()), info_->dependencies());
     graph_reducer.AddReducer(&dead_code_elimination);
     graph_reducer.AddReducer(&common_reducer);

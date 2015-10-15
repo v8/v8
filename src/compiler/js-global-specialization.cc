@@ -10,11 +10,18 @@
 #include "src/compiler/js-operator.h"
 #include "src/contexts.h"
 #include "src/lookup.h"
-#include "src/objects-inl.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+struct JSGlobalSpecialization::ScriptContextTableLookupResult {
+  Handle<Context> context;
+  bool immutable;
+  int index;
+};
+
 
 JSGlobalSpecialization::JSGlobalSpecialization(
     Editor* editor, JSGraph* jsgraph, Flags flags,
@@ -44,92 +51,32 @@ Reduction JSGlobalSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
   Handle<Name> name = LoadGlobalParametersOf(node->op()).name();
   Node* effect = NodeProperties::GetEffectInput(node);
-
-  // Try to lookup the name on the script context table first (lexical scoping).
-  if (name->IsString()) {
-    Handle<ScriptContextTable> script_context_table(
-        global_object()->native_context()->script_context_table());
-    ScriptContextTable::LookupResult result;
-    if (ScriptContextTable::Lookup(script_context_table,
-                                   Handle<String>::cast(name), &result)) {
-      Handle<Context> script_context = ScriptContextTable::GetContext(
-          script_context_table, result.context_index);
-      if (script_context->is_the_hole(result.slot_index)) {
-        // TODO(bmeurer): Is this relevant in practice?
-        return NoChange();
-      }
-      Node* context = jsgraph()->Constant(script_context);
-      Node* value = effect = graph()->NewNode(
-          javascript()->LoadContext(0, result.slot_index,
-                                    IsImmutableVariableMode(result.mode)),
-          context, context, effect);
-      return Replace(node, value, effect);
-    }
-  }
-
-  // Lookup on the global object instead.
-  LookupIterator it(global_object(), name, LookupIterator::OWN);
-  if (it.state() == LookupIterator::DATA) {
-    return ReduceLoadFromPropertyCell(node, it.GetPropertyCell());
-  }
-
-  return NoChange();
-}
-
-
-Reduction JSGlobalSpecialization::ReduceJSStoreGlobal(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
-  Handle<Name> name = StoreGlobalParametersOf(node->op()).name();
-  Node* value = NodeProperties::GetValueInput(node, 2);
-  Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
   // Try to lookup the name on the script context table first (lexical scoping).
-  if (name->IsString()) {
-    Handle<ScriptContextTable> script_context_table(
-        global_object()->native_context()->script_context_table());
-    ScriptContextTable::LookupResult result;
-    if (ScriptContextTable::Lookup(script_context_table,
-                                   Handle<String>::cast(name), &result)) {
-      if (IsImmutableVariableMode(result.mode)) return NoChange();
-      Handle<Context> script_context = ScriptContextTable::GetContext(
-          script_context_table, result.context_index);
-      if (script_context->is_the_hole(result.slot_index)) {
-        // TODO(bmeurer): Is this relevant in practice?
-        return NoChange();
-      }
-      Node* context = jsgraph()->Constant(script_context);
-      effect =
-          graph()->NewNode(javascript()->StoreContext(0, result.slot_index),
-                           context, value, context, effect, control);
-      return Replace(node, value, effect, control);
-    }
+  ScriptContextTableLookupResult result;
+  if (LookupInScriptContextTable(name, &result)) {
+    Node* context = jsgraph()->Constant(result.context);
+    Node* value = effect = graph()->NewNode(
+        javascript()->LoadContext(0, result.index, result.immutable), context,
+        context, effect);
+    return Replace(node, value, effect);
   }
 
-  // Lookup on the global object instead.
+  // Lookup on the global object instead.  We only deal with own data
+  // properties of the global object here (represented as PropertyCell).
   LookupIterator it(global_object(), name, LookupIterator::OWN);
-  if (it.state() == LookupIterator::DATA) {
-    return ReduceStoreToPropertyCell(node, it.GetPropertyCell());
-  }
-
-  return NoChange();
-}
-
-
-Reduction JSGlobalSpecialization::ReduceLoadFromPropertyCell(
-    Node* node, Handle<PropertyCell> property_cell) {
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  // We only specialize global data property access.
+  if (it.state() != LookupIterator::DATA) return NoChange();
+  Handle<PropertyCell> property_cell = it.GetPropertyCell();
   PropertyDetails property_details = property_cell->property_details();
-  DCHECK_EQ(kData, property_details.kind());
   Handle<Object> property_cell_value(property_cell->value(), isolate());
-  DCHECK(!property_cell_value->IsTheHole());
+
   // Load from non-configurable, read-only data property on the global
   // object can be constant-folded, even without deoptimization support.
   if (!property_details.IsConfigurable() && property_details.IsReadOnly()) {
     return Replace(node, property_cell_value);
   }
+
   // Load from constant/undefined global property can be constant-folded
   // with deoptimization support, by adding a code dependency on the cell.
   if ((property_details.cell_type() == PropertyCellType::kConstant ||
@@ -138,8 +85,7 @@ Reduction JSGlobalSpecialization::ReduceLoadFromPropertyCell(
     dependencies()->AssumePropertyCell(property_cell);
     return Replace(node, property_cell_value);
   }
-  // Not much we can do if we run the generic pipeline here.
-  if (!(flags() & kTypingEnabled)) return NoChange();
+
   // Load from constant type global property can benefit from representation
   // (and map) feedback with deoptimization support (requires code dependency).
   if (property_details.cell_type() == PropertyCellType::kConstantType &&
@@ -162,6 +108,7 @@ Reduction JSGlobalSpecialization::ReduceLoadFromPropertyCell(
         jsgraph()->Constant(property_cell), effect, control);
     return Replace(node, value, effect);
   }
+
   // Load from non-configurable, data property on the global can be lowered to
   // a field load, even without deoptimization, because the property cannot be
   // deleted or reconfigured to an accessor/interceptor property.
@@ -179,21 +126,34 @@ Reduction JSGlobalSpecialization::ReduceLoadFromPropertyCell(
 }
 
 
-Reduction JSGlobalSpecialization::ReduceStoreToPropertyCell(
-    Node* node, Handle<PropertyCell> property_cell) {
+Reduction JSGlobalSpecialization::ReduceJSStoreGlobal(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
+  Handle<Name> name = StoreGlobalParametersOf(node->op()).name();
   Node* value = NodeProperties::GetValueInput(node, 2);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  // We only specialize global data property access.
+
+  // Try to lookup the name on the script context table first (lexical scoping).
+  ScriptContextTableLookupResult result;
+  if (LookupInScriptContextTable(name, &result)) {
+    if (result.immutable) return NoChange();
+    Node* context = jsgraph()->Constant(result.context);
+    effect = graph()->NewNode(javascript()->StoreContext(0, result.index),
+                              context, value, context, effect, control);
+    return Replace(node, value, effect, control);
+  }
+
+  // Lookup on the global object instead.  We only deal with own data
+  // properties of the global object here (represented as PropertyCell).
+  LookupIterator it(global_object(), name, LookupIterator::OWN);
+  if (it.state() != LookupIterator::DATA) return NoChange();
+  Handle<PropertyCell> property_cell = it.GetPropertyCell();
   PropertyDetails property_details = property_cell->property_details();
-  DCHECK_EQ(kData, property_details.kind());
   Handle<Object> property_cell_value(property_cell->value(), isolate());
-  DCHECK(!property_cell_value->IsTheHole());
+
   // Don't even bother trying to lower stores to read-only data properties.
   if (property_details.IsReadOnly()) return NoChange();
-  // Not much we can do if we run the generic pipeline here.
-  if (!(flags() & kTypingEnabled)) return NoChange();
   switch (property_details.cell_type()) {
     case PropertyCellType::kUndefined: {
       return NoChange();
@@ -272,10 +232,31 @@ Reduction JSGlobalSpecialization::ReduceStoreToPropertyCell(
 
 
 Reduction JSGlobalSpecialization::Replace(Node* node, Handle<Object> value) {
+  // TODO(bmeurer): Move this to JSGraph::HeapConstant instead?
   if (value->IsConsString()) {
     value = String::Flatten(Handle<String>::cast(value), TENURED);
   }
   return Replace(node, jsgraph()->Constant(value));
+}
+
+
+bool JSGlobalSpecialization::LookupInScriptContextTable(
+    Handle<Name> name, ScriptContextTableLookupResult* result) {
+  if (!name->IsString()) return false;
+  Handle<ScriptContextTable> script_context_table(
+      global_object()->native_context()->script_context_table());
+  ScriptContextTable::LookupResult lookup_result;
+  if (!ScriptContextTable::Lookup(script_context_table,
+                                  Handle<String>::cast(name), &lookup_result)) {
+    return false;
+  }
+  Handle<Context> script_context = ScriptContextTable::GetContext(
+      script_context_table, lookup_result.context_index);
+  if (script_context->is_the_hole(lookup_result.slot_index)) return false;
+  result->context = script_context;
+  result->immutable = IsImmutableVariableMode(lookup_result.mode);
+  result->index = lookup_result.slot_index;
+  return true;
 }
 
 

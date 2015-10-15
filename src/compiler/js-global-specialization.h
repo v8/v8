@@ -33,7 +33,6 @@ class JSGlobalSpecialization final : public AdvancedReducer {
   enum Flag {
     kNoFlags = 0u,
     kDeoptimizationEnabled = 1u << 0,
-    kTypingEnabled = 1u << 1
   };
   typedef base::Flags<Flag> Flags;
 
@@ -46,10 +45,6 @@ class JSGlobalSpecialization final : public AdvancedReducer {
  private:
   Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSStoreGlobal(Node* node);
-  Reduction ReduceLoadFromPropertyCell(Node* node,
-                                       Handle<PropertyCell> property_cell);
-  Reduction ReduceStoreToPropertyCell(Node* node,
-                                      Handle<PropertyCell> property_cell);
 
   Reduction Replace(Node* node, Node* value, Node* effect = nullptr,
                     Node* control = nullptr) {
@@ -57,6 +52,10 @@ class JSGlobalSpecialization final : public AdvancedReducer {
     return Changed(value);
   }
   Reduction Replace(Node* node, Handle<Object> value);
+
+  struct ScriptContextTableLookupResult;
+  bool LookupInScriptContextTable(Handle<Name> name,
+                                  ScriptContextTableLookupResult* result);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

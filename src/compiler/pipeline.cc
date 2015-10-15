@@ -505,15 +505,11 @@ struct NativeContextSpecializationPhase {
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    JSGlobalSpecialization::Flags flags = JSGlobalSpecialization::kNoFlags;
-    if (data->info()->is_deoptimization_enabled()) {
-      flags |= JSGlobalSpecialization::kDeoptimizationEnabled;
-    }
-    if (data->info()->is_typing_enabled()) {
-      flags |= JSGlobalSpecialization::kTypingEnabled;
-    }
     JSGlobalSpecialization global_specialization(
-        &graph_reducer, data->jsgraph(), flags,
+        &graph_reducer, data->jsgraph(),
+        data->info()->is_deoptimization_enabled()
+            ? JSGlobalSpecialization::kDeoptimizationEnabled
+            : JSGlobalSpecialization::kNoFlags,
         handle(data->info()->global_object(), data->isolate()),
         data->info()->dependencies());
     AddReducer(data, &graph_reducer, &dead_code_elimination);

@@ -442,6 +442,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     } else if (info()->has_global_object() &&
                FLAG_native_context_specialization) {
       info()->MarkAsNativeContextSpecializing();
+      info()->MarkAsTypingEnabled();
     } else if (FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
       info()->EnsureFeedbackVector();
