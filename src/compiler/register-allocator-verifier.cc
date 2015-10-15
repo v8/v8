@@ -160,8 +160,6 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
     } else {
       switch (unallocated->extended_policy()) {
         case UnallocatedOperand::ANY:
-          CHECK(false);
-          break;
         case UnallocatedOperand::NONE:
           if (sequence()->IsFloat(vreg)) {
             constraint->type_ = kNoneDouble;

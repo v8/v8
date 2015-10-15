@@ -1096,7 +1096,7 @@ InstructionOperand InstructionSelector::OperandForDeopt(
         case FrameStateInputKind::kStackSlot:
           return g->UseUniqueSlot(input);
         case FrameStateInputKind::kAny:
-          return g->Use(input);
+          return g->UseAny(input);
       }
       UNREACHABLE();
       return InstructionOperand();

@@ -78,6 +78,12 @@ class OperandGenerator {
                                         GetVReg(node)));
   }
 
+  InstructionOperand UseAny(Node* node) {
+    return Use(node, UnallocatedOperand(UnallocatedOperand::ANY,
+                                        UnallocatedOperand::USED_AT_START,
+                                        GetVReg(node)));
+  }
+
   InstructionOperand UseRegister(Node* node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                         UnallocatedOperand::USED_AT_START,
