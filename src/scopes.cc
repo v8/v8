@@ -765,12 +765,23 @@ int Scope::ContextChainLength(Scope* scope) {
   int n = 0;
   for (Scope* s = this; s != scope; s = s->outer_scope_) {
     DCHECK(s != NULL);  // scope must be in the scope chain
-    if (s->is_with_scope() || s->num_heap_slots() > 0) n++;
-    // Catch and module scopes always have heap slots.
-    DCHECK(!s->is_catch_scope() || s->num_heap_slots() > 0);
-    DCHECK(!s->is_module_scope() || s->num_heap_slots() > 0);
+    if (s->NeedsContext()) n++;
   }
   return n;
+}
+
+
+int Scope::MaxNestedContextChainLength() {
+  int max_context_chain_length = 0;
+  for (int i = 0; i < inner_scopes_.length(); i++) {
+    Scope* scope = inner_scopes_[i];
+    max_context_chain_length = std::max(scope->MaxNestedContextChainLength(),
+                                        max_context_chain_length);
+  }
+  if (NeedsContext()) {
+    max_context_chain_length += 1;
+  }
+  return max_context_chain_length;
 }
 
 

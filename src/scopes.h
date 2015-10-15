@@ -341,7 +341,12 @@ class Scope: public ZoneObject {
   bool is_nonlinear() const { return scope_nonlinear_; }
 
   // Whether this needs to be represented by a runtime context.
-  bool NeedsContext() const { return num_heap_slots() > 0; }
+  bool NeedsContext() const {
+    // Catch and module scopes always have heap slots.
+    DCHECK(!is_catch_scope() || num_heap_slots() > 0);
+    DCHECK(!is_module_scope() || num_heap_slots() > 0);
+    return is_with_scope() || num_heap_slots() > 0;
+  }
 
   bool NeedsHomeObject() const {
     return scope_uses_super_property_ ||
@@ -518,6 +523,10 @@ class Scope: public ZoneObject {
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
+
+  // The maximum number of nested contexts required for this scope and any inner
+  // scopes.
+  int MaxNestedContextChainLength();
 
   // Find the first function, script, eval or (declaration) block scope. This is
   // the scope where var declarations will be hoisted to in the implementation.

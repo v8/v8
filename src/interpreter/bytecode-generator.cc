@@ -153,11 +153,10 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
 
   builder()->set_parameter_count(info->num_parameters_including_this());
   builder()->set_locals_count(scope()->num_stack_slots());
-  // TODO(rmcilroy): Set correct context count.
-  builder()->set_context_count(info->num_heap_slots() > 0 ? 1 : 0);
+  builder()->set_context_count(scope()->MaxNestedContextChainLength());
 
   // Build function context only if there are context allocated variables.
-  if (info->num_heap_slots() > 0) {
+  if (scope()->NeedsContext()) {
     // Push a new inner context scope for the function.
     VisitNewLocalFunctionContext();
     ContextScope top_context(this, true);
