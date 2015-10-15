@@ -788,14 +788,26 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
 
 
 void MacroAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
-  xorps(dst, dst);
-  cvtlsi2sd(dst, src);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vxorpd(dst, dst, dst);
+    vcvtlsi2sd(dst, dst, src);
+  } else {
+    xorps(dst, dst);
+    cvtlsi2sd(dst, src);
+  }
 }
 
 
 void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
-  xorps(dst, dst);
-  cvtlsi2sd(dst, src);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vxorpd(dst, dst, dst);
+    vcvtlsi2sd(dst, dst, src);
+  } else {
+    xorps(dst, dst);
+    cvtlsi2sd(dst, src);
+  }
 }
 
 

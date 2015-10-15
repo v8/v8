@@ -1359,6 +1359,13 @@ TEST(AssemblerX64AVX_sd) {
     __ vmovsd(xmm5, Operand(rsp, kDoubleSize));
     __ vmovsd(xmm6, xmm5);
     __ vmovapd(xmm3, xmm6);
+
+    __ movl(rdi, Immediate(6));
+    __ vcvtlsi2sd(xmm6, xmm6, rdi);
+    __ movl(Operand(rsp, 0), Immediate(5));
+    __ vcvtlsi2sd(xmm7, xmm7, Operand(rsp, 0));
+    __ vsubsd(xmm7, xmm6, xmm7);  // xmm7 is 1.0
+    __ vmulsd(xmm1, xmm1, xmm7);
     __ addq(rsp, Immediate(kDoubleSize * 2));
 
     __ vucomisd(xmm3, xmm1);
