@@ -1769,7 +1769,6 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   //          arguments should be consecutive above this, in the same order as
   //          they are to be pushed onto the stack.
   //  -- x1 : the target to call (can be any Object).
-  // -----------------------------------
 
   // Find the address of the last argument.
   __ add(x3, x0, Operand(1));  // Add one for receiver.
@@ -1791,37 +1790,6 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 
   // Call the target.
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-}
-
-
-// static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  // -- x0 : argument count (not including receiver)
-  // -- x3 : original constructor
-  // -- x1 : constructor to call
-  // -- x2 : address of the first argument
-  // -----------------------------------
-
-  // Find the address of the last argument.
-  __ lsl(x5, x0, kPointerSizeLog2);
-  __ sub(x4, x2, x5);
-
-  // Push the arguments.
-  Label loop_header, loop_check;
-  __ Mov(x6, jssp);
-  __ Claim(x5, 1);
-  __ B(&loop_check);
-  __ Bind(&loop_header);
-  // TODO(rmcilroy): Push two at a time once we ensure we keep stack aligned.
-  __ Ldr(x5, MemOperand(x2, -kPointerSize, PostIndex));
-  __ Str(x5, MemOperand(x6, -kPointerSize, PreIndex));
-  __ Bind(&loop_check);
-  __ Cmp(x2, x4);
-  __ B(gt, &loop_header);
-
-  // Call the constructor with x0, x1, and x3 unmodified.
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
 }
 
 

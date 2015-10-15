@@ -537,25 +537,6 @@ void Interpreter::DoCallRuntime(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// New <constructor> <arg_count>
-//
-// Call operator new with |constructor| and the first argument in
-// register |first_arg| and |arg_count| arguments in subsequent
-//
-void Interpreter::DoNew(compiler::InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::InterpreterPushArgsAndConstruct(isolate_);
-  Node* constructor_index = __ BytecodeOperandReg8(0);
-  Node* constructor = __ LoadRegister(constructor_index);
-  Node* first_arg_reg = __ BytecodeOperandReg8(1);
-  Node* first_arg = __ RegisterLocation(first_arg_reg);
-  Node* args_count = __ BytecodeOperandCount8(2);
-  Node* result =
-      __ CallConstruct(constructor, constructor, first_arg, args_count);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-
 // TestEqual <src>
 //
 // Test if the value in the <src> register equals the accumulator.

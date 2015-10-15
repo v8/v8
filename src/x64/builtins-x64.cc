@@ -785,21 +785,21 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 }
 
 
-static void Generate_InterpreterPushArgs(MacroAssembler* masm,
-                                         bool push_receiver) {
+// static
+void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
   //  -- rbx : the address of the first argument to be pushed. Subsequent
   //           arguments should be consecutive above this, in the same order as
   //           they are to be pushed onto the stack.
-  // -----------------------------------
+  //  -- rdi : the target to call (can be any Object).
+
+  // Pop return address to allow tail-call after pushing arguments.
+  __ Pop(rdx);
 
   // Find the address of the last argument.
   __ movp(rcx, rax);
-  if (push_receiver) {
-    __ addp(rcx, Immediate(1));  // Add one for receiver.
-  }
-
+  __ addp(rcx, Immediate(1));  // Add one for receiver.
   __ shlp(rcx, Immediate(kPointerSizeLog2));
   __ negp(rcx);
   __ addp(rcx, rbx);
@@ -813,55 +813,10 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ bind(&loop_check);
   __ cmpp(rbx, rcx);
   __ j(greater, &loop_header, Label::kNear);
-}
-
-
-// static
-void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax : the number of arguments (not including the receiver)
-  //  -- rbx : the address of the first argument to be pushed. Subsequent
-  //           arguments should be consecutive above this, in the same order as
-  //           they are to be pushed onto the stack.
-  //  -- rdi : the target to call (can be any Object).
-  // -----------------------------------
-
-  // Pop return address to allow tail-call after pushing arguments.
-  __ PopReturnAddressTo(kScratchRegister);
-
-  Generate_InterpreterPushArgs(masm, true);
 
   // Call the target.
-  __ PushReturnAddressFrom(kScratchRegister);  // Re-push return address.
+  __ Push(rdx);  // Re-push return address.
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-}
-
-
-// static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax : the number of arguments (not including the receiver)
-  //  -- rdx : the original constructor (either the same as the constructor or
-  //           the JSFunction on which new was invoked initially)
-  //  -- rdi : the constructor to call (can be any Object)
-  //  -- rbx : the address of the first argument to be pushed. Subsequent
-  //           arguments should be consecutive above this, in the same order as
-  //           they are to be pushed onto the stack.
-  // -----------------------------------
-
-  // Pop return address to allow tail-call after pushing arguments.
-  __ PopReturnAddressTo(kScratchRegister);
-
-  // Push slot for the receiver to be constructed.
-  __ Push(Immediate(0));
-
-  Generate_InterpreterPushArgs(masm, false);
-
-  // Push return address in preparation for the tail-call.
-  __ PushReturnAddressFrom(kScratchRegister);
-
-  // Call the constructor (rax, rdx, rdi passed on).
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
 }
 
 

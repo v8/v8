@@ -276,13 +276,6 @@ Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate) {
 
 
 // static
-Callable CodeFactory::InterpreterPushArgsAndConstruct(Isolate* isolate) {
-  return Callable(isolate->builtins()->InterpreterPushArgsAndConstruct(),
-                  InterpreterPushArgsAndConstructDescriptor(isolate));
-}
-
-
-// static
 Callable CodeFactory::InterpreterCEntry(Isolate* isolate) {
   // TODO(rmcilroy): Deal with runtime functions that return two values.
   // Note: If we ever use fpregs in the interpreter then we will need to

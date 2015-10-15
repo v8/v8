@@ -357,12 +357,6 @@ void BytecodeGraphBuilder::VisitCallRuntime(
 }
 
 
-void BytecodeGraphBuilder::VisitNew(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
 void BytecodeGraphBuilder::BuildBinaryOp(
     const Operator* js_op, const interpreter::BytecodeArrayIterator& iterator) {
   Node* left = environment()->LookupRegister(iterator.GetRegisterOperand(0));

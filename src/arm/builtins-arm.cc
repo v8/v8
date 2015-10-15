@@ -976,19 +976,6 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 }
 
 
-static void Generate_InterpreterPushArgs(MacroAssembler* masm, Register index,
-                                         Register limit, Register scratch) {
-  Label loop_header, loop_check;
-  __ b(al, &loop_check);
-  __ bind(&loop_header);
-  __ ldr(scratch, MemOperand(index, -kPointerSize, PostIndex));
-  __ push(scratch);
-  __ bind(&loop_check);
-  __ cmp(index, limit);
-  __ b(gt, &loop_header);
-}
-
-
 // static
 void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -997,37 +984,24 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   //          arguments should be consecutive above this, in the same order as
   //          they are to be pushed onto the stack.
   //  -- r1 : the target to call (can be any Object).
-  // -----------------------------------
 
   // Find the address of the last argument.
   __ add(r3, r0, Operand(1));  // Add one for receiver.
   __ mov(r3, Operand(r3, LSL, kPointerSizeLog2));
   __ sub(r3, r2, r3);
 
-  Generate_InterpreterPushArgs(masm, r2, r3, r4);
+  // Push the arguments.
+  Label loop_header, loop_check;
+  __ b(al, &loop_check);
+  __ bind(&loop_header);
+  __ ldr(r4, MemOperand(r2, -kPointerSize, PostIndex));
+  __ push(r4);
+  __ bind(&loop_check);
+  __ cmp(r2, r3);
+  __ b(gt, &loop_header);
 
   // Call the target.
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-}
-
-
-// static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  // -- r0 : argument count (not including receiver)
-  // -- r3 : original constructor
-  // -- r1 : constructor to call
-  // -- r2 : address of the first argument
-  // -----------------------------------
-
-  // Find the address of the last argument.
-  __ mov(r4, Operand(r0, LSL, kPointerSizeLog2));
-  __ sub(r4, r2, r4);
-
-  Generate_InterpreterPushArgs(masm, r2, r4, r5);
-
-  // Call the constructor with r0, r1, and r3 unmodified.
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
 }
 
 

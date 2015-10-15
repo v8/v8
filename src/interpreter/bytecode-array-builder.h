@@ -100,19 +100,13 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& Call(Register callable, Register receiver,
                              size_t arg_count);
 
-  // Call the new operator. The |constructor| register is followed by
-  // |arg_count| consecutive registers containing arguments to be
-  // applied to the constructor.
-  BytecodeArrayBuilder& New(Register constructor, Register first_arg,
-                            size_t arg_count);
-
   // Call the runtime function with |function_id|. The first argument should be
   // in |first_arg| and all subsequent arguments should be in registers
   // <first_arg + 1> to <first_arg + 1 + arg_count>.
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
                                     Register first_arg, size_t arg_count);
 
-  // Operators (register holds the lhs value, accumulator holds the rhs value).
+  // Operators (register == lhs, accumulator = rhs).
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
                                         Strength strength);
 

@@ -934,25 +934,6 @@ void BytecodeGenerator::VisitProperty(Property* expr) {
 }
 
 
-Register BytecodeGenerator::VisitArguments(
-    ZoneList<Expression*>* args, TemporaryRegisterScope* register_scope) {
-  // Visit arguments and place in a contiguous block of temporary registers.
-  // Return the first temporary register corresponding to the first argument.
-  DCHECK_GT(args->length(), 0);
-  Register first_arg = register_scope->NewRegister();
-  Visit(args->at(0));
-  builder()->StoreAccumulatorInRegister(first_arg);
-  for (int i = 1; i < static_cast<int>(args->length()); i++) {
-    Register ith_arg = register_scope->NewRegister();
-    Visit(args->at(i));
-    builder()->StoreAccumulatorInRegister(ith_arg);
-    DCHECK(ith_arg.index() - i == first_arg.index());
-  }
-
-  return first_arg;
-}
-
-
 void BytecodeGenerator::VisitCall(Call* expr) {
   Expression* callee_expr = expr->expression();
   Call::CallType call_type = expr->GetCallType(isolate());
@@ -1000,9 +981,11 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   // Evaluate all arguments to the function call and store in sequential
   // registers.
   ZoneList<Expression*>* args = expr->arguments();
-  if (args->length() > 0) {
-    Register first_arg = VisitArguments(args, &temporary_register_scope);
-    CHECK_EQ(first_arg.index(), receiver.index() + 1);
+  for (int i = 0; i < args->length(); ++i) {
+    Visit(args->at(i));
+    Register arg = temporary_register_scope.NewRegister();
+    DCHECK(arg.index() - i == receiver.index() + 1);
+    builder()->StoreAccumulatorInRegister(arg);
   }
 
   // TODO(rmcilroy): Deal with possible direct eval here?
@@ -1011,22 +994,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 }
 
 
-void BytecodeGenerator::VisitCallNew(CallNew* expr) {
-  TemporaryRegisterScope temporary_register_scope(builder());
-  Register constructor = temporary_register_scope.NewRegister();
-  Visit(expr->expression());
-  builder()->StoreAccumulatorInRegister(constructor);
-  ZoneList<Expression*>* args = expr->arguments();
-  if (args->length() > 0) {
-    Register first_arg = VisitArguments(args, &temporary_register_scope);
-    builder()->New(constructor, first_arg, args->length());
-  } else {
-    // The second argument here will be ignored as there are zero
-    // arguments. Using the constructor register avoids avoid
-    // allocating a temporary just to fill the operands.
-    builder()->New(constructor, constructor, 0);
-  }
-}
+void BytecodeGenerator::VisitCallNew(CallNew* expr) { UNIMPLEMENTED(); }
 
 
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
@@ -1035,21 +1003,22 @@ void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   }
 
   // Evaluate all arguments to the runtime call.
-  TemporaryRegisterScope temporary_register_scope(&builder_);
+  ZoneList<Expression*>* args = expr->arguments();
+  TemporaryRegisterScope temporary_register_scope(builder());
+  // Ensure we always have a valid first_arg register even if there are no
+  // arguments to pass.
+  Register first_arg = temporary_register_scope.NewRegister();
+  for (int i = 0; i < args->length(); ++i) {
+    Register arg =
+        (i == 0) ? first_arg : temporary_register_scope.NewRegister();
+    Visit(args->at(i));
+    DCHECK_EQ(arg.index() - i, first_arg.index());
+    builder()->StoreAccumulatorInRegister(arg);
+  }
 
   // TODO(rmcilroy): support multiple return values.
   DCHECK_LE(expr->function()->result_size, 1);
   Runtime::FunctionId function_id = expr->function()->function_id;
-  ZoneList<Expression*>* args = expr->arguments();
-  Register first_arg;
-  if (args->length() > 0) {
-    first_arg = VisitArguments(args, &temporary_register_scope);
-  } else {
-    // Allocation here is just to fullfil the requirement that there
-    // is a register operand for the start of the arguments though
-    // there are zero when this is generated.
-    first_arg = temporary_register_scope.NewRegister();
-  }
   builder()->CallRuntime(function_id, first_arg, args->length());
 }
 

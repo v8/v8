@@ -104,7 +104,6 @@ enum BuiltinExtraArguments {
   V(InterpreterEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
   V(InterpreterExitTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(InterpreterPushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(InterpreterPushArgsAndConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState) \
                                                                               \
   V(LoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
   V(KeyedLoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
@@ -309,7 +308,6 @@ class Builtins {
   static void Generate_InterpreterEntryTrampoline(MacroAssembler* masm);
   static void Generate_InterpreterExitTrampoline(MacroAssembler* masm);
   static void Generate_InterpreterPushArgsAndCall(MacroAssembler* masm);
-  static void Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm);
 
 #define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \
   static void Generate_Make##C##CodeYoungAgainEvenMarking(   \

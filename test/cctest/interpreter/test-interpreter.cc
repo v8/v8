@@ -1728,65 +1728,6 @@ TEST(InterpreterObjectLiterals) {
 }
 
 
-TEST(InterpreterConstruct) {
-  HandleAndZoneScope handles;
-
-  std::string source(
-      "function counter() { this.count = 0; }\n"
-      "function " +
-      InterpreterTester::function_name() +
-      "() {\n"
-      "  var c = new counter();\n"
-      "  return c.count;\n"
-      "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
-  auto callable = tester.GetCallable<>();
-
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(0));
-}
-
-
-TEST(InterpreterConstructWithArgument) {
-  HandleAndZoneScope handles;
-
-  std::string source(
-      "function counter(arg0) { this.count = 17; this.x = arg0; }\n"
-      "function " +
-      InterpreterTester::function_name() +
-      "() {\n"
-      "  var c = new counter(3);\n"
-      "  return c.x;\n"
-      "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
-  auto callable = tester.GetCallable<>();
-
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(3));
-}
-
-
-TEST(InterpreterConstructWithArguments) {
-  HandleAndZoneScope handles;
-
-  std::string source(
-      "function counter(arg0, arg1) {\n"
-      "  this.count = 7; this.x = arg0; this.y = arg1;\n"
-      "}\n"
-      "function " +
-      InterpreterTester::function_name() +
-      "() {\n"
-      "  var c = new counter(3, 5);\n"
-      "  return c.count + c.x + c.y;\n"
-      "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
-  auto callable = tester.GetCallable<>();
-
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(15));
-}
-
-
 TEST(InterpreterComma) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();

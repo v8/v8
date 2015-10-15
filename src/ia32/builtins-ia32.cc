@@ -724,24 +724,6 @@ void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
 }
 
 
-static void Generate_InterpreterPushArgs(MacroAssembler* masm,
-                                         Register array_limit) {
-  // ----------- S t a t e -------------
-  //  -- ebx : Pointer to the last argument in the args array.
-  //  -- array_limit : Pointer to one before the first argument in the
-  //                   args array.
-  // -----------------------------------
-  Label loop_header, loop_check;
-  __ jmp(&loop_check);
-  __ bind(&loop_header);
-  __ Push(Operand(ebx, 0));
-  __ sub(ebx, Immediate(kPointerSize));
-  __ bind(&loop_check);
-  __ cmp(ebx, array_limit);
-  __ j(greater, &loop_header, Label::kNear);
-}
-
-
 // static
 void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -750,7 +732,6 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   //           arguments should be consecutive above this, in the same order as
   //           they are to be pushed onto the stack.
   //  -- edi : the target to call (can be any Object).
-  // -----------------------------------
 
   // Pop return address to allow tail-call after pushing arguments.
   __ Pop(edx);
@@ -762,7 +743,15 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   __ neg(ecx);
   __ add(ecx, ebx);
 
-  Generate_InterpreterPushArgs(masm, ecx);
+  // Push the arguments.
+  Label loop_header, loop_check;
+  __ jmp(&loop_check);
+  __ bind(&loop_header);
+  __ Push(Operand(ebx, 0));
+  __ sub(ebx, Immediate(kPointerSize));
+  __ bind(&loop_check);
+  __ cmp(ebx, ecx);
+  __ j(greater, &loop_header, Label::kNear);
 
   // Call the target.
   __ Push(edx);  // Re-push return address.
@@ -770,51 +759,11 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 }
 
 
-// static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax : the number of arguments (not including the receiver)
-  //  -- edx : the original constructor
-  //  -- edi : the constructor
-  //  -- ebx : the address of the first argument to be pushed. Subsequent
-  //           arguments should be consecutive above this, in the same order as
-  //           they are to be pushed onto the stack.
-  // -----------------------------------
-
-  // Save number of arguments on the stack below where arguments are going
-  // to be pushed.
-  __ mov(ecx, eax);
-  __ neg(ecx);
-  __ mov(Operand(esp, ecx, times_pointer_size, -kPointerSize), eax);
-  __ mov(eax, ecx);
-
-  // Pop return address to allow tail-call after pushing arguments.
-  __ Pop(ecx);
-
-  // Find the address of the last argument.
-  __ shl(eax, kPointerSizeLog2);
-  __ add(eax, ebx);
-
-  // Push padding for receiver.
-  __ Push(Immediate(0));
-
-  Generate_InterpreterPushArgs(masm, eax);
-
-  // Restore number of arguments from slot on stack.
-  __ mov(eax, Operand(esp, -kPointerSize));
-
-  // Re-push return address.
-  __ Push(ecx);
-
-  // Call the constructor with unmodified eax, edi, ebi values.
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
-}
-
-
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   CallRuntimePassFunction(masm, Runtime::kCompileLazy);
   GenerateTailCallToReturnedCode(masm);
 }
+
 
 
 static void CallCompileOptimized(MacroAssembler* masm, bool concurrent) {

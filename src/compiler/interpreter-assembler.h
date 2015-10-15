@@ -101,17 +101,8 @@ class InterpreterAssembler {
   // Load the TypeFeedbackVector for the current function.
   Node* LoadTypeFeedbackVector();
 
-  // Call constructor |constructor| with |arg_count| arguments (not
-  // including receiver) and the first argument located at
-  // |first_arg|. The |original_constructor| is the same as the
-  // |constructor| for the new keyword, but differs for the super
-  // keyword.
-  Node* CallConstruct(Node* original_constructor, Node* constructor,
-                      Node* first_arg, Node* arg_count);
-
-  // Call JSFunction or Callable |function| with |arg_count|
-  // arguments (not including receiver) and the first argument
-  // located at |first_arg|.
+  // Call JSFunction or Callable |function| with |arg_count| (not including
+  // receiver) and the first argument located at |first_arg|.
   Node* CallJS(Node* function, Node* first_arg, Node* arg_count);
 
   // Call an IC code stub.

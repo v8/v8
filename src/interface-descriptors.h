@@ -71,7 +71,6 @@ class PlatformInterfaceDescriptor;
   V(MathRoundVariantCallFromUnoptimizedCode)  \
   V(MathRoundVariantCallFromOptimizedCode)    \
   V(InterpreterPushArgsAndCall)               \
-  V(InterpreterPushArgsAndConstruct)          \
   V(InterpreterCEntry)
 
 
@@ -713,14 +712,6 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
 class InterpreterPushArgsAndCallDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(InterpreterPushArgsAndCallDescriptor,
-                     CallInterfaceDescriptor)
-};
-
-
-class InterpreterPushArgsAndConstructDescriptor
-    : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(InterpreterPushArgsAndConstructDescriptor,
                      CallInterfaceDescriptor)
 };
 

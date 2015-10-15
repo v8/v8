@@ -89,13 +89,10 @@ namespace interpreter {
   V(LogicalNot, OperandType::kNone)                                            \
   V(TypeOf, OperandType::kNone)                                                \
                                                                                \
-  /* Call operations */                                                        \
+  /* Call operations. */                                                       \
   V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)        \
   V(CallRuntime, OperandType::kIdx16, OperandType::kReg8,                      \
     OperandType::kCount8)                                                      \
-                                                                               \
-  /* New operator */                                                           \
-  V(New, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)         \
                                                                                \
   /* Test Operators */                                                         \
   V(TestEqual, OperandType::kReg8)                                             \
