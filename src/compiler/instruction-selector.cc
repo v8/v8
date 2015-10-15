@@ -612,6 +612,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitWord32Equal(node);
     case IrOpcode::kWord32Clz:
       return MarkAsWord32(node), VisitWord32Clz(node);
+    case IrOpcode::kWord32Ctz:
+      return MarkAsWord32(node), VisitWord32Ctz(node);
     case IrOpcode::kWord64And:
       return MarkAsWord64(node), VisitWord64And(node);
     case IrOpcode::kWord64Or:

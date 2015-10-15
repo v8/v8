@@ -2866,6 +2866,34 @@ void MacroAssembler::Lzcntl(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Tzcntl(Register dst, Register src) {
+  if (CpuFeatures::IsSupported(BMI1)) {
+    CpuFeatureScope scope(this, BMI1);
+    tzcntl(dst, src);
+    return;
+  }
+  Label not_zero_src;
+  bsfl(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  Set(dst, 32);  // The result of tzcnt is 32 if src = 0.
+  bind(&not_zero_src);
+}
+
+
+void MacroAssembler::Tzcntl(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(BMI1)) {
+    CpuFeatureScope scope(this, BMI1);
+    tzcntl(dst, src);
+    return;
+  }
+  Label not_zero_src;
+  bsfl(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  Set(dst, 32);  // The result of tzcnt is 32 if src = 0.
+  bind(&not_zero_src);
+}
+
+
 void MacroAssembler::Pushad() {
   Push(rax);
   Push(rcx);

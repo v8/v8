@@ -47,6 +47,7 @@ namespace compiler {
   V(X64Ror)                        \
   V(X64Ror32)                      \
   V(X64Lzcnt32)                    \
+  V(X64Tzcnt32)                    \
   V(SSEFloat32Cmp)                 \
   V(SSEFloat32Add)                 \
   V(SSEFloat32Sub)                 \

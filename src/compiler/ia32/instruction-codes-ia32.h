@@ -31,6 +31,7 @@ namespace compiler {
   V(IA32Sar)                       \
   V(IA32Ror)                       \
   V(IA32Lzcnt)                     \
+  V(IA32Tzcnt)                     \
   V(SSEFloat32Cmp)                 \
   V(SSEFloat32Add)                 \
   V(SSEFloat32Sub)                 \

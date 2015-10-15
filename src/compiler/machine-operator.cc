@@ -167,6 +167,7 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)
 
 #define PURE_OPTIONAL_OP_LIST(V)                            \
+  V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Float32Max, Operator::kNoProperties, 2, 0, 1)           \
   V(Float32Min, Operator::kNoProperties, 2, 0, 1)           \
   V(Float64Max, Operator::kNoProperties, 2, 0, 1)           \

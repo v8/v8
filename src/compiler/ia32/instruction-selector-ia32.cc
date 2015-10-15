@@ -553,6 +553,12 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord32Ctz(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kIA32Tzcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   IA32OperandGenerator g(this);
 
@@ -1357,7 +1363,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
       MachineOperatorBuilder::kFloat32Min |
       MachineOperatorBuilder::kFloat64Max |
       MachineOperatorBuilder::kFloat64Min |
-      MachineOperatorBuilder::kWord32ShiftIsSafe;
+      MachineOperatorBuilder::kWord32ShiftIsSafe |
+      MachineOperatorBuilder::kWord32Ctz;
   if (CpuFeatures::IsSupported(SSE4_1)) {
     flags |= MachineOperatorBuilder::kFloat64RoundDown |
              MachineOperatorBuilder::kFloat64RoundTruncate;

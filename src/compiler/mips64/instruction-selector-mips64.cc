@@ -321,6 +321,9 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitWord64Ror(Node* node) {
   VisitRRO(this, kMips64Dror, node);
 }

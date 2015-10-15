@@ -944,6 +944,9 @@ class MacroAssembler: public Assembler {
   void Lzcntl(Register dst, Register src);
   void Lzcntl(Register dst, const Operand& src);
 
+  void Tzcntl(Register dst, Register src);
+  void Tzcntl(Register dst, const Operand& src);
+
   // Non-x64 instructions.
   // Push/pop all general purpose registers.
   // Does not push rsp/rbp nor any of the assembler's special purpose registers

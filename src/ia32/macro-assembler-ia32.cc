@@ -2430,6 +2430,20 @@ void MacroAssembler::Lzcnt(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Tzcnt(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(BMI1)) {
+    CpuFeatureScope scope(this, BMI1);
+    tzcnt(dst, src);
+    return;
+  }
+  Label not_zero_src;
+  bsf(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  Move(dst, Immediate(32));  // The result of tzcnt is 32 if src = 0.
+  bind(&not_zero_src);
+}
+
+
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     mov(Operand::StaticVariable(ExternalReference(counter)), Immediate(value));
