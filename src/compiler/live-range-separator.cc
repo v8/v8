@@ -78,14 +78,12 @@ void CreateSplinter(TopLevelLiveRange *range, RegisterAllocationData *data,
     if (range->MayRequireSpillRange()) {
       data->CreateSpillRangeForLiveRange(range);
     }
-    if (range->splinter() == nullptr) {
-      TopLevelLiveRange *splinter = data->NextLiveRange(range->machine_type());
-      DCHECK_NULL(data->live_ranges()[splinter->vreg()]);
-      data->live_ranges()[splinter->vreg()] = splinter;
-      range->SetSplinter(splinter);
-    }
+    TopLevelLiveRange *result = data->NextLiveRange(range->machine_type());
+    DCHECK_NULL(data->live_ranges()[result->vreg()]);
+    data->live_ranges()[result->vreg()] = result;
+
     Zone *zone = data->allocation_zone();
-    range->Splinter(start, end, zone);
+    range->Splinter(start, end, result, zone);
   }
 }
 
