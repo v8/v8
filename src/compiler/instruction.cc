@@ -119,7 +119,8 @@ std::ostream& operator<<(std::ostream& os,
              << "|R";
           break;
         case AllocatedOperand::DOUBLE_REGISTER:
-          os << "[" << DoubleRegisterOperand::cast(op).GetRegister().ToString()
+          os << "["
+             << DoubleRegisterOperand::cast(op).GetDoubleRegister().ToString()
              << "|R";
           break;
       }
