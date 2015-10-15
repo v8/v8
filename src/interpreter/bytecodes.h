@@ -124,6 +124,10 @@ namespace interpreter {
   V(JumpIfTrueConstant, OperandType::kIdx8)                                    \
   V(JumpIfFalse, OperandType::kImm8)                                           \
   V(JumpIfFalseConstant, OperandType::kIdx8)                                   \
+  V(JumpIfToBooleanTrue, OperandType::kImm8)                                   \
+  V(JumpIfToBooleanTrueConstant, OperandType::kIdx8)                           \
+  V(JumpIfToBooleanFalse, OperandType::kImm8)                                  \
+  V(JumpIfToBooleanFalseConstant, OperandType::kIdx8)                          \
   V(Return, OperandType::kNone)
 
 

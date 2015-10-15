@@ -738,6 +738,72 @@ void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
 }
 
 
+// JumpIfToBooleanTrue <imm8>
+//
+// Jump by number of bytes represented by an immediate operand if the object
+// referenced by the accumulator is true when the object is cast to boolean.
+void Interpreter::DoJumpIfToBooleanTrue(
+    compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* relative_jump = __ BytecodeOperandImm8(0);
+  Node* to_boolean_value =
+      __ CallRuntime(Runtime::kInterpreterToBoolean, accumulator);
+  Node* true_value = __ BooleanConstant(true);
+  __ JumpIfWordEqual(to_boolean_value, true_value, relative_jump);
+}
+
+
+// JumpIfToBooleanTrueConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
+// if the object referenced by the accumulator is true when the object is cast
+// to boolean.
+void Interpreter::DoJumpIfToBooleanTrueConstant(
+    compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* to_boolean_value =
+      __ CallRuntime(Runtime::kInterpreterToBoolean, accumulator);
+  Node* index = __ BytecodeOperandIdx8(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  Node* relative_jump = __ SmiUntag(constant);
+  Node* true_value = __ BooleanConstant(true);
+  __ JumpIfWordEqual(to_boolean_value, true_value, relative_jump);
+}
+
+
+// JumpIfToBooleanFalse <imm8>
+//
+// Jump by number of bytes represented by an immediate operand if the object
+// referenced by the accumulator is false when the object is cast to boolean.
+void Interpreter::DoJumpIfToBooleanFalse(
+    compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* relative_jump = __ BytecodeOperandImm8(0);
+  Node* to_boolean_value =
+      __ CallRuntime(Runtime::kInterpreterToBoolean, accumulator);
+  Node* false_value = __ BooleanConstant(false);
+  __ JumpIfWordEqual(to_boolean_value, false_value, relative_jump);
+}
+
+
+// JumpIfToBooleanFalseConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
+// if the object referenced by the accumulator is false when the object is cast
+// to boolean.
+void Interpreter::DoJumpIfToBooleanFalseConstant(
+    compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* to_boolean_value =
+      __ CallRuntime(Runtime::kInterpreterToBoolean, accumulator);
+  Node* index = __ BytecodeOperandIdx8(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  Node* relative_jump = __ SmiUntag(constant);
+  Node* false_value = __ BooleanConstant(false);
+  __ JumpIfWordEqual(to_boolean_value, false_value, relative_jump);
+}
+
+
 // CreateArrayLiteral <idx> <flags>
 //
 // Creates an array literal for literal index <idx> with flags <flags> and

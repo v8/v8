@@ -129,6 +129,11 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& Jump(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfTrue(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(BytecodeLabel* label);
+  // TODO(mythria) The following two functions should be merged into
+  // JumpIfTrue/False. These bytecodes should be automatically chosen rather
+  // than explicitly using them.
+  BytecodeArrayBuilder& JumpIfToBooleanTrue(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfToBooleanFalse(BytecodeLabel* label);
   BytecodeArrayBuilder& Return();
 
   BytecodeArrayBuilder& EnterBlock();

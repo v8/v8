@@ -1059,9 +1059,13 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
 void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
   switch (binop->op()) {
     case Token::COMMA:
+      VisitCommaExpression(binop);
+      break;
     case Token::OR:
+      VisitLogicalOrExpression(binop);
+      break;
     case Token::AND:
-      UNIMPLEMENTED();
+      VisitLogicalAndExpression(binop);
       break;
     default:
       VisitArithmeticExpression(binop);
@@ -1191,6 +1195,53 @@ void BytecodeGenerator::VisitSetHomeObject(Register value, Register home_object,
       .StoreNamedProperty(home_object, name,
                           feedback_index(property->GetSlot(slot_number)),
                           language_mode());
+}
+
+
+void BytecodeGenerator::VisitCommaExpression(BinaryOperation* binop) {
+  Expression* left = binop->left();
+  Expression* right = binop->right();
+
+  Visit(left);
+  Visit(right);
+}
+
+
+void BytecodeGenerator::VisitLogicalOrExpression(BinaryOperation* binop) {
+  Expression* left = binop->left();
+  Expression* right = binop->right();
+
+  // Short-circuit evaluation- If it is known that left is always true,
+  // no need to visit right
+  if (left->ToBooleanIsTrue()) {
+    Visit(left);
+  } else {
+    BytecodeLabel end_label;
+
+    Visit(left);
+    builder()->JumpIfToBooleanTrue(&end_label);
+    Visit(right);
+    builder()->Bind(&end_label);
+  }
+}
+
+
+void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
+  Expression* left = binop->left();
+  Expression* right = binop->right();
+
+  // Short-circuit evaluation- If it is known that left is always false,
+  // no need to visit right
+  if (left->ToBooleanIsFalse()) {
+    Visit(left);
+  } else {
+    BytecodeLabel end_label;
+
+    Visit(left);
+    builder()->JumpIfToBooleanFalse(&end_label);
+    Visit(right);
+    builder()->Bind(&end_label);
+  }
 }
 
 

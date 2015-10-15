@@ -458,6 +458,10 @@ Bytecode BytecodeArrayBuilder::GetJumpWithConstantOperand(
       return Bytecode::kJumpIfTrueConstant;
     case Bytecode::kJumpIfFalse:
       return Bytecode::kJumpIfFalseConstant;
+    case Bytecode::kJumpIfToBooleanTrue:
+      return Bytecode::kJumpIfToBooleanTrueConstant;
+    case Bytecode::kJumpIfToBooleanFalse:
+      return Bytecode::kJumpIfToBooleanFalseConstant;
     default:
       UNREACHABLE();
       return Bytecode::kJumpConstant;
@@ -543,6 +547,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfTrue(BytecodeLabel* label) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfFalse(BytecodeLabel* label) {
   return OutputJump(Bytecode::kJumpIfFalse, label);
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfToBooleanTrue(
+    BytecodeLabel* label) {
+  return OutputJump(Bytecode::kJumpIfToBooleanTrue, label);
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfToBooleanFalse(
+    BytecodeLabel* label) {
+  return OutputJump(Bytecode::kJumpIfToBooleanFalse, label);
 }
 
 

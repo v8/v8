@@ -111,13 +111,21 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeLabel start;
   builder.Bind(&start);
   // Short jumps with Imm8 operands
-  builder.Jump(&start).JumpIfTrue(&start).JumpIfFalse(&start);
+  builder.Jump(&start)
+      .JumpIfTrue(&start)
+      .JumpIfFalse(&start)
+      .JumpIfToBooleanTrue(&start)
+      .JumpIfToBooleanFalse(&start);
   // Insert dummy ops to force longer jumps
   for (int i = 0; i < 128; i++) {
     builder.LoadTrue();
   }
   // Longer jumps requiring Constant operand
-  builder.Jump(&start).JumpIfTrue(&start).JumpIfFalse(&start);
+  builder.Jump(&start)
+      .JumpIfTrue(&start)
+      .JumpIfFalse(&start)
+      .JumpIfToBooleanTrue(&start)
+      .JumpIfToBooleanFalse(&start);
   builder.Return();
 
   // Generate BytecodeArray.

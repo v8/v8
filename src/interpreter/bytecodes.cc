@@ -161,7 +161,9 @@ OperandSize Bytecodes::SizeOfOperand(OperandType operand_type) {
 // static
 bool Bytecodes::IsJump(Bytecode bytecode) {
   return bytecode == Bytecode::kJump || bytecode == Bytecode::kJumpIfTrue ||
-         bytecode == Bytecode::kJumpIfFalse;
+         bytecode == Bytecode::kJumpIfFalse ||
+         bytecode == Bytecode::kJumpIfToBooleanTrue ||
+         bytecode == Bytecode::kJumpIfToBooleanFalse;
 }
 
 
@@ -169,7 +171,9 @@ bool Bytecodes::IsJump(Bytecode bytecode) {
 bool Bytecodes::IsJumpConstant(Bytecode bytecode) {
   return bytecode == Bytecode::kJumpConstant ||
          bytecode == Bytecode::kJumpIfTrueConstant ||
-         bytecode == Bytecode::kJumpIfFalseConstant;
+         bytecode == Bytecode::kJumpIfFalseConstant ||
+         bytecode == Bytecode::kJumpIfToBooleanTrueConstant ||
+         bytecode == Bytecode::kJumpIfToBooleanFalseConstant;
 }
 
 

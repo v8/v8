@@ -560,6 +560,30 @@ void BytecodeGraphBuilder::VisitJumpIfFalseConstant(
 }
 
 
+void BytecodeGraphBuilder::VisitJumpIfToBooleanTrue(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfToBooleanTrueConstant(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfToBooleanFalse(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfToBooleanFalseConstant(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitReturn(
     const interpreter::BytecodeArrayIterator& iterator) {
   Node* control =
