@@ -2365,27 +2365,11 @@ void Struct::InitializeBody(int object_size) {
 }
 
 
-bool Object::ToArrayLength(uint32_t* index) {
-  if (IsSmi()) {
-    int value = Smi::cast(this)->value();
-    if (value < 0) return false;
-    *index = value;
-    return true;
-  }
-  if (IsHeapNumber()) {
-    double value = HeapNumber::cast(this)->value();
-    uint32_t uint_value = static_cast<uint32_t>(value);
-    if (value == static_cast<double>(uint_value)) {
-      *index = uint_value;
-      return true;
-    }
-  }
-  return false;
-}
+bool Object::ToArrayLength(uint32_t* index) { return Object::ToUint32(index); }
 
 
 bool Object::ToArrayIndex(uint32_t* index) {
-  return ToArrayLength(index) && *index != kMaxUInt32;
+  return Object::ToUint32(index) && *index != kMaxUInt32;
 }
 
 

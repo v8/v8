@@ -10076,6 +10076,9 @@ class JSArray: public JSObject {
                                 Handle<Object> name, PropertyDescriptor* desc,
                                 ShouldThrow should_throw);
 
+  static bool AnythingToArrayLength(Isolate* isolate,
+                                    Handle<Object> length_object,
+                                    uint32_t* output);
   static bool ArraySetLength(Isolate* isolate, Handle<JSArray> a,
                              PropertyDescriptor* desc,
                              ShouldThrow should_throw);

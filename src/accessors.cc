@@ -198,18 +198,6 @@ void Accessors::ArrayLengthGetter(
 }
 
 
-// Tries to non-observably convert |value| to a valid array length.
-// Returns false if it fails.
-static bool FastAsArrayLength(Isolate* isolate, Handle<Object> value,
-                              uint32_t* length) {
-  if (value->ToArrayLength(length)) return true;
-  // We don't support AsArrayLength, so use AsArrayIndex for now. This just
-  // misses out on kMaxUInt32.
-  if (value->IsString()) return String::cast(*value)->AsArrayIndex(length);
-  return false;
-}
-
-
 void Accessors::ArrayLengthSetter(
     v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
@@ -222,26 +210,9 @@ void Accessors::ArrayLengthSetter(
   Handle<Object> length_obj = Utils::OpenHandle(*val);
 
   uint32_t length = 0;
-  if (!FastAsArrayLength(isolate, length_obj, &length)) {
-    Handle<Object> uint32_v;
-    if (!Object::ToUint32(isolate, length_obj).ToHandle(&uint32_v)) {
-      isolate->OptionalRescheduleException(false);
-      return;
-    }
-
-    Handle<Object> number_v;
-    if (!Object::ToNumber(length_obj).ToHandle(&number_v)) {
-      isolate->OptionalRescheduleException(false);
-      return;
-    }
-
-    if (uint32_v->Number() != number_v->Number()) {
-      Handle<Object> exception = isolate->factory()->NewRangeError(
-          MessageTemplate::kInvalidArrayLength);
-      return isolate->ScheduleThrow(*exception);
-    }
-
-    CHECK(uint32_v->ToArrayLength(&length));
+  if (!JSArray::AnythingToArrayLength(isolate, length_obj, &length)) {
+    isolate->OptionalRescheduleException(false);
+    return;
   }
 
   if (JSArray::ObservableSetLength(array, length).is_null()) {
@@ -258,7 +229,6 @@ Handle<AccessorInfo> Accessors::ArrayLengthInfo(
                       &ArrayLengthSetter,
                       attributes);
 }
-
 
 
 //

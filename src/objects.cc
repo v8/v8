@@ -715,15 +715,16 @@ bool Object::ToInt32(int32_t* value) {
 bool Object::ToUint32(uint32_t* value) {
   if (IsSmi()) {
     int num = Smi::cast(this)->value();
-    if (num >= 0) {
-      *value = static_cast<uint32_t>(num);
-      return true;
-    }
+    if (num < 0) return false;
+    *value = static_cast<uint32_t>(num);
+    return true;
   }
   if (IsHeapNumber()) {
     double num = HeapNumber::cast(this)->value();
-    if (num >= 0 && FastUI2D(FastD2UI(num)) == num) {
-      *value = FastD2UI(num);
+    if (num < 0) return false;
+    uint32_t uint_value = FastD2UI(num);
+    if (FastUI2D(uint_value) == num) {
+      *value = uint_value;
       return true;
     }
   }
@@ -6393,26 +6394,28 @@ bool JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
 }
 
 
-// TODO(jkummerow): Consider unification with ArrayLengthSetter in accessors.cc.
-bool AnythingToArrayLength(Isolate* isolate, Handle<Object> length_obj,
-                           uint32_t* output) {
+// Part of ES6 9.4.2.4 ArraySetLength.
+// static
+bool JSArray::AnythingToArrayLength(Isolate* isolate,
+                                    Handle<Object> length_object,
+                                    uint32_t* output) {
   // Fast path: check numbers and strings that can be converted directly
   // and unobservably.
-  if (length_obj->ToUint32(output)) return true;
-  if (length_obj->IsString() &&
-      Handle<String>::cast(length_obj)->AsArrayIndex(output)) {
+  if (length_object->ToArrayLength(output)) return true;
+  if (length_object->IsString() &&
+      Handle<String>::cast(length_object)->AsArrayIndex(output)) {
     return true;
   }
   // Slow path: follow steps in ES6 9.4.2.4 "ArraySetLength".
   // 3. Let newLen be ToUint32(Desc.[[Value]]).
   Handle<Object> uint32_v;
-  if (!Object::ToUint32(isolate, length_obj).ToHandle(&uint32_v)) {
+  if (!Object::ToUint32(isolate, length_object).ToHandle(&uint32_v)) {
     // 4. ReturnIfAbrupt(newLen).
     return false;
   }
   // 5. Let numberLen be ToNumber(Desc.[[Value]]).
   Handle<Object> number_v;
-  if (!Object::ToNumber(length_obj).ToHandle(&number_v)) {
+  if (!Object::ToNumber(length_object).ToHandle(&number_v)) {
     // 6. ReturnIfAbrupt(newLen).
     return false;
   }
@@ -6423,7 +6426,8 @@ bool AnythingToArrayLength(Isolate* isolate, Handle<Object> length_obj,
     isolate->Throw(*exception);
     return false;
   }
-  return uint32_v->ToArrayLength(output);
+  CHECK(uint32_v->ToArrayLength(output));
+  return true;
 }
 
 
