@@ -1056,7 +1056,6 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
 
 
 TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
-  if (!FLAG_turbo_allocate) return;
   Node* const closure = Parameter(Type::Any());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
@@ -1094,7 +1093,6 @@ TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaStub) {
 
 
 TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
-  if (!FLAG_turbo_allocate) return;
   Node* const object = Parameter(Type::Receiver());
   Node* const closure = Parameter(Type::Any());
   Node* const context = Parameter(Type::Any());

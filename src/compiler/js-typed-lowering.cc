@@ -1256,13 +1256,18 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
 Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
   int slot_count = OpParameter<int>(node->op());
+  Node* const closure = NodeProperties::GetValueInput(node, 0);
+
+  // The closure can be NumberConstant(0) if the closure is global code
+  // (rather than a function). We exclude that case here.
+  // TODO(jarin) Find a better way to check that the closure is a function.
 
   // Use inline allocation for function contexts up to a size limit.
-  if (FLAG_turbo_allocate && slot_count < kFunctionContextAllocationLimit) {
+  if (slot_count < kFunctionContextAllocationLimit &&
+      closure->opcode() != IrOpcode::kNumberConstant) {
     // JSCreateFunctionContext[slot_count < limit]](fun)
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);
-    Node* const closure = NodeProperties::GetValueInput(node, 0);
     Node* const context = NodeProperties::GetContextInput(node);
     Node* const extension = jsgraph()->ZeroConstant();
     Node* const load = graph()->NewNode(
@@ -1278,7 +1283,7 @@ Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
     a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), load);
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
-      a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->TheHoleConstant());
+      a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->UndefinedConstant());
     }
     RelaxControls(node);
     a.Finish(node);
@@ -1306,14 +1311,19 @@ Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
 Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
   Node* const input = NodeProperties::GetValueInput(node, 0);
+  Node* const closure = NodeProperties::GetValueInput(node, 1);
   Type* input_type = NodeProperties::GetType(input);
 
+  // The closure can be NumberConstant(0) if the closure is global code
+  // (rather than a function). We exclude that case here.
+  // TODO(jarin) Find a better way to check that the closure is a function.
+
   // Use inline allocation for with contexts for regular objects.
-  if (FLAG_turbo_allocate && input_type->Is(Type::Receiver())) {
+  if (input_type->Is(Type::Receiver()) &&
+      closure->opcode() != IrOpcode::kNumberConstant) {
     // JSCreateWithContext(o:receiver, fun)
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);
-    Node* const closure = NodeProperties::GetValueInput(node, 1);
     Node* const context = NodeProperties::GetContextInput(node);
     Node* const load = graph()->NewNode(
         simplified()->LoadField(
@@ -1339,13 +1349,18 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
   Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
   int context_length = scope_info->ContextLength();
+  Node* const closure = NodeProperties::GetValueInput(node, 0);
+
+  // The closure can be NumberConstant(0) if the closure is global code
+  // (rather than a function). We exclude that case here.
+  // TODO(jarin) Find a better way to check that the closure is a function.
 
   // Use inline allocation for block contexts up to a size limit.
-  if (FLAG_turbo_allocate && context_length < kBlockContextAllocationLimit) {
+  if (context_length < kBlockContextAllocationLimit &&
+      closure->opcode() != IrOpcode::kNumberConstant) {
     // JSCreateBlockContext[scope[length < limit]](fun)
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);
-    Node* const closure = NodeProperties::GetValueInput(node, 1);
     Node* const context = NodeProperties::GetContextInput(node);
     Node* const extension = jsgraph()->Constant(scope_info);
     Node* const load = graph()->NewNode(
