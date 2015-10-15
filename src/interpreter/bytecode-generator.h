@@ -36,6 +36,8 @@ class BytecodeGenerator : public AstVisitor {
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
+  Register VisitArguments(ZoneList<Expression*>* arguments,
+                          TemporaryRegisterScope* caller_scope);
   void VisitArithmeticExpression(BinaryOperation* binop);
   void VisitCommaExpression(BinaryOperation* binop);
   void VisitLogicalOrExpression(BinaryOperation* binop);

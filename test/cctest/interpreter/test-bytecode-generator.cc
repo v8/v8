@@ -1015,14 +1015,14 @@ TEST(PropertyCall) {
            B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                       //
            B(Ldar), R(helper.kLastParamIndex),                  //
-           B(Star), R(2),                                       //
+           B(Star), R(3),                                       //
            B(Ldar), R(helper.kLastParamIndex),                  //
-           B(Add), R(2),                                        //
+           B(Add), R(3),                                        //
            B(Star), R(2),                                       //
            B(Ldar), R(helper.kLastParamIndex),                  //
            B(Star), R(3),                                       //
            B(Call), R(0), R(1), U8(2),                          //
-           B(Return)                                            //
+           B(Return),                                           //
        },
        1,
        {"func"}}};
@@ -2667,6 +2667,72 @@ TEST(TryFinally) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(CallNew) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"function bar() { this.value = 0; }\n"
+       "function f() { return new bar(); }\n"
+       "f()",
+       kPointerSize,
+       1,
+       9,
+       {
+           B(LdaGlobal), _,            //
+           B(Star), R(0),              //
+           B(New), R(0), R(0), U8(0),  //
+           B(Return),                  //
+       },
+       0},
+      {"function bar(x) { this.value = 18; this.x = x;}\n"
+       "function f() { return new bar(3); }\n"
+       "f()",
+       2 * kPointerSize,
+       1,
+       13,
+       {
+           B(LdaGlobal), _,            //
+           B(Star), R(0),              //
+           B(LdaSmi8), U8(3),          //
+           B(Star), R(1),              //
+           B(New), R(0), R(1), U8(1),  //
+           B(Return),                  //
+       },
+       0},
+      {"function bar(w, x, y, z) {\n"
+       "  this.value = 18;\n"
+       "  this.x = x;\n"
+       "  this.y = y;\n"
+       "  this.z = z;\n"
+       "}\n"
+       "function f() { return new bar(3, 4, 5); }\n"
+       "f()",
+       4 * kPointerSize,
+       1,
+       21,
+       {
+           B(LdaGlobal), _,            //
+           B(Star), R(0),              //
+           B(LdaSmi8), U8(3),          //
+           B(Star), R(1),              //
+           B(LdaSmi8), U8(4),          //
+           B(Star), R(2),              //
+           B(LdaSmi8), U8(5),          //
+           B(Star), R(3),              //
+           B(New), R(0), R(1), U8(3),  //
+           B(Return),                  //
+       },
+       0}};
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
   }
 }
 

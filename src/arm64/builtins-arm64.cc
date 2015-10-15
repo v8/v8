@@ -708,7 +708,6 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     ParameterCount actual(x0);
     __ InvokeFunction(x1, actual, CALL_FUNCTION, NullCallWrapper());
 
-
     // Restore the context from the frame.
     // x0: result
     // jssp[0]: number of arguments (smi-tagged)
@@ -1769,6 +1768,7 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
   //          arguments should be consecutive above this, in the same order as
   //          they are to be pushed onto the stack.
   //  -- x1 : the target to call (can be any Object).
+  // -----------------------------------
 
   // Find the address of the last argument.
   __ add(x3, x0, Operand(1));  // Add one for receiver.
@@ -1790,6 +1790,43 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 
   // Call the target.
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+}
+
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- x0 : argument count (not including receiver)
+  // -- x3 : original constructor
+  // -- x1 : constructor to call
+  // -- x2 : address of the first argument
+  // -----------------------------------
+
+  // Find the address of the last argument.
+  __ add(x5, x0, Operand(1));  // Add one for receiver (to be constructed).
+  __ lsl(x5, x5, kPointerSizeLog2);
+
+  // Set stack pointer and where to stop.
+  __ Mov(x6, jssp);
+  __ Claim(x5, 1);
+  __ sub(x4, x6, x5);
+
+  // Push a slot for the receiver.
+  __ Str(xzr, MemOperand(x6, -kPointerSize, PreIndex));
+
+  Label loop_header, loop_check;
+  // Push the arguments.
+  __ B(&loop_check);
+  __ Bind(&loop_header);
+  // TODO(rmcilroy): Push two at a time once we ensure we keep stack aligned.
+  __ Ldr(x5, MemOperand(x2, -kPointerSize, PostIndex));
+  __ Str(x5, MemOperand(x6, -kPointerSize, PreIndex));
+  __ Bind(&loop_check);
+  __ Cmp(x6, x4);
+  __ B(gt, &loop_header);
+
+  // Call the constructor with x0, x1, and x3 unmodified.
+  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
 }
 
 

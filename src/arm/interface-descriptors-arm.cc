@@ -420,6 +420,18 @@ void InterpreterPushArgsAndCallDescriptor::InitializePlatformSpecific(
 }
 
 
+void InterpreterPushArgsAndConstructDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      r0,  // argument count (not including receiver)
+      r3,  // original constructor
+      r1,  // constructor to call
+      r2   // address of the first argument
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
 void InterpreterCEntryDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {

@@ -599,6 +599,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
+                                                Register first_arg,
+                                                size_t arg_count) {
+  DCHECK(FitsInIdx8Operand(arg_count));
+  Output(Bytecode::kNew, constructor.ToOperand(), first_arg.ToOperand(),
+         static_cast<uint8_t>(arg_count));
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     Runtime::FunctionId function_id, Register first_arg, size_t arg_count) {
   DCHECK(FitsInIdx16Operand(function_id));
