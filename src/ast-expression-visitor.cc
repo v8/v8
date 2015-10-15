@@ -32,10 +32,10 @@ namespace internal {
   } while (false)
 
 
-AstExpressionVisitor::AstExpressionVisitor(Isolate* isolate, Zone* zone,
+AstExpressionVisitor::AstExpressionVisitor(Isolate* isolate,
                                            FunctionLiteral* root)
     : root_(root), depth_(0) {
-  InitializeAstVisitor(isolate, zone);
+  InitializeAstVisitor(isolate);
 }
 
 

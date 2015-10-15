@@ -3190,14 +3190,11 @@ class AstVisitor BASE_EMBEDDED {
   }                                                         \
                                                             \
  private:                                                   \
-  void InitializeAstVisitor(Isolate* isolate, Zone* zone) { \
-    zone_ = zone;                                           \
+  void InitializeAstVisitor(Isolate* isolate) {             \
     stack_limit_ = isolate->stack_guard()->real_climit();   \
     stack_overflow_ = false;                                \
   }                                                         \
-  Zone* zone() { return zone_; }                            \
                                                             \
-  Zone* zone_;                                              \
   uintptr_t stack_limit_;                                   \
   bool stack_overflow_
 

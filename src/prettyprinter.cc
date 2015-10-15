@@ -13,14 +13,14 @@
 namespace v8 {
 namespace internal {
 
-CallPrinter::CallPrinter(Isolate* isolate, Zone* zone) {
+CallPrinter::CallPrinter(Isolate* isolate) {
   output_ = NULL;
   size_ = 0;
   pos_ = 0;
   position_ = 0;
   found_ = false;
   done_ = false;
-  InitializeAstVisitor(isolate, zone);
+  InitializeAstVisitor(isolate);
 }
 
 
@@ -440,11 +440,11 @@ static int FormatSlotNode(Vector<char>* buf, Expression* node,
 }
 
 
-PrettyPrinter::PrettyPrinter(Isolate* isolate, Zone* zone) {
+PrettyPrinter::PrettyPrinter(Isolate* isolate) {
   output_ = NULL;
   size_ = 0;
   pos_ = 0;
-  InitializeAstVisitor(isolate, zone);
+  InitializeAstVisitor(isolate);
 }
 
 
@@ -904,8 +904,8 @@ const char* PrettyPrinter::PrintProgram(FunctionLiteral* program) {
 }
 
 
-void PrettyPrinter::PrintOut(Isolate* isolate, Zone* zone, AstNode* node) {
-  PrettyPrinter printer(isolate, zone);
+void PrettyPrinter::PrintOut(Isolate* isolate, AstNode* node) {
+  PrettyPrinter printer(isolate);
   PrintF("%s\n", printer.Print(node));
 }
 
@@ -1080,8 +1080,7 @@ class IndentedScope BASE_EMBEDDED {
 //-----------------------------------------------------------------------------
 
 
-AstPrinter::AstPrinter(Isolate* isolate, Zone* zone)
-    : PrettyPrinter(isolate, zone), indent_(0) {}
+AstPrinter::AstPrinter(Isolate* isolate) : PrettyPrinter(isolate), indent_(0) {}
 
 
 AstPrinter::~AstPrinter() {

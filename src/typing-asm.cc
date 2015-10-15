@@ -43,7 +43,8 @@ base::LazyInstance<ZoneTypeCache>::type kCache = LAZY_INSTANCE_INITIALIZER;
 
 AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
                    FunctionLiteral* root)
-    : script_(script),
+    : zone_(zone),
+      script_(script),
       root_(root),
       valid_(true),
       stdlib_types_(zone),
@@ -58,7 +59,7 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
       in_function_(false),
       building_function_tables_(false),
       cache_(kCache.Get()) {
-  InitializeAstVisitor(isolate, zone);
+  InitializeAstVisitor(isolate);
   InitializeStdlib();
 }
 

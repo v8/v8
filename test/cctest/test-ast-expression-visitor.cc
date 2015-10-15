@@ -40,7 +40,7 @@ static void CollectTypes(HandleAndZoneScope* handles, const char* source,
   CHECK(i::Compiler::ParseAndAnalyze(&info));
 
   ExpressionTypeCollector(
-      isolate, handles->main_zone(),
+      isolate,
       info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun(), dst)
       .Run();
 }

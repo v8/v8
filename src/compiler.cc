@@ -1793,7 +1793,7 @@ bool CompilationPhase::ShouldProduceTraceOutput() const {
 #if DEBUG
 void CompilationInfo::PrintAstForTesting() {
   PrintF("--- Source from AST ---\n%s\n",
-         PrettyPrinter(isolate(), zone()).PrintProgram(literal()));
+         PrettyPrinter(isolate()).PrintProgram(literal()));
 }
 #endif
 }  // namespace internal

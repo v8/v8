@@ -15,11 +15,12 @@ class AstNumberingVisitor final : public AstVisitor {
   AstNumberingVisitor(Isolate* isolate, Zone* zone)
       : AstVisitor(),
         isolate_(isolate),
+        zone_(zone),
         next_id_(BailoutId::FirstUsable().ToInt()),
         properties_(zone),
         slot_cache_(zone),
         dont_optimize_reason_(kNoReason) {
-    InitializeAstVisitor(isolate, zone);
+    InitializeAstVisitor(isolate);
   }
 
   bool Renumber(FunctionLiteral* node);
@@ -73,6 +74,7 @@ class AstNumberingVisitor final : public AstVisitor {
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
 
   Isolate* isolate_;
+  Zone* zone_;
   int next_id_;
   AstProperties properties_;
   // The slot cache allows us to reuse certain feedback vector slots.
@@ -472,7 +474,7 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
   // marked expressions, no store code will be is emitted.
-  node->CalculateEmitStore(zone());
+  node->CalculateEmitStore(zone_);
   ReserveFeedbackSlots(node);
 }
 

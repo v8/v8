@@ -163,7 +163,7 @@ bool FullCodeGenerator::MustCreateArrayLiteralWithRuntime(
 
 
 void FullCodeGenerator::Initialize() {
-  InitializeAstVisitor(info_->isolate(), info_->zone());
+  InitializeAstVisitor(info_->isolate());
   // The generation of debug code must match between the snapshot code and the
   // code that is generated later.  This is assumed by the debugger when it is
   // calculating PC offsets after generating a debug version of code.  Therefore

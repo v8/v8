@@ -133,13 +133,14 @@ void BytecodeGenerator::ControlScope::PerformCommand(Command command,
 
 BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
     : isolate_(isolate),
+      zone_(zone),
       builder_(isolate, zone),
       info_(nullptr),
       scope_(nullptr),
       globals_(0, zone),
       control_scope_(nullptr),
       current_context_(Register::function_context()) {
-  InitializeAstVisitor(isolate, zone);
+  InitializeAstVisitor(isolate);
 }
 
 

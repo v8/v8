@@ -35,6 +35,8 @@ class FullCodeGenerator: public AstVisitor {
   FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
       : masm_(masm),
         info_(info),
+        isolate_(info->isolate()),
+        zone_(info->zone()),
         scope_(info->scope()),
         nesting_stack_(NULL),
         loop_depth_(0),
@@ -688,7 +690,8 @@ class FullCodeGenerator: public AstVisitor {
   const ExpressionContext* context() { return context_; }
   void set_new_context(const ExpressionContext* context) { context_ = context; }
 
-  Isolate* isolate() const { return info_->isolate(); }
+  Isolate* isolate() const { return isolate_; }
+  Zone* zone() const { return zone_; }
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }
@@ -950,6 +953,8 @@ class FullCodeGenerator: public AstVisitor {
 
   MacroAssembler* masm_;
   CompilationInfo* info_;
+  Isolate* isolate_;
+  Zone* zone_;
   Scope* scope_;
   Label return_label_;
   NestedStatement* nesting_stack_;

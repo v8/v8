@@ -23,7 +23,7 @@ struct ExpressionTypeEntry {
 
 class ExpressionTypeCollector : public AstExpressionVisitor {
  public:
-  ExpressionTypeCollector(Isolate* isolate, Zone* zone, FunctionLiteral* root,
+  ExpressionTypeCollector(Isolate* isolate, FunctionLiteral* root,
                           ZoneVector<ExpressionTypeEntry>* dst);
   void Run();
 

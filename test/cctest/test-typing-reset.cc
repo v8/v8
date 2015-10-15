@@ -28,8 +28,8 @@ namespace {
 
 class TypeSetter : public AstExpressionVisitor {
  public:
-  TypeSetter(Isolate* isolate, Zone* zone, FunctionLiteral* root)
-      : AstExpressionVisitor(isolate, zone, root) {}
+  TypeSetter(Isolate* isolate, FunctionLiteral* root)
+      : AstExpressionVisitor(isolate, root) {}
 
  protected:
   void VisitExpression(Expression* expression) {
@@ -286,16 +286,16 @@ TEST(ResetTypingInfo) {
 
   // Core of the test.
   ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
-  ExpressionTypeCollector(isolate, handles.main_zone(), root, &types).Run();
+  ExpressionTypeCollector(isolate, root, &types).Run();
   CheckAllSame(types, Bounds::Unbounded());
 
-  TypeSetter(isolate, handles.main_zone(), root).Run();
+  TypeSetter(isolate, root).Run();
 
-  ExpressionTypeCollector(isolate, handles.main_zone(), root, &types).Run();
+  ExpressionTypeCollector(isolate, root, &types).Run();
   CheckAllSame(types, INT32_TYPE);
 
-  TypingReseter(isolate, handles.main_zone(), root).Run();
+  TypingReseter(isolate, root).Run();
 
-  ExpressionTypeCollector(isolate, handles.main_zone(), root, &types).Run();
+  ExpressionTypeCollector(isolate, root, &types).Run();
   CheckAllSame(types, Bounds::Unbounded());
 }

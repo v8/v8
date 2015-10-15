@@ -27,6 +27,7 @@ class AsmTyper : public AstVisitor {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  private:
+  Zone* zone_;
   Script* script_;
   FunctionLiteral* root_;
   bool valid_;
@@ -82,6 +83,8 @@ class AsmTyper : public AstVisitor {
 
   void VisitWithExpectation(Expression* expr, Type* expected_type,
                             const char* msg);
+
+  Zone* zone() const { return zone_; }
 
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)

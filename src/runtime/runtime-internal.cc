@@ -424,7 +424,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
             ? new ParseInfo(&zone, location.function())
             : new ParseInfo(&zone, location.script()));
     if (Parser::ParseStatic(info.get())) {
-      CallPrinter printer(isolate, &zone);
+      CallPrinter printer(isolate);
       const char* string = printer.Print(info->literal(), location.start_pos());
       return isolate->factory()->NewStringFromAsciiChecked(string);
     } else {

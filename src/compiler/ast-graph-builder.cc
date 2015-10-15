@@ -211,7 +211,7 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
 class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
  public:
   explicit DeferredCommands(AstGraphBuilder* owner)
-      : owner_(owner), deferred_(owner->zone()) {}
+      : owner_(owner), deferred_(owner->local_zone()) {}
 
   // One recorded control-flow command.
   struct Entry {
@@ -430,7 +430,8 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
                                  JSGraph* jsgraph, LoopAssignmentAnalysis* loop,
                                  JSTypeFeedbackTable* js_type_feedback)
-    : local_zone_(local_zone),
+    : isolate_(info->isolate()),
+      local_zone_(local_zone),
       info_(info),
       jsgraph_(jsgraph),
       environment_(nullptr),
@@ -452,7 +453,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
           info->scope()->num_stack_slots(), info->shared_info(),
           CALL_MAINTAINS_NATIVE_CONTEXT)),
       js_type_feedback_(js_type_feedback) {
-  InitializeAstVisitor(info->isolate(), local_zone);
+  InitializeAstVisitor(info->isolate());
 }
 
 
@@ -1446,7 +1447,7 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // 3. By exiting the try-block with a thrown exception.
   Node* fallthrough_result = jsgraph()->TheHoleConstant();
   ControlScope::DeferredCommands* commands =
-      new (zone()) ControlScope::DeferredCommands(this);
+      new (local_zone()) ControlScope::DeferredCommands(this);
 
   // Evaluate the try-block inside a control scope. This simulates a handler
   // that is intercepting all control commands.
@@ -1722,7 +1723,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
   // Create nodes to store computed values into the literal.
   int property_index = 0;
-  AccessorTable accessor_table(zone());
+  AccessorTable accessor_table(local_zone());
   for (; property_index < expr->properties()->length(); property_index++) {
     ObjectLiteral::Property* property = expr->properties()->at(property_index);
     if (property->is_computed_name()) break;
@@ -3015,9 +3016,6 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
   compare_if.End();
   ast_context()->ReplaceValue();
 }
-
-
-Isolate* AstGraphBuilder::isolate() const { return info()->isolate(); }
 
 
 LanguageMode AstGraphBuilder::language_mode() const {

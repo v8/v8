@@ -34,6 +34,7 @@ class AstTyper: public AstVisitor {
   typedef v8::internal::NestedEffects<int, kNoVar> Store;
 
   Isolate* isolate_;
+  Zone* zone_;
   Handle<JSFunction> closure_;
   Scope* scope_;
   BailoutId osr_ast_id_;
@@ -41,6 +42,7 @@ class AstTyper: public AstVisitor {
   TypeFeedbackOracle oracle_;
   Store store_;
 
+  Zone* zone() const { return zone_; }
   TypeFeedbackOracle* oracle() { return &oracle_; }
 
   void NarrowType(Expression* e, Bounds b) {

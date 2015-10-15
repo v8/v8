@@ -19,9 +19,10 @@ class Processor: public AstVisitor {
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
+        zone_(ast_value_factory->zone()),
         scope_(scope),
         factory_(ast_value_factory) {
-    InitializeAstVisitor(isolate, ast_value_factory->zone());
+    InitializeAstVisitor(isolate);
   }
 
   virtual ~Processor() { }
@@ -29,6 +30,7 @@ class Processor: public AstVisitor {
   void Process(ZoneList<Statement*>* statements);
   bool result_assigned() const { return result_assigned_; }
 
+  Zone* zone() { return zone_; }
   Scope* scope() { return scope_; }
   AstNodeFactory* factory() { return &factory_; }
 
@@ -51,6 +53,7 @@ class Processor: public AstVisitor {
   // was hoping for.
   bool is_set_;
 
+  Zone* zone_;
   Scope* scope_;
   AstNodeFactory factory_;
 

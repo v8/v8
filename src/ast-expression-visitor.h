@@ -21,7 +21,7 @@ namespace internal {
 
 class AstExpressionVisitor : public AstVisitor {
  public:
-  AstExpressionVisitor(Isolate* isolate, Zone* zone, FunctionLiteral* root);
+  AstExpressionVisitor(Isolate* isolate, FunctionLiteral* root);
   void Run();
 
  protected:

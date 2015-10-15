@@ -29,9 +29,9 @@ struct {
 
 
 ExpressionTypeCollector::ExpressionTypeCollector(
-    Isolate* isolate, Zone* zone, FunctionLiteral* root,
+    Isolate* isolate, FunctionLiteral* root,
     ZoneVector<ExpressionTypeEntry>* dst)
-    : AstExpressionVisitor(isolate, zone, root), result_(dst) {}
+    : AstExpressionVisitor(isolate, root), result_(dst) {}
 
 
 void ExpressionTypeCollector::Run() {

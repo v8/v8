@@ -70,6 +70,7 @@ class AstGraphBuilder : public AstVisitor {
   class FrameStateBeforeAndAfter;
   friend class ControlBuilder;
 
+  Isolate* isolate_;
   Zone* local_zone_;
   CompilationInfo* info_;
   JSGraph* jsgraph_;
@@ -129,7 +130,7 @@ class AstGraphBuilder : public AstVisitor {
   ContextScope* execution_context() const { return execution_context_; }
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   CompilationInfo* info() const { return info_; }
-  Isolate* isolate() const;
+  Isolate* isolate() const { return isolate_; }
   LanguageMode language_mode() const;
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }

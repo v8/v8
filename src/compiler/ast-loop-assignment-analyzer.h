@@ -53,6 +53,7 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
 
  private:
   CompilationInfo* info_;
+  Zone* zone_;
   ZoneDeque<BitVector*> loop_stack_;
   LoopAssignmentAnalysis* result_;
 
