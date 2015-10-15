@@ -51,6 +51,9 @@ from testrunner.network import network_execution
 from testrunner.objects import context
 
 
+# Base dir of the v8 checkout to be used as cwd.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 ARCH_GUESS = utils.DefaultArch()
 
 # Map of test name synonyms to lists of test suites. Should be ordered by
@@ -495,6 +498,9 @@ def ShardTests(tests, options):
 
 
 def Main():
+  # Use the v8 root as cwd as some test cases use "load" with relative paths.
+  os.chdir(BASE_DIR)
+
   parser = BuildOptions()
   (options, args) = parser.parse_args()
   if not ProcessOptions(options):
@@ -502,13 +508,12 @@ def Main():
     return 1
 
   exit_code = 0
-  workspace = os.path.abspath(join(os.path.dirname(sys.argv[0]), ".."))
   if not options.no_presubmit:
     print ">>> running presubmit tests"
     exit_code = subprocess.call(
-        [sys.executable, join(workspace, "tools", "presubmit.py")])
+        [sys.executable, join(BASE_DIR, "tools", "presubmit.py")])
 
-  suite_paths = utils.GetSuitePaths(join(workspace, "test"))
+  suite_paths = utils.GetSuitePaths(join(BASE_DIR, "test"))
 
   # Use default tests if no test configuration was provided at the cmd line.
   if len(args) == 0:
@@ -533,7 +538,7 @@ def Main():
   suites = []
   for root in suite_paths:
     suite = testsuite.TestSuite.LoadTestSuite(
-        os.path.join(workspace, "test", root))
+        os.path.join(BASE_DIR, "test", root))
     if suite:
       suites.append(suite)
 
@@ -546,14 +551,14 @@ def Main():
 
   for (arch, mode) in options.arch_and_mode:
     try:
-      code = Execute(arch, mode, args, options, suites, workspace)
+      code = Execute(arch, mode, args, options, suites)
     except KeyboardInterrupt:
       return 2
     exit_code = exit_code or code
   return exit_code
 
 
-def Execute(arch, mode, args, options, suites, workspace):
+def Execute(arch, mode, args, options, suites):
   print(">>> Running tests for %s.%s" % (arch, mode))
 
   shell_dir = options.shell_dir
@@ -561,15 +566,14 @@ def Execute(arch, mode, args, options, suites, workspace):
     if options.buildbot:
       # TODO(machenbach): Get rid of different output folder location on
       # buildbot. Currently this is capitalized Release and Debug.
-      shell_dir = os.path.join(workspace, options.outdir, mode)
+      shell_dir = os.path.join(BASE_DIR, options.outdir, mode)
       mode = BuildbotToV8Mode(mode)
     else:
       shell_dir = os.path.join(
-          workspace,
+          BASE_DIR,
           options.outdir,
           "%s.%s" % (arch, MODES[mode]["output_folder"]),
       )
-  shell_dir = os.path.relpath(shell_dir)
   if not os.path.exists(shell_dir):
       raise Exception('Could not find shell_dir: "%s"' % shell_dir)
 
@@ -713,7 +717,7 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   if run_networked:
     runner = network_execution.NetworkedRunner(suites, progress_indicator,
-                                               ctx, peers, workspace)
+                                               ctx, peers, BASE_DIR)
   else:
     runner = execution.Runner(suites, progress_indicator, ctx)
 
