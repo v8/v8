@@ -2663,8 +2663,9 @@ void MarkCompactCollector::MigrateObject(
   Address dst_addr = dst->address();
   Address src_addr = src->address();
   DCHECK(heap()->AllowedToBeMigrated(src, dest));
-  DCHECK(dest != LO_SPACE && size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(dest != LO_SPACE);
   if (dest == OLD_SPACE) {
+    DCHECK_OBJECT_SIZE(size);
     DCHECK(evacuation_slots_buffer != nullptr);
     DCHECK(IsAligned(size, kPointerSize));
     switch (src->ContentType()) {
@@ -2688,12 +2689,14 @@ void MarkCompactCollector::MigrateObject(
                                   evacuation_slots_buffer);
     }
   } else if (dest == CODE_SPACE) {
+    DCHECK_CODEOBJECT_SIZE(size, heap()->code_space());
     DCHECK(evacuation_slots_buffer != nullptr);
     PROFILE(isolate(), CodeMoveEvent(src_addr, dst_addr));
     heap()->MoveBlock(dst_addr, src_addr, size);
     RecordMigratedCodeObjectSlot(dst_addr, evacuation_slots_buffer);
     Code::cast(dst)->Relocate(dst_addr - src_addr);
   } else {
+    DCHECK_OBJECT_SIZE(size);
     DCHECK(evacuation_slots_buffer == nullptr);
     DCHECK(dest == NEW_SPACE);
     heap()->MoveBlock(dst_addr, src_addr, size);
@@ -3077,8 +3080,6 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
 
 bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
                                             int object_size) {
-  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
-
   OldSpace* old_space = heap()->old_space();
 
   HeapObject* target = nullptr;

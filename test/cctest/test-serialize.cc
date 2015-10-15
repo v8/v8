@@ -1223,7 +1223,7 @@ TEST(SerializeToplevelThreeBigStrings) {
       CompileRun("a")
           ->ToString(CcTest::isolate()->GetCurrentContext())
           .ToLocalChecked();
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
   result_str = CompileRun("b")
                    ->ToString(CcTest::isolate()->GetCurrentContext())
                    .ToLocalChecked();
