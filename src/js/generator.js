@@ -33,7 +33,7 @@ function GeneratorObjectNext(value) {
   var continuation = %GeneratorGetContinuation(this);
   if (continuation > 0) {
     // Generator is suspended.
-    if (DEBUG_IS_ACTIVE) %DebugPrepareStepInIfStepping(this);
+    DEBUG_PREPARE_STEP_IN_IF_STEPPING(this);
     try {
       return %_GeneratorNext(this, value);
     } catch (e) {

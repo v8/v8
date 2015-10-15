@@ -34,7 +34,7 @@ var GlobalPromise = function Promise(resolver) {
     throw MakeTypeError(kResolverNotAFunction, resolver);
   var promise = PromiseInit(this);
   try {
-    %DebugPushPromise(promise, Promise);
+    %DebugPushPromise(promise, Promise, resolver);
     resolver(function(x) { PromiseResolve(promise, x) },
              function(r) { PromiseReject(promise, r) });
   } catch (e) {
@@ -100,8 +100,7 @@ function PromiseCoerce(constructor, x) {
 
 function PromiseHandle(value, handler, deferred) {
   try {
-    %DebugPushPromise(deferred.promise, PromiseHandle);
-    DEBUG_PREPARE_STEP_IN_IF_STEPPING(handler);
+    %DebugPushPromise(deferred.promise, PromiseHandle, handler);
     var result = handler(value);
     if (result === deferred.promise)
       throw MakeTypeError(kPromiseCyclic, result);

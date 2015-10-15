@@ -1185,7 +1185,7 @@ function InnerArrayFilter(f, receiver, array, length) {
   var accumulator = new InternalArray();
   var accumulator_length = 0;
   var is_array = IS_ARRAY(array);
-  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_STEPPING(f);
   for (var i = 0; i < length; i++) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
@@ -1216,7 +1216,7 @@ function InnerArrayForEach(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var is_array = IS_ARRAY(array);
-  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_STEPPING(f);
   for (var i = 0; i < length; i++) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
@@ -1242,7 +1242,7 @@ function InnerArraySome(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var is_array = IS_ARRAY(array);
-  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_STEPPING(f);
   for (var i = 0; i < length; i++) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
@@ -1272,7 +1272,7 @@ function InnerArrayEvery(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var is_array = IS_ARRAY(array);
-  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_STEPPING(f);
   for (var i = 0; i < length; i++) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
@@ -1300,7 +1300,7 @@ function InnerArrayMap(f, receiver, array, length) {
 
   var accumulator = new InternalArray(length);
   var is_array = IS_ARRAY(array);
-  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_STEPPING(f);
   for (var i = 0; i < length; i++) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
@@ -1469,7 +1469,7 @@ function InnerArrayReduce(callback, current, array, length, argumentsLength) {
     throw MakeTypeError(kReduceNoInitial);
   }
 
-  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
+  var stepping = DEBUG_IS_STEPPING(callback);
   for (; i < length; i++) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
@@ -1512,7 +1512,7 @@ function InnerArrayReduceRight(callback, current, array, length,
     throw MakeTypeError(kReduceNoInitial);
   }
 
-  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
+  var stepping = DEBUG_IS_STEPPING(callback);
   for (; i >= 0; i--) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
