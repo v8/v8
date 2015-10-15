@@ -163,9 +163,9 @@ function RegExpExecJS(string) {
   string = TO_STRING(string);
   var lastIndex = this.lastIndex;
 
-  // Conversion is required by the ES5 specification (RegExp.prototype.exec
-  // algorithm, step 5) even if the value is discarded for non-global RegExps.
-  var i = TO_INTEGER(lastIndex);
+  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
+  // algorithm, step 4) even if the value is discarded for non-global RegExps.
+  var i = TO_LENGTH_OR_INTEGER(lastIndex);
 
   var updateLastIndex = this.global || (FLAG_harmony_regexps && this.sticky);
   if (updateLastIndex) {
@@ -211,9 +211,9 @@ function RegExpTest(string) {
 
   var lastIndex = this.lastIndex;
 
-  // Conversion is required by the ES5 specification (RegExp.prototype.exec
-  // algorithm, step 5) even if the value is discarded for non-global RegExps.
-  var i = TO_INTEGER(lastIndex);
+  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
+  // algorithm, step 4) even if the value is discarded for non-global RegExps.
+  var i = TO_LENGTH_OR_INTEGER(lastIndex);
 
   if (this.global || (FLAG_harmony_regexps && this.sticky)) {
     if (i < 0 || i > string.length) {

@@ -148,6 +148,7 @@ macro TO_INT32(arg) = ((arg) | 0);
 macro TO_UINT32(arg) = ((arg) >>> 0);
 macro TO_LENGTH(arg) = (%ToLength(arg));
 macro TO_LENGTH_OR_UINT32(arg) = (harmony_tolength ? TO_LENGTH(arg) : TO_UINT32(arg));
+macro TO_LENGTH_OR_INTEGER(arg) = (harmony_tolength ? TO_LENGTH(arg) : TO_INTEGER(arg));
 macro TO_STRING(arg) = (%_ToString(arg));
 macro TO_NUMBER(arg) = (%_ToNumber(arg));
 macro TO_OBJECT(arg) = (%_ToObject(arg));
