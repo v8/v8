@@ -226,16 +226,17 @@ TEST(StackDepthDoesNotExceedMaxValue) {
 //                              ^      ^       ^
 // sample.stack indices         2      1       0
 TEST(StackFramesConsistent) {
-  // Note: The arguments.callee stuff is there so that the
-  //       functions are not optimized away.
+  i::FLAG_allow_natives_syntax = true;
   const char* test_script =
       "function test_sampler_api_inner() {"
       "  CollectSample();"
-      "  return arguments.callee.toString();"
+      "  return 0;"
       "}"
       "function test_sampler_api_outer() {"
-      "  return test_sampler_api_inner() + arguments.callee.toString();"
+      "  return test_sampler_api_inner();"
       "}"
+      "%NeverOptimizeFunction(test_sampler_api_inner);"
+      "%NeverOptimizeFunction(test_sampler_api_outer);"
       "test_sampler_api_outer();";
 
   SamplingTestHelper helper(test_script);

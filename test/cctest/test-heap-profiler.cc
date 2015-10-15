@@ -2498,22 +2498,23 @@ TEST(TrackHeapAllocations) {
 
 
 static const char* inline_heap_allocation_source =
-"function f_0(x) {\n"
-"  return f_1(x+1);\n"
-"}\n"
-"%NeverOptimizeFunction(f_0);\n"
-"function f_1(x) {\n"
-"  return new f_2(x+1);\n"
-"}\n"
-"function f_2(x) {\n"
-"  this.foo = x;\n"
-"}\n"
-"var instances = [];\n"
-"function start() {\n"
-"  instances.push(f_0(0));\n"
-"}\n"
-"\n"
-"for (var i = 0; i < 100; i++) start();\n";
+    "function f_0(x) {\n"
+    "  return f_1(x+1);\n"
+    "}\n"
+    "%NeverOptimizeFunction(f_0);\n"
+    "function f_1(x) {\n"
+    "  return new f_2(x+1);\n"
+    "}\n"
+    "%NeverOptimizeFunction(f_1);\n"
+    "function f_2(x) {\n"
+    "  this.foo = x;\n"
+    "}\n"
+    "var instances = [];\n"
+    "function start() {\n"
+    "  instances.push(f_0(0));\n"
+    "}\n"
+    "\n"
+    "for (var i = 0; i < 100; i++) start();\n";
 
 
 TEST(TrackBumpPointerAllocations) {

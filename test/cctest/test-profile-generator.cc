@@ -496,6 +496,7 @@ static const ProfileNode* PickChild(const ProfileNode* parent,
 TEST(RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
+  i::FLAG_turbo_inlining = false;
   i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
@@ -571,6 +572,7 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
 TEST(ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
+  i::FLAG_turbo_inlining = false;
   i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());

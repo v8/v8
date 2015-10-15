@@ -310,6 +310,14 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
     }
   }
 
+  // TODO(turbofan): Inlining into a try-block is not yet supported.
+  if (NodeProperties::IsExceptionalCall(node)) {
+    TRACE("Not inlining %s into %s because of surrounding try-block\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
   Zone zone;
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info);

@@ -56,8 +56,11 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Gather feedback on how often this call site has been hit before.
   CallFunctionParameters p = CallFunctionParametersOf(node->op());
-  CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-  int calls = nexus.ExtractCallCount();
+  int calls = -1;  // Same default as CallICNexus::ExtractCallCount.
+  if (p.feedback().IsValid()) {
+    CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+    calls = nexus.ExtractCallCount();
+  }
 
   // ---------------------------------------------------------------------------
   // Everything above this line is part of the inlining heuristic.

@@ -6065,6 +6065,7 @@ static void DebugBreakMessageHandler(const v8::Debug::Message& message) {
 
 // Test that a debug break can be scheduled while in a message handler.
 TEST(DebugBreakInMessageHandler) {
+  i::FLAG_turbo_inlining = false;  // Make sure g is not inlined into f.
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -6078,7 +6079,7 @@ TEST(DebugBreakInMessageHandler) {
   v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "g")));
 
-  // Call f then g. The debugger statement in f will casue a break which will
+  // Call f then g. The debugger statement in f will cause a break which will
   // cause another break.
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(2, message_handler_break_hit_count);

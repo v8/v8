@@ -110,6 +110,7 @@
   'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
   'debug-stepframe-clearing': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'debug-stepin-call-function-stub': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-stepin-positions': [PASS, NO_VARIANTS],  # only due to inlining.
   'regress/regress-3717': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
   'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.

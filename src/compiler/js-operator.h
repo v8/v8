@@ -24,7 +24,7 @@ class VectorSlotPair {
   VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : vector_(vector), slot_(slot) {}
 
-  bool IsValid() const { return !vector_.is_null(); }
+  bool IsValid() const { return !vector_.is_null() && !slot_.IsInvalid(); }
 
   Handle<TypeFeedbackVector> vector() const { return vector_; }
   FeedbackVectorSlot slot() const { return slot_; }

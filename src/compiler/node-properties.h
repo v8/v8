@@ -72,6 +72,8 @@ class NodeProperties final {
     return IrOpcode::IsPhiOpcode(node->opcode());
   }
 
+  // Determines whether exceptions thrown by the given node are handled locally
+  // within the graph (i.e. an IfException projection is present).
   static bool IsExceptionalCall(Node* node);
 
   // ---------------------------------------------------------------------------
