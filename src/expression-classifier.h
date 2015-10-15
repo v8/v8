@@ -264,6 +264,8 @@ class ExpressionClassifier {
       if (errors & StrongModeFormalParametersProduction)
         strong_mode_formal_parameter_error_ =
             inner.strong_mode_formal_parameter_error_;
+      if (errors & LetPatternProduction)
+        let_pattern_error_ = inner.let_pattern_error_;
     }
 
     // As an exception to the above, the result continues to be a valid arrow
