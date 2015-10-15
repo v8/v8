@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2013-2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,9 +12,16 @@ var GlobalReflect = global.Reflect;
 var ReflectApply = utils.ImportNow("reflect_apply");
 var ReflectConstruct = utils.ImportNow("reflect_construct");
 
+function ReflectEnumerate(obj) {
+  if (!IS_SPEC_OBJECT(obj))
+    throw MakeTypeError(kCalledOnNonObject, "Reflect.enumerate")
+  return (function* () { for (var x in obj) yield x })();
+}
+
 utils.InstallFunctions(GlobalReflect, DONT_ENUM, [
   "apply", ReflectApply,
-  "construct", ReflectConstruct
+  "construct", ReflectConstruct,
+  "enumerate", ReflectEnumerate
 ]);
 
 })
