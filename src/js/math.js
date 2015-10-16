@@ -182,18 +182,6 @@ function MathTrunc(x) {
   return x;
 }
 
-// ES6 draft 09-27-13, section 20.2.2.33.
-function MathTanh(x) {
-  x = TO_NUMBER(x);
-  // Idempotent for +/-0.
-  if (x === 0) return x;
-  // Returns +/-1 for +/-Infinity.
-  if (!NUMBER_IS_FINITE(x)) return MathSign(x);
-  var exp1 = MathExp(x);
-  var exp2 = MathExp(-x);
-  return (exp1 - exp2) / (exp1 + exp2);
-}
-
 // ES6 draft 09-27-13, section 20.2.2.5.
 function MathAsinh(x) {
   x = TO_NUMBER(x);
@@ -329,7 +317,6 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "imul", MathImul,
   "sign", MathSign,
   "trunc", MathTrunc,
-  "tanh", MathTanh,
   "asinh", MathAsinh,
   "acosh", MathAcosh,
   "atanh", MathAtanh,
