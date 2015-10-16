@@ -1849,6 +1849,20 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
         }
         break;
     }
+    case POPCNTW: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uintptr_t rs_val = get_register(rs);
+      uintptr_t count = 0;
+      int n = 0;
+      uintptr_t bit = 0x80000000;
+      for (; n < 32; n++) {
+        if (bit & rs_val) count++;
+        bit >>= 1;
+      }
+      set_register(ra, count);
+      break;
+    }
     case SYNC: {
       // todo - simulate sync
       break;

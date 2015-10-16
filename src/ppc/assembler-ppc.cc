@@ -737,6 +737,11 @@ void Assembler::cntlzw_(Register ra, Register rs, RCBit rc) {
 }
 
 
+void Assembler::popcntw(Register ra, Register rs) {
+  emit(EXT2 | POPCNTW | rs.code() * B21 | ra.code() * B16);
+}
+
+
 void Assembler::and_(Register ra, Register rs, Register rb, RCBit rc) {
   x_form(EXT2 | ANDX, ra, rs, rb, rc);
 }

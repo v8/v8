@@ -737,10 +737,14 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord32Popcnt(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_Popcnt32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
-
-
-void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 
 
 void InstructionSelector::VisitInt32Add(Node* node) {
@@ -1708,7 +1712,8 @@ MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   return MachineOperatorBuilder::kFloat64RoundDown |
          MachineOperatorBuilder::kFloat64RoundTruncate |
-         MachineOperatorBuilder::kFloat64RoundTiesAway;
+         MachineOperatorBuilder::kFloat64RoundTiesAway |
+         MachineOperatorBuilder::kWord32Popcnt;
   // We omit kWord32ShiftIsSafe as s[rl]w use 0x3f as a mask rather than 0x1f.
 }
 

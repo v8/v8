@@ -228,6 +228,7 @@ enum OpcodeExt2 {
   LHAUX = 375 << 1,    // load half-word algebraic w/ update x-form
   XORX = 316 << 1,     // Exclusive OR
   MFSPR = 339 << 1,    // Move from Special-Purpose-Register
+  POPCNTW = 378 << 1,  // Population Count Words
   STHX = 407 << 1,     // store half-word w/ x-form
   ORC = 412 << 1,      // Or with Complement
   STHUX = 439 << 1,    // store half-word w/ update x-form

@@ -936,6 +936,7 @@ class Assembler : public AssemblerBase {
   void rotrwi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
 
   void cntlzw_(Register dst, Register src, RCBit rc = LeaveRC);
+  void popcntw(Register dst, Register src);
 
   void subi(Register dst, Register src1, const Operand& src2);
 

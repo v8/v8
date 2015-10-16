@@ -939,6 +939,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cntlzw_(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kPPC_Popcnt32:
+      __ popcntw(i.OutputRegister(), i.InputRegister(0));
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
     case kPPC_Cmp32:
       ASSEMBLE_COMPARE(cmpw, cmplw);
       break;
