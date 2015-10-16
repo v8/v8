@@ -614,7 +614,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ Movsd(result, Operand(kScratchRegister, 4 * kDoubleSize));
   __ mulsd(double_scratch, input);
   __ addsd(double_scratch, result);
-  __ movq(temp2, double_scratch);
+  __ Movq(temp2, double_scratch);
   __ subsd(double_scratch, result);
   __ Movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
   __ leaq(temp1, Operand(temp2, 0x1ff800));
@@ -630,7 +630,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ subsd(result, double_scratch);
   __ mulsd(input, double_scratch);
   __ mulsd(result, input);
-  __ movq(input, temp1);
+  __ Movq(input, temp1);
   __ mulsd(result, Operand(kScratchRegister, 7 * kDoubleSize));
   __ subsd(result, double_scratch);
   __ addsd(result, Operand(kScratchRegister, 8 * kDoubleSize));

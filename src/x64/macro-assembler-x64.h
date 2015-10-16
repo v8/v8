@@ -899,6 +899,12 @@ class MacroAssembler: public Assembler {
   void Movsd(XMMRegister dst, const Operand& src);
   void Movsd(const Operand& dst, XMMRegister src);
 
+  void Movd(XMMRegister dst, Register src);
+  void Movd(XMMRegister dst, const Operand& src);
+  void Movd(Register dst, XMMRegister src);
+  void Movq(XMMRegister dst, Register src);
+  void Movq(Register dst, XMMRegister src);
+
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);

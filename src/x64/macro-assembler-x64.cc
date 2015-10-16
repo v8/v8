@@ -2413,7 +2413,7 @@ void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
       pcmpeqd(dst, dst);
     } else {
       movl(kScratchRegister, Immediate(src));
-      movq(dst, kScratchRegister);
+      Movq(dst, kScratchRegister);
     }
   }
 }
@@ -2442,7 +2442,7 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
         Move(dst, lower);
       } else {
         movq(kScratchRegister, src);
-        movq(dst, kScratchRegister);
+        Movq(dst, kScratchRegister);
       }
     }
   }
@@ -2485,6 +2485,56 @@ void MacroAssembler::Movsd(const Operand& dst, XMMRegister src) {
     vmovsd(dst, src);
   } else {
     movsd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Movd(XMMRegister dst, Register src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovd(dst, src);
+  } else {
+    movd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Movd(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovd(dst, src);
+  } else {
+    movd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Movd(Register dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovd(dst, src);
+  } else {
+    movd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Movq(XMMRegister dst, Register src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovq(dst, src);
+  } else {
+    movq(dst, src);
+  }
+}
+
+
+void MacroAssembler::Movq(Register dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovq(dst, src);
+  } else {
+    movq(dst, src);
   }
 }
 
@@ -2797,7 +2847,7 @@ void MacroAssembler::Call(Handle<Code> code_object,
 
 void MacroAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
   if (imm8 == 0) {
-    movd(dst, src);
+    Movd(dst, src);
     return;
   }
   DCHECK_EQ(1, imm8);
@@ -2817,7 +2867,7 @@ void MacroAssembler::Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
     pinsrd(dst, src, imm8);
     return;
   }
-  movd(xmm0, src);
+  Movd(xmm0, src);
   if (imm8 == 1) {
     punpckldq(dst, xmm0);
   } else {
@@ -2836,7 +2886,7 @@ void MacroAssembler::Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8) {
     pinsrd(dst, src, imm8);
     return;
   }
-  movd(xmm0, src);
+  Movd(xmm0, src);
   if (imm8 == 1) {
     punpckldq(dst, xmm0);
   } else {

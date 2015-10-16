@@ -337,7 +337,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // Test for 0.5.
       // Load double_scratch with 0.5.
       __ movq(scratch, V8_UINT64_C(0x3FE0000000000000));
-      __ movq(double_scratch, scratch);
+      __ Movq(double_scratch, scratch);
       // Already ruled out NaNs for exponent.
       __ ucomisd(double_scratch, double_exponent);
       __ j(not_equal, &not_plus_half, Label::kNear);
@@ -347,7 +347,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // According to IEEE-754, double-precision -Infinity has the highest
       // 12 bits set and the lowest 52 bits cleared.
       __ movq(scratch, V8_UINT64_C(0xFFF0000000000000));
-      __ movq(double_scratch, scratch);
+      __ Movq(double_scratch, scratch);
       __ ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
       // zero flag as if both were equal.  However, it also sets the carry flag.
@@ -379,7 +379,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // According to IEEE-754, double-precision -Infinity has the highest
       // 12 bits set and the lowest 52 bits cleared.
       __ movq(scratch, V8_UINT64_C(0xFFF0000000000000));
-      __ movq(double_scratch, scratch);
+      __ Movq(double_scratch, scratch);
       __ ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
       // zero flag as if both were equal.  However, it also sets the carry flag.

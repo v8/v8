@@ -351,6 +351,11 @@ class DisassemblerX64 {
 
   bool rex_w() { return (rex_ & 0x08) != 0; }
 
+  bool vex_w() {
+    DCHECK(vex_byte0_ == VEX3_PREFIX || vex_byte0_ == VEX2_PREFIX);
+    return vex_byte0_ == VEX3_PREFIX ? (vex_byte2_ & 0x80) != 0 : false;
+  }
+
   bool vex_128() {
     DCHECK(vex_byte0_ == VEX3_PREFIX || vex_byte0_ == VEX2_PREFIX);
     byte checked = vex_byte0_ == VEX3_PREFIX ? vex_byte2_ : vex_byte1_;
@@ -1190,6 +1195,16 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vxorpd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
+        break;
+      case 0x6e:
+        AppendToBuffer("vmov%c %s,", vex_w() ? 'q' : 'd',
+                       NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
+        break;
+      case 0x7e:
+        AppendToBuffer("vmov%c ", vex_w() ? 'q' : 'd');
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
       default:
         UnimplementedInstruction();

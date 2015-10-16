@@ -946,7 +946,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->InputAt(0)->IsDoubleStackSlot()) {
         __ movl(i.OutputRegister(), i.InputOperand(0));
       } else {
-        __ movd(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Movd(i.OutputRegister(), i.InputDoubleRegister(0));
       }
       break;
     case kSSEFloat64ExtractHighWord32:
@@ -972,9 +972,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kSSEFloat64LoadLowWord32:
       if (instr->InputAt(0)->IsRegister()) {
-        __ movd(i.OutputDoubleRegister(), i.InputRegister(0));
+        __ Movd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
-        __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
+        __ Movd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kAVXFloat32Cmp: {
@@ -1189,26 +1189,26 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->InputAt(0)->IsDoubleStackSlot()) {
         __ movl(i.OutputRegister(), i.InputOperand(0));
       } else {
-        __ movd(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Movd(i.OutputRegister(), i.InputDoubleRegister(0));
       }
       break;
     case kX64BitcastDL:
       if (instr->InputAt(0)->IsDoubleStackSlot()) {
         __ movq(i.OutputRegister(), i.InputOperand(0));
       } else {
-        __ movq(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Movq(i.OutputRegister(), i.InputDoubleRegister(0));
       }
       break;
     case kX64BitcastIF:
       if (instr->InputAt(0)->IsRegister()) {
-        __ movd(i.OutputDoubleRegister(), i.InputRegister(0));
+        __ Movd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ movss(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kX64BitcastLD:
       if (instr->InputAt(0)->IsRegister()) {
-        __ movq(i.OutputDoubleRegister(), i.InputRegister(0));
+        __ Movq(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Movsd(i.OutputDoubleRegister(), i.InputOperand(0));
       }

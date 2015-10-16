@@ -3604,7 +3604,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     CpuFeatureScope scope(masm(), SSE4_1);
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       // Deoptimize if minus zero.
-      __ movq(output_reg, input_reg);
+      __ Movq(output_reg, input_reg);
       __ subq(output_reg, Immediate(1));
       DeoptimizeIf(overflow, instr, Deoptimizer::kMinusZero);
     }
@@ -3665,7 +3665,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   Label done, round_to_zero, below_one_half;
   Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
   __ movq(kScratchRegister, one_half);
-  __ movq(xmm_scratch, kScratchRegister);
+  __ Movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   __ j(above, &below_one_half, Label::kNear);
 
@@ -3679,13 +3679,13 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   __ bind(&below_one_half);
   __ movq(kScratchRegister, minus_one_half);
-  __ movq(xmm_scratch, kScratchRegister);
+  __ Movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   __ j(below_equal, &round_to_zero, Label::kNear);
 
   // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
   // compare and compensate.
-  __ movq(input_temp, input_reg);  // Do not alter input_reg.
+  __ Movapd(input_temp, input_reg);  // Do not alter input_reg.
   __ subsd(input_temp, xmm_scratch);
   __ cvttsd2si(output_reg, input_temp);
   // Catch minint due to overflow, and to prevent overflow when compensating.
@@ -3703,7 +3703,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // We return 0 for the input range [+0, 0.5[, or [-0.5, 0.5[ if
   // we can ignore the difference between a result of -0 and +0.
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ movq(output_reg, input_reg);
+    __ Movq(output_reg, input_reg);
     __ testq(output_reg, output_reg);
     DeoptimizeIf(negative, instr, Deoptimizer::kMinusZero);
   }
@@ -3744,7 +3744,7 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   // Check base for -Infinity.  According to IEEE-754, double-precision
   // -Infinity has the highest 12 bits set and the lowest 52 bits cleared.
   __ movq(kScratchRegister, V8_INT64_C(0xFFF0000000000000));
-  __ movq(xmm_scratch, kScratchRegister);
+  __ Movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   // Comparing -Infinity with NaN results in "unordered", which sets the
   // zero flag as if both were equal.  However, it also sets the carry flag.
@@ -5322,10 +5322,10 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
   XMMRegister value_reg = ToDoubleRegister(instr->value());
   Register result_reg = ToRegister(instr->result());
   if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
-    __ movq(result_reg, value_reg);
+    __ Movq(result_reg, value_reg);
     __ shrq(result_reg, Immediate(32));
   } else {
-    __ movd(result_reg, value_reg);
+    __ Movd(result_reg, value_reg);
   }
 }
 
@@ -5335,9 +5335,9 @@ void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
   Register lo_reg = ToRegister(instr->lo());
   XMMRegister result_reg = ToDoubleRegister(instr->result());
   XMMRegister xmm_scratch = double_scratch0();
-  __ movd(result_reg, hi_reg);
+  __ Movd(result_reg, hi_reg);
   __ psllq(result_reg, 32);
-  __ movd(xmm_scratch, lo_reg);
+  __ Movd(xmm_scratch, lo_reg);
   __ orps(result_reg, xmm_scratch);
 }
 

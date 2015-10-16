@@ -192,7 +192,7 @@ void LGapResolver::EmitMove(int index) {
         __ xorps(dst, dst);
       } else {
         __ Set(kScratchRegister, int_val);
-        __ movq(dst, kScratchRegister);
+        __ Movq(dst, kScratchRegister);
       }
     } else {
       DCHECK(destination->IsStackSlot());
