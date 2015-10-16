@@ -393,105 +393,169 @@ void GCTracer::Print() const {
 
 
 void GCTracer::PrintNVP() const {
-  PrintIsolate(heap_->isolate(), "[I:%p] %8.0f ms: ", heap_->isolate(),
-               heap_->isolate()->time_millis_since_init());
-
   double duration = current_.end_time - current_.start_time;
   double spent_in_mutator = current_.start_time - previous_.end_time;
-
-  PrintF("pause=%.1f ", duration);
-  PrintF("mutator=%.1f ", spent_in_mutator);
-  PrintF("gc=%s ", current_.TypeName(true));
-  PrintF("reduce_memory=%d ", current_.reduce_memory);
+  intptr_t allocated_since_last_gc =
+      current_.start_object_size - previous_.end_object_size;
 
   switch (current_.type) {
     case Event::SCAVENGER:
-      PrintF("scavenge=%.2f ", current_.scopes[Scope::SCAVENGER_SCAVENGE]);
-      PrintF("old_new=%.2f ",
-             current_.scopes[Scope::SCAVENGER_OLD_TO_NEW_POINTERS]);
-      PrintF("weak=%.2f ", current_.scopes[Scope::SCAVENGER_WEAK]);
-      PrintF("roots=%.2f ", current_.scopes[Scope::SCAVENGER_ROOTS]);
-      PrintF("code=%.2f ",
-             current_.scopes[Scope::SCAVENGER_CODE_FLUSH_CANDIDATES]);
-      PrintF("semispace=%.2f ", current_.scopes[Scope::SCAVENGER_SEMISPACE]);
-      PrintF("object_groups=%.2f ",
-             current_.scopes[Scope::SCAVENGER_OBJECT_GROUPS]);
-      PrintF("steps_count=%d ", current_.incremental_marking_steps);
-      PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
-      PrintF("scavenge_throughput=%" V8_PTR_PREFIX "d ",
-             ScavengeSpeedInBytesPerMillisecond());
+      PrintIsolate(heap_->isolate(),
+                   "[I:%p] %8.0f ms: "
+                   "pause=%.1f "
+                   "mutator=%.1f "
+                   "gc=%s "
+                   "reduce_memory=%d "
+                   "scavenge=%.2f "
+                   "old_new=%.2f "
+                   "weak=%.2f "
+                   "roots=%.2f "
+                   "code=%.2f "
+                   "semispace=%.2f "
+                   "object_groups=%.2f "
+                   "steps_count=%d "
+                   "steps_took=%.1f "
+                   "scavenge_throughput=%" V8_PTR_PREFIX "d "
+                   "total_size_before=%" V8_PTR_PREFIX "d "
+                   "total_size_after=%" V8_PTR_PREFIX "d "
+                   "holes_size_before=%" V8_PTR_PREFIX "d "
+                   "holes_size_after=%" V8_PTR_PREFIX "d "
+                   "allocated=%" V8_PTR_PREFIX "d "
+                   "promoted=%" V8_PTR_PREFIX "d "
+                   "semi_space_copied=%" V8_PTR_PREFIX "d "
+                   "nodes_died_in_new=%d "
+                   "nodes_copied_in_new=%d "
+                   "nodes_promoted=%d "
+                   "promotion_ratio=%.1f%% "
+                   "average_survival_ratio=%.1f%% "
+                   "promotion_rate=%.1f%% "
+                   "semi_space_copy_rate=%.1f%% "
+                   "new_space_allocation_throughput=%" V8_PTR_PREFIX "d "
+                   "context_disposal_rate=%.1f\n",
+                   heap_->isolate(),
+                   heap_->isolate()->time_millis_since_init(),
+                   duration,
+                   spent_in_mutator,
+                   current_.TypeName(true),
+                   current_.reduce_memory,
+                   current_.scopes[Scope::SCAVENGER_SCAVENGE],
+                   current_.scopes[Scope::SCAVENGER_OLD_TO_NEW_POINTERS],
+                   current_.scopes[Scope::SCAVENGER_WEAK],
+                   current_.scopes[Scope::SCAVENGER_ROOTS],
+                   current_.scopes[Scope::SCAVENGER_CODE_FLUSH_CANDIDATES],
+                   current_.scopes[Scope::SCAVENGER_SEMISPACE],
+                   current_.scopes[Scope::SCAVENGER_OBJECT_GROUPS],
+                   current_.incremental_marking_steps,
+                   current_.incremental_marking_duration,
+                   ScavengeSpeedInBytesPerMillisecond(),
+                   current_.start_object_size, current_.end_object_size,
+                   current_.start_holes_size, current_.end_holes_size,
+                   allocated_since_last_gc, heap_->promoted_objects_size(),
+                   heap_->semi_space_copied_object_size(),
+                   heap_->nodes_died_in_new_space_,
+                   heap_->nodes_copied_in_new_space_, heap_->nodes_promoted_,
+                   heap_->promotion_ratio_, AverageSurvivalRatio(),
+                   heap_->promotion_rate_, heap_->semi_space_copied_rate_,
+                   NewSpaceAllocationThroughputInBytesPerMillisecond(),
+                   ContextDisposalRateInMilliseconds());
       break;
     case Event::MARK_COMPACTOR:
     case Event::INCREMENTAL_MARK_COMPACTOR:
-      PrintF("external=%.1f ", current_.scopes[Scope::EXTERNAL]);
-      PrintF("mark=%.1f ", current_.scopes[Scope::MC_MARK]);
-      PrintF("sweep=%.2f ", current_.scopes[Scope::MC_SWEEP]);
-      PrintF("sweepns=%.2f ", current_.scopes[Scope::MC_SWEEP_NEWSPACE]);
-      PrintF("sweepos=%.2f ", current_.scopes[Scope::MC_SWEEP_OLDSPACE]);
-      PrintF("sweepcode=%.2f ", current_.scopes[Scope::MC_SWEEP_CODE]);
-      PrintF("sweepcell=%.2f ", current_.scopes[Scope::MC_SWEEP_CELL]);
-      PrintF("sweepmap=%.2f ", current_.scopes[Scope::MC_SWEEP_MAP]);
-      PrintF("evacuate=%.1f ", current_.scopes[Scope::MC_EVACUATE_PAGES]);
-      PrintF("new_new=%.1f ",
-             current_.scopes[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]);
-      PrintF("root_new=%.1f ",
-             current_.scopes[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]);
-      PrintF("old_new=%.1f ",
-             current_.scopes[Scope::MC_UPDATE_OLD_TO_NEW_POINTERS]);
-      PrintF("compaction_ptrs=%.1f ",
-             current_.scopes[Scope::MC_UPDATE_POINTERS_TO_EVACUATED]);
-      PrintF("intracompaction_ptrs=%.1f ",
-             current_.scopes[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]);
-      PrintF("misc_compaction=%.1f ",
-             current_.scopes[Scope::MC_UPDATE_MISC_POINTERS]);
-      PrintF("weak_closure=%.1f ", current_.scopes[Scope::MC_WEAKCLOSURE]);
-      PrintF("inc_weak_closure=%.1f ",
-             current_.scopes[Scope::MC_INCREMENTAL_WEAKCLOSURE]);
-      PrintF("weakcollection_process=%.1f ",
-             current_.scopes[Scope::MC_WEAKCOLLECTION_PROCESS]);
-      PrintF("weakcollection_clear=%.1f ",
-             current_.scopes[Scope::MC_WEAKCOLLECTION_CLEAR]);
-      PrintF("weakcollection_abort=%.1f ",
-             current_.scopes[Scope::MC_WEAKCOLLECTION_ABORT]);
-      PrintF("weakcells=%.1f ", current_.scopes[Scope::MC_WEAKCELL]);
-      PrintF("nonlive_refs=%.1f ",
-             current_.scopes[Scope::MC_NONLIVEREFERENCES]);
-
-      PrintF("steps_count=%d ", current_.incremental_marking_steps);
-      PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
-      PrintF("longest_step=%.1f ", current_.longest_incremental_marking_step);
-      PrintF("incremental_marking_throughput=%" V8_PTR_PREFIX "d ",
-             IncrementalMarkingSpeedInBytesPerMillisecond());
+      PrintIsolate(heap_->isolate(),
+                   "[I:%p] %8.0f ms: "
+                   "pause=%.1f "
+                   "mutator=%.1f "
+                   "gc=%s "
+                   "reduce_memory=%d "
+                   "external=%.1f "
+                   "mark=%.1f "
+                   "sweep=%.2f "
+                   "sweepns=%.2f "
+                   "sweepos=%.2f "
+                   "sweepcode=%.2f "
+                   "sweepcell=%.2f "
+                   "sweepmap=%.2f "
+                   "evacuate=%.1f "
+                   "new_new=%.1f "
+                   "root_new=%.1f "
+                   "old_new=%.1f "
+                   "compaction_ptrs=%.1f "
+                   "intracompaction_ptrs=%.1f "
+                   "misc_compaction=%.1f "
+                   "weak_closure=%.1f "
+                   "inc_weak_closure=%.1f "
+                   "weakcollection_process=%.1f "
+                   "weakcollection_clear=%.1f "
+                   "weakcollection_abort=%.1f "
+                   "weakcells=%.1f "
+                   "nonlive_refs=%.1f "
+                   "steps_count=%d "
+                   "steps_took=%.1f "
+                   "longest_step=%.1f "
+                   "incremental_marking_throughput=%" V8_PTR_PREFIX "d "
+                   "total_size_before=%" V8_PTR_PREFIX "d "
+                   "total_size_after=%" V8_PTR_PREFIX "d "
+                   "holes_size_before=%" V8_PTR_PREFIX "d "
+                   "holes_size_after=%" V8_PTR_PREFIX "d "
+                   "allocated=%" V8_PTR_PREFIX "d "
+                   "promoted=%" V8_PTR_PREFIX "d "
+                   "semi_space_copied=%" V8_PTR_PREFIX "d "
+                   "nodes_died_in_new=%d "
+                   "nodes_copied_in_new=%d "
+                   "nodes_promoted=%d "
+                   "promotion_ratio=%.1f%% "
+                   "average_survival_ratio=%.1f%% "
+                   "promotion_rate=%.1f%% "
+                   "semi_space_copy_rate=%.1f%% "
+                   "new_space_allocation_throughput=%" V8_PTR_PREFIX "d "
+                   "context_disposal_rate=%.1f\n",
+                   heap_->isolate(),
+                   heap_->isolate()->time_millis_since_init(),
+                   duration, spent_in_mutator,
+                   current_.TypeName(true),
+                   current_.reduce_memory,
+                   current_.scopes[Scope::EXTERNAL],
+                   current_.scopes[Scope::MC_MARK],
+                   current_.scopes[Scope::MC_SWEEP],
+                   current_.scopes[Scope::MC_SWEEP_NEWSPACE],
+                   current_.scopes[Scope::MC_SWEEP_OLDSPACE],
+                   current_.scopes[Scope::MC_SWEEP_CODE],
+                   current_.scopes[Scope::MC_SWEEP_CELL],
+                   current_.scopes[Scope::MC_SWEEP_MAP],
+                   current_.scopes[Scope::MC_EVACUATE_PAGES],
+                   current_.scopes[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS],
+                   current_.scopes[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS],
+                   current_.scopes[Scope::MC_UPDATE_OLD_TO_NEW_POINTERS],
+                   current_.scopes[Scope::MC_UPDATE_POINTERS_TO_EVACUATED],
+                   current_.scopes[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED],
+                   current_.scopes[Scope::MC_UPDATE_MISC_POINTERS],
+                   current_.scopes[Scope::MC_WEAKCLOSURE],
+                   current_.scopes[Scope::MC_INCREMENTAL_WEAKCLOSURE],
+                   current_.scopes[Scope::MC_WEAKCOLLECTION_PROCESS],
+                   current_.scopes[Scope::MC_WEAKCOLLECTION_CLEAR],
+                   current_.scopes[Scope::MC_WEAKCOLLECTION_ABORT],
+                   current_.scopes[Scope::MC_WEAKCELL],
+                   current_.scopes[Scope::MC_NONLIVEREFERENCES],
+                   current_.incremental_marking_steps,
+                   current_.incremental_marking_duration,
+                   current_.longest_incremental_marking_step,
+                   IncrementalMarkingSpeedInBytesPerMillisecond(),
+                   current_.start_object_size, current_.end_object_size,
+                   current_.start_holes_size, current_.end_holes_size,
+                   allocated_since_last_gc, heap_->promoted_objects_size(),
+                   heap_->semi_space_copied_object_size(),
+                   heap_->nodes_died_in_new_space_,
+                   heap_->nodes_copied_in_new_space_, heap_->nodes_promoted_,
+                   heap_->promotion_ratio_, AverageSurvivalRatio(),
+                   heap_->promotion_rate_, heap_->semi_space_copied_rate_,
+                   NewSpaceAllocationThroughputInBytesPerMillisecond(),
+                   ContextDisposalRateInMilliseconds());
       break;
     case Event::START:
       break;
     default:
       UNREACHABLE();
   }
-
-  PrintF("total_size_before=%" V8_PTR_PREFIX "d ", current_.start_object_size);
-  PrintF("total_size_after=%" V8_PTR_PREFIX "d ", current_.end_object_size);
-  PrintF("holes_size_before=%" V8_PTR_PREFIX "d ", current_.start_holes_size);
-  PrintF("holes_size_after=%" V8_PTR_PREFIX "d ", current_.end_holes_size);
-
-  intptr_t allocated_since_last_gc =
-      current_.start_object_size - previous_.end_object_size;
-  PrintF("allocated=%" V8_PTR_PREFIX "d ", allocated_since_last_gc);
-  PrintF("promoted=%" V8_PTR_PREFIX "d ", heap_->promoted_objects_size());
-  PrintF("semi_space_copied=%" V8_PTR_PREFIX "d ",
-         heap_->semi_space_copied_object_size());
-  PrintF("nodes_died_in_new=%d ", heap_->nodes_died_in_new_space_);
-  PrintF("nodes_copied_in_new=%d ", heap_->nodes_copied_in_new_space_);
-  PrintF("nodes_promoted=%d ", heap_->nodes_promoted_);
-  PrintF("promotion_ratio=%.1f%% ", heap_->promotion_ratio_);
-  PrintF("average_survival_ratio=%.1f%% ", AverageSurvivalRatio());
-  PrintF("promotion_rate=%.1f%% ", heap_->promotion_rate_);
-  PrintF("semi_space_copy_rate=%.1f%% ", heap_->semi_space_copied_rate_);
-  PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
-         NewSpaceAllocationThroughputInBytesPerMillisecond());
-  PrintF("context_disposal_rate=%.1f ", ContextDisposalRateInMilliseconds());
-
-  PrintF("\n");
 }
 
 
