@@ -2107,14 +2107,18 @@ void MarkCompactCollector::MarkLiveObjects() {
   // with the C stack limit check.
   PostponeInterruptsScope postpone(isolate());
 
-  IncrementalMarking* incremental_marking = heap_->incremental_marking();
-  if (was_marked_incrementally_) {
-    incremental_marking->Finalize();
-  } else {
-    // Abort any pending incremental activities e.g. incremental sweeping.
-    incremental_marking->Stop();
-    if (marking_deque_.in_use()) {
-      marking_deque_.Uninitialize(true);
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_MARK_FINISH_INCREMENTAL);
+    IncrementalMarking* incremental_marking = heap_->incremental_marking();
+    if (was_marked_incrementally_) {
+      incremental_marking->Finalize();
+    } else {
+      // Abort any pending incremental activities e.g. incremental sweeping.
+      incremental_marking->Stop();
+      if (marking_deque_.in_use()) {
+        marking_deque_.Uninitialize(true);
+      }
     }
   }
 
@@ -2126,20 +2130,36 @@ void MarkCompactCollector::MarkLiveObjects() {
   EnsureMarkingDequeIsCommittedAndInitialize(
       MarkCompactCollector::kMaxMarkingDequeSize);
 
-  PrepareForCodeFlushing();
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_MARK_PREPARE_CODE_FLUSH);
+    PrepareForCodeFlushing();
+  }
 
   RootMarkingVisitor root_visitor(heap());
-  MarkRoots(&root_visitor);
 
-  ProcessTopOptimizedFrame(&root_visitor);
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOT);
+    MarkRoots(&root_visitor);
+  }
+
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_MARK_TOPOPT);
+    ProcessTopOptimizedFrame(&root_visitor);
+  }
 
   // Retaining dying maps should happen before or during ephemeral marking
   // because a map could keep the key of an ephemeron alive. Note that map
   // aging is imprecise: maps that are kept alive only by ephemerons will age.
-  RetainMaps();
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_MARK_RETAIN_MAPS);
+    RetainMaps();
+  }
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_WEAKCLOSURE);
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_MARK_WEAK_CLOSURE);
 
     // The objects reachable from the roots are marked, yet unreachable
     // objects are unmarked.  Mark objects reachable due to host
@@ -2176,28 +2196,45 @@ void MarkCompactCollector::MarkLiveObjects() {
 
 
 void MarkCompactCollector::AfterMarking() {
-  // Prune the string table removing all strings only pointed to by the
-  // string table.  Cannot use string_table() here because the string
-  // table is marked.
-  StringTable* string_table = heap()->string_table();
-  InternalizedStringTableCleaner internalized_visitor(heap());
-  string_table->IterateElements(&internalized_visitor);
-  string_table->ElementsRemoved(internalized_visitor.PointersRemoved());
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_MARK_STRING_TABLE);
 
-  ExternalStringTableCleaner external_visitor(heap());
-  heap()->external_string_table_.Iterate(&external_visitor);
-  heap()->external_string_table_.CleanUp();
+    // Prune the string table removing all strings only pointed to by the
+    // string table.  Cannot use string_table() here because the string
+    // table is marked.
+    StringTable* string_table = heap()->string_table();
+    InternalizedStringTableCleaner internalized_visitor(heap());
+    string_table->IterateElements(&internalized_visitor);
+    string_table->ElementsRemoved(internalized_visitor.PointersRemoved());
 
-  // Process the weak references.
-  MarkCompactWeakObjectRetainer mark_compact_object_retainer;
-  heap()->ProcessAllWeakReferences(&mark_compact_object_retainer);
+    ExternalStringTableCleaner external_visitor(heap());
+    heap()->external_string_table_.Iterate(&external_visitor);
+    heap()->external_string_table_.CleanUp();
+  }
 
-  // Remove object groups after marking phase.
-  heap()->isolate()->global_handles()->RemoveObjectGroups();
-  heap()->isolate()->global_handles()->RemoveImplicitRefGroups();
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_MARK_WEAK_REFERENCES);
+
+    // Process the weak references.
+    MarkCompactWeakObjectRetainer mark_compact_object_retainer;
+    heap()->ProcessAllWeakReferences(&mark_compact_object_retainer);
+  }
+
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_MARK_GLOBAL_HANDLES);
+
+    // Remove object groups after marking phase.
+    heap()->isolate()->global_handles()->RemoveObjectGroups();
+    heap()->isolate()->global_handles()->RemoveImplicitRefGroups();
+  }
 
   // Flush code from collected candidates.
   if (is_code_flushing_enabled()) {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_MARK_CODE_FLUSH);
     code_flusher_->ProcessCandidates();
   }
 

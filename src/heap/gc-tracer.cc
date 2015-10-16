@@ -469,6 +469,16 @@ void GCTracer::PrintNVP() const {
                    "reduce_memory=%d "
                    "external=%.1f "
                    "mark=%.1f "
+                   "mark_inc=%.1f "
+                   "mark_prepcodeflush=%.1f "
+                   "mark_root=%.1f "
+                   "mark_topopt=%.1f "
+                   "mark_retainmaps=%.1f "
+                   "mark_weakclosure=%.1f "
+                   "mark_stringtable=%.1f "
+                   "mark_weakrefs=%.1f "
+                   "mark_globalhandles=%.1f "
+                   "mark_codeflush=%.1f "
                    "sweep=%.2f "
                    "sweepns=%.2f "
                    "sweepos=%.2f "
@@ -492,14 +502,22 @@ void GCTracer::PrintNVP() const {
                    "steps_count=%d "
                    "steps_took=%.1f "
                    "longest_step=%.1f "
-                   "incremental_marking_throughput=%" V8_PTR_PREFIX "d "
-                   "total_size_before=%" V8_PTR_PREFIX "d "
-                   "total_size_after=%" V8_PTR_PREFIX "d "
-                   "holes_size_before=%" V8_PTR_PREFIX "d "
-                   "holes_size_after=%" V8_PTR_PREFIX "d "
-                   "allocated=%" V8_PTR_PREFIX "d "
-                   "promoted=%" V8_PTR_PREFIX "d "
-                   "semi_space_copied=%" V8_PTR_PREFIX "d "
+                   "incremental_marking_throughput=%" V8_PTR_PREFIX
+                   "d "
+                   "total_size_before=%" V8_PTR_PREFIX
+                   "d "
+                   "total_size_after=%" V8_PTR_PREFIX
+                   "d "
+                   "holes_size_before=%" V8_PTR_PREFIX
+                   "d "
+                   "holes_size_after=%" V8_PTR_PREFIX
+                   "d "
+                   "allocated=%" V8_PTR_PREFIX
+                   "d "
+                   "promoted=%" V8_PTR_PREFIX
+                   "d "
+                   "semi_space_copied=%" V8_PTR_PREFIX
+                   "d "
                    "nodes_died_in_new=%d "
                    "nodes_copied_in_new=%d "
                    "nodes_promoted=%d "
@@ -507,15 +525,23 @@ void GCTracer::PrintNVP() const {
                    "average_survival_ratio=%.1f%% "
                    "promotion_rate=%.1f%% "
                    "semi_space_copy_rate=%.1f%% "
-                   "new_space_allocation_throughput=%" V8_PTR_PREFIX "d "
+                   "new_space_allocation_throughput=%" V8_PTR_PREFIX
+                   "d "
                    "context_disposal_rate=%.1f\n",
-                   heap_->isolate(),
-                   heap_->isolate()->time_millis_since_init(),
-                   duration, spent_in_mutator,
-                   current_.TypeName(true),
-                   current_.reduce_memory,
-                   current_.scopes[Scope::EXTERNAL],
+                   heap_->isolate(), heap_->isolate()->time_millis_since_init(),
+                   duration, spent_in_mutator, current_.TypeName(true),
+                   current_.reduce_memory, current_.scopes[Scope::EXTERNAL],
                    current_.scopes[Scope::MC_MARK],
+                   current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
+                   current_.scopes[Scope::MC_MARK_PREPARE_CODE_FLUSH],
+                   current_.scopes[Scope::MC_MARK_ROOT],
+                   current_.scopes[Scope::MC_MARK_TOPOPT],
+                   current_.scopes[Scope::MC_MARK_RETAIN_MAPS],
+                   current_.scopes[Scope::MC_MARK_WEAK_CLOSURE],
+                   current_.scopes[Scope::MC_MARK_STRING_TABLE],
+                   current_.scopes[Scope::MC_MARK_WEAK_REFERENCES],
+                   current_.scopes[Scope::MC_MARK_GLOBAL_HANDLES],
+                   current_.scopes[Scope::MC_MARK_CODE_FLUSH],
                    current_.scopes[Scope::MC_SWEEP],
                    current_.scopes[Scope::MC_SWEEP_NEWSPACE],
                    current_.scopes[Scope::MC_SWEEP_OLDSPACE],
