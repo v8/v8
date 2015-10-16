@@ -793,7 +793,7 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
     vxorpd(dst, dst, dst);
     vcvtlsi2sd(dst, dst, src);
   } else {
-    xorps(dst, dst);
+    xorpd(dst, dst);
     cvtlsi2sd(dst, src);
   }
 }
@@ -805,7 +805,7 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
     vxorpd(dst, dst, dst);
     vcvtlsi2sd(dst, dst, src);
   } else {
-    xorps(dst, dst);
+    xorpd(dst, dst);
     cvtlsi2sd(dst, src);
   }
 }
@@ -2405,7 +2405,7 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
 
 void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
   if (src == 0) {
-    xorps(dst, dst);
+    Xorpd(dst, dst);
   } else {
     unsigned pop = base::bits::CountPopulation32(src);
     DCHECK_NE(0u, pop);
@@ -2421,7 +2421,7 @@ void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
 
 void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
   if (src == 0) {
-    xorps(dst, dst);
+    Xorpd(dst, dst);
   } else {
     unsigned nlz = base::bits::CountLeadingZeros64(src);
     unsigned ntz = base::bits::CountTrailingZeros64(src);
@@ -2535,6 +2535,16 @@ void MacroAssembler::Movq(Register dst, XMMRegister src) {
     vmovq(dst, src);
   } else {
     movq(dst, src);
+  }
+}
+
+
+void MacroAssembler::Xorpd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vxorpd(dst, dst, src);
+  } else {
+    xorpd(dst, src);
   }
 }
 
@@ -3234,7 +3244,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
                                         Register result_reg) {
   Label done;
   Label conv_failure;
-  xorps(temp_xmm_reg, temp_xmm_reg);
+  Xorpd(temp_xmm_reg, temp_xmm_reg);
   cvtsd2si(result_reg, input_reg);
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);

@@ -2449,6 +2449,7 @@ void Assembler::orps(XMMRegister dst, const Operand& src) {
 
 
 void Assembler::xorps(XMMRegister dst, XMMRegister src) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
   emit(0x0F);
@@ -2458,6 +2459,7 @@ void Assembler::xorps(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::xorps(XMMRegister dst, const Operand& src) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
   emit(0x0F);
@@ -3323,6 +3325,7 @@ void Assembler::orpd(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(dst, src);

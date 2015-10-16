@@ -355,13 +355,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ j(carry, &continue_sqrt, Label::kNear);
 
       // Set result to Infinity in the special case.
-      __ xorps(double_result, double_result);
+      __ Xorpd(double_result, double_result);
       __ subsd(double_result, double_scratch);
       __ jmp(&done);
 
       __ bind(&continue_sqrt);
       // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-      __ xorps(double_scratch, double_scratch);
+      __ Xorpd(double_scratch, double_scratch);
       __ addsd(double_scratch, double_base);  // Convert -0 to 0.
       __ sqrtsd(double_result, double_scratch);
       __ jmp(&done);
@@ -387,12 +387,12 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ j(carry, &continue_rsqrt, Label::kNear);
 
       // Set result to 0 in the special case.
-      __ xorps(double_result, double_result);
+      __ Xorpd(double_result, double_result);
       __ jmp(&done);
 
       __ bind(&continue_rsqrt);
       // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-      __ xorps(double_exponent, double_exponent);
+      __ Xorpd(double_exponent, double_exponent);
       __ addsd(double_exponent, double_base);  // Convert -0 to +0.
       __ sqrtsd(double_exponent, double_exponent);
       __ divsd(double_result, double_exponent);
@@ -478,7 +478,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ Movsd(double_result, double_scratch2);
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
-  __ xorps(double_scratch2, double_scratch2);
+  __ Xorpd(double_scratch2, double_scratch2);
   __ ucomisd(double_scratch2, double_result);
   // double_exponent aliased as double_scratch2 has already been overwritten
   // and may not have contained the exponent value in the first place when the

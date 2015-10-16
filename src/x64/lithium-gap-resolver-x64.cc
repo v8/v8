@@ -189,7 +189,7 @@ void LGapResolver::EmitMove(int index) {
       uint64_t int_val = bit_cast<uint64_t, double>(v);
       XMMRegister dst = cgen_->ToDoubleRegister(destination);
       if (int_val == 0) {
-        __ xorps(dst, dst);
+        __ Xorpd(dst, dst);
       } else {
         __ Set(kScratchRegister, int_val);
         __ Movq(dst, kScratchRegister);

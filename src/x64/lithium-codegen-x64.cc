@@ -1975,7 +1975,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
 
     __ bind(&check_zero);
     XMMRegister xmm_scratch = double_scratch0();
-    __ xorps(xmm_scratch, xmm_scratch);
+    __ Xorpd(xmm_scratch, xmm_scratch);
     __ ucomisd(left_reg, xmm_scratch);
     __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
     // At this point, both left and right are either 0 or -0.
@@ -2128,7 +2128,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     DCHECK(!info()->IsStub());
     XMMRegister reg = ToDoubleRegister(instr->value());
     XMMRegister xmm_scratch = double_scratch0();
-    __ xorps(xmm_scratch, xmm_scratch);
+    __ Xorpd(xmm_scratch, xmm_scratch);
     __ ucomisd(reg, xmm_scratch);
     EmitBranch(instr, not_equal);
   } else {
@@ -2149,7 +2149,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     } else if (type.IsHeapNumber()) {
       DCHECK(!info()->IsStub());
       XMMRegister xmm_scratch = double_scratch0();
-      __ xorps(xmm_scratch, xmm_scratch);
+      __ Xorpd(xmm_scratch, xmm_scratch);
       __ ucomisd(xmm_scratch, FieldOperand(reg, HeapNumber::kValueOffset));
       EmitBranch(instr, not_equal);
     } else if (type.IsString()) {
@@ -2238,7 +2238,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
         __ j(not_equal, &not_heap_number, Label::kNear);
         XMMRegister xmm_scratch = double_scratch0();
-        __ xorps(xmm_scratch, xmm_scratch);
+        __ Xorpd(xmm_scratch, xmm_scratch);
         __ ucomisd(xmm_scratch, FieldOperand(reg, HeapNumber::kValueOffset));
         __ j(zero, instr->FalseLabel(chunk_));
         __ jmp(instr->TrueLabel(chunk_));
@@ -2407,7 +2407,7 @@ void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
   if (rep.IsDouble()) {
     XMMRegister value = ToDoubleRegister(instr->value());
     XMMRegister xmm_scratch = double_scratch0();
-    __ xorps(xmm_scratch, xmm_scratch);
+    __ Xorpd(xmm_scratch, xmm_scratch);
     __ ucomisd(xmm_scratch, value);
     EmitFalseBranch(instr, not_equal);
     __ movmskpd(kScratchRegister, value);
@@ -3576,7 +3576,7 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
   if (r.IsDouble()) {
     XMMRegister scratch = double_scratch0();
     XMMRegister input_reg = ToDoubleRegister(instr->value());
-    __ xorps(scratch, scratch);
+    __ Xorpd(scratch, scratch);
     __ subsd(scratch, input_reg);
     __ andps(input_reg, scratch);
   } else if (r.IsInteger32()) {
@@ -3615,7 +3615,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   } else {
     Label negative_sign, done;
     // Deoptimize on unordered.
-    __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
+    __ Xorpd(xmm_scratch, xmm_scratch);  // Zero the register.
     __ ucomisd(input_reg, xmm_scratch);
     DeoptimizeIf(parity_even, instr, Deoptimizer::kNaN);
     __ j(below, &negative_sign, Label::kNear);
@@ -3751,13 +3751,13 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   __ j(not_equal, &sqrt, Label::kNear);
   __ j(carry, &sqrt, Label::kNear);
   // If input is -Infinity, return Infinity.
-  __ xorps(input_reg, input_reg);
+  __ Xorpd(input_reg, input_reg);
   __ subsd(input_reg, xmm_scratch);
   __ jmp(&done, Label::kNear);
 
   // Square root.
   __ bind(&sqrt);
-  __ xorps(xmm_scratch, xmm_scratch);
+  __ Xorpd(xmm_scratch, xmm_scratch);
   __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
   __ sqrtsd(input_reg, input_reg);
   __ bind(&done);
@@ -3815,7 +3815,7 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   XMMRegister xmm_scratch = double_scratch0();
   Label positive, done, zero;
-  __ xorps(xmm_scratch, xmm_scratch);
+  __ Xorpd(xmm_scratch, xmm_scratch);
   __ ucomisd(input_reg, xmm_scratch);
   __ j(above, &positive, Label::kNear);
   __ j(not_carry, &zero, Label::kNear);
@@ -4293,7 +4293,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   if (instr->NeedsCanonicalization()) {
     XMMRegister xmm_scratch = double_scratch0();
     // Turn potential sNaN value into qNaN.
-    __ xorps(xmm_scratch, xmm_scratch);
+    __ Xorpd(xmm_scratch, xmm_scratch);
     __ subsd(value, xmm_scratch);
   }
 
@@ -4924,7 +4924,7 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
 
     if (deoptimize_on_minus_zero) {
       XMMRegister xmm_scratch = double_scratch0();
-      __ xorps(xmm_scratch, xmm_scratch);
+      __ Xorpd(xmm_scratch, xmm_scratch);
       __ ucomisd(xmm_scratch, result_reg);
       __ j(not_equal, &done, Label::kNear);
       __ movmskpd(kScratchRegister, result_reg);
