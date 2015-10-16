@@ -11,10 +11,6 @@
 
 // The following declarations are shared with other native JS files.
 // They are all declared at this one spot to avoid redeclaration errors.
-var $sameValue;
-var $sameValueZero;
-
-var harmony_tolength = false;
 
 (function(global, utils) {
 
@@ -232,11 +228,10 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 // ----------------------------------------------------------------------------
 // Exports
 
-$sameValue = SameValue;
-$sameValueZero = SameValueZero;
-
 utils.Export(function(to) {
   to.ToPositiveInteger = ToPositiveInteger;
+  to.SameValue = SameValue;
+  to.SameValueZero = SameValueZero;
 });
 
 %InstallToContext([

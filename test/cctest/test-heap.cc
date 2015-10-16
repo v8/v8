@@ -5884,7 +5884,9 @@ static void UtilsHasBeenCollected(
 
 
 TEST(BootstrappingExports) {
-  FLAG_expose_natives_as = "natives";
+  // Expose utils object and delete it to observe that it is indeed
+  // being garbage-collected.
+  FLAG_expose_natives_as = "utils";
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
 
@@ -5896,10 +5898,9 @@ TEST(BootstrappingExports) {
 
   {
     v8::HandleScope scope(isolate);
-    v8::Handle<v8::Object> natives =
-        CcTest::global()->Get(v8_str("natives"))->ToObject(isolate);
-    utils.Reset(isolate, natives->Get(v8_str("utils"))->ToObject(isolate));
-    natives->Delete(v8_str("utils"));
+    v8::Local<v8::String> name = v8_str("utils");
+    utils.Reset(isolate, CcTest::global()->Get(name)->ToObject(isolate));
+    CcTest::global()->Delete(name);
   }
 
   utils.SetWeak(&utils, UtilsHasBeenCollected,

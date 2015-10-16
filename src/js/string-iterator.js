@@ -12,6 +12,7 @@
 // Imports
 
 var GlobalString = global.String;
+var IteratorPrototype = utils.ImportNow("IteratorPrototype");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var stringIteratorIteratedStringSymbol =
     utils.ImportNow("string_iterator_iterated_string_symbol");
@@ -80,7 +81,7 @@ function StringPrototypeIterator() {
 
 //-------------------------------------------------------------------
 
-%FunctionSetPrototype(StringIterator, {__proto__: $iteratorPrototype});
+%FunctionSetPrototype(StringIterator, {__proto__: IteratorPrototype});
 %FunctionSetInstanceClassName(StringIterator, 'String Iterator');
 
 utils.InstallFunctions(StringIterator.prototype, DONT_ENUM, [

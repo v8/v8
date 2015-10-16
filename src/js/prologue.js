@@ -182,6 +182,7 @@ function PostNatives(utils) {
     "InnerArrayToLocaleString",
     "IsNaN",
     "MapEntries",
+    "MapIterator",
     "MapIteratorNext",
     "MathMax",
     "MathMin",
@@ -190,6 +191,8 @@ function PostNatives(utils) {
     "ObserveArrayMethods",
     "ObserveObjectMethods",
     "OwnPropertyKeys",
+    "SameValueZero",
+    "SetIterator",
     "SetIteratorNext",
     "SetValues",
     "SymbolToString",
@@ -230,12 +233,9 @@ function PostExperimentals(utils) {
     imports_from_experimental(exports_container);
   }
 
-  exports_container = UNDEFINED;
-
-  utils.PostExperimentals = UNDEFINED;
-  utils.PostDebug = UNDEFINED;
-  utils.Import = UNDEFINED;
   utils.Export = UNDEFINED;
+  utils.PostDebug = UNDEFINED;
+  utils.PostExperimentals = UNDEFINED;
 }
 
 
@@ -246,11 +246,13 @@ function PostDebug(utils) {
 
   exports_container = UNDEFINED;
 
+  utils.Export = UNDEFINED;
+  utils.Import = UNDEFINED;
+  utils.ImportNow = UNDEFINED;
   utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
-  utils.Import = UNDEFINED;
-  utils.Export = UNDEFINED;
 }
+
 
 // -----------------------------------------------------------------------
 

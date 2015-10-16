@@ -164,6 +164,7 @@ class Genesis BASE_EMBEDDED {
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
   void CreateStrongModeFunctionMaps(Handle<JSFunction> empty);
+  void CreateIteratorMaps();
 
   // Make the "arguments" and "caller" properties throw a TypeError on access.
   void AddRestrictedFunctionProperties(Handle<Map> map);
@@ -199,6 +200,8 @@ class Genesis BASE_EMBEDDED {
   void InitializeExperimentalGlobal();
   // Typed arrays are not serializable and have to initialized afterwards.
   void InitializeBuiltinTypedArrays();
+  // Depending on the situation, expose and/or get rid of the utils object.
+  void ConfigureUtilsObject(ContextType context_type);
 
 #define DECLARE_FEATURE_INITIALIZATION(id, descr) \
   void InitializeGlobal_##id();
@@ -790,6 +793,57 @@ void Genesis::CreateStrongModeFunctionMaps(Handle<JSFunction> empty) {
   // Constructors do, though.
   Handle<Map> strong_constructor_map = CreateStrongFunctionMap(empty, true);
   native_context()->set_strong_constructor_map(*strong_constructor_map);
+}
+
+
+void Genesis::CreateIteratorMaps() {
+  // Create iterator-related meta-objects.
+  Handle<JSObject> iterator_prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> generator_object_prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> generator_function_prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  SetObjectPrototype(generator_object_prototype, iterator_prototype);
+
+  JSObject::AddProperty(generator_function_prototype,
+                        factory()->InternalizeUtf8String("prototype"),
+                        generator_object_prototype,
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  // Create maps for generator functions and their prototypes.  Store those
+  // maps in the native context. The "prototype" property descriptor is
+  // writable, non-enumerable, and non-configurable (as per ES6 draft
+  // 04-14-15, section 25.2.4.3).
+  Handle<Map> strict_function_map(strict_function_map_writable_prototype_);
+  // Generator functions do not have "caller" or "arguments" accessors.
+  Handle<Map> sloppy_generator_function_map =
+      Map::Copy(strict_function_map, "SloppyGeneratorFunction");
+  Map::SetPrototype(sloppy_generator_function_map,
+                    generator_function_prototype);
+  native_context()->set_sloppy_generator_function_map(
+      *sloppy_generator_function_map);
+
+  Handle<Map> strict_generator_function_map =
+      Map::Copy(strict_function_map, "StrictGeneratorFunction");
+  Map::SetPrototype(strict_generator_function_map,
+                    generator_function_prototype);
+  native_context()->set_strict_generator_function_map(
+      *strict_generator_function_map);
+
+  Handle<Map> strong_function_map(native_context()->strong_function_map());
+  Handle<Map> strong_generator_function_map =
+      Map::Copy(strong_function_map, "StrongGeneratorFunction");
+  Map::SetPrototype(strong_generator_function_map,
+                    generator_function_prototype);
+  native_context()->set_strong_generator_function_map(
+      *strong_generator_function_map);
+
+  Handle<JSFunction> object_function(native_context()->object_function());
+  Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
+  Map::SetPrototype(generator_object_prototype_map, generator_object_prototype);
+  native_context()->set_generator_object_prototype_map(
+      *generator_object_prototype_map);
 }
 
 
@@ -1794,6 +1848,36 @@ void Genesis::InitializeBuiltinTypedArrays() {
 }
 
 
+void Genesis::ConfigureUtilsObject(ContextType context_type) {
+  switch (context_type) {
+    // We still need the utils object to find debug functions.
+    case DEBUG_CONTEXT:
+      return;
+    // Expose the natives in global if a valid name for it is specified.
+    case FULL_CONTEXT: {
+      // We still need the utils object after deserialization.
+      if (isolate()->serializer_enabled()) return;
+      if (FLAG_expose_natives_as == NULL) break;
+      if (strlen(FLAG_expose_natives_as) == 0) break;
+      HandleScope scope(isolate());
+      Handle<String> natives_key =
+          factory()->InternalizeUtf8String(FLAG_expose_natives_as);
+      uint32_t dummy_index;
+      if (natives_key->AsArrayIndex(&dummy_index)) break;
+      Handle<Object> utils = isolate()->natives_utils_object();
+      Handle<JSObject> global = isolate()->global_object();
+      JSObject::AddProperty(global, natives_key, utils, DONT_ENUM);
+      break;
+    }
+    case THIN_CONTEXT:
+      break;
+  }
+
+  // The utils object can be removed for cases that reach this point.
+  native_context()->set_natives_utils_object(heap()->undefined_value());
+}
+
+
 void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                                      Handle<JSObject> container) {
   HandleScope scope(isolate);
@@ -1837,6 +1921,58 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     construct->shared()->set_feedback_vector(*feedback_vector);
     isolate->native_context()->set_reflect_construct(*construct);
   }
+
+  Handle<JSObject> iterator_prototype;
+
+  {
+    PrototypeIterator iter(
+        isolate->native_context()->generator_object_prototype_map());
+    iter.Advance();  // Advance to the prototype of generator_object_prototype.
+    iterator_prototype = Handle<JSObject>(iter.GetCurrent<JSObject>());
+
+    JSObject::AddProperty(container, isolate->factory()->InternalizeUtf8String(
+                                         "IteratorPrototype"),
+                          iterator_prototype, NONE);
+  }
+
+  {
+    PrototypeIterator iter(
+        isolate->native_context()->sloppy_generator_function_map());
+    Handle<JSObject> generator_function_prototype(iter.GetCurrent<JSObject>());
+
+    JSObject::AddProperty(container, isolate->factory()->InternalizeUtf8String(
+                                         "GeneratorFunctionPrototype"),
+                          generator_function_prototype, NONE);
+
+    static const bool kUseStrictFunctionMap = true;
+    Handle<JSFunction> generator_function_function =
+        InstallFunction(container, "GeneratorFunction", JS_FUNCTION_TYPE,
+                        JSFunction::kSize, generator_function_prototype,
+                        Builtins::kIllegal, kUseStrictFunctionMap);
+    generator_function_function->initial_map()->set_is_callable();
+  }
+
+  {  // -- S e t I t e r a t o r
+    Handle<JSObject> set_iterator_prototype =
+        isolate->factory()->NewJSObject(isolate->object_function(), TENURED);
+    SetObjectPrototype(set_iterator_prototype, iterator_prototype);
+    Handle<JSFunction> set_iterator_function = InstallFunction(
+        container, "SetIterator", JS_SET_ITERATOR_TYPE, JSSetIterator::kSize,
+        set_iterator_prototype, Builtins::kIllegal);
+    isolate->native_context()->set_set_iterator_map(
+        set_iterator_function->initial_map());
+  }
+
+  {  // -- M a p I t e r a t o r
+    Handle<JSObject> map_iterator_prototype =
+        isolate->factory()->NewJSObject(isolate->object_function(), TENURED);
+    SetObjectPrototype(map_iterator_prototype, iterator_prototype);
+    Handle<JSFunction> map_iterator_function = InstallFunction(
+        container, "MapIterator", JS_MAP_ITERATOR_TYPE, JSMapIterator::kSize,
+        map_iterator_prototype, Builtins::kIllegal);
+    isolate->native_context()->set_map_iterator_map(
+        map_iterator_function->initial_map());
+  }
 }
 
 
@@ -1855,6 +1991,7 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
   INITIALIZE_FLAG(FLAG_harmony_regexps)
   INITIALIZE_FLAG(FLAG_harmony_unicode_regexps)
   INITIALIZE_FLAG(FLAG_harmony_tostring)
+  INITIALIZE_FLAG(FLAG_harmony_tolength)
 
 #undef INITIALIZE_FLAG
 }
@@ -1881,15 +2018,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tostring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_completion)
-
-
-void Genesis::InitializeGlobal_harmony_tolength() {
-  Handle<JSObject> builtins(native_context()->builtins());
-  Handle<Object> flag(factory()->ToBoolean(FLAG_harmony_tolength));
-  Runtime::SetObjectProperty(isolate(), builtins,
-                             factory()->harmony_tolength_string(), flag,
-                             STRICT).Assert();
-}
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tolength)
 
 
 static void SimpleInstallFunction(Handle<JSObject>& base, const char* name,
@@ -2080,11 +2209,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
   // A thin context is ready at this point.
   if (context_type == THIN_CONTEXT) return true;
 
-  if (FLAG_expose_natives_as != NULL) {
-    Handle<String> utils_key = factory()->NewStringFromAsciiChecked("utils");
-    JSObject::AddProperty(builtins, utils_key, utils, NONE);
-  }
-
   {  // -- S c r i p t
     // Builtin functions for Script.
     Handle<JSFunction> script_fun = InstallFunction(
@@ -2259,96 +2383,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
         InstallInternalArray(utils, "InternalArray", FAST_HOLEY_ELEMENTS);
     native_context()->set_internal_array_function(*array_function);
     InstallInternalArray(utils, "InternalPackedArray", FAST_ELEMENTS);
-  }
-
-  {  // -- S e t I t e r a t o r
-    Handle<JSFunction> set_iterator_function = InstallFunction(
-        builtins, "SetIterator", JS_SET_ITERATOR_TYPE, JSSetIterator::kSize,
-        isolate()->initial_object_prototype(), Builtins::kIllegal);
-    native_context()->set_set_iterator_map(
-        set_iterator_function->initial_map());
-  }
-
-  {  // -- M a p I t e r a t o r
-    Handle<JSFunction> map_iterator_function = InstallFunction(
-        builtins, "MapIterator", JS_MAP_ITERATOR_TYPE, JSMapIterator::kSize,
-        isolate()->initial_object_prototype(), Builtins::kIllegal);
-    native_context()->set_map_iterator_map(
-        map_iterator_function->initial_map());
-  }
-
-  {
-    // Create generator meta-objects and install them on the builtins object.
-    Handle<JSObject> builtins(native_context()->builtins());
-    Handle<JSObject> iterator_prototype =
-        factory()->NewJSObject(isolate()->object_function(), TENURED);
-    Handle<JSObject> generator_object_prototype =
-        factory()->NewJSObject(isolate()->object_function(), TENURED);
-    Handle<JSObject> generator_function_prototype =
-        factory()->NewJSObject(isolate()->object_function(), TENURED);
-    SetObjectPrototype(generator_object_prototype, iterator_prototype);
-    JSObject::AddProperty(
-        builtins, factory()->InternalizeUtf8String("$iteratorPrototype"),
-        iterator_prototype,
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
-    JSObject::AddProperty(
-        builtins,
-        factory()->InternalizeUtf8String("GeneratorFunctionPrototype"),
-        generator_function_prototype,
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
-
-    JSObject::AddProperty(
-        generator_function_prototype,
-        factory()->InternalizeUtf8String("prototype"),
-        generator_object_prototype,
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-
-    static const bool kUseStrictFunctionMap = true;
-    Handle<JSFunction> generator_function_function =
-        InstallFunction(builtins, "GeneratorFunction", JS_FUNCTION_TYPE,
-                        JSFunction::kSize, generator_function_prototype,
-                        Builtins::kIllegal, kUseStrictFunctionMap);
-    generator_function_function->initial_map()->set_is_callable();
-
-    // Create maps for generator functions and their prototypes.  Store those
-    // maps in the native context. The "prototype" property descriptor is
-    // writable, non-enumerable, and non-configurable (as per ES6 draft
-    // 04-14-15, section 25.2.4.3).
-    Handle<Map> strict_function_map(strict_function_map_writable_prototype_);
-    // Generator functions do not have "caller" or "arguments" accessors.
-    Handle<Map> sloppy_generator_function_map =
-        Map::Copy(strict_function_map, "SloppyGeneratorFunction");
-    Map::SetPrototype(sloppy_generator_function_map,
-                      generator_function_prototype);
-    native_context()->set_sloppy_generator_function_map(
-        *sloppy_generator_function_map);
-
-    Handle<Map> strict_generator_function_map =
-        Map::Copy(strict_function_map, "StrictGeneratorFunction");
-    Map::SetPrototype(strict_generator_function_map,
-                      generator_function_prototype);
-    native_context()->set_strict_generator_function_map(
-        *strict_generator_function_map);
-
-    Handle<Map> strong_function_map(native_context()->strong_function_map());
-    Handle<Map> strong_generator_function_map =
-        Map::Copy(strong_function_map, "StrongGeneratorFunction");
-    Map::SetPrototype(strong_generator_function_map,
-                      generator_function_prototype);
-    native_context()->set_strong_generator_function_map(
-        *strong_generator_function_map);
-
-    Handle<JSFunction> object_function(native_context()->object_function());
-    Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
-    Map::SetPrototype(generator_object_prototype_map,
-                      generator_object_prototype);
-    native_context()->set_generator_object_prototype_map(
-        *generator_object_prototype_map);
-  }
-
-  if (FLAG_disable_native_files) {
-    PrintF("Warning: Running without installed natives!\n");
-    return true;
   }
 
   // Run the rest of the native scripts.
@@ -2767,16 +2801,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
       factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("stackTraceLimit"));
   Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
   JSObject::AddProperty(Error, name, stack_trace_limit, NONE);
-
-  // Expose the natives in global if a name for it is specified.
-  if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
-    Handle<String> natives_key =
-        factory->InternalizeUtf8String(FLAG_expose_natives_as);
-    uint32_t dummy_index;
-    if (natives_key->AsArrayIndex(&dummy_index)) return true;
-    Handle<JSBuiltinsObject> natives(global->builtins());
-    JSObject::AddProperty(global, natives_key, natives, DONT_ENUM);
-  }
 
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
@@ -3221,6 +3245,7 @@ Genesis::Genesis(Isolate* isolate,
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
     CreateStrictModeFunctionMaps(empty_function);
     CreateStrongModeFunctionMaps(empty_function);
+    CreateIteratorMaps();
     Handle<GlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
     HookUpGlobalProxy(global_object, global_proxy);
@@ -3249,10 +3274,6 @@ Genesis::Genesis(Isolate* isolate,
       if (FLAG_experimental_extras) {
         if (!InstallExperimentalExtraNatives()) return;
       }
-
-      // By now the utils object is useless and can be removed.
-      native_context()->set_natives_utils_object(
-          isolate->heap()->undefined_value());
     }
     // The serializer cannot serialize typed arrays. Reset those typed arrays
     // for each new context.
@@ -3262,6 +3283,8 @@ Genesis::Genesis(Isolate* isolate,
     InitializeExperimentalGlobal();
     if (!InstallDebuggerNatives()) return;
   }
+
+  ConfigureUtilsObject(context_type);
 
   // Check that the script context table is empty except for the 'this' binding.
   // We do not need script contexts for native scripts.

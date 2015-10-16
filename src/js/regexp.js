@@ -12,12 +12,14 @@ var $regexpLastMatchInfoOverride;
 // Imports
 
 var FLAG_harmony_regexps;
+var FLAG_harmony_tolength;
 var FLAG_harmony_unicode_regexps;
 var GlobalRegExp = global.RegExp;
 var InternalPackedArray = utils.InternalPackedArray;
 
 utils.ImportFromExperimental(function(from) {
   FLAG_harmony_regexps = from.FLAG_harmony_regexps;
+  FLAG_harmony_tolength = from.FLAG_harmony_tolength;
   FLAG_harmony_unicode_regexps = from.FLAG_harmony_unicode_regexps;
 });
 

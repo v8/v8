@@ -263,7 +263,6 @@ namespace internal {
   V(multiline_string, "multiline")                         \
   V(sticky_string, "sticky")                               \
   V(unicode_string, "unicode")                             \
-  V(harmony_tolength_string, "harmony_tolength")           \
   V(input_string, "input")                                 \
   V(index_string, "index")                                 \
   V(last_index_string, "lastIndex")                        \

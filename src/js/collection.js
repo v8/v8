@@ -15,16 +15,16 @@ var GlobalObject = global.Object;
 var GlobalSet = global.Set;
 var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
 var IntRandom;
+var MapIterator;
+var NumberIsNaN;
+var SetIterator;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   IntRandom = from.IntRandom;
-});
-
-var NumberIsNaN;
-
-utils.Import(function(from) {
+  MapIterator = from.MapIterator;
   NumberIsNaN = from.NumberIsNaN;
+  SetIterator = from.SetIterator;
 });
 
 // -------------------------------------------------------------------

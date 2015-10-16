@@ -25,6 +25,7 @@ var ObserveEnqueueSpliceRecord;
 var ProxyDelegateCallAndConstruct;
 var ProxyDerivedHasOwnTrap;
 var ProxyDerivedKeysTrap;
+var SameValue = utils.ImportNow("SameValue");
 var StringIndexOf;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
@@ -653,17 +654,17 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     if ((IsGenericDescriptor(desc) ||
          IsDataDescriptor(desc) == IsDataDescriptor(current)) &&
         (!desc.hasEnumerable() ||
-         $sameValue(desc.isEnumerable(), current.isEnumerable())) &&
+         SameValue(desc.isEnumerable(), current.isEnumerable())) &&
         (!desc.hasConfigurable() ||
-         $sameValue(desc.isConfigurable(), current.isConfigurable())) &&
+         SameValue(desc.isConfigurable(), current.isConfigurable())) &&
         (!desc.hasWritable() ||
-         $sameValue(desc.isWritable(), current.isWritable())) &&
+         SameValue(desc.isWritable(), current.isWritable())) &&
         (!desc.hasValue() ||
-         $sameValue(desc.getValue(), current.getValue())) &&
+         SameValue(desc.getValue(), current.getValue())) &&
         (!desc.hasGetter() ||
-         $sameValue(desc.getGet(), current.getGet())) &&
+         SameValue(desc.getGet(), current.getGet())) &&
         (!desc.hasSetter() ||
-         $sameValue(desc.getSet(), current.getSet()))) {
+         SameValue(desc.getSet(), current.getSet()))) {
       return true;
     }
     if (!current.isConfigurable()) {
@@ -702,7 +703,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
             }
           }
           if (!currentIsWritable && desc.hasValue() &&
-              !$sameValue(desc.getValue(), current.getValue())) {
+              !SameValue(desc.getValue(), current.getValue())) {
             if (should_throw) {
               throw MakeTypeError(kRedefineDisallowed, p);
             } else {
@@ -713,14 +714,14 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
         // Step 11
         if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
           if (desc.hasSetter() &&
-              !$sameValue(desc.getSet(), current.getSet())) {
+              !SameValue(desc.getSet(), current.getSet())) {
             if (should_throw) {
               throw MakeTypeError(kRedefineDisallowed, p);
             } else {
               return false;
             }
           }
-          if (desc.hasGetter() && !$sameValue(desc.getGet(),current.getGet())) {
+          if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet())) {
             if (should_throw) {
               throw MakeTypeError(kRedefineDisallowed, p);
             } else {
@@ -1259,12 +1260,6 @@ function ObjectIsExtensible(obj) {
 }
 
 
-// ECMA-262, Edition 6, section 19.1.2.10
-function ObjectIs(obj1, obj2) {
-  return $sameValue(obj1, obj2);
-}
-
-
 // ECMA-262, Edition 6, section 19.1.2.1
 function ObjectAssign(target, sources) {
   // TODO(bmeurer): Move this to toplevel.
@@ -1360,7 +1355,7 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
   "getOwnPropertyNames", ObjectGetOwnPropertyNames,
   // getOwnPropertySymbols is added in symbol.js.
-  "is", ObjectIs,
+  "is", SameValue,  // ECMA-262, Edition 6, section 19.1.2.10
   "isExtensible", ObjectIsExtensible,
   "isFrozen", ObjectIsFrozen,
   "isSealed", ObjectIsSealed,

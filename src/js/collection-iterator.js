@@ -11,7 +11,9 @@
 var GlobalMap = global.Map;
 var GlobalSet = global.Set;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var MapIterator = utils.ImportNow("MapIterator");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+var SetIterator = utils.ImportNow("SetIterator");
 
 // -------------------------------------------------------------------
 
@@ -65,7 +67,6 @@ function SetValues() {
 // -------------------------------------------------------------------
 
 %SetCode(SetIterator, SetIteratorConstructor);
-%FunctionSetPrototype(SetIterator, {__proto__: $iteratorPrototype});
 %FunctionSetInstanceClassName(SetIterator, 'Set Iterator');
 utils.InstallFunctions(SetIterator.prototype, DONT_ENUM, [
   'next', SetIteratorNextJS
@@ -144,7 +145,6 @@ function MapValues() {
 // -------------------------------------------------------------------
 
 %SetCode(MapIterator, MapIteratorConstructor);
-%FunctionSetPrototype(MapIterator, {__proto__: $iteratorPrototype});
 %FunctionSetInstanceClassName(MapIterator, 'Map Iterator');
 utils.InstallFunctions(MapIterator.prototype, DONT_ENUM, [
   'next', MapIteratorNextJS

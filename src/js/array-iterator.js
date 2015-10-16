@@ -18,6 +18,7 @@ var arrayIteratorNextIndexSymbol =
 var arrayIteratorObjectSymbol =
     utils.ImportNow("array_iterator_object_symbol");
 var GlobalArray = global.Array;
+var IteratorPrototype = utils.ImportNow("IteratorPrototype");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
@@ -121,7 +122,7 @@ function ArrayKeys() {
 }
 
 
-%FunctionSetPrototype(ArrayIterator, {__proto__: $iteratorPrototype});
+%FunctionSetPrototype(ArrayIterator, {__proto__: IteratorPrototype});
 %FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
 
 utils.InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [

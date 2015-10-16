@@ -12,6 +12,7 @@
 // Imports
 
 var Delete;
+var FLAG_harmony_tolength;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
@@ -35,6 +36,10 @@ utils.Import(function(from) {
   ObserveBeginPerformSplice = from.ObserveBeginPerformSplice;
   ObserveEndPerformSplice = from.ObserveEndPerformSplice;
   ObserveEnqueueSpliceRecord = from.ObserveEnqueueSpliceRecord;
+});
+
+utils.ImportFromExperimental(function(from) {
+  FLAG_harmony_tolength = from.FLAG_harmony_tolength;
 });
 
 // -------------------------------------------------------------------

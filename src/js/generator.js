@@ -11,6 +11,8 @@
 // -------------------------------------------------------------------
 // Imports
 
+var GeneratorFunctionPrototype = utils.ImportNow("GeneratorFunctionPrototype");
+var GeneratorFunction = utils.ImportNow("GeneratorFunction");
 var GlobalFunction = global.Function;
 var NewFunctionString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");

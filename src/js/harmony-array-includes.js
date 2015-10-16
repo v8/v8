@@ -9,6 +9,11 @@
 %CheckIsBootstrapping();
 
 var GlobalArray = global.Array;
+var SameValueZero;
+
+utils.Import(function(from) {
+  SameValueZero = from.SameValueZero;
+});
 
 // -------------------------------------------------------------------
 
@@ -34,7 +39,7 @@ function InnerArrayIncludes(searchElement, fromIndex, array, length) {
 
   while (k < length) {
     var elementK = array[k];
-    if ($sameValueZero(searchElement, elementK)) {
+    if (SameValueZero(searchElement, elementK)) {
       return true;
     }
 

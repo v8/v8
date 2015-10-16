@@ -11,6 +11,7 @@
 // -------------------------------------------------------------------
 // Imports
 
+var FLAG_harmony_tolength;
 var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
@@ -21,6 +22,7 @@ var ObjectIsFrozen;
 var ObjectDefineProperty;
 
 utils.Import(function(from) {
+  FLAG_harmony_tolength = from.FLAG_harmony_tolength;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
   MathMax = from.MathMax;
