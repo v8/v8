@@ -83,6 +83,10 @@ TIMEOUT_DEFAULT = 60
 
 VARIANTS = ["default", "stress", "turbofan", "nocrankshaft"]
 
+EXHAUSTIVE_VARIANTS = VARIANTS + [
+  # TODO(machenbach): Add always opt turbo variant.
+]
+
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
                "--nofold-constants", "--enable-slow-asserts",
                "--debug-code", "--verify-heap"]
@@ -253,6 +257,9 @@ def BuildOptions():
                     default=False, dest="no_variants", action="store_true")
   result.add_option("--variants",
                     help="Comma-separated list of testing variants: %s" % VARIANTS)
+  result.add_option("--exhaustive-variants",
+                    default=False, action="store_true",
+                    help="Use exhaustive set of default variants.")
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
   result.add_option("--predictable",
@@ -337,6 +344,7 @@ def BuildbotToV8Mode(config):
 
 def ProcessOptions(options):
   global ALL_VARIANTS
+  global EXHAUSTIVE_VARIANTS
   global VARIANTS
 
   # Architecture and mode related stuff.
@@ -387,6 +395,11 @@ def ProcessOptions(options):
 
   if options.novfp3:
     options.extra_flags.append("--noenable-vfp3")
+
+  if options.exhaustive_variants:
+    # This is used on many bots. It includes a larger set of default variants.
+    # Other options for manipulating variants still apply afterwards.
+    VARIANTS = EXHAUSTIVE_VARIANTS
 
   if options.msan:
     VARIANTS = ["default"]
