@@ -22,7 +22,6 @@ namespace compiler {
 class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
-class MachineOperatorBuilder;
 
 
 // Specializes a given JSGraph to a given GlobalObject, potentially constant
@@ -39,14 +38,13 @@ class JSGlobalSpecialization final : public AdvancedReducer {
 
   JSGlobalSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
                          Handle<GlobalObject> global_object,
-                         CompilationDependencies* dependencies, Zone* zone);
+                         CompilationDependencies* dependencies);
 
   Reduction Reduce(Node* node) final;
 
  private:
   Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSStoreGlobal(Node* node);
-  Reduction ReduceJSLoadNamed(Node* node);
 
   Reduction Replace(Node* node, Node* value, Node* effect = nullptr,
                     Node* control = nullptr) {
@@ -54,12 +52,6 @@ class JSGlobalSpecialization final : public AdvancedReducer {
     return Changed(value);
   }
   Reduction Replace(Node* node, Handle<Object> value);
-
-  class PropertyAccessInfo;
-  bool ComputePropertyAccessInfo(Handle<Map> map, Handle<Name> name,
-                                 PropertyAccessInfo* access_info);
-  bool ComputePropertyAccessInfos(MapHandleList const& maps, Handle<Name> name,
-                                  ZoneVector<PropertyAccessInfo>* access_infos);
 
   struct ScriptContextTableLookupResult;
   bool LookupInScriptContextTable(Handle<Name> name,
@@ -71,17 +63,14 @@ class JSGlobalSpecialization final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
-  MachineOperatorBuilder* machine() const;
   Flags flags() const { return flags_; }
   Handle<GlobalObject> global_object() const { return global_object_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
-  Zone* zone() const { return zone_; }
 
   JSGraph* const jsgraph_;
   Flags const flags_;
   Handle<GlobalObject> global_object_;
   CompilationDependencies* const dependencies_;
-  Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(JSGlobalSpecialization);
 };

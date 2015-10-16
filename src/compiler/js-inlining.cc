@@ -369,8 +369,7 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
         info.is_deoptimization_enabled()
             ? JSGlobalSpecialization::kDeoptimizationEnabled
             : JSGlobalSpecialization::kNoFlags,
-        handle(info.global_object(), info.isolate()), info_->dependencies(),
-        local_zone_);
+        handle(info.global_object(), info.isolate()), info_->dependencies());
     graph_reducer.AddReducer(&dead_code_elimination);
     graph_reducer.AddReducer(&common_reducer);
     graph_reducer.AddReducer(&global_specialization);

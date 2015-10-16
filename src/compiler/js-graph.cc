@@ -11,11 +11,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> value) {
-  if (value->IsConsString()) {
-    value = String::Flatten(Handle<String>::cast(value), TENURED);
-  }
-  return graph()->NewNode(common()->HeapConstant(value));
+Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> object) {
+  return graph()->NewNode(common()->HeapConstant(object));
 }
 
 
@@ -81,7 +78,7 @@ Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
   // TODO(titzer): We could also match against the addresses of immortable
   // immovables here, even without access to the heap, thus always
   // canonicalizing references to them.
-  return ImmovableHeapConstant(value);
+  return graph()->NewNode(common()->HeapConstant(value));
 }
 
 
