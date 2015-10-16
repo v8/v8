@@ -8278,11 +8278,12 @@ int HOptimizedGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
   }
 
   // Target must be inlineable.
-  if (!target_shared->IsInlineable()) {
+  BailoutReason noopt_reason = target_shared->disable_optimization_reason();
+  if (!target_shared->IsInlineable() && noopt_reason != kHydrogenFilter) {
     TraceInline(target, caller, "target not inlineable");
     return kNotInlinable;
   }
-  if (target_shared->disable_optimization_reason() != kNoReason) {
+  if (noopt_reason != kNoReason && noopt_reason != kHydrogenFilter) {
     TraceInline(target, caller, "target contains unsupported syntax [early]");
     return kNotInlinable;
   }
