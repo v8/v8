@@ -630,6 +630,9 @@
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
+
+  # BUG(v8:4495).
+  'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
 }],  # 'system == windows'
 
 ##############################################################################
