@@ -4899,6 +4899,7 @@ class Code: public HeapObject {
   inline bool is_to_boolean_ic_stub();
   inline bool is_keyed_stub();
   inline bool is_optimized_code();
+  inline bool is_interpreter_entry_trampoline();
   inline bool embeds_maps_weakly();
 
   inline bool IsCodeStubOrIC();

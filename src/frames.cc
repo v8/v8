@@ -439,6 +439,19 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         return JAVA_SCRIPT;
       case Code::OPTIMIZED_FUNCTION:
         return OPTIMIZED;
+      case Code::BUILTIN:
+        if (!marker->IsSmi()) {
+          if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
+            // An adapter frame has a special SMI constant for the context and
+            // is not distinguished through the marker.
+            return ARGUMENTS_ADAPTOR;
+          } else {
+            // The interpreter entry trampoline has a non-SMI marker.
+            DCHECK(code_obj->is_interpreter_entry_trampoline());
+            return INTERPRETED;
+          }
+        }
+        break;  // Marker encodes the frame type.
       case Code::HANDLER:
         if (!marker->IsSmi()) {
           // Only hydrogen code stub handlers can have a non-SMI marker.
@@ -449,12 +462,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       default:
         break;  // Marker encodes the frame type.
     }
-  }
-
-  if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
-    // An adapter frame has a special SMI constant for the context and
-    // is not distinguished through the marker.
-    return ARGUMENTS_ADAPTOR;
   }
 
   // Didn't find a code object, or the code kind wasn't specific enough.

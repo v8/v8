@@ -99,16 +99,17 @@ class StackHandler BASE_EMBEDDED {
 
 
 #define STACK_FRAME_TYPE_LIST(V)                         \
-  V(ENTRY,                   EntryFrame)                 \
-  V(ENTRY_CONSTRUCT,         EntryConstructFrame)        \
-  V(EXIT,                    ExitFrame)                  \
-  V(JAVA_SCRIPT,             JavaScriptFrame)            \
-  V(OPTIMIZED,               OptimizedFrame)             \
-  V(STUB,                    StubFrame)                  \
+  V(ENTRY, EntryFrame)                                   \
+  V(ENTRY_CONSTRUCT, EntryConstructFrame)                \
+  V(EXIT, ExitFrame)                                     \
+  V(JAVA_SCRIPT, JavaScriptFrame)                        \
+  V(OPTIMIZED, OptimizedFrame)                           \
+  V(INTERPRETED, InterpretedFrame)                       \
+  V(STUB, StubFrame)                                     \
   V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame) \
-  V(INTERNAL,                InternalFrame)              \
-  V(CONSTRUCT,               ConstructFrame)             \
-  V(ARGUMENTS_ADAPTOR,       ArgumentsAdaptorFrame)
+  V(INTERNAL, InternalFrame)                             \
+  V(CONSTRUCT, ConstructFrame)                           \
+  V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)
 
 
 class StandardFrameConstants : public AllStatic {
@@ -699,6 +700,17 @@ class OptimizedFrame : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 
   Object* StackSlotAt(int index) const;
+};
+
+
+class InterpretedFrame : public JavaScriptFrame {
+  virtual Type type() const { return INTERPRETED; }
+
+ protected:
+  inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
 };
 
 

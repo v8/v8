@@ -234,6 +234,10 @@ inline OptimizedFrame::OptimizedFrame(StackFrameIteratorBase* iterator)
 }
 
 
+inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
+    : JavaScriptFrame(iterator) {}
+
+
 inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
     StackFrameIteratorBase* iterator) : JavaScriptFrame(iterator) {
 }

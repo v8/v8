@@ -4978,12 +4978,8 @@ bool Code::IsCodeStubOrIC() {
 
 
 bool Code::IsJavaScriptCode() {
-  if (kind() == FUNCTION || kind() == OPTIMIZED_FUNCTION) {
-    return true;
-  }
-  Handle<Code> interpreter_entry =
-      GetIsolate()->builtins()->InterpreterEntryTrampoline();
-  return interpreter_entry.location() != nullptr && *interpreter_entry == this;
+  return kind() == FUNCTION || kind() == OPTIMIZED_FUNCTION ||
+         is_interpreter_entry_trampoline();
 }
 
 
@@ -5031,6 +5027,12 @@ inline bool Code::is_hydrogen_stub() {
   return is_crankshafted() && kind() != OPTIMIZED_FUNCTION;
 }
 
+
+inline bool Code::is_interpreter_entry_trampoline() {
+  Handle<Code> interpreter_entry =
+      GetIsolate()->builtins()->InterpreterEntryTrampoline();
+  return interpreter_entry.location() != nullptr && *interpreter_entry == this;
+}
 
 inline void Code::set_is_crankshafted(bool value) {
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
