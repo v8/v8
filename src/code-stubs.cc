@@ -744,6 +744,12 @@ void AllocateHeapNumberStub::InitializeDescriptor(
 }
 
 
+void AllocateInNewSpaceStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize();
+}
+
+
 void CompareNilICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(Runtime_CompareNilIC_Miss));
   descriptor->SetMissHandler(ExternalReference(

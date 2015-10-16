@@ -1140,6 +1140,19 @@ Handle<Code> AllocateHeapNumberStub::GenerateCode() {
 }
 
 
+template <>
+HValue* CodeStubGraphBuilder<AllocateInNewSpaceStub>::BuildCodeStub() {
+  HValue* result = Add<HAllocate>(GetParameter(0), HType::Tagged(), NOT_TENURED,
+                                  JS_OBJECT_TYPE);
+  return result;
+}
+
+
+Handle<Code> AllocateInNewSpaceStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
 HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
     ElementsKind kind,
     AllocationSiteOverrideMode override_mode,

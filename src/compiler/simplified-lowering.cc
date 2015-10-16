@@ -1212,18 +1212,32 @@ WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
 
 void SimplifiedLowering::DoAllocate(Node* node) {
   PretenureFlag pretenure = OpParameter<PretenureFlag>(node->op());
-  AllocationSpace space = pretenure == TENURED ? OLD_SPACE : NEW_SPACE;
-  Runtime::FunctionId f = Runtime::kAllocateInTargetSpace;
-  Operator::Properties props = node->op()->properties();
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(zone(), f, 2, props);
-  ExternalReference ref(f, jsgraph()->isolate());
-  int32_t flags = AllocateTargetSpace::encode(space);
-  node->InsertInput(graph()->zone(), 0, jsgraph()->CEntryStubConstant(1));
-  node->InsertInput(graph()->zone(), 2, jsgraph()->SmiConstant(flags));
-  node->InsertInput(graph()->zone(), 3, jsgraph()->ExternalConstant(ref));
-  node->InsertInput(graph()->zone(), 4, jsgraph()->Int32Constant(2));
-  node->InsertInput(graph()->zone(), 5, jsgraph()->NoContextConstant());
-  NodeProperties::ChangeOp(node, common()->Call(desc));
+  if (pretenure == NOT_TENURED) {
+    Callable callable = CodeFactory::AllocateInNewSpace(isolate());
+    Node* target = jsgraph()->HeapConstant(callable.code());
+    CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+        isolate(), jsgraph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNoFlags, Operator::kNoThrow);
+    const Operator* op = common()->Call(descriptor);
+    node->InsertInput(graph()->zone(), 0, target);
+    node->InsertInput(graph()->zone(), 2, jsgraph()->NoContextConstant());
+    NodeProperties::ChangeOp(node, op);
+  } else {
+    DCHECK_EQ(TENURED, pretenure);
+    AllocationSpace space = OLD_SPACE;
+    Runtime::FunctionId f = Runtime::kAllocateInTargetSpace;
+    Operator::Properties props = node->op()->properties();
+    CallDescriptor* desc =
+        Linkage::GetRuntimeCallDescriptor(zone(), f, 2, props);
+    ExternalReference ref(f, jsgraph()->isolate());
+    int32_t flags = AllocateTargetSpace::encode(space);
+    node->InsertInput(graph()->zone(), 0, jsgraph()->CEntryStubConstant(1));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->SmiConstant(flags));
+    node->InsertInput(graph()->zone(), 3, jsgraph()->ExternalConstant(ref));
+    node->InsertInput(graph()->zone(), 4, jsgraph()->Int32Constant(2));
+    node->InsertInput(graph()->zone(), 5, jsgraph()->NoContextConstant());
+    NodeProperties::ChangeOp(node, common()->Call(desc));
+  }
 }
 
 
