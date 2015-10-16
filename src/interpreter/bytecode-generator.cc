@@ -538,7 +538,14 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
 
 
 void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  UNIMPLEMENTED();
+  // Materialize a regular expression literal.
+  TemporaryRegisterScope temporary_register_scope(builder());
+  Register flags = temporary_register_scope.NewRegister();
+  builder()
+      ->LoadLiteral(expr->flags())
+      .StoreAccumulatorInRegister(flags)
+      .LoadLiteral(expr->pattern())
+      .CreateRegExpLiteral(expr->literal_index(), flags);
 }
 
 

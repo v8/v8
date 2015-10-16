@@ -2063,6 +2063,75 @@ TEST(FunctionLiterals) {
 }
 
 
+TEST(RegExpLiterals) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  feedback_spec.AddLoadICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddLoadICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"return /ab+d/;",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaConstant), U8(0),                //
+           B(Star), R(0),                        //
+           B(LdaConstant), U8(1),                //
+           B(CreateRegExpLiteral), U8(0), R(0),  //
+           B(Return),                            //
+       },
+       2,
+       {"", "ab+d"}},
+      {"return /(\\w+)\\s(\\w+)/i;",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaConstant), U8(0),                //
+           B(Star), R(0),                        //
+           B(LdaConstant), U8(1),                //
+           B(CreateRegExpLiteral), U8(0), R(0),  //
+           B(Return),                            //
+       },
+       2,
+       {"i", "(\\w+)\\s(\\w+)"}},
+      {"return /ab+d/.exec('abdd');",
+       3 * kPointerSize,
+       1,
+       27,
+       {
+           B(LdaConstant), U8(0),                               //
+           B(Star), R(2),                                       //
+           B(LdaConstant), U8(1),                               //
+           B(CreateRegExpLiteral), U8(0), R(2),                 //
+           B(Star), R(1),                                       //
+           B(LdaConstant), U8(2),                               //
+           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                       //
+           B(LdaConstant), U8(3),                               //
+           B(Star), R(2),                                       //
+           B(Call), R(0), R(1), U8(1),                          //
+           B(Return),                                           //
+       },
+       4,
+       {"", "ab+d", "exec", "abdd"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
 TEST(ArrayLiterals) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;

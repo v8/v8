@@ -345,6 +345,12 @@ void BytecodeGraphBuilder::VisitCreateClosure(
 }
 
 
+void BytecodeGraphBuilder::VisitCreateRegExpLiteral(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitCreateArrayLiteral(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

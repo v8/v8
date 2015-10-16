@@ -353,6 +353,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
+    int literal_index, Register flags) {
+  if (FitsInIdx8Operand(literal_index)) {
+    Output(Bytecode::kCreateRegExpLiteral, static_cast<uint8_t>(literal_index),
+           flags.ToOperand());
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
     int literal_index, int flags) {
   DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bytes.

@@ -68,7 +68,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateClosure(NOT_TENURED);
 
   // Emit literal creation operations
-  builder.CreateArrayLiteral(0, 0)
+  builder.CreateRegExpLiteral(0, reg)
+      .CreateArrayLiteral(0, 0)
       .CreateObjectLiteral(0, 0);
 
   // Call operations.

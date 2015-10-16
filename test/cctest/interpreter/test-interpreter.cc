@@ -1683,6 +1683,35 @@ TEST(InterpreterFunctionLiteral) {
 }
 
 
+TEST(InterpreterRegExpLiterals) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> literals[5] = {
+      std::make_pair("return /abd/.exec('cccabbdd');\n",
+                     factory->null_value()),
+      std::make_pair("return /ab+d/.exec('cccabbdd')[0];\n",
+                     factory->NewStringFromStaticChars("abbd")),
+      std::make_pair("return /AbC/i.exec('ssaBC')[0];\n",
+                     factory->NewStringFromStaticChars("aBC")),
+      std::make_pair("return 'ssaBC'.match(/AbC/i)[0];\n",
+                     factory->NewStringFromStaticChars("aBC")),
+      std::make_pair("return 'ssaBCtAbC'.match(/(AbC)/gi)[1];\n",
+                     factory->NewStringFromStaticChars("AbC")),
+  };
+
+  for (size_t i = 0; i < arraysize(literals); i++) {
+    std::string source(InterpreterTester::SourceForBody(literals[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*literals[i].second));
+  }
+}
+
+
 TEST(InterpreterArrayLiterals) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
