@@ -172,6 +172,7 @@ TEST(InterpreterReturn) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -190,6 +191,7 @@ TEST(InterpreterLoadUndefined) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadUndefined().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -207,6 +209,7 @@ TEST(InterpreterLoadNull) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadNull().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -225,6 +228,7 @@ TEST(InterpreterLoadTheHole) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadTheHole().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -242,6 +246,7 @@ TEST(InterpreterLoadTrue) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadTrue().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -259,6 +264,7 @@ TEST(InterpreterLoadFalse) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadFalse().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -278,6 +284,7 @@ TEST(InterpreterLoadLiteral) {
   for (int i = -128; i < 128; i++) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(0);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     builder.LoadLiteral(Smi::FromInt(i)).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -292,6 +299,7 @@ TEST(InterpreterLoadLiteral) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(0);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     builder.LoadLiteral(Smi::FromInt(0x12345678)).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -306,6 +314,7 @@ TEST(InterpreterLoadLiteral) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(0);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     builder.LoadLiteral(factory->NewHeapNumber(-2.1e19)).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -320,6 +329,7 @@ TEST(InterpreterLoadLiteral) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(0);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     Handle<i::String> string = factory->NewStringFromAsciiChecked("String");
     builder.LoadLiteral(string).Return();
@@ -339,6 +349,7 @@ TEST(InterpreterLoadStoreRegisters) {
   for (int i = 0; i <= Register::kMaxRegisterIndex; i++) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(i + 1);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     Register reg(i);
     builder.LoadTrue()
@@ -424,6 +435,7 @@ TEST(InterpreterShiftOpsSmi) {
         BytecodeArrayBuilder builder(handles.main_isolate(),
                                      handles.main_zone());
         builder.set_locals_count(1);
+        builder.set_context_count(0);
         builder.set_parameter_count(1);
         Register reg(0);
         int lhs = lhs_inputs[l];
@@ -458,6 +470,7 @@ TEST(InterpreterBinaryOpsSmi) {
         BytecodeArrayBuilder builder(handles.main_isolate(),
                                      handles.main_zone());
         builder.set_locals_count(1);
+        builder.set_context_count(0);
         builder.set_parameter_count(1);
         Register reg(0);
         int lhs = lhs_inputs[l];
@@ -493,6 +506,7 @@ TEST(InterpreterBinaryOpsHeapNumber) {
         BytecodeArrayBuilder builder(handles.main_isolate(),
                                      handles.main_zone());
         builder.set_locals_count(1);
+        builder.set_context_count(0);
         builder.set_parameter_count(1);
         Register reg(0);
         double lhs = lhs_inputs[l];
@@ -551,6 +565,7 @@ TEST(InterpreterStringAdd) {
   for (size_t i = 0; i < arraysize(test_cases); i++) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(1);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     Register reg(0);
     builder.LoadLiteral(test_cases[i].lhs)
@@ -572,6 +587,7 @@ TEST(InterpreterParameter1) {
   HandleAndZoneScope handles;
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadAccumulatorWithRegister(builder.Parameter(0)).Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
@@ -595,6 +611,7 @@ TEST(InterpreterParameter8) {
   HandleAndZoneScope handles;
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(8);
   builder.LoadAccumulatorWithRegister(builder.Parameter(0))
       .BinaryOperation(Token::Value::ADD, builder.Parameter(1), Strength::WEAK)
@@ -631,6 +648,7 @@ TEST(InterpreterParameter1Assign) {
   HandleAndZoneScope handles;
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadLiteral(Smi::FromInt(5))
       .StoreAccumulatorInRegister(builder.Parameter(0))
@@ -760,6 +778,7 @@ TEST(InterpreterLoadNamedProperty) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadLiteral(name)
       .LoadNamedProperty(builder.Parameter(0), vector->GetIndex(slot),
@@ -816,6 +835,7 @@ TEST(InterpreterLoadKeyedProperty) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadLiteral(key)
       .LoadKeyedProperty(builder.Parameter(0), vector->GetIndex(slot),
@@ -860,6 +880,7 @@ TEST(InterpreterStoreNamedProperty) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadLiteral(name)
       .StoreAccumulatorInRegister(Register(0))
@@ -922,6 +943,7 @@ TEST(InterpreterStoreKeyedProperty) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(1);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadLiteral(name)
       .StoreAccumulatorInRegister(Register(0))
@@ -974,6 +996,7 @@ TEST(InterpreterCall) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(1);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     builder.LoadLiteral(name)
         .LoadNamedProperty(builder.Parameter(0), slot_index, i::SLOPPY)
@@ -995,6 +1018,7 @@ TEST(InterpreterCall) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(1);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     builder.LoadLiteral(name)
         .LoadNamedProperty(builder.Parameter(0), slot_index, i::SLOPPY)
@@ -1019,6 +1043,7 @@ TEST(InterpreterCall) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(4);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     builder.LoadLiteral(name)
         .LoadNamedProperty(builder.Parameter(0), slot_index, i::SLOPPY)
@@ -1048,6 +1073,7 @@ TEST(InterpreterCall) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     builder.set_locals_count(12);
+    builder.set_context_count(0);
     builder.set_parameter_count(1);
     builder.LoadLiteral(name)
         .LoadNamedProperty(builder.Parameter(0), slot_index, i::SLOPPY)
@@ -1121,6 +1147,7 @@ TEST(InterpreterJumps) {
   HandleAndZoneScope handles;
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(2);
+  builder.set_context_count(0);
   builder.set_parameter_count(0);
   Register reg(0), scratch(1);
   BytecodeLabel label[3];
@@ -1149,6 +1176,7 @@ TEST(InterpreterConditionalJumps) {
   HandleAndZoneScope handles;
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(2);
+  builder.set_context_count(0);
   builder.set_parameter_count(0);
   Register reg(0), scratch(1);
   BytecodeLabel label[2];
@@ -1237,6 +1265,7 @@ TEST(InterpreterSmiComparisons) {
                                      handles.main_zone());
         Register r0(0);
         builder.set_locals_count(1);
+        builder.set_context_count(0);
         builder.set_parameter_count(0);
         builder.LoadLiteral(Smi::FromInt(inputs[i]))
             .StoreAccumulatorInRegister(r0)
@@ -1275,6 +1304,7 @@ TEST(InterpreterHeapNumberComparisons) {
                                      handles.main_zone());
         Register r0(0);
         builder.set_locals_count(1);
+        builder.set_context_count(0);
         builder.set_parameter_count(0);
         builder.LoadLiteral(factory->NewHeapNumber(inputs[i]))
             .StoreAccumulatorInRegister(r0)
@@ -1310,6 +1340,7 @@ TEST(InterpreterStringComparisons) {
                                      handles.main_zone());
         Register r0(0);
         builder.set_locals_count(1);
+        builder.set_context_count(0);
         builder.set_parameter_count(0);
         builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs))
             .StoreAccumulatorInRegister(r0)
@@ -1356,6 +1387,7 @@ TEST(InterpreterMixedComparisons) {
                                        handles.main_zone());
           Register r0(0);
           builder.set_locals_count(1);
+          builder.set_context_count(0);
           builder.set_parameter_count(0);
           if (pass == 0) {
             // Comparison with HeapNumber on the lhs and String on the rhs
@@ -1400,6 +1432,7 @@ TEST(InterpreterInstanceOf) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     Register r0(0);
     builder.set_locals_count(1);
+    builder.set_context_count(0);
     builder.set_parameter_count(0);
     builder.LoadLiteral(cases[i]);
     builder.StoreAccumulatorInRegister(r0)
@@ -1430,6 +1463,7 @@ TEST(InterpreterTestIn) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     Register r0(0);
     builder.set_locals_count(1);
+    builder.set_context_count(0);
     builder.set_parameter_count(0);
     builder.LoadLiteral(factory->NewStringFromAsciiChecked(properties[i]))
         .StoreAccumulatorInRegister(r0)
@@ -1454,6 +1488,7 @@ TEST(InterpreterUnaryNot) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     Register r0(0);
     builder.set_locals_count(0);
+    builder.set_context_count(0);
     builder.set_parameter_count(0);
     builder.EnterBlock();
     builder.LoadFalse();
@@ -1517,6 +1552,7 @@ TEST(InterpreterToBoolean) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     Register r0(0);
     builder.set_locals_count(0);
+    builder.set_context_count(0);
     builder.set_parameter_count(0);
     builder.EnterBlock();
     LoadAny(&builder, factory, object_type_tuples[i].first);
@@ -1554,6 +1590,7 @@ TEST(InterpreterUnaryNotNonBoolean) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     Register r0(0);
     builder.set_locals_count(0);
+    builder.set_context_count(0);
     builder.set_parameter_count(0);
     builder.EnterBlock();
     LoadAny(&builder, factory, object_type_tuples[i].first);
@@ -1589,6 +1626,7 @@ TEST(InterpreterTypeOf) {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
     Register r0(0);
     builder.set_locals_count(0);
+    builder.set_context_count(0);
     builder.set_parameter_count(0);
     builder.EnterBlock();
     LoadAny(&builder, factory, object_type_tuples[i].first);
@@ -1610,6 +1648,7 @@ TEST(InterpreterCallRuntime) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
   builder.set_locals_count(2);
+  builder.set_context_count(0);
   builder.set_parameter_count(1);
   builder.LoadLiteral(Smi::FromInt(15))
       .StoreAccumulatorInRegister(Register(0))
@@ -1784,6 +1823,67 @@ TEST(InterpreterConstructWithArguments) {
 
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(15));
+}
+
+
+TEST(InterpreterContextVariables) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> context_vars[5] = {
+      std::make_pair("var a; (function() { a = 1; })(); return a;",
+                     Handle<Object>(Smi::FromInt(1), isolate)),
+      std::make_pair("var a = 10; (function() { a; })(); return a;",
+                     Handle<Object>(Smi::FromInt(10), isolate)),
+      std::make_pair("var a = 20; var b = 30;\n"
+                     "return (function() { return a + b; })();",
+                     Handle<Object>(Smi::FromInt(50), isolate)),
+      std::make_pair("'use strict'; let a = 1;\n"
+                     "{ let b = 2; return (function() { return a + b; })(); }",
+                     Handle<Object>(Smi::FromInt(3), isolate)),
+      std::make_pair("'use strict'; let a = 10;\n"
+                     "{ let b = 20; var c = function() { [a, b] };\n"
+                     "  return a + b; }",
+                     Handle<Object>(Smi::FromInt(30), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(context_vars); i++) {
+    std::string source(InterpreterTester::SourceForBody(context_vars[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*context_vars[i].second));
+  }
+}
+
+
+TEST(InterpreterContextParameters) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> context_params[3] = {
+      std::make_pair("return (function() { return arg1; })();",
+                     Handle<Object>(Smi::FromInt(1), isolate)),
+      std::make_pair("(function() { arg1 = 4; })(); return arg1;",
+                     Handle<Object>(Smi::FromInt(4), isolate)),
+      std::make_pair("(function() { arg3 = arg2 - arg1; })(); return arg3;",
+                     Handle<Object>(Smi::FromInt(1), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(context_params); i++) {
+    std::string source = "function " + InterpreterTester::function_name() +
+                         "(arg1, arg2, arg3) {" + context_params[i].first + "}";
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable =
+        tester.GetCallable<Handle<Object>, Handle<Object>, Handle<Object>>();
+
+    Handle<Object> a1 = Handle<Object>(Smi::FromInt(1), isolate);
+    Handle<Object> a2 = Handle<Object>(Smi::FromInt(2), isolate);
+    Handle<Object> a3 = Handle<Object>(Smi::FromInt(3), isolate);
+    Handle<i::Object> return_value = callable(a1, a2, a3).ToHandleChecked();
+    CHECK(return_value->SameValue(*context_params[i].second));
+  }
 }
 
 

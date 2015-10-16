@@ -25,6 +25,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(3);
   builder.set_locals_count(2);
+  builder.set_context_count(0);
 
   Factory* factory = isolate()->factory();
   Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);

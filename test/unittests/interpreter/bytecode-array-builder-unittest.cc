@@ -23,8 +23,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeArrayBuilder builder(isolate(), zone());
 
   builder.set_locals_count(1);
+  builder.set_context_count(1);
   builder.set_parameter_count(0);
   CHECK_EQ(builder.locals_count(), 1);
+  CHECK_EQ(builder.context_count(), 1);
+  CHECK_EQ(builder.fixed_register_count(), 2);
 
   // Emit constant loads.
   builder.LoadLiteral(Smi::FromInt(0))
@@ -49,6 +52,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.PushContext(reg);
   builder.PopContext(reg);
   builder.LoadContextSlot(reg, 1);
+  builder.StoreContextSlot(reg, 1);
 
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, 0, LanguageMode::SLOPPY)
@@ -134,7 +138,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Generate BytecodeArray.
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray();
-  CHECK_EQ(the_array->frame_size(), builder.locals_count() * kPointerSize);
+  CHECK_EQ(the_array->frame_size(),
+           builder.fixed_register_count() * kPointerSize);
 
   // Build scorecard of bytecodes encountered in the BytecodeArray.
   std::vector<int> scorecard(Bytecodes::ToByte(Bytecode::kLast) + 1);
@@ -161,20 +166,23 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
 TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
   for (int locals = 0; locals < 5; locals++) {
-    for (int temps = 0; temps < 3; temps++) {
-      BytecodeArrayBuilder builder(isolate(), zone());
-      builder.set_parameter_count(0);
-      builder.set_locals_count(locals);
-      builder.Return();
+    for (int contexts = 0; contexts < 4; contexts++) {
+      for (int temps = 0; temps < 3; temps++) {
+        BytecodeArrayBuilder builder(isolate(), zone());
+        builder.set_parameter_count(0);
+        builder.set_locals_count(locals);
+        builder.set_context_count(contexts);
+        builder.Return();
 
-      TemporaryRegisterScope temporaries(&builder);
-      for (int i = 0; i < temps; i++) {
-        temporaries.NewRegister();
+        TemporaryRegisterScope temporaries(&builder);
+        for (int i = 0; i < temps; i++) {
+          temporaries.NewRegister();
+        }
+
+        Handle<BytecodeArray> the_array = builder.ToBytecodeArray();
+        int total_registers = locals + contexts + temps;
+        CHECK_EQ(the_array->frame_size(), total_registers * kPointerSize);
       }
-
-      Handle<BytecodeArray> the_array = builder.ToBytecodeArray();
-      int total_registers = locals + temps;
-      CHECK_EQ(the_array->frame_size(), total_registers * kPointerSize);
     }
   }
 }
@@ -184,6 +192,7 @@ TEST_F(BytecodeArrayBuilderTest, TemporariesRecycled) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(0);
   builder.set_locals_count(0);
+  builder.set_context_count(0);
   builder.Return();
 
   int first;
@@ -224,6 +233,7 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(10);
   builder.set_locals_count(0);
+  builder.set_context_count(0);
 
   Register param0(builder.Parameter(0));
   Register param9(builder.Parameter(9));
@@ -235,6 +245,7 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(0);
   builder.set_locals_count(0);
+  builder.set_context_count(0);
 
   Factory* factory = isolate()->factory();
   Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(3.14);
@@ -260,6 +271,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(0);
   builder.set_locals_count(0);
+  builder.set_context_count(0);
 
   BytecodeLabel far0, far1, far2;
   BytecodeLabel near0, near1, near2;
@@ -328,6 +340,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(0);
   builder.set_locals_count(0);
+  builder.set_context_count(0);
 
   BytecodeLabel label0, label1, label2;
   builder.Bind(&label0)
@@ -379,6 +392,7 @@ TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(0);
   builder.set_locals_count(0);
+  builder.set_context_count(0);
 
   // Labels can only have 1 forward reference, but
   // can be referred to mulitple times once bound.
@@ -409,6 +423,7 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(0);
   builder.set_locals_count(0);
+  builder.set_context_count(0);
 
   for (int i = 0; i < kRepeats; i++) {
     BytecodeLabel label;
@@ -440,6 +455,7 @@ TEST_F(BytecodeArrayBuilderTest, ToBoolean) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(0);
   builder.set_locals_count(0);
+  builder.set_context_count(0);
 
   // Check ToBoolean emitted at start of block.
   builder.EnterBlock().CastAccumulatorToBoolean();

@@ -235,6 +235,19 @@ void Interpreter::DoLdaContextSlot(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// StaContextSlot <context> <slot_index>
+//
+// Stores the object in the accumulator into |slot_index| of |context|.
+void Interpreter::DoStaContextSlot(compiler::InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
+  Node* reg_index = __ BytecodeOperandReg8(0);
+  Node* context = __ LoadRegister(reg_index);
+  Node* slot_index = __ BytecodeOperandIdx8(1);
+  __ StoreContextSlot(context, slot_index, value);
+  __ Dispatch();
+}
+
+
 void Interpreter::DoPropertyLoadIC(Callable ic,
                                    compiler::InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());

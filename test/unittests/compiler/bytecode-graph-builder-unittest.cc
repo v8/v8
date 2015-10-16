@@ -98,6 +98,7 @@ Matcher<Node*> BytecodeGraphBuilderTest::IsTrueConstant() {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnUndefined) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadUndefined().Return();
 
@@ -113,6 +114,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnUndefined) {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnNull) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadNull().Return();
 
@@ -126,6 +128,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnNull) {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnTheHole) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadTheHole().Return();
 
@@ -141,6 +144,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnTheHole) {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnTrue) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadTrue().Return();
 
@@ -156,6 +160,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnTrue) {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnFalse) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadFalse().Return();
 
@@ -172,6 +177,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnFalse) {
 TEST_F(BytecodeGraphBuilderTest, ReturnInt8) {
   static const int kValue = 3;
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadLiteral(Smi::FromInt(kValue)).Return();
 
@@ -188,6 +194,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnInt8) {
 TEST_F(BytecodeGraphBuilderTest, ReturnDouble) {
   const double kValue = 0.123456789;
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadLiteral(factory()->NewHeapNumber(kValue));
   array_builder()->Return();
@@ -204,6 +211,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnDouble) {
 
 TEST_F(BytecodeGraphBuilderTest, SimpleExpressionWithParameters) {
   array_builder()->set_locals_count(1);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(3);
   array_builder()
       ->LoadAccumulatorWithRegister(array_builder()->Parameter(1))
@@ -227,6 +235,7 @@ TEST_F(BytecodeGraphBuilderTest, SimpleExpressionWithRegister) {
   static const int kLeft = -655371;
   static const int kRight = +2000000;
   array_builder()->set_locals_count(1);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()
       ->LoadLiteral(Smi::FromInt(kLeft))

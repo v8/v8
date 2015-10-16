@@ -32,15 +32,9 @@ void BytecodeArrayBuilder::set_locals_count(int number_of_locals) {
 }
 
 
-int BytecodeArrayBuilder::locals_count() const { return local_register_count_; }
-
-
 void BytecodeArrayBuilder::set_parameter_count(int number_of_parameters) {
   parameter_count_ = number_of_parameters;
 }
-
-
-int BytecodeArrayBuilder::parameter_count() const { return parameter_count_; }
 
 
 void BytecodeArrayBuilder::set_context_count(int number_of_contexts) {
@@ -64,20 +58,17 @@ Register BytecodeArrayBuilder::last_context_register() const {
 
 Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
   DCHECK_GE(parameter_index, 0);
-  DCHECK_LT(parameter_index, parameter_count_);
-  return Register::FromParameterIndex(parameter_index, parameter_count_);
+  return Register::FromParameterIndex(parameter_index, parameter_count());
 }
 
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   DCHECK_EQ(bytecode_generated_, false);
-  DCHECK_GE(parameter_count_, 0);
-  DCHECK_GE(local_register_count_, 0);
 
   EnsureReturn();
 
   int bytecode_size = static_cast<int>(bytecodes_.size());
-  int register_count = local_register_count_ + temporary_register_count_;
+  int register_count = fixed_register_count() + temporary_register_count_;
   int frame_size = register_count * kPointerSize;
 
   Factory* factory = isolate_->factory();
@@ -90,7 +81,7 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
 
   Handle<BytecodeArray> output =
       factory->NewBytecodeArray(bytecode_size, &bytecodes_.front(), frame_size,
-                                parameter_count_, constant_pool);
+                                parameter_count(), constant_pool);
   bytecode_generated_ = true;
   return output;
 }
@@ -281,6 +272,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
   DCHECK(slot_index >= 0);
   if (FitsInIdx8Operand(slot_index)) {
     Output(Bytecode::kLdaContextSlot, context.ToOperand(),
+           static_cast<uint8_t>(slot_index));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
+                                                             int slot_index) {
+  DCHECK(slot_index >= 0);
+  if (FitsInIdx8Operand(slot_index)) {
+    Output(Bytecode::kStaContextSlot, context.ToOperand(),
            static_cast<uint8_t>(slot_index));
   } else {
     UNIMPLEMENTED();
@@ -638,9 +642,8 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 
 
 int BytecodeArrayBuilder::BorrowTemporaryRegister() {
-  DCHECK_GE(local_register_count_, 0);
   int temporary_reg_index = temporary_register_next_++;
-  int count = temporary_register_next_ - local_register_count_;
+  int count = temporary_register_next_ - fixed_register_count();
   if (count > temporary_register_count_) {
     temporary_register_count_ = count;
   }
@@ -671,8 +674,8 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
       if (reg.is_function_context() || reg.is_function_closure()) {
         return true;
       } else if (reg.is_parameter()) {
-        int parameter_index = reg.ToParameterIndex(parameter_count_);
-        return parameter_index >= 0 && parameter_index < parameter_count_;
+        int parameter_index = reg.ToParameterIndex(parameter_count());
+        return parameter_index >= 0 && parameter_index < parameter_count();
       } else {
         return (reg.index() >= 0 && reg.index() < temporary_register_next_);
       }

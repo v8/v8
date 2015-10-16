@@ -486,6 +486,24 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadContextSlot) {
 }
 
 
+TARGET_TEST_F(InterpreterAssemblerTest, StoreContextSlot) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* context = m.Int32Constant(1);
+    Node* slot_index = m.Int32Constant(22);
+    Node* value = m.Int32Constant(100);
+    Node* store_context_slot = m.StoreContextSlot(context, slot_index, value);
+
+    Matcher<Node*> offset =
+        IsIntPtrAdd(IsWordShl(slot_index, IsInt32Constant(kPointerSizeLog2)),
+                    IsInt32Constant(Context::kHeaderSize - kHeapObjectTag));
+    EXPECT_THAT(store_context_slot,
+                m.IsStore(StoreRepresentation(kMachAnyTagged, kNoWriteBarrier),
+                          context, offset, value));
+  }
+}
+
+
 TARGET_TEST_F(InterpreterAssemblerTest, LoadObjectField) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);

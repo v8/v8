@@ -134,14 +134,12 @@ static void CheckBytecodeArrayEqual(struct ExpectedSnippet<T> expected,
   CHECK_EQ(actual->frame_size(), expected.frame_size);
   CHECK_EQ(actual->parameter_count(), expected.parameter_count);
   CHECK_EQ(actual->length(), expected.bytecode_length);
-  if (expected.constant_count != -1) {
-    if (expected.constant_count == 0) {
-      CHECK_EQ(actual->constant_pool(), CcTest::heap()->empty_fixed_array());
-    } else {
-      CHECK_EQ(actual->constant_pool()->length(), expected.constant_count);
-      for (int i = 0; i < expected.constant_count; i++) {
-        CheckConstant(expected.constants[i], actual->constant_pool()->get(i));
-      }
+  if (expected.constant_count == 0) {
+    CHECK_EQ(actual->constant_pool(), CcTest::heap()->empty_fixed_array());
+  } else {
+    CHECK_EQ(actual->constant_pool()->length(), expected.constant_count);
+    for (int i = 0; i < expected.constant_count; i++) {
+      CheckConstant(expected.constants[i], actual->constant_pool()->get(i));
     }
   }
 
@@ -1504,7 +1502,7 @@ TEST(DeclareGlobals) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<int> snippets[] = {
+  ExpectedSnippet<InstanceType> snippets[] = {
       {"var a = 1;",
        5 * kPointerSize,
        1,
@@ -1532,7 +1530,10 @@ TEST(DeclareGlobals) {
            B(LdaUndefined),                                               //
            B(Return)                                                      //
        },
-       -1},
+       3,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"function f() {}",
        3 * kPointerSize,
        1,
@@ -1552,7 +1553,8 @@ TEST(DeclareGlobals) {
            B(LdaUndefined),                                               //
            B(Return)                                                      //
        },
-       -1},
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 1;\na=2;",
        5 * kPointerSize,
        1,
@@ -1583,7 +1585,10 @@ TEST(DeclareGlobals) {
            B(Ldar), R(0),                                                 //
            B(Return)                                                      //
        },
-       -1},
+       3,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"function f() {}\nf();",
        4 * kPointerSize,
        1,
@@ -1609,7 +1614,8 @@ TEST(DeclareGlobals) {
            B(Ldar), R(0),                                                 //
            B(Return)                                                      //
        },
-       -1},
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -1778,8 +1784,7 @@ TEST(BasicLoops) {
            B(Star), R(0),          //
            B(Ldar), R(0),          //
            B(Star), R(1),          //
-           B(LdaSmi8),             //
-           U8(1),                  //
+           B(LdaSmi8), U8(1),      //
            B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
            B(Jump), U8(14),        //
@@ -2617,7 +2622,7 @@ TEST(TryCatch) {
   // TODO(rmcilroy): modify tests when we have real try catch support.
   ExpectedSnippet<int> snippets[] = {
       {"try { return 1; } catch(e) { return 2; }",
-       0,
+       1 * kPointerSize,
        1,
        5,
        {
@@ -2659,7 +2664,7 @@ TEST(TryFinally) {
        },
        0},
       {"var a = 1; try { a = 2; } catch(e) { a = 20 } finally { a = 3; }",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
        14,
        {
@@ -2745,6 +2750,211 @@ TEST(CallNew) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
     CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
+  }
+}
+
+
+TEST(ContextVariables) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int closure = Register::function_closure().index();
+  int first_context_slot = Context::MIN_CONTEXT_SLOTS;
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"var a; return function() { a = 1; };",
+       1 * kPointerSize,
+       1,
+       12,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
+                           R(closure), U8(1),                  //
+           B(PushContext), R(0),                               //
+           B(LdaConstant), U8(0),                              //
+           B(CreateClosure), U8(0),                            //
+           B(Return),                                          //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"var a = 1; return function() { a = 2; };",
+       1 * kPointerSize,
+       1,
+       17,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
+                           R(closure), U8(1),                  //
+           B(PushContext), R(0),                               //
+           B(LdaSmi8), U8(1),                                  //
+           B(StaContextSlot), R(0), U8(first_context_slot),    //
+           B(LdaConstant), U8(0),                              //
+           B(CreateClosure), U8(0),                            //
+           B(Return),                                          //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"var a = 1; var b = 2; return function() { a = 2; b = 3 };",
+       1 * kPointerSize,
+       1,
+       22,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),    //
+                           R(closure), U8(1),                    //
+           B(PushContext), R(0),                                 //
+           B(LdaSmi8), U8(1),                                    //
+           B(StaContextSlot), R(0), U8(first_context_slot),      //
+           B(LdaSmi8), U8(2),                                    //
+           B(StaContextSlot), R(0), U8(first_context_slot + 1),  //
+           B(LdaConstant), U8(0),                                //
+           B(CreateClosure), U8(0),                              //
+           B(Return),                                            //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"var a; (function() { a = 2; })(); return a;",
+       3 * kPointerSize,
+       1,
+       24,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
+                           R(closure), U8(1),                  //
+           B(PushContext), R(0),                               //
+           B(LdaUndefined),                                    //
+           B(Star), R(2),                                      //
+           B(LdaConstant), U8(0),                              //
+           B(CreateClosure), U8(0),                            //
+           B(Star), R(1),                                      //
+           B(Call), R(1), R(2), U8(0),                         //
+           B(LdaContextSlot), R(0), U8(first_context_slot),    //
+           B(Return),                                          //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"'use strict'; let a = 1; { let b = 2; return function() { a + b; }; }",
+       4 * kPointerSize,
+       1,
+       51,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),             //
+                           R(closure), U8(1),                             //
+           B(PushContext), R(0),                                          //
+           B(LdaTheHole),                                                 //
+           B(StaContextSlot), R(0), U8(first_context_slot),               //
+           B(LdaConstant), U8(0),                                         //
+           B(LdaSmi8), U8(1),                                             //
+           B(StaContextSlot), R(0), U8(first_context_slot),               //
+           B(LdaConstant), U8(1),                                         //
+           B(Star), R(2),                                                 //
+           B(Ldar), R(closure),                                           //
+           B(Star), R(3),                                                 //
+           B(CallRuntime), U16(Runtime::kPushBlockContext), R(2), U8(2),  //
+           B(PushContext), R(1),                                          //
+           B(LdaTheHole),                                                 //
+           B(StaContextSlot), R(1), U8(first_context_slot),               //
+           B(LdaSmi8), U8(2),                                             //
+           B(StaContextSlot), R(1), U8(first_context_slot),               //
+           B(LdaConstant), U8(2),                                         //
+           B(CreateClosure), U8(0),                                       //
+           B(Return),                                                     //
+           // TODO(rmcilroy): Dead code after this point due to return in nested
+           // block - investigate eliminating this.
+           B(PopContext), R(0),
+           B(LdaUndefined),  //
+           B(Return),        //
+       },
+       3,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(ContextParameters) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int closure = Register::function_closure().index();
+  int first_context_slot = Context::MIN_CONTEXT_SLOTS;
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"function f(arg1) { return function() { arg1 = 2; }; }",
+       1 * kPointerSize,
+       2,
+       17,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
+                           R(closure), U8(1),                  //
+           B(PushContext), R(0),                               //
+           B(Ldar), R(helper.kLastParamIndex),                 //
+           B(StaContextSlot), R(0), U8(first_context_slot),    //
+           B(LdaConstant), U8(0),                              //
+           B(CreateClosure), U8(0),                            //
+           B(Return),                                          //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"function f(arg1) { var a = function() { arg1 = 2; }; return arg1; }",
+       2 * kPointerSize,
+       2,
+       22,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
+                           R(closure), U8(1),                  //
+           B(PushContext), R(1),                               //
+           B(Ldar), R(helper.kLastParamIndex),                 //
+           B(StaContextSlot), R(1), U8(first_context_slot),    //
+           B(LdaConstant), U8(0),                              //
+           B(CreateClosure), U8(0),                            //
+           B(Star), R(0),                                      //
+           B(LdaContextSlot), R(1), U8(first_context_slot),    //
+           B(Return),                                          //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"function f(a1, a2, a3, a4) { return function() { a1 = a3; }; }",
+       1 * kPointerSize,
+       5,
+       22,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),    //
+                           R(closure), U8(1),                    //
+           B(PushContext), R(0),                                 //
+           B(Ldar), R(helper.kLastParamIndex - 3),               //
+           B(StaContextSlot), R(0), U8(first_context_slot + 1),  //
+           B(Ldar), R(helper.kLastParamIndex -1),                //
+           B(StaContextSlot), R(0), U8(first_context_slot),      //
+           B(LdaConstant), U8(0),                                //
+           B(CreateClosure), U8(0),                              //
+           B(Return),                                            //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"function f() { var self = this; return function() { self = 2; }; }",
+       1 * kPointerSize,
+       1,
+       17,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
+                           R(closure), U8(1),                  //
+           B(PushContext), R(0),                               //
+           B(Ldar), R(helper.kLastParamIndex),                 //
+           B(StaContextSlot), R(0), U8(first_context_slot),    //
+           B(LdaConstant), U8(0),                              //
+           B(CreateClosure), U8(0),                            //
+           B(Return),                                          //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunction(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
 

@@ -33,6 +33,7 @@ class BytecodeGenerator : public AstVisitor {
   class ControlScopeForIteration;
 
   void MakeBytecodeBody();
+  Register NextContextRegister() const;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
@@ -46,6 +47,9 @@ class BytecodeGenerator : public AstVisitor {
   void VisitVariableLoad(Variable* variable, FeedbackVectorSlot slot);
   void VisitVariableAssignment(Variable* variable, FeedbackVectorSlot slot);
   void VisitNewLocalFunctionContext();
+  void VisitBuildLocalActivationContext();
+  void VisitNewLocalBlockContext(Scope* scope);
+  void VisitFunctionClosureForContext();
   void VisitSetHomeObject(Register value, Register home_object,
                           ObjectLiteralProperty* property, int slot_number = 0);
   void VisitObjectLiteralAccessor(Register home_object,
@@ -67,11 +71,13 @@ class BytecodeGenerator : public AstVisitor {
   inline CompilationInfo* info() const { return info_; }
   inline void set_info(CompilationInfo* info) { info_ = info; }
 
-  inline ControlScope* control_scope() const { return control_scope_; }
-  inline void set_control_scope(ControlScope* scope) { control_scope_ = scope; }
-  inline Register current_context() const { return current_context_; }
-  inline void set_current_context(Register context) {
-    current_context_ = context;
+  inline ControlScope* execution_control() const { return execution_control_; }
+  inline void set_execution_control(ControlScope* scope) {
+    execution_control_ = scope;
+  }
+  inline ContextScope* execution_context() const { return execution_context_; }
+  inline void set_execution_context(ContextScope* context) {
+    execution_context_ = context;
   }
 
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
@@ -85,9 +91,8 @@ class BytecodeGenerator : public AstVisitor {
   CompilationInfo* info_;
   Scope* scope_;
   ZoneVector<Handle<Object>> globals_;
-  ControlScope* control_scope_;
-
-  Register current_context_;
+  ControlScope* execution_control_;
+  ContextScope* execution_context_;
 };
 
 }  // namespace interpreter

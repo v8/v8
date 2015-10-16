@@ -305,6 +305,15 @@ Node* InterpreterAssembler::LoadContextSlot(Node* context, Node* slot_index) {
 }
 
 
+Node* InterpreterAssembler::StoreContextSlot(Node* context, Node* slot_index,
+                                             Node* value) {
+  Node* offset =
+      IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
+                Int32Constant(Context::kHeaderSize - kHeapObjectTag));
+  return raw_assembler_->Store(kMachAnyTagged, context, offset, value);
+}
+
+
 Node* InterpreterAssembler::LoadTypeFeedbackVector() {
   Node* function = raw_assembler_->Load(
       kMachAnyTagged, RegisterFileRawPointer(),

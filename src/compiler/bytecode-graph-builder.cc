@@ -273,6 +273,12 @@ void BytecodeGraphBuilder::VisitLdaContextSlot(
 }
 
 
+void BytecodeGraphBuilder::VisitStaContextSlot(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitLoadICSloppy(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
