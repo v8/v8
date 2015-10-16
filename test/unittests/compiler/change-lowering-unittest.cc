@@ -36,7 +36,8 @@ class ChangeLoweringTest : public TypedGraphTest {
   Reduction Reduce(Node* node) {
     MachineOperatorBuilder machine(zone(), WordRepresentation());
     JSOperatorBuilder javascript(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), &javascript, &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
+                    &machine);
     ChangeLowering reducer(&jsgraph);
     return reducer.Reduce(node);
   }

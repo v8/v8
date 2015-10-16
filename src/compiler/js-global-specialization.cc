@@ -30,8 +30,7 @@ JSGlobalSpecialization::JSGlobalSpecialization(
       jsgraph_(jsgraph),
       flags_(flags),
       global_object_(global_object),
-      dependencies_(dependencies),
-      simplified_(graph()->zone()) {}
+      dependencies_(dependencies) {}
 
 
 Reduction JSGlobalSpecialization::Reduce(Node* node) {
@@ -275,6 +274,11 @@ CommonOperatorBuilder* JSGlobalSpecialization::common() const {
 
 JSOperatorBuilder* JSGlobalSpecialization::javascript() const {
   return jsgraph()->javascript();
+}
+
+
+SimplifiedOperatorBuilder* JSGlobalSpecialization::simplified() const {
+  return jsgraph()->simplified();
 }
 
 }  // namespace compiler

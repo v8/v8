@@ -51,6 +51,7 @@
 #include "src/compiler/scheduler.h"
 #include "src/compiler/select-lowering.h"
 #include "src/compiler/simplified-lowering.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/tail-call-optimization.h"
 #include "src/compiler/typer.h"
@@ -82,6 +83,7 @@ class PipelineData {
         graph_zone_(graph_zone_scope_.zone()),
         graph_(nullptr),
         loop_assignment_(nullptr),
+        simplified_(nullptr),
         machine_(nullptr),
         common_(nullptr),
         javascript_(nullptr),
@@ -98,13 +100,14 @@ class PipelineData {
     PhaseScope scope(pipeline_statistics, "init pipeline data");
     graph_ = new (graph_zone_) Graph(graph_zone_);
     source_positions_.Reset(new SourcePositionTable(graph_));
+    simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
     machine_ = new (graph_zone_) MachineOperatorBuilder(
         graph_zone_, kMachPtr,
         InstructionSelector::SupportedMachineOperatorFlags());
     common_ = new (graph_zone_) CommonOperatorBuilder(graph_zone_);
     javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
     jsgraph_ = new (graph_zone_)
-        JSGraph(isolate_, graph_, common_, javascript_, machine_);
+        JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
   }
 
   // For machine graph testing entry point.
@@ -122,6 +125,7 @@ class PipelineData {
         graph_(graph),
         source_positions_(new SourcePositionTable(graph_)),
         loop_assignment_(nullptr),
+        simplified_(nullptr),
         machine_(nullptr),
         common_(nullptr),
         javascript_(nullptr),
@@ -150,6 +154,7 @@ class PipelineData {
         graph_zone_(nullptr),
         graph_(nullptr),
         loop_assignment_(nullptr),
+        simplified_(nullptr),
         machine_(nullptr),
         common_(nullptr),
         javascript_(nullptr),
@@ -229,6 +234,7 @@ class PipelineData {
     graph_zone_ = nullptr;
     graph_ = nullptr;
     loop_assignment_ = nullptr;
+    simplified_ = nullptr;
     machine_ = nullptr;
     common_ = nullptr;
     javascript_ = nullptr;
@@ -296,6 +302,7 @@ class PipelineData {
   // TODO(dcarney): make this into a ZoneObject.
   base::SmartPointer<SourcePositionTable> source_positions_;
   LoopAssignmentAnalysis* loop_assignment_;
+  SimplifiedOperatorBuilder* simplified_;
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
   JSOperatorBuilder* javascript_;

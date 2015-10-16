@@ -351,7 +351,8 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
 
   Graph graph(info.zone());
   JSGraph jsgraph(info.isolate(), &graph, jsgraph_->common(),
-                  jsgraph_->javascript(), jsgraph_->machine());
+                  jsgraph_->javascript(), jsgraph_->simplified(),
+                  jsgraph_->machine());
   AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
   graph_builder.CreateGraph(false);
 

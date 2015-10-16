@@ -23,7 +23,8 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         javascript_(main_zone()),
         machine_(main_zone()),
         simplified_(main_zone()),
-        jsgraph_(main_isolate(), graph(), common(), &javascript_, &machine_),
+        jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
+                 &machine_),
         reducer_(main_zone(), graph()),
         spec_(&reducer_, jsgraph(), MaybeHandle<Context>()) {}
 

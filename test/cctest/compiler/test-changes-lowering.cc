@@ -34,7 +34,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
       : GraphBuilderTester<ReturnType>(p0),
         javascript(this->zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
-                this->machine()),
+                nullptr, this->machine()),
         function(Handle<JSFunction>::null()) {}
 
   JSOperatorBuilder javascript;

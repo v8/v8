@@ -62,7 +62,7 @@ class JSGlobalSpecialization final : public AdvancedReducer {
   Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
-  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  SimplifiedOperatorBuilder* simplified() const;
   Flags flags() const { return flags_; }
   Handle<GlobalObject> global_object() const { return global_object_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
@@ -71,7 +71,6 @@ class JSGlobalSpecialization final : public AdvancedReducer {
   Flags const flags_;
   Handle<GlobalObject> global_object_;
   CompilationDependencies* const dependencies_;
-  SimplifiedOperatorBuilder simplified_;
 
   DISALLOW_COPY_AND_ASSIGN(JSGlobalSpecialization);
 };

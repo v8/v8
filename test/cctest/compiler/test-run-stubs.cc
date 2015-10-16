@@ -35,7 +35,7 @@ TEST(RunOptimizedMathFloorStub) {
   CommonOperatorBuilder common(zone);
   JSOperatorBuilder javascript(zone);
   MachineOperatorBuilder machine(zone);
-  JSGraph js(isolate, &graph, &common, &javascript, &machine);
+  JSGraph js(isolate, &graph, &common, &javascript, nullptr, &machine);
 
   // FunctionTester (ab)uses a 2-argument function
   Node* start = graph.NewNode(common.Start(4));

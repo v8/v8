@@ -51,8 +51,8 @@ Graph* BytecodeGraphBuilderTest::GetCompletedGraph() {
   CommonOperatorBuilder* common = new (zone()) CommonOperatorBuilder(zone());
   JSOperatorBuilder* javascript = new (zone()) JSOperatorBuilder(zone());
   Graph* graph = new (zone()) Graph(zone());
-  JSGraph* jsgraph =
-      new (zone()) JSGraph(isolate(), graph, common, javascript, machine);
+  JSGraph* jsgraph = new (zone())
+      JSGraph(isolate(), graph, common, javascript, nullptr, machine);
 
   Handle<String> name = factory()->NewStringFromStaticChars("test");
   Handle<String> script = factory()->NewStringFromStaticChars("test() {}");
