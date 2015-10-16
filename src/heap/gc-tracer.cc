@@ -45,6 +45,7 @@ GCTracer::Event::Event(Type type, const char* gc_reason,
       collector_reason(collector_reason),
       start_time(0.0),
       end_time(0.0),
+      reduce_memory(false),
       start_object_size(0),
       end_object_size(0),
       start_memory_size(0),
@@ -138,6 +139,7 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
     }
   }
 
+  current_.reduce_memory = heap_->ShouldReduceMemory();
   current_.start_time = start_time;
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->isolate()->memory_allocator()->Size();
@@ -400,6 +402,7 @@ void GCTracer::PrintNVP() const {
   PrintF("pause=%.1f ", duration);
   PrintF("mutator=%.1f ", spent_in_mutator);
   PrintF("gc=%s ", current_.TypeName(true));
+  PrintF("reduce_memory=%d ", current_.reduce_memory);
 
   switch (current_.type) {
     case Event::SCAVENGER:

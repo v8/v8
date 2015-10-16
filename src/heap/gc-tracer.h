@@ -218,6 +218,9 @@ class GCTracer {
     // Timestamp set in the destructor.
     double end_time;
 
+    // Memory reduction flag set.
+    bool reduce_memory;
+
     // Size of objects in heap set in constructor.
     intptr_t start_object_size;
 
