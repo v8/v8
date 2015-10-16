@@ -151,9 +151,6 @@ function StringMatchJS(regexp) {
 
   var subject = TO_STRING(this);
   if (IS_REGEXP(regexp)) {
-    // Emulate RegExp.prototype.exec's side effect in step 5, even though
-    // value is discarded.
-    var lastIndex = TO_INTEGER(regexp.lastIndex);
     if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
     var result = %StringMatch(subject, regexp, RegExpLastMatchInfo);
     if (result !== null) $regexpLastMatchInfoOverride = null;
@@ -222,10 +219,6 @@ function StringReplace(search, replace) {
   // ...... string replace (with $-expansion)
 
   if (IS_REGEXP(search)) {
-    // Emulate RegExp.prototype.exec's side effect in step 5, even if
-    // value is discarded.
-    var lastIndex = TO_INTEGER(search.lastIndex);
-
     if (!IS_CALLABLE(replace)) {
       replace = TO_STRING(replace);
 
