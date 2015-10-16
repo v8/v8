@@ -2906,6 +2906,26 @@ void MacroAssembler::Tzcntl(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Popcntl(Register dst, Register src) {
+  if (CpuFeatures::IsSupported(POPCNT)) {
+    CpuFeatureScope scope(this, POPCNT);
+    popcntl(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
+
+void MacroAssembler::Popcntl(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(POPCNT)) {
+    CpuFeatureScope scope(this, POPCNT);
+    popcntl(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
+
 void MacroAssembler::Pushad() {
   Push(rax);
   Push(rcx);

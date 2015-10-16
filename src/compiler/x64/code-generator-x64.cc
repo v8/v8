@@ -777,6 +777,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Tzcntl(i.OutputRegister(), i.InputOperand(0));
       }
       break;
+    case kX64Popcnt32:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ Popcntl(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ Popcntl(i.OutputRegister(), i.InputOperand(0));
+      }
+      break;
     case kSSEFloat32Cmp:
       ASSEMBLE_SSE_BINOP(ucomiss);
       break;

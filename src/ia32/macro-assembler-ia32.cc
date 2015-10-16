@@ -2444,6 +2444,16 @@ void MacroAssembler::Tzcnt(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Popcnt(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(POPCNT)) {
+    CpuFeatureScope scope(this, POPCNT);
+    popcnt(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
+
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     mov(Operand::StaticVariable(ExternalReference(counter)), Immediate(value));

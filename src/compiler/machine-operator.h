@@ -118,9 +118,10 @@ class MachineOperatorBuilder final : public ZoneObject {
     kUint32DivIsSafe = 1u << 8,
     kWord32ShiftIsSafe = 1u << 9,
     kWord32Ctz = 1u << 10,
+    kWord32Popcnt = 1u << 11,
     kAllOptionalOps = kFloat32Max | kFloat32Min | kFloat64Max | kFloat64Min |
                       kFloat64RoundDown | kFloat64RoundTruncate |
-                      kFloat64RoundTiesAway | kWord32Ctz
+                      kFloat64RoundTiesAway | kWord32Ctz | kWord32Popcnt
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -137,6 +138,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Word32Equal();
   const Operator* Word32Clz();
   const OptionalOperator Word32Ctz();
+  const OptionalOperator Word32Popcnt();
   bool Word32ShiftIsSafe() const { return flags_ & kWord32ShiftIsSafe; }
 
   const Operator* Word64And();

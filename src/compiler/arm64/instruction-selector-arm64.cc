@@ -930,6 +930,9 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
 
+void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   Arm64OperandGenerator g(this);
   Int32BinopMatcher m(node);

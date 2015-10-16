@@ -1701,6 +1701,11 @@ Type* Typer::Visitor::TypeWord32Clz(Node* node) { return Type::Integral32(); }
 Type* Typer::Visitor::TypeWord32Ctz(Node* node) { return Type::Integral32(); }
 
 
+Type* Typer::Visitor::TypeWord32Popcnt(Node* node) {
+  return Type::Integral32();
+}
+
+
 Type* Typer::Visitor::TypeWord64And(Node* node) { return Type::Internal(); }
 
 

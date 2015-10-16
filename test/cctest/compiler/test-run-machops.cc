@@ -120,6 +120,29 @@ TEST(RunInt32Clz) {
 }
 
 
+void TestWord32Popcnt(int32_t value, int32_t expected) {
+  RawMachineAssemblerTester<int32_t> m;
+  compiler::OptionalOperator op = m.machine()->Word32Popcnt();
+  if (op.IsSupported()) {
+    Node* popcnt = m.AddNode(op.op(), m.Int32Constant(value));
+    m.Return(popcnt);
+    CHECK_EQ(expected, m.Call());
+  }
+}
+
+
+TEST(RunWord32Popcnt) {
+  TestWord32Popcnt(0x00000000, 0);
+  TestWord32Popcnt(0x00000001, 1);
+  TestWord32Popcnt(0x80000000, 1);
+  TestWord32Popcnt(0xffffffff, 32);
+  TestWord32Popcnt(0x000dc100, 6);
+  TestWord32Popcnt(0xe00dc100, 9);
+  TestWord32Popcnt(0xe00dc103, 11);
+  TestWord32Popcnt(0x000dc107, 9);
+}
+
+
 static Node* Int32Input(RawMachineAssemblerTester<int32_t>* m, int index) {
   switch (index) {
     case 0:

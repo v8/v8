@@ -512,6 +512,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kIA32Tzcnt:
       __ Tzcnt(i.OutputRegister(), i.InputOperand(0));
       break;
+    case kIA32Popcnt:
+      __ Popcnt(i.OutputRegister(), i.InputOperand(0));
+      break;
     case kSSEFloat32Cmp:
       __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
