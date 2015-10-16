@@ -1073,17 +1073,17 @@ TEST(StoreGlobal) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<int> snippets[] = {
+  ExpectedSnippet<InstanceType> snippets[] = {
       {
           "var a = 1;\nfunction f() { a = 2; }\nf()",
           0,
           1,
           6,
           {
-              B(LdaSmi8), U8(2),  //
-              B(StaGlobal), _,    //
-              B(LdaUndefined),    //
-              B(Return)           //
+              B(LdaSmi8), U8(2),      //
+              B(StaGlobalSloppy), _,  //
+              B(LdaUndefined),        //
+              B(Return)               //
           },
       },
       {
@@ -1093,9 +1093,21 @@ TEST(StoreGlobal) {
           6,
           {
               B(Ldar), R(helper.kLastParamIndex),  //
-              B(StaGlobal), _,                     //
+              B(StaGlobalSloppy), _,               //
               B(LdaUndefined),                     //
               B(Return)                            //
+          },
+      },
+      {
+          "'use strict'; var a = 1;\nfunction f() { a = 2; }\nf()",
+          0,
+          1,
+          6,
+          {
+              B(LdaSmi8), U8(2),      //
+              B(StaGlobalStrict), _,  //
+              B(LdaUndefined),        //
+              B(Return)               //
           },
       },
   };
@@ -1566,7 +1578,7 @@ TEST(DeclareGlobals) {
            B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(2),      //
                            U8(3),                                         //
            B(LdaSmi8), U8(2),                                             //
-           B(StaGlobal), _,                                               //
+           B(StaGlobalSloppy), _,                                         //
            B(Star), R(0),                                                 //
            B(Ldar), R(0),                                                 //
            B(Return)                                                      //

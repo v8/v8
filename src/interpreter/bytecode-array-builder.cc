@@ -265,12 +265,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(int slot_index) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
     int slot_index, LanguageMode language_mode) {
-  if (!is_sloppy(language_mode)) {
-    UNIMPLEMENTED();
-  }
   DCHECK(slot_index >= 0);
+  Bytecode bytecode = BytecodeForStoreGlobal(language_mode);
   if (FitsInIdx8Operand(slot_index)) {
-    Output(Bytecode::kStaGlobal, static_cast<uint8_t>(slot_index));
+    Output(bytecode, static_cast<uint8_t>(slot_index));
   } else {
     UNIMPLEMENTED();
   }
@@ -809,6 +807,23 @@ Bytecode BytecodeArrayBuilder::BytecodeForKeyedStoreIC(
       return Bytecode::kKeyedStoreICSloppy;
     case STRICT:
       return Bytecode::kKeyedStoreICStrict;
+    case STRONG:
+      UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<Bytecode>(-1);
+}
+
+
+// static
+Bytecode BytecodeArrayBuilder::BytecodeForStoreGlobal(
+    LanguageMode language_mode) {
+  switch (language_mode) {
+    case SLOPPY:
+      return Bytecode::kStaGlobalSloppy;
+    case STRICT:
+      return Bytecode::kStaGlobalStrict;
     case STRONG:
       UNIMPLEMENTED();
     default:

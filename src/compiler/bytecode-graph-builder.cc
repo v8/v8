@@ -255,7 +255,13 @@ void BytecodeGraphBuilder::VisitLdaGlobal(
 }
 
 
-void BytecodeGraphBuilder::VisitStaGlobal(
+void BytecodeGraphBuilder::VisitStaGlobalSloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitStaGlobalStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }

@@ -45,7 +45,8 @@ namespace interpreter {
                                                                                \
   /* Globals */                                                                \
   V(LdaGlobal, OperandType::kIdx8)                                             \
-  V(StaGlobal, OperandType::kIdx8)                                             \
+  V(StaGlobalSloppy, OperandType::kIdx8)                                       \
+  V(StaGlobalStrict, OperandType::kIdx8)                                       \
                                                                                \
   /* Context operations */                                                     \
   V(LdaContextSlot, OperandType::kReg8, OperandType::kIdx8)                    \
