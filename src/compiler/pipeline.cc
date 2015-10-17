@@ -12,6 +12,7 @@
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/basic-block-instrumentor.h"
+#include "src/compiler/branch-elimination.h"
 #include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/code-generator.h"
@@ -644,6 +645,22 @@ struct TypedLoweringPhase {
 };
 
 
+struct BranchEliminationPhase {
+  static const char* phase_name() { return "branch condition elimination"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    BranchElimination branch_condition_elimination(&graph_reducer,
+                                                   data->jsgraph(), temp_zone);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common());
+    AddReducer(data, &graph_reducer, &branch_condition_elimination);
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    graph_reducer.ReduceGraph();
+  }
+};
+
+
 struct SimplifiedLoweringPhase {
   static const char* phase_name() { return "simplified lowering"; }
 
@@ -1157,6 +1174,9 @@ Handle<Code> Pipeline::GenerateCode() {
     // Lower simplified operators and insert changes.
     Run<SimplifiedLoweringPhase>();
     RunPrintAndVerify("Lowered simplified");
+
+    Run<BranchEliminationPhase>();
+    RunPrintAndVerify("Branch conditions eliminated");
 
     // Optimize control flow.
     if (FLAG_turbo_cf_optimization) {
