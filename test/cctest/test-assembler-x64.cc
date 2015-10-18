@@ -1400,6 +1400,17 @@ TEST(AssemblerX64AVX_sd) {
     __ cmpq(rcx, rdx);
     __ j(not_equal, &exit);
 
+    // Test vmovmskpd
+    __ movl(rax, Immediate(12));
+    __ movq(rdx, V8_INT64_C(0x426D1A94A2000000));  // 1.0e12
+    __ vmovq(xmm6, rdx);
+    __ movq(rdx, V8_INT64_C(0xC26D1A94A2000000));  // -1.0e12
+    __ vmovq(xmm7, rdx);
+    __ shufps(xmm6, xmm7, 0x44);
+    __ vmovmskpd(rdx, xmm6);
+    __ cmpl(rdx, Immediate(2));
+    __ j(not_equal, &exit);
+
     __ movl(rdx, Immediate(6));
     __ vcvtlsi2sd(xmm6, xmm6, rdx);
     __ movl(Operand(rsp, 0), Immediate(5));

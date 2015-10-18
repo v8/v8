@@ -2410,7 +2410,7 @@ void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
     __ Xorpd(xmm_scratch, xmm_scratch);
     __ ucomisd(xmm_scratch, value);
     EmitFalseBranch(instr, not_equal);
-    __ movmskpd(kScratchRegister, value);
+    __ Movmskpd(kScratchRegister, value);
     __ testl(kScratchRegister, Immediate(1));
     EmitBranch(instr, not_zero);
   } else {
@@ -3623,8 +3623,8 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
       // Check for negative zero.
       Label positive_sign;
       __ j(above, &positive_sign, Label::kNear);
-      __ movmskpd(output_reg, input_reg);
-      __ testq(output_reg, Immediate(1));
+      __ Movmskpd(output_reg, input_reg);
+      __ testl(output_reg, Immediate(1));
       DeoptimizeIf(not_zero, instr, Deoptimizer::kMinusZero);
       __ Set(output_reg, 0);
       __ jmp(&done);
@@ -4926,8 +4926,8 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
       __ Xorpd(xmm_scratch, xmm_scratch);
       __ ucomisd(xmm_scratch, result_reg);
       __ j(not_equal, &done, Label::kNear);
-      __ movmskpd(kScratchRegister, result_reg);
-      __ testq(kScratchRegister, Immediate(1));
+      __ Movmskpd(kScratchRegister, result_reg);
+      __ testl(kScratchRegister, Immediate(1));
       DeoptimizeIf(not_zero, instr, Deoptimizer::kMinusZero);
     }
     __ jmp(&done, Label::kNear);
@@ -5001,7 +5001,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
     if (instr->hydrogen()->GetMinusZeroMode() == FAIL_ON_MINUS_ZERO) {
       __ testl(input_reg, input_reg);
       __ j(not_zero, done);
-      __ movmskpd(input_reg, xmm0);
+      __ Movmskpd(input_reg, xmm0);
       __ andl(input_reg, Immediate(1));
       DeoptimizeIf(not_zero, instr, Deoptimizer::kMinusZero);
     }

@@ -915,6 +915,8 @@ class MacroAssembler: public Assembler {
   void Movq(XMMRegister dst, Register src);
   void Movq(Register dst, XMMRegister src);
 
+  void Movmskpd(Register dst, XMMRegister src);
+
   void Xorpd(XMMRegister dst, XMMRegister src);
 
   // Control Flow

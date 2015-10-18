@@ -518,7 +518,6 @@ TEST(DisasmX64) {
       __ vmovq(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovq(r9, xmm6);
 
-      __ vmovapd(xmm7, xmm0);
       __ vmovsd(xmm6, xmm2);
       __ vmovsd(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovsd(Operand(rbx, rcx, times_4, 10000), xmm0);
@@ -548,6 +547,9 @@ TEST(DisasmX64) {
       __ vcvttsd2si(rax, Operand(rbx, r9, times_4, 10000));
       __ vcvttsd2siq(rdi, xmm9);
       __ vcvttsd2siq(r8, Operand(r9, rbx, times_4, 10000));
+
+      __ vmovapd(xmm7, xmm0);
+      __ vmovmskpd(r9, xmm4);
 
       __ vandps(xmm0, xmm9, xmm2);
       __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));

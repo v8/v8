@@ -3558,15 +3558,6 @@ void Assembler::vmovq(Register dst, XMMRegister src) {
 }
 
 
-void Assembler::vmovapd(XMMRegister dst, XMMRegister src) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, k66, k0F, kWIG);
-  emit(0x28);
-  emit_sse_operand(dst, src);
-}
-
-
 void Assembler::vsd(byte op, XMMRegister dst, XMMRegister src1,
                     XMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w) {
   DCHECK(IsEnabled(AVX));

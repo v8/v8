@@ -2619,6 +2619,16 @@ void MacroAssembler::Movq(Register dst, XMMRegister src) {
 }
 
 
+void MacroAssembler::Movmskpd(Register dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovmskpd(dst, src);
+  } else {
+    movmskpd(dst, src);
+  }
+}
+
+
 void MacroAssembler::Xorpd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -3420,7 +3430,7 @@ void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
     // only have to test if we got -0 as an input.
     testl(result_reg, result_reg);
     j(not_zero, &done, Label::kNear);
-    movmskpd(result_reg, input_reg);
+    Movmskpd(result_reg, input_reg);
     // Bit 0 contains the sign of the double in input_reg.
     // If input was positive, we are ok and return 0, otherwise
     // jump to minus_zero.

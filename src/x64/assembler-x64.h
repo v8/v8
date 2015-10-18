@@ -1281,7 +1281,6 @@ class Assembler : public AssemblerBase {
   void vmovq(XMMRegister dst, const Operand& src);
   void vmovq(Register dst, XMMRegister src);
 
-  void vmovapd(XMMRegister dst, XMMRegister src);
   void vmovsd(XMMRegister dst, const Operand& src) {
     vsd(0x10, dst, xmm0, src);
   }
@@ -1595,6 +1594,12 @@ class Assembler : public AssemblerBase {
   void rorxq(Register dst, const Operand& src, byte imm8);
   void rorxl(Register dst, Register src, byte imm8);
   void rorxl(Register dst, const Operand& src, byte imm8);
+
+  void vmovapd(XMMRegister dst, XMMRegister src) { vpd(0x28, dst, xmm0, src); }
+  void vmovmskpd(Register dst, XMMRegister src) {
+    XMMRegister idst = {dst.code()};
+    vpd(0x50, idst, xmm0, src);
+  }
 
 #define PACKED_OP_LIST(V) \
   V(and, 0x54)            \
