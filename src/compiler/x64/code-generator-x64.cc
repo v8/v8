@@ -826,7 +826,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_SSE_BINOP(minss);
       break;
     case kSSEFloat32ToFloat64:
-      ASSEMBLE_SSE_UNOP(cvtss2sd);
+      ASSEMBLE_SSE_UNOP(Cvtss2sd);
       break;
     case kSSEFloat64Cmp:
       ASSEMBLE_SSE_BINOP(ucomisd);
@@ -909,7 +909,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kSSEFloat64ToFloat32:
-      ASSEMBLE_SSE_UNOP(cvtsd2ss);
+      ASSEMBLE_SSE_UNOP(Cvtsd2ss);
       break;
     case kSSEFloat64ToInt32:
       if (instr->InputAt(0)->IsDoubleRegister()) {

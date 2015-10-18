@@ -538,6 +538,10 @@ TEST(DisasmX64) {
       __ vucomisd(xmm9, xmm1);
       __ vucomisd(xmm8, Operand(rbx, rdx, times_2, 10981));
 
+      __ vcvtss2sd(xmm4, xmm9, xmm11);
+      __ vcvtsd2ss(xmm9, xmm3, xmm2);
+      __ vcvtss2sd(xmm4, xmm9, Operand(rbx, rcx, times_1, 10000));
+      __ vcvtsd2ss(xmm9, xmm3, Operand(rbx, rcx, times_1, 10000));
       __ vcvtlsi2sd(xmm5, xmm9, rcx);
       __ vcvtlsi2sd(xmm9, xmm3, Operand(rbx, r9, times_4, 10000));
       __ vcvttsd2si(r9, xmm6);

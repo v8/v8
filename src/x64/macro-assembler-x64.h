@@ -806,6 +806,11 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, intptr_t x);
 
+  void Cvtss2sd(XMMRegister dst, XMMRegister src);
+  void Cvtss2sd(XMMRegister dst, const Operand& src);
+  void Cvtsd2ss(XMMRegister dst, XMMRegister src);
+  void Cvtsd2ss(XMMRegister dst, const Operand& src);
+
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
   // xorpd to clear the dst register before cvtsi2sd to solve this issue.

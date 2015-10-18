@@ -787,6 +787,46 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
 }
 
 
+void MacroAssembler::Cvtss2sd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvtss2sd(dst, src, src);
+  } else {
+    cvtss2sd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Cvtss2sd(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvtss2sd(dst, dst, src);
+  } else {
+    cvtss2sd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Cvtsd2ss(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvtsd2ss(dst, src, src);
+  } else {
+    cvtsd2ss(dst, src);
+  }
+}
+
+
+void MacroAssembler::Cvtsd2ss(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvtsd2ss(dst, dst, src);
+  } else {
+    cvtsd2ss(dst, src);
+  }
+}
+
+
 void MacroAssembler::Cvtlsi2sd(XMMRegister dst, Register src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

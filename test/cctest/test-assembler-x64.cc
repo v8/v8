@@ -1360,6 +1360,19 @@ TEST(AssemblerX64AVX_sd) {
     __ vmovsd(xmm6, xmm5);
     __ vmovapd(xmm3, xmm6);
 
+    // Test vcvtss2sd & vcvtsd2ss
+    __ movl(rax, Immediate(9));
+    __ movq(rdx, V8_INT64_C(0x426D1A0000000000));
+    __ movq(Operand(rsp, 0), rdx);
+    __ vcvtsd2ss(xmm6, xmm6, Operand(rsp, 0));
+    __ vcvtss2sd(xmm7, xmm6, xmm6);
+    __ vcvtsd2ss(xmm8, xmm7, xmm7);
+    __ movss(Operand(rsp, 0), xmm8);
+    __ vcvtss2sd(xmm9, xmm8, Operand(rsp, 0));
+    __ vmovq(rcx, xmm9);
+    __ cmpq(rcx, rdx);
+    __ j(not_equal, &exit);
+
     // Test vcvttsd2si
     __ movl(rax, Immediate(10));
     __ movl(rdx, Immediate(123));

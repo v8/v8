@@ -2999,8 +2999,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
 
   if (elements_kind == FLOAT32_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
-    __ movss(result, operand);
-    __ cvtss2sd(result, result);
+    __ Cvtss2sd(result, operand);
   } else if (elements_kind == FLOAT64_ELEMENTS) {
     __ Movsd(ToDoubleRegister(instr->result()), operand);
   } else {
@@ -3715,8 +3714,8 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 void LCodeGen::DoMathFround(LMathFround* instr) {
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   XMMRegister output_reg = ToDoubleRegister(instr->result());
-  __ cvtsd2ss(output_reg, input_reg);
-  __ cvtss2sd(output_reg, output_reg);
+  __ Cvtsd2ss(output_reg, input_reg);
+  __ Cvtss2sd(output_reg, output_reg);
 }
 
 
@@ -4243,7 +4242,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
   if (elements_kind == FLOAT32_ELEMENTS) {
     XMMRegister value(ToDoubleRegister(instr->value()));
-    __ cvtsd2ss(value, value);
+    __ Cvtsd2ss(value, value);
     __ movss(operand, value);
   } else if (elements_kind == FLOAT64_ELEMENTS) {
     __ Movsd(operand, ToDoubleRegister(instr->value()));

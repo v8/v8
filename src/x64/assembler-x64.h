@@ -1325,6 +1325,18 @@ class Assembler : public AssemblerBase {
   void vminsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vsd(0x5d, dst, src1, src2);
   }
+  void vcvtss2sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsd(0x5a, dst, src1, src2, kF3, k0F, kWIG);
+  }
+  void vcvtss2sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5a, dst, src1, src2, kF3, k0F, kWIG);
+  }
+  void vcvtsd2ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsd(0x5a, dst, src1, src2);
+  }
+  void vcvtsd2ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5a, dst, src1, src2);
+  }
   void vcvtlsi2sd(XMMRegister dst, XMMRegister src1, Register src2) {
     XMMRegister isrc2 = {src2.code()};
     vsd(0x2a, dst, src1, isrc2, kF2, k0F, kW0);
