@@ -2629,6 +2629,46 @@ void MacroAssembler::Movmskpd(Register dst, XMMRegister src) {
 }
 
 
+void MacroAssembler::Ucomiss(XMMRegister src1, XMMRegister src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vucomiss(src1, src2);
+  } else {
+    ucomiss(src1, src2);
+  }
+}
+
+
+void MacroAssembler::Ucomiss(XMMRegister src1, const Operand& src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vucomiss(src1, src2);
+  } else {
+    ucomiss(src1, src2);
+  }
+}
+
+
+void MacroAssembler::Ucomisd(XMMRegister src1, XMMRegister src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vucomisd(src1, src2);
+  } else {
+    ucomisd(src1, src2);
+  }
+}
+
+
+void MacroAssembler::Ucomisd(XMMRegister src1, const Operand& src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vucomisd(src1, src2);
+  } else {
+    ucomisd(src1, src2);
+  }
+}
+
+
 void MacroAssembler::Xorpd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -3347,7 +3387,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   jmp(&done, Label::kNear);
   bind(&conv_failure);
   Set(result_reg, 0);
-  ucomisd(input_reg, temp_xmm_reg);
+  Ucomisd(input_reg, temp_xmm_reg);
   j(below, &done, Label::kNear);
   Set(result_reg, 255);
   bind(&done);
@@ -3421,7 +3461,7 @@ void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
                                Label* minus_zero, Label::Distance dst) {
   Cvttsd2si(result_reg, input_reg);
   Cvtlsi2sd(xmm0, result_reg);
-  ucomisd(xmm0, input_reg);
+  Ucomisd(xmm0, input_reg);
   j(not_equal, lost_precision, dst);
   j(parity_even, is_nan, dst);  // NaN.
   if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {

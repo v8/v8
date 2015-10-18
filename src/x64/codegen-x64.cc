@@ -605,9 +605,9 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
   __ Movsd(double_scratch, Operand(kScratchRegister, 0 * kDoubleSize));
   __ Xorpd(result, result);
-  __ ucomisd(double_scratch, input);
+  __ Ucomisd(double_scratch, input);
   __ j(above_equal, &done);
-  __ ucomisd(input, Operand(kScratchRegister, 1 * kDoubleSize));
+  __ Ucomisd(input, Operand(kScratchRegister, 1 * kDoubleSize));
   __ Movsd(result, Operand(kScratchRegister, 2 * kDoubleSize));
   __ j(above_equal, &done);
   __ Movsd(double_scratch, Operand(kScratchRegister, 3 * kDoubleSize));

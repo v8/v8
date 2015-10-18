@@ -785,7 +785,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     case kSSEFloat32Cmp:
-      ASSEMBLE_SSE_BINOP(ucomiss);
+      ASSEMBLE_SSE_BINOP(Ucomiss);
       break;
     case kSSEFloat32Add:
       ASSEMBLE_SSE_BINOP(addss);
@@ -829,7 +829,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_SSE_UNOP(Cvtss2sd);
       break;
     case kSSEFloat64Cmp:
-      ASSEMBLE_SSE_BINOP(ucomisd);
+      ASSEMBLE_SSE_BINOP(Ucomisd);
       break;
     case kSSEFloat64Add:
       ASSEMBLE_SSE_BINOP(addsd);

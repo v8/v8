@@ -917,6 +917,11 @@ class MacroAssembler: public Assembler {
 
   void Movmskpd(Register dst, XMMRegister src);
 
+  void Ucomiss(XMMRegister src1, XMMRegister src2);
+  void Ucomiss(XMMRegister src1, const Operand& src2);
+  void Ucomisd(XMMRegister src1, XMMRegister src2);
+  void Ucomisd(XMMRegister src1, const Operand& src2);
+
   void Xorpd(XMMRegister dst, XMMRegister src);
 
   // Control Flow

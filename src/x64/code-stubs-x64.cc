@@ -339,7 +339,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ movq(scratch, V8_UINT64_C(0x3FE0000000000000));
       __ Movq(double_scratch, scratch);
       // Already ruled out NaNs for exponent.
-      __ ucomisd(double_scratch, double_exponent);
+      __ Ucomisd(double_scratch, double_exponent);
       __ j(not_equal, &not_plus_half, Label::kNear);
 
       // Calculates square root of base.  Check for the special case of
@@ -348,7 +348,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // 12 bits set and the lowest 52 bits cleared.
       __ movq(scratch, V8_UINT64_C(0xFFF0000000000000));
       __ Movq(double_scratch, scratch);
-      __ ucomisd(double_scratch, double_base);
+      __ Ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
       // zero flag as if both were equal.  However, it also sets the carry flag.
       __ j(not_equal, &continue_sqrt, Label::kNear);
@@ -371,7 +371,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // Load double_scratch with -0.5 by substracting 1.
       __ subsd(double_scratch, double_result);
       // Already ruled out NaNs for exponent.
-      __ ucomisd(double_scratch, double_exponent);
+      __ Ucomisd(double_scratch, double_exponent);
       __ j(not_equal, &fast_power, Label::kNear);
 
       // Calculates reciprocal of square root of base.  Check for the special
@@ -380,7 +380,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // 12 bits set and the lowest 52 bits cleared.
       __ movq(scratch, V8_UINT64_C(0xFFF0000000000000));
       __ Movq(double_scratch, scratch);
-      __ ucomisd(double_scratch, double_base);
+      __ Ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
       // zero flag as if both were equal.  However, it also sets the carry flag.
       __ j(not_equal, &continue_rsqrt, Label::kNear);
@@ -479,7 +479,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
   __ Xorpd(double_scratch2, double_scratch2);
-  __ ucomisd(double_scratch2, double_result);
+  __ Ucomisd(double_scratch2, double_result);
   // double_exponent aliased as double_scratch2 has already been overwritten
   // and may not have contained the exponent value in the first place when the
   // input was a smi.  We reset it with exponent value before bailing out.
@@ -1566,7 +1566,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     // false for all conditions except not-equal.
     __ Set(rax, EQUAL);
     __ Movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
-    __ ucomisd(xmm0, xmm0);
+    __ Ucomisd(xmm0, xmm0);
     __ setcc(parity_even, rax);
     // rax is 0 for equal non-NaN heapnumbers, 1 for NaNs.
     if (cc == greater_equal || cc == greater) {
@@ -1641,7 +1641,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   FloatingPointHelper::LoadSSE2UnknownOperands(masm, &non_number_comparison);
   __ xorl(rax, rax);
   __ xorl(rcx, rcx);
-  __ ucomisd(xmm0, xmm1);
+  __ Ucomisd(xmm0, xmm1);
 
   // Don't base result on EFLAGS when a NaN is involved.
   __ j(parity_even, &unordered, Label::kNear);
@@ -3452,7 +3452,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&done);
   // Compare operands
-  __ ucomisd(xmm0, xmm1);
+  __ Ucomisd(xmm0, xmm1);
 
   // Don't base result on EFLAGS when a NaN is involved.
   __ j(parity_even, &unordered, Label::kNear);
