@@ -811,6 +811,46 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Cvttsd2si(Register dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvttsd2si(dst, src);
+  } else {
+    cvttsd2si(dst, src);
+  }
+}
+
+
+void MacroAssembler::Cvttsd2si(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvttsd2si(dst, src);
+  } else {
+    cvttsd2si(dst, src);
+  }
+}
+
+
+void MacroAssembler::Cvttsd2siq(Register dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvttsd2siq(dst, src);
+  } else {
+    cvttsd2siq(dst, src);
+  }
+}
+
+
+void MacroAssembler::Cvttsd2siq(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvttsd2siq(dst, src);
+  } else {
+    cvttsd2siq(dst, src);
+  }
+}
+
+
 void MacroAssembler::Load(Register dst, const Operand& src, Representation r) {
   DCHECK(!r.IsDouble());
   if (r.IsInteger8()) {
@@ -3286,7 +3326,7 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
                                            Register input_reg) {
   Label done;
   Movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  cvttsd2siq(result_reg, xmm0);
+  Cvttsd2siq(result_reg, xmm0);
   cmpq(result_reg, Immediate(1));
   j(no_overflow, &done, Label::kNear);
 
@@ -3309,7 +3349,7 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
 void MacroAssembler::TruncateDoubleToI(Register result_reg,
                                        XMMRegister input_reg) {
   Label done;
-  cvttsd2siq(result_reg, input_reg);
+  Cvttsd2siq(result_reg, input_reg);
   cmpq(result_reg, Immediate(1));
   j(no_overflow, &done, Label::kNear);
 
@@ -3329,7 +3369,7 @@ void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
                                MinusZeroMode minus_zero_mode,
                                Label* lost_precision, Label* is_nan,
                                Label* minus_zero, Label::Distance dst) {
-  cvttsd2si(result_reg, input_reg);
+  Cvttsd2si(result_reg, input_reg);
   Cvtlsi2sd(xmm0, result_reg);
   ucomisd(xmm0, input_reg);
   j(not_equal, lost_precision, dst);

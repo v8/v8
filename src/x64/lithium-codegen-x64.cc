@@ -3609,7 +3609,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
       DeoptimizeIf(overflow, instr, Deoptimizer::kMinusZero);
     }
     __ roundsd(xmm_scratch, input_reg, kRoundDown);
-    __ cvttsd2si(output_reg, xmm_scratch);
+    __ Cvttsd2si(output_reg, xmm_scratch);
     __ cmpl(output_reg, Immediate(0x1));
     DeoptimizeIf(overflow, instr, Deoptimizer::kOverflow);
   } else {
@@ -3633,7 +3633,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     }
 
     // Use truncating instruction (OK because input is positive).
-    __ cvttsd2si(output_reg, input_reg);
+    __ Cvttsd2si(output_reg, input_reg);
     // Overflow is signalled with minint.
     __ cmpl(output_reg, Immediate(0x1));
     DeoptimizeIf(overflow, instr, Deoptimizer::kOverflow);
@@ -3642,7 +3642,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     // Non-zero negative reaches here.
     __ bind(&negative_sign);
     // Truncate, then compare and compensate.
-    __ cvttsd2si(output_reg, input_reg);
+    __ Cvttsd2si(output_reg, input_reg);
     __ Cvtlsi2sd(xmm_scratch, output_reg);
     __ ucomisd(input_reg, xmm_scratch);
     __ j(equal, &done, Label::kNear);
@@ -3671,7 +3671,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   // CVTTSD2SI rounds towards zero, since 0.5 <= x, we use floor(0.5 + x).
   __ addsd(xmm_scratch, input_reg);
-  __ cvttsd2si(output_reg, xmm_scratch);
+  __ Cvttsd2si(output_reg, xmm_scratch);
   // Overflow is signalled with minint.
   __ cmpl(output_reg, Immediate(0x1));
   DeoptimizeIf(overflow, instr, Deoptimizer::kOverflow);
@@ -3687,7 +3687,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // compare and compensate.
   __ Movapd(input_temp, input_reg);  // Do not alter input_reg.
   __ subsd(input_temp, xmm_scratch);
-  __ cvttsd2si(output_reg, input_temp);
+  __ Cvttsd2si(output_reg, input_temp);
   // Catch minint due to overflow, and to prevent overflow when compensating.
   __ cmpl(output_reg, Immediate(0x1));
   DeoptimizeIf(overflow, instr, Deoptimizer::kOverflow);
@@ -4994,7 +4994,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
                    Heap::kHeapNumberMapRootIndex);
     DeoptimizeIf(not_equal, instr, Deoptimizer::kNotAHeapNumber);
     __ Movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-    __ cvttsd2si(input_reg, xmm0);
+    __ Cvttsd2si(input_reg, xmm0);
     __ Cvtlsi2sd(scratch, input_reg);
     __ ucomisd(xmm0, scratch);
     DeoptimizeIf(not_equal, instr, Deoptimizer::kLostPrecision);

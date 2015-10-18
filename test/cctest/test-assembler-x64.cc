@@ -1351,14 +1351,41 @@ TEST(AssemblerX64AVX_sd) {
     CpuFeatureScope avx_scope(&assm, AVX);
     Label exit;
     // arguments in xmm0, xmm1 and xmm2
+    __ subq(rsp, Immediate(kDoubleSize * 2));  // For memory operand
     __ movl(rax, Immediate(0));
 
     __ vmaxsd(xmm4, xmm0, xmm1);
-    __ subq(rsp, Immediate(kDoubleSize * 2));  // For memory operand
     __ vmovsd(Operand(rsp, kDoubleSize), xmm4);
     __ vmovsd(xmm5, Operand(rsp, kDoubleSize));
     __ vmovsd(xmm6, xmm5);
     __ vmovapd(xmm3, xmm6);
+
+    // Test vcvttsd2si
+    __ movl(rax, Immediate(10));
+    __ movl(rdx, Immediate(123));
+    __ vcvtlsi2sd(xmm6, xmm6, rdx);
+    __ vcvttsd2si(rcx, xmm6);
+    __ cmpl(rcx, rdx);
+    __ j(not_equal, &exit);
+    __ xorl(rcx, rcx);
+    __ vmovsd(Operand(rsp, 0), xmm6);
+    __ vcvttsd2si(rcx, Operand(rsp, 0));
+    __ cmpl(rcx, rdx);
+    __ j(not_equal, &exit);
+
+    // Test vcvttsd2siq
+    __ movl(rax, Immediate(11));
+    __ movq(rdx, V8_INT64_C(0x426D1A94A2000000));  // 1.0e12
+    __ vmovq(xmm6, rdx);
+    __ vcvttsd2siq(rcx, xmm6);
+    __ movq(rdx, V8_INT64_C(1000000000000));
+    __ cmpq(rcx, rdx);
+    __ j(not_equal, &exit);
+    __ xorq(rcx, rcx);
+    __ vmovsd(Operand(rsp, 0), xmm6);
+    __ vcvttsd2siq(rcx, Operand(rsp, 0));
+    __ cmpq(rcx, rdx);
+    __ j(not_equal, &exit);
 
     __ movl(rdx, Immediate(6));
     __ vcvtlsi2sd(xmm6, xmm6, rdx);
@@ -1373,7 +1400,6 @@ TEST(AssemblerX64AVX_sd) {
     __ movq(Operand(rsp, 0), rdx);
     __ vmovq(xmm6, Operand(rsp, 0));
     __ vmulsd(xmm1, xmm1, xmm6);
-    __ addq(rsp, Immediate(kDoubleSize * 2));
 
     __ vucomisd(xmm3, xmm1);
     __ j(parity_even, &exit);
@@ -1414,6 +1440,7 @@ TEST(AssemblerX64AVX_sd) {
 
     // result in eax
     __ bind(&exit);
+    __ addq(rsp, Immediate(kDoubleSize * 2));
     __ ret(0);
   }
 

@@ -576,6 +576,11 @@ class Assembler : public AssemblerBase {
   static const byte kJnzShortOpcode = kJccShortPrefix | not_zero;
   static const byte kJzShortOpcode = kJccShortPrefix | zero;
 
+  // VEX prefix encodings.
+  enum SIMDPrefix { kNone = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
+  enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128, kLZ = kL128 };
+  enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
+  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -1322,15 +1327,44 @@ class Assembler : public AssemblerBase {
   }
   void vcvtlsi2sd(XMMRegister dst, XMMRegister src1, Register src2) {
     XMMRegister isrc2 = {src2.code()};
-    vsd(0x2a, dst, src1, isrc2);
+    vsd(0x2a, dst, src1, isrc2, kF2, k0F, kW0);
   }
   void vcvtlsi2sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
-    vsd(0x2a, dst, src1, src2);
+    vsd(0x2a, dst, src1, src2, kF2, k0F, kW0);
   }
-  void vucomisd(XMMRegister dst, XMMRegister src);
-  void vucomisd(XMMRegister dst, const Operand& src);
-  void vsd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
-  void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+  void vcvttsd2si(Register dst, XMMRegister src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF2, k0F, kW0);
+  }
+  void vcvttsd2si(Register dst, const Operand& src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF2, k0F, kW0);
+  }
+  void vcvttsd2siq(Register dst, XMMRegister src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF2, k0F, kW1);
+  }
+  void vcvttsd2siq(Register dst, const Operand& src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF2, k0F, kW1);
+  }
+  void vucomisd(XMMRegister dst, XMMRegister src) {
+    vsd(0x2e, dst, xmm0, src, k66, k0F, kWIG);
+  }
+  void vucomisd(XMMRegister dst, const Operand& src) {
+    vsd(0x2e, dst, xmm0, src, k66, k0F, kWIG);
+  }
+
+  void vsd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsd(op, dst, src1, src2, kF2, k0F, kWIG);
+  }
+  void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(op, dst, src1, src2, kF2, k0F, kWIG);
+  }
+  void vsd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
+           SIMDPrefix pp, LeadingOpcode m, VexW w);
+  void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2,
+           SIMDPrefix pp, LeadingOpcode m, VexW w);
 
   void vaddss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vss(0x58, dst, src1, src2);
@@ -1773,11 +1807,6 @@ class Assembler : public AssemblerBase {
   }
 
   // Emit vex prefix
-  enum SIMDPrefix { kNone = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
-  enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128, kLZ = kL128 };
-  enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
-  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
-
   void emit_vex2_byte0() { emit(0xc5); }
   inline void emit_vex2_byte1(XMMRegister reg, XMMRegister v, VectorLength l,
                               SIMDPrefix pp);

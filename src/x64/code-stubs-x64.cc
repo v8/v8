@@ -200,7 +200,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ jmp(&check_negative);
 
     __ bind(&process_64_bits);
-    __ cvttsd2siq(result_reg, xmm0);
+    __ Cvttsd2siq(result_reg, xmm0);
     __ jmp(&done, Label::kNear);
 
     // If the double was negative, negate the integer result.
@@ -324,7 +324,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ jmp(&int_exponent);
 
     __ bind(&try_arithmetic_simplification);
-    __ cvttsd2si(exponent, double_exponent);
+    __ Cvttsd2si(exponent, double_exponent);
     // Skip to runtime if possibly NaN (indicated by the indefinite integer).
     __ cmpl(exponent, Immediate(0x1));
     __ j(overflow, &call_runtime);

@@ -643,7 +643,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
       auto ool = new (zone()) OutOfLineTruncateDoubleToI(this, result, input);
-      __ cvttsd2siq(result, input);
+      __ Cvttsd2siq(result, input);
       __ cmpq(result, Immediate(1));
       __ j(overflow, ool->entry());
       __ bind(ool->exit());
@@ -913,16 +913,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kSSEFloat64ToInt32:
       if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ cvttsd2si(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Cvttsd2si(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
-        __ cvttsd2si(i.OutputRegister(), i.InputOperand(0));
+        __ Cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       }
       break;
     case kSSEFloat64ToUint32: {
       if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
-        __ cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
+        __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
       }
       __ AssertZeroExtended(i.OutputRegister());
       break;
