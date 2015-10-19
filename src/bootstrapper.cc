@@ -1880,20 +1880,18 @@ void Genesis::ConfigureUtilsObject(ContextType context_type) {
 
 void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                                      Handle<JSObject> container) {
+  Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-#define EXPORT_PRIVATE_SYMBOL(NAME)                                         \
-  Handle<String> NAME##_name =                                              \
-      isolate->factory()->NewStringFromAsciiChecked(#NAME);                 \
-  JSObject::AddProperty(container, NAME##_name, isolate->factory()->NAME(), \
-                        NONE);
+  Handle<Context> native_context = isolate->native_context();
+#define EXPORT_PRIVATE_SYMBOL(NAME)                                       \
+  Handle<String> NAME##_name = factory->NewStringFromAsciiChecked(#NAME); \
+  JSObject::AddProperty(container, NAME##_name, factory->NAME(), NONE);
   PRIVATE_SYMBOL_LIST(EXPORT_PRIVATE_SYMBOL)
 #undef EXPORT_PRIVATE_SYMBOL
 
-#define EXPORT_PUBLIC_SYMBOL(NAME, DESCRIPTION)                             \
-  Handle<String> NAME##_name =                                              \
-      isolate->factory()->NewStringFromAsciiChecked(#NAME);                 \
-  JSObject::AddProperty(container, NAME##_name, isolate->factory()->NAME(), \
-                        NONE);
+#define EXPORT_PUBLIC_SYMBOL(NAME, DESCRIPTION)                           \
+  Handle<String> NAME##_name = factory->NewStringFromAsciiChecked(#NAME); \
+  JSObject::AddProperty(container, NAME##_name, factory->NAME(), NONE);
   PUBLIC_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
   WELL_KNOWN_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
 #undef EXPORT_PUBLIC_SYMBOL
@@ -1907,7 +1905,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<TypeFeedbackVector> feedback_vector =
         TypeFeedbackVector::CreatePushAppliedArgumentsVector(isolate);
     apply->shared()->set_feedback_vector(*feedback_vector);
-    isolate->native_context()->set_reflect_apply(*apply);
+    native_context->set_reflect_apply(*apply);
   }
 
   {
@@ -1919,30 +1917,28 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<TypeFeedbackVector> feedback_vector =
         TypeFeedbackVector::CreatePushAppliedArgumentsVector(isolate);
     construct->shared()->set_feedback_vector(*feedback_vector);
-    isolate->native_context()->set_reflect_construct(*construct);
+    native_context->set_reflect_construct(*construct);
   }
 
   Handle<JSObject> iterator_prototype;
 
   {
-    PrototypeIterator iter(
-        isolate->native_context()->generator_object_prototype_map());
+    PrototypeIterator iter(native_context->generator_object_prototype_map());
     iter.Advance();  // Advance to the prototype of generator_object_prototype.
     iterator_prototype = Handle<JSObject>(iter.GetCurrent<JSObject>());
 
-    JSObject::AddProperty(container, isolate->factory()->InternalizeUtf8String(
-                                         "IteratorPrototype"),
+    JSObject::AddProperty(container,
+                          factory->InternalizeUtf8String("IteratorPrototype"),
                           iterator_prototype, NONE);
   }
 
   {
-    PrototypeIterator iter(
-        isolate->native_context()->sloppy_generator_function_map());
+    PrototypeIterator iter(native_context->sloppy_generator_function_map());
     Handle<JSObject> generator_function_prototype(iter.GetCurrent<JSObject>());
 
-    JSObject::AddProperty(container, isolate->factory()->InternalizeUtf8String(
-                                         "GeneratorFunctionPrototype"),
-                          generator_function_prototype, NONE);
+    JSObject::AddProperty(
+        container, factory->InternalizeUtf8String("GeneratorFunctionPrototype"),
+        generator_function_prototype, NONE);
 
     static const bool kUseStrictFunctionMap = true;
     Handle<JSFunction> generator_function_function =
@@ -1959,8 +1955,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<JSFunction> set_iterator_function = InstallFunction(
         container, "SetIterator", JS_SET_ITERATOR_TYPE, JSSetIterator::kSize,
         set_iterator_prototype, Builtins::kIllegal);
-    isolate->native_context()->set_set_iterator_map(
-        set_iterator_function->initial_map());
+    native_context->set_set_iterator_map(set_iterator_function->initial_map());
   }
 
   {  // -- M a p I t e r a t o r
@@ -1970,8 +1965,155 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<JSFunction> map_iterator_function = InstallFunction(
         container, "MapIterator", JS_MAP_ITERATOR_TYPE, JSMapIterator::kSize,
         map_iterator_prototype, Builtins::kIllegal);
-    isolate->native_context()->set_map_iterator_map(
-        map_iterator_function->initial_map());
+    native_context->set_map_iterator_map(map_iterator_function->initial_map());
+  }
+
+  {  // -- S c r i p t
+    // Builtin functions for Script.
+    Handle<JSFunction> script_fun = InstallFunction(
+        container, "Script", JS_VALUE_TYPE, JSValue::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    Handle<JSObject> prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    Accessors::FunctionSetPrototype(script_fun, prototype).Assert();
+    native_context->set_script_function(*script_fun);
+
+    Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
+    Map::EnsureDescriptorSlack(script_map, 15);
+
+    PropertyAttributes attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+    Handle<AccessorInfo> script_column =
+        Accessors::ScriptColumnOffsetInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_column->name())), script_column,
+          attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_id = Accessors::ScriptIdInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(Handle<Name>(Name::cast(script_id->name())),
+                                   script_id, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+
+    Handle<AccessorInfo> script_name =
+        Accessors::ScriptNameInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_name->name())), script_name, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_line =
+        Accessors::ScriptLineOffsetInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_line->name())), script_line, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_source =
+        Accessors::ScriptSourceInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_source->name())), script_source,
+          attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_type =
+        Accessors::ScriptTypeInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_type->name())), script_type, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_compilation_type =
+        Accessors::ScriptCompilationTypeInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_compilation_type->name())),
+          script_compilation_type, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_line_ends =
+        Accessors::ScriptLineEndsInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_line_ends->name())), script_line_ends,
+          attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_context_data =
+        Accessors::ScriptContextDataInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_context_data->name())),
+          script_context_data, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_eval_from_script =
+        Accessors::ScriptEvalFromScriptInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_eval_from_script->name())),
+          script_eval_from_script, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_eval_from_script_position =
+        Accessors::ScriptEvalFromScriptPositionInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_eval_from_script_position->name())),
+          script_eval_from_script_position, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_eval_from_function_name =
+        Accessors::ScriptEvalFromFunctionNameInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_eval_from_function_name->name())),
+          script_eval_from_function_name, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_source_url =
+        Accessors::ScriptSourceUrlInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_source_url->name())),
+          script_source_url, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_source_mapping_url =
+        Accessors::ScriptSourceMappingUrlInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_source_mapping_url->name())),
+          script_source_mapping_url, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_is_embedder_debug_script =
+        Accessors::ScriptIsEmbedderDebugScriptInfo(isolate, attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_is_embedder_debug_script->name())),
+          script_is_embedder_debug_script, attribs);
+      script_map->AppendDescriptor(&d);
+    }
   }
 }
 
@@ -2209,161 +2351,13 @@ bool Genesis::InstallNatives(ContextType context_type) {
   // A thin context is ready at this point.
   if (context_type == THIN_CONTEXT) return true;
 
-  {  // -- S c r i p t
-    // Builtin functions for Script.
-    Handle<JSFunction> script_fun = InstallFunction(
-        builtins, "Script", JS_VALUE_TYPE, JSValue::kSize,
-        isolate()->initial_object_prototype(), Builtins::kIllegal);
-    Handle<JSObject> prototype =
-        factory()->NewJSObject(isolate()->object_function(), TENURED);
-    Accessors::FunctionSetPrototype(script_fun, prototype).Assert();
-    native_context()->set_script_function(*script_fun);
-
-    Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
-    Map::EnsureDescriptorSlack(script_map, 15);
-
-    PropertyAttributes attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-    Handle<AccessorInfo> script_column =
-        Accessors::ScriptColumnOffsetInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_column->name())), script_column,
-          attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_id =
-        Accessors::ScriptIdInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(Handle<Name>(Name::cast(script_id->name())),
-                                   script_id, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-
-    Handle<AccessorInfo> script_name =
-        Accessors::ScriptNameInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_name->name())), script_name, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_line =
-        Accessors::ScriptLineOffsetInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_line->name())), script_line, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_source =
-        Accessors::ScriptSourceInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_source->name())), script_source,
-          attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_type =
-        Accessors::ScriptTypeInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_type->name())), script_type, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_compilation_type =
-        Accessors::ScriptCompilationTypeInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_compilation_type->name())),
-          script_compilation_type, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_line_ends =
-        Accessors::ScriptLineEndsInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_line_ends->name())), script_line_ends,
-          attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_context_data =
-        Accessors::ScriptContextDataInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_context_data->name())),
-          script_context_data, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_eval_from_script =
-        Accessors::ScriptEvalFromScriptInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_eval_from_script->name())),
-          script_eval_from_script, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_eval_from_script_position =
-        Accessors::ScriptEvalFromScriptPositionInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_eval_from_script_position->name())),
-          script_eval_from_script_position, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_eval_from_function_name =
-        Accessors::ScriptEvalFromFunctionNameInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_eval_from_function_name->name())),
-          script_eval_from_function_name, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_source_url =
-        Accessors::ScriptSourceUrlInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_source_url->name())),
-          script_source_url, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_source_mapping_url =
-        Accessors::ScriptSourceMappingUrlInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_source_mapping_url->name())),
-          script_source_mapping_url, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_is_embedder_debug_script =
-        Accessors::ScriptIsEmbedderDebugScriptInfo(isolate(), attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_is_embedder_debug_script->name())),
-          script_is_embedder_debug_script, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-  }
   {
     // Builtin function for OpaqueReference -- a JSValue-based object,
     // that keeps its field isolated from JavaScript code. It may store
     // objects, that JavaScript code may not access.
-    Handle<JSFunction> opaque_reference_fun = InstallFunction(
-        builtins, "OpaqueReference", JS_VALUE_TYPE, JSValue::kSize,
-        isolate()->initial_object_prototype(), Builtins::kIllegal);
+    Handle<JSFunction> opaque_reference_fun = factory()->NewFunction(
+        factory()->empty_string(), isolate()->builtins()->Illegal(),
+        isolate()->initial_object_prototype(), JS_VALUE_TYPE, JSValue::kSize);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
     Accessors::FunctionSetPrototype(opaque_reference_fun, prototype).Assert();

@@ -43,6 +43,7 @@ var InternalArray = utils.InternalArray;
 var internalErrorSymbol = utils.ImportNow("internal_error_symbol");
 var ObjectDefineProperty;
 var ObjectToString;
+var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
 var StringCharAt;
 var StringIndexOf;
