@@ -854,6 +854,7 @@ class FixedArrayBase;
 class FunctionLiteral;
 class GlobalObject;
 class JSBuiltinsObject;
+class KeyAccumulator;
 class LayoutDescriptor;
 class LiteralsArray;
 class LookupIterator;
@@ -1088,6 +1089,8 @@ class Object {
   // the same logical property. E.g., the smi 1, the string "1" and the double
   // 1 all refer to the same property, so this helper will return true.
   inline bool KeyEquals(Object* other);
+
+  inline bool FilterKey(PropertyAttributes filter);
 
   Handle<HeapType> OptimalType(Isolate* isolate, Representation representation);
 
@@ -1791,6 +1794,9 @@ enum AccessorComponent {
 enum KeyFilter { SKIP_SYMBOLS, INCLUDE_SYMBOLS };
 
 
+enum GetKeysConversion { KEEP_NUMBERS, CONVERT_TO_STRING };
+
+
 enum ShouldThrow { THROW_ON_ERROR, DONT_THROW };
 
 
@@ -1903,7 +1909,8 @@ class JSReceiver: public HeapObject {
   // "for (n in object) { }".
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetKeys(
       Handle<JSReceiver> object, KeyCollectionType type,
-      KeyFilter filter = SKIP_SYMBOLS);
+      KeyFilter filter = SKIP_SYMBOLS,
+      GetKeysConversion getConversion = KEEP_NUMBERS);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
@@ -2233,6 +2240,9 @@ class JSObject: public JSReceiver {
   // Returns the number of elements on this object filtering out elements
   // with the specified attributes (ignoring interceptors).
   int GetOwnElementKeys(FixedArray* storage, PropertyAttributes filter);
+  static void CollectOwnElementKeys(Handle<JSObject> object,
+                                    KeyAccumulator* keys,
+                                    PropertyAttributes filter);
   // Count and fill in the enumerable elements into storage.
   // (storage->length() == NumberOfEnumElements()).
   // If storage is NULL, will count the elements without adding
@@ -10714,26 +10724,62 @@ class BooleanBit : public AllStatic {
 };
 
 
+enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX, PROXY_MAGIC };
+
+// This is a helper class for JSReceiver::GetKeys which collects and sorts keys.
+// GetKeys needs to sort keys per prototype level, first showing the integer
+// indices from elements then the strings from the properties. However, this
+// does not apply to proxies which are in full control of how the keys are
+// sorted.
+//
+// For performance reasons the KeyAccumulator internally separates integer
+// keys in |elements_| into sorted lists per prototype level. String keys are
+// collected in |properties_|, a single OrderedHashSet. To separate the keys per
+// level later when assembling the final list, |levelLengths_| keeps track of
+// the total number of keys (integers + strings) per level.
+//
+// Only unique keys are kept by the KeyAccumulator, strings are stored in a
+// HashSet for inexpensive lookups. Integer keys are kept in sorted lists which
+// are more compact and allow for reasonably fast includes check.
 class KeyAccumulator final BASE_EMBEDDED {
  public:
-  explicit KeyAccumulator(Isolate* isolate) : isolate_(isolate), length_(0) {}
+  explicit KeyAccumulator(Isolate* isolate,
+                          KeyFilter filter = KeyFilter::SKIP_SYMBOLS)
+      : isolate_(isolate), filter_(filter), length_(0), levelLength_(0) {}
+  ~KeyAccumulator();
 
-  void AddKey(Handle<Object> key, int check_limit);
-  void AddKeys(Handle<FixedArray> array, KeyFilter filter);
-  void AddKeys(Handle<JSObject> array, KeyFilter filter);
-  void PrepareForComparisons(int count);
-  Handle<FixedArray> GetKeys();
+  bool AddKey(uint32_t key);
+  bool AddKey(Object* key, AddKeyConversion convert = DO_NOT_CONVERT);
+  bool AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
+  void AddKeys(Handle<FixedArray> array,
+               AddKeyConversion convert = DO_NOT_CONVERT);
+  void AddKeys(Handle<JSObject> array,
+               AddKeyConversion convert = DO_NOT_CONVERT);
+  void AddKeysFromProxy(Handle<JSObject> array);
+  // Jump to the next level, pushing the current |levelLength_| to
+  // |levelLengths_| and adding a new list to |elements_|.
+  void NextPrototype();
+  // Sort the integer indices in the last list in |elements_|
+  void SortCurrentElementsList();
+  Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
 
-  int GetLength() { return length_; }
 
  private:
-  void EnsureCapacity(int capacity);
-  void Grow();
-
   Isolate* isolate_;
-  Handle<FixedArray> keys_;
-  Handle<OrderedHashSet> set_;
+  KeyFilter filter_;
+  // |elements_| contains the sorted element keys (indices) per level.
+  List<List<uint32_t>*> elements_;
+  // |protoLengths_| contains the total number of keys (elements + properties)
+  // per level. Negative values mark counts for a level with keys from a proxy.
+  List<int> levelLengths_;
+  // |properties_| contains the property keys per level in insertion order.
+  Handle<OrderedHashSet> properties_;
+  // |length_| keeps track of the total number of all element and property keys.
   int length_;
+  // |levelLength_| keeps track of the total number of keys
+  // (elements + properties) in the current level.
+  int levelLength_;
+
   DISALLOW_COPY_AND_ASSIGN(KeyAccumulator);
 };
 

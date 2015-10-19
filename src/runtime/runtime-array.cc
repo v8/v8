@@ -206,6 +206,8 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   }
 
   KeyAccumulator accumulator(isolate);
+  // No need to separate protoype levels since we only get numbers/element keys
+  accumulator.NextPrototype();
   for (PrototypeIterator iter(isolate, array,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
@@ -217,15 +219,12 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
       return *isolate->factory()->NewNumberFromUint(length);
     }
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-    Handle<FixedArray> current_keys =
-        isolate->factory()->NewFixedArray(current->NumberOfOwnElements(NONE));
-    current->GetOwnElementKeys(*current_keys, NONE);
-    accumulator.AddKeys(current_keys, INCLUDE_SYMBOLS);
+    JSObject::CollectOwnElementKeys(current, &accumulator, NONE);
   }
   // Erase any keys >= length.
   // TODO(adamk): Remove this step when the contract of %GetArrayKeys
   // is changed to let this happen on the JS side.
-  Handle<FixedArray> keys = accumulator.GetKeys();
+  Handle<FixedArray> keys = accumulator.GetKeys(KEEP_NUMBERS);
   for (int i = 0; i < keys->length(); i++) {
     if (NumberToUint32(keys->get(i)) >= length) keys->set_undefined(i);
   }

@@ -24,13 +24,14 @@
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/execution.h"
-#include "src/field-index-inl.h"
 #include "src/field-index.h"
+#include "src/field-index-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/hydrogen.h"
 #include "src/ic/ic.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
+#include "src/list.h"
 #include "src/log.h"
 #include "src/lookup.h"
 #include "src/macro-assembler.h"
@@ -7329,24 +7330,6 @@ bool JSReceiver::IsSimpleEnum() {
 }
 
 
-static bool FilterKey(Object* key, PropertyAttributes filter) {
-  if ((filter & SYMBOLIC) && key->IsSymbol()) {
-    return true;
-  }
-
-  if ((filter & PRIVATE_SYMBOL) &&
-      key->IsSymbol() && Symbol::cast(key)->is_private()) {
-    return true;
-  }
-
-  if ((filter & STRING) && !key->IsSymbol()) {
-    return true;
-  }
-
-  return false;
-}
-
-
 int Map::NumberOfDescribedProperties(DescriptorFlag which,
                                      PropertyAttributes filter) {
   int result = 0;
@@ -7356,7 +7339,7 @@ int Map::NumberOfDescribedProperties(DescriptorFlag which,
       : NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
     if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-        !FilterKey(descs->GetKey(i), filter)) {
+        !descs->GetKey(i)->FilterKey(filter)) {
       result++;
     }
   }
@@ -7507,124 +7490,225 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
-Handle<FixedArray> KeyAccumulator::GetKeys() {
+KeyAccumulator::~KeyAccumulator() {
+  for (int i = 0; i < elements_.length(); i++) {
+    delete elements_[i];
+  }
+}
+
+
+Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   if (length_ == 0) {
     return isolate_->factory()->empty_fixed_array();
   }
-  if (set_.is_null()) {
-    keys_->Shrink(length_);
-    return keys_;
-  }
-  // copy over results from set_
+  // Make sure we have all the lengths collected.
+  NextPrototype();
+
+  // Assemble the result array by first adding the element keys and then
+  // the property keys. We use the total number of keys per level in
+  // |protoLengths_| and the available element keys in the corresponding bucket
+  // in |elements_| to deduce the number of keys to take from the |properties_|
+  // set.
   Handle<FixedArray> result = isolate_->factory()->NewFixedArray(length_);
-  for (int i = 0; i < length_; i++) {
-    result->set(i, set_->KeyAt(i));
+  int index = 0;
+  int properties_index = 0;
+  for (int level = 0; level < levelLengths_.length(); level++) {
+    int num_total = levelLengths_[level];
+    int num_elements = 0;
+    if (num_total < 0) {
+      // If the total is negative, the current level contains properties from a
+      // proxy, hence we skip the integer keys in |elements_| since proxies
+      // define the complete ordering.
+      num_total = -num_total;
+    } else if (level < elements_.length()) {
+      List<uint32_t>* elements = elements_[level];
+      num_elements = elements->length();
+      for (int i = 0; i < num_elements; i++) {
+        Handle<Object> key;
+        if (convert == KEEP_NUMBERS) {
+          key = isolate_->factory()->NewNumberFromUint(elements->at(i));
+        } else {
+          key = isolate_->factory()->Uint32ToString(elements->at(i));
+        }
+        result->set(index, *key);
+        index++;
+      }
+    }
+    // Add the property keys for this prototype level.
+    int num_properties = num_total - num_elements;
+    for (int i = 0; i < num_properties; i++) {
+      Object* key = properties_->KeyAt(properties_index);
+      result->set(index, key);
+      index++;
+      properties_index++;
+    }
   }
+  DCHECK_EQ(index, length_);
   return result;
 }
 
 
-void KeyAccumulator::AddKey(Handle<Object> key, int check_limit) {
-#ifdef ENABLE_SLOW_DCHECKS
-  if (FLAG_enable_slow_asserts) {
-    DCHECK(key->IsNumber() || key->IsName());
+namespace {
+
+class FindKey {
+ public:
+  explicit FindKey(uint32_t key) : key_(key) {}
+  int operator()(uint32_t* entry) {
+    if (*entry == key_) return 0;
+    return *entry < key_ ? -1 : 1;
   }
-#endif
-  if (!set_.is_null()) {
-    set_ = OrderedHashSet::Add(set_, key);
-    length_ = set_->NumberOfElements();
-    return;
+
+ private:
+  uint32_t key_;
+};
+
+
+bool AccumulatorHasKey(List<uint32_t>* sub_elements, uint32_t key) {
+  int index = SortedListBSearch(*sub_elements, FindKey(key));
+  return index != -1;
+}
+
+}  // namespace
+
+
+bool KeyAccumulator::AddKey(uint32_t key) {
+  // Make sure we do not add keys to a proxy-level (see AddKeysFromProxy).
+  DCHECK_LE(0, levelLength_);
+  int lookup_limit = elements_.length();
+  for (int i = 0; i < lookup_limit; i++) {
+    if (AccumulatorHasKey(elements_[i], key)) return false;
   }
-  // check if we already have the key in the case we are still using
-  // the keys_ FixedArray
-  check_limit = Min(check_limit, length_);
-  for (int i = 0; i < check_limit; i++) {
-    Object* current = keys_->get(i);
-    if (current->KeyEquals(*key)) return;
-  }
-  EnsureCapacity(length_);
-  keys_->set(length_, *key);
+  elements_[lookup_limit - 1]->Add(key);
   length_++;
+  levelLength_++;
+  return true;
 }
 
 
-void KeyAccumulator::AddKeys(Handle<FixedArray> array, KeyFilter filter) {
-  int add_length = array->length();
-  if (add_length == 0) return;
-  if (keys_.is_null() && filter == INCLUDE_SYMBOLS) {
-    keys_ = array;
-    length_ = keys_->length();
-    return;
-  }
-  PrepareForComparisons(add_length);
-  int previous_key_count = length_;
-  for (int i = 0; i < add_length; i++) {
-    Handle<Object> current(array->get(i), isolate_);
-    if (filter == SKIP_SYMBOLS && current->IsSymbol()) continue;
-    AddKey(current, previous_key_count);
-  }
+bool KeyAccumulator::AddKey(Object* key, AddKeyConversion convert) {
+  return AddKey(handle(key, isolate_), convert);
 }
 
 
-void KeyAccumulator::AddKeys(Handle<JSObject> array_like, KeyFilter filter) {
-  DCHECK(array_like->IsJSArray() || array_like->HasSloppyArgumentsElements());
-  ElementsAccessor* accessor = array_like->GetElementsAccessor();
-  accessor->AddElementsToKeyAccumulator(array_like, this, filter);
-}
-
-
-void KeyAccumulator::PrepareForComparisons(int count) {
-  // Depending on how many comparisons we do we should switch to the
-  // hash-table-based checks which have a one-time overhead for
-  // initializing but O(1) for HasKey checks.
-  if (!set_.is_null()) return;
-  // These limits were obtained through evaluation of several microbenchmarks.
-  if (length_ * count < 100) return;
-  // Don't use a set for few elements
-  if (length_ < 100 && count < 20) return;
-  set_ = OrderedHashSet::Allocate(isolate_, length_);
-  for (int i = 0; i < length_; i++) {
-    Handle<Object> value(keys_->get(i), isolate_);
-    set_ = OrderedHashSet::Add(set_, value);
+bool KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
+  if (filter_ == SKIP_SYMBOLS && key->IsSymbol()) {
+    return false;
   }
-}
-
-
-void KeyAccumulator::EnsureCapacity(int capacity) {
-  if (keys_.is_null() || keys_->length() <= capacity) {
-    Grow();
-  }
-}
-
-
-void KeyAccumulator::Grow() {
-  // The OrderedHashSet handles growing by itself.
-  if (!set_.is_null()) return;
-  // Otherwise, grow the internal keys_ FixedArray
-  int capacity = keys_.is_null() ? 16 : keys_->length() * 2 + 16;
-  Handle<FixedArray> new_keys = isolate_->factory()->NewFixedArray(capacity);
-  if (keys_.is_null()) {
-    keys_ = new_keys;
-    return;
-  }
-  int buffer_length = keys_->length();
-  {
-    DisallowHeapAllocation no_gc;
-    WriteBarrierMode mode = new_keys->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < buffer_length; i++) {
-      new_keys->set(i, keys_->get(i), mode);
+  // Make sure we do not add keys to a proxy-level (see AddKeysFromProxy).
+  DCHECK_LE(0, levelLength_);
+  // In some cases (e.g. proxies) we might get in String-converted ints which
+  // should be added to the elements list instead of the properties. For
+  // proxies we have to convert as well but also respect the original order.
+  // Therefore we add a converted key to both sides
+  if (convert == CONVERT_TO_ARRAY_INDEX || convert == PROXY_MAGIC) {
+    uint32_t index = 0;
+    int prev_length = length_;
+    int prev_proto = levelLength_;
+    bool was_array_index = false;
+    bool key_was_added = false;
+    if ((key->IsString() && Handle<String>::cast(key)->AsArrayIndex(&index)) ||
+        key->ToArrayIndex(&index)) {
+      key_was_added = AddKey(index);
+      was_array_index = true;
+      if (convert == CONVERT_TO_ARRAY_INDEX) return key_was_added;
+    }
+    if (was_array_index && convert == PROXY_MAGIC) {
+      // If we had an array index (number) and it wasn't added, the key
+      // already existed before, hence we cannot add it to the properties
+      // keys as it would lead to duplicate entries.
+      if (!key_was_added) {
+        return false;
+      }
+      length_ = prev_length;
+      levelLength_ = prev_proto;
     }
   }
-  keys_ = new_keys;
+  if (properties_.is_null()) {
+    properties_ = OrderedHashSet::Allocate(isolate_, 16);
+  }
+  // TODO(cbruni): remove this conversion once we throw the correct TypeError
+  // for non-string/symbol elements returned by proxies
+  if (convert == PROXY_MAGIC && key->IsNumber()) {
+    key = isolate_->factory()->NumberToString(key);
+  }
+  int prev_size = properties_->NumberOfElements();
+  properties_ = OrderedHashSet::Add(properties_, key);
+  if (prev_size < properties_->NumberOfElements()) {
+    length_++;
+    levelLength_++;
+  }
+  return true;
+}
+
+
+void KeyAccumulator::AddKeys(Handle<FixedArray> array,
+                             AddKeyConversion convert) {
+  int add_length = array->length();
+  if (add_length == 0) return;
+  for (int i = 0; i < add_length; i++) {
+    Handle<Object> current(array->get(i), isolate_);
+    AddKey(current);
+  }
+}
+
+
+void KeyAccumulator::AddKeys(Handle<JSObject> array_like,
+                             AddKeyConversion convert) {
+  DCHECK(array_like->IsJSArray() || array_like->HasSloppyArgumentsElements());
+  ElementsAccessor* accessor = array_like->GetElementsAccessor();
+  accessor->AddElementsToKeyAccumulator(array_like, this, convert);
+}
+
+
+void KeyAccumulator::AddKeysFromProxy(Handle<JSObject> array_like) {
+  // Proxies define a complete list of keys with no distinction of
+  // elements and properties, which breaks the normal assumption for the
+  // KeyAccumulator.
+  AddKeys(array_like, PROXY_MAGIC);
+  // Invert the current length to indicate a present proxy, so we can ignore
+  // element keys for this level. Otherwise we would not fully respect the order
+  // given by the proxy.
+  levelLength_ = -levelLength_;
+}
+
+
+namespace {
+
+// Used for sorting indices in a List<uint32_t>.
+int compareUInt32(const uint32_t* ap, const uint32_t* bp) {
+  uint32_t a = *ap;
+  uint32_t b = *bp;
+  return (a == b) ? 0 : (a < b) ? -1 : 1;
+}
+
+
+}  // namespace
+
+
+void KeyAccumulator::SortCurrentElementsList() {
+  if (elements_.length() == 0) return;
+  List<uint32_t>* element_keys = elements_[elements_.length() - 1];
+  element_keys->Sort(&compareUInt32);
+}
+
+
+void KeyAccumulator::NextPrototype() {
+  // Store the protoLength on the first call of this method.
+  if (!elements_.is_empty()) {
+    levelLengths_.Add(levelLength_);
+  }
+  elements_.Add(new List<uint32_t>());
+  levelLength_ = 0;
 }
 
 
 MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                                             KeyCollectionType type,
-                                            KeyFilter filter) {
+                                            KeyFilter filter,
+                                            GetKeysConversion getConversion) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
-  KeyAccumulator accumulator(isolate);
+  KeyAccumulator accumulator(isolate, filter);
   Handle<JSFunction> arguments_function(
       JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
 
@@ -7635,6 +7719,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
   for (PrototypeIterator iter(isolate, object,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(end); iter.Advance()) {
+    accumulator.NextPrototype();
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
       Handle<JSProxy> proxy = PrototypeIterator::GetCurrent<JSProxy>(iter);
       Handle<Object> args[] = { proxy };
@@ -7647,7 +7732,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                           arraysize(args),
                           args),
           FixedArray);
-      accumulator.AddKeys(Handle<JSObject>::cast(names), filter);
+      accumulator.AddKeysFromProxy(Handle<JSObject>::cast(names));
       break;
     }
 
@@ -7663,21 +7748,16 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       break;
     }
 
-    // Compute the element keys.
-    Handle<FixedArray> element_keys =
-        isolate->factory()->NewFixedArray(current->NumberOfEnumElements());
-    current->GetEnumElementKeys(*element_keys);
-    accumulator.AddKeys(element_keys, filter);
-    DCHECK(ContainsOnlyValidKeys(accumulator.GetKeys()));
+    JSObject::CollectOwnElementKeys(current, &accumulator,
+                                    static_cast<PropertyAttributes>(DONT_ENUM));
 
     // Add the element keys from the interceptor.
     if (current->HasIndexedInterceptor()) {
       Handle<JSObject> result;
-      if (JSObject::GetKeysForIndexedInterceptor(
-              current, object).ToHandle(&result)) {
-        accumulator.AddKeys(result, filter);
+      if (JSObject::GetKeysForIndexedInterceptor(current, object)
+              .ToHandle(&result)) {
+        accumulator.AddKeys(result, CONVERT_TO_ARRAY_INDEX);
       }
-      DCHECK(ContainsOnlyValidKeys(accumulator.GetKeys()));
     }
 
     if (filter == SKIP_SYMBOLS) {
@@ -7697,33 +7777,27 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
            !current->HasNamedInterceptor() &&
            !current->HasIndexedInterceptor());
       // Compute the property keys and cache them if possible.
-
       Handle<FixedArray> enum_keys =
           JSObject::GetEnumPropertyKeys(current, cache_enum_length);
-      accumulator.AddKeys(enum_keys, filter);
+      accumulator.AddKeys(enum_keys);
     } else {
       DCHECK(filter == INCLUDE_SYMBOLS);
       PropertyAttributes attr_filter =
           static_cast<PropertyAttributes>(DONT_ENUM | PRIVATE_SYMBOL);
-      Handle<FixedArray> property_keys = isolate->factory()->NewFixedArray(
-          current->NumberOfOwnProperties(attr_filter));
-      current->GetOwnPropertyNames(*property_keys, 0, attr_filter);
-      accumulator.AddKeys(property_keys, filter);
+      JSObject::CollectOwnElementKeys(current, &accumulator, attr_filter);
     }
-    DCHECK(ContainsOnlyValidKeys(accumulator.GetKeys()));
 
     // Add the property keys from the interceptor.
     if (current->HasNamedInterceptor()) {
       Handle<JSObject> result;
-      if (JSObject::GetKeysForNamedInterceptor(
-              current, object).ToHandle(&result)) {
-        accumulator.AddKeys(result, filter);
+      if (JSObject::GetKeysForNamedInterceptor(current, object)
+              .ToHandle(&result)) {
+        accumulator.AddKeys(result);
       }
-      DCHECK(ContainsOnlyValidKeys(accumulator.GetKeys()));
     }
   }
 
-  Handle<FixedArray> keys = accumulator.GetKeys();
+  Handle<FixedArray> keys = accumulator.GetKeys(getConversion);
   DCHECK(ContainsOnlyValidKeys(keys));
   return keys;
 }
@@ -14680,7 +14754,7 @@ int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < real_size; i++) {
       if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-          !FilterKey(descs->GetKey(i), filter)) {
+          !descs->GetKey(i)->FilterKey(filter)) {
         storage->set(index++, descs->GetKey(i));
       }
     }
@@ -14715,12 +14789,35 @@ int JSObject::NumberOfEnumElements() {
 }
 
 
+void JSObject::CollectOwnElementKeys(Handle<JSObject> object,
+                                     KeyAccumulator* keys,
+                                     PropertyAttributes filter) {
+  uint32_t string_keys = 0;
+
+  // If this is a String wrapper, add the string indices first,
+  // as they're guaranteed to precede the elements in numerical order
+  // and ascending order is required by ECMA-262, 6th, 9.1.12.
+  if (object->IsJSValue()) {
+    Object* val = JSValue::cast(*object)->value();
+    if (val->IsString()) {
+      String* str = String::cast(val);
+      string_keys = str->length();
+      for (uint32_t i = 0; i < string_keys; i++) {
+        keys->AddKey(i);
+      }
+    }
+  }
+  ElementsAccessor* accessor = object->GetElementsAccessor();
+  accessor->CollectElementIndices(object, keys, kMaxUInt32, filter, 0);
+}
+
+
 int JSObject::GetOwnElementKeys(FixedArray* storage,
                                 PropertyAttributes filter) {
   int counter = 0;
 
   // If this is a String wrapper, add the string indices first,
-  // as they're guaranteed to preced the elements in numerical order
+  // as they're guaranteed to precede the elements in numerical order
   // and ascending order is required by ECMA-262, 6th, 9.1.12.
   if (IsJSValue()) {
     Object* val = JSValue::cast(this)->value();
@@ -14842,11 +14939,6 @@ int JSObject::GetOwnElementKeys(FixedArray* storage,
 
   DCHECK(!storage || storage->length() == counter);
   return counter;
-}
-
-
-int JSObject::GetEnumElementKeys(FixedArray* storage) {
-  return GetOwnElementKeys(storage, static_cast<PropertyAttributes>(DONT_ENUM));
 }
 
 
@@ -16373,7 +16465,7 @@ int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
   int result = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k) && !FilterKey(k, filter)) {
+    if (this->IsKey(k) && !k->FilterKey(filter)) {
       if (this->IsDeleted(i)) continue;
       PropertyDetails details = this->DetailsAt(i);
       PropertyAttributes attr = details.attributes();
@@ -16389,7 +16481,7 @@ bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k) && !FilterKey(k, NONE)) {
+    if (this->IsKey(k) && !k->FilterKey(NONE)) {
       if (this->IsDeleted(i)) continue;
       PropertyDetails details = this->DetailsAt(i);
       if (details.type() == ACCESSOR_CONSTANT) return true;
@@ -16448,7 +16540,7 @@ int Dictionary<Derived, Shape, Key>::CopyKeysTo(
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k) && !FilterKey(k, filter)) {
+    if (this->IsKey(k) && !k->FilterKey(filter)) {
       if (this->IsDeleted(i)) continue;
       PropertyDetails details = this->DetailsAt(i);
       PropertyAttributes attr = details.attributes();

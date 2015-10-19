@@ -981,34 +981,9 @@ RUNTIME_FUNCTION(Runtime_OwnKeys) {
 
   Handle<FixedArray> contents;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, contents, JSReceiver::GetKeys(object, JSReceiver::OWN_ONLY));
-
-  // Some fast paths through GetKeysInFixedArrayFor reuse a cached
-  // property array and since the result is mutable we have to create
-  // a fresh clone on each invocation.
-  int length = contents->length();
-  Handle<FixedArray> copy = isolate->factory()->NewFixedArray(length);
-  int offset = 0;
-  // Use an outer loop to avoid creating too many handles in the current
-  // handle scope.
-  while (offset < length) {
-    HandleScope scope(isolate);
-    offset += 100;
-    int end = Min(offset, length);
-    for (int i = offset - 100; i < end; i++) {
-      Object* entry = contents->get(i);
-      if (entry->IsString()) {
-        copy->set(i, entry);
-      } else {
-        DCHECK(entry->IsNumber());
-        Handle<Object> entry_handle(entry, isolate);
-        Handle<Object> entry_str =
-            isolate->factory()->NumberToString(entry_handle);
-        copy->set(i, *entry_str);
-      }
-    }
-  }
-  return *isolate->factory()->NewJSArrayWithElements(copy);
+      isolate, contents, JSReceiver::GetKeys(object, JSReceiver::OWN_ONLY,
+                                             SKIP_SYMBOLS, CONVERT_TO_STRING));
+  return *isolate->factory()->NewJSArrayWithElements(contents);
 }
 
 
