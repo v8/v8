@@ -5878,6 +5878,7 @@ class Map: public HeapObject {
   inline bool IsJSProxyMap();
   inline bool IsJSGlobalProxyMap();
   inline bool IsJSGlobalObjectMap();
+  inline bool IsJSTypedArrayMap();
   inline bool IsGlobalObjectMap();
 
   inline bool CanOmitMapChecks();

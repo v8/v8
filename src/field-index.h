@@ -19,6 +19,8 @@ class Map;
 // index it was originally generated from.
 class FieldIndex final {
  public:
+  FieldIndex() : bit_field_(0) {}
+
   static FieldIndex ForPropertyIndex(Map* map,
                                      int index,
                                      bool is_double = false);

@@ -4905,6 +4905,7 @@ bool Map::IsJSGlobalProxyMap() {
 bool Map::IsJSGlobalObjectMap() {
   return instance_type() == JS_GLOBAL_OBJECT_TYPE;
 }
+bool Map::IsJSTypedArrayMap() { return instance_type() == JS_TYPED_ARRAY_TYPE; }
 bool Map::IsGlobalObjectMap() {
   const InstanceType type = instance_type();
   return type == JS_GLOBAL_OBJECT_TYPE || type == JS_BUILTINS_OBJECT_TYPE;

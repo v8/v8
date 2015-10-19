@@ -519,7 +519,7 @@ struct NativeContextSpecializationPhase {
             ? JSGlobalSpecialization::kDeoptimizationEnabled
             : JSGlobalSpecialization::kNoFlags,
         handle(data->info()->global_object(), data->isolate()),
-        data->info()->dependencies());
+        data->info()->dependencies(), temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &global_specialization);
