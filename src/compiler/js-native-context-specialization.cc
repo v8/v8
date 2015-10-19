@@ -313,8 +313,7 @@ bool CanInlinePropertyAccess(Handle<Map> map) {
 bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
   MaybeHandle<JSObject> holder;
-  Handle<Map> receiver_map = map;
-  Type* receiver_type = Type::Class(receiver_map, graph()->zone());
+  Type* receiver_type = Type::Class(map, graph()->zone());
   while (CanInlinePropertyAccess(map)) {
     // Check for special JSObject field accessors.
     int offset;
@@ -322,7 +321,7 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
       FieldIndex field_index = FieldIndex::ForInObjectOffset(offset);
       Representation field_representation = Representation::Tagged();
       Type* field_type = Type::Tagged();
-      if (receiver_type->Is(Type::String())) {
+      if (map->IsStringMap()) {
         DCHECK(Name::Equals(factory()->length_string(), name));
         // The String::length property is always a smi in the range
         // [0, String::kMaxLength].
@@ -330,7 +329,7 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
         field_type = Type::Intersect(
             Type::Range(0.0, String::kMaxLength, graph()->zone()),
             Type::TaggedSigned(), graph()->zone());
-      } else if (receiver_map->IsJSArrayMap()) {
+      } else if (map->IsJSArrayMap()) {
         DCHECK(Name::Equals(factory()->length_string(), name));
         // The JSArray::length property is a smi in the range
         // [0, FixedDoubleArray::kMaxLength] in case of fast double
@@ -338,12 +337,11 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
         // in case of other fast elements, and [0, kMaxUInt32-1] in
         // case of other arrays.
         double field_type_upper = kMaxUInt32 - 1;
-        if (IsFastElementsKind(receiver_map->elements_kind())) {
+        if (IsFastElementsKind(map->elements_kind())) {
           field_representation = Representation::Smi();
-          field_type_upper =
-              IsFastDoubleElementsKind(receiver_map->elements_kind())
-                  ? FixedDoubleArray::kMaxLength
-                  : FixedArray::kMaxLength;
+          field_type_upper = IsFastDoubleElementsKind(map->elements_kind())
+                                 ? FixedDoubleArray::kMaxLength
+                                 : FixedArray::kMaxLength;
         }
         field_type =
             Type::Intersect(Type::Range(0.0, field_type_upper, graph()->zone()),
