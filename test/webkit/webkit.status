@@ -63,6 +63,29 @@
   'reentrant-caching': [SKIP],
 }],  # 'dcheck_always_on == True and (arch == arm or arch == arm64)'
 
+##############################################################################
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'fast/js/excessive-comma-usage': [SKIP],
+
+  # BUG(v8:4499).
+  'run-json-stringify': [SKIP],
+}],  # 'asan == True'
+
+##############################################################################
+['isolates', {
+  # BUG(v8:4499).
+  'array-filter': [SKIP],
+  'break-ASI': [SKIP],
+  'class-syntax-expression': [SKIP],
+  'fast/js/date-negative-setmonth': [SKIP],
+  'function-dot-length-read-only': [SKIP],
+  'function-prototype-descriptor': [SKIP],
+  'fast/js/kde/object_prototype': [SKIP],
+  'regexp-zero-length-alternatives': [SKIP],
+  'resolve-arguments-from-scope': [SKIP],
+  'sort-large-array': [SKIP],
+}],  # 'isolates'
 
 ##############################################################################
 ['gc_stress == True', {
