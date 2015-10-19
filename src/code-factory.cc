@@ -197,6 +197,20 @@ Callable CodeFactory::ToObject(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::NumberToString(Isolate* isolate) {
+  NumberToStringStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
+Callable CodeFactory::RegExpConstructResult(Isolate* isolate) {
+  RegExpConstructResultStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
   StringAddStub stub(isolate, flags, pretenure_flag);

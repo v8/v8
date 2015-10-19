@@ -3682,58 +3682,6 @@ void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(args->length(), 1);
-
-  // Load the argument into eax and call the stub.
-  VisitForAccumulatorValue(args->at(0));
-
-  NumberToStringStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into eax and convert it.
-  VisitForAccumulatorValue(args->at(0));
-
-  ToLengthStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitToString(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into eax and convert it.
-  VisitForAccumulatorValue(args->at(0));
-
-  ToStringStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into eax and convert it.
-  VisitForAccumulatorValue(args->at(0));
-
-  ToNumberStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(eax);
-}
-
-
 void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(1, args->length());
@@ -3751,19 +3699,6 @@ void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   __ Push(eax);
   __ CallRuntime(Runtime::kToName, 1);
   __ bind(&done_convert);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into eax and convert it.
-  VisitForAccumulatorValue(args->at(0));
-
-  ToObjectStub stub(isolate());
-  __ CallStub(&stub);
   context()->Plug(eax);
 }
 
@@ -3991,21 +3926,6 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 
   context()->DropAndPlug(1, eax);
-}
-
-
-void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
-  // Load the arguments on the stack and call the stub.
-  RegExpConstructResultStub stub(isolate());
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 3);
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-  VisitForAccumulatorValue(args->at(2));
-  __ pop(ebx);
-  __ pop(ecx);
-  __ CallStub(&stub);
-  context()->Plug(eax);
 }
 
 

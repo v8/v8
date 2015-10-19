@@ -3797,62 +3797,6 @@ void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(args->length(), 1);
-
-  // Load the argument into a0 and call the stub.
-  VisitForAccumulatorValue(args->at(0));
-  __ mov(a0, result_register());
-
-  NumberToStringStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(v0);
-}
-
-
-void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into a0 and convert it.
-  VisitForAccumulatorValue(args->at(0));
-  __ mov(a0, result_register());
-
-  ToLengthStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(v0);
-}
-
-
-void FullCodeGenerator::EmitToString(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into a0 and convert it.
-  VisitForAccumulatorValue(args->at(0));
-  __ mov(a0, result_register());
-
-  ToStringStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(v0);
-}
-
-
-void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into a0 and convert it.
-  VisitForAccumulatorValue(args->at(0));
-  __ mov(a0, result_register());
-
-  ToNumberStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(v0);
-}
-
-
 void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(1, args->length());
@@ -3869,20 +3813,6 @@ void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   __ Push(v0);
   __ CallRuntime(Runtime::kToName, 1);
   __ bind(&done_convert);
-  context()->Plug(v0);
-}
-
-
-void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into a0 and convert it.
-  VisitForAccumulatorValue(args->at(0));
-  __ mov(a0, result_register());
-
-  ToObjectStub stub(isolate());
-  __ CallStub(&stub);
   context()->Plug(v0);
 }
 
@@ -4122,21 +4052,6 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
   context()->DropAndPlug(1, result_register());
-}
-
-
-void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
-  RegExpConstructResultStub stub(isolate());
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 3);
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-  VisitForAccumulatorValue(args->at(2));
-  __ mov(a0, result_register());
-  __ pop(a1);
-  __ pop(a2);
-  __ CallStub(&stub);
-  context()->Plug(v0);
 }
 
 

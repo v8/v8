@@ -482,6 +482,63 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
+                                                const Callable& callable) {
+  ZoneList<Expression*>* args = expr->arguments();
+  int param_count = callable.descriptor().GetRegisterParameterCount();
+  DCHECK_EQ(args->length(), param_count);
+
+  if (param_count > 0) {
+    int last = param_count - 1;
+    // Put all but last arguments on stack.
+    for (int i = 0; i < last; i++) {
+      VisitForStackValue(args->at(i));
+    }
+    // The last argument goes to the accumulator.
+    VisitForAccumulatorValue(args->at(last));
+
+    // Move the arguments to the registers, as required by the stub.
+    __ Move(callable.descriptor().GetRegisterParameter(last),
+            result_register());
+    for (int i = last; i-- > 0;) {
+      __ Pop(callable.descriptor().GetRegisterParameter(i));
+    }
+  }
+  __ Call(callable.code(), RelocInfo::CODE_TARGET);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::NumberToString(isolate()));
+}
+
+
+void FullCodeGenerator::EmitToString(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToString(isolate()));
+}
+
+
+void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToLength(isolate()));
+}
+
+
+void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToNumber(isolate()));
+}
+
+
+void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToObject(isolate()));
+}
+
+
+void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::RegExpConstructResult(isolate()));
+}
+
+
 bool RecordStatementPosition(MacroAssembler* masm, int pos) {
   if (pos == RelocInfo::kNoPosition) return false;
   masm->positions_recorder()->RecordStatementPosition(pos);

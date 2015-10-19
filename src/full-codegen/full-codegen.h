@@ -9,6 +9,7 @@
 #include "src/assert-scope.h"
 #include "src/ast.h"
 #include "src/bit-vector.h"
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
@@ -528,6 +529,8 @@ class FullCodeGenerator: public AstVisitor {
 #define GENERATOR_DECLARATION(Name) void Emit##Name(CallRuntime* call);
   FOR_EACH_FULL_CODE_INTRINSIC(GENERATOR_DECLARATION)
 #undef GENERATOR_DECLARATION
+
+  void EmitIntrinsicAsStubCall(CallRuntime* expr, const Callable& callable);
 
   // Platform-specific code for resuming generators.
   void EmitGeneratorResume(Expression *generator,

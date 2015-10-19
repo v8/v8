@@ -76,6 +76,9 @@ class CodeFactory final {
   static Callable ToString(Isolate* isolate);
   static Callable ToLength(Isolate* isolate);
   static Callable ToObject(Isolate* isolate);
+  static Callable NumberToString(Isolate* isolate);
+
+  static Callable RegExpConstructResult(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
