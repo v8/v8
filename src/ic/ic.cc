@@ -1489,6 +1489,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
               PrototypeIterator::GetCurrent(iter));
         }
 
+        if (it->HolderIsReceiverOrHiddenPrototype()) return false;
+
         it->PrepareTransitionToDataProperty(value, NONE, store_mode);
         return it->IsCacheableTransition();
       }
