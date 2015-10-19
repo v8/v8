@@ -7,6 +7,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
 #include "src/types.h"
 
@@ -87,9 +88,7 @@ class JSCallReduction {
 
 
 JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph)
-    : AdvancedReducer(editor),
-      jsgraph_(jsgraph),
-      simplified_(jsgraph->zone()) {}
+    : AdvancedReducer(editor), jsgraph_(jsgraph) {}
 
 
 // ECMA-262, section 15.8.2.11.
@@ -182,6 +181,11 @@ CommonOperatorBuilder* JSBuiltinReducer::common() const {
 
 MachineOperatorBuilder* JSBuiltinReducer::machine() const {
   return jsgraph()->machine();
+}
+
+
+SimplifiedOperatorBuilder* JSBuiltinReducer::simplified() const {
+  return jsgraph()->simplified();
 }
 
 }  // namespace compiler

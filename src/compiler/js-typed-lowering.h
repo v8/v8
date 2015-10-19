@@ -7,7 +7,6 @@
 
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
@@ -23,6 +22,7 @@ class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;
+class SimplifiedOperatorBuilder;
 
 
 // Lowers JS-level operators to simplified operators based on types.
@@ -81,7 +81,7 @@ class JSTypedLowering final : public AdvancedReducer {
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;
-  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  SimplifiedOperatorBuilder* simplified() const;
   MachineOperatorBuilder* machine() const;
 
   // Limits up to which context allocations are inlined.
@@ -89,7 +89,6 @@ class JSTypedLowering final : public AdvancedReducer {
   static const int kBlockContextAllocationLimit = 16;
 
   JSGraph* jsgraph_;
-  SimplifiedOperatorBuilder simplified_;
   Type* shifted_int32_ranges_[4];
 };
 

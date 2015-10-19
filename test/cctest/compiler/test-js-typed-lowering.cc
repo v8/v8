@@ -8,6 +8,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/typer.h"
 #include "test/cctest/cctest.h"
 

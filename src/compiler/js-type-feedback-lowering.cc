@@ -16,10 +16,7 @@ namespace compiler {
 
 JSTypeFeedbackLowering::JSTypeFeedbackLowering(Editor* editor, Flags flags,
                                                JSGraph* jsgraph)
-    : AdvancedReducer(editor),
-      flags_(flags),
-      jsgraph_(jsgraph),
-      simplified_(graph()->zone()) {}
+    : AdvancedReducer(editor), flags_(flags), jsgraph_(jsgraph) {}
 
 
 Reduction JSTypeFeedbackLowering::Reduce(Node* node) {
@@ -112,6 +109,11 @@ Isolate* JSTypeFeedbackLowering::isolate() const {
 
 MachineOperatorBuilder* JSTypeFeedbackLowering::machine() const {
   return jsgraph()->machine();
+}
+
+
+SimplifiedOperatorBuilder* JSTypeFeedbackLowering::simplified() const {
+  return jsgraph()->simplified();
 }
 
 }  // namespace compiler

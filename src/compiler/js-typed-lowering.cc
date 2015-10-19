@@ -22,7 +22,7 @@ namespace compiler {
 
 
 JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph, Zone* zone)
-    : AdvancedReducer(editor), jsgraph_(jsgraph), simplified_(graph()->zone()) {
+    : AdvancedReducer(editor), jsgraph_(jsgraph) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
     double max = kMaxInt / (1 << k);
@@ -1833,6 +1833,11 @@ JSOperatorBuilder* JSTypedLowering::javascript() const {
 
 CommonOperatorBuilder* JSTypedLowering::common() const {
   return jsgraph()->common();
+}
+
+
+SimplifiedOperatorBuilder* JSTypedLowering::simplified() const {
+  return jsgraph()->simplified();
 }
 
 

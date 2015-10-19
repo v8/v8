@@ -7,7 +7,6 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +20,7 @@ namespace compiler {
 class CommonOperatorBuilder;
 class JSGraph;
 class MachineOperatorBuilder;
+class SimplifiedOperatorBuilder;
 
 
 // Lowers JS-level operators to simplified operators based on type feedback.
@@ -48,11 +48,10 @@ class JSTypeFeedbackLowering final : public AdvancedReducer {
   JSGraph* jsgraph() const { return jsgraph_; }
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
-  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  SimplifiedOperatorBuilder* simplified() const;
 
   Flags const flags_;
   JSGraph* const jsgraph_;
-  SimplifiedOperatorBuilder simplified_;
 
   DISALLOW_COPY_AND_ASSIGN(JSTypeFeedbackLowering);
 };

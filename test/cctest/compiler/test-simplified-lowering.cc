@@ -38,7 +38,7 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
         typer(this->isolate(), this->graph()),
         javascript(this->zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
-                nullptr, this->machine()),
+                this->simplified(), this->machine()),
         source_positions(jsgraph.graph()),
         lowering(&jsgraph, this->zone(), &source_positions) {}
 
@@ -676,7 +676,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
       : GraphAndBuilders(main_zone()),
         typer(main_isolate(), graph()),
         javascript(main_zone()),
-        jsgraph(main_isolate(), graph(), common(), &javascript, nullptr,
+        jsgraph(main_isolate(), graph(), common(), &javascript, simplified(),
                 machine()) {
     start = graph()->NewNode(common()->Start(2));
     graph()->SetStart(start);

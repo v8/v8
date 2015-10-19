@@ -6,7 +6,6 @@
 #define V8_COMPILER_JS_BUILTIN_REDUCER_H_
 
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
@@ -16,6 +15,7 @@ namespace compiler {
 class CommonOperatorBuilder;
 class JSGraph;
 class MachineOperatorBuilder;
+class SimplifiedOperatorBuilder;
 
 
 class JSBuiltinReducer final : public AdvancedReducer {
@@ -34,10 +34,9 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Graph* graph() const;
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
-  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* jsgraph_;
-  SimplifiedOperatorBuilder simplified_;
 };
 
 }  // namespace compiler

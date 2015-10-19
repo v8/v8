@@ -20,10 +20,7 @@ namespace compiler {
 
 JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
                                          DeoptimizationMode mode)
-    : AdvancedReducer(editor),
-      jsgraph_(jsgraph),
-      mode_(mode),
-      simplified_(jsgraph->zone()) {}
+    : AdvancedReducer(editor), jsgraph_(jsgraph), mode_(mode) {}
 
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
@@ -606,6 +603,11 @@ JSOperatorBuilder* JSIntrinsicLowering::javascript() const {
 
 MachineOperatorBuilder* JSIntrinsicLowering::machine() const {
   return jsgraph()->machine();
+}
+
+
+SimplifiedOperatorBuilder* JSIntrinsicLowering::simplified() const {
+  return jsgraph()->simplified();
 }
 
 }  // namespace compiler

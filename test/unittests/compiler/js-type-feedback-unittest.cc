@@ -40,7 +40,8 @@ class JSTypeFeedbackTest : public TypedGraphTest {
         isolate()->native_context()->global_object(), isolate());
 
     MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), javascript(), nullptr,
+    SimplifiedOperatorBuilder simplified(zone());
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
     JSTypeFeedbackTable table(zone());
     // TODO(titzer): mock the GraphReducer here for better unit testing.

@@ -10,7 +10,6 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-aux-data.h"
-#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
@@ -70,7 +69,6 @@ class JSTypeFeedbackSpecializer : public AdvancedReducer {
                             CompilationDependencies* dependencies)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
-        simplified_(jsgraph->graph()->zone()),
         js_type_feedback_(js_type_feedback),
         oracle_(oracle),
         global_object_(global_object),
@@ -90,7 +88,6 @@ class JSTypeFeedbackSpecializer : public AdvancedReducer {
 
  private:
   JSGraph* jsgraph_;
-  SimplifiedOperatorBuilder simplified_;
   JSTypeFeedbackTable* js_type_feedback_;
   TypeFeedbackOracle* oracle_;
   Handle<GlobalObject> global_object_;
@@ -101,8 +98,8 @@ class JSTypeFeedbackSpecializer : public AdvancedReducer {
   Graph* graph() { return jsgraph_->graph(); }
   JSGraph* jsgraph() { return jsgraph_; }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
+  SimplifiedOperatorBuilder* simplified() { return jsgraph_->simplified(); }
   DeoptimizationMode mode() const { return mode_; }
-  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
   void BuildMapCheck(Node* receiver, Handle<Map> map, bool smi_check,
                      Node* effect, Node* control, Node** success, Node** fail);
