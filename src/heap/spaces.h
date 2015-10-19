@@ -904,6 +904,23 @@ class Page : public MemoryChunk {
     }
   }
 
+  intptr_t available_in_free_list(FreeListCategoryType type) {
+    switch (type) {
+      case kSmall:
+        return available_in_small_free_list();
+      case kMedium:
+        return available_in_medium_free_list();
+      case kLarge:
+        return available_in_large_free_list();
+      case kHuge:
+        return available_in_huge_free_list();
+      default:
+        UNREACHABLE();
+    }
+    UNREACHABLE();
+    return 0;
+  }
+
 #ifdef DEBUG
   void Print();
 #endif  // DEBUG

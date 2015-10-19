@@ -2092,22 +2092,31 @@ void FreeListCategory::Reset() {
 
 
 intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
-  int sum = 0;
-  FreeSpace* t = top();
-  FreeSpace** n = &t;
-  while (*n != NULL) {
-    if (Page::FromAddress((*n)->address()) == p) {
-      FreeSpace* free_space = *n;
-      sum += free_space->Size();
-      *n = (*n)->next();
-    } else {
-      n = (*n)->next_address();
+  intptr_t sum = 0;
+  FreeSpace* prev_node = nullptr;
+  for (FreeSpace* cur_node = top(); cur_node != nullptr;
+       cur_node = cur_node->next()) {
+    Page* page_for_node = Page::FromAddress(cur_node->address());
+    if (page_for_node == p) {
+      // FreeSpace node on eviction page found, unlink it.
+      int size = cur_node->size();
+      sum += size;
+      DCHECK((prev_node != nullptr) || (top() == cur_node));
+      if (cur_node == top()) {
+        set_top(cur_node->next());
+      }
+      if (cur_node == end()) {
+        set_end(prev_node);
+      }
+      if (prev_node != nullptr) {
+        prev_node->set_next(cur_node->next());
+      }
+      continue;
     }
+    prev_node = cur_node;
   }
-  set_top(t);
-  if (top() == NULL) {
-    set_end(NULL);
-  }
+  DCHECK_EQ(p->available_in_free_list(type_), sum);
+  p->add_available_in_free_list(type_, -sum);
   available_ -= sum;
   return sum;
 }
@@ -2446,17 +2455,11 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
 
 intptr_t FreeList::EvictFreeListItems(Page* p) {
   intptr_t sum = huge_list_.EvictFreeListItemsInList(p);
-  p->set_available_in_huge_free_list(0);
-
   if (sum < p->area_size()) {
     sum += small_list_.EvictFreeListItemsInList(p) +
            medium_list_.EvictFreeListItemsInList(p) +
            large_list_.EvictFreeListItemsInList(p);
-    p->set_available_in_small_free_list(0);
-    p->set_available_in_medium_free_list(0);
-    p->set_available_in_large_free_list(0);
   }
-
   return sum;
 }
 
