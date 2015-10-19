@@ -14,6 +14,7 @@ namespace internal {
 
 // Forward declarations.
 class CompilationDependencies;
+class Factory;
 
 
 namespace compiler {
@@ -70,6 +71,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
+  Factory* factory() const;
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;

@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-native-context-specialization.h"
 
+#include "src/accessors.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
@@ -249,9 +250,10 @@ class JSNativeContextSpecialization::PropertyAccessInfo final {
   }
   static PropertyAccessInfo Data(Type* receiver_type, FieldIndex field_index,
                                  Representation field_representation,
+                                 Type* field_type,
                                  MaybeHandle<JSObject> holder) {
     return PropertyAccessInfo(holder, field_index, field_representation,
-                              receiver_type);
+                              field_type, receiver_type);
   }
 
   PropertyAccessInfo() : kind_(kInvalid) {}
@@ -262,12 +264,14 @@ class JSNativeContextSpecialization::PropertyAccessInfo final {
         constant_(constant),
         holder_(holder) {}
   PropertyAccessInfo(MaybeHandle<JSObject> holder, FieldIndex field_index,
-                     Representation field_representation, Type* receiver_type)
+                     Representation field_representation, Type* field_type,
+                     Type* receiver_type)
       : kind_(kData),
         receiver_type_(receiver_type),
         holder_(holder),
         field_index_(field_index),
-        field_representation_(field_representation) {}
+        field_representation_(field_representation),
+        field_type_(field_type) {}
 
   bool IsDataConstant() const { return kind() == kDataConstant; }
   bool IsData() const { return kind() == kData; }
@@ -277,6 +281,7 @@ class JSNativeContextSpecialization::PropertyAccessInfo final {
   Handle<Object> constant() const { return constant_; }
   FieldIndex field_index() const { return field_index_; }
   Representation field_representation() const { return field_representation_; }
+  Type* field_type() const { return field_type_; }
   Type* receiver_type() const { return receiver_type_; }
 
  private:
@@ -286,6 +291,7 @@ class JSNativeContextSpecialization::PropertyAccessInfo final {
   MaybeHandle<JSObject> holder_;
   FieldIndex field_index_;
   Representation field_representation_;
+  Type* field_type_ = Type::Any();
 };
 
 
@@ -307,8 +313,47 @@ bool CanInlinePropertyAccess(Handle<Map> map) {
 bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
   MaybeHandle<JSObject> holder;
-  Type* receiver_type = Type::Class(map, graph()->zone());
+  Handle<Map> receiver_map = map;
+  Type* receiver_type = Type::Class(receiver_map, graph()->zone());
   while (CanInlinePropertyAccess(map)) {
+    // Check for special JSObject field accessors.
+    int offset;
+    if (Accessors::IsJSObjectFieldAccessor(map, name, &offset)) {
+      FieldIndex field_index = FieldIndex::ForInObjectOffset(offset);
+      Representation field_representation = Representation::Tagged();
+      Type* field_type = Type::Tagged();
+      if (receiver_type->Is(Type::String())) {
+        DCHECK(Name::Equals(factory()->length_string(), name));
+        // The String::length property is always a smi in the range
+        // [0, String::kMaxLength].
+        field_representation = Representation::Smi();
+        field_type = Type::Intersect(
+            Type::Range(0.0, String::kMaxLength, graph()->zone()),
+            Type::TaggedSigned(), graph()->zone());
+      } else if (receiver_map->IsJSArrayMap()) {
+        DCHECK(Name::Equals(factory()->length_string(), name));
+        // The JSArray::length property is a smi in the range
+        // [0, FixedDoubleArray::kMaxLength] in case of fast double
+        // elements, a smi in the range [0, FixedArray::kMaxLength]
+        // in case of other fast elements, and [0, kMaxUInt32-1] in
+        // case of other arrays.
+        double field_type_upper = kMaxUInt32 - 1;
+        if (IsFastElementsKind(receiver_map->elements_kind())) {
+          field_representation = Representation::Smi();
+          field_type_upper =
+              IsFastDoubleElementsKind(receiver_map->elements_kind())
+                  ? FixedDoubleArray::kMaxLength
+                  : FixedArray::kMaxLength;
+        }
+        field_type =
+            Type::Intersect(Type::Range(0.0, field_type_upper, graph()->zone()),
+                            Type::TaggedSigned(), graph()->zone());
+      }
+      *access_info = PropertyAccessInfo::Data(
+          receiver_type, field_index, field_representation, field_type, holder);
+      return true;
+    }
+
     // Lookup the named property on the {map}.
     Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
     int const number = descriptors->SearchWithCache(*name, *map);
@@ -324,8 +369,19 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
         Representation field_representation = details.representation();
         FieldIndex field_index = FieldIndex::ForPropertyIndex(
             *map, index, field_representation.IsDouble());
-        *access_info = PropertyAccessInfo::Data(receiver_type, field_index,
-                                                field_representation, holder);
+        Type* field_type = Type::Any();
+        if (field_representation.IsSmi()) {
+          field_type = Type::Intersect(Type::SignedSmall(),
+                                       Type::TaggedSigned(), graph()->zone());
+        } else if (field_representation.IsDouble()) {
+          field_type = Type::Intersect(Type::Number(), Type::UntaggedFloat64(),
+                                       graph()->zone());
+        } else if (field_representation.IsHeapObject()) {
+          field_type = Type::TaggedPointer();
+        }
+        *access_info =
+            PropertyAccessInfo::Data(receiver_type, field_index,
+                                     field_representation, field_type, holder);
         return true;
       } else {
         // TODO(bmeurer): Add support for accessors.
@@ -510,6 +566,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
       FieldIndex const field_index = access_info.field_index();
       Representation const field_representation =
           access_info.field_representation();
+      Type* const field_type = access_info.field_type();
       if (!field_index.is_inobject()) {
         this_value = this_effect = graph()->NewNode(
             simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
@@ -519,12 +576,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
       field_access.base_is_tagged = kTaggedBase;
       field_access.offset = field_index.offset();
       field_access.name = name;
-      field_access.type = Type::Any();
+      field_access.type = field_type;
       field_access.machine_type = kMachAnyTagged;
-      if (field_representation.IsSmi()) {
-        field_access.type = Type::Intersect(
-            Type::SignedSmall(), Type::TaggedSigned(), graph()->zone());
-      } else if (field_representation.IsDouble()) {
+      if (field_representation.IsDouble()) {
         if (!field_index.is_inobject() || field_index.is_hidden_field() ||
             !FLAG_unbox_double_fields) {
           this_value = this_effect =
@@ -533,11 +587,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
           field_access.offset = HeapNumber::kValueOffset;
           field_access.name = MaybeHandle<Name>();
         }
-        field_access.type = Type::Intersect(
-            Type::Number(), Type::UntaggedFloat64(), graph()->zone());
         field_access.machine_type = kMachFloat64;
-      } else if (field_representation.IsHeapObject()) {
-        field_access.type = Type::TaggedPointer();
       }
       this_value = this_effect =
           graph()->NewNode(simplified()->LoadField(field_access), this_value,
@@ -637,6 +687,11 @@ Graph* JSNativeContextSpecialization::graph() const {
 
 Isolate* JSNativeContextSpecialization::isolate() const {
   return jsgraph()->isolate();
+}
+
+
+Factory* JSNativeContextSpecialization::factory() const {
+  return isolate()->factory();
 }
 
 
