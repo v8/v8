@@ -13,7 +13,7 @@
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-global-specialization.h"
+#include "src/compiler/js-native-context-specialization.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -364,16 +364,16 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
                                               jsgraph.common());
     CommonOperatorReducer common_reducer(&graph_reducer, &graph,
                                          jsgraph.common(), jsgraph.machine());
-    JSGlobalSpecialization global_specialization(
+    JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, &jsgraph,
         info.is_deoptimization_enabled()
-            ? JSGlobalSpecialization::kDeoptimizationEnabled
-            : JSGlobalSpecialization::kNoFlags,
+            ? JSNativeContextSpecialization::kDeoptimizationEnabled
+            : JSNativeContextSpecialization::kNoFlags,
         handle(info.global_object(), info.isolate()), info_->dependencies(),
         local_zone_);
     graph_reducer.AddReducer(&dead_code_elimination);
     graph_reducer.AddReducer(&common_reducer);
-    graph_reducer.AddReducer(&global_specialization);
+    graph_reducer.AddReducer(&native_context_specialization);
     graph_reducer.ReduceGraph();
   }
 

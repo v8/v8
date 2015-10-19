@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_JS_GLOBAL_SPECIALIZATION_H_
-#define V8_COMPILER_JS_GLOBAL_SPECIALIZATION_H_
+#ifndef V8_COMPILER_JS_NATIVE_CONTEXT_SPECIALIZATION_H_
+#define V8_COMPILER_JS_NATIVE_CONTEXT_SPECIALIZATION_H_
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
@@ -25,10 +25,11 @@ class JSOperatorBuilder;
 class MachineOperatorBuilder;
 
 
-// Specializes a given JSGraph to a given GlobalObject, potentially constant
+// Specializes a given JSGraph to a given native context, potentially constant
 // folding some {LoadGlobal} nodes or strength reducing some {StoreGlobal}
-// nodes.
-class JSGlobalSpecialization final : public AdvancedReducer {
+// nodes.  And also specializes {LoadNamed} and {StoreNamed} nodes according
+// to type feedback (if available).
+class JSNativeContextSpecialization final : public AdvancedReducer {
  public:
   // Flags that control the mode of operation.
   enum Flag {
@@ -37,9 +38,10 @@ class JSGlobalSpecialization final : public AdvancedReducer {
   };
   typedef base::Flags<Flag> Flags;
 
-  JSGlobalSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
-                         Handle<GlobalObject> global_object,
-                         CompilationDependencies* dependencies, Zone* zone);
+  JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
+                                Handle<GlobalObject> global_object,
+                                CompilationDependencies* dependencies,
+                                Zone* zone);
 
   Reduction Reduce(Node* node) final;
 
@@ -83,13 +85,13 @@ class JSGlobalSpecialization final : public AdvancedReducer {
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
 
-  DISALLOW_COPY_AND_ASSIGN(JSGlobalSpecialization);
+  DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);
 };
 
-DEFINE_OPERATORS_FOR_FLAGS(JSGlobalSpecialization::Flags)
+DEFINE_OPERATORS_FOR_FLAGS(JSNativeContextSpecialization::Flags)
 
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_JS_GLOBAL_SPECIALIZATION_H_
+#endif  // V8_COMPILER_JS_NATIVE_CONTEXT_SPECIALIZATION_H_

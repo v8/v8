@@ -31,9 +31,9 @@
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
-#include "src/compiler/js-global-specialization.h"
 #include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
+#include "src/compiler/js-native-context-specialization.h"
 #include "src/compiler/js-type-feedback.h"
 #include "src/compiler/js-type-feedback-lowering.h"
 #include "src/compiler/js-typed-lowering.h"
@@ -513,16 +513,16 @@ struct NativeContextSpecializationPhase {
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    JSGlobalSpecialization global_specialization(
+    JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_deoptimization_enabled()
-            ? JSGlobalSpecialization::kDeoptimizationEnabled
-            : JSGlobalSpecialization::kNoFlags,
+            ? JSNativeContextSpecialization::kDeoptimizationEnabled
+            : JSNativeContextSpecialization::kNoFlags,
         handle(data->info()->global_object(), data->isolate()),
         data->info()->dependencies(), temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &global_specialization);
+    AddReducer(data, &graph_reducer, &native_context_specialization);
     graph_reducer.ReduceGraph();
   }
 };

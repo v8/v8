@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/js-global-specialization.h"
+#include "src/compiler/js-native-context-specialization.h"
 
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
@@ -18,14 +18,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-struct JSGlobalSpecialization::ScriptContextTableLookupResult {
+struct JSNativeContextSpecialization::ScriptContextTableLookupResult {
   Handle<Context> context;
   bool immutable;
   int index;
 };
 
 
-JSGlobalSpecialization::JSGlobalSpecialization(
+JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, Flags flags,
     Handle<GlobalObject> global_object, CompilationDependencies* dependencies,
     Zone* zone)
@@ -37,7 +37,7 @@ JSGlobalSpecialization::JSGlobalSpecialization(
       zone_(zone) {}
 
 
-Reduction JSGlobalSpecialization::Reduce(Node* node) {
+Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSLoadGlobal:
       return ReduceJSLoadGlobal(node);
@@ -52,7 +52,7 @@ Reduction JSGlobalSpecialization::Reduce(Node* node) {
 }
 
 
-Reduction JSGlobalSpecialization::ReduceJSLoadGlobal(Node* node) {
+Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
   Handle<Name> name = LoadGlobalParametersOf(node->op()).name();
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -131,7 +131,7 @@ Reduction JSGlobalSpecialization::ReduceJSLoadGlobal(Node* node) {
 }
 
 
-Reduction JSGlobalSpecialization::ReduceJSStoreGlobal(Node* node) {
+Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
   Handle<Name> name = StoreGlobalParametersOf(node->op()).name();
   Node* value = NodeProperties::GetValueInput(node, 2);
@@ -238,7 +238,7 @@ Reduction JSGlobalSpecialization::ReduceJSStoreGlobal(Node* node) {
 
 // This class encapsulates all information required to access a certain
 // object property, either on the object itself or on the prototype chain.
-class JSGlobalSpecialization::PropertyAccessInfo final {
+class JSNativeContextSpecialization::PropertyAccessInfo final {
  public:
   enum Kind { kInvalid, kData, kDataConstant };
 
@@ -304,7 +304,7 @@ bool CanInlinePropertyAccess(Handle<Map> map) {
 }  // namespace
 
 
-bool JSGlobalSpecialization::ComputePropertyAccessInfo(
+bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
   MaybeHandle<JSObject> holder;
   Type* receiver_type = Type::Class(map, graph()->zone());
@@ -358,7 +358,7 @@ bool JSGlobalSpecialization::ComputePropertyAccessInfo(
 }
 
 
-bool JSGlobalSpecialization::ComputePropertyAccessInfos(
+bool JSNativeContextSpecialization::ComputePropertyAccessInfos(
     MapHandleList const& maps, Handle<Name> name,
     ZoneVector<PropertyAccessInfo>* access_infos) {
   for (Handle<Map> map : maps) {
@@ -370,7 +370,7 @@ bool JSGlobalSpecialization::ComputePropertyAccessInfos(
 }
 
 
-Reduction JSGlobalSpecialization::ReduceJSLoadNamed(Node* node) {
+Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   LoadNamedParameters const p = LoadNamedParametersOf(node->op());
   Handle<Name> name = p.name();
@@ -553,11 +553,11 @@ Reduction JSGlobalSpecialization::ReduceJSLoadNamed(Node* node) {
   // Collect the fallthru control as final "exit" control.
   exit_controls.push_back(fallthrough_control);
 
-  // TODO(bmeurer/mtrofin): Splintering cannot currently deal with deferred
-  // blocks that contain only a single non-deoptimize instruction (i.e. a
-  // jump). Generating a single Merge here, which joins all the deoptimizing
-  // controls would generate a lot of these basic blocks, however. So this
-  // is disabled for now until splintering is fixed.
+// TODO(bmeurer/mtrofin): Splintering cannot currently deal with deferred
+// blocks that contain only a single non-deoptimize instruction (i.e. a
+// jump). Generating a single Merge here, which joins all the deoptimizing
+// controls would generate a lot of these basic blocks, however. So this
+// is disabled for now until splintering is fixed.
 #if 0
   // Generate the single "exit" point, where we get if either all map/instance
   // type checks failed, or one of the assumptions inside one of the cases
@@ -604,12 +604,13 @@ Reduction JSGlobalSpecialization::ReduceJSLoadNamed(Node* node) {
 }
 
 
-Reduction JSGlobalSpecialization::Replace(Node* node, Handle<Object> value) {
+Reduction JSNativeContextSpecialization::Replace(Node* node,
+                                                 Handle<Object> value) {
   return Replace(node, jsgraph()->Constant(value));
 }
 
 
-bool JSGlobalSpecialization::LookupInScriptContextTable(
+bool JSNativeContextSpecialization::LookupInScriptContextTable(
     Handle<Name> name, ScriptContextTableLookupResult* result) {
   if (!name->IsString()) return false;
   Handle<ScriptContextTable> script_context_table(
@@ -629,30 +630,32 @@ bool JSGlobalSpecialization::LookupInScriptContextTable(
 }
 
 
-Graph* JSGlobalSpecialization::graph() const { return jsgraph()->graph(); }
+Graph* JSNativeContextSpecialization::graph() const {
+  return jsgraph()->graph();
+}
 
 
-Isolate* JSGlobalSpecialization::isolate() const {
+Isolate* JSNativeContextSpecialization::isolate() const {
   return jsgraph()->isolate();
 }
 
 
-MachineOperatorBuilder* JSGlobalSpecialization::machine() const {
+MachineOperatorBuilder* JSNativeContextSpecialization::machine() const {
   return jsgraph()->machine();
 }
 
 
-CommonOperatorBuilder* JSGlobalSpecialization::common() const {
+CommonOperatorBuilder* JSNativeContextSpecialization::common() const {
   return jsgraph()->common();
 }
 
 
-JSOperatorBuilder* JSGlobalSpecialization::javascript() const {
+JSOperatorBuilder* JSNativeContextSpecialization::javascript() const {
   return jsgraph()->javascript();
 }
 
 
-SimplifiedOperatorBuilder* JSGlobalSpecialization::simplified() const {
+SimplifiedOperatorBuilder* JSNativeContextSpecialization::simplified() const {
   return jsgraph()->simplified();
 }
 
