@@ -962,7 +962,11 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
 void BytecodeGenerator::VisitYield(Yield* expr) { UNIMPLEMENTED(); }
 
 
-void BytecodeGenerator::VisitThrow(Throw* expr) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitThrow(Throw* expr) {
+  TemporaryRegisterScope temporary_register_scope(builder());
+  Visit(expr->exception());
+  builder()->Throw();
+}
 
 
 void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {

@@ -2028,3 +2028,37 @@ TEST(InterpreterTryFinally) {
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(4));
 }
+
+
+TEST(InterpreterThrow) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  // TODO(rmcilroy): modify tests when we have real try catch support.
+  std::pair<const char*, Handle<Object>> throws[6] = {
+      std::make_pair("throw undefined;\n",
+                     factory->undefined_value()),
+      std::make_pair("throw 1;\n",
+                     Handle<Object>(Smi::FromInt(1), isolate)),
+      std::make_pair("throw 'Error';\n",
+                     factory->NewStringFromStaticChars("Error")),
+      std::make_pair("var a = true; if (a) { throw 'Error'; }\n",
+                     factory->NewStringFromStaticChars("Error")),
+      std::make_pair("var a = false; if (a) { throw 'Error'; }\n",
+                     factory->undefined_value()),
+      std::make_pair("throw 'Error1'; throw 'Error2'\n",
+                     factory->NewStringFromStaticChars("Error1")),
+  };
+
+  const char* try_wrapper =
+      "(function() { try { f(); } catch(e) { return e; }})()";
+
+  for (size_t i = 0; i < arraysize(throws); i++) {
+    std::string source(InterpreterTester::SourceForBody(throws[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    tester.GetCallable<>();
+    Handle<Object> thrown_obj = v8::Utils::OpenHandle(*CompileRun(try_wrapper));
+    CHECK(thrown_obj->SameValue(*throws[i].second));
+  }
+}

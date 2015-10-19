@@ -15,7 +15,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
       bytecode_generated_(false),
       last_block_end_(0),
       last_bytecode_start_(~0),
-      return_seen_in_block_(false),
+      exit_seen_in_block_(false),
       constants_map_(isolate->heap(), zone),
       constants_(zone),
       parameter_count_(-1),
@@ -576,9 +576,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfToBooleanFalse(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
+  Output(Bytecode::kThrow);
+  exit_seen_in_block_ = true;
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   Output(Bytecode::kReturn);
-  return_seen_in_block_ = true;
+  exit_seen_in_block_ = true;
   return *this;
 }
 
@@ -588,13 +595,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::EnterBlock() { return *this; }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LeaveBlock() {
   last_block_end_ = bytecodes()->size();
-  return_seen_in_block_ = false;
+  exit_seen_in_block_ = false;
   return *this;
 }
 
 
 void BytecodeArrayBuilder::EnsureReturn() {
-  if (!return_seen_in_block_) {
+  if (!exit_seen_in_block_) {
     LoadUndefined();
     Return();
   }

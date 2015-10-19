@@ -144,6 +144,9 @@ class InterpreterAssembler {
   // Dispatch to the bytecode.
   void Dispatch();
 
+  // Abort with the given bailout reason.
+  void Abort(BailoutReason bailout_reason);
+
  protected:
   // Close the graph.
   void End();

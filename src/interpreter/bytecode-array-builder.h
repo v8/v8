@@ -156,6 +156,8 @@ class BytecodeArrayBuilder {
   // than explicitly using them.
   BytecodeArrayBuilder& JumpIfToBooleanTrue(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfToBooleanFalse(BytecodeLabel* label);
+
+  BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& Return();
 
   BytecodeArrayBuilder& EnterBlock();
@@ -215,7 +217,7 @@ class BytecodeArrayBuilder {
   bool bytecode_generated_;
   size_t last_block_end_;
   size_t last_bytecode_start_;
-  bool return_seen_in_block_;
+  bool exit_seen_in_block_;
 
   IdentityMap<size_t> constants_map_;
   ZoneVector<Handle<Object>> constants_;

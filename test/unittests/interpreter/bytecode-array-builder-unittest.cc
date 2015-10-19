@@ -135,6 +135,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .JumpIfFalse(&start)
       .JumpIfToBooleanTrue(&start)
       .JumpIfToBooleanFalse(&start);
+
+  builder.EnterBlock()
+      .Throw()
+      .LeaveBlock();
+
   builder.Return();
 
   // Generate BytecodeArray.

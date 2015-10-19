@@ -557,15 +557,20 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
 }
 
 
+void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
+  Node* abort_id = SmiTag(Int32Constant(bailout_reason));
+  CallRuntime(Runtime::kAbort, abort_id);
+  Return();
+}
+
+
 void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
                                                BailoutReason bailout_reason) {
   RawMachineAssembler::Label match, no_match;
   Node* condition = raw_assembler_->WordEqual(lhs, rhs);
   raw_assembler_->Branch(condition, &match, &no_match);
   raw_assembler_->Bind(&no_match);
-  Node* abort_id = SmiTag(Int32Constant(bailout_reason));
-  CallRuntime(Runtime::kAbort, abort_id);
-  Return();
+  Abort(bailout_reason);
   raw_assembler_->Bind(&match);
 }
 

@@ -2757,6 +2757,56 @@ TEST(TryFinally) {
 }
 
 
+TEST(Throw) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  // TODO(rmcilroy): modify tests when we have real try catch support.
+  ExpectedSnippet<const char*> snippets[] = {
+      {"throw 1;",
+       0,
+       1,
+       3,
+       {
+           B(LdaSmi8), U8(1),  //
+           B(Throw),           //
+       },
+       0},
+      {"throw 'Error';",
+       0,
+       1,
+       3,
+       {
+           B(LdaConstant), U8(0),  //
+           B(Throw),               //
+       },
+       1,
+       {"Error"}},
+      {"if ('test') { throw 'Error'; };",
+       0,
+       1,
+       10,
+       {
+           B(LdaConstant), U8(0),  //
+           B(ToBoolean),           //
+           B(JumpIfFalse), U8(5),  //
+           B(LdaConstant), U8(1),  //
+           B(Throw),               //
+           B(LdaUndefined),        //
+           B(Return),              //
+       },
+       2,
+       {"test", "Error"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
 TEST(CallNew) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;

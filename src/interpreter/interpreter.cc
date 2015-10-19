@@ -908,6 +908,17 @@ void Interpreter::DoCreateClosure(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// Throw
+//
+// Throws the exception in the accumulator.
+void Interpreter::DoThrow(compiler::InterpreterAssembler* assembler) {
+  Node* exception = __ GetAccumulator();
+  __ CallRuntime(Runtime::kThrow, exception);
+  // We shouldn't ever return from a throw.
+  __ Abort(kUnexpectedReturnFromThrow);
+}
+
+
 // Return
 //
 // Return the value in the accumulator.
