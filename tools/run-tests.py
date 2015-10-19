@@ -479,6 +479,7 @@ def ProcessOptions(options):
   if not CheckTestMode("pass|fail test", options.pass_fail_tests):
     return False
   if options.no_i18n:
+    TEST_MAP["bot_default"].remove("intl")
     TEST_MAP["default"].remove("intl")
   return True
 
