@@ -1657,7 +1657,13 @@ Type* Typer::Visitor::TypeStoreElement(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeObjectIsSmi(Node* node) { return Type::Boolean(); }
+Type* Typer::Visitor::TypeObjectIsSmi(Node* node) {
+  Type* arg = Operand(node, 0);
+  if (arg->Is(Type::None())) return Type::None();
+  if (arg->Is(Type::TaggedSigned())) return typer_->singleton_true_;
+  if (arg->Is(Type::TaggedPointer())) return typer_->singleton_false_;
+  return Type::Boolean();
+}
 
 
 // Machine operators.
