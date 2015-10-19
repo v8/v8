@@ -21,6 +21,7 @@
         }],
         ['test_isolation_mode != "noop"', {
           'dependencies': [
+            '../test/bot_default.gyp:*',
             '../test/default.gyp:*',
             '../test/intl/intl.gyp:*',
             '../test/message/message.gyp:*',
