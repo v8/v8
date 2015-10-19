@@ -1533,15 +1533,20 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 
 void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
-  // Visit declarations and class literal in a block scope.
-  if (expr->scope()->ContextLocalCount() > 0) {
-    Node* context = BuildLocalBlockContext(expr->scope());
-    ContextScope scope(this, expr->scope(), context);
-    VisitDeclarations(expr->scope()->declarations());
+  if (expr->scope() == NULL) {
+    // Visit class literal in the same scope, no declarations.
     VisitClassLiteralContents(expr);
   } else {
-    VisitDeclarations(expr->scope()->declarations());
-    VisitClassLiteralContents(expr);
+    // Visit declarations and class literal in a block scope.
+    if (expr->scope()->ContextLocalCount() > 0) {
+      Node* context = BuildLocalBlockContext(expr->scope());
+      ContextScope scope(this, expr->scope(), context);
+      VisitDeclarations(expr->scope()->declarations());
+      VisitClassLiteralContents(expr);
+    } else {
+      VisitDeclarations(expr->scope()->declarations());
+      VisitClassLiteralContents(expr);
+    }
   }
 }
 
@@ -1639,7 +1644,8 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   literal = NewNode(op, literal, proto);
 
   // Assign to class variable.
-  if (expr->class_variable_proxy() != nullptr) {
+  if (expr->scope() != NULL) {
+    DCHECK_NOT_NULL(expr->class_variable_proxy());
     Variable* var = expr->class_variable_proxy()->var();
     FrameStateBeforeAndAfter states(this, BailoutId::None());
     VectorSlotPair feedback = CreateVectorSlotPair(

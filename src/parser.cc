@@ -4895,13 +4895,15 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
                                      block_scope->language_mode());
   }
 
-  // Note that we do not finalize this block scope because strong
-  // mode uses it as a sentinel value indicating an anonymous class.
   block_scope->set_end_position(end_pos);
 
   if (name != NULL) {
     DCHECK_NOT_NULL(proxy);
     proxy->var()->set_initializer_position(end_pos);
+  } else {
+    // Unnamed classes should not have scopes (the scope will be empty).
+    DCHECK_EQ(block_scope->num_var_or_const(), 0);
+    block_scope = nullptr;
   }
 
   return factory()->NewClassLiteral(name, block_scope, proxy, extends,
