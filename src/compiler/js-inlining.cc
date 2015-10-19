@@ -318,8 +318,12 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
     return NoChange();
   }
 
-  Zone zone;
-  ParseInfo parse_info(&zone, function);
+  // TODO(mstarzinger): The correct thing would be to use a local zone here for
+  // the inner graph. This however leads to Zone-Types being allocated in the
+  // wrong zone and makes the engine explode at high speeds. Explosion bad!
+  // Zone zone;
+  // ParseInfo parse_info(&zone, function);
+  ParseInfo parse_info(jsgraph_->zone(), function);
   CompilationInfo info(&parse_info);
   if (info_->is_deoptimization_enabled()) {
     info.MarkAsDeoptimizationEnabled();
