@@ -1273,8 +1273,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
     EmitClassDefineProperties(lit);
 
-    if (lit->scope() != NULL) {
-      DCHECK_NOT_NULL(lit->class_variable_proxy());
+    if (lit->class_variable_proxy() != nullptr) {
       EmitVariableAssignment(lit->class_variable_proxy()->var(),
                              Token::INIT_CONST, lit->ProxySlot());
     }
