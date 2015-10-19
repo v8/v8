@@ -3348,6 +3348,23 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ToLengthStub::Generate(MacroAssembler* masm) {
+  // The ToLength stub takes on argument in a0.
+  Label not_smi, positive_smi;
+  __ JumpIfNotSmi(a0, &not_smi);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ Branch(&positive_smi, ge, a0, Operand(zero_reg));
+  __ mov(a0, zero_reg);
+  __ bind(&positive_smi);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);
+  __ bind(&not_smi);
+
+  __ push(a0);  // Push argument.
+  __ TailCallRuntime(Runtime::kToLength, 1, 1);
+}
+
+
 void ToStringStub::Generate(MacroAssembler* masm) {
   // The ToString stub takes on argument in a0.
   Label is_number;

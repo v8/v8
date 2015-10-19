@@ -3122,6 +3122,25 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ToLengthStub::Generate(MacroAssembler* masm) {
+  // The ToLength stub takes on argument in rax.
+  Label not_smi, positive_smi;
+  __ JumpIfNotSmi(rax, &not_smi, Label::kNear);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ testp(rax, rax);
+  __ j(greater_equal, &positive_smi, Label::kNear);
+  __ xorl(rax, rax);
+  __ bind(&positive_smi);
+  __ Ret();
+  __ bind(&not_smi);
+
+  __ PopReturnAddressTo(rcx);     // Pop return address.
+  __ Push(rax);                   // Push argument.
+  __ PushReturnAddressFrom(rcx);  // Push return address.
+  __ TailCallRuntime(Runtime::kToLength, 1, 1);
+}
+
+
 void ToStringStub::Generate(MacroAssembler* masm) {
   // The ToString stub takes one argument in rax.
   Label is_number;

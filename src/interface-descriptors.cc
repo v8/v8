@@ -189,6 +189,13 @@ void StringCompareDescriptor::InitializePlatformSpecific(
 }
 
 
+void ToLengthDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ReceiverRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
 void ToStringDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister()};

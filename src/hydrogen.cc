@@ -12285,6 +12285,20 @@ void HOptimizedGraphBuilder::GenerateToString(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateToLength(CallRuntime* call) {
+  DCHECK_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  Callable callable = CodeFactory::ToLength(isolate());
+  HValue* input = Pop();
+  HValue* stub = Add<HConstant>(callable.code());
+  HValue* values[] = {context(), input};
+  HInstruction* result =
+      New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
+                               Vector<HValue*>(values, arraysize(values)));
+  return ast_context()->ReturnInstruction(result, call->id());
+}
+
+
 void HOptimizedGraphBuilder::GenerateToNumber(CallRuntime* call) {
   DCHECK_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

@@ -106,6 +106,10 @@ void ToNumberDescriptor::InitializePlatformSpecific(
 
 
 // static
+const Register ToLengthDescriptor::ReceiverRegister() { return eax; }
+
+
+// static
 const Register ToStringDescriptor::ReceiverRegister() { return eax; }
 
 

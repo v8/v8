@@ -52,6 +52,7 @@ namespace internal {
   V(StubFailureTrampoline)                  \
   V(SubString)                              \
   V(ToNumber)                               \
+  V(ToLength)                               \
   V(ToString)                               \
   V(ToObject)                               \
   V(VectorStoreICTrampoline)                \
@@ -3073,6 +3074,15 @@ class ToNumberStub final : public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ToNumber);
   DEFINE_PLATFORM_CODE_STUB(ToNumber, PlatformCodeStub);
+};
+
+
+class ToLengthStub final : public PlatformCodeStub {
+ public:
+  explicit ToLengthStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToLength);
+  DEFINE_PLATFORM_CODE_STUB(ToLength, PlatformCodeStub);
 };
 
 

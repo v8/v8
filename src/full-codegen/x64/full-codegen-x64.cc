@@ -3704,6 +3704,19 @@ void FullCodeGenerator::EmitToString(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+
+  // Load the argument into rax and convert it.
+  VisitForAccumulatorValue(args->at(0));
+
+  ToLengthStub stub(isolate());
+  __ CallStub(&stub);
+  context()->Plug(rax);
+}
+
+
 void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(1, args->length());
