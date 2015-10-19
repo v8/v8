@@ -1,3 +1,574 @@
+2015-10-19: Version 4.8.106
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.105
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.104
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.103
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.102
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.101
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.100
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.99
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.98
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.97
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.96
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-18: Version 4.8.95
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-18: Version 4.8.94
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-18: Version 4.8.93
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-17: Version 4.8.92
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.91
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.90
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.89
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.88
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.87
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.86
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.85
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.84
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.83
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.82
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.81
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.80
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.79
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.78
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.77
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.76
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.75
+
+        Make RegExp use ToLength on lastIndex when flag is turned on (issue
+        4244).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.74
+
+        Take Symbol-keyed properties into account in Object.freeze and friends
+        (Chromium issue 539875).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.73
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.72
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.71
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.70
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.69
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.68
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.67
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.66
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.65
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.64
+
+        Add methods to extras' InternalPackedArray (issue 4276).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.63
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.62
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.61
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.60
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.59
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.58
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.57
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.56
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.55
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.54
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.53
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.52
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.51
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.50
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.49
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.48
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.47
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.46
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.45
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.44
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.43
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.42
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.41
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.40
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.39
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.38
+
+        Test for var declarations in eval which conflict with let (issue 4454).
+
+        Don't compile functions in a context the caller doesn't have access to
+        (Chromium issue 541703).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.37
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.36
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.35
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-11: Version 4.8.34
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.33
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.32
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.31
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.30
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.29
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.28
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.27
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.26
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.25
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.24
+
+        Stage --harmony_sloppy_function (issue 4285).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.23
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.22
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.21
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.20
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.19
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.18
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.17
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.16
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.15
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.14
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.13
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.11
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.10
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.9
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.8
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.7
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.5
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.4
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.3
+
+        Destructuring array without initializer throws an exception (issue
+        4462).
+
+        Disable VirtualAlloc randomization on 32-bit Windows hosts (Chromium
+        issue 394591).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-06: Version 4.8.2
+
+        Fix legacy const for-of/in destructuring (issue 4461).
+
+        [es6] Align Promise.resolve with the spec (issues 4161, 4341).
+
+        Prohibit let in lexical bindings (issue 4403).
+
+        Ensure scopes are backed by blocks in the body of for loops (Chromium
+        issues 536750, 536751).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-04: Version 4.8.1
+
+        [cross-context] create new function prototypes in the context of the
+        function (issue 4217).
+
+        Fix completion of try..finally (issue 2529).
+
+        Extend Annex B 3.3 sloppy-mode block-scoped hoisting to scripts, eval
+        (issue 4441).
+
+        [V8] Add name of function for function's closure scope (Chromium issue
+        493156).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-05-17: Sentinel
 
         The ChangeLog file is no longer maintained on bleeding_edge. This
