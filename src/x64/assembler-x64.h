@@ -1413,6 +1413,12 @@ class Assembler : public AssemblerBase {
   void vminss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vss(0x5d, dst, src1, src2);
   }
+  void vmovss(XMMRegister dst, const Operand& src) {
+    vss(0x10, dst, xmm0, src);
+  }
+  void vmovss(const Operand& dst, XMMRegister src) {
+    vss(0x11, src, xmm0, dst);
+  }
   void vucomiss(XMMRegister dst, XMMRegister src);
   void vucomiss(XMMRegister dst, const Operand& src);
   void vss(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);

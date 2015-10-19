@@ -2951,6 +2951,7 @@ void Assembler::ucomiss(XMMRegister dst, const Operand& src) {
 
 
 void Assembler::movss(XMMRegister dst, const Operand& src) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0xF3);  // single
   emit_optional_rex_32(dst, src);
@@ -2961,6 +2962,7 @@ void Assembler::movss(XMMRegister dst, const Operand& src) {
 
 
 void Assembler::movss(const Operand& src, XMMRegister dst) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0xF3);  // single
   emit_optional_rex_32(dst, src);

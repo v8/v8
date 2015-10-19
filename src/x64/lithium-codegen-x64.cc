@@ -4243,7 +4243,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   if (elements_kind == FLOAT32_ELEMENTS) {
     XMMRegister value(ToDoubleRegister(instr->value()));
     __ Cvtsd2ss(value, value);
-    __ movss(operand, value);
+    __ Movss(operand, value);
   } else if (elements_kind == FLOAT64_ELEMENTS) {
     __ Movsd(operand, ToDoubleRegister(instr->value()));
   } else {

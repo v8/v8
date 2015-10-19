@@ -908,6 +908,8 @@ class MacroAssembler: public Assembler {
   void Movsd(XMMRegister dst, XMMRegister src);
   void Movsd(XMMRegister dst, const Operand& src);
   void Movsd(const Operand& dst, XMMRegister src);
+  void Movss(XMMRegister dst, const Operand& src);
+  void Movss(const Operand& dst, XMMRegister src);
 
   void Movd(XMMRegister dst, Register src);
   void Movd(XMMRegister dst, const Operand& src);
