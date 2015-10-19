@@ -4592,11 +4592,12 @@ void VectorStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
 static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
                                        Register key, Register vector,
                                        Register slot, Register feedback,
-                                       Label* miss) {
+                                       bool is_polymorphic, Label* miss) {
   // feedback initially contains the feedback array
   Label next, next_loop, prepare_next;
   Label load_smi_map, compare_map;
   Label start_polymorphic;
+  Label pop_and_miss;
   ExternalReference virtual_register =
       ExternalReference::virtual_handler_register(masm->isolate());
 
@@ -4630,16 +4631,18 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
   __ jmp(Operand::StaticVariable(virtual_register));
 
   // Polymorphic, we have to loop from 2 to N
-
-  // TODO(mvstanton): I think there is a bug here, we are assuming the
-  // array has more than one map/handler pair, but we call this function in the
-  // keyed store with a string key case, where it might be just an array of two
-  // elements.
-
   __ bind(&start_polymorphic);
   __ push(key);
   Register counter = key;
   __ mov(counter, Immediate(Smi::FromInt(2)));
+
+  if (!is_polymorphic) {
+    // If is_polymorphic is false, we may only have a two element array.
+    // Check against length now in that case.
+    __ cmp(counter, FieldOperand(feedback, FixedArray::kLengthOffset));
+    __ j(greater_equal, &pop_and_miss);
+  }
+
   __ bind(&next_loop);
   __ mov(cached_map, FieldOperand(feedback, counter, times_half_pointer_size,
                                   FixedArray::kHeaderSize));
@@ -4661,6 +4664,7 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
   __ j(less, &next_loop);
 
   // We exhausted our array of map handler pairs.
+  __ bind(&pop_and_miss);
   __ pop(key);
   __ pop(vector);
   __ pop(receiver);
@@ -4741,7 +4745,8 @@ void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ bind(&try_array);
   __ CompareRoot(FieldOperand(scratch, 0), Heap::kFixedArrayMapRootIndex);
   __ j(not_equal, &not_array);
-  HandlePolymorphicStoreCase(masm, receiver, key, vector, slot, scratch, &miss);
+  HandlePolymorphicStoreCase(masm, receiver, key, vector, slot, scratch, true,
+                             &miss);
 
   __ bind(&not_array);
   __ CompareRoot(scratch, Heap::kmegamorphic_symbolRootIndex);
@@ -4932,7 +4937,8 @@ void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   // at least one map/handler pair.
   __ mov(scratch, FieldOperand(vector, slot, times_half_pointer_size,
                                FixedArray::kHeaderSize + kPointerSize));
-  HandlePolymorphicStoreCase(masm, receiver, key, vector, slot, scratch, &miss);
+  HandlePolymorphicStoreCase(masm, receiver, key, vector, slot, scratch, false,
+                             &miss);
 
   __ bind(&miss);
   __ pop(value);
