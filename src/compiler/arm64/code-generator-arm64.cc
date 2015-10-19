@@ -477,6 +477,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Jump(x10);
       break;
     }
+    case kArchLazyBailout: {
+      EnsureSpaceForLazyDeopt();
+      RecordCallPosition(instr);
+      break;
+    }
     case kArchPrepareCallCFunction:
       // We don't need kArchPrepareCallCFunction on arm64 as the instruction
       // selector already perform a Claim to reserve space on the stack and

@@ -42,6 +42,7 @@ namespace compiler {
   V(ArchTailCallJSFunction)   \
   V(ArchPrepareCallCFunction) \
   V(ArchCallCFunction)        \
+  V(ArchLazyBailout)          \
   V(ArchJmp)                  \
   V(ArchLookupSwitch)         \
   V(ArchTableSwitch)          \

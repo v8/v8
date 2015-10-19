@@ -379,6 +379,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ jmp(FieldOperand(func, JSFunction::kCodeEntryOffset));
       break;
     }
+    case kArchLazyBailout: {
+      EnsureSpaceForLazyDeopt();
+      RecordCallPosition(instr);
+      break;
+    }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters, i.TempRegister(0));

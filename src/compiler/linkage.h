@@ -110,9 +110,10 @@ class CallDescriptor final : public ZoneObject {
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {
-    kCallCodeObject,      // target is a Code object
-    kCallJSFunction,      // target is a JSFunction object
-    kCallAddress,         // target is a machine pointer
+    kCallCodeObject,  // target is a Code object
+    kCallJSFunction,  // target is a JSFunction object
+    kCallAddress,     // target is a machine pointer
+    kLazyBailout      // the call is no-op, only used for lazy bailout
   };
 
   enum Flag {
@@ -271,9 +272,12 @@ class Linkage : public ZoneObject {
   static CallDescriptor* GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              int parameter_count,
                                              CallDescriptor::Flags flags);
+
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties, bool needs_frame_state = true);
+
+  static CallDescriptor* GetLazyBailoutDescriptor(Zone* zone);
 
   static CallDescriptor* GetStubCallDescriptor(
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,

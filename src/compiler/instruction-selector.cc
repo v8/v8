@@ -345,6 +345,10 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0),
                         buffer->descriptor->GetInputType(0)));
       break;
+    case CallDescriptor::kLazyBailout:
+      // The target is ignored, but we still need to pass a value here.
+      buffer->instruction_args.push_back(g.UseImmediate(callee));
+      break;
   }
   DCHECK_EQ(1u, buffer->instruction_args.size());
 
