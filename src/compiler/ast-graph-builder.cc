@@ -2466,7 +2466,9 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   const Operator* call = javascript()->CallFunction(args->length() + 2, flags,
                                                     language_mode(), feedback);
   Node* value = ProcessArguments(call, args->length() + 2);
-  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  environment()->Push(callee_value);
+  PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
+  environment()->Drop(1);
   ast_context()->ProduceValue(value);
 }
 
