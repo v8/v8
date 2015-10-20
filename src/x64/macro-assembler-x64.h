@@ -904,10 +904,10 @@ class MacroAssembler: public Assembler {
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
-  void Movapd(XMMRegister dst, XMMRegister src);
   void Movsd(XMMRegister dst, XMMRegister src);
   void Movsd(XMMRegister dst, const Operand& src);
   void Movsd(const Operand& dst, XMMRegister src);
+  void Movss(XMMRegister dst, XMMRegister src);
   void Movss(XMMRegister dst, const Operand& src);
   void Movss(const Operand& dst, XMMRegister src);
 
@@ -917,6 +917,8 @@ class MacroAssembler: public Assembler {
   void Movq(XMMRegister dst, Register src);
   void Movq(Register dst, XMMRegister src);
 
+  void Movaps(XMMRegister dst, XMMRegister src);
+  void Movapd(XMMRegister dst, XMMRegister src);
   void Movmskpd(Register dst, XMMRegister src);
 
   void Ucomiss(XMMRegister src1, XMMRegister src2);

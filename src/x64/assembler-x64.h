@@ -1008,6 +1008,13 @@ class Assembler : public AssemblerBase {
   void ucomiss(XMMRegister dst, XMMRegister src);
   void ucomiss(XMMRegister dst, const Operand& src);
   void movaps(XMMRegister dst, XMMRegister src);
+
+  // Don't use this unless it's important to keep the
+  // top half of the destination register unchanged.
+  // Use movaps when moving float values and movd for integer
+  // values in xmm registers.
+  void movss(XMMRegister dst, XMMRegister src);
+
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
   void shufps(XMMRegister dst, XMMRegister src, byte imm8);
@@ -1044,7 +1051,7 @@ class Assembler : public AssemblerBase {
 
   // Don't use this unless it's important to keep the
   // top half of the destination register unchanged.
-  // Used movaps when moving double values and movq for integer
+  // Use movapd when moving double values and movq for integer
   // values in xmm registers.
   void movsd(XMMRegister dst, XMMRegister src);
 
@@ -1281,10 +1288,12 @@ class Assembler : public AssemblerBase {
   void vmovq(XMMRegister dst, const Operand& src);
   void vmovq(Register dst, XMMRegister src);
 
+  void vmovsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsd(0x10, dst, src1, src2);
+  }
   void vmovsd(XMMRegister dst, const Operand& src) {
     vsd(0x10, dst, xmm0, src);
   }
-  void vmovsd(XMMRegister dst, XMMRegister src) { vsd(0x10, dst, xmm0, src); }
   void vmovsd(const Operand& dst, XMMRegister src) {
     vsd(0x11, src, xmm0, dst);
   }
@@ -1412,6 +1421,9 @@ class Assembler : public AssemblerBase {
   }
   void vminss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vss(0x5d, dst, src1, src2);
+  }
+  void vmovss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vss(0x10, dst, src1, src2);
   }
   void vmovss(XMMRegister dst, const Operand& src) {
     vss(0x10, dst, xmm0, src);
@@ -1601,6 +1613,7 @@ class Assembler : public AssemblerBase {
   void rorxl(Register dst, Register src, byte imm8);
   void rorxl(Register dst, const Operand& src, byte imm8);
 
+  void vmovaps(XMMRegister dst, XMMRegister src) { vps(0x28, dst, xmm0, src); }
   void vmovapd(XMMRegister dst, XMMRegister src) { vpd(0x28, dst, xmm0, src); }
   void vmovmskpd(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};

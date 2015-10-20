@@ -2529,6 +2529,16 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
 }
 
 
+void MacroAssembler::Movaps(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovaps(dst, src);
+  } else {
+    movaps(dst, src);
+  }
+}
+
+
 void MacroAssembler::Movapd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -2542,7 +2552,7 @@ void MacroAssembler::Movapd(XMMRegister dst, XMMRegister src) {
 void MacroAssembler::Movsd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
-    vmovsd(dst, src);
+    vmovsd(dst, dst, src);
   } else {
     movsd(dst, src);
   }
@@ -2565,6 +2575,16 @@ void MacroAssembler::Movsd(const Operand& dst, XMMRegister src) {
     vmovsd(dst, src);
   } else {
     movsd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Movss(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovss(dst, dst, src);
+  } else {
+    movss(dst, src);
   }
 }
 
@@ -3032,9 +3052,7 @@ void MacroAssembler::Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
     punpckldq(dst, xmm0);
   } else {
     DCHECK_EQ(0, imm8);
-    psrlq(dst, 32);
-    punpckldq(xmm0, dst);
-    movaps(dst, xmm0);
+    Movss(dst, xmm0);
   }
 }
 
@@ -3051,9 +3069,7 @@ void MacroAssembler::Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8) {
     punpckldq(dst, xmm0);
   } else {
     DCHECK_EQ(0, imm8);
-    psrlq(dst, 32);
-    punpckldq(xmm0, dst);
-    movaps(dst, xmm0);
+    Movss(dst, xmm0);
   }
 }
 

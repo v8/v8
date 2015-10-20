@@ -1284,7 +1284,8 @@ TEST(AssemblerX64AVX_ss) {
     __ vmovd(xmm4, rdx);
     __ vmovss(Operand(rsp, 0), xmm4);
     __ vmovss(xmm5, Operand(rsp, 0));
-    __ vmovd(rcx, xmm5);
+    __ vmovaps(xmm6, xmm5);
+    __ vmovd(rcx, xmm6);
     __ cmpl(rcx, rdx);
     __ movl(rax, Immediate(9));
     __ j(not_equal, &exit);
@@ -1368,7 +1369,7 @@ TEST(AssemblerX64AVX_sd) {
     __ vmaxsd(xmm4, xmm0, xmm1);
     __ vmovsd(Operand(rsp, kDoubleSize), xmm4);
     __ vmovsd(xmm5, Operand(rsp, kDoubleSize));
-    __ vmovsd(xmm6, xmm5);
+    __ vmovsd(xmm6, xmm6, xmm5);
     __ vmovapd(xmm3, xmm6);
 
     // Test vcvtss2sd & vcvtsd2ss

@@ -496,6 +496,10 @@ TEST(DisasmX64) {
   {
     if (CpuFeatures::IsSupported(AVX)) {
       CpuFeatureScope scope(&assm, AVX);
+      __ vmovss(xmm6, xmm14, xmm2);
+      __ vmovss(xmm9, Operand(rbx, rcx, times_4, 10000));
+      __ vmovss(Operand(rbx, rcx, times_4, 10000), xmm0);
+
       __ vaddss(xmm0, xmm1, xmm2);
       __ vaddss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vmulss(xmm0, xmm1, xmm2);
@@ -520,7 +524,7 @@ TEST(DisasmX64) {
       __ vmovq(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovq(r9, xmm6);
 
-      __ vmovsd(xmm6, xmm2);
+      __ vmovsd(xmm6, xmm14, xmm2);
       __ vmovsd(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovsd(Operand(rbx, rcx, times_4, 10000), xmm0);
 
@@ -550,6 +554,7 @@ TEST(DisasmX64) {
       __ vcvttsd2siq(rdi, xmm9);
       __ vcvttsd2siq(r8, Operand(r9, rbx, times_4, 10000));
 
+      __ vmovaps(xmm10, xmm11);
       __ vmovapd(xmm7, xmm0);
       __ vmovmskpd(r9, xmm4);
 
