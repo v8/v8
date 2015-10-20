@@ -58,6 +58,8 @@ class LifetimePosition final {
 
   // Returns true if this lifetime position corresponds to a START value
   bool IsStart() const { return (value_ & (kHalfStep - 1)) == 0; }
+  // Returns true if this lifetime position corresponds to an END value
+  bool IsEnd() const { return (value_ & (kHalfStep - 1)) == 1; }
   // Returns true if this lifetime position corresponds to a gap START value
   bool IsFullStart() const { return (value_ & (kStep - 1)) == 0; }
 
