@@ -8728,9 +8728,10 @@ TEST(AccessControlES5) {
   CHECK_EQ(42, g_echo_value);
 
   v8::Handle<Value> value;
-  CompileRun("Object.defineProperty(other, 'accessible_prop', {value: -1})");
-  value = CompileRun("other.accessible_prop == 42");
+  CompileRun("Object.defineProperty(other, 'accessible_prop', {value: 43})");
+  value = CompileRun("other.accessible_prop == 43");
   CHECK(value->IsTrue());
+  CHECK_EQ(43, g_echo_value);  // Make sure we didn't overwrite the setter.
 }
 
 

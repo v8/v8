@@ -6515,7 +6515,7 @@ bool JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
   if (!success && should_throw == THROW_ON_ERROR) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kStrictDeleteProperty,
-        isolate->factory()->NewNumberFromUint(actual_new_len - 1)));
+        isolate->factory()->NewNumberFromUint(actual_new_len - 1), a));
   }
   return success;
 }
@@ -7783,7 +7783,10 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       DCHECK(filter == INCLUDE_SYMBOLS);
       PropertyAttributes attr_filter =
           static_cast<PropertyAttributes>(DONT_ENUM | PRIVATE_SYMBOL);
-      JSObject::CollectOwnElementKeys(current, &accumulator, attr_filter);
+      Handle<FixedArray> property_keys = isolate->factory()->NewFixedArray(
+          current->NumberOfOwnProperties(attr_filter));
+      current->GetOwnPropertyNames(*property_keys, 0, attr_filter);
+      accumulator.AddKeys(property_keys);
     }
 
     // Add the property keys from the interceptor.
