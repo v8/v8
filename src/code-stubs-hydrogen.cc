@@ -5,10 +5,10 @@
 #include "src/code-stubs.h"
 
 #include "src/bailout-reason.h"
+#include "src/crankshaft/hydrogen.h"
+#include "src/crankshaft/lithium.h"
 #include "src/field-index.h"
-#include "src/hydrogen.h"
 #include "src/ic/ic.h"
-#include "src/lithium.h"
 
 namespace v8 {
 namespace internal {

@@ -15,7 +15,6 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
-#include "src/lithium.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
