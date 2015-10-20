@@ -60,6 +60,26 @@
   # Unicode canonicalization is not available with i18n turned off.
   'built-ins/String/prototype/localeCompare/15.5.4.9_CE': [['no_i18n', SKIP]],
 
+  # Issue 4493: Open issues before we can ship general purpose inlining.
+  'built-ins/Math/acos/S15.8.2.2_A5': [PASS, NO_VARIANTS],
+  'built-ins/Math/acos/S15.8.2.2_A6': [PASS, NO_VARIANTS],
+  'built-ins/Math/asin/S15.8.2.3_A6': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan/S15.8.2.4_A6': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A7': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A2': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A3': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A11': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A12': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A13': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A15': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A17': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A18': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A19': [PASS, NO_VARIANTS],
+  'built-ins/Math/atan2/S15.8.2.5_A24': [PASS, NO_VARIANTS],
+  'built-ins/Math/log/S15.8.2.10_A6': [PASS, NO_VARIANTS],
+  'built-ins/Math/pow/S15.8.2.13_A24': [PASS, NO_VARIANTS],
+  'built-ins/Math/sqrt/S15.8.2.17_A6': [PASS, NO_VARIANTS],
+
   ###################### NEEDS INVESTIGATION #######################
 
   # Possibly same cause as S8.5_A2.1, below: floating-point tests.

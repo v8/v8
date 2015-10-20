@@ -75,6 +75,7 @@
 
   # Issue 4493: Open issues before we can ship general purpose inlining.
   'js1_4/Eval/eval-002': [PASS, NO_VARIANTS],
+  'js1_5/Scope/scope-003': [PASS, NO_VARIANTS],
   'js1_5/Scope/regress-77578-001': [PASS, NO_VARIANTS],
   'ecma_3/ExecutionContexts/10.1.3': [PASS, NO_VARIANTS],
   'ecma_3/ExecutionContexts/regress-23346': [PASS, NO_VARIANTS],
