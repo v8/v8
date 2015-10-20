@@ -164,10 +164,6 @@ utils.Export(function(to) {
   to.ArrayValues = ArrayValues;
 });
 
-%InstallToContext([
-  "array_keys_iterator", ArrayKeys,
-  "array_values_iterator", ArrayValues,
-  "array_entries_iterator", ArrayEntries
-]);
+%InstallToContext(["array_values_iterator", ArrayValues]);
 
 })
