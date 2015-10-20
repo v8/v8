@@ -13,14 +13,14 @@
 
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalObject = global.Object;
-var MathMax;
-var MathMin;
+var MaxSimple;
+var MinSimple;
 var ToPositiveInteger;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
+  MaxSimple = from.MaxSimple;
+  MinSimple = from.MinSimple;
   ToPositiveInteger = from.ToPositiveInteger;
 });
 
@@ -57,16 +57,16 @@ function ArrayBufferSlice(start, end) {
   var first;
   var byte_length = %_ArrayBufferGetByteLength(this);
   if (relativeStart < 0) {
-    first = MathMax(byte_length + relativeStart, 0);
+    first = MaxSimple(byte_length + relativeStart, 0);
   } else {
-    first = MathMin(relativeStart, byte_length);
+    first = MinSimple(relativeStart, byte_length);
   }
   var relativeEnd = IS_UNDEFINED(end) ? byte_length : end;
   var fin;
   if (relativeEnd < 0) {
-    fin = MathMax(byte_length + relativeEnd, 0);
+    fin = MaxSimple(byte_length + relativeEnd, 0);
   } else {
-    fin = MathMin(relativeEnd, byte_length);
+    fin = MinSimple(relativeEnd, byte_length);
   }
 
   if (fin < first) {

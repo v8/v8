@@ -48,8 +48,8 @@ var InnerArraySome;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var IsNaN;
-var MathMax;
-var MathMin;
+var MaxSimple;
+var MinSimple;
 var PackedArrayReverse;
 
 utils.Import(function(from) {
@@ -72,8 +72,8 @@ utils.Import(function(from) {
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   IsNaN = from.IsNaN;
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
+  MaxSimple = from.MaxSimple;
+  MinSimple = from.MinSimple;
   PackedArrayReverse = from.PackedArrayReverse;
 });
 
@@ -319,9 +319,9 @@ function TypedArraySlice(start, end) {
 
   var k;
   if (relativeStart < 0) {
-    k = MathMax(len + relativeStart, 0);
+    k = MaxSimple(len + relativeStart, 0);
   } else {
-    k = MathMin(relativeStart, len);
+    k = MinSimple(relativeStart, len);
   }
 
   var relativeEnd;
@@ -333,12 +333,12 @@ function TypedArraySlice(start, end) {
 
   var final;
   if (relativeEnd < 0) {
-    final = MathMax(len + relativeEnd, 0);
+    final = MaxSimple(len + relativeEnd, 0);
   } else {
-    final = MathMin(relativeEnd, len);
+    final = MinSimple(relativeEnd, len);
   }
 
-  var count = MathMax(final - k, 0);
+  var count = MaxSimple(final - k, 0);
   var array = ConstructTypedArrayLike(this, count);
   // The code below is the 'then' branch; the 'else' branch species
   // a memcpy. Because V8 doesn't canonicalize NaN, the difference is

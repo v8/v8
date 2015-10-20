@@ -216,6 +216,20 @@ function ToPositiveInteger(x, rangeErrorIndex) {
   return i;
 }
 
+
+function MaxSimple(a, b) {
+  return a > b ? a : b;
+}
+
+
+function MinSimple(a, b) {
+  return a > b ? b : a;
+}
+
+
+%SetForceInlineFlag(MaxSimple);
+%SetForceInlineFlag(MinSimple);
+
 //----------------------------------------------------------------------------
 
 // NOTE: Setting the prototype for Array must take place as early as
@@ -229,9 +243,11 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 // Exports
 
 utils.Export(function(to) {
-  to.ToPositiveInteger = ToPositiveInteger;
+  to.MaxSimple = MaxSimple;
+  to.MinSimple = MinSimple;
   to.SameValue = SameValue;
   to.SameValueZero = SameValueZero;
+  to.ToPositiveInteger = ToPositiveInteger;
 });
 
 %InstallToContext([

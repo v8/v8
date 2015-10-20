@@ -12,11 +12,11 @@
 // Imports
 
 var GlobalObject = global.Object;
-var MathMax;
+var MaxSimple;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  MathMax = from.MathMax;
+  MaxSimple = from.MaxSimple;
 });
 
 // -------------------------------------------------------------------
@@ -146,7 +146,7 @@ function AtomicsFutexWaitJS(ia, index, value, timeout) {
     if (NUMBER_IS_NAN(timeout)) {
       timeout = INFINITY;
     } else {
-      timeout = MathMax(0, timeout);
+      timeout = MaxSimple(0, timeout);
     }
   }
   return %AtomicsFutexWait(ia, index, value, timeout);
@@ -158,14 +158,14 @@ function AtomicsFutexWakeJS(ia, index, count) {
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
-  count = MathMax(0, TO_INTEGER(count));
+  count = MaxSimple(0, TO_INTEGER(count));
   return %AtomicsFutexWake(ia, index, count);
 }
 
 function AtomicsFutexWakeOrRequeueJS(ia, index1, count, value, index2) {
   CheckSharedInteger32TypedArray(ia);
   index1 = TO_INTEGER(index1);
-  count = MathMax(0, TO_INTEGER(count));
+  count = MaxSimple(0, TO_INTEGER(count));
   value = TO_INT32(value);
   index2 = TO_INTEGER(index2);
   if (index1 < 0 || index1 >= %_TypedArrayGetLength(ia) ||

@@ -13,14 +13,14 @@
 
 var GlobalJSON = global.JSON;
 var InternalArray = utils.InternalArray;
-var MathMax;
-var MathMin;
+var MaxSimple;
+var MinSimple;
 var ObjectHasOwnProperty;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
+  MaxSimple = from.MaxSimple;
+  MinSimple = from.MinSimple;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
 });
 
@@ -215,7 +215,7 @@ function JSONStringify(value, replacer, space) {
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = MathMax(0, MathMin(TO_INTEGER(space), 10));
+    space = MaxSimple(0, MinSimple(TO_INTEGER(space), 10));
     gap = %_SubString("          ", 0, space);
   } else if (IS_STRING(space)) {
     if (space.length > 10) {

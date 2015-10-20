@@ -18,6 +18,8 @@ var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var MaxSimple;
+var MinSimple;
 var ToPositiveInteger;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
@@ -42,6 +44,8 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 
 utils.Import(function(from) {
   ArrayValues = from.ArrayValues;
+  MaxSimple = from.MaxSimple;
+  MinSimple = from.MinSimple;
   ToPositiveInteger = from.ToPositiveInteger;
 });
 
@@ -213,15 +217,15 @@ function NAMESubArray(begin, end) {
   }
 
   if (beginInt < 0) {
-    beginInt = MAX_SIMPLE(0, srcLength + beginInt);
+    beginInt = MaxSimple(0, srcLength + beginInt);
   } else {
-    beginInt = MIN_SIMPLE(beginInt, srcLength);
+    beginInt = MinSimple(beginInt, srcLength);
   }
 
   if (endInt < 0) {
-    endInt = MAX_SIMPLE(0, srcLength + endInt);
+    endInt = MaxSimple(0, srcLength + endInt);
   } else {
-    endInt = MIN_SIMPLE(endInt, srcLength);
+    endInt = MinSimple(endInt, srcLength);
   }
 
   if (endInt < beginInt) {

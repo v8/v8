@@ -186,6 +186,8 @@ function PostNatives(utils) {
     "MapIteratorNext",
     "MathMax",
     "MathMin",
+    "MaxSimple",
+    "MinSimple",
     "ObjectIsFrozen",
     "ObjectDefineProperty",
     "ObserveArrayMethods",
