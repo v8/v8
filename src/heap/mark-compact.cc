@@ -1719,8 +1719,8 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
         if (!new_space->AddFreshPage()) {
           // Shouldn't happen. We are sweeping linearly, and to-space
           // has the same number of pages as from-space, so there is
-          // always room.
-          UNREACHABLE();
+          // always room unless we are in an OOM situation.
+          FatalProcessOutOfMemory("MarkCompactCollector: semi-space copy\n");
         }
         allocation = new_space->AllocateRaw(size, alignment);
         DCHECK(!allocation.IsRetry());
