@@ -90,10 +90,11 @@ TEST_MAP = {
 
 TIMEOUT_DEFAULT = 60
 
-VARIANTS = ["default", "stress", "turbofan", "nocrankshaft"]
+VARIANTS = ["default", "stress", "turbofan"]
 
 EXHAUSTIVE_VARIANTS = VARIANTS + [
-  # TODO(machenbach): Add always opt turbo variant.
+  "nocrankshaft",
+  "turbofan_opt",
 ]
 
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",

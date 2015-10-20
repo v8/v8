@@ -120,6 +120,26 @@
   'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
   'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
 
+  # TurboFan doesn't support allocation sites currently.
+  'test-heap/CellsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_VARIANTS],
+  'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringDoubleArrayProperties': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringMixedInObjectProperties': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringNestedDoubleLiterals': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringNestedObjectLiterals': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringObjectArrayLiterals': [PASS, NO_VARIANTS],
+
+  # TurboFan cpu profiler result is different.
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, NO_VARIANTS],
+  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [PASS, NO_VARIANTS],
+  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [PASS, NO_VARIANTS],
+  'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_VARIANTS],
+  'test-cpu-profiler/TickLines': [PASS, NO_VARIANTS],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],

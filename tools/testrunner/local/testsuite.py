@@ -38,7 +38,8 @@ from ..objects import testcase
 ALL_VARIANT_FLAGS = {
   "default": [[]],
   "stress": [["--stress-opt", "--always-opt"]],
-  "turbofan": [["--turbo", "--always-opt"]],
+  "turbofan": [["--turbo"]],
+  "turbofan_opt": [["--turbo", "--always-opt"]],
   "nocrankshaft": [["--nocrankshaft"]],
   "ignition": [["--ignition", "--ignition-filter=*"]],
 }
@@ -52,8 +53,8 @@ FAST_VARIANT_FLAGS = {
   "ignition": [["--ignition", "--ignition-filter=*"]],
 }
 
-ALL_VARIANTS = set(["default", "stress", "turbofan", "nocrankshaft",
-                    "ignition"])
+ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
+                    "nocrankshaft", "ignition"])
 FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
 
