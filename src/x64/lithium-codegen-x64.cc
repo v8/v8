@@ -5333,11 +5333,10 @@ void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
   Register hi_reg = ToRegister(instr->hi());
   Register lo_reg = ToRegister(instr->lo());
   XMMRegister result_reg = ToDoubleRegister(instr->result());
-  XMMRegister xmm_scratch = double_scratch0();
-  __ Movd(result_reg, hi_reg);
-  __ psllq(result_reg, 32);
-  __ Movd(xmm_scratch, lo_reg);
-  __ orps(result_reg, xmm_scratch);
+  __ movl(kScratchRegister, hi_reg);
+  __ shlq(kScratchRegister, Immediate(32));
+  __ orq(kScratchRegister, lo_reg);
+  __ Movq(result_reg, kScratchRegister);
 }
 
 
