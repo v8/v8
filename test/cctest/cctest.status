@@ -115,11 +115,6 @@
   # optimized and hence scripts don't "return" the correct value. Fix this.
   'test-compiler/CompileFunctionInContext*': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Crankshaft messes with debugger, investigate and fix!
-  'test-debug/BreakPointThroughJavaScript': [PASS, NO_VARIANTS],  # in no-snap mode.
-  'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
-  'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
-
   # TurboFan doesn't support allocation sites currently.
   'test-heap/CellsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_VARIANTS],
