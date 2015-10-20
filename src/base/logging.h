@@ -29,7 +29,7 @@ extern "C" V8_NORETURN void V8_Fatal(const char* file, int line,
   V8_Fatal("", 0, "%s", (msg))
 #define UNIMPLEMENTED()                         \
   V8_Fatal("", 0, "unimplemented code")
-#define UNREACHABLE() ((void) 0)
+#define UNREACHABLE() V8_Fatal("", 0, "unreachable code")
 #endif
 
 
