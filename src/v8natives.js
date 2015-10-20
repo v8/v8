@@ -1142,7 +1142,7 @@ function ObjectSealJS(obj) {
     if (isProxy) {
       ProxyFix(obj);
     }
-    var names = ObjectGetOwnPropertyNames(obj);
+    var names = OwnPropertyKeys(obj);
     for (var i = 0; i < names.length; i++) {
       var name = names[i];
       var desc = GetOwnPropertyJS(obj, name);
@@ -1172,7 +1172,7 @@ function ObjectFreezeJS(obj) {
     if (isProxy) {
       ProxyFix(obj);
     }
-    var names = ObjectGetOwnPropertyNames(obj);
+    var names = OwnPropertyKeys(obj);
     for (var i = 0; i < names.length; i++) {
       var name = names[i];
       var desc = GetOwnPropertyJS(obj, name);
@@ -1212,7 +1212,7 @@ function ObjectIsSealed(obj) {
   if (%IsExtensible(obj)) {
     return false;
   }
-  var names = ObjectGetOwnPropertyNames(obj);
+  var names = OwnPropertyKeys(obj);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
     var desc = GetOwnPropertyJS(obj, name);
@@ -1233,7 +1233,7 @@ function ObjectIsFrozen(obj) {
   if (%IsExtensible(obj)) {
     return false;
   }
-  var names = ObjectGetOwnPropertyNames(obj);
+  var names = OwnPropertyKeys(obj);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
     var desc = GetOwnPropertyJS(obj, name);
