@@ -120,6 +120,13 @@
   'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
   'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
 
+  # Issue 4493: Open issues before we can ship general purpose inlining.
+  'test-decls/CrossScriptGlobal': [PASS, NO_VARIANTS],
+  'test-decls/CrossScriptReferencesHarmony': [PASS, NO_VARIANTS],
+  'test-decls/CrossScriptLoadICs': [PASS, NO_VARIANTS],
+  'test-decls/CrossScriptStoreICs': [PASS, NO_VARIANTS],
+  'test-decls/Regress3941': [PASS, NO_VARIANTS],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
