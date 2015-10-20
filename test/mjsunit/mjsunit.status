@@ -153,6 +153,7 @@
   'regress/regress-1122': [PASS, NO_VARIANTS],
 
   # Issue 4493: Bugs due to --turbo-inlining.
+  'harmony/reflect': [PASS, NO_VARIANTS],
   'tools/profile': [PASS, NO_VARIANTS],
 
   # Assumptions about optimization need investigation in TurboFan.
