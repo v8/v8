@@ -3152,7 +3152,8 @@ Node* AstGraphBuilder::BuildLocalScriptContext(Scope* scope) {
   Handle<ScopeInfo> scope_info = scope->GetScopeInfo(isolate());
   const Operator* op = javascript()->CreateScriptContext(scope_info);
   Node* local_context = NewNode(op, GetFunctionClosure());
-  PrepareFrameState(local_context, BailoutId::Prologue());
+  PrepareFrameState(local_context, BailoutId::ScriptContext(),
+                    OutputFrameStateCombine::Push());
 
   return local_context;
 }

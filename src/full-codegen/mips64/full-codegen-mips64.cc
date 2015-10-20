@@ -197,6 +197,7 @@ void FullCodeGenerator::Generate() {
       __ push(a1);
       __ Push(info->scope()->GetScopeInfo(info->isolate()));
       __ CallRuntime(Runtime::kNewScriptContext, 2);
+      PrepareForBailoutForId(BailoutId::ScriptContext(), TOS_REG);
     } else if (slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), slots);
       __ CallStub(&stub);
@@ -238,8 +239,8 @@ void FullCodeGenerator::Generate() {
       }
     }
   }
+  PrepareForBailoutForId(BailoutId::FunctionContext(), NO_REGISTERS);
 
-  PrepareForBailoutForId(BailoutId::Prologue(), NO_REGISTERS);
   // Function register is trashed in case we bailout here. But since that
   // could happen only when we allocate a context the value of
   // |function_in_register_a1| is correct.
