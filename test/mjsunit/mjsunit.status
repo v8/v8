@@ -158,6 +158,7 @@
   'compiler/osr-infinite': [PASS, NO_VARIANTS],
   'es6/array-find': [PASS, NO_VARIANTS],
   'es6/array-findindex': [PASS, NO_VARIANTS],
+  'es6/generators-runtime': [PASS, NO_VARIANTS],  # only in GC stress.
   'es6/microtask-delivery': [PASS, NO_VARIANTS],
   'es6/promises': [PASS, NO_VARIANTS],  # only on 64-bit.
   'es6/templates': [PASS, NO_VARIANTS],
@@ -166,6 +167,7 @@
   'harmony/destructuring': [PASS, NO_VARIANTS],
   'harmony/proxies': [PASS, NO_VARIANTS],
   'harmony/proxies-example-membrane': [PASS, NO_VARIANTS],  # only on 64-bit.
+  'harmony/reflect': [PASS, NO_VARIANTS],  # only in arm64 sim debug.
   'harmony/spread-array': [PASS, NO_VARIANTS],
   'regress/cross-script-vars': [PASS, NO_VARIANTS],
   'tools/profile': [PASS, NO_VARIANTS],
