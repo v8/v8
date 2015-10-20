@@ -12,6 +12,8 @@
 // Imports
 
 var InternalArray = utils.InternalArray;
+var promiseCombinedDeferredSymbol =
+    utils.ImportNow("promise_combined_deferred_symbol");
 var promiseHasHandlerSymbol =
     utils.ImportNow("promise_has_handler_symbol");
 var promiseOnRejectSymbol = utils.ImportNow("promise_on_reject_symbol");
@@ -298,6 +300,7 @@ function PromiseAll(iterable) {
     var count = 0;
     var i = 0;
     for (var value of iterable) {
+      var reject = function(r) { deferred.reject(r) };
       this.resolve(value).then(
           // Nested scope to get closure over current i.
           // TODO(arv): Use an inner let binding once available.
@@ -306,8 +309,8 @@ function PromiseAll(iterable) {
               resolutions[i] = x;
               if (--count === 0) deferred.resolve(resolutions);
             }
-          })(i),
-          function(r) { deferred.reject(r); });
+          })(i), reject);
+      SET_PRIVATE(reject, promiseCombinedDeferredSymbol, deferred);
       ++i;
       ++count;
     }
@@ -326,9 +329,9 @@ function PromiseRace(iterable) {
   var deferred = %_CallFunction(this, PromiseDeferred);
   try {
     for (var value of iterable) {
-      this.resolve(value).then(
-          function(x) { deferred.resolve(x) },
-          function(r) { deferred.reject(r) });
+      var reject = function(r) { deferred.reject(r) };
+      this.resolve(value).then(function(x) { deferred.resolve(x) }, reject);
+      SET_PRIVATE(reject, promiseCombinedDeferredSymbol, deferred);
     }
   } catch (e) {
     deferred.reject(e)
@@ -343,8 +346,15 @@ function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
   var queue = GET_PRIVATE(promise, promiseOnRejectSymbol);
   if (IS_UNDEFINED(queue)) return false;
   for (var i = 0; i < queue.length; i += 2) {
-    if (queue[i] != PromiseIdRejectHandler) return true;
-    if (PromiseHasUserDefinedRejectHandlerRecursive(queue[i + 1].promise)) {
+    var handler = queue[i];
+    if (handler !== PromiseIdRejectHandler) {
+      var deferred = GET_PRIVATE(handler, promiseCombinedDeferredSymbol);
+      if (IS_UNDEFINED(deferred)) return true;
+      if (PromiseHasUserDefinedRejectHandlerRecursive(deferred.promise)) {
+        return true;
+      }
+    } else if (PromiseHasUserDefinedRejectHandlerRecursive(
+                   queue[i + 1].promise)) {
       return true;
     }
   }
