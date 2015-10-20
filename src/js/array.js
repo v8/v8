@@ -1201,7 +1201,9 @@ function InnerArrayFilter(f, receiver, array, length) {
       }
     }
   }
-  return accumulator;
+  var result = new GlobalArray();
+  %MoveArrayContents(accumulator, result);
+  return result;
 }
 
 function ArrayFilter(f, receiver) {
@@ -1211,10 +1213,7 @@ function ArrayFilter(f, receiver) {
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
   var length = TO_LENGTH_OR_UINT32(array.length);
-  var accumulator = InnerArrayFilter(f, receiver, array, length);
-  var result = new GlobalArray();
-  %MoveArrayContents(accumulator, result);
-  return result;
+  return InnerArrayFilter(f, receiver, array, length);
 }
 
 function InnerArrayForEach(f, receiver, array, length) {
@@ -1314,7 +1313,9 @@ function InnerArrayMap(f, receiver, array, length) {
       accumulator[i] = %_Call(f, receiver, element, i, array);
     }
   }
-  return accumulator;
+  var result = new GlobalArray();
+  %MoveArrayContents(accumulator, result);
+  return result;
 }
 
 
@@ -1325,10 +1326,7 @@ function ArrayMap(f, receiver) {
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
   var length = TO_LENGTH_OR_UINT32(array.length);
-  var accumulator = InnerArrayMap(f, receiver, array, length);
-  var result = new GlobalArray();
-  %MoveArrayContents(accumulator, result);
-  return result;
+  return InnerArrayMap(f, receiver, array, length);
 }
 
 
