@@ -4,6 +4,7 @@
 
 #include "src/ast.h"
 #include "src/messages.h"
+#include "src/parameter-initializer-rewriter.h"
 #include "src/parser.h"
 
 namespace v8 {
@@ -359,8 +360,16 @@ void Parser::PatternRewriter::VisitAssignment(Assignment* node) {
       Token::EQ_STRICT, factory()->NewVariableProxy(temp),
       factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
       RelocInfo::kNoPosition);
+  Expression* initializer = node->value();
+  if (descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER &&
+      descriptor_->scope->is_arrow_scope()) {
+    // TODO(adamk): Only call this if necessary.
+    RewriteParameterInitializerScope(
+        descriptor_->parser->stack_limit(), initializer,
+        descriptor_->scope->outer_scope(), descriptor_->scope);
+  }
   Expression* value = factory()->NewConditional(
-      is_undefined, node->value(), factory()->NewVariableProxy(temp),
+      is_undefined, initializer, factory()->NewVariableProxy(temp),
       RelocInfo::kNoPosition);
   RecurseIntoSubpattern(node->target(), value);
 }

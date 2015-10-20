@@ -3170,32 +3170,36 @@ class AstVisitor BASE_EMBEDDED {
 };
 
 
-#define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()               \
- public:                                                    \
-  void Visit(AstNode* node) final {                         \
-    if (!CheckStackOverflow()) node->Accept(this);          \
-  }                                                         \
-                                                            \
-  void SetStackOverflow() { stack_overflow_ = true; }       \
-  void ClearStackOverflow() { stack_overflow_ = false; }    \
-  bool HasStackOverflow() const { return stack_overflow_; } \
-                                                            \
-  bool CheckStackOverflow() {                               \
-    if (stack_overflow_) return true;                       \
-    if (GetCurrentStackPosition() < stack_limit_) {         \
-      stack_overflow_ = true;                               \
-      return true;                                          \
-    }                                                       \
-    return false;                                           \
-  }                                                         \
-                                                            \
- private:                                                   \
-  void InitializeAstVisitor(Isolate* isolate) {             \
-    stack_limit_ = isolate->stack_guard()->real_climit();   \
-    stack_overflow_ = false;                                \
-  }                                                         \
-                                                            \
-  uintptr_t stack_limit_;                                   \
+#define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()                    \
+ public:                                                         \
+  void Visit(AstNode* node) final {                              \
+    if (!CheckStackOverflow()) node->Accept(this);               \
+  }                                                              \
+                                                                 \
+  void SetStackOverflow() { stack_overflow_ = true; }            \
+  void ClearStackOverflow() { stack_overflow_ = false; }         \
+  bool HasStackOverflow() const { return stack_overflow_; }      \
+                                                                 \
+  bool CheckStackOverflow() {                                    \
+    if (stack_overflow_) return true;                            \
+    if (GetCurrentStackPosition() < stack_limit_) {              \
+      stack_overflow_ = true;                                    \
+      return true;                                               \
+    }                                                            \
+    return false;                                                \
+  }                                                              \
+                                                                 \
+ private:                                                        \
+  void InitializeAstVisitor(Isolate* isolate) {                  \
+    InitializeAstVisitor(isolate->stack_guard()->real_climit()); \
+  }                                                              \
+                                                                 \
+  void InitializeAstVisitor(uintptr_t stack_limit) {             \
+    stack_limit_ = stack_limit;                                  \
+    stack_overflow_ = false;                                     \
+  }                                                              \
+                                                                 \
+  uintptr_t stack_limit_;                                        \
   bool stack_overflow_
 
 

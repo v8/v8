@@ -548,15 +548,16 @@ Variable* Scope::DeclareDynamicGlobal(const AstRawString* name) {
 }
 
 
-void Scope::RemoveUnresolved(VariableProxy* var) {
+bool Scope::RemoveUnresolved(VariableProxy* var) {
   // Most likely (always?) any variable we want to remove
   // was just added before, so we search backwards.
   for (int i = unresolved_.length(); i-- > 0;) {
     if (unresolved_[i] == var) {
       unresolved_.Remove(i);
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 
