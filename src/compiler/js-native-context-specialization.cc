@@ -62,6 +62,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   // Try to lookup the name on the script context table first (lexical scoping).
   ScriptContextTableLookupResult result;
   if (LookupInScriptContextTable(name, &result)) {
+    if (result.context->is_the_hole(result.index)) return NoChange();
     Node* context = jsgraph()->Constant(result.context);
     Node* value = effect = graph()->NewNode(
         javascript()->LoadContext(0, result.index, result.immutable), context,
@@ -143,6 +144,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   // Try to lookup the name on the script context table first (lexical scoping).
   ScriptContextTableLookupResult result;
   if (LookupInScriptContextTable(name, &result)) {
+    if (result.context->is_the_hole(result.index)) return NoChange();
     if (result.immutable) return NoChange();
     Node* context = jsgraph()->Constant(result.context);
     effect = graph()->NewNode(javascript()->StoreContext(0, result.index),
@@ -670,7 +672,6 @@ bool JSNativeContextSpecialization::LookupInScriptContextTable(
   }
   Handle<Context> script_context = ScriptContextTable::GetContext(
       script_context_table, lookup_result.context_index);
-  if (script_context->is_the_hole(lookup_result.slot_index)) return false;
   result->context = script_context;
   result->immutable = IsImmutableVariableMode(lookup_result.mode);
   result->index = lookup_result.slot_index;
