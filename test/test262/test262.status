@@ -538,23 +538,13 @@
   # https://code.google.com/p/v8/issues/detail?id=4342
   'built-ins/RegExp/prototype/exec/get-sticky-coerce': [FAIL],
   'built-ins/RegExp/prototype/exec/get-sticky-err': [FAIL],
-  'built-ins/RegExp/prototype/exec/y-fail-lastindex': [FAIL],
   'built-ins/RegExp/prototype/exec/y-fail-lastindex-no-write': [FAIL],
-  'built-ins/RegExp/prototype/exec/y-fail-return': [FAIL],
-  'built-ins/RegExp/prototype/exec/y-fail-lastindex': [FAIL],
-  'built-ins/RegExp/prototype/exec/y-init-lastindex': [FAIL],
-  'built-ins/RegExp/prototype/exec/y-set-lastindex': [FAIL],
   'built-ins/RegExp/prototype/sticky/prop-desc': [FAIL],
   'built-ins/RegExp/prototype/sticky/this-invalid-obj': [FAIL],
   'built-ins/RegExp/prototype/sticky/this-non-obj': [FAIL],
-  'built-ins/RegExp/prototype/sticky/this-regexp': [FAIL],
   'built-ins/RegExp/prototype/test/get-sticky-coerce': [FAIL],
   'built-ins/RegExp/prototype/test/get-sticky-err': [FAIL],
   'built-ins/RegExp/prototype/test/y-fail-lastindex-no-write': [FAIL],
-  'built-ins/RegExp/prototype/test/y-fail-return': [FAIL],
-  'built-ins/RegExp/prototype/test/y-fail-lastindex': [FAIL],
-  'built-ins/RegExp/prototype/test/y-init-lastindex': [FAIL],
-  'built-ins/RegExp/prototype/test/y-set-lastindex': [FAIL],
   'built-ins/RegExp/valid-flags-y': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4305
@@ -591,7 +581,9 @@
   'built-ins/String/prototype/split/cstm-split-get-err': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4346
-  'built-ins/RegExp/prototype/flags/*': [FAIL],
+  'built-ins/RegExp/prototype/flags/name': [FAIL],
+  'built-ins/RegExp/prototype/flags/y-attr-err': [FAIL],
+  'built-ins/RegExp/prototype/flags/u': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4347
   'built-ins/RegExp/prototype/global/name': [FAIL],
