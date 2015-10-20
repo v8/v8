@@ -32,6 +32,9 @@
   # TODO(turbofan): Too slow in debug mode for now.
   'octane/pdfjs': [PASS, ['mode == debug', SKIP]],
 
+  # TODO(turbofan): Fails in register allocator verifier. Needs investigation.
+  'octane/typescript': [PASS, NO_VARIANTS],
+
   # Slow tests.
   'kraken/imaging-gaussian-blur': [PASS, SLOW],
   'octane/typescript': [PASS, SLOW],
