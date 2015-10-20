@@ -178,19 +178,13 @@ class Scope: public ZoneObject {
     return proxy;
   }
 
-  void AddUnresolved(VariableProxy* proxy) {
-    DCHECK(!already_resolved());
-    DCHECK(!proxy->is_resolved());
-    unresolved_.Add(proxy, zone_);
-  }
-
   // Remove a unresolved variable. During parsing, an unresolved variable
   // may have been added optimistically, but then only the variable name
   // was used (typically for labels). If the variable was not declared, the
   // addition introduced a new unresolved variable which may end up being
   // allocated globally as a "ghost" variable. RemoveUnresolved removes
   // such a variable again if it was added; otherwise this is a no-op.
-  bool RemoveUnresolved(VariableProxy* var);
+  void RemoveUnresolved(VariableProxy* var);
 
   // Creates a new temporary variable in this scope's TemporaryScope.  The
   // name is only used for printing and cannot be used to find the variable.
@@ -470,7 +464,6 @@ class Scope: public ZoneObject {
 
   // The scope immediately surrounding this scope, or NULL.
   Scope* outer_scope() const { return outer_scope_; }
-  void set_outer_scope(Scope* outer_scope) { outer_scope_ = outer_scope; }
 
   // The ModuleDescriptor for this scope; only for module scopes.
   ModuleDescriptor* module() const { return module_descriptor_; }

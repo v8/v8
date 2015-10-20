@@ -138,8 +138,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(legacy_const);
 #undef ALLOW_ACCESSORS
 
-  uintptr_t stack_limit() const { return stack_limit_; }
-
  protected:
   enum AllowRestrictedIdentifiers {
     kAllowRestrictedIdentifiers,

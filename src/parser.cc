@@ -14,7 +14,6 @@
 #include "src/codegen.h"
 #include "src/compiler.h"
 #include "src/messages.h"
-#include "src/parameter-initializer-rewriter.h"
 #include "src/preparser.h"
 #include "src/runtime/runtime.h"
 #include "src/scanner-character-streams.h"
@@ -4048,10 +4047,6 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     DCHECK(!assignment->is_compound());
     initializer = assignment->value();
     expr = assignment->target();
-
-    // TODO(adamk): Only call this if necessary.
-    RewriteParameterInitializerScope(parser_->stack_limit(), initializer,
-                                     parser_->scope_, parameters->scope);
   }
 
   AddFormalParameter(parameters, expr, initializer, is_rest);
