@@ -23,9 +23,6 @@
   # Slow tests.
   'benchmarks/kernel-template': [PASS, SLOW],
   'benchmarks/memset': [PASS, SLOW],
-
-  # Issue 4493: Open issues before we can ship general purpose inlining.
-  'shell_test_runner': [PASS, NO_VARIANTS],
 }],
 
 ######################################################################
