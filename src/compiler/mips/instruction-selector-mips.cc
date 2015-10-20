@@ -802,10 +802,14 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 void VisitFloat32Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
   MipsOperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  VisitCompare(selector, kMipsCmpS, g.UseRegister(left), g.UseRegister(right),
-               cont);
+  Float32BinopMatcher m(node);
+  InstructionOperand lhs, rhs;
+
+  lhs = m.left().IsZero() ? g.UseImmediate(m.left().node())
+                          : g.UseRegister(m.left().node());
+  rhs = m.right().IsZero() ? g.UseImmediate(m.right().node())
+                           : g.UseRegister(m.right().node());
+  VisitCompare(selector, kMipsCmpS, lhs, rhs, cont);
 }
 
 
@@ -813,10 +817,14 @@ void VisitFloat32Compare(InstructionSelector* selector, Node* node,
 void VisitFloat64Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
   MipsOperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  VisitCompare(selector, kMipsCmpD, g.UseRegister(left), g.UseRegister(right),
-               cont);
+  Float64BinopMatcher m(node);
+  InstructionOperand lhs, rhs;
+
+  lhs = m.left().IsZero() ? g.UseImmediate(m.left().node())
+                          : g.UseRegister(m.left().node());
+  rhs = m.right().IsZero() ? g.UseImmediate(m.right().node())
+                           : g.UseRegister(m.right().node());
+  VisitCompare(selector, kMipsCmpD, lhs, rhs, cont);
 }
 
 

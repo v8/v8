@@ -1719,6 +1719,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
                                         Register scratch1, Label* found);
 
+  bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
+
  private:
   void CallCFunctionHelper(Register function,
                            int num_reg_arguments,
