@@ -166,11 +166,7 @@ class LiteralBuffer {
  public:
   LiteralBuffer() : is_one_byte_(true), position_(0), backing_store_() { }
 
-  ~LiteralBuffer() {
-    if (backing_store_.length() > 0) {
-      backing_store_.Dispose();
-    }
-  }
+  ~LiteralBuffer() { backing_store_.Dispose(); }
 
   INLINE(void AddChar(uint32_t code_unit)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
