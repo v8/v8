@@ -1517,10 +1517,10 @@ BUILTIN(ReflectHas) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Object::ToName(isolate, key));
 
-  Maybe<bool> maybe =
+  Maybe<bool> result =
       JSReceiver::HasProperty(Handle<JSReceiver>::cast(target), name);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
-  return *isolate->factory()->ToBoolean(maybe.FromJust());
+  return result.IsJust() ? *isolate->factory()->ToBoolean(result.FromJust())
+                         : isolate->heap()->exception();
 }
 
 
@@ -1551,6 +1551,26 @@ BUILTIN(ReflectIsExtensible) {
         JSObject::IsExtensible(Handle<JSObject>::cast(target)));
   }
   return *isolate->factory()->false_value();
+}
+
+
+// ES6 section 26.1.12 Reflect.preventExtensions
+BUILTIN(ReflectPreventExtensions) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> target = args.at<Object>(1);
+
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Reflect.preventExtensions")));
+  }
+
+  Maybe<bool> result = JSReceiver::PreventExtensions(
+      Handle<JSReceiver>::cast(target), DONT_THROW);
+  return result.IsJust() ? *isolate->factory()->ToBoolean(result.FromJust())
+                         : isolate->heap()->exception();
 }
 
 

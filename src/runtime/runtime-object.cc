@@ -304,11 +304,10 @@ RUNTIME_FUNCTION(Runtime_GetOwnProperty) {
 RUNTIME_FUNCTION(Runtime_PreventExtensions) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::PreventExtensions(obj));
-  return *result;
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
+  if (JSReceiver::PreventExtensions(obj, THROW_ON_ERROR).IsNothing())
+    return isolate->heap()->exception();
+  return *obj;
 }
 
 

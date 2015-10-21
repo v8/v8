@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2010-2015 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,15 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests the Object.preventExtensions method - ES 15.2.3.10
+// Tests the Reflect.preventExtensions method - ES6 26.1.12.
+// This is adapted from object-prevent-extensions.js.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --harmony-reflect
 
 
 var obj1 = {};
 // Extensible defaults to true.
 assertTrue(Object.isExtensible(obj1));
-Object.preventExtensions(obj1);
+assertTrue(Reflect.preventExtensions(obj1));
 
 // Make sure the is_extensible flag is set.
 assertFalse(Object.isExtensible(obj1));
@@ -52,7 +53,7 @@ obj2.x = 42;
 assertEquals(42, obj2.x);
 assertTrue(Object.isExtensible(obj2));
 
-Object.preventExtensions(obj2);
+assertTrue(Reflect.preventExtensions(obj2));
 assertEquals(42, obj2.x);
 
 obj2.y = 42;
@@ -83,7 +84,7 @@ assertEquals(undefined, obj2[1]);
 var arr = new Array();
 arr[1] = 10;
 
-Object.preventExtensions(arr);
+assertTrue(Reflect.preventExtensions(arr));
 
 arr[2] = 42;
 assertEquals(10, arr[1]);
@@ -96,7 +97,7 @@ assertEquals(42, arr[1]);
 // Test the the extensible flag is not inherited.
 var parent = {};
 parent.x = 42;
-Object.preventExtensions(parent);
+assertTrue(Reflect.preventExtensions(parent));
 
 var child = Object.create(parent);
 
@@ -112,14 +113,15 @@ function foo() {
   return 42;
 }
 
-Object.preventExtensions(foo);
+assertTrue(Reflect.preventExtensions(foo));
 
 foo.x = 29;
 assertEquals(undefined, foo.x);
 
 // when Object.isExtensible(o) === false
 // assignment should return right hand side value
-var o = Object.preventExtensions({});
+var o = {};
+assertTrue(Reflect.preventExtensions(o));
 var v = o.v = 50;
 assertEquals(undefined, o.v);
 assertEquals(50, v);
@@ -132,7 +134,7 @@ assertEquals(100, n);
 // Fast properties should remain fast
 obj = { x: 42, y: 'foo' };
 assertTrue(%HasFastProperties(obj));
-Object.preventExtensions(obj);
+assertTrue(Reflect.preventExtensions(obj));
 assertFalse(Object.isExtensible(obj));
 assertFalse(Object.isSealed(obj));
 assertTrue(%HasFastProperties(obj));
@@ -141,8 +143,8 @@ assertTrue(%HasFastProperties(obj));
 obj = { prop1: 1, prop2: 2 };
 obj2 = { prop1: 3, prop2: 4 };
 assertTrue(%HaveSameMap(obj, obj2));
-Object.preventExtensions(obj);
-Object.preventExtensions(obj2);
+assertTrue(Reflect.preventExtensions(obj));
+assertTrue(Reflect.preventExtensions(obj2));
 assertFalse(Object.isExtensible(obj));
 assertFalse(Object.isExtensible(obj2));
 assertFalse(Object.isSealed(obj));
@@ -153,8 +155,8 @@ assertTrue(%HaveSameMap(obj, obj2));
 obj = { prop1: 1, prop2: 2, 75: 'foo' };
 obj2 = { prop1: 3, prop2: 4, 150: 'bar' };
 assertTrue(%HaveSameMap(obj, obj2));
-Object.preventExtensions(obj);
-Object.preventExtensions(obj2);
+assertTrue(Reflect.preventExtensions(obj));
+assertTrue(Reflect.preventExtensions(obj2));
 assertFalse(Object.isExtensible(obj));
 assertFalse(Object.isExtensible(obj2));
 assertFalse(Object.isSealed(obj));

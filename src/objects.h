@@ -1865,6 +1865,11 @@ class JSReceiver: public HeapObject {
   static bool GetOwnPropertyDescriptor(LookupIterator* it,
                                        PropertyDescriptor* desc);
 
+  // Disallow further properties to be added to the object.  This is
+  // ES6's [[PreventExtensions]] when passed DONT_THROW.
+  MUST_USE_RESULT static Maybe<bool> PreventExtensions(
+      Handle<JSReceiver> object, ShouldThrow should_throw);
+
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
 
@@ -2324,11 +2329,8 @@ class JSObject: public JSReceiver {
   // Check whether this object references another object
   bool ReferencesObject(Object* obj);
 
-  // Disallow further properties to be added to the oject.
-  MUST_USE_RESULT static Maybe<bool> PreventExtensionsInternal(
-      Handle<JSObject> object);  // ES [[PreventExtensions]]
-  MUST_USE_RESULT static MaybeHandle<Object> PreventExtensions(
-      Handle<JSObject> object);  // ES Object.preventExtensions
+  MUST_USE_RESULT static Maybe<bool> PreventExtensions(
+      Handle<JSObject> object, ShouldThrow should_throw);
 
   static bool IsExtensible(Handle<JSObject> object);
 
@@ -2517,7 +2519,7 @@ class JSObject: public JSReceiver {
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
   template <PropertyAttributes attrs>
   MUST_USE_RESULT static Maybe<bool> PreventExtensionsWithTransition(
-      Handle<JSObject> object);
+      Handle<JSObject> object, ShouldThrow should_throw);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };

@@ -701,7 +701,8 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
       .Assert();
 
-  JSObject::PreventExtensions(function).Assert();
+  if (JSObject::PreventExtensions(function, THROW_ON_ERROR).IsNothing())
+    DCHECK(false);
 
   return function;
 }
@@ -2197,6 +2198,8 @@ void Genesis::InitializeGlobal_harmony_reflect() {
                         Builtins::kReflectHas, 2, true);
   SimpleInstallFunction(reflect, "isExtensible",
                         Builtins::kReflectIsExtensible, 1, true);
+  SimpleInstallFunction(reflect, "preventExtensions",
+                        Builtins::kReflectPreventExtensions, 1, true);
 }
 
 

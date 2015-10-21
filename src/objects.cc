@@ -6722,13 +6722,34 @@ bool JSObject::ReferencesObject(Object* obj) {
 }
 
 
-Maybe<bool> JSObject::PreventExtensionsInternal(Handle<JSObject> object) {
+#define RETURN_FAILURE(isolate, should_throw, call) \
+  do {                                              \
+    if ((should_throw) == DONT_THROW) {             \
+      return Just(false);                           \
+    } else {                                        \
+      isolate->Throw(*isolate->factory()->call);    \
+      return Nothing<bool>();                       \
+    }                                               \
+  } while (false)
+
+
+Maybe<bool> JSReceiver::PreventExtensions(Handle<JSReceiver> object,
+                                          ShouldThrow should_throw) {
+  if (!object->IsJSObject()) return Just(false);
+  // TODO(neis): Deal with proxies.
+  return JSObject::PreventExtensions(Handle<JSObject>::cast(object),
+                                     should_throw);
+}
+
+
+Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
+                                        ShouldThrow should_throw) {
   Isolate* isolate = object->GetIsolate();
 
   if (!object->map()->is_extensible()) return Just(true);
 
   if (!object->HasSloppyArgumentsElements() && !object->map()->is_observed()) {
-    return PreventExtensionsWithTransition<NONE>(object);
+    return PreventExtensionsWithTransition<NONE>(object, should_throw);
   }
 
   if (object->IsAccessCheckNeeded() &&
@@ -6736,15 +6757,16 @@ Maybe<bool> JSObject::PreventExtensionsInternal(Handle<JSObject> object) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     UNREACHABLE();
-    return Just(false);
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kNoAccess));
   }
 
   if (object->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, object);
     if (iter.IsAtEnd()) return Just(true);
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return PreventExtensionsInternal(
-        PrototypeIterator::GetCurrent<JSObject>(iter));
+    return PreventExtensions(PrototypeIterator::GetCurrent<JSObject>(iter),
+                             should_throw);
   }
 
   // It's not possible to seal objects with external array elements
@@ -6778,21 +6800,6 @@ Maybe<bool> JSObject::PreventExtensionsInternal(Handle<JSObject> object) {
         Nothing<bool>());
   }
   return Just(true);
-}
-
-
-static MaybeHandle<Object> ReturnObjectOrThrowTypeError(
-    Handle<JSObject> object, Maybe<bool> maybe, MessageTemplate::Template msg) {
-  if (!maybe.IsJust()) return MaybeHandle<Object>();
-  if (maybe.FromJust()) return object;
-  Isolate* isolate = object->GetIsolate();
-  THROW_NEW_ERROR(isolate, NewTypeError(msg), Object);
-}
-
-
-MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
-  return ReturnObjectOrThrowTypeError(object, PreventExtensionsInternal(object),
-                                      MessageTemplate::kCannotPreventExt);
 }
 
 
@@ -6837,7 +6844,8 @@ static void ApplyAttributesToDictionary(Dictionary* dictionary,
 
 
 template <PropertyAttributes attrs>
-Maybe<bool> JSObject::PreventExtensionsWithTransition(Handle<JSObject> object) {
+Maybe<bool> JSObject::PreventExtensionsWithTransition(
+    Handle<JSObject> object, ShouldThrow should_throw) {
   STATIC_ASSERT(attrs == NONE || attrs == SEALED || attrs == FROZEN);
 
   // Sealing/freezing sloppy arguments should be handled elsewhere.
@@ -6850,6 +6858,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(Handle<JSObject> object) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     UNREACHABLE();
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kNoAccess));
   }
 
   if (object->IsJSGlobalProxy()) {
@@ -6857,7 +6867,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(Handle<JSObject> object) {
     if (iter.IsAtEnd()) return Just(true);
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return PreventExtensionsWithTransition<attrs>(
-        PrototypeIterator::GetCurrent<JSObject>(iter));
+        PrototypeIterator::GetCurrent<JSObject>(iter), should_throw);
   }
 
   // It's not possible to seal or freeze objects with external array elements
@@ -6944,16 +6954,18 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(Handle<JSObject> object) {
 
 
 MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
-  return ReturnObjectOrThrowTypeError(
-      object, PreventExtensionsWithTransition<FROZEN>(object),
-      MessageTemplate::kCannotPreventExt);
+  return PreventExtensionsWithTransition<FROZEN>(object, THROW_ON_ERROR)
+                 .IsJust()
+             ? object
+             : MaybeHandle<Object>();
 }
 
 
 MaybeHandle<Object> JSObject::Seal(Handle<JSObject> object) {
-  return ReturnObjectOrThrowTypeError(
-      object, PreventExtensionsWithTransition<SEALED>(object),
-      MessageTemplate::kCannotPreventExt);
+  return PreventExtensionsWithTransition<SEALED>(object, THROW_ON_ERROR)
+                 .IsJust()
+             ? object
+             : MaybeHandle<Object>();
 }
 
 

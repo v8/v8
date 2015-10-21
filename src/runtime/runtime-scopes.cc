@@ -864,7 +864,8 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
       }
     }
 
-    JSObject::PreventExtensions(module).Assert();
+    if (JSObject::PreventExtensions(module, THROW_ON_ERROR).IsNothing())
+      DCHECK(false);
   }
 
   DCHECK(!isolate->has_pending_exception());

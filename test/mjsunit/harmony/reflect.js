@@ -247,7 +247,7 @@ function prepare(tgt) {
 
 
 (function testReflectIsExtensibleOnObject() {
-  // This should be the last test as it modifies the objects irreversibly.
+  // This should be the last test on [objects] as it modifies them irreversibly.
   for (let tgt of objects) {
     prepare(tgt);
     if (tgt instanceof Int32Array) continue;  // issue v8:4460
@@ -276,3 +276,26 @@ function prepare(tgt) {
 
 
 // See reflect-enumerate*.js for further tests.
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Reflect.preventExtensions
+
+
+(function testReflectPreventExtensionsArity() {
+  assertEquals(1, Reflect.preventExtensions.length);
+})();
+
+
+(function testReflectPreventExtensionsOnNonObject() {
+  assertThrows(function() { Reflect.preventExtensions(); }, TypeError);
+  assertThrows(function() { Reflect.preventExtensions(42); }, TypeError);
+  assertThrows(function() { Reflect.preventExtensions(null); }, TypeError);
+})();
+
+
+// See reflect-prevent-extensions.js for further tests.
+
+// TODO(neis): Need proxies to test the situation where
+// [[preventExtensions]] returns false.
