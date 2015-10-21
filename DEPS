@@ -8,13 +8,13 @@ vars = {
 
 deps = {
   "v8/build/gyp":
-    Var("git_url") + "/external/gyp.git" + "@" + "01528c7244837168a1c80f06ff60fa5a9793c824",
+    Var("git_url") + "/external/gyp.git" + "@" + "3f21260b43401553c37bb28090b65a75577d5b4e",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "94e4b770ce2f6065d4261d29c32683a6099b9d93",
   "v8/buildtools":
     Var("git_url") + "/chromium/buildtools.git" + "@" + "ef7f1f539cff0441c4401d8c052e54cfd01bff07",
   "v8/tools/swarming_client":
-    Var('git_url') + '/external/swarming.client.git' + '@' + "3db878084b52a5e4eac0a32095e490e1b6ef9526",
+    Var('git_url') + '/external/swarming.client.git' + '@' + "b64f0423ee66e730b0ceb88de8b9b89a98d7b61a",
   "v8/testing/gtest":
     Var("git_url") + "/external/github.com/google/googletest.git" + "@" + "6f8a66431cb592dad629028a50b3dd418a408c87",
   "v8/testing/gmock":
