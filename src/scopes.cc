@@ -377,12 +377,7 @@ Scope* Scope::FinalizeBlockScope() {
   }
 
   // Remove this scope from outer scope.
-  for (int i = 0; i < outer_scope_->inner_scopes_.length(); i++) {
-    if (outer_scope_->inner_scopes_[i] == this) {
-      outer_scope_->inner_scopes_.Remove(i);
-      break;
-    }
-  }
+  outer_scope()->RemoveInnerScope(this);
 
   // Reparent inner scopes.
   for (int i = 0; i < inner_scopes_.length(); i++) {
@@ -395,11 +390,21 @@ Scope* Scope::FinalizeBlockScope() {
   }
 
   // Propagate usage flags to outer scope.
+  // TODO(adamk): Why doesn't this call PropagateScopeInfo()?
   if (uses_arguments()) outer_scope_->RecordArgumentsUsage();
   if (uses_super_property()) outer_scope_->RecordSuperPropertyUsage();
   if (scope_calls_eval_) outer_scope_->RecordEvalCall();
 
   return NULL;
+}
+
+
+void Scope::ReplaceOuterScope(Scope* outer_scope) {
+  DCHECK_NOT_NULL(outer_scope_);
+  outer_scope_->RemoveInnerScope(this);
+  outer_scope_ = outer_scope;
+  outer_scope_->AddInnerScope(this);
+  // TODO(adamk): Do we need to propagate usage flags here?
 }
 
 
@@ -548,15 +553,16 @@ Variable* Scope::DeclareDynamicGlobal(const AstRawString* name) {
 }
 
 
-void Scope::RemoveUnresolved(VariableProxy* var) {
+bool Scope::RemoveUnresolved(VariableProxy* var) {
   // Most likely (always?) any variable we want to remove
   // was just added before, so we search backwards.
   for (int i = unresolved_.length(); i-- > 0;) {
     if (unresolved_[i] == var) {
       unresolved_.Remove(i);
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 
