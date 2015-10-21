@@ -71,6 +71,14 @@ config("external_config") {
   include_dirs = [ "include" ]
 }
 
+# This config should only be applied to code that needs to be explicitly
+# aware of whether we are using startup data or not.
+config("external_startup_data") {
+  if (v8_use_external_startup_data) {
+    defines = [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
+  }
+}
+
 config("features") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
