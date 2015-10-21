@@ -348,6 +348,14 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
   }
+  // Remember that we inlined this function. This needs to be called right
+  // after we ensure deoptimization support so that the code flusher
+  // does not remove the code with the deoptimization support.
+  info_->AddInlinedFunction(info.shared_info());
+
+  // ----------------------------------------------------------------
+  // After this point, we've made a decision to inline this function.
+  // We shall not bailout from inlining if we got here.
 
   TRACE("Inlining %s into %s\n",
         function->shared()->DebugName()->ToCString().get(),
@@ -399,6 +407,8 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
   if (call.formal_arguments() != inlinee_formal_parameters) {
     // In strong mode, in case of too few arguments we need to throw a
     // TypeError so we must not inline this call.
+    // TODO(jarin) This check should be moved before the decision point
+    // above so that we do not compile the function uselessly.
     if (is_strong(info.language_mode()) &&
         call.formal_arguments() < inlinee_formal_parameters) {
       return NoChange();
@@ -406,9 +416,6 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
     frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info(),
                                                    info.zone());
   }
-
-  // Remember that we inlined this function.
-  info_->AddInlinedFunction(info.shared_info());
 
   return InlineCall(node, context, frame_state, start, end);
 }

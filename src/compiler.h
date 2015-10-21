@@ -404,12 +404,27 @@ class CompilationInfo {
 
   bool has_simple_parameters();
 
-  typedef std::vector<Handle<SharedFunctionInfo>> InlinedFunctionList;
+  struct InlinedFunctionHolder {
+    Handle<SharedFunctionInfo> shared_info;
+
+    // Root that holds the unoptimized code of the inlined function alive
+    // (and out of reach of code flushing) until we finish compilation.
+    // Do not remove.
+    Handle<Code> inlined_code_object_root;
+
+    explicit InlinedFunctionHolder(
+        Handle<SharedFunctionInfo> inlined_shared_info)
+        : shared_info(inlined_shared_info),
+          inlined_code_object_root(inlined_shared_info->code()) {}
+  };
+
+  typedef std::vector<InlinedFunctionHolder> InlinedFunctionList;
   InlinedFunctionList const& inlined_functions() const {
     return inlined_functions_;
   }
+
   void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function) {
-    inlined_functions_.push_back(inlined_function);
+    inlined_functions_.push_back(InlinedFunctionHolder(inlined_function));
   }
 
   base::SmartArrayPointer<char> GetDebugName() const;

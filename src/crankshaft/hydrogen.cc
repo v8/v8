@@ -8411,13 +8411,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     }
   }
 
-  // Generate the deoptimization data for the unoptimized version of
-  // the target function if we don't already have it.
-  if (!Compiler::EnsureDeoptimizationSupport(&target_info)) {
-    TraceInline(target, caller, "could not generate deoptimization info");
-    return false;
-  }
-
   // In strong mode it is an error to call a function with too few arguments.
   // In that case do not inline because then the arity check would be skipped.
   if (is_strong(function->language_mode()) &&
@@ -8426,6 +8419,17 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
                 "too few arguments passed to a strong function");
     return false;
   }
+
+  // Generate the deoptimization data for the unoptimized version of
+  // the target function if we don't already have it.
+  if (!Compiler::EnsureDeoptimizationSupport(&target_info)) {
+    TraceInline(target, caller, "could not generate deoptimization info");
+    return false;
+  }
+  // Remember that we inlined this function. This needs to be called right
+  // after the EnsureDeoptimizationSupport call so that the code flusher
+  // does not remove the code with the deoptimization support.
+  top_info()->AddInlinedFunction(target_info.shared_info());
 
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function (so

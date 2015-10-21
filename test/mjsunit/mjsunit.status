@@ -276,8 +276,7 @@
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
-  # Issue 4493: The 'implicit-conversions' is only NO_VARIANTS because of 4493.
-  'strong/implicit-conversions': [PASS, SLOW, NO_VARIANTS],
+  'strong/implicit-conversions': [PASS, SLOW],
   'strong/load-element-mutate-backing-store': [PASS, SLOW],
 }],  # ALWAYS
 
