@@ -466,8 +466,6 @@ class MarkCompactCollector {
   // return true if the sweeper threads are done processing the pages.
   bool IsSweepingCompleted();
 
-  void RefillFreeList(PagedSpace* space);
-
   // Checks if sweeping is in progress right now on any space.
   bool sweeping_in_progress() { return sweeping_in_progress_; }
 
@@ -511,6 +509,20 @@ class MarkCompactCollector {
   // Removes all the slots in the slot buffers that are within the given
   // address range.
   void RemoveObjectSlots(Address start_slot, Address end_slot);
+
+  //
+  // Free lists filled by sweeper and consumed by corresponding spaces
+  // (including compaction spaces).
+  //
+  base::SmartPointer<FreeList>& free_list_old_space() {
+    return free_list_old_space_;
+  }
+  base::SmartPointer<FreeList>& free_list_code_space() {
+    return free_list_code_space_;
+  }
+  base::SmartPointer<FreeList>& free_list_map_space() {
+    return free_list_map_space_;
+  }
 
  private:
   class CompactionTask;
