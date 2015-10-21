@@ -608,7 +608,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
 // jump). Generating a single Merge here, which joins all the deoptimizing
 // controls would generate a lot of these basic blocks, however. So this
 // is disabled for now until splintering is fixed.
-#if 0
+#if 1
   // Generate the single "exit" point, where we get if either all map/instance
   // type checks failed, or one of the assumptions inside one of the cases
   // failes (i.e. failing prototype chain check).
