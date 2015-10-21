@@ -1499,6 +1499,23 @@ BUILTIN(ReflectGet) {
 }
 
 
+// ES6 section 26.1.8 Reflect.getPrototypeOf
+BUILTIN(ReflectGetPrototypeOf) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> target = args.at<Object>(1);
+
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Reflect.getPrototypeOf")));
+  }
+
+  return *Object::GetPrototype(isolate, target);
+}
+
+
 // ES6 section 26.1.9 Reflect.has
 BUILTIN(ReflectHas) {
   HandleScope scope(isolate);

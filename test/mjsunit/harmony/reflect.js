@@ -231,6 +231,26 @@ function prepare(tgt) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Reflect.getPrototypeOf
+
+
+(function testReflectGetPrototypeOfArity() {
+  assertEquals(1, Reflect.getPrototypeOf.length);
+})();
+
+
+(function testReflectDeletePropertyOnNonObject() {
+  assertThrows(function() { Reflect.getPrototypeOf(); }, TypeError);
+  assertThrows(function() { Reflect.getPrototypeOf(42); }, TypeError);
+  assertThrows(function() { Reflect.getPrototypeOf(null); }, TypeError);
+})();
+
+
+// See reflect-get-prototype-of.js for further tests.
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 // Reflect.isExtensible
 
 

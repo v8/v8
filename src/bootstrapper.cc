@@ -2194,6 +2194,8 @@ void Genesis::InitializeGlobal_harmony_reflect() {
                         Builtins::kReflectDeleteProperty, 2, true);
   SimpleInstallFunction(reflect, "get",
                         Builtins::kReflectGet, 3, false);
+  SimpleInstallFunction(reflect, "getPrototypeOf",
+                        Builtins::kReflectGetPrototypeOf, 1, true);
   SimpleInstallFunction(reflect, "has",
                         Builtins::kReflectHas, 2, true);
   SimpleInstallFunction(reflect, "isExtensible",
