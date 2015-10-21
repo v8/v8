@@ -492,8 +492,8 @@
       'target_defaults': {
         'conditions': [
           # Common options for AddressSanitizer, LeakSanitizer,
-          # ThreadSanitizer and MemorySanitizer.
-          ['asan==1 or lsan==1 or tsan==1 or msan==1', {
+          # ThreadSanitizer, MemorySanitizer and CFI builds.
+          ['asan==1 or lsan==1 or tsan==1 or msan==1 or cfi_vptr==1', {
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': [
@@ -1275,7 +1275,7 @@
           ['_toolset=="target"', {
             'cflags': [
               '-fno-sanitize-trap=cfi',
-              '-fsanitize-recover=cfi',
+              '-fno-sanitize-recover=cfi',
             ],
             'cflags_cc!': [
               '-fno-rtti',
@@ -1285,7 +1285,7 @@
             ],
             'ldflags': [
               '-fno-sanitize-trap=cfi',
-              '-fsanitize-recover=cfi',
+              '-fno-sanitize-recover=cfi',
             ],
           }],
         ],
