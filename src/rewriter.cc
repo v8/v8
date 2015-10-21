@@ -25,6 +25,17 @@ class Processor: public AstVisitor {
     InitializeAstVisitor(isolate);
   }
 
+  Processor(Parser* parser, Scope* scope, Variable* result,
+            AstValueFactory* ast_value_factory)
+      : result_(result),
+        result_assigned_(false),
+        replacement_(nullptr),
+        is_set_(false),
+        scope_(scope),
+        factory_(ast_value_factory) {
+    InitializeAstVisitor(parser->stack_limit());
+  }
+
   virtual ~Processor() { }
 
   void Process(ZoneList<Statement*>* statements);
@@ -33,6 +44,17 @@ class Processor: public AstVisitor {
   Zone* zone() { return zone_; }
   Scope* scope() { return scope_; }
   AstNodeFactory* factory() { return &factory_; }
+
+  // Returns ".result = value"
+  Expression* SetResult(Expression* value) {
+    result_assigned_ = true;
+    VariableProxy* result_proxy = factory()->NewVariableProxy(result_);
+    return factory()->NewAssignment(Token::ASSIGN, result_proxy, value,
+                                    RelocInfo::kNoPosition);
+  }
+
+  // Inserts '.result = undefined' in front of the given statement.
+  Statement* AssignUndefinedBefore(Statement* s);
 
  private:
   Variable* result_;
@@ -56,17 +78,6 @@ class Processor: public AstVisitor {
   Zone* zone_;
   Scope* scope_;
   AstNodeFactory factory_;
-
-  // Returns ".result = value"
-  Expression* SetResult(Expression* value) {
-    result_assigned_ = true;
-    VariableProxy* result_proxy = factory()->NewVariableProxy(result_);
-    return factory()->NewAssignment(
-        Token::ASSIGN, result_proxy, value, RelocInfo::kNoPosition);
-  }
-
-  // Inserts '.result = undefined' in front of the given statement.
-  Statement* AssignUndefinedBefore(Statement* s);
 
   // Node visitors.
 #define DEF_VISIT(type) virtual void Visit##type(type* node) override;
@@ -358,6 +369,32 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     }
   }
 
+  return true;
+}
+
+
+bool Rewriter::Rewrite(Parser* parser, DoExpression* expr,
+                       AstValueFactory* factory) {
+  Block* block = expr->block();
+  Scope* scope = block->scope();
+  ZoneList<Statement*>* body = block->statements();
+  VariableProxy* result = expr->result();
+  Variable* result_var = result->var();
+
+  if (!body->is_empty()) {
+    Processor processor(parser, scope, result_var, factory);
+    processor.Process(body);
+    if (processor.HasStackOverflow()) return false;
+
+    if (!processor.result_assigned()) {
+      AstNodeFactory* node_factory = processor.factory();
+      Expression* undef =
+          node_factory->NewUndefinedLiteral(RelocInfo::kNoPosition);
+      Statement* completion = node_factory->NewExpressionStatement(
+          processor.SetResult(undef), expr->position());
+      body->Add(completion, factory->zone());
+    }
+  }
   return true;
 }
 

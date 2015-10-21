@@ -350,6 +350,13 @@ void AstTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 }
 
 
+void AstTyper::VisitDoExpression(DoExpression* expr) {
+  RECURSE(VisitBlock(expr->block()));
+  RECURSE(VisitVariableProxy(expr->result()));
+  NarrowType(expr, expr->result()->bounds());
+}
+
+
 void AstTyper::VisitConditional(Conditional* expr) {
   // Collect type feedback.
   expr->condition()->RecordToBooleanTypeFeedback(oracle());

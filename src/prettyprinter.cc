@@ -228,6 +228,9 @@ void CallPrinter::VisitClassLiteral(ClassLiteral* node) {
 void CallPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {}
 
 
+void CallPrinter::VisitDoExpression(DoExpression* node) { Find(node->block()); }
+
+
 void CallPrinter::VisitConditional(Conditional* node) {
   Find(node->condition());
   Find(node->then_expression());
@@ -698,6 +701,13 @@ void PrettyPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {
   Print("(");
   PrintLiteral(node->name(), false);
   Print(")");
+}
+
+
+void PrettyPrinter::VisitDoExpression(DoExpression* node) {
+  Print("(do {");
+  PrintStatements(node->block()->statements());
+  Print("})");
 }
 
 
@@ -1422,6 +1432,12 @@ void AstPrinter::PrintProperties(
 void AstPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {
   IndentedScope indent(this, "NATIVE FUNC LITERAL", node->position());
   PrintLiteralIndented("NAME", node->name(), false);
+}
+
+
+void AstPrinter::VisitDoExpression(DoExpression* node) {
+  IndentedScope indent(this, "DO EXPRESSION", node->position());
+  PrintStatements(node->block()->statements());
 }
 
 

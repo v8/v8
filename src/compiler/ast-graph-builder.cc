@@ -1657,6 +1657,12 @@ void AstGraphBuilder::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 }
 
 
+void AstGraphBuilder::VisitDoExpression(DoExpression* expr) {
+  VisitBlock(expr->block());
+  VisitVariableProxy(expr->result());
+}
+
+
 void AstGraphBuilder::VisitConditional(Conditional* expr) {
   IfBuilder compare_if(this);
   VisitForTest(expr->condition());

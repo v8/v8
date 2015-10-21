@@ -88,6 +88,7 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::FunctionLiteral FunctionLiteralT;
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
+  typedef typename Traits::Type::StatementList StatementListT;
 
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension, AstValueFactory* ast_value_factory,
@@ -117,7 +118,8 @@ class ParserBase : public Traits {
         allow_harmony_spread_arrays_(false),
         allow_harmony_new_target_(false),
         allow_strong_mode_(false),
-        allow_legacy_const_(true) {}
+        allow_legacy_const_(true),
+        allow_harmony_do_expressions_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -136,7 +138,10 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_new_target);
   ALLOW_ACCESSORS(strong_mode);
   ALLOW_ACCESSORS(legacy_const);
+  ALLOW_ACCESSORS(harmony_do_expressions);
 #undef ALLOW_ACCESSORS
+
+  uintptr_t stack_limit() const { return stack_limit_; }
 
  protected:
   enum AllowRestrictedIdentifiers {
@@ -842,6 +847,7 @@ class ParserBase : public Traits {
   bool allow_harmony_new_target_;
   bool allow_strong_mode_;
   bool allow_legacy_const_;
+  bool allow_harmony_do_expressions_;
 };
 
 
@@ -1698,6 +1704,7 @@ class PreParserTraits {
 
   // Temporary glue; these functions will move to ParserBase.
   PreParserExpression ParseV8Intrinsic(bool* ok);
+  V8_INLINE PreParserExpression ParseDoExpression(bool* ok);
   PreParserExpression ParseFunctionLiteral(
       PreParserIdentifier name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
@@ -1838,6 +1845,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseObjectLiteral(bool* ok);
   Expression ParseV8Intrinsic(bool* ok);
+  Expression ParseDoExpression(bool* ok);
 
   V8_INLINE void SkipLazyFunctionBody(int* materialized_literal_count,
                                       int* expected_property_count, bool* ok);
@@ -1900,6 +1908,11 @@ void PreParserTraits::ParseArrowFunctionFormalParameterList(
     ++parameters->materialized_literals_count;
     pre_parser_->function_state_->NextMaterializedLiteralIndex();
   }
+}
+
+
+PreParserExpression PreParserTraits::ParseDoExpression(bool* ok) {
+  return pre_parser_->ParseDoExpression(ok);
 }
 
 
@@ -2223,6 +2236,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
   //   ClassLiteral
   //   '(' Expression ')'
   //   TemplateLiteral
+  //   do Block
 
   int beg_pos = scanner()->peek_location().beg_pos;
   int end_pos = scanner()->peek_location().end_pos;
@@ -2401,6 +2415,15 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::MOD:
       if (allow_natives() || extension_ != NULL) {
         result = this->ParseV8Intrinsic(CHECK_OK);
+        break;
+      }
+
+    case Token::DO:
+      // TODO(caitp): reorganize ParsePrimaryExpression() to not require this
+      // extra `token == Token::DO` test due to potential fall-through
+      if (token == Token::DO && allow_harmony_do_expressions()) {
+        BindingPatternUnexpectedToken(classifier);
+        result = Traits::ParseDoExpression(CHECK_OK);
         break;
       }
       // If we're not allowing special syntax we fall-through to the

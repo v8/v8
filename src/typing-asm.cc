@@ -436,6 +436,11 @@ void AsmTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 }
 
 
+void AsmTyper::VisitDoExpression(DoExpression* expr) {
+  FAIL(expr, "do-expression encountered");
+}
+
+
 void AsmTyper::VisitConditional(Conditional* expr) {
   RECURSE(VisitWithExpectation(expr->condition(), cache_.kInt32,
                                "condition expected to be integer"));

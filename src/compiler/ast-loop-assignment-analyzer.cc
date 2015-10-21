@@ -77,6 +77,12 @@ void ALAA::VisitSuperCallReference(SuperCallReference* leaf) {}
 void ALAA::VisitBlock(Block* stmt) { VisitStatements(stmt->statements()); }
 
 
+void ALAA::VisitDoExpression(DoExpression* expr) {
+  Visit(expr->block());
+  Visit(expr->result());
+}
+
+
 void ALAA::VisitExpressionStatement(ExpressionStatement* stmt) {
   Visit(stmt->expression());
 }

@@ -57,6 +57,7 @@ namespace internal {
   V(kDestinationOfCopyNotAligned, "Destination of copy not aligned")           \
   V(kDontDeleteCellsCannotContainTheHole,                                      \
     "DontDelete cells can't contain the hole")                                 \
+  V(kDoExpression, "Do expression encountered")                                \
   V(kDoPushArgumentNotImplementedForDoubleType,                                \
     "DoPushArgument not implemented for double type")                          \
   V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")            \

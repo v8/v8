@@ -196,6 +196,12 @@ void AstExpressionVisitor::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {}
 
 
+void AstExpressionVisitor::VisitDoExpression(DoExpression* expr) {
+  RECURSE(VisitBlock(expr->block()));
+  RECURSE(VisitVariableProxy(expr->result()));
+}
+
+
 void AstExpressionVisitor::VisitConditional(Conditional* expr) {
   RECURSE(Visit(expr->condition()));
   RECURSE(Visit(expr->then_expression()));

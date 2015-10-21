@@ -2161,6 +2161,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tostring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_completion)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tolength)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
 
 
 static void SimpleInstallFunction(Handle<JSObject>& base, const char* name,
@@ -2632,6 +2633,7 @@ bool Genesis::InstallExperimentalNatives() {
                                                nullptr};
   static const char* harmony_tolength_natives[] = {nullptr};
   static const char* harmony_completion_natives[] = {nullptr};
+  static const char* harmony_do_expressions_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

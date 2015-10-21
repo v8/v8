@@ -5535,6 +5535,11 @@ void HOptimizedGraphBuilder::VisitNativeFunctionLiteral(
 }
 
 
+void HOptimizedGraphBuilder::VisitDoExpression(DoExpression* expr) {
+  UNREACHABLE();
+}
+
+
 void HOptimizedGraphBuilder::VisitConditional(Conditional* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);

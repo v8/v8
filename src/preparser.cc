@@ -1239,6 +1239,23 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   return Expression::Default();
 }
 
+
+PreParserExpression PreParser::ParseDoExpression(bool* ok) {
+  // AssignmentExpression ::
+  //     do '{' StatementList '}'
+  Expect(Token::DO, CHECK_OK);
+  Expect(Token::LBRACE, CHECK_OK);
+  Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
+  {
+    BlockState block_state(&scope_, block_scope);
+    while (peek() != Token::RBRACE) {
+      ParseStatementListItem(CHECK_OK);
+    }
+    Expect(Token::RBRACE, CHECK_OK);
+    return PreParserExpression::Default();
+  }
+}
+
 #undef CHECK_OK
 
 

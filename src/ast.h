@@ -90,7 +90,8 @@ namespace internal {
   V(SuperPropertyReference)     \
   V(SuperCallReference)         \
   V(CaseClause)                 \
-  V(EmptyParentheses)
+  V(EmptyParentheses)           \
+  V(DoExpression)
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
@@ -487,6 +488,29 @@ class Block final : public BreakableStatement {
   ZoneList<Statement*> statements_;
   bool ignore_completion_value_;
   Scope* scope_;
+};
+
+
+class DoExpression final : public Expression {
+ public:
+  DECLARE_NODE_TYPE(DoExpression)
+
+  Block* block() { return block_; }
+  VariableProxy* result() { return result_; }
+
+ protected:
+  DoExpression(Zone* zone, Block* block, VariableProxy* result, int pos)
+      : Expression(zone, pos), block_(block), result_(result) {
+    DCHECK_NOT_NULL(block_);
+    DCHECK_NOT_NULL(result_);
+  }
+  static int parent_num_ids() { return Expression::num_ids(); }
+
+ private:
+  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
+
+  Block* block_;
+  VariableProxy* result_;
 };
 
 
@@ -3195,6 +3219,11 @@ class AstVisitor BASE_EMBEDDED {
     stack_overflow_ = false;                                \
   }                                                         \
                                                             \
+  void InitializeAstVisitor(uintptr_t stack_limit) {        \
+    stack_limit_ = stack_limit;                             \
+    stack_overflow_ = false;                                \
+  }                                                         \
+                                                            \
   uintptr_t stack_limit_;                                   \
   bool stack_overflow_
 
@@ -3579,6 +3608,11 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                   int pos) {
     return new (parser_zone_)
         NativeFunctionLiteral(parser_zone_, name, extension, pos);
+  }
+
+  DoExpression* NewDoExpression(Block* block, Variable* result_var, int pos) {
+    VariableProxy* result = NewVariableProxy(result_var, pos);
+    return new (parser_zone_) DoExpression(parser_zone_, block, result, pos);
   }
 
   ThisFunction* NewThisFunction(int pos) {

@@ -514,6 +514,11 @@ void BytecodeGenerator::VisitNativeFunctionLiteral(
 }
 
 
+void BytecodeGenerator::VisitDoExpression(DoExpression* expr) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGenerator::VisitConditional(Conditional* expr) { UNIMPLEMENTED(); }
 
 
