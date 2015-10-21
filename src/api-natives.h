@@ -44,6 +44,10 @@ class ApiNatives {
                               Handle<Name> name, Handle<Object> value,
                               PropertyAttributes attributes);
 
+  static void AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
+                              Handle<Name> name, v8::Intrinsic intrinsic,
+                              PropertyAttributes attributes);
+
   static void AddAccessorProperty(Isolate* isolate, Handle<TemplateInfo> info,
                                   Handle<Name> name, Handle<Object> getter,
                                   Handle<Object> setter,

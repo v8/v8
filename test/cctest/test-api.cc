@@ -21921,3 +21921,36 @@ TEST(AccessCheckedIsConcatSpreadable) {
   ExpectTrue("result.length === 1");
   ExpectTrue("object[Symbol.isConcatSpreadable] === undefined");
 }
+
+
+TEST(ObjectTemplateIntrinsics) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  Local<ObjectTemplate> object_template = v8::ObjectTemplate::New(isolate);
+  object_template->SetIntrinsicDataProperty(v8_str("values"),
+                                            v8::kArrayProto_values);
+  Local<Object> object = object_template->NewInstance();
+
+  env->Global()->Set(v8_str("obj1"), object);
+  ExpectString("typeof obj1.values", "function");
+
+  auto values = Local<Function>::Cast(object->Get(v8_str("values")));
+  auto fn = v8::Utils::OpenHandle(*values);
+  auto ctx = v8::Utils::OpenHandle(*env.local());
+  CHECK_EQ(fn->GetCreationContext(), *ctx);
+
+  {
+    LocalContext env2;
+    Local<Object> object2 = object_template->NewInstance();
+    env2->Global()->Set(v8_str("obj2"), object2);
+    ExpectString("typeof obj2.values", "function");
+    CHECK_NE(*object->Get(v8_str("values")), *object2->Get(v8_str("values")));
+
+    auto values2 = Local<Function>::Cast(object2->Get(v8_str("values")));
+    auto fn2 = v8::Utils::OpenHandle(*values2);
+    auto ctx2 = v8::Utils::OpenHandle(*env2.local());
+    CHECK_EQ(fn2->GetCreationContext(), *ctx2);
+  }
+}

@@ -4008,6 +4008,15 @@ class V8_EXPORT External : public Value {
 };
 
 
+#define V8_INTRINSICS_LIST(F) F(ArrayProto_values, array_values_iterator)
+
+enum Intrinsic {
+#define V8_DECL_INTRINSIC(name, iname) k##name,
+  V8_INTRINSICS_LIST(V8_DECL_INTRINSIC)
+#undef V8_DECL_INTRINSIC
+};
+
+
 // --- Templates ---
 
 
@@ -4076,6 +4085,13 @@ class V8_EXPORT Template : public Data {
       Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
       Local<AccessorSignature> signature = Local<AccessorSignature>(),
       AccessControl settings = DEFAULT);
+
+  /**
+   * During template instantiation, sets the value with the intrinsic property
+   * from the correct context.
+   */
+  void SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
+                                PropertyAttribute attribute = None);
 
  private:
   Template();

@@ -1352,6 +1352,18 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
 }
 
 
+void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
+                                        PropertyAttribute attribute) {
+  auto templ = Utils::OpenHandle(this);
+  i::Isolate* isolate = templ->GetIsolate();
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
+                                 intrinsic,
+                                 static_cast<PropertyAttributes>(attribute));
+}
+
+
 void ObjectTemplate::SetAccessor(v8::Local<String> name,
                                  AccessorGetterCallback getter,
                                  AccessorSetterCallback setter,

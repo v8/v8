@@ -148,6 +148,20 @@ class AccessCheckDisableScope {
 };
 
 
+Object* GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
+  Handle<Context> native_context = isolate->native_context();
+  DCHECK(!native_context.is_null());
+  switch (intrinsic) {
+#define GET_INTRINSIC_VALUE(name, iname) \
+  case v8::k##name:                      \
+    return native_context->iname();
+    V8_INTRINSICS_LIST(GET_INTRINSIC_VALUE)
+#undef GET_INTRINSIC_VALUE
+  }
+  return nullptr;
+}
+
+
 MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
                                         Handle<TemplateInfo> data) {
   auto property_list = handle(data->property_list(), isolate);
@@ -162,22 +176,39 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   int i = 0;
   for (int c = 0; c < data->number_of_properties(); c++) {
     auto name = handle(Name::cast(properties.get(i++)), isolate);
-    PropertyDetails details(Smi::cast(properties.get(i++)));
-    PropertyAttributes attributes = details.attributes();
-    PropertyKind kind = details.kind();
+    auto bit = handle(properties.get(i++), isolate);
+    if (bit->IsSmi()) {
+      PropertyDetails details(Smi::cast(*bit));
+      PropertyAttributes attributes = details.attributes();
+      PropertyKind kind = details.kind();
 
-    if (kind == kData) {
-      auto prop_data = handle(properties.get(i++), isolate);
+      if (kind == kData) {
+        auto prop_data = handle(properties.get(i++), isolate);
+
+        RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
+                                                        prop_data, attributes),
+                            JSObject);
+      } else {
+        auto getter = handle(properties.get(i++), isolate);
+        auto setter = handle(properties.get(i++), isolate);
+        RETURN_ON_EXCEPTION(isolate,
+                            DefineAccessorProperty(isolate, obj, name, getter,
+                                                   setter, attributes),
+                            JSObject);
+      }
+    } else {
+      // Intrinsic data property --- Get appropriate value from the current
+      // context.
+      PropertyDetails details(Smi::cast(properties.get(i++)));
+      PropertyAttributes attributes = details.attributes();
+      DCHECK_EQ(kData, details.kind());
+
+      v8::Intrinsic intrinsic =
+          static_cast<v8::Intrinsic>(Smi::cast(properties.get(i++))->value());
+      auto prop_data = handle(GetIntrinsic(isolate, intrinsic), isolate);
 
       RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
                                                       prop_data, attributes),
-                          JSObject);
-    } else {
-      auto getter = handle(properties.get(i++), isolate);
-      auto setter = handle(properties.get(i++), isolate);
-      RETURN_ON_EXCEPTION(isolate,
-                          DefineAccessorProperty(isolate, obj, name, getter,
-                                                 setter, attributes),
                           JSObject);
     }
   }
@@ -373,6 +404,19 @@ void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
   PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
   auto details_handle = handle(details.AsSmi(), isolate);
   Handle<Object> data[kSize] = {name, details_handle, value};
+  AddPropertyToPropertyList(isolate, info, kSize, data);
+}
+
+
+void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
+                                 Handle<Name> name, v8::Intrinsic intrinsic,
+                                 PropertyAttributes attributes) {
+  const int kSize = 4;
+  auto value = handle(Smi::FromInt(intrinsic), isolate);
+  auto intrinsic_marker = isolate->factory()->true_value();
+  PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
+  auto details_handle = handle(details.AsSmi(), isolate);
+  Handle<Object> data[kSize] = {name, intrinsic_marker, details_handle, value};
   AddPropertyToPropertyList(isolate, info, kSize, data);
 }
 
