@@ -3498,13 +3498,19 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           return BuildThrowConstAssignError(bailout_id);
         }
         return value;
+      } else if (mode == LET && op == Token::INIT_LET) {
+        // No initialization check needed because scoping guarantees it. Note
+        // that we still perform a lookup to keep the variable live, because
+        // baseline code might contain debug code that inspects the variable.
+        Node* current = environment()->Lookup(variable);
+        CHECK_NOT_NULL(current);
       } else if (mode == LET && op != Token::INIT_LET) {
         // Perform an initialization check for let declared variables.
         Node* current = environment()->Lookup(variable);
         if (current->op() == the_hole->op()) {
-          value = BuildThrowReferenceError(variable, bailout_id);
+          return BuildThrowReferenceError(variable, bailout_id);
         } else if (current->opcode() == IrOpcode::kPhi) {
-          value = BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+          BuildHoleCheckThenThrow(current, variable, value, bailout_id);
         }
       } else if (mode == CONST && op == Token::INIT_CONST) {
         // Perform an initialization check for const {this} variables.

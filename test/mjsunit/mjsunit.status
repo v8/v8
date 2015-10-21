@@ -154,7 +154,6 @@
 
   # Issue 4493: Bugs due to --turbo-inlining.
   'sparse-array-reverse': [PASS, NO_VARIANTS],
-  'harmony/reflect': [PASS, NO_VARIANTS],
 
   # Assumptions about optimization need investigation in TurboFan.
   'compiler/inlined-call': [PASS, NO_VARIANTS],
