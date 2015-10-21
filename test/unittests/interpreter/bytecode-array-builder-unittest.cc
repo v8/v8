@@ -178,12 +178,12 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
         builder.set_parameter_count(0);
         builder.set_locals_count(locals);
         builder.set_context_count(contexts);
-        builder.Return();
 
         TemporaryRegisterScope temporaries(&builder);
         for (int i = 0; i < temps; i++) {
-          temporaries.NewRegister();
+          builder.StoreAccumulatorInRegister(temporaries.NewRegister());
         }
+        builder.Return();
 
         Handle<BytecodeArray> the_array = builder.ToBytecodeArray();
         int total_registers = locals + contexts + temps;
@@ -244,6 +244,32 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
   Register param0(builder.Parameter(0));
   Register param9(builder.Parameter(9));
   CHECK_EQ(param9.index() - param0.index(), 9);
+}
+
+
+TEST_F(BytecodeArrayBuilderTest, RegisterType) {
+  BytecodeArrayBuilder builder(isolate(), zone());
+  builder.set_parameter_count(10);
+  builder.set_locals_count(3);
+  builder.set_context_count(0);
+
+  TemporaryRegisterScope temporary_register_scope(&builder);
+  Register temp0 = temporary_register_scope.NewRegister();
+  Register param0(builder.Parameter(0));
+  Register param9(builder.Parameter(9));
+  Register temp1 = temporary_register_scope.NewRegister();
+  Register reg0(0);
+  Register reg1(1);
+  Register reg2(2);
+  Register temp2 = temporary_register_scope.NewRegister();
+  CHECK_EQ(builder.RegisterIsParameterOrLocal(temp0), false);
+  CHECK_EQ(builder.RegisterIsParameterOrLocal(temp1), false);
+  CHECK_EQ(builder.RegisterIsParameterOrLocal(temp2), false);
+  CHECK_EQ(builder.RegisterIsParameterOrLocal(param0), true);
+  CHECK_EQ(builder.RegisterIsParameterOrLocal(param9), true);
+  CHECK_EQ(builder.RegisterIsParameterOrLocal(reg0), true);
+  CHECK_EQ(builder.RegisterIsParameterOrLocal(reg1), true);
+  CHECK_EQ(builder.RegisterIsParameterOrLocal(reg2), true);
 }
 
 

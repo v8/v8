@@ -31,14 +31,17 @@ class BytecodeGenerator : public AstVisitor {
   class ContextScope;
   class ControlScope;
   class ControlScopeForIteration;
+  class ExpressionResultScope;
+  class EffectResultScope;
+  class AccumulatorResultScope;
+  class RegisterResultScope;
 
   void MakeBytecodeBody();
   Register NextContextRegister() const;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
-  Register VisitArguments(ZoneList<Expression*>* arguments,
-                          TemporaryRegisterScope* caller_scope);
+  Register VisitArguments(ZoneList<Expression*>* arguments);
   void VisitArithmeticExpression(BinaryOperation* binop);
   void VisitCommaExpression(BinaryOperation* binop);
   void VisitLogicalOrExpression(BinaryOperation* binop);
@@ -61,6 +64,20 @@ class BytecodeGenerator : public AstVisitor {
   void VisitTypeOf(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
 
+  // Visitors for obtaining expression result in the accumulator, in a
+  // register, or just getting the effect.
+  void VisitForAccumulatorValue(Expression* expression);
+  MUST_USE_RESULT Register VisitForRegisterValue(Expression* expression);
+  void VisitForEffect(Expression* node);
+
+  // Methods marking the start and end of binary expressions.
+  void PrepareForBinaryExpression();
+  void CompleteBinaryExpression();
+
+  // Methods for tracking and remapping register.
+  void RecordStoreToRegister(Register reg);
+  Register LoadFromAliasedRegister(Register reg);
+
   inline BytecodeArrayBuilder* builder() { return &builder_; }
 
   inline Isolate* isolate() const { return isolate_; }
@@ -79,6 +96,10 @@ class BytecodeGenerator : public AstVisitor {
   inline void set_execution_context(ContextScope* context) {
     execution_context_ = context;
   }
+  inline void set_execution_result(ExpressionResultScope* execution_result) {
+    execution_result_ = execution_result;
+  }
+  ExpressionResultScope* execution_result() const { return execution_result_; }
 
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   inline LanguageMode language_mode() const;
@@ -93,6 +114,10 @@ class BytecodeGenerator : public AstVisitor {
   ZoneVector<Handle<Object>> globals_;
   ControlScope* execution_control_;
   ContextScope* execution_context_;
+  ExpressionResultScope* execution_result_;
+
+  int binary_expression_depth_;
+  ZoneSet<int> binary_expression_hazard_set_;
 };
 
 }  // namespace interpreter

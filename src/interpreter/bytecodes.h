@@ -211,8 +211,18 @@ class Register {
                             Register reg4 = Register(),
                             Register reg5 = Register());
 
-  bool operator==(const Register& o) const { return o.index() == index(); }
-  bool operator!=(const Register& o) const { return o.index() != index(); }
+  bool operator==(const Register& other) const {
+    return index() == other.index();
+  }
+  bool operator!=(const Register& other) const {
+    return index() != other.index();
+  }
+  bool operator<(const Register& other) const {
+    return index() < other.index();
+  }
+  bool operator<=(const Register& other) const {
+    return index() <= other.index();
+  }
 
  private:
   static const int kIllegalIndex = kMaxInt;
