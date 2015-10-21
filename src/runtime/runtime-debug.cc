@@ -1449,7 +1449,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   HandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  return *Object::GetPrototypeSkipHiddenPrototypes(isolate, obj);
+  return *Object::GetPrototype(isolate, obj);
 }
 
 

@@ -17989,13 +17989,6 @@ THREADED_TEST(Regress93759) {
     Object::New(isolate);
   object_with_hidden->SetPrototype(hidden_prototype);
 
-  // Hidden prototype with security check on the hidden prototype.
-  Local<Object> protected_hidden_prototype =
-      protected_hidden_proto_template->GetFunction()->NewInstance();
-  Local<Object> object_with_protected_hidden =
-    Object::New(isolate);
-  object_with_protected_hidden->SetPrototype(protected_hidden_prototype);
-
   context->Exit();
 
   // Template for object for second context. Values to test are put on it as
@@ -18006,7 +17999,6 @@ THREADED_TEST(Regress93759) {
   global_template->Set(v8_str("global"), global_object);
   global_template->Set(v8_str("proxy"), proxy_object);
   global_template->Set(v8_str("hidden"), object_with_hidden);
-  global_template->Set(v8_str("phidden"), object_with_protected_hidden);
 
   LocalContext context2(NULL, global_template);
 
@@ -18025,9 +18017,6 @@ THREADED_TEST(Regress93759) {
   Local<Value> result5 = CompileRun("Object.getPrototypeOf(hidden)");
   CHECK(result5->Equals(
       object_with_hidden->GetPrototype()->ToObject(isolate)->GetPrototype()));
-
-  Local<Value> result6 = CompileRun("Object.getPrototypeOf(phidden)");
-  CHECK(result6->IsNull());
 }
 
 

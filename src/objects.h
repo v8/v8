@@ -1290,8 +1290,9 @@ class Object {
       Isolate* isolate, Handle<Object> object, uint32_t index,
       Handle<Object> value, LanguageMode language_mode);
 
-  static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
-      Isolate* isolate, Handle<Object> receiver);
+  // Get the first non-hidden prototype.
+  static inline Handle<Object> GetPrototype(Isolate* isolate,
+                                            Handle<Object> receiver);
 
   bool HasInPrototypeChain(Isolate* isolate, Object* object);
 

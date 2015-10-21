@@ -13886,7 +13886,7 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   const bool observed = from_javascript && object->map()->is_observed();
   Handle<Object> old_value;
   if (observed) {
-    old_value = Object::GetPrototypeSkipHiddenPrototypes(isolate, object);
+    old_value = Object::GetPrototype(isolate, object);
   }
 
   Handle<Object> result;
@@ -13895,8 +13895,7 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
       Object);
 
   if (observed) {
-    Handle<Object> new_value =
-        Object::GetPrototypeSkipHiddenPrototypes(isolate, object);
+    Handle<Object> new_value = Object::GetPrototype(isolate, object);
     if (!new_value->SameValue(*old_value)) {
       RETURN_ON_EXCEPTION(isolate,
                           JSObject::EnqueueChangeRecord(
