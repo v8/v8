@@ -54,6 +54,7 @@
   ((x, [y = x]) => assertEquals(42, y))(42, []);
 })();
 
+
 (function testMultiScopeCapture() {
   "use strict";
   var x = 1;
@@ -66,4 +67,32 @@
       assertEquals(4, b);
     })(3, 4);
   }
+})();
+
+
+(function testSuper() {
+  "use strict";
+  class A {
+    x() { return 42; }
+  }
+
+  class B extends A {
+    y() {
+      ((q = super.x()) => assertEquals(42, q))();
+    }
+  }
+
+  new B().y();
+
+  class C {
+    constructor() { return { prop: 42 } }
+  }
+
+  class D extends C{
+    constructor() {
+      ((q = super()) => assertEquals(42, q.prop))();
+    }
+  }
+
+  new D();
 })();

@@ -378,10 +378,19 @@ void AstExpressionVisitor::VisitEmptyParentheses(EmptyParentheses* expr) {}
 
 
 void AstExpressionVisitor::VisitSuperPropertyReference(
-    SuperPropertyReference* expr) {}
+    SuperPropertyReference* expr) {
+  VisitExpression(expr);
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_var()));
+  RECURSE_EXPRESSION(Visit(expr->home_object()));
+}
 
 
-void AstExpressionVisitor::VisitSuperCallReference(SuperCallReference* expr) {}
+void AstExpressionVisitor::VisitSuperCallReference(SuperCallReference* expr) {
+  VisitExpression(expr);
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_var()));
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->new_target_var()));
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_function_var()));
+}
 
 
 }  // namespace internal
