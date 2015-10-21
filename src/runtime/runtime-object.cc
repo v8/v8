@@ -181,8 +181,6 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  DCHECK(!obj->IsAccessCheckNeeded());
-  DCHECK(!obj->map()->is_observed());
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, JSObject::SetPrototype(obj, prototype, false));
@@ -195,29 +193,6 @@ RUNTIME_FUNCTION(Runtime_SetPrototype) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  if (obj->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), obj)) {
-    isolate->ReportFailedAccessCheck(obj);
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-    return isolate->heap()->undefined_value();
-  }
-  if (obj->map()->is_observed()) {
-    Handle<Object> old_value =
-        Object::GetPrototypeSkipHiddenPrototypes(isolate, obj);
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, JSObject::SetPrototype(obj, prototype, true));
-
-    Handle<Object> new_value =
-        Object::GetPrototypeSkipHiddenPrototypes(isolate, obj);
-    if (!new_value->SameValue(*old_value)) {
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate, JSObject::EnqueueChangeRecord(
-                       obj, "setPrototype", isolate->factory()->proto_string(),
-                       old_value));
-    }
-    return *result;
-  }
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, JSObject::SetPrototype(obj, prototype, true));

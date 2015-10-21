@@ -13881,11 +13881,55 @@ Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
 MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
                                            Handle<Object> value,
                                            bool from_javascript) {
+  Isolate* isolate = object->GetIsolate();
+
+  const bool observed = from_javascript && object->map()->is_observed();
+  Handle<Object> old_value;
+  if (observed) {
+    old_value = Object::GetPrototypeSkipHiddenPrototypes(isolate, object);
+  }
+
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result, SetPrototypeUnobserved(object, value, from_javascript),
+      Object);
+
+  if (observed) {
+    Handle<Object> new_value =
+        Object::GetPrototypeSkipHiddenPrototypes(isolate, object);
+    if (!new_value->SameValue(*old_value)) {
+      RETURN_ON_EXCEPTION(isolate,
+                          JSObject::EnqueueChangeRecord(
+                              object, "setPrototype",
+                              isolate->factory()->proto_string(), old_value),
+                          Object);
+    }
+  }
+
+  return result;
+}
+
+
+MaybeHandle<Object> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
+                                                     Handle<Object> value,
+                                                     bool from_javascript) {
 #ifdef DEBUG
   int size = object->Size();
 #endif
 
   Isolate* isolate = object->GetIsolate();
+
+  if (from_javascript) {
+    if (object->IsAccessCheckNeeded() &&
+        !isolate->MayAccess(handle(isolate->context()), object)) {
+      isolate->ReportFailedAccessCheck(object);
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      return isolate->factory()->undefined_value();
+    }
+  } else {
+    DCHECK(!object->IsAccessCheckNeeded());
+  }
+
   // Strong objects may not have their prototype set via __proto__ or
   // setPrototypeOf.
   if (from_javascript && object->map()->is_strong()) {

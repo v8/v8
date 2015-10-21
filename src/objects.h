@@ -2521,6 +2521,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Handle<JSObject> object, ShouldThrow should_throw);
 
+  MUST_USE_RESULT static MaybeHandle<Object> SetPrototypeUnobserved(
+      Handle<JSObject> object, Handle<Object> value, bool from_javascript);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
 
