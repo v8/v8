@@ -794,13 +794,13 @@ void FullCodeGenerator::VisitVariableDeclaration(
       } else {
         __ push(Immediate(Smi::FromInt(0)));  // Indicates no initial value.
       }
-      __ push(Immediate(variable->DeclarationPropertyAttributes()));
+      __ push(
+          Immediate(Smi::FromInt(variable->DeclarationPropertyAttributes())));
       __ CallRuntime(Runtime::kDeclareLookupSlot, 3);
       break;
     }
   }
 }
-
 
 void FullCodeGenerator::VisitFunctionDeclaration(
     FunctionDeclaration* declaration) {
@@ -843,7 +843,8 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       Comment cmnt(masm_, "[ FunctionDeclaration");
       __ push(Immediate(variable->name()));
       VisitForStackValue(declaration->fun());
-      __ push(Immediate(variable->DeclarationPropertyAttributes()));
+      __ push(
+          Immediate(Smi::FromInt(variable->DeclarationPropertyAttributes())));
       __ CallRuntime(Runtime::kDeclareLookupSlot, 3);
       break;
     }
