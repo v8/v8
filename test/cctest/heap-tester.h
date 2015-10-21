@@ -10,17 +10,19 @@
 
 // Tests that should have access to private methods of {v8::internal::Heap}.
 // Those tests need to be defined using HEAP_TEST(Name) { ... }.
-#define HEAP_TEST_METHODS(V) \
-  V(GCFlags)                 \
-  V(MarkCompactCollector)    \
-  V(NoPromotion)             \
-  V(NumberStringCacheSize)   \
-  V(ObjectGroups)            \
-  V(Promotion)               \
-  V(Regression39128)         \
-  V(ResetWeakHandle)         \
-  V(StressHandles)           \
-  V(TestSizeOfObjects)       \
+#define HEAP_TEST_METHODS(V)            \
+  V(CompactionSpaceDivideMultiplePages) \
+  V(CompactionSpaceDivideSinglePage)    \
+  V(GCFlags)                            \
+  V(MarkCompactCollector)               \
+  V(NoPromotion)                        \
+  V(NumberStringCacheSize)              \
+  V(ObjectGroups)                       \
+  V(Promotion)                          \
+  V(Regression39128)                    \
+  V(ResetWeakHandle)                    \
+  V(StressHandles)                      \
+  V(TestSizeOfObjects)                  \
   V(WriteBarriersInCopyJSObject)
 
 
@@ -52,6 +54,25 @@ class HeapTester {
 
   /* test-api.cc */
   static void ResetWeakHandle(bool global_gc);
+
+  /* test-spaces.cc */
+  static CompactionSpaceCollection** InitializeCompactionSpaces(Heap* heap,
+                                                                int num_spaces);
+  static void DestroyCompactionSpaces(CompactionSpaceCollection** spaces,
+                                      int num_spaces);
+  static void MergeCompactionSpaces(PagedSpace* space,
+                                    CompactionSpaceCollection** spaces,
+                                    int num_spaces);
+  static void AllocateInCompactionSpaces(CompactionSpaceCollection** spaces,
+                                         AllocationSpace id, int num_spaces,
+                                         int num_objects, int object_size);
+  static void CompactionStats(CompactionSpaceCollection** spaces,
+                              AllocationSpace id, int num_spaces,
+                              intptr_t* capacity, intptr_t* size);
+  static void TestCompactionSpaceDivide(int num_additional_objects,
+                                        int object_size,
+                                        int num_compaction_spaces,
+                                        int additional_capacity_in_bytes);
 };
 
 }  // namespace internal
