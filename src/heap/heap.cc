@@ -3047,7 +3047,6 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
     filler->set_map_no_write_barrier(
         reinterpret_cast<Map*>(root(kTwoPointerFillerMapRootIndex)));
   } else {
-    DCHECK_GT(size, 2 * kPointerSize);
     filler->set_map_no_write_barrier(
         reinterpret_cast<Map*>(root(kFreeSpaceMapRootIndex)));
     FreeSpace::cast(filler)->nobarrier_set_size(size);
