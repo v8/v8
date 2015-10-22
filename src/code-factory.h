@@ -62,10 +62,6 @@ class CodeFactory final {
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
-  static Callable LoadGlobalViaContext(Isolate* isolate, int depth);
-  static Callable StoreGlobalViaContext(Isolate* isolate, int depth,
-                                        LanguageMode language_mode);
-
   static Callable InstanceOf(Isolate* isolate);
 
   static Callable ToBoolean(

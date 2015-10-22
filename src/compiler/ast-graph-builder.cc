@@ -3312,21 +3312,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
         // Optimize global constants like "undefined", "Infinity", and "NaN".
         return jsgraph()->Constant(constant_value);
       }
-      Node* script_context = current_context();
-      int slot_index = -1;
-      if (variable->index() > 0) {
-        DCHECK(variable->IsStaticGlobalObjectProperty());
-        slot_index = variable->index();
-        int depth = current_scope()->ContextChainLength(variable->scope());
-        if (depth > 0) {
-          const Operator* op = javascript()->LoadContext(
-              depth - 1, Context::PREVIOUS_INDEX, true);
-          script_context = NewNode(op, current_context());
-        }
-      }
-      Node* global = BuildLoadGlobalObject();
-      Node* value = BuildGlobalLoad(script_context, global, name, feedback,
-                                    typeof_mode, slot_index);
+      Node* value = BuildGlobalLoad(name, feedback, typeof_mode);
       states.AddToNode(value, bailout_id, combine);
       return value;
     }
@@ -3461,23 +3447,9 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       // Global var, const, or let variable.
-      Node* script_context = current_context();
-      int slot_index = -1;
-      if (variable->index() > 0) {
-        DCHECK(variable->IsStaticGlobalObjectProperty());
-        slot_index = variable->index();
-        int depth = current_scope()->ContextChainLength(variable->scope());
-        if (depth > 0) {
-          const Operator* op = javascript()->LoadContext(
-              depth - 1, Context::PREVIOUS_INDEX, true);
-          script_context = NewNode(op, current_context());
-        }
-      }
-      Node* global = BuildLoadGlobalObject();
       Handle<Name> name = variable->name();
       Node* store =
-          BuildGlobalStore(script_context, global, name, value, feedback,
-                           TypeFeedbackId::None(), slot_index);
+          BuildGlobalStore(name, value, feedback, TypeFeedbackId::None());
       states.AddToNode(store, bailout_id, combine);
       return store;
     }
@@ -3701,25 +3673,21 @@ Node* AstGraphBuilder::BuildNamedSuperStore(Node* receiver, Node* home_object,
 }
 
 
-Node* AstGraphBuilder::BuildGlobalLoad(Node* script_context, Node* global,
-                                       Handle<Name> name,
+Node* AstGraphBuilder::BuildGlobalLoad(Handle<Name> name,
                                        const VectorSlotPair& feedback,
-                                       TypeofMode typeof_mode, int slot_index) {
-  const Operator* op =
-      javascript()->LoadGlobal(name, feedback, typeof_mode, slot_index);
-  Node* node = NewNode(op, script_context, global, BuildLoadFeedbackVector());
+                                       TypeofMode typeof_mode) {
+  const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
+  Node* node = NewNode(op, BuildLoadFeedbackVector());
   return Record(js_type_feedback_, node, feedback.slot());
 }
 
 
-Node* AstGraphBuilder::BuildGlobalStore(Node* script_context, Node* global,
-                                        Handle<Name> name, Node* value,
+Node* AstGraphBuilder::BuildGlobalStore(Handle<Name> name, Node* value,
                                         const VectorSlotPair& feedback,
-                                        TypeFeedbackId id, int slot_index) {
+                                        TypeFeedbackId id) {
   const Operator* op =
-      javascript()->StoreGlobal(language_mode(), name, feedback, slot_index);
-  Node* node =
-      NewNode(op, script_context, global, value, BuildLoadFeedbackVector());
+      javascript()->StoreGlobal(language_mode(), name, feedback);
+  Node* node = NewNode(op, value, BuildLoadFeedbackVector());
   if (FLAG_vector_stores) {
     return Record(js_type_feedback_, node, feedback.slot());
   }

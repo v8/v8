@@ -267,8 +267,7 @@ bool operator==(LoadGlobalParameters const& lhs,
                 LoadGlobalParameters const& rhs) {
   return lhs.name().location() == rhs.name().location() &&
          lhs.feedback() == rhs.feedback() &&
-         lhs.typeof_mode() == rhs.typeof_mode() &&
-         lhs.slot_index() == rhs.slot_index();
+         lhs.typeof_mode() == rhs.typeof_mode();
 }
 
 
@@ -279,14 +278,12 @@ bool operator!=(LoadGlobalParameters const& lhs,
 
 
 size_t hash_value(LoadGlobalParameters const& p) {
-  return base::hash_combine(p.name().location(), p.typeof_mode(),
-                            p.slot_index());
+  return base::hash_combine(p.name().location(), p.typeof_mode());
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadGlobalParameters const& p) {
-  return os << Brief(*p.name()) << ", " << p.typeof_mode()
-            << ", slot: " << p.slot_index();
+  return os << Brief(*p.name()) << ", " << p.typeof_mode();
 }
 
 
@@ -300,8 +297,7 @@ bool operator==(StoreGlobalParameters const& lhs,
                 StoreGlobalParameters const& rhs) {
   return lhs.language_mode() == rhs.language_mode() &&
          lhs.name().location() == rhs.name().location() &&
-         lhs.feedback() == rhs.feedback() &&
-         lhs.slot_index() == rhs.slot_index();
+         lhs.feedback() == rhs.feedback();
 }
 
 
@@ -313,13 +309,12 @@ bool operator!=(StoreGlobalParameters const& lhs,
 
 size_t hash_value(StoreGlobalParameters const& p) {
   return base::hash_combine(p.language_mode(), p.name().location(),
-                            p.feedback(), p.slot_index());
+                            p.feedback());
 }
 
 
 std::ostream& operator<<(std::ostream& os, StoreGlobalParameters const& p) {
-  return os << p.language_mode() << ", " << Brief(*p.name())
-            << ", slot: " << p.slot_index();
+  return os << p.language_mode() << ", " << Brief(*p.name());
 }
 
 
@@ -595,26 +590,24 @@ const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
 
 const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
                                               const VectorSlotPair& feedback,
-                                              TypeofMode typeof_mode,
-                                              int slot_index) {
-  LoadGlobalParameters parameters(name, feedback, typeof_mode, slot_index);
+                                              TypeofMode typeof_mode) {
+  LoadGlobalParameters parameters(name, feedback, typeof_mode);
   return new (zone()) Operator1<LoadGlobalParameters>(   // --
       IrOpcode::kJSLoadGlobal, Operator::kNoProperties,  // opcode
       "JSLoadGlobal",                                    // name
-      3, 1, 1, 1, 1, 2,                                  // counts
+      1, 1, 1, 1, 1, 2,                                  // counts
       parameters);                                       // parameter
 }
 
 
 const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
                                                const Handle<Name>& name,
-                                               const VectorSlotPair& feedback,
-                                               int slot_index) {
-  StoreGlobalParameters parameters(language_mode, feedback, name, slot_index);
+                                               const VectorSlotPair& feedback) {
+  StoreGlobalParameters parameters(language_mode, feedback, name);
   return new (zone()) Operator1<StoreGlobalParameters>(   // --
       IrOpcode::kJSStoreGlobal, Operator::kNoProperties,  // opcode
       "JSStoreGlobal",                                    // name
-      4, 1, 1, 0, 1, 2,                                   // counts
+      2, 1, 1, 0, 1, 2,                                   // counts
       parameters);                                        // parameter
 }
 

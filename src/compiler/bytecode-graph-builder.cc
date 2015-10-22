@@ -249,24 +249,6 @@ void BytecodeGraphBuilder::VisitStar(
 }
 
 
-void BytecodeGraphBuilder::VisitLdaGlobal(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
-void BytecodeGraphBuilder::VisitStaGlobalSloppy(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
-void BytecodeGraphBuilder::VisitStaGlobalStrict(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
 void BytecodeGraphBuilder::VisitLdaContextSlot(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

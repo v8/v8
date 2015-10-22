@@ -43,11 +43,6 @@ namespace interpreter {
   V(LdaTrue, OperandType::kNone)                                               \
   V(LdaFalse, OperandType::kNone)                                              \
                                                                                \
-  /* Globals */                                                                \
-  V(LdaGlobal, OperandType::kIdx8)                                             \
-  V(StaGlobalSloppy, OperandType::kIdx8)                                       \
-  V(StaGlobalStrict, OperandType::kIdx8)                                       \
-                                                                               \
   /* Context operations */                                                     \
   V(PushContext, OperandType::kReg8)                                           \
   V(PopContext, OperandType::kReg8)                                            \

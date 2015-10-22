@@ -301,12 +301,10 @@ class AstGraphBuilder : public AstVisitor {
                             const VectorSlotPair& feedback);
 
   // Builders for global variable loads and stores.
-  Node* BuildGlobalLoad(Node* script_context, Node* global, Handle<Name> name,
-                        const VectorSlotPair& feedback, TypeofMode typeof_mode,
-                        int slot_index);
-  Node* BuildGlobalStore(Node* script_context, Node* global, Handle<Name> name,
-                         Node* value, const VectorSlotPair& feedback,
-                         TypeFeedbackId id, int slot_index);
+  Node* BuildGlobalLoad(Handle<Name> name, const VectorSlotPair& feedback,
+                        TypeofMode typeof_mode);
+  Node* BuildGlobalStore(Handle<Name> name, Node* value,
+                         const VectorSlotPair& feedback, TypeFeedbackId id);
 
   // Builders for accessing the function context.
   Node* BuildLoadGlobalObject();

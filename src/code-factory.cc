@@ -138,21 +138,6 @@ Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op,
 
 
 // static
-Callable CodeFactory::LoadGlobalViaContext(Isolate* isolate, int depth) {
-  LoadGlobalViaContextStub stub(isolate, depth);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-
-// static
-Callable CodeFactory::StoreGlobalViaContext(Isolate* isolate, int depth,
-                                            LanguageMode language_mode) {
-  StoreGlobalViaContextStub stub(isolate, depth, language_mode);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-
-// static
 Callable CodeFactory::InstanceOf(Isolate* isolate) {
   InstanceOfStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

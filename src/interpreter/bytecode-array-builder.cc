@@ -264,30 +264,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
 }
 
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(int slot_index) {
-  DCHECK(slot_index >= 0);
-  if (FitsInIdx8Operand(slot_index)) {
-    Output(Bytecode::kLdaGlobal, static_cast<uint8_t>(slot_index));
-  } else {
-    UNIMPLEMENTED();
-  }
-  return *this;
-}
-
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
-    int slot_index, LanguageMode language_mode) {
-  DCHECK(slot_index >= 0);
-  Bytecode bytecode = BytecodeForStoreGlobal(language_mode);
-  if (FitsInIdx8Operand(slot_index)) {
-    Output(bytecode, static_cast<uint8_t>(slot_index));
-  } else {
-    UNIMPLEMENTED();
-  }
-  return *this;
-}
-
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
                                                             int slot_index) {
   DCHECK(slot_index >= 0);
@@ -909,23 +885,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForKeyedStoreIC(
       return Bytecode::kKeyedStoreICSloppy;
     case STRICT:
       return Bytecode::kKeyedStoreICStrict;
-    case STRONG:
-      UNIMPLEMENTED();
-    default:
-      UNREACHABLE();
-  }
-  return static_cast<Bytecode>(-1);
-}
-
-
-// static
-Bytecode BytecodeArrayBuilder::BytecodeForStoreGlobal(
-    LanguageMode language_mode) {
-  switch (language_mode) {
-    case SLOPPY:
-      return Bytecode::kStaGlobalSloppy;
-    case STRICT:
-      return Bytecode::kStaGlobalStrict;
     case STRONG:
       UNIMPLEMENTED();
     default:

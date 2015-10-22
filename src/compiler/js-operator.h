@@ -261,24 +261,18 @@ const NamedAccess& NamedAccessOf(const Operator* op);
 class LoadGlobalParameters final {
  public:
   LoadGlobalParameters(const Handle<Name>& name, const VectorSlotPair& feedback,
-                       TypeofMode typeof_mode, int slot_index)
-      : name_(name),
-        feedback_(feedback),
-        typeof_mode_(typeof_mode),
-        slot_index_(slot_index) {}
+                       TypeofMode typeof_mode)
+      : name_(name), feedback_(feedback), typeof_mode_(typeof_mode) {}
 
   const Handle<Name>& name() const { return name_; }
   TypeofMode typeof_mode() const { return typeof_mode_; }
 
   const VectorSlotPair& feedback() const { return feedback_; }
 
-  int slot_index() const { return slot_index_; }
-
  private:
   const Handle<Name> name_;
   const VectorSlotPair feedback_;
   const TypeofMode typeof_mode_;
-  const int slot_index_;
 };
 
 bool operator==(LoadGlobalParameters const&, LoadGlobalParameters const&);
@@ -297,22 +291,17 @@ class StoreGlobalParameters final {
  public:
   StoreGlobalParameters(LanguageMode language_mode,
                         const VectorSlotPair& feedback,
-                        const Handle<Name>& name, int slot_index)
-      : language_mode_(language_mode),
-        name_(name),
-        feedback_(feedback),
-        slot_index_(slot_index) {}
+                        const Handle<Name>& name)
+      : language_mode_(language_mode), name_(name), feedback_(feedback) {}
 
   LanguageMode language_mode() const { return language_mode_; }
   const VectorSlotPair& feedback() const { return feedback_; }
   const Handle<Name>& name() const { return name_; }
-  int slot_index() const { return slot_index_; }
 
  private:
   const LanguageMode language_mode_;
   const Handle<Name> name_;
   const VectorSlotPair feedback_;
-  int slot_index_;
 };
 
 bool operator==(StoreGlobalParameters const&, StoreGlobalParameters const&);
@@ -472,12 +461,10 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadGlobal(const Handle<Name>& name,
                              const VectorSlotPair& feedback,
-                             TypeofMode typeof_mode = NOT_INSIDE_TYPEOF,
-                             int slot_index = -1);
+                             TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   const Operator* StoreGlobal(LanguageMode language_mode,
                               const Handle<Name>& name,
-                              const VectorSlotPair& feedback,
-                              int slot_index = -1);
+                              const VectorSlotPair& feedback);
 
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);

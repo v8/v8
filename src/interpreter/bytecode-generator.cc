@@ -937,16 +937,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       execution_result()->SetResultInRegister(source);
       break;
     }
-    case VariableLocation::GLOBAL: {
-      // Global var, const, or let variable.
-      // TODO(rmcilroy): If context chain depth is short enough, do this using
-      // a generic version of LoadGlobalViaContextStub rather than calling the
-      // runtime.
-      DCHECK(variable->IsStaticGlobalObjectProperty());
-      builder()->LoadGlobal(variable->index());
-      execution_result()->SetResultInAccumulator();
-      break;
-    }
+    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       TemporaryRegisterScope temporary_register_scope(builder());
       Register obj = temporary_register_scope.NewRegister();
@@ -994,15 +985,7 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
       RecordStoreToRegister(destination);
       break;
     }
-    case VariableLocation::GLOBAL: {
-      // Global var, const, or let variable.
-      // TODO(rmcilroy): If context chain depth is short enough, do this using
-      // a generic version of LoadGlobalViaContextStub rather than calling the
-      // runtime.
-      DCHECK(variable->IsStaticGlobalObjectProperty());
-      builder()->StoreGlobal(variable->index(), language_mode());
-      break;
-    }
+    case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       Register value = execution_result()->NewRegister();
       Register obj = execution_result()->NewRegister();

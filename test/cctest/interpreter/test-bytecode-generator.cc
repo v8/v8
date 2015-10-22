@@ -1019,29 +1019,47 @@ TEST(PropertyCall) {
 TEST(LoadGlobal) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
+  Zone zone;
 
-  if (!FLAG_global_var_shortcuts) return;
+  int context_reg = Register::function_context().index();
+  int global_index = Context::GLOBAL_OBJECT_INDEX;
 
-  ExpectedSnippet<int> snippets[] = {
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddLoadICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<InstanceType> snippets[] = {
       {
           "var a = 1;\nfunction f() { return a; }\nf()",
-          0,
+          kPointerSize,
           1,
-          3,
+          11,
           {
-              B(LdaGlobal), _,  //
-              B(Return)         //
+              B(LdaContextSlot), R(context_reg), U8(global_index),  //
+              B(Star), R(0),                                        //
+              B(LdaConstant), U8(0),                                //
+              B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),   //
+              B(Return)                                             //
           },
+          1,
+          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
       },
       {
           "function t() { }\nfunction f() { return t; }\nf()",
-          0,
+          kPointerSize,
           1,
-          3,
+          11,
           {
-              B(LdaGlobal), _,  //
-              B(Return)         //
+              B(LdaContextSlot), R(context_reg), U8(global_index),  //
+              B(Star), R(0),                                        //
+              B(LdaConstant), U8(0),                                //
+              B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),   //
+              B(Return)                                             //
           },
+          1,
+          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
       },
   };
 
@@ -1056,45 +1074,77 @@ TEST(LoadGlobal) {
 TEST(StoreGlobal) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
+  Zone zone;
 
-  if (!FLAG_global_var_shortcuts) return;
+  int context_reg = Register::function_context().index();
+  int global_index = Context::GLOBAL_OBJECT_INDEX;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddStoreICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   ExpectedSnippet<InstanceType> snippets[] = {
       {
           "var a = 1;\nfunction f() { a = 2; }\nf()",
-          0,
+          3 * kPointerSize,
           1,
-          6,
+          21,
           {
-              B(LdaSmi8), U8(2),      //
-              B(StaGlobalSloppy), _,  //
-              B(LdaUndefined),        //
-              B(Return)               //
+              B(LdaSmi8), U8(2),                                          //
+              B(Star), R(0),                                              //
+              B(LdaContextSlot), R(context_reg), U8(global_index),        //
+              B(Star), R(1),                                              //
+              B(LdaConstant), U8(0),                                      //
+              B(Star), R(2),                                              //
+              B(Ldar), R(0),                                              //
+              B(StoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot1)),  //
+              B(LdaUndefined),                                            //
+              B(Return)                                                   //
           },
+          1,
+          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
       },
       {
           "var a = \"test\"; function f(b) { a = b; }\nf(\"global\")",
-          0,
+          3 * kPointerSize,
           2,
-          6,
+          21,
           {
-              B(Ldar), R(helper.kLastParamIndex),  //
-              B(StaGlobalSloppy), _,               //
-              B(LdaUndefined),                     //
-              B(Return)                            //
+              B(Ldar), R(helper.kLastParamIndex),                         //
+              B(Star), R(0),                                              //
+              B(LdaContextSlot), R(context_reg), U8(global_index),        //
+              B(Star), R(1),                                              //
+              B(LdaConstant), U8(0),                                      //
+              B(Star), R(2),                                              //
+              B(Ldar), R(0),                                              //
+              B(StoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot1)),  //
+              B(LdaUndefined),                                            //
+              B(Return)                                                   //
           },
+          1,
+          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
       },
       {
           "'use strict'; var a = 1;\nfunction f() { a = 2; }\nf()",
-          0,
+          3 * kPointerSize,
           1,
-          6,
+          21,
           {
-              B(LdaSmi8), U8(2),      //
-              B(StaGlobalStrict), _,  //
-              B(LdaUndefined),        //
-              B(Return)               //
+              B(LdaSmi8), U8(2),                                          //
+              B(Star), R(0),                                              //
+              B(LdaContextSlot), R(context_reg), U8(global_index),        //
+              B(Star), R(1),                                              //
+              B(LdaConstant), U8(0),                                      //
+              B(Star), R(2),                                              //
+              B(Ldar), R(0),                                              //
+              B(StoreICStrict), R(1), R(2), U8(vector->GetIndex(slot1)),  //
+              B(LdaUndefined),                                            //
+              B(Return)                                                   //
           },
+          1,
+          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
       },
   };
 
@@ -1109,43 +1159,63 @@ TEST(StoreGlobal) {
 TEST(CallGlobal) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
+  Zone zone;
 
-  if (!FLAG_global_var_shortcuts) return;
+  int context_reg = Register::function_context().index();
+  int global_index = Context::GLOBAL_OBJECT_INDEX;
 
-  ExpectedSnippet<int> snippets[] = {
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddCallICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddLoadICSlot();
+  USE(slot1);
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<InstanceType> snippets[] = {
       {
           "function t() { }\nfunction f() { return t(); }\nf()",
-          2 * kPointerSize,
+          3 * kPointerSize,
           1,
-          12,
+          20,
           {
-              B(LdaUndefined),             //
-              B(Star), R(1),               //
-              B(LdaGlobal), _,             //
-              B(Star), R(0),               //
-              B(Call), R(0), R(1), U8(0),  //
-              B(Return)                    //
+              B(LdaUndefined),                                      //
+              B(Star), R(1),                                        //
+              B(LdaContextSlot), R(context_reg), U8(global_index),  //
+              B(Star), R(2),                                        //
+              B(LdaConstant), U8(0),                                //
+              B(LoadICSloppy), R(2), U8(vector->GetIndex(slot2)),   //
+              B(Star), R(0),                                        //
+              B(Call), R(0), R(1), U8(0),                           //
+              B(Return)                                             //
           },
+          1,
+          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
       },
       {
           "function t(a, b, c) { }\nfunction f() { return t(1, 2, 3); }\nf()",
           5 * kPointerSize,
           1,
-          24,
+          32,
           {
-              B(LdaUndefined),             //
-              B(Star), R(1),               //
-              B(LdaGlobal), _,             //
-              B(Star), R(0),               //
-              B(LdaSmi8), U8(1),           //
-              B(Star), R(2),               //
-              B(LdaSmi8), U8(2),           //
-              B(Star), R(3),               //
-              B(LdaSmi8), U8(3),           //
-              B(Star), R(4),               //
-              B(Call), R(0), R(1), U8(3),  //
-              B(Return)                    //
+              B(LdaUndefined),                                      //
+              B(Star), R(1),                                        //
+              B(LdaContextSlot), R(context_reg), U8(global_index),  //
+              B(Star), R(2),                                        //
+              B(LdaConstant), U8(0),                                //
+              B(LoadICSloppy), R(2), U8(vector->GetIndex(slot2)),   //
+              B(Star), R(0),                                        //
+              B(LdaSmi8), U8(1),                                    //
+              B(Star), R(2),                                        //
+              B(LdaSmi8), U8(2),                                    //
+              B(Star), R(3),                                        //
+              B(LdaSmi8), U8(3),                                    //
+              B(Star), R(4),                                        //
+              B(Call), R(0), R(1), U8(3),                           //
+              B(Return)                                             //
           },
+          1,
+          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
       },
   };
 
@@ -1480,13 +1550,10 @@ TEST(IfConditions) {
 }
 
 
-// Tests !FLAG_global_var_shortcuts mode.
 TEST(DeclareGlobals) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
   Zone zone;
-
-  if (FLAG_global_var_shortcuts) return;
 
   int context_reg = Register::function_context().index();
   int global_index = Context::GLOBAL_OBJECT_INDEX;
@@ -1605,135 +1672,6 @@ TEST(DeclareGlobals) {
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
-  };
-
-  for (size_t i = 0; i < arraysize(snippets); i++) {
-    Handle<BytecodeArray> bytecode_array =
-        helper.MakeTopLevelBytecode(snippets[i].code_snippet);
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
-  }
-}
-
-
-// Tests FLAG_global_var_shortcuts mode.
-// TODO(ishell): remove when FLAG_global_var_shortcuts is removed.
-TEST(DeclareGlobals2) {
-  InitializedHandleScope handle_scope;
-  BytecodeGeneratorHelper helper;
-
-  if (!FLAG_global_var_shortcuts) return;
-
-  ExpectedSnippet<InstanceType> snippets[] = {
-      {"var a = 1;",
-       5 * kPointerSize,
-       1,
-       45,
-       {
-           B(Ldar), R(Register::function_closure().index()),                 //
-           B(Star), R(2),                                                    //
-           B(LdaConstant), U8(0),                                            //
-           B(Star), R(3),                                                    //
-           B(CallRuntime), U16(Runtime::kNewScriptContext), R(2), U8(2),     //
-           B(PushContext), R(1),                                             //
-           B(LdaConstant), U8(1),                                            //
-           B(Star), R(2),                                                    //
-           B(LdaZero),                                                       //
-           B(Star), R(3),                                                    //
-           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(2), U8(2),       //
-           B(LdaConstant), U8(2),                                            //
-           B(Star), R(2),                                                    //
-           B(LdaZero),                                                       //
-           B(Star), R(3),                                                    //
-           B(LdaSmi8), U8(1),                                                //
-           B(Star), R(4),                                                    //
-           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(2), U8(3),  //
-           B(LdaUndefined),                                                  //
-           B(Return),                                                        //
-       },
-       3,
-       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE,
-        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
-      {"function f() {}",
-       3 * kPointerSize,
-       1,
-       29,
-       {
-           B(Ldar), R(Register::function_closure().index()),              //
-           B(Star), R(1),                                                 //
-           B(LdaConstant), U8(0),                                         //
-           B(Star), R(2),                                                 //
-           B(CallRuntime), U16(Runtime::kNewScriptContext), R(1), U8(2),  //
-           B(PushContext), R(0),                                          //
-           B(LdaConstant), U8(1),                                         //
-           B(Star), R(1),                                                 //
-           B(LdaZero),                                                    //
-           B(Star), R(2),                                                 //
-           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),    //
-           B(LdaUndefined),                                               //
-           B(Return)                                                      //
-       },
-       2,
-       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE}},
-      {"var a = 1;\na=2;",
-       5 * kPointerSize,
-       1,
-       52,
-       {
-           B(Ldar), R(Register::function_closure().index()),              //
-           B(Star), R(2),                                                 //
-           B(LdaConstant), U8(0),                                         //
-           B(Star), R(3),                                                 //
-           B(CallRuntime), U16(Runtime::kNewScriptContext), R(2), U8(2),  //
-           B(PushContext), R(1),                                          //
-           B(LdaConstant), U8(1),                                         //
-           B(Star), R(2),                                                 //
-           B(LdaZero),                                                    //
-           B(Star), R(3),                                                 //
-           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(2), U8(2),    //
-           B(LdaConstant), U8(2),                                         //
-           B(Star), R(2),                                                 //
-           B(LdaZero),                                                    //
-           B(Star), R(3),                                                 //
-           B(LdaSmi8), U8(1),                                             //
-           B(Star), R(4),                                                 //
-           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(2),      //
-                           U8(3),                                         //
-           B(LdaSmi8), U8(2),                                             //
-           B(StaGlobalSloppy), _,                                         //
-           B(Star), R(0),                                                 //
-           B(Ldar), R(0),                                                 //
-           B(Return)                                                      //
-       },
-       3,
-       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE,
-        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
-      {"function f() {}\nf();",
-       4 * kPointerSize,
-       1,
-       43,
-       {
-           B(Ldar), R(Register::function_closure().index()),              //
-           B(Star), R(2),                                                 //
-           B(LdaConstant), U8(0),                                         //
-           B(Star), R(3),                                                 //
-           B(CallRuntime), U16(Runtime::kNewScriptContext), R(2), U8(2),  //
-           B(PushContext), R(1),                                          //
-           B(LdaConstant), U8(1),                                         //
-           B(Star), R(2),                                                 //
-           B(LdaZero),                                                    //
-           B(Star), R(3),                                                 //
-           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(2), U8(2),    //
-           B(LdaUndefined),                                               //
-           B(Star), R(3),                                                 //
-           B(LdaGlobal), _,                                               //
-           B(Star), R(2),                                                 //
-           B(Call), R(2), R(3), U8(0),                                    //
-           B(Star), R(0),                                                 //
-           B(Ldar), R(0),                                                 //
-           B(Return)                                                      //
-       },
-       2,
-       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -2679,12 +2617,9 @@ TEST(ObjectLiterals) {
 }
 
 
-// Tests !FLAG_global_var_shortcuts mode.
 TEST(TopLevelObjectLiterals) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
-
-  if (FLAG_global_var_shortcuts) return;
 
   int has_function_flags = ObjectLiteral::kFastElements |
                            ObjectLiteral::kHasFunction |
@@ -2721,70 +2656,6 @@ TEST(TopLevelObjectLiterals) {
        },
        5,
        {InstanceType::FIXED_ARRAY_TYPE,
-        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-        InstanceType::FIXED_ARRAY_TYPE,
-        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
-  };
-
-  for (size_t i = 0; i < arraysize(snippets); i++) {
-    Handle<BytecodeArray> bytecode_array =
-        helper.MakeTopLevelBytecode(snippets[i].code_snippet);
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
-  }
-}
-
-
-// Tests FLAG_global_var_shortcuts mode.
-// TODO(ishell): remove when FLAG_global_var_shortcuts is removed.
-TEST(TopLevelObjectLiterals2) {
-  InitializedHandleScope handle_scope;
-  BytecodeGeneratorHelper helper;
-
-  if (!FLAG_global_var_shortcuts) return;
-
-  int has_function_flags = ObjectLiteral::kFastElements |
-                           ObjectLiteral::kHasFunction |
-                           ObjectLiteral::kDisableMementos;
-  ExpectedSnippet<InstanceType> snippets[] = {
-      {"var a = { func: function() { } };",
-       7 * kPointerSize,
-       1,
-       69,
-       {
-           B(Ldar), R(Register::function_closure().index()),                 //
-           B(Star), R(2),                                                    //
-           B(LdaConstant), U8(0),                                            //
-           B(Star), R(3),                                                    //
-           B(CallRuntime), U16(Runtime::kNewScriptContext), R(2), U8(2),     //
-           B(PushContext), R(1),                                             //
-           B(LdaConstant), U8(1),                                            //
-           B(Star), R(2),                                                    //
-           B(LdaZero),                                                       //
-           B(Star), R(3),                                                    //
-           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(2), U8(2),       //
-           B(LdaConstant), U8(2),                                            //
-           B(Star), R(2),                                                    //
-           B(LdaZero),                                                       //
-           B(Star), R(3),                                                    //
-           B(LdaConstant), U8(3),                                            //
-           B(CreateObjectLiteral), U8(0), U8(has_function_flags),            //
-           B(Star), R(5),                                                    //
-           B(LdaConstant), U8(4),                                            //
-           B(Star), R(6),                                                    //
-           B(LdaConstant), U8(5),                                            //
-           B(CreateClosure), U8(1),                                          //
-           B(StoreICSloppy), R(5), R(6), U8(3),                              //
-           B(CallRuntime), U16(Runtime::kToFastProperties), R(5), U8(1),     //
-           B(Ldar), R(5),                                                    //
-           B(Star), R(4),                                                    //
-           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(2), U8(3),  //
-           B(LdaUndefined),                                                  //
-           B(Return),
-       },
-       6,
-       {InstanceType::FIXED_ARRAY_TYPE,
-        InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
@@ -2922,13 +2793,10 @@ TEST(Throw) {
 }
 
 
-// Tests !FLAG_global_var_shortcuts mode.
 TEST(CallNew) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
   Zone zone;
-
-  if (FLAG_global_var_shortcuts) return;
 
   int context_reg = Register::function_context().index();
   int global_index = Context::GLOBAL_OBJECT_INDEX;
@@ -3007,76 +2875,6 @@ TEST(CallNew) {
        1,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
   };
-
-  for (size_t i = 0; i < arraysize(snippets); i++) {
-    Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
-  }
-}
-
-
-// Tests FLAG_global_var_shortcuts mode.
-// TODO(ishell): remove when FLAG_global_var_shortcuts is removed.
-TEST(CallNew2) {
-  InitializedHandleScope handle_scope;
-  BytecodeGeneratorHelper helper;
-
-  if (!FLAG_global_var_shortcuts) return;
-
-  ExpectedSnippet<InstanceType> snippets[] = {
-      {"function bar() { this.value = 0; }\n"
-       "function f() { return new bar(); }\n"
-       "f()",
-       kPointerSize,
-       1,
-       9,
-       {
-           B(LdaGlobal), _,            //
-           B(Star), R(0),              //
-           B(New), R(0), R(0), U8(0),  //
-           B(Return),                  //
-       },
-       0},
-      {"function bar(x) { this.value = 18; this.x = x;}\n"
-       "function f() { return new bar(3); }\n"
-       "f()",
-       2 * kPointerSize,
-       1,
-       13,
-       {
-           B(LdaGlobal), _,            //
-           B(Star), R(0),              //
-           B(LdaSmi8), U8(3),          //
-           B(Star), R(1),              //
-           B(New), R(0), R(1), U8(1),  //
-           B(Return),                  //
-       },
-       0},
-      {"function bar(w, x, y, z) {\n"
-       "  this.value = 18;\n"
-       "  this.x = x;\n"
-       "  this.y = y;\n"
-       "  this.z = z;\n"
-       "}\n"
-       "function f() { return new bar(3, 4, 5); }\n"
-       "f()",
-       4 * kPointerSize,
-       1,
-       21,
-       {
-           B(LdaGlobal), _,            //
-           B(Star), R(0),              //
-           B(LdaSmi8), U8(3),          //
-           B(Star), R(1),              //
-           B(LdaSmi8), U8(4),          //
-           B(Star), R(2),              //
-           B(LdaSmi8), U8(5),          //
-           B(Star), R(3),              //
-           B(New), R(0), R(1), U8(3),  //
-           B(Return),                  //
-       },
-       0}};
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =

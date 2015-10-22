@@ -2779,23 +2779,6 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobalViaContext(LLoadGlobalViaContext* instr) {
-  DCHECK(ToRegister(instr->context()).is(rsi));
-  DCHECK(ToRegister(instr->result()).is(rax));
-  int const slot = instr->slot_index();
-  int const depth = instr->depth();
-  if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
-    __ Set(LoadGlobalViaContextDescriptor::SlotRegister(), slot);
-    Handle<Code> stub =
-        CodeFactory::LoadGlobalViaContext(isolate(), depth).code();
-    CallCode(stub, RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ Push(Smi::FromInt(slot));
-    __ CallRuntime(Runtime::kLoadGlobalViaContext, 1);
-  }
-}
-
-
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
@@ -4132,29 +4115,6 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
                         isolate(), instr->language_mode(),
                         instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
-void LCodeGen::DoStoreGlobalViaContext(LStoreGlobalViaContext* instr) {
-  DCHECK(ToRegister(instr->context()).is(rsi));
-  DCHECK(ToRegister(instr->value())
-             .is(StoreGlobalViaContextDescriptor::ValueRegister()));
-  int const slot = instr->slot_index();
-  int const depth = instr->depth();
-  if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
-    __ Set(StoreGlobalViaContextDescriptor::SlotRegister(), slot);
-    Handle<Code> stub = CodeFactory::StoreGlobalViaContext(
-                            isolate(), depth, instr->language_mode())
-                            .code();
-    CallCode(stub, RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ Push(Smi::FromInt(slot));
-    __ Push(StoreGlobalViaContextDescriptor::ValueRegister());
-    __ CallRuntime(is_strict(instr->language_mode())
-                       ? Runtime::kStoreGlobalViaContext_Strict
-                       : Runtime::kStoreGlobalViaContext_Sloppy,
-                   2);
-  }
 }
 
 

@@ -306,25 +306,21 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
 
 
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const LoadGlobalParameters& p = LoadGlobalParametersOf(node->op());
-  if (p.slot_index() >= 0) {
-    Callable callable = CodeFactory::LoadGlobalViaContext(isolate(), 0);
-    Node* script_context = node->InputAt(0);
-    node->ReplaceInput(0, jsgraph()->Int32Constant(p.slot_index()));
-    node->ReplaceInput(1, script_context);  // Set new context...
-    node->RemoveInput(2);
-    node->RemoveInput(2);  // ...instead of old one.
-    ReplaceWithStubCall(node, callable, flags);
-
-  } else {
-    Callable callable = CodeFactory::LoadICInOptimizedCode(
-        isolate(), p.typeof_mode(), SLOPPY, UNINITIALIZED);
-    node->RemoveInput(0);  // script context
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-    ReplaceWithStubCall(node, callable, flags);
-  }
+  Callable callable = CodeFactory::LoadICInOptimizedCode(
+      isolate(), p.typeof_mode(), SLOPPY, UNINITIALIZED);
+  // Load global object from the context.
+  Node* global = graph()->NewNode(machine()->Load(kMachAnyTagged), context,
+                                  jsgraph()->IntPtrConstant(Context::SlotOffset(
+                                      Context::GLOBAL_OBJECT_INDEX)),
+                                  effect, graph()->start());
+  node->InsertInput(zone(), 0, global);
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
@@ -363,35 +359,27 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
 
 
 void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const StoreGlobalParameters& p = StoreGlobalParametersOf(node->op());
-  if (p.slot_index() >= 0) {
-    Callable callable =
-        CodeFactory::StoreGlobalViaContext(isolate(), 0, p.language_mode());
-    Node* script_context = node->InputAt(0);
-    Node* value = node->InputAt(2);
-    node->ReplaceInput(0, jsgraph()->Int32Constant(p.slot_index()));
-    node->ReplaceInput(1, value);
-    node->ReplaceInput(2, script_context);  // Set new context...
-    node->RemoveInput(3);
-    node->RemoveInput(3);  // ...instead of old one.
-    ReplaceWithStubCall(node, callable, flags);
-
+  Callable callable = CodeFactory::StoreICInOptimizedCode(
+      isolate(), p.language_mode(), UNINITIALIZED);
+  // Load global object from the context.
+  Node* global = graph()->NewNode(machine()->Load(kMachAnyTagged), context,
+                                  jsgraph()->IntPtrConstant(Context::SlotOffset(
+                                      Context::GLOBAL_OBJECT_INDEX)),
+                                  effect, graph()->start());
+  node->InsertInput(zone(), 0, global);
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  if (FLAG_vector_stores) {
+    DCHECK(p.feedback().index() != -1);
+    node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
   } else {
-    Callable callable = CodeFactory::StoreICInOptimizedCode(
-        isolate(), p.language_mode(), UNINITIALIZED);
-    node->RemoveInput(0);  // script context
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-    if (FLAG_vector_stores) {
-      DCHECK(p.feedback().index() != -1);
-      node->InsertInput(zone(), 3,
-                        jsgraph()->SmiConstant(p.feedback().index()));
-    } else {
-      node->RemoveInput(3);
-    }
-    ReplaceWithStubCall(node, callable,
-                        CallDescriptor::kPatchableCallSite | flags);
+    node->RemoveInput(3);
   }
+  ReplaceWithStubCall(node, callable,
+                      CallDescriptor::kPatchableCallSite | flags);
 }
 
 

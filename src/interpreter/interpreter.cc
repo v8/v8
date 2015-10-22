@@ -184,44 +184,6 @@ void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// LdaGlobal <slot_index>
-//
-// Load the global at |slot_index| into the accumulator.
-void Interpreter::DoLdaGlobal(compiler::InterpreterAssembler* assembler) {
-  Node* slot_index = __ BytecodeOperandIdx8(0);
-  Node* smi_slot_index = __ SmiTag(slot_index);
-  Node* result = __ CallRuntime(Runtime::kLoadGlobalViaContext, smi_slot_index);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-
-// StaGlobalSloppy <slot_index>
-//
-// Store the global at |slot_index| with the value in the the accumulator in
-// sloppy mode.
-void Interpreter::DoStaGlobalSloppy(compiler::InterpreterAssembler* assembler) {
-  Node* slot_index = __ BytecodeOperandIdx8(0);
-  Node* smi_slot_index = __ SmiTag(slot_index);
-  Node* value = __ GetAccumulator();
-  __ CallRuntime(Runtime::kStoreGlobalViaContext_Sloppy, smi_slot_index, value);
-  __ Dispatch();
-}
-
-
-// StaGlobalStrict <slot_index>
-//
-// Store the global at |slot_index| with the value in the the accumulator in
-// strict mode.
-void Interpreter::DoStaGlobalStrict(compiler::InterpreterAssembler* assembler) {
-  Node* slot_index = __ BytecodeOperandIdx8(0);
-  Node* smi_slot_index = __ SmiTag(slot_index);
-  Node* value = __ GetAccumulator();
-  __ CallRuntime(Runtime::kStoreGlobalViaContext_Strict, smi_slot_index, value);
-  __ Dispatch();
-}
-
-
 // LdaContextSlot <context> <slot_index>
 //
 // Load the object in |slot_index| of |context| into the accumulator.

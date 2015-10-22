@@ -1377,26 +1377,11 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   Variable* var = proxy->var();
   DCHECK(var->IsUnallocatedOrGlobalSlot() ||
          (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
-  if (var->IsGlobalSlot()) {
-    DCHECK(var->index() > 0);
-    DCHECK(var->IsStaticGlobalObjectProperty());
-    int const slot = var->index();
-    int const depth = scope()->ContextChainLength(var->scope());
-    if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
-      __ Mov(LoadGlobalViaContextDescriptor::SlotRegister(), slot);
-      LoadGlobalViaContextStub stub(isolate(), depth);
-      __ CallStub(&stub);
-    } else {
-      __ Push(Smi::FromInt(slot));
-      __ CallRuntime(Runtime::kLoadGlobalViaContext, 1);
-    }
-  } else {
-    __ Ldr(LoadDescriptor::ReceiverRegister(), GlobalObjectMemOperand());
-    __ Mov(LoadDescriptor::NameRegister(), Operand(var->name()));
-    __ Mov(LoadDescriptor::SlotRegister(),
-           SmiFromSlot(proxy->VariableFeedbackSlot()));
-    CallLoadIC(typeof_mode);
-  }
+  __ Ldr(LoadDescriptor::ReceiverRegister(), GlobalObjectMemOperand());
+  __ Mov(LoadDescriptor::NameRegister(), Operand(var->name()));
+  __ Mov(LoadDescriptor::SlotRegister(),
+         SmiFromSlot(proxy->VariableFeedbackSlot()));
+  CallLoadIC(typeof_mode);
 }
 
 
@@ -2315,25 +2300,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     if (FLAG_vector_stores) EmitLoadStoreICSlot(slot);
     CallStoreIC();
 
-  } else if (var->IsGlobalSlot()) {
-    // Global var, const, or let.
-    DCHECK(var->index() > 0);
-    DCHECK(var->IsStaticGlobalObjectProperty());
-    int const slot = var->index();
-    int const depth = scope()->ContextChainLength(var->scope());
-    if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
-      __ Mov(StoreGlobalViaContextDescriptor::SlotRegister(), slot);
-      DCHECK(StoreGlobalViaContextDescriptor::ValueRegister().is(x0));
-      StoreGlobalViaContextStub stub(isolate(), depth, language_mode());
-      __ CallStub(&stub);
-    } else {
-      __ Push(Smi::FromInt(slot));
-      __ Push(x0);
-      __ CallRuntime(is_strict(language_mode())
-                         ? Runtime::kStoreGlobalViaContext_Strict
-                         : Runtime::kStoreGlobalViaContext_Sloppy,
-                     2);
-    }
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
     DCHECK(!var->IsLookupSlot());
