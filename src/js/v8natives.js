@@ -1038,42 +1038,47 @@ function ObjectCreate(proto, properties) {
 
 // ES5 section 15.2.3.6.
 function ObjectDefineProperty(obj, p, attributes) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError(kCalledOnNonObject, "Object.defineProperty");
-  }
-  var name = TO_NAME(p);
-  if (%_IsJSProxy(obj)) {
-    // Clone the attributes object for protection.
-    // TODO(rossberg): not spec'ed yet, so not sure if this should involve
-    // non-own properties as it does (or non-enumerable ones, as it doesn't?).
-    var attributesClone = { __proto__: null };
-    for (var a in attributes) {
-      attributesClone[a] = attributes[a];
+  // The new pure-C++ implementation doesn't support Proxies yet, nor O.o.
+  // TODO(jkummerow): Implement missing features and remove fallback path.
+  if (%_IsJSProxy(obj) || %IsObserved(obj)) {
+    if (!IS_SPEC_OBJECT(obj)) {
+      throw MakeTypeError(kCalledOnNonObject, "Object.defineProperty");
     }
-    DefineProxyProperty(obj, name, attributesClone, true);
-    // The following would implement the spec as in the current proposal,
-    // but after recent comments on es-discuss, is most likely obsolete.
-    /*
-    var defineObj = FromGenericPropertyDescriptor(desc);
-    var names = ObjectGetOwnPropertyNames(attributes);
-    var standardNames =
-      {value: 0, writable: 0, get: 0, set: 0, enumerable: 0, configurable: 0};
-    for (var i = 0; i < names.length; i++) {
-      var N = names[i];
-      if (!(%HasOwnProperty(standardNames, N))) {
-        var attr = GetOwnPropertyJS(attributes, N);
-        DefineOwnProperty(descObj, N, attr, true);
+    var name = TO_NAME(p);
+    if (%_IsJSProxy(obj)) {
+      // Clone the attributes object for protection.
+      // TODO(rossberg): not spec'ed yet, so not sure if this should involve
+      // non-own properties as it does (or non-enumerable ones, as it doesn't?).
+      var attributesClone = { __proto__: null };
+      for (var a in attributes) {
+        attributesClone[a] = attributes[a];
       }
+      DefineProxyProperty(obj, name, attributesClone, true);
+      // The following would implement the spec as in the current proposal,
+      // but after recent comments on es-discuss, is most likely obsolete.
+      /*
+      var defineObj = FromGenericPropertyDescriptor(desc);
+      var names = ObjectGetOwnPropertyNames(attributes);
+      var standardNames =
+        {value: 0, writable: 0, get: 0, set: 0, enumerable: 0, configurable: 0};
+      for (var i = 0; i < names.length; i++) {
+        var N = names[i];
+        if (!(%HasOwnProperty(standardNames, N))) {
+          var attr = GetOwnPropertyJS(attributes, N);
+          DefineOwnProperty(descObj, N, attr, true);
+        }
+      }
+      // This is really confusing the types, but it is what the proxies spec
+      // currently requires:
+      desc = descObj;
+      */
+    } else {
+      var desc = ToPropertyDescriptor(attributes);
+      DefineOwnProperty(obj, name, desc, true);
     }
-    // This is really confusing the types, but it is what the proxies spec
-    // currently requires:
-    desc = descObj;
-    */
-  } else {
-    var desc = ToPropertyDescriptor(attributes);
-    DefineOwnProperty(obj, name, desc, true);
+    return obj;
   }
-  return obj;
+  return %ObjectDefineProperty(obj, p, attributes);
 }
 
 
@@ -1101,19 +1106,24 @@ function GetOwnEnumerablePropertyNames(object) {
 
 // ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError(kCalledOnNonObject, "Object.defineProperties");
+  // The new pure-C++ implementation doesn't support Proxies yet, nor O.o.
+  // TODO(jkummerow): Implement missing features and remove fallback path.
+  if (%_IsJSProxy(obj) || %_IsJSProxy(properties) || %IsObserved(obj)) {
+    if (!IS_SPEC_OBJECT(obj)) {
+      throw MakeTypeError(kCalledOnNonObject, "Object.defineProperties");
+    }
+    var props = TO_OBJECT(properties);
+    var names = GetOwnEnumerablePropertyNames(props);
+    var descriptors = new InternalArray();
+    for (var i = 0; i < names.length; i++) {
+      descriptors.push(ToPropertyDescriptor(props[names[i]]));
+    }
+    for (var i = 0; i < names.length; i++) {
+      DefineOwnProperty(obj, names[i], descriptors[i], true);
+    }
+    return obj;
   }
-  var props = TO_OBJECT(properties);
-  var names = GetOwnEnumerablePropertyNames(props);
-  var descriptors = new InternalArray();
-  for (var i = 0; i < names.length; i++) {
-    descriptors.push(ToPropertyDescriptor(props[names[i]]));
-  }
-  for (var i = 0; i < names.length; i++) {
-    DefineOwnProperty(obj, names[i], descriptors[i], true);
-  }
-  return obj;
+  return %ObjectDefineProperties(obj, properties);
 }
 
 
