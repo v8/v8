@@ -11,11 +11,11 @@
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/crankshaft/hydrogen-osr.h"
-#include "src/crankshaft/x87/frames-x87.h"
 #include "src/deoptimizer.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/x87/frames-x87.h"
 
 namespace v8 {
 namespace internal {
