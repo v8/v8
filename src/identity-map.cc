@@ -5,6 +5,7 @@
 #include "src/identity-map.h"
 
 #include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -37,8 +38,8 @@ IdentityMapBase::RawEntry IdentityMapBase::Insert(Handle<Object> key) {
 
 
 int IdentityMapBase::Hash(Object* address) {
+  CHECK_NE(address, heap_->not_mapped_symbol());
   uintptr_t raw_address = reinterpret_cast<uintptr_t>(address);
-  CHECK_NE(0U, raw_address);  // Cannot store Smi 0 as a key here, sorry.
   // Xor some of the upper bits, since the lower 2 or 3 are usually aligned.
   return static_cast<int>((raw_address >> 11) ^ raw_address);
 }
@@ -46,26 +47,28 @@ int IdentityMapBase::Hash(Object* address) {
 
 int IdentityMapBase::LookupIndex(Object* address) {
   int start = Hash(address) & mask_;
+  Object* not_mapped = heap_->not_mapped_symbol();
   for (int index = start; index < size_; index++) {
     if (keys_[index] == address) return index;  // Found.
-    if (keys_[index] == nullptr) return -1;     // Not found.
+    if (keys_[index] == not_mapped) return -1;  // Not found.
   }
   for (int index = 0; index < start; index++) {
     if (keys_[index] == address) return index;  // Found.
-    if (keys_[index] == nullptr) return -1;     // Not found.
+    if (keys_[index] == not_mapped) return -1;  // Not found.
   }
   return -1;
 }
 
 
 int IdentityMapBase::InsertIndex(Object* address) {
+  Object* not_mapped = heap_->not_mapped_symbol();
   while (true) {
     int start = Hash(address) & mask_;
     int limit = size_ / 2;
     // Search up to {limit} entries.
     for (int index = start; --limit > 0; index = (index + 1) & mask_) {
       if (keys_[index] == address) return index;  // Found.
-      if (keys_[index] == nullptr) {              // Free entry.
+      if (keys_[index] == not_mapped) {           // Free entry.
         keys_[index] = address;
         return index;
       }
@@ -91,7 +94,8 @@ IdentityMapBase::RawEntry IdentityMapBase::GetEntry(Handle<Object> key) {
     gc_counter_ = heap_->gc_count();
 
     keys_ = zone_->NewArray<Object*>(size_);
-    memset(keys_, 0, sizeof(Object*) * size_);
+    Object* not_mapped = heap_->not_mapped_symbol();
+    for (int i = 0; i < size_; i++) keys_[i] = not_mapped;
     values_ = zone_->NewArray<void*>(size_);
     memset(values_, 0, sizeof(void*) * size_);
 
@@ -135,15 +139,16 @@ void IdentityMapBase::Rehash() {
   // Search the table looking for keys that wouldn't be found with their
   // current hashcode and evacuate them.
   int last_empty = -1;
+  Object* not_mapped = heap_->not_mapped_symbol();
   for (int i = 0; i < size_; i++) {
-    if (keys_[i] == nullptr) {
+    if (keys_[i] == not_mapped) {
       last_empty = i;
     } else {
       int pos = Hash(keys_[i]) & mask_;
       if (pos <= last_empty || pos > i) {
         // Evacuate an entry that is in the wrong place.
         reinsert.push_back(std::pair<Object*, void*>(keys_[i], values_[i]));
-        keys_[i] = nullptr;
+        keys_[i] = not_mapped;
         values_[i] = nullptr;
         last_empty = i;
       }
@@ -172,12 +177,13 @@ void IdentityMapBase::Resize() {
   CHECK_LE(size_, (1024 * 1024 * 16));  // that would be extreme...
 
   keys_ = zone_->NewArray<Object*>(size_);
-  memset(keys_, 0, sizeof(Object*) * size_);
+  Object* not_mapped = heap_->not_mapped_symbol();
+  for (int i = 0; i < size_; i++) keys_[i] = not_mapped;
   values_ = zone_->NewArray<void*>(size_);
   memset(values_, 0, sizeof(void*) * size_);
 
   for (int i = 0; i < old_size; i++) {
-    if (old_keys[i] == nullptr) continue;
+    if (old_keys[i] == not_mapped) continue;
     int index = InsertIndex(old_keys[i]);
     DCHECK_GE(index, 0);
     values_[index] = old_values[i];

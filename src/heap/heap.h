@@ -336,6 +336,7 @@ namespace internal {
   V(nonexistent_symbol)                     \
   V(nonextensible_symbol)                   \
   V(normal_ic_symbol)                       \
+  V(not_mapped_symbol)                      \
   V(observed_symbol)                        \
   V(premonomorphic_symbol)                  \
   V(promise_combined_deferred_symbol)       \

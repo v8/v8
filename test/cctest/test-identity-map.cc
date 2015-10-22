@@ -178,7 +178,7 @@ TEST(GetFind_num_1000) {
   int val1;
   int val2;
 
-  for (int i = 1; i < 1000; i++) {
+  for (int i = 0; i < 1000; i++) {
     t.TestGetFind(t.smi(i * kPrime), &val1, t.smi(i * kPrime + 1), &val2);
   }
 }
