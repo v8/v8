@@ -248,7 +248,8 @@ class StackFrame BASE_EMBEDDED {
 
   bool is_java_script() const {
     Type type = this->type();
-    return (type == JAVA_SCRIPT) || (type == OPTIMIZED);
+    return (type == JAVA_SCRIPT) || (type == OPTIMIZED) ||
+           (type == INTERPRETED);
   }
 
   // Accessors.

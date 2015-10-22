@@ -1028,6 +1028,30 @@ void Interpreter::DoCreateClosure(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// CreateMappedArguments
+//
+// Creates a new mapped arguments object.
+void Interpreter::DoCreateMappedArguments(
+    compiler::InterpreterAssembler* assembler) {
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* result = __ CallRuntime(Runtime::kNewSloppyArguments_Generic, closure);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// CreateUnmappedArguments
+//
+// Creates a new unmapped arguments object.
+void Interpreter::DoCreateUnmappedArguments(
+    compiler::InterpreterAssembler* assembler) {
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* result = __ CallRuntime(Runtime::kNewStrictArguments_Generic, closure);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 // Throw
 //
 // Throws the exception in the accumulator.

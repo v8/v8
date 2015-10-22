@@ -55,7 +55,6 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
     for (int i = depth; i > 0; --i) {
       previous = previous->outer_;
     }
-    DCHECK_EQ(previous->scope_, scope);
     return previous;
   }
 
@@ -309,6 +308,26 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
 
 
 void BytecodeGenerator::MakeBytecodeBody() {
+  // Build the arguments object if it is used.
+  VisitArgumentsObject(scope()->arguments());
+
+  // Build assignment to {.this_function} variable if it is used.
+  VisitThisFunctionVariable(scope()->this_function_var());
+
+  // Build assignment to {new.target} variable if it is used.
+  VisitNewTargetVariable(scope()->new_target_var());
+
+  // TODO(rmcilroy): Emit tracing call if requested to do so.
+  if (FLAG_trace) {
+    UNIMPLEMENTED();
+  }
+
+  // Visit illegal re-declaration and bail out if it exists.
+  if (scope()->HasIllegalRedeclaration()) {
+    Visit(scope()->GetIllegalRedeclaration());
+    return;
+  }
+
   // Visit declarations within the function scope.
   VisitDeclarations(scope()->declarations());
 
@@ -1650,6 +1669,46 @@ void BytecodeGenerator::VisitSetHomeObject(Register value, Register home_object,
   if (!FunctionLiteral::NeedsHomeObject(expr)) return;
 
   UNIMPLEMENTED();
+}
+
+
+void BytecodeGenerator::VisitArgumentsObject(Variable* variable) {
+  if (variable == nullptr) return;
+
+  DCHECK(variable->IsContextSlot() || variable->IsStackAllocated());
+
+  // Allocate and initialize a new arguments object and assign to the
+  // {arguments} variable.
+  CreateArgumentsType type =
+      is_strict(language_mode()) || !info()->has_simple_parameters()
+          ? CreateArgumentsType::kUnmappedArguments
+          : CreateArgumentsType::kMappedArguments;
+  builder()->CreateArguments(type);
+  VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
+}
+
+
+void BytecodeGenerator::VisitThisFunctionVariable(Variable* variable) {
+  if (variable == nullptr) return;
+
+  // TODO(rmcilroy): Remove once we have tests which exercise this code path.
+  UNIMPLEMENTED();
+
+  // Store the closure we were called with in the this_function_var.
+  builder()->LoadAccumulatorWithRegister(Register::function_closure());
+  VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
+}
+
+
+void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
+  if (variable == nullptr) return;
+
+  // TODO(rmcilroy): Remove once we have tests which exercise this code path.
+  UNIMPLEMENTED();
+
+  // Store the closure we were called with in the this_function_var.
+  builder()->CallRuntime(Runtime::kGetOriginalConstructor, Register(), 0);
+  VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
 }
 
 

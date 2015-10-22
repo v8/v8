@@ -3362,6 +3362,136 @@ TEST(GlobalCompoundExpressions) {
   }
 }
 
+
+TEST(CreateArguments) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  int closure = Register::function_closure().index();
+  int first_context_slot = Context::MIN_CONTEXT_SLOTS;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function f() { return arguments; }",
+       1 * kPointerSize,
+       1,
+       6,
+       {
+           B(CreateMappedArguments),  //
+           B(Star), R(0),             //
+           B(Ldar), R(0),             //
+           B(Return),                 //
+       }},
+      {"function f() { return arguments[0]; }",
+       1 * kPointerSize,
+       1,
+       8,
+       {
+           B(CreateMappedArguments),                                //
+           B(Star), R(0),                                           //
+           B(LdaZero),                                              //
+           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot)),  //
+           B(Return),                                               //
+       }},
+      {"function f() { 'use strict'; return arguments; }",
+       1 * kPointerSize,
+       1,
+       6,
+       {
+           B(CreateUnmappedArguments),  //
+           B(Star), R(0),               //
+           B(Ldar), R(0),               //
+           B(Return),                   //
+       }},
+      {"function f(a) { return arguments[0]; }",
+       2 * kPointerSize,
+       2,
+       20,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
+                           U8(1),                                          //
+           B(PushContext), R(1),                                           //
+           B(Ldar), R(BytecodeGeneratorHelper::kLastParamIndex),           //
+           B(StaContextSlot), R(1), U8(first_context_slot),                //
+           B(CreateMappedArguments),                                       //
+           B(Star), R(0),                                                  //
+           B(LdaZero),                                                     //
+           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot)),         //
+           B(Return),                                                      //
+       }},
+      {"function f(a, b, c) { return arguments; }",
+       2 * kPointerSize,
+       4,
+       28,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
+                           U8(1),                                          //
+           B(PushContext), R(1),                                           //
+           B(Ldar), R(BytecodeGeneratorHelper::kLastParamIndex - 2),       //
+           B(StaContextSlot), R(1), U8(first_context_slot + 2),            //
+           B(Ldar), R(BytecodeGeneratorHelper::kLastParamIndex - 1),       //
+           B(StaContextSlot), R(1), U8(first_context_slot + 1),            //
+           B(Ldar), R(BytecodeGeneratorHelper::kLastParamIndex),           //
+           B(StaContextSlot), R(1), U8(first_context_slot),                //
+           B(CreateMappedArguments),                                       //
+           B(Star), R(0),                                                  //
+           B(Ldar), R(0),                                                  //
+           B(Return),                                                      //
+       }},
+      {"function f(a, b, c) { 'use strict'; return arguments; }",
+       1 * kPointerSize,
+       4,
+       6,
+       {
+           B(CreateUnmappedArguments),  //
+           B(Star), R(0),               //
+           B(Ldar), R(0),               //
+           B(Return),                   //
+       }},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunction(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(IllegalRedeclaration) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"const a = 1; { var a = 2; }",
+       3 * kPointerSize,
+       1,
+       14,
+       {
+           B(LdaSmi8), U8(MessageTemplate::kVarRedeclaration),          //
+           B(Star), R(1),                                               //
+           B(LdaConstant), U8(0),                                       //
+           B(Star), R(2),                                               //
+           B(CallRuntime), U16(Runtime::kNewSyntaxError), R(1), U8(2),  //
+           B(Throw),                                                    //
+       },
+       1,
+       {"a"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

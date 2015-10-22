@@ -65,6 +65,9 @@ class BytecodeGenerator : public AstVisitor {
       Variable* variable, FeedbackVectorSlot slot);
   void VisitVariableAssignment(Variable* variable, FeedbackVectorSlot slot);
 
+  void VisitArgumentsObject(Variable* variable);
+  void VisitThisFunctionVariable(Variable* variable);
+  void VisitNewTargetVariable(Variable* variable);
   void VisitNewLocalFunctionContext();
   void VisitBuildLocalActivationContext();
   void VisitNewLocalBlockContext(Scope* scope);

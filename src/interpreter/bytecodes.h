@@ -125,6 +125,10 @@ namespace interpreter {
   /* Closure allocation */                                                     \
   V(CreateClosure, OperandType::kImm8)                                         \
                                                                                \
+  /* Arguments allocation */                                                   \
+  V(CreateMappedArguments, OperandType::kNone)                                 \
+  V(CreateUnmappedArguments, OperandType::kNone)                               \
+                                                                               \
   /* Control Flow */                                                           \
   V(Jump, OperandType::kImm8)                                                  \
   V(JumpConstant, OperandType::kIdx8)                                          \

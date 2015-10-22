@@ -68,6 +68,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit closure operations.
   builder.CreateClosure(NOT_TENURED);
 
+  // Emit argument creation operations.
+  builder.CreateArguments(CreateArgumentsType::kMappedArguments)
+      .CreateArguments(CreateArgumentsType::kUnmappedArguments);
+
   // Emit literal creation operations
   builder.CreateRegExpLiteral(0, reg)
       .CreateArrayLiteral(0, 0)

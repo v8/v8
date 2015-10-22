@@ -389,6 +389,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArguments(
+    CreateArgumentsType type) {
+  // TODO(rmcilroy): Consider passing the type as a bytecode operand rather
+  // than having two different bytecodes once we have better support for
+  // branches in the InterpreterAssembler.
+  Bytecode bytecode = BytecodeForCreateArguments(type);
+  Output(bytecode);
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
     int literal_index, Register flags) {
   if (FitsInIdx8Operand(literal_index)) {
@@ -982,6 +993,21 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreGlobal(
       return Bytecode::kStaGlobalStrict;
     case STRONG:
       UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<Bytecode>(-1);
+}
+
+
+// static
+Bytecode BytecodeArrayBuilder::BytecodeForCreateArguments(
+    CreateArgumentsType type) {
+  switch (type) {
+    case CreateArgumentsType::kMappedArguments:
+      return Bytecode::kCreateMappedArguments;
+    case CreateArgumentsType::kUnmappedArguments:
+      return Bytecode::kCreateUnmappedArguments;
     default:
       UNREACHABLE();
   }

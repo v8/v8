@@ -2199,3 +2199,68 @@ TEST(InterpreterGlobalCompoundExpressions) {
     CHECK(return_value->SameValue(*compound_expr[i].second));
   }
 }
+
+
+TEST(InterpreterCreateArguments) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, int> create_args[9] = {
+      std::make_pair("function f() { return arguments[0]; }", 0),
+      std::make_pair("function f(a) { return arguments[0]; }", 0),
+      std::make_pair("function f() { return arguments[2]; }", 2),
+      std::make_pair("function f(a) { return arguments[2]; }", 2),
+      std::make_pair("function f(a, b, c, d) { return arguments[2]; }", 2),
+      std::make_pair("function f(a) {"
+                     "'use strict'; return arguments[0]; }",
+                     0),
+      std::make_pair("function f(a, b, c, d) {"
+                     "'use strict'; return arguments[2]; }",
+                     2),
+      // Check arguments are mapped in sloppy mode and unmapped in strict.
+      std::make_pair("function f(a, b, c, d) {"
+                     "  c = b; return arguments[2]; }",
+                     1),
+      std::make_pair("function f(a, b, c, d) {"
+                     "  'use strict'; c = b; return arguments[2]; }",
+                     2),
+  };
+
+  // Test passing no arguments.
+  for (size_t i = 0; i < arraysize(create_args); i++) {
+    InterpreterTester tester(handles.main_isolate(), create_args[i].first);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_val = callable().ToHandleChecked();
+    CHECK(return_val.is_identical_to(factory->undefined_value()));
+  }
+
+  // Test passing one argument.
+  for (size_t i = 0; i < arraysize(create_args); i++) {
+    InterpreterTester tester(handles.main_isolate(), create_args[i].first);
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_val =
+        callable(handle(Smi::FromInt(40), isolate)).ToHandleChecked();
+    if (create_args[i].second == 0) {
+      CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(40));
+    } else {
+      CHECK(return_val.is_identical_to(factory->undefined_value()));
+    }
+  }
+
+  // Test passing three argument.
+  for (size_t i = 0; i < arraysize(create_args); i++) {
+    Handle<Object> args[3] = {
+        handle(Smi::FromInt(40), isolate),
+        handle(Smi::FromInt(60), isolate),
+        handle(Smi::FromInt(80), isolate),
+    };
+
+    InterpreterTester tester(handles.main_isolate(), create_args[i].first);
+    auto callable =
+        tester.GetCallable<Handle<Object>, Handle<Object>, Handle<Object>>();
+    Handle<Object> return_val =
+        callable(args[0], args[1], args[2]).ToHandleChecked();
+    CHECK(return_val->SameValue(*args[create_args[i].second]));
+  }
+}

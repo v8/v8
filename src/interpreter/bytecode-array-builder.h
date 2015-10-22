@@ -23,6 +23,10 @@ namespace interpreter {
 class BytecodeLabel;
 class Register;
 
+// TODO(rmcilroy): Unify this with CreateArgumentsParameters::Type in Turbofan
+// when rest parameters implementation has settled down.
+enum class CreateArgumentsType { kMappedArguments, kUnmappedArguments };
+
 class BytecodeArrayBuilder {
  public:
   BytecodeArrayBuilder(Isolate* isolate, Zone* zone);
@@ -111,6 +115,9 @@ class BytecodeArrayBuilder {
   // Create a new closure for the SharedFunctionInfo in the accumulator.
   BytecodeArrayBuilder& CreateClosure(PretenureFlag tenured);
 
+  // Create a new arguments object in the accumulator.
+  BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);
+
   // Literals creation.  Constant elements should be in the accumulator.
   BytecodeArrayBuilder& CreateRegExpLiteral(int literal_index, Register flags);
   BytecodeArrayBuilder& CreateArrayLiteral(int literal_index, int flags);
@@ -198,6 +205,7 @@ class BytecodeArrayBuilder {
   static Bytecode BytecodeForKeyedStoreIC(LanguageMode language_mode);
   static Bytecode BytecodeForLoadGlobal(LanguageMode language_mode);
   static Bytecode BytecodeForStoreGlobal(LanguageMode language_mode);
+  static Bytecode BytecodeForCreateArguments(CreateArgumentsType type);
 
   static bool FitsInIdx8Operand(int value);
   static bool FitsInIdx8Operand(size_t value);

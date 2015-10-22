@@ -351,6 +351,18 @@ void BytecodeGraphBuilder::VisitCreateClosure(
 }
 
 
+void BytecodeGraphBuilder::VisitCreateMappedArguments(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitCreateUnmappedArguments(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitCreateRegExpLiteral(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
