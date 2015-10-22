@@ -239,7 +239,7 @@ function prepare(tgt) {
 })();
 
 
-(function testReflectDeletePropertyOnNonObject() {
+(function testReflectGetPrototypeOnNonObject() {
   assertThrows(function() { Reflect.getPrototypeOf(); }, TypeError);
   assertThrows(function() { Reflect.getPrototypeOf(42); }, TypeError);
   assertThrows(function() { Reflect.getPrototypeOf(null); }, TypeError);
@@ -247,6 +247,32 @@ function prepare(tgt) {
 
 
 // See reflect-get-prototype-of.js for further tests.
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Reflect.setPrototypeOf
+
+
+(function testReflectSetPrototypeOfArity() {
+  assertEquals(2, Reflect.setPrototypeOf.length);
+})();
+
+
+(function testReflectSetPrototypeOfOnNonObject() {
+  assertThrows(function() { Reflect.setPrototypeOf(undefined, {}); },
+    TypeError);
+  assertThrows(function() { Reflect.setPrototypeOf(42, {}); }, TypeError);
+  assertThrows(function() { Reflect.setPrototypeOf(null, {}); }, TypeError);
+
+  assertThrows(function() { Reflect.setPrototypeOf({}, undefined); },
+    TypeError);
+  assertThrows(function() { Reflect.setPrototypeOf({}, 42); }, TypeError);
+  assertTrue(Reflect.setPrototypeOf({}, null));
+})();
+
+
+// See reflect-set-prototype-of.js for further tests.
 
 
 

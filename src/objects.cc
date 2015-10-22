@@ -6722,17 +6722,6 @@ bool JSObject::ReferencesObject(Object* obj) {
 }
 
 
-#define RETURN_FAILURE(isolate, should_throw, call) \
-  do {                                              \
-    if ((should_throw) == DONT_THROW) {             \
-      return Just(false);                           \
-    } else {                                        \
-      isolate->Throw(*isolate->factory()->call);    \
-      return Nothing<bool>();                       \
-    }                                               \
-  } while (false)
-
-
 Maybe<bool> JSReceiver::PreventExtensions(Handle<JSReceiver> object,
                                           ShouldThrow should_throw) {
   if (!object->IsJSObject()) return Just(false);
@@ -13878,9 +13867,19 @@ Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
 }
 
 
-MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
-                                           Handle<Object> value,
-                                           bool from_javascript) {
+Maybe<bool> JSReceiver::SetPrototype(Handle<JSReceiver> object,
+                                     Handle<Object> value, bool from_javascript,
+                                     ShouldThrow should_throw) {
+  if (!object->IsJSObject()) return Just(false);
+  // TODO(neis): Deal with proxies.
+  return JSObject::SetPrototype(Handle<JSObject>::cast(object), value,
+                                from_javascript, should_throw);
+}
+
+
+Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
+                                   Handle<Object> value, bool from_javascript,
+                                   ShouldThrow should_throw) {
   Isolate* isolate = object->GetIsolate();
 
   const bool observed = from_javascript && object->map()->is_observed();
@@ -13889,19 +13888,18 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
     old_value = Object::GetPrototype(isolate, object);
   }
 
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result, SetPrototypeUnobserved(object, value, from_javascript),
-      Object);
+  Maybe<bool> result =
+      SetPrototypeUnobserved(object, value, from_javascript, should_throw);
+  MAYBE_RETURN(result, Nothing<bool>());
 
-  if (observed) {
+  if (result.FromJust() && observed) {
     Handle<Object> new_value = Object::GetPrototype(isolate, object);
     if (!new_value->SameValue(*old_value)) {
-      RETURN_ON_EXCEPTION(isolate,
-                          JSObject::EnqueueChangeRecord(
-                              object, "setPrototype",
-                              isolate->factory()->proto_string(), old_value),
-                          Object);
+      RETURN_ON_EXCEPTION_VALUE(
+          isolate, JSObject::EnqueueChangeRecord(
+                       object, "setPrototype",
+                       isolate->factory()->proto_string(), old_value),
+          Nothing<bool>());
     }
   }
 
@@ -13909,9 +13907,10 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
 }
 
 
-MaybeHandle<Object> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
-                                                     Handle<Object> value,
-                                                     bool from_javascript) {
+Maybe<bool> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
+                                             Handle<Object> value,
+                                             bool from_javascript,
+                                             ShouldThrow should_throw) {
 #ifdef DEBUG
   int size = object->Size();
 #endif
@@ -13922,8 +13921,8 @@ MaybeHandle<Object> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
     if (object->IsAccessCheckNeeded() &&
         !isolate->MayAccess(handle(isolate->context()), object)) {
       isolate->ReportFailedAccessCheck(object);
-      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-      return isolate->factory()->undefined_value();
+      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+      UNREACHABLE();
     }
   } else {
     DCHECK(!object->IsAccessCheckNeeded());
@@ -13932,14 +13931,13 @@ MaybeHandle<Object> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
   // Strong objects may not have their prototype set via __proto__ or
   // setPrototypeOf.
   if (from_javascript && object->map()->is_strong()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kStrongSetProto, object),
-                    Object);
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kStrongSetProto, object));
   }
   Heap* heap = isolate->heap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
-  if (!value->IsJSReceiver() && !value->IsNull()) return value;
+  if (!value->IsJSReceiver() && !value->IsNull()) return Just(true);
 
   // From 8.6.2 Object Internal Methods
   // ...
@@ -13950,9 +13948,9 @@ MaybeHandle<Object> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
   // or [[Extensible]] must not violate the invariants defined in the preceding
   // paragraph.
   if (!object->map()->is_extensible()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kNonExtensibleProto, object),
-                    Object);
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kNonExtensibleProto, object));
+    // TODO(neis): Don't fail if new and old prototype happen to be the same.
   }
 
   // Before we can set the prototype we need to be sure
@@ -13964,8 +13962,8 @@ MaybeHandle<Object> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
        !iter.IsAtEnd(); iter.Advance()) {
     if (iter.GetCurrent<JSReceiver>() == *object) {
       // Cycle detected.
-      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kCyclicProto),
-                      Object);
+      RETURN_FAILURE(isolate, should_throw,
+                     NewTypeError(MessageTemplate::kCyclicProto));
     }
   }
 
@@ -13981,9 +13979,9 @@ MaybeHandle<Object> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
       real_receiver = PrototypeIterator::GetCurrent<JSObject>(iter);
       iter.Advance();
       if (!real_receiver->map()->is_extensible()) {
-        THROW_NEW_ERROR(
-            isolate, NewTypeError(MessageTemplate::kNonExtensibleProto, object),
-            Object);
+        RETURN_FAILURE(
+            isolate, should_throw,
+            NewTypeError(MessageTemplate::kNonExtensibleProto, object));
       }
     }
   }
@@ -13992,7 +13990,7 @@ MaybeHandle<Object> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
   Handle<Map> map(real_receiver->map());
 
   // Nothing to do if prototype is already set.
-  if (map->prototype() == *value) return value;
+  if (map->prototype() == *value) return Just(true);
 
   isolate->UpdateArrayProtectorOnSetPrototype(real_receiver);
 
@@ -14012,7 +14010,7 @@ MaybeHandle<Object> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
 
   heap->ClearInstanceofCache();
   DCHECK(size == object->Size());
-  return value;
+  return Just(true);
 }
 
 

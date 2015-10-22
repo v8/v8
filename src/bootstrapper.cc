@@ -2202,6 +2202,8 @@ void Genesis::InitializeGlobal_harmony_reflect() {
                         Builtins::kReflectIsExtensible, 1, true);
   SimpleInstallFunction(reflect, "preventExtensions",
                         Builtins::kReflectPreventExtensions, 1, true);
+  SimpleInstallFunction(reflect, "setPrototypeOf",
+                        Builtins::kReflectSetPrototypeOf, 2, true);
 }
 
 

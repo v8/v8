@@ -1591,6 +1591,32 @@ BUILTIN(ReflectPreventExtensions) {
 }
 
 
+// ES6 section 26.1.14 Reflect.setPrototypeOf
+BUILTIN(ReflectSetPrototypeOf) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> proto = args.at<Object>(2);
+
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Reflect.setPrototypeOf")));
+  }
+
+  if (!proto->IsJSReceiver() && !proto->IsNull()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, proto));
+  }
+
+  Maybe<bool> result = JSReceiver::SetPrototype(
+      Handle<JSReceiver>::cast(target), proto, true, DONT_THROW);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
+}
+
+
 // ES6 section 20.3.4.45 Date.prototype [ @@toPrimitive ] ( hint )
 BUILTIN(DateToPrimitive) {
   HandleScope scope(isolate);

@@ -164,24 +164,22 @@ RUNTIME_FUNCTION(Runtime_GetPrototype) {
 RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::SetPrototype(obj, prototype, false));
-  return *result;
+  MAYBE_RETURN(JSReceiver::SetPrototype(obj, prototype, false, THROW_ON_ERROR),
+               isolate->heap()->exception());
+  return *obj;
 }
 
 
 RUNTIME_FUNCTION(Runtime_SetPrototype) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::SetPrototype(obj, prototype, true));
-  return *result;
+  MAYBE_RETURN(JSReceiver::SetPrototype(obj, prototype, true, THROW_ON_ERROR),
+               isolate->heap()->exception());
+  return *obj;
 }
 
 
@@ -1027,8 +1025,9 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
     if (original_function->has_instance_prototype()) {
       Handle<Object> prototype =
           handle(original_function->instance_prototype(), isolate);
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate, JSObject::SetPrototype(result, prototype, false));
+      MAYBE_RETURN(
+          JSObject::SetPrototype(result, prototype, false, THROW_ON_ERROR),
+          isolate->heap()->exception());
     }
   }
 

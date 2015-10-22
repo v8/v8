@@ -65,6 +65,7 @@ enum BuiltinExtraArguments {
   V(ReflectHas, NO_EXTRA_ARGUMENTS)                          \
   V(ReflectIsExtensible, NO_EXTRA_ARGUMENTS)                 \
   V(ReflectPreventExtensions, NO_EXTRA_ARGUMENTS)            \
+  V(ReflectSetPrototypeOf, NO_EXTRA_ARGUMENTS)               \
                                                              \
   V(SymbolConstructor, NO_EXTRA_ARGUMENTS)                   \
   V(SymbolConstructor_ConstructStub, NO_EXTRA_ARGUMENTS)     \

@@ -162,9 +162,8 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
       Object);
 
   if (!constructor_parent.is_null()) {
-    RETURN_ON_EXCEPTION(
-        isolate, JSObject::SetPrototype(constructor, constructor_parent, false),
-        Object);
+    MAYBE_RETURN_NULL(JSObject::SetPrototype(constructor, constructor_parent,
+                                             false, THROW_ON_ERROR));
   }
 
   JSObject::AddProperty(prototype, isolate->factory()->constructor_string(),

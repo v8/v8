@@ -1801,6 +1801,25 @@ enum GetKeysConversion { KEEP_NUMBERS, CONVERT_TO_STRING };
 enum ShouldThrow { THROW_ON_ERROR, DONT_THROW };
 
 
+#define RETURN_FAILURE(isolate, should_throw, call) \
+  do {                                              \
+    if ((should_throw) == DONT_THROW) {             \
+      return Just(false);                           \
+    } else {                                        \
+      isolate->Throw(*isolate->factory()->call);    \
+      return Nothing<bool>();                       \
+    }                                               \
+  } while (false)
+
+
+#define MAYBE_RETURN(call, value)         \
+  do {                                    \
+    if ((call).IsNothing()) return value; \
+  } while (false)
+
+#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
+
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
@@ -1893,6 +1912,12 @@ class JSReceiver: public HeapObject {
 
   MUST_USE_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);
+
+  // Set the object's prototype (only JSReceiver and null are allowed values).
+  MUST_USE_RESULT static Maybe<bool> SetPrototype(Handle<JSReceiver> object,
+                                                  Handle<Object> value,
+                                                  bool from_javascript,
+                                                  ShouldThrow should_throw);
 
 
   static Handle<Object> GetDataProperty(Handle<JSReceiver> object,
@@ -2315,8 +2340,10 @@ class JSObject: public JSReceiver {
                                        = UPDATE_WRITE_BARRIER);
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
-  MUST_USE_RESULT static MaybeHandle<Object> SetPrototype(
-      Handle<JSObject> object, Handle<Object> value, bool from_javascript);
+  MUST_USE_RESULT static Maybe<bool> SetPrototype(Handle<JSObject> object,
+                                                  Handle<Object> value,
+                                                  bool from_javascript,
+                                                  ShouldThrow should_throw);
 
   // Initializes the body after properties slot, properties slot is
   // initialized by set_properties.  Fill the pre-allocated fields with
@@ -2522,8 +2549,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Handle<JSObject> object, ShouldThrow should_throw);
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetPrototypeUnobserved(
-      Handle<JSObject> object, Handle<Object> value, bool from_javascript);
+  MUST_USE_RESULT static Maybe<bool> SetPrototypeUnobserved(
+      Handle<JSObject> object, Handle<Object> value, bool from_javascript,
+      ShouldThrow should_throw);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
