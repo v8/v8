@@ -488,7 +488,7 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
 #define HISTOGRAM_TIMER_LIST(HT)                                              \
   /* Garbage collection timers. */                                            \
   HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                        \
-  HT(gc_finalize, V8.GCFinalzeMC, 10000, MILLISECOND)                         \
+  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                        \
   HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,           \
      MILLISECOND)                                                             \
   HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                        \
