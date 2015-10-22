@@ -41,17 +41,28 @@ class BytecodeGenerator : public AstVisitor {
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
-  Register VisitArguments(ZoneList<Expression*>* arguments);
-
+  // Dispatched from VisitBinaryOperation.
   void VisitArithmeticExpression(BinaryOperation* binop);
   void VisitCommaExpression(BinaryOperation* binop);
   void VisitLogicalOrExpression(BinaryOperation* binop);
   void VisitLogicalAndExpression(BinaryOperation* binop);
 
+  // Dispatched from VisitUnaryOperation.
+  void VisitVoid(UnaryOperation* expr);
+  void VisitTypeOf(UnaryOperation* expr);
+  void VisitNot(UnaryOperation* expr);
+
+  // Helper visitors which perform common operations.
+  Register VisitArguments(ZoneList<Expression*>* arguments);
+
   void VisitPropertyLoad(Register obj, Property* expr);
   void VisitPropertyLoadForAccumulator(Register obj, Property* expr);
 
   void VisitVariableLoad(Variable* variable, FeedbackVectorSlot slot);
+  void VisitVariableLoadForAccumulatorValue(Variable* variable,
+                                            FeedbackVectorSlot slot);
+  MUST_USE_RESULT Register VisitVariableLoadForRegisterValue(
+      Variable* variable, FeedbackVectorSlot slot);
   void VisitVariableAssignment(Variable* variable, FeedbackVectorSlot slot);
 
   void VisitNewLocalFunctionContext();
@@ -64,10 +75,6 @@ class BytecodeGenerator : public AstVisitor {
                                   ObjectLiteralProperty* property,
                                   Register value_out);
 
-  // Dispatched from VisitUnaryOperation.
-  void VisitVoid(UnaryOperation* expr);
-  void VisitTypeOf(UnaryOperation* expr);
-  void VisitNot(UnaryOperation* expr);
 
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect.

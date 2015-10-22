@@ -960,6 +960,21 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
 }
 
 
+void BytecodeGenerator::VisitVariableLoadForAccumulatorValue(
+    Variable* variable, FeedbackVectorSlot slot) {
+  AccumulatorResultScope accumulator_result(this);
+  VisitVariableLoad(variable, slot);
+}
+
+
+Register BytecodeGenerator::VisitVariableLoadForRegisterValue(
+    Variable* variable, FeedbackVectorSlot slot) {
+  RegisterResultScope register_scope(this);
+  VisitVariableLoad(variable, slot);
+  return register_scope.ResultRegister();
+}
+
+
 void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
                                                 FeedbackVectorSlot slot) {
   switch (variable->location()) {
@@ -1174,10 +1189,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
       // Load callee as a global variable.
       VariableProxy* proxy = callee_expr->AsVariableProxy();
-      // Result scope for VisitVariableLoad to avoid using our temporaries
-      // and double setting the result in our result_scope() and.
-      AccumulatorResultScope accumulator_execution_result(this);
-      VisitVariableLoad(proxy->var(), proxy->VariableFeedbackSlot());
+      VisitVariableLoadForAccumulatorValue(proxy->var(),
+                                           proxy->VariableFeedbackSlot());
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
@@ -1295,7 +1308,93 @@ void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
-  UNIMPLEMENTED();
+  DCHECK(expr->expression()->IsValidReferenceExpressionOrThis());
+
+  // Left-hand side can only be a property, a global or a variable slot.
+  Property* property = expr->expression()->AsProperty();
+  LhsKind assign_type = Property::GetAssignType(property);
+
+  // TODO(rmcilroy): Set is_postfix to false if visiting for effect.
+  bool is_postfix = expr->is_postfix();
+
+  // Evaluate LHS expression and get old value.
+  Register obj, key, old_value;
+  size_t name_index = kMaxUInt32;
+  switch (assign_type) {
+    case VARIABLE: {
+      VariableProxy* proxy = expr->expression()->AsVariableProxy();
+      VisitVariableLoadForAccumulatorValue(proxy->var(),
+                                           proxy->VariableFeedbackSlot());
+      break;
+    }
+    case NAMED_PROPERTY: {
+      FeedbackVectorSlot slot = property->PropertyFeedbackSlot();
+      obj = VisitForRegisterValue(property->obj());
+      name_index = builder()->GetConstantPoolEntry(
+          property->key()->AsLiteral()->AsPropertyName());
+      builder()->LoadNamedProperty(obj, name_index, feedback_index(slot),
+                                   language_mode());
+      break;
+    }
+    case KEYED_PROPERTY: {
+      FeedbackVectorSlot slot = property->PropertyFeedbackSlot();
+      obj = VisitForRegisterValue(property->obj());
+      // Use visit for accumulator here since we need the key in the accumulator
+      // for the LoadKeyedProperty.
+      key = execution_result()->NewRegister();
+      VisitForAccumulatorValue(property->key());
+      builder()->StoreAccumulatorInRegister(key).LoadKeyedProperty(
+          obj, feedback_index(slot), language_mode());
+      break;
+    }
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNIMPLEMENTED();
+  }
+
+  // Convert old value into a number.
+  if (!is_strong(language_mode())) {
+    builder()->CastAccumulatorToNumber();
+  }
+
+  // Save result for postfix expressions.
+  if (is_postfix) {
+    old_value = execution_result()->NewRegister();
+    builder()->StoreAccumulatorInRegister(old_value);
+  }
+
+  // Perform +1/-1 operation.
+  builder()->CountOperation(expr->binary_op(), language_mode_strength());
+
+  // Store the value.
+  FeedbackVectorSlot feedback_slot = expr->CountSlot();
+  switch (assign_type) {
+    case VARIABLE: {
+      Variable* variable = expr->expression()->AsVariableProxy()->var();
+      VisitVariableAssignment(variable, feedback_slot);
+      break;
+    }
+    case NAMED_PROPERTY: {
+      builder()->StoreNamedProperty(
+          obj, name_index, feedback_index(feedback_slot), language_mode());
+      break;
+    }
+    case KEYED_PROPERTY: {
+      builder()->StoreKeyedProperty(obj, key, feedback_index(feedback_slot),
+                                    language_mode());
+      break;
+    }
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNIMPLEMENTED();
+  }
+
+  // Restore old value for postfix expressions.
+  if (is_postfix) {
+    execution_result()->SetResultInRegister(old_value);
+  } else {
+    execution_result()->SetResultInAccumulator();
+  }
 }
 
 

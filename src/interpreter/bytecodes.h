@@ -87,6 +87,8 @@ namespace interpreter {
   V(ShiftRightLogical, OperandType::kReg8)                                     \
                                                                                \
   /* Unary Operators */                                                        \
+  V(Inc, OperandType::kNone)                                                   \
+  V(Dec, OperandType::kNone)                                                   \
   V(LogicalNot, OperandType::kNone)                                            \
   V(TypeOf, OperandType::kNone)                                                \
                                                                                \
@@ -113,6 +115,7 @@ namespace interpreter {
   /* Cast operators */                                                         \
   V(ToBoolean, OperandType::kNone)                                             \
   V(ToName, OperandType::kNone)                                                \
+  V(ToNumber, OperandType::kNone)                                              \
                                                                                \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, OperandType::kIdx8, OperandType::kReg8)               \

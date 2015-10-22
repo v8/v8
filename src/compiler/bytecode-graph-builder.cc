@@ -476,6 +476,18 @@ void BytecodeGraphBuilder::VisitShiftRightLogical(
 }
 
 
+void BytecodeGraphBuilder::VisitInc(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitDec(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitLogicalNot(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
@@ -555,6 +567,12 @@ void BytecodeGraphBuilder::VisitToBoolean(
 
 
 void BytecodeGraphBuilder::VisitToName(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitToNumber(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }

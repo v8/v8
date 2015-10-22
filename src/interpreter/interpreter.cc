@@ -591,6 +591,32 @@ void Interpreter::DoShiftRightLogical(
 }
 
 
+void Interpreter::DoCountOp(Runtime::FunctionId function_id,
+                            compiler::InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
+  Node* one = __ NumberConstant(1);
+  Node* result = __ CallRuntime(function_id, value, one);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// Inc
+//
+// Increments value in the accumulator by one.
+void Interpreter::DoInc(compiler::InterpreterAssembler* assembler) {
+  DoCountOp(Runtime::kAdd, assembler);
+}
+
+
+// Dec
+//
+// Decrements value in the accumulator by one.
+void Interpreter::DoDec(compiler::InterpreterAssembler* assembler) {
+  DoCountOp(Runtime::kSubtract, assembler);
+}
+
+
 // LogicalNot
 //
 // Perform logical-not on the accumulator, first casting the
@@ -771,6 +797,17 @@ void Interpreter::DoToBoolean(compiler::InterpreterAssembler* assembler) {
 void Interpreter::DoToName(compiler::InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* result = __ CallRuntime(Runtime::kToName, accumulator);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// ToNumber
+//
+// Cast the object referenced by the accumulator to a number.
+void Interpreter::DoToNumber(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* result = __ CallRuntime(Runtime::kToNumber, accumulator);
   __ SetAccumulator(result);
   __ Dispatch();
 }

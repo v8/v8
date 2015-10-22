@@ -172,6 +172,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op,
+                                                           Strength strength) {
+  if (is_strong(strength)) {
+    UNIMPLEMENTED();
+  }
+
+  Output(BytecodeForCountOperation(op));
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LogicalNot() {
   Output(Bytecode::kLogicalNot);
   return *this;
@@ -461,6 +472,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName() {
   Output(Bytecode::kToName);
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToNumber() {
+  // TODO(rmcilroy): consider omitting if the preceeding bytecode always returns
+  // a number.
+  Output(Bytecode::kToNumber);
   return *this;
 }
 
@@ -819,6 +838,20 @@ Bytecode BytecodeArrayBuilder::BytecodeForBinaryOperation(Token::Value op) {
       return Bytecode::kShiftRight;
     case Token::Value::SHR:
       return Bytecode::kShiftRightLogical;
+    default:
+      UNREACHABLE();
+      return static_cast<Bytecode>(-1);
+  }
+}
+
+
+// static
+Bytecode BytecodeArrayBuilder::BytecodeForCountOperation(Token::Value op) {
+  switch (op) {
+    case Token::Value::ADD:
+      return Bytecode::kInc;
+    case Token::Value::SUB:
+      return Bytecode::kDec;
     default:
       UNREACHABLE();
       return static_cast<Bytecode>(-1);

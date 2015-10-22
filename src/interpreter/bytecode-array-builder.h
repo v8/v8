@@ -146,6 +146,9 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
                                         Strength strength);
 
+  // Count Operators (value stored in accumulator).
+  BytecodeArrayBuilder& CountOperation(Token::Value op, Strength strength);
+
   // Unary Operators.
   BytecodeArrayBuilder& LogicalNot();
   BytecodeArrayBuilder& TypeOf();
@@ -157,6 +160,7 @@ class BytecodeArrayBuilder {
   // Casts.
   BytecodeArrayBuilder& CastAccumulatorToBoolean();
   BytecodeArrayBuilder& CastAccumulatorToName();
+  BytecodeArrayBuilder& CastAccumulatorToNumber();
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
@@ -186,6 +190,7 @@ class BytecodeArrayBuilder {
   Isolate* isolate() const { return isolate_; }
 
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
+  static Bytecode BytecodeForCountOperation(Token::Value op);
   static Bytecode BytecodeForCompareOperation(Token::Value op);
   static Bytecode BytecodeForLoadIC(LanguageMode language_mode);
   static Bytecode BytecodeForKeyedLoadIC(LanguageMode language_mode);

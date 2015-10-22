@@ -94,8 +94,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::SAR, reg, Strength::WEAK)
       .BinaryOperation(Token::Value::SHR, reg, Strength::WEAK);
 
+  // Emit count operatior invocations
+  builder.CountOperation(Token::Value::ADD, Strength::WEAK)
+      .CountOperation(Token::Value::SUB, Strength::WEAK);
+
   // Emit unary operator invocations.
   builder.LogicalNot().TypeOf();
+
 
   // Emit new.
   builder.New(reg, reg, 0);
@@ -113,7 +118,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::IN, reg, Strength::WEAK);
 
   // Emit cast operator invocations.
-  builder.LoadNull()
+  builder.CastAccumulatorToNumber()
       .CastAccumulatorToBoolean()
       .CastAccumulatorToName();
 

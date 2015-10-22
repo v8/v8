@@ -54,6 +54,10 @@ class Interpreter {
   void DoBinaryOp(Runtime::FunctionId function_id,
                   compiler::InterpreterAssembler* assembler);
 
+  // Generates code to perform the count operations via |function_id|.
+  void DoCountOp(Runtime::FunctionId function_id,
+                 compiler::InterpreterAssembler* assembler);
+
   // Generates code to perform the comparison operation associated with
   // |compare_op|.
   void DoCompareOp(Token::Value compare_op,
