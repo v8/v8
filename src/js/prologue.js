@@ -14,6 +14,14 @@
 var imports = UNDEFINED;
 var imports_from_experimental = UNDEFINED;
 var exports_container = %ExportFromRuntime({});
+var typed_array_setup = UNDEFINED;
+
+// Register context value to be initialized with a typed array in
+// Genesis::InitializeBuiltinTypedArrays.
+function SetupTypedArray(f) {
+  f.next = typed_array_setup;
+  typed_array_setup = f;
+}
 
 // Export to other scripts.
 // In normal natives, this exports functions to other normal natives.
@@ -240,6 +248,9 @@ function PostExperimentals(utils) {
   utils.Export = UNDEFINED;
   utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
+  utils.InitializeBuiltinTypedArrays = UNDEFINED;
+  utils.SetupTypedArray = UNDEFINED;
+  typed_array_setup = UNDEFINED;
 }
 
 
@@ -255,12 +266,25 @@ function PostDebug(utils) {
   utils.ImportNow = UNDEFINED;
   utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
+  utils.InitializeBuiltinTypedArrays = UNDEFINED;
+  utils.SetupTypedArray = UNDEFINED;
+  typed_array_setup = UNDEFINED;
+}
+
+
+function InitializeBuiltinTypedArrays(
+    utils, rng_state, math_constants, rempio2result) {
+  var setup_list =  typed_array_setup;
+
+  for ( ; !IS_UNDEFINED(setup_list); setup_list = setup_list.next) {
+    setup_list(rng_state, math_constants, rempio2result);
+  }
 }
 
 
 // -----------------------------------------------------------------------
 
-%OptimizeObjectForAddingMultipleProperties(utils, 13);
+%OptimizeObjectForAddingMultipleProperties(utils, 15);
 
 utils.Import = Import;
 utils.ImportNow = ImportNow;
@@ -275,6 +299,8 @@ utils.SetUpLockedPrototype = SetUpLockedPrototype;
 utils.PostNatives = PostNatives;
 utils.PostExperimentals = PostExperimentals;
 utils.PostDebug = PostDebug;
+utils.SetupTypedArray = SetupTypedArray;
+utils.InitializeBuiltinTypedArrays = InitializeBuiltinTypedArrays;
 
 %ToFastProperties(utils);
 

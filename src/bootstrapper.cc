@@ -199,7 +199,7 @@ class Genesis BASE_EMBEDDED {
                         ContextType context_type);
   void InitializeExperimentalGlobal();
   // Typed arrays are not serializable and have to initialized afterwards.
-  void InitializeBuiltinTypedArrays();
+  bool InitializeBuiltinTypedArrays();
   // Depending on the situation, expose and/or get rid of the utils object.
   void ConfigureUtilsObject(ContextType context_type);
 
@@ -1791,42 +1791,36 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
 
 
 template <typename Data>
-Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
-                           ExternalArrayType type, Data* data,
-                           size_t num_elements, const char* name,
-                           const SharedFlag shared = SharedFlag::kNotShared,
-                           const PretenureFlag pretenure = TENURED) {
-  size_t byte_length = num_elements * sizeof(*data);
+Handle<JSTypedArray> CreateTypedArray(Isolate* isolate, ExternalArrayType type,
+                                      size_t num_elements, Data** data) {
+  size_t byte_length = num_elements * sizeof(**data);
   Handle<JSArrayBuffer> buffer =
-      isolate->factory()->NewJSArrayBuffer(shared, pretenure);
-  bool is_external = data != nullptr;
+      isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, TENURED);
+  bool is_external = (*data != nullptr);
   if (!is_external) {
-    data = reinterpret_cast<Data*>(
+    *data = reinterpret_cast<Data*>(
         isolate->array_buffer_allocator()->Allocate(byte_length));
   }
-  JSArrayBuffer::Setup(buffer, isolate, is_external, data, byte_length, shared);
-
-  Handle<JSTypedArray> typed_array = isolate->factory()->NewJSTypedArray(
-      type, buffer, 0, num_elements, pretenure);
-  Handle<String> name_string = isolate->factory()->InternalizeUtf8String(name);
-  // Reset property cell type before (re)initializing.
-  JSBuiltinsObject::InvalidatePropertyCell(builtins, name_string);
-  JSObject::SetOwnPropertyIgnoreAttributes(builtins, name_string, typed_array,
-                                           FROZEN)
-      .Assert();
-  return data;
+  JSArrayBuffer::Setup(buffer, isolate, is_external, *data, byte_length,
+                       SharedFlag::kNotShared);
+  return isolate->factory()->NewJSTypedArray(type, buffer, 0, num_elements,
+                                             TENURED);
 }
 
 
-void Genesis::InitializeBuiltinTypedArrays() {
-  Handle<JSBuiltinsObject> builtins(native_context()->builtins());
-  {  // Initially seed the per-context random number generator using the
-    // per-isolate random number generator.
+bool Genesis::InitializeBuiltinTypedArrays() {
+  HandleScope scope(isolate());
+  Handle<JSTypedArray> rng_state;
+  Handle<JSTypedArray> math_constants;
+  Handle<JSTypedArray> rempio2result;
+
+  {
+    // Seed the per-context RNG using the per-isolate RNG.
     const size_t num_elements = 2;
     const size_t num_bytes = num_elements * sizeof(uint32_t);
-    uint32_t* state = SetBuiltinTypedArray<uint32_t>(isolate(), builtins,
-                                                     kExternalUint32Array, NULL,
-                                                     num_elements, "rngstate");
+    uint32_t* state = NULL;
+    rng_state =
+        CreateTypedArray(isolate(), kExternalUint32Array, num_elements, &state);
     do {
       isolate()->random_number_generator()->NextBytes(state, num_bytes);
     } while (state[0] == 0 || state[1] == 0);
@@ -1834,18 +1828,28 @@ void Genesis::InitializeBuiltinTypedArrays() {
 
   {  // Initialize trigonometric lookup tables and constants.
     const size_t num_elements = arraysize(fdlibm::MathConstants::constants);
-    double* data = const_cast<double*>(fdlibm::MathConstants::constants);
-    SetBuiltinTypedArray<double>(isolate(), builtins, kExternalFloat64Array,
-                                 data, num_elements, "kMath");
+    double* constants = const_cast<double*>(fdlibm::MathConstants::constants);
+    math_constants = CreateTypedArray(isolate(), kExternalFloat64Array,
+                                      num_elements, &constants);
   }
 
   {  // Initialize a result array for rempio2 calculation
     const size_t num_elements = 2;
-    double* data =
-        SetBuiltinTypedArray<double>(isolate(), builtins, kExternalFloat64Array,
-                                     NULL, num_elements, "rempio2result");
+    double* data = NULL;
+    rempio2result =
+        CreateTypedArray(isolate(), kExternalFloat64Array, num_elements, &data);
     for (size_t i = 0; i < num_elements; i++) data[i] = 0;
   }
+
+  Handle<JSObject> utils =
+      Handle<JSObject>::cast(isolate()->natives_utils_object());
+  Handle<String> name_string = isolate()->factory()->NewStringFromAsciiChecked(
+      "InitializeBuiltinTypedArrays");
+  Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
+  Handle<Object> receiver = isolate()->factory()->undefined_value();
+  Handle<Object> args[] = {utils, rng_state, math_constants, rempio2result};
+  return !Execution::Call(isolate(), fun, receiver, arraysize(args), args)
+              .is_null();
 }
 
 
@@ -3270,6 +3274,7 @@ Genesis::Genesis(Isolate* isolate,
   // snapshot as we should be able to turn them off at runtime. Re-installing
   // them after they have already been deserialized would also fail.
   if (context_type == FULL_CONTEXT) {
+    if (!InitializeBuiltinTypedArrays()) return;
     if (!isolate->serializer_enabled()) {
       InitializeExperimentalGlobal();
       if (!InstallExperimentalNatives()) return;
@@ -3280,9 +3285,9 @@ Genesis::Genesis(Isolate* isolate,
     }
     // The serializer cannot serialize typed arrays. Reset those typed arrays
     // for each new context.
-    InitializeBuiltinTypedArrays();
   } else if (context_type == DEBUG_CONTEXT) {
     DCHECK(!isolate->serializer_enabled());
+    if (!InitializeBuiltinTypedArrays()) return;
     InitializeExperimentalGlobal();
     if (!InstallDebuggerNatives()) return;
   }

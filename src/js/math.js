@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var rngstate;  // Initialized to a Uint32Array during genesis.
-
 (function(global, utils) {
 "use strict";
 
@@ -16,7 +14,12 @@ var GlobalMath = global.Math;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var NaN = %GetRootNaN();
+var rngstate;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+
+utils.SetupTypedArray(function(arg1, arg2, arg3) {
+  rngstate = arg1;
+});
 
 //-------------------------------------------------------------------
 

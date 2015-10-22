@@ -23,9 +23,6 @@
 // rempio2result is used as a container for return values of %RemPiO2. It is
 // initialized to a two-element Float64Array during genesis.
 
-var kMath;
-var rempio2result;
-
 (function(global, utils) {
   
 "use strict";
@@ -36,13 +33,20 @@ var rempio2result;
 // Imports
 
 var GlobalMath = global.Math;
+var kMath;
 var MathAbs;
 var MathExp;
 var NaN = %GetRootNaN();
+var rempio2result;
 
 utils.Import(function(from) {
   MathAbs = from.MathAbs;
   MathExp = from.MathExp;
+});
+
+utils.SetupTypedArray(function(arg1, arg2, arg3) {
+  kMath = arg2;
+  rempio2result = arg3;
 });
 
 // -------------------------------------------------------------------
