@@ -3404,7 +3404,8 @@ int MarkCompactCollector::NumberOfParallelCompactionTasks() {
 
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
-  if (evacuation_candidates_.length() == 0) return;
+  const int num_pages = evacuation_candidates_.length();
+  if (num_pages == 0) return;
 
   const int num_tasks = NumberOfParallelCompactionTasks();
 
@@ -3445,7 +3446,6 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   delete[] compaction_spaces_for_tasks;
 
   // Finalize sequentially.
-  const int num_pages = evacuation_candidates_.length();
   int abandoned_pages = 0;
   for (int i = 0; i < num_pages; i++) {
     Page* p = evacuation_candidates_[i];
@@ -3481,17 +3481,13 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     }
     p->parallel_compaction_state().SetValue(MemoryChunk::kCompactingDone);
   }
-  if (num_pages > 0) {
-    if (FLAG_trace_fragmentation) {
-      if (abandoned_pages != 0) {
-        PrintF(
-            "  Abandoned (at least partially) %d out of %d page compactions due"
-            " to lack of memory\n",
-            abandoned_pages, num_pages);
-      } else {
-        PrintF("  Compacted %d pages\n", num_pages);
-      }
-    }
+  if (FLAG_trace_fragmentation) {
+    PrintIsolate(isolate(),
+                 "%8.0f ms: compaction: parallel=%d pages=%d aborted=%d "
+                 "tasks=%d cores=%d\n",
+                 isolate()->time_millis_since_init(), FLAG_parallel_compaction,
+                 num_pages, abandoned_pages, num_tasks,
+                 base::SysInfo::NumberOfProcessors());
   }
 }
 
