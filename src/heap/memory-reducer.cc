@@ -50,14 +50,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       PrintIsolate(heap()->isolate(), "Memory reducer: started GC #%d\n",
                    state_.started_gcs);
     }
-    if (heap()->ShouldOptimizeForMemoryUsage()) {
-      // Do full GC if memory usage has higher priority than latency. This is
-      // important for background tabs that do not send idle notifications.
-      heap()->CollectAllGarbage(Heap::kReduceMemoryFootprintMask,
-                                "memory reducer");
-    } else {
-      heap()->StartIdleIncrementalMarking();
-    }
+    heap()->StartIdleIncrementalMarking();
   } else if (state_.action == kWait) {
     if (!heap()->incremental_marking()->IsStopped() &&
         heap()->ShouldOptimizeForMemoryUsage()) {
