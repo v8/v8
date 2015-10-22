@@ -16,11 +16,13 @@ var GetHash;
 var GlobalObject = global.Object;
 var GlobalWeakMap = global.WeakMap;
 var GlobalWeakSet = global.WeakSet;
+var MakeTypeError;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   GetExistingHash = from.GetExistingHash;
   GetHash = from.GetHash;
+  MakeTypeError = from.MakeTypeError;
 });
 
 // -------------------------------------------------------------------

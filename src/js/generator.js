@@ -14,10 +14,12 @@
 var GeneratorFunctionPrototype = utils.ImportNow("GeneratorFunctionPrototype");
 var GeneratorFunction = utils.ImportNow("GeneratorFunction");
 var GlobalFunction = global.Function;
+var MakeTypeError;
 var NewFunctionString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
   NewFunctionString = from.NewFunctionString;
 });
 

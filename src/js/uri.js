@@ -17,6 +17,12 @@
 var GlobalObject = global.Object;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
+var MakeURIError;
+
+utils.Import(function(from) {
+  MakeURIError = from.MakeURIError;
+});
+
 
 // -------------------------------------------------------------------
 // Define internal helper functions.

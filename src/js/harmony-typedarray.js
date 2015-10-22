@@ -48,6 +48,7 @@ var InnerArraySome;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var IsNaN;
+var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var PackedArrayReverse;
@@ -72,6 +73,7 @@ utils.Import(function(from) {
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   IsNaN = from.IsNaN;
+  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   PackedArrayReverse = from.PackedArrayReverse;

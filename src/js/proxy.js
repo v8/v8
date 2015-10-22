@@ -13,10 +13,11 @@
 
 var GlobalFunction = global.Function;
 var GlobalObject = global.Object;
-
+var MakeTypeError;
 var ToNameArray;
 
 utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
   ToNameArray = from.ToNameArray;
 });
 

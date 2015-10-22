@@ -15,6 +15,8 @@ var IsNaN = global.isNaN;
 var JSONParse = global.JSON.parse;
 var JSONStringify = global.JSON.stringify;
 var LookupMirror = global.LookupMirror;
+var MakeError;
+var MakeTypeError;
 var MakeMirror = global.MakeMirror;
 var MakeMirrorSerializer = global.MakeMirrorSerializer;
 var MathMin = global.Math.min;
@@ -24,6 +26,8 @@ var ParseInt = global.parseInt;
 var ValueMirror = global.ValueMirror;
 
 utils.Import(function(from) {
+  MakeError = from.MakeError;
+  MakeTypeError = from.MakeTypeError;
   MirrorType = from.MirrorType;
 });
 

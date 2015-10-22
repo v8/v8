@@ -15,11 +15,13 @@ var GetHash;
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
+var MakeTypeError;
 var ObjectFreeze;
 var ObjectIsFrozen;
 
 utils.Import(function(from) {
   GetHash = from.GetHash;
+  MakeTypeError = from.MakeTypeError;
   ObjectFreeze = from.ObjectFreeze;
   ObjectIsFrozen = from.ObjectIsFrozen;
 });

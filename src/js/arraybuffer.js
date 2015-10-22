@@ -13,12 +13,14 @@
 
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalObject = global.Object;
+var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var ToPositiveInteger;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   ToPositiveInteger = from.ToPositiveInteger;

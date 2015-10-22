@@ -18,12 +18,14 @@ var isConcatSpreadableSymbol =
     utils.ImportNow("is_concat_spreadable_symbol");
 var isRegExpSymbol = utils.ImportNow("is_regexp_symbol");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var MakeTypeError;
 var ObjectGetOwnPropertyKeys;
 var toPrimitiveSymbol = utils.ImportNow("to_primitive_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
   ObjectGetOwnPropertyKeys = from.ObjectGetOwnPropertyKeys;
 });
 

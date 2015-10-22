@@ -16,6 +16,7 @@ var FLAG_harmony_tolength;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
+var MakeTypeError;
 var MinSimple;
 var ObjectHasOwnProperty;
 var ObjectIsFrozen;
@@ -28,6 +29,7 @@ var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
   Delete = from.Delete;
+  MakeTypeError = from.MakeTypeError;
   MinSimple = from.MinSimple;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   ObjectIsFrozen = from.ObjectIsFrozen;

@@ -181,6 +181,8 @@ function PostNatives(utils) {
     "InnerArraySort",
     "InnerArrayToLocaleString",
     "IsNaN",
+    "MakeError",
+    "MakeTypeError",
     "MapEntries",
     "MapIterator",
     "MapIteratorNext",

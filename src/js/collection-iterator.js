@@ -8,12 +8,20 @@
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalMap = global.Map;
 var GlobalSet = global.Set;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var MakeTypeError;
 var MapIterator = utils.ImportNow("MapIterator");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var SetIterator = utils.ImportNow("SetIterator");
+
+utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
+});
 
 // -------------------------------------------------------------------
 

@@ -8,9 +8,19 @@
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalReflect = global.Reflect;
+var MakeTypeError;
 var ReflectApply = utils.ImportNow("reflect_apply");
 var ReflectConstruct = utils.ImportNow("reflect_construct");
+
+utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
+});
+
+// -------------------------------------------------------------------
 
 function ReflectEnumerate(obj) {
   if (!IS_SPEC_OBJECT(obj))

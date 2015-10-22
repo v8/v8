@@ -8,10 +8,15 @@
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalArray = global.Array;
+var MakeTypeError;
 var SameValueZero;
 
 utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
   SameValueZero = from.SameValueZero;
 });
 

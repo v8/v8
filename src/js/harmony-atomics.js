@@ -12,10 +12,12 @@
 // Imports
 
 var GlobalObject = global.Object;
+var MakeTypeError;
 var MaxSimple;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
 });
 

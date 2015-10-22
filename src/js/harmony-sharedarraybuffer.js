@@ -10,10 +10,12 @@
 
 var GlobalSharedArrayBuffer = global.SharedArrayBuffer;
 var GlobalObject = global.Object;
+var MakeTypeError;
 var ToPositiveInteger;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
   ToPositiveInteger = from.ToPositiveInteger;
 })
 

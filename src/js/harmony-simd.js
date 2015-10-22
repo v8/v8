@@ -12,7 +12,14 @@
 // Imports
 
 var GlobalSIMD = global.SIMD;
+var MakeTypeError;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+
+utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
+});
+
+// -------------------------------------------------------------------
 
 macro SIMD_FLOAT_TYPES(FUNCTION)
 FUNCTION(Float32x4, float32x4, 4)

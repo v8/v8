@@ -17,6 +17,9 @@ var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var MakeRangeError;
+var MakeSyntaxError;
+var MakeTypeError;
 var MathAbs;
 var NaN = %GetRootNaN();
 var ObserveBeginPerformSplice;
@@ -30,6 +33,9 @@ var StringIndexOf;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
+  MakeRangeError = from.MakeRangeError;
+  MakeSyntaxError = from.MakeSyntaxError;
+  MakeTypeError = from.MakeTypeError;
   MathAbs = from.MathAbs;
   ObserveBeginPerformSplice = from.ObserveBeginPerformSplice;
   ObserveEndPerformSplice = from.ObserveEndPerformSplice;

@@ -17,12 +17,14 @@ var GlobalDate = global.Date;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var IsFinite;
+var MakeRangeError;
 var MathAbs;
 var MathFloor;
 var NaN = %GetRootNaN();
 
 utils.Import(function(from) {
   IsFinite = from.IsFinite;
+  MakeRangeError = from.MakeRangeError;
   MathAbs = from.MathAbs;
   MathFloor = from.MathFloor;
 });

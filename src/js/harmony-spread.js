@@ -9,6 +9,11 @@
 // -------------------------------------------------------------------
 // Imports
 var InternalArray = utils.InternalArray;
+var MakeTypeError;
+
+utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
+});
 
 // -------------------------------------------------------------------
 

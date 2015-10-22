@@ -15,6 +15,8 @@ var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
+var MakeRangeError;
+var MakeTypeError;
 var RegExpExec;
 var RegExpExecNoTests;
 var RegExpLastMatchInfo;
@@ -22,6 +24,8 @@ var RegExpLastMatchInfo;
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
+  MakeRangeError = from.MakeRangeError;
+  MakeTypeError = from.MakeTypeError;
   RegExpExec = from.RegExpExec;
   RegExpExecNoTests = from.RegExpExecNoTests;
   RegExpLastMatchInfo = from.RegExpLastMatchInfo;

@@ -4,14 +4,6 @@
 
 // -------------------------------------------------------------------
 
-var MakeError;
-var MakeEvalError;
-var MakeRangeError;
-var MakeReferenceError;
-var MakeSyntaxError;
-var MakeTypeError;
-var MakeURIError;
-
 (function(global, utils) {
 
 %CheckIsBootstrapping();
@@ -972,6 +964,9 @@ GlobalURIError = DefineError(global, function URIError() { });
 
 %AddNamedProperty(GlobalError.prototype, 'message', '', DONT_ENUM);
 
+utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
+                       ['toString', ErrorToString]);
+
 function ErrorToString() {
   if (!IS_SPEC_OBJECT(this)) {
     throw MakeTypeError(kCalledOnNonObject, "Error.prototype.toString");
@@ -980,26 +975,23 @@ function ErrorToString() {
   return %ErrorToStringRT(this);
 }
 
-utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
-                       ['toString', ErrorToString]);
-
-MakeError = function(type, arg0, arg1, arg2) {
+function MakeError(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalError, type, arg0, arg1, arg2);
 }
 
-MakeRangeError = function(type, arg0, arg1, arg2) {
+function MakeRangeError(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalRangeError, type, arg0, arg1, arg2);
 }
 
-MakeSyntaxError = function(type, arg0, arg1, arg2) {
+function MakeSyntaxError(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalSyntaxError, type, arg0, arg1, arg2);
 }
 
-MakeTypeError = function(type, arg0, arg1, arg2) {
+function MakeTypeError(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalTypeError, type, arg0, arg1, arg2);
 }
 
-MakeURIError = function() {
+function MakeURIError() {
   return MakeGenericError(GlobalURIError, kURIMalformed);
 }
 
@@ -1043,6 +1035,11 @@ GlobalError.captureStackTrace = captureStackTrace;
 
 utils.Export(function(to) {
   to.ErrorToString = ErrorToString;
+  to.MakeError = MakeError;
+  to.MakeRangeError = MakeRangeError;
+  to.MakeSyntaxError = MakeSyntaxError;
+  to.MakeTypeError = MakeTypeError;
+  to.MakeURIError = MakeURIError;
 });
 
 });

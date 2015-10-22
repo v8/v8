@@ -18,6 +18,8 @@ var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var MakeRangeError;
+var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var ToPositiveInteger;
@@ -44,6 +46,8 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 
 utils.Import(function(from) {
   ArrayValues = from.ArrayValues;
+  MakeRangeError = from.MakeRangeError;
+  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   ToPositiveInteger = from.ToPositiveInteger;

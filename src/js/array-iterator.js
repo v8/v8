@@ -20,6 +20,7 @@ var arrayIteratorObjectSymbol =
 var GlobalArray = global.Array;
 var IteratorPrototype = utils.ImportNow("IteratorPrototype");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var MakeTypeError;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
@@ -39,6 +40,10 @@ macro COPY_FROM_GLOBAL(NAME)
 endmacro
 
 TYPED_ARRAYS(COPY_FROM_GLOBAL)
+
+utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
+})
 
 // -----------------------------------------------------------------------
 

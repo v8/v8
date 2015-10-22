@@ -12,6 +12,11 @@
 // Imports
 
 var GlobalRegExp = global.RegExp;
+var MakeTypeError;
+
+utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
+});
 
 // -------------------------------------------------------------------
 

@@ -21,6 +21,11 @@ var GlobalBoolean = global.Boolean;
 var GlobalString = global.String;
 var isConcatSpreadableSymbol =
     utils.ImportNow("is_concat_spreadable_symbol");
+var MakeRangeError;
+
+utils.Import(function(from) {
+  MakeRangeError = from.MakeRangeError;
+});
 
 // ----------------------------------------------------------------------------
 

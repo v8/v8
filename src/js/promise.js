@@ -12,6 +12,7 @@
 // Imports
 
 var InternalArray = utils.InternalArray;
+var MakeTypeError;
 var promiseCombinedDeferredSymbol =
     utils.ImportNow("promise_combined_deferred_symbol");
 var promiseHasHandlerSymbol =
@@ -23,6 +24,10 @@ var promiseRawSymbol = utils.ImportNow("promise_raw_symbol");
 var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
 var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+
+utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
+});
 
 // -------------------------------------------------------------------
 

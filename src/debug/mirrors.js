@@ -13,6 +13,7 @@ var FunctionSourceString;
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
+var MakeError;
 var MapEntries;
 var MapIteratorNext;
 var MathMin = global.Math.min;
@@ -25,6 +26,7 @@ var SymbolToString;
 utils.Import(function(from) {
   ErrorToString = from.ErrorToString;
   FunctionSourceString = from.FunctionSourceString;
+  MakeError = from.MakeError;
   MapEntries = from.MapEntries;
   MapIteratorNext = from.MapIteratorNext;
   SetIteratorNext = from.SetIteratorNext;

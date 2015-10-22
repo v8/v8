@@ -16,6 +16,7 @@ var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var ObjectIsFrozen;
@@ -25,6 +26,7 @@ utils.Import(function(from) {
   FLAG_harmony_tolength = from.FLAG_harmony_tolength;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
+  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   ObjectIsFrozen = from.ObjectIsFrozen;

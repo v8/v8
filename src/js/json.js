@@ -13,14 +13,18 @@
 
 var GlobalJSON = global.JSON;
 var InternalArray = utils.InternalArray;
+var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var ObjectHasOwnProperty;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
+  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
+  MathMax = from.MathMax;
+  MathMin = from.MathMin;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
 });
 
