@@ -342,6 +342,17 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
     return NoChange();
   }
 
+  // In strong mode, in case of too few arguments we need to throw a TypeError
+  // so we must not inline this call.
+  size_t parameter_count = info.literal()->parameter_count();
+  if (is_strong(info.language_mode()) &&
+      call.formal_arguments() < parameter_count) {
+    TRACE("Not inlining %s into %s because too few arguments for strong mode\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
   if (!Compiler::EnsureDeoptimizationSupport(&info)) {
     TRACE("Not inlining %s into %s because deoptimization support failed\n",
           function->shared()->DebugName()->ToCString().get(),
@@ -400,19 +411,13 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
 
   Node* start = visitor.GetCopy(graph.start());
   Node* end = visitor.GetCopy(graph.end());
-
   Node* frame_state = call.frame_state();
-  size_t const inlinee_formal_parameters = start->op()->ValueOutputCount() - 3;
-  // Insert argument adaptor frame if required.
-  if (call.formal_arguments() != inlinee_formal_parameters) {
-    // In strong mode, in case of too few arguments we need to throw a
-    // TypeError so we must not inline this call.
-    // TODO(jarin) This check should be moved before the decision point
-    // above so that we do not compile the function uselessly.
-    if (is_strong(info.language_mode()) &&
-        call.formal_arguments() < inlinee_formal_parameters) {
-      return NoChange();
-    }
+
+  // Insert argument adaptor frame if required. The callees formal parameter
+  // count (i.e. value outputs of start node minus target, receiver & context)
+  // have to match the number of arguments passed to the call.
+  DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 3);
+  if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info(),
                                                    info.zone());
   }
