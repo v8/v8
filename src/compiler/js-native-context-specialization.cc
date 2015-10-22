@@ -678,7 +678,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreNamed, node->opcode());
-  StoreNamedParameters const p = StoreNamedParametersOf(node->op());
+  NamedAccess const& p = NamedAccessOf(node->op());
   Handle<Name> name = p.name();
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
