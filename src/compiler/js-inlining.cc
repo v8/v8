@@ -217,8 +217,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
 
 
 Node* JSInliner::CreateArgumentsAdaptorFrameState(
-    JSCallFunctionAccessor* call, Handle<SharedFunctionInfo> shared_info,
-    Zone* temp_zone) {
+    JSCallFunctionAccessor* call, Handle<SharedFunctionInfo> shared_info) {
   const FrameStateFunctionInfo* state_info =
       jsgraph_->common()->CreateFrameStateFunctionInfo(
           FrameStateType::kArgumentsAdaptor,
@@ -229,7 +228,7 @@ Node* JSInliner::CreateArgumentsAdaptorFrameState(
       BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = jsgraph_->common()->StateValues(0);
   Node* node0 = jsgraph_->graph()->NewNode(op0);
-  NodeVector params(temp_zone);
+  NodeVector params(local_zone_);
   params.push_back(call->receiver());
   for (size_t argument = 0; argument != call->formal_arguments(); ++argument) {
     params.push_back(call->formal_argument(argument));
@@ -318,12 +317,8 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
     return NoChange();
   }
 
-  // TODO(mstarzinger): The correct thing would be to use a local zone here for
-  // the inner graph. This however leads to Zone-Types being allocated in the
-  // wrong zone and makes the engine explode at high speeds. Explosion bad!
-  // Zone zone;
-  // ParseInfo parse_info(&zone, function);
-  ParseInfo parse_info(jsgraph_->zone(), function);
+  Zone zone;
+  ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info);
   if (info_->is_deoptimization_enabled()) {
     info.MarkAsDeoptimizationEnabled();
@@ -372,7 +367,10 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
         function->shared()->DebugName()->ToCString().get(),
         info_->shared_info()->DebugName()->ToCString().get());
 
-  Graph graph(info.zone());
+  // TODO(mstarzinger): We could use the temporary zone for the graph because
+  // nodes are copied. This however leads to Zone-Types being allocated in the
+  // wrong zone and makes the engine explode at high speeds. Explosion bad!
+  Graph graph(jsgraph_->zone());
   JSGraph jsgraph(info.isolate(), &graph, jsgraph_->common(),
                   jsgraph_->javascript(), jsgraph_->simplified(),
                   jsgraph_->machine());
@@ -406,7 +404,7 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
   // type feedback in the compiler.
   Node* context = jsgraph_->Constant(handle(function->context()));
 
-  CopyVisitor visitor(&graph, jsgraph_->graph(), info.zone());
+  CopyVisitor visitor(&graph, jsgraph_->graph(), &zone);
   visitor.CopyGraph();
 
   Node* start = visitor.GetCopy(graph.start());
@@ -418,8 +416,7 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
   // have to match the number of arguments passed to the call.
   DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 3);
   if (call.formal_arguments() != parameter_count) {
-    frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info(),
-                                                   info.zone());
+    frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info());
   }
 
   return InlineCall(node, context, frame_state, start, end);
