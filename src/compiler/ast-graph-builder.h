@@ -19,7 +19,6 @@ namespace compiler {
 
 class ControlBuilder;
 class Graph;
-class JSTypeFeedbackTable;
 class LoopAssignmentAnalysis;
 class LoopBuilder;
 class Node;
@@ -31,8 +30,7 @@ class Node;
 class AstGraphBuilder : public AstVisitor {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-                  LoopAssignmentAnalysis* loop_assignment = NULL,
-                  JSTypeFeedbackTable* js_type_feedback = NULL);
+                  LoopAssignmentAnalysis* loop_assignment = NULL);
 
   // Creates a graph by visiting the entire AST.
   bool CreateGraph(bool stack_check = true);
@@ -115,9 +113,6 @@ class AstGraphBuilder : public AstVisitor {
 
   // Function info for frame state construction.
   const FrameStateFunctionInfo* const frame_state_function_info_;
-
-  // Type feedback table.
-  JSTypeFeedbackTable* js_type_feedback_;
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
@@ -286,15 +281,15 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildNamedLoad(Node* receiver, Handle<Name> name,
                        const VectorSlotPair& feedback);
   Node* BuildKeyedStore(Node* receiver, Node* key, Node* value,
-                        const VectorSlotPair& feedback, TypeFeedbackId id);
+                        const VectorSlotPair& feedback);
   Node* BuildNamedStore(Node* receiver, Handle<Name> name, Node* value,
-                        const VectorSlotPair& feedback, TypeFeedbackId id);
+                        const VectorSlotPair& feedback);
 
   // Builders for super property loads and stores.
   Node* BuildKeyedSuperStore(Node* receiver, Node* home_object, Node* key,
-                             Node* value, TypeFeedbackId id);
+                             Node* value);
   Node* BuildNamedSuperStore(Node* receiver, Node* home_object,
-                             Handle<Name> name, Node* value, TypeFeedbackId id);
+                             Handle<Name> name, Node* value);
   Node* BuildNamedSuperLoad(Node* receiver, Node* home_object,
                             Handle<Name> name, const VectorSlotPair& feedback);
   Node* BuildKeyedSuperLoad(Node* receiver, Node* home_object, Node* key,
@@ -304,7 +299,7 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildGlobalLoad(Handle<Name> name, const VectorSlotPair& feedback,
                         TypeofMode typeof_mode);
   Node* BuildGlobalStore(Handle<Name> name, Node* value,
-                         const VectorSlotPair& feedback, TypeFeedbackId id);
+                         const VectorSlotPair& feedback);
 
   // Builders for accessing the function context.
   Node* BuildLoadGlobalObject();

@@ -122,7 +122,6 @@ class CompilationInfo {
     kTypingEnabled = 1 << 12,
     kDisableFutureOptimization = 1 << 13,
     kSplittingEnabled = 1 << 14,
-    kTypeFeedbackEnabled = 1 << 15,
     kDeoptimizationEnabled = 1 << 16,
     kSourcePositionsEnabled = 1 << 17,
     kFirstCompile = 1 << 18,
@@ -237,12 +236,6 @@ class CompilationInfo {
 
   bool is_native_context_specializing() const {
     return GetFlag(kNativeContextSpecializing);
-  }
-
-  void MarkAsTypeFeedbackEnabled() { SetFlag(kTypeFeedbackEnabled); }
-
-  bool is_type_feedback_enabled() const {
-    return GetFlag(kTypeFeedbackEnabled);
   }
 
   void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }

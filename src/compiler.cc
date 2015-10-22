@@ -443,9 +443,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
                FLAG_native_context_specialization) {
       info()->MarkAsNativeContextSpecializing();
       info()->MarkAsTypingEnabled();
-    } else if (FLAG_turbo_type_feedback) {
-      info()->MarkAsTypeFeedbackEnabled();
-      info()->EnsureFeedbackVector();
     }
     if (!info()->shared_info()->asm_function() ||
         FLAG_turbo_asm_deoptimization) {

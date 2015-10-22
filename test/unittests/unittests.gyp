@@ -70,7 +70,6 @@
         'compiler/js-intrinsic-lowering-unittest.cc',
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',
-        'compiler/js-type-feedback-unittest.cc',
         'compiler/linkage-tail-call-unittest.cc',
         'compiler/liveness-analyzer-unittest.cc',
         'compiler/live-range-unittest.cc',

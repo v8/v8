@@ -34,8 +34,6 @@
 #include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-native-context-specialization.h"
-#include "src/compiler/js-type-feedback.h"
-#include "src/compiler/js-type-feedback-lowering.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/jump-threading.h"
 #include "src/compiler/live-range-separator.h"
@@ -89,7 +87,6 @@ class PipelineData {
         common_(nullptr),
         javascript_(nullptr),
         jsgraph_(nullptr),
-        js_type_feedback_(nullptr),
         schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(instruction_zone_scope_.zone()),
@@ -131,7 +128,6 @@ class PipelineData {
         common_(nullptr),
         javascript_(nullptr),
         jsgraph_(nullptr),
-        js_type_feedback_(nullptr),
         schedule_(schedule),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(instruction_zone_scope_.zone()),
@@ -160,7 +156,6 @@ class PipelineData {
         common_(nullptr),
         javascript_(nullptr),
         jsgraph_(nullptr),
-        js_type_feedback_(nullptr),
         schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(sequence->zone()),
@@ -200,10 +195,6 @@ class PipelineData {
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
   JSGraph* jsgraph() const { return jsgraph_; }
-  JSTypeFeedbackTable* js_type_feedback() { return js_type_feedback_; }
-  void set_js_type_feedback(JSTypeFeedbackTable* js_type_feedback) {
-    js_type_feedback_ = js_type_feedback;
-  }
 
   LoopAssignmentAnalysis* loop_assignment() const { return loop_assignment_; }
   void set_loop_assignment(LoopAssignmentAnalysis* loop_assignment) {
@@ -240,7 +231,6 @@ class PipelineData {
     common_ = nullptr;
     javascript_ = nullptr;
     jsgraph_ = nullptr;
-    js_type_feedback_ = nullptr;
     schedule_ = nullptr;
   }
 
@@ -308,7 +298,6 @@ class PipelineData {
   CommonOperatorBuilder* common_;
   JSOperatorBuilder* javascript_;
   JSGraph* jsgraph_;
-  JSTypeFeedbackTable* js_type_feedback_;
   Schedule* schedule_;
 
   // All objects in the following group of fields are allocated in
@@ -366,10 +355,8 @@ class AstGraphBuilderWithPositions final : public AstGraphBuilder {
   AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
                                JSGraph* jsgraph,
                                LoopAssignmentAnalysis* loop_assignment,
-                               JSTypeFeedbackTable* js_type_feedback,
                                SourcePositionTable* source_positions)
-      : AstGraphBuilder(local_zone, info, jsgraph, loop_assignment,
-                        js_type_feedback),
+      : AstGraphBuilder(local_zone, info, jsgraph, loop_assignment),
         source_positions_(source_positions),
         start_position_(info->shared_info()->start_position()) {}
 
@@ -493,7 +480,7 @@ struct GraphBuilderPhase {
     } else {
       AstGraphBuilderWithPositions graph_builder(
           temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
-          data->js_type_feedback(), data->source_positions());
+          data->source_positions());
       succeeded = graph_builder.CreateGraph(stack_check);
     }
 
@@ -583,34 +570,6 @@ struct OsrDeconstructionPhase {
 };
 
 
-struct JSTypeFeedbackPhase {
-  static const char* phase_name() { return "type feedback specializing"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    Handle<Context> native_context(data->info()->context()->native_context());
-    TypeFeedbackOracle oracle(data->isolate(), temp_zone,
-                              data->info()->unoptimized_code(),
-                              data->info()->feedback_vector(), native_context);
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-    Handle<GlobalObject> global_object = Handle<GlobalObject>::null();
-    if (data->info()->has_global_object()) {
-      global_object =
-          Handle<GlobalObject>(data->info()->global_object(), data->isolate());
-    }
-    // TODO(titzer): introduce a specialization mode/flags enum to control
-    // specializing to the global object here.
-    JSTypeFeedbackSpecializer specializer(
-        &graph_reducer, data->jsgraph(), data->js_type_feedback(), &oracle,
-        global_object, data->info()->is_deoptimization_enabled()
-                           ? JSTypeFeedbackSpecializer::kDeoptimizationEnabled
-                           : JSTypeFeedbackSpecializer::kDeoptimizationDisabled,
-        data->info()->dependencies());
-    AddReducer(data, &graph_reducer, &specializer);
-    graph_reducer.ReduceGraph();
-  }
-};
-
-
 struct TypedLoweringPhase {
   static const char* phase_name() { return "typed lowering"; }
 
@@ -621,11 +580,6 @@ struct TypedLoweringPhase {
     LoadElimination load_elimination(&graph_reducer);
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
-    JSTypeFeedbackLowering type_feedback_lowering(
-        &graph_reducer, data->info()->is_deoptimization_enabled()
-                            ? JSTypeFeedbackLowering::kDeoptimizationEnabled
-                            : JSTypeFeedbackLowering::kNoFlags,
-        data->jsgraph());
     JSIntrinsicLowering intrinsic_lowering(
         &graph_reducer, data->jsgraph(),
         data->info()->is_deoptimization_enabled()
@@ -637,7 +591,6 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &builtin_reducer);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
-    AddReducer(data, &graph_reducer, &type_feedback_lowering);
     AddReducer(data, &graph_reducer, &load_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
@@ -1095,11 +1048,6 @@ Handle<Code> Pipeline::GenerateCode() {
   PipelineData data(&zone_pool, info(), pipeline_statistics.get());
   this->data_ = &data;
 
-  if (info()->is_type_feedback_enabled()) {
-    data.set_js_type_feedback(new (data.graph_zone())
-                                  JSTypeFeedbackTable(data.graph_zone()));
-  }
-
   BeginPhaseKind("graph creation");
 
   if (FLAG_trace_turbo) {
@@ -1164,11 +1112,6 @@ Handle<Code> Pipeline::GenerateCode() {
     if (FLAG_turbo_stress_loop_peeling) {
       Run<StressLoopPeelingPhase>();
       RunPrintAndVerify("Loop peeled");
-    }
-
-    if (info()->is_type_feedback_enabled()) {
-      Run<JSTypeFeedbackPhase>();
-      RunPrintAndVerify("JSType feedback");
     }
 
     // Lower simplified operators and insert changes.
