@@ -1037,7 +1037,15 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
     }
     case KEYED_PROPERTY: {
       object = VisitForRegisterValue(property->obj());
-      key = VisitForRegisterValue(property->key());
+      if (expr->is_compound()) {
+        // Use VisitForAccumulator and store to register so that the key is
+        // still in the accumulator for loading the old value below.
+        key = execution_result()->NewRegister();
+        VisitForAccumulatorValue(property->key());
+        builder()->StoreAccumulatorInRegister(key);
+      } else {
+        key = VisitForRegisterValue(property->key());
+      }
       break;
     }
     case NAMED_SUPER_PROPERTY:
@@ -1048,7 +1056,41 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   // Evaluate the value and potentially handle compound assignments by loading
   // the left-hand side value and performing a binary operation.
   if (expr->is_compound()) {
-    UNIMPLEMENTED();
+    Register old_value;
+    switch (assign_type) {
+      case VARIABLE: {
+        VariableProxy* proxy = expr->target()->AsVariableProxy();
+        old_value = VisitVariableLoadForRegisterValue(
+            proxy->var(), proxy->VariableFeedbackSlot());
+        break;
+      }
+      case NAMED_PROPERTY: {
+        FeedbackVectorSlot slot = property->PropertyFeedbackSlot();
+        old_value = execution_result()->NewRegister();
+        builder()
+            ->LoadNamedProperty(object, name_index, feedback_index(slot),
+                                language_mode())
+            .StoreAccumulatorInRegister(old_value);
+        break;
+      }
+      case KEYED_PROPERTY: {
+        // Key is already in accumulator at this point due to evaluating the
+        // LHS above.
+        FeedbackVectorSlot slot = property->PropertyFeedbackSlot();
+        old_value = execution_result()->NewRegister();
+        builder()
+            ->LoadKeyedProperty(object, feedback_index(slot), language_mode())
+            .StoreAccumulatorInRegister(old_value);
+        break;
+      }
+      case NAMED_SUPER_PROPERTY:
+      case KEYED_SUPER_PROPERTY:
+        UNIMPLEMENTED();
+        break;
+    }
+    VisitForAccumulatorValue(expr->value());
+    builder()->BinaryOperation(expr->binary_op(), old_value,
+                               language_mode_strength());
   } else {
     VisitForAccumulatorValue(expr->value());
   }

@@ -2145,3 +2145,57 @@ TEST(InterpreterGlobalCountOperators) {
     CHECK(return_value->SameValue(*count_ops[i].second));
   }
 }
+
+
+TEST(InterpreterCompoundExpressions) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> compound_expr[5] = {
+      std::make_pair("var a = 1; a += 2; return a;",
+                     Handle<Object>(Smi::FromInt(3), isolate)),
+      std::make_pair("var a = 10; a /= 2; return a;",
+                     Handle<Object>(Smi::FromInt(5), isolate)),
+      std::make_pair("var a = 'test'; a += 'ing'; return a;",
+                     factory->NewStringFromStaticChars("testing")),
+      std::make_pair("var a = { val: 2 }; a.val *= 2; return a.val;",
+                     Handle<Object>(Smi::FromInt(4), isolate)),
+      std::make_pair("var a = 1; (function f() { a = 2; })(); a += 24;"
+                     "return a;",
+                     Handle<Object>(Smi::FromInt(26), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(compound_expr); i++) {
+    std::string source(
+        InterpreterTester::SourceForBody(compound_expr[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*compound_expr[i].second));
+  }
+}
+
+
+TEST(InterpreterGlobalCompoundExpressions) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> compound_expr[2] = {
+      std::make_pair("var global = 100;"
+                     "function f() { global += 20; return global; }",
+                     Handle<Object>(Smi::FromInt(120), isolate)),
+      std::make_pair("unallocated = 100;"
+                     "function f() { unallocated -= 20; return unallocated; }",
+                     Handle<Object>(Smi::FromInt(80), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(compound_expr); i++) {
+    InterpreterTester tester(handles.main_isolate(), compound_expr[i].first);
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*compound_expr[i].second));
+  }
+}
