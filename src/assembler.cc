@@ -111,13 +111,14 @@ namespace internal {
 const char* Register::ToString() {
   // This is the mapping of allocation indices to registers.
   DCHECK(reg_code >= 0 && reg_code < kNumRegisters);
-  return RegisterConfiguration::ArchDefault()->GetGeneralRegisterName(reg_code);
+  return RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+      ->GetGeneralRegisterName(reg_code);
 }
 
 
 bool Register::IsAllocatable() const {
   return ((1 << reg_code) &
-          RegisterConfiguration::ArchDefault()
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
               ->allocatable_general_codes_mask()) != 0;
 }
 
@@ -125,13 +126,14 @@ bool Register::IsAllocatable() const {
 const char* DoubleRegister::ToString() {
   // This is the mapping of allocation indices to registers.
   DCHECK(reg_code >= 0 && reg_code < kMaxNumRegisters);
-  return RegisterConfiguration::ArchDefault()->GetDoubleRegisterName(reg_code);
+  return RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+      ->GetDoubleRegisterName(reg_code);
 }
 
 
 bool DoubleRegister::IsAllocatable() const {
   return ((1 << reg_code) &
-          RegisterConfiguration::ArchDefault()
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
               ->allocatable_double_codes_mask()) != 0;
 }
 

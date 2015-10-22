@@ -1269,8 +1269,9 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
 
   bool run_verifier = FLAG_turbo_verify_allocation;
   // Allocate registers.
-  AllocateRegisters(RegisterConfiguration::ArchDefault(), call_descriptor,
-                    run_verifier);
+  AllocateRegisters(
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
+      call_descriptor, run_verifier);
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
     return Handle<Code>();

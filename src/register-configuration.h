@@ -14,11 +14,18 @@ namespace internal {
 // for instruction creation.
 class RegisterConfiguration {
  public:
+  // Define the optimized compiler selector for register configuration
+  // selection.
+  //
+  // TODO(X87): This distinction in RegisterConfigurations is temporary
+  // until x87 TF supports all of the registers that Crankshaft does.
+  enum CompilerSelector { CRANKSHAFT, TURBOFAN };
+
   // Architecture independent maxes.
   static const int kMaxGeneralRegisters = 32;
   static const int kMaxDoubleRegisters = 32;
 
-  static const RegisterConfiguration* ArchDefault();
+  static const RegisterConfiguration* ArchDefault(CompilerSelector compiler);
 
   RegisterConfiguration(int num_general_registers, int num_double_registers,
                         int num_allocatable_general_registers,

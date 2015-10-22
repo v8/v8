@@ -29,7 +29,8 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
                                   int param_count) {
   MachineSignature::Builder msig(zone, return_count, param_count);
   LocationSignature::Builder locations(zone, return_count, param_count);
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
 
   // Add return location(s).
   DCHECK(return_count <= config->num_allocatable_general_registers());

@@ -144,7 +144,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Save all FPU registers before messing with them.
   __ Subu(sp, sp, Operand(kDoubleRegsSize));
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);

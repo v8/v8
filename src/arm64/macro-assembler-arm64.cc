@@ -3988,14 +3988,16 @@ void MacroAssembler::PushSafepointRegistersAndDoubles() {
   PushSafepointRegisters();
   PushCPURegList(CPURegList(
       CPURegister::kFPRegister, kDRegSizeInBits,
-      RegisterConfiguration::ArchDefault()->allocatable_double_codes_mask()));
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+          ->allocatable_double_codes_mask()));
 }
 
 
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
   PopCPURegList(CPURegList(
       CPURegister::kFPRegister, kDRegSizeInBits,
-      RegisterConfiguration::ArchDefault()->allocatable_double_codes_mask()));
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+          ->allocatable_double_codes_mask()));
   PopSafepointRegisters();
 }
 

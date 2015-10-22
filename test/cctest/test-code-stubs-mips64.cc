@@ -80,7 +80,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 2;
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
   for (; reg_num < config->num_allocatable_general_registers(); ++reg_num) {
     Register reg = Register::from_code(reg_num);
     if (!reg.is(destination_reg)) {

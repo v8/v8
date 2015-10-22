@@ -36,7 +36,7 @@ STATIC_ASSERT(RegisterConfiguration::kMaxDoubleRegisters >=
 
 class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
  public:
-  ArchDefaultRegisterConfiguration()
+  explicit ArchDefaultRegisterConfiguration(CompilerSelector compiler)
       : RegisterConfiguration(
             Register::kNumRegisters, DoubleRegister::kMaxNumRegisters,
 #if V8_TARGET_ARCH_IA32
@@ -104,15 +104,34 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
 };
 
 
-static base::LazyInstance<ArchDefaultRegisterConfiguration>::type
-    kDefaultRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
+template <RegisterConfiguration::CompilerSelector compiler>
+struct RegisterConfigurationInitializer {
+  static void Construct(ArchDefaultRegisterConfiguration* config) {
+    new (config) ArchDefaultRegisterConfiguration(compiler);
+  }
+};
+
+static base::LazyInstance<
+    ArchDefaultRegisterConfiguration,
+    RegisterConfigurationInitializer<RegisterConfiguration::CRANKSHAFT>>::type
+    kDefaultRegisterConfigurationForCrankshaft = LAZY_INSTANCE_INITIALIZER;
+
+
+static base::LazyInstance<
+    ArchDefaultRegisterConfiguration,
+    RegisterConfigurationInitializer<RegisterConfiguration::TURBOFAN>>::type
+    kDefaultRegisterConfigurationForTurboFan = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
 
-const RegisterConfiguration* RegisterConfiguration::ArchDefault() {
-  return &kDefaultRegisterConfiguration.Get();
+const RegisterConfiguration* RegisterConfiguration::ArchDefault(
+    CompilerSelector compiler) {
+  return compiler == TURBOFAN
+             ? &kDefaultRegisterConfigurationForTurboFan.Get()
+             : &kDefaultRegisterConfigurationForCrankshaft.Get();
 }
+
 
 RegisterConfiguration::RegisterConfiguration(
     int num_general_registers, int num_double_registers,

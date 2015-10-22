@@ -272,8 +272,9 @@ void ReferenceMap::RecordReference(const AllocatedOperand& op) {
 std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm) {
   os << "{";
   bool first = true;
-  PrintableInstructionOperand poi = {RegisterConfiguration::ArchDefault(),
-                                     InstructionOperand()};
+  PrintableInstructionOperand poi = {
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
+      InstructionOperand()};
   for (auto& op : pm.reference_operands_) {
     if (!first) {
       os << ";";

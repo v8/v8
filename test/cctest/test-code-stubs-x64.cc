@@ -64,7 +64,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ pushq(rdi);
 
 
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
   if (!source_reg.is(rsp)) {
     // The argument we pass to the stub is not a heap number, but instead
     // stack-allocated and offset-wise made to look like a heap number for

@@ -236,7 +236,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   const int kDoubleRegsSize = kDoubleSize * XMMRegister::kMaxNumRegisters;
   __ sub(esp, Immediate(kDoubleRegsSize));
-  const RegisterConfiguration* config = RegisterConfiguration::ArchDefault();
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);

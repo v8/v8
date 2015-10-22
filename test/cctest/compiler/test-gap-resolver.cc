@@ -109,7 +109,9 @@ class InterpreterState {
       InstructionOperand source = FromKey(it->first);
       InstructionOperand destination = FromKey(it->second);
       MoveOperands mo(source, destination);
-      PrintableMoveOperands pmo = {RegisterConfiguration::ArchDefault(), &mo};
+      PrintableMoveOperands pmo = {
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
+          &mo};
       os << pmo;
     }
     return os;

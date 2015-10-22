@@ -1462,9 +1462,11 @@ void LAllocator::PopulatePointerMaps() {
 void LAllocator::AllocateGeneralRegisters() {
   LAllocatorPhase phase("L_Allocate general registers", this);
   num_registers_ =
-      RegisterConfiguration::ArchDefault()->num_allocatable_general_registers();
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+          ->num_allocatable_general_registers();
   allocatable_register_codes_ =
-      RegisterConfiguration::ArchDefault()->allocatable_general_codes();
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+          ->allocatable_general_codes();
   mode_ = GENERAL_REGISTERS;
   AllocateRegisters();
 }
@@ -1473,9 +1475,11 @@ void LAllocator::AllocateGeneralRegisters() {
 void LAllocator::AllocateDoubleRegisters() {
   LAllocatorPhase phase("L_Allocate double registers", this);
   num_registers_ =
-      RegisterConfiguration::ArchDefault()->num_allocatable_double_registers();
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+          ->num_allocatable_double_registers();
   allocatable_register_codes_ =
-      RegisterConfiguration::ArchDefault()->allocatable_double_codes();
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+          ->allocatable_double_codes();
   mode_ = DOUBLE_REGISTERS;
   AllocateRegisters();
 }

@@ -311,7 +311,11 @@
 
 ##############################################################################
 ['arch == x87', {
-  'test-run-machops/RunFloat64InsertLowWord32': [SKIP]
+  'test-run-machops/RunFloat64InsertLowWord32': [SKIP],
+  'test-run-native-calls/MixedParams_0': [SKIP],
+  'test-run-native-calls/MixedParams_1': [SKIP],
+  'test-run-native-calls/MixedParams_2': [SKIP],
+  'test-run-native-calls/MixedParams_3': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################
