@@ -632,6 +632,10 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         constant_object =
             isolate()->factory()->NewNumberFromInt(constant.ToInt32());
         break;
+      case Constant::kFloat32:
+        DCHECK((type & (kRepFloat32 | kRepTagged)) != 0);
+        constant_object = isolate()->factory()->NewNumber(constant.ToFloat32());
+        break;
       case Constant::kFloat64:
         DCHECK((type & (kRepFloat64 | kRepTagged)) != 0);
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());

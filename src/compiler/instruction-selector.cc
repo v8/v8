@@ -1096,6 +1096,7 @@ InstructionOperand InstructionSelector::OperandForDeopt(
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
     case IrOpcode::kNumberConstant:
+    case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kHeapConstant:
       return g->UseImmediate(input);
