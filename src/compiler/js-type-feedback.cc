@@ -145,7 +145,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   Node* frame_state_before = GetFrameStateBefore(node);
   if (frame_state_before == nullptr) return NoChange();
 
-  const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
+  NamedAccess const& p = NamedAccessOf(node->op());
   SmallMapList maps;
 
   FeedbackVectorSlot slot = js_type_feedback_->FindFeedbackVectorSlot(node);
@@ -255,7 +255,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
   Node* frame_state_before = GetFrameStateBefore(node);
   if (frame_state_before == nullptr) return NoChange();
 
-  const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
+  NamedAccess const& p = NamedAccessOf(node->op());
   SmallMapList maps;
   TypeFeedbackId id = js_type_feedback_->FindTypeFeedbackId(node);
   if (id.IsNone() || oracle()->StoreIsUninitialized(id) == UNINITIALIZED) {

@@ -286,7 +286,7 @@ void JSGenericLowering::LowerJSToObject(Node* node) {
 
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  const LoadPropertyParameters& p = LoadPropertyParametersOf(node->op());
+  const PropertyAccess& p = PropertyAccessOf(node->op());
   Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(
       isolate(), p.language_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
@@ -296,7 +296,7 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
 
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
+  NamedAccess const& p = NamedAccessOf(node->op());
   Callable callable = CodeFactory::LoadICInOptimizedCode(
       isolate(), NOT_INSIDE_TYPEOF, p.language_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
@@ -330,7 +330,7 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
 
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  const StorePropertyParameters& p = StorePropertyParametersOf(node->op());
+  PropertyAccess const& p = PropertyAccessOf(node->op());
   LanguageMode language_mode = p.language_mode();
   Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
       isolate(), language_mode, UNINITIALIZED);
@@ -347,7 +347,7 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
 
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
+  NamedAccess const& p = NamedAccessOf(node->op());
   Callable callable = CodeFactory::StoreICInOptimizedCode(
       isolate(), p.language_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));

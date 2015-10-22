@@ -826,7 +826,7 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   Type* receiver_type = NodeProperties::GetType(receiver);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Handle<Name> name = LoadNamedParametersOf(node->op()).name();
+  Handle<Name> name = NamedAccessOf(node->op()).name();
   // Optimize "length" property of strings.
   if (name.is_identical_to(factory()->length_string()) &&
       receiver_type->Is(Type::String())) {

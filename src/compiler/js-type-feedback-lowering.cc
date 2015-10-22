@@ -39,7 +39,7 @@ Reduction JSTypeFeedbackLowering::ReduceJSLoadNamed(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   // We need to make optimistic assumptions to continue.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-  LoadNamedParameters const& p = LoadNamedParametersOf(node->op());
+  NamedAccess const& p = NamedAccessOf(node->op());
   if (!p.feedback().IsValid()) return NoChange();  // No feedback.
   if (p.name().is_identical_to(factory()->length_string())) {
     LoadICNexus nexus(p.feedback().vector(), p.feedback().slot());

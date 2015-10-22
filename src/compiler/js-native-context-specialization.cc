@@ -428,7 +428,7 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfos(
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
-  LoadNamedParameters const p = LoadNamedParametersOf(node->op());
+  NamedAccess const& p = NamedAccessOf(node->op());
   Handle<Name> name = p.name();
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);

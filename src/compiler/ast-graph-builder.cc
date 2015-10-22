@@ -3614,7 +3614,7 @@ static inline Node* Record(JSTypeFeedbackTable* js_type_feedback, Node* node,
 
 Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
                                       const VectorSlotPair& feedback) {
-  const Operator* op = javascript()->LoadProperty(feedback, language_mode());
+  const Operator* op = javascript()->LoadProperty(language_mode(), feedback);
   Node* node = NewNode(op, object, key, BuildLoadFeedbackVector());
   return Record(js_type_feedback_, node, feedback.slot());
 }
@@ -3622,7 +3622,7 @@ Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
 
 Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
                                       const VectorSlotPair& feedback) {
-  const Operator* op = javascript()->LoadNamed(name, feedback, language_mode());
+  const Operator* op = javascript()->LoadNamed(language_mode(), name, feedback);
   Node* node = NewNode(op, object, BuildLoadFeedbackVector());
   return Record(js_type_feedback_, node, feedback.slot());
 }

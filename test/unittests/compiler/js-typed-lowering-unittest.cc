@@ -661,7 +661,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
       Node* effect = graph()->start();
       Node* control = graph()->start();
       Reduction r = Reduce(
-          graph()->NewNode(javascript()->LoadProperty(feedback, language_mode),
+          graph()->NewNode(javascript()->LoadProperty(language_mode, feedback),
                            base, key, vector, context, EmptyFrameState(),
                            EmptyFrameState(), effect, control));
 
@@ -705,7 +705,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
       Node* effect = graph()->start();
       Node* control = graph()->start();
       Reduction r = Reduce(
-          graph()->NewNode(javascript()->LoadProperty(feedback, language_mode),
+          graph()->NewNode(javascript()->LoadProperty(language_mode, feedback),
                            base, key, vector, context, EmptyFrameState(),
                            EmptyFrameState(), effect, control));
 
@@ -877,7 +877,7 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
   Node* const control = graph()->start();
   TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
     Reduction const r = Reduce(
-        graph()->NewNode(javascript()->LoadNamed(name, feedback, language_mode),
+        graph()->NewNode(javascript()->LoadNamed(language_mode, name, feedback),
                          receiver, vector, context, EmptyFrameState(),
                          EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
