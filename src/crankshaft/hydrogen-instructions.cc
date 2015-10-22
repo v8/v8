@@ -1581,9 +1581,10 @@ HValue* HUnaryMathOperation::Canonicalize() {
     HDiv* hdiv = HDiv::cast(value());
 
     HValue* left = hdiv->left();
-    if (left->representation().IsInteger32()) {
+    if (left->representation().IsInteger32() && !left->CheckFlag(kUint32)) {
       // A value with an integer representation does not need to be transformed.
-    } else if (left->IsChange() && HChange::cast(left)->from().IsInteger32()) {
+    } else if (left->IsChange() && HChange::cast(left)->from().IsInteger32() &&
+               !HChange::cast(left)->value()->CheckFlag(kUint32)) {
       // A change from an integer32 can be replaced by the integer32 value.
       left = HChange::cast(left)->value();
     } else if (hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
@@ -1597,10 +1598,12 @@ HValue* HUnaryMathOperation::Canonicalize() {
     if (right->IsInteger32Constant()) {
       right = Prepend(HConstant::cast(right)->CopyToRepresentation(
           Representation::Integer32(), right->block()->zone()));
-    } else if (right->representation().IsInteger32()) {
+    } else if (right->representation().IsInteger32() &&
+               !right->CheckFlag(kUint32)) {
       // A value with an integer representation does not need to be transformed.
     } else if (right->IsChange() &&
-               HChange::cast(right)->from().IsInteger32()) {
+               HChange::cast(right)->from().IsInteger32() &&
+               !HChange::cast(right)->value()->CheckFlag(kUint32)) {
       // A change from an integer32 can be replaced by the integer32 value.
       right = HChange::cast(right)->value();
     } else if (hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
