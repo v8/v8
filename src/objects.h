@@ -4400,7 +4400,6 @@ class FreeSpace: public HeapObject {
 
   // Accessors for the next field.
   inline FreeSpace* next();
-  inline FreeSpace** next_address();
   inline void set_next(FreeSpace* next);
 
   inline static FreeSpace* cast(HeapObject* obj);

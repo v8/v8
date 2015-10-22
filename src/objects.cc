@@ -1809,7 +1809,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "<BytecodeArray[" << BytecodeArray::cast(this)->length() << "]>";
       break;
     case FREE_SPACE_TYPE:
-      os << "<FreeSpace[" << FreeSpace::cast(this)->Size() << "]>";
+      os << "<FreeSpace[" << FreeSpace::cast(this)->size() << "]>";
       break;
 #define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype, size)                \
   case FIXED_##TYPE##_ARRAY_TYPE:                                             \

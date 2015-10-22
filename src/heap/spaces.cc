@@ -2235,7 +2235,7 @@ FreeSpace* FreeListCategory::PickNodeFromList(int* node_size) {
 
   Page* page = Page::FromAddress(node->address());
   while ((node != nullptr) && page->IsEvacuationCandidate()) {
-    available_ -= node->Size();
+    available_ -= node->size();
     page->add_available_in_free_list(type_, -(node->Size()));
     node = node->next();
   }

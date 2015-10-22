@@ -3667,14 +3667,6 @@ FreeSpace* FreeSpace::next() {
 }
 
 
-FreeSpace** FreeSpace::next_address() {
-  DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
-         (!GetHeap()->deserialization_complete() && map() == NULL));
-  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
-  return reinterpret_cast<FreeSpace**>(address() + kNextOffset);
-}
-
-
 void FreeSpace::set_next(FreeSpace* next) {
   DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
          (!GetHeap()->deserialization_complete() && map() == NULL));

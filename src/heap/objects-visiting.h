@@ -340,7 +340,7 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
   }
 
   INLINE(static int VisitFreeSpace(Map* map, HeapObject* object)) {
-    return FreeSpace::cast(object)->Size();
+    return FreeSpace::cast(object)->size();
   }
 
   INLINE(static int VisitJSArrayBuffer(Map* map, HeapObject* object));
