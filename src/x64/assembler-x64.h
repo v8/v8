@@ -1326,6 +1326,7 @@ class Assembler : public AssemblerBase {
   AVX_SP_3(vmax, 0x5f);
   AVX_P_3(vand, 0x54);
   AVX_P_3(vxor, 0x57);
+  AVX_3(vpcmpeqd, 0x76, vpd);
   AVX_3(vcvtsd2ss, 0x5a, vsd);
 
 #undef AVX_3
@@ -1333,6 +1334,16 @@ class Assembler : public AssemblerBase {
 #undef AVX_P_3
 #undef AVX_SP_3
 
+  void vpsrlq(XMMRegister dst, XMMRegister src, byte imm8) {
+    XMMRegister iop = {2};
+    vpd(0x73, iop, dst, src);
+    emit(imm8);
+  }
+  void vpsllq(XMMRegister dst, XMMRegister src, byte imm8) {
+    XMMRegister iop = {6};
+    vpd(0x73, iop, dst, src);
+    emit(imm8);
+  }
   void vcvtss2sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vsd(0x5a, dst, src1, src2, kF3, k0F, kWIG);
   }

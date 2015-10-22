@@ -166,7 +166,7 @@ class OutOfLineLoadNaN final : public OutOfLineCode {
   OutOfLineLoadNaN(CodeGenerator* gen, XMMRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() final { __ pcmpeqd(result_, result_); }
+  void Generate() final { __ Pcmpeqd(result_, result_); }
 
  private:
   XMMRegister const result_;
@@ -335,7 +335,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
                                                                              \
         void Generate() final {                                              \
           __ leal(kScratchRegister, Operand(index1_, index2_));              \
-          __ pcmpeqd(result_, result_);                                      \
+          __ Pcmpeqd(result_, result_);                                      \
           __ cmpl(kScratchRegister, Immediate(length_));                     \
           __ j(above_equal, exit());                                         \
           __ asm_instr(result_,                                              \
@@ -1044,9 +1044,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kAVXFloat32Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrlq(kScratchDoubleReg, 33);
       CpuFeatureScope avx_scope(masm(), AVX);
+      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpsrlq(kScratchDoubleReg, kScratchDoubleReg, 33);
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ vandps(i.OutputDoubleRegister(), kScratchDoubleReg,
                   i.InputDoubleRegister(0));
@@ -1058,9 +1058,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kAVXFloat32Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psllq(kScratchDoubleReg, 31);
       CpuFeatureScope avx_scope(masm(), AVX);
+      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpsllq(kScratchDoubleReg, kScratchDoubleReg, 31);
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ vxorps(i.OutputDoubleRegister(), kScratchDoubleReg,
                   i.InputDoubleRegister(0));
@@ -1072,9 +1072,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kAVXFloat64Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrlq(kScratchDoubleReg, 1);
       CpuFeatureScope avx_scope(masm(), AVX);
+      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpsrlq(kScratchDoubleReg, kScratchDoubleReg, 1);
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ vandpd(i.OutputDoubleRegister(), kScratchDoubleReg,
                   i.InputDoubleRegister(0));
@@ -1086,9 +1086,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kAVXFloat64Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psllq(kScratchDoubleReg, 63);
       CpuFeatureScope avx_scope(masm(), AVX);
+      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpsllq(kScratchDoubleReg, kScratchDoubleReg, 63);
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ vxorpd(i.OutputDoubleRegister(), kScratchDoubleReg,
                   i.InputDoubleRegister(0));

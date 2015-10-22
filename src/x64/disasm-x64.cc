@@ -1250,6 +1250,17 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfXMMRegister(regop));
         current += PrintRightOperand(current);
         break;
+      case 0x73:
+        AppendToBuffer("%s %s,", regop == 6 ? "vpsllq" : "vpsrlq",
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%u", *current++);
+        break;
+      case 0x76:
+        AppendToBuffer("vpcmpeqd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x7e:
         AppendToBuffer("vmov%c ", vex_w() ? 'q' : 'd');
         current += PrintRightOperand(current);

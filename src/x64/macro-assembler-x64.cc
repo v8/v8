@@ -2490,7 +2490,7 @@ void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
     unsigned pop = base::bits::CountPopulation32(src);
     DCHECK_NE(0u, pop);
     if (pop == 32) {
-      pcmpeqd(dst, dst);
+      Pcmpeqd(dst, dst);
     } else {
       movl(kScratchRegister, Immediate(src));
       Movq(dst, kScratchRegister);
@@ -2508,13 +2508,13 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
     unsigned pop = base::bits::CountPopulation64(src);
     DCHECK_NE(0u, pop);
     if (pop == 64) {
-      pcmpeqd(dst, dst);
+      Pcmpeqd(dst, dst);
     } else if (pop + ntz == 64) {
-      pcmpeqd(dst, dst);
-      psllq(dst, ntz);
+      Pcmpeqd(dst, dst);
+      Psllq(dst, ntz);
     } else if (pop + nlz == 64) {
-      pcmpeqd(dst, dst);
-      psrlq(dst, nlz);
+      Pcmpeqd(dst, dst);
+      Psrlq(dst, nlz);
     } else {
       uint32_t lower = static_cast<uint32_t>(src);
       uint32_t upper = static_cast<uint32_t>(src >> 32);
@@ -2715,6 +2715,36 @@ void MacroAssembler::Xorpd(XMMRegister dst, XMMRegister src) {
     vxorpd(dst, dst, src);
   } else {
     xorpd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Pcmpeqd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpcmpeqd(dst, dst, src);
+  } else {
+    pcmpeqd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Psllq(XMMRegister dst, byte imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsllq(dst, dst, imm8);
+  } else {
+    psllq(dst, imm8);
+  }
+}
+
+
+void MacroAssembler::Psrlq(XMMRegister dst, byte imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsrlq(dst, dst, imm8);
+  } else {
+    psrlq(dst, imm8);
   }
 }
 

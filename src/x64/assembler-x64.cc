@@ -2986,6 +2986,7 @@ void Assembler::movss(const Operand& src, XMMRegister dst) {
 
 
 void Assembler::psllq(XMMRegister reg, byte imm8) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(reg);
@@ -2997,6 +2998,7 @@ void Assembler::psllq(XMMRegister reg, byte imm8) {
 
 
 void Assembler::psrlq(XMMRegister reg, byte imm8) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(reg);
@@ -3449,6 +3451,7 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
 
 
 void Assembler::pcmpeqd(XMMRegister dst, XMMRegister src) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(dst, src);

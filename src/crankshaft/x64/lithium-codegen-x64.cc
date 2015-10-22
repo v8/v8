@@ -3819,7 +3819,7 @@ void LCodeGen::DoMathLog(LMathLog* instr) {
   __ Ucomisd(input_reg, xmm_scratch);
   __ j(above, &positive, Label::kNear);
   __ j(not_carry, &zero, Label::kNear);
-  __ pcmpeqd(input_reg, input_reg);
+  __ Pcmpeqd(input_reg, input_reg);
   __ jmp(&done, Label::kNear);
   __ bind(&zero);
   ExternalReference ninf =
@@ -4940,7 +4940,7 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
       __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
       DeoptimizeIf(not_equal, instr, Deoptimizer::kNotAHeapNumberUndefined);
 
-      __ pcmpeqd(result_reg, result_reg);
+      __ Pcmpeqd(result_reg, result_reg);
       __ jmp(&done, Label::kNear);
     }
   } else {

@@ -927,6 +927,9 @@ class MacroAssembler: public Assembler {
   void Ucomisd(XMMRegister src1, const Operand& src2);
 
   void Xorpd(XMMRegister dst, XMMRegister src);
+  void Pcmpeqd(XMMRegister dst, XMMRegister src);
+  void Psllq(XMMRegister dst, byte imm8);
+  void Psrlq(XMMRegister dst, byte imm8);
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
