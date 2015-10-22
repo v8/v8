@@ -35,8 +35,6 @@
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
   # TODO(turbofan): We run out of stack earlier on 64-bit for now.
   'fast/js/deep-recursion-test': [PASS, NO_VARIANTS],
-  # TODO(bmeurer,svenpanne): Investigate test failure.
-  'fast/js/toString-number': [SKIP],
 }],  # ALWAYS
 ['mode == debug', {
   # Too slow in debug mode.
