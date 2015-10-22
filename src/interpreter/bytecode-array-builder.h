@@ -64,6 +64,9 @@ class BytecodeArrayBuilder {
   // Return true if the register |reg| represents a temporary register.
   bool RegisterIsTemporary(Register reg) const;
 
+  // Gets a constant pool entry for the |object|.
+  size_t GetConstantPoolEntry(Handle<Object> object);
+
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
   BytecodeArrayBuilder& LoadLiteral(Handle<Object> object);
@@ -74,8 +77,10 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadFalse();
 
   // Global loads to the accumulator and stores from the accumulator.
-  BytecodeArrayBuilder& LoadGlobal(int slot_index);
-  BytecodeArrayBuilder& StoreGlobal(int slot_index, LanguageMode language_mode);
+  BytecodeArrayBuilder& LoadGlobal(size_t name_index, int feedback_slot,
+                                   LanguageMode language_mode);
+  BytecodeArrayBuilder& StoreGlobal(size_t name_index, int feedback_slot,
+                                    LanguageMode language_mode);
 
   // Load the object at |slot_index| in |context| into the accumulator.
   BytecodeArrayBuilder& LoadContextSlot(Register context, int slot_index);
@@ -87,14 +92,16 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadAccumulatorWithRegister(Register reg);
   BytecodeArrayBuilder& StoreAccumulatorInRegister(Register reg);
 
-  // Load properties. The property name should be in the accumulator.
-  BytecodeArrayBuilder& LoadNamedProperty(Register object, int feedback_slot,
+  // Named load property.
+  BytecodeArrayBuilder& LoadNamedProperty(Register object, size_t name_index,
+                                          int feedback_slot,
                                           LanguageMode language_mode);
+  // Keyed load property. The key should be in the accumulator.
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot,
                                           LanguageMode language_mode);
 
   // Store properties. The value to be stored should be in the accumulator.
-  BytecodeArrayBuilder& StoreNamedProperty(Register object, Register name,
+  BytecodeArrayBuilder& StoreNamedProperty(Register object, size_t name_index,
                                            int feedback_slot,
                                            LanguageMode language_mode);
   BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
@@ -184,6 +191,8 @@ class BytecodeArrayBuilder {
   static Bytecode BytecodeForKeyedLoadIC(LanguageMode language_mode);
   static Bytecode BytecodeForStoreIC(LanguageMode language_mode);
   static Bytecode BytecodeForKeyedStoreIC(LanguageMode language_mode);
+  static Bytecode BytecodeForLoadGlobal(LanguageMode language_mode);
+  static Bytecode BytecodeForStoreGlobal(LanguageMode language_mode);
 
   static bool FitsInIdx8Operand(int value);
   static bool FitsInIdx8Operand(size_t value);
@@ -210,8 +219,6 @@ class BytecodeArrayBuilder {
   bool OperandIsValid(Bytecode bytecode, int operand_index,
                       uint32_t operand_value) const;
   bool LastBytecodeInSameBlock() const;
-
-  size_t GetConstantPoolEntry(Handle<Object> object);
 
   int BorrowTemporaryRegister();
   void ReturnTemporaryRegister(int reg_index);

@@ -297,6 +297,12 @@ Node* InterpreterAssembler::LoadObjectField(Node* object, int offset) {
 }
 
 
+Node* InterpreterAssembler::LoadContextSlot(Node* context, int slot_index) {
+  return raw_assembler_->Load(kMachAnyTagged, context,
+                              IntPtrConstant(Context::SlotOffset(slot_index)));
+}
+
+
 Node* InterpreterAssembler::LoadContextSlot(Node* context, Node* slot_index) {
   Node* offset =
       IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),

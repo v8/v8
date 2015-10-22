@@ -43,6 +43,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Register reg(0);
   builder.LoadAccumulatorWithRegister(reg).StoreAccumulatorInRegister(reg);
 
+  // Emit global load / store operations.
+  builder.LoadGlobal(0, 1, LanguageMode::SLOPPY)
+      .LoadGlobal(0, 1, LanguageMode::STRICT)
+      .StoreGlobal(0, 1, LanguageMode::SLOPPY)
+      .StoreGlobal(0, 1, LanguageMode::STRICT);
+
   // Emit context operations.
   builder.PushContext(reg);
   builder.PopContext(reg);
@@ -50,13 +56,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.StoreContextSlot(reg, 1);
 
   // Emit load / store property operations.
-  builder.LoadNamedProperty(reg, 0, LanguageMode::SLOPPY)
+  builder.LoadNamedProperty(reg, 0, 0, LanguageMode::SLOPPY)
       .LoadKeyedProperty(reg, 0, LanguageMode::SLOPPY)
-      .StoreNamedProperty(reg, reg, 0, LanguageMode::SLOPPY)
+      .StoreNamedProperty(reg, 0, 0, LanguageMode::SLOPPY)
       .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY)
-      .LoadNamedProperty(reg, 0, LanguageMode::STRICT)
+      .LoadNamedProperty(reg, 0, 0, LanguageMode::STRICT)
       .LoadKeyedProperty(reg, 0, LanguageMode::STRICT)
-      .StoreNamedProperty(reg, reg, 0, LanguageMode::STRICT)
+      .StoreNamedProperty(reg, 0, 0, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT);
 
   // Emit closure operations.

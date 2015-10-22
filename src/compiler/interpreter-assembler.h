@@ -96,6 +96,7 @@ class InterpreterAssembler {
   Node* LoadObjectField(Node* object, int offset);
 
   // Load |slot_index| from |context|.
+  Node* LoadContextSlot(Node* context, int slot_index);
   Node* LoadContextSlot(Node* context, Node* slot_index);
   // Stores |value| into |slot_index| of |context|.
   Node* StoreContextSlot(Node* context, Node* slot_index, Node* value);

@@ -730,22 +730,20 @@ TEST(PropertyLoads) {
       {"function f(a) { return a.name; }\nf({name : \"test\"})",
        0,
        2,
-       6,
+       5,
        {
-           B(LdaConstant), U8(0),                                  //
-           B(LoadICSloppy), A(1, 2), U8(vector->GetIndex(slot1)),  //
-           B(Return),                                              //
+           B(LoadICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(Return),                                                     //
        },
        1,
        {"name"}},
       {"function f(a) { return a[\"key\"]; }\nf({key : \"test\"})",
        0,
        2,
-       6,
+       5,
        {
-           B(LdaConstant), U8(0),                                  //
-           B(LoadICSloppy), A(1, 2), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                               //
+           B(LoadICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                                      //
        },
        1,
        {"key"}},
@@ -773,40 +771,39 @@ TEST(PropertyLoads) {
        "f({\"-124\" : \"test\", name : 123 })",
        kPointerSize,
        2,
-       13,
+       12,
        {
-           B(LdaConstant), U8(0),                                       //
-           B(LoadICSloppy), A(1, 2), U8(vector->GetIndex(slot1)),       //
-           B(Star), R(0),                                               //
-           B(LdaSmi8), U8(-124),                                        //
-           B(KeyedLoadICSloppy), A(1, 2), U8(vector->GetIndex(slot2)),  //
-           B(Return),                                                   //
+           B(LoadICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(Star), R(0),                                                 //
+           B(LdaSmi8), U8(-124),                                          //
+           B(KeyedLoadICSloppy), A(1, 2), U8(vector->GetIndex(slot2)),    //
+           B(Return),                                                     //
        },
        1,
        {"name"}},
       {"function f(a) { \"use strict\"; return a.name; }\nf({name : \"test\"})",
        0,
        2,
-       6,
+       5,
        {
-           B(LdaConstant), U8(0),                                  //
-           B(LoadICStrict), A(1, 2), U8(vector->GetIndex(slot1)),  //
-           B(Return),                                              //
+           B(LoadICStrict), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(Return),                                                     //
        },
        1,
        {"name"}},
-      {"function f(a, b) { \"use strict\"; return a[b]; }\n"
-       "f({arg : \"test\"}, \"arg\")",
-       0,
-       3,
-       6,
-       {
-           B(Ldar), A(2, 3),                                            //
-           B(KeyedLoadICStrict), A(1, 3), U8(vector->GetIndex(slot1)),  //
-           B(Return),                                                   //
-       },
-       0,
-       }};
+      {
+          "function f(a, b) { \"use strict\"; return a[b]; }\n"
+          "f({arg : \"test\"}, \"arg\")",
+          0,
+          3,
+          6,
+          {
+              B(Ldar), A(2, 3),                                            //
+              B(KeyedLoadICStrict), A(1, 3), U8(vector->GetIndex(slot1)),  //
+              B(Return),                                                   //
+          },
+          0,
+      }};
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, helper.kFunctionName);
@@ -829,30 +826,26 @@ TEST(PropertyStores) {
 
   ExpectedSnippet<const char*> snippets[] = {
       {"function f(a) { a.name = \"val\"; }\nf({name : \"test\"})",
-       kPointerSize,
+       0,
        2,
-       12,
+       8,
        {
-           B(LdaConstant), U8(0),                                         //
-           B(Star), R(0),                                                 //
-           B(LdaConstant), U8(1),                                         //
-           B(StoreICSloppy), A(1, 2), R(0), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                               //
-           B(Return),                                                     //
+           B(LdaConstant), U8(1),                                          //
+           B(StoreICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                                //
+           B(Return),                                                      //
        },
        2,
        {"name", "val"}},
       {"function f(a) { a[\"key\"] = \"val\"; }\nf({key : \"test\"})",
-       kPointerSize,
+       0,
        2,
-       12,
+       8,
        {
-           B(LdaConstant), U8(0),                                         //
-           B(Star), R(0),                                                 //
-           B(LdaConstant), U8(1),                                         //
-           B(StoreICSloppy), A(1, 2), R(0), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                               //
-           B(Return),                                                     //
+           B(LdaConstant), U8(1),                                          //
+           B(StoreICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                                //
+           B(Return),                                                      //
        },
        2,
        {"key", "val"}},
@@ -861,13 +854,13 @@ TEST(PropertyStores) {
        2,
        12,
        {
-           B(LdaSmi8), U8(100),                           //
-           B(Star), R(0),                                 //
-           B(LdaConstant), U8(0),                         //
-           B(KeyedStoreICSloppy),                         //
-             A(1, 2), R(0), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                               //
-           B(Return),                                     //
+           B(LdaSmi8), U8(100),                                 //
+           B(Star), R(0),                                       //
+           B(LdaConstant), U8(0),                               //
+           B(KeyedStoreICSloppy), A(1, 2), R(0),                //
+                                  U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                     //
+           B(Return),                                           //
        },
        1,
        {"val"}},
@@ -876,42 +869,38 @@ TEST(PropertyStores) {
        3,
        8,
        {
-           B(LdaConstant), U8(0),                            //
-           B(KeyedStoreICSloppy),                            //
-             A(1, 3), A(2, 3), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                  //
-           B(Return),                                        //
+           B(LdaConstant), U8(0),                               //
+           B(KeyedStoreICSloppy), A(1, 3), A(2, 3),             //
+                                  U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                     //
+           B(Return),                                           //
        },
        1,
        {"val"}},
       {"function f(a) { a.name = a[-124]; }\n"
        "f({\"-124\" : \"test\", name : 123 })",
-       kPointerSize,
+       0,
        2,
-       15,
+       11,
        {
-           B(LdaConstant), U8(0),                                         //
-           B(Star), R(0),                                                 //
-           B(LdaSmi8), U8(-124),                                          //
-           B(KeyedLoadICSloppy), A(1, 2), U8(vector->GetIndex(slot1)),    //
-           B(StoreICSloppy), A(1, 2), R(0), U8(vector->GetIndex(slot2)),  //
-           B(LdaUndefined),                                               //
-           B(Return),                                                     //
+           B(LdaSmi8), U8(-124),                                           //
+           B(KeyedLoadICSloppy), A(1, 2), U8(vector->GetIndex(slot1)),     //
+           B(StoreICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(LdaUndefined),                                                //
+           B(Return),                                                      //
        },
        1,
        {"name"}},
       {"function f(a) { \"use strict\"; a.name = \"val\"; }\n"
        "f({name : \"test\"})",
-       kPointerSize,
+       0,
        2,
-       12,
+       8,
        {
-           B(LdaConstant), U8(0),                                         //
-           B(Star), R(0),                                                 //
-           B(LdaConstant), U8(1),                                         //
-           B(StoreICStrict), A(1, 2), R(0), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                               //
-           B(Return),                                                     //
+           B(LdaConstant), U8(1),                                          //
+           B(StoreICStrict), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                                //
+           B(Return),                                                      //
        },
        2,
        {"name", "val"}},
@@ -957,54 +946,51 @@ TEST(PropertyCall) {
       {"function f(a) { return a.func(); }\nf(" FUNC_ARG ")",
        2 * kPointerSize,
        2,
-       16,
+       15,
        {
-           B(Ldar), A(1, 2),                                    //
-           B(Star), R(1),                                       //
-           B(LdaConstant), U8(0),                               //
-           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
-           B(Star), R(0),                                       //
-           B(Call), R(0), R(1), U8(0),                          //
-           B(Return),                                           //
+           B(Ldar), A(1, 2),                                           //
+           B(Star), R(1),                                              //
+           B(LoadICSloppy), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                              //
+           B(Call), R(0), R(1), U8(0),                                 //
+           B(Return),                                                  //
        },
        1,
        {"func"}},
       {"function f(a, b, c) { return a.func(b, c); }\nf(" FUNC_ARG ", 1, 2)",
        4 * kPointerSize,
        4,
-       24,
+       23,
        {
-           B(Ldar), A(1, 4),                                    //
-           B(Star), R(1),                                       //
-           B(LdaConstant), U8(0),                               //
-           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
-           B(Star), R(0),                                       //
-           B(Ldar), A(2, 4),                                    //
-           B(Star), R(2),                                       //
-           B(Ldar), A(3, 4),                                    //
-           B(Star), R(3),                                       //
-           B(Call), R(0), R(1), U8(2),                          //
-           B(Return)                                            //
+           B(Ldar), A(1, 4),                                           //
+           B(Star), R(1),                                              //
+           B(LoadICSloppy), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                              //
+           B(Ldar), A(2, 4),                                           //
+           B(Star), R(2),                                              //
+           B(Ldar), A(3, 4),                                           //
+           B(Star), R(3),                                              //
+           B(Call), R(0), R(1), U8(2),                                 //
+           B(Return)                                                   //
        },
        1,
        {"func"}},
       {"function f(a, b) { return a.func(b + b, b); }\nf(" FUNC_ARG ", 1)",
        4 * kPointerSize,
        3,
-       26,
+       25,
        {
-           B(Ldar), A(1, 3),                                    //
-           B(Star), R(1),                                       //
-           B(LdaConstant), U8(0),                               //
-           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
-           B(Star), R(0),                                       //
-           B(Ldar), A(2, 3),                                    //
-           B(Add), A(2, 3),                                     //
-           B(Star), R(2),                                       //
-           B(Ldar), A(2, 3),                                    //
-           B(Star), R(3),                                       //
-           B(Call), R(0), R(1), U8(2),                          //
-           B(Return),                                           //
+           B(Ldar), A(1, 3),                                           //
+           B(Star), R(1),                                              //
+           B(LoadICSloppy), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                              //
+           B(Ldar), A(2, 3),                                           //
+           B(Add), A(2, 3),                                            //
+           B(Star), R(2),                                              //
+           B(Ldar), A(2, 3),                                           //
+           B(Star), R(3),                                              //
+           B(Call), R(0), R(1), U8(2),                                 //
+           B(Return),                                                  //
        },
        1,
        {"func"}}};
@@ -1021,250 +1007,53 @@ TEST(LoadGlobal) {
   BytecodeGeneratorHelper helper;
   Zone zone;
 
-  int context_reg = Register::function_context().index();
-  int global_index = Context::GLOBAL_OBJECT_INDEX;
-
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot1 = feedback_spec.AddLoadICSlot();
-
-  Handle<i::TypeFeedbackVector> vector =
-      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
-
-  ExpectedSnippet<InstanceType> snippets[] = {
-      {
-          "var a = 1;\nfunction f() { return a; }\nf()",
-          kPointerSize,
-          1,
-          11,
-          {
-              B(LdaContextSlot), R(context_reg), U8(global_index),  //
-              B(Star), R(0),                                        //
-              B(LdaConstant), U8(0),                                //
-              B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),   //
-              B(Return)                                             //
-          },
-          1,
-          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
-      },
-      {
-          "function t() { }\nfunction f() { return t; }\nf()",
-          kPointerSize,
-          1,
-          11,
-          {
-              B(LdaContextSlot), R(context_reg), U8(global_index),  //
-              B(Star), R(0),                                        //
-              B(LdaConstant), U8(0),                                //
-              B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),   //
-              B(Return)                                             //
-          },
-          1,
-          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
-      },
-  };
-
-  for (size_t i = 0; i < arraysize(snippets); i++) {
-    Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
-  }
-}
-
-
-TEST(StoreGlobal) {
-  InitializedHandleScope handle_scope;
-  BytecodeGeneratorHelper helper;
-  Zone zone;
-
-  int context_reg = Register::function_context().index();
-  int global_index = Context::GLOBAL_OBJECT_INDEX;
-
-  FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot1 = feedback_spec.AddStoreICSlot();
-
-  Handle<i::TypeFeedbackVector> vector =
-      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
-
-  ExpectedSnippet<InstanceType> snippets[] = {
-      {
-          "var a = 1;\nfunction f() { a = 2; }\nf()",
-          3 * kPointerSize,
-          1,
-          21,
-          {
-              B(LdaSmi8), U8(2),                                          //
-              B(Star), R(0),                                              //
-              B(LdaContextSlot), R(context_reg), U8(global_index),        //
-              B(Star), R(1),                                              //
-              B(LdaConstant), U8(0),                                      //
-              B(Star), R(2),                                              //
-              B(Ldar), R(0),                                              //
-              B(StoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot1)),  //
-              B(LdaUndefined),                                            //
-              B(Return)                                                   //
-          },
-          1,
-          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
-      },
-      {
-          "var a = \"test\"; function f(b) { a = b; }\nf(\"global\")",
-          3 * kPointerSize,
-          2,
-          21,
-          {
-              B(Ldar), R(helper.kLastParamIndex),                         //
-              B(Star), R(0),                                              //
-              B(LdaContextSlot), R(context_reg), U8(global_index),        //
-              B(Star), R(1),                                              //
-              B(LdaConstant), U8(0),                                      //
-              B(Star), R(2),                                              //
-              B(Ldar), R(0),                                              //
-              B(StoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot1)),  //
-              B(LdaUndefined),                                            //
-              B(Return)                                                   //
-          },
-          1,
-          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
-      },
-      {
-          "'use strict'; var a = 1;\nfunction f() { a = 2; }\nf()",
-          3 * kPointerSize,
-          1,
-          21,
-          {
-              B(LdaSmi8), U8(2),                                          //
-              B(Star), R(0),                                              //
-              B(LdaContextSlot), R(context_reg), U8(global_index),        //
-              B(Star), R(1),                                              //
-              B(LdaConstant), U8(0),                                      //
-              B(Star), R(2),                                              //
-              B(Ldar), R(0),                                              //
-              B(StoreICStrict), R(1), R(2), U8(vector->GetIndex(slot1)),  //
-              B(LdaUndefined),                                            //
-              B(Return)                                                   //
-          },
-          1,
-          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
-      },
-  };
-
-  for (size_t i = 0; i < arraysize(snippets); i++) {
-    Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
-  }
-}
-
-
-TEST(CallGlobal) {
-  InitializedHandleScope handle_scope;
-  BytecodeGeneratorHelper helper;
-  Zone zone;
-
-  int context_reg = Register::function_context().index();
-  int global_index = Context::GLOBAL_OBJECT_INDEX;
-
-  FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot1 = feedback_spec.AddCallICSlot();
-  FeedbackVectorSlot slot2 = feedback_spec.AddLoadICSlot();
-  USE(slot1);
-
-  Handle<i::TypeFeedbackVector> vector =
-      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
-
-  ExpectedSnippet<InstanceType> snippets[] = {
-      {
-          "function t() { }\nfunction f() { return t(); }\nf()",
-          3 * kPointerSize,
-          1,
-          20,
-          {
-              B(LdaUndefined),                                      //
-              B(Star), R(1),                                        //
-              B(LdaContextSlot), R(context_reg), U8(global_index),  //
-              B(Star), R(2),                                        //
-              B(LdaConstant), U8(0),                                //
-              B(LoadICSloppy), R(2), U8(vector->GetIndex(slot2)),   //
-              B(Star), R(0),                                        //
-              B(Call), R(0), R(1), U8(0),                           //
-              B(Return)                                             //
-          },
-          1,
-          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
-      },
-      {
-          "function t(a, b, c) { }\nfunction f() { return t(1, 2, 3); }\nf()",
-          5 * kPointerSize,
-          1,
-          32,
-          {
-              B(LdaUndefined),                                      //
-              B(Star), R(1),                                        //
-              B(LdaContextSlot), R(context_reg), U8(global_index),  //
-              B(Star), R(2),                                        //
-              B(LdaConstant), U8(0),                                //
-              B(LoadICSloppy), R(2), U8(vector->GetIndex(slot2)),   //
-              B(Star), R(0),                                        //
-              B(LdaSmi8), U8(1),                                    //
-              B(Star), R(2),                                        //
-              B(LdaSmi8), U8(2),                                    //
-              B(Star), R(3),                                        //
-              B(LdaSmi8), U8(3),                                    //
-              B(Star), R(4),                                        //
-              B(Call), R(0), R(1), U8(3),                           //
-              B(Return)                                             //
-          },
-          1,
-          {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE},
-      },
-  };
-
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
-    Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(snippets[i].code_snippet, "f");
-    CheckBytecodeArrayEqual(snippets[i], bytecode_array, true);
-  }
-}
-
-
-TEST(LoadUnallocated) {
-  InitializedHandleScope handle_scope;
-  BytecodeGeneratorHelper helper;
-  Zone zone;
-
-  int context_reg = Register::function_context().index();
-  int global_index = Context::GLOBAL_OBJECT_INDEX;
-
-  FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot1 = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   ExpectedSnippet<const char*> snippets[] = {
-      {"a = 1;\nfunction f() { return a; }\nf()",
-       1 * kPointerSize,
+      {"var a = 1;\nfunction f() { return a; }\nf()",
+       0,
        1,
-       11,
-       {B(LdaContextSlot), R(context_reg), U8(global_index),  //
-        B(Star), R(0),                                        //
-        B(LdaConstant), U8(0),                                //
-        B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),   //
-        B(Return)},
+       4,
+       {
+           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(Return)                                               //
+       },
        1,
        {"a"}},
-      {"function f() { return t; }\nt = 1;\nf()",
-       1 * kPointerSize,
+      {"function t() { }\nfunction f() { return t; }\nf()",
+       0,
        1,
-       11,
-       {B(LdaContextSlot), R(context_reg), U8(global_index),  //
-        B(Star), R(0),                                        //
-        B(LdaConstant), U8(0),                                //
-        B(LoadICSloppy), R(0), U8(vector->GetIndex(slot1)),   //
-        B(Return)},
+       4,
+       {
+           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(Return)                                               //
+       },
        1,
        {"t"}},
+      {"'use strict'; var a = 1;\nfunction f() { return a; }\nf()",
+       0,
+       1,
+       4,
+       {
+           B(LdaGlobalStrict), U8(0), U8(vector->GetIndex(slot)),  //
+           B(Return)                                               //
+       },
+       1,
+       {"a"}},
+      {"a = 1;\nfunction f() { return a; }\nf()",
+       0,
+       1,
+       4,
+       {
+           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(Return)                                               //
+       },
+       1,
+       {"a"}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -1275,56 +1064,128 @@ TEST(LoadUnallocated) {
 }
 
 
-TEST(StoreUnallocated) {
+TEST(StoreGlobal) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
   Zone zone;
 
-  int context_reg = Register::function_context().index();
-  int global_index = Context::GLOBAL_OBJECT_INDEX;
-
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot1 = feedback_spec.AddStoreICSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   ExpectedSnippet<const char*> snippets[] = {
-      {"a = 1;\nfunction f() { a = 2; }\nf()",
-       3 * kPointerSize,
+      {"var a = 1;\nfunction f() { a = 2; }\nf()",
+       0,
        1,
-       21,
-       {B(LdaSmi8), U8(2),                                          //
-        B(Star), R(0),                                              //
-        B(LdaContextSlot), R(context_reg), U8(global_index),        //
-        B(Star), R(1),                                              //
-        B(LdaConstant), U8(0),                                      //
-        B(Star), R(2),                                              //
-        B(Ldar), R(0),                                              //
-        B(StoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot1)),  //
-        B(LdaUndefined),                                            //
-        B(Return)},
+       7,
+       {
+           B(LdaSmi8), U8(2),                                      //
+           B(StaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(LdaUndefined),                                        //
+           B(Return)                                               //
+       },
        1,
        {"a"}},
-      {"function f() { t = 4; }\nf()\nt = 1;",
-       3 * kPointerSize,
+      {"var a = \"test\"; function f(b) { a = b; }\nf(\"global\")",
+       0,
+       2,
+       7,
+       {
+           B(Ldar), R(helper.kLastParamIndex),                     //
+           B(StaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(LdaUndefined),                                        //
+           B(Return)                                               //
+       },
        1,
-       21,
-       {B(LdaSmi8), U8(4),                                          //
-        B(Star), R(0),                                              //
-        B(LdaContextSlot), R(context_reg), U8(global_index),        //
-        B(Star), R(1),                                              //
-        B(LdaConstant), U8(0),                                      //
-        B(Star), R(2),                                              //
-        B(Ldar), R(0),                                              //
-        B(StoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot1)),  //
-        B(LdaUndefined),                                            //
-        B(Return)},
+       {"a"}},
+      {"'use strict'; var a = 1;\nfunction f() { a = 2; }\nf()",
+       0,
+       1,
+       7,
+       {
+           B(LdaSmi8), U8(2),                                      //
+           B(StaGlobalStrict), U8(0), U8(vector->GetIndex(slot)),  //
+           B(LdaUndefined),                                        //
+           B(Return)                                               //
+       },
+       1,
+       {"a"}},
+      {"a = 1;\nfunction f() { a = 2; }\nf()",
+       0,
+       1,
+       7,
+       {
+           B(LdaSmi8), U8(2),                                      //
+           B(StaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(LdaUndefined),                                        //
+           B(Return)                                               //
+       },
+       1,
+       {"a"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(CallGlobal) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddLoadICSlot();
+  USE(slot1);
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function t() { }\nfunction f() { return t(); }\nf()",
+       2 * kPointerSize,
+       1,
+       13,
+       {
+           B(LdaUndefined),                                         //
+           B(Star), R(1),                                           //
+           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                           //
+           B(Call), R(0), R(1), U8(0),                              //
+           B(Return)                                                //
+       },
+       1,
+       {"t"}},
+      {"function t(a, b, c) { }\nfunction f() { return t(1, 2, 3); }\nf()",
+       5 * kPointerSize,
+       1,
+       25,
+       {
+           B(LdaUndefined),                                         //
+           B(Star), R(1),                                           //
+           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                           //
+           B(LdaSmi8), U8(1),                                       //
+           B(Star), R(2),                                           //
+           B(LdaSmi8), U8(2),                                       //
+           B(Star), R(3),                                           //
+           B(LdaSmi8), U8(3),                                       //
+           B(Star), R(4),                                           //
+           B(Call), R(0), R(1), U8(3),                              //
+           B(Return)                                                //
+       },
        1,
        {"t"}},
   };
 
-  for (size_t i = 0; i < arraysize(snippets); i++) {
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, "f");
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
@@ -1555,24 +1416,20 @@ TEST(DeclareGlobals) {
   BytecodeGeneratorHelper helper;
   Zone zone;
 
-  int context_reg = Register::function_context().index();
-  int global_index = Context::GLOBAL_OBJECT_INDEX;
-
   // Create different feedback vector specs to be precise on slot numbering.
-  FeedbackVectorSpec feedback_spec_ss(&zone);
-  FeedbackVectorSlot slot_ss_1 = feedback_spec_ss.AddStoreICSlot();
-  FeedbackVectorSlot slot_ss_2 = feedback_spec_ss.AddStoreICSlot();
-  USE(slot_ss_1);
+  FeedbackVectorSpec feedback_spec_stores(&zone);
+  FeedbackVectorSlot store_slot_1 = feedback_spec_stores.AddStoreICSlot();
+  FeedbackVectorSlot store_slot_2 = feedback_spec_stores.AddStoreICSlot();
+  USE(store_slot_1);
 
-  Handle<i::TypeFeedbackVector> vector_ss =
-      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec_ss);
+  Handle<i::TypeFeedbackVector> store_vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec_stores);
 
-  FeedbackVectorSpec feedback_spec_l(&zone);
-  FeedbackVectorSlot slot_l_1 = feedback_spec_l.AddLoadICSlot();
+  FeedbackVectorSpec feedback_spec_loads(&zone);
+  FeedbackVectorSlot load_slot_1 = feedback_spec_loads.AddLoadICSlot();
 
-  Handle<i::TypeFeedbackVector> vector_l =
-      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec_l);
-
+  Handle<i::TypeFeedbackVector> load_vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec_loads);
 
   ExpectedSnippet<InstanceType> snippets[] = {
       {"var a = 1;",
@@ -1580,21 +1437,20 @@ TEST(DeclareGlobals) {
        1,
        30,
        {
-           B(LdaConstant), U8(0),                                       //
-           B(Star), R(1),                                               //
-           B(LdaZero),                                                  //
-           B(Star), R(2),                                               //
-           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),  //
-           B(LdaConstant), U8(1),                                       //
-           B(Star), R(1),                                               //
-           B(LdaZero),                                                  //
-           B(Star), R(2),                                               //
-           B(LdaSmi8), U8(1),                                           //
-           B(Star), R(3),                                               //
-           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1),    //
-           U8(3),                                                       //
-           B(LdaUndefined),                                             //
-           B(Return)                                                    //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(1),                                                    //
+           B(LdaZero),                                                       //
+           B(Star), R(2),                                                    //
+           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),       //
+           B(LdaConstant), U8(1),                                            //
+           B(Star), R(1),                                                    //
+           B(LdaZero),                                                       //
+           B(Star), R(2),                                                    //
+           B(LdaSmi8), U8(1),                                                //
+           B(Star), R(3),                                                    //
+           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),  //
+           B(LdaUndefined),                                                  //
+           B(Return)                                                         //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -1617,40 +1473,34 @@ TEST(DeclareGlobals) {
       {"var a = 1;\na=2;",
        4 * kPointerSize,
        1,
-       52,
+       38,
        {
-           B(LdaConstant), U8(0),                                             //
-           B(Star), R(1),                                                     //
-           B(LdaZero),                                                        //
-           B(Star), R(2),                                                     //
-           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),        //
-           B(LdaConstant), U8(1),                                             //
-           B(Star), R(1),                                                     //
-           B(LdaZero),                                                        //
-           B(Star), R(2),                                                     //
-           B(LdaSmi8), U8(1),                                                 //
-           B(Star), R(3),                                                     //
-           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1),          //
-           U8(3),                                                             //
-           B(LdaSmi8), U8(2),                                                 //
-           B(Star), R(1),                                                     //
-           B(LdaContextSlot), R(context_reg), U8(global_index),               //
-           B(Star), R(2),                                                     //
-           B(LdaConstant), U8(1),                                             //
-           B(Star), R(3),                                                     //
-           B(Ldar), R(1),                                                     //
-           B(StoreICSloppy), R(2), R(3), U8(vector_ss->GetIndex(slot_ss_2)),  //
-           B(Star), R(0),                                                     //
-           B(Ldar), R(0),                                                     //
-           B(Return)                                                          //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(1),                                                    //
+           B(LdaZero),                                                       //
+           B(Star), R(2),                                                    //
+           B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),       //
+           B(LdaConstant), U8(1),                                            //
+           B(Star), R(1),                                                    //
+           B(LdaZero),                                                       //
+           B(Star), R(2),                                                    //
+           B(LdaSmi8), U8(1),                                                //
+           B(Star), R(3),                                                    //
+           B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),  //
+           B(LdaSmi8), U8(2),                                                //
+           B(StaGlobalSloppy), U8(1),                                        //
+                               U8(store_vector->GetIndex(store_slot_2)),     //
+           B(Star), R(0),                                                    //
+           B(Ldar), R(0),                                                    //
+           B(Return)                                                         //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"function f() {}\nf();",
-       4 * kPointerSize,
+       3 * kPointerSize,
        1,
-       36,
+       29,
        {
            B(LdaConstant), U8(0),                                       //
            B(Star), R(1),                                               //
@@ -1659,10 +1509,8 @@ TEST(DeclareGlobals) {
            B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),  //
            B(LdaUndefined),                                             //
            B(Star), R(2),                                               //
-           B(LdaContextSlot), R(context_reg), U8(global_index),         //
-           B(Star), R(3),                                               //
-           B(LdaConstant), U8(1),                                       //
-           B(LoadICSloppy), R(3), U8(vector_l->GetIndex(slot_l_1)),     //
+           B(LdaGlobalSloppy), U8(1),                                   //
+                               U8(load_vector->GetIndex(load_slot_1)),  //
            B(Star), R(1),                                               //
            B(Call), R(1), R(2), U8(0),                                  //
            B(Star), R(0),                                               //
@@ -2105,20 +1953,19 @@ TEST(RegExpLiterals) {
       {"return /ab+d/.exec('abdd');",
        3 * kPointerSize,
        1,
-       27,
+       26,
        {
-           B(LdaConstant), U8(0),                               //
-           B(Star), R(2),                                       //
-           B(LdaConstant), U8(1),                               //
-           B(CreateRegExpLiteral), U8(0), R(2),                 //
-           B(Star), R(1),                                       //
-           B(LdaConstant), U8(2),                               //
-           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),  //
-           B(Star), R(0),                                       //
-           B(LdaConstant), U8(3),                               //
-           B(Star), R(2),                                       //
-           B(Call), R(0), R(1), U8(1),                          //
-           B(Return),                                           //
+           B(LdaConstant), U8(0),                                      //
+           B(Star), R(2),                                              //
+           B(LdaConstant), U8(1),                                      //
+           B(CreateRegExpLiteral), U8(0), R(2),                        //
+           B(Star), R(1),                                              //
+           B(LoadICSloppy), R(1), U8(2), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                              //
+           B(LdaConstant), U8(3),                                      //
+           B(Star), R(2),                                              //
+           B(Call), R(0), R(1), U8(1),                                 //
+           B(Return),                                                  //
        },
        4,
        {"", "ab+d", "exec", "abdd"}},
@@ -2247,6 +2094,13 @@ TEST(ArrayLiterals) {
 TEST(ObjectLiterals) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddStoreICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   int simple_flags = ObjectLiteral::kFastElements |
                      ObjectLiteral::kShallowProperties |
@@ -2277,81 +2131,73 @@ TEST(ObjectLiterals) {
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 1; return { name: 'string', val: a };",
-       3 * kPointerSize,
+       2 * kPointerSize,
        1,
-       24,
+       20,
        {
-           B(LdaSmi8), U8(1),                                       //
-           B(Star), R(0),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(1),                                           //
-           B(LdaConstant), U8(1),                                   //
-           B(Star), R(2),                                           //
-           B(Ldar), R(0),                                           //
-           B(StoreICSloppy), R(1), R(2), U8(3),                     //
-           B(Ldar), R(1),                                           //
-           B(Return),                                               //
+           B(LdaSmi8), U8(1),                                           //
+           B(Star), R(0),                                               //
+           B(LdaConstant), U8(0),                                       //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
+           B(Star), R(1),                                               //
+           B(Ldar), R(0),                                               //
+           B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),  //
+           B(Ldar), R(1),                                               //
+           B(Return),                                                   //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var a = 1; return { val: a, val: a + 1 };",
-       3 * kPointerSize,
+       2 * kPointerSize,
        1,
-       26,
+       22,
        {
-           B(LdaSmi8), U8(1),                                       //
-           B(Star), R(0),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(1),                                           //
-           B(LdaConstant), U8(1),                                   //
-           B(Star), R(2),                                           //
-           B(LdaSmi8), U8(1),                                       //
-           B(Add), R(0),                                            //
-           B(StoreICSloppy), R(1), R(2), U8(3),                     //
-           B(Ldar), R(1),                                           //
-           B(Return),                                               //
+           B(LdaSmi8), U8(1),                                           //
+           B(Star), R(0),                                               //
+           B(LdaConstant), U8(0),                                       //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
+           B(Star), R(1),                                               //
+           B(LdaSmi8), U8(1),                                           //
+           B(Add), R(0),                                                //
+           B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),  //
+           B(Ldar), R(1),                                               //
+           B(Return),                                                   //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"return { func: function() { } };",
-       2 * kPointerSize,
+       1 * kPointerSize,
        1,
-       22,
+       18,
        {
-           B(LdaConstant), U8(0),                                   //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(0),                                           //
-           B(LdaConstant), U8(1),                                   //
-           B(Star), R(1),                                           //
-           B(LdaConstant), U8(2),                                   //
-           B(CreateClosure), U8(0),                                 //
-           B(StoreICSloppy), R(0), R(1), U8(3),                     //
-           B(Ldar), R(0),                                           //
-           B(Return),                                               //
+           B(LdaConstant), U8(0),                                       //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
+           B(Star), R(0),                                               //
+           B(LdaConstant), U8(2),                                       //
+           B(CreateClosure), U8(0),                                     //
+           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),  //
+           B(Ldar), R(0),                                               //
+           B(Return),                                                   //
        },
        3,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
       {"return { func(a) { return a; } };",
-       2 * kPointerSize,
+       1 * kPointerSize,
        1,
-       22,
+       18,
        {
-           B(LdaConstant), U8(0),                                   //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(0),                                           //
-           B(LdaConstant), U8(1),                                   //
-           B(Star), R(1),                                           //
-           B(LdaConstant), U8(2),                                   //
-           B(CreateClosure), U8(0),                                 //
-           B(StoreICSloppy), R(0), R(1), U8(3),                     //
-           B(Ldar), R(0),                                           //
-           B(Return),                                               //
+           B(LdaConstant), U8(0),                                       //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
+           B(Star), R(0),                                               //
+           B(LdaConstant), U8(2),                                       //
+           B(CreateClosure), U8(0),                                     //
+           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),  //
+           B(Ldar), R(0),                                               //
+           B(Return),                                                   //
        },
        3,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -2502,17 +2348,15 @@ TEST(ObjectLiterals) {
       {"var a = 'test'; return { val: a, [a]: 1 }",
        5 * kPointerSize,
        1,
-       41,
+       37,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
            B(LdaConstant), U8(1),                                             //
            B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),            //
            B(Star), R(1),                                                     //
-           B(LdaConstant), U8(2),                                             //
-           B(Star), R(2),                                                     //
            B(Ldar), R(0),                                                     //
-           B(StoreICSloppy), R(1), R(2), U8(3),                               //
+           B(StoreICSloppy), R(1), U8(2), U8(vector->GetIndex(slot1)),        //
            B(Ldar), R(0),                                                     //
            B(ToName),                                                         //
            B(Star), R(2),                                                     //
@@ -2586,7 +2430,7 @@ TEST(ObjectLiterals) {
            B(LdaZero),                                                        //
            B(Star), R(4),                                                     //
            B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked),      //
-           R(1), U8(4),                                                       //
+                           R(1), U8(4),                                       //
            B(LdaConstant), U8(3),                                             //
            B(ToName),                                                         //
            B(Star), R(2),                                                     //
@@ -2596,7 +2440,7 @@ TEST(ObjectLiterals) {
            B(LdaZero),                                                        //
            B(Star), R(4),                                                     //
            B(CallRuntime), U16(Runtime::kDefineSetterPropertyUnchecked),      //
-           R(1), U8(4),                                                       //
+                           R(1), U8(4),                                       //
            B(Ldar), R(1),                                                     //
            B(Return),                                                         //
        },
@@ -2626,9 +2470,9 @@ TEST(TopLevelObjectLiterals) {
                            ObjectLiteral::kDisableMementos;
   ExpectedSnippet<InstanceType> snippets[] = {
       {"var a = { func: function() { } };",
-       6 * kPointerSize,
+       5 * kPointerSize,
        1,
-       54,
+       50,
        {
            B(LdaConstant), U8(0),                                            //
            B(Star), R(1),                                                    //
@@ -2642,11 +2486,9 @@ TEST(TopLevelObjectLiterals) {
            B(LdaConstant), U8(2),                                            //
            B(CreateObjectLiteral), U8(0), U8(has_function_flags),            //
            B(Star), R(4),                                                    //
-           B(LdaConstant), U8(3),                                            //
-           B(Star), R(5),                                                    //
            B(LdaConstant), U8(4),                                            //
            B(CreateClosure), U8(1),                                          //
-           B(StoreICSloppy), R(4), R(5), U8(5),                              //
+           B(StoreICSloppy), R(4), U8(3), U8(5),                             //
            B(CallRuntime), U16(Runtime::kToFastProperties), R(4), U8(1),     //
            B(Ldar), R(4),                                                    //
            B(Star), R(3),                                                    //
@@ -2798,9 +2640,6 @@ TEST(CallNew) {
   BytecodeGeneratorHelper helper;
   Zone zone;
 
-  int context_reg = Register::function_context().index();
-  int global_index = Context::GLOBAL_OBJECT_INDEX;
-
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
   FeedbackVectorSlot slot2 = feedback_spec.AddLoadICSlot();
@@ -2813,17 +2652,14 @@ TEST(CallNew) {
       {"function bar() { this.value = 0; }\n"
        "function f() { return new bar(); }\n"
        "f()",
-       2 * kPointerSize,
+       1 * kPointerSize,
        1,
-       17,
+       10,
        {
-           B(LdaContextSlot), R(context_reg), U8(global_index),  //
-           B(Star), R(1),                                        //
-           B(LdaConstant), U8(0),                                //
-           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),   //
-           B(Star), R(0),                                        //
-           B(New), R(0), R(0), U8(0),                            //
-           B(Return),                                            //
+           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                           //
+           B(New), R(0), R(0), U8(0),                               //
+           B(Return),                                               //
        },
        1,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
@@ -2832,17 +2668,14 @@ TEST(CallNew) {
        "f()",
        2 * kPointerSize,
        1,
-       21,
+       14,
        {
-           B(LdaContextSlot), R(context_reg), U8(global_index),  //
-           B(Star), R(1),                                        //
-           B(LdaConstant), U8(0),                                //
-           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),   //
-           B(Star), R(0),                                        //
-           B(LdaSmi8), U8(3),                                    //
-           B(Star), R(1),                                        //
-           B(New), R(0), R(1), U8(1),                            //
-           B(Return),                                            //
+           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                           //
+           B(LdaSmi8), U8(3),                                       //
+           B(Star), R(1),                                           //
+           B(New), R(0), R(1), U8(1),                               //
+           B(Return),                                               //
        },
        1,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
@@ -2856,21 +2689,18 @@ TEST(CallNew) {
        "f()",
        4 * kPointerSize,
        1,
-       29,
+       22,
        {
-           B(LdaContextSlot), R(context_reg), U8(global_index),  //
-           B(Star), R(1),                                        //
-           B(LdaConstant), U8(0),                                //
-           B(LoadICSloppy), R(1), U8(vector->GetIndex(slot2)),   //
-           B(Star), R(0),                                        //
-           B(LdaSmi8), U8(3),                                    //
-           B(Star), R(1),                                        //
-           B(LdaSmi8), U8(4),                                    //
-           B(Star), R(2),                                        //
-           B(LdaSmi8), U8(5),                                    //
-           B(Star), R(3),                                        //
-           B(New), R(0), R(1), U8(3),                            //
-           B(Return),                                            //
+           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(Star), R(0),                                           //
+           B(LdaSmi8), U8(3),                                       //
+           B(Star), R(1),                                           //
+           B(LdaSmi8), U8(4),                                       //
+           B(Star), R(2),                                           //
+           B(LdaSmi8), U8(5),                                       //
+           B(Star), R(3),                                           //
+           B(New), R(0), R(1), U8(3),                               //
+           B(Return),                                               //
        },
        1,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},

@@ -264,6 +264,32 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
+    size_t name_index, int feedback_slot, LanguageMode language_mode) {
+  Bytecode bytecode = BytecodeForLoadGlobal(language_mode);
+  if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
+    Output(bytecode, static_cast<uint8_t>(name_index),
+           static_cast<uint8_t>(feedback_slot));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
+    size_t name_index, int feedback_slot, LanguageMode language_mode) {
+  Bytecode bytecode = BytecodeForStoreGlobal(language_mode);
+  if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
+    Output(bytecode, static_cast<uint8_t>(name_index),
+           static_cast<uint8_t>(feedback_slot));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
                                                             int slot_index) {
   DCHECK(slot_index >= 0);
@@ -291,10 +317,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
-    Register object, int feedback_slot, LanguageMode language_mode) {
+    Register object, size_t name_index, int feedback_slot,
+    LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForLoadIC(language_mode);
-  if (FitsInIdx8Operand(feedback_slot)) {
-    Output(bytecode, object.ToOperand(), static_cast<uint8_t>(feedback_slot));
+  if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
+    Output(bytecode, object.ToOperand(), static_cast<uint8_t>(name_index),
+           static_cast<uint8_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
   }
@@ -315,11 +343,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
-    Register object, Register name, int feedback_slot,
+    Register object, size_t name_index, int feedback_slot,
     LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForStoreIC(language_mode);
-  if (FitsInIdx8Operand(feedback_slot)) {
-    Output(bytecode, object.ToOperand(), name.ToOperand(),
+  if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
+    Output(bytecode, object.ToOperand(), static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
@@ -885,6 +913,40 @@ Bytecode BytecodeArrayBuilder::BytecodeForKeyedStoreIC(
       return Bytecode::kKeyedStoreICSloppy;
     case STRICT:
       return Bytecode::kKeyedStoreICStrict;
+    case STRONG:
+      UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<Bytecode>(-1);
+}
+
+
+// static
+Bytecode BytecodeArrayBuilder::BytecodeForLoadGlobal(
+    LanguageMode language_mode) {
+  switch (language_mode) {
+    case SLOPPY:
+      return Bytecode::kLdaGlobalSloppy;
+    case STRICT:
+      return Bytecode::kLdaGlobalStrict;
+    case STRONG:
+      UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<Bytecode>(-1);
+}
+
+
+// static
+Bytecode BytecodeArrayBuilder::BytecodeForStoreGlobal(
+    LanguageMode language_mode) {
+  switch (language_mode) {
+    case SLOPPY:
+      return Bytecode::kStaGlobalSloppy;
+    case STRICT:
+      return Bytecode::kStaGlobalStrict;
     case STRONG:
       UNIMPLEMENTED();
     default:

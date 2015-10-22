@@ -713,12 +713,10 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         // contains computed properties with an uninitialized value.
         if (literal_key->value()->IsInternalizedString()) {
           if (property->emit_store()) {
-            Register name = inner_temporary_register_scope.NewRegister();
-            builder()
-                ->LoadLiteral(literal_key->AsPropertyName())
-                .StoreAccumulatorInRegister(name);
+            size_t name_index =
+                builder()->GetConstantPoolEntry(literal_key->AsPropertyName());
             VisitForAccumulatorValue(property->value());
-            builder()->StoreNamedProperty(literal, name,
+            builder()->StoreNamedProperty(literal, name_index,
                                           feedback_index(property->GetSlot(0)),
                                           language_mode());
           } else {
@@ -939,13 +937,8 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
     }
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
-      TemporaryRegisterScope temporary_register_scope(builder());
-      Register obj = temporary_register_scope.NewRegister();
-      builder()->LoadContextSlot(execution_context()->reg(),
-                                 Context::GLOBAL_OBJECT_INDEX);
-      builder()->StoreAccumulatorInRegister(obj);
-      builder()->LoadLiteral(variable->name());
-      builder()->LoadNamedProperty(obj, feedback_index(slot), language_mode());
+      size_t name_index = builder()->GetConstantPoolEntry(variable->name());
+      builder()->LoadGlobal(name_index, feedback_index(slot), language_mode());
       execution_result()->SetResultInAccumulator();
       break;
     }
@@ -987,21 +980,8 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
     }
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
-      Register value = execution_result()->NewRegister();
-      Register obj = execution_result()->NewRegister();
-      Register name = execution_result()->NewRegister();
-
-      // TODO(rmcilroy): Investigate whether we can avoid having to stash the
-      // value in a register.
-      builder()->StoreAccumulatorInRegister(value);
-      builder()->LoadContextSlot(execution_context()->reg(),
-                                 Context::GLOBAL_OBJECT_INDEX);
-      builder()->StoreAccumulatorInRegister(obj);
-      builder()->LoadLiteral(variable->name());
-      builder()->StoreAccumulatorInRegister(name);
-      builder()->LoadAccumulatorWithRegister(value);
-      builder()->StoreNamedProperty(obj, name, feedback_index(slot),
-                                    language_mode());
+      size_t name_index = builder()->GetConstantPoolEntry(variable->name());
+      builder()->StoreGlobal(name_index, feedback_index(slot), language_mode());
       break;
     }
     case VariableLocation::CONTEXT: {
@@ -1023,6 +1003,7 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
 void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   DCHECK(expr->target()->IsValidReferenceExpression());
   Register object, key;
+  size_t name_index = kMaxUInt32;
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->target()->AsProperty();
@@ -1035,9 +1016,8 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     case NAMED_PROPERTY: {
       object = VisitForRegisterValue(property->obj());
-      key = execution_result()->NewRegister();
-      builder()->LoadLiteral(property->key()->AsLiteral()->AsPropertyName());
-      builder()->StoreAccumulatorInRegister(key);
+      name_index = builder()->GetConstantPoolEntry(
+          property->key()->AsLiteral()->AsPropertyName());
       break;
     }
     case KEYED_PROPERTY: {
@@ -1069,7 +1049,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     }
     case NAMED_PROPERTY:
-      builder()->StoreNamedProperty(object, key, feedback_index(slot),
+      builder()->StoreNamedProperty(object, name_index, feedback_index(slot),
                                     language_mode());
       break;
     case KEYED_PROPERTY:
@@ -1100,8 +1080,10 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
     case VARIABLE:
       UNREACHABLE();
     case NAMED_PROPERTY: {
-      builder()->LoadLiteral(expr->key()->AsLiteral()->AsPropertyName());
-      builder()->LoadNamedProperty(obj, feedback_index(slot), language_mode());
+      size_t name_index = builder()->GetConstantPoolEntry(
+          expr->key()->AsLiteral()->AsPropertyName());
+      builder()->LoadNamedProperty(obj, name_index, feedback_index(slot),
+                                   language_mode());
       break;
     }
     case KEYED_PROPERTY: {
@@ -1114,6 +1096,13 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
       UNIMPLEMENTED();
   }
   execution_result()->SetResultInAccumulator();
+}
+
+
+void BytecodeGenerator::VisitPropertyLoadForAccumulator(Register obj,
+                                                        Property* expr) {
+  AccumulatorResultScope result_scope(this);
+  VisitPropertyLoad(obj, expr);
 }
 
 
@@ -1173,13 +1162,10 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       if (property->IsSuperAccess()) {
         UNIMPLEMENTED();
       }
+
       VisitForAccumulatorValue(property->obj());
       builder()->StoreAccumulatorInRegister(receiver);
-      // Need a result scope here to keep our consecutive
-      // temporaries.
-      AccumulatorResultScope accumulator_execution_result(this);
-      // Perform a property load of the callee.
-      VisitPropertyLoad(receiver, property);
+      VisitPropertyLoadForAccumulator(receiver, property);
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
@@ -1273,6 +1259,8 @@ void BytecodeGenerator::VisitVoid(UnaryOperation* expr) {
 
 
 void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
+  // TODO(rmcilroy): Set TypeofMode to INSIDE_TYPEOF for any loadICs performed
+  // while visiting the expression.
   VisitForAccumulatorValue(expr->expression());
   builder()->TypeOf();
   execution_result()->SetResultInAccumulator();
@@ -1389,70 +1377,6 @@ void BytecodeGenerator::VisitSuperPropertyReference(
 }
 
 
-void BytecodeGenerator::VisitNewLocalFunctionContext() {
-  Scope* scope = this->scope();
-
-  // Allocate a new local context.
-  if (scope->is_script_scope()) {
-    TemporaryRegisterScope temporary_register_scope(builder());
-    Register closure = temporary_register_scope.NewRegister();
-    Register scope_info = temporary_register_scope.NewRegister();
-    DCHECK(Register::AreContiguous(closure, scope_info));
-    builder()
-        ->LoadAccumulatorWithRegister(Register::function_closure())
-        .StoreAccumulatorInRegister(closure)
-        .LoadLiteral(scope->GetScopeInfo(isolate()))
-        .StoreAccumulatorInRegister(scope_info)
-        .CallRuntime(Runtime::kNewScriptContext, closure, 2);
-  } else {
-    builder()->CallRuntime(Runtime::kNewFunctionContext,
-                           Register::function_closure(), 1);
-  }
-}
-
-
-void BytecodeGenerator::VisitBuildLocalActivationContext() {
-  Scope* scope = this->scope();
-
-  if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
-    UNIMPLEMENTED();
-  }
-
-  // Copy parameters into context if necessary.
-  int num_parameters = scope->num_parameters();
-  for (int i = 0; i < num_parameters; i++) {
-    Variable* variable = scope->parameter(i);
-    if (!variable->IsContextSlot()) continue;
-
-    // The parameter indices are shifted by 1 (receiver is variable
-    // index -1 but is parameter index 0 in BytecodeArrayBuilder).
-    Register parameter(builder()->Parameter(i + 1));
-    // Context variable (at bottom of the context chain).
-    DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
-    builder()->LoadAccumulatorWithRegister(parameter)
-        .StoreContextSlot(execution_context()->reg(), variable->index());
-  }
-}
-
-
-void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
-  DCHECK(scope->is_block_scope());
-
-  // Allocate a new local block context.
-  TemporaryRegisterScope temporary_register_scope(builder());
-  Register scope_info = temporary_register_scope.NewRegister();
-  Register closure = temporary_register_scope.NewRegister();
-  DCHECK(Register::AreContiguous(scope_info, closure));
-  builder()
-      ->LoadLiteral(scope->GetScopeInfo(isolate()))
-      .StoreAccumulatorInRegister(scope_info);
-  VisitFunctionClosureForContext();
-  builder()
-      ->StoreAccumulatorInRegister(closure)
-      .CallRuntime(Runtime::kPushBlockContext, scope_info, 2);
-}
-
-
 void BytecodeGenerator::VisitCommaExpression(BinaryOperation* binop) {
   VisitForEffect(binop->left());
   Visit(binop->right());
@@ -1497,6 +1421,74 @@ void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
 }
 
 
+void BytecodeGenerator::VisitNewLocalFunctionContext() {
+  AccumulatorResultScope accumulator_execution_result(this);
+  Scope* scope = this->scope();
+
+  // Allocate a new local context.
+  if (scope->is_script_scope()) {
+    TemporaryRegisterScope temporary_register_scope(builder());
+    Register closure = temporary_register_scope.NewRegister();
+    Register scope_info = temporary_register_scope.NewRegister();
+    DCHECK(Register::AreContiguous(closure, scope_info));
+    builder()
+        ->LoadAccumulatorWithRegister(Register::function_closure())
+        .StoreAccumulatorInRegister(closure)
+        .LoadLiteral(scope->GetScopeInfo(isolate()))
+        .StoreAccumulatorInRegister(scope_info)
+        .CallRuntime(Runtime::kNewScriptContext, closure, 2);
+  } else {
+    builder()->CallRuntime(Runtime::kNewFunctionContext,
+                           Register::function_closure(), 1);
+  }
+  execution_result()->SetResultInAccumulator();
+}
+
+
+void BytecodeGenerator::VisitBuildLocalActivationContext() {
+  Scope* scope = this->scope();
+
+  if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
+    UNIMPLEMENTED();
+  }
+
+  // Copy parameters into context if necessary.
+  int num_parameters = scope->num_parameters();
+  for (int i = 0; i < num_parameters; i++) {
+    Variable* variable = scope->parameter(i);
+    if (!variable->IsContextSlot()) continue;
+
+    // The parameter indices are shifted by 1 (receiver is variable
+    // index -1 but is parameter index 0 in BytecodeArrayBuilder).
+    Register parameter(builder()->Parameter(i + 1));
+    // Context variable (at bottom of the context chain).
+    DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
+    builder()->LoadAccumulatorWithRegister(parameter)
+        .StoreContextSlot(execution_context()->reg(), variable->index());
+  }
+}
+
+
+void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
+  AccumulatorResultScope accumulator_execution_result(this);
+  DCHECK(scope->is_block_scope());
+
+  // Allocate a new local block context.
+  TemporaryRegisterScope temporary_register_scope(builder());
+  Register scope_info = temporary_register_scope.NewRegister();
+  Register closure = temporary_register_scope.NewRegister();
+  DCHECK(Register::AreContiguous(scope_info, closure));
+  builder()
+      ->LoadLiteral(scope->GetScopeInfo(isolate()))
+      .StoreAccumulatorInRegister(scope_info);
+  VisitFunctionClosureForContext();
+  builder()
+      ->StoreAccumulatorInRegister(closure)
+      .CallRuntime(Runtime::kPushBlockContext, scope_info, 2);
+  execution_result()->SetResultInAccumulator();
+}
+
+
 void BytecodeGenerator::VisitObjectLiteralAccessor(
     Register home_object, ObjectLiteralProperty* property, Register value_out) {
   // TODO(rmcilroy): Replace value_out with VisitForRegister();
@@ -1516,23 +1508,12 @@ void BytecodeGenerator::VisitSetHomeObject(Register value, Register home_object,
   Expression* expr = property->value();
   if (!FunctionLiteral::NeedsHomeObject(expr)) return;
 
-  // TODO(rmcilroy): Remove UNIMPLEMENTED once we have tests for setting the
-  // home object.
   UNIMPLEMENTED();
-
-  TemporaryRegisterScope temporary_register_scope(builder());
-  Register name = temporary_register_scope.NewRegister();
-  isolate()->factory()->home_object_symbol();
-  builder()
-      ->LoadLiteral(isolate()->factory()->home_object_symbol())
-      .StoreAccumulatorInRegister(name)
-      .StoreNamedProperty(home_object, name,
-                          feedback_index(property->GetSlot(slot_number)),
-                          language_mode());
 }
 
 
 void BytecodeGenerator::VisitFunctionClosureForContext() {
+  AccumulatorResultScope accumulator_execution_result(this);
   Scope* closure_scope = execution_context()->scope()->ClosureScope();
   if (closure_scope->is_script_scope() ||
       closure_scope->is_module_scope()) {
@@ -1544,6 +1525,7 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
     DCHECK(closure_scope->is_function_scope());
     builder()->LoadAccumulatorWithRegister(Register::function_closure());
   }
+  execution_result()->SetResultInAccumulator();
 }
 
 

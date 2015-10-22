@@ -184,6 +184,92 @@ void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
 }
 
 
+void Interpreter::DoLoadGlobal(Callable ic,
+                               compiler::InterpreterAssembler* assembler) {
+  // Get the global object.
+  Node* context = __ GetContext();
+  Node* global = __ LoadContextSlot(context, Context::GLOBAL_OBJECT_INDEX);
+
+  // Load the global via the LoadIC.
+  Node* code_target = __ HeapConstant(ic.code());
+  Node* constant_index = __ BytecodeOperandIdx8(0);
+  Node* name = __ LoadConstantPoolEntry(constant_index);
+  Node* raw_slot = __ BytecodeOperandIdx8(1);
+  Node* smi_slot = __ SmiTag(raw_slot);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* result = __ CallIC(ic.descriptor(), code_target, global, name, smi_slot,
+                           type_feedback_vector);
+  __ SetAccumulator(result);
+
+  __ Dispatch();
+}
+
+
+// LdaGlobalSloppy <name_index> <slot>
+//
+// Load the global with name in constant pool entry <name_index> into the
+// accumulator using FeedBackVector slot <slot> in sloppy mode.
+void Interpreter::DoLdaGlobalSloppy(compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
+                                                   SLOPPY, UNINITIALIZED);
+  DoLoadGlobal(ic, assembler);
+}
+
+
+// LdaGlobalSloppy <name_index> <slot>
+//
+// Load the global with name in constant pool entry <name_index> into the
+// accumulator using FeedBackVector slot <slot> in strict mode.
+void Interpreter::DoLdaGlobalStrict(compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
+                                                   STRICT, UNINITIALIZED);
+  DoLoadGlobal(ic, assembler);
+}
+
+
+void Interpreter::DoStoreGlobal(Callable ic,
+                                compiler::InterpreterAssembler* assembler) {
+  // Get the global object.
+  Node* context = __ GetContext();
+  Node* global = __ LoadContextSlot(context, Context::GLOBAL_OBJECT_INDEX);
+
+  // Store the global via the StoreIC.
+  Node* code_target = __ HeapConstant(ic.code());
+  Node* constant_index = __ BytecodeOperandIdx8(0);
+  Node* name = __ LoadConstantPoolEntry(constant_index);
+  Node* value = __ GetAccumulator();
+  Node* raw_slot = __ BytecodeOperandIdx8(1);
+  Node* smi_slot = __ SmiTag(raw_slot);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  __ CallIC(ic.descriptor(), code_target, global, name, value, smi_slot,
+            type_feedback_vector);
+
+  __ Dispatch();
+}
+
+
+// StaGlobalSloppy <name_index> <slot>
+//
+// Store the value in the accumulator into the global with name in constant pool
+// entry <name_index> using FeedBackVector slot <slot> in sloppy mode.
+void Interpreter::DoStaGlobalSloppy(compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  DoStoreGlobal(ic, assembler);
+}
+
+
+// StaGlobalStrict <name_index> <slot>
+//
+// Store the value in the accumulator into the global with name in constant pool
+// entry <name_index> using FeedBackVector slot <slot> in strict mode.
+void Interpreter::DoStaGlobalStrict(compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::StoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
+  DoStoreGlobal(ic, assembler);
+}
+
+
 // LdaContextSlot <context> <slot_index>
 //
 // Load the object in |slot_index| of |context| into the accumulator.
@@ -210,8 +296,47 @@ void Interpreter::DoStaContextSlot(compiler::InterpreterAssembler* assembler) {
 }
 
 
-void Interpreter::DoPropertyLoadIC(Callable ic,
-                                   compiler::InterpreterAssembler* assembler) {
+void Interpreter::DoLoadIC(Callable ic,
+                           compiler::InterpreterAssembler* assembler) {
+  Node* code_target = __ HeapConstant(ic.code());
+  Node* register_index = __ BytecodeOperandReg8(0);
+  Node* object = __ LoadRegister(register_index);
+  Node* constant_index = __ BytecodeOperandIdx8(1);
+  Node* name = __ LoadConstantPoolEntry(constant_index);
+  Node* raw_slot = __ BytecodeOperandIdx8(2);
+  Node* smi_slot = __ SmiTag(raw_slot);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* result = __ CallIC(ic.descriptor(), code_target, object, name, smi_slot,
+                           type_feedback_vector);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// LoadICSloppy <object> <name_index> <slot>
+//
+// Calls the sloppy mode LoadIC at FeedBackVector slot <slot> for <object> and
+// the name at constant pool entry <name_index>.
+void Interpreter::DoLoadICSloppy(compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
+                                                   SLOPPY, UNINITIALIZED);
+  DoLoadIC(ic, assembler);
+}
+
+
+// LoadICStrict <object> <name_index> <slot>
+//
+// Calls the sloppy mode LoadIC at FeedBackVector slot <slot> for <object> and
+// the name at constant pool entry <name_index>.
+void Interpreter::DoLoadICStrict(compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
+                                                   STRICT, UNINITIALIZED);
+  DoLoadIC(ic, assembler);
+}
+
+
+void Interpreter::DoKeyedLoadIC(Callable ic,
+                                compiler::InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());
   Node* reg_index = __ BytecodeOperandReg8(0);
   Node* object = __ LoadRegister(reg_index);
@@ -226,28 +351,6 @@ void Interpreter::DoPropertyLoadIC(Callable ic,
 }
 
 
-// LoadICSloppy <object> <slot>
-//
-// Calls the sloppy mode LoadIC at FeedBackVector slot <slot> for <object> and
-// the name in the accumulator.
-void Interpreter::DoLoadICSloppy(compiler::InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   SLOPPY, UNINITIALIZED);
-  DoPropertyLoadIC(ic, assembler);
-}
-
-
-// LoadICStrict <object> <slot>
-//
-// Calls the strict mode LoadIC at FeedBackVector slot <slot> for <object> and
-// the name in the accumulator.
-void Interpreter::DoLoadICStrict(compiler::InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   STRICT, UNINITIALIZED);
-  DoPropertyLoadIC(ic, assembler);
-}
-
-
 // KeyedLoadICSloppy <object> <slot>
 //
 // Calls the sloppy mode KeyedLoadIC at FeedBackVector slot <slot> for <object>
@@ -256,7 +359,7 @@ void Interpreter::DoKeyedLoadICSloppy(
     compiler::InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedLoadICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
-  DoPropertyLoadIC(ic, assembler);
+  DoKeyedLoadIC(ic, assembler);
 }
 
 
@@ -268,12 +371,53 @@ void Interpreter::DoKeyedLoadICStrict(
     compiler::InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedLoadICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
-  DoPropertyLoadIC(ic, assembler);
+  DoKeyedLoadIC(ic, assembler);
 }
 
 
-void Interpreter::DoPropertyStoreIC(Callable ic,
-                                    compiler::InterpreterAssembler* assembler) {
+void Interpreter::DoStoreIC(Callable ic,
+                            compiler::InterpreterAssembler* assembler) {
+  Node* code_target = __ HeapConstant(ic.code());
+  Node* object_reg_index = __ BytecodeOperandReg8(0);
+  Node* object = __ LoadRegister(object_reg_index);
+  Node* constant_index = __ BytecodeOperandIdx8(1);
+  Node* name = __ LoadConstantPoolEntry(constant_index);
+  Node* value = __ GetAccumulator();
+  Node* raw_slot = __ BytecodeOperandIdx8(2);
+  Node* smi_slot = __ SmiTag(raw_slot);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  __ CallIC(ic.descriptor(), code_target, object, name, value, smi_slot,
+            type_feedback_vector);
+  __ Dispatch();
+}
+
+
+// StoreICSloppy <object> <name_index> <slot>
+//
+// Calls the sloppy mode StoreIC at FeedBackVector slot <slot> for <object> and
+// the name in constant pool entry <name_index> with the value in the
+// accumulator.
+void Interpreter::DoStoreICSloppy(compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  DoStoreIC(ic, assembler);
+}
+
+
+// StoreICStrict <object> <name_index> <slot>
+//
+// Calls the strict mode StoreIC at FeedBackVector slot <slot> for <object> and
+// the name in constant pool entry <name_index> with the value in the
+// accumulator.
+void Interpreter::DoStoreICStrict(compiler::InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::StoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
+  DoStoreIC(ic, assembler);
+}
+
+
+void Interpreter::DoKeyedStoreIC(Callable ic,
+                                 compiler::InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());
   Node* object_reg_index = __ BytecodeOperandReg8(0);
   Node* object = __ LoadRegister(object_reg_index);
@@ -283,32 +427,9 @@ void Interpreter::DoPropertyStoreIC(Callable ic,
   Node* raw_slot = __ BytecodeOperandIdx8(2);
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  Node* result = __ CallIC(ic.descriptor(), code_target, object, name, value,
-                           smi_slot, type_feedback_vector);
-  __ SetAccumulator(result);
+  __ CallIC(ic.descriptor(), code_target, object, name, value, smi_slot,
+            type_feedback_vector);
   __ Dispatch();
-}
-
-
-// StoreICSloppy <object> <name> <slot>
-//
-// Calls the sloppy mode StoreIC at FeedBackVector slot <slot> for <object> and
-// the name <name> with the value in the accumulator.
-void Interpreter::DoStoreICSloppy(compiler::InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
-  DoPropertyStoreIC(ic, assembler);
-}
-
-
-// StoreICStrict <object> <name> <slot>
-//
-// Calls the strict mode StoreIC at FeedBackVector slot <slot> for <object> and
-// the name <name> with the value in the accumulator.
-void Interpreter::DoStoreICStrict(compiler::InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::StoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
-  DoPropertyStoreIC(ic, assembler);
 }
 
 
@@ -320,7 +441,7 @@ void Interpreter::DoKeyedStoreICSloppy(
     compiler::InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedStoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
-  DoPropertyStoreIC(ic, assembler);
+  DoKeyedStoreIC(ic, assembler);
 }
 
 
@@ -332,7 +453,7 @@ void Interpreter::DoKeyedStoreICStrict(
     compiler::InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedStoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
-  DoPropertyStoreIC(ic, assembler);
+  DoKeyedStoreIC(ic, assembler);
 }
 
 

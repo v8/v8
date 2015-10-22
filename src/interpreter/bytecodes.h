@@ -43,6 +43,12 @@ namespace interpreter {
   V(LdaTrue, OperandType::kNone)                                               \
   V(LdaFalse, OperandType::kNone)                                              \
                                                                                \
+  /* Globals */                                                                \
+  V(LdaGlobalSloppy, OperandType::kIdx8, OperandType::kIdx8)                   \
+  V(LdaGlobalStrict, OperandType::kIdx8, OperandType::kIdx8)                   \
+  V(StaGlobalSloppy, OperandType::kIdx8, OperandType::kIdx8)                   \
+  V(StaGlobalStrict, OperandType::kIdx8, OperandType::kIdx8)                   \
+                                                                               \
   /* Context operations */                                                     \
   V(PushContext, OperandType::kReg8)                                           \
   V(PopContext, OperandType::kReg8)                                            \
@@ -54,14 +60,14 @@ namespace interpreter {
   V(Star, OperandType::kReg8)                                                  \
                                                                                \
   /* LoadIC operations */                                                      \
-  V(LoadICSloppy, OperandType::kReg8, OperandType::kIdx8)                      \
-  V(LoadICStrict, OperandType::kReg8, OperandType::kIdx8)                      \
+  V(LoadICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
+  V(LoadICStrict, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
   V(KeyedLoadICSloppy, OperandType::kReg8, OperandType::kIdx8)                 \
   V(KeyedLoadICStrict, OperandType::kReg8, OperandType::kIdx8)                 \
                                                                                \
   /* StoreIC operations */                                                     \
-  V(StoreICSloppy, OperandType::kReg8, OperandType::kReg8, OperandType::kIdx8) \
-  V(StoreICStrict, OperandType::kReg8, OperandType::kReg8, OperandType::kIdx8) \
+  V(StoreICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8) \
+  V(StoreICStrict, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8) \
   V(KeyedStoreICSloppy, OperandType::kReg8, OperandType::kReg8,                \
     OperandType::kIdx8)                                                        \
   V(KeyedStoreICStrict, OperandType::kReg8, OperandType::kReg8,                \

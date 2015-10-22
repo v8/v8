@@ -249,6 +249,30 @@ void BytecodeGraphBuilder::VisitStar(
 }
 
 
+void BytecodeGraphBuilder::VisitLdaGlobalSloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitLdaGlobalStrict(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitStaGlobalSloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitStaGlobalStrict(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitLdaContextSlot(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
