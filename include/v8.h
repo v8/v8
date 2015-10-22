@@ -5807,6 +5807,18 @@ class V8_EXPORT Isolate {
   int ContextDisposedNotification(bool dependant_context = true);
 
   /**
+   * Optional notification that the isolate switched to the foreground.
+   * V8 uses these notifications to guide heuristics.
+   */
+  void IsolateInForegroundNotification();
+
+  /**
+   * Optional notification that the isolate switched to the background.
+   * V8 uses these notifications to guide heuristics.
+   */
+  void IsolateInBackgroundNotification();
+
+  /**
    * Allows the host application to provide the address of a function that is
    * notified each time code is added, moved or removed.
    *
