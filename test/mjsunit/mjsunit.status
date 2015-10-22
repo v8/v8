@@ -160,9 +160,6 @@
   'deopt-with-fp-regs': [PASS, NO_VARIANTS],
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
 
-  # TODO(bmeurer/jarin): Crash in code generator?
-  'constant-folding-2': [PASS, NO_VARIANTS],
-
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
 
