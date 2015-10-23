@@ -518,13 +518,13 @@ bool LCodeGen::GenerateSafepointTable() {
 }
 
 
-Register LCodeGen::ToRegister(int index) const {
-  return Register::FromAllocationIndex(index);
+Register LCodeGen::ToRegister(int code) const {
+  return Register::from_code(code);
 }
 
 
-X87Register LCodeGen::ToX87Register(int index) const {
-  return X87Register::FromAllocationIndex(index);
+X87Register LCodeGen::ToX87Register(int code) const {
+  return X87Register::from_code(code);
 }
 
 
@@ -700,7 +700,7 @@ void LCodeGen::X87Stack::CommitWrite(X87Register reg) {
   DCHECK(is_mutable_);
   // Assert the reg is prepared to write, but not on the virtual stack yet
   DCHECK(!Contains(reg) && stack_[stack_depth_].is(reg) &&
-      stack_depth_ < X87Register::kMaxNumAllocatableRegisters);
+         stack_depth_ < X87Register::kMaxNumAllocatableRegisters);
   stack_depth_++;
 }
 
