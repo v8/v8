@@ -8727,12 +8727,10 @@ TEST(AccessControlES5) {
   CompileRun("other.accessible_prop = 42");
   CHECK_EQ(42, g_echo_value);
 
-  // [[DefineOwnProperty]] always throws for access-checked objects.
-  CHECK(
-      CompileRun("Object.defineProperty(other, 'accessible_prop', {value: 43})")
-          .IsEmpty());
-  CHECK(CompileRun("other.accessible_prop == 42")->IsTrue());
-  CHECK_EQ(42, g_echo_value);  // Make sure we didn't call the setter.
+  v8::Handle<Value> value;
+  CompileRun("Object.defineProperty(other, 'accessible_prop', {value: -1})");
+  value = CompileRun("other.accessible_prop == 42");
+  CHECK(value->IsTrue());
 }
 
 

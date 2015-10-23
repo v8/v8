@@ -6060,17 +6060,6 @@ bool JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, object, key, &success, LookupIterator::HIDDEN);
   DCHECK(success);  // ...so creating a LookupIterator can't fail.
-
-  // Deal with access checks first.
-  if (it.state() == LookupIterator::ACCESS_CHECK) {
-    if (!it.HasAccess()) {
-      isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
-      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, false);
-      return false;
-    }
-    it.Next();
-  }
-
   return OrdinaryDefineOwnProperty(&it, desc, should_throw);
 }
 
@@ -6110,13 +6099,6 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       }
       return false;
     }
-    // We have to use a fresh LookupIterator to handle interceptors properly.
-    LookupIterator lookup_for_store =
-        it->IsElement() ? LookupIterator(isolate, it->GetReceiver(),
-                                         it->index(), LookupIterator::HIDDEN)
-                        : LookupIterator(it->GetReceiver(), it->name(),
-                                         LookupIterator::HIDDEN);
-
     // 2c. If IsGenericDescriptor(Desc) or IsDataDescriptor(Desc) is true, then:
     // (This is equivalent to !IsAccessorDescriptor(desc).)
     DCHECK((desc_is_generic_descriptor || desc_is_data_descriptor) ==
@@ -6136,9 +6118,8 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
                 ? desc->value()
                 : Handle<Object>::cast(isolate->factory()->undefined_value()));
         MaybeHandle<Object> result =
-            JSObject::DefineOwnPropertyIgnoreAttributes(
-                &lookup_for_store, value, desc->ToAttributes(),
-                JSObject::DONT_FORCE_FIELD);
+            JSObject::DefineOwnPropertyIgnoreAttributes(it, value,
+                                                        desc->ToAttributes());
         if (result.is_null()) return false;
       }
     } else {
@@ -6160,8 +6141,8 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
             desc->has_set()
                 ? desc->set()
                 : Handle<Object>::cast(isolate->factory()->undefined_value()));
-        MaybeHandle<Object> result = JSObject::DefineAccessor(
-            &lookup_for_store, getter, setter, desc->ToAttributes());
+        MaybeHandle<Object> result =
+            JSObject::DefineAccessor(it, getter, setter, desc->ToAttributes());
         if (result.is_null()) return false;
       }
     }
@@ -6570,7 +6551,7 @@ bool JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
   if (!success && should_throw == THROW_ON_ERROR) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kStrictDeleteProperty,
-        isolate->factory()->NewNumberFromUint(actual_new_len - 1), a));
+        isolate->factory()->NewNumberFromUint(actual_new_len - 1)));
   }
   return success;
 }
@@ -7837,10 +7818,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       DCHECK(filter == INCLUDE_SYMBOLS);
       PropertyAttributes attr_filter =
           static_cast<PropertyAttributes>(DONT_ENUM | PRIVATE_SYMBOL);
-      Handle<FixedArray> property_keys = isolate->factory()->NewFixedArray(
-          current->NumberOfOwnProperties(attr_filter));
-      current->GetOwnPropertyNames(*property_keys, 0, attr_filter);
-      accumulator.AddKeys(property_keys);
+      JSObject::CollectOwnElementKeys(current, &accumulator, attr_filter);
     }
 
     // Add the property keys from the interceptor.
