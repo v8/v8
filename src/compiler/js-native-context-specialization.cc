@@ -312,7 +312,8 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, PropertyAccessMode access_mode,
     PropertyAccessInfo* access_info) {
   MaybeHandle<JSObject> holder;
-  Type* receiver_type = Type::Class(map, graph()->zone());
+  Handle<Map> receiver_map = map;
+  Type* receiver_type = Type::Class(receiver_map, graph()->zone());
   while (CanInlinePropertyAccess(map)) {
     // Check for special JSObject field accessors.
     int offset;
@@ -356,6 +357,9 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
     Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
     int const number = descriptors->SearchWithCache(*name, *map);
     if (number != DescriptorArray::kNotFound) {
+      if (access_mode == kStore && !map.is_identical_to(receiver_map)) {
+        return false;
+      }
       PropertyDetails const details = descriptors->GetDetails(number);
       if (details.type() == DATA_CONSTANT) {
         *access_info = PropertyAccessInfo::DataConstant(
@@ -364,14 +368,14 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
         return true;
       } else if (details.type() == DATA) {
         // Don't bother optimizing stores to read-only properties.
-        if (access_mode == kStore) {
+        if (access_mode == kStore && details.IsReadOnly()) {
           break;
         }
         int index = descriptors->GetFieldIndex(number);
         Representation field_representation = details.representation();
         FieldIndex field_index = FieldIndex::ForPropertyIndex(
             *map, index, field_representation.IsDouble());
-        Type* field_type = Type::Any();
+        Type* field_type = Type::Tagged();
         if (field_representation.IsSmi()) {
           field_type = Type::Intersect(Type::SignedSmall(),
                                        Type::TaggedSigned(), graph()->zone());
@@ -454,11 +458,13 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfos(
     PropertyAccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* access_infos) {
   for (Handle<Map> map : maps) {
-    PropertyAccessInfo access_info;
-    if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
-      return false;
+    if (Map::TryUpdate(map).ToHandle(&map)) {
+      PropertyAccessInfo access_info;
+      if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
+        return false;
+      }
+      access_infos->push_back(access_info);
     }
-    access_infos->push_back(access_info);
   }
   return true;
 }
@@ -488,7 +494,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   if (!ComputePropertyAccessInfos(receiver_maps, name, kLoad, &access_infos)) {
     return NoChange();
   }
-  DCHECK(!access_infos.empty());
+
+  // Nothing to do if we have no non-deprecated maps.
+  if (access_infos.empty()) return NoChange();
 
   // The final states for every polymorphic branch. We join them with
   // Merge+Phi+EffectPhi at the bottom.
@@ -774,7 +782,6 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      this_receiver = jsgraph()->Constant(holder);
       for (auto i = access_info.receiver_type()->Classes(); !i.Done();
            i.Advance()) {
         Handle<Map> map = i.Current();
