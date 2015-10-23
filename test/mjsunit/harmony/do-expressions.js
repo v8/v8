@@ -4,6 +4,7 @@
 
 // Flags: --harmony-do-expressions --harmony-sloppy-let --allow-natives-syntax
 // Flags: --harmony-default-parameters --harmony-destructuring
+// Flags: --harmony-completion
 
 function returnValue(v) { return v; }
 function MyError() {}
@@ -167,7 +168,10 @@ function TestInParameterInitializers() {
   function fn2(items = do {
     let items = [];
     for (var el of _items) {
-      if (el !== el) break;
+      if (el !== el) {
+        items;
+        break;
+      }
       items.push(el), items;
     }
   }) {
