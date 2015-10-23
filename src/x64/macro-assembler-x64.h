@@ -921,6 +921,9 @@ class MacroAssembler: public Assembler {
   void Movapd(XMMRegister dst, XMMRegister src);
   void Movmskpd(Register dst, XMMRegister src);
 
+  void Sqrtsd(XMMRegister dst, XMMRegister src);
+  void Sqrtsd(XMMRegister dst, const Operand& src);
+
   void Ucomiss(XMMRegister src1, XMMRegister src2);
   void Ucomiss(XMMRegister src1, const Operand& src2);
   void Ucomisd(XMMRegister src1, XMMRegister src2);

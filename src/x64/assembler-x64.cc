@@ -3365,6 +3365,7 @@ void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0xF2);
   emit_optional_rex_32(dst, src);
@@ -3375,6 +3376,7 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::sqrtsd(XMMRegister dst, const Operand& src) {
+  DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0xF2);
   emit_optional_rex_32(dst, src);

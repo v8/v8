@@ -74,7 +74,7 @@ UnaryMathFunction CreateSqrtFunction() {
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
   // xmm0: raw double input.
   // Move double input into registers.
-  __ sqrtsd(xmm0, xmm0);
+  __ Sqrtsd(xmm0, xmm0);
   __ Ret();
 
   CodeDesc desc;

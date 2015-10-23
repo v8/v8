@@ -2669,6 +2669,26 @@ void MacroAssembler::Movmskpd(Register dst, XMMRegister src) {
 }
 
 
+void MacroAssembler::Sqrtsd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vsqrtsd(dst, dst, src);
+  } else {
+    sqrtsd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Sqrtsd(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vsqrtsd(dst, dst, src);
+  } else {
+    sqrtsd(dst, src);
+  }
+}
+
+
 void MacroAssembler::Ucomiss(XMMRegister src1, XMMRegister src2) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

@@ -3712,10 +3712,10 @@ void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
   XMMRegister output = ToDoubleRegister(instr->result());
   if (instr->value()->IsDoubleRegister()) {
     XMMRegister input = ToDoubleRegister(instr->value());
-    __ sqrtsd(output, input);
+    __ Sqrtsd(output, input);
   } else {
     Operand input = ToOperand(instr->value());
-    __ sqrtsd(output, input);
+    __ Sqrtsd(output, input);
   }
 }
 
@@ -3747,7 +3747,7 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   __ bind(&sqrt);
   __ Xorpd(xmm_scratch, xmm_scratch);
   __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
-  __ sqrtsd(input_reg, input_reg);
+  __ Sqrtsd(input_reg, input_reg);
   __ bind(&done);
 }
 

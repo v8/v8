@@ -540,6 +540,8 @@ TEST(DisasmX64) {
       __ vminsd(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
       __ vmaxsd(xmm8, xmm1, xmm2);
       __ vmaxsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
+      __ vsqrtsd(xmm8, xmm1, xmm2);
+      __ vsqrtsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
       __ vucomisd(xmm9, xmm1);
       __ vucomisd(xmm8, Operand(rbx, rdx, times_2, 10981));
 

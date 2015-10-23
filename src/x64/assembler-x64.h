@@ -1318,6 +1318,7 @@ class Assembler : public AssemblerBase {
     impl(opcode, dst, src1, src2);                                     \
   }
 
+  AVX_SP_3(vsqrt, 0x51);
   AVX_SP_3(vadd, 0x58);
   AVX_SP_3(vsub, 0x5c);
   AVX_SP_3(vmul, 0x59);

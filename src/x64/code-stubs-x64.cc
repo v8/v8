@@ -363,7 +363,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
       __ Xorpd(double_scratch, double_scratch);
       __ addsd(double_scratch, double_base);  // Convert -0 to 0.
-      __ sqrtsd(double_result, double_scratch);
+      __ Sqrtsd(double_result, double_scratch);
       __ jmp(&done);
 
       // Test for -0.5.
@@ -394,7 +394,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
       __ Xorpd(double_exponent, double_exponent);
       __ addsd(double_exponent, double_base);  // Convert -0 to +0.
-      __ sqrtsd(double_exponent, double_exponent);
+      __ Sqrtsd(double_exponent, double_exponent);
       __ divsd(double_result, double_exponent);
       __ jmp(&done);
     }
