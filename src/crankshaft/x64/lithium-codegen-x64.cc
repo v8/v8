@@ -3565,8 +3565,8 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
     XMMRegister scratch = double_scratch0();
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ Xorpd(scratch, scratch);
-    __ subsd(scratch, input_reg);
-    __ andps(input_reg, scratch);
+    __ Subsd(scratch, input_reg);
+    __ Andpd(input_reg, scratch);
   } else if (r.IsInteger32()) {
     EmitIntegerMathAbs(instr);
   } else if (r.IsSmi()) {
@@ -3658,7 +3658,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ j(above, &below_one_half, Label::kNear);
 
   // CVTTSD2SI rounds towards zero, since 0.5 <= x, we use floor(0.5 + x).
-  __ addsd(xmm_scratch, input_reg);
+  __ Addsd(xmm_scratch, input_reg);
   __ Cvttsd2si(output_reg, xmm_scratch);
   // Overflow is signalled with minint.
   __ cmpl(output_reg, Immediate(0x1));
@@ -3674,7 +3674,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
   // compare and compensate.
   __ Movapd(input_temp, input_reg);  // Do not alter input_reg.
-  __ subsd(input_temp, xmm_scratch);
+  __ Subsd(input_temp, xmm_scratch);
   __ Cvttsd2si(output_reg, input_temp);
   // Catch minint due to overflow, and to prevent overflow when compensating.
   __ cmpl(output_reg, Immediate(0x1));
@@ -3740,13 +3740,13 @@ void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
   __ j(carry, &sqrt, Label::kNear);
   // If input is -Infinity, return Infinity.
   __ Xorpd(input_reg, input_reg);
-  __ subsd(input_reg, xmm_scratch);
+  __ Subsd(input_reg, xmm_scratch);
   __ jmp(&done, Label::kNear);
 
   // Square root.
   __ bind(&sqrt);
   __ Xorpd(xmm_scratch, xmm_scratch);
-  __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
+  __ Addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
   __ Sqrtsd(input_reg, input_reg);
   __ bind(&done);
 }
@@ -4259,7 +4259,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     XMMRegister xmm_scratch = double_scratch0();
     // Turn potential sNaN value into qNaN.
     __ Xorpd(xmm_scratch, xmm_scratch);
-    __ subsd(value, xmm_scratch);
+    __ Subsd(value, xmm_scratch);
   }
 
   Operand double_store_operand = BuildFastArrayOperand(

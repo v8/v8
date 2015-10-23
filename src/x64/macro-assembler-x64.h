@@ -904,6 +904,39 @@ class MacroAssembler: public Assembler {
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
+#define AVX_OP2_WITH_TYPE(macro_name, name, src_type) \
+  void macro_name(XMMRegister dst, src_type src) {    \
+    if (CpuFeatures::IsSupported(AVX)) {              \
+      CpuFeatureScope scope(this, AVX);               \
+      v##name(dst, dst, src);                         \
+    } else {                                          \
+      name(dst, src);                                 \
+    }                                                 \
+  }
+#define AVX_OP2_X(macro_name, name) \
+  AVX_OP2_WITH_TYPE(macro_name, name, XMMRegister)
+#define AVX_OP2_O(macro_name, name) \
+  AVX_OP2_WITH_TYPE(macro_name, name, const Operand&)
+#define AVX_OP2_XO(macro_name, name) \
+  AVX_OP2_X(macro_name, name)        \
+  AVX_OP2_O(macro_name, name)
+
+  AVX_OP2_XO(Addsd, addsd)
+  AVX_OP2_XO(Subsd, subsd)
+  AVX_OP2_XO(Mulsd, mulsd)
+  AVX_OP2_XO(Divsd, divsd)
+  AVX_OP2_X(Andpd, andpd)
+  AVX_OP2_X(Orpd, orpd)
+  AVX_OP2_X(Xorpd, xorpd)
+  AVX_OP2_X(Pcmpeqd, pcmpeqd)
+  AVX_OP2_WITH_TYPE(Psllq, psllq, byte)
+  AVX_OP2_WITH_TYPE(Psrlq, psrlq, byte)
+
+#undef AVX_OP2_O
+#undef AVX_OP2_X
+#undef AVX_OP2_XO
+#undef AVX_OP2_WITH_TYPE
+
   void Movsd(XMMRegister dst, XMMRegister src);
   void Movsd(XMMRegister dst, const Operand& src);
   void Movsd(const Operand& dst, XMMRegister src);
@@ -929,13 +962,6 @@ class MacroAssembler: public Assembler {
   void Ucomiss(XMMRegister src1, const Operand& src2);
   void Ucomisd(XMMRegister src1, XMMRegister src2);
   void Ucomisd(XMMRegister src1, const Operand& src2);
-
-  void Andpd(XMMRegister dst, XMMRegister src);
-  void Orpd(XMMRegister dst, XMMRegister src);
-  void Xorpd(XMMRegister dst, XMMRegister src);
-  void Pcmpeqd(XMMRegister dst, XMMRegister src);
-  void Psllq(XMMRegister dst, byte imm8);
-  void Psrlq(XMMRegister dst, byte imm8);
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);

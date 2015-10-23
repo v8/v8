@@ -356,20 +356,20 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
       // Set result to Infinity in the special case.
       __ Xorpd(double_result, double_result);
-      __ subsd(double_result, double_scratch);
+      __ Subsd(double_result, double_scratch);
       __ jmp(&done);
 
       __ bind(&continue_sqrt);
       // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
       __ Xorpd(double_scratch, double_scratch);
-      __ addsd(double_scratch, double_base);  // Convert -0 to 0.
+      __ Addsd(double_scratch, double_base);  // Convert -0 to 0.
       __ Sqrtsd(double_result, double_scratch);
       __ jmp(&done);
 
       // Test for -0.5.
       __ bind(&not_plus_half);
       // Load double_scratch with -0.5 by substracting 1.
-      __ subsd(double_scratch, double_result);
+      __ Subsd(double_scratch, double_result);
       // Already ruled out NaNs for exponent.
       __ Ucomisd(double_scratch, double_exponent);
       __ j(not_equal, &fast_power, Label::kNear);
@@ -393,9 +393,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ bind(&continue_rsqrt);
       // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
       __ Xorpd(double_exponent, double_exponent);
-      __ addsd(double_exponent, double_base);  // Convert -0 to +0.
+      __ Addsd(double_exponent, double_base);  // Convert -0 to +0.
       __ Sqrtsd(double_exponent, double_exponent);
-      __ divsd(double_result, double_exponent);
+      __ Divsd(double_result, double_exponent);
       __ jmp(&done);
     }
 
@@ -465,16 +465,16 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   __ bind(&while_true);
   __ shrl(scratch, Immediate(1));
-  __ mulsd(double_scratch, double_scratch);
+  __ Mulsd(double_scratch, double_scratch);
   __ j(above, &while_true, Label::kNear);
-  __ mulsd(double_result, double_scratch);
+  __ Mulsd(double_result, double_scratch);
   __ j(not_zero, &while_true);
 
   __ bind(&while_false);
   // If the exponent is negative, return 1/result.
   __ testl(exponent, exponent);
   __ j(greater, &done);
-  __ divsd(double_scratch2, double_result);
+  __ Divsd(double_scratch2, double_result);
   __ Movsd(double_result, double_scratch2);
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.

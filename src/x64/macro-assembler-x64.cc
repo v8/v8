@@ -2740,66 +2740,6 @@ void MacroAssembler::Ucomisd(XMMRegister src1, const Operand& src2) {
 }
 
 
-void MacroAssembler::Andpd(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vandpd(dst, dst, src);
-  } else {
-    andpd(dst, src);
-  }
-}
-
-
-void MacroAssembler::Orpd(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vorpd(dst, dst, src);
-  } else {
-    orpd(dst, src);
-  }
-}
-
-
-void MacroAssembler::Xorpd(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vxorpd(dst, dst, src);
-  } else {
-    xorpd(dst, src);
-  }
-}
-
-
-void MacroAssembler::Pcmpeqd(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpcmpeqd(dst, dst, src);
-  } else {
-    pcmpeqd(dst, src);
-  }
-}
-
-
-void MacroAssembler::Psllq(XMMRegister dst, byte imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsllq(dst, dst, imm8);
-  } else {
-    psllq(dst, imm8);
-  }
-}
-
-
-void MacroAssembler::Psrlq(XMMRegister dst, byte imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsrlq(dst, dst, imm8);
-  } else {
-    psrlq(dst, imm8);
-  }
-}
-
-
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
