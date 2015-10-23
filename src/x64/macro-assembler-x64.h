@@ -921,6 +921,7 @@ class MacroAssembler: public Assembler {
   void Movapd(XMMRegister dst, XMMRegister src);
   void Movmskpd(Register dst, XMMRegister src);
 
+  void Roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void Sqrtsd(XMMRegister dst, XMMRegister src);
   void Sqrtsd(XMMRegister dst, const Operand& src);
 

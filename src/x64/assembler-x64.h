@@ -1381,6 +1381,11 @@ class Assembler : public AssemblerBase {
   void vucomisd(XMMRegister dst, const Operand& src) {
     vsd(0x2e, dst, xmm0, src, k66, k0F, kWIG);
   }
+  void vroundsd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                RoundingMode mode) {
+    vsd(0x0b, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
+  }
 
   void vsd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vsd(op, dst, src1, src2, kF2, k0F, kWIG);

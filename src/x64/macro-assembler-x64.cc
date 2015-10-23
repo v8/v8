@@ -2669,6 +2669,17 @@ void MacroAssembler::Movmskpd(Register dst, XMMRegister src) {
 }
 
 
+void MacroAssembler::Roundsd(XMMRegister dst, XMMRegister src,
+                             RoundingMode mode) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vroundsd(dst, dst, src, mode);
+  } else {
+    roundsd(dst, src, mode);
+  }
+}
+
+
 void MacroAssembler::Sqrtsd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

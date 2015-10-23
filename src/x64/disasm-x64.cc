@@ -952,6 +952,19 @@ int DisassemblerX64::AVXInstruction(byte* data) {
       default:
         UnimplementedInstruction();
     }
+  } else if (vex_66() && vex_0f3a()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0x0b:
+        AppendToBuffer("vroundsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", *current++);
+        break;
+      default:
+        UnimplementedInstruction();
+    }
   } else if (vex_f3() && vex_0f()) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
@@ -1493,7 +1506,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
          // roundsd xmm, xmm/m64, imm8
         AppendToBuffer("roundsd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%d", (*current) & 3);
+        AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x16) {
         get_modrm(*current, &mod, &rm, &regop);

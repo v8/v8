@@ -3420,6 +3420,7 @@ void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
 
 
 void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+  DCHECK(!IsEnabled(AVX));
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -3428,7 +3429,7 @@ void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   emit(0x3a);
   emit(0x0b);
   emit_sse_operand(dst, src);
-  // Mask precision exeption.
+  // Mask precision exception.
   emit(static_cast<byte>(mode) | 0x8);
 }
 
