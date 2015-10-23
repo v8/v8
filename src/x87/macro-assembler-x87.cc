@@ -943,22 +943,27 @@ void MacroAssembler::EnterApiExitFrame(int argc) {
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles) {
+void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
   // Optionally restore FPU state.
   if (save_doubles) {
     const int offset = -2 * kPointerSize;
     frstor(MemOperand(ebp, offset - 108));
   }
 
-  // Get the return address from the stack and restore the frame pointer.
-  mov(ecx, Operand(ebp, 1 * kPointerSize));
-  mov(ebp, Operand(ebp, 0 * kPointerSize));
+  if (pop_arguments) {
+    // Get the return address from the stack and restore the frame pointer.
+    mov(ecx, Operand(ebp, 1 * kPointerSize));
+    mov(ebp, Operand(ebp, 0 * kPointerSize));
 
-  // Pop the arguments and the receiver from the caller stack.
-  lea(esp, Operand(esi, 1 * kPointerSize));
+    // Pop the arguments and the receiver from the caller stack.
+    lea(esp, Operand(esi, 1 * kPointerSize));
 
-  // Push the return address to get ready to return.
-  push(ecx);
+    // Push the return address to get ready to return.
+    push(ecx);
+  } else {
+    // Otherwise just leave the exit frame.
+    leave();
+  }
 
   LeaveExitFrameEpilogue(true);
 }
