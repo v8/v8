@@ -166,8 +166,9 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  MAYBE_RETURN(JSReceiver::SetPrototype(obj, prototype, false, THROW_ON_ERROR),
-               isolate->heap()->exception());
+  MAYBE_RETURN(
+      JSReceiver::SetPrototype(obj, prototype, false, Object::THROW_ON_ERROR),
+      isolate->heap()->exception());
   return *obj;
 }
 
@@ -177,8 +178,9 @@ RUNTIME_FUNCTION(Runtime_SetPrototype) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  MAYBE_RETURN(JSReceiver::SetPrototype(obj, prototype, true, THROW_ON_ERROR),
-               isolate->heap()->exception());
+  MAYBE_RETURN(
+      JSReceiver::SetPrototype(obj, prototype, true, Object::THROW_ON_ERROR),
+      isolate->heap()->exception());
   return *obj;
 }
 
@@ -263,7 +265,7 @@ RUNTIME_FUNCTION(Runtime_PreventExtensions) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
-  if (JSReceiver::PreventExtensions(obj, THROW_ON_ERROR).IsNothing())
+  if (JSReceiver::PreventExtensions(obj, Object::THROW_ON_ERROR).IsNothing())
     return isolate->heap()->exception();
   return *obj;
 }
@@ -1025,9 +1027,9 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
     if (original_function->has_instance_prototype()) {
       Handle<Object> prototype =
           handle(original_function->instance_prototype(), isolate);
-      MAYBE_RETURN(
-          JSObject::SetPrototype(result, prototype, false, THROW_ON_ERROR),
-          isolate->heap()->exception());
+      MAYBE_RETURN(JSObject::SetPrototype(result, prototype, false,
+                                          Object::THROW_ON_ERROR),
+                   isolate->heap()->exception());
     }
   }
 

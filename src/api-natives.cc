@@ -300,7 +300,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                 isolate->factory()->prototype_string()),
           JSFunction);
       MAYBE_RETURN(JSObject::SetPrototype(prototype, parent_prototype, false,
-                                          THROW_ON_ERROR),
+                                          Object::THROW_ON_ERROR),
                    MaybeHandle<JSFunction>());
     }
   }

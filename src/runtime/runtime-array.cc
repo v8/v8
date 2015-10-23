@@ -320,9 +320,9 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
     if (original_constructor->has_instance_prototype()) {
       Handle<Object> prototype =
           handle(original_constructor->instance_prototype(), isolate);
-      MAYBE_RETURN(
-          JSObject::SetPrototype(array, prototype, false, THROW_ON_ERROR),
-          isolate->heap()->exception());
+      MAYBE_RETURN(JSObject::SetPrototype(array, prototype, false,
+                                          Object::THROW_ON_ERROR),
+                   isolate->heap()->exception());
     }
   }
 

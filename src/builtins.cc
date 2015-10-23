@@ -1585,7 +1585,7 @@ BUILTIN(ReflectPreventExtensions) {
   }
 
   Maybe<bool> result = JSReceiver::PreventExtensions(
-      Handle<JSReceiver>::cast(target), DONT_THROW);
+      Handle<JSReceiver>::cast(target), Object::DONT_THROW);
   return result.IsJust() ? *isolate->factory()->ToBoolean(result.FromJust())
                          : isolate->heap()->exception();
 }
@@ -1611,7 +1611,7 @@ BUILTIN(ReflectSetPrototypeOf) {
   }
 
   Maybe<bool> result = JSReceiver::SetPrototype(
-      Handle<JSReceiver>::cast(target), proto, true, DONT_THROW);
+      Handle<JSReceiver>::cast(target), proto, true, Object::DONT_THROW);
   MAYBE_RETURN(result, isolate->heap()->exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }

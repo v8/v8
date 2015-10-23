@@ -701,7 +701,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
       .Assert();
 
-  if (JSObject::PreventExtensions(function, THROW_ON_ERROR).IsNothing())
+  if (JSObject::PreventExtensions(function, Object::THROW_ON_ERROR).IsNothing())
     DCHECK(false);
 
   return function;
