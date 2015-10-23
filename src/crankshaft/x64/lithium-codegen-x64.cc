@@ -1964,33 +1964,38 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ bind(&return_left);
   } else {
     DCHECK(instr->hydrogen()->representation().IsDouble());
-    Label check_nan_left, check_zero, return_left, return_right;
+    Label not_nan, distinct, return_left, return_right;
     Condition condition = (operation == HMathMinMax::kMathMin) ? below : above;
     XMMRegister left_reg = ToDoubleRegister(left);
     XMMRegister right_reg = ToDoubleRegister(right);
     __ Ucomisd(left_reg, right_reg);
-    __ j(parity_even, &check_nan_left, Label::kNear);  // At least one NaN.
-    __ j(equal, &check_zero, Label::kNear);  // left == right.
-    __ j(condition, &return_left, Label::kNear);
-    __ jmp(&return_right, Label::kNear);
+    __ j(parity_odd, &not_nan, Label::kNear);  // Both are not NaN.
 
-    __ bind(&check_zero);
+    // One of the numbers is NaN. Find which one and return it.
+    __ Ucomisd(left_reg, left_reg);
+    __ j(parity_even, &return_left, Label::kNear);  // left is NaN.
+    __ jmp(&return_right, Label::kNear);            // right is NaN.
+
+    __ bind(&not_nan);
+    __ j(not_equal, &distinct, Label::kNear);  // left != right.
+
+    // left == right
     XMMRegister xmm_scratch = double_scratch0();
     __ Xorpd(xmm_scratch, xmm_scratch);
     __ Ucomisd(left_reg, xmm_scratch);
     __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
-    // At this point, both left and right are either 0 or -0.
+
+    // At this point, both left and right are either +0 or -0.
     if (operation == HMathMinMax::kMathMin) {
-      __ orps(left_reg, right_reg);
+      __ Orpd(left_reg, right_reg);
     } else {
-      // Since we operate on +0 and/or -0, addsd and andsd have the same effect.
-      __ addsd(left_reg, right_reg);
+      __ Andpd(left_reg, right_reg);
     }
     __ jmp(&return_left, Label::kNear);
 
-    __ bind(&check_nan_left);
-    __ Ucomisd(left_reg, left_reg);  // NaN check.
-    __ j(parity_even, &return_left, Label::kNear);
+    __ bind(&distinct);
+    __ j(condition, &return_left, Label::kNear);
+
     __ bind(&return_right);
     __ Movapd(left_reg, right_reg);
 

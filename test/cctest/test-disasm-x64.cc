@@ -565,6 +565,8 @@ TEST(DisasmX64) {
 
       __ vandpd(xmm0, xmm9, xmm2);
       __ vandpd(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vorpd(xmm0, xmm1, xmm9);
+      __ vorpd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vxorpd(xmm0, xmm1, xmm9);
       __ vxorpd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
 

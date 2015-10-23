@@ -1450,6 +1450,25 @@ TEST(AssemblerX64AVX_sd) {
     __ cmpq(rdx, rcx);
     __ j(not_equal, &exit);
 
+    // Test vandpd, vorpd, vxorpd
+    __ movl(rax, Immediate(14));
+    __ movl(rdx, Immediate(0x00ff00ff));
+    __ movl(rcx, Immediate(0x0f0f0f0f));
+    __ vmovd(xmm4, rdx);
+    __ vmovd(xmm5, rcx);
+    __ vandpd(xmm6, xmm4, xmm5);
+    __ vmovd(rdx, xmm6);
+    __ cmpl(rdx, Immediate(0x000f000f));
+    __ j(not_equal, &exit);
+    __ vorpd(xmm6, xmm4, xmm5);
+    __ vmovd(rdx, xmm6);
+    __ cmpl(rdx, Immediate(0x0fff0fff));
+    __ j(not_equal, &exit);
+    __ vxorpd(xmm6, xmm4, xmm5);
+    __ vmovd(rdx, xmm6);
+    __ cmpl(rdx, Immediate(0x0ff00ff0));
+    __ j(not_equal, &exit);
+
     __ movl(rdx, Immediate(6));
     __ vcvtlsi2sd(xmm6, xmm6, rdx);
     __ movl(Operand(rsp, 0), Immediate(5));

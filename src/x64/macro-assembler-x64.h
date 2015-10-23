@@ -926,6 +926,8 @@ class MacroAssembler: public Assembler {
   void Ucomisd(XMMRegister src1, XMMRegister src2);
   void Ucomisd(XMMRegister src1, const Operand& src2);
 
+  void Andpd(XMMRegister dst, XMMRegister src);
+  void Orpd(XMMRegister dst, XMMRegister src);
   void Xorpd(XMMRegister dst, XMMRegister src);
   void Pcmpeqd(XMMRegister dst, XMMRegister src);
   void Psllq(XMMRegister dst, byte imm8);

@@ -2709,6 +2709,26 @@ void MacroAssembler::Ucomisd(XMMRegister src1, const Operand& src2) {
 }
 
 
+void MacroAssembler::Andpd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vandpd(dst, dst, src);
+  } else {
+    andpd(dst, src);
+  }
+}
+
+
+void MacroAssembler::Orpd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vorpd(dst, dst, src);
+  } else {
+    orpd(dst, src);
+  }
+}
+
+
 void MacroAssembler::Xorpd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

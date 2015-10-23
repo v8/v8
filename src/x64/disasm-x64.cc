@@ -1240,6 +1240,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x56:
+        AppendToBuffer("vorpd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x57:
         AppendToBuffer("vxorpd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
