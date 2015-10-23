@@ -4051,6 +4051,11 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   __ j(overflow, &bailout);
 
   __ shr(string_length, 1);
+
+  // Bailout for large object allocations.
+  __ cmp(string_length, Page::kMaxRegularHeapObjectSize);
+  __ j(greater, &bailout);
+
   // Live registers and stack values:
   //   string_length
   //   elements
