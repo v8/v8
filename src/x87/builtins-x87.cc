@@ -22,12 +22,13 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- eax                : number of arguments excluding receiver
-  //  -- edi                : called function (only guaranteed when
-  //                          extra_args requires it)
+  //                          (only guaranteed when the called function
+  //                           is not marked as DontAdaptArguments)
+  //  -- edi                : called function
   //  -- esp[0]             : return address
   //  -- esp[4]             : last argument
   //  -- ...
-  //  -- esp[4 * argc]      : first argument (argc == eax)
+  //  -- esp[4 * argc]      : first argument
   //  -- esp[4 * (argc +1)] : receiver
   // -----------------------------------
   __ AssertFunction(edi);
@@ -52,8 +53,22 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   }
 
   // JumpToExternalReference expects eax to contain the number of arguments
-  // including the receiver and the extra arguments.
+  // including the receiver and the extra arguments.  But eax is only valid
+  // if the called function is marked as DontAdaptArguments, otherwise we
+  // need to load the argument count from the SharedFunctionInfo.
+  Label argc, done_argc;
+  __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ebx,
+         FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ SmiUntag(ebx);
+  __ cmp(ebx, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+  __ j(equal, &argc, Label::kNear);
+  __ lea(eax, Operand(ebx, num_extra_args + 1));
+  __ jmp(&done_argc, Label::kNear);
+  __ bind(&argc);
   __ add(eax, Immediate(num_extra_args + 1));
+  __ bind(&done_argc);
+
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
