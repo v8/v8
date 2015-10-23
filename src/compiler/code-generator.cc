@@ -4,11 +4,11 @@
 
 #include "src/compiler/code-generator.h"
 
+#include "src/address-map.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/frames-inl.h"
-#include "src/snapshot/serialize.h"  // TODO(turbofan): RootIndexMap
 
 namespace v8 {
 namespace internal {

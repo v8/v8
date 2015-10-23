@@ -385,6 +385,8 @@
         '../../include/v8config.h',
         '../../src/accessors.cc',
         '../../src/accessors.h',
+        '../../src/address-map.cc',
+        '../../src/address-map.h',
         '../../src/allocation.cc',
         '../../src/allocation.h',
         '../../src/allocation-site-scopes.cc',
