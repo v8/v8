@@ -414,7 +414,8 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
   // Insert argument adaptor frame if required. The callees formal parameter
   // count (i.e. value outputs of start node minus target, receiver & context)
   // have to match the number of arguments passed to the call.
-  DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 3);
+  DCHECK_EQ(static_cast<int>(parameter_count),
+            start->op()->ValueOutputCount() - 3);
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info());
   }
