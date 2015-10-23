@@ -162,8 +162,6 @@ class LookupIterator final BASE_EMBEDDED {
       Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
       bool* success, Configuration configuration = DEFAULT);
 
-  void Restart() { RestartInternal(InterceptorState::kUninitialized); }
-
   Isolate* isolate() const { return isolate_; }
   State state() const { return state_; }
 
@@ -262,10 +260,7 @@ class LookupIterator final BASE_EMBEDDED {
 
   MUST_USE_RESULT inline JSReceiver* NextHolder(Map* map);
   inline State LookupInHolder(Map* map, JSReceiver* holder);
-  void RestartLookupForNonMaskingInterceptors() {
-    RestartInternal(InterceptorState::kProcessNonMasking);
-  }
-  void RestartInternal(InterceptorState interceptor_state);
+  void RestartLookupForNonMaskingInterceptors();
   State LookupNonMaskingInterceptorInHolder(Map* map, JSReceiver* holder);
   Handle<Object> FetchValue() const;
   void ReloadPropertyInformation();
