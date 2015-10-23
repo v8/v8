@@ -2591,7 +2591,9 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
   // Reserve space for result of postfix operation.
   bool is_postfix = expr->is_postfix() && !ast_context()->IsEffect();
-  if (is_postfix) environment()->Push(jsgraph()->UndefinedConstant());
+  if (is_postfix && assign_type != VARIABLE) {
+    environment()->Push(jsgraph()->ZeroConstant());
+  }
 
   // Evaluate LHS expression and get old value.
   Node* old_value = NULL;
@@ -2674,16 +2676,19 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
                       OutputFrameStateCombine::Push());
   }
 
+  // Create a proper eager frame state for the stores.
+  environment()->Push(old_value);
+  FrameStateBeforeAndAfter store_states(this, expr->ToNumberId());
+  old_value = environment()->Pop();
+
   // Save result for postfix expressions at correct stack depth.
   if (is_postfix) {
-    environment()->Poke(stack_depth, old_value);
-  } else {
-    environment()->Push(old_value);
+    if (assign_type != VARIABLE) {
+      environment()->Poke(stack_depth, old_value);
+    } else {
+      environment()->Push(old_value);
+    }
   }
-  // TODO(bmeurer): This might not match the fullcodegen in case of non VARIABLE
-  // eager deoptimization; we will figure out when we get there.
-  FrameStateBeforeAndAfter store_states(this, expr->ToNumberId());
-  if (!is_postfix) old_value = environment()->Pop();
 
   // Create node to perform +1/-1 operation.
   Node* value;
