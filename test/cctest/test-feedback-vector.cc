@@ -200,8 +200,8 @@ TEST(VectorICProfilerStatistics) {
   CompileRun(
       "function fun() {};"
       "function f(a) { a(); } f(fun);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
   // There should be one IC.
   Handle<Code> code = handle(f->shared()->code(), isolate);
   TypeFeedbackInfo* feedback_info =
@@ -255,8 +255,8 @@ TEST(VectorCallICStates) {
   CompileRun(
       "function foo() { return 17; }"
       "function f(a) { a(); } f(foo);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
@@ -297,8 +297,8 @@ TEST(VectorLoadICStates) {
   CompileRun(
       "var o = { foo: 3 };"
       "function f(a) { return a.foo; } f(o);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
@@ -355,8 +355,8 @@ TEST(VectorLoadICSlotSharing) {
       "  return o + x + o;"
       "}"
       "f();");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
   // There should be one IC slot.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
@@ -380,8 +380,8 @@ TEST(VectorLoadICOnSmi) {
   CompileRun(
       "var o = { foo: 3 };"
       "function f(a) { return a.foo; } f(o);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
@@ -427,8 +427,8 @@ TEST(VectorLoadICOnSmi) {
 
 
 static Handle<JSFunction> GetFunction(const char* name) {
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str(name))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str(name)))));
   return f;
 }
 

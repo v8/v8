@@ -185,12 +185,12 @@ MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
 }
 
 
-MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
+MaybeHandle<Object> Execution::TryCall(Isolate* isolate,
+                                       Handle<Object> callable,
                                        Handle<Object> receiver, int argc,
                                        Handle<Object> args[],
                                        MaybeHandle<Object>* exception_out) {
   bool is_termination = false;
-  Isolate* isolate = func->GetIsolate();
   MaybeHandle<Object> maybe_result;
   if (exception_out != NULL) *exception_out = MaybeHandle<Object>();
   // Enter a try-block while executing the JavaScript code. To avoid
@@ -202,7 +202,7 @@ MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
     catcher.SetVerbose(false);
     catcher.SetCaptureMessage(false);
 
-    maybe_result = Call(isolate, func, receiver, argc, args);
+    maybe_result = Call(isolate, callable, receiver, argc, args);
 
     if (maybe_result.is_null()) {
       DCHECK(catcher.HasCaught());
@@ -478,7 +478,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
   Isolate* isolate = fun->GetIsolate();
   Handle<Object> args[] = { recv, fun, pos, is_global };
   MaybeHandle<Object> maybe_result =
-      TryCall(isolate->get_stack_trace_line_fun(),
+      TryCall(isolate, isolate->get_stack_trace_line_fun(),
               isolate->factory()->undefined_value(), arraysize(args), args);
   Handle<Object> result;
   if (!maybe_result.ToHandle(&result) || !result->IsString()) {

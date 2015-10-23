@@ -2680,9 +2680,9 @@ void Isolate::RunMicrotasks() {
         SaveContext save(this);
         set_context(microtask_function->context()->native_context());
         MaybeHandle<Object> maybe_exception;
-        MaybeHandle<Object> result =
-            Execution::TryCall(microtask_function, factory()->undefined_value(),
-                               0, NULL, &maybe_exception);
+        MaybeHandle<Object> result = Execution::TryCall(
+            this, microtask_function, factory()->undefined_value(), 0, NULL,
+            &maybe_exception);
         // If execution is terminating, just bail out.
         Handle<Object> exception;
         if (result.is_null() && maybe_exception.is_null()) {

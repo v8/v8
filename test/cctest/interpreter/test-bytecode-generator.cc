@@ -51,7 +51,8 @@ class BytecodeGeneratorHelper {
     CompileRun(script);
     Local<Function> function =
         Local<Function>::Cast(CcTest::global()->Get(v8_str(function_name)));
-    i::Handle<i::JSFunction> js_function = v8::Utils::OpenHandle(*function);
+    i::Handle<i::JSFunction> js_function =
+        i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
     return handle(js_function->shared()->bytecode_array(), CcTest::i_isolate());
   }
 

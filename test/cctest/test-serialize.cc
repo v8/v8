@@ -1721,13 +1721,16 @@ TEST(SerializeInternalReference) {
     // There are at least 6 internal references.
     int mask = RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    RelocIterator it(v8::Utils::OpenHandle(*foo)->code(), mask);
+    RelocIterator it(
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*foo))->code(), mask);
     for (int i = 0; i < 6; ++i) {
       CHECK(!it.done());
       it.next();
     }
 
-    CHECK(v8::Utils::OpenHandle(*foo)->code()->is_turbofanned());
+    CHECK(Handle<JSFunction>::cast(v8::Utils::OpenHandle(*foo))
+              ->code()
+              ->is_turbofanned());
     CHECK_EQ(11, CompileRun("foo(0)")
                      ->Int32Value(isolate->GetCurrentContext())
                      .FromJust());

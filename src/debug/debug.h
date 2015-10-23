@@ -368,7 +368,7 @@ class Debug {
   void SetMessageHandler(v8::Debug::MessageHandler handler);
   void EnqueueCommandMessage(Vector<const uint16_t> command,
                              v8::Debug::ClientData* client_data = NULL);
-  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<JSFunction> fun,
+  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                            Handle<Object> data);
   Handle<Context> GetDebugContext();
   void HandleDebugBreak();

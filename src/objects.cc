@@ -12015,11 +12015,11 @@ Handle<Object> Script::GetNameOrSourceURL(Handle<Script> script) {
   Handle<Object> property = Object::GetProperty(
       script_wrapper, name_or_source_url_key).ToHandleChecked();
   DCHECK(property->IsJSFunction());
-  Handle<JSFunction> method = Handle<JSFunction>::cast(property);
   Handle<Object> result;
   // Do not check against pending exception, since this function may be called
   // when an exception has already been pending.
-  if (!Execution::TryCall(method, script_wrapper, 0, NULL).ToHandle(&result)) {
+  if (!Execution::TryCall(isolate, property, script_wrapper, 0, NULL)
+           .ToHandle(&result)) {
     return isolate->factory()->undefined_value();
   }
   return result;

@@ -1122,8 +1122,8 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
   // running the factory method, use the exception as the result.
   Handle<Object> result;
   MaybeHandle<Object> exception;
-  if (!Execution::TryCall(fun, undefined_value(), arraysize(argv), argv,
-                          &exception)
+  if (!Execution::TryCall(isolate(), fun, undefined_value(), arraysize(argv),
+                          argv, &exception)
            .ToHandle(&result)) {
     Handle<Object> exception_obj;
     if (exception.ToHandle(&exception_obj)) {
@@ -1144,8 +1144,8 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
   // running the factory method, use the exception as the result.
   Handle<Object> result;
   MaybeHandle<Object> exception;
-  if (!Execution::TryCall(constructor, undefined_value(), arraysize(argv), argv,
-                          &exception)
+  if (!Execution::TryCall(isolate(), constructor, undefined_value(),
+                          arraysize(argv), argv, &exception)
            .ToHandle(&result)) {
     Handle<Object> exception_obj;
     if (exception.ToHandle(&exception_obj)) return exception_obj;

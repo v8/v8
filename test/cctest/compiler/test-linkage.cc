@@ -56,8 +56,9 @@ TEST(TestLinkageJSFunctionIncoming) {
 
   for (int i = 0; i < 3; i++) {
     HandleAndZoneScope handles;
-    Handle<JSFunction> function = v8::Utils::OpenHandle(
-        *v8::Handle<v8::Function>::Cast(CompileRun(sources[i])));
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(CompileRun(sources[i]))));
     ParseInfo parse_info(handles.main_zone(), function);
     CompilationInfo info(&parse_info);
     CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);

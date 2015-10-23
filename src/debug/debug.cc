@@ -575,7 +575,7 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
   Handle<JSFunction> fun = Handle<JSFunction>::cast(
       Object::GetProperty(isolate_, holder, name, STRICT).ToHandleChecked());
   Handle<Object> undefined = isolate_->factory()->undefined_value();
-  return Execution::TryCall(fun, undefined, argc, args);
+  return Execution::TryCall(isolate_, fun, undefined, argc, args);
 }
 
 
@@ -1943,7 +1943,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               event_data,
                               event_listener_data_ };
     Handle<JSReceiver> global(isolate_->global_proxy());
-    Execution::TryCall(Handle<JSFunction>::cast(event_listener_),
+    Execution::TryCall(isolate_, Handle<JSFunction>::cast(event_listener_),
                        global, arraysize(argv), argv);
   }
   in_debug_event_listener_ = previous;
@@ -2089,7 +2089,7 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     Handle<String> answer;
     MaybeHandle<Object> maybe_exception;
     MaybeHandle<Object> maybe_result =
-        Execution::TryCall(process_debug_request, cmd_processor, 1,
+        Execution::TryCall(isolate_, process_debug_request, cmd_processor, 1,
                            request_args, &maybe_exception);
 
     if (maybe_result.ToHandle(&answer_value)) {
@@ -2208,7 +2208,7 @@ void Debug::EnqueueCommandMessage(Vector<const uint16_t> command,
 }
 
 
-MaybeHandle<Object> Debug::Call(Handle<JSFunction> fun, Handle<Object> data) {
+MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return isolate_->factory()->undefined_value();
 
@@ -2419,7 +2419,7 @@ v8::Local<v8::String> MessageImpl::GetJSON() const {
     }
 
     MaybeHandle<Object> maybe_json =
-        Execution::TryCall(Handle<JSFunction>::cast(fun), event_data_, 0, NULL);
+        Execution::TryCall(isolate, fun, event_data_, 0, NULL);
     Handle<Object> json;
     if (!maybe_json.ToHandle(&json) || !json->IsString()) {
       return v8::Local<v8::String>();

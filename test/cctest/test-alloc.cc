@@ -161,7 +161,7 @@ TEST(StressJS) {
 
   // Add the Foo constructor the global object.
   env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "Foo"),
-                     v8::Utils::ToLocal(function));
+                     v8::Utils::FunctionToLocal(function));
   // Call the accessor through JavaScript.
   v8::Handle<v8::Value> result = v8::Script::Compile(
       v8::String::NewFromUtf8(CcTest::isolate(), "(new Foo).get"))->Run();

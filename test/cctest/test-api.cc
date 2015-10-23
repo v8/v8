@@ -9802,7 +9802,7 @@ THREADED_TEST(ConstructorForObject) {
     CHECK(!try_catch.HasCaught());
 
     CHECK(instance2->IsObject());
-    CHECK(!instance2->IsFunction());
+    CHECK(instance2->IsFunction());
 
     value = CompileRun("new obj5(28)");
     CHECK(!try_catch.HasCaught());
@@ -19630,11 +19630,12 @@ THREADED_TEST(FunctionNew) {
   CHECK(v8::Integer::New(isolate, 17)->Equals(result));
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Verify function not cached
-  auto serial_number = handle(i::Smi::cast(v8::Utils::OpenHandle(*func)
-                                               ->shared()
-                                               ->get_api_func_data()
-                                               ->serial_number()),
-                              i_isolate);
+  auto serial_number = handle(
+      i::Smi::cast(i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*func))
+                       ->shared()
+                       ->get_api_func_data()
+                       ->serial_number()),
+      i_isolate);
   auto cache = i_isolate->function_cache();
   CHECK(cache->Lookup(serial_number)->IsTheHole());
   // Verify that each Function::New creates a new function instance
@@ -21936,7 +21937,7 @@ TEST(ObjectTemplateIntrinsics) {
   ExpectString("typeof obj1.values", "function");
 
   auto values = Local<Function>::Cast(object->Get(v8_str("values")));
-  auto fn = v8::Utils::OpenHandle(*values);
+  auto fn = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values));
   auto ctx = v8::Utils::OpenHandle(*env.local());
   CHECK_EQ(fn->GetCreationContext(), *ctx);
 
@@ -21948,7 +21949,7 @@ TEST(ObjectTemplateIntrinsics) {
     CHECK_NE(*object->Get(v8_str("values")), *object2->Get(v8_str("values")));
 
     auto values2 = Local<Function>::Cast(object2->Get(v8_str("values")));
-    auto fn2 = v8::Utils::OpenHandle(*values2);
+    auto fn2 = i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*values2));
     auto ctx2 = v8::Utils::OpenHandle(*env2.local());
     CHECK_EQ(fn2->GetCreationContext(), *ctx2);
   }

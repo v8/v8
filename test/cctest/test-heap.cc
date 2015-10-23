@@ -2573,10 +2573,8 @@ TEST(InstanceOfStubWriteBarrier) {
   marking->Stop();
   CcTest::heap()->StartIncrementalMarking();
 
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
   CHECK(f->IsOptimized());
 
@@ -2691,10 +2689,8 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
   }
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
   CHECK(f->IsOptimized());
 
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
@@ -2733,10 +2729,8 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
   }
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
   CHECK(f->IsOptimized());
 
   CcTest::heap()->incremental_marking()->Stop();
@@ -3620,10 +3614,8 @@ TEST(PrintSharedFunctionInfo) {
   const char* source = "f = function() { return 987654321; }\n"
                        "g = function() { return 123456789; }\n";
   CompileRun(source);
-  Handle<JSFunction> g =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("g"))));
+  Handle<JSFunction> g = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("g")))));
 
   OFStream os(stdout);
   g->shared()->Print(os);
@@ -3656,10 +3648,8 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   CcTest::global()->Set(v8_str("fun2"), fun2);
   CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
 
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
   Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
   FeedbackVectorHelper feedback_helper(feedback_vector);
@@ -3765,8 +3755,8 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
   CompileRun(
       "function fun() { this.x = 1; };"
       "function f(o) { return new o(); } f(fun); f(fun);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
 
   Handle<TypeFeedbackVector> vector(f->shared()->feedback_vector());
@@ -3798,8 +3788,8 @@ TEST(IncrementalMarkingClearsMonomorphicConstructor) {
   CompileRun(
       "function fun() { this.x = 1; };"
       "function f(o) { return new o(); } f(fun1); f(fun1);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
 
   Handle<TypeFeedbackVector> vector(f->shared()->feedback_vector());
@@ -3824,10 +3814,8 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
   // originating from the same native context.
   CompileRun("function fun() { this.x = 1; }; var obj = new fun();"
              "function f(o) { return o.x; } f(obj); f(obj);");
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, MONOMORPHIC);
@@ -3858,8 +3846,8 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
   // originating from a different native context.
   CcTest::global()->Set(v8_str("obj1"), obj1);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, MONOMORPHIC);
@@ -3899,8 +3887,8 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
   CcTest::global()->Set(v8_str("obj1"), obj1);
   CcTest::global()->Set(v8_str("obj2"), obj2);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, POLYMORPHIC);
@@ -3939,8 +3927,8 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   CcTest::global()->Set(v8_str("obj1"), obj1);
   CcTest::global()->Set(v8_str("obj2"), obj2);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, POLYMORPHIC);
@@ -4095,17 +4083,13 @@ TEST(Regress159140) {
                "%OptimizeFunctionOnNextCall(f); f(3);"
                "%OptimizeFunctionOnNextCall(h); h(3);");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
     CHECK(f->is_compiled());
     CompileRun("f = null;");
 
-    Handle<JSFunction> g =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("g"))));
+    Handle<JSFunction> g = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("g")))));
     CHECK(g->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -4149,10 +4133,8 @@ TEST(Regress165495) {
                "f(1); f(2);"
                "%OptimizeFunctionOnNextCall(f); f(3);");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -4196,10 +4178,8 @@ TEST(Regress169209) {
                "g(false);"
                "g(false);");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -4217,10 +4197,9 @@ TEST(Regress169209) {
     CompileRun("function flushMe() { return 0; }"
                "flushMe(1);");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("flushMe"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Handle<v8::Function>::Cast(
+            CcTest::global()->Get(v8_str("flushMe")))));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -4336,10 +4315,8 @@ TEST(Regress513507) {
     CompileRun("function f() { return 1 }"
                "f(); %OptimizeFunctionOnNextCall(f); f();");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
     shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
     CompileRun("f = null");
   }
@@ -4351,10 +4328,8 @@ TEST(Regress513507) {
     CompileRun("function g() { return 2 }"
                "g(); %OptimizeFunctionOnNextCall(g); g();");
 
-    Handle<JSFunction> g =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("g"))));
+    Handle<JSFunction> g = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("g")))));
     code = inner_scope.CloseAndEscape(handle(g->code(), isolate));
     if (!code->is_optimized_code()) return;
   }
@@ -4394,10 +4369,8 @@ TEST(Regress514122) {
     CompileRun("function f() { return 1 }"
                "f(); %OptimizeFunctionOnNextCall(f); f();");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
     shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
     CompileRun("f = null");
   }
@@ -4409,10 +4382,8 @@ TEST(Regress514122) {
     CompileRun("function g() { return 2 }"
                "g(); %OptimizeFunctionOnNextCall(g); g();");
 
-    Handle<JSFunction> g =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("g"))));
+    Handle<JSFunction> g = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("g")))));
     code = inner_scope.CloseAndEscape(handle(g->code(), isolate));
     if (!code->is_optimized_code()) return;
   }
@@ -4636,10 +4607,9 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     CHECK(site->dependent_code()->object_at(index)->IsWeakCell());
     Code* function_bar = Code::cast(
         WeakCell::cast(site->dependent_code()->object_at(index))->value());
-    Handle<JSFunction> bar_handle =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("bar"))));
+    Handle<JSFunction> bar_handle = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Handle<v8::Function>::Cast(
+            CcTest::global()->Get(v8_str("bar")))));
     CHECK_EQ(bar_handle->code(), function_bar);
   }
 
@@ -4685,10 +4655,8 @@ TEST(CellsInOptimizedCodeAreWeak) {
                "  bar(foo);"
                "  return bar;})();");
 
-    Handle<JSFunction> bar =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("bar"))));
+    Handle<JSFunction> bar = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("bar")))));
     code = scope.CloseAndEscape(Handle<Code>(bar->code()));
   }
 
@@ -4726,10 +4694,8 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
                "%OptimizeFunctionOnNextCall(bar);"
                "bar();");
 
-    Handle<JSFunction> bar =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("bar"))));
+    Handle<JSFunction> bar = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("bar")))));
     code = scope.CloseAndEscape(Handle<Code>(bar->code()));
   }
 
@@ -4801,10 +4767,8 @@ static Handle<JSFunction> OptimizeDummyFunction(const char* name) {
           "%%OptimizeFunctionOnNextCall(%s);"
           "%s();", name, name, name, name, name);
   CompileRun(source.start());
-  Handle<JSFunction> fun =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str(name))));
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str(name)))));
   return fun;
 }
 
@@ -4910,9 +4874,9 @@ TEST(WeakFunctionInConstructor) {
       "function createObj(obj) {"
       "  return new obj();"
       "}");
-  Handle<JSFunction> createObj =
+  Handle<JSFunction> createObj = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Handle<v8::Function>::Cast(
-                                CcTest::global()->Get(v8_str("createObj"))));
+          CcTest::global()->Get(v8_str("createObj")))));
 
   v8::Persistent<v8::Object> garbage;
   {
@@ -5917,8 +5881,8 @@ TEST(Regress1878) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::Function> constructor =
-      v8::Utils::ToLocal(CcTest::i_isolate()->internal_array_function());
+  v8::Local<v8::Function> constructor = v8::Utils::FunctionToLocal(
+      CcTest::i_isolate()->internal_array_function());
   CcTest::global()->Set(v8_str("InternalArray"), constructor);
 
   v8::TryCatch try_catch(isolate);

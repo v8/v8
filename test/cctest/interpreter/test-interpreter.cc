@@ -124,7 +124,7 @@ class InterpreterTester {
       CompileRun(source_);
       Local<Function> api_function =
           Local<Function>::Cast(CcTest::global()->Get(v8_str(kFunctionName)));
-      function = v8::Utils::OpenHandle(*api_function);
+      function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     } else {
       int arg_count = sizeof...(A);
       std::string source("(function " + function_name() + "(");
@@ -132,8 +132,8 @@ class InterpreterTester {
         source += i == 0 ? "a" : ", a";
       }
       source += "){})";
-      function = v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(CompileRun(source.c_str())));
+      function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(CompileRun(source.c_str()))));
       function->ReplaceCode(
           *isolate_->builtins()->InterpreterEntryTrampoline());
     }

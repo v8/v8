@@ -89,7 +89,8 @@ class BytecodeGraphTester {
     CompileRun(script_);
     Local<Function> api_function =
         Local<Function>::Cast(CcTest::global()->Get(v8_str(kFunctionName)));
-    Handle<JSFunction> function = v8::Utils::OpenHandle(*api_function);
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     CHECK(function->shared()->HasBytecodeArray());
 
     ParseInfo parse_info(zone_, function);

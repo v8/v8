@@ -638,13 +638,13 @@ static const char* line_number_test_source_profile_time_functions =
 int GetFunctionLineNumber(LocalContext* env, const char* name) {
   CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CodeMap* code_map = profiler->generator()->code_map();
-  i::Handle<i::JSFunction> func =
+  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           (*(*env))
               ->Global()
               ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
                     v8_str(name))
-              .ToLocalChecked()));
+              .ToLocalChecked())));
   CodeEntry* func_entry = code_map->FindEntry(func->code()->address());
   if (!func_entry)
     FATAL(name);

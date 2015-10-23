@@ -152,7 +152,8 @@ static v8::Local<v8::Function> CompileFunction(v8::Isolate* isolate,
 
 // Is there any debug info for the function?
 static bool HasDebugInfo(v8::Handle<v8::Function> fun) {
-  Handle<v8::internal::JSFunction> f = v8::Utils::OpenHandle(*fun);
+  Handle<v8::internal::JSFunction> f =
+      Handle<v8::internal::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
   Handle<v8::internal::SharedFunctionInfo> shared(f->shared());
   return shared->HasDebugInfo();
 }
@@ -175,7 +176,8 @@ static int SetBreakPoint(Handle<v8::internal::JSFunction> fun, int position) {
 // Set a break point in a function and return the associated break point
 // number.
 static int SetBreakPoint(v8::Handle<v8::Function> fun, int position) {
-  return SetBreakPoint(v8::Utils::OpenHandle(*fun), position);
+  return SetBreakPoint(
+      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun)), position);
 }
 
 
