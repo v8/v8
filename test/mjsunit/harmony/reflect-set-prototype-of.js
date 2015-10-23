@@ -136,6 +136,9 @@ function TestSetPrototypeOfNonExtensibleObject() {
   for (var i = 0; i < objects.length; i++) {
     var object = objects[i];
     Object.preventExtensions(object);
+    // Setting the current prototype must succeed.
+    assertTrue(Reflect.setPrototypeOf(object, Object.getPrototypeOf(object)));
+    // Setting any other must fail.
     assertFalse(Reflect.setPrototypeOf(object, proto));
   }
 }

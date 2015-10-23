@@ -14002,6 +14002,26 @@ Maybe<bool> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
   // SpiderMonkey behaves this way.
   if (!value->IsJSReceiver() && !value->IsNull()) return Just(true);
 
+  bool dictionary_elements_in_chain =
+      object->map()->DictionaryElementsInPrototypeChainOnly();
+
+  bool all_extensible = object->map()->is_extensible();
+  Handle<JSObject> real_receiver = object;
+  if (from_javascript) {
+    // Find the first object in the chain whose prototype object is not
+    // hidden.
+    PrototypeIterator iter(isolate, real_receiver);
+    while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
+      real_receiver = PrototypeIterator::GetCurrent<JSObject>(iter);
+      iter.Advance();
+      all_extensible = all_extensible && real_receiver->map()->is_extensible();
+    }
+  }
+  Handle<Map> map(real_receiver->map());
+
+  // Nothing to do if prototype is already set.
+  if (map->prototype() == *value) return Just(true);
+
   // From 8.6.2 Object Internal Methods
   // ...
   // In addition, if [[Extensible]] is false the value of the [[Class]] and
@@ -14010,16 +14030,14 @@ Maybe<bool> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
   // Implementation specific extensions that modify [[Class]], [[Prototype]]
   // or [[Extensible]] must not violate the invariants defined in the preceding
   // paragraph.
-  if (!object->map()->is_extensible()) {
+  if (!all_extensible) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kNonExtensibleProto, object));
-    // TODO(neis): Don't fail if new and old prototype happen to be the same.
   }
 
-  // Before we can set the prototype we need to be sure
-  // prototype cycles are prevented.
-  // It is sufficient to validate that the receiver is not in the new prototype
-  // chain.
+  // Before we can set the prototype we need to be sure prototype cycles are
+  // prevented.  It is sufficient to validate that the receiver is not in the
+  // new prototype chain.
   for (PrototypeIterator iter(isolate, *value,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
@@ -14030,30 +14048,7 @@ Maybe<bool> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
     }
   }
 
-  bool dictionary_elements_in_chain =
-      object->map()->DictionaryElementsInPrototypeChainOnly();
-  Handle<JSObject> real_receiver = object;
-
-  if (from_javascript) {
-    // Find the first object in the chain whose prototype object is not
-    // hidden and set the new prototype on that object.
-    PrototypeIterator iter(isolate, real_receiver);
-    while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
-      real_receiver = PrototypeIterator::GetCurrent<JSObject>(iter);
-      iter.Advance();
-      if (!real_receiver->map()->is_extensible()) {
-        RETURN_FAILURE(
-            isolate, should_throw,
-            NewTypeError(MessageTemplate::kNonExtensibleProto, object));
-      }
-    }
-  }
-
   // Set the new prototype of the object.
-  Handle<Map> map(real_receiver->map());
-
-  // Nothing to do if prototype is already set.
-  if (map->prototype() == *value) return Just(true);
 
   isolate->UpdateArrayProtectorOnSetPrototype(real_receiver);
 
