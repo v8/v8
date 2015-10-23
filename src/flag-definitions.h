@@ -186,6 +186,8 @@ DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
 DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
+// ES2015 const semantics are staged
+DEFINE_NEG_IMPLICATION(es_staging, legacy_const)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                         \
