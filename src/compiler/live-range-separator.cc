@@ -51,6 +51,8 @@ void CreateSplinter(TopLevelLiveRange *range, RegisterAllocationData *data,
       range->SetSplinter(splinter);
     }
     Zone *zone = data->allocation_zone();
+    TRACE("creating splinter for range %d between %d and %d\n", range->vreg(),
+          start.ToInstructionIndex(), end.ToInstructionIndex());
     range->Splinter(start, end, zone);
   }
 }
@@ -112,8 +114,9 @@ void SplinterLiveRange(TopLevelLiveRange *range, RegisterAllocationData *data) {
     interval = next_interval;
   }
   // When the range ends in deferred blocks, first_cut will be valid here.
+  // Splinter from there to the last instruction that was in a deferred block.
   if (first_cut.IsValid()) {
-    CreateSplinter(range, data, first_cut, range->End());
+    CreateSplinter(range, data, first_cut, last_cut);
   }
 }
 }  // namespace
