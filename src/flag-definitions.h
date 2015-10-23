@@ -206,8 +206,7 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_regexps, "harmony regular expression extensions") \
   V(harmony_tostring, "harmony toString")                     \
   V(harmony_sloppy, "harmony features in sloppy mode")        \
-  V(harmony_sloppy_let, "harmony let in sloppy mode")         \
-  V(harmony_completion, "harmony completion value semantics")
+  V(harmony_sloppy_let, "harmony let in sloppy mode")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                     \
@@ -217,7 +216,8 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
   V(harmony_rest_parameters, "harmony rest parameters")         \
   V(harmony_spread_calls, "harmony spread-calls")               \
   V(harmony_spread_arrays, "harmony spread in array literals")  \
-  V(harmony_concat_spreadable, "harmony isConcatSpreadable")
+  V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \
+  V(harmony_completion, "harmony completion value semantics")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
