@@ -6581,7 +6581,11 @@ bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
                           it->GetAccessors()->IsAccessorPair();
   if (!is_accessor_pair) {
     // 5a. Set D.[[Value]] to the value of X's [[Value]] attribute.
-    Handle<Object> value = JSObject::GetProperty(it).ToHandleChecked();
+    Handle<Object> value;
+    if (!JSObject::GetProperty(it).ToHandle(&value)) {
+      DCHECK(isolate->has_pending_exception());
+      return false;
+    }
     desc->set_value(value);
     // 5b. Set D.[[Writable]] to the value of X's [[Writable]] attribute
     desc->set_writable((attrs & READ_ONLY) == 0);
