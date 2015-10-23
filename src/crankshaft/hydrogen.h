@@ -2493,7 +2493,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void HandlePolymorphicNamedFieldAccess(
       PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
       BailoutId ast_id, BailoutId return_id, HValue* object, HValue* value,
-      SmallMapList* types, Handle<String> name);
+      SmallMapList* types, Handle<Name> name);
 
   HValue* BuildAllocateExternalElements(
       ExternalArrayType array_type,
@@ -2743,7 +2743,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HValue* BuildNamedAccess(PropertyAccessType access, BailoutId ast_id,
                            BailoutId reutrn_id, Expression* expr,
                            FeedbackVectorSlot slot, HValue* object,
-                           Handle<String> name, HValue* value,
+                           Handle<Name> name, HValue* value,
                            bool is_uninitialized = false);
 
   void HandlePolymorphicCallNamed(Call* expr,

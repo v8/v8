@@ -13,6 +13,13 @@
 namespace v8 {
 namespace internal {
 
+
+static bool IsPropertyNameFeedback(Object* feedback) {
+  return feedback->IsString() ||
+         (feedback->IsSymbol() && !Symbol::cast(feedback)->is_private());
+}
+
+
 std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind) {
   return os << TypeFeedbackMetadata::Kind2String(kind);
 }
@@ -650,9 +657,10 @@ void KeyedStoreICNexus::ConfigurePolymorphic(MapHandleList* maps,
 int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
-  if (feedback->IsFixedArray() || feedback->IsString()) {
+  bool is_named_feedback = IsPropertyNameFeedback(feedback);
+  if (feedback->IsFixedArray() || is_named_feedback) {
     int found = 0;
-    if (feedback->IsString()) {
+    if (is_named_feedback) {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
@@ -687,8 +695,9 @@ int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
 
 MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
   Object* feedback = GetFeedback();
-  if (feedback->IsFixedArray() || feedback->IsString()) {
-    if (feedback->IsString()) {
+  bool is_named_feedback = IsPropertyNameFeedback(feedback);
+  if (feedback->IsFixedArray() || is_named_feedback) {
+    if (is_named_feedback) {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
@@ -725,8 +734,9 @@ MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
 bool FeedbackNexus::FindHandlers(CodeHandleList* code_list, int length) const {
   Object* feedback = GetFeedback();
   int count = 0;
-  if (feedback->IsFixedArray() || feedback->IsString()) {
-    if (feedback->IsString()) {
+  bool is_named_feedback = IsPropertyNameFeedback(feedback);
+  if (feedback->IsFixedArray() || is_named_feedback) {
+    if (is_named_feedback) {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
@@ -770,7 +780,7 @@ void KeyedLoadICNexus::Clear(Code* host) {
 
 Name* KeyedLoadICNexus::FindFirstName() const {
   Object* feedback = GetFeedback();
-  if (feedback->IsString()) {
+  if (IsPropertyNameFeedback(feedback)) {
     return Name::cast(feedback);
   }
   return NULL;
@@ -779,7 +789,7 @@ Name* KeyedLoadICNexus::FindFirstName() const {
 
 Name* KeyedStoreICNexus::FindFirstName() const {
   Object* feedback = GetFeedback();
-  if (feedback->IsString()) {
+  if (IsPropertyNameFeedback(feedback)) {
     return Name::cast(feedback);
   }
   return NULL;

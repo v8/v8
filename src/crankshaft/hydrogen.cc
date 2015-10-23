@@ -6615,7 +6615,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
 void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
     PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
     BailoutId ast_id, BailoutId return_id, HValue* object, HValue* value,
-    SmallMapList* maps, Handle<String> name) {
+    SmallMapList* maps, Handle<Name> name) {
   // Something did not match; must use a polymorphic load.
   int count = 0;
   HBasicBlock* join = NULL;
@@ -7630,19 +7630,42 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     HValue* obj, HValue* key, HValue* val, Expression* expr,
     FeedbackVectorSlot slot, BailoutId ast_id, BailoutId return_id,
     PropertyAccessType access_type, bool* has_side_effects) {
-  if (key->ActualValue()->IsConstant()) {
+  // A keyed name access with type feedback may contain the name.
+  Handle<TypeFeedbackVector> vector =
+      handle(current_feedback_vector(), isolate());
+  HValue* expected_key = key;
+  if (!key->ActualValue()->IsConstant()) {
+    Name* name = nullptr;
+    if (access_type == LOAD) {
+      KeyedLoadICNexus nexus(vector, slot);
+      name = nexus.FindFirstName();
+    } else if (FLAG_vector_stores) {
+      KeyedStoreICNexus nexus(vector, slot);
+      name = nexus.FindFirstName();
+    }
+    if (name != nullptr) {
+      Handle<Name> handle_name(name);
+      expected_key = Add<HConstant>(handle_name);
+      // We need a check against the key.
+      bool in_new_space = isolate()->heap()->InNewSpace(*handle_name);
+      Unique<Name> unique_name = Unique<Name>::CreateUninitialized(handle_name);
+      Add<HCheckValue>(key, unique_name, in_new_space);
+    }
+  }
+  if (expected_key->ActualValue()->IsConstant()) {
     Handle<Object> constant =
-        HConstant::cast(key->ActualValue())->handle(isolate());
+        HConstant::cast(expected_key->ActualValue())->handle(isolate());
     uint32_t array_index;
-    if (constant->IsString() &&
-        !Handle<String>::cast(constant)->AsArrayIndex(&array_index)) {
+    if ((constant->IsString() &&
+         !Handle<String>::cast(constant)->AsArrayIndex(&array_index)) ||
+        constant->IsSymbol()) {
       if (!constant->IsUniqueName()) {
         constant = isolate()->factory()->InternalizeString(
             Handle<String>::cast(constant));
       }
       HValue* access =
           BuildNamedAccess(access_type, ast_id, return_id, expr, slot, obj,
-                           Handle<String>::cast(constant), val, false);
+                           Handle<Name>::cast(constant), val, false);
       if (access == NULL || access->IsPhi() ||
           HInstruction::cast(access)->IsLinked()) {
         *has_side_effects = false;
@@ -7814,7 +7837,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
 HValue* HOptimizedGraphBuilder::BuildNamedAccess(
     PropertyAccessType access, BailoutId ast_id, BailoutId return_id,
     Expression* expr, FeedbackVectorSlot slot, HValue* object,
-    Handle<String> name, HValue* value, bool is_uninitialized) {
+    Handle<Name> name, HValue* value, bool is_uninitialized) {
   SmallMapList* maps;
   ComputeReceiverTypes(expr, object, &maps, zone());
   DCHECK(maps != NULL);

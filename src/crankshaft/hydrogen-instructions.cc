@@ -4680,13 +4680,13 @@ std::ostream& operator<<(std::ostream& os, const HObjectAccess& access) {
       break;
     case HObjectAccess::kDouble:  // fall through
     case HObjectAccess::kInobject:
-      if (!access.name().is_null()) {
+      if (!access.name().is_null() && access.name()->IsString()) {
         os << Handle<String>::cast(access.name())->ToCString().get();
       }
       os << "[in-object]";
       break;
     case HObjectAccess::kBackingStore:
-      if (!access.name().is_null()) {
+      if (!access.name().is_null() && access.name()->IsString()) {
         os << Handle<String>::cast(access.name())->ToCString().get();
       }
       os << "[backing-store]";
