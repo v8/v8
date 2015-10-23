@@ -709,7 +709,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   if (!ComputePropertyAccessInfos(receiver_maps, name, kStore, &access_infos)) {
     return NoChange();
   }
-  DCHECK(!access_infos.empty());
+
+  // Nothing to do if we have no non-deprecated maps.
+  if (access_infos.empty()) return NoChange();
 
   // The final states for every polymorphic branch. We join them with
   // Merge+EffectPhi at the bottom.
