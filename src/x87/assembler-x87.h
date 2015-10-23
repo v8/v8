@@ -771,6 +771,8 @@ class Assembler : public AssemblerBase {
   void bts(const Operand& dst, Register src);
   void bsr(Register dst, Register src) { bsr(dst, Operand(src)); }
   void bsr(Register dst, const Operand& src);
+  void bsf(Register dst, Register src) { bsf(dst, Operand(src)); }
+  void bsf(Register dst, const Operand& src);
 
   // Miscellaneous
   void hlt();

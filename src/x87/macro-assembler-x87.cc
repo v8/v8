@@ -2317,6 +2317,16 @@ void MacroAssembler::Lzcnt(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Tzcnt(Register dst, const Operand& src) {
+  // TODO(intel): Add support for TZCNT (with ABM/BMI1).
+  Label not_zero_src;
+  bsf(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  Move(dst, Immediate(32));  // The result of tzcnt is 32 if src = 0.
+  bind(&not_zero_src);
+}
+
+
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     mov(Operand::StaticVariable(ExternalReference(counter)), Immediate(value));
