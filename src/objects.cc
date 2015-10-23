@@ -13314,6 +13314,11 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   }
   if ((name != NULL) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
+  } else if (kind() == BUILTIN) {
+    name = GetIsolate()->builtins()->Lookup(instruction_start());
+    if (name != NULL) {
+      os << "name = " << name << "\n";
+    }
   }
   if (kind() == OPTIMIZED_FUNCTION) {
     os << "stack_slots = " << stack_slots() << "\n";
