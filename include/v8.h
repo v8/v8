@@ -4252,6 +4252,14 @@ enum AccessType {
 
 
 /**
+ * Returns true if the given context should be allowed to access the given
+ * object.
+ */
+typedef bool (*AccessCheckCallback)(Local<Context> accessing_context,
+                                    Local<Object> accessed_object);
+
+
+/**
  * Returns true if cross-context access should be allowed to the named
  * property with the given key on the host object.
  */
@@ -4659,16 +4667,20 @@ class V8_EXPORT ObjectTemplate : public Template {
   void MarkAsUndetectable();
 
   /**
-   * Sets access check callbacks on the object template and enables
-   * access checks.
+   * Sets access check callback on the object template and enables access
+   * checks.
    *
    * When accessing properties on instances of this object template,
    * the access check callback will be called to determine whether or
    * not to allow cross-context access to the properties.
    */
-  void SetAccessCheckCallbacks(NamedSecurityCallback named_handler,
-                               IndexedSecurityCallback indexed_handler,
-                               Local<Value> data = Local<Value>());
+  void SetAccessCheckCallback(AccessCheckCallback callback);
+
+  V8_DEPRECATE_SOON(
+      "Use SetAccessCheckCallback instead",
+      void SetAccessCheckCallbacks(NamedSecurityCallback named_handler,
+                                   IndexedSecurityCallback indexed_handler,
+                                   Local<Value> data = Local<Value>()));
 
   /**
    * Gets the number of internal fields for objects generated from

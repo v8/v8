@@ -929,6 +929,7 @@ void AccessCheckInfo::AccessCheckInfoVerify() {
   CHECK(IsAccessCheckInfo());
   VerifyPointer(named_callback());
   VerifyPointer(indexed_callback());
+  VerifyPointer(callback());
   VerifyPointer(data());
 }
 

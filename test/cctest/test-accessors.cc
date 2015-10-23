@@ -610,8 +610,8 @@ THREADED_TEST(Regress433458) {
 static bool security_check_value = false;
 
 
-static bool SecurityTestCallback(Local<v8::Object> global, Local<Value> name,
-                                 v8::AccessType type, Local<Value> data) {
+static bool SecurityTestCallback(Local<v8::Context> accessing_context,
+                                 Local<v8::Object> accessed_object) {
   return security_check_value;
 }
 
@@ -627,7 +627,7 @@ TEST(PrototypeGetterAccessCheck) {
   fun_templ->InstanceTemplate()->SetAccessorProperty(v8_str("foo"),
                                                      getter_templ);
   auto obj_templ = v8::ObjectTemplate::New(isolate);
-  obj_templ->SetAccessCheckCallbacks(SecurityTestCallback, nullptr);
+  obj_templ->SetAccessCheckCallback(SecurityTestCallback);
   env->Global()->Set(v8_str("Fun"), fun_templ->GetFunction());
   env->Global()->Set(v8_str("obj"), obj_templ->NewInstance());
   env->Global()->Set(v8_str("obj2"), obj_templ->NewInstance());

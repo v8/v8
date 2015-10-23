@@ -1660,8 +1660,8 @@ THREADED_TEST(IndexedInterceptorWithNoSetter) {
 }
 
 
-static bool AccessAlwaysBlocked(Local<v8::Object> global, Local<Value> name,
-                                v8::AccessType type, Local<Value> data) {
+static bool AccessAlwaysBlocked(Local<v8::Context> accessing_context,
+                                Local<v8::Object> accessed_object) {
   return false;
 }
 
@@ -1673,7 +1673,7 @@ THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
   templ->SetHandler(
       v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
-  templ->SetAccessCheckCallbacks(AccessAlwaysBlocked, nullptr);
+  templ->SetAccessCheckCallback(AccessAlwaysBlocked);
 
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
@@ -2907,12 +2907,13 @@ struct AccessCheckData {
   bool result;
 };
 
+AccessCheckData* g_access_check_data = nullptr;
 
-bool SimpleAccessChecker(Local<v8::Object> global, Local<Value> name,
-                         v8::AccessType type, Local<Value> data) {
-  auto access_check_data = GetWrappedObject<AccessCheckData>(data);
-  access_check_data->count++;
-  return access_check_data->result;
+
+bool SimpleAccessChecker(Local<v8::Context> accessing_context,
+                         Local<v8::Object> access_object) {
+  g_access_check_data->count++;
+  return g_access_check_data->result;
 }
 
 
@@ -2944,7 +2945,7 @@ void ShouldIndexedInterceptor(uint32_t,
 }  // namespace
 
 
-THREADED_TEST(NamedAllCanReadInterceptor) {
+TEST(NamedAllCanReadInterceptor) {
   auto isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
@@ -2952,6 +2953,8 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
   AccessCheckData access_check_data;
   access_check_data.result = true;
   access_check_data.count = 0;
+
+  g_access_check_data = &access_check_data;
 
   ShouldInterceptData intercept_data_0;
   intercept_data_0.value = 239;
@@ -2980,9 +2983,7 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
   }
 
   auto checked = v8::ObjectTemplate::New(isolate);
-  checked->SetAccessCheckCallbacks(
-      SimpleAccessChecker, nullptr,
-      BuildWrappedObject<AccessCheckData>(isolate, &access_check_data));
+  checked->SetAccessCheckCallback(SimpleAccessChecker);
 
   context->Global()->Set(v8_str("intercepted_0"), intercepted_0->NewInstance());
   context->Global()->Set(v8_str("intercepted_1"), intercepted_1->NewInstance());
@@ -3017,10 +3018,11 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
     CHECK(try_catch.HasCaught());
   }
   CHECK_EQ(9, access_check_data.count);
+  g_access_check_data = nullptr;
 }
 
 
-THREADED_TEST(IndexedAllCanReadInterceptor) {
+TEST(IndexedAllCanReadInterceptor) {
   auto isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
@@ -3028,6 +3030,8 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
   AccessCheckData access_check_data;
   access_check_data.result = true;
   access_check_data.count = 0;
+
+  g_access_check_data = &access_check_data;
 
   ShouldInterceptData intercept_data_0;
   intercept_data_0.value = 239;
@@ -3056,9 +3060,7 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
   }
 
   auto checked = v8::ObjectTemplate::New(isolate);
-  checked->SetAccessCheckCallbacks(
-      SimpleAccessChecker, nullptr,
-      BuildWrappedObject<AccessCheckData>(isolate, &access_check_data));
+  checked->SetAccessCheckCallback(SimpleAccessChecker);
 
   context->Global()->Set(v8_str("intercepted_0"), intercepted_0->NewInstance());
   context->Global()->Set(v8_str("intercepted_1"), intercepted_1->NewInstance());
@@ -3094,6 +3096,8 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
     CHECK(try_catch.HasCaught());
   }
   CHECK_EQ(9, access_check_data.count);
+
+  g_access_check_data = nullptr;
 }
 
 

@@ -988,10 +988,8 @@ TEST(UseCountObjectGetNotifier) {
 }
 
 
-static bool NamedAccessCheckAlwaysAllow(Local<v8::Object> global,
-                                        Local<v8::Value> name,
-                                        v8::AccessType type,
-                                        Local<Value> data) {
+static bool NamedAccessCheckAlwaysAllow(Local<v8::Context> accessing_context,
+                                        Local<v8::Object> accessed_object) {
   return true;
 }
 
@@ -1002,7 +1000,7 @@ TEST(DisallowObserveAccessCheckedObject) {
   LocalContext env;
   v8::Local<v8::ObjectTemplate> object_template =
       v8::ObjectTemplate::New(isolate);
-  object_template->SetAccessCheckCallbacks(NamedAccessCheckAlwaysAllow, NULL);
+  object_template->SetAccessCheckCallback(NamedAccessCheckAlwaysAllow);
   Local<Object> new_instance =
       object_template->NewInstance(
                          v8::Isolate::GetCurrent()->GetCurrentContext())
@@ -1023,7 +1021,7 @@ TEST(DisallowGetNotifierAccessCheckedObject) {
   LocalContext env;
   v8::Local<v8::ObjectTemplate> object_template =
       v8::ObjectTemplate::New(isolate);
-  object_template->SetAccessCheckCallbacks(NamedAccessCheckAlwaysAllow, NULL);
+  object_template->SetAccessCheckCallback(NamedAccessCheckAlwaysAllow);
   Local<Object> new_instance =
       object_template->NewInstance(
                          v8::Isolate::GetCurrent()->GetCurrentContext())

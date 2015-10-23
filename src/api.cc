@@ -1452,6 +1452,29 @@ void ObjectTemplate::MarkAsUndetectable() {
 }
 
 
+void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  auto cons = EnsureConstructor(isolate, this);
+  EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetAccessCheckCallback");
+
+  i::Handle<i::Struct> struct_info =
+      isolate->factory()->NewStruct(i::ACCESS_CHECK_INFO_TYPE);
+  i::Handle<i::AccessCheckInfo> info =
+      i::Handle<i::AccessCheckInfo>::cast(struct_info);
+
+  SET_FIELD_WRAPPED(info, set_callback, callback);
+  SET_FIELD_WRAPPED(info, set_named_callback, nullptr);
+  SET_FIELD_WRAPPED(info, set_indexed_callback, nullptr);
+
+  info->set_data(*isolate->factory()->undefined_value());
+
+  cons->set_access_check_info(*info);
+  cons->set_needs_access_check(true);
+}
+
+
 void ObjectTemplate::SetAccessCheckCallbacks(
     NamedSecurityCallback named_callback,
     IndexedSecurityCallback indexed_callback, Local<Value> data) {
@@ -1466,6 +1489,7 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
+  SET_FIELD_WRAPPED(info, set_callback, nullptr);
   SET_FIELD_WRAPPED(info, set_named_callback, named_callback);
   SET_FIELD_WRAPPED(info, set_indexed_callback, indexed_callback);
 

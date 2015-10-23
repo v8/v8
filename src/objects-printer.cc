@@ -1015,6 +1015,7 @@ void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessCheckInfo");
   os << "\n - named_callback: " << Brief(named_callback());
   os << "\n - indexed_callback: " << Brief(indexed_callback());
+  os << "\n - callback: " << Brief(callback());
   os << "\n - data: " << Brief(data());
   os << "\n";
 }
