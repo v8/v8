@@ -620,25 +620,6 @@ class Heap {
     Heap* heap_;
   };
 
-  // An optional version of the above lock that can be used for some critical
-  // sections on the mutator thread; only safe since the GC currently does not
-  // do concurrent compaction.
-  class OptionalRelocationLock {
-   public:
-    OptionalRelocationLock(Heap* heap, bool concurrent)
-        : heap_(heap), concurrent_(concurrent) {
-      if (concurrent_) heap_->relocation_mutex_.Lock();
-    }
-
-    ~OptionalRelocationLock() {
-      if (concurrent_) heap_->relocation_mutex_.Unlock();
-    }
-
-   private:
-    Heap* heap_;
-    bool concurrent_;
-  };
-
   // Support for partial snapshots.  After calling this we have a linear
   // space to write objects in each space.
   struct Chunk {

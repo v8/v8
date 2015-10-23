@@ -15,23 +15,18 @@ static const int kInitialIdentityMapSize = 4;
 static const int kResizeFactor = 4;
 
 IdentityMapBase::~IdentityMapBase() {
-  if (keys_) {
-    Heap::OptionalRelocationLock lock(heap_, concurrent_);
-    heap_->UnregisterStrongRoots(keys_);
-  }
+  if (keys_) heap_->UnregisterStrongRoots(keys_);
 }
 
 
-IdentityMapBase::RawEntry IdentityMapBase::Lookup(Handle<Object> key) {
-  AllowHandleDereference for_lookup;
-  int index = LookupIndex(*key);
+IdentityMapBase::RawEntry IdentityMapBase::Lookup(Object* key) {
+  int index = LookupIndex(key);
   return index >= 0 ? &values_[index] : nullptr;
 }
 
 
-IdentityMapBase::RawEntry IdentityMapBase::Insert(Handle<Object> key) {
-  AllowHandleDereference for_lookup;
-  int index = InsertIndex(*key);
+IdentityMapBase::RawEntry IdentityMapBase::Insert(Object* key) {
+  int index = InsertIndex(key);
   DCHECK_GE(index, 0);
   return &values_[index];
 }
@@ -84,8 +79,7 @@ int IdentityMapBase::InsertIndex(Object* address) {
 // as the identity, returning:
 //    found => a pointer to the storage location for the value
 //    not found => a pointer to a new storage location for the value
-IdentityMapBase::RawEntry IdentityMapBase::GetEntry(Handle<Object> key) {
-  Heap::OptionalRelocationLock lock(heap_, concurrent_);
+IdentityMapBase::RawEntry IdentityMapBase::GetEntry(Object* key) {
   RawEntry result;
   if (size_ == 0) {
     // Allocate the initial storage for keys and values.
@@ -118,10 +112,9 @@ IdentityMapBase::RawEntry IdentityMapBase::GetEntry(Handle<Object> key) {
 // as the identity, returning:
 //    found => a pointer to the storage location for the value
 //    not found => {nullptr}
-IdentityMapBase::RawEntry IdentityMapBase::FindEntry(Handle<Object> key) {
+IdentityMapBase::RawEntry IdentityMapBase::FindEntry(Object* key) {
   if (size_ == 0) return nullptr;
 
-  Heap::OptionalRelocationLock lock(heap_, concurrent_);
   RawEntry result = Lookup(key);
   if (result == nullptr && gc_counter_ != heap_->gc_count()) {
     Rehash();  // Rehash is expensive, so only do it in case of a miss.
