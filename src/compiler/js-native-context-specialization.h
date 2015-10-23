@@ -72,6 +72,10 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   bool LookupInScriptContextTable(Handle<Name> name,
                                   ScriptContextTableLookupResult* result);
 
+  // Adds stability dependencies on all prototypes of every class in
+  // {receiver_type} up to (and including) the {holder}.
+  void AssumePrototypesStable(Type* receiver_type, Handle<JSObject> holder);
+
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;

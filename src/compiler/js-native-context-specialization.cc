@@ -569,37 +569,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
       this_value = jsgraph()->Constant(holder);
-      for (auto i = access_info.receiver_type()->Classes(); !i.Done();
-           i.Advance()) {
-        Handle<Map> map = i.Current();
-        PrototypeIterator j(map);
-        while (true) {
-          // Check that the {prototype} still has the same map. For stable
-          // maps, we can add a stability dependency on the prototype map;
-          // for everything else we need to perform a map check at runtime.
-          Handle<JSReceiver> prototype =
-              PrototypeIterator::GetCurrent<JSReceiver>(j);
-          if (prototype->map()->is_stable()) {
-            dependencies()->AssumeMapStable(
-                handle(prototype->map(), isolate()));
-          } else {
-            Node* prototype_map = this_effect = graph()->NewNode(
-                simplified()->LoadField(AccessBuilder::ForMap()),
-                jsgraph()->Constant(prototype), this_effect, this_control);
-            Node* check = graph()->NewNode(
-                simplified()->ReferenceEqual(Type::Internal()), prototype_map,
-                jsgraph()->Constant(handle(prototype->map(), isolate())));
-            Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                            check, this_control);
-            exit_controls.push_back(
-                graph()->NewNode(common()->IfFalse(), branch));
-            this_control = graph()->NewNode(common()->IfTrue(), branch);
-          }
-          // Stop once we get to the holder.
-          if (prototype.is_identical_to(holder)) break;
-          j.Advance();
-        }
-      }
+      AssumePrototypesStable(receiver_type, holder);
     }
 
     // Generate the actual property access.
@@ -782,37 +752,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      for (auto i = access_info.receiver_type()->Classes(); !i.Done();
-           i.Advance()) {
-        Handle<Map> map = i.Current();
-        PrototypeIterator j(map);
-        while (true) {
-          // Check that the {prototype} still has the same map. For stable
-          // maps, we can add a stability dependency on the prototype map;
-          // for everything else we need to perform a map check at runtime.
-          Handle<JSReceiver> prototype =
-              PrototypeIterator::GetCurrent<JSReceiver>(j);
-          if (prototype->map()->is_stable()) {
-            dependencies()->AssumeMapStable(
-                handle(prototype->map(), isolate()));
-          } else {
-            Node* prototype_map = this_effect = graph()->NewNode(
-                simplified()->LoadField(AccessBuilder::ForMap()),
-                jsgraph()->Constant(prototype), this_effect, this_control);
-            Node* check = graph()->NewNode(
-                simplified()->ReferenceEqual(Type::Internal()), prototype_map,
-                jsgraph()->Constant(handle(prototype->map(), isolate())));
-            Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                            check, this_control);
-            exit_controls.push_back(
-                graph()->NewNode(common()->IfFalse(), branch));
-            this_control = graph()->NewNode(common()->IfTrue(), branch);
-          }
-          // Stop once we get to the holder.
-          if (prototype.is_identical_to(holder)) break;
-          j.Advance();
-        }
-      }
+      AssumePrototypesStable(receiver_type, holder);
     }
 
     // Generate the actual property access.
@@ -948,6 +888,25 @@ bool JSNativeContextSpecialization::LookupInScriptContextTable(
   result->immutable = IsImmutableVariableMode(lookup_result.mode);
   result->index = lookup_result.slot_index;
   return true;
+}
+
+
+void JSNativeContextSpecialization::AssumePrototypesStable(
+    Type* receiver_type, Handle<JSObject> holder) {
+  // Determine actual holder and perform prototype chain checks.
+  for (auto i = receiver_type->Classes(); !i.Done(); i.Advance()) {
+    Handle<Map> const map = i.Current();
+    for (PrototypeIterator j(map);; j.Advance()) {
+      // Check that the {prototype} still has the same map.  All prototype
+      // maps are guaranteed to be stable, so it's sufficient to add a
+      // stability dependency here.
+      Handle<JSReceiver> const prototype =
+          PrototypeIterator::GetCurrent<JSReceiver>(j);
+      dependencies()->AssumeMapStable(handle(prototype->map(), isolate()));
+      // Stop once we get to the holder.
+      if (prototype.is_identical_to(holder)) break;
+    }
+  }
 }
 
 
