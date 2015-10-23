@@ -6053,6 +6053,11 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       isolate->has_pending_exception()) {
     return false;
   }
+  // TODO(jkummerow/verwaest): It would be nice if we didn't have to reset
+  // the iterator every time. Currently, the reasons why we need it are:
+  // - handle interceptors correctly
+  // - handle accessors correctly (which might change the holder's map)
+  it->Restart();
   // 3. Let extensible be the value of the [[Extensible]] internal slot of O.
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   bool extensible = JSObject::IsExtensible(object);
@@ -6074,13 +6079,6 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       }
       return false;
     }
-    // We have to reset the LookupIterator to handle interceptors properly.
-    Map* map = Handle<HeapObject>::cast(object)->map();
-    if ((it->IsElement() && map->has_indexed_interceptor()) ||
-        (!it->IsElement() && map->has_named_interceptor())) {
-      it->Restart();
-    }
-
     // 2c. If IsGenericDescriptor(Desc) or IsDataDescriptor(Desc) is true, then:
     // (This is equivalent to !IsAccessorDescriptor(desc).)
     DCHECK((desc_is_generic_descriptor || desc_is_data_descriptor) ==
@@ -6583,7 +6581,11 @@ bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
                           it->GetAccessors()->IsAccessorPair();
   if (!is_accessor_pair) {
     // 5a. Set D.[[Value]] to the value of X's [[Value]] attribute.
-    Handle<Object> value = JSObject::GetProperty(it).ToHandleChecked();
+    Handle<Object> value;
+    if (!JSObject::GetProperty(it).ToHandle(&value)) {
+      DCHECK(isolate->has_pending_exception());
+      return false;
+    }
     desc->set_value(value);
     // 5b. Set D.[[Writable]] to the value of X's [[Writable]] attribute
     desc->set_writable((attrs & READ_ONLY) == 0);
