@@ -297,12 +297,20 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
 
 
 void MarkCompactCollector::ClearInvalidStoreAndSlotsBufferEntries() {
-  heap_->store_buffer()->ClearInvalidStoreBufferEntries();
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_STORE_BUFFER_CLEAR);
+    heap_->store_buffer()->ClearInvalidStoreBufferEntries();
+  }
 
-  int number_of_pages = evacuation_candidates_.length();
-  for (int i = 0; i < number_of_pages; i++) {
-    Page* p = evacuation_candidates_[i];
-    SlotsBuffer::RemoveInvalidSlots(heap_, p->slots_buffer());
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_SLOTS_BUFFER_CLEAR);
+    int number_of_pages = evacuation_candidates_.length();
+    for (int i = 0; i < number_of_pages; i++) {
+      Page* p = evacuation_candidates_[i];
+      SlotsBuffer::RemoveInvalidSlots(heap_, p->slots_buffer());
+    }
   }
 }
 

@@ -485,6 +485,8 @@ void GCTracer::PrintNVP() const {
                    "mark_weakrefs=%.1f "
                    "mark_globalhandles=%.1f "
                    "mark_codeflush=%.1f "
+                   "store_buffer_clear=%.1f "
+                   "slots_buffer_clear=%.1f "
                    "sweep=%.2f "
                    "sweepns=%.2f "
                    "sweepos=%.2f "
@@ -548,6 +550,8 @@ void GCTracer::PrintNVP() const {
                    current_.scopes[Scope::MC_MARK_WEAK_REFERENCES],
                    current_.scopes[Scope::MC_MARK_GLOBAL_HANDLES],
                    current_.scopes[Scope::MC_MARK_CODE_FLUSH],
+                   current_.scopes[Scope::MC_STORE_BUFFER_CLEAR],
+                   current_.scopes[Scope::MC_SLOTS_BUFFER_CLEAR],
                    current_.scopes[Scope::MC_SWEEP],
                    current_.scopes[Scope::MC_SWEEP_NEWSPACE],
                    current_.scopes[Scope::MC_SWEEP_OLDSPACE],
