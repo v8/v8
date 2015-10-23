@@ -42,6 +42,11 @@
     'debugger': {
       'filepath': 'src/debug/',
     },
+    'interpreter': {
+      'filepath': 'src/interpreter/',
+      'filepath': 'test/cctest/interpreter/',
+      'filepath': 'test/unittests/interpreter/',
+    },
     'feature_shipping_status': {
       'filepath': 'src/flag-definitions.h',
     },
@@ -56,6 +61,10 @@
     ],
     'debugger': [
       'yangguo@chromium.org',
+    ],
+    'interpreter': [
+      'rmcilroy@chromium.org',
+      'oth@chromium.org',
     ],
     'feature_shipping_status': [
       'hablich@chromium.org',
