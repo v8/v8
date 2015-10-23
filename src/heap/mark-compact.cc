@@ -547,6 +547,14 @@ void MarkCompactCollector::SweepOrWaitUntilSweepingCompleted(Page* page) {
 }
 
 
+void MarkCompactCollector::SweepAndRefill(CompactionSpace* space) {
+  if (heap()->concurrent_sweeping_enabled() && !IsSweepingCompleted()) {
+    SweepInParallel(heap()->paged_space(space->identity()), 0);
+    space->RefillFreeList();
+  }
+}
+
+
 void MarkCompactCollector::EnsureSweepingCompleted() {
   DCHECK(sweeping_in_progress_ == true);
 

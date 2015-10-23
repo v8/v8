@@ -2713,8 +2713,7 @@ void PagedSpace::EvictEvacuationCandidatesFromLinearAllocationArea() {
 }
 
 
-HeapObject* PagedSpace::WaitForSweeperThreadsAndRetryAllocation(
-    int size_in_bytes) {
+HeapObject* PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     // Wait for the sweeper threads here and complete the sweeping phase.
@@ -2724,7 +2723,17 @@ HeapObject* PagedSpace::WaitForSweeperThreadsAndRetryAllocation(
     // entries.
     return free_list_.Allocate(size_in_bytes);
   }
-  return NULL;
+  return nullptr;
+}
+
+
+HeapObject* CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
+  MarkCompactCollector* collector = heap()->mark_compact_collector();
+  if (collector->sweeping_in_progress()) {
+    collector->SweepAndRefill(this);
+    return free_list_.Allocate(size_in_bytes);
+  }
+  return nullptr;
 }
 
 
@@ -2761,7 +2770,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
       heap()->OldGenerationAllocationLimitReached()) {
     // If sweeper threads are active, wait for them at that point and steal
     // elements form their free-lists.
-    HeapObject* object = WaitForSweeperThreadsAndRetryAllocation(size_in_bytes);
+    HeapObject* object = SweepAndRetryAllocation(size_in_bytes);
     return object;
   }
 
@@ -2775,7 +2784,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // If sweeper threads are active, wait for them at that point and steal
   // elements form their free-lists. Allocation may still fail their which
   // would indicate that there is not enough memory for the given allocation.
-  return WaitForSweeperThreadsAndRetryAllocation(size_in_bytes);
+  return SweepAndRetryAllocation(size_in_bytes);
 }
 
 

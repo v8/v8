@@ -457,9 +457,18 @@ class MarkCompactCollector {
   // size of the maximum continuous freed memory chunk.
   int SweepInParallel(Page* page, PagedSpace* space);
 
+  // Ensures that sweeping is finished.
+  //
+  // Note: Can only be called safely from main thread.
   void EnsureSweepingCompleted();
 
   void SweepOrWaitUntilSweepingCompleted(Page* page);
+
+  // Help out in sweeping the corresponding space and refill memory that has
+  // been regained.
+  //
+  // Note: Thread-safe.
+  void SweepAndRefill(CompactionSpace* space);
 
   // If sweeper threads are not active this method will return true. If
   // this is a latency issue we should be smarter here. Otherwise, it will

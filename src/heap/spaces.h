@@ -2121,7 +2121,7 @@ class PagedSpace : public Space {
   // If sweeping is still in progress try to sweep unswept pages. If that is
   // not successful, wait for the sweeper threads and re-try free-list
   // allocation.
-  MUST_USE_RESULT HeapObject* WaitForSweeperThreadsAndRetryAllocation(
+  MUST_USE_RESULT virtual HeapObject* SweepAndRetryAllocation(
       int size_in_bytes);
 
   // Slow path of AllocateRaw.  This function is space-dependent.
@@ -2838,6 +2838,9 @@ class CompactionSpace : public PagedSpace {
  protected:
   // The space is temporary and not included in any snapshots.
   virtual bool snapshotable() override { return false; }
+
+  MUST_USE_RESULT virtual HeapObject* SweepAndRetryAllocation(
+      int size_in_bytes) override;
 };
 
 
