@@ -327,6 +327,10 @@ class MemoryChunk {
     // still has to be performed.
     PRE_FREED,
 
+    // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
+    //   has been aborted and needs special handling by the sweeper.
+    COMPACTION_WAS_ABORTED,
+
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
   };

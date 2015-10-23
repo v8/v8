@@ -737,6 +737,10 @@ class MarkCompactCollector {
 
   void EvacuateNewSpaceAndCandidates();
 
+  void VisitLiveObjects(Page* page, ObjectVisitor* visitor);
+
+  void SweepAbortedPages();
+
   void ReleaseEvacuationCandidates();
 
   // Moves the pages of the evacuation_candidates_ list to the end of their

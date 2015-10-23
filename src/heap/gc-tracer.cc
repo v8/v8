@@ -493,6 +493,7 @@ void GCTracer::PrintNVP() const {
                    "sweepcode=%.2f "
                    "sweepcell=%.2f "
                    "sweepmap=%.2f "
+                   "sweepaborted=%.2f "
                    "evacuate=%.1f "
                    "new_new=%.1f "
                    "root_new=%.1f "
@@ -558,6 +559,7 @@ void GCTracer::PrintNVP() const {
                    current_.scopes[Scope::MC_SWEEP_CODE],
                    current_.scopes[Scope::MC_SWEEP_CELL],
                    current_.scopes[Scope::MC_SWEEP_MAP],
+                   current_.scopes[Scope::MC_SWEEP_ABORTED],
                    current_.scopes[Scope::MC_EVACUATE_PAGES],
                    current_.scopes[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS],
                    current_.scopes[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS],

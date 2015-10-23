@@ -2941,7 +2941,9 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     MapWord map_word = heap_obj->map_word();
     if (map_word.IsForwardingAddress()) {
       DCHECK(heap->InFromSpace(heap_obj) ||
-             MarkCompactCollector::IsOnEvacuationCandidate(heap_obj));
+             MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
+             Page::FromAddress(heap_obj->address())
+                 ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
       HeapObject* target = map_word.ToForwardingAddress();
       base::NoBarrier_CompareAndSwap(
           reinterpret_cast<base::AtomicWord*>(slot),
@@ -3379,7 +3381,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         // - Leave the page in the list of pages of a space since we could not
         //   fully evacuate it.
         DCHECK(p->IsEvacuationCandidate());
-        p->SetFlag(Page::RESCAN_ON_EVACUATION);
+        p->SetFlag(Page::COMPACTION_WAS_ABORTED);
         abandoned_pages++;
         break;
       case MemoryChunk::kCompactingFinalize:
@@ -3617,6 +3619,57 @@ void MarkCompactCollector::RemoveObjectSlots(Address start_slot,
 }
 
 
+void MarkCompactCollector::VisitLiveObjects(Page* page,
+                                            ObjectVisitor* visitor) {
+  // First pass on aborted pages.
+  int offsets[16];
+  for (MarkBitCellIterator it(page); !it.Done(); it.Advance()) {
+    Address cell_base = it.CurrentCellBase();
+    MarkBit::CellType* cell = it.CurrentCell();
+    if (*cell == 0) continue;
+    int live_objects = MarkWordToObjectStarts(*cell, offsets);
+    for (int i = 0; i < live_objects; i++) {
+      Address object_addr = cell_base + offsets[i] * kPointerSize;
+      HeapObject* live_object = HeapObject::FromAddress(object_addr);
+      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
+      Map* map = live_object->synchronized_map();
+      int size = live_object->SizeFromMap(map);
+      live_object->IterateBody(map->instance_type(), size, visitor);
+    }
+  }
+}
+
+
+void MarkCompactCollector::SweepAbortedPages() {
+  // Second pass on aborted pages.
+  for (int i = 0; i < evacuation_candidates_.length(); i++) {
+    Page* p = evacuation_candidates_[i];
+    if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
+      p->ClearFlag(MemoryChunk::COMPACTION_WAS_ABORTED);
+      PagedSpace* space = static_cast<PagedSpace*>(p->owner());
+      switch (space->identity()) {
+        case OLD_SPACE:
+          Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
+                IGNORE_FREE_SPACE>(space, nullptr, p, nullptr);
+          break;
+        case CODE_SPACE:
+          if (FLAG_zap_code_space) {
+            Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
+                  ZAP_FREE_SPACE>(space, NULL, p, nullptr);
+          } else {
+            Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
+                  IGNORE_FREE_SPACE>(space, NULL, p, nullptr);
+          }
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    }
+  }
+}
+
+
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   Heap::RelocationLock relocation_lock(heap());
 
@@ -3710,13 +3763,15 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
         // code objects from non-updated pc pointing into evacuation candidate.
         SkipList* list = p->skip_list();
         if (list != NULL) list->Clear();
-      }
 
-      if (p->IsEvacuationCandidate() &&
-          p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
-        // Case where we've aborted compacting a page. Clear the flag here to
-        // avoid release the page later on.
-        p->ClearEvacuationCandidate();
+        // First pass on aborted pages, fixing up all live objects.
+        if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
+          // Clearing the evacuation candidate flag here has the effect of
+          // stopping recording of slots for it in the following pointer
+          // update phases.
+          p->ClearEvacuationCandidate();
+          VisitLiveObjects(p, &updating_visitor);
+        }
       }
 
       if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
@@ -3752,17 +3807,26 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     }
   }
 
-  GCTracer::Scope gc_scope(heap()->tracer(),
-                           GCTracer::Scope::MC_UPDATE_MISC_POINTERS);
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_UPDATE_MISC_POINTERS);
+    heap_->string_table()->Iterate(&updating_visitor);
 
-  heap_->string_table()->Iterate(&updating_visitor);
+    // Update pointers from external string table.
+    heap_->UpdateReferencesInExternalStringTable(
+        &UpdateReferenceInExternalStringTableEntry);
 
-  // Update pointers from external string table.
-  heap_->UpdateReferencesInExternalStringTable(
-      &UpdateReferenceInExternalStringTableEntry);
+    EvacuationWeakObjectRetainer evacuation_object_retainer;
+    heap()->ProcessAllWeakReferences(&evacuation_object_retainer);
+  }
 
-  EvacuationWeakObjectRetainer evacuation_object_retainer;
-  heap()->ProcessAllWeakReferences(&evacuation_object_retainer);
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(),
+                             GCTracer::Scope::MC_SWEEP_ABORTED);
+    // After updating all pointers, we can finally sweep the aborted pages,
+    // effectively overriding any forward pointers.
+    SweepAbortedPages();
+  }
 
   heap_->isolate()->inner_pointer_to_code_cache()->Flush();
 
