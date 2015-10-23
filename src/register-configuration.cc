@@ -44,7 +44,9 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
             kMaxAllocatableDoubleRegisterCount,
             kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_X87
-            kMaxAllocatableGeneralRegisterCount, 1, 1,
+            kMaxAllocatableGeneralRegisterCount,
+            compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
+            compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_X64
             kMaxAllocatableGeneralRegisterCount,
             kMaxAllocatableDoubleRegisterCount,
