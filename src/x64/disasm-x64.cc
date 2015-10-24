@@ -1042,8 +1042,8 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
       case 0x2a:
-        AppendToBuffer("vcvtlsi2sd %s,%s,", NameOfXMMRegister(regop),
-                       NameOfXMMRegister(vvvv));
+        AppendToBuffer("%s %s,%s,", vex_w() ? "vcvtqsi2sd" : "vcvtlsi2sd",
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
         current += PrintRightOperand(current);
         break;
       case 0x2c:

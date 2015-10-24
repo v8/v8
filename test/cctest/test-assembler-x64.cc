@@ -1494,12 +1494,27 @@ TEST(AssemblerX64AVX_sd) {
     __ vucomisd(xmm5, xmm6);
     __ j(not_equal, &exit);
 
+    // Test vcvtlsi2sd
+    __ movl(rax, Immediate(17));
     __ movl(rdx, Immediate(6));
+    __ movq(rcx, V8_UINT64_C(0x4018000000000000));  // 6.0
+    __ vmovq(xmm5, rcx);
     __ vcvtlsi2sd(xmm6, xmm6, rdx);
-    __ movl(Operand(rsp, 0), Immediate(5));
+    __ vucomisd(xmm5, xmm6);
+    __ j(not_equal, &exit);
+    __ movl(Operand(rsp, 0), rdx);
     __ vcvtlsi2sd(xmm7, xmm7, Operand(rsp, 0));
-    __ vsubsd(xmm7, xmm6, xmm7);  // xmm7 is 1.0
-    __ vmulsd(xmm1, xmm1, xmm7);
+    __ vucomisd(xmm5, xmm6);
+    __ j(not_equal, &exit);
+
+    // Test vcvtqsi2sd
+    __ movl(rax, Immediate(18));
+    __ movq(rdx, V8_UINT64_C(0x2000000000000000));  // 2 << 0x3c
+    __ movq(rcx, V8_UINT64_C(0x43c0000000000000));
+    __ vmovq(xmm5, rcx);
+    __ vcvtqsi2sd(xmm6, xmm6, rdx);
+    __ vucomisd(xmm5, xmm6);
+    __ j(not_equal, &exit);
 
     __ movq(rdx, V8_INT64_C(0x3ff0000000000000));  // 1.0
     __ vmovq(xmm7, rdx);

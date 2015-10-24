@@ -945,7 +945,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         __ movl(kScratchRegister, i.InputOperand(0));
       }
-      __ cvtqsi2sd(i.OutputDoubleRegister(), kScratchRegister);
+      __ Cvtqsi2sd(i.OutputDoubleRegister(), kScratchRegister);
       break;
     case kSSEFloat64ExtractLowWord32:
       if (instr->InputAt(0)->IsDoubleStackSlot()) {

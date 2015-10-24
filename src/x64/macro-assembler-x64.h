@@ -816,6 +816,7 @@ class MacroAssembler: public Assembler {
   // xorpd to clear the dst register before cvtsi2sd to solve this issue.
   void Cvtlsi2sd(XMMRegister dst, Register src);
   void Cvtlsi2sd(XMMRegister dst, const Operand& src);
+  void Cvtqsi2sd(XMMRegister dst, Register src);
 
   void Cvttsd2si(Register dst, XMMRegister src);
   void Cvttsd2si(Register dst, const Operand& src);

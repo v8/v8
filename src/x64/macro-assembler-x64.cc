@@ -851,6 +851,18 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Cvtqsi2sd(XMMRegister dst, Register src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vxorpd(dst, dst, dst);
+    vcvtqsi2sd(dst, dst, src);
+  } else {
+    xorpd(dst, dst);
+    cvtqsi2sd(dst, src);
+  }
+}
+
+
 void MacroAssembler::Cvttsd2si(Register dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -3457,7 +3469,7 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
     cmpq(src, Immediate(0xffffffff));
     Assert(below_equal, kInputGPRIsExpectedToHaveUpper32Cleared);
   }
-  cvtqsi2sd(dst, src);
+  Cvtqsi2sd(dst, src);
 }
 
 
