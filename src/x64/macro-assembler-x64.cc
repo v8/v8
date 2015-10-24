@@ -863,6 +863,16 @@ void MacroAssembler::Cvtqsi2sd(XMMRegister dst, Register src) {
 }
 
 
+void MacroAssembler::Cvtsd2si(Register dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvtsd2si(dst, src);
+  } else {
+    cvtsd2si(dst, src);
+  }
+}
+
+
 void MacroAssembler::Cvttsd2si(Register dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -3444,7 +3454,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   Label done;
   Label conv_failure;
   Xorpd(temp_xmm_reg, temp_xmm_reg);
-  cvtsd2si(result_reg, input_reg);
+  Cvtsd2si(result_reg, input_reg);
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
   cmpl(result_reg, Immediate(1));

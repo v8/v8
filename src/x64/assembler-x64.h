@@ -1379,6 +1379,10 @@ class Assembler : public AssemblerBase {
     XMMRegister idst = {dst.code()};
     vsd(0x2c, idst, xmm0, src, kF2, k0F, kW1);
   }
+  void vcvtsd2si(Register dst, XMMRegister src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2d, idst, xmm0, src, kF2, k0F, kW0);
+  }
   void vucomisd(XMMRegister dst, XMMRegister src) {
     vsd(0x2e, dst, xmm0, src, k66, k0F, kWIG);
   }

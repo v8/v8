@@ -1051,6 +1051,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x2d:
+        AppendToBuffer("vcvtsd2si%s %s,", vex_w() ? "q" : "",
+                       NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x51:
         AppendToBuffer("vsqrtsd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));

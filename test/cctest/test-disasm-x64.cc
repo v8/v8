@@ -557,6 +557,7 @@ TEST(DisasmX64) {
       __ vcvttsd2si(rax, Operand(rbx, r9, times_4, 10000));
       __ vcvttsd2siq(rdi, xmm9);
       __ vcvttsd2siq(r8, Operand(r9, rbx, times_4, 10000));
+      __ vcvtsd2si(rdi, xmm9);
 
       __ vmovaps(xmm10, xmm11);
       __ vmovapd(xmm7, xmm0);

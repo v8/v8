@@ -818,6 +818,8 @@ class MacroAssembler: public Assembler {
   void Cvtlsi2sd(XMMRegister dst, const Operand& src);
   void Cvtqsi2sd(XMMRegister dst, Register src);
 
+  void Cvtsd2si(Register dst, XMMRegister src);
+
   void Cvttsd2si(Register dst, XMMRegister src);
   void Cvttsd2si(Register dst, const Operand& src);
   void Cvttsd2siq(Register dst, XMMRegister src);

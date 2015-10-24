@@ -1516,6 +1516,14 @@ TEST(AssemblerX64AVX_sd) {
     __ vucomisd(xmm5, xmm6);
     __ j(not_equal, &exit);
 
+    // Test vcvtsd2si
+    __ movl(rax, Immediate(19));
+    __ movq(rdx, V8_UINT64_C(0x4018000000000000));  // 6.0
+    __ vmovq(xmm5, rdx);
+    __ vcvtsd2si(rcx, xmm5);
+    __ cmpl(rcx, Immediate(6));
+    __ j(not_equal, &exit);
+
     __ movq(rdx, V8_INT64_C(0x3ff0000000000000));  // 1.0
     __ vmovq(xmm7, rdx);
     __ vmulsd(xmm1, xmm1, xmm7);
