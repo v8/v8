@@ -1452,7 +1452,8 @@ void ObjectTemplate::MarkAsUndetectable() {
 }
 
 
-void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback) {
+void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
+                                            Local<Value> data) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
@@ -1468,7 +1469,10 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback) {
   SET_FIELD_WRAPPED(info, set_named_callback, nullptr);
   SET_FIELD_WRAPPED(info, set_indexed_callback, nullptr);
 
-  info->set_data(*isolate->factory()->undefined_value());
+  if (data.IsEmpty()) {
+    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
+  info->set_data(*Utils::OpenHandle(*data));
 
   cons->set_access_check_info(*info);
   cons->set_needs_access_check(true);

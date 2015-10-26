@@ -4674,7 +4674,8 @@ class V8_EXPORT ObjectTemplate : public Template {
    * the access check callback will be called to determine whether or
    * not to allow cross-context access to the properties.
    */
-  void SetAccessCheckCallback(AccessCheckCallback callback);
+  void SetAccessCheckCallback(AccessCheckCallback callback,
+                              Local<Value> data = Local<Value>());
 
   V8_DEPRECATE_SOON(
       "Use SetAccessCheckCallback instead",
