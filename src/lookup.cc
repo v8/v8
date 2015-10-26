@@ -80,13 +80,13 @@ void LookupIterator::Next() {
 }
 
 
-void LookupIterator::RestartLookupForNonMaskingInterceptors() {
-  interceptor_state_ = InterceptorState::kProcessNonMasking;
+void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
   state_ = NOT_FOUND;
+  interceptor_state_ = interceptor_state;
   property_details_ = PropertyDetails::Empty();
-  number_ = DescriptorArray::kNotFound;
   holder_ = initial_holder_;
   holder_map_ = handle(holder_->map(), isolate_);
+  number_ = DescriptorArray::kNotFound;
   Next();
 }
 

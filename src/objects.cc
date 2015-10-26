@@ -6074,6 +6074,17 @@ bool JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, object, key, &success, LookupIterator::HIDDEN);
   DCHECK(success);  // ...so creating a LookupIterator can't fail.
+
+  // Deal with access checks first.
+  if (it.state() == LookupIterator::ACCESS_CHECK) {
+    if (!it.HasAccess()) {
+      isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
+      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, false);
+      return false;
+    }
+    it.Next();
+  }
+
   return OrdinaryDefineOwnProperty(&it, desc, should_throw);
 }
 
@@ -6092,9 +6103,14 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       isolate->has_pending_exception()) {
     return false;
   }
+  // TODO(jkummerow/verwaest): It would be nice if we didn't have to reset
+  // the iterator every time. Currently, the reasons why we need it are:
+  // - handle interceptors correctly
+  // - handle accessors correctly (which might change the holder's map)
+  it->Restart();
   // 3. Let extensible be the value of the [[Extensible]] internal slot of O.
-  Handle<JSObject> o = Handle<JSObject>::cast(it->GetReceiver());
-  bool extensible = JSObject::IsExtensible(o);
+  Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
+  bool extensible = JSObject::IsExtensible(object);
 
   bool desc_is_data_descriptor = PropertyDescriptor::IsDataDescriptor(desc);
   bool desc_is_accessor_descriptor =
@@ -6123,7 +6139,7 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       // [[Configurable]] attribute values are described by Desc. If the value
       // of an attribute field of Desc is absent, the attribute of the newly
       // created property is set to its default value.
-      if (!o->IsUndefined()) {
+      if (!object->IsUndefined()) {
         if (!desc->has_writable()) desc->set_writable(false);
         if (!desc->has_enumerable()) desc->set_enumerable(false);
         if (!desc->has_configurable()) desc->set_configurable(false);
@@ -6132,8 +6148,8 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
                 ? desc->value()
                 : Handle<Object>::cast(isolate->factory()->undefined_value()));
         MaybeHandle<Object> result =
-            JSObject::DefineOwnPropertyIgnoreAttributes(it, value,
-                                                        desc->ToAttributes());
+            JSObject::DefineOwnPropertyIgnoreAttributes(
+                it, value, desc->ToAttributes(), JSObject::DONT_FORCE_FIELD);
         if (result.is_null()) return false;
       }
     } else {
@@ -6144,7 +6160,7 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       // [[Configurable]] attribute values are described by Desc. If the value
       // of an attribute field of Desc is absent, the attribute of the newly
       // created property is set to its default value.
-      if (!o->IsUndefined()) {
+      if (!object->IsUndefined()) {
         if (!desc->has_enumerable()) desc->set_enumerable(false);
         if (!desc->has_configurable()) desc->set_configurable(false);
         Handle<Object> getter(
@@ -6244,10 +6260,11 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       // [Strong mode] Disallow changing writable -> readonly for
       // non-configurable properties.
       if (current.writable() && desc->has_writable() && !desc->writable() &&
-          o->map()->is_strong()) {
+          object->map()->is_strong()) {
         if (should_throw == THROW_ON_ERROR) {
           isolate->Throw(*isolate->factory()->NewTypeError(
-              MessageTemplate::kStrongRedefineDisallowed, o, it->GetName()));
+              MessageTemplate::kStrongRedefineDisallowed, object,
+              it->GetName()));
         }
         return false;
       }
@@ -6302,7 +6319,7 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
   }
 
   // 10. If O is not undefined, then:
-  if (!o->IsUndefined()) {
+  if (!object->IsUndefined()) {
     // 10a. For each field of Desc that is present, set the corresponding
     // attribute of the property named P of object O to the value of the field.
     PropertyAttributes attrs = NONE;
@@ -6565,7 +6582,7 @@ bool JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
   if (!success && should_throw == THROW_ON_ERROR) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kStrictDeleteProperty,
-        isolate->factory()->NewNumberFromUint(actual_new_len - 1)));
+        isolate->factory()->NewNumberFromUint(actual_new_len - 1), a));
   }
   return success;
 }
@@ -6614,7 +6631,11 @@ bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
                           it->GetAccessors()->IsAccessorPair();
   if (!is_accessor_pair) {
     // 5a. Set D.[[Value]] to the value of X's [[Value]] attribute.
-    Handle<Object> value = JSObject::GetProperty(it).ToHandleChecked();
+    Handle<Object> value;
+    if (!JSObject::GetProperty(it).ToHandle(&value)) {
+      DCHECK(isolate->has_pending_exception());
+      return false;
+    }
     desc->set_value(value);
     // 5b. Set D.[[Writable]] to the value of X's [[Writable]] attribute
     desc->set_writable((attrs & READ_ONLY) == 0);
@@ -7838,7 +7859,10 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       DCHECK(filter == INCLUDE_SYMBOLS);
       PropertyAttributes attr_filter =
           static_cast<PropertyAttributes>(DONT_ENUM | PRIVATE_SYMBOL);
-      JSObject::CollectOwnElementKeys(current, &accumulator, attr_filter);
+      Handle<FixedArray> property_keys = isolate->factory()->NewFixedArray(
+          current->NumberOfOwnProperties(attr_filter));
+      current->GetOwnPropertyNames(*property_keys, 0, attr_filter);
+      accumulator.AddKeys(property_keys);
     }
 
     // Add the property keys from the interceptor.

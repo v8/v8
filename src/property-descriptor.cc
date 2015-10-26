@@ -4,6 +4,7 @@
 
 #include "src/property-descriptor.h"
 
+#include "src/bootstrapper.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
 #include "src/lookup.h"
@@ -43,6 +44,9 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<Object> obj,
   if (map->instance_type() != JS_OBJECT_TYPE) return false;
   if (map->is_access_check_needed()) return false;
   if (map->prototype() != *isolate->initial_object_prototype()) return false;
+  // During bootstrapping, the object_function_prototype_map hasn't been
+  // set up yet.
+  if (isolate->bootstrapper()->IsActive()) return false;
   if (JSObject::cast(map->prototype())->map() !=
       isolate->native_context()->object_function_prototype_map()) {
     return false;
@@ -210,7 +214,11 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
     }
   } else {
     DCHECK(obj->IsJSProxy());
-    UNIMPLEMENTED();
+    // Having an UNIMPLEMENTED() here would upset ClusterFuzz, because
+    // --harmony-proxies makes it possible to reach this branch.
+    isolate->Throw(
+        *isolate->factory()->NewTypeError(MessageTemplate::kUnsupported));
+    return false;
   }
   // 23. Return desc.
   return true;
