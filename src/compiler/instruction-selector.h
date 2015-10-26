@@ -172,6 +172,7 @@ class InstructionSelector final {
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
                             bool call_code_immediate,
                             bool call_address_immediate);
+  bool IsTailCallAddressImmediate();
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
 
