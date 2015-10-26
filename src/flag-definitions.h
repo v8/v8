@@ -181,7 +181,7 @@ DEFINE_BOOL(strong_this, true, "don't allow 'this' to escape from constructors")
 
 DEFINE_BOOL(es_staging, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
-DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony fetaures")
+DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
@@ -658,7 +658,7 @@ DEFINE_BOOL(age_code, true,
             "old code (required for code flushing)")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(overapproximate_weak_closure, true,
-            "overapproximate weak closer to reduce atomic pause time")
+            "overapproximate weak closure to reduce atomic pause time")
 DEFINE_INT(min_progress_during_object_groups_marking, 128,
            "keep overapproximating the weak closure as long as we discover at "
            "least this many unmarked objects")
