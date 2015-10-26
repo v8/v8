@@ -14,23 +14,15 @@ namespace v8 {
 namespace internal {
 
 HandleBase::HandleBase(Object* object, Isolate* isolate)
-    : location_(HandleScope::GetHandle(isolate, object)) {}
-
-
-template <typename T>
-// Allocate a new handle for the object, do not canonicalize.
-Handle<T> Handle<T>::New(T* object, Isolate* isolate) {
-  return Handle(
-      reinterpret_cast<T**>(HandleScope::CreateHandle(isolate, object)));
-}
+    : location_(HandleScope::CreateHandle(isolate, object)) {}
 
 
 HandleScope::HandleScope(Isolate* isolate) {
-  HandleScopeData* data = isolate->handle_scope_data();
+  HandleScopeData* current = isolate->handle_scope_data();
   isolate_ = isolate;
-  prev_next_ = data->next;
-  prev_limit_ = data->limit;
-  data->level++;
+  prev_next_ = current->next;
+  prev_limit_ = current->limit;
+  current->level++;
 }
 
 
@@ -84,7 +76,7 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   // Throw away all handles in the current scope.
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.
-  DCHECK(current->level > current->sealed_level);
+  DCHECK(current->level > 0);
   Handle<T> result(value, isolate_);
   // Reinitialize the current scope (so that it's ready
   // to be used or closed again).
@@ -95,27 +87,21 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
 }
 
 
-Object** HandleScope::CreateHandle(Isolate* isolate, Object* value) {
+template <typename T>
+T** HandleScope::CreateHandle(Isolate* isolate, T* value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
-  HandleScopeData* data = isolate->handle_scope_data();
+  HandleScopeData* current = isolate->handle_scope_data();
 
-  Object** result = data->next;
-  if (result == data->limit) result = Extend(isolate);
+  Object** cur = current->next;
+  if (cur == current->limit) cur = Extend(isolate);
   // Update the current next field, set the value in the created
   // handle, and return the result.
-  DCHECK(result < data->limit);
-  data->next = result + 1;
+  DCHECK(cur < current->limit);
+  current->next = cur + 1;
 
+  T** result = reinterpret_cast<T**>(cur);
   *result = value;
   return result;
-}
-
-
-Object** HandleScope::GetHandle(Isolate* isolate, Object* value) {
-  DCHECK(AllowHandleAllocation::IsAllowed());
-  HandleScopeData* data = isolate->handle_scope_data();
-  CanonicalHandleScope* canonical = data->canonical_scope;
-  return canonical ? canonical->Lookup(value) : CreateHandle(isolate, value);
 }
 
 
@@ -126,10 +112,10 @@ inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
   HandleScopeData* current = isolate_->handle_scope_data();
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.
-  prev_limit_ = current->limit;
+  limit_ = current->limit;
   current->limit = current->next;
-  prev_sealed_level_ = current->sealed_level;
-  current->sealed_level = current->level;
+  level_ = current->level;
+  current->level = 0;
 }
 
 
@@ -137,10 +123,10 @@ inline SealHandleScope::~SealHandleScope() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
   HandleScopeData* current = isolate_->handle_scope_data();
+  DCHECK_EQ(0, current->level);
+  current->level = level_;
   DCHECK_EQ(current->next, current->limit);
-  current->limit = prev_limit_;
-  DCHECK_EQ(current->level, current->sealed_level);
-  current->sealed_level = prev_sealed_level_;
+  current->limit = limit_;
 }
 
 #endif

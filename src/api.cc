@@ -734,17 +734,17 @@ SealHandleScope::SealHandleScope(Isolate* isolate) {
   i::HandleScopeData* current = internal_isolate->handle_scope_data();
   prev_limit_ = current->limit;
   current->limit = current->next;
-  prev_sealed_level_ = current->sealed_level;
-  current->sealed_level = current->level;
+  prev_level_ = current->level;
+  current->level = 0;
 }
 
 
 SealHandleScope::~SealHandleScope() {
   i::HandleScopeData* current = isolate_->handle_scope_data();
+  DCHECK_EQ(0, current->level);
+  current->level = prev_level_;
   DCHECK_EQ(current->next, current->limit);
   current->limit = prev_limit_;
-  DCHECK_EQ(current->level, current->sealed_level);
-  current->sealed_level = prev_sealed_level_;
 }
 
 

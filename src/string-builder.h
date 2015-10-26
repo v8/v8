@@ -346,12 +346,10 @@ class IncrementalStringBuilder {
       DCHECK(string->length() >= required_length);
     }
 
-    Handle<String> Finalize() {
+    ~NoExtendString() {
       Handle<SeqString> string = Handle<SeqString>::cast(string_);
       int length = NoExtend<DestChar>::written();
-      Handle<String> result = SeqString::Truncate(string, length);
-      string_ = Handle<String>();
-      return result;
+      *string_.location() = *SeqString::Truncate(string, length);
     }
 
    private:

@@ -151,7 +151,7 @@ void IdentityMapBase::Rehash() {
   for (auto pair : reinsert) {
     int index = InsertIndex(pair.first);
     DCHECK_GE(index, 0);
-    DCHECK_NE(heap_->not_mapped_symbol(), values_[index]);
+    DCHECK_NULL(values_[index]);
     values_[index] = pair.second;
   }
 }

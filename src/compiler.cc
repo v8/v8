@@ -863,12 +863,9 @@ bool Compiler::ParseAndAnalyze(ParseInfo* info) {
 
 
 static bool GetOptimizedCodeNow(CompilationInfo* info) {
-  Isolate* isolate = info->isolate();
-  CanonicalHandleScope canonical(isolate);
-
   if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
 
-  TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
+  TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
 
   OptimizedCompileJob job(info);
   if (job.CreateGraph() != OptimizedCompileJob::SUCCEEDED ||
@@ -883,7 +880,7 @@ static bool GetOptimizedCodeNow(CompilationInfo* info) {
   }
 
   // Success!
-  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!info->isolate()->has_pending_exception());
   InsertCodeIntoOptimizedCodeMap(info);
   RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info,
                             info->shared_info());
@@ -893,8 +890,6 @@ static bool GetOptimizedCodeNow(CompilationInfo* info) {
 
 static bool GetOptimizedCodeLater(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
-  CanonicalHandleScope canonical(isolate);
-
   if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
