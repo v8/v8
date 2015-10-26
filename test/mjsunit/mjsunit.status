@@ -577,12 +577,6 @@
 }],  # 'arch == mips'
 
 ##############################################################################
-['arch == x87', {
-  # Turbofan will hit the known issue that x87 changes sNaN to qNaN by default.
-  'regress-undefined-nan': [SKIP],
-}],  # 'arch == x87'
-
-##############################################################################
 ['arch == mips64el or arch == mips64', {
 
   # Slow tests which times out in debug mode.
