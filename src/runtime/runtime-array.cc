@@ -207,7 +207,6 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
 
   KeyAccumulator accumulator(isolate);
   // No need to separate protoype levels since we only get numbers/element keys
-  accumulator.NextPrototype();
   for (PrototypeIterator iter(isolate, array,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
@@ -218,6 +217,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
       // collecting keys in that case.
       return *isolate->factory()->NewNumberFromUint(length);
     }
+    accumulator.NextPrototype();
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
     JSObject::CollectOwnElementKeys(current, &accumulator, NONE);
   }

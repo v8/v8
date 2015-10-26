@@ -2010,16 +2010,14 @@ THREADED_TEST(Enumerators) {
   // This order is not mandated by the spec, so this test is just
   // documenting our behavior.
   CHECK_EQ(17u, result->Length());
-  // Indexed properties in numerical order.
-  CHECK(v8_str("5")->Equals(result->Get(v8::Integer::New(isolate, 0))));
-  CHECK(v8_str("10")->Equals(result->Get(v8::Integer::New(isolate, 1))));
-  CHECK(v8_str("140000")->Equals(result->Get(v8::Integer::New(isolate, 2))));
+  // Indexed properties + indexed interceptor properties in numerical order.
+  CHECK(v8_str("0")->Equals(result->Get(v8::Integer::New(isolate, 0))));
+  CHECK(v8_str("1")->Equals(result->Get(v8::Integer::New(isolate, 1))));
+  CHECK(v8_str("5")->Equals(result->Get(v8::Integer::New(isolate, 2))));
+  CHECK(v8_str("10")->Equals(result->Get(v8::Integer::New(isolate, 3))));
+  CHECK(v8_str("140000")->Equals(result->Get(v8::Integer::New(isolate, 4))));
   CHECK(
-      v8_str("4294967294")->Equals(result->Get(v8::Integer::New(isolate, 3))));
-  // Indexed interceptor properties in the order they are returned
-  // from the enumerator interceptor.
-  CHECK(v8_str("0")->Equals(result->Get(v8::Integer::New(isolate, 4))));
-  CHECK(v8_str("1")->Equals(result->Get(v8::Integer::New(isolate, 5))));
+      v8_str("4294967294")->Equals(result->Get(v8::Integer::New(isolate, 5))));
   // Named properties in insertion order.
   CHECK(v8_str("a")->Equals(result->Get(v8::Integer::New(isolate, 6))));
   CHECK(v8_str("b")->Equals(result->Get(v8::Integer::New(isolate, 7))));

@@ -7530,7 +7530,7 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
 
 
 KeyAccumulator::~KeyAccumulator() {
-  for (int i = 0; i < elements_.length(); i++) {
+  for (size_t i = 0; i < elements_.size(); i++) {
     delete elements_[i];
   }
 }
@@ -7551,7 +7551,7 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   Handle<FixedArray> result = isolate_->factory()->NewFixedArray(length_);
   int index = 0;
   int properties_index = 0;
-  for (int level = 0; level < levelLengths_.length(); level++) {
+  for (size_t level = 0; level < levelLengths_.size(); level++) {
     int num_total = levelLengths_[level];
     int num_elements = 0;
     if (num_total < 0) {
@@ -7559,9 +7559,9 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
       // proxy, hence we skip the integer keys in |elements_| since proxies
       // define the complete ordering.
       num_total = -num_total;
-    } else if (level < elements_.length()) {
-      List<uint32_t>* elements = elements_[level];
-      num_elements = elements->length();
+    } else if (level < elements_.size()) {
+      std::vector<uint32_t>* elements = elements_[level];
+      num_elements = static_cast<int>(elements->size());
       for (int i = 0; i < num_elements; i++) {
         Handle<Object> key;
         if (convert == KEEP_NUMBERS) {
@@ -7582,6 +7582,7 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
       properties_index++;
     }
   }
+
   DCHECK_EQ(index, length_);
   return result;
 }
@@ -7589,22 +7590,8 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
 
 namespace {
 
-class FindKey {
- public:
-  explicit FindKey(uint32_t key) : key_(key) {}
-  int operator()(uint32_t* entry) {
-    if (*entry == key_) return 0;
-    return *entry < key_ ? -1 : 1;
-  }
-
- private:
-  uint32_t key_;
-};
-
-
-bool AccumulatorHasKey(List<uint32_t>* sub_elements, uint32_t key) {
-  int index = SortedListBSearch(*sub_elements, FindKey(key));
-  return index != -1;
+bool AccumulatorHasKey(std::vector<uint32_t>* sub_elements, uint32_t key) {
+  return std::binary_search(sub_elements->begin(), sub_elements->end(), key);
 }
 
 }  // namespace
@@ -7612,12 +7599,14 @@ bool AccumulatorHasKey(List<uint32_t>* sub_elements, uint32_t key) {
 
 bool KeyAccumulator::AddKey(uint32_t key) {
   // Make sure we do not add keys to a proxy-level (see AddKeysFromProxy).
+  // We mark proxy-levels with a negative length
   DCHECK_LE(0, levelLength_);
-  int lookup_limit = elements_.length();
-  for (int i = 0; i < lookup_limit; i++) {
-    if (AccumulatorHasKey(elements_[i], key)) return false;
+  // Binary search over all but the last level. The last one might not be
+  // sorted yet.
+  for (size_t i = 1; i < elements_.size(); i++) {
+    if (AccumulatorHasKey(elements_[i - 1], key)) return false;
   }
-  elements_[lookup_limit - 1]->Add(key);
+  elements_.back()->push_back(key);
   length_++;
   levelLength_++;
   return true;
@@ -7711,32 +7700,43 @@ void KeyAccumulator::AddKeysFromProxy(Handle<JSObject> array_like) {
 }
 
 
-namespace {
-
-// Used for sorting indices in a List<uint32_t>.
-int compareUInt32(const uint32_t* ap, const uint32_t* bp) {
-  uint32_t a = *ap;
-  uint32_t b = *bp;
-  return (a == b) ? 0 : (a < b) ? -1 : 1;
+void KeyAccumulator::AddElementKeysFromInterceptor(
+    Handle<JSObject> array_like) {
+  AddKeys(array_like, CONVERT_TO_ARRAY_INDEX);
+  // The interceptor might introduce duplicates for the current level, since
+  // these keys get added after the objects's normal element keys.
+  SortCurrentElementsListRemoveDuplicates();
 }
 
 
-}  // namespace
+void KeyAccumulator::SortCurrentElementsListRemoveDuplicates() {
+  // Sort and remove duplciated from the current elements level and adjust
+  // the lengths accordingly.
+  auto last_level = elements_.back();
+  size_t nof_removed_keys = last_level->size();
+  std::sort(last_level->begin(), last_level->end());
+  last_level->erase(std::unique(last_level->begin(), last_level->end()),
+                    last_level->end());
+  // Adjust total length / level length by the number of removed duplicates
+  nof_removed_keys -= last_level->size();
+  levelLength_ -= static_cast<int>(nof_removed_keys);
+  length_ -= static_cast<int>(nof_removed_keys);
+}
 
 
 void KeyAccumulator::SortCurrentElementsList() {
-  if (elements_.length() == 0) return;
-  List<uint32_t>* element_keys = elements_[elements_.length() - 1];
-  element_keys->Sort(&compareUInt32);
+  if (elements_.empty()) return;
+  auto element_keys = elements_.back();
+  std::sort(element_keys->begin(), element_keys->end());
 }
 
 
 void KeyAccumulator::NextPrototype() {
   // Store the protoLength on the first call of this method.
-  if (!elements_.is_empty()) {
-    levelLengths_.Add(levelLength_);
+  if (!elements_.empty()) {
+    levelLengths_.push_back(levelLength_);
   }
-  elements_.Add(new List<uint32_t>());
+  elements_.push_back(new std::vector<uint32_t>());
   levelLength_ = 0;
 }
 
@@ -7750,7 +7750,6 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
   KeyAccumulator accumulator(isolate, filter);
   Handle<JSFunction> arguments_function(
       JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
-
   PrototypeIterator::WhereToEnd end = type == OWN_ONLY
                                           ? PrototypeIterator::END_AT_NON_HIDDEN
                                           : PrototypeIterator::END_AT_NULL;
@@ -7795,7 +7794,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       Handle<JSObject> result;
       if (JSObject::GetKeysForIndexedInterceptor(current, object)
               .ToHandle(&result)) {
-        accumulator.AddKeys(result, CONVERT_TO_ARRAY_INDEX);
+        accumulator.AddElementKeysFromInterceptor(result);
       }
     }
 
