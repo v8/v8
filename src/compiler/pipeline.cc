@@ -1097,7 +1097,11 @@ Handle<Code> Pipeline::GenerateCode() {
   base::SmartPointer<Typer> typer;
   if (info()->is_typing_enabled()) {
     // Type the graph.
-    typer.Reset(new Typer(isolate(), data.graph(), info()->function_type()));
+    typer.Reset(new Typer(isolate(), data.graph(),
+                          info()->is_deoptimization_enabled()
+                              ? Typer::kDeoptimizationEnabled
+                              : Typer::kNoFlags,
+                          info()->dependencies(), info()->function_type()));
     Run<TyperPhase>(typer.get());
     RunPrintAndVerify("Typed");
   }

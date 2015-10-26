@@ -176,6 +176,7 @@ class FunctionTester : public InitializedHandleScope {
     Pipeline pipeline(&info);
     Handle<Code> code = pipeline.GenerateCode();
     CHECK(!code.is_null());
+    info.dependencies()->Commit(code);
     info.context()->native_context()->AddOptimizedCode(*code);
     function->ReplaceCode(*code);
     return function;

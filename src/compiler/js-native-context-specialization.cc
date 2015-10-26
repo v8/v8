@@ -109,7 +109,10 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
       property_cell_value_type = Type::Intersect(
           Type::Number(), Type::TaggedPointer(), graph()->zone());
     } else {
-      property_cell_value_type = Type::Of(property_cell_value, graph()->zone());
+      Handle<Map> property_cell_value_map(
+          Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
+      property_cell_value_type =
+          Type::Class(property_cell_value_map, graph()->zone());
     }
     Node* value = effect = graph()->NewNode(
         simplified()->LoadField(
@@ -407,17 +410,10 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
             // TODO(bmeurer): It would be awesome to make this saner in the
             // runtime/GC interaction.
             field_type = Type::TaggedPointer();
-          } else {
+          } else if (!Type::Any()->Is(field_type)) {
             // Add proper code dependencies in case of stable field map(s).
-            if (field_type->NumClasses() > 0 && field_type->NowStable()) {
-              dependencies()->AssumeFieldType(
-                  handle(map->FindFieldOwner(number), isolate()));
-              for (auto i = field_type->Classes(); !i.Done(); i.Advance()) {
-                dependencies()->AssumeMapStable(i.Current());
-              }
-            } else {
-              field_type = Type::TaggedPointer();
-            }
+            Handle<Map> field_owner_map(map->FindFieldOwner(number), isolate());
+            dependencies()->AssumeFieldType(field_owner_map);
           }
           DCHECK(field_type->Is(Type::TaggedPointer()));
         }
