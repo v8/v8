@@ -2881,6 +2881,96 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
 }
 
 
+static void IndexedPropertyEnumeratorException(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {
+  info.GetIsolate()->ThrowException(v8_num(42));
+}
+
+
+THREADED_TEST(GetOwnPropertyNamesWithIndexedInterceptorExceptions_regress4026) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
+
+  obj_template->Set(v8_str("7"), v8::Integer::New(CcTest::isolate(), 7));
+  obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
+  // First just try a failing indexed interceptor.
+  obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      NULL, NULL, NULL, NULL, IndexedPropertyEnumeratorException));
+
+  LocalContext context;
+  v8::Handle<v8::Object> global = context->Global();
+  global->Set(v8_str("object"), obj_template->NewInstance());
+  v8::Handle<v8::Value> result = CompileRun(
+      "var result  = []; "
+      "try { "
+      "  for (var k in object) result .push(k);"
+      "} catch (e) {"
+      "  result  = e"
+      "}"
+      "result ");
+  CHECK(!result->IsArray());
+  CHECK(v8_num(42)->Equals(result));
+
+  result = CompileRun(
+      "var result = [];"
+      "try { "
+      "  result = Object.keys(object);"
+      "} catch (e) {"
+      "  result = e;"
+      "}"
+      "result");
+  CHECK(!result->IsArray());
+  CHECK(v8_num(42)->Equals(result));
+}
+
+
+static void NamedPropertyEnumeratorException(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {
+  info.GetIsolate()->ThrowException(v8_num(43));
+}
+
+
+THREADED_TEST(GetOwnPropertyNamesWithNamedInterceptorExceptions_regress4026) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
+
+  obj_template->Set(v8_str("7"), v8::Integer::New(CcTest::isolate(), 7));
+  obj_template->Set(v8_str("x"), v8::Integer::New(CcTest::isolate(), 42));
+  // First just try a failing indexed interceptor.
+  obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      NULL, NULL, NULL, NULL, NamedPropertyEnumeratorException));
+
+  LocalContext context;
+  v8::Handle<v8::Object> global = context->Global();
+  global->Set(v8_str("object"), obj_template->NewInstance());
+
+  v8::Handle<v8::Value> result = CompileRun(
+      "var result = []; "
+      "try { "
+      "  for (var k in object) result.push(k);"
+      "} catch (e) {"
+      "  result = e"
+      "}"
+      "result");
+  CHECK(!result->IsArray());
+  CHECK(v8_num(43)->Equals(result));
+
+  result = CompileRun(
+      "var result = [];"
+      "try { "
+      "  result = Object.keys(object);"
+      "} catch (e) {"
+      "  result = e;"
+      "}"
+      "result");
+  CHECK(!result->IsArray());
+  CHECK(v8_num(43)->Equals(result));
+}
+
 namespace {
 
 template <typename T>

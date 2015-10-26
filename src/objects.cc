@@ -7833,6 +7833,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
               .ToHandle(&result)) {
         accumulator.AddElementKeysFromInterceptor(result);
       }
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
     }
 
     if (filter == SKIP_SYMBOLS) {
@@ -7872,6 +7873,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
               .ToHandle(&result)) {
         accumulator.AddKeys(result);
       }
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
     }
   }
 
