@@ -417,8 +417,8 @@ static inline bool IsContiguousMask64(uint64_t value, int* mb, int* me) {
 void InstructionSelector::VisitWord32And(Node* node) {
   PPCOperandGenerator g(this);
   Int32BinopMatcher m(node);
-  int mb;
-  int me;
+  int mb = 0;
+  int me = 0;
   if (m.right().HasValue() && IsContiguousMask32(m.right().Value(), &mb, &me)) {
     int sh = 0;
     Node* left = m.left().node();
@@ -456,8 +456,8 @@ void InstructionSelector::VisitWord32And(Node* node) {
 void InstructionSelector::VisitWord64And(Node* node) {
   PPCOperandGenerator g(this);
   Int64BinopMatcher m(node);
-  int mb;
-  int me;
+  int mb = 0;
+  int me = 0;
   if (m.right().HasValue() && IsContiguousMask64(m.right().Value(), &mb, &me)) {
     int sh = 0;
     Node* left = m.left().node();
