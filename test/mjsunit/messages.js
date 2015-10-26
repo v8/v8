@@ -62,10 +62,10 @@ test(function() {
   Array.prototype.shift.call(null);
 }, "Array.prototype.shift called on null or undefined", TypeError);
 
-// kCannotPreventExtExternalArray
+// kCannotFreezeArrayBufferView
 test(function() {
-  Object.preventExtensions(new Uint16Array(1));
-}, "Cannot prevent extension of an object with external array elements", TypeError);
+  Object.freeze(new Uint16Array(1));
+}, "Cannot freeze array buffer views with elements", TypeError);
 
 // kConstAssign
 test(function() {

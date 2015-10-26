@@ -6794,19 +6794,15 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
                              should_throw);
   }
 
-  // It's not possible to seal objects with external array elements
-  if (object->HasFixedTypedArrayElements()) {
-    isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kCannotPreventExtExternalArray));
-    return Nothing<bool>();
+  if (!object->HasFixedTypedArrayElements()) {
+    // If there are fast elements we normalize.
+    Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
+    DCHECK(object->HasDictionaryElements() ||
+           object->HasSlowArgumentsElements());
+
+    // Make sure that we never go back to fast case.
+    object->RequireSlowElements(*dictionary);
   }
-
-  // If there are fast elements we normalize.
-  Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
-  DCHECK(object->HasDictionaryElements() || object->HasSlowArgumentsElements());
-
-  // Make sure that we never go back to fast case.
-  object->RequireSlowElements(*dictionary);
 
   // Do a map transition, other objects with this map may still
   // be extensible.
@@ -6895,15 +6891,9 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
         PrototypeIterator::GetCurrent<JSObject>(iter), should_throw);
   }
 
-  // It's not possible to seal or freeze objects with external array elements
-  if (object->HasFixedTypedArrayElements()) {
-    isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kCannotPreventExtExternalArray));
-    return Nothing<bool>();
-  }
-
   Handle<SeededNumberDictionary> new_element_dictionary;
-  if (!object->HasDictionaryElements()) {
+  if (!object->HasFixedTypedArrayElements() &&
+      !object->HasDictionaryElements()) {
     int length =
         object->IsJSArray()
             ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
@@ -6929,7 +6919,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
       TransitionArray::SearchSpecial(*old_map, *transition_marker);
   if (transition != NULL) {
     Handle<Map> transition_map(transition, isolate);
-    DCHECK(transition_map->has_dictionary_elements());
+    DCHECK(transition_map->has_dictionary_elements() ||
+           transition_map->has_fixed_typed_array_elements());
     DCHECK(!transition_map->is_extensible());
     JSObject::MigrateToMap(object, transition_map);
   } else if (TransitionArray::CanHaveMoreTransitions(old_map)) {
@@ -6948,7 +6939,9 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     Handle<Map> new_map =
         Map::Copy(handle(object->map()), "SlowCopyForPreventExtensions");
     new_map->set_is_extensible(false);
-    new_map->set_elements_kind(DICTIONARY_ELEMENTS);
+    if (!new_element_dictionary.is_null()) {
+      new_map->set_elements_kind(DICTIONARY_ELEMENTS);
+    }
     JSObject::MigrateToMap(object, new_map);
 
     if (attrs != NONE) {
@@ -6958,6 +6951,18 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
         ApplyAttributesToDictionary(object->property_dictionary(), attrs);
       }
     }
+  }
+
+  // Both seal and preventExtensions always go through without modifications to
+  // typed array elements. Freeze works only if there are no actual elements.
+  if (object->HasFixedTypedArrayElements()) {
+    if (attrs == FROZEN &&
+        JSArrayBufferView::cast(*object)->byte_length()->Number() > 0) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kCannotFreezeArrayBufferView));
+      return Nothing<bool>();
+    }
+    return Just(true);
   }
 
   DCHECK(object->map()->has_dictionary_elements());
@@ -8520,7 +8525,9 @@ Handle<Map> Map::CopyForPreventExtensions(Handle<Map> map,
       map, new_desc, new_layout_descriptor, INSERT_TRANSITION,
       transition_marker, reason, SPECIAL_TRANSITION);
   new_map->set_is_extensible(false);
-  new_map->set_elements_kind(DICTIONARY_ELEMENTS);
+  if (!IsFixedTypedArrayElementsKind(map->elements_kind())) {
+    new_map->set_elements_kind(DICTIONARY_ELEMENTS);
+  }
   return new_map;
 }
 

@@ -95,8 +95,8 @@ class CallSite {
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
-  T(CannotPreventExtExternalArray,                                             \
-    "Cannot prevent extension of an object with external array elements")      \
+  T(CannotFreezeArrayBufferView,                                               \
+    "Cannot freeze array buffer views with elements")                          \
   T(CircularStructure, "Converting circular structure to JSON")                \
   T(ConstAssign, "Assignment to constant variable.")                           \
   T(ConstructorNonCallable,                                                    \
