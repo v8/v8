@@ -966,8 +966,8 @@ class V8_EXPORT SealHandleScope {
   void operator delete(void*, size_t);
 
   internal::Isolate* isolate_;
-  int prev_level_;
   internal::Object** prev_limit_;
+  int prev_sealed_level_;
 };
 
 

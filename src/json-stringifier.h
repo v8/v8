@@ -222,6 +222,7 @@ MaybeHandle<Object> BasicJsonStringifier::StringifyString(
     SerializeStringUnchecked_(object->GetFlatContent().ToOneByteVector(),
                               &no_extend);
     no_extend.Append('\"');
+    return no_extend.Finalize();
   } else {
     result = isolate->factory()
                  ->NewRawTwoByteString(worst_case_length)
@@ -232,8 +233,8 @@ MaybeHandle<Object> BasicJsonStringifier::StringifyString(
     SerializeStringUnchecked_(object->GetFlatContent().ToUC16Vector(),
                               &no_extend);
     no_extend.Append('\"');
+    return no_extend.Finalize();
   }
-  return result;
 }
 
 

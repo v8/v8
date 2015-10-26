@@ -1874,8 +1874,6 @@ void Isolate::ClearSerializerData() {
   external_reference_table_ = NULL;
   delete external_reference_map_;
   external_reference_map_ = NULL;
-  delete root_index_map_;
-  root_index_map_ = NULL;
 }
 
 
@@ -1934,6 +1932,9 @@ void Isolate::Deinit() {
   heap_profiler_ = NULL;
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
+
+  delete root_index_map_;
+  root_index_map_ = NULL;
 
   ClearSerializerData();
 }

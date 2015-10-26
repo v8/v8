@@ -36,7 +36,7 @@ class AllocationSiteContext {
 
   void InitializeTraversal(Handle<AllocationSite> site) {
     top_ = site;
-    current_ = Handle<AllocationSite>(*top_, isolate());
+    current_ = Handle<AllocationSite>::New(*top_, isolate());
   }
 
  private:
