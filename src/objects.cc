@@ -6771,8 +6771,6 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
                                         ShouldThrow should_throw) {
   Isolate* isolate = object->GetIsolate();
 
-  if (!object->map()->is_extensible()) return Just(true);
-
   if (!object->HasSloppyArgumentsElements() && !object->map()->is_observed()) {
     return PreventExtensionsWithTransition<NONE>(object, should_throw);
   }
@@ -6785,6 +6783,8 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kNoAccess));
   }
+
+  if (!object->map()->is_extensible()) return Just(true);
 
   if (object->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, object);
@@ -6882,6 +6882,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kNoAccess));
   }
+
+  if (attrs == NONE && !object->map()->is_extensible()) return Just(true);
 
   if (object->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, object);

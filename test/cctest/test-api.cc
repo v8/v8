@@ -8660,6 +8660,15 @@ TEST(AccessControl) {
       "})()");
   CHECK(value->IsTrue());
 
+  // Test that preventExtensions fails on a non-accessible object even if that
+  // object is already non-extensible.
+  global1->Set(v8_str("checked_object"), global_template->NewInstance());
+  allowed_access = true;
+  CompileRun("Object.preventExtensions(checked_object)");
+  ExpectFalse("Object.isExtensible(checked_object)");
+  allowed_access = false;
+  CHECK(CompileRun("Object.preventExtensions(checked_object)").IsEmpty());
+
   context1->Exit();
   context0->Exit();
 }
