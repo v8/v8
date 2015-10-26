@@ -123,6 +123,7 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
 
   Handle<Map> map =
       isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  map->set_is_prototype_map(true);
   if (constructor->map()->is_strong()) {
     map->set_is_strong();
     if (super_class->IsNull()) {
@@ -223,7 +224,6 @@ RUNTIME_FUNCTION(Runtime_FinalizeClassDefinition) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, constructor, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, prototype, 1);
 
-  JSObject::MigrateSlowToFast(prototype, 0, "RuntimeToFastProperties");
   JSObject::MigrateSlowToFast(constructor, 0, "RuntimeToFastProperties");
 
   if (constructor->map()->is_strong()) {
