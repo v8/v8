@@ -26,7 +26,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
       has_frame_(false) {
   if (isolate() != NULL) {
     code_object_ =
-        Handle<Object>(isolate()->heap()->undefined_value(), isolate());
+        Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
   }
 }
 
