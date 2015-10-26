@@ -1011,8 +1011,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
 
   it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
-  UNREACHABLE();
-  return MaybeHandle<Object>();
+  return it->factory()->undefined_value();
 }
 
 
@@ -1031,8 +1030,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
   it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(),
                                       Nothing<PropertyAttributes>());
-  UNREACHABLE();
-  return Nothing<PropertyAttributes>();
+  return Just(ABSENT);
 }
 
 
@@ -1061,6 +1059,8 @@ Maybe<bool> JSObject::SetPropertyWithFailedAccessCheck(
   it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
   UNREACHABLE();
+  it->isolate()->Throw(
+      *it->isolate()->factory()->NewTypeError(MessageTemplate::kNoAccess));
   return Nothing<bool>();
 }
 
@@ -4792,7 +4792,7 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
         if (!it->HasAccess()) {
           it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>());
           RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
-          UNREACHABLE();
+          return value;
         }
         break;
 
@@ -5821,7 +5821,7 @@ MaybeHandle<Object> JSReceiver::DeleteProperty(LookupIterator* it,
         if (it->HasAccess()) break;
         isolate->ReportFailedAccessCheck(it->GetHolder<JSObject>());
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-        UNREACHABLE();
+        return it->factory()->false_value();
       case LookupIterator::INTERCEPTOR: {
         MaybeHandle<Object> maybe_result =
             JSObject::DeletePropertyWithInterceptor(it);
@@ -6782,6 +6782,8 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     UNREACHABLE();
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kNoAccess));
   }
 
   if (object->IsJSGlobalProxy()) {
@@ -6877,6 +6879,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     UNREACHABLE();
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kNoAccess));
   }
 
   if (object->IsJSGlobalProxy()) {
@@ -7778,7 +7782,6 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       if (iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
         isolate->ReportFailedAccessCheck(current);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
-        UNREACHABLE();
       }
       break;
     }
@@ -7891,7 +7894,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
     if (!it->HasAccess()) {
       isolate->ReportFailedAccessCheck(it->GetHolder<JSObject>());
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-      UNREACHABLE();
+      return isolate->factory()->undefined_value();
     }
     it->Next();
   }
@@ -7956,7 +7959,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
     if (!it.HasAccess()) {
       isolate->ReportFailedAccessCheck(object);
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-      UNREACHABLE();
+      return it.factory()->undefined_value();
     }
     it.Next();
   }
@@ -8003,7 +8006,7 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
         if (it.HasAccess()) continue;
         isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-        UNREACHABLE();
+        return isolate->factory()->undefined_value();
 
       case LookupIterator::JSPROXY:
         return isolate->factory()->undefined_value();

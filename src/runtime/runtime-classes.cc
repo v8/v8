@@ -272,7 +272,6 @@ static MaybeHandle<Object> LoadFromSuper(Isolate* isolate,
       !isolate->MayAccess(handle(isolate->context()), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    UNREACHABLE();
   }
 
   PrototypeIterator iter(isolate, home_object);
@@ -298,7 +297,6 @@ static MaybeHandle<Object> LoadElementFromSuper(Isolate* isolate,
       !isolate->MayAccess(handle(isolate->context()), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    UNREACHABLE();
   }
 
   PrototypeIterator iter(isolate, home_object);
@@ -376,7 +374,6 @@ static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
       !isolate->MayAccess(handle(isolate->context()), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-    UNREACHABLE();
   }
 
   PrototypeIterator iter(isolate, home_object);
@@ -402,7 +399,6 @@ static Object* StoreElementToSuper(Isolate* isolate,
       !isolate->MayAccess(handle(isolate->context()), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-    UNREACHABLE();
   }
 
   PrototypeIterator iter(isolate, home_object);
