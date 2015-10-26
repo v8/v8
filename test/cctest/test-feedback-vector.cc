@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(mvstanton): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -20,6 +23,15 @@ namespace {
 
 #define CHECK_SLOT_KIND(helper, index, expected_kind) \
   CHECK_EQ(expected_kind, helper.vector()->GetKind(helper.slot(index)));
+
+
+static Handle<JSFunction> GetFunction(const char* name) {
+  v8::MaybeLocal<v8::Value> v8_f = CcTest::global()->Get(
+      v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str(name));
+  Handle<JSFunction> f =
+      Handle<JSFunction>::cast(v8::Utils::OpenHandle(*v8_f.ToLocalChecked()));
+  return f;
+}
 
 
 TEST(VectorStructure) {
@@ -200,8 +212,7 @@ TEST(VectorICProfilerStatistics) {
   CompileRun(
       "function fun() {};"
       "function f(a) { a(); } f(fun);");
-  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
+  Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<Code> code = handle(f->shared()->code(), isolate);
   TypeFeedbackInfo* feedback_info =
@@ -255,8 +266,7 @@ TEST(VectorCallICStates) {
   CompileRun(
       "function foo() { return 17; }"
       "function f(a) { a(); } f(foo);");
-  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
+  Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
@@ -297,8 +307,7 @@ TEST(VectorLoadICStates) {
   CompileRun(
       "var o = { foo: 3 };"
       "function f(a) { return a.foo; } f(o);");
-  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
+  Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
@@ -309,8 +318,10 @@ TEST(VectorLoadICStates) {
   CompileRun("f(o)");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   // Verify that the monomorphic map is the one we expect.
-  Handle<JSObject> o = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Object>::Cast(CcTest::global()->Get(v8_str("o"))));
+  v8::MaybeLocal<v8::Value> v8_o =
+      CcTest::global()->Get(context.local(), v8_str("o"));
+  Handle<JSObject> o =
+      Handle<JSObject>::cast(v8::Utils::OpenHandle(*v8_o.ToLocalChecked()));
   CHECK_EQ(o->map(), nexus.FindFirstMap());
 
   // Now go polymorphic.
@@ -355,8 +366,7 @@ TEST(VectorLoadICSlotSharing) {
       "  return o + x + o;"
       "}"
       "f();");
-  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
+  Handle<JSFunction> f = GetFunction("f");
   // There should be one IC slot.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
@@ -380,8 +390,7 @@ TEST(VectorLoadICOnSmi) {
   CompileRun(
       "var o = { foo: 3 };"
       "function f(a) { return a.foo; } f(o);");
-  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
+  Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
@@ -404,8 +413,10 @@ TEST(VectorLoadICOnSmi) {
   CHECK_EQ(2, maps.length());
 
   // One of the maps should be the o map.
-  Handle<JSObject> o = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Object>::Cast(CcTest::global()->Get(v8_str("o"))));
+  v8::MaybeLocal<v8::Value> v8_o =
+      CcTest::global()->Get(context.local(), v8_str("o"));
+  Handle<JSObject> o =
+      Handle<JSObject>::cast(v8::Utils::OpenHandle(*v8_o.ToLocalChecked()));
   bool number_map_found = false;
   bool o_map_found = false;
   for (int i = 0; i < maps.length(); i++) {
@@ -423,13 +434,6 @@ TEST(VectorLoadICOnSmi) {
   MapHandleList maps2;
   nexus.FindAllMaps(&maps2);
   CHECK_EQ(2, maps2.length());
-}
-
-
-static Handle<JSFunction> GetFunction(const char* name) {
-  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str(name)))));
-  return f;
 }
 
 
