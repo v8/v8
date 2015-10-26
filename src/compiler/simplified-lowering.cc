@@ -1163,8 +1163,7 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
 
 
 void SimplifiedLowering::LowerAllNodes() {
-  RepresentationChanger changer(jsgraph(), jsgraph()->simplified(),
-                                jsgraph()->isolate());
+  RepresentationChanger changer(jsgraph(), jsgraph()->isolate());
   RepresentationSelector selector(jsgraph(), zone_, &changer,
                                   source_positions_);
   selector.Run(this);

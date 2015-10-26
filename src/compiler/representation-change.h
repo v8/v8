@@ -21,10 +21,8 @@ namespace compiler {
 // Eagerly folds any representation changes for constants.
 class RepresentationChanger {
  public:
-  RepresentationChanger(JSGraph* jsgraph, SimplifiedOperatorBuilder* simplified,
-                        Isolate* isolate)
+  RepresentationChanger(JSGraph* jsgraph, Isolate* isolate)
       : jsgraph_(jsgraph),
-        simplified_(simplified),
         isolate_(isolate),
         testing_type_errors_(false),
         type_error_(false) {}
@@ -413,7 +411,6 @@ class RepresentationChanger {
 
  private:
   JSGraph* jsgraph_;
-  SimplifiedOperatorBuilder* simplified_;
   Isolate* isolate_;
 
   friend class RepresentationChangerTester;  // accesses the below fields.
@@ -453,7 +450,7 @@ class RepresentationChanger {
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const { return isolate_; }
   Factory* factory() const { return isolate()->factory(); }
-  SimplifiedOperatorBuilder* simplified() { return simplified_; }
+  SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
 };
 
