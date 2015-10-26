@@ -1180,9 +1180,10 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         DCHECK(instr->arch_opcode() == kMips64CmpS);
         __ cmp(cc, W, kDoubleCompareReg, left, right);
       }
-      __ dmfc1(at, kDoubleCompareReg);
-      __ dsrl32(result, at, 31);  // Cmp returns all 1s for true.
-      if (!predicate)             // Toggle result for not equal.
+      __ dmfc1(result, kDoubleCompareReg);
+      __ andi(result, result, 1);  // Cmp returns all 1's/0's, use only LSB.
+
+      if (!predicate)  // Toggle result for not equal.
         __ xori(result, result, 1);
     }
     return;
