@@ -2009,7 +2009,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
                           nullptr).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Function);
   RETURN_ESCAPED(
-      Utils::FunctionToLocal(i::Handle<i::JSFunction>::cast(result)));
+      Utils::CallableToLocal(i::Handle<i::JSFunction>::cast(result)));
 }
 
 
@@ -4540,7 +4540,7 @@ Local<v8::Value> Function::GetBoundFunction() const {
       i::BindingsArray::cast(func->function_bindings()));
   i::Handle<i::Object> original(bound_args->bound_function(),
                                 func->GetIsolate());
-  return Utils::FunctionToLocal(i::Handle<i::JSFunction>::cast(original));
+  return Utils::CallableToLocal(i::Handle<i::JSFunction>::cast(original));
 }
 
 
@@ -7768,7 +7768,7 @@ MaybeLocal<Value> Debug::GetMirror(Local<Context> context,
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
   auto name = isolate->factory()->NewStringFromStaticChars("MakeMirror");
   auto fun_obj = i::Object::GetProperty(debug, name).ToHandleChecked();
-  auto v8_fun = Utils::FunctionToLocal(i::Handle<i::JSFunction>::cast(fun_obj));
+  auto v8_fun = Utils::CallableToLocal(i::Handle<i::JSFunction>::cast(fun_obj));
   const int kArgc = 1;
   v8::Local<v8::Value> argv[kArgc] = {obj};
   Local<Value> result;

@@ -5881,7 +5881,7 @@ TEST(Regress1878) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::Function> constructor = v8::Utils::FunctionToLocal(
+  v8::Local<v8::Function> constructor = v8::Utils::CallableToLocal(
       CcTest::i_isolate()->internal_array_function());
   CcTest::global()->Set(v8_str("InternalArray"), constructor);
 

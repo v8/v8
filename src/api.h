@@ -267,7 +267,7 @@ class Utils {
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<NativeWeakMap> NativeWeakMapToLocal(
       v8::internal::Handle<v8::internal::JSWeakMap> obj);
-  static inline Local<Function> FunctionToLocal(
+  static inline Local<Function> CallableToLocal(
       v8::internal::Handle<v8::internal::JSReceiver> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To) \
@@ -379,7 +379,7 @@ MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
 MAKE_TO_LOCAL(NativeWeakMapToLocal, JSWeakMap, NativeWeakMap)
-MAKE_TO_LOCAL(FunctionToLocal, JSReceiver, Function)
+MAKE_TO_LOCAL(CallableToLocal, JSReceiver, Function)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
