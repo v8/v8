@@ -34,8 +34,6 @@
 
   # Slow tests.
   'kraken/imaging-gaussian-blur': [PASS, SLOW],
-  # TODO(turbofan): Fails in register allocator verifier. Needs investigation.
-  # Note: Keep SLOW modifier when removing NO_VARIANTS.
-  'octane/typescript': [PASS, SLOW, NO_VARIANTS],
+  'octane/typescript': [PASS, SLOW],
 }],  # ALWAYS
 ]
