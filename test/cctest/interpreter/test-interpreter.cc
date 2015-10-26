@@ -2264,3 +2264,37 @@ TEST(InterpreterCreateArguments) {
     CHECK(return_val->SameValue(*args[create_args[i].second]));
   }
 }
+
+
+TEST(InterpreterConditional) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> conditional[8] = {
+      std::make_pair("return true ? 2 : 3;",
+                     handle(Smi::FromInt(2), isolate)),
+      std::make_pair("return false ? 2 : 3;",
+                     handle(Smi::FromInt(3), isolate)),
+      std::make_pair("var a = 1; return a ? 20 : 30;",
+                     handle(Smi::FromInt(20), isolate)),
+      std::make_pair("var a = 1; return a ? 20 : 30;",
+                     handle(Smi::FromInt(20), isolate)),
+      std::make_pair("var a = 'string'; return a ? 20 : 30;",
+                     handle(Smi::FromInt(20), isolate)),
+      std::make_pair("var a = undefined; return a ? 20 : 30;",
+                     handle(Smi::FromInt(30), isolate)),
+      std::make_pair("return 1 ? 2 ? 3 : 4 : 5;",
+                     handle(Smi::FromInt(3), isolate)),
+      std::make_pair("return 0 ? 2 ? 3 : 4 : 5;",
+                     handle(Smi::FromInt(5), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(conditional); i++) {
+    std::string source(InterpreterTester::SourceForBody(conditional[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*conditional[i].second));
+  }
+}

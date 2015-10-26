@@ -656,7 +656,26 @@ void BytecodeGenerator::VisitDoExpression(DoExpression* expr) {
 }
 
 
-void BytecodeGenerator::VisitConditional(Conditional* expr) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitConditional(Conditional* expr) {
+  // TODO(rmcilroy): Spot easy cases where there code would not need to
+  // emit the then block or the else block, e.g. condition is
+  // obviously true/1/false/0.
+
+  BytecodeLabel else_label, end_label;
+
+  VisitForAccumulatorValue(expr->condition());
+  builder()->CastAccumulatorToBoolean();
+  builder()->JumpIfFalse(&else_label);
+
+  VisitForAccumulatorValue(expr->then_expression());
+  builder()->Jump(&end_label);
+
+  builder()->Bind(&else_label);
+  VisitForAccumulatorValue(expr->else_expression());
+  builder()->Bind(&end_label);
+
+  execution_result()->SetResultInAccumulator();
+}
 
 
 void BytecodeGenerator::VisitLiteral(Literal* expr) {

@@ -3493,6 +3493,52 @@ TEST(IllegalRedeclaration) {
   }
 }
 
+
+TEST(Conditional) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<int> snippets[] = {
+      {"return 1 ? 2 : 3;",
+       0,
+       1,
+       12,
+       {
+           B(LdaSmi8), U8(1),      //
+           B(ToBoolean),           //
+           B(JumpIfFalse), U8(6),  //
+           B(LdaSmi8), U8(2),      //
+           B(Jump), U8(4),         //
+           B(LdaSmi8), U8(3),      //
+           B(Return),              //
+       }},
+      {"return 1 ? 2 ? 3 : 4 : 5;",
+       0,
+       1,
+       21,
+       {
+           B(LdaSmi8), U8(1),       //
+           B(ToBoolean),            //
+           B(JumpIfFalse), U8(15),  //
+           B(LdaSmi8), U8(2),       //
+           B(ToBoolean),            //
+           B(JumpIfFalse), U8(6),   //
+           B(LdaSmi8), U8(3),       //
+           B(Jump), U8(4),          //
+           B(LdaSmi8), U8(4),       //
+           B(Jump), U8(4),          //
+           B(LdaSmi8), U8(5),       //
+           B(Return),               //
+       }},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
