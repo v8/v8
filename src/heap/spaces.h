@@ -2771,6 +2771,10 @@ class NewSpace : public Space {
 
   bool IsFromSpaceCommitted() { return from_space_.is_committed(); }
 
+  inline intptr_t inline_allocation_limit_step() {
+    return inline_allocation_limit_step_;
+  }
+
   SemiSpace* active_space() { return &to_space_; }
 
  private:
