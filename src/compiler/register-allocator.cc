@@ -704,6 +704,13 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineType machine_type)
 }
 
 
+#if DEBUG
+int TopLevelLiveRange::debug_virt_reg() const {
+  return IsSplinter() ? splintered_from()->vreg() : vreg();
+}
+#endif
+
+
 void TopLevelLiveRange::SpillAtDefinition(Zone* zone, int gap_index,
                                           InstructionOperand* operand) {
   DCHECK(HasNoSpillType());
@@ -2213,6 +2220,55 @@ RegisterAllocator::RegisterAllocator(RegisterAllocationData* data,
           GetAllocatableRegisterCodes(data->config(), kind)) {}
 
 
+LifetimePosition RegisterAllocator::GetSplitPositionForInstruction(
+    const LiveRange* range, int instruction_index) {
+  LifetimePosition ret = LifetimePosition::Invalid();
+
+  ret = LifetimePosition::GapFromInstructionIndex(instruction_index);
+  if (range->Start() >= ret || ret >= range->End()) {
+    return LifetimePosition::Invalid();
+  }
+  return ret;
+}
+
+
+void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
+  size_t initial_range_count = data()->live_ranges().size();
+  for (size_t i = 0; i < initial_range_count; ++i) {
+    TopLevelLiveRange* range = data()->live_ranges()[i];
+    if (!CanProcessRange(range)) continue;
+    if (!range->HasSpillOperand()) continue;
+
+    LifetimePosition start = range->Start();
+    TRACE("Live range %d:%d is defined by a spill operand.\n",
+          range->TopLevel()->vreg(), range->relative_id());
+    LifetimePosition next_pos = start;
+    if (next_pos.IsGapPosition()) {
+      next_pos = next_pos.NextStart();
+    }
+    UsePosition* pos = range->NextUsePositionRegisterIsBeneficial(next_pos);
+    // If the range already has a spill operand and it doesn't need a
+    // register immediately, split it and spill the first part of the range.
+    if (pos == nullptr) {
+      Spill(range);
+    } else if (pos->pos() > range->Start().NextStart()) {
+      // Do not spill live range eagerly if use position that can benefit from
+      // the register is too close to the start of live range.
+      LifetimePosition split_pos = GetSplitPositionForInstruction(
+          range, pos->pos().ToInstructionIndex());
+      // There is no place to split, so we can't split and spill.
+      if (!split_pos.IsValid()) continue;
+
+      split_pos =
+          FindOptimalSplitPos(range->Start().NextFullStart(), split_pos);
+
+      SplitRangeAt(range, split_pos);
+      Spill(range);
+    }
+  }
+}
+
+
 LiveRange* RegisterAllocator::SplitRangeAt(LiveRange* range,
                                            LifetimePosition pos) {
   DCHECK(!range->TopLevel()->IsFixed());
@@ -2364,10 +2420,15 @@ void LinearScanAllocator::AllocateRegisters() {
   DCHECK(active_live_ranges().empty());
   DCHECK(inactive_live_ranges().empty());
 
-  for (LiveRange* range : data()->live_ranges()) {
-    if (range == nullptr) continue;
-    if (range->kind() == mode()) {
-      AddToUnhandledUnsorted(range);
+  SplitAndSpillRangesDefinedByMemoryOperand();
+
+  for (TopLevelLiveRange* range : data()->live_ranges()) {
+    if (!CanProcessRange(range)) continue;
+    for (LiveRange* to_add = range; to_add != nullptr;
+         to_add = to_add->next()) {
+      if (!to_add->spilled()) {
+        AddToUnhandledUnsorted(to_add);
+      }
     }
   }
   SortUnhandled();

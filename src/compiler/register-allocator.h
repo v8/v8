@@ -562,6 +562,10 @@ class TopLevelLiveRange final : public LiveRange {
   void UpdateSpillRangePostMerge(TopLevelLiveRange* merged);
   int vreg() const { return vreg_; }
 
+#if DEBUG
+  int debug_virt_reg() const;
+#endif
+
   int GetNextChildId() {
     return IsSplinter() ? splintered_from()->GetNextChildId()
                         : ++last_child_id_;
@@ -909,7 +913,15 @@ class RegisterAllocator : public ZoneObject {
     return allocatable_register_codes_[allocatable_index];
   }
 
+  // TODO(mtrofin): explain why splitting in gap START is always OK.
+  LifetimePosition GetSplitPositionForInstruction(const LiveRange* range,
+                                                  int instruction_index);
+
   Zone* allocation_zone() const { return data()->allocation_zone(); }
+
+  // Find the optimal split for ranges defined by a memory operand, e.g.
+  // constants or function parameters passed on the stack.
+  void SplitAndSpillRangesDefinedByMemoryOperand();
 
   // Split the given range at the given position.
   // If range starts at or after the given position then the
@@ -918,6 +930,11 @@ class RegisterAllocator : public ZoneObject {
   // all uses from the original range that follow pos. Uses at pos will
   // still be owned by the original range after splitting.
   LiveRange* SplitRangeAt(LiveRange* range, LifetimePosition pos);
+
+  bool CanProcessRange(LiveRange* range) const {
+    return range != nullptr && !range->IsEmpty() && range->kind() == mode();
+  }
+
 
   // Split the given range in a position from the interval [start, end].
   LiveRange* SplitBetween(LiveRange* range, LifetimePosition start,
