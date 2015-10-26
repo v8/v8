@@ -216,6 +216,9 @@ class InstructionSelector final {
   void VisitReturn(Node* ret);
   void VisitThrow(Node* value);
 
+  void EmitPrepareArguments(NodeVector* arguments,
+                            const CallDescriptor* descriptor, Node* node);
+
   // ===========================================================================
 
   Schedule* schedule() const { return schedule_; }

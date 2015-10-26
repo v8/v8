@@ -1011,6 +1011,67 @@ void InstructionSelector::VisitConstant(Node* node) {
 }
 
 
+void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
+  OperandGenerator g(this);
+  const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
+
+  FrameStateDescriptor* frame_state_descriptor = nullptr;
+  if (descriptor->NeedsFrameState()) {
+    frame_state_descriptor = GetFrameStateDescriptor(
+        node->InputAt(static_cast<int>(descriptor->InputCount())));
+  }
+
+  CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
+
+  // Compute InstructionOperands for inputs and outputs.
+  // TODO(turbofan): on some architectures it's probably better to use
+  // the code object in a register if there are multiple uses of it.
+  // Improve constant pool and the heuristics in the register allocator
+  // for where to emit constants.
+  InitializeCallBuffer(node, &buffer, true, true);
+
+  EmitPrepareArguments(&(buffer.pushed_nodes), descriptor, node);
+
+  // Pass label of exception handler block.
+  CallDescriptor::Flags flags = descriptor->flags();
+  if (handler) {
+    DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
+    IfExceptionHint hint = OpParameter<IfExceptionHint>(handler->front());
+    if (hint == IfExceptionHint::kLocallyCaught) {
+      flags |= CallDescriptor::kHasLocalCatchHandler;
+    }
+    flags |= CallDescriptor::kHasExceptionHandler;
+    buffer.instruction_args.push_back(g.Label(handler));
+  }
+
+  // Select the appropriate opcode based on the call type.
+  InstructionCode opcode = kArchNop;
+  switch (descriptor->kind()) {
+    case CallDescriptor::kCallAddress:
+      opcode =
+          kArchCallCFunction |
+          MiscField::encode(static_cast<int>(descriptor->CParameterCount()));
+      break;
+    case CallDescriptor::kCallCodeObject:
+      opcode = kArchCallCodeObject | MiscField::encode(flags);
+      break;
+    case CallDescriptor::kCallJSFunction:
+      opcode = kArchCallJSFunction | MiscField::encode(flags);
+      break;
+    case CallDescriptor::kLazyBailout:
+      opcode = kArchLazyBailout | MiscField::encode(flags);
+      break;
+  }
+
+  // Emit the call instruction.
+  size_t const output_count = buffer.outputs.size();
+  auto* outputs = output_count ? &buffer.outputs.front() : nullptr;
+  Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
+       &buffer.instruction_args.front())
+      ->MarkAsCall();
+}
+
+
 void InstructionSelector::VisitGoto(BasicBlock* target) {
   // jump to the next block.
   OperandGenerator g(this);

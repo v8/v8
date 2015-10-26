@@ -843,20 +843,10 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 
-void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
+void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
+                                               const CallDescriptor* descriptor,
+                                               Node* node) {
   IA32OperandGenerator g(this);
-  const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
-
-  FrameStateDescriptor* frame_state_descriptor = nullptr;
-  if (descriptor->NeedsFrameState()) {
-    frame_state_descriptor =
-        GetFrameStateDescriptor(node->InputAt(descriptor->InputCount()));
-  }
-
-  CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
-
-  // Compute InstructionOperands for inputs and outputs.
-  InitializeCallBuffer(node, &buffer, true, true);
 
   // Prepare for C function call.
   if (descriptor->IsCFunctionCall()) {
@@ -867,8 +857,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
          0, nullptr, 0, nullptr, temp_count, temps);
 
     // Poke any stack arguments.
-    for (size_t n = 0; n < buffer.pushed_nodes.size(); ++n) {
-      if (Node* input = buffer.pushed_nodes[n]) {
+    for (size_t n = 0; n < arguments->size(); ++n) {
+      if (Node* input = (*arguments)[n]) {
         int const slot = static_cast<int>(n);
         InstructionOperand value = g.CanBeImmediate(node)
                                        ? g.UseImmediate(input)
@@ -878,7 +868,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     }
   } else {
     // Push any stack arguments.
-    for (Node* input : base::Reversed(buffer.pushed_nodes)) {
+    for (Node* input : base::Reversed(*arguments)) {
       // Skip any alignment holes in pushed nodes.
       if (input == nullptr) continue;
       // TODO(titzer): IA32Push cannot handle stack->stack double moves
@@ -893,43 +883,6 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
       Emit(kIA32Push, g.NoOutput(), value);
     }
   }
-
-  // Pass label of exception handler block.
-  CallDescriptor::Flags flags = descriptor->flags();
-  if (handler) {
-    DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
-    IfExceptionHint hint = OpParameter<IfExceptionHint>(handler->front());
-    if (hint == IfExceptionHint::kLocallyCaught) {
-      flags |= CallDescriptor::kHasLocalCatchHandler;
-    }
-    flags |= CallDescriptor::kHasExceptionHandler;
-    buffer.instruction_args.push_back(g.Label(handler));
-  }
-
-  // Select the appropriate opcode based on the call type.
-  InstructionCode opcode = kArchNop;
-  switch (descriptor->kind()) {
-    case CallDescriptor::kCallAddress:
-      opcode =
-          kArchCallCFunction |
-          MiscField::encode(static_cast<int>(descriptor->CParameterCount()));
-      break;
-    case CallDescriptor::kCallCodeObject:
-      opcode = kArchCallCodeObject | MiscField::encode(flags);
-      break;
-    case CallDescriptor::kCallJSFunction:
-      opcode = kArchCallJSFunction | MiscField::encode(flags);
-      break;
-    case CallDescriptor::kLazyBailout:
-      opcode = kArchLazyBailout | MiscField::encode(flags);
-      break;
-  }
-
-  // Emit the call instruction.
-  size_t const output_count = buffer.outputs.size();
-  auto* outputs = output_count ? &buffer.outputs.front() : nullptr;
-  Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
-       &buffer.instruction_args.front())->MarkAsCall();
 }
 
 
