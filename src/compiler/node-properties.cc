@@ -130,6 +130,13 @@ bool NodeProperties::IsExceptionalCall(Node* node) {
 
 
 // static
+void NodeProperties::ReplaceValueInput(Node* node, Node* value, int index) {
+  DCHECK(index < node->op()->ValueInputCount());
+  node->ReplaceInput(FirstValueIndex(node) + index, value);
+}
+
+
+// static
 void NodeProperties::ReplaceContextInput(Node* node, Node* context) {
   node->ReplaceInput(FirstContextIndex(node), context);
 }

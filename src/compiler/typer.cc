@@ -1373,12 +1373,64 @@ Type* Typer::Visitor::TypeJSCallConstruct(Node* node) {
 
 
 Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
-  return fun->IsFunction() ? fun->AsFunction()->Result() : Type::Any();
+  if (fun->IsFunction()) {
+    return fun->AsFunction()->Result();
+  }
+  if (fun->IsConstant() && fun->AsConstant()->Value()->IsJSFunction()) {
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(fun->AsConstant()->Value());
+    if (function->shared()->HasBuiltinFunctionId()) {
+      switch (function->shared()->builtin_function_id()) {
+        case kMathRandom:
+          return Type::OrderedNumber();
+        case kMathFloor:
+        case kMathRound:
+        case kMathCeil:
+          return t->cache_.kWeakint;
+        // Unary math functions.
+        case kMathAbs:
+        case kMathLog:
+        case kMathExp:
+        case kMathSqrt:
+        case kMathCos:
+        case kMathSin:
+        case kMathTan:
+        case kMathAcos:
+        case kMathAsin:
+        case kMathAtan:
+        case kMathFround:
+          return Type::Number();
+        // Binary math functions.
+        case kMathAtan2:
+        case kMathPow:
+        case kMathMax:
+        case kMathMin:
+          return Type::Number();
+        case kMathImul:
+          return Type::Signed32();
+        case kMathClz32:
+          return t->cache_.kZeroToThirtyTwo;
+        // String functions.
+        case kStringCharAt:
+        case kStringFromCharCode:
+          return Type::String();
+        // Array functions.
+        case kArrayIndexOf:
+        case kArrayLastIndexOf:
+          return Type::Number();
+        default:
+          break;
+      }
+    }
+  }
+  return Type::Any();
 }
 
 
 Type* Typer::Visitor::TypeJSCallFunction(Node* node) {
-  return TypeUnaryOp(node, JSCallFunctionTyper);  // We ignore argument types.
+  // TODO(bmeurer): We could infer better types if we wouldn't ignore the
+  // argument types for the JSCallFunctionTyper above.
+  return TypeUnaryOp(node, JSCallFunctionTyper);
 }
 
 
@@ -2043,64 +2095,7 @@ Type* Typer::Visitor::TypeCheckedStore(Node* node) {
 
 
 Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
-  if (value->IsJSFunction()) {
-    if (JSFunction::cast(*value)->shared()->HasBuiltinFunctionId()) {
-      switch (JSFunction::cast(*value)->shared()->builtin_function_id()) {
-        case kMathRandom:
-          return typer_->cache_.kRandomFunc0;
-        case kMathFloor:
-        case kMathRound:
-        case kMathCeil:
-          return typer_->cache_.kWeakintFunc1;
-        // Unary math functions.
-        case kMathAbs:  // TODO(rossberg): can't express overloading
-        case kMathLog:
-        case kMathExp:
-        case kMathSqrt:
-        case kMathCos:
-        case kMathSin:
-        case kMathTan:
-        case kMathAcos:
-        case kMathAsin:
-        case kMathAtan:
-        case kMathFround:
-          return typer_->cache_.kNumberFunc1;
-        // Binary math functions.
-        case kMathAtan2:
-        case kMathPow:
-        case kMathMax:
-        case kMathMin:
-          return typer_->cache_.kNumberFunc2;
-        case kMathImul:
-          return typer_->cache_.kImulFunc;
-        case kMathClz32:
-          return typer_->cache_.kClz32Func;
-        default:
-          break;
-      }
-    }
-    int const arity =
-        JSFunction::cast(*value)->shared()->internal_formal_parameter_count();
-    switch (arity) {
-      case SharedFunctionInfo::kDontAdaptArgumentsSentinel:
-        // Some smart optimization at work... &%$!&@+$!
-        break;
-      case 0:
-        return typer_->cache_.kAnyFunc0;
-      case 1:
-        return typer_->cache_.kAnyFunc1;
-      case 2:
-        return typer_->cache_.kAnyFunc2;
-      case 3:
-        return typer_->cache_.kAnyFunc3;
-      default: {
-        DCHECK_LT(3, arity);
-        Type** const params = zone()->NewArray<Type*>(arity);
-        std::fill(&params[0], &params[arity], Type::Any(zone()));
-        return Type::Function(Type::Any(zone()), arity, params, zone());
-      }
-    }
-  } else if (value->IsJSTypedArray()) {
+  if (value->IsJSTypedArray()) {
     switch (JSTypedArray::cast(*value)->type()) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
   case kExternal##Type##Array:                          \

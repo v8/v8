@@ -1433,21 +1433,34 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
   int const arity = static_cast<int>(p.arity() - 2);
-  Node* const function = NodeProperties::GetValueInput(node, 0);
-  Type* const function_type = NodeProperties::GetType(function);
-  Node* const receiver = NodeProperties::GetValueInput(node, 1);
-  Type* const receiver_type = NodeProperties::GetType(receiver);
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Type* target_type = NodeProperties::GetType(target);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Type* receiver_type = NodeProperties::GetType(receiver);
 
-  // Check that {function} is actually a JSFunction with the correct arity.
-  if (function_type->IsFunction() &&
-      function_type->AsFunction()->Arity() == arity) {
-    // Check that the {receiver} doesn't need to be wrapped.
-    if (receiver_type->Is(Type::ReceiverOrUndefined())) {
-      Node* const context = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSFunctionContext()),
-          function, effect, control);
+  // Check if {target} is a known JSFunction.
+  if (target_type->IsConstant() &&
+      target_type->AsConstant()->Value()->IsJSFunction()) {
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(target_type->AsConstant()->Value());
+    Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+    if (shared->internal_formal_parameter_count() == arity) {
+      // Check if we need to wrap the {receiver}.
+      if (is_sloppy(shared->language_mode()) && !shared->native()) {
+        if (receiver_type->Is(Type::NullOrUndefined())) {
+          // Change {receiver} to global proxy of {function}.
+          receiver =
+              jsgraph()->Constant(handle(function->global_proxy(), isolate()));
+        } else if (!receiver_type->Is(Type::Receiver())) {
+          // TODO(bmeurer): Add support for wrapping abitrary receivers.
+          return NoChange();
+        }
+        NodeProperties::ReplaceValueInput(node, receiver, 1);
+      }
+
+      // Grab the context from the {function}.
+      Node* context =
+          jsgraph()->Constant(handle(function->context(), isolate()));
       NodeProperties::ReplaceContextInput(node, context);
       CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
       if (p.AllowTailCalls()) {
@@ -1459,6 +1472,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
       return Changed(node);
     }
   }
+
   return NoChange();
 }
 

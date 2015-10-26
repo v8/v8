@@ -37,28 +37,11 @@ class ZoneTypeCache final {
   Type* const kSingletonZero = CreateRange(0.0, 0.0);
   Type* const kSingletonOne = CreateRange(1.0, 1.0);
   Type* const kZeroOrOne = CreateRange(0.0, 1.0);
+  Type* const kZeroToThirtyTwo = CreateRange(0.0, 32.0);
   Type* const kZeroish =
       Type::Union(kSingletonZero, Type::MinusZeroOrNaN(), zone());
   Type* const kInteger = CreateRange(-V8_INFINITY, V8_INFINITY);
   Type* const kWeakint = Type::Union(kInteger, Type::MinusZeroOrNaN(), zone());
-  Type* const kWeakintFunc1 = Type::Function(kWeakint, Type::Number(), zone());
-
-  Type* const kRandomFunc0 = Type::Function(Type::OrderedNumber(), zone());
-  Type* const kAnyFunc0 = Type::Function(Type::Any(), zone());
-  Type* const kAnyFunc1 = Type::Function(Type::Any(), Type::Any(), zone());
-  Type* const kAnyFunc2 =
-      Type::Function(Type::Any(), Type::Any(), Type::Any(), zone());
-  Type* const kAnyFunc3 = Type::Function(Type::Any(), Type::Any(), Type::Any(),
-                                         Type::Any(), zone());
-  Type* const kNumberFunc0 = Type::Function(Type::Number(), zone());
-  Type* const kNumberFunc1 =
-      Type::Function(Type::Number(), Type::Number(), zone());
-  Type* const kNumberFunc2 =
-      Type::Function(Type::Number(), Type::Number(), Type::Number(), zone());
-  Type* const kImulFunc = Type::Function(Type::Signed32(), Type::Integral32(),
-                                         Type::Integral32(), zone());
-  Type* const kClz32Func =
-      Type::Function(CreateRange(0, 32), Type::Number(), zone());
 
 #define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
   Type* const k##TypeName##Array = CreateArray(k##TypeName);

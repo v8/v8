@@ -79,6 +79,7 @@ class NodeProperties final {
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.
 
+  static void ReplaceValueInput(Node* node, Node* value, int index);
   static void ReplaceContextInput(Node* node, Node* context);
   static void ReplaceControlInput(Node* node, Node* control);
   static void ReplaceEffectInput(Node* node, Node* effect, int index = 0);
