@@ -61,10 +61,19 @@ class AccessBuilder final : public AllStatic {
   // Provides access to String::length() field.
   static FieldAccess ForStringLength(Zone* zone);
 
+  // Provides access to GlobalObject::native_context() field.
+  static FieldAccess ForGlobalObjectNativeContext();
+
   // Provides access to JSValue::value() field.
   static FieldAccess ForValue();
 
-  // Provides access Context slots.
+  // Provides access to arguments objects fields.
+  static FieldAccess ForArgumentsLength();
+
+  // Provides access to FixedArray slots.
+  static FieldAccess ForFixedArraySlot(size_t index);
+
+  // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
 
   // Provides access to PropertyCell::value() field.

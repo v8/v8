@@ -131,9 +131,36 @@ FieldAccess AccessBuilder::ForStringLength(Zone* zone) {
 
 
 // static
+FieldAccess AccessBuilder::ForGlobalObjectNativeContext() {
+  FieldAccess access = {kTaggedBase, GlobalObject::kNativeContextOffset,
+                        Handle<Name>(), Type::Any(), kMachAnyTagged};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForValue() {
   FieldAccess access = {kTaggedBase, JSValue::kValueOffset, Handle<Name>(),
                         Type::Any(), kMachAnyTagged};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForArgumentsLength() {
+  int offset =
+      JSObject::kHeaderSize + Heap::kArgumentsLengthIndex * kPointerSize;
+  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
+                        kMachAnyTagged};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForFixedArraySlot(size_t index) {
+  int offset = FixedArray::OffsetOfElementAt(static_cast<int>(index));
+  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
+                        kMachAnyTagged};
   return access;
 }
 

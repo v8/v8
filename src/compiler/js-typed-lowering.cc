@@ -10,6 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/state-values-utils.h"
 #include "src/types.h"
 
 namespace v8 {
@@ -36,17 +37,15 @@ JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph, Zone* zone)
 // allocated object and also provides helpers for commonly allocated objects.
 class AllocationBuilder final {
  public:
-  AllocationBuilder(JSGraph* jsgraph, SimplifiedOperatorBuilder* simplified,
-                    Node* effect, Node* control)
+  AllocationBuilder(JSGraph* jsgraph, Node* effect, Node* control)
       : jsgraph_(jsgraph),
-        simplified_(simplified),
         allocation_(nullptr),
         effect_(effect),
         control_(control) {}
 
   // Primitive allocation of static size.
   void Allocate(int size) {
-    effect_ = graph()->NewNode(jsgraph()->common()->BeginRegion(), effect_);
+    effect_ = graph()->NewNode(common()->BeginRegion(), effect_);
     allocation_ = graph()->NewNode(
         simplified()->Allocate(), jsgraph()->Constant(size), effect_, control_);
     effect_ = allocation_;
@@ -71,22 +70,26 @@ class AllocationBuilder final {
     Store(access, jsgraph()->Constant(value));
   }
 
-  void Finish(Node* node) {
+  void FinishAndChange(Node* node) {
     NodeProperties::SetType(allocation_, NodeProperties::GetType(node));
     node->ReplaceInput(0, allocation_);
     node->ReplaceInput(1, effect_);
     node->TrimInputCount(2);
-    NodeProperties::ChangeOp(node, jsgraph()->common()->FinishRegion());
+    NodeProperties::ChangeOp(node, common()->FinishRegion());
+  }
+
+  Node* Finish() {
+    return graph()->NewNode(common()->FinishRegion(), allocation_, effect_);
   }
 
  protected:
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }
-  SimplifiedOperatorBuilder* simplified() { return simplified_; }
+  CommonOperatorBuilder* common() { return jsgraph_->common(); }
+  SimplifiedOperatorBuilder* simplified() { return jsgraph_->simplified(); }
 
  private:
   JSGraph* const jsgraph_;
-  SimplifiedOperatorBuilder* simplified_;
   Node* allocation_;
   Node* effect_;
   Node* control_;
@@ -1159,6 +1162,50 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
     return Changed(node);
   }
 
+  // Use inline allocation for all unmapped arguments objects within inlined
+  // (i.e. non-outermost) frames, independent of the object size.
+  if (p.type() == CreateArgumentsParameters::kUnmappedArguments &&
+      outer_state->opcode() == IrOpcode::kFrameState) {
+    Node* const effect = NodeProperties::GetEffectInput(node);
+    Node* const control = NodeProperties::GetControlInput(node);
+    Node* const context = NodeProperties::GetContextInput(node);
+    FrameStateInfo outer_state_info = OpParameter<FrameStateInfo>(outer_state);
+    // Choose the correct frame state and frame state info depending on whether
+    // there conceptually is an arguments adaptor frame in the call chain.
+    Node* const args_state =
+        outer_state_info.type() == FrameStateType::kArgumentsAdaptor
+            ? outer_state
+            : frame_state;
+    FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+    // Prepare element backing store to be used by arguments object.
+    Node* const elements = AllocateArguments(effect, control, args_state);
+    // Load the arguments object map from the current native context.
+    Node* const load_global_object = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
+        context, effect, control);
+    Node* const load_native_context = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForGlobalObjectNativeContext()),
+        load_global_object, effect, control);
+    Node* const load_arguments_map = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForContextSlot(Context::STRICT_ARGUMENTS_MAP_INDEX)),
+        load_native_context, effect, control);
+    // Actually allocate and initialize the arguments object.
+    AllocationBuilder a(jsgraph(), effect, control);
+    Handle<Object> properties = factory()->empty_fixed_array();
+    int length = args_state_info.parameter_count() - 1;  // Minus receiver.
+    STATIC_ASSERT(Heap::kStrictArgumentsObjectSize == 4 * kPointerSize);
+    a.Allocate(Heap::kStrictArgumentsObjectSize);
+    a.Store(AccessBuilder::ForMap(), load_arguments_map);
+    a.Store(AccessBuilder::ForJSObjectProperties(), properties);
+    a.Store(AccessBuilder::ForJSObjectElements(), elements);
+    a.Store(AccessBuilder::ForArgumentsLength(), jsgraph()->Constant(length));
+    RelaxControls(node);
+    a.FinishAndChange(node);
+    return Changed(node);
+  }
+
   return NoChange();
 }
 
@@ -1270,7 +1317,7 @@ Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
         simplified()->LoadField(
             AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
         context, effect, control);
-    AllocationBuilder a(jsgraph(), simplified(), effect, control);
+    AllocationBuilder a(jsgraph(), effect, control);
     STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
     int context_length = slot_count + Context::MIN_CONTEXT_SLOTS;
     a.AllocateArray(context_length, factory()->function_context_map());
@@ -1282,7 +1329,7 @@ Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->UndefinedConstant());
     }
     RelaxControls(node);
-    a.Finish(node);
+    a.FinishAndChange(node);
     return Changed(node);
   }
 
@@ -1325,7 +1372,7 @@ Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
         simplified()->LoadField(
             AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
         context, effect, control);
-    AllocationBuilder a(jsgraph(), simplified(), effect, control);
+    AllocationBuilder a(jsgraph(), effect, control);
     STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
     a.AllocateArray(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
     a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
@@ -1333,7 +1380,7 @@ Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), input);
     a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), load);
     RelaxControls(node);
-    a.Finish(node);
+    a.FinishAndChange(node);
     return Changed(node);
   }
 
@@ -1363,7 +1410,7 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
         simplified()->LoadField(
             AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
         context, effect, control);
-    AllocationBuilder a(jsgraph(), simplified(), effect, control);
+    AllocationBuilder a(jsgraph(), effect, control);
     STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
     a.AllocateArray(context_length, factory()->block_context_map());
     a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
@@ -1374,7 +1421,7 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->TheHoleConstant());
     }
     RelaxControls(node);
-    a.Finish(node);
+    a.FinishAndChange(node);
     return Changed(node);
   }
 
@@ -1810,6 +1857,25 @@ Node* JSTypedLowering::Word32Shl(Node* const lhs, int32_t const rhs) {
   if (rhs == 0) return lhs;
   return graph()->NewNode(machine()->Word32Shl(), lhs,
                           jsgraph()->Int32Constant(rhs));
+}
+
+
+// Helper that allocates a FixedArray holding argument values recorded in the
+// given {frame_state}. Serves as backing store for JSCreateArguments nodes.
+Node* JSTypedLowering::AllocateArguments(Node* effect, Node* control,
+                                         Node* frame_state) {
+  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  int length = state_info.parameter_count() - 1;  // Minus receiver argument.
+  if (length == 0) return jsgraph()->Constant(factory()->empty_fixed_array());
+  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+  StateValuesAccess parameters_access(parameters);
+  auto paratemers_it = ++parameters_access.begin();
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.AllocateArray(length, factory()->fixed_array_map());
+  for (int i = 0; i < length; ++i, ++paratemers_it) {
+    a.Store(AccessBuilder::ForFixedArraySlot(i), (*paratemers_it).node);
+  }
+  return a.Finish();
 }
 
 
