@@ -272,10 +272,10 @@ class Typer::Visitor : public Reducer {
         current = Weaken(node, current, previous);
       }
 
-      DCHECK(previous->Is(current));
+      CHECK(previous->Is(current));
 
       NodeProperties::SetType(node, current);
-      if (!(previous->Is(current) && current->Is(previous))) {
+      if (!current->Is(previous)) {
         // If something changed, revisit all uses.
         return Changed(node);
       }
