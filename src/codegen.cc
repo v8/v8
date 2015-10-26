@@ -122,7 +122,8 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 
   if (FLAG_trace_codegen || print_source || print_ast) {
     base::SmartArrayPointer<char> name = info->GetDebugName();
-    PrintF("[generating %s code for %s function: %s]", kind, ftype, name.get());
+    PrintF("[generating %s code for %s function: %s]\n", kind, ftype,
+           name.get());
   }
 
 #ifdef DEBUG
