@@ -1712,6 +1712,7 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
       if (!isolate->MayAccess(handle(isolate->context()), js_receiver)) {
         isolate->ReportFailedAccessCheck(js_receiver);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+        UNREACHABLE();
       }
     }
   }
