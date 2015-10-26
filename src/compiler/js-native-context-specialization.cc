@@ -34,6 +34,7 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       jsgraph_(jsgraph),
       flags_(flags),
       global_object_(global_object),
+      native_context_(global_object->native_context(), isolate()),
       dependencies_(dependencies),
       zone_(zone) {}
 
@@ -435,8 +436,17 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
 
     // Walk up the prototype chain.
     if (!map->prototype()->IsJSObject()) {
-      // TODO(bmeurer): Handle the not found case if the prototype is null.
-      break;
+      // Perform the implicit ToObject for primitives here.
+      // Implemented according to ES6 section 7.3.2 GetV (V, P).
+      Handle<JSFunction> constructor;
+      if (Map::GetConstructorFunction(map, native_context())
+              .ToHandle(&constructor)) {
+        map = handle(constructor->initial_map(), isolate());
+        DCHECK(map->prototype()->IsJSObject());
+      } else {
+        // TODO(bmeurer): Handle the not found case if the prototype is null.
+        break;
+      }
     }
     Handle<JSObject> map_prototype(JSObject::cast(map->prototype()), isolate());
     if (map_prototype->map()->is_deprecated()) {
@@ -893,7 +903,14 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
     Type* receiver_type, Handle<JSObject> holder) {
   // Determine actual holder and perform prototype chain checks.
   for (auto i = receiver_type->Classes(); !i.Done(); i.Advance()) {
-    Handle<Map> const map = i.Current();
+    Handle<Map> map = i.Current();
+    // Perform the implicit ToObject for primitives here.
+    // Implemented according to ES6 section 7.3.2 GetV (V, P).
+    Handle<JSFunction> constructor;
+    if (Map::GetConstructorFunction(map, native_context())
+            .ToHandle(&constructor)) {
+      map = handle(constructor->initial_map(), isolate());
+    }
     for (PrototypeIterator j(map);; j.Advance()) {
       // Check that the {prototype} still has the same map.  All prototype
       // maps are guaranteed to be stable, so it's sufficient to add a

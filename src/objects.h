@@ -5518,6 +5518,8 @@ class Map: public HeapObject {
   static const int kNoConstructorFunctionIndex = 0;
   inline int GetConstructorFunctionIndex();
   inline void SetConstructorFunctionIndex(int value);
+  static MaybeHandle<JSFunction> GetConstructorFunction(
+      Handle<Map> map, Handle<Context> native_context);
 
   // Instance type.
   inline InstanceType instance_type();

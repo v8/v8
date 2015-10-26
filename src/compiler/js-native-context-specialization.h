@@ -86,12 +86,14 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   MachineOperatorBuilder* machine() const;
   Flags flags() const { return flags_; }
   Handle<GlobalObject> global_object() const { return global_object_; }
+  Handle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
 
   JSGraph* const jsgraph_;
   Flags const flags_;
   Handle<GlobalObject> global_object_;
+  Handle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
 

@@ -57,8 +57,6 @@ class IC {
   bool IsCallStub() const { return target()->is_call_stub(); }
 #endif
 
-  static inline JSFunction* GetRootConstructor(Map* receiver_map,
-                                               Context* native_context);
   static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
                                                   bool receiver_is_holder,
                                                   Isolate* isolate,
