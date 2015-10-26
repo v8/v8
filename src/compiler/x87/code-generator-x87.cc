@@ -544,6 +544,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX87Lzcnt:
       __ Lzcnt(i.OutputRegister(), i.InputOperand(0));
       break;
+    case kX87Popcnt:
+      __ Popcnt(i.OutputRegister(), i.InputOperand(0));
+      break;
     case kX87LoadFloat64Constant: {
       InstructionOperand* source = instr->InputAt(0);
       InstructionOperand* destination = instr->Output();

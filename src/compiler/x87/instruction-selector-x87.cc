@@ -517,7 +517,10 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
 
-void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Popcnt(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87Popcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
 
 
 void InstructionSelector::VisitInt32Add(Node* node) {
@@ -1371,6 +1374,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
       MachineOperatorBuilder::kFloat64Max |
       MachineOperatorBuilder::kFloat64Min |
       MachineOperatorBuilder::kWord32ShiftIsSafe;
+  if (CpuFeatures::IsSupported(POPCNT)) {
+    flags |= MachineOperatorBuilder::kWord32Popcnt;
+  }
   return flags;
 }
 

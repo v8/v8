@@ -812,6 +812,9 @@ class MacroAssembler: public Assembler {
   void Tzcnt(Register dst, Register src) { Tzcnt(dst, Operand(src)); }
   void Tzcnt(Register dst, const Operand& src);
 
+  void Popcnt(Register dst, Register src) { Popcnt(dst, Operand(src)); }
+  void Popcnt(Register dst, const Operand& src);
+
   // Emit call to the code we are currently generating.
   void CallSelf() {
     Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
