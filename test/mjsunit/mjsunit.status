@@ -341,9 +341,6 @@
   # BUG(v8:4359)
   'strong/load-proxy': [SKIP],
 
-  # BUG(v8:4381)
-  'for-in-opt': [PASS, FAIL],
-
   # Slow tests.
   'array-constructor': [PASS, SLOW],
   'json': [PASS, SLOW],
