@@ -63,7 +63,10 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   info->EnsureFeedbackVector();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
   if (FLAG_print_bytecode) {
-    bytecodes->Print();
+    OFStream os(stdout);
+    os << "Function: " << info->GetDebugName().get() << std::endl;
+    bytecodes->Print(os);
+    os << std::flush;
   }
 
   info->SetBytecodeArray(bytecodes);

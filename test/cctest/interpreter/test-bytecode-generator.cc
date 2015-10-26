@@ -35,7 +35,6 @@ class BytecodeGeneratorHelper {
   Isolate* isolate() { return CcTest::i_isolate(); }
   Factory* factory() { return CcTest::i_isolate()->factory(); }
 
-
   Handle<BytecodeArray> MakeTopLevelBytecode(const char* source) {
     const char* old_ignition_filter = i::FLAG_ignition_filter;
     i::FLAG_ignition_filter = "*";
@@ -44,7 +43,6 @@ class BytecodeGeneratorHelper {
     i::Handle<i::JSFunction> js_function = v8::Utils::OpenHandle(*script);
     return handle(js_function->shared()->bytecode_array(), CcTest::i_isolate());
   }
-
 
   Handle<BytecodeArray> MakeBytecode(const char* script,
                                      const char* function_name) {
@@ -55,7 +53,6 @@ class BytecodeGeneratorHelper {
         i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
     return handle(js_function->shared()->bytecode_array(), CcTest::i_isolate());
   }
-
 
   Handle<BytecodeArray> MakeBytecodeForFunctionBody(const char* body) {
     ScopedVector<char> program(1024);
@@ -68,6 +65,17 @@ class BytecodeGeneratorHelper {
     ScopedVector<char> program(1024);
     SNPrintF(program, "%s\n%s();", function, kFunctionName);
     return MakeBytecode(program.start(), kFunctionName);
+  }
+
+  Handle<BytecodeArray> MakeBytecodeForFunctionNoFilter(const char* function) {
+    const char* old_ignition_filter = i::FLAG_ignition_filter;
+    i::FLAG_ignition_filter = "*";
+    ScopedVector<char> program(1024);
+    SNPrintF(program, "%s\n%s();", function, kFunctionName);
+    Handle<BytecodeArray> return_val =
+        MakeBytecode(program.start(), kFunctionName);
+    i::FLAG_ignition_filter = old_ignition_filter;
+    return return_val;
   }
 };
 
@@ -2904,6 +2912,69 @@ TEST(ContextParameters) {
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunction(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(OuterContextVariables) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int context = Register::function_context().index();
+  int first_context_slot = Context::MIN_CONTEXT_SLOTS;
+
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"function Outer() {"
+       "  var outerVar = 1;"
+       "  function Inner(innerArg) {"
+       "    this.innerFunc = function() { return outerVar * innerArg; }"
+       "  }"
+       "  this.getInnerFunc = function() { return new Inner(1).innerFunc; }"
+       "}"
+       "var f = new Outer().getInnerFunc();",
+       2 * kPointerSize,
+       1,
+       20,
+       {
+           B(Ldar), R(context),                                    //
+           B(Star), R(0),                                          //
+           B(LdaContextSlot), R(0), U8(Context::PREVIOUS_INDEX),   //
+           B(Star), R(0),                                          //
+           B(LdaContextSlot), R(0), U8(first_context_slot),        //
+           B(Star), R(1),                                          //
+           B(LdaContextSlot), R(context), U8(first_context_slot),  //
+           B(Mul), R(1),                                           //
+           B(Return),                                              //
+       }},
+      {"function Outer() {"
+       "  var outerVar = 1;"
+       "  function Inner(innerArg) {"
+       "    this.innerFunc = function() { outerVar = innerArg; }"
+       "  }"
+       "  this.getInnerFunc = function() { return new Inner(1).innerFunc; }"
+       "}"
+       "var f = new Outer().getInnerFunc();",
+       2 * kPointerSize,
+       1,
+       21,
+       {
+           B(LdaContextSlot), R(context), U8(first_context_slot),  //
+           B(Star), R(0),                                          //
+           B(Ldar), R(context),                                    //
+           B(Star), R(1),                                          //
+           B(LdaContextSlot), R(1), U8(Context::PREVIOUS_INDEX),   //
+           B(Star), R(1),                                          //
+           B(Ldar), R(0),                                          //
+           B(StaContextSlot), R(1), U8(first_context_slot),        //
+           B(LdaUndefined),                                        //
+           B(Return),                                              //
+       }},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionNoFilter(snippets[i].code_snippet);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }

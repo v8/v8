@@ -126,12 +126,12 @@ class RawMachineAssembler {
     return AddNode(machine()->Load(rep), base, index, graph()->start(),
                    graph()->start());
   }
-  Node* Store(MachineType rep, Node* base, Node* value) {
+  Node* Store(StoreRepresentation rep, Node* base, Node* value) {
     return Store(rep, base, IntPtrConstant(0), value);
   }
-  Node* Store(MachineType rep, Node* base, Node* index, Node* value) {
-    return AddNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)),
-                   base, index, value, graph()->start(), graph()->start());
+  Node* Store(StoreRepresentation rep, Node* base, Node* index, Node* value) {
+    return AddNode(machine()->Store(rep), base, index, value, graph()->start(),
+                   graph()->start());
   }
 
   // Arithmetic Operations.
@@ -486,7 +486,7 @@ class RawMachineAssembler {
   Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return Load(rep, PointerConstant(address), Int32Constant(offset));
   }
-  Node* StoreToPointer(void* address, MachineType rep, Node* node) {
+  Node* StoreToPointer(void* address, StoreRepresentation rep, Node* node) {
     return Store(rep, PointerConstant(address), node);
   }
   Node* StringConstant(const char* string) {

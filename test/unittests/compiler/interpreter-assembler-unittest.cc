@@ -497,9 +497,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, StoreContextSlot) {
     Matcher<Node*> offset =
         IsIntPtrAdd(IsWordShl(slot_index, IsInt32Constant(kPointerSizeLog2)),
                     IsInt32Constant(Context::kHeaderSize - kHeapObjectTag));
-    EXPECT_THAT(store_context_slot,
-                m.IsStore(StoreRepresentation(kMachAnyTagged, kNoWriteBarrier),
-                          context, offset, value));
+    EXPECT_THAT(
+        store_context_slot,
+        m.IsStore(StoreRepresentation(kMachAnyTagged, kFullWriteBarrier),
+                  context, offset, value));
   }
 }
 

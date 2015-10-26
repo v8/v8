@@ -124,7 +124,8 @@ TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
 TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
   const MemoryAccess memacc = GetParam();
   StreamBuilder m(this, kMachInt32, kMachPtr, kMachInt32, memacc.type);
-  m.Store(memacc.type, m.Parameter(0), m.Parameter(1), m.Parameter(2));
+  StoreRepresentation store_rep(memacc.type, kNoWriteBarrier);
+  m.Store(store_rep, m.Parameter(0), m.Parameter(1), m.Parameter(2));
   m.Return(m.Int32Constant(0));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());

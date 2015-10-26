@@ -43,10 +43,14 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
     generator_->set_execution_context(outer_);
   }
 
-  // Returns the execution context for the given |scope| if it is a function
-  // local execution context, otherwise returns nullptr.
-  ContextScope* Previous(Scope* scope) {
-    int depth = scope_->ContextChainLength(scope);
+  // Returns the depth of the given |scope| for the current execution context.
+  int ContextChainDepth(Scope* scope) {
+    return scope_->ContextChainLength(scope);
+  }
+
+  // Returns the execution context at |depth| in the current context chain if it
+  // is a function local execution context, otherwise returns nullptr.
+  ContextScope* Previous(int depth) {
     if (depth > depth_) {
       return nullptr;
     }
@@ -414,8 +418,18 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       break;
     }
     case VariableLocation::PARAMETER:
-    case VariableLocation::LOCAL:
-    case VariableLocation::CONTEXT:
+    case VariableLocation::LOCAL: {
+      VisitForAccumulatorValue(decl->fun());
+      VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
+      break;
+    }
+    case VariableLocation::CONTEXT: {
+      DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
+      VisitForAccumulatorValue(decl->fun());
+      builder()->StoreContextSlot(execution_context()->reg(),
+                                  variable->index());
+      break;
+    }
     case VariableLocation::LOOKUP:
       UNIMPLEMENTED();
   }
@@ -981,13 +995,27 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       break;
     }
     case VariableLocation::CONTEXT: {
-      ContextScope* context = execution_context()->Previous(variable->scope());
+      int depth = execution_context()->ContextChainDepth(variable->scope());
+      ContextScope* context = execution_context()->Previous(depth);
+      Register context_reg;
       if (context) {
-        builder()->LoadContextSlot(context->reg(), variable->index());
-        execution_result()->SetResultInAccumulator();
+        context_reg = context->reg();
       } else {
-        UNIMPLEMENTED();
+        context_reg = execution_result()->NewRegister();
+        // Walk the context chain to find the context at the given depth.
+        // TODO(rmcilroy): Perform this work in a bytecode handler once we have
+        // a generic mechanism for performing jumps in interpreter.cc.
+        builder()
+            ->LoadAccumulatorWithRegister(execution_context()->reg())
+            .StoreAccumulatorInRegister(context_reg);
+        for (int i = 0; i < depth; ++i) {
+          builder()
+              ->LoadContextSlot(context_reg, Context::PREVIOUS_INDEX)
+              .StoreAccumulatorInRegister(context_reg);
+        }
       }
+      builder()->LoadContextSlot(context_reg, variable->index());
+      execution_result()->SetResultInAccumulator();
       // TODO(rmcilroy): Perform check for uninitialized legacy const, const and
       // let variables.
       break;
@@ -1039,12 +1067,29 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
     }
     case VariableLocation::CONTEXT: {
       // TODO(rmcilroy): support const mode initialization.
-      ContextScope* context = execution_context()->Previous(variable->scope());
+      int depth = execution_context()->ContextChainDepth(variable->scope());
+      ContextScope* context = execution_context()->Previous(depth);
+      Register context_reg;
       if (context) {
-        builder()->StoreContextSlot(context->reg(), variable->index());
+        context_reg = context->reg();
       } else {
-        UNIMPLEMENTED();
+        Register value_temp = execution_result()->NewRegister();
+        context_reg = execution_result()->NewRegister();
+        // Walk the context chain to find the context at the given depth.
+        // TODO(rmcilroy): Perform this work in a bytecode handler once we have
+        // a generic mechanism for performing jumps in interpreter.cc.
+        builder()
+            ->StoreAccumulatorInRegister(value_temp)
+            .LoadAccumulatorWithRegister(execution_context()->reg())
+            .StoreAccumulatorInRegister(context_reg);
+        for (int i = 0; i < depth; ++i) {
+          builder()
+              ->LoadContextSlot(context_reg, Context::PREVIOUS_INDEX)
+              .StoreAccumulatorInRegister(context_reg);
+        }
+        builder()->LoadAccumulatorWithRegister(value_temp);
       }
+      builder()->StoreContextSlot(context_reg, variable->index());
       break;
     }
     case VariableLocation::LOOKUP:

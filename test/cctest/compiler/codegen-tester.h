@@ -110,7 +110,8 @@ class BinopTester {
 
   void AddReturn(Node* val) {
     if (use_result_buffer) {
-      T->Store(rep, T->PointerConstant(&result), T->Int32Constant(0), val);
+      T->Store(StoreRepresentation(rep, kNoWriteBarrier),
+               T->PointerConstant(&result), T->Int32Constant(0), val);
       T->Return(T->Int32Constant(CHECK_VALUE));
     } else {
       T->Return(val);

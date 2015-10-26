@@ -58,7 +58,8 @@ class InterpreterTester {
  public:
   InterpreterTester(Isolate* isolate, const char* source,
                     MaybeHandle<BytecodeArray> bytecode,
-                    MaybeHandle<TypeFeedbackVector> feedback_vector)
+                    MaybeHandle<TypeFeedbackVector> feedback_vector,
+                    const char* filter)
       : isolate_(isolate),
         source_(source),
         bytecode_(bytecode),
@@ -70,7 +71,7 @@ class InterpreterTester {
     // Set ignition filter flag via SetFlagsFromString to avoid double-free
     // (or potential leak with StrDup() based on ownership confusion).
     ScopedVector<char> ignition_filter(64);
-    SNPrintF(ignition_filter, "--ignition-filter=%s", kFunctionName);
+    SNPrintF(ignition_filter, "--ignition-filter=%s", filter);
     FlagList::SetFlagsFromString(ignition_filter.start(),
                                  ignition_filter.length());
     // Ensure handler table is generated.
@@ -79,13 +80,16 @@ class InterpreterTester {
 
   InterpreterTester(Isolate* isolate, Handle<BytecodeArray> bytecode,
                     MaybeHandle<TypeFeedbackVector> feedback_vector =
-                        MaybeHandle<TypeFeedbackVector>())
-      : InterpreterTester(isolate, nullptr, bytecode, feedback_vector) {}
+                        MaybeHandle<TypeFeedbackVector>(),
+                    const char* filter = kFunctionName)
+      : InterpreterTester(isolate, nullptr, bytecode, feedback_vector, filter) {
+  }
 
 
-  InterpreterTester(Isolate* isolate, const char* source)
+  InterpreterTester(Isolate* isolate, const char* source,
+                    const char* filter = kFunctionName)
       : InterpreterTester(isolate, source, MaybeHandle<BytecodeArray>(),
-                          MaybeHandle<TypeFeedbackVector>()) {}
+                          MaybeHandle<TypeFeedbackVector>(), filter) {}
 
   virtual ~InterpreterTester() {}
 
@@ -1915,6 +1919,39 @@ TEST(InterpreterContextParameters) {
     Handle<Object> a3 = handle(Smi::FromInt(3), isolate);
     Handle<i::Object> return_value = callable(a1, a2, a3).ToHandleChecked();
     CHECK(return_value->SameValue(*context_params[i].second));
+  }
+}
+
+
+TEST(InterpreterOuterContextVariables) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> context_vars[2] = {
+      std::make_pair("return outerVar * innerArg;",
+                     handle(Smi::FromInt(200), isolate)),
+      std::make_pair("outerVar = innerArg; return outerVar",
+                     handle(Smi::FromInt(20), isolate)),
+  };
+
+  std::string header(
+      "function Outer() {"
+      "  var outerVar = 10;"
+      "  function Inner(innerArg) {"
+      "    this.innerFunc = function() { ");
+  std::string footer(
+      "  }}"
+      "  this.getInnerFunc = function() { return new Inner(20).innerFunc; }"
+      "}"
+      "var f = new Outer().getInnerFunc();");
+
+  for (size_t i = 0; i < arraysize(context_vars); i++) {
+    std::string source = header + context_vars[i].first + footer;
+    InterpreterTester tester(handles.main_isolate(), source.c_str(), "*");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*context_vars[i].second));
   }
 }
 
