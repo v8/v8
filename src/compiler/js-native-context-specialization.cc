@@ -338,15 +338,17 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
         // elements, a smi in the range [0, FixedArray::kMaxLength]
         // in case of other fast elements, and [0, kMaxUInt32-1] in
         // case of other arrays.
+        Type* field_type_rep = Type::Tagged();
         double field_type_upper = kMaxUInt32 - 1;
         if (IsFastElementsKind(map->elements_kind())) {
+          field_type_rep = Type::TaggedSigned();
           field_type_upper = IsFastDoubleElementsKind(map->elements_kind())
                                  ? FixedDoubleArray::kMaxLength
                                  : FixedArray::kMaxLength;
         }
         field_type =
             Type::Intersect(Type::Range(0.0, field_type_upper, graph()->zone()),
-                            Type::TaggedSigned(), graph()->zone());
+                            field_type_rep, graph()->zone());
       }
       *access_info = PropertyAccessInfo::DataField(receiver_type, field_index,
                                                    field_type, holder);
