@@ -316,6 +316,8 @@ class TemporaryRegisterScope {
   void PrepareForConsecutiveAllocations(size_t count);
   Register NextConsecutiveRegister();
 
+  bool RegisterIsAllocatedInThisScope(Register reg) const;
+
  private:
   void* operator new(size_t size);
   void operator delete(void* p);

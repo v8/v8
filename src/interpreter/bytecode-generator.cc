@@ -193,6 +193,8 @@ class BytecodeGenerator::ExpressionResultScope {
 
   bool result_identified() const { return result_identified_; }
 
+  const TemporaryRegisterScope* allocator() const { return &allocator_; }
+
  private:
   BytecodeGenerator* generator_;
   Expression::Context kind_;
@@ -252,7 +254,8 @@ class BytecodeGenerator::RegisterResultScope final
 
   virtual void SetResultInRegister(Register reg) {
     DCHECK(builder()->RegisterIsParameterOrLocal(reg) ||
-           builder()->RegisterIsTemporary(reg));
+           (builder()->RegisterIsTemporary(reg) &&
+            !allocator()->RegisterIsAllocatedInThisScope(reg)));
     result_register_ = reg;
     set_result_identified();
   }
@@ -475,6 +478,8 @@ void BytecodeGenerator::VisitDeclarations(
 
 
 void BytecodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
+  // TODO(rmcilroy): Replace this with a StatementResultScope when it exists.
+  EffectResultScope effect_scope(this);
   VisitForEffect(stmt->expression());
 }
 
@@ -522,6 +527,7 @@ void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 
 
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
+  EffectResultScope effect_scope(this);
   VisitForAccumulatorValue(stmt->expression());
   builder()->Return();
 }
@@ -1484,7 +1490,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Save result for postfix expressions.
   if (is_postfix) {
-    old_value = execution_result()->NewRegister();
+    old_value = execution_result()->outer()->NewRegister();
     builder()->StoreAccumulatorInRegister(old_value);
   }
 

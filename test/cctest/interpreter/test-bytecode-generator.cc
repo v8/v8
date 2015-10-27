@@ -2988,15 +2988,21 @@ TEST(CountOperators) {
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot1 = feedback_spec.AddLoadICSlot();
   FeedbackVectorSlot slot2 = feedback_spec.AddStoreICSlot();
-
   Handle<i::TypeFeedbackVector> vector =
       i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  FeedbackVectorSpec store_feedback_spec(&zone);
+  FeedbackVectorSlot store_slot = store_feedback_spec.AddStoreICSlot();
+  Handle<i::TypeFeedbackVector> store_vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &store_feedback_spec);
 
   int closure = Register::function_closure().index();
   int first_context_slot = Context::MIN_CONTEXT_SLOTS;
 
   int object_literal_flags =
       ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
+  int array_literal_flags =
+      ArrayLiteral::kDisableMementos | ArrayLiteral::kShallowElements;
 
   ExpectedSnippet<InstanceType> snippets[] = {
       {"var a = 1; return ++a;",
@@ -3179,6 +3185,28 @@ TEST(CountOperators) {
        },
        1,
        {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"var idx = 1; var a = [1, 2]; return a[idx++] = 2;",
+       3 * kPointerSize,
+       1,
+       26,
+       {
+           B(LdaSmi8), U8(1),                                              //
+           B(Star), R(0),                                                  //
+           B(LdaConstant), U8(0),                                          //
+           B(CreateArrayLiteral), U8(0), U8(array_literal_flags),          //
+           B(Star), R(1),                                                  //
+           B(Ldar), R(0),                                                  //
+           B(ToNumber),                                                    //
+           B(Star), R(2),                                                  //
+           B(Inc),                                                         //
+           B(Star), R(0),                                                  //
+           B(LdaSmi8), U8(2),                                              //
+           B(KeyedStoreICSloppy), R(1), R(2),                              //
+                                  U8(store_vector->GetIndex(store_slot)),  //
+           B(Return),                                                      //
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {

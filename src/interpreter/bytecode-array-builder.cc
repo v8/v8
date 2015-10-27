@@ -1061,6 +1061,15 @@ Register TemporaryRegisterScope::NewRegister() {
 }
 
 
+bool TemporaryRegisterScope::RegisterIsAllocatedInThisScope(
+    Register reg) const {
+  for (auto i = allocated_.begin(); i != allocated_.end(); i++) {
+    if (*i == reg.index()) return true;
+  }
+  return false;
+}
+
+
 void TemporaryRegisterScope::PrepareForConsecutiveAllocations(size_t count) {
   if (static_cast<int>(count) > next_consecutive_count_) {
     next_consecutive_register_ =
