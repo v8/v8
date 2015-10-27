@@ -326,9 +326,6 @@ class CallSite {
   T(NoCatchOrFinally, "Missing catch or finally after try")                    \
   T(NotIsvar, "builtin %%IS_VAR: not a variable")                              \
   T(ParamAfterRest, "Rest parameter must be last formal parameter")            \
-  T(PushPastSafeLength,                                                        \
-    "Pushing % elements on an array-like of length % "                         \
-    "is disallowed, as the total surpasses 2**53-1")                           \
   T(BadSetterRestParameter,                                                    \
     "Setter function argument must not be a rest parameter")                   \
   T(ParamDupe, "Duplicate parameter name not allowed in this context")         \
