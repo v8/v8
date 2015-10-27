@@ -40,6 +40,25 @@ size_t hash_value(VectorSlotPair const& p) {
 }
 
 
+size_t hash_value(ConvertReceiverMode const& mode) {
+  return base::hash_value(static_cast<int>(mode));
+}
+
+
+std::ostream& operator<<(std::ostream& os, ConvertReceiverMode const& mode) {
+  switch (mode) {
+    case ConvertReceiverMode::kNullOrUndefined:
+      return os << "NULL_OR_UNDEFINED";
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      return os << "NOT_NULL_OR_UNDEFINED";
+    case ConvertReceiverMode::kAny:
+      return os << "ANY";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
 std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
   os << p.arity() << ", " << p.flags() << ", " << p.language_mode();
   if (p.AllowTailCalls()) {
@@ -496,13 +515,12 @@ CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_LANGUAGE_MODE)
 #undef CACHED_WITH_LANGUAGE_MODE
 
 
-const Operator* JSOperatorBuilder::CallFunction(size_t arity,
-                                                CallFunctionFlags flags,
-                                                LanguageMode language_mode,
-                                                VectorSlotPair const& feedback,
-                                                TailCallMode tail_call_mode) {
+const Operator* JSOperatorBuilder::CallFunction(
+    size_t arity, CallFunctionFlags flags, LanguageMode language_mode,
+    VectorSlotPair const& feedback, ConvertReceiverMode convert_mode,
+    TailCallMode tail_call_mode) {
   CallFunctionParameters parameters(arity, flags, language_mode, feedback,
-                                    tail_call_mode);
+                                    tail_call_mode, convert_mode);
   return new (zone()) Operator1<CallFunctionParameters>(   // --
       IrOpcode::kJSCallFunction, Operator::kNoProperties,  // opcode
       "JSCallFunction",                                    // name
@@ -530,6 +548,16 @@ const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
       "JSCallConstruct",                                    // name
       arguments, 1, 1, 1, 1, 2,                             // counts
       arguments);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::ConvertReceiver(
+    ConvertReceiverMode convert_mode) {
+  return new (zone()) Operator1<ConvertReceiverMode>(    // --
+      IrOpcode::kJSConvertReceiver, Operator::kNoThrow,  // opcode
+      "JSConvertReceiver",                               // name
+      1, 1, 1, 1, 1, 0,                                  // counts
+      convert_mode);                                     // parameter
 }
 
 

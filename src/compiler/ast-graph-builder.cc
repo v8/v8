@@ -2312,8 +2312,9 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   // Prepare the callee and the receiver to the function call. This depends on
   // the semantics of the underlying call type.
   CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS;
-  Node* receiver_value = NULL;
-  Node* callee_value = NULL;
+  ConvertReceiverMode receiver_hint = ConvertReceiverMode::kAny;
+  Node* receiver_value = nullptr;
+  Node* callee_value = nullptr;
   bool possibly_eval = false;
   switch (call_type) {
     case Call::GLOBAL_CALL: {
@@ -2323,6 +2324,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       callee_value =
           BuildVariableLoad(proxy->var(), expr->expression()->id(), states,
                             pair, OutputFrameStateCombine::Push());
+      receiver_hint = ConvertReceiverMode::kNullOrUndefined;
       receiver_value = jsgraph()->UndefinedConstant();
       break;
     }
@@ -2362,14 +2364,16 @@ void AstGraphBuilder::VisitCall(Call* expr) {
           states.AddToNode(callee_value, property->LoadId(),
                            OutputFrameStateCombine::Push());
         }
-        receiver_value = environment()->Pop();
         // Note that a PROPERTY_CALL requires the receiver to be wrapped into an
-        // object for sloppy callees. This could also be modeled explicitly
-        // here,
-        // thereby obsoleting the need for a flag to the call operator.
+        // object for sloppy callees. However the receiver is guaranteed not to
+        // be null or undefined at this point.
+        receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
+        receiver_value = environment()->Pop();
         flags = CALL_AS_METHOD;
 
       } else {
+        // TODO(mstarzinger): Cleanup this special handling for super access,
+        // the stack layout seems to be completely out of sync here, fix this!
         VisitForValue(property->obj()->AsSuperPropertyReference()->this_var());
         VisitForValue(
             property->obj()->AsSuperPropertyReference()->home_object());
@@ -2416,6 +2420,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     case Call::OTHER_CALL:
       VisitForValue(callee);
       callee_value = environment()->Pop();
+      receiver_hint = ConvertReceiverMode::kNullOrUndefined;
       receiver_value = jsgraph()->UndefinedConstant();
       break;
   }
@@ -2439,7 +2444,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     Node* source = environment()->Peek(arg_count - 1);
 
     // Create node to ask for help resolving potential eval call. This will
-    // provide a fully resolved callee and the corresponding receiver.
+    // provide a fully resolved callee to patch into the environment.
     Node* function = GetFunctionClosure();
     Node* language = jsgraph()->Constant(language_mode());
     Node* position = jsgraph()->Constant(current_scope()->start_position());
@@ -2456,8 +2461,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
 
   // Create node to perform the function call.
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
-  const Operator* call = javascript()->CallFunction(args->length() + 2, flags,
-                                                    language_mode(), feedback);
+  const Operator* call = javascript()->CallFunction(
+      args->length() + 2, flags, language_mode(), feedback, receiver_hint);
   Node* value = ProcessArguments(call, args->length() + 2);
   environment()->Push(callee_value);
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());

@@ -420,6 +420,18 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
     frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info());
   }
 
+  // Insert a JSConvertReceiver node for sloppy callees. Note that the context
+  // passed into this node has to be the callees context (loaded above).
+  if (is_sloppy(info.language_mode()) && !function->shared()->native()) {
+    const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* convert = jsgraph_->graph()->NewNode(
+        jsgraph_->javascript()->ConvertReceiver(p.convert_mode()),
+        call.receiver(), context, frame_state, effect, start);
+    NodeProperties::ReplaceValueInput(node, convert, 1);
+    NodeProperties::ReplaceEffectInput(node, convert);
+  }
+
   return InlineCall(node, context, frame_state, start, end);
 }
 

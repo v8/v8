@@ -547,6 +547,18 @@ RUNTIME_FUNCTION(Runtime_GetOriginalConstructor) {
 }
 
 
+// ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
+RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
+  if (receiver->IsNull() || receiver->IsUndefined()) {
+    return isolate->global_proxy();
+  }
+  return *Object::ToObject(isolate, receiver).ToHandleChecked();
+}
+
+
 // TODO(bmeurer): Kill %_CallFunction ASAP as it is almost never used
 // correctly because of the weird semantics underneath.
 RUNTIME_FUNCTION(Runtime_CallFunction) {

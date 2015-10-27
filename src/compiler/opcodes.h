@@ -139,6 +139,7 @@
   V(JSCallConstruct)        \
   V(JSCallFunction)         \
   V(JSCallRuntime)          \
+  V(JSConvertReceiver)      \
   V(JSForInDone)            \
   V(JSForInNext)            \
   V(JSForInPrepare)         \

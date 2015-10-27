@@ -531,7 +531,7 @@ Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceCallFunction(Node* node) {
-  CallRuntimeParameters params = OpParameter<CallRuntimeParameters>(node->op());
+  CallRuntimeParameters params = CallRuntimeParametersOf(node->op());
   size_t arity = params.arity();
   Node* function = node->InputAt(static_cast<int>(arity - 1));
   while (--arity != 0) {
@@ -540,9 +540,9 @@ Reduction JSIntrinsicLowering::ReduceCallFunction(Node* node) {
   }
   node->ReplaceInput(0, function);
   NodeProperties::ChangeOp(
-      node,
-      javascript()->CallFunction(params.arity(), NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair(), ALLOW_TAIL_CALLS));
+      node, javascript()->CallFunction(
+                params.arity(), NO_CALL_FUNCTION_FLAGS, STRICT,
+                VectorSlotPair(), ConvertReceiverMode::kAny, ALLOW_TAIL_CALLS));
   return Changed(node);
 }
 

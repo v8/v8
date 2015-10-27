@@ -117,6 +117,7 @@ REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSGreaterThanOrEqual, Token::GTE)
 REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
+REPLACE_RUNTIME_CALL(JSConvertReceiver, Runtime::kConvertReceiver)
 #undef REPLACE_RUNTIME
 
 

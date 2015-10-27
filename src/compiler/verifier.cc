@@ -566,6 +566,7 @@ void Verifier::Visitor::Check(Node* node) {
     }
 
     case IrOpcode::kJSCallConstruct:
+    case IrOpcode::kJSConvertReceiver:
       // Type is Receiver.
       CheckUpperIs(node, Type::Receiver());
       break;

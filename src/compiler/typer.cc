@@ -1480,6 +1480,11 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeJSConvertReceiver(Node* node) {
+  return Type::Receiver();
+}
+
+
 Type* Typer::Visitor::TypeJSForInNext(Node* node) {
   return Type::Union(Type::Name(), Type::Undefined(), zone());
 }
