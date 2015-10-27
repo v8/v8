@@ -168,6 +168,9 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(NumberMultiply, Operator::kCommutative, 2)           \
   V(NumberDivide, Operator::kNoProperties, 2)            \
   V(NumberModulus, Operator::kNoProperties, 2)           \
+  V(NumberBitwiseOr, Operator::kCommutative, 2)          \
+  V(NumberBitwiseXor, Operator::kCommutative, 2)         \
+  V(NumberBitwiseAnd, Operator::kCommutative, 2)         \
   V(NumberShiftLeft, Operator::kNoProperties, 2)         \
   V(NumberShiftRight, Operator::kNoProperties, 2)        \
   V(NumberShiftRightLogical, Operator::kNoProperties, 2) \

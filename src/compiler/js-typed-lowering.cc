@@ -1525,12 +1525,13 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
   Node* etrue0;
   {
     // Enum cache case.
-    Node* cache_type_enum_length = etrue0 = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForMapBitField3()), cache_type,
-        effect, if_true0);
-    cache_length_true0 =
-        graph()->NewNode(machine()->Word32And(), cache_type_enum_length,
-                         jsgraph()->Uint32Constant(Map::EnumLengthBits::kMask));
+    Node* cache_type_enum_length = etrue0 =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForMapBitField3(graph()->zone())),
+                         cache_type, effect, if_true0);
+    cache_length_true0 = graph()->NewNode(
+        simplified()->NumberBitwiseAnd(), cache_type_enum_length,
+        jsgraph()->Int32Constant(Map::EnumLengthBits::kMask));
 
     Node* check1 =
         graph()->NewNode(machine()->Word32Equal(), cache_length_true0,
@@ -1795,11 +1796,11 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSGreaterThanOrEqual:
       return ReduceJSComparison(node);
     case IrOpcode::kJSBitwiseOr:
-      return ReduceInt32Binop(node, machine()->Word32Or());
+      return ReduceInt32Binop(node, simplified()->NumberBitwiseOr());
     case IrOpcode::kJSBitwiseXor:
-      return ReduceInt32Binop(node, machine()->Word32Xor());
+      return ReduceInt32Binop(node, simplified()->NumberBitwiseXor());
     case IrOpcode::kJSBitwiseAnd:
-      return ReduceInt32Binop(node, machine()->Word32And());
+      return ReduceInt32Binop(node, simplified()->NumberBitwiseAnd());
     case IrOpcode::kJSShiftLeft:
       return ReduceUI32Shift(node, kSigned, simplified()->NumberShiftLeft());
     case IrOpcode::kJSShiftRight:

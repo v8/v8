@@ -331,6 +331,12 @@ class RepresentationChanger {
         return machine()->Int32Div();
       case IrOpcode::kNumberModulus:
         return machine()->Int32Mod();
+      case IrOpcode::kNumberBitwiseOr:
+        return machine()->Word32Or();
+      case IrOpcode::kNumberBitwiseXor:
+        return machine()->Word32Xor();
+      case IrOpcode::kNumberBitwiseAnd:
+        return machine()->Word32And();
       case IrOpcode::kNumberEqual:
         return machine()->Word32Equal();
       case IrOpcode::kNumberLessThan:

@@ -68,7 +68,6 @@ FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
 
 // static
 FieldAccess AccessBuilder::ForFixedArrayLength(Zone* zone) {
-  STATIC_ASSERT(FixedArray::kMaxLength <= 1 << 30);
   FieldAccess access = {
       kTaggedBase, FixedArray::kLengthOffset, MaybeHandle<Name>(),
       Type::Intersect(Type::Range(0, FixedArray::kMaxLength, zone),
@@ -96,9 +95,11 @@ FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCache() {
 
 
 // static
-FieldAccess AccessBuilder::ForMapBitField3() {
-  FieldAccess access = {kTaggedBase, Map::kBitField3Offset, Handle<Name>(),
-                        Type::UntaggedUnsigned32(), kMachUint32};
+FieldAccess AccessBuilder::ForMapBitField3(Zone* zone) {
+  FieldAccess access = {
+      kTaggedBase, Map::kBitField3Offset, Handle<Name>(),
+      Type::Intersect(Type::Signed32(), Type::UntaggedSigned32(), zone),
+      kMachInt32};
   return access;
 }
 

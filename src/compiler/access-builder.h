@@ -50,7 +50,7 @@ class AccessBuilder final : public AllStatic {
   static FieldAccess ForDescriptorArrayEnumCacheBridgeCache();
 
   // Provides access to Map::bit_field3() field.
-  static FieldAccess ForMapBitField3();
+  static FieldAccess ForMapBitField3(Zone* zone);
 
   // Provides access to Map::descriptors() field.
   static FieldAccess ForMapDescriptors();

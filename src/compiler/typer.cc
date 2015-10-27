@@ -1556,6 +1556,21 @@ Type* Typer::Visitor::TypeNumberModulus(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeNumberBitwiseOr(Node* node) {
+  return Type::Signed32(zone());
+}
+
+
+Type* Typer::Visitor::TypeNumberBitwiseXor(Node* node) {
+  return Type::Signed32(zone());
+}
+
+
+Type* Typer::Visitor::TypeNumberBitwiseAnd(Node* node) {
+  return Type::Signed32(zone());
+}
+
+
 Type* Typer::Visitor::TypeNumberShiftLeft(Node* node) {
   return Type::Signed32(zone());
 }

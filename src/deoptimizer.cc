@@ -2491,16 +2491,6 @@ Object* TranslatedValue::GetRawValue() const {
       break;
     }
 
-    case kDouble: {
-      int int_value = FastD2IChecked(double_value());
-      bool is_smi = !IsMinusZero(double_value()) &&
-                    double_value() == int_value && Smi::IsValid(int_value);
-      if (is_smi) {
-        return Smi::FromInt(static_cast<int32_t>(int_value));
-      }
-      break;
-    }
-
     case kBoolBit: {
       if (uint32_value() == 0) {
         return isolate()->heap()->false_value();

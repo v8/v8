@@ -718,6 +718,13 @@ class RepresentationSelector {
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         break;
       }
+      case IrOpcode::kNumberBitwiseOr:
+      case IrOpcode::kNumberBitwiseXor:
+      case IrOpcode::kNumberBitwiseAnd: {
+        VisitInt32Binop(node);
+        if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
+        break;
+      }
       case IrOpcode::kNumberShiftLeft: {
         VisitBinop(node, kMachInt32, kMachUint32, kMachInt32);
         if (lower()) lowering->DoShift(node, lowering->machine()->Word32Shl());
