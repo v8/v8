@@ -603,6 +603,13 @@ template <class T> class PersistentBase {
    */
   V8_INLINE void MarkPartiallyDependent();
 
+  /**
+   * Marks the reference to this object as active. The scavenge garbage
+   * collection should not reclaim the objects marked as active.
+   * This bit is cleared after the each garbage collection pass.
+   */
+  V8_INLINE void MarkActive();
+
   V8_INLINE bool IsIndependent() const;
 
   /** Checks if the handle holds the only reference to an object. */
@@ -5960,6 +5967,13 @@ class V8_EXPORT Isolate {
    */
   void VisitHandlesForPartialDependence(PersistentHandleVisitor* visitor);
 
+  /**
+   * Iterates through all the persistent handles in the current isolate's heap
+   * that have class_ids and are weak to be marked as inactive if there is no
+   * pending activity for the handle.
+   */
+  void VisitWeakHandles(PersistentHandleVisitor* visitor);
+
  private:
   template <class K, class V, class Traits>
   friend class PersistentValueMapBase;
@@ -7042,6 +7056,7 @@ class Internals {
   static const int kNodeStateIsNearDeathValue = 4;
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsPartiallyDependentShift = 4;
+  static const int kNodeIsActiveShift = 4;
 
   static const int kJSObjectType = 0xb7;
   static const int kFirstNonstringType = 0x80;
@@ -7365,6 +7380,15 @@ void PersistentBase<T>::MarkPartiallyDependent() {
   I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
                     true,
                     I::kNodeIsPartiallyDependentShift);
+}
+
+
+template <class T>
+void PersistentBase<T>::MarkActive() {
+  typedef internal::Internals I;
+  if (this->IsEmpty()) return;
+  I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_), true,
+                    I::kNodeIsActiveShift);
 }
 
 

@@ -7593,6 +7593,15 @@ void Isolate::VisitHandlesForPartialDependence(
 }
 
 
+void Isolate::VisitWeakHandles(PersistentHandleVisitor* visitor) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::DisallowHeapAllocation no_allocation;
+  VisitorAdapter visitor_adapter(visitor);
+  isolate->global_handles()->IterateWeakRootsInNewSpaceWithClassIds(
+      &visitor_adapter);
+}
+
+
 String::Utf8Value::Utf8Value(v8::Local<v8::Value> obj)
     : str_(NULL), length_(0) {
   if (obj.IsEmpty()) return;
