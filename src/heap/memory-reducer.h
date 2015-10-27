@@ -96,18 +96,13 @@ class MemoryReducer {
     double last_gc_time_ms;
   };
 
-  enum EventType {
-    kTimer,
-    kMarkCompact,
-    kContextDisposed,
-    kBackgroundIdleNotification
-  };
+  enum EventType { kTimer, kMarkCompact, kContextDisposed };
 
   struct Event {
     EventType type;
     double time_ms;
-    bool low_allocation_rate;
     bool next_gc_likely_to_collect_more;
+    bool should_start_incremental_gc;
     bool can_start_incremental_gc;
   };
 
