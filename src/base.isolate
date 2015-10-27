@@ -11,5 +11,12 @@
         ],
       },
     }],
+    ['OS=="linux" and component=="shared_library" and target_arch=="ia32"', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/lib/',
+        ],
+      },
+    }],
   ],
 }

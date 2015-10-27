@@ -68,6 +68,8 @@
         '--path-variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
 
         '--config-variable', 'OS=<(OS)',
+        '--config-variable', 'component=<(component)',
+        '--config-variable', 'target_arch=<(target_arch)',
         '--config-variable', 'v8_use_external_startup_data=<(v8_use_external_startup_data)',
         '--config-variable', 'v8_use_snapshot=<(v8_use_snapshot)',
       ],
