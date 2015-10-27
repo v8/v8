@@ -6227,18 +6227,7 @@ TEST(SharedFunctionInfoIterator) {
     HeapIterator it(heap);
     for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
       if (!obj->IsSharedFunctionInfo()) continue;
-      // Shared function infos without a script (API functions or C++ builtins)
-      // are not returned by the iterator because they are not created from a
-      // script. They are not interesting for type feedback vector anyways.
-
-      // TODO(mvstanton): There are builtins that use type feedback vectors,
-      // consider adding these to the iterator.
-      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-      if (shared->script()->IsUndefined()) {
-        CHECK(shared->native() || shared->feedback_vector()->is_empty());
-      } else {
-        sfi_count++;
-      }
+      sfi_count++;
     }
   }
 

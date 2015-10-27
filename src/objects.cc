@@ -12102,9 +12102,8 @@ Script* Script::Iterator::Next() { return iterator_.Next<Script>(); }
 
 
 SharedFunctionInfo::Iterator::Iterator(Isolate* isolate)
-    : script_iterator_(isolate), sfi_iterator_(NULL) {
-  NextScript();
-}
+    : script_iterator_(isolate),
+      sfi_iterator_(isolate->heap()->noscript_shared_function_infos()) {}
 
 
 bool SharedFunctionInfo::Iterator::NextScript() {
@@ -12127,6 +12126,38 @@ SharedFunctionInfo* SharedFunctionInfo::Iterator::Next() {
 void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
                                    Handle<Object> script_object) {
   if (shared->script() == *script_object) return;
+  Isolate* isolate = shared->GetIsolate();
+
+  // Add shared function info to new script's list. If a collection occurs,
+  // the shared function info may be temporarily in two lists.
+  // This is okay because the gc-time processing of these lists can tolerate
+  // duplicates.
+  Handle<Object> list;
+  if (script_object->IsScript()) {
+    Handle<Script> script = Handle<Script>::cast(script_object);
+    list = handle(script->shared_function_infos(), isolate);
+  } else {
+    list = isolate->factory()->noscript_shared_function_infos();
+  }
+
+#ifdef DEBUG
+  {
+    WeakFixedArray::Iterator iterator(*list);
+    SharedFunctionInfo* next;
+    while ((next = iterator.Next<SharedFunctionInfo>())) {
+      DCHECK_NE(next, *shared);
+    }
+  }
+#endif  // DEBUG
+  list = WeakFixedArray::Add(list, shared);
+
+  if (script_object->IsScript()) {
+    Handle<Script> script = Handle<Script>::cast(script_object);
+    script->set_shared_function_infos(*list);
+  } else {
+    isolate->heap()->SetRootNoScriptSharedFunctionInfos(*list);
+  }
+
   // Remove shared function info from old script's list.
   if (shared->script()->IsScript()) {
     Script* old_script = Script::cast(shared->script());
@@ -12135,23 +12166,12 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
           WeakFixedArray::cast(old_script->shared_function_infos());
       list->Remove(shared);
     }
+  } else {
+    // Remove shared function info from root array.
+    Object* list = isolate->heap()->noscript_shared_function_infos();
+    CHECK(WeakFixedArray::cast(list)->Remove(shared));
   }
-  // Add shared function info to new script's list.
-  if (script_object->IsScript()) {
-    Handle<Script> script = Handle<Script>::cast(script_object);
-    Handle<Object> list(script->shared_function_infos(), shared->GetIsolate());
-#ifdef DEBUG
-    {
-      WeakFixedArray::Iterator iterator(*list);
-      SharedFunctionInfo* next;
-      while ((next = iterator.Next<SharedFunctionInfo>())) {
-        DCHECK_NE(next, *shared);
-      }
-    }
-#endif  // DEBUG
-    list = WeakFixedArray::Add(list, shared);
-    script->set_shared_function_infos(*list);
-  }
+
   // Finally set new script.
   shared->set_script(*script_object);
 }

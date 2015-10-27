@@ -187,6 +187,7 @@ namespace internal {
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, code_stub_context, CodeStubContext)                                \
   V(JSObject, code_stub_exports_object, CodeStubExportsObject)                 \
+  V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(FixedArray, interpreter_table, InterpreterTable)                           \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(BytecodeArray, empty_bytecode_array, EmptyBytecodeArray)
@@ -1162,6 +1163,10 @@ class Heap {
 
   void SetRootStringTable(StringTable* value) {
     roots_[kStringTableRootIndex] = value;
+  }
+
+  void SetRootNoScriptSharedFunctionInfos(Object* value) {
+    roots_[kNoScriptSharedFunctionInfosRootIndex] = value;
   }
 
   // Set the stack limit in the roots_ array.  Some architectures generate

@@ -2161,6 +2161,11 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_compiler_hints(0);
   share->set_opt_count_and_bailout_reason(0);
 
+  // Link into the list.
+  Handle<Object> new_noscript_list =
+      WeakFixedArray::Add(noscript_shared_function_infos(), share);
+  isolate()->heap()->set_noscript_shared_function_infos(*new_noscript_list);
+
   return share;
 }
 

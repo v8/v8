@@ -6855,9 +6855,7 @@ class SharedFunctionInfo: public HeapObject {
 
   void ResetForNewContext(int new_ic_age);
 
-  // Iterate over all shared function infos that are created from a script.
-  // That excludes shared function infos created for API functions and C++
-  // builtins.
+  // Iterate over all shared function infos.
   class Iterator {
    public:
     explicit Iterator(Isolate* isolate);

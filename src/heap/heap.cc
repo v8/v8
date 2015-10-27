@@ -2808,6 +2808,8 @@ void Heap::CreateInitialObjects() {
 
   set_weak_stack_trace_list(Smi::FromInt(0));
 
+  set_noscript_shared_function_infos(Smi::FromInt(0));
+
   // Will be filled in by Interpreter::Initialize().
   set_interpreter_table(
       *interpreter::Interpreter::CreateUninitializedInterpreterTable(
@@ -2850,6 +2852,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kDetachedContextsRootIndex:
     case kWeakObjectToCodeTableRootIndex:
     case kRetainedMapsRootIndex:
+    case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
 // Smi values
 #define SMI_ENTRY(type, name, Name) case k##Name##RootIndex:
