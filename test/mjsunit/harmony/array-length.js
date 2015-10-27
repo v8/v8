@@ -33,13 +33,7 @@ assertEquals(1, o.length);
 assertEquals(1, o[0]);
 
 var o = { length: Number.MAX_VALUE };
-Array.prototype.push.call(o, 1);
-assertEquals(o.length, Number.MAX_SAFE_INTEGER + 1);
-assertEquals(1, o[Number.MAX_SAFE_INTEGER]);
-
-Array.prototype.push.call(o, 2);
-assertEquals(o.length, Number.MAX_SAFE_INTEGER + 1);
-assertEquals(2, o[Number.MAX_SAFE_INTEGER]);
+assertThrows(() => Array.prototype.push.call(o, 1), TypeError);
 
 // ArrayPop
 

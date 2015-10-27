@@ -517,6 +517,15 @@ function ArrayPush() {
   var n = TO_LENGTH_OR_UINT32(array.length);
   var m = %_ArgumentsLength();
 
+  // It appears that there is no enforced, absolute limit on the number of
+  // arguments, but it would surely blow the stack to use 2**30 or more.
+  // To avoid integer overflow, do the comparison to the max safe integer
+  // after subtracting 2**30 from both sides. (2**31 would seem like a
+  // natural value, but it is negative in JS, and 2**32 is 1.)
+  if (m > (1 << 30) || (n - (1 << 30)) + m > kMaxSafeInteger - (1 << 30)) {
+    throw MakeTypeError(kPushPastSafeLength, m, n);
+  }
+
   for (var i = 0; i < m; i++) {
     array[i+n] = %_Arguments(i);
   }
