@@ -121,25 +121,6 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBoolToBit) {
 }
 
 
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeFloat64ToTagged) {
-  Node* value = Parameter(Type::Number());
-  Reduction r =
-      Reduce(graph()->NewNode(simplified()->ChangeFloat64ToTagged(), value));
-  ASSERT_TRUE(r.Changed());
-  Capture<Node*> heap_number;
-  EXPECT_THAT(
-      r.replacement(),
-      IsFinishRegion(
-          AllOf(CaptureEq(&heap_number),
-                IsAllocateHeapNumber(IsBeginRegion(graph()->start()),
-                                     graph()->start())),
-          IsStore(StoreRepresentation(kMachFloat64, kNoWriteBarrier),
-                  CaptureEq(&heap_number),
-                  IsIntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag),
-                  value, CaptureEq(&heap_number), graph()->start())));
-}
-
-
 TARGET_TEST_P(ChangeLoweringCommonTest, ChangeInt32ToTaggedWithSignedSmall) {
   Node* value = Parameter(Type::SignedSmall());
   Reduction r =
