@@ -131,6 +131,7 @@ var assertUnoptimized;
       case "boolean":
       case "undefined":
       case "function":
+      case "symbol":
         return String(value);
       case "object":
         if (value === null) return "null";
