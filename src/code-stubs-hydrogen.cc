@@ -1356,12 +1356,11 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
   if_nil.Then();
   if (continuation.IsFalseReachable()) {
     if_nil.Else();
-    if_nil.Return(graph()->GetConstant0());
+    if_nil.Return(graph()->GetConstantFalse());
   }
   if_nil.End();
-  return continuation.IsTrueReachable()
-      ? graph()->GetConstant1()
-      : graph()->GetConstantUndefined();
+  return continuation.IsTrueReachable() ? graph()->GetConstantTrue()
+                                        : graph()->GetConstantUndefined();
 }
 
 

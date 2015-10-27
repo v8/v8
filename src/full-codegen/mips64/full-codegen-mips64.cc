@@ -4959,7 +4959,8 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
   } else {
     Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(), nil);
     CallIC(ic, expr->CompareOperationFeedbackId());
-    Split(ne, v0, Operand(zero_reg), if_true, if_false, fall_through);
+    __ LoadRoot(a1, Heap::kTrueValueRootIndex);
+    Split(eq, v0, Operand(a1), if_true, if_false, fall_through);
   }
   context()->Plug(if_true, if_false);
 }

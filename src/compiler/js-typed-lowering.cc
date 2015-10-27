@@ -222,11 +222,13 @@ class JSBinopReduction final {
 
   bool IsStrong() { return is_strong(OpParameter<LanguageMode>(node_)); }
 
-  bool OneInputIs(Type* t) { return left_type()->Is(t) || right_type()->Is(t); }
+  bool LeftInputIs(Type* t) { return left_type()->Is(t); }
 
-  bool BothInputsAre(Type* t) {
-    return left_type()->Is(t) && right_type()->Is(t);
-  }
+  bool RightInputIs(Type* t) { return right_type()->Is(t); }
+
+  bool OneInputIs(Type* t) { return LeftInputIs(t) || RightInputIs(t); }
+
+  bool BothInputsAre(Type* t) { return LeftInputIs(t) && RightInputIs(t); }
 
   bool OneInputCannotBe(Type* t) {
     return !left_type()->Maybe(t) || !right_type()->Maybe(t);
@@ -604,8 +606,25 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
     return r.ChangeToPureOperator(
         simplified()->ReferenceEqual(Type::Receiver()), invert);
   }
-  // TODO(turbofan): js-typed-lowering of Equal(undefined)
-  // TODO(turbofan): js-typed-lowering of Equal(null)
+  if (r.OneInputIs(Type::NullOrUndefined())) {
+    Callable const callable = CodeFactory::CompareNilIC(isolate(), kNullValue);
+    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNeedsFrameState, node->op()->properties());
+    node->RemoveInput(r.LeftInputIs(Type::NullOrUndefined()) ? 0 : 1);
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
+    NodeProperties::ChangeOp(node, common()->Call(desc));
+    if (invert) {
+      // Insert an boolean not to invert the value.
+      Node* value = graph()->NewNode(simplified()->BooleanNot(), node);
+      node->ReplaceUses(value);
+      // Note: ReplaceUses() smashes all uses, so smash it back here.
+      value->ReplaceInput(0, node);
+      return Replace(value);
+    }
+    return Changed(node);
+  }
   return NoChange();
 }
 

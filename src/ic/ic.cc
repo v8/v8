@@ -2917,9 +2917,9 @@ void CompareNilIC::Clear(Address address, Code* target, Address constant_pool) {
 Handle<Object> CompareNilIC::DoCompareNilSlow(Isolate* isolate, NilValue nil,
                                               Handle<Object> object) {
   if (object->IsNull() || object->IsUndefined()) {
-    return handle(Smi::FromInt(true), isolate);
+    return isolate->factory()->true_value();
   }
-  return handle(Smi::FromInt(object->IsUndetectableObject()), isolate);
+  return isolate->factory()->ToBoolean(object->IsUndetectableObject());
 }
 
 

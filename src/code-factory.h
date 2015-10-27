@@ -56,6 +56,7 @@ class CodeFactory final {
 
   static Callable CompareIC(Isolate* isolate, Token::Value op,
                             Strength strength);
+  static Callable CompareNilIC(Isolate* isolate, NilValue nil_value);
 
   static Callable BinaryOpIC(Isolate* isolate, Token::Value op,
                              Strength strength);

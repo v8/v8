@@ -4881,8 +4881,8 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
   } else {
     Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(), nil);
     CallIC(ic, expr->CompareOperationFeedbackId());
-    __ testp(rax, rax);
-    Split(not_zero, if_true, if_false, fall_through);
+    __ CompareRoot(rax, Heap::kTrueValueRootIndex);
+    Split(equal, if_true, if_false, fall_through);
   }
   context()->Plug(if_true, if_false);
 }
