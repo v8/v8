@@ -1657,6 +1657,7 @@ void AstGraphBuilder::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 void AstGraphBuilder::VisitDoExpression(DoExpression* expr) {
   VisitBlock(expr->block());
   VisitVariableProxy(expr->result());
+  ast_context()->ReplaceValue();
 }
 
 
@@ -2464,7 +2465,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   const Operator* call = javascript()->CallFunction(
       args->length() + 2, flags, language_mode(), feedback, receiver_hint);
   Node* value = ProcessArguments(call, args->length() + 2);
-  environment()->Push(callee_value);
+  environment()->Push(value->InputAt(0));  // The callee passed to the call.
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   environment()->Drop(1);
   ast_context()->ProduceValue(value);
