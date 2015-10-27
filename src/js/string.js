@@ -157,7 +157,6 @@ function StringMatchJS(regexp) {
   if (IS_REGEXP(regexp)) {
     if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
     var result = %StringMatch(subject, regexp, RegExpLastMatchInfo);
-    if (result !== null) $regexpLastMatchInfoOverride = null;
     regexp.lastIndex = 0;
     return result;
   }
@@ -244,24 +243,8 @@ function StringReplace(search, replace) {
 
       // Global regexp search, string replace.
       search.lastIndex = 0;
-      if ($regexpLastMatchInfoOverride == null) {
-        return %StringReplaceGlobalRegExpWithString(
-            subject, search, replace, RegExpLastMatchInfo);
-      } else {
-        // We use this hack to detect whether StringReplaceRegExpWithString
-        // found at least one hit. In that case we need to remove any
-        // override.
-        var saved_subject = RegExpLastMatchInfo[LAST_SUBJECT_INDEX];
-        RegExpLastMatchInfo[LAST_SUBJECT_INDEX] = 0;
-        var answer = %StringReplaceGlobalRegExpWithString(
-            subject, search, replace, RegExpLastMatchInfo);
-        if (%_IsSmi(RegExpLastMatchInfo[LAST_SUBJECT_INDEX])) {
-          RegExpLastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
-        } else {
-          $regexpLastMatchInfoOverride = null;
-        }
-        return answer;
-      }
+      return %StringReplaceGlobalRegExpWithString(
+          subject, search, replace, RegExpLastMatchInfo);
     }
 
     if (search.global) {
@@ -438,22 +421,16 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     // input string and some replacements that were returned from the replace
     // function.
     var match_start = 0;
-    var override = new InternalPackedArray(null, 0, subject);
     for (var i = 0; i < len; i++) {
       var elem = res[i];
       if (%_IsSmi(elem)) {
-        // Integers represent slices of the original string.  Use these to
-        // get the offsets we need for the override array (so things like
-        // RegExp.leftContext work during the callback function.
+        // Integers represent slices of the original string.
         if (elem > 0) {
           match_start = (elem >> 11) + (elem & 0x7ff);
         } else {
           match_start = res[++i] - elem;
         }
       } else {
-        override[0] = elem;
-        override[1] = match_start;
-        $regexpLastMatchInfoOverride = override;
         var func_result = replace(elem, match_start, subject);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
@@ -467,7 +444,6 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
       if (!%_IsSmi(elem)) {
         // elem must be an Array.
         // Use the apply argument as backing for global RegExp properties.
-        $regexpLastMatchInfoOverride = elem;
         var func_result = %Apply(replace, UNDEFINED, elem, 0, elem.length);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
@@ -475,7 +451,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
       }
     }
   }
-  var result = %StringBuilderConcat(res, res.length, subject);
+  var result = %StringBuilderConcat(res, len, subject);
   resultArray.length = 0;
   reusableReplaceArray = resultArray;
   return result;

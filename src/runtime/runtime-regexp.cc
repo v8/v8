@@ -693,8 +693,10 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   RUNTIME_ASSERT(pattern_length > 0);
 
   if (limit == 0xffffffffu) {
+    FixedArray* last_match_cache_unused;
     Handle<Object> cached_answer(
         RegExpResultsCache::Lookup(isolate->heap(), *subject, *pattern,
+                                   &last_match_cache_unused,
                                    RegExpResultsCache::STRING_SPLIT_SUBSTRINGS),
         isolate);
     if (*cached_answer != Smi::FromInt(0)) {
@@ -757,6 +759,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   if (limit == 0xffffffffu) {
     if (result->HasFastObjectElements()) {
       RegExpResultsCache::Enter(isolate, subject, pattern, elements,
+                                isolate->factory()->empty_fixed_array(),
                                 RegExpResultsCache::STRING_SPLIT_SUBSTRINGS);
     }
   }
@@ -1017,23 +1020,23 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   static const int kMinLengthToCache = 0x1000;
 
   if (subject_length > kMinLengthToCache) {
-    Handle<Object> cached_answer(
-        RegExpResultsCache::Lookup(isolate->heap(), *subject, regexp->data(),
-                                   RegExpResultsCache::REGEXP_MULTIPLE_INDICES),
-        isolate);
-    if (*cached_answer != Smi::FromInt(0)) {
+    FixedArray* last_match_cache;
+    Object* cached_answer = RegExpResultsCache::Lookup(
+        isolate->heap(), *subject, regexp->data(), &last_match_cache,
+        RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
+    if (cached_answer->IsFixedArray()) {
+      int capture_registers = (capture_count + 1) * 2;
+      int32_t* last_match = NewArray<int32_t>(capture_registers);
+      for (int i = 0; i < capture_registers; i++) {
+        last_match[i] = Smi::cast(last_match_cache->get(i))->value();
+      }
       Handle<FixedArray> cached_fixed_array =
-          Handle<FixedArray>(FixedArray::cast(*cached_answer));
+          Handle<FixedArray>(FixedArray::cast(cached_answer));
       // The cache FixedArray is a COW-array and can therefore be reused.
       JSArray::SetContent(result_array, cached_fixed_array);
-      // The actual length of the result array is stored in the last element of
-      // the backing store (the backing FixedArray may have a larger capacity).
-      Object* cached_fixed_array_last_element =
-          cached_fixed_array->get(cached_fixed_array->length() - 1);
-      Smi* js_array_length = Smi::cast(cached_fixed_array_last_element);
-      result_array->set_length(js_array_length);
       RegExpImpl::SetLastMatchInfo(last_match_array, subject, capture_count,
-                                   NULL);
+                                   last_match);
+      DeleteArray(last_match);
       return *result_array;
     }
   }
@@ -1121,19 +1124,24 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
     }
 
     RegExpImpl::SetLastMatchInfo(last_match_array, subject, capture_count,
-                                 NULL);
+                                 global_cache.LastSuccessfulMatch());
 
     if (subject_length > kMinLengthToCache) {
-      // Store the length of the result array into the last element of the
-      // backing FixedArray.
-      builder.EnsureCapacity(1);
-      Handle<FixedArray> fixed_array = builder.array();
-      fixed_array->set(fixed_array->length() - 1,
-                       Smi::FromInt(builder.length()));
+      // Store the last successful match into the array for caching.
+      // TODO(yangguo): do not expose last match to JS and simplify caching.
+      int capture_registers = (capture_count + 1) * 2;
+      Handle<FixedArray> last_match_cache =
+          isolate->factory()->NewFixedArray(capture_registers);
+      int32_t* last_match = global_cache.LastSuccessfulMatch();
+      for (int i = 0; i < capture_registers; i++) {
+        last_match_cache->set(i, Smi::FromInt(last_match[i]));
+      }
+      Handle<FixedArray> result_array = builder.array();
+      result_array->Shrink(builder.length());
       // Cache the result and turn the FixedArray into a COW array.
-      RegExpResultsCache::Enter(isolate, subject,
-                                handle(regexp->data(), isolate), fixed_array,
-                                RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
+      RegExpResultsCache::Enter(
+          isolate, subject, handle(regexp->data(), isolate), result_array,
+          last_match_cache, RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
     }
     return *builder.ToJSArray(result_array);
   } else {
@@ -1149,8 +1157,8 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
   HandleScope handles(isolate);
   DCHECK(args.length() == 4);
 
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, result_array, 3);
   RUNTIME_ASSERT(last_match_info->HasFastObjectElements());

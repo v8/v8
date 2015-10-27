@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $regexpLastMatchInfoOverride;
-
 (function(global, utils) {
 
 %CheckIsBootstrapping();
@@ -43,12 +41,6 @@ var RegExpLastMatchInfo = new InternalPackedArray(
  0,                 // REGEXP_FIRST_CAPTURE + 0
  0                  // REGEXP_FIRST_CAPTURE + 1
 );
-
-// Override last match info with an array of actual substrings.
-// Used internally by replace regexp with function.
-// The array has the format of an "apply" argument for a replacement
-// function.
-$regexpLastMatchInfoOverride = null;
 
 // -------------------------------------------------------------------
 
@@ -114,7 +106,6 @@ function RegExpCompileJS(pattern, flags) {
 
 function DoRegExpExec(regexp, string, index) {
   var result = %_RegExpExec(regexp, string, index, RegExpLastMatchInfo);
-  if (result !== null) $regexpLastMatchInfoOverride = null;
   return result;
 }
 
@@ -149,7 +140,6 @@ function RegExpExecNoTests(regexp, string, start) {
   // Must be called with RegExp, string and positive integer as arguments.
   var matchInfo = %_RegExpExec(regexp, string, start, RegExpLastMatchInfo);
   if (matchInfo !== null) {
-    $regexpLastMatchInfoOverride = null;
     // ES6 21.2.5.2.2 step 18.
     if (FLAG_harmony_regexps && regexp.sticky) {
       regexp.lastIndex = matchInfo[CAPTURE1];
@@ -193,7 +183,6 @@ function RegExpExecJS(string) {
   }
 
   // Successful match.
-  $regexpLastMatchInfoOverride = null;
   if (updateLastIndex) {
     this.lastIndex = RegExpLastMatchInfo[CAPTURE1];
   }
@@ -233,7 +222,6 @@ function RegExpTest(string) {
       this.lastIndex = 0;
       return false;
     }
-    $regexpLastMatchInfoOverride = null;
     this.lastIndex = RegExpLastMatchInfo[CAPTURE1];
     return true;
   } else {
@@ -254,7 +242,6 @@ function RegExpTest(string) {
       this.lastIndex = 0;
       return false;
     }
-    $regexpLastMatchInfoOverride = null;
     return true;
   }
 }
@@ -291,9 +278,6 @@ function RegExpToString() {
 // on the captures array of the last successful match and the subject string
 // of the last successful match.
 function RegExpGetLastMatch() {
-  if ($regexpLastMatchInfoOverride !== null) {
-    return OVERRIDE_MATCH($regexpLastMatchInfoOverride);
-  }
   var regExpSubject = LAST_SUBJECT(RegExpLastMatchInfo);
   return %_SubString(regExpSubject,
                      RegExpLastMatchInfo[CAPTURE0],
@@ -302,11 +286,6 @@ function RegExpGetLastMatch() {
 
 
 function RegExpGetLastParen() {
-  if ($regexpLastMatchInfoOverride) {
-    var override = $regexpLastMatchInfoOverride;
-    if (override.length <= 3) return '';
-    return override[override.length - 3];
-  }
   var length = NUMBER_OF_CAPTURES(RegExpLastMatchInfo);
   if (length <= 2) return '';  // There were no captures.
   // We match the SpiderMonkey behavior: return the substring defined by the
@@ -325,14 +304,8 @@ function RegExpGetLastParen() {
 function RegExpGetLeftContext() {
   var start_index;
   var subject;
-  if (!$regexpLastMatchInfoOverride) {
-    start_index = RegExpLastMatchInfo[CAPTURE0];
-    subject = LAST_SUBJECT(RegExpLastMatchInfo);
-  } else {
-    var override = $regexpLastMatchInfoOverride;
-    start_index = OVERRIDE_POS(override);
-    subject = OVERRIDE_SUBJECT(override);
-  }
+  start_index = RegExpLastMatchInfo[CAPTURE0];
+  subject = LAST_SUBJECT(RegExpLastMatchInfo);
   return %_SubString(subject, 0, start_index);
 }
 
@@ -340,15 +313,8 @@ function RegExpGetLeftContext() {
 function RegExpGetRightContext() {
   var start_index;
   var subject;
-  if (!$regexpLastMatchInfoOverride) {
-    start_index = RegExpLastMatchInfo[CAPTURE1];
-    subject = LAST_SUBJECT(RegExpLastMatchInfo);
-  } else {
-    var override = $regexpLastMatchInfoOverride;
-    subject = OVERRIDE_SUBJECT(override);
-    var match = OVERRIDE_MATCH(override);
-    start_index = OVERRIDE_POS(override) + match.length;
-  }
+  start_index = RegExpLastMatchInfo[CAPTURE1];
+  subject = LAST_SUBJECT(RegExpLastMatchInfo);
   return %_SubString(subject, start_index, subject.length);
 }
 
@@ -358,12 +324,6 @@ function RegExpGetRightContext() {
 // called with indices from 1 to 9.
 function RegExpMakeCaptureGetter(n) {
   return function foo() {
-    if ($regexpLastMatchInfoOverride) {
-      if (n < $regexpLastMatchInfoOverride.length - 2) {
-        return OVERRIDE_CAPTURE($regexpLastMatchInfoOverride, n);
-      }
-      return '';
-    }
     var index = n * 2;
     if (index >= NUMBER_OF_CAPTURES(RegExpLastMatchInfo)) return '';
     var matchStart = RegExpLastMatchInfo[CAPTURE(index)];

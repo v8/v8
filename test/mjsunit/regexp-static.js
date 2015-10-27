@@ -119,7 +119,7 @@ for (var i = 4; i < 10; ++i) {
 // case the function uses the static properties of the regexp constructor.
 re = /(.)/g;
 function f() { return RegExp.$1; };
-assertEquals('abcd', 'abcd'.replace(re, f));
+assertEquals('dddd', 'abcd'.replace(re, f));
 
 // lastParen where the last parenthesis didn't match.
 assertEquals(["foo",undefined], /foo(?:a(x))?/.exec("foobx"),
