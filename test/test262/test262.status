@@ -620,9 +620,6 @@
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=3788
-  'language/expressions/equals/coerce-symbol-to-prim-return-prim': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

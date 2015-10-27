@@ -291,8 +291,9 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
       } else if (y->IsString()) {
         return Just(NumberEquals(x, String::ToNumber(Handle<String>::cast(y))));
       } else if (y->IsJSReceiver() && !y->IsUndetectableObject()) {
-        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
-                 .ToHandle(&y)) {
+        if (JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y)).ToHandle(&y)) {
+          continue;
+        } else {
           return Nothing<bool>();
         }
       } else {
@@ -309,8 +310,9 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
         x = String::ToNumber(Handle<String>::cast(x));
         return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
       } else if (y->IsJSReceiver() && !y->IsUndetectableObject()) {
-        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
-                 .ToHandle(&y)) {
+        if (JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y)).ToHandle(&y)) {
+          continue;
+        } else {
           return Nothing<bool>();
         }
       } else {
@@ -330,25 +332,47 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
           return Nothing<bool>();
         }
         x = Oddball::ToNumber(Handle<Oddball>::cast(x));
+        continue;
       } else {
         return Just(false);
       }
     } else if (x->IsSymbol()) {
-      return Just(x.is_identical_to(y));
+      if (y->IsSymbol()) {
+        return Just(x.is_identical_to(y));
+      } else if (y->IsJSReceiver() && !y->IsUndetectableObject()) {
+        if (JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y)).ToHandle(&y)) {
+          continue;
+        } else {
+          return Nothing<bool>();
+        }
+      } else {
+        return Just(false);
+      }
     } else if (x->IsSimd128Value()) {
-      if (!y->IsSimd128Value()) return Just(false);
-      return Just(Simd128Value::Equals(Handle<Simd128Value>::cast(x),
-                                       Handle<Simd128Value>::cast(y)));
+      if (y->IsSimd128Value()) {
+        return Just(Simd128Value::Equals(Handle<Simd128Value>::cast(x),
+                                         Handle<Simd128Value>::cast(y)));
+      } else if (y->IsJSReceiver() && !y->IsUndetectableObject()) {
+        if (JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y)).ToHandle(&y)) {
+          continue;
+        } else {
+          return Nothing<bool>();
+        }
+      } else {
+        return Just(false);
+      }
     } else if (x->IsJSReceiver() && !x->IsUndetectableObject()) {
       if (y->IsJSReceiver()) {
         return Just(x.is_identical_to(y));
-      } else if (y->IsNull() || y->IsSimd128Value() || y->IsSymbol() ||
-                 y->IsUndefined()) {
+      } else if (y->IsNull() || y->IsUndefined()) {
         return Just(false);
       } else if (y->IsBoolean()) {
         y = Oddball::ToNumber(Handle<Oddball>::cast(y));
-      }
-      if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(x)).ToHandle(&x)) {
+        continue;
+      } else if (JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(x))
+                     .ToHandle(&x)) {
+        continue;
+      } else {
         return Nothing<bool>();
       }
     } else {
@@ -356,6 +380,7 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
           (x->IsNull() || x->IsUndefined() || x->IsUndetectableObject()) &&
           (y->IsNull() || y->IsUndefined() || y->IsUndetectableObject()));
     }
+    UNREACHABLE();
   }
 }
 
