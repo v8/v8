@@ -87,53 +87,52 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     return Replace(node, property_cell_value);
   }
 
-  // Load from constant/undefined global property can be constant-folded
-  // with deoptimization support, by adding a code dependency on the cell.
-  if ((property_details.cell_type() == PropertyCellType::kConstant ||
-       property_details.cell_type() == PropertyCellType::kUndefined) &&
-      (flags() & kDeoptimizationEnabled)) {
-    dependencies()->AssumePropertyCell(property_cell);
-    return Replace(node, property_cell_value);
-  }
-
-  // Load from constant type global property can benefit from representation
-  // (and map) feedback with deoptimization support (requires code dependency).
-  if (property_details.cell_type() == PropertyCellType::kConstantType &&
-      (flags() & kDeoptimizationEnabled)) {
-    dependencies()->AssumePropertyCell(property_cell);
-    // Compute proper type based on the current value in the cell.
-    Type* property_cell_value_type;
-    if (property_cell_value->IsSmi()) {
-      property_cell_value_type = Type::Intersect(
-          Type::SignedSmall(), Type::TaggedSigned(), graph()->zone());
-    } else if (property_cell_value->IsNumber()) {
-      property_cell_value_type = Type::Intersect(
-          Type::Number(), Type::TaggedPointer(), graph()->zone());
-    } else {
-      Handle<Map> property_cell_value_map(
-          Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
-      property_cell_value_type =
-          Type::Class(property_cell_value_map, graph()->zone());
-    }
-    Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForPropertyCellValue(property_cell_value_type)),
-        jsgraph()->Constant(property_cell), effect, control);
-    return Replace(node, value, effect);
-  }
-
   // Load from non-configurable, data property on the global can be lowered to
   // a field load, even without deoptimization, because the property cannot be
-  // deleted or reconfigured to an accessor/interceptor property.
-  if (property_details.IsConfigurable()) {
-    // With deoptimization support, we can lower loads even from configurable
-    // data properties on the global object, by adding a code dependency on
-    // the cell.
-    if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-    dependencies()->AssumePropertyCell(property_cell);
+  // deleted or reconfigured to an accessor/interceptor property.  Yet, if
+  // deoptimization support is available, we can constant-fold certain global
+  // properties or at least lower them to field loads annotated with more
+  // precise type feedback.
+  Type* property_cell_value_type =
+      Type::Intersect(Type::Any(), Type::Tagged(), graph()->zone());
+  if (flags() & kDeoptimizationEnabled) {
+    // Record a code dependency on the cell if we can benefit from the
+    // additional feedback, or the global property is configurable (i.e.
+    // can be deleted or reconfigured to an accessor property).
+    if (property_details.cell_type() != PropertyCellType::kMutable ||
+        property_details.IsConfigurable()) {
+      dependencies()->AssumePropertyCell(property_cell);
+    }
+
+    // Load from constant/undefined global property can be constant-folded.
+    if ((property_details.cell_type() == PropertyCellType::kConstant ||
+         property_details.cell_type() == PropertyCellType::kUndefined)) {
+      return Replace(node, property_cell_value);
+    }
+
+    // Load from constant type cell can benefit from type feedback.
+    if (property_details.cell_type() == PropertyCellType::kConstantType) {
+      // Compute proper type based on the current value in the cell.
+      if (property_cell_value->IsSmi()) {
+        property_cell_value_type = Type::Intersect(
+            Type::SignedSmall(), Type::TaggedSigned(), graph()->zone());
+      } else if (property_cell_value->IsNumber()) {
+        property_cell_value_type = Type::Intersect(
+            Type::Number(), Type::TaggedPointer(), graph()->zone());
+      } else {
+        Handle<Map> property_cell_value_map(
+            Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
+        property_cell_value_type =
+            Type::Class(property_cell_value_map, graph()->zone());
+      }
+    }
+  } else if (property_details.IsConfigurable()) {
+    // Access to configurable global properties requires deoptimization support.
+    return NoChange();
   }
   Node* value = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForPropertyCellValue()),
+      simplified()->LoadField(
+          AccessBuilder::ForPropertyCellValue(property_cell_value_type)),
       jsgraph()->Constant(property_cell), effect, control);
   return Replace(node, value, effect);
 }
