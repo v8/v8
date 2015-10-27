@@ -100,11 +100,11 @@ class InstructionOperandConverter {
   }
 
   Register ToRegister(InstructionOperand* op) {
-    return RegisterOperand::cast(op)->GetRegister();
+    return LocationOperand::cast(op)->GetRegister();
   }
 
   DoubleRegister ToDoubleRegister(InstructionOperand* op) {
-    return DoubleRegisterOperand::cast(op)->GetDoubleRegister();
+    return LocationOperand::cast(op)->GetDoubleRegister();
   }
 
   Constant ToConstant(InstructionOperand* op) {

@@ -67,10 +67,16 @@ class MoveOptimizerTest : public InstructionSequenceTest {
       case kConstant:
         return ConstantOperand(op.value_);
       case kFixedSlot:
-        return StackSlotOperand(kRepWord32, op.value_);
+        return AllocatedOperand(LocationOperand::STACK_SLOT, kRepWord32,
+                                op.value_);
       case kFixedRegister:
         CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return RegisterOperand(kRepWord32, op.value_);
+        return AllocatedOperand(LocationOperand::REGISTER, kRepWord32,
+                                op.value_);
+      case kExplicit:
+        CHECK(0 <= op.value_ && op.value_ < num_general_registers());
+        return ExplicitOperand(LocationOperand::REGISTER, kRepWord32,
+                               op.value_);
       default:
         break;
     }
@@ -94,6 +100,23 @@ TEST_F(MoveOptimizerTest, RemovesRedundant) {
   auto move = last_instr->parallel_moves()[0];
   CHECK_EQ(1, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
+}
+
+
+TEST_F(MoveOptimizerTest, RemovesRedundantExplicit) {
+  StartBlock();
+  auto first_instr = EmitNop();
+  AddMove(first_instr, Reg(0), ExplicitReg(1));
+  auto last_instr = EmitNop();
+  AddMove(last_instr, Reg(1), Reg(0));
+  EndBlock(Last());
+
+  Optimize();
+
+  CHECK_EQ(0, NonRedundantSize(first_instr->parallel_moves()[0]));
+  auto move = last_instr->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(move));
+  CHECK(Contains(move, Reg(0), ExplicitReg(1)));
 }
 
 

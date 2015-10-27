@@ -120,6 +120,11 @@ class OperandGenerator {
                                   reg.code(), GetVReg(node)));
   }
 
+  InstructionOperand UseExplicit(Register reg) {
+    MachineType machine_type = InstructionSequence::DefaultRepresentation();
+    return ExplicitOperand(LocationOperand::REGISTER, machine_type, reg.code());
+  }
+
   InstructionOperand UseImmediate(Node* node) {
     return sequence()->AddImmediate(ToConstant(node));
   }

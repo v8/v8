@@ -71,7 +71,7 @@ bool IsOutputRegisterOf(Instruction* instr, Register reg) {
   for (size_t i = 0; i < instr->OutputCount(); i++) {
     auto output = instr->OutputAt(i);
     if (output->IsRegister() &&
-        RegisterOperand::cast(output)->GetRegister().is(reg)) {
+        LocationOperand::cast(output)->GetRegister().is(reg)) {
       return true;
     }
   }
@@ -83,7 +83,7 @@ bool IsOutputDoubleRegisterOf(Instruction* instr, DoubleRegister reg) {
   for (size_t i = 0; i < instr->OutputCount(); i++) {
     auto output = instr->OutputAt(i);
     if (output->IsDoubleRegister() &&
-        DoubleRegisterOperand::cast(output)->GetDoubleRegister().is(reg)) {
+        LocationOperand::cast(output)->GetDoubleRegister().is(reg)) {
       return true;
     }
   }
@@ -161,10 +161,8 @@ bool UsePosition::HintRegister(int* register_code) const {
       auto operand = reinterpret_cast<InstructionOperand*>(hint_);
       int assigned_register =
           operand->IsRegister()
-              ? RegisterOperand::cast(operand)->GetRegister().code()
-              : DoubleRegisterOperand::cast(operand)
-                    ->GetDoubleRegister()
-                    .code();
+              ? LocationOperand::cast(operand)->GetRegister().code()
+              : LocationOperand::cast(operand)->GetDoubleRegister().code();
       *register_code = assigned_register;
       return true;
     }
@@ -186,17 +184,16 @@ UsePositionHintType UsePosition::HintTypeForOperand(
   switch (op.kind()) {
     case InstructionOperand::CONSTANT:
     case InstructionOperand::IMMEDIATE:
+    case InstructionOperand::EXPLICIT:
       return UsePositionHintType::kNone;
     case InstructionOperand::UNALLOCATED:
       return UsePositionHintType::kUnresolved;
     case InstructionOperand::ALLOCATED:
-      switch (AllocatedOperand::cast(op).allocated_kind()) {
-        case AllocatedOperand::REGISTER:
-        case AllocatedOperand::DOUBLE_REGISTER:
-          return UsePositionHintType::kOperand;
-        case AllocatedOperand::STACK_SLOT:
-        case AllocatedOperand::DOUBLE_STACK_SLOT:
-          return UsePositionHintType::kNone;
+      if (op.IsRegister() || op.IsDoubleRegister()) {
+        return UsePositionHintType::kOperand;
+      } else {
+        DCHECK(op.IsStackSlot() || op.IsDoubleStackSlot());
+        return UsePositionHintType::kNone;
       }
     case InstructionOperand::INVALID:
       break;
@@ -400,12 +397,8 @@ bool LiveRange::IsTopLevel() const { return top_level_ == this; }
 InstructionOperand LiveRange::GetAssignedOperand() const {
   if (HasRegisterAssigned()) {
     DCHECK(!spilled());
-    switch (kind()) {
-      case GENERAL_REGISTERS:
-        return RegisterOperand(machine_type(), assigned_register());
-      case DOUBLE_REGISTERS:
-        return DoubleRegisterOperand(machine_type(), assigned_register());
-    }
+    return AllocatedOperand(LocationOperand::REGISTER, machine_type(),
+                            assigned_register());
   }
   DCHECK(spilled());
   DCHECK(!HasRegisterAssigned());
@@ -841,14 +834,7 @@ void TopLevelLiveRange::SetSpillRange(SpillRange* spill_range) {
 AllocatedOperand TopLevelLiveRange::GetSpillRangeOperand() const {
   auto spill_range = GetSpillRange();
   int index = spill_range->assigned_slot();
-  switch (kind()) {
-    case GENERAL_REGISTERS:
-      return StackSlotOperand(machine_type(), index);
-    case DOUBLE_REGISTERS:
-      return DoubleStackSlotOperand(machine_type(), index);
-  }
-  UNREACHABLE();
-  return StackSlotOperand(kMachNone, 0);
+  return AllocatedOperand(LocationOperand::STACK_SLOT, machine_type(), index);
 }
 
 
@@ -1532,18 +1518,17 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
     machine_type = data()->MachineTypeFor(virtual_register);
   }
   if (operand->HasFixedSlotPolicy()) {
-    AllocatedOperand::AllocatedKind kind =
-        IsFloatingPoint(machine_type) ? AllocatedOperand::DOUBLE_STACK_SLOT
-                                      : AllocatedOperand::STACK_SLOT;
-    allocated =
-        AllocatedOperand(kind, machine_type, operand->fixed_slot_index());
+    allocated = AllocatedOperand(AllocatedOperand::STACK_SLOT, machine_type,
+                                 operand->fixed_slot_index());
   } else if (operand->HasFixedRegisterPolicy()) {
+    DCHECK(!IsFloatingPoint(machine_type));
     allocated = AllocatedOperand(AllocatedOperand::REGISTER, machine_type,
                                  operand->fixed_register_index());
   } else if (operand->HasFixedDoubleRegisterPolicy()) {
+    DCHECK(IsFloatingPoint(machine_type));
     DCHECK_NE(InstructionOperand::kInvalidVirtualRegister, virtual_register);
-    allocated = AllocatedOperand(AllocatedOperand::DOUBLE_REGISTER,
-                                 machine_type, operand->fixed_register_index());
+    allocated = AllocatedOperand(AllocatedOperand::REGISTER, machine_type,
+                                 operand->fixed_register_index());
   } else {
     UNREACHABLE();
   }
@@ -1594,9 +1579,9 @@ void ConstraintBuilder::MeetRegisterConstraintsForLastInstructionInBlock(
       AllocateFixed(output, -1, false);
       // This value is produced on the stack, we never need to spill it.
       if (output->IsStackSlot()) {
-        DCHECK(StackSlotOperand::cast(output)->index() <
+        DCHECK(LocationOperand::cast(output)->index() <
                data()->frame()->GetSpillSlotCount());
-        range->SetSpillOperand(StackSlotOperand::cast(output));
+        range->SetSpillOperand(LocationOperand::cast(output));
         range->SetSpillStartIndex(end);
         assigned = true;
       }
@@ -1654,9 +1639,9 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
 
       // This value is produced on the stack, we never need to spill it.
       if (first_output->IsStackSlot()) {
-        DCHECK(StackSlotOperand::cast(first_output)->index() <
+        DCHECK(LocationOperand::cast(first_output)->index() <
                data()->frame()->GetTotalFrameSlotCount());
-        range->SetSpillOperand(StackSlotOperand::cast(first_output));
+        range->SetSpillOperand(LocationOperand::cast(first_output));
         range->SetSpillStartIndex(instr_index + 1);
         assigned = true;
       }
@@ -1679,7 +1664,9 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
   // Handle fixed input operands of second instruction.
   for (size_t i = 0; i < second->InputCount(); i++) {
     auto input = second->InputAt(i);
-    if (input->IsImmediate()) continue;  // Ignore immediates.
+    if (input->IsImmediate() || input->IsExplicit()) {
+      continue;  // Ignore immediates and explicitly reserved registers.
+    }
     auto cur_input = UnallocatedOperand::cast(input);
     if (cur_input->HasFixedPolicy()) {
       int input_vreg = cur_input->virtual_register();
@@ -1859,10 +1846,10 @@ TopLevelLiveRange* LiveRangeBuilder::LiveRangeFor(InstructionOperand* operand) {
         ConstantOperand::cast(operand)->virtual_register());
   } else if (operand->IsRegister()) {
     return FixedLiveRangeFor(
-        RegisterOperand::cast(operand)->GetRegister().code());
+        LocationOperand::cast(operand)->GetRegister().code());
   } else if (operand->IsDoubleRegister()) {
     return FixedDoubleLiveRangeFor(
-        DoubleRegisterOperand::cast(operand)->GetDoubleRegister().code());
+        LocationOperand::cast(operand)->GetDoubleRegister().code());
   } else {
     return nullptr;
   }
@@ -1976,7 +1963,9 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
 
     for (size_t i = 0; i < instr->InputCount(); i++) {
       auto input = instr->InputAt(i);
-      if (input->IsImmediate()) continue;  // Ignore immediates.
+      if (input->IsImmediate() || input->IsExplicit()) {
+        continue;  // Ignore immediates and explicitly reserved registers.
+      }
       LifetimePosition use_pos;
       if (input->IsUnallocated() &&
           UnallocatedOperand::cast(input)->IsUsedAtStart()) {

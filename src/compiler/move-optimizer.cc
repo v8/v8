@@ -14,10 +14,10 @@ typedef std::pair<InstructionOperand, InstructionOperand> MoveKey;
 
 struct MoveKeyCompare {
   bool operator()(const MoveKey& a, const MoveKey& b) const {
-    if (a.first.EqualsModuloType(b.first)) {
-      return a.second.CompareModuloType(b.second);
+    if (a.first.EqualsCanonicalized(b.first)) {
+      return a.second.CompareCanonicalized(b.second);
     }
-    return a.first.CompareModuloType(b.first);
+    return a.first.CompareCanonicalized(b.first);
   }
 };
 
@@ -245,12 +245,12 @@ bool IsSlot(const InstructionOperand& op) {
 
 
 bool LoadCompare(const MoveOperands* a, const MoveOperands* b) {
-  if (!a->source().EqualsModuloType(b->source())) {
-    return a->source().CompareModuloType(b->source());
+  if (!a->source().EqualsCanonicalized(b->source())) {
+    return a->source().CompareCanonicalized(b->source());
   }
   if (IsSlot(a->destination()) && !IsSlot(b->destination())) return false;
   if (!IsSlot(a->destination()) && IsSlot(b->destination())) return true;
-  return a->destination().CompareModuloType(b->destination());
+  return a->destination().CompareCanonicalized(b->destination());
 }
 
 }  // namespace
@@ -276,7 +276,7 @@ void MoveOptimizer::FinalizeMoves(Instruction* instr) {
   for (auto load : loads) {
     // New group.
     if (group_begin == nullptr ||
-        !load->source().EqualsModuloType(group_begin->source())) {
+        !load->source().EqualsCanonicalized(group_begin->source())) {
       group_begin = load;
       continue;
     }
