@@ -194,7 +194,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   language_mode_ = outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
-  inner_scope_uses_arguments_ = false;
   scope_nonlinear_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
@@ -998,9 +997,6 @@ void Scope::Print(int n) {
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
   if (scope_uses_super_property_)
     Indent(n1, "// scope uses 'super' property\n");
-  if (inner_scope_uses_arguments_) {
-    Indent(n1, "// inner scope uses 'arguments'\n");
-  }
   if (outer_scope_calls_sloppy_eval_) {
     Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
   }
@@ -1346,14 +1342,6 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
     inner->PropagateScopeInfo(calls_sloppy_eval);
     if (inner->scope_calls_eval_ || inner->inner_scope_calls_eval_) {
       inner_scope_calls_eval_ = true;
-    }
-    // If the inner scope is an arrow function, propagate the flags tracking
-    // usage of arguments/super/this, but do not propagate them out from normal
-    // functions.
-    if (!inner->is_function_scope() || inner->is_arrow_scope()) {
-      if (inner->scope_uses_arguments_ || inner->inner_scope_uses_arguments_) {
-        inner_scope_uses_arguments_ = true;
-      }
     }
     if (inner->force_eager_compilation_) {
       force_eager_compilation_ = true;

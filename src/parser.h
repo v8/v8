@@ -927,7 +927,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   void SetCachedData(ParseInfo* info);
 
-  bool inside_with() const { return scope_->inside_with(); }
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
   }
@@ -1049,7 +1048,6 @@ class Parser : public ParserBase<ParserTraits> {
     AstValueFactory* ast_value_factory() const {
       return descriptor_->parser->ast_value_factory();
     }
-    bool inside_with() const { return descriptor_->parser->inside_with(); }
     Zone* zone() const { return descriptor_->parser->zone(); }
 
     Expression* pattern_;

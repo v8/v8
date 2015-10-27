@@ -979,7 +979,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
     ARGUMENTS = 1,
     SUPER_PROPERTY = 1 << 1,
     THIS = 1 << 2,
-    INNER_ARGUMENTS = 1 << 3,
     EVAL = 1 << 4
   };
 
@@ -1021,9 +1020,9 @@ TEST(ScopeUsesArgumentsSuperThis) {
     {"return { m(x) { return () => super.m() } }", NONE},
     // Flags must be correctly set when using block scoping.
     {"\"use strict\"; while (true) { let x; this, arguments; }",
-     INNER_ARGUMENTS | THIS},
+     THIS},
     {"\"use strict\"; while (true) { let x; this, super.f(), arguments; }",
-     INNER_ARGUMENTS | SUPER_PROPERTY | THIS},
+     SUPER_PROPERTY | THIS},
     {"\"use strict\"; if (foo()) { let x; this.f() }", THIS},
     {"\"use strict\"; if (foo()) { let x; super.f() }", SUPER_PROPERTY},
     {"\"use strict\"; if (1) {"
@@ -1094,8 +1093,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
         // script scope are marked as used.
         CHECK(scope->LookupThis()->is_used());
       }
-      CHECK_EQ((source_data[i].expected & INNER_ARGUMENTS) != 0,
-               scope->inner_uses_arguments());
       CHECK_EQ((source_data[i].expected & EVAL) != 0, scope->calls_eval());
     }
   }

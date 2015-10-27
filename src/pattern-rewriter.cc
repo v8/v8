@@ -158,7 +158,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
       // we're in a with. The initialization value should not
       // necessarily be stored in the global object in that case,
       // which is why we need to generate a separate assignment node.
-      if (value != NULL && !inside_with()) {
+      if (value != NULL && !descriptor_->scope->inside_with()) {
         arguments->Add(value, zone());
         value = NULL;  // zap the value to avoid the unnecessary assignment
         // Construct the call to Runtime_InitializeVarGlobal

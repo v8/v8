@@ -339,13 +339,9 @@ class Scope: public ZoneObject {
 
   // Is this scope inside a with statement.
   bool inside_with() const { return scope_inside_with_; }
-  // Does this scope contain a with statement.
-  bool contains_with() const { return scope_contains_with_; }
 
   // Does this scope access "arguments".
   bool uses_arguments() const { return scope_uses_arguments_; }
-  // Does any inner scope access "arguments".
-  bool inner_uses_arguments() const { return inner_scope_uses_arguments_; }
   // Does this scope access "super" property (super.foo).
   bool uses_super_property() const { return scope_uses_super_property_; }
   // Does this scope have the potential to execute declarations non-linearly?
@@ -675,7 +671,6 @@ class Scope: public ZoneObject {
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_sloppy_eval_;
   bool inner_scope_calls_eval_;
-  bool inner_scope_uses_arguments_;
   bool force_eager_compilation_;
   bool force_context_allocation_;
 
