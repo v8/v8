@@ -1,6 +1,6 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2014 the V8 project authors. All rights reserved. Use of this
+// source code is governed by a BSD-style license that can be found in the
+// LICENSE file.
 
 #include <cmath>
 #include <functional>
@@ -11,6 +11,7 @@
 #include "src/codegen.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
 using namespace v8::base;
@@ -5524,13 +5525,15 @@ TEST(RunBitcastInt32ToFloat32) {
 
 
 TEST(RunComputedCodeObject) {
-  RawMachineAssemblerTester<int32_t> a;
+  GraphBuilderTester<int32_t> a;
   a.Return(a.Int32Constant(33));
-  CHECK_EQ(33, a.Call());
+  a.End();
+  Handle<Code> code_a = a.GetCode();
 
-  RawMachineAssemblerTester<int32_t> b;
+  GraphBuilderTester<int32_t> b;
   b.Return(b.Int32Constant(44));
-  CHECK_EQ(44, b.Call());
+  b.End();
+  Handle<Code> code_b = b.GetCode();
 
   RawMachineAssemblerTester<int32_t> r(kMachInt32);
   RawMachineAssembler::Label tlabel;
@@ -5538,10 +5541,10 @@ TEST(RunComputedCodeObject) {
   RawMachineAssembler::Label merge;
   r.Branch(r.Parameter(0), &tlabel, &flabel);
   r.Bind(&tlabel);
-  Node* fa = r.HeapConstant(a.GetCode());
+  Node* fa = r.HeapConstant(code_a);
   r.Goto(&merge);
   r.Bind(&flabel);
-  Node* fb = r.HeapConstant(b.GetCode());
+  Node* fb = r.HeapConstant(code_b);
   r.Goto(&merge);
   r.Bind(&merge);
   Node* phi = r.Phi(kMachInt32, fa, fb);

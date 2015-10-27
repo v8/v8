@@ -229,6 +229,11 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return MakeNode(op, value_input_count, value_inputs);
   }
 
+  Handle<Code> GetCode() {
+    Generate();
+    return code_.ToHandleChecked();
+  }
+
  protected:
   Node* MakeNode(const Operator* op, int value_input_count,
                  Node** value_inputs) {
