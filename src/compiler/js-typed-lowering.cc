@@ -596,13 +596,16 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
     return r.ChangeToStringComparisonOperator(simplified()->StringEqual(),
                                               invert);
   }
+  if (r.BothInputsAre(Type::Boolean())) {
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(Type::Boolean()),
+                                  invert);
+  }
   if (r.BothInputsAre(Type::Receiver())) {
     return r.ChangeToPureOperator(
         simplified()->ReferenceEqual(Type::Receiver()), invert);
   }
   // TODO(turbofan): js-typed-lowering of Equal(undefined)
   // TODO(turbofan): js-typed-lowering of Equal(null)
-  // TODO(turbofan): js-typed-lowering of Equal(boolean)
   return NoChange();
 }
 
