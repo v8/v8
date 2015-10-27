@@ -54,10 +54,6 @@ class SimplifiedLowering final {
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
 
-  Node* SmiTag(Node* node);
-  Node* IsTagged(Node* node);
-  Node* Untag(Node* node);
-  Node* OffsetMinusTagConstant(int32_t offset);
   Node* ComputeIndex(const ElementAccess& access, Node* const key);
   Node* StringComparison(Node* node);
   Node* Int32Div(Node* const node);

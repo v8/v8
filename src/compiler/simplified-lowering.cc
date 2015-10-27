@@ -1153,14 +1153,6 @@ class RepresentationSelector {
 };
 
 
-Node* SimplifiedLowering::IsTagged(Node* node) {
-  // TODO(titzer): factor this out to a TaggingScheme abstraction.
-  STATIC_ASSERT(kSmiTagMask == 1);  // Only works if tag is the low bit.
-  return graph()->NewNode(machine()->WordAnd(), node,
-                          jsgraph()->Int32Constant(kSmiTagMask));
-}
-
-
 SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
                                        SourcePositionTable* source_positions)
     : jsgraph_(jsgraph),
@@ -1174,25 +1166,6 @@ void SimplifiedLowering::LowerAllNodes() {
   RepresentationSelector selector(jsgraph(), zone_, &changer,
                                   source_positions_);
   selector.Run(this);
-}
-
-
-Node* SimplifiedLowering::Untag(Node* node) {
-  // TODO(titzer): factor this out to a TaggingScheme abstraction.
-  Node* shift_amount = jsgraph()->Int32Constant(kSmiTagSize + kSmiShiftSize);
-  return graph()->NewNode(machine()->WordSar(), node, shift_amount);
-}
-
-
-Node* SimplifiedLowering::SmiTag(Node* node) {
-  // TODO(titzer): factor this out to a TaggingScheme abstraction.
-  Node* shift_amount = jsgraph()->Int32Constant(kSmiTagSize + kSmiShiftSize);
-  return graph()->NewNode(machine()->WordShl(), node, shift_amount);
-}
-
-
-Node* SimplifiedLowering::OffsetMinusTagConstant(int32_t offset) {
-  return jsgraph()->Int32Constant(offset - kHeapObjectTag);
 }
 
 
