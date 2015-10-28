@@ -334,11 +334,8 @@ void SafeStackFrameIterator::Advance() {
       // ExternalCallbackScope, just skip them as we cannot collect any useful
       // information about them.
       if (external_callback_scope_->scope_address() < frame_->fp()) {
-        Address* callback_address =
-            external_callback_scope_->callback_address();
-        if (*callback_address != NULL) {
-          frame_->state_.pc_address = callback_address;
-        }
+        frame_->state_.pc_address =
+            external_callback_scope_->callback_entrypoint_address();
         external_callback_scope_ = external_callback_scope_->previous();
         DCHECK(external_callback_scope_ == NULL ||
                external_callback_scope_->scope_address() > frame_->fp());
