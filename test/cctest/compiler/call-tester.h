@@ -5,10 +5,7 @@
 #ifndef V8_CCTEST_COMPILER_CALL_TESTER_H_
 #define V8_CCTEST_COMPILER_CALL_TESTER_H_
 
-#include "src/v8.h"
-
 #include "src/simulator.h"
-
 #include "test/cctest/compiler/c-signature.h"
 
 #if V8_TARGET_ARCH_IA32

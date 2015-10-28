@@ -5,9 +5,6 @@
 #ifndef V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 #define V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
@@ -15,6 +12,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simplified-operator.h"
+#include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 
 namespace v8 {

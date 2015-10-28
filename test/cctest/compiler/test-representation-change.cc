@@ -7,7 +7,6 @@
 
 #include <limits>
 
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"

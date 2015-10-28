@@ -5,9 +5,6 @@
 // TODO(jochen): Remove this after the setting is turned on globally.
 #define V8_IMMINENT_DEPRECATION_WARNINGS
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -18,6 +15,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;

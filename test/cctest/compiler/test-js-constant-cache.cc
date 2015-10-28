@@ -5,8 +5,6 @@
 // TODO(jochen): Remove this after the setting is turned on globally.
 #define V8_IMMINENT_DEPRECATION_WARNINGS
 
-#include "src/v8.h"
-
 #include "src/assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"

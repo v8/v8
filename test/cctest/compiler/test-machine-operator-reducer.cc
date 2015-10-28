@@ -5,14 +5,13 @@
 // TODO(jochen): Remove this after the setting is turned on globally.
 #define V8_IMMINENT_DEPRECATION_WARNINGS
 
-#include "test/cctest/cctest.h"
-
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/typer.h"
+#include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 
 using namespace v8::internal;

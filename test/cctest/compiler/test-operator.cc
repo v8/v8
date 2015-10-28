@@ -7,8 +7,6 @@
 
 #include <sstream>
 
-#include "src/v8.h"
-
 #include "src/compiler/operator.h"
 #include "test/cctest/cctest.h"
 

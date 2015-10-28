@@ -7,8 +7,6 @@
 
 #include <utility>
 
-#include "src/v8.h"
-
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
 #include "src/handles.h"

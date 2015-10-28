@@ -5,12 +5,10 @@
 // TODO(jochen): Remove this after the setting is turned on globally.
 #define V8_IMMINENT_DEPRECATION_WARNINGS
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/jump-threading.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
