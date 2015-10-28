@@ -194,7 +194,7 @@ function SameValueZero(x, y) {
 function ConcatIterableToArray(target, iterable) {
    var index = target.length;
    for (var element of iterable) {
-     %AddElement(target, index++, element);
+     AddIndexedProperty(target, index++, element);
    }
    return target;
 }
@@ -204,6 +204,19 @@ function ConcatIterableToArray(target, iterable) {
    - - -   U t i l i t i e s   - - -
    ---------------------------------
 */
+
+
+// This function should be called rather than %AddElement in contexts where the
+// argument might not be less than 2**32-1. ES2015 ToLength semantics mean that
+// this is a concern at basically all callsites.
+function AddIndexedProperty(obj, index, value) {
+  if (index === TO_UINT32(index)) {
+    %AddElement(obj, index, value);
+  } else {
+    %AddNamedProperty(obj, TO_STRING(index), value, NONE);
+  }
+}
+%SetForceInlineFlag(AddIndexedProperty);
 
 
 // ES6, draft 10-14-14, section 22.1.3.1.1
@@ -248,6 +261,7 @@ function MinSimple(a, b) {
 // Exports
 
 utils.Export(function(to) {
+  to.AddIndexedProperty = AddIndexedProperty;
   to.MaxSimple = MaxSimple;
   to.MinSimple = MinSimple;
   to.SameValue = SameValue;

@@ -11,6 +11,7 @@
 // -------------------------------------------------------------------
 // Imports
 
+var AddIndexedProperty;
 var FLAG_harmony_tolength;
 var GetIterator;
 var GetMethod;
@@ -23,6 +24,7 @@ var ObjectIsFrozen;
 var ObjectDefineProperty;
 
 utils.Import(function(from) {
+  AddIndexedProperty = from.AddIndexedProperty;
   FLAG_harmony_tolength = from.FLAG_harmony_tolength;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
@@ -182,7 +184,7 @@ function ArrayFill(value, start, end) {
 
 function AddArrayElement(constructor, array, i, value) {
   if (constructor === GlobalArray) {
-    %AddElement(array, i, value);
+    AddIndexedProperty(array, i, value);
   } else {
     ObjectDefineProperty(array, i, {
       value: value, writable: true, configurable: true, enumerable: true
