@@ -2157,7 +2157,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rest_parameters)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_default_parameters)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_destructuring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_observe)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_new_target)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_concat_spreadable)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
@@ -2632,7 +2631,6 @@ bool Genesis::InstallExperimentalNatives() {
       "native harmony-object-observe.js", nullptr};
   static const char* harmony_sharedarraybuffer_natives[] = {
       "native harmony-sharedarraybuffer.js", "native harmony-atomics.js", NULL};
-  static const char* harmony_new_target_natives[] = {nullptr};
   static const char* harmony_concat_spreadable_natives[] = {
       "native harmony-concat-spreadable.js", nullptr};
   static const char* harmony_simd_natives[] = {"native harmony-simd.js",

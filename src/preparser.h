@@ -114,7 +114,6 @@ class ParserBase : public Traits {
         allow_harmony_rest_parameters_(false),
         allow_harmony_default_parameters_(false),
         allow_harmony_destructuring_(false),
-        allow_harmony_new_target_(false),
         allow_strong_mode_(false),
         allow_legacy_const_(true),
         allow_harmony_do_expressions_(false) {}
@@ -131,7 +130,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_rest_parameters);
   ALLOW_ACCESSORS(harmony_default_parameters);
   ALLOW_ACCESSORS(harmony_destructuring);
-  ALLOW_ACCESSORS(harmony_new_target);
   ALLOW_ACCESSORS(strong_mode);
   ALLOW_ACCESSORS(legacy_const);
   ALLOW_ACCESSORS(harmony_do_expressions);
@@ -838,7 +836,6 @@ class ParserBase : public Traits {
   bool allow_harmony_rest_parameters_;
   bool allow_harmony_default_parameters_;
   bool allow_harmony_destructuring_;
-  bool allow_harmony_new_target_;
   bool allow_strong_mode_;
   bool allow_legacy_const_;
   bool allow_harmony_do_expressions_;
@@ -3401,7 +3398,7 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(
     if (peek() == Token::SUPER) {
       const bool is_new = true;
       result = ParseSuperExpression(is_new, classifier, CHECK_OK);
-    } else if (allow_harmony_new_target() && peek() == Token::PERIOD) {
+    } else if (peek() == Token::PERIOD) {
       return ParseNewTargetExpression(CHECK_OK);
     } else {
       result = this->ParseMemberWithNewPrefixesExpression(classifier, CHECK_OK);

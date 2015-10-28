@@ -324,7 +324,6 @@ bool Scope::Analyze(ParseInfo* info) {
 
 
 void Scope::Initialize() {
-  bool subclass_constructor = IsSubclassConstructor(function_kind_);
   DCHECK(!already_resolved());
 
   // Add this scope as a new inner scope of the outer scope.
@@ -337,6 +336,7 @@ void Scope::Initialize() {
 
   // Declare convenience variables and the receiver.
   if (is_declaration_scope() && has_this_declaration()) {
+    bool subclass_constructor = IsSubclassConstructor(function_kind_);
     Variable* var = variables_.Declare(
         this, ast_value_factory_->this_string(),
         subclass_constructor ? CONST : VAR, Variable::THIS,
@@ -351,10 +351,8 @@ void Scope::Initialize() {
     variables_.Declare(this, ast_value_factory_->arguments_string(), VAR,
                        Variable::ARGUMENTS, kCreatedInitialized);
 
-    if (subclass_constructor || FLAG_harmony_new_target) {
-      variables_.Declare(this, ast_value_factory_->new_target_string(), CONST,
-                         Variable::NORMAL, kCreatedInitialized);
-    }
+    variables_.Declare(this, ast_value_factory_->new_target_string(), CONST,
+                       Variable::NORMAL, kCreatedInitialized);
 
     if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
         IsAccessorFunction(function_kind_)) {

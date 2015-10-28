@@ -921,7 +921,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_rest_parameters(FLAG_harmony_rest_parameters);
   set_allow_harmony_default_parameters(FLAG_harmony_default_parameters);
   set_allow_harmony_destructuring(FLAG_harmony_destructuring);
-  set_allow_harmony_new_target(FLAG_harmony_new_target);
   set_allow_strong_mode(FLAG_strong_mode);
   set_allow_legacy_const(FLAG_legacy_const);
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
@@ -4811,7 +4810,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_rest_parameters);
     SET_ALLOW(harmony_default_parameters);
     SET_ALLOW(harmony_destructuring);
-    SET_ALLOW(harmony_new_target);
     SET_ALLOW(strong_mode);
     SET_ALLOW(harmony_do_expressions);
 #undef SET_ALLOW

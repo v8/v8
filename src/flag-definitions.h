@@ -213,7 +213,6 @@ DEFINE_NEG_IMPLICATION(es_staging, legacy_const)
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                     \
   V(harmony_array_includes, "harmony Array.prototype.includes") \
-  V(harmony_new_target, "harmony new.target")                   \
   V(harmony_object_observe, "harmony Object.observe")           \
   V(harmony_rest_parameters, "harmony rest parameters")         \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \

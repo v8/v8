@@ -1524,7 +1524,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_sloppy_let(flags.Contains(kAllowHarmonySloppyLet));
   parser->set_allow_harmony_destructuring(
       flags.Contains(kAllowHarmonyDestructuring));
-  parser->set_allow_harmony_new_target(flags.Contains(kAllowHarmonyNewTarget));
   parser->set_allow_strong_mode(flags.Contains(kAllowStrongMode));
   parser->set_allow_legacy_const(!flags.Contains(kNoLegacyConst));
 }
