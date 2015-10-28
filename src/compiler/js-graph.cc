@@ -30,6 +30,12 @@ Node* JSGraph::CEntryStubConstant(int result_size) {
 }
 
 
+Node* JSGraph::EmptyFixedArrayConstant() {
+  return CACHED(kEmptyFixedArrayConstant,
+                ImmovableHeapConstant(factory()->empty_fixed_array()));
+}
+
+
 Node* JSGraph::UndefinedConstant() {
   return CACHED(kUndefinedConstant,
                 ImmovableHeapConstant(factory()->undefined_value()));

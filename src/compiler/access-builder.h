@@ -70,8 +70,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSValue::value() field.
   static FieldAccess ForValue();
 
-  // Provides access to arguments objects fields.
+  // Provides access to arguments object fields.
   static FieldAccess ForArgumentsLength();
+  static FieldAccess ForArgumentsCallee();
 
   // Provides access to FixedArray slots.
   static FieldAccess ForFixedArraySlot(size_t index);

@@ -1191,6 +1191,20 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
 }
 
 
+namespace {
+
+// Retrieves the frame state holding actual argument values.
+Node* GetArgumentsFrameState(Node* frame_state) {
+  Node* const outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
+  FrameStateInfo outer_state_info = OpParameter<FrameStateInfo>(outer_state);
+  return outer_state_info.type() == FrameStateType::kArgumentsAdaptor
+             ? outer_state
+             : frame_state;
+}
+
+}  // namespace
+
+
 Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArguments, node->opcode());
   CreateArgumentsParameters const& p = CreateArgumentsParametersOf(node->op());
@@ -1226,6 +1240,55 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
     return Changed(node);
   }
 
+  // Use inline allocation for all mapped arguments objects within inlined
+  // (i.e. non-outermost) frames, independent of the object size.
+  if (p.type() == CreateArgumentsParameters::kMappedArguments &&
+      outer_state->opcode() == IrOpcode::kFrameState) {
+    Handle<SharedFunctionInfo> shared;
+    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+    Node* const callee = NodeProperties::GetValueInput(node, 0);
+    Node* const effect = NodeProperties::GetEffectInput(node);
+    Node* const control = NodeProperties::GetControlInput(node);
+    Node* const context = NodeProperties::GetContextInput(node);
+    // TODO(mstarzinger): Duplicate parameters are not handled yet.
+    if (shared->has_duplicate_parameters()) return NoChange();
+    // Choose the correct frame state and frame state info depending on whether
+    // there conceptually is an arguments adaptor frame in the call chain.
+    Node* const args_state = GetArgumentsFrameState(frame_state);
+    FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+    // Prepare element backing store to be used by arguments object.
+    bool has_aliased_arguments = false;
+    Node* const elements = AllocateAliasedArguments(
+        effect, control, args_state, context, shared, &has_aliased_arguments);
+    // Load the arguments object map from the current native context.
+    Node* const load_global_object = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
+        context, effect, control);
+    Node* const load_native_context = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForGlobalObjectNativeContext()),
+        load_global_object, effect, control);
+    Node* const load_arguments_map = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForContextSlot(
+            has_aliased_arguments ? Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX
+                                  : Context::SLOPPY_ARGUMENTS_MAP_INDEX)),
+        load_native_context, effect, control);
+    // Actually allocate and initialize the arguments object.
+    AllocationBuilder a(jsgraph(), effect, control);
+    Node* properties = jsgraph()->EmptyFixedArrayConstant();
+    int length = args_state_info.parameter_count() - 1;  // Minus receiver.
+    STATIC_ASSERT(Heap::kSloppyArgumentsObjectSize == 5 * kPointerSize);
+    a.Allocate(Heap::kSloppyArgumentsObjectSize);
+    a.Store(AccessBuilder::ForMap(), load_arguments_map);
+    a.Store(AccessBuilder::ForJSObjectProperties(), properties);
+    a.Store(AccessBuilder::ForJSObjectElements(), elements);
+    a.Store(AccessBuilder::ForArgumentsLength(), jsgraph()->Constant(length));
+    a.Store(AccessBuilder::ForArgumentsCallee(), callee);
+    RelaxControls(node);
+    a.FinishAndChange(node);
+    return Changed(node);
+  }
+
   // Use inline allocation for all unmapped arguments objects within inlined
   // (i.e. non-outermost) frames, independent of the object size.
   if (p.type() == CreateArgumentsParameters::kUnmappedArguments &&
@@ -1233,13 +1296,9 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);
     Node* const context = NodeProperties::GetContextInput(node);
-    FrameStateInfo outer_state_info = OpParameter<FrameStateInfo>(outer_state);
     // Choose the correct frame state and frame state info depending on whether
     // there conceptually is an arguments adaptor frame in the call chain.
-    Node* const args_state =
-        outer_state_info.type() == FrameStateType::kArgumentsAdaptor
-            ? outer_state
-            : frame_state;
+    Node* const args_state = GetArgumentsFrameState(frame_state);
     FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
     // Prepare element backing store to be used by arguments object.
     Node* const elements = AllocateArguments(effect, control, args_state);
@@ -1257,7 +1316,7 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
         load_native_context, effect, control);
     // Actually allocate and initialize the arguments object.
     AllocationBuilder a(jsgraph(), effect, control);
-    Handle<Object> properties = factory()->empty_fixed_array();
+    Node* properties = jsgraph()->EmptyFixedArrayConstant();
     int length = args_state_info.parameter_count() - 1;  // Minus receiver.
     STATIC_ASSERT(Heap::kStrictArgumentsObjectSize == 4 * kPointerSize);
     a.Allocate(Heap::kStrictArgumentsObjectSize);
@@ -1946,15 +2005,71 @@ Node* JSTypedLowering::Word32Shl(Node* const lhs, int32_t const rhs) {
 Node* JSTypedLowering::AllocateArguments(Node* effect, Node* control,
                                          Node* frame_state) {
   FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
-  int length = state_info.parameter_count() - 1;  // Minus receiver argument.
-  if (length == 0) return jsgraph()->Constant(factory()->empty_fixed_array());
+  int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
+  if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
+
+  // Prepare an iterator over argument values recorded in the frame state.
   Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
   StateValuesAccess parameters_access(parameters);
   auto paratemers_it = ++parameters_access.begin();
+
+  // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(length, factory()->fixed_array_map());
-  for (int i = 0; i < length; ++i, ++paratemers_it) {
+  a.AllocateArray(argument_count, factory()->fixed_array_map());
+  for (int i = 0; i < argument_count; ++i, ++paratemers_it) {
     a.Store(AccessBuilder::ForFixedArraySlot(i), (*paratemers_it).node);
+  }
+  return a.Finish();
+}
+
+
+// Helper that allocates a FixedArray serving as a parameter map for values
+// recorded in the given {frame_state}. Some elements map to slots within the
+// given {context}. Serves as backing store for JSCreateArguments nodes.
+Node* JSTypedLowering::AllocateAliasedArguments(
+    Node* effect, Node* control, Node* frame_state, Node* context,
+    Handle<SharedFunctionInfo> shared, bool* has_aliased_arguments) {
+  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
+  if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
+
+  // If there is no aliasing, the arguments object elements are not special in
+  // any way, we can just return an unmapped backing store instead.
+  int parameter_count = shared->internal_formal_parameter_count();
+  if (parameter_count == 0) {
+    return AllocateArguments(effect, control, frame_state);
+  }
+
+  // Calculate number of argument values being aliased/mapped.
+  int mapped_count = Min(argument_count, parameter_count);
+  *has_aliased_arguments = true;
+
+  // Prepare an iterator over argument values recorded in the frame state.
+  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+  StateValuesAccess parameters_access(parameters);
+  auto paratemers_it = ++parameters_access.begin();
+
+  // The unmapped argument values recorded in the frame state are stored yet
+  // another indirection away and then linked into the parameter map below,
+  // whereas mapped argument values are replaced with a hole instead.
+  AllocationBuilder aa(jsgraph(), effect, control);
+  aa.AllocateArray(argument_count, factory()->fixed_array_map());
+  for (int i = 0; i < mapped_count; ++i, ++paratemers_it) {
+    aa.Store(AccessBuilder::ForFixedArraySlot(i), jsgraph()->TheHoleConstant());
+  }
+  for (int i = mapped_count; i < argument_count; ++i, ++paratemers_it) {
+    aa.Store(AccessBuilder::ForFixedArraySlot(i), (*paratemers_it).node);
+  }
+  Node* arguments = aa.Finish();
+
+  // Actually allocate the backing store.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.AllocateArray(mapped_count + 2, factory()->sloppy_arguments_elements_map());
+  a.Store(AccessBuilder::ForFixedArraySlot(0), context);
+  a.Store(AccessBuilder::ForFixedArraySlot(1), arguments);
+  for (int i = 0; i < mapped_count; ++i) {
+    int idx = Context::MIN_CONTEXT_SLOTS + parameter_count - 1 - i;
+    a.Store(AccessBuilder::ForFixedArraySlot(i + 2), jsgraph()->Constant(idx));
   }
   return a.Finish();
 }

@@ -166,6 +166,16 @@ FieldAccess AccessBuilder::ForArgumentsLength() {
 
 
 // static
+FieldAccess AccessBuilder::ForArgumentsCallee() {
+  int offset =
+      JSObject::kHeaderSize + Heap::kArgumentsCalleeIndex * kPointerSize;
+  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
+                        kMachAnyTagged};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForFixedArraySlot(size_t index) {
   int offset = FixedArray::OffsetOfElementAt(static_cast<int>(index));
   FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
