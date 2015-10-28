@@ -133,7 +133,6 @@ enum BindingFlags {
     no_side_effect_to_string_fun)                                             \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                             \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
-  V(OBJECT_DEFINE_OWN_PROPERTY_INDEX, JSFunction, object_define_own_property) \
   V(OBJECT_GET_OWN_PROPERTY_DESCROPTOR_INDEX, JSFunction,                     \
     object_get_own_property_descriptor)                                       \
   V(OBSERVERS_BEGIN_SPLICE_INDEX, JSFunction, observers_begin_perform_splice) \

@@ -43,6 +43,7 @@
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/sampler.h"
 #include "src/property.h"
+#include "src/property-descriptor.h"
 #include "src/property-details.h"
 #include "src/prototype.h"
 #include "src/runtime/runtime.h"
@@ -3532,9 +3533,9 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
                                           v8::PropertyAttribute attributes) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::DefineOwnProperty()",
                                   bool);
-  auto self = Utils::OpenHandle(this);
-  auto key_obj = Utils::OpenHandle(*key);
-  auto value_obj = Utils::OpenHandle(*value);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
 
   if (self->IsAccessCheckNeeded() &&
       !isolate->MayAccess(handle(isolate->context()), self)) {
@@ -3542,21 +3543,16 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
     return Nothing<bool>();
   }
 
-  i::Handle<i::FixedArray> desc = isolate->factory()->NewFixedArray(3);
-  desc->set(0, isolate->heap()->ToBoolean(!(attributes & v8::ReadOnly)));
-  desc->set(1, isolate->heap()->ToBoolean(!(attributes & v8::DontEnum)));
-  desc->set(2, isolate->heap()->ToBoolean(!(attributes & v8::DontDelete)));
-  i::Handle<i::JSArray> desc_array =
-      isolate->factory()->NewJSArrayWithElements(desc, i::FAST_ELEMENTS, 3);
-  i::Handle<i::Object> args[] = {self, key_obj, value_obj, desc_array};
-  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
-  i::Handle<i::JSFunction> fun = isolate->object_define_own_property();
-  i::Handle<i::Object> result;
-  has_pending_exception =
-      !i::Execution::Call(isolate, fun, undefined, arraysize(args), args)
-           .ToHandle(&result);
+  i::PropertyDescriptor desc;
+  desc.set_writable(!(attributes & v8::ReadOnly));
+  desc.set_enumerable(!(attributes & v8::DontEnum));
+  desc.set_configurable(!(attributes & v8::DontDelete));
+  desc.set_value(value_obj);
+  bool success = i::JSReceiver::DefineOwnProperty(isolate, self, key_obj, &desc,
+                                                  i::Object::DONT_THROW);
+  // Even though we said DONT_THROW, there might be accessors that do throw.
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(result->BooleanValue());
+  return Just(success);
 }
 
 

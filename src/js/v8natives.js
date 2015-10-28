@@ -866,17 +866,6 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 }
 
 
-function DefineOwnPropertyFromAPI(obj, p, value, desc) {
-  return DefineOwnProperty(obj, p, ToPropertyDescriptor({
-                             value: value,
-                             writable: desc[0],
-                             enumerable: desc[1],
-                             configurable: desc[2]
-                           }),
-                           false);
-}
-
-
 // ES6 section 19.1.2.9
 function ObjectGetPrototypeOf(obj) {
   return %_GetPrototype(TO_OBJECT(obj));
@@ -1860,7 +1849,6 @@ utils.Export(function(to) {
   "global_eval_fun", GlobalEval,
   "object_value_of", ObjectValueOf,
   "object_to_string", ObjectToString,
-  "object_define_own_property", DefineOwnPropertyFromAPI,
   "object_get_own_property_descriptor", ObjectGetOwnPropertyDescriptor,
   "to_complete_property_descriptor", ToCompletePropertyDescriptor,
 ]);
