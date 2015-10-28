@@ -1842,11 +1842,235 @@ TEST(UnaryOperators) {
            B(Return),           //
        },
        0},
+      {"var x = 13;"
+       "return ~x;",
+       1 * kPointerSize,
+       1,
+       9,
+       {
+           B(LdaSmi8), U8(13),   //
+           B(Star), R(0),        //
+           B(LdaSmi8), U8(-1),   //
+           B(BitwiseXor), R(0),  //
+           B(Return),            //
+       },
+       0},
+      {"var x = 13;"
+       "return +x;",
+       1 * kPointerSize,
+       1,
+       9,
+       {
+           B(LdaSmi8), U8(13),  //
+           B(Star), R(0),       //
+           B(LdaSmi8), U8(1),   //
+           B(Mul), R(0),        //
+           B(Return),           //
+       },
+       0},
+      {"var x = 13;"
+       "return -x;",
+       1 * kPointerSize,
+       1,
+       9,
+       {
+           B(LdaSmi8), U8(13),  //
+           B(Star), R(0),       //
+           B(LdaSmi8), U8(-1),  //
+           B(Mul), R(0),        //
+           B(Return),           //
+       },
+       0}};
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(Delete) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int deep_elements_flags =
+      ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
+  int closure = Register::function_closure().index();
+  int first_context_slot = Context::MIN_CONTEXT_SLOTS;
+
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"var a = {x:13, y:14}; return delete a.x;",
+       1 * kPointerSize,
+       1,
+       12,
+       {
+           B(LdaConstant), U8(0),                                   //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                           //
+           B(LdaConstant), U8(1),                                   //
+           B(DeletePropertySloppy), R(0),                           //
+           B(Return)
+       },
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"'use strict'; var a = {x:13, y:14}; return delete a.x;",
+       1 * kPointerSize,
+       1,
+       12,
+       {
+           B(LdaConstant), U8(0),                                   //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                           //
+           B(LdaConstant), U8(1),                                   //
+           B(DeletePropertyStrict), R(0),                           //
+           B(Return)
+       },
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"var a = {1:13, 2:14}; return delete a[2];",
+       1 * kPointerSize,
+       1,
+       12,
+       {
+           B(LdaConstant), U8(0),                                   //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                           //
+           B(LdaSmi8), U8(2),                                       //
+           B(DeletePropertySloppy), R(0),                           //
+           B(Return)
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
+      {"var a = 10; return delete a;",
+       1 * kPointerSize,
+       1,
+       6,
+       {
+           B(LdaSmi8), U8(10),  //
+           B(Star), R(0),       //
+           B(LdaFalse),         //
+           B(Return)
+        },
+       0},
+      {"'use strict';"
+       "var a = {1:10};"
+       "(function f1() {return a;});"
+       "return delete a[1];",
+       2 * kPointerSize,
+       1,
+       29,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),       //
+                            R(closure), U8(1),                      //
+           B(PushContext), R(0),                                    //
+           B(LdaConstant), U8(0),                                   //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
+           B(StaContextSlot), R(0), U8(first_context_slot),         //
+           B(LdaConstant), U8(1),                                   //
+           B(CreateClosure), U8(0),                                 //
+           B(LdaContextSlot), R(0), U8(first_context_slot),         //
+           B(Star), R(1),                                           //
+           B(LdaSmi8), U8(1),                                       //
+           B(DeletePropertyStrict), R(1),                           //
+           B(Return)
+       },
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"return delete 'test';",
+       0 * kPointerSize,
+       1,
+       2,
+       {
+           B(LdaTrue),  //
+           B(Return)
+       },
+       0},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(GlobalDelete) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  int context = Register::function_context().index();
+  int global_object_index = Context::GLOBAL_OBJECT_INDEX;
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"var a = {x:13, y:14};\n function f() { return delete a.x; };\n f();",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(Star), R(0),                                          //
+           B(LdaConstant), U8(1),                                  //
+           B(DeletePropertySloppy), R(0),                          //
+           B(Return)
+       },
+       2,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"a = {1:13, 2:14};\n"
+       "function f() {'use strict'; return delete a[1];};\n f();",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaGlobalStrict), U8(0), U8(vector->GetIndex(slot)),  //
+           B(Star), R(0),                                          //
+           B(LdaSmi8), U8(1),                                      //
+           B(DeletePropertyStrict), R(0),                          //
+           B(Return)
+       },
+       1,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"var a = {x:13, y:14};\n function f() { return delete a; };\n f();",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaContextSlot), R(context), U8(global_object_index),  //
+           B(Star), R(0),                                           //
+           B(LdaConstant), U8(0),                                   //
+           B(DeletePropertySloppy), R(0),                           //
+           B(Return)
+       },
+       1,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"b = 30;\n function f() { return delete b; };\n f();",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaContextSlot), R(context), U8(global_object_index),  //
+           B(Star), R(0),                                           //
+           B(LdaConstant), U8(0),                                   //
+           B(DeletePropertySloppy), R(0),                           //
+           B(Return)
+       },
+       1,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}}};
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(snippets[i].code_snippet, "f");
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }

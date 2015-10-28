@@ -696,6 +696,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
+                                                   LanguageMode language_mode) {
+  Output(BytecodeForDelete(language_mode), object.ToOperand());
+  return *this;
+}
+
+
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   // These constants shouldn't be added to the constant pool, the should use
   // specialzed bytecodes instead.
@@ -1008,6 +1015,22 @@ Bytecode BytecodeArrayBuilder::BytecodeForCreateArguments(
       return Bytecode::kCreateMappedArguments;
     case CreateArgumentsType::kUnmappedArguments:
       return Bytecode::kCreateUnmappedArguments;
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<Bytecode>(-1);
+}
+
+
+// static
+Bytecode BytecodeArrayBuilder::BytecodeForDelete(LanguageMode language_mode) {
+  switch (language_mode) {
+    case SLOPPY:
+      return Bytecode::kDeletePropertySloppy;
+    case STRICT:
+      return Bytecode::kDeletePropertyStrict;
+    case STRONG:
+      UNIMPLEMENTED();
     default:
       UNREACHABLE();
   }

@@ -91,6 +91,8 @@ namespace interpreter {
   V(Dec, OperandType::kNone)                                                   \
   V(LogicalNot, OperandType::kNone)                                            \
   V(TypeOf, OperandType::kNone)                                                \
+  V(DeletePropertyStrict, OperandType::kReg8)                                  \
+  V(DeletePropertySloppy, OperandType::kReg8)                                  \
                                                                                \
   /* Call operations */                                                        \
   V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)        \

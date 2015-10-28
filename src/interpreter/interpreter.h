@@ -85,6 +85,10 @@ class Interpreter {
   void DoCreateLiteral(Runtime::FunctionId function_id,
                        compiler::InterpreterAssembler* assembler);
 
+  // Generates code to perform delete via function_id.
+  void DoDelete(Runtime::FunctionId function_id,
+                compiler::InterpreterAssembler* assembler);
+
   bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);
 
   Isolate* isolate_;

@@ -644,6 +644,37 @@ void Interpreter::DoTypeOf(compiler::InterpreterAssembler* assembler) {
 }
 
 
+void Interpreter::DoDelete(Runtime::FunctionId function_id,
+                           compiler::InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg8(0);
+  Node* object = __ LoadRegister(reg_index);
+  Node* key = __ GetAccumulator();
+  Node* result = __ CallRuntime(function_id, object, key);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// DeletePropertyStrict
+//
+// Delete the property specified in the accumulator from the object
+// referenced by the register operand following strict mode semantics.
+void Interpreter::DoDeletePropertyStrict(
+    compiler::InterpreterAssembler* assembler) {
+  DoDelete(Runtime::kDeleteProperty_Strict, assembler);
+}
+
+
+// DeletePropertySloppy
+//
+// Delete the property specified in the accumulator from the object
+// referenced by the register operand following sloppy mode semantics.
+void Interpreter::DoDeletePropertySloppy(
+    compiler::InterpreterAssembler* assembler) {
+  DoDelete(Runtime::kDeleteProperty_Sloppy, assembler);
+}
+
+
 // Call <callable> <receiver> <arg_count>
 //
 // Call a JSfunction or Callable in |callable| with the |receiver| and

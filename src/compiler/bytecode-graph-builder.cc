@@ -512,6 +512,18 @@ void BytecodeGraphBuilder::VisitTypeOf(
 }
 
 
+void BytecodeGraphBuilder::VisitDeletePropertyStrict(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitDeletePropertySloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitTestEqual(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

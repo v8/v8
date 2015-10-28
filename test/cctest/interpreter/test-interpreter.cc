@@ -2335,3 +2335,166 @@ TEST(InterpreterConditional) {
     CHECK(return_value->SameValue(*conditional[i].second));
   }
 }
+
+
+TEST(InterpreterDelete) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  // Tests for delete for local variables that work both in strict
+  // and sloppy modes
+  std::pair<const char*, Handle<Object>> test_delete[] = {
+      std::make_pair(
+          "var a = { x:10, y:'abc', z:30.2}; delete a.x; return a.x;\n",
+          factory->undefined_value()),
+      std::make_pair(
+          "var b = { x:10, y:'abc', z:30.2}; delete b.x; return b.y;\n",
+          factory->NewStringFromStaticChars("abc")),
+      std::make_pair("var c = { x:10, y:'abc', z:30.2}; var d = c; delete d.x; "
+                     "return c.x;\n",
+                     factory->undefined_value()),
+      std::make_pair("var e = { x:10, y:'abc', z:30.2}; var g = e; delete g.x; "
+                     "return e.y;\n",
+                     factory->NewStringFromStaticChars("abc")),
+      std::make_pair("var a = { x:10, y:'abc', z:30.2};\n"
+                     "var b = a;"
+                     "delete b.x;"
+                     "return b.x;\n",
+                     factory->undefined_value()),
+      std::make_pair("var a = {1:10};\n"
+                     "(function f1() {return a;});"
+                     "return delete a[1];",
+                     factory->ToBoolean(true)),
+      std::make_pair("return delete this;", factory->ToBoolean(true)),
+      std::make_pair("return delete 'test';", factory->ToBoolean(true))};
+
+  // Test delete in sloppy mode
+  for (size_t i = 0; i < arraysize(test_delete); i++) {
+    std::string source(InterpreterTester::SourceForBody(test_delete[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*test_delete[i].second));
+  }
+
+  // Test delete in strict mode
+  for (size_t i = 0; i < arraysize(test_delete); i++) {
+    std::string strict_test =
+        "'use strict'; " + std::string(test_delete[i].first);
+    std::string source(InterpreterTester::SourceForBody(strict_test.c_str()));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*test_delete[i].second));
+  }
+}
+
+
+TEST(InterpreterDeleteSloppyUnqualifiedIdentifier) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  // These tests generate a syntax error for strict mode. We don't
+  // test for it here.
+  std::pair<const char*, Handle<Object>> test_delete[] = {
+      std::make_pair("var a = { x:10, y:'abc'};\n"
+                     "var b = delete a;\n"
+                     "if (delete a) {\n"
+                     "  return undefined;\n"
+                     "} else {\n"
+                     "  return a.x;\n"
+                     "}\n",
+                     Handle<Object>(Smi::FromInt(10), isolate)),
+      // TODO(mythria) When try-catch is implemented change the tests to check
+      // if delete actually deletes
+      std::make_pair("a = { x:10, y:'abc'};\n"
+                     "var b = delete a;\n"
+                     // "try{return a.x;} catch(e) {return b;}\n"
+                     "return b;",
+                     factory->ToBoolean(true)),
+      std::make_pair("a = { x:10, y:'abc'};\n"
+                     "var b = delete c;\n"
+                     "return b;",
+                     factory->ToBoolean(true))};
+
+
+  for (size_t i = 0; i < arraysize(test_delete); i++) {
+    std::string source(InterpreterTester::SourceForBody(test_delete[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*test_delete[i].second));
+  }
+}
+
+
+TEST(InterpreterGlobalDelete) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> test_global_delete[] = {
+      std::make_pair("var a = { x:10, y:'abc', z:30.2 };\n"
+                     "function f() {\n"
+                     "  delete a.x;\n"
+                     "  return a.x;\n"
+                     "}\n"
+                     "f();\n",
+                     factory->undefined_value()),
+      std::make_pair("var b = {1:10, 2:'abc', 3:30.2 };\n"
+                     "function f() {\n"
+                     "  delete b[2];\n"
+                     "  return b[1];\n"
+                     " }\n"
+                     "f();\n",
+                     Handle<Object>(Smi::FromInt(10), isolate)),
+      std::make_pair("var c = { x:10, y:'abc', z:30.2 };\n"
+                     "function f() {\n"
+                     "   var d = c;\n"
+                     "   delete d.y;\n"
+                     "   return d.x;\n"
+                     "}\n"
+                     "f();\n",
+                     Handle<Object>(Smi::FromInt(10), isolate)),
+      std::make_pair("e = { x:10, y:'abc' };\n"
+                     "function f() {\n"
+                     "  return delete e;\n"
+                     "}\n"
+                     "f();\n",
+                     factory->ToBoolean(true)),
+      std::make_pair("var g = { x:10, y:'abc' };\n"
+                     "function f() {\n"
+                     "  return delete g;\n"
+                     "}\n"
+                     "f();\n",
+                     factory->ToBoolean(false)),
+      std::make_pair("function f() {\n"
+                     "  var obj = {h:10, f1() {return delete this;}};\n"
+                     "  return obj.f1();\n"
+                     "}\n"
+                     "f();",
+                     factory->ToBoolean(true)),
+      std::make_pair("function f() {\n"
+                     "  var obj = {h:10,\n"
+                     "             f1() {\n"
+                     "              'use strict';\n"
+                     "              return delete this.h;}};\n"
+                     "  return obj.f1();\n"
+                     "}\n"
+                     "f();",
+                     factory->ToBoolean(true))};
+
+  for (size_t i = 0; i < arraysize(test_global_delete); i++) {
+    InterpreterTester tester(handles.main_isolate(),
+                             test_global_delete[i].first);
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*test_global_delete[i].second));
+  }
+}

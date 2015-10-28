@@ -160,6 +160,10 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LogicalNot();
   BytecodeArrayBuilder& TypeOf();
 
+  // Deletes property from an object. This expects that accumulator contains
+  // the key to be deleted and the register contains a reference to the object.
+  BytecodeArrayBuilder& Delete(Register object, LanguageMode language_mode);
+
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
                                          Strength strength);
@@ -206,6 +210,7 @@ class BytecodeArrayBuilder {
   static Bytecode BytecodeForLoadGlobal(LanguageMode language_mode);
   static Bytecode BytecodeForStoreGlobal(LanguageMode language_mode);
   static Bytecode BytecodeForCreateArguments(CreateArgumentsType type);
+  static Bytecode BytecodeForDelete(LanguageMode language_mode);
 
   static bool FitsInIdx8Operand(int value);
   static bool FitsInIdx8Operand(size_t value);

@@ -1429,12 +1429,73 @@ void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::Value::VOID:
       VisitVoid(expr);
       break;
-    case Token::Value::BIT_NOT:
     case Token::Value::DELETE:
-      UNIMPLEMENTED();
+      VisitDelete(expr);
+      break;
+    case Token::Value::BIT_NOT:
+    case Token::Value::ADD:
+    case Token::Value::SUB:
+      // These operators are converted to an equivalent binary operators in
+      // the parser. These operators are not expected to be visited here.
+      UNREACHABLE();
     default:
       UNREACHABLE();
   }
+}
+
+
+void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
+  if (expr->expression()->IsProperty()) {
+    // Delete of an object property is allowed both in sloppy
+    // and strict modes.
+    Property* property = expr->expression()->AsProperty();
+    Register object = VisitForRegisterValue(property->obj());
+    VisitForAccumulatorValue(property->key());
+    builder()->Delete(object, language_mode());
+  } else if (expr->expression()->IsVariableProxy()) {
+    // Delete of an unqualified identifier is allowed in sloppy mode but is
+    // not allowed in strict mode. Deleting 'this' is allowed in both modes.
+    VariableProxy* proxy = expr->expression()->AsVariableProxy();
+    Variable* variable = proxy->var();
+    DCHECK(is_sloppy(language_mode()) || variable->HasThisName(isolate()));
+    switch (variable->location()) {
+      case VariableLocation::GLOBAL:
+      case VariableLocation::UNALLOCATED: {
+        // Global var, let, const or variables not explicitly declared.
+        Register global_object = execution_result()->NewRegister();
+        builder()
+            ->LoadContextSlot(execution_context()->reg(),
+                              Context::GLOBAL_OBJECT_INDEX)
+            .StoreAccumulatorInRegister(global_object)
+            .LoadLiteral(variable->name())
+            .Delete(global_object, language_mode());
+        break;
+      }
+      case VariableLocation::PARAMETER:
+      case VariableLocation::LOCAL:
+      case VariableLocation::CONTEXT: {
+        // Deleting local var/let/const, context variables, and arguments
+        // does not have any effect.
+        if (variable->HasThisName(isolate())) {
+          builder()->LoadTrue();
+        } else {
+          builder()->LoadFalse();
+        }
+        break;
+      }
+      case VariableLocation::LOOKUP: {
+        UNIMPLEMENTED();
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    // Delete of an unresolvable reference returns true.
+    VisitForEffect(expr->expression());
+    builder()->LoadTrue();
+  }
+  execution_result()->SetResultInAccumulator();
 }
 
 
