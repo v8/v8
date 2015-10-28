@@ -27,7 +27,7 @@ class IncrementalMarking {
 
   enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
 
-  enum GCRequestType { COMPLETE_MARKING, OVERAPPROXIMATION };
+  enum GCRequestType { COMPLETE_MARKING, FINALIZATION };
 
   struct StepActions {
     StepActions(CompletionAction complete_action_,
@@ -56,12 +56,12 @@ class IncrementalMarking {
   bool should_hurry() { return should_hurry_; }
   void set_should_hurry(bool val) { should_hurry_ = val; }
 
-  bool weak_closure_was_overapproximated() const {
-    return weak_closure_was_overapproximated_;
+  bool finalize_marking_completed() const {
+    return finalize_marking_completed_;
   }
 
   void SetWeakClosureWasOverApproximatedForTesting(bool val) {
-    weak_closure_was_overapproximated_ = val;
+    finalize_marking_completed_ = val;
   }
 
   inline bool IsStopped() { return state() == STOPPED; }
@@ -73,8 +73,7 @@ class IncrementalMarking {
   inline bool IsComplete() { return state() == COMPLETE; }
 
   inline bool IsReadyToOverApproximateWeakClosure() const {
-    return request_type_ == OVERAPPROXIMATION &&
-           !weak_closure_was_overapproximated_;
+    return request_type_ == FINALIZATION && !finalize_marking_completed_;
   }
 
   GCRequestType request_type() const { return request_type_; }
@@ -87,7 +86,7 @@ class IncrementalMarking {
 
   void Start(const char* reason = nullptr);
 
-  void MarkObjectGroups();
+  void FinalizeIncrementally();
 
   void UpdateMarkingDequeAfterScavenge();
 
@@ -97,7 +96,7 @@ class IncrementalMarking {
 
   void Stop();
 
-  void OverApproximateWeakClosure(CompletionAction action);
+  void FinalizeMarking(CompletionAction action);
 
   void MarkingComplete(CompletionAction action);
 
@@ -223,6 +222,9 @@ class IncrementalMarking {
 
   void StartMarking();
 
+  void MarkRoots();
+  void MarkObjectGroups();
+
   void ActivateIncrementalWriteBarrier(PagedSpace* space);
   static void ActivateIncrementalWriteBarrier(NewSpace* space);
   void ActivateIncrementalWriteBarrier();
@@ -266,9 +268,9 @@ class IncrementalMarking {
 
   bool was_activated_;
 
-  bool weak_closure_was_overapproximated_;
+  bool finalize_marking_completed_;
 
-  int weak_closure_approximation_rounds_;
+  int incremental_marking_finalization_rounds_;
 
   GCRequestType request_type_;
 

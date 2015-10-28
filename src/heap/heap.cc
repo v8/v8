@@ -774,9 +774,9 @@ void Heap::HandleGCRequest() {
                       current_gc_callback_flags_);
     return;
   }
-  DCHECK(FLAG_overapproximate_weak_closure);
-  if (!incremental_marking()->weak_closure_was_overapproximated()) {
-    OverApproximateWeakClosure("GC interrupt");
+  DCHECK(FLAG_finalize_marking_incrementally);
+  if (!incremental_marking()->finalize_marking_completed()) {
+    FinalizeIncrementalMarking("GC interrupt");
   }
 }
 
@@ -786,14 +786,13 @@ void Heap::ScheduleIdleScavengeIfNeeded(int bytes_allocated) {
 }
 
 
-void Heap::OverApproximateWeakClosure(const char* gc_reason) {
+void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Overapproximate weak closure (%s).\n",
            gc_reason);
   }
 
-  GCTracer::Scope gc_scope(tracer(),
-                           GCTracer::Scope::MC_INCREMENTAL_WEAKCLOSURE);
+  GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
 
   {
     GCCallbacksScope scope(this);
@@ -805,7 +804,7 @@ void Heap::OverApproximateWeakClosure(const char* gc_reason) {
       CallGCPrologueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
     }
   }
-  incremental_marking()->MarkObjectGroups();
+  incremental_marking()->FinalizeIncrementally();
   {
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
@@ -4071,11 +4070,12 @@ void Heap::ReduceNewSpaceSize() {
 
 
 void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
-  if (FLAG_overapproximate_weak_closure && incremental_marking()->IsMarking() &&
+  if (FLAG_finalize_marking_incrementally &&
+      incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
-       (!incremental_marking()->weak_closure_was_overapproximated() &&
+       (!incremental_marking()->finalize_marking_completed() &&
         mark_compact_collector()->marking_deque()->IsEmpty()))) {
-    OverApproximateWeakClosure(comment);
+    FinalizeIncrementalMarking(comment);
   } else if (incremental_marking()->IsComplete() ||
              (mark_compact_collector()->marking_deque()->IsEmpty())) {
     CollectAllGarbage(current_gc_flags_, comment);
@@ -4088,13 +4088,13 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
   size_t final_incremental_mark_compact_speed_in_bytes_per_ms =
       static_cast<size_t>(
           tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
-  if (FLAG_overapproximate_weak_closure &&
+  if (FLAG_finalize_marking_incrementally &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
-       (!incremental_marking()->weak_closure_was_overapproximated() &&
+       (!incremental_marking()->finalize_marking_completed() &&
         mark_compact_collector()->marking_deque()->IsEmpty() &&
         gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
             static_cast<size_t>(idle_time_in_ms))))) {
-    OverApproximateWeakClosure(
+    FinalizeIncrementalMarking(
         "Idle notification: overapproximate weak closure");
     return true;
   } else if (incremental_marking()->IsComplete() ||

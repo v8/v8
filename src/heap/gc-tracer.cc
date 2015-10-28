@@ -501,7 +501,6 @@ void GCTracer::PrintNVP() const {
                    "compaction_ptrs=%.1f "
                    "intracompaction_ptrs=%.1f "
                    "misc_compaction=%.1f "
-                   "weak_closure=%.1f "
                    "inc_weak_closure=%.1f "
                    "weakcollection_process=%.1f "
                    "weakcollection_clear=%.1f "
@@ -567,8 +566,7 @@ void GCTracer::PrintNVP() const {
                    current_.scopes[Scope::MC_UPDATE_POINTERS_TO_EVACUATED],
                    current_.scopes[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED],
                    current_.scopes[Scope::MC_UPDATE_MISC_POINTERS],
-                   current_.scopes[Scope::MC_WEAKCLOSURE],
-                   current_.scopes[Scope::MC_INCREMENTAL_WEAKCLOSURE],
+                   current_.scopes[Scope::MC_INCREMENTAL_FINALIZE],
                    current_.scopes[Scope::MC_WEAKCOLLECTION_PROCESS],
                    current_.scopes[Scope::MC_WEAKCOLLECTION_CLEAR],
                    current_.scopes[Scope::MC_WEAKCOLLECTION_ABORT],

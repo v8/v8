@@ -658,13 +658,13 @@ DEFINE_BOOL(age_code, true,
             "track un-executed functions to age code and flush only "
             "old code (required for code flushing)")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
-DEFINE_BOOL(overapproximate_weak_closure, true,
-            "overapproximate weak closure to reduce atomic pause time")
-DEFINE_INT(min_progress_during_object_groups_marking, 128,
-           "keep overapproximating the weak closure as long as we discover at "
+DEFINE_BOOL(finalize_marking_incrementally, true,
+            "finalize marking in incremental steps")
+DEFINE_INT(min_progress_during_incremental_marking_finalization, 128,
+           "keep finalizing incremental marking as long as we discover at "
            "least this many unmarked objects")
-DEFINE_INT(max_object_groups_marking_rounds, 3,
-           "at most try this many times to over approximate the weak closure")
+DEFINE_INT(max_incremental_marking_finalization_rounds, 3,
+           "at most try this many times to finalize incremental marking")
 DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
 DEFINE_BOOL(parallel_compaction, false, "use parallel compaction")
 DEFINE_BOOL(trace_incremental_marking, false,

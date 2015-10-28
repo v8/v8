@@ -1809,7 +1809,7 @@ class Heap {
   // implicit references from global handles, but don't atomically complete
   // marking. If we continue to mark incrementally, we might have marked
   // objects that die later.
-  void OverApproximateWeakClosure(const char* gc_reason);
+  void FinalizeIncrementalMarking(const char* gc_reason);
 
   // Returns the timer used for a given GC type.
   // - GCScavenger: young generation GC

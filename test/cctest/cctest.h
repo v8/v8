@@ -641,7 +641,7 @@ static inline void SimulateIncrementalMarking(i::Heap* heap,
   while (!marking->IsComplete()) {
     marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
-      marking->MarkObjectGroups();
+      marking->FinalizeIncrementally();
     }
   }
   CHECK(marking->IsComplete());
