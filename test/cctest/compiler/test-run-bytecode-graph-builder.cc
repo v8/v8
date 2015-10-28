@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <utility>
 
 #include "src/v8.h"
@@ -87,8 +90,10 @@ class BytecodeGraphTester {
 
   Handle<JSFunction> GetFunction() {
     CompileRun(script_);
-    Local<Function> api_function =
-        Local<Function>::Cast(CcTest::global()->Get(v8_str(kFunctionName)));
+    Local<Function> api_function = Local<Function>::Cast(
+        CcTest::global()
+            ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(kFunctionName))
+            .ToLocalChecked());
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     CHECK(function->shared()->HasBytecodeArray());

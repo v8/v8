@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "src/frames-inl.h"
@@ -30,7 +33,11 @@ void AssertInlineCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   List<JSFunction*> functions(2);
   topmost->GetFunctions(&functions);
-  CHECK_EQ(args[0]->ToInt32(args.GetIsolate())->Value(), functions.length());
+  CHECK_EQ(args[0]
+               ->ToInt32(args.GetIsolate()->GetCurrentContext())
+               .ToLocalChecked()
+               ->Value(),
+           functions.length());
 }
 
 
@@ -38,7 +45,10 @@ void InstallAssertInlineCountHelper(v8::Isolate* isolate) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::FunctionTemplate> t =
       v8::FunctionTemplate::New(isolate, AssertInlineCount);
-  context->Global()->Set(v8_str("AssertInlineCount"), t->GetFunction());
+  CHECK(context->Global()
+            ->Set(context, v8_str("AssertInlineCount"),
+                  t->GetFunction(context).ToLocalChecked())
+            .FromJust());
 }
 
 

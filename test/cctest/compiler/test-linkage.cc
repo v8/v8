@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "src/code-stubs.h"
@@ -58,7 +61,7 @@ TEST(TestLinkageJSFunctionIncoming) {
     HandleAndZoneScope handles;
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(CompileRun(sources[i]))));
+            *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
     ParseInfo parse_info(handles.main_zone(), function);
     CompilationInfo info(&parse_info);
     CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);

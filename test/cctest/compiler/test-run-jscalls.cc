@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "test/cctest/compiler/function-tester.h"
@@ -215,7 +218,9 @@ TEST(ContextLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
-  context->Global()->Set(v8_str("foo"), v8::Utils::CallableToLocal(jsfun));
+  CHECK(context->Global()
+            ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
+            .FromJust());
   CompileRun("var x = 24;");
   ExpectInt32("foo();", 24);
 }
@@ -237,7 +242,9 @@ TEST(BuiltinLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
-  context->Global()->Set(v8_str("foo"), v8::Utils::CallableToLocal(jsfun));
+  CHECK(context->Global()
+            ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
+            .FromJust());
   CompileRun("var x = 24;");
   ExpectObject("foo()", context->Global());
 }
