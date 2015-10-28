@@ -662,11 +662,6 @@ class RelocInfo {
   Mode rmode_;
   intptr_t data_;
   Code* host_;
-  // External-reference pointers are also split across instruction-pairs
-  // on some platforms, but are accessed via indirect pointers. This location
-  // provides a place for that pointer to exist naturally. Its address
-  // is returned by RelocInfo::target_reference_address().
-  Address reconstructed_adr_ptr_;
   friend class RelocIterator;
 };
 
