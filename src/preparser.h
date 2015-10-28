@@ -113,9 +113,7 @@ class ParserBase : public Traits {
         allow_harmony_sloppy_let_(false),
         allow_harmony_rest_parameters_(false),
         allow_harmony_default_parameters_(false),
-        allow_harmony_spread_calls_(false),
         allow_harmony_destructuring_(false),
-        allow_harmony_spread_arrays_(false),
         allow_harmony_new_target_(false),
         allow_strong_mode_(false),
         allow_legacy_const_(true),
@@ -132,9 +130,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_sloppy_let);
   ALLOW_ACCESSORS(harmony_rest_parameters);
   ALLOW_ACCESSORS(harmony_default_parameters);
-  ALLOW_ACCESSORS(harmony_spread_calls);
   ALLOW_ACCESSORS(harmony_destructuring);
-  ALLOW_ACCESSORS(harmony_spread_arrays);
   ALLOW_ACCESSORS(harmony_new_target);
   ALLOW_ACCESSORS(strong_mode);
   ALLOW_ACCESSORS(legacy_const);
@@ -841,9 +837,7 @@ class ParserBase : public Traits {
   bool allow_harmony_sloppy_let_;
   bool allow_harmony_rest_parameters_;
   bool allow_harmony_default_parameters_;
-  bool allow_harmony_spread_calls_;
   bool allow_harmony_destructuring_;
-  bool allow_harmony_spread_arrays_;
   bool allow_harmony_new_target_;
   bool allow_strong_mode_;
   bool allow_legacy_const_;
@@ -2523,9 +2517,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
       }
       elem = this->GetLiteralTheHole(peek_position(), factory());
     } else if (peek() == Token::ELLIPSIS) {
-      if (!allow_harmony_spread_arrays()) {
-        ExpressionUnexpectedToken(classifier);
-      }
       int start_pos = peek_position();
       Consume(Token::ELLIPSIS);
       ExpressionT argument =
@@ -2869,10 +2860,8 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
   bool was_unspread = false;
   int unspread_sequences_count = 0;
   while (!done) {
-    bool is_spread =
-        allow_harmony_spread_calls() && (peek() == Token::ELLIPSIS);
     int start_pos = peek_position();
-    if (is_spread) Consume(Token::ELLIPSIS);
+    bool is_spread = Check(Token::ELLIPSIS);
 
     ExpressionT argument = this->ParseAssignmentExpression(
         true, classifier, CHECK_OK_CUSTOM(NullExpressionList));

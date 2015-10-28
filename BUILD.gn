@@ -231,6 +231,7 @@ action("js2c") {
     "src/js/templates.js",
     "src/js/harmony-array.js",
     "src/js/harmony-typedarray.js",
+    "src/js/spread.js",
     "src/debug/mirrors.js",
     "src/debug/debug.js",
     "src/debug/liveedit.js",
@@ -312,7 +313,6 @@ action("js2c_experimental") {
     "src/js/harmony-tostring.js",
     "src/js/harmony-regexp.js",
     "src/js/harmony-reflect.js",
-    "src/js/harmony-spread.js",
     "src/js/harmony-object-observe.js",
     "src/js/harmony-sharedarraybuffer.js",
     "src/js/harmony-simd.js"

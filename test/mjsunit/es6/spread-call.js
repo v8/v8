@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-spread-calls
-
 (function testSpreadCallsStrict() {
   "use strict"
   function countArgs() { return arguments.length; }

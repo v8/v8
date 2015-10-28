@@ -216,8 +216,6 @@ DEFINE_NEG_IMPLICATION(es_staging, legacy_const)
   V(harmony_new_target, "harmony new.target")                   \
   V(harmony_object_observe, "harmony Object.observe")           \
   V(harmony_rest_parameters, "harmony rest parameters")         \
-  V(harmony_spread_calls, "harmony spread-calls")               \
-  V(harmony_spread_arrays, "harmony spread in array literals")  \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \
   V(harmony_completion, "harmony completion value semantics")
 

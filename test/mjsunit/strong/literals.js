@@ -4,7 +4,7 @@
 
 // Flags: --strong-mode --allow-natives-syntax
 // Flags: --harmony-rest-parameters
-// Flags: --harmony-destructuring --harmony-spread-arrays
+// Flags: --harmony-destructuring
 
 'use strict';
 
