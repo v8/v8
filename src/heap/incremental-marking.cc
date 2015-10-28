@@ -664,8 +664,7 @@ void IncrementalMarking::FinalizeIncrementally() {
 
   int marking_progress =
       abs(old_marking_deque_top -
-          heap_->mark_compact_collector()->marking_deque()->top()) /
-      kPointerSize;
+          heap_->mark_compact_collector()->marking_deque()->top());
 
   ++incremental_marking_finalization_rounds_;
   if ((incremental_marking_finalization_rounds_ >=

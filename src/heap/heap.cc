@@ -776,7 +776,7 @@ void Heap::HandleGCRequest() {
   }
   DCHECK(FLAG_finalize_marking_incrementally);
   if (!incremental_marking()->finalize_marking_completed()) {
-    FinalizeIncrementalMarking("GC interrupt");
+    FinalizeIncrementalMarking("GC interrupt: finalize incremental marking");
   }
 }
 
@@ -788,8 +788,7 @@ void Heap::ScheduleIdleScavengeIfNeeded(int bytes_allocated) {
 
 void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Overapproximate weak closure (%s).\n",
-           gc_reason);
+    PrintF("[IncrementalMarking] (%s).\n", gc_reason);
   }
 
   GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
@@ -4095,7 +4094,7 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
         gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
             static_cast<size_t>(idle_time_in_ms))))) {
     FinalizeIncrementalMarking(
-        "Idle notification: overapproximate weak closure");
+        "Idle notification: finalize incremental marking");
     return true;
   } else if (incremental_marking()->IsComplete() ||
              (mark_compact_collector()->marking_deque()->IsEmpty() &&
@@ -4103,7 +4102,7 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
                   static_cast<size_t>(idle_time_in_ms), size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
     CollectAllGarbage(current_gc_flags_,
-                      "idle notification: finalize incremental");
+                      "idle notification: finalize incremental marking");
     return true;
   }
   return false;
