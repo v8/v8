@@ -213,10 +213,15 @@ class ParallelMoveCreator : public HandleAndZoneScope {
         return AllocatedOperand(LocationOperand::REGISTER, RandomDoubleType(),
                                 index);
       case 4:
-        return ExplicitOperand(LocationOperand::REGISTER, RandomType(), 1);
+        return ExplicitOperand(
+            LocationOperand::REGISTER, RandomType(),
+            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+                ->GetAllocatableGeneralCode(1));
       case 5:
-        return ExplicitOperand(LocationOperand::STACK_SLOT, RandomType(),
-                               index);
+        return ExplicitOperand(
+            LocationOperand::STACK_SLOT, RandomType(),
+            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+                ->GetAllocatableGeneralCode(index));
       case 6:
         return ConstantOperand(index);
     }
