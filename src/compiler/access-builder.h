@@ -41,7 +41,7 @@ class AccessBuilder final : public AllStatic {
   static FieldAccess ForJSDateField(JSDate::FieldIndex index);
 
   // Provides access to FixedArray::length() field.
-  static FieldAccess ForFixedArrayLength(Zone* zone);
+  static FieldAccess ForFixedArrayLength();
 
   // Provides access to DescriptorArray::enum_cache() field.
   static FieldAccess ForDescriptorArrayEnumCache();
@@ -50,7 +50,7 @@ class AccessBuilder final : public AllStatic {
   static FieldAccess ForDescriptorArrayEnumCacheBridgeCache();
 
   // Provides access to Map::bit_field3() field.
-  static FieldAccess ForMapBitField3(Zone* zone);
+  static FieldAccess ForMapBitField3();
 
   // Provides access to Map::descriptors() field.
   static FieldAccess ForMapDescriptors();
@@ -59,7 +59,7 @@ class AccessBuilder final : public AllStatic {
   static FieldAccess ForMapInstanceType();
 
   // Provides access to String::length() field.
-  static FieldAccess ForStringLength(Zone* zone);
+  static FieldAccess ForStringLength();
 
   // Provides access to GlobalObject::global_proxy() field.
   static FieldAccess ForGlobalObjectGlobalProxy();

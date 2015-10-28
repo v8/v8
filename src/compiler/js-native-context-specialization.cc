@@ -13,6 +13,7 @@
 #include "src/field-index-inl.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/type-cache.h"
 #include "src/type-feedback-vector.h"
 
 namespace v8 {
@@ -36,7 +37,8 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       global_object_(global_object),
       native_context_(global_object->native_context(), isolate()),
       dependencies_(dependencies),
-      zone_(zone) {}
+      zone_(zone),
+      type_cache_(TypeCache::Get()) {}
 
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
@@ -114,11 +116,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     if (property_details.cell_type() == PropertyCellType::kConstantType) {
       // Compute proper type based on the current value in the cell.
       if (property_cell_value->IsSmi()) {
-        property_cell_value_type = Type::Intersect(
-            Type::SignedSmall(), Type::TaggedSigned(), graph()->zone());
+        property_cell_value_type = type_cache_.kSmi;
       } else if (property_cell_value->IsNumber()) {
-        property_cell_value_type = Type::Intersect(
-            Type::Number(), Type::TaggedPointer(), graph()->zone());
+        property_cell_value_type = type_cache_.kHeapNumber;
       } else {
         Handle<Map> property_cell_value_map(
             Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
@@ -331,9 +331,7 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
         DCHECK(Name::Equals(factory()->length_string(), name));
         // The String::length property is always a smi in the range
         // [0, String::kMaxLength].
-        field_type = Type::Intersect(
-            Type::Range(0.0, String::kMaxLength, graph()->zone()),
-            Type::TaggedSigned(), graph()->zone());
+        field_type = type_cache_.kStringLengthType;
       } else if (map->IsJSArrayMap()) {
         DCHECK(Name::Equals(factory()->length_string(), name));
         // The JSArray::length property is a smi in the range
@@ -341,17 +339,13 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
         // elements, a smi in the range [0, FixedArray::kMaxLength]
         // in case of other fast elements, and [0, kMaxUInt32] in
         // case of other arrays.
-        Type* field_type_rep = Type::Tagged();
-        double field_type_upper = kMaxUInt32;
-        if (IsFastElementsKind(map->elements_kind())) {
-          field_type_rep = Type::TaggedSigned();
-          field_type_upper = IsFastDoubleElementsKind(map->elements_kind())
-                                 ? FixedDoubleArray::kMaxLength
-                                 : FixedArray::kMaxLength;
+        if (IsFastDoubleElementsKind(map->elements_kind())) {
+          field_type = type_cache_.kFixedDoubleArrayLengthType;
+        } else if (IsFastElementsKind(map->elements_kind())) {
+          field_type = type_cache_.kFixedArrayLengthType;
+        } else {
+          field_type = type_cache_.kJSArrayLengthType;
         }
-        field_type =
-            Type::Intersect(Type::Range(0.0, field_type_upper, graph()->zone()),
-                            field_type_rep, graph()->zone());
       }
       *access_info = PropertyAccessInfo::DataField(receiver_type, field_index,
                                                    field_type, holder);
@@ -382,15 +376,13 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
             *map, index, field_representation.IsDouble());
         Type* field_type = Type::Tagged();
         if (field_representation.IsSmi()) {
-          field_type = Type::Intersect(Type::SignedSmall(),
-                                       Type::TaggedSigned(), graph()->zone());
+          field_type = type_cache_.kSmi;
         } else if (field_representation.IsDouble()) {
           if (access_mode == kStore) {
             // TODO(bmeurer): Add support for storing to double fields.
             break;
           }
-          field_type = Type::Intersect(Type::Number(), Type::UntaggedFloat64(),
-                                       graph()->zone());
+          field_type = type_cache_.kFloat64;
         } else if (field_representation.IsHeapObject()) {
           // Extract the field type from the property details (make sure its
           // representation is TaggedPointer to reflect the heap object case).

@@ -61,8 +61,7 @@ class AllocationBuilder final {
   void AllocateArray(int length, Handle<Map> map) {
     Allocate(FixedArray::SizeFor(length));
     Store(AccessBuilder::ForMap(), map);
-    Store(AccessBuilder::ForFixedArrayLength(graph()->zone()),
-          jsgraph()->Constant(length));
+    Store(AccessBuilder::ForFixedArrayLength(), jsgraph()->Constant(length));
   }
 
   // Compound store of a constant into a field.
@@ -702,7 +701,7 @@ Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
     return Changed(node);
   } else if (input_type->Is(Type::String())) {
     // JSUnaryNot(x:string) => NumberEqual(x.length,#0)
-    FieldAccess const access = AccessBuilder::ForStringLength(graph()->zone());
+    FieldAccess const access = AccessBuilder::ForStringLength();
     // It is safe for the load to be effect-free (i.e. not linked into effect
     // chain) because we assume String::length to be immutable.
     Node* length = graph()->NewNode(simplified()->LoadField(access), input,
@@ -736,7 +735,7 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     return Changed(node);
   } else if (input_type->Is(Type::String())) {
     // JSToBoolean(x:string) => NumberLessThan(#0,x.length)
-    FieldAccess const access = AccessBuilder::ForStringLength(graph()->zone());
+    FieldAccess const access = AccessBuilder::ForStringLength();
     Node* length = graph()->NewNode(simplified()->LoadField(access), input,
                                     effect, graph()->start());
     ReplaceWithValue(node, node, length);
@@ -855,10 +854,9 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   // Optimize "length" property of strings.
   if (name.is_identical_to(factory()->length_string()) &&
       receiver_type->Is(Type::String())) {
-    Node* value = effect =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForStringLength(graph()->zone())),
-                         receiver, effect, control);
+    Node* value = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
+        effect, control);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
@@ -1645,10 +1643,9 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
   Node* etrue0;
   {
     // Enum cache case.
-    Node* cache_type_enum_length = etrue0 =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForMapBitField3(graph()->zone())),
-                         cache_type, effect, if_true0);
+    Node* cache_type_enum_length = etrue0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapBitField3()), cache_type,
+        effect, if_true0);
     cache_length_true0 = graph()->NewNode(
         simplified()->NumberBitwiseAnd(), cache_type_enum_length,
         jsgraph()->Int32Constant(Map::EnumLengthBits::kMask));
@@ -1718,8 +1715,7 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
 
     cache_array_false0 = cache_type;
     cache_length_false0 = efalse0 = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForFixedArrayLength(graph()->zone())),
+        simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
         cache_array_false0, efalse0, if_false0);
   }
 

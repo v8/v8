@@ -9,16 +9,10 @@
 #include "src/ast.h"
 #include "src/codegen.h"
 #include "src/scopes.h"
-#include "src/zone-type-cache.h"
+#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
-namespace {
-
-base::LazyInstance<ZoneTypeCache>::type kCache = LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
-
 
 #define FAIL(node, msg)                                        \
   do {                                                         \
@@ -58,7 +52,7 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
                            ZoneAllocationPolicy(zone)),
       in_function_(false),
       building_function_tables_(false),
-      cache_(kCache.Get()) {
+      cache_(TypeCache::Get()) {
   InitializeAstVisitor(isolate);
   InitializeStdlib();
 }

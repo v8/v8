@@ -15,6 +15,7 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
+class TypeCache;
 
 
 namespace compiler {
@@ -101,6 +102,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Handle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
+  TypeCache const& type_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);
 };

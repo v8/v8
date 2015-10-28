@@ -2,22 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ZONE_TYPE_CACHE_H_
-#define V8_ZONE_TYPE_CACHE_H_
-
+#ifndef V8_TYPE_CACHE_H_
+#define V8_TYPE_CACHE_H_
 
 #include "src/types.h"
 
 namespace v8 {
 namespace internal {
 
-class ZoneTypeCache final {
+class TypeCache final {
  private:
   // This has to be first for the initialization magic to work.
   Zone zone_;
 
  public:
-  ZoneTypeCache() = default;
+  static TypeCache const& Get();
+
+  TypeCache() = default;
 
   Type* const kInt8 =
       CreateNative(CreateRange<int8_t>(), Type::UntaggedSigned8());
@@ -34,6 +35,9 @@ class ZoneTypeCache final {
   Type* const kFloat32 = CreateNative(Type::Number(), Type::UntaggedFloat32());
   Type* const kFloat64 = CreateNative(Type::Number(), Type::UntaggedFloat64());
 
+  Type* const kSmi = CreateNative(Type::SignedSmall(), Type::TaggedSigned());
+  Type* const kHeapNumber = CreateNative(Type::Number(), Type::TaggedPointer());
+
   Type* const kSingletonZero = CreateRange(0.0, 0.0);
   Type* const kSingletonOne = CreateRange(1.0, 1.0);
   Type* const kZeroOrOne = CreateRange(0.0, 1.0);
@@ -42,6 +46,26 @@ class ZoneTypeCache final {
       Type::Union(kSingletonZero, Type::MinusZeroOrNaN(), zone());
   Type* const kInteger = CreateRange(-V8_INFINITY, V8_INFINITY);
   Type* const kWeakint = Type::Union(kInteger, Type::MinusZeroOrNaN(), zone());
+
+  // The FixedArray::length property always containts a smi in the range
+  // [0, FixedArray::kMaxLength].
+  Type* const kFixedArrayLengthType = CreateNative(
+      CreateRange(0.0, FixedArray::kMaxLength), Type::TaggedSigned());
+
+  // The FixedDoubleArray::length property always containts a smi in the range
+  // [0, FixedDoubleArray::kMaxLength].
+  Type* const kFixedDoubleArrayLengthType = CreateNative(
+      CreateRange(0.0, FixedDoubleArray::kMaxLength), Type::TaggedSigned());
+
+  // The JSArray::length property always contains a tagged number in the range
+  // [0, kMaxUInt32].
+  Type* const kJSArrayLengthType =
+      CreateNative(CreateRange(0.0, kMaxUInt32), Type::Tagged());
+
+  // The String::length property always contains a smi in the range
+  // [0, String::kMaxLength].
+  Type* const kStringLengthType =
+      CreateNative(CreateRange(0.0, String::kMaxLength), Type::TaggedSigned());
 
 #define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
   Type* const k##TypeName##Array = CreateArray(k##TypeName);
@@ -78,4 +102,4 @@ class ZoneTypeCache final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ZONE_TYPE_CACHE_H_
+#endif  // V8_TYPE_CACHE_H_

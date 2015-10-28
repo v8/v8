@@ -318,8 +318,7 @@ Reduction JSIntrinsicLowering::ReduceStringGetLength(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  return Change(node, simplified()->LoadField(
-                          AccessBuilder::ForStringLength(graph()->zone())),
+  return Change(node, simplified()->LoadField(AccessBuilder::ForStringLength()),
                 value, effect, control);
 }
 

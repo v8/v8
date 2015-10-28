@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-class ZoneTypeCache;
+class TypeCache;
 
 class AsmTyper : public AstVisitor {
  public:
@@ -52,7 +52,7 @@ class AsmTyper : public AstVisitor {
   bool in_function_;  // In module function?
   bool building_function_tables_;
 
-  ZoneTypeCache const& cache_;
+  TypeCache const& cache_;
 
   static const int kErrorMessageLimit = 100;
   char error_message_[kErrorMessageLimit];

@@ -9,8 +9,8 @@
 #include "src/parser.h"
 #include "src/rewriter.h"
 #include "src/scopes.h"
+#include "src/type-cache.h"
 #include "src/typing-asm.h"
-#include "src/zone-type-cache.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/expression-type-collector.h"
 #include "test/cctest/expression-type-collector-macros.h"
@@ -116,7 +116,7 @@ TEST(ValidateMinimum) {
   Zone* zone = handles.main_zone();
   ZoneVector<ExpressionTypeEntry> types(zone);
   CHECK_EQ("", Validate(zone, test_function, &types));
-  ZoneTypeCache cache;
+  TypeCache cache;
 
   CHECK_TYPES_BEGIN {
     // Module.
@@ -395,7 +395,7 @@ TEST(ValidateMinimum) {
 namespace {
 
 void CheckStdlibShortcuts(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
-                          size_t& index, int& depth, ZoneTypeCache& cache) {
+                          size_t& index, int& depth, TypeCache& cache) {
   // var exp = stdlib.*; (D * 12)
   CHECK_VAR_SHORTCUT(Infinity, Bounds(cache.kFloat64));
   CHECK_VAR_SHORTCUT(NaN, Bounds(cache.kFloat64));
@@ -452,7 +452,7 @@ void CheckStdlibShortcuts(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
   Zone* zone = handles.main_zone();                    \
   ZoneVector<ExpressionTypeEntry> types(zone);         \
   CHECK_EQ("", Validate(zone, test_function, &types)); \
-  ZoneTypeCache cache;                                 \
+  TypeCache cache;                                     \
                                                        \
   CHECK_TYPES_BEGIN {                                  \
     /* Module. */                                      \

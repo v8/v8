@@ -14,7 +14,7 @@ namespace internal {
 
 // Forward declarations.
 class CompilationDependencies;
-class ZoneTypeCache;
+class TypeCache;
 
 namespace compiler {
 
@@ -54,7 +54,7 @@ class Typer {
   CompilationDependencies* const dependencies_;
   Type::FunctionType* function_type_;
   Decorator* decorator_;
-  ZoneTypeCache const& cache_;
+  TypeCache const& cache_;
 
   Type* singleton_false_;
   Type* singleton_true_;
