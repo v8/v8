@@ -477,10 +477,11 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfos(
 }
 
 
-Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
-  NamedAccess const& p = NamedAccessOf(node->op());
-  Handle<Name> name = p.name();
+Reduction JSNativeContextSpecialization::ReduceNamedAccess(
+    Node* node, Node* value, MapHandleList const& receiver_maps,
+    Handle<Name> name, PropertyAccessMode access_mode) {
+  DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
+         node->opcode() == IrOpcode::kJSStoreNamed);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -489,16 +490,10 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   // Not much we can do if deoptimization support is disabled.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
-  // Extract receiver maps from the LOAD_IC using the LoadICNexus.
-  MapHandleList receiver_maps;
-  if (!p.feedback().IsValid()) return NoChange();
-  LoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
-  if (nexus.ExtractMaps(&receiver_maps) == 0) return NoChange();
-  DCHECK_LT(0, receiver_maps.length());
-
   // Compute property access infos for the receiver maps.
   ZoneVector<PropertyAccessInfo> access_infos(zone());
-  if (!ComputePropertyAccessInfos(receiver_maps, name, kLoad, &access_infos)) {
+  if (!ComputePropertyAccessInfos(receiver_maps, name, access_mode,
+                                  &access_infos)) {
     return NoChange();
   }
 
@@ -506,7 +501,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   if (access_infos.empty()) return NoChange();
 
   // The final states for every polymorphic branch. We join them with
-  // Merge+Phi+EffectPhi at the bottom.
+  // Merge++Phi+EffectPhi at the bottom.
   ZoneVector<Node*> values(zone());
   ZoneVector<Node*> effects(zone());
   ZoneVector<Node*> controls(zone());
@@ -532,7 +527,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   // Generate code for the various different property access patterns.
   Node* fallthrough_control = control;
   for (PropertyAccessInfo const& access_info : access_infos) {
-    Node* this_value = receiver;
+    Node* this_value = value;
+    Node* this_receiver = receiver;
     Node* this_effect = effect;
     Node* this_control;
 
@@ -546,8 +542,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
       Node* check =
           graph()->NewNode(machine()->Uint32LessThan(), receiver_instance_type,
                            jsgraph()->Uint32Constant(FIRST_NONSTRING_TYPE));
-      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                      check, fallthrough_control);
+      Node* branch =
+          graph()->NewNode(common()->Branch(), check, fallthrough_control);
       fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
       this_control = graph()->NewNode(common()->IfTrue(), branch);
     } else {
@@ -559,8 +555,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
                              receiver_map, jsgraph()->Constant(map));
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, fallthrough_control);
+        Node* branch =
+            graph()->NewNode(common()->Branch(), check, fallthrough_control);
         this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
         fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
       }
@@ -575,44 +571,98 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      this_value = jsgraph()->Constant(holder);
       AssumePrototypesStable(receiver_type, holder);
+      if (access_mode == kLoad) {
+        this_receiver = jsgraph()->Constant(holder);
+      }
     }
 
     // Generate the actual property access.
     if (access_info.IsDataConstant()) {
       this_value = jsgraph()->Constant(access_info.constant());
+      if (access_mode == kStore) {
+        Node* check = graph()->NewNode(
+            simplified()->ReferenceEqual(Type::Tagged()), value, this_value);
+        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check, this_control);
+        exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
+        this_control = graph()->NewNode(common()->IfTrue(), branch);
+      }
     } else {
-      // TODO(bmeurer): This is sort of adhoc, and must be refactored into some
-      // common code once we also have support for stores.
       DCHECK(access_info.IsDataField());
       FieldIndex const field_index = access_info.field_index();
       Type* const field_type = access_info.field_type();
       if (!field_index.is_inobject()) {
-        this_value = this_effect = graph()->NewNode(
+        this_receiver = this_effect = graph()->NewNode(
             simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
-            this_value, this_effect, this_control);
+            this_receiver, this_effect, this_control);
       }
-      FieldAccess field_access;
-      field_access.base_is_tagged = kTaggedBase;
-      field_access.offset = field_index.offset();
-      field_access.name = name;
-      field_access.type = field_type;
-      field_access.machine_type = kMachAnyTagged;
-      if (field_type->Is(Type::UntaggedFloat64())) {
-        if (!field_index.is_inobject() || field_index.is_hidden_field() ||
-            !FLAG_unbox_double_fields) {
-          this_value = this_effect =
-              graph()->NewNode(simplified()->LoadField(field_access),
-                               this_value, this_effect, this_control);
-          field_access.offset = HeapNumber::kValueOffset;
-          field_access.name = MaybeHandle<Name>();
+      FieldAccess field_access = {kTaggedBase, field_index.offset(), name,
+                                  field_type, kMachAnyTagged};
+      if (access_mode == kLoad) {
+        if (field_type->Is(Type::UntaggedFloat64())) {
+          if (!field_index.is_inobject() || field_index.is_hidden_field() ||
+              !FLAG_unbox_double_fields) {
+            this_receiver = this_effect =
+                graph()->NewNode(simplified()->LoadField(field_access),
+                                 this_receiver, this_effect, this_control);
+            field_access.offset = HeapNumber::kValueOffset;
+            field_access.name = MaybeHandle<Name>();
+          }
+          field_access.machine_type = kMachFloat64;
         }
-        field_access.machine_type = kMachFloat64;
+        this_value = this_effect =
+            graph()->NewNode(simplified()->LoadField(field_access),
+                             this_receiver, this_effect, this_control);
+      } else {
+        DCHECK_EQ(kStore, access_mode);
+        if (field_type->Is(Type::TaggedSigned())) {
+          Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                          check, this_control);
+          exit_controls.push_back(
+              graph()->NewNode(common()->IfFalse(), branch));
+          this_control = graph()->NewNode(common()->IfTrue(), branch);
+        } else if (field_type->Is(Type::TaggedPointer())) {
+          Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                          check, this_control);
+          exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+          this_control = graph()->NewNode(common()->IfFalse(), branch);
+          if (field_type->NumClasses() > 0) {
+            // Emit a (sequence of) map checks for the value.
+            ZoneVector<Node*> this_controls(zone());
+            Node* value_map = this_effect = graph()->NewNode(
+                simplified()->LoadField(AccessBuilder::ForMap()), value,
+                this_effect, this_control);
+            for (auto i = field_type->Classes(); !i.Done(); i.Advance()) {
+              Handle<Map> field_map(i.Current());
+              check = graph()->NewNode(
+                  simplified()->ReferenceEqual(Type::Internal()), value_map,
+                  jsgraph()->Constant(field_map));
+              branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check, this_control);
+              this_control = graph()->NewNode(common()->IfFalse(), branch);
+              this_controls.push_back(
+                  graph()->NewNode(common()->IfTrue(), branch));
+            }
+            exit_controls.push_back(this_control);
+            int const this_control_count =
+                static_cast<int>(this_controls.size());
+            this_control =
+                (this_control_count == 1)
+                    ? this_controls.front()
+                    : graph()->NewNode(common()->Merge(this_control_count),
+                                       this_control_count,
+                                       &this_controls.front());
+          }
+        } else {
+          DCHECK(field_type->Is(Type::Tagged()));
+        }
+        this_effect = graph()->NewNode(simplified()->StoreField(field_access),
+                                       this_receiver, this_value, this_effect,
+                                       this_control);
       }
-      this_value = this_effect =
-          graph()->NewNode(simplified()->LoadField(field_access), this_value,
-                           this_effect, this_control);
     }
 
     // Remember the final state for this property access.
@@ -622,6 +672,17 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   }
 
   // Collect the fallthru control as final "exit" control.
+  if (fallthrough_control != control) {
+    // Mark the last fallthru branch as deferred.
+    Node* branch = NodeProperties::GetControlInput(fallthrough_control);
+    DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
+    if (fallthrough_control->opcode() == IrOpcode::kIfTrue) {
+      NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kFalse));
+    } else {
+      DCHECK_EQ(IrOpcode::kIfFalse, fallthrough_control->opcode());
+      NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kTrue));
+    }
+  }
   exit_controls.push_back(fallthrough_control);
 
   // Generate the single "exit" point, where we get if either all map/instance
@@ -641,7 +702,6 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
 
   // Generate the final merge point for all (polymorphic) branches.
-  Node* value;
   int const control_count = static_cast<int>(controls.size());
   if (control_count == 1) {
     value = values.front();
@@ -661,18 +721,27 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
 }
 
 
+Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
+  NamedAccess const& p = NamedAccessOf(node->op());
+  Node* const value = jsgraph()->Dead();
+
+  // Extract receiver maps from the LOAD_IC using the LoadICNexus.
+  MapHandleList receiver_maps;
+  if (!p.feedback().IsValid()) return NoChange();
+  LoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  if (nexus.ExtractMaps(&receiver_maps) == 0) return NoChange();
+  DCHECK_LT(0, receiver_maps.length());
+
+  // Try to lower the named access based on the {receiver_maps}.
+  return ReduceNamedAccess(node, value, receiver_maps, p.name(), kLoad);
+}
+
+
 Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreNamed, node->opcode());
   NamedAccess const& p = NamedAccessOf(node->op());
-  Handle<Name> name = p.name();
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* value = NodeProperties::GetValueInput(node, 1);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+  Node* const value = NodeProperties::GetValueInput(node, 1);
 
   // Extract receiver maps from the STORE_IC using the StoreICNexus.
   MapHandleList receiver_maps;
@@ -681,195 +750,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   if (nexus.ExtractMaps(&receiver_maps) == 0) return NoChange();
   DCHECK_LT(0, receiver_maps.length());
 
-  // Compute property access infos for the receiver maps.
-  ZoneVector<PropertyAccessInfo> access_infos(zone());
-  if (!ComputePropertyAccessInfos(receiver_maps, name, kStore, &access_infos)) {
-    return NoChange();
-  }
-
-  // Nothing to do if we have no non-deprecated maps.
-  if (access_infos.empty()) return NoChange();
-
-  // The final states for every polymorphic branch. We join them with
-  // Merge+EffectPhi at the bottom.
-  ZoneVector<Node*> effects(zone());
-  ZoneVector<Node*> controls(zone());
-
-  // The list of "exiting" controls, which currently go to a single deoptimize.
-  // TODO(bmeurer): Consider using an IC as fallback.
-  Node* const exit_effect = effect;
-  ZoneVector<Node*> exit_controls(zone());
-
-  // Ensure that {receiver} is a heap object.
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-  exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
-  control = graph()->NewNode(common()->IfFalse(), branch);
-
-  // Load the {receiver} map. The resulting effect is the dominating effect for
-  // all (polymorphic) branches.
-  Node* receiver_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       receiver, effect, control);
-
-  // Generate code for the various different property access patterns.
-  Node* fallthrough_control = control;
-  for (PropertyAccessInfo const& access_info : access_infos) {
-    Node* this_receiver = receiver;
-    Node* this_effect = effect;
-    Node* this_control;
-
-    // Perform map check on {receiver}.
-    Type* receiver_type = access_info.receiver_type();
-    if (receiver_type->Is(Type::String())) {
-      // Emit an instance type check for strings.
-      Node* receiver_instance_type = this_effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
-          receiver_map, this_effect, fallthrough_control);
-      Node* check =
-          graph()->NewNode(machine()->Uint32LessThan(), receiver_instance_type,
-                           jsgraph()->Uint32Constant(FIRST_NONSTRING_TYPE));
-      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                      check, fallthrough_control);
-      fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-      this_control = graph()->NewNode(common()->IfTrue(), branch);
-    } else {
-      // Emit a (sequence of) map checks for other properties.
-      ZoneVector<Node*> this_controls(zone());
-      for (auto i = access_info.receiver_type()->Classes(); !i.Done();
-           i.Advance()) {
-        Handle<Map> map = i.Current();
-        Node* check =
-            graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
-                             receiver_map, jsgraph()->Constant(map));
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, fallthrough_control);
-        this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
-        fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-      }
-      int const this_control_count = static_cast<int>(this_controls.size());
-      this_control =
-          (this_control_count == 1)
-              ? this_controls.front()
-              : graph()->NewNode(common()->Merge(this_control_count),
-                                 this_control_count, &this_controls.front());
-    }
-
-    // Determine actual holder and perform prototype chain checks.
-    Handle<JSObject> holder;
-    if (access_info.holder().ToHandle(&holder)) {
-      AssumePrototypesStable(receiver_type, holder);
-    }
-
-    // Generate the actual property access.
-    if (access_info.IsDataConstant()) {
-      Node* check =
-          graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()), value,
-                           jsgraph()->Constant(access_info.constant()));
-      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                      check, this_control);
-      exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-      this_control = graph()->NewNode(common()->IfTrue(), branch);
-    } else {
-      // TODO(bmeurer): This is sort of adhoc, and must be refactored into some
-      // common code once we also have support for stores.
-      DCHECK(access_info.IsDataField());
-      FieldIndex const field_index = access_info.field_index();
-      Type* const field_type = access_info.field_type();
-      if (!field_index.is_inobject()) {
-        this_receiver = this_effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
-            this_receiver, this_effect, this_control);
-      }
-      FieldAccess field_access;
-      field_access.base_is_tagged = kTaggedBase;
-      field_access.offset = field_index.offset();
-      field_access.name = name;
-      field_access.type = field_type;
-      field_access.machine_type = kMachAnyTagged;
-      if (field_type->Is(Type::TaggedSigned())) {
-        Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, this_control);
-        exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-        this_control = graph()->NewNode(common()->IfTrue(), branch);
-      } else if (field_type->Is(Type::TaggedPointer())) {
-        Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                        check, this_control);
-        exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
-        this_control = graph()->NewNode(common()->IfFalse(), branch);
-        if (field_type->NumClasses() > 0) {
-          // Emit a (sequence of) map checks for the value.
-          ZoneVector<Node*> this_controls(zone());
-          Node* value_map = this_effect =
-              graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                               value, this_effect, this_control);
-          for (auto i = field_type->Classes(); !i.Done(); i.Advance()) {
-            Handle<Map> field_map(i.Current());
-            check =
-                graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
-                                 value_map, jsgraph()->Constant(field_map));
-            branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                      check, this_control);
-            this_control = graph()->NewNode(common()->IfFalse(), branch);
-            this_controls.push_back(
-                graph()->NewNode(common()->IfTrue(), branch));
-          }
-          exit_controls.push_back(this_control);
-          int const this_control_count = static_cast<int>(this_controls.size());
-          this_control = (this_control_count == 1)
-                             ? this_controls.front()
-                             : graph()->NewNode(
-                                   common()->Merge(this_control_count),
-                                   this_control_count, &this_controls.front());
-        }
-      } else {
-        DCHECK(field_type->Is(Type::Tagged()));
-      }
-      this_effect =
-          graph()->NewNode(simplified()->StoreField(field_access),
-                           this_receiver, value, this_effect, this_control);
-    }
-
-    // Remember the final state for this property access.
-    effects.push_back(this_effect);
-    controls.push_back(this_control);
-  }
-
-  // Collect the fallthru control as final "exit" control.
-  exit_controls.push_back(fallthrough_control);
-
-  // Generate the single "exit" point, where we get if either all map/instance
-  // type checks failed, or one of the assumptions inside one of the cases
-  // failes (i.e. failing prototype chain check).
-  // TODO(bmeurer): Consider falling back to IC here if deoptimization is
-  // disabled.
-  int const exit_control_count = static_cast<int>(exit_controls.size());
-  Node* exit_control =
-      (exit_control_count == 1)
-          ? exit_controls.front()
-          : graph()->NewNode(common()->Merge(exit_control_count),
-                             exit_control_count, &exit_controls.front());
-  Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                      exit_effect, exit_control);
-  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-
-  // Generate the final merge point for all (polymorphic) branches.
-  int const control_count = static_cast<int>(controls.size());
-  if (control_count == 1) {
-    effect = effects.front();
-    control = controls.front();
-  } else {
-    control = graph()->NewNode(common()->Merge(control_count), control_count,
-                               &controls.front());
-    effects.push_back(control);
-    effect = graph()->NewNode(common()->EffectPhi(control_count),
-                              control_count + 1, &effects.front());
-  }
-  return Replace(node, value, effect, control);
+  // Try to lower the named access based on the {receiver_maps}.
+  return ReduceNamedAccess(node, value, receiver_maps, p.name(), kStore);
 }
 
 

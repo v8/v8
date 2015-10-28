@@ -68,6 +68,11 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                   PropertyAccessMode access_mode,
                                   ZoneVector<PropertyAccessInfo>* access_infos);
 
+  Reduction ReduceNamedAccess(Node* node, Node* value,
+                              MapHandleList const& receiver_maps,
+                              Handle<Name> name,
+                              PropertyAccessMode access_mode);
+
   struct ScriptContextTableLookupResult;
   bool LookupInScriptContextTable(Handle<Name> name,
                                   ScriptContextTableLookupResult* result);
