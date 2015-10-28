@@ -3393,8 +3393,22 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case MULTU:
       u64hilo = static_cast<uint64_t>(rs_u() & 0xffffffff) *
                 static_cast<uint64_t>(rt_u() & 0xffffffff);
-      set_register(LO, static_cast<int32_t>(u64hilo & 0xffffffff));
-      set_register(HI, static_cast<int32_t>(u64hilo >> 32));
+      if (kArchVariant != kMips64r6) {
+        set_register(LO, static_cast<int32_t>(u64hilo & 0xffffffff));
+        set_register(HI, static_cast<int32_t>(u64hilo >> 32));
+      } else {
+        switch (sa()) {
+          case MUL_OP:
+            set_register(rd_reg(), static_cast<int32_t>(u64hilo & 0xffffffff));
+            break;
+          case MUH_OP:
+            set_register(rd_reg(), static_cast<int32_t>(u64hilo >> 32));
+            break;
+          default:
+            UNIMPLEMENTED_MIPS();
+            break;
+        }
+      }
       break;
     case DMULT:  // DMULT == D_MUL_MUH.
       if (kArchVariant != kMips64r6) {
@@ -3462,17 +3476,61 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       break;
     }
     case DIVU:
-      if (rt_u() != 0) {
-        uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
-        uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
-        set_register(LO, rs_u_32 / rt_u_32);
-        set_register(HI, rs_u_32 % rt_u_32);
+      switch (kArchVariant) {
+        case kMips64r6: {
+          uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
+          uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
+          switch (get_instr()->SaValue()) {
+            case DIV_OP:
+              if (rt_u_32 != 0) {
+                set_register(rd_reg(), rs_u_32 / rt_u_32);
+              }
+              break;
+            case MOD_OP:
+              if (rt_u() != 0) {
+                set_register(rd_reg(), rs_u_32 % rt_u_32);
+              }
+              break;
+            default:
+              UNIMPLEMENTED_MIPS();
+              break;
+          }
+        } break;
+        default: {
+          if (rt_u() != 0) {
+            uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
+            uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
+            set_register(LO, rs_u_32 / rt_u_32);
+            set_register(HI, rs_u_32 % rt_u_32);
+          }
+        }
       }
       break;
     case DDIVU:
-      if (rt_u() != 0) {
-        set_register(LO, rs_u() / rt_u());
-        set_register(HI, rs_u() % rt_u());
+      switch (kArchVariant) {
+        case kMips64r6: {
+          switch (get_instr()->SaValue()) {
+            case DIV_OP:
+              if (rt_u() != 0) {
+                set_register(rd_reg(), rs_u() / rt_u());
+              }
+              break;
+            case MOD_OP:
+              if (rt_u() != 0) {
+                set_register(rd_reg(), rs_u() % rt_u());
+              }
+              break;
+            default:
+              UNIMPLEMENTED_MIPS();
+              break;
+          }
+        } break;
+        default: {
+          if (rt_u() != 0) {
+            set_register(LO, rs_u() / rt_u());
+            set_register(HI, rs_u() % rt_u());
+          }
+        }
       }
       break;
     case ADD:
