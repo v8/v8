@@ -339,10 +339,10 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
         // The JSArray::length property is a smi in the range
         // [0, FixedDoubleArray::kMaxLength] in case of fast double
         // elements, a smi in the range [0, FixedArray::kMaxLength]
-        // in case of other fast elements, and [0, kMaxUInt32-1] in
+        // in case of other fast elements, and [0, kMaxUInt32] in
         // case of other arrays.
         Type* field_type_rep = Type::Tagged();
-        double field_type_upper = kMaxUInt32 - 1;
+        double field_type_upper = kMaxUInt32;
         if (IsFastElementsKind(map->elements_kind())) {
           field_type_rep = Type::TaggedSigned();
           field_type_upper = IsFastDoubleElementsKind(map->elements_kind())
