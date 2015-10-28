@@ -972,24 +972,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX87Float64Sqrt: {
+      __ X87SetFPUCW(0x027F);
       __ fstp(0);
       __ fld_d(MemOperand(esp, 0));
-#if V8_GLIBC_PREREQ(2, 19)
-      __ push(edx);
-      __ sub(esp, Immediate(2 * kIntSize));
-      __ fnstcw(MemOperand(esp, 4));
-      __ mov(edx, Immediate(0xfeff));
-      __ and_(edx, MemOperand(esp, 4));
-      __ mov(MemOperand(esp, 0), edx);
-      __ fldcw(MemOperand(esp, 0));
-#endif
       __ fsqrt();
-#if V8_GLIBC_PREREQ(2, 19)
-      __ fldcw(MemOperand(esp, 4));
-      __ lea(esp, Operand(esp, 2 * kIntSize));
-      __ pop(edx);
-#endif
       __ lea(esp, Operand(esp, kDoubleSize));
+      __ X87SetFPUCW(0x037F);
       break;
     }
     case kX87Float64Round: {
