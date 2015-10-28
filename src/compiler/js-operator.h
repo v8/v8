@@ -44,17 +44,17 @@ size_t hash_value(VectorSlotPair const&);
 
 // Defines hints about receiver values based on structural knowledge. This is
 // used as a parameter by JSConvertReceiver operators.
-enum class ConvertReceiverMode {
+enum class ConvertReceiverMode : int {
   kNullOrUndefined,     // Guaranteed to be null or undefined.
   kNotNullOrUndefined,  // Guaranteed to never be null or undefined.
   kAny                  // No specific knowledge about receiver.
 };
 
-size_t hash_value(ConvertReceiverMode const&);
+size_t hash_value(ConvertReceiverMode);
 
-std::ostream& operator<<(std::ostream&, ConvertReceiverMode const&);
+std::ostream& operator<<(std::ostream&, ConvertReceiverMode);
 
-const ConvertReceiverMode& ConvertReceiverModeOf(const Operator* op);
+ConvertReceiverMode ConvertReceiverModeOf(const Operator* op);
 
 
 // Defines whether tail call optimization is allowed.

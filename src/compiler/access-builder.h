@@ -61,6 +61,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to String::length() field.
   static FieldAccess ForStringLength(Zone* zone);
 
+  // Provides access to GlobalObject::global_proxy() field.
+  static FieldAccess ForGlobalObjectGlobalProxy();
+
   // Provides access to GlobalObject::native_context() field.
   static FieldAccess ForGlobalObjectNativeContext();
 

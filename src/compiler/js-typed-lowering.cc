@@ -1149,6 +1149,48 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicContext(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSConvertReceiver, node->opcode());
+  ConvertReceiverMode mode = ConvertReceiverModeOf(node->op());
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Type* receiver_type = NodeProperties::GetType(receiver);
+  Node* context = NodeProperties::GetContextInput(node);
+  Type* context_type = NodeProperties::GetType(context);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (!receiver_type->Is(Type::Receiver())) {
+    if (receiver_type->Is(Type::NullOrUndefined()) ||
+        mode == ConvertReceiverMode::kNullOrUndefined) {
+      if (context_type->IsConstant()) {
+        Handle<JSObject> global_proxy(
+            Handle<Context>::cast(context_type->AsConstant()->Value())
+                ->global_proxy(),
+            isolate());
+        receiver = jsgraph()->Constant(global_proxy);
+      } else {
+        Node* global_object = effect = graph()->NewNode(
+            javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true),
+            context, context, effect);
+        receiver = effect =
+            graph()->NewNode(simplified()->LoadField(
+                                 AccessBuilder::ForGlobalObjectGlobalProxy()),
+                             global_object, effect, control);
+      }
+    } else if (!receiver_type->Maybe(Type::NullOrUndefined()) ||
+               mode == ConvertReceiverMode::kNotNullOrUndefined) {
+      receiver = effect =
+          graph()->NewNode(javascript()->ToObject(), receiver, context,
+                           frame_state, effect, control);
+    } else {
+      return NoChange();
+    }
+  }
+  ReplaceWithValue(node, receiver, effect, control);
+  return Changed(receiver);
+}
+
+
 Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArguments, node->opcode());
   CreateArgumentsParameters const& p = CreateArgumentsParametersOf(node->op());
@@ -1859,6 +1901,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadDynamicGlobal(node);
     case IrOpcode::kJSLoadDynamicContext:
       return ReduceJSLoadDynamicContext(node);
+    case IrOpcode::kJSConvertReceiver:
+      return ReduceJSConvertReceiver(node);
     case IrOpcode::kJSCreateArguments:
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateClosure:

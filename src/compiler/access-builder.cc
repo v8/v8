@@ -132,9 +132,17 @@ FieldAccess AccessBuilder::ForStringLength(Zone* zone) {
 
 
 // static
+FieldAccess AccessBuilder::ForGlobalObjectGlobalProxy() {
+  FieldAccess access = {kTaggedBase, GlobalObject::kGlobalProxyOffset,
+                        Handle<Name>(), Type::Receiver(), kMachAnyTagged};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForGlobalObjectNativeContext() {
   FieldAccess access = {kTaggedBase, GlobalObject::kNativeContextOffset,
-                        Handle<Name>(), Type::Any(), kMachAnyTagged};
+                        Handle<Name>(), Type::Internal(), kMachAnyTagged};
   return access;
 }
 
