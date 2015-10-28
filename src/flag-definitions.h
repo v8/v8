@@ -459,6 +459,7 @@ DEFINE_BOOL(turbo_preserve_shared_code, false, "keep context-independent code")
 #if defined(V8_WASM)
 // Flags for native WebAssembly.
 DEFINE_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
+DEFINE_BOOL(trace_wasm_decode_time, false, "trace decoding time of wasm code")
 DEFINE_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_BOOL(wasm_break_on_decoder_error, false,
             "debug break when wasm decoder encounters an error")
