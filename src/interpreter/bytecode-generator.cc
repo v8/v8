@@ -1412,12 +1412,9 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   Register receiver = execution_result()->NextConsecutiveRegister();
 
   switch (call_type) {
-    case Call::PROPERTY_CALL: {
+    case Call::NAMED_PROPERTY_CALL:
+    case Call::KEYED_PROPERTY_CALL: {
       Property* property = callee_expr->AsProperty();
-      if (property->IsSuperAccess()) {
-        UNIMPLEMENTED();
-      }
-
       VisitForAccumulatorValue(property->obj());
       builder()->StoreAccumulatorInRegister(receiver);
       VisitPropertyLoadForAccumulator(receiver, property);
@@ -1440,6 +1437,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
+    case Call::NAMED_SUPER_PROPERTY_CALL:
+    case Call::KEYED_SUPER_PROPERTY_CALL:
     case Call::LOOKUP_SLOT_CALL:
     case Call::SUPER_CALL:
     case Call::POSSIBLY_EVAL_CALL:

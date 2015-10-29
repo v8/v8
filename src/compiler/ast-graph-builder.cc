@@ -2342,87 +2342,84 @@ void AstGraphBuilder::VisitCall(Call* expr) {
                         OutputFrameStateCombine::Push(2));
       break;
     }
-    case Call::PROPERTY_CALL: {
+    case Call::NAMED_PROPERTY_CALL: {
       Property* property = callee->AsProperty();
-      VectorSlotPair pair =
+      VectorSlotPair feedback =
           CreateVectorSlotPair(property->PropertyFeedbackSlot());
-      LhsKind property_type = Property::GetAssignType(property);
-      switch (property_type) {
-        case NAMED_PROPERTY: {
-          VisitForValue(property->obj());
-          FrameStateBeforeAndAfter states(this, property->obj()->id());
-          Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-          Node* object = environment()->Top();
-          callee_value = BuildNamedLoad(object, name, pair);
-          states.AddToNode(callee_value, property->LoadId(),
-                           OutputFrameStateCombine::Push());
-          // Note that a PROPERTY_CALL requires the receiver to be wrapped into
-          // an object for sloppy callees. However the receiver is guaranteed
-          // not to be null or undefined at this point.
-          receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
-          receiver_value = environment()->Pop();
-          flags = CALL_AS_METHOD;
-          break;
-        }
-        case KEYED_PROPERTY: {
-          VisitForValue(property->obj());
-          VisitForValue(property->key());
-          FrameStateBeforeAndAfter states(this, property->key()->id());
-          Node* key = environment()->Pop();
-          Node* object = environment()->Top();
-          callee_value = BuildKeyedLoad(object, key, pair);
-          states.AddToNode(callee_value, property->LoadId(),
-                           OutputFrameStateCombine::Push());
-          // Note that a PROPERTY_CALL requires the receiver to be wrapped into
-          // an object for sloppy callees. However the receiver is guaranteed
-          // not to be null or undefined at this point.
-          receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
-          receiver_value = environment()->Pop();
-          flags = CALL_AS_METHOD;
-          break;
-        }
-        case NAMED_SUPER_PROPERTY: {
-          SuperPropertyReference* super_ref =
-              property->obj()->AsSuperPropertyReference();
-          VisitForValue(super_ref->home_object());
-          VisitForValue(super_ref->this_var());
-          Node* home = environment()->Peek(1);
-          Node* object = environment()->Top();
-          Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-          FrameStateBeforeAndAfter states(this, property->obj()->id());
-          callee_value = BuildNamedSuperLoad(object, home, name, pair);
-          states.AddToNode(callee_value, property->LoadId(),
-                           OutputFrameStateCombine::Push());
-          // Note that the receiver is not the target of the property load, so
-          // it could very well be null or undefined at this point.
-          receiver_value = environment()->Pop();
-          environment()->Drop(1);
-          break;
-        }
-        case KEYED_SUPER_PROPERTY: {
-          SuperPropertyReference* super_ref =
-              property->obj()->AsSuperPropertyReference();
-          VisitForValue(super_ref->home_object());
-          VisitForValue(super_ref->this_var());
-          environment()->Push(environment()->Top());    // Duplicate this_var.
-          environment()->Push(environment()->Peek(2));  // Duplicate home_obj.
-          VisitForValue(property->key());
-          Node* key = environment()->Pop();
-          Node* home = environment()->Pop();
-          Node* object = environment()->Pop();
-          FrameStateBeforeAndAfter states(this, property->key()->id());
-          callee_value = BuildKeyedSuperLoad(object, home, key, pair);
-          states.AddToNode(callee_value, property->LoadId(),
-                           OutputFrameStateCombine::Push());
-          // Note that the receiver is not the target of the property load, so
-          // it could very well be null or undefined at this point.
-          receiver_value = environment()->Pop();
-          environment()->Drop(1);
-          break;
-        }
-        case VARIABLE:
-          UNREACHABLE();
-      }
+      VisitForValue(property->obj());
+      FrameStateBeforeAndAfter states(this, property->obj()->id());
+      Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
+      Node* object = environment()->Top();
+      callee_value = BuildNamedLoad(object, name, feedback);
+      states.AddToNode(callee_value, property->LoadId(),
+                       OutputFrameStateCombine::Push());
+      // Note that a PROPERTY_CALL requires the receiver to be wrapped into
+      // an object for sloppy callees. However the receiver is guaranteed
+      // not to be null or undefined at this point.
+      receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
+      receiver_value = environment()->Pop();
+      flags = CALL_AS_METHOD;
+      break;
+    }
+    case Call::KEYED_PROPERTY_CALL: {
+      Property* property = callee->AsProperty();
+      VectorSlotPair feedback =
+          CreateVectorSlotPair(property->PropertyFeedbackSlot());
+      VisitForValue(property->obj());
+      VisitForValue(property->key());
+      FrameStateBeforeAndAfter states(this, property->key()->id());
+      Node* key = environment()->Pop();
+      Node* object = environment()->Top();
+      callee_value = BuildKeyedLoad(object, key, feedback);
+      states.AddToNode(callee_value, property->LoadId(),
+                       OutputFrameStateCombine::Push());
+      // Note that a PROPERTY_CALL requires the receiver to be wrapped into
+      // an object for sloppy callees. However the receiver is guaranteed
+      // not to be null or undefined at this point.
+      receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
+      receiver_value = environment()->Pop();
+      flags = CALL_AS_METHOD;
+      break;
+    }
+    case Call::NAMED_SUPER_PROPERTY_CALL: {
+      Property* property = callee->AsProperty();
+      SuperPropertyReference* super_ref =
+          property->obj()->AsSuperPropertyReference();
+      VisitForValue(super_ref->home_object());
+      VisitForValue(super_ref->this_var());
+      Node* home = environment()->Peek(1);
+      Node* object = environment()->Top();
+      Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
+      FrameStateBeforeAndAfter states(this, property->obj()->id());
+      callee_value = BuildNamedSuperLoad(object, home, name, VectorSlotPair());
+      states.AddToNode(callee_value, property->LoadId(),
+                       OutputFrameStateCombine::Push());
+      // Note that the receiver is not the target of the property load, so
+      // it could very well be null or undefined at this point.
+      receiver_value = environment()->Pop();
+      environment()->Drop(1);
+      break;
+    }
+    case Call::KEYED_SUPER_PROPERTY_CALL: {
+      Property* property = callee->AsProperty();
+      SuperPropertyReference* super_ref =
+          property->obj()->AsSuperPropertyReference();
+      VisitForValue(super_ref->home_object());
+      VisitForValue(super_ref->this_var());
+      environment()->Push(environment()->Top());    // Duplicate this_var.
+      environment()->Push(environment()->Peek(2));  // Duplicate home_obj.
+      VisitForValue(property->key());
+      Node* key = environment()->Pop();
+      Node* home = environment()->Pop();
+      Node* object = environment()->Pop();
+      FrameStateBeforeAndAfter states(this, property->key()->id());
+      callee_value = BuildKeyedSuperLoad(object, home, key, VectorSlotPair());
+      states.AddToNode(callee_value, property->LoadId(),
+                       OutputFrameStateCombine::Push());
+      // Note that the receiver is not the target of the property load, so
+      // it could very well be null or undefined at this point.
+      receiver_value = environment()->Pop();
+      environment()->Drop(1);
       break;
     }
     case Call::SUPER_CALL:

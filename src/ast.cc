@@ -761,7 +761,16 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
   if (expression()->IsSuperCallReference()) return SUPER_CALL;
 
   Property* property = expression()->AsProperty();
-  return property != NULL ? PROPERTY_CALL : OTHER_CALL;
+  if (property != nullptr) {
+    bool is_super = property->IsSuperAccess();
+    if (property->key()->IsPropertyName()) {
+      return is_super ? NAMED_SUPER_PROPERTY_CALL : NAMED_PROPERTY_CALL;
+    } else {
+      return is_super ? KEYED_SUPER_PROPERTY_CALL : KEYED_PROPERTY_CALL;
+    }
+  }
+
+  return OTHER_CALL;
 }
 
 

@@ -3091,23 +3091,18 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Call to a lookup slot (dynamically introduced variable).
     PushCalleeAndWithBaseObject(expr);
     EmitCall(expr);
-  } else if (call_type == Call::PROPERTY_CALL) {
+  } else if (call_type == Call::NAMED_PROPERTY_CALL) {
     Property* property = callee->AsProperty();
-    bool is_named_call = property->key()->IsPropertyName();
-    if (property->IsSuperAccess()) {
-      if (is_named_call) {
-        EmitSuperCallWithLoadIC(expr);
-      } else {
-        EmitKeyedSuperCallWithLoadIC(expr);
-      }
-    } else {
-        VisitForStackValue(property->obj());
-      if (is_named_call) {
-        EmitCallWithLoadIC(expr);
-      } else {
-        EmitKeyedCallWithLoadIC(expr, property->key());
-      }
-    }
+    VisitForStackValue(property->obj());
+    EmitCallWithLoadIC(expr);
+  } else if (call_type == Call::KEYED_PROPERTY_CALL) {
+    Property* property = callee->AsProperty();
+    VisitForStackValue(property->obj());
+    EmitKeyedCallWithLoadIC(expr, property->key());
+  } else if (call_type == Call::NAMED_SUPER_PROPERTY_CALL) {
+    EmitSuperCallWithLoadIC(expr);
+  } else if (call_type == Call::KEYED_SUPER_PROPERTY_CALL) {
+    EmitKeyedSuperCallWithLoadIC(expr);
   } else if (call_type == Call::SUPER_CALL) {
     EmitSuperConstructorCall(expr);
   } else {
