@@ -836,7 +836,10 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
                     HeapEntry::kString,
                     names_->GetName(String::cast(object)));
   } else if (object->IsSymbol()) {
-    return AddEntry(object, HeapEntry::kSymbol, "symbol");
+    if (Symbol::cast(object)->is_private())
+      return AddEntry(object, HeapEntry::kHidden, "private symbol");
+    else
+      return AddEntry(object, HeapEntry::kSymbol, "symbol");
   } else if (object->IsCode()) {
     return AddEntry(object, HeapEntry::kCode, "");
   } else if (object->IsSharedFunctionInfo()) {

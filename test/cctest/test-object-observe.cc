@@ -687,7 +687,10 @@ TEST(HiddenPropertiesLeakage) {
           ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"))
           .ToLocalChecked();
   Local<Object>::Cast(obj)
-      ->SetHiddenValue(v8_str("foo"), Null(CcTest::isolate()));
+      ->SetPrivate(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                   v8::Private::New(CcTest::isolate(), v8_str("foo")),
+                   Null(CcTest::isolate()))
+      .FromJust();
   CompileRun("");  // trigger delivery
   CHECK(CompileRun("records")->IsNull());
 }

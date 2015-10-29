@@ -2448,6 +2448,73 @@ THREADED_TEST(SymbolTemplateProperties) {
 }
 
 
+THREADED_TEST(PrivateProperties) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  v8::Local<v8::Private> priv1 = v8::Private::New(isolate);
+  v8::Local<v8::Private> priv2 =
+      v8::Private::New(isolate, v8_str("my-private"));
+
+  CcTest::heap()->CollectAllGarbage();
+
+  CHECK(priv2->Name()->Equals(v8::String::NewFromUtf8(isolate, "my-private")));
+
+  // Make sure delete of a non-existent private symbol property works.
+  obj->DeletePrivate(env.local(), priv1).FromJust();
+  CHECK(!obj->HasPrivate(env.local(), priv1).FromJust());
+
+  CHECK(obj->SetPrivate(env.local(), priv1, v8::Integer::New(isolate, 1503))
+            .FromJust());
+  CHECK(obj->HasPrivate(env.local(), priv1).FromJust());
+  CHECK_EQ(1503,
+           obj->GetPrivate(env.local(), priv1).ToLocalChecked()->Int32Value());
+  CHECK(obj->SetPrivate(env.local(), priv1, v8::Integer::New(isolate, 2002))
+            .FromJust());
+  CHECK(obj->HasPrivate(env.local(), priv1).FromJust());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), priv1).ToLocalChecked()->Int32Value());
+
+  CHECK_EQ(0u, obj->GetOwnPropertyNames()->Length());
+  unsigned num_props = obj->GetPropertyNames()->Length();
+  CHECK(obj->Set(v8::String::NewFromUtf8(isolate, "bla"),
+                 v8::Integer::New(isolate, 20)));
+  CHECK_EQ(1u, obj->GetOwnPropertyNames()->Length());
+  CHECK_EQ(num_props + 1, obj->GetPropertyNames()->Length());
+
+  CcTest::heap()->CollectAllGarbage();
+
+  // Add another property and delete it afterwards to force the object in
+  // slow case.
+  CHECK(obj->SetPrivate(env.local(), priv2, v8::Integer::New(isolate, 2008))
+            .FromJust());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), priv1).ToLocalChecked()->Int32Value());
+  CHECK_EQ(2008,
+           obj->GetPrivate(env.local(), priv2).ToLocalChecked()->Int32Value());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), priv1).ToLocalChecked()->Int32Value());
+  CHECK_EQ(1u, obj->GetOwnPropertyNames()->Length());
+
+  CHECK(obj->HasPrivate(env.local(), priv1).FromJust());
+  CHECK(obj->HasPrivate(env.local(), priv2).FromJust());
+  CHECK(obj->DeletePrivate(env.local(), priv2).FromJust());
+  CHECK(obj->HasPrivate(env.local(), priv1).FromJust());
+  CHECK(!obj->HasPrivate(env.local(), priv2).FromJust());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), priv1).ToLocalChecked()->Int32Value());
+  CHECK_EQ(1u, obj->GetOwnPropertyNames()->Length());
+
+  // Private properties are not inherited (for the time being).
+  v8::Local<v8::Object> child = v8::Object::New(isolate);
+  child->SetPrototype(obj);
+  CHECK(!child->HasPrivate(env.local(), priv1).FromJust());
+  CHECK_EQ(0u, child->GetOwnPropertyNames()->Length());
+}
+
+
 THREADED_TEST(GlobalSymbols) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -2493,6 +2560,30 @@ static void CheckWellKnownSymbol(v8::Local<v8::Symbol>(*getter)(v8::Isolate*),
 THREADED_TEST(WellKnownSymbols) {
   CheckWellKnownSymbol(v8::Symbol::GetIterator, "Symbol.iterator");
   CheckWellKnownSymbol(v8::Symbol::GetUnscopables, "Symbol.unscopables");
+}
+
+
+THREADED_TEST(GlobalPrivates) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<String> name = v8_str("my-private");
+  v8::Local<v8::Private> glob = v8::Private::ForApi(isolate, name);
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  CHECK(obj->SetPrivate(env.local(), glob, v8::Integer::New(isolate, 3))
+            .FromJust());
+
+  v8::Local<v8::Private> glob2 = v8::Private::ForApi(isolate, name);
+  CHECK(obj->HasPrivate(env.local(), glob2).FromJust());
+
+  v8::Local<v8::Private> priv = v8::Private::New(isolate, name);
+  CHECK(!obj->HasPrivate(env.local(), priv).FromJust());
+
+  CompileRun("var intern = %CreatePrivateSymbol('my-private')");
+  v8::Local<Value> intern = env->Global()->Get(v8_str("intern"));
+  CHECK(!obj->Has(intern));
 }
 
 
@@ -2915,29 +3006,37 @@ THREADED_TEST(HiddenProperties) {
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::Object> obj = v8::Object::New(env->GetIsolate());
-  v8::Local<v8::String> key = v8_str("api-test::hidden-key");
+  v8::Local<v8::Private> key =
+      v8::Private::ForApi(isolate, v8_str("api-test::hidden-key"));
   v8::Local<v8::String> empty = v8_str("");
   v8::Local<v8::String> prop_name = v8_str("prop_name");
 
   CcTest::heap()->CollectAllGarbage();
 
   // Make sure delete of a non-existent hidden value works
-  CHECK(obj->DeleteHiddenValue(key));
+  obj->DeletePrivate(env.local(), key).FromJust();
 
-  CHECK(obj->SetHiddenValue(key, v8::Integer::New(isolate, 1503)));
-  CHECK_EQ(1503, obj->GetHiddenValue(key)->Int32Value());
-  CHECK(obj->SetHiddenValue(key, v8::Integer::New(isolate, 2002)));
-  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK(obj->SetPrivate(env.local(), key, v8::Integer::New(isolate, 1503))
+            .FromJust());
+  CHECK_EQ(1503,
+           obj->GetPrivate(env.local(), key).ToLocalChecked()->Int32Value());
+  CHECK(obj->SetPrivate(env.local(), key, v8::Integer::New(isolate, 2002))
+            .FromJust());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), key).ToLocalChecked()->Int32Value());
 
   CcTest::heap()->CollectAllGarbage();
 
   // Make sure we do not find the hidden property.
   CHECK(!obj->Has(empty));
-  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), key).ToLocalChecked()->Int32Value());
   CHECK(obj->Get(empty)->IsUndefined());
-  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), key).ToLocalChecked()->Int32Value());
   CHECK(obj->Set(empty, v8::Integer::New(isolate, 2003)));
-  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), key).ToLocalChecked()->Int32Value());
   CHECK_EQ(2003, obj->Get(empty)->Int32Value());
 
   CcTest::heap()->CollectAllGarbage();
@@ -2945,20 +3044,21 @@ THREADED_TEST(HiddenProperties) {
   // Add another property and delete it afterwards to force the object in
   // slow case.
   CHECK(obj->Set(prop_name, v8::Integer::New(isolate, 2008)));
-  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), key).ToLocalChecked()->Int32Value());
   CHECK_EQ(2008, obj->Get(prop_name)->Int32Value());
-  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), key).ToLocalChecked()->Int32Value());
   CHECK(obj->Delete(prop_name));
-  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK_EQ(2002,
+           obj->GetPrivate(env.local(), key).ToLocalChecked()->Int32Value());
 
   CcTest::heap()->CollectAllGarbage();
 
-  CHECK(obj->SetHiddenValue(key, Handle<Value>()));
-  CHECK(obj->GetHiddenValue(key).IsEmpty());
-
-  CHECK(obj->SetHiddenValue(key, v8::Integer::New(isolate, 2002)));
-  CHECK(obj->DeleteHiddenValue(key));
-  CHECK(obj->GetHiddenValue(key).IsEmpty());
+  CHECK(obj->SetPrivate(env.local(), key, v8::Integer::New(isolate, 2002))
+            .FromJust());
+  CHECK(obj->DeletePrivate(env.local(), key).FromJust());
+  CHECK(!obj->HasPrivate(env.local(), key).FromJust());
 }
 
 
@@ -2970,7 +3070,8 @@ THREADED_TEST(Regress97784) {
   v8::HandleScope scope(env->GetIsolate());
 
   v8::Local<v8::Object> obj = v8::Object::New(env->GetIsolate());
-  v8::Local<v8::String> key = v8_str("hidden");
+  v8::Local<v8::Private> key =
+      v8::Private::New(env->GetIsolate(), v8_str("hidden"));
 
   CompileRun(
       "set_called = false;"
@@ -2980,13 +3081,16 @@ THREADED_TEST(Regress97784) {
       "    {get: function() { return 45; },"
       "     set: function() { set_called = true; }})");
 
-  CHECK(obj->GetHiddenValue(key).IsEmpty());
+  CHECK(!obj->HasPrivate(env.local(), key).FromJust());
   // Make sure that the getter and setter from Object.prototype is not invoked.
   // If it did we would have full access to the hidden properties in
   // the accessor.
-  CHECK(obj->SetHiddenValue(key, v8::Integer::New(env->GetIsolate(), 42)));
+  CHECK(
+      obj->SetPrivate(env.local(), key, v8::Integer::New(env->GetIsolate(), 42))
+          .FromJust());
   ExpectFalse("set_called");
-  CHECK_EQ(42, obj->GetHiddenValue(key)->Int32Value());
+  CHECK_EQ(42,
+           obj->GetPrivate(env.local(), key).ToLocalChecked()->Int32Value());
 }
 
 
@@ -4079,7 +4183,11 @@ static void check_message_2(v8::Handle<v8::Message> message,
   LocalContext context;
   CHECK(data->IsObject());
   v8::Local<v8::Value> hidden_property =
-      v8::Object::Cast(*data)->GetHiddenValue(v8_str("hidden key"));
+      v8::Object::Cast(*data)
+          ->GetPrivate(
+              context.local(),
+              v8::Private::ForApi(CcTest::isolate(), v8_str("hidden key")))
+          .ToLocalChecked();
   CHECK(v8_str("hidden value")->Equals(hidden_property));
   CHECK(!message->IsSharedCrossOrigin());
   message_received = true;
@@ -4094,7 +4202,10 @@ TEST(MessageHandler2) {
   LocalContext context;
   v8::Local<v8::Value> error = v8::Exception::Error(v8_str("custom error"));
   v8::Object::Cast(*error)
-      ->SetHiddenValue(v8_str("hidden key"), v8_str("hidden value"));
+      ->SetPrivate(context.local(),
+                   v8::Private::ForApi(CcTest::isolate(), v8_str("hidden key")),
+                   v8_str("hidden value"))
+      .FromJust();
   context->Global()->Set(v8_str("error"), error);
   CompileRun("throw error;");
   CHECK(message_received);
@@ -9488,8 +9599,10 @@ THREADED_TEST(Regress269562) {
   v8::Local<v8::Symbol> sym =
       v8::Symbol::New(context->GetIsolate(), v8_str("s1"));
   o1->Set(sym, v8_num(3));
-  o1->SetHiddenValue(
-      v8_str("h1"), v8::Integer::New(context->GetIsolate(), 2013));
+  o1->SetPrivate(context.local(),
+                 v8::Private::New(context->GetIsolate(), v8_str("h1")),
+                 v8::Integer::New(context->GetIsolate(), 2013))
+      .FromJust();
 
   // Call the runtime version of GetOwnPropertyNames() on
   // the natively created object through JavaScript.
@@ -19027,7 +19140,9 @@ THREADED_TEST(Regress157124) {
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   Local<Object> obj = templ->NewInstance();
   obj->GetIdentityHash();
-  obj->DeleteHiddenValue(v8_str("Bug"));
+  obj->DeletePrivate(context.local(),
+                     v8::Private::ForApi(isolate, v8_str("Bug")))
+      .FromJust();
 }
 
 
@@ -19048,9 +19163,10 @@ THREADED_TEST(Regress2746) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   Local<Object> obj = Object::New(isolate);
-  Local<String> key = String::NewFromUtf8(context->GetIsolate(), "key");
-  obj->SetHiddenValue(key, v8::Undefined(isolate));
-  Local<Value> value = obj->GetHiddenValue(key);
+  Local<v8::Private> key = v8::Private::New(isolate, v8_str("key"));
+  CHECK(
+      obj->SetPrivate(context.local(), key, v8::Undefined(isolate)).FromJust());
+  Local<Value> value = obj->GetPrivate(context.local(), key).ToLocalChecked();
   CHECK(!value.IsEmpty());
   CHECK(value->IsUndefined());
 }
@@ -20545,7 +20661,9 @@ TEST(GetHiddenPropertyTableAfterAccessCheck) {
   obj->Set(v8_str("key"), v8_str("value"));
   obj->Delete(v8_str("key"));
 
-  obj->SetHiddenValue(v8_str("hidden key 2"), v8_str("hidden value 2"));
+  obj->SetPrivate(context, v8::Private::New(isolate, v8_str("hidden key 2")),
+                  v8_str("hidden value 2"))
+      .FromJust();
 }
 
 

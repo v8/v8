@@ -1983,21 +1983,24 @@ TEST(HiddenPropertiesFastCase) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
   const v8::HeapGraphNode* hidden_props =
-      GetProperty(c, v8::HeapGraphEdge::kInternal, "hidden_properties");
+      GetProperty(c, v8::HeapGraphEdge::kProperty, "<symbol>");
   CHECK(!hidden_props);
 
   v8::Handle<v8::Value> cHandle =
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "c"));
   CHECK(!cHandle.IsEmpty() && cHandle->IsObject());
-  cHandle->ToObject(isolate)->SetHiddenValue(v8_str("key"), v8_str("val"));
+  cHandle->ToObject(isolate)
+      ->SetPrivate(env.local(),
+                   v8::Private::ForApi(env->GetIsolate(), v8_str("key")),
+                   v8_str("val"))
+      .FromJust();
 
   snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   global = GetGlobalObject(snapshot);
   c = GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
-  hidden_props = GetProperty(c, v8::HeapGraphEdge::kInternal,
-      "hidden_properties");
+  hidden_props = GetProperty(c, v8::HeapGraphEdge::kProperty, "<symbol>");
   CHECK(hidden_props);
 }
 

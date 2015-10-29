@@ -103,6 +103,7 @@ class String;
 class StringObject;
 class Symbol;
 class SymbolObject;
+class Private;
 class Uint32;
 class Utils;
 class Value;
@@ -311,6 +312,7 @@ class Local {
   friend class String;
   friend class Object;
   friend class Context;
+  friend class Private;
   template<class F> friend class internal::CustomArguments;
   friend Local<Primitive> Undefined(Isolate* isolate);
   friend Local<Primitive> Null(Isolate* isolate);
@@ -2483,6 +2485,34 @@ class V8_EXPORT Symbol : public Name {
 
 
 /**
+ * A private symbol
+ *
+ * This is an experimental feature. Use at your own risk.
+ */
+class V8_EXPORT Private : public Data {
+ public:
+  // Returns the print name string of the private symbol, or undefined if none.
+  Local<Value> Name() const;
+
+  // Create a private symbol. If name is not empty, it will be the description.
+  static Local<Private> New(Isolate* isolate,
+                            Local<String> name = Local<String>());
+
+  // Retrieve a global private symbol. If a symbol with this name has not
+  // been retrieved in the same isolate before, it is created.
+  // Note that private symbols created this way are never collected, so
+  // they should only be used for statically fixed properties.
+  // Also, there is only one global name space for the names used as keys.
+  // To minimize the potential for clashes, use qualified names as keys,
+  // e.g., "Class#property".
+  static Local<Private> ForApi(Isolate* isolate, Local<String> name);
+
+ private:
+  Private();
+};
+
+
+/**
  * A JavaScript number value (ECMA-262, 4.3.20)
  */
 class V8_EXPORT Number : public Primitive {
@@ -2710,6 +2740,18 @@ class V8_EXPORT Object : public Value {
                            AccessControl settings = DEFAULT);
 
   /**
+   * Functionality for private properties.
+   * This is an experimental feature, use at your own risk.
+   * Note: Private properties are not inherited. Do not rely on this, since it
+   * may change.
+   */
+  Maybe<bool> HasPrivate(Local<Context> context, Local<Private> key);
+  Maybe<bool> SetPrivate(Local<Context> context, Local<Private> key,
+                         Local<Value> value);
+  Maybe<bool> DeletePrivate(Local<Context> context, Local<Private> key);
+  MaybeLocal<Value> GetPrivate(Local<Context> context, Local<Private> key);
+
+  /**
    * Returns an array containing the names of the enumerable properties
    * of this object, including properties from prototype objects.  The
    * array returned by this method contains the same values as would
@@ -2877,16 +2919,12 @@ class V8_EXPORT Object : public Value {
    */
   int GetIdentityHash();
 
-  /**
-   * Access hidden properties on JavaScript objects. These properties are
-   * hidden from the executing JavaScript and only accessible through the V8
-   * C++ API. Hidden properties introduced by V8 internally (for example the
-   * identity hash) are prefixed with "v8::".
-   */
-  // TODO(dcarney): convert these to take a isolate and optionally bailout?
-  bool SetHiddenValue(Local<String> key, Local<Value> value);
-  Local<Value> GetHiddenValue(Local<String> key);
-  bool DeleteHiddenValue(Local<String> key);
+  V8_DEPRECATE_SOON("Use v8::Object::SetPrivate instead.",
+                    bool SetHiddenValue(Local<String> key, Local<Value> value));
+  V8_DEPRECATE_SOON("Use v8::Object::GetHidden instead.",
+                    Local<Value> GetHiddenValue(Local<String> key));
+  V8_DEPRECATE_SOON("Use v8::Object::DeletePrivate instead.",
+                    bool DeleteHiddenValue(Local<String> key));
 
   /**
    * Clone this object with a fast but shallow copy.  Values will point

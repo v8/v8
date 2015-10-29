@@ -2585,6 +2585,7 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
     SetUpSubregistry(registry, map, "for");
     SetUpSubregistry(registry, map, "for_api");
     SetUpSubregistry(registry, map, "keyFor");
+    SetUpSubregistry(registry, map, "private_api");
   }
   return Handle<JSObject>::cast(factory()->symbol_registry());
 }

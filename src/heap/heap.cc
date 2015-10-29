@@ -2659,11 +2659,12 @@ void Heap::CreateInitialObjects() {
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(name)                                                   \
-  {                                                                         \
-    Handle<String> name##d = factory->NewStringFromStaticChars(#name);      \
-    Handle<Object> symbol(isolate()->factory()->NewPrivateSymbol(name##d)); \
-    roots_[k##name##RootIndex] = *symbol;                                   \
+#define SYMBOL_INIT(name)                                              \
+  {                                                                    \
+    Handle<String> name##d = factory->NewStringFromStaticChars(#name); \
+    Handle<Symbol> symbol(isolate()->factory()->NewPrivateSymbol());   \
+    symbol->set_name(*name##d);                                        \
+    roots_[k##name##RootIndex] = *symbol;                              \
   }
     PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT

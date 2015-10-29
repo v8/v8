@@ -277,6 +277,7 @@ namespace internal {
   V(Number_string, "Number")                               \
   V(object_string, "object")                               \
   V(Object_string, "Object")                               \
+  V(private_api_string, "private_api")                     \
   V(proto_string, "__proto__")                             \
   V(prototype_string, "prototype")                         \
   V(query_colon_string, "(?:)")                            \

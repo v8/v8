@@ -109,7 +109,11 @@ void StringInterceptorGetter(
     if (name_str[i] != prefix[i]) return;
   }
   Handle<Object> self = Handle<Object>::Cast(info.This());
-  info.GetReturnValue().Set(self->GetHiddenValue(v8_str(name_str + i)));
+  info.GetReturnValue().Set(
+      self->GetPrivate(
+              info.GetIsolate()->GetCurrentContext(),
+              v8::Private::ForApi(info.GetIsolate(), v8_str(name_str + i)))
+          .ToLocalChecked());
 }
 
 
@@ -128,7 +132,9 @@ void StringInterceptorSetter(Local<String> name, Local<Value> value,
 
   if (value->IsInt32() && value->Int32Value() < 10000) {
     Handle<Object> self = Handle<Object>::Cast(info.This());
-    self->SetHiddenValue(name, value);
+    Handle<Context> context = info.GetIsolate()->GetCurrentContext();
+    Handle<v8::Private> symbol = v8::Private::ForApi(info.GetIsolate(), name);
+    self->SetPrivate(context, symbol, value).FromJust();
     info.GetReturnValue().Set(value);
   }
 }
@@ -1314,7 +1320,8 @@ THREADED_TEST(HiddenPropertiesWithInterceptors) {
 
   interceptor_for_hidden_properties_called = false;
 
-  v8::Local<v8::String> key = v8_str("api-test::hidden-key");
+  v8::Local<v8::Private> key =
+      v8::Private::New(isolate, v8_str("api-test::hidden-key"));
 
   // Associate an interceptor with an object and start setting hidden values.
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
@@ -1323,8 +1330,11 @@ THREADED_TEST(HiddenPropertiesWithInterceptors) {
       v8::NamedPropertyHandlerConfiguration(InterceptorForHiddenProperties));
   Local<v8::Function> function = fun_templ->GetFunction();
   Local<v8::Object> obj = function->NewInstance();
-  CHECK(obj->SetHiddenValue(key, v8::Integer::New(isolate, 2302)));
-  CHECK_EQ(2302, obj->GetHiddenValue(key)->Int32Value());
+  CHECK(obj->SetPrivate(context.local(), key, v8::Integer::New(isolate, 2302))
+            .FromJust());
+  CHECK_EQ(
+      2302,
+      obj->GetPrivate(context.local(), key).ToLocalChecked()->Int32Value());
   CHECK(!interceptor_for_hidden_properties_called);
 }
 
