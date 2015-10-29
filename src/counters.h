@@ -496,6 +496,10 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
      MILLISECOND) /* GC context cleanup time */                               \
   HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
   HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
+  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,       \
+     MILLISECOND)                                                             \
+  HT(gc_incremental_marking_finalize, V8.GCIncrementalMarkingFinalize, 10000, \
+     MILLISECOND)                                                             \
   HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,           \
      MILLISECOND)                                                             \
   /* Parsing timers. */                                                       \

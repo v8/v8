@@ -556,6 +556,8 @@ void IncrementalMarking::Start(const char* reason) {
   DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
   DCHECK(!heap_->isolate()->serializer_enabled());
 
+  HistogramTimerScope incremental_marking_scope(
+      heap_->isolate()->counters()->gc_incremental_marking_start());
   ResetStepCounters();
 
   was_activated_ = true;

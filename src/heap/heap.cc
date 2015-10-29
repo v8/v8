@@ -792,6 +792,8 @@ void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
   }
 
   GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
+  HistogramTimerScope incremental_marking_scope(
+      isolate()->counters()->gc_incremental_marking_finalize());
 
   {
     GCCallbacksScope scope(this);
