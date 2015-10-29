@@ -1136,11 +1136,11 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
       for (int i = 0; i < capture_registers; i++) {
         last_match_cache->set(i, Smi::FromInt(last_match[i]));
       }
-      Handle<FixedArray> result_array = builder.array();
-      result_array->Shrink(builder.length());
+      Handle<FixedArray> result_fixed_array = builder.array();
+      result_fixed_array->Shrink(builder.length());
       // Cache the result and turn the FixedArray into a COW array.
       RegExpResultsCache::Enter(
-          isolate, subject, handle(regexp->data(), isolate), result_array,
+          isolate, subject, handle(regexp->data(), isolate), result_fixed_array,
           last_match_cache, RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
     }
     return *builder.ToJSArray(result_array);
