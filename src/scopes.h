@@ -386,8 +386,6 @@ class Scope: public ZoneObject {
     return receiver_;
   }
 
-  Variable* LookupThis() { return Lookup(ast_value_factory_->this_string()); }
-
   // TODO(wingo): Add a GLOBAL_SCOPE scope type which will lexically allocate
   // "this" (and no other variable) on the native context.  Script scopes then
   // will not have a "this" declaration.

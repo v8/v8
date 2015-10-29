@@ -1091,7 +1091,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a
         // script scope are marked as used.
-        CHECK(scope->LookupThis()->is_used());
+        CHECK(
+            scope->Lookup(info.ast_value_factory()->this_string())->is_used());
       }
       CHECK_EQ((source_data[i].expected & EVAL) != 0, scope->calls_eval());
     }
