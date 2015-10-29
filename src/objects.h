@@ -1879,7 +1879,7 @@ class JSReceiver: public HeapObject {
                                                   Handle<Object> properties);
 
   // "virtual" dispatcher to the correct [[DefineOwnProperty]] implementation.
-  static bool DefineOwnProperty(Isolate* isolate, Handle<JSObject> object,
+  static bool DefineOwnProperty(Isolate* isolate, Handle<JSReceiver> object,
                                 Handle<Object> key, PropertyDescriptor* desc,
                                 ShouldThrow should_throw);
 

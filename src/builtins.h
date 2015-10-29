@@ -59,6 +59,7 @@ enum BuiltinExtraArguments {
                                                              \
   V(DateToPrimitive, NO_EXTRA_ARGUMENTS)                     \
                                                              \
+  V(ReflectDefineProperty, NO_EXTRA_ARGUMENTS)               \
   V(ReflectDeleteProperty, NO_EXTRA_ARGUMENTS)               \
   V(ReflectGet, NO_EXTRA_ARGUMENTS)                          \
   V(ReflectGetPrototypeOf, NO_EXTRA_ARGUMENTS)               \

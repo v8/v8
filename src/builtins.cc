@@ -17,6 +17,7 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/property-descriptor.h"
 #include "src/prototype.h"
 #include "src/vm-state-inl.h"
 
@@ -1441,6 +1442,39 @@ BUILTIN(ArrayConcat) {
   }
   if (isolate->has_pending_exception()) return isolate->heap()->exception();
   return Slow_ArrayConcat(&args, isolate);
+}
+
+
+// ES6 section 26.1.3 Reflect.defineProperty
+BUILTIN(ReflectDefineProperty) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> key = args.at<Object>(2);
+  Handle<Object> attributes = args.at<Object>(3);
+
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Reflect.defineProperty")));
+  }
+
+  Handle<Name> name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
+                                     Object::ToName(isolate, key));
+
+  PropertyDescriptor desc;
+  if (!PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc)) {
+    return isolate->heap()->exception();
+  }
+
+  bool result =
+      JSReceiver::DefineOwnProperty(isolate, Handle<JSReceiver>::cast(target),
+                                    name, &desc, Object::DONT_THROW);
+  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  // TODO(neis): Make DefineOwnProperty return Maybe<bool>.
+  return *isolate->factory()->ToBoolean(result);
 }
 
 

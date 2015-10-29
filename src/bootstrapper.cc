@@ -2191,6 +2191,8 @@ void Genesis::InitializeGlobal_harmony_reflect() {
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   JSObject::AddProperty(global, reflect_string, reflect, DONT_ENUM);
 
+  SimpleInstallFunction(reflect, "defineProperty",
+                        Builtins::kReflectDefineProperty, 3, true);
   SimpleInstallFunction(reflect, "deleteProperty",
                         Builtins::kReflectDeleteProperty, 2, true);
   SimpleInstallFunction(reflect, "get",

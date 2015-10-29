@@ -6061,7 +6061,7 @@ Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
 
 
 // static
-bool JSReceiver::DefineOwnProperty(Isolate* isolate, Handle<JSObject> object,
+bool JSReceiver::DefineOwnProperty(Isolate* isolate, Handle<JSReceiver> object,
                                    Handle<Object> key, PropertyDescriptor* desc,
                                    ShouldThrow should_throw) {
   if (object->IsJSArray()) {
@@ -6070,12 +6070,14 @@ bool JSReceiver::DefineOwnProperty(Isolate* isolate, Handle<JSObject> object,
   }
   // TODO(jkummerow): Support Modules (ES6 9.4.6.6)
   // TODO(jkummerow): Support Proxies (ES6 9.5.6)
+  if (!object->IsJSObject()) return true;
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments (ES6 9.4.4.2)
   // and IntegerIndexedExotics (ES6 9.4.5.3), with one exception:
   // TODO(jkummerow): Setting an indexed accessor on a typed array should throw.
-  return OrdinaryDefineOwnProperty(isolate, object, key, desc, should_throw);
+  return OrdinaryDefineOwnProperty(isolate, Handle<JSObject>::cast(object), key,
+                                   desc, should_throw);
 }
 
 

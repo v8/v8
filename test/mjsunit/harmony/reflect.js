@@ -177,6 +177,41 @@ function prepare(tgt) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Reflect.defineProperty
+
+
+(function testReflectDefinePropertyArity() {
+  assertEquals(3, Reflect.defineProperty.length);
+})();
+
+
+(function testReflectDefinePropertyOnNonObject() {
+  assertThrows(function() { Reflect.defineProperty(); }, TypeError);
+  assertThrows(function() { Reflect.defineProperty(42, "bla"); }, TypeError);
+  assertThrows(function() { Reflect.defineProperty(null, "bla"); }, TypeError);
+  assertThrows(function() { Reflect.defineProperty({}, "bla"); }, TypeError);
+  assertThrows(function() { Reflect.defineProperty({}, "bla", 42); },
+      TypeError);
+  assertThrows(function() { Reflect.defineProperty({}, "bla", null); },
+      TypeError);
+})();
+
+
+(function testReflectDefinePropertyKeyConversion() {
+  var tgt = {};
+  var a = { [Symbol.toPrimitive]: function() { return "bla" } };
+  var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
+  assertTrue(Reflect.defineProperty(tgt, a, {value: 42}));
+  assertEquals(tgt.bla, 42);
+  assertThrows(function() { Reflect.defineProperty(tgt, b); }, "gaga");
+})();
+
+
+// See reflect-define-property.js for further tests.
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 // Reflect.deleteProperty
 
 
@@ -261,12 +296,12 @@ function prepare(tgt) {
 
 (function testReflectSetPrototypeOfOnNonObject() {
   assertThrows(function() { Reflect.setPrototypeOf(undefined, {}); },
-    TypeError);
+      TypeError);
   assertThrows(function() { Reflect.setPrototypeOf(42, {}); }, TypeError);
   assertThrows(function() { Reflect.setPrototypeOf(null, {}); }, TypeError);
 
   assertThrows(function() { Reflect.setPrototypeOf({}, undefined); },
-    TypeError);
+      TypeError);
   assertThrows(function() { Reflect.setPrototypeOf({}, 42); }, TypeError);
   assertTrue(Reflect.setPrototypeOf({}, null));
 })();
