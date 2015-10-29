@@ -386,22 +386,32 @@ Scope* Scope::FinalizeBlockScope() {
     outer_scope()->unresolved_.Add(unresolved_[i], zone());
   }
 
-  // Propagate usage flags to outer scope.
-  // TODO(adamk): Why doesn't this call PropagateScopeInfo()?
-  if (uses_arguments()) outer_scope_->RecordArgumentsUsage();
-  if (uses_super_property()) outer_scope_->RecordSuperPropertyUsage();
-  if (scope_calls_eval_) outer_scope_->RecordEvalCall();
+  PropagateUsageFlagsToScope(outer_scope_);
 
   return NULL;
 }
 
 
-void Scope::ReplaceOuterScope(Scope* outer_scope) {
+void Scope::ReplaceOuterScope(Scope* outer) {
+  DCHECK_NOT_NULL(outer);
   DCHECK_NOT_NULL(outer_scope_);
+  DCHECK(!already_resolved());
+  DCHECK(!outer->already_resolved());
+  DCHECK(!outer_scope_->already_resolved());
   outer_scope_->RemoveInnerScope(this);
-  outer_scope_ = outer_scope;
-  outer_scope_->AddInnerScope(this);
-  // TODO(adamk): Do we need to propagate usage flags here?
+  outer->AddInnerScope(this);
+  outer_scope_ = outer;
+}
+
+
+void Scope::PropagateUsageFlagsToScope(Scope* other) {
+  DCHECK_NOT_NULL(other);
+  DCHECK(!already_resolved());
+  DCHECK(!other->already_resolved());
+  if (uses_arguments()) other->RecordArgumentsUsage();
+  if (uses_super_property()) other->RecordSuperPropertyUsage();
+  if (calls_eval()) other->RecordEvalCall();
+  if (scope_contains_with_) other->RecordWithStatement();
 }
 
 
@@ -1120,7 +1130,8 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
     if (var != NULL && proxy->is_assigned()) var->set_maybe_assigned();
     *binding_kind = DYNAMIC_LOOKUP;
     return NULL;
-  } else if (calls_sloppy_eval() && name_can_be_shadowed) {
+  } else if (calls_sloppy_eval() && !is_script_scope() &&
+             name_can_be_shadowed) {
     // A variable binding may have been found in an outer scope, but the current
     // scope makes a sloppy 'eval' call, so the found variable may not be
     // the correct one (the 'eval' may introduce a binding with the same name).

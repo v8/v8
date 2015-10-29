@@ -2942,6 +2942,10 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
     Scope* scope =
         this->NewScope(scope_, FUNCTION_SCOPE, FunctionKind::kArrowFunction);
+    // Because the arrow's parameters were parsed in the outer scope, any
+    // usage flags that might have been triggered there need to be copied
+    // to the arrow scope.
+    scope_->PropagateUsageFlagsToScope(scope);
     FormalParametersT parameters(scope);
     if (!arrow_formals_classifier.is_simple_parameter_list()) {
       scope->SetHasNonSimpleParameters();

@@ -96,3 +96,9 @@
 
   new D();
 })();
+
+
+(function testScopeFlags() {
+  ((x, y = eval('x')) => assertEquals(42, y))(42);
+  ((x, {y = eval('x')}) => assertEquals(42, y))(42, {});
+})();
