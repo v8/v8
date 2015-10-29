@@ -657,7 +657,7 @@ DEFINE_BOOL(age_code, true,
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(finalize_marking_incrementally, true,
             "finalize marking in incremental steps")
-DEFINE_INT(min_progress_during_incremental_marking_finalization, 32,
+DEFINE_INT(min_progress_during_incremental_marking_finalization, 128,
            "keep finalizing incremental marking as long as we discover at "
            "least this many unmarked objects")
 DEFINE_INT(max_incremental_marking_finalization_rounds, 3,
