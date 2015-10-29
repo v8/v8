@@ -357,9 +357,10 @@ class Scope: public ZoneObject {
 
   bool NeedsHomeObject() const {
     return scope_uses_super_property_ ||
-           (scope_calls_eval_ && (IsConciseMethod(function_kind()) ||
-                                  IsAccessorFunction(function_kind()) ||
-                                  IsClassConstructor(function_kind())));
+           ((scope_calls_eval_ || inner_scope_calls_eval_) &&
+            (IsConciseMethod(function_kind()) ||
+             IsAccessorFunction(function_kind()) ||
+             IsClassConstructor(function_kind())));
   }
 
   const Scope* NearestOuterEvalScope() const {
