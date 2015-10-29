@@ -22,6 +22,7 @@
   V(Regression39128)                    \
   V(ResetWeakHandle)                    \
   V(StressHandles)                      \
+  V(TestMemoryReducerSampleJsCalls)     \
   V(TestSizeOfObjects)                  \
   V(WriteBarriersInCopyJSObject)
 

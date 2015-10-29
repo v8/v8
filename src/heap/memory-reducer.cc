@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-const int MemoryReducer::kLongDelayMs = 20000;
+const int MemoryReducer::kLongDelayMs = 8000;
 const int MemoryReducer::kShortDelayMs = 500;
 const int MemoryReducer::kWatchdogDelayMs = 100000;
 const int MemoryReducer::kMaxNumberOfGCs = 3;
@@ -24,19 +24,41 @@ MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
 
 
 void MemoryReducer::TimerTask::RunInternal() {
+  const double kJsCallsPerMsThreshold = 0.25;
   Heap* heap = memory_reducer_->heap();
   Event event;
   double time_ms = heap->MonotonicallyIncreasingTimeInMs();
   heap->tracer()->SampleAllocation(time_ms, heap->NewSpaceAllocationCounter(),
                                    heap->OldGenerationAllocationCounter());
+  double js_call_rate = memory_reducer_->SampleAndGetJsCallsPerMs(time_ms);
+  bool low_allocation_rate = heap->HasLowAllocationRate();
+  bool is_idle = js_call_rate < kJsCallsPerMsThreshold && low_allocation_rate;
+  bool optimize_for_memory = heap->ShouldOptimizeForMemoryUsage();
+  if (FLAG_trace_gc_verbose) {
+    PrintIsolate(heap->isolate(), "Memory reducer: call rate %.3lf, %s, %s\n",
+                 js_call_rate, low_allocation_rate ? "low alloc" : "high alloc",
+                 optimize_for_memory ? "background" : "foreground");
+  }
   event.type = kTimer;
   event.time_ms = time_ms;
-  event.should_start_incremental_gc =
-      heap->HasLowAllocationRate() || heap->ShouldOptimizeForMemoryUsage();
+  // The memory reducer will start incremental markig if
+  // 1) mutator is likely idle: js call rate is low and allocation rate is low.
+  // 2) mutator is in background: optimize for memory flag is set.
+  event.should_start_incremental_gc = is_idle || optimize_for_memory;
   event.can_start_incremental_gc =
       heap->incremental_marking()->IsStopped() &&
       heap->incremental_marking()->CanBeActivated();
   memory_reducer_->NotifyTimer(event);
+}
+
+
+double MemoryReducer::SampleAndGetJsCallsPerMs(double time_ms) {
+  unsigned int counter = heap()->isolate()->js_calls_from_api_counter();
+  unsigned int call_delta = counter - js_calls_counter_;
+  double time_delta_ms = time_ms - js_calls_sample_time_ms_;
+  js_calls_counter_ = counter;
+  js_calls_sample_time_ms_ = time_ms;
+  return time_delta_ms > 0 ? call_delta / time_delta_ms : 0;
 }
 
 
@@ -70,7 +92,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
           "Memory reducer: finalize incremental marking");
     }
     // Re-schedule the timer.
-    ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
+    ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
     if (FLAG_trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Memory reducer: waiting for %.f ms\n",
                    state_.next_gc_start_ms - event.time_ms);
@@ -85,7 +107,7 @@ void MemoryReducer::NotifyMarkCompact(const Event& event) {
   state_ = Step(state_, event);
   if (old_action != kWait && state_.action == kWait) {
     // If we are transitioning to the WAIT state, start the timer.
-    ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
+    ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
   }
   if (old_action == kRun) {
     if (FLAG_trace_gc_verbose) {
@@ -103,7 +125,7 @@ void MemoryReducer::NotifyContextDisposed(const Event& event) {
   state_ = Step(state_, event);
   if (old_action != kWait && state_.action == kWait) {
     // If we are transitioning to the WAIT state, start the timer.
-    ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
+    ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
   }
 }
 
@@ -172,8 +194,10 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
 }
 
 
-void MemoryReducer::ScheduleTimer(double delay_ms) {
+void MemoryReducer::ScheduleTimer(double time_ms, double delay_ms) {
   DCHECK(delay_ms > 0);
+  // Record the time and the js call counter.
+  SampleAndGetJsCallsPerMs(time_ms);
   // Leave some room for precision error in task scheduler.
   const double kSlackMs = 100;
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap()->isolate());

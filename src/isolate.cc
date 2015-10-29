@@ -1792,6 +1792,7 @@ Isolate::Isolate(bool enable_serializer)
       virtual_handler_register_(NULL),
       virtual_slot_register_(NULL),
       next_optimization_id_(0),
+      js_calls_from_api_counter_(0),
 #if TRACE_MAPS
       next_unique_sfi_id_(0),
 #endif

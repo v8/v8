@@ -107,7 +107,10 @@ class MemoryReducer {
   };
 
   explicit MemoryReducer(Heap* heap)
-      : heap_(heap), state_(kDone, 0, 0.0, 0.0) {}
+      : heap_(heap),
+        state_(kDone, 0, 0.0, 0.0),
+        js_calls_counter_(0),
+        js_calls_sample_time_ms_(0.0) {}
   // Callbacks.
   void NotifyMarkCompact(const Event& event);
   void NotifyContextDisposed(const Event& event);
@@ -116,7 +119,7 @@ class MemoryReducer {
   // the incoming event.
   static State Step(const State& state, const Event& event);
   // Posts a timer task that will call NotifyTimer after the given delay.
-  void ScheduleTimer(double delay_ms);
+  void ScheduleTimer(double time_ms, double delay_ms);
   void TearDown();
   static const int kLongDelayMs;
   static const int kShortDelayMs;
@@ -145,8 +148,16 @@ class MemoryReducer {
 
   static bool WatchdogGC(const State& state, const Event& event);
 
+  // Returns the rate of JS calls initiated from the API.
+  double SampleAndGetJsCallsPerMs(double time_ms);
+
   Heap* heap_;
   State state_;
+  unsigned int js_calls_counter_;
+  double js_calls_sample_time_ms_;
+
+  // Used in cctest.
+  friend class HeapTester;
   DISALLOW_COPY_AND_ASSIGN(MemoryReducer);
 };
 

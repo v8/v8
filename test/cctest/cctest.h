@@ -530,6 +530,13 @@ static inline void DisableInlineAllocationSteps(v8::internal::NewSpace* space) {
 }
 
 
+static inline void CheckDoubleEquals(double expected, double actual) {
+  const double kEpsilon = 1e-10;
+  CHECK_LE(expected, actual + kEpsilon);
+  CHECK_GE(expected, actual - kEpsilon);
+}
+
+
 static int LenFromSize(int size) {
   return (size - i::FixedArray::kHeaderSize) / i::kPointerSize;
 }
