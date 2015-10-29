@@ -106,6 +106,15 @@ void CompilationDependencies::Rollback() {
 }
 
 
+void CompilationDependencies::AssumeMapNotDeprecated(Handle<Map> map) {
+  DCHECK(!map->is_deprecated());
+  // Do nothing if the map cannot be deprecated.
+  if (map->CanBeDeprecated()) {
+    Insert(DependentCode::kTransitionGroup, map);
+  }
+}
+
+
 void CompilationDependencies::AssumeMapStable(Handle<Map> map) {
   DCHECK(map->is_stable());
   // Do nothing if the map cannot transition.

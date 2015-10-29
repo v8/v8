@@ -32,6 +32,7 @@ class CompilationDependencies {
     Insert(DependentCode::kFieldTypeGroup, map);
   }
   void AssumeMapStable(Handle<Map> map);
+  void AssumeMapNotDeprecated(Handle<Map> map);
   void AssumePropertyCell(Handle<PropertyCell> cell) {
     Insert(DependentCode::kPropertyCellChangedGroup, cell);
   }
