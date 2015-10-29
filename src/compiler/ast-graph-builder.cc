@@ -2353,7 +2353,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       callee_value = BuildNamedLoad(object, name, feedback);
       states.AddToNode(callee_value, property->LoadId(),
                        OutputFrameStateCombine::Push());
-      // Note that a PROPERTY_CALL requires the receiver to be wrapped into
+      // Note that a property call requires the receiver to be wrapped into
       // an object for sloppy callees. However the receiver is guaranteed
       // not to be null or undefined at this point.
       receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
@@ -2373,7 +2373,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       callee_value = BuildKeyedLoad(object, key, feedback);
       states.AddToNode(callee_value, property->LoadId(),
                        OutputFrameStateCombine::Push());
-      // Note that a PROPERTY_CALL requires the receiver to be wrapped into
+      // Note that a property call requires the receiver to be wrapped into
       // an object for sloppy callees. However the receiver is guaranteed
       // not to be null or undefined at this point.
       receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
@@ -2394,9 +2394,11 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       callee_value = BuildNamedSuperLoad(object, home, name, VectorSlotPair());
       states.AddToNode(callee_value, property->LoadId(),
                        OutputFrameStateCombine::Push());
-      // Note that the receiver is not the target of the property load, so
-      // it could very well be null or undefined at this point.
+      // Note that a property call requires the receiver to be wrapped into
+      // an object for sloppy callees. Since the receiver is not the target of
+      // the load, it could very well be null or undefined at this point.
       receiver_value = environment()->Pop();
+      flags = CALL_AS_METHOD;
       environment()->Drop(1);
       break;
     }
@@ -2416,9 +2418,11 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       callee_value = BuildKeyedSuperLoad(object, home, key, VectorSlotPair());
       states.AddToNode(callee_value, property->LoadId(),
                        OutputFrameStateCombine::Push());
-      // Note that the receiver is not the target of the property load, so
-      // it could very well be null or undefined at this point.
+      // Note that a property call requires the receiver to be wrapped into
+      // an object for sloppy callees. Since the receiver is not the target of
+      // the load, it could very well be null or undefined at this point.
       receiver_value = environment()->Pop();
+      flags = CALL_AS_METHOD;
       environment()->Drop(1);
       break;
     }
