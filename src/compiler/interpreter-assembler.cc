@@ -292,6 +292,15 @@ Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
 }
 
 
+Node* InterpreterAssembler::LoadFixedArrayElement(Node* fixed_array,
+                                                  int index) {
+  Node* entry_offset =
+      IntPtrAdd(IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
+                WordShl(Int32Constant(index), kPointerSizeLog2));
+  return raw_assembler_->Load(kMachAnyTagged, fixed_array, entry_offset);
+}
+
+
 Node* InterpreterAssembler::LoadObjectField(Node* object, int offset) {
   return raw_assembler_->Load(kMachAnyTagged, object,
                               IntPtrConstant(offset - kHeapObjectTag));

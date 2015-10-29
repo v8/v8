@@ -163,7 +163,9 @@ bool Bytecodes::IsJump(Bytecode bytecode) {
   return bytecode == Bytecode::kJump || bytecode == Bytecode::kJumpIfTrue ||
          bytecode == Bytecode::kJumpIfFalse ||
          bytecode == Bytecode::kJumpIfToBooleanTrue ||
-         bytecode == Bytecode::kJumpIfToBooleanFalse;
+         bytecode == Bytecode::kJumpIfToBooleanFalse ||
+         bytecode == Bytecode::kJumpIfNull ||
+         bytecode == Bytecode::kJumpIfUndefined;
 }
 
 
@@ -173,7 +175,9 @@ bool Bytecodes::IsJumpConstant(Bytecode bytecode) {
          bytecode == Bytecode::kJumpIfTrueConstant ||
          bytecode == Bytecode::kJumpIfFalseConstant ||
          bytecode == Bytecode::kJumpIfToBooleanTrueConstant ||
-         bytecode == Bytecode::kJumpIfToBooleanFalseConstant;
+         bytecode == Bytecode::kJumpIfToBooleanFalseConstant ||
+         bytecode == Bytecode::kJumpIfNull ||
+         bytecode == Bytecode::kJumpIfUndefinedConstant;
 }
 
 

@@ -228,7 +228,8 @@ namespace internal {
   F(InterpreterToBoolean, 1, 1)           \
   F(InterpreterLogicalNot, 1, 1)          \
   F(InterpreterTypeOf, 1, 1)              \
-  F(InterpreterNewClosure, 2, 1)
+  F(InterpreterNewClosure, 2, 1)          \
+  F(InterpreterForInPrepare, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)                      \

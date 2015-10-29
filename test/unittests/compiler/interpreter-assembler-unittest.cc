@@ -471,6 +471,36 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
 }
 
 
+TARGET_TEST_F(InterpreterAssemblerTest, LoadFixedArrayElement) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    int index = 3;
+    Node* fixed_array = m.IntPtrConstant(0xdeadbeef);
+    Node* load_element = m.LoadFixedArrayElement(fixed_array, index);
+    EXPECT_THAT(
+        load_element,
+        m.IsLoad(kMachAnyTagged, fixed_array,
+                 IsIntPtrAdd(
+                     IsIntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
+                     IsWordShl(IsInt32Constant(index),
+                               IsInt32Constant(kPointerSizeLog2)))));
+  }
+}
+
+
+TARGET_TEST_F(InterpreterAssemblerTest, LoadObjectField) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* object = m.IntPtrConstant(0xdeadbeef);
+    int offset = 16;
+    Node* load_field = m.LoadObjectField(object, offset);
+    EXPECT_THAT(load_field,
+                m.IsLoad(kMachAnyTagged, object,
+                         IsIntPtrConstant(offset - kHeapObjectTag)));
+  }
+}
+
+
 TARGET_TEST_F(InterpreterAssemblerTest, LoadContextSlot) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
@@ -501,19 +531,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, StoreContextSlot) {
         store_context_slot,
         m.IsStore(StoreRepresentation(kMachAnyTagged, kFullWriteBarrier),
                   context, offset, value));
-  }
-}
-
-
-TARGET_TEST_F(InterpreterAssemblerTest, LoadObjectField) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    Node* object = m.IntPtrConstant(0xdeadbeef);
-    int offset = 16;
-    Node* load_field = m.LoadObjectField(object, offset);
-    EXPECT_THAT(load_field,
-                m.IsLoad(kMachAnyTagged, object,
-                         IsIntPtrConstant(offset - kHeapObjectTag)));
   }
 }
 

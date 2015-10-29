@@ -75,6 +75,10 @@ class RawMachineAssembler {
   // place them into the current basic block. They don't perform control flow,
   // hence will not switch the current basic block.
 
+  Node* NullConstant() {
+    return HeapConstant(isolate()->factory()->null_value());
+  }
+
   Node* UndefinedConstant() {
     return HeapConstant(isolate()->factory()->undefined_value());
   }

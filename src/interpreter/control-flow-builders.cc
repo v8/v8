@@ -31,6 +31,24 @@ void LoopBuilder::EmitJump(ZoneVector<BytecodeLabel>* sites) {
 }
 
 
+void LoopBuilder::EmitJumpIfTrue(ZoneVector<BytecodeLabel>* sites) {
+  sites->push_back(BytecodeLabel());
+  builder()->JumpIfTrue(&sites->back());
+}
+
+
+void LoopBuilder::EmitJumpIfUndefined(ZoneVector<BytecodeLabel>* sites) {
+  sites->push_back(BytecodeLabel());
+  builder()->JumpIfUndefined(&sites->back());
+}
+
+
+void LoopBuilder::EmitJumpIfNull(ZoneVector<BytecodeLabel>* sites) {
+  sites->push_back(BytecodeLabel());
+  builder()->JumpIfNull(&sites->back());
+}
+
+
 void LoopBuilder::BindLabels(const BytecodeLabel& target,
                              ZoneVector<BytecodeLabel>* sites) {
   for (size_t i = 0; i < sites->size(); i++) {

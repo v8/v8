@@ -92,6 +92,9 @@ class InterpreterAssembler {
   // Load constant at |index| in the constant pool.
   Node* LoadConstantPoolEntry(Node* index);
 
+  // Load an element from a fixed array on the heap.
+  Node* LoadFixedArrayElement(Node* fixed_array, int index);
+
   // Load a field from an object on the heap.
   Node* LoadObjectField(Node* object, int offset);
 

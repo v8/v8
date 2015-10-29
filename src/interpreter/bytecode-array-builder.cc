@@ -263,6 +263,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadFalse() {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
     Register reg) {
+  // TODO(oth): Avoid loading the accumulator with the register if the
+  // previous bytecode stored the accumulator with the same register.
   Output(Bytecode::kLdar, reg.ToOperand());
   return *this;
 }
@@ -270,6 +272,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
     Register reg) {
+  // TODO(oth): Avoid storing the accumulator in the register if the
+  // previous bytecode loaded the accumulator with the same register.
   Output(Bytecode::kStar, reg.ToOperand());
   return *this;
 }
@@ -481,6 +485,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToJSObject() {
+  Output(Bytecode::kToObject);
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName() {
   Output(Bytecode::kToName);
   return *this;
@@ -531,6 +541,10 @@ Bytecode BytecodeArrayBuilder::GetJumpWithConstantOperand(
       return Bytecode::kJumpIfToBooleanTrueConstant;
     case Bytecode::kJumpIfToBooleanFalse:
       return Bytecode::kJumpIfToBooleanFalseConstant;
+    case Bytecode::kJumpIfNull:
+      return Bytecode::kJumpIfNullConstant;
+    case Bytecode::kJumpIfUndefined:
+      return Bytecode::kJumpIfUndefinedConstant;
     default:
       UNREACHABLE();
       return Bytecode::kJumpConstant;
@@ -631,6 +645,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfToBooleanFalse(
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNull(BytecodeLabel* label) {
+  return OutputJump(Bytecode::kJumpIfNull, label);
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
+    BytecodeLabel* label) {
+  return OutputJump(Bytecode::kJumpIfUndefined, label);
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
   Output(Bytecode::kThrow);
   exit_seen_in_block_ = true;
@@ -641,6 +666,25 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   Output(Bytecode::kReturn);
   exit_seen_in_block_ = true;
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(Register receiver) {
+  Output(Bytecode::kForInPrepare, receiver.ToOperand());
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(Register for_in_state,
+                                                      Register index) {
+  Output(Bytecode::kForInNext, for_in_state.ToOperand(), index.ToOperand());
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register for_in_state) {
+  Output(Bytecode::kForInDone, for_in_state.ToOperand());
   return *this;
 }
 

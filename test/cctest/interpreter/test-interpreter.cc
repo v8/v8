@@ -1214,6 +1214,42 @@ TEST(InterpreterConditionalJumps) {
 }
 
 
+TEST(InterpreterConditionalJumps2) {
+  // TODO(oth): Add tests for all conditional jumps near and far.
+  HandleAndZoneScope handles;
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+  builder.set_locals_count(2);
+  builder.set_context_count(0);
+  builder.set_parameter_count(0);
+  Register reg(0), scratch(1);
+  BytecodeLabel label[2];
+  BytecodeLabel done, done1;
+
+  builder.LoadLiteral(Smi::FromInt(0))
+      .StoreAccumulatorInRegister(reg)
+      .LoadFalse()
+      .JumpIfFalse(&label[0]);
+  IncrementRegister(builder, reg, 1024, scratch)
+      .Bind(&label[0])
+      .LoadTrue()
+      .JumpIfFalse(&done);
+  IncrementRegister(builder, reg, 1, scratch).LoadTrue().JumpIfTrue(&label[1]);
+  IncrementRegister(builder, reg, 2048, scratch).Bind(&label[1]);
+  IncrementRegister(builder, reg, 2, scratch).LoadFalse().JumpIfTrue(&done1);
+  IncrementRegister(builder, reg, 4, scratch)
+      .LoadAccumulatorWithRegister(reg)
+      .Bind(&done)
+      .Bind(&done1)
+      .Return();
+
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  auto callable = tester.GetCallable<>();
+  Handle<Object> return_value = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_value)->value(), 7);
+}
+
+
 static const Token::Value kComparisonTypes[] = {
     Token::Value::EQ,        Token::Value::NE,  Token::Value::EQ_STRICT,
     Token::Value::NE_STRICT, Token::Value::LTE, Token::Value::LTE,
@@ -2401,26 +2437,25 @@ TEST(InterpreterDeleteSloppyUnqualifiedIdentifier) {
   // These tests generate a syntax error for strict mode. We don't
   // test for it here.
   std::pair<const char*, Handle<Object>> test_delete[] = {
-      std::make_pair("var a = { x:10, y:'abc'};\n"
-                     "var b = delete a;\n"
-                     "if (delete a) {\n"
+      std::make_pair("var sloppy_a = { x:10, y:'abc'};\n"
+                     "var sloppy_b = delete sloppy_a;\n"
+                     "if (delete sloppy_a) {\n"
                      "  return undefined;\n"
                      "} else {\n"
-                     "  return a.x;\n"
+                     "  return sloppy_a.x;\n"
                      "}\n",
                      Handle<Object>(Smi::FromInt(10), isolate)),
       // TODO(mythria) When try-catch is implemented change the tests to check
       // if delete actually deletes
-      std::make_pair("a = { x:10, y:'abc'};\n"
-                     "var b = delete a;\n"
+      std::make_pair("sloppy_a = { x:10, y:'abc'};\n"
+                     "var sloppy_b = delete sloppy_a;\n"
                      // "try{return a.x;} catch(e) {return b;}\n"
-                     "return b;",
+                     "return sloppy_b;",
                      factory->ToBoolean(true)),
-      std::make_pair("a = { x:10, y:'abc'};\n"
-                     "var b = delete c;\n"
-                     "return b;",
+      std::make_pair("sloppy_a = { x:10, y:'abc'};\n"
+                     "var sloppy_b = delete sloppy_c;\n"
+                     "return sloppy_b;",
                      factory->ToBoolean(true))};
-
 
   for (size_t i = 0; i < arraysize(test_delete); i++) {
     std::string source(InterpreterTester::SourceForBody(test_delete[i].first));
@@ -2496,5 +2531,196 @@ TEST(InterpreterGlobalDelete) {
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*test_global_delete[i].second));
+  }
+}
+
+
+TEST(InterpreterForIn) {
+  HandleAndZoneScope handles;
+
+  // TODO(oth): Add a test here for delete mid-loop when delete is ready.
+  std::pair<const char*, int> for_in_samples[] = {
+      {"function f() {\n"
+       "  var r = -1;\n"
+       "  for (var a in null) { r = a; }\n"
+       "  return r;\n"
+       "}",
+       -1},
+      {"function f() {\n"
+       "  var r = -1;\n"
+       "  for (var a in undefined) { r = a; }\n"
+       "  return r;\n"
+       "}",
+       -1},
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
+       "  return r;\n"
+       "}",
+       0xf},
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
+       "  var r = 0;\n"
+       "  for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
+       "  return r;\n"
+       "}",
+       0xf},
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  for (var a in 'foobar') { r = r + (1 << a); }\n"
+       "  return r;\n"
+       "}",
+       0x3f},
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  for (var a in {1:0, 10:1, 100:2, 1000:3}) {\n"
+       "    r = r + Number(a);\n"
+       "   }\n"
+       "   return r;\n"
+       "}",
+       1111},
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "  for (var a in data) {\n"
+       "    if (a == 1) delete data[1];\n"
+       "    r = r + Number(a);\n"
+       "   }\n"
+       "   return r;\n"
+       "}",
+       1111},
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "  for (var a in data) {\n"
+       "    if (a == 10) delete data[100];\n"
+       "    r = r + Number(a);\n"
+       "   }\n"
+       "   return r;\n"
+       "}",
+       1011},
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "  for (var a in data) {\n"
+       "    if (a == 10) data[10000] = 4;\n"
+       "    r = r + Number(a);\n"
+       "   }\n"
+       "   return r;\n"
+       "}",
+       1111},
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  var input = 'foobar';\n"
+       "  for (var a in input) {\n"
+       "    if (input[a] == 'b') break;\n"
+       "    r = r + (1 << a);\n"
+       "  }\n"
+       "  return r;\n"
+       "}",
+       0x7},
+      {"function f() {\n"
+       "var r = 0;\n"
+       "var input = 'foobar';\n"
+       "for (var a in input) {\n"
+       "   if (input[a] == 'b') continue;\n"
+       "   r = r + (1 << a);\n"
+       "}\n"
+       "return r;\n"
+       "}",
+       0x37},
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "  for (var a in data) {\n"
+       "    if (a == 10) {\n"
+       "       data[10000] = 4;\n"
+       "    }\n"
+       "    r = r + Number(a);\n"
+       "  }\n"
+       "  return r;\n"
+       "}",
+       1111},
+      {"function f() {\n"
+       "  var r = [ 3 ];\n"
+       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "  for (r[10] in data) {\n"
+       "  }\n"
+       "  return Number(r[10]);\n"
+       "}",
+       1000},
+      {"function f() {\n"
+       "  var r = [ 3 ];\n"
+       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "  for (r['100'] in data) {\n"
+       "  }\n"
+       "  return Number(r['100']);\n"
+       "}",
+       1000},
+      {"function f() {\n"
+       "  var obj = {}\n"
+       "  var descObj = new Boolean(false);\n"
+       "  var accessed = 0;\n"
+       "  descObj.enumerable = true;\n"
+       "  Object.defineProperties(obj, { prop:descObj });\n"
+       "  for (var p in obj) {\n"
+       "    if (p === 'prop') { accessed = 1; }\n"
+       "  }\n"
+       "  return accessed;"
+       "}",
+       1},
+      {"function f() {\n"
+       "  var appointment = {};\n"
+       "  Object.defineProperty(appointment, 'startTime', {\n"
+       "      value: 1001,\n"
+       "      writable: false,\n"
+       "      enumerable: false,\n"
+       "      configurable: true\n"
+       "  });\n"
+       "  Object.defineProperty(appointment, 'name', {\n"
+       "      value: 'NAME',\n"
+       "      writable: false,\n"
+       "      enumerable: false,\n"
+       "      configurable: true\n"
+       "  });\n"
+       "  var meeting = Object.create(appointment);\n"
+       "  Object.defineProperty(meeting, 'conferenceCall', {\n"
+       "      value: 'In-person meeting',\n"
+       "      writable: false,\n"
+       "      enumerable: false,\n"
+       "      configurable: true\n"
+       "  });\n"
+       "\n"
+       "  var teamMeeting = Object.create(meeting);\n"
+       "\n"
+       "  var flags = 0;\n"
+       "  for (var p in teamMeeting) {\n"
+       "      if (p === 'startTime') {\n"
+       "          flags |= 1;\n"
+       "      }\n"
+       "      if (p === 'name') {\n"
+       "          flags |= 2;\n"
+       "      }\n"
+       "      if (p === 'conferenceCall') {\n"
+       "          flags |= 4;\n"
+       "      }\n"
+       "  }\n"
+       "\n"
+       "  var hasOwnProperty = !teamMeeting.hasOwnProperty('name') &&\n"
+       "      !teamMeeting.hasOwnProperty('startTime') &&\n"
+       "      !teamMeeting.hasOwnProperty('conferenceCall');\n"
+       "  if (!hasOwnProperty) {\n"
+       "      flags |= 8;\n"
+       "  }\n"
+       "  return flags;\n"
+       "  }",
+       0}};
+
+  for (size_t i = 0; i < arraysize(for_in_samples); i++) {
+    InterpreterTester tester(handles.main_isolate(), for_in_samples[i].first);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_val = callable().ToHandleChecked();
+    CHECK_EQ(Handle<Smi>::cast(return_val)->value(), for_in_samples[i].second);
   }
 }

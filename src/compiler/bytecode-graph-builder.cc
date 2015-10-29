@@ -602,6 +602,12 @@ void BytecodeGraphBuilder::VisitToNumber(
 }
 
 
+void BytecodeGraphBuilder::VisitToObject(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitJump(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
@@ -662,11 +668,53 @@ void BytecodeGraphBuilder::VisitJumpIfToBooleanFalseConstant(
 }
 
 
+void BytecodeGraphBuilder::VisitJumpIfNull(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfNullConstant(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfUndefined(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfUndefinedConstant(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitReturn(
     const interpreter::BytecodeArrayIterator& iterator) {
   Node* control =
       NewNode(common()->Return(), environment()->LookupAccumulator());
   UpdateControlDependencyToLeaveFunction(control);
+}
+
+
+void BytecodeGraphBuilder::VisitForInPrepare(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitForInNext(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitForInDone(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
 }
 
 

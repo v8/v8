@@ -613,8 +613,117 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
 }
 
 
+void BytecodeGenerator::VisitForInAssignment(Expression* expr,
+                                             FeedbackVectorSlot slot) {
+  DCHECK(expr->IsValidReferenceExpression());
+
+  // Evaluate assignment starting with the value to be stored in the
+  // accumulator.
+  Property* property = expr->AsProperty();
+  LhsKind assign_type = Property::GetAssignType(property);
+  switch (assign_type) {
+    case VARIABLE: {
+      Variable* variable = expr->AsVariableProxy()->var();
+      VisitVariableAssignment(variable, slot);
+      break;
+    }
+    case NAMED_PROPERTY: {
+      TemporaryRegisterScope temporary_register_scope(builder());
+      Register value = temporary_register_scope.NewRegister();
+      builder()->StoreAccumulatorInRegister(value);
+      Register object = VisitForRegisterValue(property->obj());
+      size_t name_index = builder()->GetConstantPoolEntry(
+          property->key()->AsLiteral()->AsPropertyName());
+      builder()->StoreNamedProperty(object, name_index, feedback_index(slot),
+                                    language_mode());
+      break;
+    }
+    case KEYED_PROPERTY: {
+      TemporaryRegisterScope temporary_register_scope(builder());
+      Register value = temporary_register_scope.NewRegister();
+      builder()->StoreAccumulatorInRegister(value);
+      Register object = VisitForRegisterValue(property->obj());
+      Register key = VisitForRegisterValue(property->key());
+      builder()->LoadAccumulatorWithRegister(value);
+      builder()->StoreKeyedProperty(object, key, feedback_index(slot),
+                                    language_mode());
+      break;
+    }
+    case NAMED_SUPER_PROPERTY:
+    case KEYED_SUPER_PROPERTY:
+      UNIMPLEMENTED();
+  }
+}
+
+
 void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
-  UNIMPLEMENTED();
+  // TODO(oth): For now we need a parent scope for paths that end up
+  // in VisitLiteral which can allocate in the parent scope. A future
+  // CL in preparation will add a StatementResultScope that will
+  // remove the need for this EffectResultScope.
+  EffectResultScope result_scope(this);
+
+  if (stmt->subject()->IsNullLiteral() ||
+      stmt->subject()->IsUndefinedLiteral(isolate())) {
+    // ForIn generates lots of code, skip if it wouldn't produce any effects.
+    return;
+  }
+
+  LoopBuilder loop_builder(builder());
+  ControlScopeForIteration control_scope(this, stmt, &loop_builder);
+
+  // Prepare the state for executing ForIn.
+  builder()->EnterBlock();
+  VisitForAccumulatorValue(stmt->subject());
+  loop_builder.BreakIfUndefined();
+  loop_builder.BreakIfNull();
+
+  Register receiver = execution_result()->NewRegister();
+  builder()->CastAccumulatorToJSObject();
+  builder()->StoreAccumulatorInRegister(receiver);
+  builder()->CallRuntime(Runtime::kGetPropertyNamesFast, receiver, 1);
+  builder()->ForInPrepare(receiver);
+  loop_builder.BreakIfUndefined();
+
+  Register for_in_state = execution_result()->NewRegister();
+  builder()->StoreAccumulatorInRegister(for_in_state);
+
+  // The loop.
+  BytecodeLabel condition_label, break_label, continue_label;
+  Register index = receiver;  // Re-using register as receiver no longer used.
+  builder()->LoadLiteral(Smi::FromInt(0));
+
+  // Check loop termination (accumulator holds index).
+  builder()
+      ->Bind(&condition_label)
+      .StoreAccumulatorInRegister(index)
+      .ForInDone(for_in_state);
+  loop_builder.BreakIfTrue();
+
+  // Get the next item.
+  builder()->ForInNext(for_in_state, index);
+
+  // Start again if the item, currently in the accumulator, is undefined.
+  loop_builder.ContinueIfUndefined();
+
+  // Store the value in the each variable.
+  VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
+  // NB the user's loop variable will be assigned the value of each so
+  // even an empty body will have this assignment.
+  Visit(stmt->body());
+
+  // Increment the index and start loop again.
+  builder()
+      ->Bind(&continue_label)
+      .LoadAccumulatorWithRegister(index)
+      .CountOperation(Token::Value::ADD, language_mode_strength())
+      .Jump(&condition_label);
+
+  // End of loop
+  builder()->Bind(&break_label).LeaveBlock();
+
+  loop_builder.SetBreakTarget(break_label);
+  loop_builder.SetContinueTarget(continue_label);
 }
 
 

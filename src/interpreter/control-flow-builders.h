@@ -49,11 +49,20 @@ class LoopBuilder : public ControlFlowBuilder {
   // patched when the corresponding SetContinueTarget/SetBreakTarget
   // is called.
   void Break() { EmitJump(&break_sites_); }
+  void BreakIfTrue() { EmitJumpIfTrue(&break_sites_); }
+  void BreakIfUndefined() { EmitJumpIfUndefined(&break_sites_); }
+  void BreakIfNull() { EmitJumpIfNull(&break_sites_); }
   void Continue() { EmitJump(&continue_sites_); }
+  void ContinueIfTrue() { EmitJumpIfTrue(&continue_sites_); }
+  void ContinueIfUndefined() { EmitJumpIfUndefined(&continue_sites_); }
+  void ContinueIfNull() { EmitJumpIfNull(&continue_sites_); }
 
  private:
   void BindLabels(const BytecodeLabel& target, ZoneVector<BytecodeLabel>* site);
   void EmitJump(ZoneVector<BytecodeLabel>* labels);
+  void EmitJumpIfTrue(ZoneVector<BytecodeLabel>* labels);
+  void EmitJumpIfUndefined(ZoneVector<BytecodeLabel>* labels);
+  void EmitJumpIfNull(ZoneVector<BytecodeLabel>* labels);
 
   // Unbound labels that identify jumps for continue/break statements
   // in the code.

@@ -847,6 +847,17 @@ void Interpreter::DoToNumber(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// ToObject
+//
+// Cast the object referenced by the accumulator to a JSObject.
+void Interpreter::DoToObject(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* result = __ CallRuntime(Runtime::kToObject, accumulator);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 // Jump <imm8>
 //
 // Jump by number of bytes represented by the immediate operand |imm8|.
@@ -987,6 +998,62 @@ void Interpreter::DoJumpIfToBooleanFalseConstant(
 }
 
 
+// JumpIfNull <imm8>
+//
+// Jump by number of bytes represented by an immediate operand if the object
+// referenced by the accumulator is the null constant.
+void Interpreter::DoJumpIfNull(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
+  Node* relative_jump = __ BytecodeOperandImm8(0);
+  __ JumpIfWordEqual(accumulator, null_value, relative_jump);
+}
+
+
+// JumpIfNullConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
+// if the object referenced by the accumulator is the null constant.
+void Interpreter::DoJumpIfNullConstant(
+    compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
+  Node* index = __ BytecodeOperandIdx8(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  Node* relative_jump = __ SmiUntag(constant);
+  __ JumpIfWordEqual(accumulator, null_value, relative_jump);
+}
+
+
+// JumpIfUndefined <imm8>
+//
+// Jump by number of bytes represented by an immediate operand if the object
+// referenced by the accumulator is the undefined constant.
+void Interpreter::DoJumpIfUndefined(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* undefined_value =
+      __ HeapConstant(isolate_->factory()->undefined_value());
+  Node* relative_jump = __ BytecodeOperandImm8(0);
+  __ JumpIfWordEqual(accumulator, undefined_value, relative_jump);
+}
+
+
+// JumpIfUndefinedConstant <idx>
+//
+// Jump by number of bytes in the Smi in the |idx| entry in the constant pool
+// if the object referenced by the accumulator is the undefined constant.
+void Interpreter::DoJumpIfUndefinedConstant(
+    compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* undefined_value =
+      __ HeapConstant(isolate_->factory()->undefined_value());
+  Node* index = __ BytecodeOperandIdx8(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  Node* relative_jump = __ SmiUntag(constant);
+  __ JumpIfWordEqual(accumulator, undefined_value, relative_jump);
+}
+
+
 // CreateRegExpLiteral <idx> <flags_reg>
 //
 // Creates a regular expression literal for literal index <idx> with flags held
@@ -1102,6 +1169,57 @@ void Interpreter::DoThrow(compiler::InterpreterAssembler* assembler) {
 // Return the value in the accumulator.
 void Interpreter::DoReturn(compiler::InterpreterAssembler* assembler) {
   __ Return();
+}
+
+
+// ForInPrepare <receiver>
+//
+// Returns state for for..in loop execution based on the |receiver| and
+// the property names in the accumulator.
+void Interpreter::DoForInPrepare(compiler::InterpreterAssembler* assembler) {
+  Node* receiver_reg = __ BytecodeOperandReg8(0);
+  Node* receiver = __ LoadRegister(receiver_reg);
+  Node* property_names = __ GetAccumulator();
+  Node* result = __ CallRuntime(Runtime::kInterpreterForInPrepare, receiver,
+                                property_names);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// ForInNext <for_in_state> <index>
+//
+// Returns the next key in a for..in loop. The state associated with the
+// iteration is contained in |for_in_state| and |index| is the current
+// zero-based iteration count.
+void Interpreter::DoForInNext(compiler::InterpreterAssembler* assembler) {
+  Node* for_in_state_reg = __ BytecodeOperandReg8(0);
+  Node* for_in_state = __ LoadRegister(for_in_state_reg);
+  Node* receiver = __ LoadFixedArrayElement(for_in_state, 0);
+  Node* cache_array = __ LoadFixedArrayElement(for_in_state, 1);
+  Node* cache_type = __ LoadFixedArrayElement(for_in_state, 2);
+  Node* index_reg = __ BytecodeOperandReg8(1);
+  Node* index = __ LoadRegister(index_reg);
+  Node* result = __ CallRuntime(Runtime::kForInNext, receiver, cache_array,
+                                cache_type, index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// ForInDone <for_in_state>
+//
+// Returns the next key in a for..in loop. The accumulator contains the current
+// zero-based iteration count and |for_in_state| is the state returned by an
+// earlier invocation of ForInPrepare.
+void Interpreter::DoForInDone(compiler::InterpreterAssembler* assembler) {
+  Node* index = __ GetAccumulator();
+  Node* for_in_state_reg = __ BytecodeOperandReg8(0);
+  Node* for_in_state = __ LoadRegister(for_in_state_reg);
+  Node* cache_length = __ LoadFixedArrayElement(for_in_state, 3);
+  Node* result = __ CallRuntime(Runtime::kForInDone, index, cache_length);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 

@@ -170,6 +170,7 @@ class BytecodeArrayBuilder {
 
   // Casts.
   BytecodeArrayBuilder& CastAccumulatorToBoolean();
+  BytecodeArrayBuilder& CastAccumulatorToJSObject();
   BytecodeArrayBuilder& CastAccumulatorToName();
   BytecodeArrayBuilder& CastAccumulatorToNumber();
 
@@ -180,6 +181,8 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& Jump(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfTrue(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
   // TODO(mythria) The following two functions should be merged into
   // JumpIfTrue/False. These bytecodes should be automatically chosen rather
   // than explicitly using them.
@@ -188,6 +191,11 @@ class BytecodeArrayBuilder {
 
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& Return();
+
+  // Complex flow control.
+  BytecodeArrayBuilder& ForInPrepare(Register receiver);
+  BytecodeArrayBuilder& ForInNext(Register for_in_state, Register index);
+  BytecodeArrayBuilder& ForInDone(Register for_in_state);
 
   BytecodeArrayBuilder& EnterBlock();
   BytecodeArrayBuilder& LeaveBlock();
@@ -287,7 +295,7 @@ class BytecodeLabel final {
     bound_ = true;
   }
   INLINE(void set_referrer(size_t offset)) {
-    DCHECK(!bound_ && offset != kInvalidOffset);
+    DCHECK(!bound_ && offset != kInvalidOffset && offset_ == kInvalidOffset);
     offset_ = offset;
   }
   INLINE(size_t offset() const) { return offset_; }

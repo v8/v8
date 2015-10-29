@@ -3817,6 +3817,213 @@ TEST(IllegalRedeclaration) {
 }
 
 
+TEST(ForIn) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  int simple_flags =
+      ArrayLiteral::kDisableMementos | ArrayLiteral::kShallowElements;
+  int deep_elements_flags =
+      ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  feedback_spec.AddStoreICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddStoreICSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddStoreICSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddStoreICSlot();
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"for (var p in null) {}",
+       2 * kPointerSize,
+       1,
+       2,
+       {B(LdaUndefined), B(Return)},
+       0},
+      {"for (var p in undefined) {}",
+       2 * kPointerSize,
+       1,
+       2,
+       {B(LdaUndefined), B(Return)},
+       0},
+      {"var x = 'potatoes';\n"
+       "for (var p in x) { return p; }",
+       5 * kPointerSize,
+       1,
+       52,
+       {
+           B(LdaConstant), U8(0),                                             //
+           B(Star), R(1),                                                     //
+           B(Ldar), R(1),                                                     //
+           B(JumpIfUndefined), U8(44),                                        //
+           B(JumpIfNull), U8(42),                                             //
+           B(ToObject),                                                       //
+           B(Star), R(3),                                                     //
+           B(CallRuntime), U16(Runtime::kGetPropertyNamesFast), R(3), U8(1),  //
+           B(ForInPrepare), R(3),                                             //
+           B(JumpIfUndefined), U8(30),                                        //
+           B(Star), R(4),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(3),                                                     //
+           B(ForInDone), R(4),                                                //
+           B(JumpIfTrue), U8(21),                                             //
+           B(ForInNext), R(4), R(3),                                          //
+           B(JumpIfUndefined), U8(11),                                        //
+           B(Star), R(0),                                                     //
+           B(Ldar), R(0),                                                     //
+           B(Star), R(2),                                                     //
+           B(Ldar), R(2),                                                     //
+           B(Return),                                                         //
+           B(Ldar), R(3),                                                     //
+           B(Inc),                                                            //
+           B(Jump), U8(-23),                                                  //
+           B(LdaUndefined),                                                   //
+           B(Return),                                                         //
+       },
+       1,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"var x = 0;\n"
+       "for (var p in [1,2,3]) { x += p; }",
+       5 * kPointerSize,
+       1,
+       57,
+       {
+           B(LdaZero),                                                        //
+           B(Star), R(1),                                                     //
+           B(LdaConstant), U8(0),                                             //
+           B(CreateArrayLiteral), U8(0), U8(simple_flags),                    //
+           B(JumpIfUndefined), U8(47),                                        //
+           B(JumpIfNull), U8(45),                                             //
+           B(ToObject),                                                       //
+           B(Star), R(3),                                                     //
+           B(CallRuntime), U16(Runtime::kGetPropertyNamesFast), R(3), U8(1),  //
+           B(ForInPrepare), R(3),                                             //
+           B(JumpIfUndefined), U8(33),                                        //
+           B(Star), R(4),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(3),                                                     //
+           B(ForInDone), R(4),                                                //
+           B(JumpIfTrue), U8(24),                                             //
+           B(ForInNext), R(4), R(3),                                          //
+           B(JumpIfUndefined), U8(14),                                        //
+           B(Star), R(0),                                                     //
+           B(Ldar), R(0),                                                     //
+           B(Star), R(2),                                                     //
+           B(Ldar), R(2),                                                     //
+           B(Add), R(1),                                                      //
+           B(Star), R(1),                                                     //
+           B(Ldar), R(3),                                                     //
+           B(Inc),                                                            //
+           B(Jump), U8(-26),                                                  //
+           B(LdaUndefined),                                                   //
+           B(Return),                                                         //
+       },
+       1,
+       {InstanceType::FIXED_ARRAY_TYPE}},
+      {"var x = { 'a': 1, 'b': 2 };\n"
+       "for (x['a'] in [10, 20, 30]) {\n"
+       "  if (x['a'] == 10) continue;\n"
+       "  if (x['a'] == 20) break;\n"
+       "}",
+       4 * kPointerSize,
+       1,
+       83,
+       {
+           B(LdaConstant), U8(0),                                             //
+           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),            //
+           B(Star), R(0),                                                     //
+           B(LdaConstant), U8(1),                                             //
+           B(CreateArrayLiteral), U8(1), U8(simple_flags),                    //
+           B(JumpIfUndefined), U8(69),                                        //
+           B(JumpIfNull), U8(67),                                             //
+           B(ToObject),                                                       //
+           B(Star), R(1),                                                     //
+           B(CallRuntime), U16(Runtime::kGetPropertyNamesFast), R(1), U8(1),  //
+           B(ForInPrepare), R(1),                                             //
+           B(JumpIfUndefined), U8(55),                                        //
+           B(Star), R(2),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(1),                                                     //
+           B(ForInDone), R(2),                                                //
+           B(JumpIfTrue), U8(46),                                             //
+           B(ForInNext), R(2), R(1),                                          //
+           B(JumpIfUndefined), U8(36),                                        //
+           B(Star), R(3),                                                     //
+           B(StoreICSloppy), R(0), U8(2), U8(vector->GetIndex(slot4)),        //
+           B(LoadICSloppy), R(0), U8(2), U8(vector->GetIndex(slot2)),         //
+           B(Star), R(3),                                                     //
+           B(LdaSmi8), U8(10),                                                //
+           B(TestEqual), R(3),                                                //
+           B(JumpIfFalse), U8(4),                                             //
+           B(Jump), U8(16),                                                   //
+           B(LoadICSloppy), R(0), U8(2), U8(vector->GetIndex(slot3)),         //
+           B(Star), R(3),                                                     //
+           B(LdaSmi8), U8(20),                                                //
+           B(TestEqual), R(3),                                                //
+           B(JumpIfFalse), U8(4),                                             //
+           B(Jump), U8(7),                                                    //
+           B(Ldar), R(1),                                                     //
+           B(Inc),                                                            //
+           B(Jump), U8(-48),                                                  //
+           B(LdaUndefined),                                                   //
+           B(Return),                                                         //
+       },
+       3,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"var x = [ 10, 11, 12 ] ;\n"
+       "for (x[0] in [1,2,3]) { return x[3]; }",
+       5 * kPointerSize,
+       1,
+       66,
+       {
+           B(LdaConstant), U8(0),                                             //
+           B(CreateArrayLiteral), U8(0), U8(simple_flags),                    //
+           B(Star), R(0),                                                     //
+           B(LdaConstant), U8(1),                                             //
+           B(CreateArrayLiteral), U8(1), U8(simple_flags),                    //
+           B(JumpIfUndefined), U8(52),                                        //
+           B(JumpIfNull), U8(50),                                             //
+           B(ToObject),                                                       //
+           B(Star), R(1),                                                     //
+           B(CallRuntime), U16(Runtime::kGetPropertyNamesFast), R(1), U8(1),  //
+           B(ForInPrepare), R(1),                                             //
+           B(JumpIfUndefined), U8(38),                                        //
+           B(Star), R(2),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(1),                                                     //
+           B(ForInDone), R(2),                                                //
+           B(JumpIfTrue), U8(29),                                             //
+           B(ForInNext), R(2), R(1),                                          //
+           B(JumpIfUndefined), U8(19),                                        //
+           B(Star), R(3),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(4),                                                     //
+           B(Ldar), R(3),                                                     //
+           B(KeyedStoreICSloppy), R(0), R(4), U8(vector->GetIndex(slot3)),    //
+           B(LdaSmi8), U8(3),                                                 //
+           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot2)),           //
+           B(Return),                                                         //
+           B(Ldar), R(1),                                                     //
+           B(Inc),                                                            //
+           B(Jump), U8(-31),                                                  //
+           B(LdaUndefined),                                                   //
+           B(Return),                                                         //
+       },
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
 TEST(Conditional) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
