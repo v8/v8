@@ -207,6 +207,45 @@ TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
   CHECK(Contains(move, Reg(1), Reg(0)));
 }
 
+
+TEST_F(MoveOptimizerTest, GapsCanMoveOverInstruction) {
+  StartBlock();
+  int const_index = 1;
+  DefineConstant(const_index);
+  Instruction* ctant_def = LastInstruction();
+  AddMove(ctant_def, Reg(1), Reg(0));
+
+  Instruction* last = EmitNop();
+  AddMove(last, Const(const_index), Reg(0));
+  AddMove(last, Reg(0), Reg(1));
+  EndBlock(Last());
+  Optimize();
+
+  ParallelMove* inst1_start =
+      ctant_def->GetParallelMove(Instruction::GapPosition::START);
+  ParallelMove* inst1_end =
+      ctant_def->GetParallelMove(Instruction::GapPosition::END);
+  ParallelMove* last_start =
+      last->GetParallelMove(Instruction::GapPosition::START);
+  CHECK(inst1_start == nullptr || inst1_start->size() == 0);
+  CHECK(inst1_end == nullptr || inst1_end->size() == 0);
+  CHECK(last_start->size() == 2);
+  int redundants = 0;
+  int assignment = 0;
+  for (MoveOperands* move : *last_start) {
+    if (move->IsRedundant()) {
+      ++redundants;
+    } else {
+      ++assignment;
+      CHECK(move->destination().IsRegister());
+      CHECK(move->source().IsConstant());
+    }
+  }
+  CHECK_EQ(1, redundants);
+  CHECK_EQ(1, assignment);
+}
+
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

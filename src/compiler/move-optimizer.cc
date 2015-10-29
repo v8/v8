@@ -21,11 +21,48 @@ struct MoveKeyCompare {
   }
 };
 
+struct OperandCompare {
+  bool operator()(const InstructionOperand& a,
+                  const InstructionOperand& b) const {
+    return a.CompareCanonicalized(b);
+  }
+};
+
 typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
 typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
 
 
-bool GapsCanMoveOver(Instruction* instr) { return instr->IsNop(); }
+bool GapsCanMoveOver(Instruction* instr, Zone* zone) {
+  if (instr->IsNop()) return true;
+  if (instr->ClobbersTemps() || instr->ClobbersRegisters() ||
+      instr->ClobbersDoubleRegisters()) {
+    return false;
+  }
+  if (instr->arch_opcode() != ArchOpcode::kArchNop) return false;
+
+  ZoneSet<InstructionOperand, OperandCompare> operands(zone);
+  for (size_t i = 0; i < instr->InputCount(); ++i) {
+    operands.insert(*instr->InputAt(i));
+  }
+  for (size_t i = 0; i < instr->OutputCount(); ++i) {
+    operands.insert(*instr->OutputAt(i));
+  }
+  for (size_t i = 0; i < instr->TempCount(); ++i) {
+    operands.insert(*instr->TempAt(i));
+  }
+  for (int i = Instruction::GapPosition::FIRST_GAP_POSITION;
+       i <= Instruction::GapPosition::LAST_GAP_POSITION; ++i) {
+    ParallelMove* moves = instr->parallel_moves()[i];
+    if (moves == nullptr) continue;
+    for (MoveOperands* move : *moves) {
+      if (operands.count(move->source()) > 0 ||
+          operands.count(move->destination()) > 0) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 
 int FindFirstNonEmptySlot(Instruction* instr) {
@@ -135,7 +172,7 @@ void MoveOptimizer::CompressBlock(InstructionBlock* block) {
       std::swap(prev_instr->parallel_moves()[0], instr->parallel_moves()[0]);
     }
     prev_instr = instr->parallel_moves()[0] == nullptr ? nullptr : instr;
-    if (GapsCanMoveOver(instr)) continue;
+    if (GapsCanMoveOver(instr, local_zone())) continue;
     if (prev_instr != nullptr) {
       to_finalize_.push_back(prev_instr);
       prev_instr = nullptr;
@@ -198,7 +235,8 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   for (int i = block->first_instruction_index();
        i <= block->last_instruction_index(); ++i) {
     instr = code()->instructions()[i];
-    if (!GapsCanMoveOver(instr) || !instr->AreMovesRedundant()) break;
+    if (!GapsCanMoveOver(instr, local_zone()) || !instr->AreMovesRedundant())
+      break;
   }
   DCHECK(instr != nullptr);
   bool gap_initialized = true;
