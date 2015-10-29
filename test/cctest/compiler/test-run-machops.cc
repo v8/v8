@@ -24,11 +24,6 @@ using namespace v8::internal::compiler;
 typedef RawMachineAssembler::Label MLabel;
 
 
-StoreRepresentation StoreRepForType(MachineType type) {
-  return StoreRepresentation(type, kNoWriteBarrier);
-}
-
-
 TEST(RunInt32Add) {
   RawMachineAssemblerTester<int32_t> m;
   Node* add = m.Int32Add(m.Int32Constant(0), m.Int32Constant(1));
@@ -808,8 +803,8 @@ TEST(RunLoadStoreFloat32Offset) {
     // generate load [#base + #index]
     Node* load =
         m.Load(kMachFloat32, m.PointerConstant(from), m.IntPtrConstant(offset));
-    m.Store(StoreRepresentation(kMachFloat32, kNoWriteBarrier),
-            m.PointerConstant(to), m.IntPtrConstant(offset), load);
+    m.Store(kMachFloat32, m.PointerConstant(to), m.IntPtrConstant(offset), load,
+            kNoWriteBarrier);
     m.Return(m.Int32Constant(magic));
 
     FOR_FLOAT32_INPUTS(j) {
@@ -835,8 +830,8 @@ TEST(RunLoadStoreFloat64Offset) {
     // generate load [#base + #index]
     Node* load =
         m.Load(kMachFloat64, m.PointerConstant(from), m.IntPtrConstant(offset));
-    m.Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier),
-            m.PointerConstant(to), m.IntPtrConstant(offset), load);
+    m.Store(kMachFloat64, m.PointerConstant(to), m.IntPtrConstant(offset), load,
+            kNoWriteBarrier);
     m.Return(m.Int32Constant(magic));
 
     FOR_FLOAT64_INPUTS(j) {
@@ -3217,8 +3212,7 @@ static void RunLoadStore(MachineType rep) {
     Node* index0 = m.IntPtrConstant(x * sizeof(buffer[0]));
     Node* load = m.Load(rep, base, index0);
     Node* index1 = m.IntPtrConstant(y * sizeof(buffer[0]));
-    StoreRepresentation store_rep(rep, kNoWriteBarrier);
-    m.Store(StoreRepForType(rep), base, index1, load);
+    m.Store(rep, base, index1, load, kNoWriteBarrier);
     m.Return(m.Int32Constant(OK));
 
     CHECK(buffer[x] != buffer[y]);
@@ -3269,7 +3263,7 @@ TEST(RunFloat32Binop) {
       Node* binop = m.AddNode(ops[i], a, b);
       Node* base = m.PointerConstant(&result);
       Node* zero = m.IntPtrConstant(0);
-      m.Store(StoreRepForType(kMachFloat32), base, zero, binop);
+      m.Store(kMachFloat32, base, zero, binop, kNoWriteBarrier);
       m.Return(m.Int32Constant(i + j));
       CHECK_EQ(i + j, m.Call());
     }
@@ -3305,7 +3299,7 @@ TEST(RunFloat64Binop) {
       Node* binop = m.AddNode(ops[i], a, b);
       Node* base = m.PointerConstant(&result);
       Node* zero = m.Int32Constant(0);
-      m.Store(StoreRepForType(kMachFloat64), base, zero, binop);
+      m.Store(kMachFloat64, base, zero, binop, kNoWriteBarrier);
       m.Return(m.Int32Constant(i + j));
       CHECK_EQ(i + j, m.Call());
     }
@@ -3400,7 +3394,7 @@ TEST(RunFloat32SubImm1) {
     RawMachineAssemblerTester<int32_t> m;
     Node* t0 = m.LoadFromPointer(&input, kMachFloat32);
     Node* t1 = m.Float32Sub(m.Float32Constant(*i), t0);
-    m.StoreToPointer(&output, StoreRepForType(kMachFloat32), t1);
+    m.StoreToPointer(&output, kMachFloat32, t1);
     m.Return(m.Int32Constant(0));
     FOR_FLOAT32_INPUTS(j) {
       input = *j;
@@ -3420,7 +3414,7 @@ TEST(RunFloat32SubImm2) {
     RawMachineAssemblerTester<int32_t> m;
     Node* t0 = m.LoadFromPointer(&input, kMachFloat32);
     Node* t1 = m.Float32Sub(t0, m.Float32Constant(*i));
-    m.StoreToPointer(&output, StoreRepForType(kMachFloat32), t1);
+    m.StoreToPointer(&output, kMachFloat32, t1);
     m.Return(m.Int32Constant(0));
     FOR_FLOAT32_INPUTS(j) {
       input = *j;
@@ -3455,7 +3449,7 @@ TEST(RunFloat64SubImm1) {
     RawMachineAssemblerTester<int32_t> m;
     Node* t0 = m.LoadFromPointer(&input, kMachFloat64);
     Node* t1 = m.Float64Sub(m.Float64Constant(*i), t0);
-    m.StoreToPointer(&output, StoreRepForType(kMachFloat64), t1);
+    m.StoreToPointer(&output, kMachFloat64, t1);
     m.Return(m.Int32Constant(0));
     FOR_FLOAT64_INPUTS(j) {
       input = *j;
@@ -3475,7 +3469,7 @@ TEST(RunFloat64SubImm2) {
     RawMachineAssemblerTester<int32_t> m;
     Node* t0 = m.LoadFromPointer(&input, kMachFloat64);
     Node* t1 = m.Float64Sub(t0, m.Float64Constant(*i));
-    m.StoreToPointer(&output, StoreRepForType(kMachFloat64), t1);
+    m.StoreToPointer(&output, kMachFloat64, t1);
     m.Return(m.Int32Constant(0));
     FOR_FLOAT64_INPUTS(j) {
       input = *j;
@@ -3528,7 +3522,7 @@ TEST(RunFloat64MulAndFloat64AddP) {
     Node* a = m.LoadFromPointer(&input_a, kMachFloat64);
     Node* b = m.LoadFromPointer(&input_b, kMachFloat64);
     Node* c = m.LoadFromPointer(&input_c, kMachFloat64);
-    m.StoreToPointer(&output, StoreRepForType(kMachFloat64),
+    m.StoreToPointer(&output, kMachFloat64,
                      m.Float64Add(m.Float64Mul(a, b), c));
     m.Return(m.Int32Constant(0));
     FOR_FLOAT64_INPUTS(i) {
@@ -3550,7 +3544,7 @@ TEST(RunFloat64MulAndFloat64AddP) {
     Node* a = m.LoadFromPointer(&input_a, kMachFloat64);
     Node* b = m.LoadFromPointer(&input_b, kMachFloat64);
     Node* c = m.LoadFromPointer(&input_c, kMachFloat64);
-    m.StoreToPointer(&output, StoreRepForType(kMachFloat64),
+    m.StoreToPointer(&output, kMachFloat64,
                      m.Float64Add(a, m.Float64Mul(b, c)));
     m.Return(m.Int32Constant(0));
     FOR_FLOAT64_INPUTS(i) {
@@ -3580,8 +3574,7 @@ TEST(RunFloat64MulAndFloat64SubP) {
   Node* a = m.LoadFromPointer(&input_a, kMachFloat64);
   Node* b = m.LoadFromPointer(&input_b, kMachFloat64);
   Node* c = m.LoadFromPointer(&input_c, kMachFloat64);
-  m.StoreToPointer(&output, StoreRepForType(kMachFloat64),
-                   m.Float64Sub(a, m.Float64Mul(b, c)));
+  m.StoreToPointer(&output, kMachFloat64, m.Float64Sub(a, m.Float64Mul(b, c)));
   m.Return(m.Int32Constant(0));
 
   FOR_FLOAT64_INPUTS(i) {
@@ -3609,7 +3602,7 @@ TEST(RunFloat64MulImm) {
       RawMachineAssemblerTester<int32_t> m;
       Node* t0 = m.LoadFromPointer(&input, kMachFloat64);
       Node* t1 = m.Float64Mul(m.Float64Constant(*i), t0);
-      m.StoreToPointer(&output, StoreRepForType(kMachFloat64), t1);
+      m.StoreToPointer(&output, kMachFloat64, t1);
       m.Return(m.Int32Constant(0));
       FOR_FLOAT64_INPUTS(j) {
         input = *j;
@@ -3624,7 +3617,7 @@ TEST(RunFloat64MulImm) {
       RawMachineAssemblerTester<int32_t> m;
       Node* t0 = m.LoadFromPointer(&input, kMachFloat64);
       Node* t1 = m.Float64Mul(t0, m.Float64Constant(*i));
-      m.StoreToPointer(&output, StoreRepForType(kMachFloat64), t1);
+      m.StoreToPointer(&output, kMachFloat64, t1);
       m.Return(m.Int32Constant(0));
       FOR_FLOAT64_INPUTS(j) {
         input = *j;
@@ -3689,8 +3682,8 @@ TEST(RunChangeInt32ToFloat64_A) {
   double result = 0;
 
   Node* convert = m.ChangeInt32ToFloat64(m.Int32Constant(magic));
-  m.Store(StoreRepForType(kMachFloat64), m.PointerConstant(&result),
-          m.Int32Constant(0), convert);
+  m.Store(kMachFloat64, m.PointerConstant(&result), m.Int32Constant(0), convert,
+          kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -3703,8 +3696,8 @@ TEST(RunChangeInt32ToFloat64_B) {
   double output = 0;
 
   Node* convert = m.ChangeInt32ToFloat64(m.Parameter(0));
-  m.Store(StoreRepForType(kMachFloat64), m.PointerConstant(&output),
-          m.Int32Constant(0), convert);
+  m.Store(kMachFloat64, m.PointerConstant(&output), m.Int32Constant(0), convert,
+          kNoWriteBarrier);
   m.Return(m.Parameter(0));
 
   FOR_INT32_INPUTS(i) {
@@ -3720,8 +3713,8 @@ TEST(RunChangeUint32ToFloat64_B) {
   double output = 0;
 
   Node* convert = m.ChangeUint32ToFloat64(m.Parameter(0));
-  m.Store(StoreRepForType(kMachFloat64), m.PointerConstant(&output),
-          m.Int32Constant(0), convert);
+  m.Store(kMachFloat64, m.PointerConstant(&output), m.Int32Constant(0), convert,
+          kNoWriteBarrier);
   m.Return(m.Parameter(0));
 
   FOR_UINT32_INPUTS(i) {
@@ -3746,8 +3739,8 @@ TEST(RunChangeUint32ToFloat64_spilled) {
   }
 
   for (int i = 0; i < kNumInputs; i++) {
-    m.Store(StoreRepForType(kMachFloat64), m.PointerConstant(&result),
-            m.Int32Constant(i * 8), m.ChangeUint32ToFloat64(input_node[i]));
+    m.Store(kMachFloat64, m.PointerConstant(&result), m.Int32Constant(i * 8),
+            m.ChangeUint32ToFloat64(input_node[i]), kNoWriteBarrier);
   }
 
   m.Return(m.Int32Constant(magic));
@@ -3770,8 +3763,8 @@ TEST(RunChangeFloat64ToInt32_A) {
   double input = 11.1;
   int32_t result = 0;
 
-  m.Store(StoreRepForType(kMachInt32), m.PointerConstant(&result),
-          m.Int32Constant(0), m.ChangeFloat64ToInt32(m.Float64Constant(input)));
+  m.Store(kMachInt32, m.PointerConstant(&result), m.Int32Constant(0),
+          m.ChangeFloat64ToInt32(m.Float64Constant(input)), kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -3787,8 +3780,8 @@ TEST(RunChangeFloat64ToInt32_B) {
   Node* load =
       m.Load(kMachFloat64, m.PointerConstant(&input), m.Int32Constant(0));
   Node* convert = m.ChangeFloat64ToInt32(load);
-  m.Store(StoreRepForType(kMachInt32), m.PointerConstant(&output),
-          m.Int32Constant(0), convert);
+  m.Store(kMachInt32, m.PointerConstant(&output), m.Int32Constant(0), convert,
+          kNoWriteBarrier);
   m.Return(convert);
 
   {
@@ -3829,8 +3822,8 @@ TEST(RunChangeFloat64ToUint32_B) {
   Node* load =
       m.Load(kMachFloat64, m.PointerConstant(&input), m.Int32Constant(0));
   Node* convert = m.ChangeFloat64ToUint32(load);
-  m.Store(StoreRepForType(kMachInt32), m.PointerConstant(&output),
-          m.Int32Constant(0), convert);
+  m.Store(kMachInt32, m.PointerConstant(&output), m.Int32Constant(0), convert,
+          kNoWriteBarrier);
   m.Return(convert);
 
   {
@@ -3878,8 +3871,8 @@ TEST(RunChangeFloat64ToInt32_spilled) {
   }
 
   for (int i = 0; i < kNumInputs; i++) {
-    m.Store(StoreRepForType(kMachInt32), m.PointerConstant(&result),
-            m.Int32Constant(i * 4), m.ChangeFloat64ToInt32(input_node[i]));
+    m.Store(kMachInt32, m.PointerConstant(&result), m.Int32Constant(i * 4),
+            m.ChangeFloat64ToInt32(input_node[i]), kNoWriteBarrier);
   }
 
   m.Return(m.Int32Constant(magic));
@@ -3910,8 +3903,8 @@ TEST(RunChangeFloat64ToUint32_spilled) {
   }
 
   for (int i = 0; i < kNumInputs; i++) {
-    m.Store(StoreRepForType(kMachUint32), m.PointerConstant(&result),
-            m.Int32Constant(i * 4), m.ChangeFloat64ToUint32(input_node[i]));
+    m.Store(kMachUint32, m.PointerConstant(&result), m.Int32Constant(i * 4),
+            m.ChangeFloat64ToUint32(input_node[i]), kNoWriteBarrier);
   }
 
   m.Return(m.Int32Constant(magic));
@@ -3950,8 +3943,8 @@ TEST(RunTruncateFloat64ToFloat32_spilled) {
   }
 
   for (int i = 0; i < kNumInputs; i++) {
-    m.Store(StoreRepForType(kMachFloat32), m.PointerConstant(&result),
-            m.Int32Constant(i * 4), m.TruncateFloat64ToFloat32(input_node[i]));
+    m.Store(kMachFloat32, m.PointerConstant(&result), m.Int32Constant(i * 4),
+            m.TruncateFloat64ToFloat32(input_node[i]), kNoWriteBarrier);
   }
 
   m.Return(m.Int32Constant(magic));
@@ -4026,8 +4019,8 @@ TEST(RunFloatDiamond) {
   m.Goto(&end);
   m.Bind(&end);
   Node* phi = m.Phi(kMachFloat32, k2, k1);
-  m.Store(StoreRepForType(kMachFloat32), m.PointerConstant(&buffer),
-          m.IntPtrConstant(0), phi);
+  m.Store(kMachFloat32, m.PointerConstant(&buffer), m.IntPtrConstant(0), phi,
+          kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -4052,8 +4045,8 @@ TEST(RunDoubleDiamond) {
   m.Goto(&end);
   m.Bind(&end);
   Node* phi = m.Phi(kMachFloat64, k2, k1);
-  m.Store(StoreRepForType(kMachFloat64), m.PointerConstant(&buffer),
-          m.Int32Constant(0), phi);
+  m.Store(kMachFloat64, m.PointerConstant(&buffer), m.Int32Constant(0), phi,
+          kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -4079,8 +4072,8 @@ TEST(RunRefDiamond) {
   m.Goto(&end);
   m.Bind(&end);
   Node* phi = m.Phi(kMachAnyTagged, k2, k1);
-  m.Store(StoreRepForType(kMachAnyTagged), m.PointerConstant(&buffer),
-          m.Int32Constant(0), phi);
+  m.Store(kMachAnyTagged, m.PointerConstant(&buffer), m.Int32Constant(0), phi,
+          kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -4111,10 +4104,10 @@ TEST(RunDoubleRefDiamond) {
   m.Bind(&end);
   Node* dphi = m.Phi(kMachFloat64, d2, d1);
   Node* rphi = m.Phi(kMachAnyTagged, r2, r1);
-  m.Store(StoreRepForType(kMachFloat64), m.PointerConstant(&dbuffer),
-          m.Int32Constant(0), dphi);
-  m.Store(StoreRepForType(kMachAnyTagged), m.PointerConstant(&rbuffer),
-          m.Int32Constant(0), rphi);
+  m.Store(kMachFloat64, m.PointerConstant(&dbuffer), m.Int32Constant(0), dphi,
+          kNoWriteBarrier);
+  m.Store(kMachAnyTagged, m.PointerConstant(&rbuffer), m.Int32Constant(0), rphi,
+          kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -4156,10 +4149,10 @@ TEST(RunDoubleRefDoubleDiamond) {
   Node* dphi2 = m.Phi(kMachFloat64, d1, dphi1);
   Node* rphi2 = m.Phi(kMachAnyTagged, r1, rphi1);
 
-  m.Store(StoreRepForType(kMachFloat64), m.PointerConstant(&dbuffer),
-          m.Int32Constant(0), dphi2);
-  m.Store(StoreRepForType(kMachAnyTagged), m.PointerConstant(&rbuffer),
-          m.Int32Constant(0), rphi2);
+  m.Store(kMachFloat64, m.PointerConstant(&dbuffer), m.Int32Constant(0), dphi2,
+          kNoWriteBarrier);
+  m.Store(kMachAnyTagged, m.PointerConstant(&rbuffer), m.Int32Constant(0),
+          rphi2, kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -4187,8 +4180,8 @@ TEST(RunDoubleLoopPhi) {
   m.Bind(&body);
   m.Goto(&header);
   m.Bind(&end);
-  m.Store(StoreRepForType(kMachFloat64), m.PointerConstant(&buffer),
-          m.Int32Constant(0), phi);
+  m.Store(kMachFloat64, m.PointerConstant(&buffer), m.Int32Constant(0), phi,
+          kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -4482,7 +4475,7 @@ static void LoadStoreTruncation() {
   RawMachineAssemblerTester<int32_t> m;
   Node* a = m.LoadFromPointer(&input, kRepresentation);
   Node* ap1 = m.Int32Add(a, m.Int32Constant(1));
-  m.StoreToPointer(&input, StoreRepForType(kRepresentation), ap1);
+  m.StoreToPointer(&input, kRepresentation, ap1);
   m.Return(ap1);
 
   const IntType max = std::numeric_limits<IntType>::max();
@@ -4585,7 +4578,7 @@ TEST(RunTestIntPtrArithmetic) {
   Node* output = m.PointerConstant(&outputs[kInputSize - 1]);
   Node* elem_size = m.IntPtrConstant(sizeof(inputs[0]));
   for (int i = 0; i < kInputSize; i++) {
-    m.Store(StoreRepForType(kMachInt32), output, m.Load(kMachInt32, input));
+    m.Store(kMachInt32, output, m.Load(kMachInt32, input), kNoWriteBarrier);
     input = m.IntPtrAdd(input, elem_size);
     output = m.IntPtrSub(output, elem_size);
   }
@@ -4610,7 +4603,7 @@ TEST(RunSpillLotsOfThings) {
     accs[i] = acc;
   }
   for (int i = 0; i < kInputSize; i++) {
-    m.StoreToPointer(&outputs[i], StoreRepForType(kMachInt32), accs[i]);
+    m.StoreToPointer(&outputs[i], kMachInt32, accs[i]);
   }
   m.Return(one);
   m.Call();
@@ -4636,7 +4629,7 @@ TEST(RunSpillConstantsAndParameters) {
     accs[i] = acc;
   }
   for (int i = 0; i < kInputSize; i++) {
-    m.StoreToPointer(&outputs[i], StoreRepForType(kMachInt32), accs[i]);
+    m.StoreToPointer(&outputs[i], kMachInt32, accs[i]);
   }
   m.Return(m.Int32Add(acc, m.Int32Add(m.Parameter(0), m.Parameter(1))));
   FOR_INT32_INPUTS(i) {
@@ -4688,7 +4681,7 @@ TEST(RunInt32AddWithOverflowP) {
   Node* add = m.Int32AddWithOverflow(bt.param0, bt.param1);
   Node* val = m.Projection(0, add);
   Node* ovf = m.Projection(1, add);
-  m.StoreToPointer(&actual_val, StoreRepForType(kMachInt32), val);
+  m.StoreToPointer(&actual_val, kMachInt32, val);
   bt.AddReturn(ovf);
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
@@ -4709,7 +4702,7 @@ TEST(RunInt32AddWithOverflowImm) {
       Node* add = m.Int32AddWithOverflow(m.Int32Constant(*i), m.Parameter(0));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, StoreRepForType(kMachInt32), val);
+      m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
         int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
@@ -4722,7 +4715,7 @@ TEST(RunInt32AddWithOverflowImm) {
       Node* add = m.Int32AddWithOverflow(m.Parameter(0), m.Int32Constant(*i));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, StoreRepForType(kMachInt32), val);
+      m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
         int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
@@ -4736,7 +4729,7 @@ TEST(RunInt32AddWithOverflowImm) {
           m.Int32AddWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, StoreRepForType(kMachInt32), val);
+      m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
       CHECK_EQ(expected_ovf, m.Call());
@@ -4776,7 +4769,7 @@ TEST(RunInt32SubWithOverflowP) {
   Node* add = m.Int32SubWithOverflow(bt.param0, bt.param1);
   Node* val = m.Projection(0, add);
   Node* ovf = m.Projection(1, add);
-  m.StoreToPointer(&actual_val, StoreRepForType(kMachInt32), val);
+  m.StoreToPointer(&actual_val, kMachInt32, val);
   bt.AddReturn(ovf);
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
@@ -4797,7 +4790,7 @@ TEST(RunInt32SubWithOverflowImm) {
       Node* add = m.Int32SubWithOverflow(m.Int32Constant(*i), m.Parameter(0));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, StoreRepForType(kMachInt32), val);
+      m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
         int expected_ovf = bits::SignedSubOverflow32(*i, *j, &expected_val);
@@ -4810,7 +4803,7 @@ TEST(RunInt32SubWithOverflowImm) {
       Node* add = m.Int32SubWithOverflow(m.Parameter(0), m.Int32Constant(*i));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, StoreRepForType(kMachInt32), val);
+      m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
         int expected_ovf = bits::SignedSubOverflow32(*j, *i, &expected_val);
@@ -4824,7 +4817,7 @@ TEST(RunInt32SubWithOverflowImm) {
           m.Int32SubWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, StoreRepForType(kMachInt32), val);
+      m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       int expected_ovf = bits::SignedSubOverflow32(*i, *j, &expected_val);
       CHECK_EQ(expected_ovf, m.Call());
@@ -4881,8 +4874,7 @@ TEST(RunChangeInt32ToInt64P) {
   if (kPointerSize < 8) return;
   int64_t actual = -1;
   RawMachineAssemblerTester<int32_t> m(kMachInt32);
-  m.StoreToPointer(&actual, StoreRepForType(kMachInt64),
-                   m.ChangeInt32ToInt64(m.Parameter(0)));
+  m.StoreToPointer(&actual, kMachInt64, m.ChangeInt32ToInt64(m.Parameter(0)));
   m.Return(m.Int32Constant(0));
   FOR_INT32_INPUTS(i) {
     int64_t expected = *i;
@@ -4896,7 +4888,7 @@ TEST(RunChangeUint32ToUint64P) {
   if (kPointerSize < 8) return;
   int64_t actual = -1;
   RawMachineAssemblerTester<int32_t> m(kMachUint32);
-  m.StoreToPointer(&actual, StoreRepForType(kMachUint64),
+  m.StoreToPointer(&actual, kMachUint64,
                    m.ChangeUint32ToUint64(m.Parameter(0)));
   m.Return(m.Int32Constant(0));
   FOR_UINT32_INPUTS(i) {
@@ -4997,7 +4989,7 @@ TEST(RunChangeFloat32ToFloat64) {
   float expected = 0.0;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &actual, StoreRepForType(kMachFloat64),
+      &actual, kMachFloat64,
       m.ChangeFloat32ToFloat64(m.LoadFromPointer(&expected, kMachFloat32)));
   m.Return(m.Int32Constant(0));
   FOR_FLOAT32_INPUTS(i) {
@@ -5022,8 +5014,8 @@ TEST(RunChangeFloat32ToFloat64_spilled) {
   }
 
   for (int i = 0; i < kNumInputs; i++) {
-    m.Store(StoreRepForType(kMachFloat64), m.PointerConstant(&result),
-            m.Int32Constant(i * 8), m.ChangeFloat32ToFloat64(input_node[i]));
+    m.Store(kMachFloat64, m.PointerConstant(&result), m.Int32Constant(i * 8),
+            m.ChangeFloat32ToFloat64(input_node[i]), kNoWriteBarrier);
   }
 
   m.Return(m.Int32Constant(magic));
@@ -5045,7 +5037,7 @@ TEST(RunTruncateFloat64ToFloat32) {
   double input = 0.0;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &actual, StoreRepForType(kMachFloat32),
+      &actual, kMachFloat32,
       m.TruncateFloat64ToFloat32(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));
   FOR_FLOAT64_INPUTS(i) {
@@ -5062,8 +5054,7 @@ TEST(RunFloat32Constant) {
     float expected = *i;
     float actual = *i;
     RawMachineAssemblerTester<int32_t> m;
-    m.StoreToPointer(&actual, StoreRepForType(kMachFloat32),
-                     m.Float32Constant(expected));
+    m.StoreToPointer(&actual, kMachFloat32, m.Float32Constant(expected));
     m.Return(m.Int32Constant(0));
     CHECK_EQ(0, m.Call());
     CHECK_EQ(expected, actual);
@@ -5100,7 +5091,7 @@ TEST(RunFloat64InsertLowWord32) {
   uint64_t result = 0;
   RawMachineAssemblerTester<int32_t> m(kMachInt32);
   m.StoreToPointer(
-      &result, StoreRepForType(kMachFloat64),
+      &result, kMachFloat64,
       m.Float64InsertLowWord32(m.LoadFromPointer(&input, kMachFloat64),
                                m.Parameter(0)));
   m.Return(m.Int32Constant(0));
@@ -5121,7 +5112,7 @@ TEST(RunFloat64InsertHighWord32) {
   uint64_t result = 0;
   RawMachineAssemblerTester<int32_t> m(kMachInt32);
   m.StoreToPointer(
-      &result, StoreRepForType(kMachFloat64),
+      &result, kMachFloat64,
       m.Float64InsertHighWord32(m.LoadFromPointer(&input, kMachFloat64),
                                 m.Parameter(0)));
   m.Return(m.Int32Constant(0));
@@ -5141,7 +5132,7 @@ TEST(RunFloat32Abs) {
   float input = -1.0;
   float result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  m.StoreToPointer(&result, StoreRepForType(kMachFloat32),
+  m.StoreToPointer(&result, kMachFloat32,
                    m.Float32Abs(m.LoadFromPointer(&input, kMachFloat32)));
   m.Return(m.Int32Constant(0));
   FOR_FLOAT32_INPUTS(i) {
@@ -5157,7 +5148,7 @@ TEST(RunFloat64Abs) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  m.StoreToPointer(&result, StoreRepForType(kMachFloat64),
+  m.StoreToPointer(&result, kMachFloat64,
                    m.Float64Abs(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));
   FOR_FLOAT64_INPUTS(i) {
@@ -5272,7 +5263,7 @@ TEST(RunFloat64RoundDown1) {
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
   if (!m.machine()->Float64RoundDown().IsSupported()) return;
-  m.StoreToPointer(&result, StoreRepForType(kMachFloat64),
+  m.StoreToPointer(&result, kMachFloat64,
                    m.Float64RoundDown(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
@@ -5289,7 +5280,7 @@ TEST(RunFloat64RoundDown2) {
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
   if (!m.machine()->Float64RoundDown().IsSupported()) return;
-  m.StoreToPointer(&result, StoreRepForType(kMachFloat64),
+  m.StoreToPointer(&result, kMachFloat64,
                    m.Float64Sub(m.Float64Constant(-0.0),
                                 m.Float64RoundDown(m.Float64Sub(
                                     m.Float64Constant(-0.0),
@@ -5310,7 +5301,7 @@ TEST(RunFloat64RoundTruncate) {
   RawMachineAssemblerTester<int32_t> m;
   if (!m.machine()->Float64RoundTruncate().IsSupported()) return;
   m.StoreToPointer(
-      &result, StoreRepForType(kMachFloat64),
+      &result, kMachFloat64,
       m.Float64RoundTruncate(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
@@ -5328,7 +5319,7 @@ TEST(RunFloat64RoundTiesAway) {
   RawMachineAssemblerTester<int32_t> m;
   if (!m.machine()->Float64RoundTiesAway().IsSupported()) return;
   m.StoreToPointer(
-      &result, StoreRepForType(kMachFloat64),
+      &result, kMachFloat64,
       m.Float64RoundTiesAway(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
@@ -5468,7 +5459,7 @@ TEST(RunBitcastInt64ToFloat64) {
   double output = 0.0;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &output, StoreRepForType(kMachFloat64),
+      &output, kMachFloat64,
       m.BitcastInt64ToFloat64(m.LoadFromPointer(&input, kMachInt64)));
   m.Return(m.Int32Constant(11));
   FOR_INT64_INPUTS(i) {
@@ -5485,7 +5476,7 @@ TEST(RunBitcastFloat64ToInt64) {
   int64_t output = 0;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &output, StoreRepForType(kMachInt64),
+      &output, kMachInt64,
       m.BitcastFloat64ToInt64(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(11));
   FOR_FLOAT64_INPUTS(i) {
@@ -5515,7 +5506,7 @@ TEST(RunBitcastInt32ToFloat32) {
   float output = 0.0;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &output, StoreRepForType(kMachFloat32),
+      &output, kMachFloat32,
       m.BitcastInt32ToFloat32(m.LoadFromPointer(&input, kMachInt32)));
   m.Return(m.Int32Constant(11));
   FOR_INT32_INPUTS(i) {

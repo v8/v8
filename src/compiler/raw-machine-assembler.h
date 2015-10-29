@@ -126,12 +126,14 @@ class RawMachineAssembler {
     return AddNode(machine()->Load(rep), base, index, graph()->start(),
                    graph()->start());
   }
-  Node* Store(StoreRepresentation rep, Node* base, Node* value) {
-    return Store(rep, base, IntPtrConstant(0), value);
+  Node* Store(MachineType rep, Node* base, Node* value,
+              WriteBarrierKind write_barrier) {
+    return Store(rep, base, IntPtrConstant(0), value, write_barrier);
   }
-  Node* Store(StoreRepresentation rep, Node* base, Node* index, Node* value) {
-    return AddNode(machine()->Store(rep), base, index, value, graph()->start(),
-                   graph()->start());
+  Node* Store(MachineType rep, Node* base, Node* index, Node* value,
+              WriteBarrierKind write_barrier) {
+    return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
+                   base, index, value, graph()->start(), graph()->start());
   }
 
   // Arithmetic Operations.
@@ -498,8 +500,8 @@ class RawMachineAssembler {
   Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return Load(rep, PointerConstant(address), Int32Constant(offset));
   }
-  Node* StoreToPointer(void* address, StoreRepresentation rep, Node* node) {
-    return Store(rep, PointerConstant(address), node);
+  Node* StoreToPointer(void* address, MachineType rep, Node* node) {
+    return Store(rep, PointerConstant(address), node, kNoWriteBarrier);
   }
   Node* StringConstant(const char* string) {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));

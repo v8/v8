@@ -36,12 +36,6 @@ inline MachineType MachineTypeForC() {
   return kMachAnyTagged;
 }
 
-template <typename T>
-inline StoreRepresentation StoreRepresentationForC(
-    WriteBarrierKind write_barrier_kind) {
-  return StoreRepresentation(MachineTypeForC<T>(), write_barrier_kind);
-}
-
 #define DECLARE_TEMPLATE_SPECIALIZATION(ctype, mtype) \
   template <>                                         \
   inline MachineType MachineTypeForC<ctype>() {       \

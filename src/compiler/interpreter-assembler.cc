@@ -125,9 +125,9 @@ Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
 
 
 Node* InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
-  return raw_assembler_->Store(
-      StoreRepresentation(kMachAnyTagged, kNoWriteBarrier),
-      RegisterFileRawPointer(), RegisterFrameOffset(reg_index), value);
+  return raw_assembler_->Store(kMachAnyTagged, RegisterFileRawPointer(),
+                               RegisterFrameOffset(reg_index), value,
+                               kNoWriteBarrier);
 }
 
 
@@ -317,9 +317,8 @@ Node* InterpreterAssembler::StoreContextSlot(Node* context, Node* slot_index,
   Node* offset =
       IntPtrAdd(WordShl(slot_index, kPointerSizeLog2),
                 Int32Constant(Context::kHeaderSize - kHeapObjectTag));
-  return raw_assembler_->Store(
-      StoreRepresentation(kMachAnyTagged, kFullWriteBarrier), context, offset,
-      value);
+  return raw_assembler_->Store(kMachAnyTagged, context, offset, value,
+                               kFullWriteBarrier);
 }
 
 
