@@ -654,7 +654,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         ExternalReference::address_of_stack_limit(masm->isolate());
     __ cmp(esp, Operand::StaticVariable(stack_limit));
     __ j(above_equal, &ok);
+    __ push(kInterpreterBytecodeArrayRegister);
     __ CallRuntime(Runtime::kStackGuard, 0);
+    __ pop(kInterpreterBytecodeArrayRegister);
     __ bind(&ok);
   }
 

@@ -942,7 +942,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     Label ok;
     __ CompareRoot(jssp, Heap::kStackLimitRootIndex);
     __ B(hs, &ok);
+    __ Push(kInterpreterBytecodeArrayRegister);
     __ CallRuntime(Runtime::kStackGuard, 0);
+    __ Pop(kInterpreterBytecodeArrayRegister);
     __ Bind(&ok);
   }
 
