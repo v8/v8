@@ -354,12 +354,16 @@ namespace internal {
   V(string_iterator_next_index_symbol)      \
   V(uninitialized_symbol)
 
-#define PUBLIC_SYMBOL_LIST(V)                               \
-  V(has_instance_symbol, Symbol.hasInstance)                \
-  V(is_regexp_symbol, Symbol.isRegExp)                      \
-  V(iterator_symbol, Symbol.iterator)                       \
-  V(to_primitive_symbol, Symbol.toPrimitive)                \
-  V(to_string_tag_symbol, Symbol.toStringTag)               \
+#define PUBLIC_SYMBOL_LIST(V)                 \
+  V(has_instance_symbol, Symbol.hasInstance)  \
+  V(is_regexp_symbol, Symbol.isRegExp)        \
+  V(iterator_symbol, Symbol.iterator)         \
+  V(match_symbol, Symbol.match)               \
+  V(replace_symbol, Symbol.replace)           \
+  V(search_symbol, Symbol.search)             \
+  V(split_symbol, Symbol.split)               \
+  V(to_primitive_symbol, Symbol.toPrimitive)  \
+  V(to_string_tag_symbol, Symbol.toStringTag) \
   V(unscopables_symbol, Symbol.unscopables)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
