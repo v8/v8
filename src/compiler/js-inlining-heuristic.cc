@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-inlining-heuristic.h"
 
+#include "src/compiler.h"
 #include "src/compiler/dead-code-elimination.h"  // TODO(mstarzinger): Remove!
 #include "src/compiler/node-matchers.h"
 #include "src/objects-inl.h"
@@ -53,6 +54,10 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   if (function->shared()->ast_node_count() > FLAG_max_inlined_nodes) {
     return NoChange();
   }
+
+  // Avoid inlining within or across the boundary of asm.js code.
+  if (info_->shared_info()->asm_function()) return NoChange();
+  if (function->shared()->asm_function()) return NoChange();
 
   // Gather feedback on how often this call site has been hit before.
   CallFunctionParameters p = CallFunctionParametersOf(node->op());

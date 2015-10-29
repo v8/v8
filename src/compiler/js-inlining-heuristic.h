@@ -21,7 +21,8 @@ class JSInliningHeuristic final : public AdvancedReducer {
         local_zone_(local_zone),
         jsgraph_(jsgraph),
         inliner_(editor, local_zone, info, jsgraph),
-        candidates_(local_zone) {}
+        candidates_(local_zone),
+        info_(info) {}
 
   Reduction Reduce(Node* node) final;
 
@@ -44,6 +45,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSGraph* jsgraph_;
   JSInliner inliner_;
   ZoneVector<Candidate> candidates_;
+  CompilationInfo* info_;
 };
 
 }  // namespace compiler
