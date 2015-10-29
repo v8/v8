@@ -2338,7 +2338,6 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       Node* pair = NewNode(op, current_context(), name);
       callee_value = NewNode(common()->Projection(0), pair);
       receiver_value = NewNode(common()->Projection(1), pair);
-
       PrepareFrameState(pair, expr->LookupId(),
                         OutputFrameStateCombine::Push(2));
       break;
@@ -2347,58 +2346,83 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       Property* property = callee->AsProperty();
       VectorSlotPair pair =
           CreateVectorSlotPair(property->PropertyFeedbackSlot());
-      if (!property->IsSuperAccess()) {
-        VisitForValue(property->obj());
-        Node* object = environment()->Top();
-
-        if (property->key()->IsPropertyName()) {
+      LhsKind property_type = Property::GetAssignType(property);
+      switch (property_type) {
+        case NAMED_PROPERTY: {
+          VisitForValue(property->obj());
           FrameStateBeforeAndAfter states(this, property->obj()->id());
           Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
+          Node* object = environment()->Top();
           callee_value = BuildNamedLoad(object, name, pair);
           states.AddToNode(callee_value, property->LoadId(),
                            OutputFrameStateCombine::Push());
-        } else {
+          // Note that a PROPERTY_CALL requires the receiver to be wrapped into
+          // an object for sloppy callees. However the receiver is guaranteed
+          // not to be null or undefined at this point.
+          receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
+          receiver_value = environment()->Pop();
+          flags = CALL_AS_METHOD;
+          break;
+        }
+        case KEYED_PROPERTY: {
+          VisitForValue(property->obj());
           VisitForValue(property->key());
           FrameStateBeforeAndAfter states(this, property->key()->id());
           Node* key = environment()->Pop();
+          Node* object = environment()->Top();
           callee_value = BuildKeyedLoad(object, key, pair);
           states.AddToNode(callee_value, property->LoadId(),
                            OutputFrameStateCombine::Push());
+          // Note that a PROPERTY_CALL requires the receiver to be wrapped into
+          // an object for sloppy callees. However the receiver is guaranteed
+          // not to be null or undefined at this point.
+          receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
+          receiver_value = environment()->Pop();
+          flags = CALL_AS_METHOD;
+          break;
         }
-        // Note that a PROPERTY_CALL requires the receiver to be wrapped into an
-        // object for sloppy callees. However the receiver is guaranteed not to
-        // be null or undefined at this point.
-        receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
-        receiver_value = environment()->Pop();
-        flags = CALL_AS_METHOD;
-
-      } else {
-        // TODO(mstarzinger): Cleanup this special handling for super access,
-        // the stack layout seems to be completely out of sync here, fix this!
-        VisitForValue(property->obj()->AsSuperPropertyReference()->this_var());
-        VisitForValue(
-            property->obj()->AsSuperPropertyReference()->home_object());
-        Node* home_object = environment()->Pop();
-        receiver_value = environment()->Pop();
-        if (property->key()->IsPropertyName()) {
-          FrameStateBeforeAndAfter states(this, property->obj()->id());
+        case NAMED_SUPER_PROPERTY: {
+          SuperPropertyReference* super_ref =
+              property->obj()->AsSuperPropertyReference();
+          VisitForValue(super_ref->home_object());
+          VisitForValue(super_ref->this_var());
+          Node* home = environment()->Peek(1);
+          Node* object = environment()->Top();
           Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-          callee_value =
-              BuildNamedSuperLoad(receiver_value, home_object, name, pair);
+          FrameStateBeforeAndAfter states(this, property->obj()->id());
+          callee_value = BuildNamedSuperLoad(object, home, name, pair);
           states.AddToNode(callee_value, property->LoadId(),
                            OutputFrameStateCombine::Push());
-
-        } else {
-          VisitForValue(property->key());
-          FrameStateBeforeAndAfter states(this, property->key()->id());
-          Node* key = environment()->Pop();
-          callee_value =
-              BuildKeyedSuperLoad(receiver_value, home_object, key, pair);
-          states.AddToNode(callee_value, property->LoadId(),
-                           OutputFrameStateCombine::Push());
+          // Note that the receiver is not the target of the property load, so
+          // it could very well be null or undefined at this point.
+          receiver_value = environment()->Pop();
+          environment()->Drop(1);
+          break;
         }
+        case KEYED_SUPER_PROPERTY: {
+          SuperPropertyReference* super_ref =
+              property->obj()->AsSuperPropertyReference();
+          VisitForValue(super_ref->home_object());
+          VisitForValue(super_ref->this_var());
+          environment()->Push(environment()->Top());    // Duplicate this_var.
+          environment()->Push(environment()->Peek(2));  // Duplicate home_obj.
+          VisitForValue(property->key());
+          Node* key = environment()->Pop();
+          Node* home = environment()->Pop();
+          Node* object = environment()->Pop();
+          FrameStateBeforeAndAfter states(this, property->key()->id());
+          callee_value = BuildKeyedSuperLoad(object, home, key, pair);
+          states.AddToNode(callee_value, property->LoadId(),
+                           OutputFrameStateCombine::Push());
+          // Note that the receiver is not the target of the property load, so
+          // it could very well be null or undefined at this point.
+          receiver_value = environment()->Pop();
+          environment()->Drop(1);
+          break;
+        }
+        case VARIABLE:
+          UNREACHABLE();
       }
-
       break;
     }
     case Call::SUPER_CALL:
