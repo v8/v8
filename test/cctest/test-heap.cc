@@ -3818,16 +3818,12 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
   Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, MONOMORPHIC);
-  CHECK(ic_before->ic_state() == DEFAULT);
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, MONOMORPHIC);
-  CHECK(ic_after->ic_state() == DEFAULT);
 }
 
 
@@ -3850,18 +3846,14 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
   Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, MONOMORPHIC);
-  CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorICCleared(f, 0);
-  CHECK(ic_after->ic_state() == DEFAULT);
 }
 
 
@@ -3891,17 +3883,13 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
   Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, POLYMORPHIC);
-  CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, POLYMORPHIC);
-  CHECK(ic_after->ic_state() == DEFAULT);
 }
 
 
@@ -3931,9 +3919,7 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, POLYMORPHIC);
-  CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
@@ -3941,7 +3927,6 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   CcTest::heap()->CollectAllGarbage();
 
   CheckVectorICCleared(f, 0);
-  CHECK(ic_before->ic_state() == DEFAULT);
 }
 
 

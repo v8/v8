@@ -975,7 +975,7 @@ class CallICStub: public PlatformCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
 
-  InlineCacheState GetICState() const override { return DEFAULT; }
+  InlineCacheState GetICState() const override { return GENERIC; }
 
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
@@ -2258,7 +2258,7 @@ class LoadICTrampolineStub : public PlatformCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
 
-  InlineCacheState GetICState() const final { return DEFAULT; }
+  InlineCacheState GetICState() const final { return GENERIC; }
 
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
@@ -2294,7 +2294,7 @@ class VectorStoreICTrampolineStub : public PlatformCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::STORE_IC; }
 
-  InlineCacheState GetICState() const final { return DEFAULT; }
+  InlineCacheState GetICState() const final { return GENERIC; }
 
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
@@ -2332,7 +2332,7 @@ class CallICTrampolineStub : public PlatformCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
 
-  InlineCacheState GetICState() const final { return DEFAULT; }
+  InlineCacheState GetICState() const final { return GENERIC; }
 
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
@@ -2358,7 +2358,7 @@ class LoadICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-  InlineCacheState GetICState() const final { return DEFAULT; }
+  InlineCacheState GetICState() const final { return GENERIC; }
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2381,7 +2381,7 @@ class KeyedLoadICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-  InlineCacheState GetICState() const final { return DEFAULT; }
+  InlineCacheState GetICState() const final { return GENERIC; }
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2404,7 +2404,7 @@ class VectorStoreICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const final { return Code::STORE_IC; }
-  InlineCacheState GetICState() const final { return DEFAULT; }
+  InlineCacheState GetICState() const final { return GENERIC; }
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2427,7 +2427,7 @@ class VectorKeyedStoreICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const final { return Code::KEYED_STORE_IC; }
-  InlineCacheState GetICState() const final { return DEFAULT; }
+  InlineCacheState GetICState() const final { return GENERIC; }
   virtual ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }

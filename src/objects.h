@@ -4855,9 +4855,9 @@ class Code: public HeapObject {
     NUMBER_OF_KINDS
   };
 
-  // No more than 16 kinds. The value is currently encoded in four bits in
+  // No more than 32 kinds. The value is currently encoded in five bits in
   // Flags.
-  STATIC_ASSERT(NUMBER_OF_KINDS <= 16);
+  STATIC_ASSERT(NUMBER_OF_KINDS <= 32);
 
   static const char* Kind2String(Kind kind);
 
@@ -5284,10 +5284,10 @@ class Code: public HeapObject {
   class ProfilerTicksField : public BitField<int, 4, 28> {};
 
   // Flags layout.  BitField<type, shift, size>.
-  class ICStateField : public BitField<InlineCacheState, 0, 4> {};
-  class TypeField : public BitField<StubType, 4, 1> {};
-  class CacheHolderField : public BitField<CacheHolderFlag, 5, 2> {};
-  class KindField : public BitField<Kind, 7, 4> {};
+  class ICStateField : public BitField<InlineCacheState, 0, 3> {};
+  class TypeField : public BitField<StubType, 3, 1> {};
+  class CacheHolderField : public BitField<CacheHolderFlag, 4, 2> {};
+  class KindField : public BitField<Kind, 6, 5> {};
   class ExtraICStateField: public BitField<ExtraICState, 11,
       PlatformSmiTagging::kSmiValueSize - 11 + 1> {};  // NOLINT
 

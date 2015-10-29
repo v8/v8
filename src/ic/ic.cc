@@ -47,9 +47,6 @@ char IC::TransitionMarkFromState(IC::State state) {
     // these cases fall through to the unreachable code below.
     case DEBUG_STUB:
       break;
-    // Type-vector-based ICs resolve state to one of the above.
-    case DEFAULT:
-      break;
   }
   UNREACHABLE();
   return 0;
@@ -388,7 +385,6 @@ static void ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state,
       break;
     case PROTOTYPE_FAILURE:
     case DEBUG_STUB:
-    case DEFAULT:
       UNREACHABLE();
   }
 }
@@ -918,7 +914,6 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
       break;
     case DEBUG_STUB:
       break;
-    case DEFAULT:
     case GENERIC:
       UNREACHABLE();
       break;
