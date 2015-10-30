@@ -480,33 +480,43 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::PopContext(Register context) {
 }
 
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
-  if (LastBytecodeInSameBlock()) {
-    // If the previous bytecode puts a boolean in the accumulator
-    // there is no need to emit an instruction.
-    switch (Bytecodes::FromByte(bytecodes()->at(last_bytecode_start_))) {
-      case Bytecode::kToBoolean:
-        UNREACHABLE();
-      case Bytecode::kLdaTrue:
-      case Bytecode::kLdaFalse:
-      case Bytecode::kLogicalNot:
-      case Bytecode::kTestEqual:
-      case Bytecode::kTestNotEqual:
-      case Bytecode::kTestEqualStrict:
-      case Bytecode::kTestNotEqualStrict:
-      case Bytecode::kTestLessThan:
-      case Bytecode::kTestLessThanOrEqual:
-      case Bytecode::kTestGreaterThan:
-      case Bytecode::kTestGreaterThanOrEqual:
-      case Bytecode::kTestInstanceOf:
-      case Bytecode::kTestIn:
-        return *this;
-      default:
-        // Fall through to output kToBoolean.
-        break;
-    }
+bool BytecodeArrayBuilder::NeedToBooleanCast() {
+  if (!LastBytecodeInSameBlock()) {
+    // If the previous bytecode was from a different block return false.
+    return true;
   }
-  Output(Bytecode::kToBoolean);
+
+  // If the previous bytecode puts a boolean in the accumulator return true.
+  switch (Bytecodes::FromByte(bytecodes()->at(last_bytecode_start_))) {
+    case Bytecode::kToBoolean:
+      UNREACHABLE();
+    case Bytecode::kLdaTrue:
+    case Bytecode::kLdaFalse:
+    case Bytecode::kLogicalNot:
+    case Bytecode::kTestEqual:
+    case Bytecode::kTestNotEqual:
+    case Bytecode::kTestEqualStrict:
+    case Bytecode::kTestNotEqualStrict:
+    case Bytecode::kTestLessThan:
+    case Bytecode::kTestLessThanOrEqual:
+    case Bytecode::kTestGreaterThan:
+    case Bytecode::kTestGreaterThanOrEqual:
+    case Bytecode::kTestInstanceOf:
+    case Bytecode::kTestIn:
+    case Bytecode::kForInDone:
+      return false;
+    default:
+      return true;
+  }
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
+  // If the previous bytecode puts a boolean in the accumulator
+  // there is no need to emit an instruction.
+  if (NeedToBooleanCast()) {
+    Output(Bytecode::kToBoolean);
+  }
   return *this;
 }
 
@@ -613,8 +623,32 @@ void BytecodeArrayBuilder::PatchJump(
 }
 
 
+// static
+Bytecode BytecodeArrayBuilder::GetJumpWithToBoolean(Bytecode jump_bytecode) {
+  switch (jump_bytecode) {
+    case Bytecode::kJump:
+    case Bytecode::kJumpIfNull:
+    case Bytecode::kJumpIfUndefined:
+      return jump_bytecode;
+    case Bytecode::kJumpIfTrue:
+      return Bytecode::kJumpIfToBooleanTrue;
+    case Bytecode::kJumpIfFalse:
+      return Bytecode::kJumpIfToBooleanFalse;
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<Bytecode>(-1);
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
                                                        BytecodeLabel* label) {
+  // Check if the value in accumulator is boolean, if not choose an
+  // appropriate JumpIfToBoolean bytecode.
+  if (NeedToBooleanCast()) {
+    jump_bytecode = GetJumpWithToBoolean(jump_bytecode);
+  }
+
   int delta;
   if (label->is_bound()) {
     // Label has been bound already so this is a backwards jump.
@@ -656,18 +690,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfTrue(BytecodeLabel* label) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfFalse(BytecodeLabel* label) {
   return OutputJump(Bytecode::kJumpIfFalse, label);
-}
-
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfToBooleanTrue(
-    BytecodeLabel* label) {
-  return OutputJump(Bytecode::kJumpIfToBooleanTrue, label);
-}
-
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfToBooleanFalse(
-    BytecodeLabel* label) {
-  return OutputJump(Bytecode::kJumpIfToBooleanFalse, label);
 }
 
 

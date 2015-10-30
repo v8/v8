@@ -415,6 +415,18 @@ TEST(LogicalExpressions) {
         B(LdaSmi8), U8(3),              //
         B(Return)},
        0},
+      {"var x = 0; return (x == 1) || 3;",
+       1 * kPointerSize,
+       1,
+       12,
+       {B(LdaZero),            //
+        B(Star), R(0),         //
+        B(LdaSmi8), U8(1),     //
+        B(TestEqual), R(0),    //
+        B(JumpIfTrue), U8(4),  //
+        B(LdaSmi8), U8(3),     //
+        B(Return)},
+       0},
       {"var x = 0; return x && 3;",
        1 * kPointerSize,
        1,
@@ -424,6 +436,18 @@ TEST(LogicalExpressions) {
         B(Ldar), R(0),                   //
         B(JumpIfToBooleanFalse), U8(4),  //
         B(LdaSmi8), U8(3),               //
+        B(Return)},
+       0},
+      {"var x = 0; return (x == 0) && 3;",
+       1 * kPointerSize,
+       1,
+       11,
+       {B(LdaZero),             //
+        B(Star), R(0),          //
+        B(LdaZero),             //
+        B(TestEqual), R(0),     //
+        B(JumpIfFalse), U8(4),  //
+        B(LdaSmi8), U8(3),      //
         B(Return)},
        0},
       {"var x = 0; return x || (1, 2, 3);",
@@ -498,6 +522,54 @@ TEST(LogicalExpressions) {
           B(Star), R(2)),                        //
         B(LdaSmi8), U8(3),                       //
         B(Return)},                              //
+       1,
+       {260, 0, 0, 0}},
+      {"var x = 1; var a = 2, b = 3; return (x > 3) || ("
+        REPEAT_32(SPACE, "a = 1, b = 2, ")
+       "3);",
+       3 * kPointerSize,
+       1,
+       277,
+       {B(LdaSmi8), U8(1),             //
+        B(Star), R(0),                 //
+        B(LdaSmi8), U8(2),             //
+        B(Star), R(1),                 //
+        B(LdaSmi8), U8(3),             //
+        B(Star), R(2),                 //
+        B(LdaSmi8), U8(3),             //
+        B(TestGreaterThan), R(0),      //
+        B(JumpIfTrueConstant), U8(0),  //
+        REPEAT_32(COMMA,               //
+          B(LdaSmi8), U8(1),           //
+          B(Star), R(1),               //
+          B(LdaSmi8), U8(2),           //
+          B(Star), R(2)),              //
+        B(LdaSmi8), U8(3),             //
+        B(Return)},
+       1,
+       {260, 0, 0, 0}},
+      {"var x = 0; var a = 2, b = 3; return (x < 5) && ("
+        REPEAT_32(SPACE, "a = 1, b = 2, ")
+       "3);",
+       3 * kPointerSize,
+       1,
+       276,
+       {B(LdaZero),                     //
+        B(Star), R(0),                  //
+        B(LdaSmi8), U8(2),              //
+        B(Star), R(1),                  //
+        B(LdaSmi8), U8(3),              //
+        B(Star), R(2),                  //
+        B(LdaSmi8), U8(5),              //
+        B(TestLessThan), R(0),          //
+        B(JumpIfFalseConstant), U8(0),  //
+        REPEAT_32(COMMA,                //
+          B(LdaSmi8), U8(1),            //
+          B(Star), R(1),                //
+          B(LdaSmi8), U8(2),            //
+          B(Star), R(2)),               //
+        B(LdaSmi8), U8(3),              //
+        B(Return)},
        1,
        {260, 0, 0, 0}},
       {"return 0 && 3;",
@@ -1533,33 +1605,31 @@ TEST(IfConditions) {
       {"function f() { if (0) { return 1; } else { return -1; } } f()",
        0,
        1,
-       14,
-       {B(LdaZero),             //
-        B(ToBoolean),           //
-        B(JumpIfFalse), U8(7),  //
-        B(LdaSmi8), U8(1),      //
-        B(Return),              //
-        B(Jump), U8(5),         //
-        B(LdaSmi8), U8(-1),     //
-        B(Return),              //
-        B(LdaUndefined),        //
-        B(Return)},             //
+       13,
+       {B(LdaZero),                      //
+        B(JumpIfToBooleanFalse), U8(7),  //
+        B(LdaSmi8), U8(1),               //
+        B(Return),                       //
+        B(Jump), U8(5),                  //
+        B(LdaSmi8), U8(-1),              //
+        B(Return),                       //
+        B(LdaUndefined),                 //
+        B(Return)},                      //
        0,
        {unused, unused, unused, unused, unused, unused}},
       {"function f() { if ('lucky') { return 1; } else { return -1; } } f();",
        0,
        1,
-       15,
-       {B(LdaConstant), U8(0),  //
-        B(ToBoolean),           //
-        B(JumpIfFalse), U8(7),  //
-        B(LdaSmi8), U8(1),      //
-        B(Return),              //
-        B(Jump), U8(5),         //
-        B(LdaSmi8), U8(-1),     //
-        B(Return),              //
-        B(LdaUndefined),        //
-        B(Return)},             //
+       14,
+       {B(LdaConstant), U8(0),           //
+        B(JumpIfToBooleanFalse), U8(7),  //
+        B(LdaSmi8), U8(1),               //
+        B(Return),                       //
+        B(Jump), U8(5),                  //
+        B(LdaSmi8), U8(-1),              //
+        B(Return),                       //
+        B(LdaUndefined),                 //
+        B(Return)},                      //
        1,
        {helper.factory()->NewStringFromStaticChars("lucky"), unused, unused,
         unused, unused, unused}},
@@ -1643,6 +1713,36 @@ TEST(IfConditions) {
         helper.factory()->NewNumberFromInt(200),
         helper.factory()->NewNumberFromInt(263),
         helper.factory()->NewNumberFromInt(-200), unused, unused}},
+      {"function f() { var a = 0; var b = 0; if (a) { "
+       REPEAT_32(SPACE, "b = a; a = b; ")
+       " return 200; } else { return -200; } } f()",
+       2 * kPointerSize,
+       1,
+       276,
+       {
+           B(LdaZero),                              //
+           B(Star), R(0),                           //
+           B(LdaZero),                              //
+           B(Star), R(1),                           //
+           B(Ldar), R(0),                           //
+           B(JumpIfToBooleanFalseConstant), U8(1),  //
+           REPEAT_32(COMMA,                         //
+             B(Ldar), R(0),                         //
+             B(Star), R(1),                         //
+             B(Ldar), R(1),                         //
+             B(Star), R(0)),                        //
+           B(LdaConstant), U8(0),                   //
+           B(Return),                               //
+           B(Jump), U8(5),                          //
+           B(LdaConstant), U8(2),                   //
+           B(Return),                               //
+           B(LdaUndefined),                         //
+           B(Return)},                              //
+       3,
+       {helper.factory()->NewNumberFromInt(200),
+        helper.factory()->NewNumberFromInt(263),
+        helper.factory()->NewNumberFromInt(-200), unused, unused, unused}},
+
       {"function f(a, b) {\n"
        "  if (a == b) { return 1; }\n"
        "  if (a === b) { return 1; }\n"
@@ -2012,7 +2112,88 @@ TEST(BasicLoops) {
            B(Return),               //
        },
        0},
-  };
+      {"var x = 10;"
+       "var y = 1;"
+       "while (x) {"
+       "  y = y * 12;"
+       "  x = x - 1;"
+       "}"
+       "return y;",
+       2 * kPointerSize,
+       1,
+       29,
+       {
+           B(LdaSmi8), U8(10),               //
+           B(Star), R(0),                    //
+           B(LdaSmi8), U8(1),                //
+           B(Star), R(1),                    //
+           B(Jump), U8(14),                  //
+           B(LdaSmi8), U8(12),               //
+           B(Mul), R(1),                     //
+           B(Star), R(1),                    //
+           B(LdaSmi8), U8(1),                //
+           B(Sub), R(0),                     //
+           B(Star), R(0),                    //
+           B(Ldar), R(0),                    //
+           B(JumpIfToBooleanTrue), U8(-14),  //
+           B(Ldar), R(1),                    //
+           B(Return),                        //
+        },
+        0},
+       {"var x = 10;"
+        "var y = 1;"
+        "do {"
+        "  y = y * 12;"
+        "  x = x - 1;"
+        "} while(x);"
+        "return y;",
+        2 * kPointerSize,
+        1,
+        27,
+        {
+           B(LdaSmi8), U8(10),               //
+           B(Star), R(0),                    //
+           B(LdaSmi8), U8(1),                //
+           B(Star), R(1),                    //
+           B(LdaSmi8), U8(12),               //
+           B(Mul), R(1),                     //
+           B(Star), R(1),                    //
+           B(LdaSmi8), U8(1),                //
+           B(Sub), R(0),                     //
+           B(Star), R(0),                    //
+           B(Ldar), R(0),                    //
+           B(JumpIfToBooleanTrue), U8(-14),  //
+           B(Ldar), R(1),                    //
+           B(Return),                        //
+        },
+        0},
+       {"var y = 1;"
+        "for (var x = 10; x; --x) {"
+        "  y = y * 12;"
+        "}"
+        "return y;",
+        2 * kPointerSize,
+        1,
+        29,
+        {
+           B(LdaSmi8), U8(1),                //
+           B(Star), R(0),                    //
+           B(LdaSmi8), U8(10),               //
+           B(Star), R(1),                    //
+           B(Jump), U8(14),                  //
+           B(LdaSmi8), U8(12),               //
+           B(Mul), R(0),                     //
+           B(Star), R(0),                    //
+           B(Ldar), R(1),                    //
+           B(ToNumber),                      //
+           B(Dec),                           //
+           B(Star), R(1),                    //
+           B(Ldar), R(1),                    //
+           B(JumpIfToBooleanTrue), U8(-14),  //
+           B(Ldar), R(0),                    //
+           B(Return),                        //
+         },
+         0}};
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
@@ -3113,15 +3294,14 @@ TEST(Throw) {
       {"if ('test') { throw 'Error'; };",
        0,
        1,
-       10,
+       9,
        {
-           B(LdaConstant), U8(0),  //
-           B(ToBoolean),           //
-           B(JumpIfFalse), U8(5),  //
-           B(LdaConstant), U8(1),  //
-           B(Throw),               //
-           B(LdaUndefined),        //
-           B(Return),              //
+           B(LdaConstant), U8(0),           //
+           B(JumpIfToBooleanFalse), U8(5),  //
+           B(LdaConstant), U8(1),           //
+           B(Throw),                        //
+           B(LdaUndefined),                 //
+           B(Return),                       //
        },
        2,
        {"test", "Error"}},
@@ -4309,33 +4489,30 @@ TEST(Conditional) {
       {"return 1 ? 2 : 3;",
        0,
        1,
-       12,
+       11,
        {
-           B(LdaSmi8), U8(1),      //
-           B(ToBoolean),           //
-           B(JumpIfFalse), U8(6),  //
-           B(LdaSmi8), U8(2),      //
-           B(Jump), U8(4),         //
-           B(LdaSmi8), U8(3),      //
-           B(Return),              //
+           B(LdaSmi8), U8(1),               //
+           B(JumpIfToBooleanFalse), U8(6),  //
+           B(LdaSmi8), U8(2),               //
+           B(Jump), U8(4),                  //
+           B(LdaSmi8), U8(3),               //
+           B(Return),                       //
        }},
       {"return 1 ? 2 ? 3 : 4 : 5;",
        0,
        1,
-       21,
+       19,
        {
-           B(LdaSmi8), U8(1),       //
-           B(ToBoolean),            //
-           B(JumpIfFalse), U8(15),  //
-           B(LdaSmi8), U8(2),       //
-           B(ToBoolean),            //
-           B(JumpIfFalse), U8(6),   //
-           B(LdaSmi8), U8(3),       //
-           B(Jump), U8(4),          //
-           B(LdaSmi8), U8(4),       //
-           B(Jump), U8(4),          //
-           B(LdaSmi8), U8(5),       //
-           B(Return),               //
+           B(LdaSmi8), U8(1),                //
+           B(JumpIfToBooleanFalse), U8(14),  //
+           B(LdaSmi8), U8(2),                //
+           B(JumpIfToBooleanFalse), U8(6),   //
+           B(LdaSmi8), U8(3),                //
+           B(Jump), U8(4),                   //
+           B(LdaSmi8), U8(4),                //
+           B(Jump), U8(4),                   //
+           B(LdaSmi8), U8(5),                //
+           B(Return),                        //
        }},
   };
 

@@ -183,11 +183,6 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& JumpIfFalse(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
-  // TODO(mythria) The following two functions should be merged into
-  // JumpIfTrue/False. These bytecodes should be automatically chosen rather
-  // than explicitly using them.
-  BytecodeArrayBuilder& JumpIfToBooleanTrue(BytecodeLabel* label);
-  BytecodeArrayBuilder& JumpIfToBooleanFalse(BytecodeLabel* label);
 
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& Return();
@@ -228,6 +223,7 @@ class BytecodeArrayBuilder {
   static bool FitsInIdx16Operand(size_t value);
 
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_with_smi8_operand);
+  static Bytecode GetJumpWithToBoolean(Bytecode jump);
 
   template <size_t N>
   INLINE(void Output(Bytecode bytecode, uint32_t(&oprands)[N]));
@@ -247,6 +243,8 @@ class BytecodeArrayBuilder {
   bool OperandIsValid(Bytecode bytecode, int operand_index,
                       uint32_t operand_value) const;
   bool LastBytecodeInSameBlock() const;
+
+  bool NeedToBooleanCast();
 
   int BorrowTemporaryRegister();
   void ReturnTemporaryRegister(int reg_index);

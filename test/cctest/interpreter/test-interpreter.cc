@@ -2027,7 +2027,9 @@ TEST(InterpreterLogicalOr) {
                      factory->NewStringFromStaticChars("0")),
       std::make_pair("return 0 || 3.2;\n", factory->NewNumber(3.2)),
       std::make_pair("return 'a' || 0;\n",
-                     factory->NewStringFromStaticChars("a"))};
+                     factory->NewStringFromStaticChars("a")),
+      std::make_pair("var a = '0', b = 10; return (a == 0) || b;\n",
+                     factory->true_value())};
 
   for (size_t i = 0; i < arraysize(literals); i++) {
     std::string source(InterpreterTester::SourceForBody(literals[i].first));
@@ -2052,14 +2054,15 @@ TEST(InterpreterLogicalAnd) {
                      handle(Smi::FromInt(0), isolate)),
       std::make_pair("var a = '0', b = 10; return a && b;\n",
                      handle(Smi::FromInt(10), isolate)),
-      std::make_pair("return 0.0 && 3.2;\n",
-                     handle(Smi::FromInt(0), isolate)),
+      std::make_pair("return 0.0 && 3.2;\n", handle(Smi::FromInt(0), isolate)),
       std::make_pair("return 'a' && 'b';\n",
                      factory->NewStringFromStaticChars("b")),
       std::make_pair("return 'a' && 0 || 'b', 'c';\n",
                      factory->NewStringFromStaticChars("c")),
       std::make_pair("var x = 1, y = 3; return x && 0 + 1 || y;\n",
-                     handle(Smi::FromInt(1), isolate))};
+                     handle(Smi::FromInt(1), isolate)),
+      std::make_pair("var x = 1, y = 3; return (x == 1) && (3 == 3) || y;\n",
+                     factory->true_value())};
 
   for (size_t i = 0; i < arraysize(literals); i++) {
     std::string source(InterpreterTester::SourceForBody(literals[i].first));
@@ -2525,6 +2528,64 @@ TEST(InterpreterGlobalDelete) {
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*test_global_delete[i].second));
+  }
+}
+
+
+TEST(InterpreterBasicLoops) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> loops[] = {
+      std::make_pair("var a = 10; var b = 1;\n"
+                     "while (a) {\n"
+                     "  b = b * 2;\n"
+                     "  a = a - 1;\n"
+                     "};\n"
+                     "return b;\n",
+                     factory->NewHeapNumber(1024)),
+      std::make_pair("var a = 1; var b = 1;\n"
+                     "do {\n"
+                     "  b = b * 2;\n"
+                     "  --a;\n"
+                     "} while(a);\n"
+                     "return b;\n",
+                     handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var b = 1;\n"
+                     "for ( var a = 10; a; a--) {\n"
+                     "  b *= 2;\n"
+                     "}\n"
+                     "return b;",
+                     factory->NewHeapNumber(1024)),
+      std::make_pair("var a = 10; var b = 1;\n"
+                     "while (a > 0) {\n"
+                     "  b = b * 2;\n"
+                     "  a = a - 1;\n"
+                     "};\n"
+                     "return b;\n",
+                     factory->NewHeapNumber(1024)),
+      std::make_pair("var a = 1; var b = 1;\n"
+                     "do {\n"
+                     "  b = b * 2;\n"
+                     "  --a;\n"
+                     "} while(a);\n"
+                     "return b;\n",
+                     handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var b = 1;\n"
+                     "for ( var a = 10; a > 0; a--) {\n"
+                     "  b *= 2;\n"
+                     "}\n"
+                     "return b;",
+                     factory->NewHeapNumber(1024))};
+
+  for (size_t i = 0; i < arraysize(loops); i++) {
+    std::string source(InterpreterTester::SourceForBody(loops[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*loops[i].second));
   }
 }
 

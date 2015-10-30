@@ -526,7 +526,6 @@ void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
   BytecodeLabel else_label, end_label;
 
   VisitForAccumulatorValue(stmt->condition());
-  builder()->CastAccumulatorToBoolean();
   builder()->JumpIfFalse(&else_label);
   Visit(stmt->then_statement());
   if (stmt->HasElseStatement()) {
@@ -869,7 +868,6 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) {
   BytecodeLabel else_label, end_label;
 
   VisitForAccumulatorValue(expr->condition());
-  builder()->CastAccumulatorToBoolean();
   builder()->JumpIfFalse(&else_label);
 
   VisitForAccumulatorValue(expr->then_expression());
@@ -1869,7 +1867,7 @@ void BytecodeGenerator::VisitLogicalOrExpression(BinaryOperation* binop) {
   } else {
     BytecodeLabel end_label;
     VisitForAccumulatorValue(left);
-    builder()->JumpIfToBooleanTrue(&end_label);
+    builder()->JumpIfTrue(&end_label);
     VisitForAccumulatorValue(right);
     builder()->Bind(&end_label);
   }
@@ -1888,7 +1886,7 @@ void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
   } else {
     BytecodeLabel end_label;
     VisitForAccumulatorValue(left);
-    builder()->JumpIfToBooleanFalse(&end_label);
+    builder()->JumpIfFalse(&end_label);
     VisitForAccumulatorValue(right);
     builder()->Bind(&end_label);
   }
