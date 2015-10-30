@@ -25,5 +25,31 @@
         ],
       },
     }],
+    ['tsan==1', {
+      'variables': {
+        'files': [
+          '../tools/sanitizers/tsan_suppressions.txt',
+        ],
+      },
+    }],
+    ['OS=="linux" and (asan==1 or cfi_vptr==1 or msan==1 or tsan==1)', {
+      'variables': {
+        'files': [
+          # For llvm-symbolizer.
+          '../third_party/llvm-build/Release+Asserts/lib/libstdc++.so.6',
+        ],
+      },
+    }],
+    ['asan==1 or cfi_vptr==1 or msan==1 or tsan==1', {
+      'variables': {
+        'files': [
+          '../third_party/llvm-build/Release+Asserts/bin/llvm-symbolizer<(EXECUTABLE_SUFFIX)',
+        ],
+      },
+    }],
+    # Workaround for https://code.google.com/p/swarming/issues/detail?id=211
+    ['asan==0 or cfi_vptr==0 or msan==0 or tsan==0', {
+      'variables': {},
+    }],
   ],
 }

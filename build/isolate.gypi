@@ -68,6 +68,10 @@
         '--path-variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
 
         '--config-variable', 'OS=<(OS)',
+        '--config-variable', 'asan=<(asan)',
+        '--config-variable', 'cfi_vptr=<(cfi_vptr)',
+        '--config-variable', 'msan=<(msan)',
+        '--config-variable', 'tsan=<(tsan)',
         '--config-variable', 'component=<(component)',
         '--config-variable', 'target_arch=<(target_arch)',
         '--config-variable', 'use_custom_libcxx=<(use_custom_libcxx)',
