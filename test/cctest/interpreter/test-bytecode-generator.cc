@@ -4341,6 +4341,270 @@ TEST(Conditional) {
   }
 }
 
+
+TEST(Switch) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<int> snippets[] = {
+      {"var a = 1;\n"
+       "switch(a) {\n"
+       " case 1: return 2;\n"
+       " case 2: return 3;\n"
+       "}\n",
+       2 * kPointerSize,
+       1,
+       30,
+       {
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(1),             // The tag variable is allocated as a
+           B(Ldar), R(1),             // local by the parser, hence this
+           B(Star), R(0),             // strange shuffling.
+           B(LdaSmi8), U8(1),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(10),     //
+           B(LdaSmi8), U8(2),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(7),      //
+           B(Jump), U8(8),            //
+           B(LdaSmi8), U8(2),         //
+           B(Return),                 //
+           B(LdaSmi8), U8(3),         //
+           B(Return),                 //
+           B(LdaUndefined),           //
+           B(Return),                 //
+       }},
+      {"var a = 1;\n"
+       "switch(a) {\n"
+       " case 1: a = 2; break;\n"
+       " case 2: a = 3; break;\n"
+       "}\n",
+       2 * kPointerSize,
+       1,
+       36,
+       {
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(1),             //
+           B(Ldar), R(1),             //
+           B(Star), R(0),             //
+           B(LdaSmi8), U8(1),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(10),     //
+           B(LdaSmi8), U8(2),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(10),     //
+           B(Jump), U8(14),           //
+           B(LdaSmi8), U8(2),         //
+           B(Star), R(1),             //
+           B(Jump), U8(8),            //
+           B(LdaSmi8), U8(3),         //
+           B(Star), R(1),             //
+           B(Jump), U8(2),            //
+           B(LdaUndefined),           //
+           B(Return),                 //
+       }},
+      {"var a = 1;\n"
+       "switch(a) {\n"
+       " case 1: a = 2; // fall-through\n"
+       " case 2: a = 3; break;\n"
+       "}\n",
+       2 * kPointerSize,
+       1,
+       34,
+       {
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(1),             //
+           B(Ldar), R(1),             //
+           B(Star), R(0),             //
+           B(LdaSmi8), U8(1),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(10),     //
+           B(LdaSmi8), U8(2),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(8),      //
+           B(Jump), U8(12),           //
+           B(LdaSmi8), U8(2),         //
+           B(Star), R(1),             //
+           B(LdaSmi8), U8(3),         //
+           B(Star), R(1),             //
+           B(Jump), U8(2),            //
+           B(LdaUndefined),           //
+           B(Return),                 //
+       }},
+      {"var a = 1;\n"
+       "switch(a) {\n"
+       " case 2: break;\n"
+       " case 3: break;\n"
+       " default: a = 1; break;\n"
+       "}\n",
+       2 * kPointerSize,
+       1,
+       34,
+       {
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(1),             //
+           B(Ldar), R(1),             //
+           B(Star), R(0),             //
+           B(LdaSmi8), U8(2),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(10),     //
+           B(LdaSmi8), U8(3),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(6),      //
+           B(Jump), U8(6),            //
+           B(Jump), U8(10),           //
+           B(Jump), U8(8),            //
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(1),             //
+           B(Jump), U8(2),            //
+           B(LdaUndefined),           //
+           B(Return),                 //
+       }},
+      {"var a = 1;\n"
+       "switch(typeof(a)) {\n"
+       " case 2: a = 1; break;\n"
+       " case 3: a = 2; break;\n"
+       " default: a = 3; break;\n"
+       "}\n",
+       2 * kPointerSize,
+       1,
+       43,
+       {
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(1),             //
+           B(Ldar), R(1),             //
+           B(TypeOf),                 //
+           B(Star), R(0),             //
+           B(LdaSmi8), U8(2),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(10),     //
+           B(LdaSmi8), U8(3),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(10),     //
+           B(Jump), U8(14),           //
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(1),             //
+           B(Jump), U8(14),           //
+           B(LdaSmi8), U8(2),         //
+           B(Star), R(1),             //
+           B(Jump), U8(8),            //
+           B(LdaSmi8), U8(3),         //
+           B(Star), R(1),             //
+           B(Jump), U8(2),            //
+           B(LdaUndefined),           //
+           B(Return),                 //
+       }},
+      {"var a = 1;\n"
+       "switch(a) {\n"
+       " case typeof(a): a = 1; break;\n"
+       " default: a = 2; break;\n"
+       "}\n",
+       2 * kPointerSize,
+       1,
+       31,
+       {
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(1),             //
+           B(Ldar), R(1),             //
+           B(Star), R(0),             //
+           B(Ldar), R(1),             //
+           B(TypeOf),                 //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(4),      //
+           B(Jump), U8(8),            //
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(1),             //
+           B(Jump), U8(8),            //
+           B(LdaSmi8), U8(2),         //
+           B(Star), R(1),             //
+           B(Jump), U8(2),            //
+           B(LdaUndefined),           //
+           B(Return),                 //
+       }},
+      {"var a = 1;\n"
+       "switch(a) {\n"
+       " case 1:\n" REPEAT_64(SPACE, "  a = 2;")
+       "break;\n"
+       " case 2: a = 3; break;"
+       "}\n",
+       2 * kPointerSize,
+       1,
+       288,
+       {
+           B(LdaSmi8), U8(1),             //
+           B(Star), R(1),                 //
+           B(Ldar), R(1),                 //
+           B(Star), R(0),                 //
+           B(LdaSmi8), U8(1),             //
+           B(TestEqualStrict), R(0),      //
+           B(JumpIfTrue), U8(10),         //
+           B(LdaSmi8), U8(2),             //
+           B(TestEqualStrict), R(0),      //
+           B(JumpIfTrueConstant), U8(0),  //
+           B(JumpConstant), U8(1),        //
+           REPEAT_64(COMMA,               //
+              B(LdaSmi8), U8(2),          //
+              B(Star), R(1)),             //
+           B(Jump), U8(8),                //
+           B(LdaSmi8), U8(3),             //
+           B(Star), R(1),                 //
+           B(Jump), U8(2),                //
+           B(LdaUndefined),               //
+           B(Return),                     //
+       },
+       2,
+       {262, 266}},
+      {"var a = 1;\n"
+       "switch(a) {\n"
+       " case 1: \n"
+       "   switch(a + 1) {\n"
+       "      case 2 : a = 1; break;\n"
+       "      default : a = 2; break;\n"
+       "   }  // fall-through\n"
+       " case 2: a = 3;\n"
+       "}\n",
+       3 * kPointerSize,
+       1,
+       54,
+       {
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(2),             //
+           B(Ldar), R(2),             //
+           B(Star), R(0),             //
+           B(LdaSmi8), U8(1),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(10),     //
+           B(LdaSmi8), U8(2),         //
+           B(TestEqualStrict), R(0),  //
+           B(JumpIfTrue), U8(30),     //
+           B(Jump), U8(32),           //
+           B(LdaSmi8), U8(1),         //
+           B(Add), R(2),              //
+           B(Star), R(1),             //
+           B(LdaSmi8), U8(2),         //
+           B(TestEqualStrict), R(1),  //
+           B(JumpIfTrue), U8(4),      //
+           B(Jump), U8(8),            //
+           B(LdaSmi8), U8(1),         //
+           B(Star), R(2),             //
+           B(Jump), U8(8),            //
+           B(LdaSmi8), U8(2),         //
+           B(Star), R(2),             //
+           B(Jump), U8(2),            //
+           B(LdaSmi8), U8(3),         //
+           B(Star), R(2),             //
+           B(LdaUndefined),           //
+           B(Return),                 //
+       }},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

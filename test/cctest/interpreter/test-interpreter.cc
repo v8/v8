@@ -1718,7 +1718,7 @@ TEST(InterpreterRegExpLiterals) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  std::pair<const char*, Handle<Object>> literals[5] = {
+  std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("return /abd/.exec('cccabbdd');\n",
                      factory->null_value()),
       std::make_pair("return /ab+d/.exec('cccabbdd')[0];\n",
@@ -1747,7 +1747,7 @@ TEST(InterpreterArrayLiterals) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  std::pair<const char*, Handle<Object>> literals[6] = {
+  std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("return [][0];\n",
                      factory->undefined_value()),
       std::make_pair("return [1, 3, 2][1];\n",
@@ -1778,7 +1778,7 @@ TEST(InterpreterObjectLiterals) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  std::pair<const char*, Handle<Object>> literals[14] = {
+  std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("return { }.name;",
                      factory->undefined_value()),
       std::make_pair("return { name: 'string', val: 9.2 }.name;",
@@ -1889,7 +1889,7 @@ TEST(InterpreterContextVariables) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
 
-  std::pair<const char*, Handle<Object>> context_vars[5] = {
+  std::pair<const char*, Handle<Object>> context_vars[] = {
       std::make_pair("var a; (function() { a = 1; })(); return a;",
                      handle(Smi::FromInt(1), isolate)),
       std::make_pair("var a = 10; (function() { a; })(); return a;",
@@ -1921,7 +1921,7 @@ TEST(InterpreterContextParameters) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
 
-  std::pair<const char*, Handle<Object>> context_params[3] = {
+  std::pair<const char*, Handle<Object>> context_params[] = {
       std::make_pair("return (function() { return arg1; })();",
                      handle(Smi::FromInt(1), isolate)),
       std::make_pair("(function() { arg1 = 4; })(); return arg1;",
@@ -1950,7 +1950,7 @@ TEST(InterpreterOuterContextVariables) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
 
-  std::pair<const char*, Handle<Object>> context_vars[2] = {
+  std::pair<const char*, Handle<Object>> context_vars[] = {
       std::make_pair("return outerVar * innerArg;",
                      handle(Smi::FromInt(200), isolate)),
       std::make_pair("outerVar = innerArg; return outerVar",
@@ -1984,7 +1984,7 @@ TEST(InterpreterComma) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  std::pair<const char*, Handle<Object>> literals[6] = {
+  std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("var a; return 0, a;\n", factory->undefined_value()),
       std::make_pair("return 'a', 2.2, 3;\n",
                      handle(Smi::FromInt(3), isolate)),
@@ -2012,7 +2012,7 @@ TEST(InterpreterLogicalOr) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  std::pair<const char*, Handle<Object>> literals[5] = {
+  std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("var a, b; return a || b;\n", factory->undefined_value()),
       std::make_pair("var a, b = 10; return a || b;\n",
                      handle(Smi::FromInt(10), isolate)),
@@ -2038,7 +2038,7 @@ TEST(InterpreterLogicalAnd) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  std::pair<const char*, Handle<Object>> literals[7] = {
+  std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("var a, b = 10; return a && b;\n",
                      factory->undefined_value()),
       std::make_pair("var a = 0, b = 10; return a && b / a;\n",
@@ -2099,7 +2099,7 @@ TEST(InterpreterThrow) {
   i::Factory* factory = isolate->factory();
 
   // TODO(rmcilroy): modify tests when we have real try catch support.
-  std::pair<const char*, Handle<Object>> throws[6] = {
+  std::pair<const char*, Handle<Object>> throws[] = {
       std::make_pair("throw undefined;\n",
                      factory->undefined_value()),
       std::make_pair("throw 1;\n",
@@ -2132,7 +2132,7 @@ TEST(InterpreterCountOperators) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  std::pair<const char*, Handle<Object>> count_ops[16] = {
+  std::pair<const char*, Handle<Object>> count_ops[] = {
       std::make_pair("var a = 1; return ++a;",
                      handle(Smi::FromInt(2), isolate)),
       std::make_pair("var a = 1; return a++;",
@@ -2182,7 +2182,7 @@ TEST(InterpreterGlobalCountOperators) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
 
-  std::pair<const char*, Handle<Object>> count_ops[6] = {
+  std::pair<const char*, Handle<Object>> count_ops[] = {
       std::make_pair("var global = 100;function f(){ return ++global; }",
                      handle(Smi::FromInt(101), isolate)),
       std::make_pair("var global = 100; function f(){ return --global; }",
@@ -2212,7 +2212,7 @@ TEST(InterpreterCompoundExpressions) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  std::pair<const char*, Handle<Object>> compound_expr[5] = {
+  std::pair<const char*, Handle<Object>> compound_expr[] = {
       std::make_pair("var a = 1; a += 2; return a;",
                      Handle<Object>(Smi::FromInt(3), isolate)),
       std::make_pair("var a = 10; a /= 2; return a;",
@@ -2266,7 +2266,7 @@ TEST(InterpreterCreateArguments) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  std::pair<const char*, int> create_args[9] = {
+  std::pair<const char*, int> create_args[] = {
       std::make_pair("function f() { return arguments[0]; }", 0),
       std::make_pair("function f(a) { return arguments[0]; }", 0),
       std::make_pair("function f() { return arguments[2]; }", 2),
@@ -2330,7 +2330,7 @@ TEST(InterpreterConditional) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
 
-  std::pair<const char*, Handle<Object>> conditional[8] = {
+  std::pair<const char*, Handle<Object>> conditional[] = {
       std::make_pair("return true ? 2 : 3;",
                      handle(Smi::FromInt(2), isolate)),
       std::make_pair("return false ? 2 : 3;",
@@ -2709,6 +2709,86 @@ TEST(InterpreterForIn) {
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
     CHECK_EQ(Handle<Smi>::cast(return_val)->value(), for_in_samples[i].second);
+  }
+}
+
+
+TEST(InterpreterSwitch) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> switch_ops[] = {
+      std::make_pair("var a = 1;\n"
+                     "switch(a) {\n"
+                     " case 1: return 2;\n"
+                     " case 2: return 3;\n"
+                     "}\n",
+                     handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var a = 1;\n"
+                     "switch(a) {\n"
+                     " case 2: a = 2; break;\n"
+                     " case 1: a = 3; break;\n"
+                     "}\n"
+                     "return a;",
+                     handle(Smi::FromInt(3), isolate)),
+      std::make_pair("var a = 1;\n"
+                     "switch(a) {\n"
+                     " case 1: a = 2; // fall-through\n"
+                     " case 2: a = 3; break;\n"
+                     "}\n"
+                     "return a;",
+                     handle(Smi::FromInt(3), isolate)),
+      std::make_pair("var a = 100;\n"
+                     "switch(a) {\n"
+                     " case 1: return 100;\n"
+                     " case 2: return 200;\n"
+                     "}\n"
+                     "return undefined;",
+                     factory->undefined_value()),
+      std::make_pair("var a = 100;\n"
+                     "switch(a) {\n"
+                     " case 1: return 100;\n"
+                     " case 2: return 200;\n"
+                     " default: return 300;\n"
+                     "}\n"
+                     "return undefined;",
+                     handle(Smi::FromInt(300), isolate)),
+      std::make_pair("var a = 100;\n"
+                     "switch(typeof(a)) {\n"
+                     " case 'string': return 1;\n"
+                     " case 'number': return 2;\n"
+                     " default: return 3;\n"
+                     "}\n",
+                     handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var a = 100;\n"
+                     "switch(a) {\n"
+                     " case a += 20: return 1;\n"
+                     " case a -= 10: return 2;\n"
+                     " case a -= 10: return 3;\n"
+                     " default: return 3;\n"
+                     "}\n",
+                     handle(Smi::FromInt(3), isolate)),
+      std::make_pair("var a = 1;\n"
+                     "switch(a) {\n"
+                     " case 1: \n"
+                     "   switch(a + 1) {\n"
+                     "      case 2 : a += 1; break;\n"
+                     "      default : a += 2; break;\n"
+                     "   }  // fall-through\n"
+                     " case 2: a += 3;\n"
+                     "}\n"
+                     "return a;",
+                     handle(Smi::FromInt(5), isolate)),
+  };
+
+  for (size_t i = 0; i < arraysize(switch_ops); i++) {
+    std::string source(InterpreterTester::SourceForBody(switch_ops[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*switch_ops[i].second));
   }
 }
 

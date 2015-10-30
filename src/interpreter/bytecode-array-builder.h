@@ -288,6 +288,8 @@ class BytecodeLabel final {
  public:
   BytecodeLabel() : bound_(false), offset_(kInvalidOffset) {}
 
+  INLINE(bool is_bound() const) { return bound_; }
+
  private:
   static const size_t kInvalidOffset = static_cast<size_t>(-1);
 
@@ -301,7 +303,6 @@ class BytecodeLabel final {
     offset_ = offset;
   }
   INLINE(size_t offset() const) { return offset_; }
-  INLINE(bool is_bound() const) { return bound_; }
   INLINE(bool is_forward_target() const) {
     return offset() != kInvalidOffset && !is_bound();
   }

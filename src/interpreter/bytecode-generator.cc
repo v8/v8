@@ -136,6 +136,36 @@ class BytecodeGenerator::ControlScopeForIteration
 };
 
 
+// Scoped class for enabling 'break' in switch statements.
+class BytecodeGenerator::ControlScopeForSwitch
+    : public BytecodeGenerator::ControlScope {
+ public:
+  ControlScopeForSwitch(BytecodeGenerator* generator,
+                        SwitchStatement* statement,
+                        SwitchBuilder* switch_builder)
+      : ControlScope(generator),
+        statement_(statement),
+        switch_builder_(switch_builder) {}
+
+ protected:
+  virtual bool Execute(Command command, Statement* statement) {
+    if (statement != statement_) return false;
+    switch (command) {
+      case CMD_BREAK:
+        switch_builder_->Break();
+        return true;
+      case CMD_CONTINUE:
+        break;
+    }
+    return false;
+  }
+
+ private:
+  Statement* statement_;
+  SwitchBuilder* switch_builder_;
+};
+
+
 void BytecodeGenerator::ControlScope::PerformCommand(Command command,
                                                      Statement* statement) {
   ControlScope* current = this;
@@ -539,11 +569,57 @@ void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
 
 
 void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
-  UNIMPLEMENTED();
+  ZoneList<CaseClause*>* clauses = stmt->cases();
+  SwitchBuilder switch_builder(builder(), clauses->length());
+  ControlScopeForSwitch scope(this, stmt, &switch_builder);
+  int default_index = -1;
+
+  // Keep the switch value in a register until a case matches.
+  Register tag = VisitForRegisterValue(stmt->tag());
+
+  // Iterate over all cases and create nodes for label comparison.
+  BytecodeLabel done_label;
+  for (int i = 0; i < clauses->length(); i++) {
+    CaseClause* clause = clauses->at(i);
+
+    // The default is not a test, remember index.
+    if (clause->is_default()) {
+      default_index = i;
+      continue;
+    }
+
+    // Perform label comparison as if via '===' with tag.
+    VisitForAccumulatorValue(clause->label());
+    builder()->CompareOperation(Token::Value::EQ_STRICT, tag,
+                                language_mode_strength());
+    switch_builder.Case(i);
+  }
+
+  if (default_index >= 0) {
+    // Emit default jump if there is a default case.
+    switch_builder.DefaultAt(default_index);
+  } else {
+    // Otherwise if we have reached here none of the cases matched, so jump to
+    // done.
+    builder()->Jump(&done_label);
+  }
+
+  // Iterate over all cases and create the case bodies.
+  for (int i = 0; i < clauses->length(); i++) {
+    CaseClause* clause = clauses->at(i);
+    switch_builder.SetCaseTarget(i);
+    VisitStatements(clause->statements());
+  }
+  builder()->Bind(&done_label);
+
+  switch_builder.SetBreakTarget(done_label);
 }
 
 
-void BytecodeGenerator::VisitCaseClause(CaseClause* clause) { UNIMPLEMENTED(); }
+void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
+  // Handled entirely in VisitSwitchStatement.
+  UNREACHABLE();
+}
 
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {

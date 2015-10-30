@@ -9,10 +9,66 @@ namespace internal {
 namespace interpreter {
 
 
-LoopBuilder::~LoopBuilder() {
-  DCHECK(continue_sites_.empty());
+BreakableControlFlowBuilder::~BreakableControlFlowBuilder() {
   DCHECK(break_sites_.empty());
 }
+
+
+void BreakableControlFlowBuilder::SetBreakTarget(const BytecodeLabel& target) {
+  BindLabels(target, &break_sites_);
+}
+
+
+void BreakableControlFlowBuilder::EmitJump(ZoneVector<BytecodeLabel>* sites) {
+  sites->push_back(BytecodeLabel());
+  builder()->Jump(&sites->back());
+}
+
+
+void BreakableControlFlowBuilder::EmitJumpIfTrue(
+    ZoneVector<BytecodeLabel>* sites) {
+  sites->push_back(BytecodeLabel());
+  builder()->JumpIfTrue(&sites->back());
+}
+
+
+void BreakableControlFlowBuilder::EmitJumpIfUndefined(
+    ZoneVector<BytecodeLabel>* sites) {
+  sites->push_back(BytecodeLabel());
+  builder()->JumpIfUndefined(&sites->back());
+}
+
+
+void BreakableControlFlowBuilder::EmitJumpIfNull(
+    ZoneVector<BytecodeLabel>* sites) {
+  sites->push_back(BytecodeLabel());
+  builder()->JumpIfNull(&sites->back());
+}
+
+
+void BreakableControlFlowBuilder::EmitJump(ZoneVector<BytecodeLabel>* sites,
+                                           int index) {
+  builder()->Jump(&sites->at(index));
+}
+
+
+void BreakableControlFlowBuilder::EmitJumpIfTrue(
+    ZoneVector<BytecodeLabel>* sites, int index) {
+  builder()->JumpIfTrue(&sites->at(index));
+}
+
+
+void BreakableControlFlowBuilder::BindLabels(const BytecodeLabel& target,
+                                             ZoneVector<BytecodeLabel>* sites) {
+  for (size_t i = 0; i < sites->size(); i++) {
+    BytecodeLabel& site = sites->at(i);
+    builder()->Bind(target, &site);
+  }
+  sites->clear();
+}
+
+
+LoopBuilder::~LoopBuilder() { DCHECK(continue_sites_.empty()); }
 
 
 void LoopBuilder::SetContinueTarget(const BytecodeLabel& target) {
@@ -20,42 +76,18 @@ void LoopBuilder::SetContinueTarget(const BytecodeLabel& target) {
 }
 
 
-void LoopBuilder::SetBreakTarget(const BytecodeLabel& target) {
-  BindLabels(target, &break_sites_);
-}
-
-
-void LoopBuilder::EmitJump(ZoneVector<BytecodeLabel>* sites) {
-  sites->push_back(BytecodeLabel());
-  builder()->Jump(&sites->back());
-}
-
-
-void LoopBuilder::EmitJumpIfTrue(ZoneVector<BytecodeLabel>* sites) {
-  sites->push_back(BytecodeLabel());
-  builder()->JumpIfTrue(&sites->back());
-}
-
-
-void LoopBuilder::EmitJumpIfUndefined(ZoneVector<BytecodeLabel>* sites) {
-  sites->push_back(BytecodeLabel());
-  builder()->JumpIfUndefined(&sites->back());
-}
-
-
-void LoopBuilder::EmitJumpIfNull(ZoneVector<BytecodeLabel>* sites) {
-  sites->push_back(BytecodeLabel());
-  builder()->JumpIfNull(&sites->back());
-}
-
-
-void LoopBuilder::BindLabels(const BytecodeLabel& target,
-                             ZoneVector<BytecodeLabel>* sites) {
-  for (size_t i = 0; i < sites->size(); i++) {
-    BytecodeLabel& site = sites->at(i);
-    builder()->Bind(target, &site);
+SwitchBuilder::~SwitchBuilder() {
+#ifdef DEBUG
+  for (auto site : case_sites_) {
+    DCHECK(site.is_bound());
   }
-  sites->clear();
+#endif
+}
+
+
+void SwitchBuilder::SetCaseTarget(int index) {
+  BytecodeLabel& site = case_sites_.at(index);
+  builder()->Bind(&site);
 }
 
 }  // namespace interpreter
