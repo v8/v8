@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(rmcilroy): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "src/execution.h"
@@ -126,8 +129,12 @@ class InterpreterTester {
     Handle<JSFunction> function;
     if (source_) {
       CompileRun(source_);
+      v8::Local<v8::Context> context =
+          v8::Isolate::GetCurrent()->GetCurrentContext();
       Local<Function> api_function =
-          Local<Function>::Cast(CcTest::global()->Get(v8_str(kFunctionName)));
+          Local<Function>::Cast(CcTest::global()
+                                    ->Get(context, v8_str(kFunctionName))
+                                    .ToLocalChecked());
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     } else {
       int arg_count = sizeof...(A);
@@ -137,7 +144,7 @@ class InterpreterTester {
       }
       source += "){})";
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(CompileRun(source.c_str()))));
+          *v8::Local<v8::Function>::Cast(CompileRun(source.c_str()))));
       function->ReplaceCode(
           *isolate_->builtins()->InterpreterEntryTrampoline());
     }

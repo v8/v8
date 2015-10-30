@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(rmcilroy): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "src/compiler.h"
@@ -47,8 +50,10 @@ class BytecodeGeneratorHelper {
   Handle<BytecodeArray> MakeBytecode(const char* script,
                                      const char* function_name) {
     CompileRun(script);
-    Local<Function> function =
-        Local<Function>::Cast(CcTest::global()->Get(v8_str(function_name)));
+    v8::Local<v8::Context> context =
+        v8::Isolate::GetCurrent()->GetCurrentContext();
+    Local<Function> function = Local<Function>::Cast(
+        CcTest::global()->Get(context, v8_str(function_name)).ToLocalChecked());
     i::Handle<i::JSFunction> js_function =
         i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
     return handle(js_function->shared()->bytecode_array(), CcTest::i_isolate());
