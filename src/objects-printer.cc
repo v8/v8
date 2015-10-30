@@ -33,7 +33,7 @@ void Object::Print(std::ostream& os) {  // NOLINT
 
 
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
-  os << "" << reinterpret_cast<void*>(this) << ": [" << id << "]\n";
+  os << reinterpret_cast<void*>(this) << ": [" << id << "]\n";
 }
 
 
@@ -117,8 +117,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       JSBuiltinsObject::cast(this)->JSBuiltinsObjectPrint(os);
       break;
     case JS_VALUE_TYPE:
-      os << "Value wrapper around:";
-      JSValue::cast(this)->value()->Print(os);
+      JSValue::cast(this)->JSValuePrint(os);
       break;
     case JS_DATE_TYPE:
       JSDate::cast(this)->JSDatePrint(os);
@@ -388,19 +387,30 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 }
 
 
-void JSObject::JSObjectPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "JSObject");
+static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
+                                const char* id) {  // NOLINT
+  obj->PrintHeader(os, id);
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  PrototypeIterator iter(GetIsolate(), this);
-  os << " - map = " << reinterpret_cast<void*>(map()) << " ["
-     << ElementsKindToString(this->map()->elements_kind())
-     << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent())
-     << "\n {\n";
-  PrintProperties(os);
-  PrintTransitions(os);
-  PrintElements(os);
+  PrototypeIterator iter(obj->GetIsolate(), obj);
+  os << " - map = " << reinterpret_cast<void*>(obj->map()) << " ["
+     << ElementsKindToString(obj->map()->elements_kind())
+     << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent());
+}
+
+
+static void JSObjectPrintBody(std::ostream& os, JSObject* obj) {  // NOLINT
+  os << "\n {\n";
+  obj->PrintProperties(os);
+  obj->PrintTransitions(os);
+  obj->PrintElements(os);
   os << " }\n";
+}
+
+
+void JSObject::JSObjectPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSObject");
+  JSObjectPrintBody(os, this);
 }
 
 
@@ -461,6 +471,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (is_access_check_needed()) os << " - access_check_needed\n";
   if (!is_extensible()) os << " - non-extensible\n";
   if (is_observed()) os << " - observed\n";
+  if (is_strong()) os << " - strong_map\n";
   if (is_prototype_map()) {
     os << " - prototype_map\n";
     os << " - prototype info: " << Brief(prototype_info());
@@ -634,20 +645,21 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
 
 
 void JSValue::JSValuePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "ValueObject");
-  value()->Print(os);
+  JSObjectPrintHeader(os, this, "JSValue");
+  os << "\n - value = " << Brief(value());
+  JSObjectPrintBody(os, this);
 }
 
 
 void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "JSMessageObject");
-  os << " - type: " << type();
+  JSObjectPrintHeader(os, this, "JSMessageObject");
+  os << "\n - type: " << type();
   os << "\n - arguments: " << Brief(argument());
   os << "\n - start_position: " << start_position();
   os << "\n - end_position: " << end_position();
   os << "\n - script: " << Brief(script());
   os << "\n - stack_frames: " << Brief(stack_frames());
-  os << "\n";
+  JSObjectPrintBody(os, this);
 }
 
 
