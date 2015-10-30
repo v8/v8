@@ -1652,6 +1652,35 @@ BUILTIN(ReflectPreventExtensions) {
 }
 
 
+// ES6 section 26.1.13 Reflect.set
+BUILTIN(ReflectSet) {
+  HandleScope scope(isolate);
+  Handle<Object> undef = isolate->factory()->undefined_value();
+  Handle<Object> target = args.length() > 1 ? args.at<Object>(1) : undef;
+  Handle<Object> key = args.length() > 2 ? args.at<Object>(2) : undef;
+  Handle<Object> value = args.length() > 3 ? args.at<Object>(3) : undef;
+  Handle<Object> receiver = args.length() > 4 ? args.at<Object>(4) : target;
+
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Reflect.set")));
+  }
+
+  Handle<Name> name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
+                                     Object::ToName(isolate, key));
+
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, receiver, name, Handle<JSReceiver>::cast(target));
+  Maybe<bool> result = Object::SetSuperProperty(
+      &it, value, SLOPPY, Object::MAY_BE_STORE_FROM_KEYED);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
+}
+
+
 // ES6 section 26.1.14 Reflect.setPrototypeOf
 BUILTIN(ReflectSetPrototypeOf) {
   HandleScope scope(isolate);

@@ -52,11 +52,16 @@ function prepare(target) {
   target[4] = 42;
   target[sym] = "foo";
   target["noconf"] = 43;
-  Object.defineProperty(target, "noconf", {configurable: false});
+  Object.defineProperty(target, "noconf",
+      { configurable: false });
+  Object.defineProperty(target, "nowrite",
+      { writable: false, configurable: true, value: 44 });
   Object.defineProperty(target, "getter",
-    { get: function () {return this.bla}, configurable: true });
+      { get: function () {return this.bla}, configurable: true });
   Object.defineProperty(target, "setter",
-    { set: function () {}, configurable: true });
+      { set: function (x) {this.gaga = x}, configurable: true });
+  Object.defineProperty(target, "setter2",
+      { set: function (x) {}, configurable: true });
 }
 
 
@@ -124,6 +129,142 @@ function prepare(target) {
     assertEquals(true, Reflect.get(target, "foo", target));
     assertEquals(false, Reflect.get(target, "foo", receiver));
     target.__proto__ = proto;
+  }
+})();
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Reflect.set
+
+
+(function testReflectSetArity() {
+  assertEquals(3, Reflect.set.length);
+})();
+
+
+(function testReflectSetOnNonObject() {
+  assertThrows(function() { Reflect.set(); }, TypeError);
+  assertThrows(function() { Reflect.set(42, "bla"); }, TypeError);
+  assertThrows(function() { Reflect.set(null, "bla"); }, TypeError);
+})();
+
+
+(function testReflectSetKeyConversion() {
+  var target = {};
+  var a = { [Symbol.toPrimitive]: function() { return "bla" } };
+  var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
+  assertTrue(Reflect.set(target, a, 42));
+  assertEquals(42, target.bla);
+  assertThrows(function() { Reflect.set(target, b, 42); }, "gaga");
+})();
+
+
+(function testReflectSetOnObject() {
+  var receiver = {bla: false};
+  var value = 34234;
+  for (let target of objects) {
+    prepare(target);
+    assertTrue(Reflect.set(target, "bla", value));
+    assertEquals(value, target.bla);
+
+    prepare(target);
+    assertTrue(Reflect.set(target, "bla", value, target));
+    assertEquals(value, target.bla);
+
+    prepare(target);
+    assertTrue(Reflect.set(target, "bla", value, receiver));
+    assertEquals(true, target.bla);
+    assertEquals(value, receiver.bla);
+    receiver.bla = false;
+
+    prepare(target);
+    assertTrue(Reflect.set(target, 4, value));
+    assertEquals(value, target[4]);
+
+    prepare(target);
+    assertTrue(Reflect.set(target, 4, value, target));
+    assertEquals(value, target[4]);
+
+    prepare(target);
+    assertTrue(Reflect.set(target, 4, value, receiver));
+    assertEquals(42, target[4]);
+    assertEquals(value, receiver[4]);
+    delete receiver[4];
+
+    prepare(target);
+    assertTrue(Reflect.set(target, sym, value));
+    assertEquals(value, target[sym]);
+
+    prepare(target);
+    assertTrue(Reflect.set(target, sym, value, target));
+    assertEquals(value, target[sym]);
+
+    prepare(target);
+    assertTrue(Reflect.set(target, sym, value, receiver));
+    assertEquals("foo", target[sym]);
+    assertEquals(value, receiver[sym]);
+    delete receiver[sym];
+
+    prepare(target);
+    assertTrue(Reflect.set(target, "noconf", value));
+    assertEquals(value, target.noconf);
+
+    prepare(target);
+    assertTrue(Reflect.set(target, "noconf", value, target));
+    assertEquals(value, target.noconf);
+
+    prepare(target);
+    assertTrue(Reflect.set(target, "noconf", value, receiver));
+    assertEquals(43, target.noconf);
+    assertEquals(value, receiver.noconf);
+    delete receiver.noconf;
+
+    assertTrue(Reflect.set(target, "setter", value));
+    assertEquals(value, target.gaga)
+    delete target.gaga;
+
+    assertTrue(Reflect.set(target, "setter", value, target));
+    assertEquals(value, target.gaga)
+    delete target.gaga;
+
+    assertTrue(Reflect.set(target, "setter", value, receiver));
+    assertFalse("gaga" in target);
+    assertEquals(value, receiver.gaga);
+    delete receiver.gaga;
+
+    assertFalse(Reflect.set(target, "nowrite", value));
+    assertEquals(44, target.nowrite);
+
+    assertFalse(Reflect.set(target, "nowrite", value, target));
+    assertEquals(44, target.nowrite);
+
+    assertFalse(Reflect.set(target, "nowrite", value, receiver));
+    assertEquals(44, target.nowrite);
+    assertFalse("nowrite" in receiver);
+
+    // Data vs Non-Writable
+    // TODO(neis): This must return false but currently doesn't.
+    // assertFalse(Reflect.set({}, "nowrite", value, target));
+
+    // Data vs Accessor
+    // TODO(neis): These must return false but currently don't.
+    // assertFalse(Reflect.set(target, "unknown", value, {set bla(x) {}}));
+    // assertFalse(Reflect.set(target, "unknown", value, {get bla() {}}));
+    // assertFalse(Reflect.set(target, "bla", value, {set bla(x) {}}));
+    // assertFalse(Reflect.set(target, "bla", value, {get bla() {}}));
+
+    // Accessor vs Data
+    assertTrue(Reflect.set({set bla(x) {}}), "bla", value, target);
+    assertFalse(Reflect.set({get bla() {}}, "bla", value, target));
+
+    // Data vs Non-Object
+    assertFalse(Reflect.set({}, "bla", value, null));
+    assertFalse(Reflect.set({bla: 42}, "bla", value, null));
+
+    // Accessor vs Non-Object
+    assertTrue(Reflect.set(target, "setter2", value, null));
+    assertFalse(Reflect.set(target, "getter", value, null));
   }
 })();
 
