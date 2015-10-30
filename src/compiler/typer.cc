@@ -557,6 +557,13 @@ Type* Typer::Visitor::TypeEffectSet(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeGuard(Node* node) {
+  Type* input_type = Operand(node, 0);
+  Type* guard_type = OpParameter<Type*>(node);
+  return Type::Intersect(input_type, guard_type, zone());
+}
+
+
 Type* Typer::Visitor::TypeBeginRegion(Node* node) {
   UNREACHABLE();
   return nullptr;
@@ -1783,6 +1790,15 @@ Type* Typer::Visitor::TypeStoreBuffer(Node* node) {
 Type* Typer::Visitor::TypeStoreElement(Node* node) {
   UNREACHABLE();
   return nullptr;
+}
+
+
+Type* Typer::Visitor::TypeObjectIsNumber(Node* node) {
+  Type* arg = Operand(node, 0);
+  if (arg->Is(Type::None())) return Type::None();
+  if (arg->Is(Type::Number())) return typer_->singleton_true_;
+  if (!arg->Maybe(Type::Number())) return typer_->singleton_false_;
+  return Type::Boolean();
 }
 
 

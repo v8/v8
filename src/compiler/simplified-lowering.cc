@@ -921,18 +921,16 @@ class RepresentationSelector {
         if (lower()) lowering->DoStoreElement(node);
         break;
       }
+      case IrOpcode::kObjectIsNumber: {
+        ProcessInput(node, 0, kMachAnyTagged);
+        SetOutput(node, kRepBit | kTypeBool);
+        if (lower()) lowering->DoObjectIsNumber(node);
+        break;
+      }
       case IrOpcode::kObjectIsSmi: {
         ProcessInput(node, 0, kMachAnyTagged);
         SetOutput(node, kRepBit | kTypeBool);
-        if (lower()) {
-          Node* is_tagged = jsgraph_->graph()->NewNode(
-              jsgraph_->machine()->WordAnd(), node->InputAt(0),
-              jsgraph_->IntPtrConstant(kSmiTagMask));
-          Node* is_smi = jsgraph_->graph()->NewNode(
-              jsgraph_->machine()->WordEqual(), is_tagged,
-              jsgraph_->IntPtrConstant(kSmiTag));
-          DeferReplacement(node, is_smi);
-        }
+        if (lower()) lowering->DoObjectIsSmi(node);
         break;
       }
 
@@ -1344,6 +1342,42 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
                 access.machine_type,
                 ComputeWriteBarrierKind(access.base_is_tagged,
                                         access.machine_type, type))));
+}
+
+
+void SimplifiedLowering::DoObjectIsNumber(Node* node) {
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  // TODO(bmeurer): Optimize somewhat based on input type.
+  Node* check =
+      graph()->NewNode(machine()->WordEqual(),
+                       graph()->NewNode(machine()->WordAnd(), input,
+                                        jsgraph()->IntPtrConstant(kSmiTagMask)),
+                       jsgraph()->IntPtrConstant(kSmiTag));
+  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = jsgraph()->Int32Constant(1);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = graph()->NewNode(
+      machine()->WordEqual(),
+      graph()->NewNode(
+          machine()->Load(kMachAnyTagged), input,
+          jsgraph()->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag),
+          graph()->start(), if_false),
+      jsgraph()->HeapConstant(isolate()->factory()->heap_number_map()));
+  Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  node->ReplaceInput(0, vtrue);
+  node->AppendInput(graph()->zone(), vfalse);
+  node->AppendInput(graph()->zone(), control);
+  NodeProperties::ChangeOp(node, common()->Phi(kMachBool, 2));
+}
+
+
+void SimplifiedLowering::DoObjectIsSmi(Node* node) {
+  node->ReplaceInput(0,
+                     graph()->NewNode(machine()->WordAnd(), node->InputAt(0),
+                                      jsgraph()->IntPtrConstant(kSmiTagMask)));
+  node->AppendInput(graph()->zone(), jsgraph()->IntPtrConstant(kSmiTag));
+  NodeProperties::ChangeOp(node, machine()->WordEqual());
 }
 
 

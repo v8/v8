@@ -408,10 +408,6 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
         if (field_representation.IsSmi()) {
           field_type = type_cache_.kSmi;
         } else if (field_representation.IsDouble()) {
-          if (access_mode == kStore) {
-            // TODO(bmeurer): Add support for storing to double fields.
-            return false;
-          }
           field_type = type_cache_.kFloat64;
         } else if (field_representation.IsHeapObject()) {
           // Extract the field type from the property details (make sure its
@@ -681,32 +677,44 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
       FieldAccess field_access = {kTaggedBase, field_index.offset(), name,
                                   field_type, kMachAnyTagged};
-      if (access_mode == kLoad) {
-        if (field_type->Is(Type::UntaggedFloat64())) {
-          if (!field_index.is_inobject() || field_index.is_hidden_field() ||
-              !FLAG_unbox_double_fields) {
-            this_storage = this_effect =
-                graph()->NewNode(simplified()->LoadField(field_access),
-                                 this_storage, this_effect, this_control);
-            field_access.offset = HeapNumber::kValueOffset;
-            field_access.name = MaybeHandle<Name>();
-          }
-          field_access.machine_type = kMachFloat64;
+      if (field_type->Is(Type::UntaggedFloat64())) {
+        if (!field_index.is_inobject() || field_index.is_hidden_field() ||
+            !FLAG_unbox_double_fields) {
+          this_storage = this_effect =
+              graph()->NewNode(simplified()->LoadField(field_access),
+                               this_storage, this_effect, this_control);
+          field_access.offset = HeapNumber::kValueOffset;
+          field_access.name = MaybeHandle<Name>();
         }
+        field_access.machine_type = kMachFloat64;
+      }
+      if (access_mode == kLoad) {
         this_value = this_effect =
             graph()->NewNode(simplified()->LoadField(field_access),
                              this_storage, this_effect, this_control);
       } else {
         DCHECK_EQ(kStore, access_mode);
-        if (field_type->Is(Type::TaggedSigned())) {
-          Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+        if (field_type->Is(Type::UntaggedFloat64())) {
+          Node* check =
+              graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                          check, this_control);
+          exit_controls.push_back(
+              graph()->NewNode(common()->IfFalse(), branch));
+          this_control = graph()->NewNode(common()->IfTrue(), branch);
+          this_value = graph()->NewNode(common()->Guard(Type::Number()),
+                                        this_value, this_control);
+        } else if (field_type->Is(Type::TaggedSigned())) {
+          Node* check =
+              graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
           Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                           check, this_control);
           exit_controls.push_back(
               graph()->NewNode(common()->IfFalse(), branch));
           this_control = graph()->NewNode(common()->IfTrue(), branch);
         } else if (field_type->Is(Type::TaggedPointer())) {
-          Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+          Node* check =
+              graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
           Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                           check, this_control);
           exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
@@ -714,14 +722,14 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           if (field_type->NumClasses() > 0) {
             // Emit a (sequence of) map checks for the value.
             ZoneVector<Node*> this_controls(zone());
-            Node* value_map = this_effect = graph()->NewNode(
-                simplified()->LoadField(AccessBuilder::ForMap()), value,
+            Node* this_value_map = this_effect = graph()->NewNode(
+                simplified()->LoadField(AccessBuilder::ForMap()), this_value,
                 this_effect, this_control);
             for (auto i = field_type->Classes(); !i.Done(); i.Advance()) {
               Handle<Map> field_map(i.Current());
               check = graph()->NewNode(
-                  simplified()->ReferenceEqual(Type::Internal()), value_map,
-                  jsgraph()->Constant(field_map));
+                  simplified()->ReferenceEqual(Type::Internal()),
+                  this_value_map, jsgraph()->Constant(field_map));
               branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                         check, this_control);
               this_control = graph()->NewNode(common()->IfFalse(), branch);

@@ -556,6 +556,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsReference(node), VisitIfException(node);
     case IrOpcode::kFinishRegion:
       return MarkAsReference(node), VisitFinishRegion(node);
+    case IrOpcode::kGuard:
+      return MarkAsReference(node), VisitGuard(node);
     case IrOpcode::kParameter: {
       MachineType type =
           linkage()->GetParameterType(ParameterIndexOf(node->op()));
@@ -935,6 +937,13 @@ void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
 
 
 void InstructionSelector::VisitFinishRegion(Node* node) {
+  OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+}
+
+
+void InstructionSelector::VisitGuard(Node* node) {
   OperandGenerator g(this);
   Node* value = node->InputAt(0);
   Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));

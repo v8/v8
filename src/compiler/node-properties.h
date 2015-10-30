@@ -122,6 +122,7 @@ class NodeProperties final {
     DCHECK(IsTyped(node));
     return node->type();
   }
+  static Type* GetTypeOrAny(Node* node);
   static void SetType(Node* node, Type* type) {
     DCHECK_NOT_NULL(type);
     node->set_type(type);

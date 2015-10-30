@@ -413,6 +413,9 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_LT(1, effect_count);
       break;
     }
+    case IrOpcode::kGuard:
+      // TODO(bmeurer): what are the constraints on these?
+      break;
     case IrOpcode::kBeginRegion:
       // TODO(rossberg): what are the constraints on these?
       break;
@@ -686,6 +689,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::Boolean());
       break;
     }
+    case IrOpcode::kObjectIsNumber:
     case IrOpcode::kObjectIsSmi:
       CheckValueInputIs(node, 0, Type::Any());
       CheckUpperIs(node, Type::Boolean());

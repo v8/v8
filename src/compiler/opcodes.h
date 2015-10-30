@@ -44,6 +44,7 @@
   V(Phi)                 \
   V(EffectSet)           \
   V(EffectPhi)           \
+  V(Guard)               \
   V(BeginRegion)         \
   V(FinishRegion)        \
   V(FrameState)          \
@@ -197,6 +198,7 @@
   V(StoreField)                    \
   V(StoreBuffer)                   \
   V(StoreElement)                  \
+  V(ObjectIsNumber)                \
   V(ObjectIsSmi)
 
 // Opcodes for Machine-level operators.

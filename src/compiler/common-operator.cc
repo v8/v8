@@ -671,6 +671,15 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
 }
 
 
+const Operator* CommonOperatorBuilder::Guard(Type* type) {
+  return new (zone()) Operator1<Type*>(      // --
+      IrOpcode::kGuard, Operator::kKontrol,  // opcode
+      "Guard",                               // name
+      1, 0, 1, 1, 0, 0,                      // counts
+      type);                                 // parameter
+}
+
+
 const Operator* CommonOperatorBuilder::EffectSet(int arguments) {
   DCHECK(arguments > 1);                      // Disallow empty/singleton sets.
   return new (zone()) Operator(               // --

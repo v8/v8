@@ -7,6 +7,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/verifier.h"
+#include "src/types-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -279,6 +280,12 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
     DCHECK_NOT_NULL(projections[index]);
   }
 #endif
+}
+
+
+// static
+Type* NodeProperties::GetTypeOrAny(Node* node) {
+  return IsTyped(node) ? node->type() : Type::Any();
 }
 
 
