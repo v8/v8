@@ -144,8 +144,6 @@ for (var i = 1; i <= 9; i++) {
   assertEquals("", RegExp['$' + (i)], "$" + i);
 }
 
-RegExp.multiline = "foo";
-assertTrue(typeof RegExp.multiline == typeof Boolean(), "RegExp.multiline coerces values to booleans");
 RegExp.input = Number();
 assertTrue(typeof RegExp.input == typeof String(), "RegExp.input coerces values to booleans");
 
