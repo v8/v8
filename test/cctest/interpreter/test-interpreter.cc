@@ -155,19 +155,6 @@ class InterpreterTester {
   DISALLOW_COPY_AND_ASSIGN(InterpreterTester);
 };
 
-}  // namespace interpreter
-}  // namespace internal
-}  // namespace v8
-
-using v8::internal::BytecodeArray;
-using v8::internal::Handle;
-using v8::internal::LanguageMode;
-using v8::internal::Object;
-using v8::internal::Runtime;
-using v8::internal::Smi;
-using v8::internal::Strength;
-using v8::internal::Token;
-using namespace v8::internal::interpreter;
 
 TEST(InterpreterReturn) {
   HandleAndZoneScope handles;
@@ -2724,3 +2711,7 @@ TEST(InterpreterForIn) {
     CHECK_EQ(Handle<Smi>::cast(return_val)->value(), for_in_samples[i].second);
   }
 }
+
+}  // namespace interpreter
+}  // namespace internal
+}  // namespace v8
