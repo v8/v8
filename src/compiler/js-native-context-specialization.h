@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/property-access-info.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {
@@ -61,15 +62,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   }
   Reduction Replace(Node* node, Handle<Object> value);
 
-  enum PropertyAccessMode { kLoad, kStore };
-  class PropertyAccessInfo;
-  bool ComputePropertyAccessInfo(Handle<Map> map, Handle<Name> name,
-                                 PropertyAccessMode access_mode,
-                                 PropertyAccessInfo* access_info);
-  bool ComputePropertyAccessInfos(MapHandleList const& maps, Handle<Name> name,
-                                  PropertyAccessMode access_mode,
-                                  ZoneVector<PropertyAccessInfo>* access_infos);
-
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               MapHandleList const& receiver_maps,
                               Handle<Name> name,
@@ -96,6 +88,9 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Handle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
+  PropertyAccessInfoFactory& access_info_factory() {
+    return access_info_factory_;
+  }
 
   JSGraph* const jsgraph_;
   Flags const flags_;
@@ -104,6 +99,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
   TypeCache const& type_cache_;
+  PropertyAccessInfoFactory access_info_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);
 };

@@ -583,6 +583,8 @@
         '../../src/compiler/pipeline.h',
         '../../src/compiler/pipeline-statistics.cc',
         '../../src/compiler/pipeline-statistics.h',
+        '../../src/compiler/property-access-info.cc',
+        '../../src/compiler/property-access-info.h',
         '../../src/compiler/raw-machine-assembler.cc',
         '../../src/compiler/raw-machine-assembler.h',
         '../../src/compiler/register-allocator.cc',
