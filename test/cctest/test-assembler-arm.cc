@@ -1975,8 +1975,16 @@ TEST(ARMv8_vrintX) {
     CHECK_VRINT(inf, inf, inf, inf, inf, inf)
     CHECK_VRINT(-inf, -inf, -inf, -inf, -inf, -inf)
     CHECK_VRINT(-0.0, -0.0, -0.0, -0.0, -0.0, -0.0)
+
+    // Check NaN propagation.
     double nan = std::numeric_limits<double>::quiet_NaN();
-    CHECK_VRINT(nan, nan, nan, nan, nan, nan)
+    t.input = nan;
+    dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.ar));
+    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.nr));
+    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.mr));
+    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.pr));
+    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.zr));
 
 #undef CHECK_VRINT
   }

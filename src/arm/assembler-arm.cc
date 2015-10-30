@@ -52,6 +52,14 @@ namespace internal {
 // snapshot.
 static unsigned CpuFeaturesImpliedByCompiler() {
   unsigned answer = 0;
+#ifdef CAN_USE_ARMV8_INSTRUCTIONS
+  if (FLAG_enable_armv8) {
+    answer |= 1u << ARMv8;
+    // ARMv8 always features VFP and NEON.
+    answer |= 1u << ARMv7 | 1u << VFP3 | 1u << NEON | 1u << VFP32DREGS;
+    answer |= 1u << SUDIV | 1u << MLS;
+  }
+#endif  // CAN_USE_ARMV8_INSTRUCTIONS
 #ifdef CAN_USE_ARMV7_INSTRUCTIONS
   if (FLAG_enable_armv7) answer |= 1u << ARMv7;
 #endif  // CAN_USE_ARMV7_INSTRUCTIONS
@@ -81,6 +89,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 #ifndef __arm__
   // For the simulator build, use whatever the flags specify.
+  if (FLAG_enable_armv8) {
+    supported_ |= 1u << ARMv8;
+    // ARMv8 always features VFP and NEON.
+    supported_ |= 1u << ARMv7 | 1u << VFP3 | 1u << NEON | 1u << VFP32DREGS;
+    supported_ |= 1u << SUDIV | 1u << MLS;
+    if (FLAG_enable_movw_movt) supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
+  }
   if (FLAG_enable_armv7) {
     supported_ |= 1u << ARMv7;
     if (FLAG_enable_vfp3) supported_ |= 1u << VFP3;
@@ -154,7 +169,9 @@ void CpuFeatures::PrintTarget() {
   arm_no_probe = " noprobe";
 #endif
 
-#if defined CAN_USE_ARMV7_INSTRUCTIONS
+#if defined CAN_USE_ARMV8_INSTRUCTIONS
+  arm_arch = "arm v8";
+#elif defined CAN_USE_ARMV7_INSTRUCTIONS
   arm_arch = "arm v7";
 #else
   arm_arch = "arm v6";
@@ -192,13 +209,15 @@ void CpuFeatures::PrintTarget() {
 
 void CpuFeatures::PrintFeatures() {
   printf(
-    "ARMv7=%d VFP3=%d VFP32DREGS=%d NEON=%d SUDIV=%d UNALIGNED_ACCESSES=%d "
-    "MOVW_MOVT_IMMEDIATE_LOADS=%d COHERENT_CACHE=%d",
+    "ARMv8=%d ARMv7=%d VFP3=%d VFP32DREGS=%d NEON=%d SUDIV=%d MLS=%d"
+    "UNALIGNED_ACCESSES=%d MOVW_MOVT_IMMEDIATE_LOADS=%d COHERENT_CACHE=%d",
+    CpuFeatures::IsSupported(ARMv8),
     CpuFeatures::IsSupported(ARMv7),
     CpuFeatures::IsSupported(VFP3),
     CpuFeatures::IsSupported(VFP32DREGS),
     CpuFeatures::IsSupported(NEON),
     CpuFeatures::IsSupported(SUDIV),
+    CpuFeatures::IsSupported(MLS),
     CpuFeatures::IsSupported(UNALIGNED_ACCESSES),
     CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS),
     CpuFeatures::IsSupported(COHERENT_CACHE));

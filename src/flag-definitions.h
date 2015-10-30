@@ -519,6 +519,12 @@ DEFINE_BOOL(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS/PPC only)")
 DEFINE_STRING(mcpu, "auto", "enable optimization for specific cpu")
 
+DEFINE_IMPLICATION(enable_armv8, enable_vfp3)
+DEFINE_IMPLICATION(enable_armv8, enable_neon)
+DEFINE_IMPLICATION(enable_armv8, enable_32dregs)
+DEFINE_IMPLICATION(enable_armv8, enable_sudiv)
+DEFINE_IMPLICATION(enable_armv8, enable_mls)
+
 // bootstrapper.cc
 DEFINE_STRING(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_STRING(expose_debug_as, NULL, "expose debug in global object")
