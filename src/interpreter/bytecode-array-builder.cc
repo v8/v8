@@ -224,6 +224,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Handle<Object> object) {
   size_t entry = GetConstantPoolEntry(object);
   if (FitsInIdx8Operand(entry)) {
     Output(Bytecode::kLdaConstant, static_cast<uint8_t>(entry));
+  } else if (FitsInIdx16Operand(entry)) {
+    Output(Bytecode::kLdaConstantWide, static_cast<uint16_t>(entry));
   } else {
     UNIMPLEMENTED();
   }
@@ -285,6 +287,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
   if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
+  } else if (FitsInIdx16Operand(name_index) &&
+             FitsInIdx16Operand(feedback_slot)) {
+    Output(BytecodeForWideOperands(bytecode), static_cast<uint16_t>(name_index),
+           static_cast<uint16_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
   }
@@ -298,6 +304,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
   if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
+  } else if (FitsInIdx16Operand(name_index) &&
+             FitsInIdx16Operand(feedback_slot)) {
+    Output(BytecodeForWideOperands(bytecode), static_cast<uint16_t>(name_index),
+           static_cast<uint16_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
   }
@@ -338,6 +348,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
   if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, object.ToOperand(), static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
+  } else if (FitsInIdx16Operand(name_index) &&
+             FitsInIdx16Operand(feedback_slot)) {
+    Output(BytecodeForWideOperands(bytecode), object.ToOperand(),
+           static_cast<uint16_t>(name_index),
+           static_cast<uint16_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
   }
@@ -350,6 +365,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   Bytecode bytecode = BytecodeForKeyedLoadIC(language_mode);
   if (FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, object.ToOperand(), static_cast<uint8_t>(feedback_slot));
+  } else if (FitsInIdx16Operand(feedback_slot)) {
+    Output(BytecodeForWideOperands(bytecode), object.ToOperand(),
+           static_cast<uint16_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
   }
@@ -364,6 +382,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
   if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, object.ToOperand(), static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
+  } else if (FitsInIdx16Operand(name_index) &&
+             FitsInIdx16Operand(feedback_slot)) {
+    Output(BytecodeForWideOperands(bytecode), object.ToOperand(),
+           static_cast<uint16_t>(name_index),
+           static_cast<uint16_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
   }
@@ -378,6 +401,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   if (FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, object.ToOperand(), key.ToOperand(),
            static_cast<uint8_t>(feedback_slot));
+  } else if (FitsInIdx16Operand(feedback_slot)) {
+    Output(BytecodeForWideOperands(bytecode), object.ToOperand(),
+           key.ToOperand(), static_cast<uint16_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
   }
@@ -952,6 +978,40 @@ Bytecode BytecodeArrayBuilder::BytecodeForCompareOperation(Token::Value op) {
 
 
 // static
+Bytecode BytecodeArrayBuilder::BytecodeForWideOperands(Bytecode bytecode) {
+  switch (bytecode) {
+    case Bytecode::kLoadICSloppy:
+      return Bytecode::kLoadICSloppyWide;
+    case Bytecode::kLoadICStrict:
+      return Bytecode::kLoadICStrictWide;
+    case Bytecode::kKeyedLoadICSloppy:
+      return Bytecode::kKeyedLoadICSloppyWide;
+    case Bytecode::kKeyedLoadICStrict:
+      return Bytecode::kKeyedLoadICStrictWide;
+    case Bytecode::kStoreICSloppy:
+      return Bytecode::kStoreICSloppyWide;
+    case Bytecode::kStoreICStrict:
+      return Bytecode::kStoreICStrictWide;
+    case Bytecode::kKeyedStoreICSloppy:
+      return Bytecode::kKeyedStoreICSloppyWide;
+    case Bytecode::kKeyedStoreICStrict:
+      return Bytecode::kKeyedStoreICStrictWide;
+    case Bytecode::kLdaGlobalSloppy:
+      return Bytecode::kLdaGlobalSloppyWide;
+    case Bytecode::kLdaGlobalStrict:
+      return Bytecode::kLdaGlobalStrictWide;
+    case Bytecode::kStaGlobalSloppy:
+      return Bytecode::kStaGlobalSloppyWide;
+    case Bytecode::kStaGlobalStrict:
+      return Bytecode::kStaGlobalStrictWide;
+    default:
+      UNREACHABLE();
+      return static_cast<Bytecode>(-1);
+  }
+}
+
+
+// static
 Bytecode BytecodeArrayBuilder::BytecodeForLoadIC(LanguageMode language_mode) {
   switch (language_mode) {
     case SLOPPY:
@@ -1103,6 +1163,12 @@ bool BytecodeArrayBuilder::FitsInImm8Operand(int value) {
 // static
 bool BytecodeArrayBuilder::FitsInIdx16Operand(int value) {
   return kMinUInt16 <= value && value <= kMaxUInt16;
+}
+
+
+// static
+bool BytecodeArrayBuilder::FitsInIdx16Operand(size_t value) {
+  return value <= static_cast<size_t>(kMaxUInt16);
 }
 
 

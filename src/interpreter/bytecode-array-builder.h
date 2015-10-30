@@ -211,6 +211,7 @@ class BytecodeArrayBuilder {
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
   static Bytecode BytecodeForCountOperation(Token::Value op);
   static Bytecode BytecodeForCompareOperation(Token::Value op);
+  static Bytecode BytecodeForWideOperands(Bytecode bytecode);
   static Bytecode BytecodeForLoadIC(LanguageMode language_mode);
   static Bytecode BytecodeForKeyedLoadIC(LanguageMode language_mode);
   static Bytecode BytecodeForStoreIC(LanguageMode language_mode);
@@ -224,6 +225,7 @@ class BytecodeArrayBuilder {
   static bool FitsInIdx8Operand(size_t value);
   static bool FitsInImm8Operand(int value);
   static bool FitsInIdx16Operand(int value);
+  static bool FitsInIdx16Operand(size_t value);
 
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_with_smi8_operand);
 

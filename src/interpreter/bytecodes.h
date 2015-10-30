@@ -36,18 +36,23 @@ namespace interpreter {
   /* Loading the accumulator */                                                \
   V(LdaZero, OperandType::kNone)                                               \
   V(LdaSmi8, OperandType::kImm8)                                               \
-  V(LdaConstant, OperandType::kIdx8)                                           \
   V(LdaUndefined, OperandType::kNone)                                          \
   V(LdaNull, OperandType::kNone)                                               \
   V(LdaTheHole, OperandType::kNone)                                            \
   V(LdaTrue, OperandType::kNone)                                               \
   V(LdaFalse, OperandType::kNone)                                              \
+  V(LdaConstant, OperandType::kIdx8)                                           \
+  V(LdaConstantWide, OperandType::kIdx16)                                      \
                                                                                \
   /* Globals */                                                                \
   V(LdaGlobalSloppy, OperandType::kIdx8, OperandType::kIdx8)                   \
   V(LdaGlobalStrict, OperandType::kIdx8, OperandType::kIdx8)                   \
+  V(LdaGlobalSloppyWide, OperandType::kIdx16, OperandType::kIdx16)             \
+  V(LdaGlobalStrictWide, OperandType::kIdx16, OperandType::kIdx16)             \
   V(StaGlobalSloppy, OperandType::kIdx8, OperandType::kIdx8)                   \
   V(StaGlobalStrict, OperandType::kIdx8, OperandType::kIdx8)                   \
+  V(StaGlobalSloppyWide, OperandType::kIdx16, OperandType::kIdx16)             \
+  V(StaGlobalStrictWide, OperandType::kIdx16, OperandType::kIdx16)             \
                                                                                \
   /* Context operations */                                                     \
   V(PushContext, OperandType::kReg8)                                           \
@@ -64,6 +69,13 @@ namespace interpreter {
   V(LoadICStrict, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
   V(KeyedLoadICSloppy, OperandType::kReg8, OperandType::kIdx8)                 \
   V(KeyedLoadICStrict, OperandType::kReg8, OperandType::kIdx8)                 \
+  /* TODO(rmcilroy): Wide register operands too? */                            \
+  V(LoadICSloppyWide, OperandType::kReg8, OperandType::kIdx16,                 \
+    OperandType::kIdx16)                                                       \
+  V(LoadICStrictWide, OperandType::kReg8, OperandType::kIdx16,                 \
+    OperandType::kIdx16)                                                       \
+  V(KeyedLoadICSloppyWide, OperandType::kReg8, OperandType::kIdx16)            \
+  V(KeyedLoadICStrictWide, OperandType::kReg8, OperandType::kIdx16)            \
                                                                                \
   /* StoreIC operations */                                                     \
   V(StoreICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8) \
@@ -72,6 +84,15 @@ namespace interpreter {
     OperandType::kIdx8)                                                        \
   V(KeyedStoreICStrict, OperandType::kReg8, OperandType::kReg8,                \
     OperandType::kIdx8)                                                        \
+  /* TODO(rmcilroy): Wide register operands too? */                            \
+  V(StoreICSloppyWide, OperandType::kReg8, OperandType::kIdx16,                \
+    OperandType::kIdx16)                                                       \
+  V(StoreICStrictWide, OperandType::kReg8, OperandType::kIdx16,                \
+    OperandType::kIdx16)                                                       \
+  V(KeyedStoreICSloppyWide, OperandType::kReg8, OperandType::kReg8,            \
+    OperandType::kIdx16)                                                       \
+  V(KeyedStoreICStrictWide, OperandType::kReg8, OperandType::kReg8,            \
+    OperandType::kIdx16)                                                       \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, OperandType::kReg8)                                                   \

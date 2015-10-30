@@ -192,38 +192,43 @@ Node* InterpreterAssembler::BytecodeOperandShort(int operand_index) {
 }
 
 
-Node* InterpreterAssembler::BytecodeOperandCount8(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
   DCHECK_EQ(interpreter::OperandType::kCount8,
             interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
   return BytecodeOperand(operand_index);
 }
 
 
-Node* InterpreterAssembler::BytecodeOperandImm8(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandImm(int operand_index) {
   DCHECK_EQ(interpreter::OperandType::kImm8,
             interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
   return BytecodeOperandSignExtended(operand_index);
 }
 
 
-Node* InterpreterAssembler::BytecodeOperandIdx8(int operand_index) {
-  DCHECK_EQ(interpreter::OperandType::kIdx8,
-            interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
-  return BytecodeOperand(operand_index);
+Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
+  switch (interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index)) {
+    case interpreter::OperandSize::kByte:
+      DCHECK_EQ(
+          interpreter::OperandType::kIdx8,
+          interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+      return BytecodeOperand(operand_index);
+    case interpreter::OperandSize::kShort:
+      DCHECK_EQ(
+          interpreter::OperandType::kIdx16,
+          interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+      return BytecodeOperandShort(operand_index);
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
 }
 
 
-Node* InterpreterAssembler::BytecodeOperandReg8(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
   DCHECK_EQ(interpreter::OperandType::kReg8,
             interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
   return BytecodeOperandSignExtended(operand_index);
-}
-
-
-Node* InterpreterAssembler::BytecodeOperandIdx16(int operand_index) {
-  DCHECK_EQ(interpreter::OperandType::kIdx16,
-            interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
-  return BytecodeOperandShort(operand_index);
 }
 
 

@@ -49,6 +49,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreGlobal(0, 1, LanguageMode::SLOPPY)
       .StoreGlobal(0, 1, LanguageMode::STRICT);
 
+  // Emit wide global load / store operations.
+  builder.LoadGlobal(0, 1024, LanguageMode::SLOPPY)
+      .LoadGlobal(1024, 1, LanguageMode::STRICT)
+      .StoreGlobal(0, 1024, LanguageMode::SLOPPY)
+      .StoreGlobal(1024, 1, LanguageMode::STRICT);
+
   // Emit context operations.
   builder.PushContext(reg);
   builder.PopContext(reg);
@@ -64,6 +70,16 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadKeyedProperty(reg, 0, LanguageMode::STRICT)
       .StoreNamedProperty(reg, 0, 0, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT);
+
+  // Emit wide load / store property operations.
+  builder.LoadNamedProperty(reg, 2056, 0, LanguageMode::SLOPPY)
+      .LoadKeyedProperty(reg, 2056, LanguageMode::SLOPPY)
+      .StoreNamedProperty(reg, 0, 2056, LanguageMode::SLOPPY)
+      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::SLOPPY)
+      .LoadNamedProperty(reg, 2056, 0, LanguageMode::STRICT)
+      .LoadKeyedProperty(reg, 2056, LanguageMode::STRICT)
+      .StoreNamedProperty(reg, 0, 2056, LanguageMode::STRICT)
+      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
 
   // Emit closure operations.
   builder.CreateClosure(NOT_TENURED);
@@ -159,6 +175,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LeaveBlock();
 
   builder.ForInPrepare(reg).ForInDone(reg).ForInNext(reg, reg);
+
+  // Wide constant pool loads
+  for (int i = 0; i < 256; i++) {
+    // Emit junk in constant pool to force wide constant pool index.
+    builder.GetConstantPoolEntry(handle(Smi::FromInt(i), isolate()));
+  }
+  builder.LoadLiteral(Smi::FromInt(20000000));
 
   builder.Return();
 

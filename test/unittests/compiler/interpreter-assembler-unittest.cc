@@ -308,21 +308,21 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
       int offset = interpreter::Bytecodes::GetOperandOffset(bytecode, i);
       switch (interpreter::Bytecodes::GetOperandType(bytecode, i)) {
         case interpreter::OperandType::kCount8:
-          EXPECT_THAT(m.BytecodeOperandCount8(i), m.IsBytecodeOperand(offset));
+          EXPECT_THAT(m.BytecodeOperandCount(i), m.IsBytecodeOperand(offset));
           break;
         case interpreter::OperandType::kIdx8:
-          EXPECT_THAT(m.BytecodeOperandIdx8(i), m.IsBytecodeOperand(offset));
+          EXPECT_THAT(m.BytecodeOperandIdx(i), m.IsBytecodeOperand(offset));
           break;
         case interpreter::OperandType::kImm8:
-          EXPECT_THAT(m.BytecodeOperandImm8(i),
+          EXPECT_THAT(m.BytecodeOperandImm(i),
                       m.IsBytecodeOperandSignExtended(offset));
           break;
         case interpreter::OperandType::kReg8:
-          EXPECT_THAT(m.BytecodeOperandReg8(i),
+          EXPECT_THAT(m.BytecodeOperandReg(i),
                       m.IsBytecodeOperandSignExtended(offset));
           break;
         case interpreter::OperandType::kIdx16:
-          EXPECT_THAT(m.BytecodeOperandIdx16(i),
+          EXPECT_THAT(m.BytecodeOperandIdx(i),
                       m.IsBytecodeOperandShort(offset));
           break;
         case interpreter::OperandType::kNone:

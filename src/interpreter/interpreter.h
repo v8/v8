@@ -63,6 +63,9 @@ class Interpreter {
   void DoCompareOp(Token::Value compare_op,
                    compiler::InterpreterAssembler* assembler);
 
+  // Generates code to load a constant from the constant pool.
+  void DoLoadConstant(compiler::InterpreterAssembler* assembler);
+
   // Generates code to perform a global load via |ic|.
   void DoLoadGlobal(Callable ic, compiler::InterpreterAssembler* assembler);
 
