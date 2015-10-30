@@ -1248,17 +1248,13 @@ class Object {
   MUST_USE_RESULT static Maybe<bool> SetProperty(LookupIterator* it,
                                                  Handle<Object> value,
                                                  LanguageMode language_mode,
-                                                 ShouldThrow should_throw,
                                                  StoreFromKeyed store_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
       LanguageMode language_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
-  MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreFromKeyed store_mode);
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetSuperProperty(
+  MUST_USE_RESULT static Maybe<bool> SetSuperProperty(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
       StoreFromKeyed store_mode);
 
@@ -1269,28 +1265,21 @@ class Object {
       LanguageMode language_mode);
   MUST_USE_RESULT static Maybe<bool> CannotCreateProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
-      Handle<Object> value, LanguageMode language_mode,
-      ShouldThrow should_throw);
+      Handle<Object> value, ShouldThrow should_throw);
   MUST_USE_RESULT static Maybe<bool> WriteToReadOnlyProperty(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      ShouldThrow should_throw);
+      LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
   MUST_USE_RESULT static Maybe<bool> WriteToReadOnlyProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
-      Handle<Object> value, LanguageMode language_mode,
-      ShouldThrow should_throw);
-  MUST_USE_RESULT static MaybeHandle<Object> RedefineNonconfigurableProperty(
+      Handle<Object> value, ShouldThrow should_throw);
+  MUST_USE_RESULT static Maybe<bool> RedefineNonconfigurableProperty(
       Isolate* isolate, Handle<Object> name, Handle<Object> value,
-      LanguageMode language_mode);
+      ShouldThrow should_throw);
   MUST_USE_RESULT static Maybe<bool> SetDataProperty(LookupIterator* it,
                                                      Handle<Object> value,
                                                      ShouldThrow should_throw);
-  MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
-      LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      LanguageMode language_mode, StoreFromKeyed store_mode);
   MUST_USE_RESULT static Maybe<bool> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      LanguageMode language_mode, ShouldThrow should_throw,
-      StoreFromKeyed store_mode);
+      ShouldThrow should_throw, StoreFromKeyed store_mode);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> object, Handle<Name> name,
       LanguageMode language_mode = SLOPPY);
@@ -1307,8 +1296,7 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
       LookupIterator* it, LanguageMode language_mode);
   MUST_USE_RESULT static Maybe<bool> SetPropertyWithAccessor(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      ShouldThrow should_throw);
+      LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
       Handle<Object> receiver,
@@ -1412,7 +1400,7 @@ class Object {
   // Return value is only meaningful if [found] is set to true on return.
   MUST_USE_RESULT static Maybe<bool> SetPropertyInternal(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      ShouldThrow should_throw, StoreFromKeyed store_mode, bool* found);
+      StoreFromKeyed store_mode, bool* found);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
 };
@@ -2063,6 +2051,11 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT static MaybeHandle<Object> DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+      ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
+
+  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyIgnoreAttributes(
+      LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+      ShouldThrow should_throw,
       ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnPropertyIgnoreAttributes(
@@ -9569,8 +9562,7 @@ class JSProxy: public JSReceiver {
   MUST_USE_RESULT
   static Maybe<bool> SetPropertyViaPrototypesWithHandler(
       Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
-      Handle<Object> value, LanguageMode language_mode,
-      ShouldThrow should_throw, bool* done);
+      Handle<Object> value, ShouldThrow should_throw, bool* done);
 
   MUST_USE_RESULT static Maybe<PropertyAttributes>
       GetPropertyAttributesWithHandler(Handle<JSProxy> proxy,
@@ -9578,8 +9570,7 @@ class JSProxy: public JSReceiver {
                                        Handle<Name> name);
   MUST_USE_RESULT static Maybe<bool> SetPropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
-      Handle<Object> value, LanguageMode language_mode,
-      ShouldThrow should_throw);
+      Handle<Object> value, ShouldThrow should_throw);
 
   // Turn the proxy into an (empty) JSObject.
   static void Fix(Handle<JSProxy> proxy);

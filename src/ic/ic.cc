@@ -1586,12 +1586,9 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   LookupIterator it(object, name);
   if (FLAG_use_ic) UpdateCaches(&it, value, store_mode);
 
-  // Set the property.
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(), result,
-      Object::SetProperty(&it, value, language_mode(), store_mode), Object);
-  return result;
+  MAYBE_RETURN_NULL(
+      Object::SetProperty(&it, value, language_mode(), store_mode));
+  return value;
 }
 
 

@@ -148,8 +148,9 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
       LookupIterator::PropertyOrElement(isolate, object, key, &success);
   if (!success) return MaybeHandle<Object>();
 
-  return Object::SetProperty(&it, value, language_mode,
-                             Object::MAY_BE_STORE_FROM_KEYED);
+  MAYBE_RETURN_NULL(Object::SetProperty(&it, value, language_mode,
+                                        Object::MAY_BE_STORE_FROM_KEYED));
+  return value;
 }
 
 
@@ -387,12 +388,10 @@ Object* StoreGlobalViaContext(Isolate* isolate, int slot, Handle<Object> value,
     script_context->set(slot, isolate->heap()->empty_property_cell());
   }
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Object::SetProperty(&it, value, language_mode,
-                          Object::CERTAINLY_NOT_STORE_FROM_KEYED));
-  return *result;
+  MAYBE_RETURN(Object::SetProperty(&it, value, language_mode,
+                                   Object::CERTAINLY_NOT_STORE_FROM_KEYED),
+               isolate->heap()->exception());
+  return *value;
 }
 
 }  // namespace

@@ -381,12 +381,10 @@ static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
   if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
 
   LookupIterator it(receiver, name, Handle<JSReceiver>::cast(proto));
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Object::SetSuperProperty(&it, value, language_mode,
-                               Object::CERTAINLY_NOT_STORE_FROM_KEYED));
-  return *result;
+  MAYBE_RETURN(Object::SetSuperProperty(&it, value, language_mode,
+                                        Object::CERTAINLY_NOT_STORE_FROM_KEYED),
+               isolate->heap()->exception());
+  return *value;
 }
 
 
@@ -406,12 +404,10 @@ static Object* StoreElementToSuper(Isolate* isolate,
   if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
 
   LookupIterator it(isolate, receiver, index, Handle<JSReceiver>::cast(proto));
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Object::SetSuperProperty(&it, value, language_mode,
-                               Object::MAY_BE_STORE_FROM_KEYED));
-  return *result;
+  MAYBE_RETURN(Object::SetSuperProperty(&it, value, language_mode,
+                                        Object::MAY_BE_STORE_FROM_KEYED),
+               isolate->heap()->exception());
+  return *value;
 }
 
 

@@ -884,7 +884,6 @@ bool AccessorInfo::IsCompatibleReceiverMap(Isolate* isolate,
 
 Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
                                             Handle<Object> value,
-                                            LanguageMode language_mode,
                                             ShouldThrow should_throw) {
   Isolate* isolate = it->isolate();
   Handle<Object> structure = it->GetAccessors();
@@ -929,7 +928,6 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
         receiver, Handle<JSReceiver>::cast(setter), value, should_throw);
   }
 
-  if (is_sloppy(language_mode)) return Just(true);
   RETURN_FAILURE(isolate, should_throw,
                  NewTypeError(MessageTemplate::kNoSetterInCallback,
                               it->GetName(), it->GetHolder<JSObject>()));
@@ -1068,8 +1066,7 @@ Maybe<bool> JSObject::SetPropertyWithFailedAccessCheck(
     LookupIterator* it, Handle<Object> value, ShouldThrow should_throw) {
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   if (AllCanWrite(it)) {
-    // The supplied language-mode is ignored by SetPropertyWithAccessor.
-    return SetPropertyWithAccessor(it, value, SLOPPY, should_throw);
+    return SetPropertyWithAccessor(it, value, should_throw);
   }
 
   it->isolate()->ReportFailedAccessCheck(checked);
@@ -3604,13 +3601,19 @@ MaybeHandle<Object> Object::SetProperty(Handle<Object> object,
                                         LanguageMode language_mode,
                                         StoreFromKeyed store_mode) {
   LookupIterator it(object, name);
-  return SetProperty(&it, value, language_mode, store_mode);
+  MAYBE_RETURN_NULL(SetProperty(&it, value, language_mode, store_mode));
+  return value;
 }
 
 
-Maybe<bool> Object::SetPropertyInternal(
-    LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-    ShouldThrow should_throw, StoreFromKeyed store_mode, bool* found) {
+Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
+                                        Handle<Object> value,
+                                        LanguageMode language_mode,
+                                        StoreFromKeyed store_mode,
+                                        bool* found) {
+  ShouldThrow should_throw =
+      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc(it->isolate());
@@ -3634,14 +3637,14 @@ Maybe<bool> Object::SetPropertyInternal(
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           return JSProxy::SetPropertyWithHandler(
               it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName(), value,
-              language_mode, should_throw);
+              should_throw);
         } else {
           // TODO(verwaest): Use the MaybeHandle to indicate result.
           bool has_result = false;
           Maybe<bool> maybe_result =
               JSProxy::SetPropertyViaPrototypesWithHandler(
                   it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName(),
-                  value, language_mode, should_throw, &has_result);
+                  value, should_throw, &has_result);
           if (has_result) return maybe_result;
           done = true;
         }
@@ -3649,26 +3652,22 @@ Maybe<bool> Object::SetPropertyInternal(
 
       case LookupIterator::INTERCEPTOR:
         if (it->HolderIsReceiverOrHiddenPrototype()) {
-          Maybe<bool> maybe_result =
-              JSObject::SetPropertyWithInterceptor(it, value);
-          if (maybe_result.IsNothing()) return Nothing<bool>();
-          if (maybe_result.FromJust()) return Just(true);
+          Maybe<bool> result = JSObject::SetPropertyWithInterceptor(it, value);
+          if (result.IsNothing() || result.FromJust()) return result;
         } else {
           Maybe<PropertyAttributes> maybe_attributes =
               JSObject::GetPropertyAttributesWithInterceptor(it);
           if (!maybe_attributes.IsJust()) return Nothing<bool>();
           done = maybe_attributes.FromJust() != ABSENT;
           if (done && (maybe_attributes.FromJust() & READ_ONLY) != 0) {
-            return WriteToReadOnlyProperty(it, value, language_mode,
-                                           should_throw);
+            return WriteToReadOnlyProperty(it, value, should_throw);
           }
         }
         break;
 
       case LookupIterator::ACCESSOR: {
         if (it->IsReadOnly()) {
-          return WriteToReadOnlyProperty(it, value, language_mode,
-                                         should_throw);
+          return WriteToReadOnlyProperty(it, value, should_throw);
         }
         Handle<Object> accessors = it->GetAccessors();
         if (accessors->IsAccessorInfo() &&
@@ -3677,7 +3676,7 @@ Maybe<bool> Object::SetPropertyInternal(
           done = true;
           break;
         }
-        return SetPropertyWithAccessor(it, value, language_mode, should_throw);
+        return SetPropertyWithAccessor(it, value, should_throw);
       }
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
         // TODO(verwaest): We should throw an exception.
@@ -3685,8 +3684,7 @@ Maybe<bool> Object::SetPropertyInternal(
 
       case LookupIterator::DATA:
         if (it->IsReadOnly()) {
-          return WriteToReadOnlyProperty(it, value, language_mode,
-                                         should_throw);
+          return WriteToReadOnlyProperty(it, value, should_throw);
         }
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           return SetDataProperty(it, value, should_throw);
@@ -3704,10 +3702,11 @@ Maybe<bool> Object::SetPropertyInternal(
 
   // If the receiver is the JSGlobalObject, the store was contextual. In case
   // the property did not exist yet on the global object itself, we have to
-  // throw a reference error in strict mode.
+  // throw a reference error in strict mode.  In sloppy mode, we continue.
   if (it->GetReceiver()->IsJSGlobalObject() && is_strict(language_mode)) {
-    RETURN_FAILURE(it->isolate(), should_throw,
-                   NewReferenceError(MessageTemplate::kNotDefined, it->name()));
+    it->isolate()->Throw(*it->isolate()->factory()->NewReferenceError(
+        MessageTemplate::kNotDefined, it->name()));
+    return Nothing<bool>();
   }
 
   *found = false;
@@ -3715,45 +3714,32 @@ Maybe<bool> Object::SetPropertyInternal(
 }
 
 
-MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
-                                        Handle<Object> value,
-                                        LanguageMode language_mode,
-                                        StoreFromKeyed store_mode) {
-  MAYBE_RETURN_NULL(
-      SetProperty(it, value, language_mode, THROW_ON_ERROR, store_mode));
-  return value;
-}
-
-
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
                                 LanguageMode language_mode,
-                                ShouldThrow should_throw,
                                 StoreFromKeyed store_mode) {
   bool found = false;
-  Maybe<bool> result = SetPropertyInternal(it, value, language_mode,
-                                           should_throw, store_mode, &found);
+  Maybe<bool> result =
+      SetPropertyInternal(it, value, language_mode, store_mode, &found);
   if (found) return result;
-  return AddDataProperty(it, value, NONE, language_mode, should_throw,
-                         store_mode);
+  ShouldThrow should_throw =
+      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+  return AddDataProperty(it, value, NONE, should_throw, store_mode);
 }
 
 
-MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
-                                             Handle<Object> value,
-                                             LanguageMode language_mode,
-                                             StoreFromKeyed store_mode) {
+Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
+                                     LanguageMode language_mode,
+                                     StoreFromKeyed store_mode) {
+  ShouldThrow should_throw =
+      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+
   bool found = false;
-  Maybe<bool> result = SetPropertyInternal(it, value, language_mode,
-                                           THROW_ON_ERROR, store_mode, &found);
-  if (found) {
-    MAYBE_RETURN_NULL(result);
-    return value;
-  }
+  Maybe<bool> result =
+      SetPropertyInternal(it, value, language_mode, store_mode, &found);
+  if (found) return result;
 
   if (!it->GetReceiver()->IsJSReceiver()) {
-    MAYBE_RETURN_NULL(
-        WriteToReadOnlyProperty(it, value, language_mode, THROW_ON_ERROR));
-    return value;
+    return WriteToReadOnlyProperty(it, value, should_throw);
   }
 
   LookupIterator::Configuration c = LookupIterator::OWN;
@@ -3766,48 +3752,41 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
     switch (own_lookup.state()) {
       case LookupIterator::ACCESS_CHECK:
         if (!own_lookup.HasAccess()) {
-          MAYBE_RETURN_NULL(JSObject::SetPropertyWithFailedAccessCheck(
-              &own_lookup, value, THROW_ON_ERROR));
-          return value;
+          return JSObject::SetPropertyWithFailedAccessCheck(&own_lookup, value,
+                                                            should_throw);
         }
         break;
 
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
         return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
-                                               value, language_mode);
+                                               value, should_throw);
 
       case LookupIterator::DATA: {
         PropertyDetails details = own_lookup.property_details();
         if (details.IsConfigurable() || !details.IsReadOnly()) {
           return JSObject::DefineOwnPropertyIgnoreAttributes(
-              &own_lookup, value, details.attributes());
+              &own_lookup, value, details.attributes(), should_throw);
         }
-        MAYBE_RETURN_NULL(WriteToReadOnlyProperty(
-            &own_lookup, value, language_mode, THROW_ON_ERROR));
-        return value;
+        return WriteToReadOnlyProperty(&own_lookup, value, should_throw);
       }
 
       case LookupIterator::ACCESSOR: {
         PropertyDetails details = own_lookup.property_details();
         if (details.IsConfigurable()) {
           return JSObject::DefineOwnPropertyIgnoreAttributes(
-              &own_lookup, value, details.attributes());
+              &own_lookup, value, details.attributes(), should_throw);
         }
 
         return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
-                                               value, language_mode);
+                                               value, should_throw);
       }
 
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::JSPROXY: {
         bool found = false;
-        Maybe<bool> result =
-            SetPropertyInternal(&own_lookup, value, language_mode,
-                                THROW_ON_ERROR, store_mode, &found);
-        if (found) {
-          MAYBE_RETURN_NULL(result);
-          return value;
-        }
+        Maybe<bool> result = SetPropertyInternal(
+            &own_lookup, value, language_mode, store_mode, &found);
+        if (found) return result;
         break;
       }
 
@@ -3817,7 +3796,7 @@ MaybeHandle<Object> Object::SetSuperProperty(LookupIterator* it,
     }
   }
 
-  return JSObject::AddDataProperty(&own_lookup, value, NONE, language_mode,
+  return JSObject::AddDataProperty(&own_lookup, value, NONE, should_throw,
                                    store_mode);
 }
 
@@ -3851,9 +3830,7 @@ Maybe<bool> Object::CannotCreateProperty(Isolate* isolate,
                                          Handle<Object> receiver,
                                          Handle<Object> name,
                                          Handle<Object> value,
-                                         LanguageMode language_mode,
                                          ShouldThrow should_throw) {
-  if (is_sloppy(language_mode)) return Just(true);
   RETURN_FAILURE(
       isolate, should_throw,
       NewTypeError(MessageTemplate::kStrictCannotCreateProperty, name,
@@ -3863,11 +3840,9 @@ Maybe<bool> Object::CannotCreateProperty(Isolate* isolate,
 
 Maybe<bool> Object::WriteToReadOnlyProperty(LookupIterator* it,
                                             Handle<Object> value,
-                                            LanguageMode language_mode,
                                             ShouldThrow should_throw) {
   return WriteToReadOnlyProperty(it->isolate(), it->GetReceiver(),
-                                 it->GetName(), value, language_mode,
-                                 should_throw);
+                                 it->GetName(), value, should_throw);
 }
 
 
@@ -3875,22 +3850,19 @@ Maybe<bool> Object::WriteToReadOnlyProperty(Isolate* isolate,
                                             Handle<Object> receiver,
                                             Handle<Object> name,
                                             Handle<Object> value,
-                                            LanguageMode language_mode,
                                             ShouldThrow should_throw) {
-  if (is_sloppy(language_mode)) return Just(true);
   RETURN_FAILURE(isolate, should_throw,
                  NewTypeError(MessageTemplate::kStrictReadOnlyProperty, name,
                               Object::TypeOf(isolate, receiver), receiver));
 }
 
 
-MaybeHandle<Object> Object::RedefineNonconfigurableProperty(
-    Isolate* isolate, Handle<Object> name, Handle<Object> value,
-    LanguageMode language_mode) {
-  if (is_sloppy(language_mode)) return value;
-  THROW_NEW_ERROR(isolate,
-                  NewTypeError(MessageTemplate::kRedefineDisallowed, name),
-                  Object);
+Maybe<bool> Object::RedefineNonconfigurableProperty(Isolate* isolate,
+                                                    Handle<Object> name,
+                                                    Handle<Object> value,
+                                                    ShouldThrow should_throw) {
+  RETURN_FAILURE(isolate, should_throw,
+                 NewTypeError(MessageTemplate::kRedefineDisallowed, name));
 }
 
 
@@ -4000,26 +3972,14 @@ MUST_USE_RESULT static MaybeHandle<Object> EnqueueSpliceRecord(
 }
 
 
-MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
-                                            Handle<Object> value,
-                                            PropertyAttributes attributes,
-                                            LanguageMode language_mode,
-                                            StoreFromKeyed store_mode) {
-  MAYBE_RETURN_NULL(AddDataProperty(it, value, attributes, language_mode,
-                                    THROW_ON_ERROR, store_mode));
-  return value;
-}
-
-
 Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                                     PropertyAttributes attributes,
-                                    LanguageMode language_mode,
                                     ShouldThrow should_throw,
                                     StoreFromKeyed store_mode) {
   DCHECK(!it->GetReceiver()->IsJSProxy());
   if (!it->GetReceiver()->IsJSObject()) {
     return CannotCreateProperty(it->isolate(), it->GetReceiver(), it->GetName(),
-                                value, language_mode, should_throw);
+                                value, should_throw);
   }
 
   DCHECK_NE(LookupIterator::INTEGER_INDEXED_EXOTIC, it->state());
@@ -4034,7 +3994,6 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
 
   if (!receiver->map()->is_extensible() &&
       (it->IsElement() || !isolate->IsInternallyUsedPropertyName(it->name()))) {
-    if (is_sloppy(language_mode)) return Just(true);
     RETURN_FAILURE(
         isolate, should_throw,
         NewTypeError(MessageTemplate::kObjectNotExtensible, it->GetName()));
@@ -4044,7 +4003,6 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     if (receiver->IsJSArray()) {
       Handle<JSArray> array = Handle<JSArray>::cast(receiver);
       if (JSArray::WouldChangeReadOnlyLength(array, it->index())) {
-        if (is_sloppy(language_mode)) return Just(true);
         RETURN_FAILURE(array->GetIsolate(), should_throw,
                        NewTypeError(MessageTemplate::kStrictReadOnlyProperty,
                                     isolate->factory()->length_string(),
@@ -4454,7 +4412,6 @@ Maybe<bool> JSProxy::SetPropertyWithHandler(Handle<JSProxy> proxy,
                                             Handle<Object> receiver,
                                             Handle<Name> name,
                                             Handle<Object> value,
-                                            LanguageMode language_mode,
                                             ShouldThrow should_throw) {
   Isolate* isolate = proxy->GetIsolate();
 
@@ -4468,15 +4425,14 @@ Maybe<bool> JSProxy::SetPropertyWithHandler(Handle<JSProxy> proxy,
                             Nothing<bool>());
 
   return Just(true);
-  // TODO(neis): This needs to be made spec-conformant by throwing a TypeError
-  // if the trap's result is falsish.
+  // TODO(neis): This needs to be made spec-conformant by looking at the
+  // trap's result.
 }
 
 
 Maybe<bool> JSProxy::SetPropertyViaPrototypesWithHandler(
     Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
-    Handle<Object> value, LanguageMode language_mode, ShouldThrow should_throw,
-    bool* done) {
+    Handle<Object> value, ShouldThrow should_throw, bool* done) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<Object> handler(proxy->handler(), isolate);  // Trap might morph proxy.
 
@@ -4516,11 +4472,11 @@ Maybe<bool> JSProxy::SetPropertyViaPrototypesWithHandler(
       Object::GetProperty(desc, configurable_name).ToHandleChecked();
   DCHECK(configurable->IsBoolean());
   if (configurable->IsFalse()) {
-    RETURN_FAILURE(
-        isolate, should_throw,
-        NewTypeError(MessageTemplate::kProxyPropNotConfigurable, handler, name,
-                     isolate->factory()->NewStringFromAsciiChecked(
-                         "getPropertyDescriptor")));
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyPropNotConfigurable, handler, name,
+        isolate->factory()->NewStringFromAsciiChecked(
+            "getPropertyDescriptor")));
+    return Nothing<bool>();
   }
   DCHECK(configurable->IsTrue());
 
@@ -4540,7 +4496,7 @@ Maybe<bool> JSProxy::SetPropertyViaPrototypesWithHandler(
     *done = writable->IsFalse();
     if (!*done) return Nothing<bool>();  // Return value will be ignored.
     return WriteToReadOnlyProperty(isolate, receiver, name, value,
-                                   language_mode, should_throw);
+                                   should_throw);
   }
 
   // We have an AccessorDescriptor.
@@ -4553,7 +4509,6 @@ Maybe<bool> JSProxy::SetPropertyViaPrototypesWithHandler(
         receiver, Handle<JSReceiver>::cast(setter), value, should_throw);
   }
 
-  if (is_sloppy(language_mode)) return Just(true);
   RETURN_FAILURE(
       isolate, should_throw,
       NewTypeError(MessageTemplate::kNoSetterInCallback, name, proxy));
@@ -4787,8 +4742,9 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
   DCHECK(object->map()->is_extensible() ||
          it.isolate()->IsInternallyUsedPropertyName(name));
 #endif
-  AddDataProperty(&it, value, attributes, STRICT,
-                  CERTAINLY_NOT_STORE_FROM_KEYED).Check();
+  CHECK(AddDataProperty(&it, value, attributes, THROW_ON_ERROR,
+                        CERTAINLY_NOT_STORE_FROM_KEYED)
+            .IsJust());
 }
 
 
@@ -4806,6 +4762,15 @@ void ExecutableAccessorInfo::ClearSetter(Handle<ExecutableAccessorInfo> info) {
 MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
     ExecutableAccessorInfoHandling handling) {
+  MAYBE_RETURN_NULL(DefineOwnPropertyIgnoreAttributes(
+      it, value, attributes, THROW_ON_ERROR, handling));
+  return value;
+}
+
+
+Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
+    LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+    ShouldThrow should_throw, ExecutableAccessorInfoHandling handling) {
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   bool is_observed = object->map()->is_observed() &&
                      (it->IsElement() ||
@@ -4821,8 +4786,8 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
       case LookupIterator::ACCESS_CHECK:
         if (!it->HasAccess()) {
           it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>());
-          RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
-          return value;
+          RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
+          return Just(true);
         }
         break;
 
@@ -4837,8 +4802,7 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
       case LookupIterator::INTERCEPTOR:
         if (handling == DONT_FORCE_FIELD) {
           Maybe<bool> result = JSObject::SetPropertyWithInterceptor(it, value);
-          if (result.IsNothing()) return MaybeHandle<Object>();
-          if (result.FromJust()) return value;
+          if (result.IsNothing() || result.FromJust()) return result;
         }
         break;
 
@@ -4853,11 +4817,11 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
           // Ensure the context isn't changed after calling into accessors.
           AssertNoContextChange ncc(it->isolate());
 
-          Maybe<bool> result = JSObject::SetPropertyWithAccessor(
-              it, value, STRICT, THROW_ON_ERROR);
-          if (result.IsNothing()) return MaybeHandle<Object>();
+          Maybe<bool> result =
+              JSObject::SetPropertyWithAccessor(it, value, should_throw);
+          if (result.IsNothing() || !result.FromJust()) return result;
 
-          if (details.attributes() == attributes) return value;
+          if (details.attributes() == attributes) return Just(true);
 
           // Reconfigure the accessor if attributes mismatch.
           Handle<ExecutableAccessorInfo> new_data = Accessors::CloneAccessor(
@@ -4876,33 +4840,32 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
         }
 
         if (is_observed) {
-          RETURN_ON_EXCEPTION(
+          RETURN_ON_EXCEPTION_VALUE(
               it->isolate(),
               EnqueueChangeRecord(object, "reconfigure", it->GetName(),
                                   it->factory()->the_hole_value()),
-              Object);
+              Nothing<bool>());
         }
 
-        return value;
+        return Just(true);
       }
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
         return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
-                                               value, STRICT);
+                                               value, should_throw);
 
       case LookupIterator::DATA: {
         PropertyDetails details = it->property_details();
         Handle<Object> old_value = it->factory()->the_hole_value();
         // Regular property update if the attributes match.
         if (details.attributes() == attributes) {
-          MAYBE_RETURN_NULL(SetDataProperty(it, value, THROW_ON_ERROR));
-          return value;
+          return SetDataProperty(it, value, should_throw);
         }
 
         // Special case: properties of typed arrays cannot be reconfigured to
         // non-writable nor to non-enumerable.
         if (it->IsElement() && object->HasFixedTypedArrayElements()) {
           return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
-                                                 value, STRICT);
+                                                 value, should_throw);
         }
 
         // Reconfigure the data property if the attributes mismatch.
@@ -4914,17 +4877,17 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
           if (old_value->SameValue(*value)) {
             old_value = it->factory()->the_hole_value();
           }
-          RETURN_ON_EXCEPTION(it->isolate(),
-                              EnqueueChangeRecord(object, "reconfigure",
-                                                  it->GetName(), old_value),
-                              Object);
+          RETURN_ON_EXCEPTION_VALUE(
+              it->isolate(), EnqueueChangeRecord(object, "reconfigure",
+                                                 it->GetName(), old_value),
+              Nothing<bool>());
         }
-        return value;
+        return Just(true);
       }
     }
   }
 
-  return AddDataProperty(it, value, attributes, STRICT,
+  return AddDataProperty(it, value, attributes, should_throw,
                          CERTAINLY_NOT_STORE_FROM_KEYED);
 }
 

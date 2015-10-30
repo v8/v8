@@ -1195,7 +1195,9 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
                                        uint32_t index, Handle<Object> value,
                                        LanguageMode language_mode) {
   LookupIterator it(isolate, object, index);
-  return SetProperty(&it, value, language_mode, MAY_BE_STORE_FROM_KEYED);
+  MAYBE_RETURN_NULL(
+      SetProperty(&it, value, language_mode, MAY_BE_STORE_FROM_KEYED));
+  return value;
 }
 
 
