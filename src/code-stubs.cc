@@ -744,6 +744,12 @@ void AllocateHeapNumberStub::InitializeDescriptor(
 }
 
 
+void AllocateMutableHeapNumberStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize();
+}
+
+
 void AllocateInNewSpaceStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize();

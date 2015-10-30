@@ -87,39 +87,11 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
 
   // Compute the receiver type.
   Handle<Map> receiver_map = map;
-  Type* receiver_type = Type::Class(receiver_map, zone());
 
   // We support fast inline cases for certain JSObject getters.
-  if (access_mode == PropertyAccessMode::kLoad) {
-    // Check for special JSObject field accessors.
-    int offset;
-    if (Accessors::IsJSObjectFieldAccessor(map, name, &offset)) {
-      FieldIndex field_index = FieldIndex::ForInObjectOffset(offset);
-      Type* field_type = Type::Tagged();
-      if (map->IsStringMap()) {
-        DCHECK(Name::Equals(factory()->length_string(), name));
-        // The String::length property is always a smi in the range
-        // [0, String::kMaxLength].
-        field_type = type_cache_.kStringLengthType;
-      } else if (map->IsJSArrayMap()) {
-        DCHECK(Name::Equals(factory()->length_string(), name));
-        // The JSArray::length property is a smi in the range
-        // [0, FixedDoubleArray::kMaxLength] in case of fast double
-        // elements, a smi in the range [0, FixedArray::kMaxLength]
-        // in case of other fast elements, and [0, kMaxUInt32] in
-        // case of other arrays.
-        if (IsFastDoubleElementsKind(map->elements_kind())) {
-          field_type = type_cache_.kFixedDoubleArrayLengthType;
-        } else if (IsFastElementsKind(map->elements_kind())) {
-          field_type = type_cache_.kFixedArrayLengthType;
-        } else {
-          field_type = type_cache_.kJSArrayLengthType;
-        }
-      }
-      *access_info =
-          PropertyAccessInfo::DataField(receiver_type, field_index, field_type);
-      return true;
-    }
+  if (access_mode == PropertyAccessMode::kLoad &&
+      LookupSpecialFieldAccessor(map, name, access_info)) {
+    return true;
   }
 
   MaybeHandle<JSObject> holder;
@@ -136,16 +108,16 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
         }
         // Check for store to data property on a prototype.
         if (details.kind() == kData && !holder.is_null()) {
-          // We need to add the data field to the receiver. Leave the loop
-          // and check whether we already have a transition for this field.
+          // Store to property not found on the receiver but on a prototype, we
+          // need to transition to a new data property.
           // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
-          break;
+          return LookupTransition(receiver_map, name, holder, access_info);
         }
       }
       if (details.type() == DATA_CONSTANT) {
         *access_info = PropertyAccessInfo::DataConstant(
-            receiver_type, handle(descriptors->GetValue(number), isolate()),
-            holder);
+            Type::Class(receiver_map, zone()),
+            handle(descriptors->GetValue(number), isolate()), holder);
         return true;
       } else if (details.type() == DATA) {
         int index = descriptors->GetFieldIndex(number);
@@ -180,8 +152,8 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
           }
           DCHECK(field_type->Is(Type::TaggedPointer()));
         }
-        *access_info = PropertyAccessInfo::DataField(receiver_type, field_index,
-                                                     field_type, holder);
+        *access_info = PropertyAccessInfo::DataField(
+            Type::Class(receiver_map, zone()), field_index, field_type, holder);
         return true;
       } else {
         // TODO(bmeurer): Add support for accessors.
@@ -213,7 +185,7 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
         // to transition to a new data property.
         // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
         if (access_mode == PropertyAccessMode::kStore) {
-          break;
+          return LookupTransition(receiver_map, name, holder, access_info);
         }
         // TODO(bmeurer): Handle the not found case if the prototype is null.
         return false;
@@ -233,13 +205,53 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
     // Check if it is safe to inline property access for the {map}.
     if (!CanInlinePropertyAccess(map)) return false;
   }
-  DCHECK_EQ(PropertyAccessMode::kStore, access_mode);
+  return false;
+}
 
-  // Check if the {receiver_map} has a data transition with the given {name}.
-  if (receiver_map->unused_property_fields() == 0) return false;
-  if (Map* transition = TransitionArray::SearchTransition(*receiver_map, kData,
-                                                          *name, NONE)) {
-    Handle<Map> transition_map(transition, isolate());
+
+bool PropertyAccessInfoFactory::LookupSpecialFieldAccessor(
+    Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
+  // Check for special JSObject field accessors.
+  int offset;
+  if (Accessors::IsJSObjectFieldAccessor(map, name, &offset)) {
+    FieldIndex field_index = FieldIndex::ForInObjectOffset(offset);
+    Type* field_type = Type::Tagged();
+    if (map->IsStringMap()) {
+      DCHECK(Name::Equals(factory()->length_string(), name));
+      // The String::length property is always a smi in the range
+      // [0, String::kMaxLength].
+      field_type = type_cache_.kStringLengthType;
+    } else if (map->IsJSArrayMap()) {
+      DCHECK(Name::Equals(factory()->length_string(), name));
+      // The JSArray::length property is a smi in the range
+      // [0, FixedDoubleArray::kMaxLength] in case of fast double
+      // elements, a smi in the range [0, FixedArray::kMaxLength]
+      // in case of other fast elements, and [0, kMaxUInt32] in
+      // case of other arrays.
+      if (IsFastDoubleElementsKind(map->elements_kind())) {
+        field_type = type_cache_.kFixedDoubleArrayLengthType;
+      } else if (IsFastElementsKind(map->elements_kind())) {
+        field_type = type_cache_.kFixedArrayLengthType;
+      } else {
+        field_type = type_cache_.kJSArrayLengthType;
+      }
+    }
+    *access_info = PropertyAccessInfo::DataField(Type::Class(map, zone()),
+                                                 field_index, field_type);
+    return true;
+  }
+  return false;
+}
+
+
+bool PropertyAccessInfoFactory::LookupTransition(
+    Handle<Map> map, Handle<Name> name, MaybeHandle<JSObject> holder,
+    PropertyAccessInfo* access_info) {
+  // Check if the {map} has a data transition with the given {name}.
+  if (map->unused_property_fields() == 0) return false;
+  Handle<Map> transition_map;
+  if (TransitionArray::SearchTransition(map, kData, name, NONE)
+          .ToHandle(&transition_map)) {
     int const number = transition_map->LastAdded();
     PropertyDetails const details =
         transition_map->instance_descriptors()->GetDetails(number);
@@ -255,8 +267,7 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
     if (field_representation.IsSmi()) {
       field_type = type_cache_.kSmi;
     } else if (field_representation.IsDouble()) {
-      // TODO(bmeurer): Add support for storing to double fields.
-      return false;
+      field_type = type_cache_.kFloat64;
     } else if (field_representation.IsHeapObject()) {
       // Extract the field type from the property details (make sure its
       // representation is TaggedPointer to reflect the heap object case).
@@ -279,8 +290,9 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
       DCHECK(field_type->Is(Type::TaggedPointer()));
     }
     dependencies()->AssumeMapNotDeprecated(transition_map);
-    *access_info = PropertyAccessInfo::DataField(
-        receiver_type, field_index, field_type, holder, transition_map);
+    *access_info =
+        PropertyAccessInfo::DataField(Type::Class(map, zone()), field_index,
+                                      field_type, holder, transition_map);
     return true;
   }
   return false;

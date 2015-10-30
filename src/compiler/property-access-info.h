@@ -60,6 +60,8 @@ class PropertyAccessInfo final {
   Type* field_type() const { return field_type_; }
   Type* receiver_type() const { return receiver_type_; }
 
+  bool HasTransitionMap() const { return !transition_map().is_null(); }
+
  private:
   PropertyAccessInfo(MaybeHandle<JSObject> holder, Handle<Object> constant,
                      Type* receiver_type);
@@ -91,6 +93,12 @@ class PropertyAccessInfoFactory final {
                                   ZoneVector<PropertyAccessInfo>* access_infos);
 
  private:
+  bool LookupSpecialFieldAccessor(Handle<Map> map, Handle<Name> name,
+                                  PropertyAccessInfo* access_info);
+  bool LookupTransition(Handle<Map> map, Handle<Name> name,
+                        MaybeHandle<JSObject> holder,
+                        PropertyAccessInfo* access_info);
+
   CompilationDependencies* dependencies() const { return dependencies_; }
   Factory* factory() const;
   Isolate* isolate() const { return isolate_; }

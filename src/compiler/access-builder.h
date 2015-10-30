@@ -22,6 +22,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to HeapObject::map() field.
   static FieldAccess ForMap();
 
+  // Provides access to HeapNumber::value() field.
+  static FieldAccess ForHeapNumberValue();
+
   // Provides access to JSObject::properties() field.
   static FieldAccess ForJSObjectProperties();
 

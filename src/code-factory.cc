@@ -274,6 +274,13 @@ Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::AllocateMutableHeapNumber(Isolate* isolate) {
+  AllocateMutableHeapNumberStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::AllocateInNewSpace(Isolate* isolate) {
   AllocateInNewSpaceStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

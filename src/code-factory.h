@@ -94,6 +94,7 @@ class CodeFactory final {
                                   bool has_duplicate_parameters);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
+  static Callable AllocateMutableHeapNumber(Isolate* isolate);
   static Callable AllocateInNewSpace(Isolate* isolate);
 
   static Callable CallFunction(Isolate* isolate, int argc,

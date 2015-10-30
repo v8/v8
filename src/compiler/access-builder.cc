@@ -23,6 +23,15 @@ FieldAccess AccessBuilder::ForMap() {
 
 
 // static
+FieldAccess AccessBuilder::ForHeapNumberValue() {
+  FieldAccess access = {kTaggedBase, HeapNumber::kValueOffset,
+                        MaybeHandle<Name>(), TypeCache().Get().kFloat64,
+                        kMachFloat64};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForJSObjectProperties() {
   FieldAccess access = {kTaggedBase, JSObject::kPropertiesOffset,
                         MaybeHandle<Name>(), Type::Internal(), kMachAnyTagged};

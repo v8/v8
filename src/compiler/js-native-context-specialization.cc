@@ -5,10 +5,12 @@
 #include "src/compiler/js-native-context-specialization.h"
 
 #include "src/accessors.h"
+#include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/contexts.h"
 #include "src/field-index-inl.h"
@@ -423,18 +425,18 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
       FieldAccess field_access = {kTaggedBase, field_index.offset(), name,
                                   field_type, kMachAnyTagged};
-      if (field_type->Is(Type::UntaggedFloat64())) {
-        if (!field_index.is_inobject() || field_index.is_hidden_field() ||
-            !FLAG_unbox_double_fields) {
-          this_storage = this_effect =
-              graph()->NewNode(simplified()->LoadField(field_access),
-                               this_storage, this_effect, this_control);
-          field_access.offset = HeapNumber::kValueOffset;
-          field_access.name = MaybeHandle<Name>();
-        }
-        field_access.machine_type = kMachFloat64;
-      }
       if (access_mode == PropertyAccessMode::kLoad) {
+        if (field_type->Is(Type::UntaggedFloat64())) {
+          if (!field_index.is_inobject() || field_index.is_hidden_field() ||
+              !FLAG_unbox_double_fields) {
+            this_storage = this_effect =
+                graph()->NewNode(simplified()->LoadField(field_access),
+                                 this_storage, this_effect, this_control);
+            field_access.offset = HeapNumber::kValueOffset;
+            field_access.name = MaybeHandle<Name>();
+          }
+          field_access.machine_type = kMachFloat64;
+        }
         this_value = this_effect =
             graph()->NewNode(simplified()->LoadField(field_access),
                              this_storage, this_effect, this_control);
@@ -450,6 +452,39 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           this_control = graph()->NewNode(common()->IfTrue(), branch);
           this_value = graph()->NewNode(common()->Guard(Type::Number()),
                                         this_value, this_control);
+
+          if (!field_index.is_inobject() || field_index.is_hidden_field() ||
+              !FLAG_unbox_double_fields) {
+            if (access_info.HasTransitionMap()) {
+              // Allocate a MutableHeapNumber for the new property.
+              Callable callable =
+                  CodeFactory::AllocateMutableHeapNumber(isolate());
+              CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+                  isolate(), jsgraph()->zone(), callable.descriptor(), 0,
+                  CallDescriptor::kNoFlags, Operator::kNoThrow);
+              Node* this_box = this_effect = graph()->NewNode(
+                  common()->Call(desc),
+                  jsgraph()->HeapConstant(callable.code()),
+                  jsgraph()->NoContextConstant(), this_effect, this_control);
+              this_effect = graph()->NewNode(
+                  simplified()->StoreField(AccessBuilder::ForHeapNumberValue()),
+                  this_box, this_value, this_effect, this_control);
+              this_value = this_box;
+
+              field_access.type = Type::TaggedPointer();
+            } else {
+              // We just store directly to the MutableHeapNumber.
+              this_storage = this_effect =
+                  graph()->NewNode(simplified()->LoadField(field_access),
+                                   this_storage, this_effect, this_control);
+              field_access.offset = HeapNumber::kValueOffset;
+              field_access.name = MaybeHandle<Name>();
+              field_access.machine_type = kMachFloat64;
+            }
+          } else {
+            // Unboxed double field, we store directly to the field.
+            field_access.machine_type = kMachFloat64;
+          }
         } else if (field_type->Is(Type::TaggedSigned())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
@@ -505,7 +540,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         this_effect = graph()->NewNode(simplified()->StoreField(field_access),
                                        this_storage, this_value, this_effect,
                                        this_control);
-        if (!access_info.transition_map().is_null()) {
+        if (access_info.HasTransitionMap()) {
           this_effect =
               graph()->NewNode(common()->FinishRegion(),
                                jsgraph()->UndefinedConstant(), this_effect);

@@ -75,6 +75,12 @@ const char* CallInterfaceDescriptor::DebugName(Isolate* isolate) const {
 }
 
 
+void AllocateMutableHeapNumberDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformSpecific(0, nullptr, nullptr);
+}
+
+
 Type::FunctionType* LoadDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
