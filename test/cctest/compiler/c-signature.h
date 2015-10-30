@@ -13,7 +13,7 @@ namespace compiler {
 
 #define FOREACH_CTYPE_MACHINE_TYPE_MAPPING(V) \
   V(void, kMachNone)                          \
-  V(bool, kMachBool)                          \
+  V(bool, kMachUint8)                         \
   V(int8_t, kMachInt8)                        \
   V(uint8_t, kMachUint8)                      \
   V(int16_t, kMachInt16)                      \
