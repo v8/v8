@@ -4210,18 +4210,6 @@ void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
 }
 
 
-void Heap::CheckBackgroundIdleNotification(double idle_time_in_ms,
-                                           double now_ms) {
-  // TODO(ulan): Remove this function once Chrome uses new API
-  // for foreground/background notification.
-  if (idle_time_in_ms >= GCIdleTimeHandler::kMinBackgroundIdleTime) {
-    optimize_for_memory_usage_ = true;
-  } else {
-    optimize_for_memory_usage_ = false;
-  }
-}
-
-
 double Heap::MonotonicallyIncreasingTimeInMs() {
   return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
          static_cast<double>(base::Time::kMillisecondsPerSecond);
@@ -4245,8 +4233,6 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       isolate_->counters()->gc_idle_notification());
   double start_ms = MonotonicallyIncreasingTimeInMs();
   double idle_time_in_ms = deadline_in_ms - start_ms;
-
-  CheckBackgroundIdleNotification(idle_time_in_ms, start_ms);
 
   tracer()->SampleAllocation(start_ms, NewSpaceAllocationCounter(),
                              OldGenerationAllocationCounter());

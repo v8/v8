@@ -1801,7 +1801,6 @@ class Heap {
   void IdleNotificationEpilogue(GCIdleTimeAction action,
                                 GCIdleTimeHeapState heap_state, double start_ms,
                                 double deadline_in_ms);
-  void CheckBackgroundIdleNotification(double idle_time_in_ms, double now_ms);
 
   inline void UpdateAllocationsHash(HeapObject* object);
   inline void UpdateAllocationsHash(uint32_t value);
