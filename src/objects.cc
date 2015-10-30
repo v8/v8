@@ -14791,7 +14791,9 @@ int JSObject::NumberOfOwnProperties(PropertyAttributes filter) {
   if (HasFastProperties()) {
     Map* map = this->map();
     if (filter == NONE) return map->NumberOfOwnDescriptors();
-    if (filter & DONT_ENUM) {
+    if (filter == DONT_SHOW) {
+      // The cached enum length was computed with filter == DONT_SHOW, so
+      // that's the only filter for which it's valid to retrieve it.
       int result = map->EnumLength();
       if (result != kInvalidEnumCacheSentinel) return result;
     }
