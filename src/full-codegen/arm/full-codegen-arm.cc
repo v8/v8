@@ -2957,6 +2957,7 @@ void FullCodeGenerator::EmitCall(Call* expr, CallICState::CallType call_type) {
     VisitForStackValue(args->at(i));
   }
 
+  PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
   SetCallPosition(expr, arg_count);
   Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count, call_type).code();
   __ mov(r3, Operand(SmiFromSlot(expr->CallFeedbackICSlot())));
@@ -3898,6 +3899,7 @@ void FullCodeGenerator::EmitCall(CallRuntime* expr) {
   for (Expression* const arg : *args) {
     VisitForStackValue(arg);
   }
+  PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
   // Move target to r1.
   int const argc = args->length() - 2;
   __ ldr(r1, MemOperand(sp, (argc + 1) * kPointerSize));
@@ -3921,6 +3923,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   }
   VisitForAccumulatorValue(args->last());  // Function.
 
+  PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
   Label runtime, done;
   // Check for non-function argument (including proxy).
   __ JumpIfSmi(r0, &runtime);

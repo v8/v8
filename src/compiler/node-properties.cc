@@ -164,6 +164,13 @@ void NodeProperties::ReplaceFrameStateInput(Node* node, int index,
 
 
 // static
+void NodeProperties::RemoveFrameStateInput(Node* node, int index) {
+  DCHECK_LT(index, OperatorProperties::GetFrameStateInputCount(node->op()));
+  node->RemoveInput(FirstFrameStateIndex(node) + index);
+}
+
+
+// static
 void NodeProperties::RemoveNonValueInputs(Node* node) {
   node->TrimInputCount(node->op()->ValueInputCount());
 }

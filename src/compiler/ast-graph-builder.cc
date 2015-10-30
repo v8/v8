@@ -394,8 +394,9 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
                               : builder_->environment()->Checkpoint(id_before);
   }
 
-  void AddToNode(Node* node, BailoutId id_after,
-                 OutputFrameStateCombine combine) {
+  void AddToNode(
+      Node* node, BailoutId id_after,
+      OutputFrameStateCombine combine = OutputFrameStateCombine::Ignore()) {
     int count = OperatorProperties::GetFrameStateInputCount(node->op());
     DCHECK_LE(count, 2);
 
@@ -1962,21 +1963,24 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
     if (subexpr->IsSpread()) {
       VisitForValue(subexpr->AsSpread()->expression());
+      FrameStateBeforeAndAfter states(this,
+                                      subexpr->AsSpread()->expression()->id());
       Node* iterable = environment()->Pop();
       Node* function = BuildLoadNativeContextField(
           Context::CONCAT_ITERABLE_TO_ARRAY_BUILTIN_INDEX);
       result = NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS,
                                                   language_mode()),
                        function, array, iterable);
+      states.AddToNode(result, expr->GetIdForElement(array_index));
     } else {
       VisitForValue(subexpr);
       Node* value = environment()->Pop();
       const Operator* op =
           javascript()->CallRuntime(Runtime::kAppendElement, 2);
       result = NewNode(op, array, value);
+      PrepareFrameState(result, expr->GetIdForElement(array_index));
     }
 
-    PrepareFrameState(result, expr->GetIdForElement(array_index));
     environment()->Push(result);
   }
 
@@ -2489,9 +2493,10 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
   const Operator* call = javascript()->CallFunction(
       args->length() + 2, flags, language_mode(), feedback, receiver_hint);
+  FrameStateBeforeAndAfter states(this, expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
   environment()->Push(value->InputAt(0));  // The callee passed to the call.
-  PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
+  states.AddToNode(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   environment()->Drop(1);
   ast_context()->ProduceValue(value);
 }
@@ -2561,8 +2566,9 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   // Create node to perform the JS runtime call.
   const Operator* call =
       javascript()->CallFunction(args->length() + 2, flags, language_mode());
+  FrameStateBeforeAndAfter states(this, expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
-  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
 }
 

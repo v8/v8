@@ -1587,6 +1587,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
       if (p.AllowTailCalls()) {
         flags |= CallDescriptor::kSupportsTailCalls;
       }
+      NodeProperties::RemoveFrameStateInput(node, 1);
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity, flags)));

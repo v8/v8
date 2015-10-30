@@ -569,6 +569,7 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
 
 void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   const CallRuntimeParameters& p = CallRuntimeParametersOf(node->op());
+  AdjustFrameStatesForCall(node);
   ReplaceWithRuntimeCall(node, p.id(), static_cast<int>(p.arity()));
 }
 
