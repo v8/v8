@@ -3331,12 +3331,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
     case VariableLocation::UNALLOCATED: {
       // Global var, const, or let variable.
       Handle<Name> name = variable->name();
-      Handle<Object> constant_value =
-          jsgraph()->isolate()->factory()->GlobalConstantFor(name);
-      if (!constant_value.is_null()) {
-        // Optimize global constants like "undefined", "Infinity", and "NaN".
-        return jsgraph()->Constant(constant_value);
-      }
+      if (Node* node = TryLoadGlobalConstant(name)) return node;
       Node* value = BuildGlobalLoad(name, feedback, typeof_mode);
       states.AddToNode(value, bailout_id, combine);
       return value;
@@ -3754,42 +3749,13 @@ Node* AstGraphBuilder::BuildStoreExternal(ExternalReference reference,
 
 
 Node* AstGraphBuilder::BuildToBoolean(Node* input) {
-  // TODO(bmeurer, mstarzinger): Refactor this into a separate optimization
-  // method.
-  switch (input->opcode()) {
-    case IrOpcode::kNumberConstant: {
-      NumberMatcher m(input);
-      return jsgraph_->BooleanConstant(!m.Is(0) && !m.IsNaN());
-    }
-    case IrOpcode::kHeapConstant: {
-      Handle<HeapObject> object = HeapObjectMatcher(input).Value();
-      return jsgraph_->BooleanConstant(object->BooleanValue());
-    }
-    case IrOpcode::kJSEqual:
-    case IrOpcode::kJSNotEqual:
-    case IrOpcode::kJSStrictEqual:
-    case IrOpcode::kJSStrictNotEqual:
-    case IrOpcode::kJSLessThan:
-    case IrOpcode::kJSLessThanOrEqual:
-    case IrOpcode::kJSGreaterThan:
-    case IrOpcode::kJSGreaterThanOrEqual:
-    case IrOpcode::kJSUnaryNot:
-    case IrOpcode::kJSToBoolean:
-    case IrOpcode::kJSDeleteProperty:
-    case IrOpcode::kJSHasProperty:
-    case IrOpcode::kJSInstanceOf:
-      return input;
-    default:
-      break;
-  }
+  if (Node* node = TryFastToBoolean(input)) return node;
   return NewNode(javascript()->ToBoolean(), input);
 }
 
 
 Node* AstGraphBuilder::BuildToName(Node* input, BailoutId bailout_id) {
-  // TODO(turbofan): Possible optimization is to NOP on name constants. But the
-  // same caveat as with BuildToBoolean applies, and it should be factored out
-  // into a JSOperatorReducer.
+  if (Node* node = TryFastToName(input)) return node;
   Node* name = NewNode(javascript()->ToName(), input);
   PrepareFrameState(name, bailout_id);
   return name;
@@ -3930,6 +3896,63 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
       js_op = NULL;
   }
   return NewNode(js_op, left, right);
+}
+
+
+Node* AstGraphBuilder::TryLoadGlobalConstant(Handle<Name> name) {
+  // Optimize global constants like "undefined", "Infinity", and "NaN".
+  Handle<Object> constant_value = isolate()->factory()->GlobalConstantFor(name);
+  if (!constant_value.is_null()) return jsgraph()->Constant(constant_value);
+  return nullptr;
+}
+
+
+Node* AstGraphBuilder::TryFastToBoolean(Node* input) {
+  switch (input->opcode()) {
+    case IrOpcode::kNumberConstant: {
+      NumberMatcher m(input);
+      return jsgraph_->BooleanConstant(!m.Is(0) && !m.IsNaN());
+    }
+    case IrOpcode::kHeapConstant: {
+      Handle<HeapObject> object = HeapObjectMatcher(input).Value();
+      return jsgraph_->BooleanConstant(object->BooleanValue());
+    }
+    case IrOpcode::kJSEqual:
+    case IrOpcode::kJSNotEqual:
+    case IrOpcode::kJSStrictEqual:
+    case IrOpcode::kJSStrictNotEqual:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSUnaryNot:
+    case IrOpcode::kJSToBoolean:
+    case IrOpcode::kJSDeleteProperty:
+    case IrOpcode::kJSHasProperty:
+    case IrOpcode::kJSInstanceOf:
+      return input;
+    default:
+      break;
+  }
+  return nullptr;
+}
+
+
+Node* AstGraphBuilder::TryFastToName(Node* input) {
+  switch (input->opcode()) {
+    case IrOpcode::kHeapConstant: {
+      Handle<HeapObject> object = HeapObjectMatcher(input).Value();
+      if (object->IsName()) return input;
+      break;
+    }
+    case IrOpcode::kJSToString:
+    case IrOpcode::kJSToName:
+    case IrOpcode::kJSTypeOf:
+      return input;
+    default:
+      break;
+  }
+  return nullptr;
 }
 
 
