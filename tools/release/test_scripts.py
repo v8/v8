@@ -989,6 +989,7 @@ https://code.google.com/p/v8-wiki/wiki/TriagingIssues
 
 Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
+This only works with a Google account.
 
 TBR=g_name@chromium.org,reviewer@chromium.org"""
 
