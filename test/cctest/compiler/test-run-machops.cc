@@ -18,8 +18,10 @@
 #include "test/cctest/compiler/value-helper.h"
 
 using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 typedef RawMachineAssembler::Label MLabel;
 
@@ -5567,3 +5569,7 @@ TEST(RunComputedCodeObject) {
   CHECK_EQ(33, r.Call(1));
   CHECK_EQ(44, r.Call(0));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

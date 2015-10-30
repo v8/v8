@@ -15,8 +15,9 @@
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 class ContextSpecializationTester : public HandleAndZoneScope {
  public:
@@ -318,3 +319,7 @@ TEST(SpecializeJSFunction_ToConstant_uninit) {
     CHECK(T.Call(T.Val(-2.1), T.Val(0.0)).ToHandleChecked()->IsNaN());
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

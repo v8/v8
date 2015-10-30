@@ -10,8 +10,9 @@
 #include "src/compiler/operator.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 #define NONE Operator::kNoProperties
 #define FOLD Operator::kFoldable
@@ -282,3 +283,7 @@ TEST(Operator_CountsOrder) {
   CHECK_EQ(55, op.EffectOutputCount());
   CHECK_EQ(66, op.ControlOutputCount());
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

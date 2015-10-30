@@ -17,8 +17,9 @@
 #include "src/compiler/scheduler.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 typedef v8::internal::compiler::Instruction TestInstr;
 typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
@@ -322,3 +323,7 @@ TEST(InstructionOperands) {
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

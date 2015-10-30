@@ -18,8 +18,9 @@
 #include "src/compiler/verifier.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static Operator dummy_operator1(IrOpcode::kParameter, Operator::kNoWrite,
                                 "dummy", 1, 0, 0, 1, 0, 0);
@@ -128,3 +129,7 @@ TEST(NodeNetworkOfDummiesReachableFromEnd) {
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

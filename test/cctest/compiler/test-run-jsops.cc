@@ -7,8 +7,9 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(BinopAdd) {
   FunctionTester T("(function(a,b) { return a + b; })");
@@ -540,3 +541,7 @@ TEST(ClassLiteral) {
   T.CheckCall(T.Val(65), T.Val(23), T.Val(42));
   T.CheckCall(T.Val("ab"), T.Val("a"), T.Val("b"));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

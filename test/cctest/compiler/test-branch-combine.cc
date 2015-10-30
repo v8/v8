@@ -9,8 +9,9 @@
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 typedef RawMachineAssembler::Label MLabel;
 
@@ -458,3 +459,7 @@ TEST(BranchCombineFloat64Compares) {
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

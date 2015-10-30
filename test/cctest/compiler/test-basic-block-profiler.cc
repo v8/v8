@@ -9,8 +9,9 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 typedef RawMachineAssembler::Label MLabel;
 
@@ -109,3 +110,7 @@ TEST(ProfileLoop) {
     m.Expect(arraysize(expected), expected);
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

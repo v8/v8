@@ -7,8 +7,9 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(Conditional) {
   FunctionTester T("(function(a) { return a ? 23 : 42; })");
@@ -383,3 +384,7 @@ TEST(EmptyFor) {
   T.CheckCall(T.Val(8126.1), T.Val(0.0), T.Val(8126.1));
   T.CheckCall(T.Val(1123.1), T.Val(0.0), T.Val(1123.1));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

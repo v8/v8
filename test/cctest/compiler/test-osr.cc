@@ -16,8 +16,9 @@
 #include "src/compiler/osr.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 // TODO(titzer): move this method to a common testing place.
 
@@ -566,3 +567,7 @@ TEST(Deconstruct_osr_nested3) {
   // depends on the copy of the outer loop0.
   CheckInputs(new_ret, new_loop0_phi, T.graph.start(), new_loop0_exit);
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

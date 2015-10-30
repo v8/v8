@@ -7,8 +7,9 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(SimpleCall) {
   FunctionTester T("(function(foo,a) { return foo(a); })");
@@ -246,3 +247,7 @@ TEST(BuiltinLoadedFromActivation) {
   CompileRun("var x = 24;");
   ExpectObject("foo()", context->Global());
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

@@ -27,8 +27,9 @@
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 template <typename ReturnType>
 class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
@@ -286,3 +287,7 @@ TEST(RunChangeBitToBool) {
     CHECK_EQ(false_obj, result);
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

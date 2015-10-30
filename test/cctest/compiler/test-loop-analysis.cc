@@ -21,8 +21,9 @@
 #include "src/compiler/verifier.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
                         0, 1, 0, 0);
@@ -1013,3 +1014,7 @@ TEST(LaManyNested_64) { RunManyNestedLoops_i(64); }
 
 
 TEST(LaPhiTangle) { LoopFinderTester t; }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

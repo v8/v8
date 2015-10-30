@@ -17,9 +17,9 @@
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 typedef RawMachineAssembler::Label MLabel;
 
@@ -1167,3 +1167,7 @@ TEST(MixedParams_0) { MixedParamTest(0); }
 TEST(MixedParams_1) { MixedParamTest(1); }
 TEST(MixedParams_2) { MixedParamTest(2); }
 TEST(MixedParams_3) { MixedParamTest(3); }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

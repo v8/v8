@@ -17,8 +17,9 @@
 #include "src/parser.h"
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 
 TEST(RunOptimizedMathFloorStub) {
@@ -143,3 +144,7 @@ TEST(RunStringAddTFStub) {
   Handle<Object> result = ft.Call(leftArg, rightArg).ToHandleChecked();
   CHECK(String::Equals(ft.Val("linksrechts"), Handle<String>::cast(result)));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

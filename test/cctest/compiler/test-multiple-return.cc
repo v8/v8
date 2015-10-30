@@ -20,11 +20,9 @@
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 namespace {
 
@@ -117,3 +115,7 @@ TEST(ReturnThreeValues) {
 #endif
   CHECK_EQ((123 + 456) + (123 - 456) + (123 * 456), mt.Call());
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

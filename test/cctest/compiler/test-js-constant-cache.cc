@@ -13,8 +13,9 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 class JSCacheTesterHelper {
  protected:
@@ -474,3 +475,7 @@ TEST(JSGraph_GetCachedNodes_together) {
     CHECK(Contains(&nodes, constants[i]));
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

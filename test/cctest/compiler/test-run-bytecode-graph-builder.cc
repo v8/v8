@@ -112,13 +112,6 @@ class BytecodeGraphTester {
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphTester);
 };
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
-
-
-using namespace v8::internal;
-using namespace v8::internal::compiler;
 
 template <int N>
 struct ExpectedSnippet {
@@ -260,3 +253,7 @@ TEST(BytecodeGraphBuilderTwoParameterTests) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

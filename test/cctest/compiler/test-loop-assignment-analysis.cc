@@ -11,8 +11,9 @@
 #include "src/scopes.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 namespace {
 const int kBufferSize = 1024;
@@ -296,3 +297,7 @@ TEST(NestedLoops3c) {
   f.CheckLoopAssignedCount(5, "z");
   f.CheckLoopAssignedCount(0, "w");
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

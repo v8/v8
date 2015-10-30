@@ -7,8 +7,9 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(Throw) {
   FunctionTester T("(function(a,b) { if (a) { throw b; } else { return b; }})");
@@ -278,3 +279,7 @@ TEST(DeoptFinallyReThrow) {
   T.CheckThrows(T.NewObject("new Error"), T.Val(1));
 #endif
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

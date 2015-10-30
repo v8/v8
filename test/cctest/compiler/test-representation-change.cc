@@ -15,10 +15,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/representation-change.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-
-namespace v8 {  // for friendiness.
+namespace v8 {
 namespace internal {
 namespace compiler {
 
@@ -102,9 +99,6 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     CHECK_EQ(n, c);
   }
 };
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
 
 
 static const MachineType all_reps[] = {kRepBit,     kRepWord32,  kRepWord64,
@@ -553,3 +547,7 @@ TEST(TypeErrors) {
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

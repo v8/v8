@@ -15,8 +15,9 @@
 #include "src/compiler/typer.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 #ifndef TEST_WITH_STRONG
 #define TEST_WITH_STRONG(Name)                                                 \
@@ -1262,3 +1263,7 @@ TEST_WITH_STRONG(Int32Comparisons) {
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

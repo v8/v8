@@ -29,8 +29,9 @@
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 template <typename ReturnType>
 class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
@@ -2006,3 +2007,7 @@ TEST(PhiRepresentation) {
     CHECK_EQ(d.expected, OpParameter<MachineType>(phi));
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

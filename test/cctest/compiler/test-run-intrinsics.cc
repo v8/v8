@@ -7,8 +7,10 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
+
 uint32_t flags = CompilationInfo::kInliningEnabled;
 
 
@@ -321,3 +323,7 @@ TEST(ValueOf) {
   T.CheckCall(T.Val(123), T.Val(123));
   T.CheckCall(T.Val(456), T.NewObject("(new Number(456))"));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

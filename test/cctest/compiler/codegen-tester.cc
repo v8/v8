@@ -6,8 +6,9 @@
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(CompareWrapper) {
   // Who tests the testers?
@@ -568,3 +569,7 @@ TEST(RunBinopTester) {
     FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(*i, bt.call(-11.25, *i)); }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

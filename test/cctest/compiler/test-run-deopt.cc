@@ -9,8 +9,9 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static void IsOptimized(const v8::FunctionCallbackInfo<v8::Value>& args) {
   JavaScriptFrameIterator it(CcTest::i_isolate());
@@ -117,3 +118,7 @@ TEST(DeoptTrivial) {
 
   T.CheckCall(T.Val(1));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

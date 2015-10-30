@@ -8,8 +8,9 @@
 #include "src/frames-inl.h"
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 namespace {
 
@@ -603,3 +604,7 @@ TEST(InlineMutuallyRecursive) {
   InstallAssertInlineCountHelper(CcTest::isolate());
   T.CheckCall(T.Val(42), T.Val(1));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

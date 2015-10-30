@@ -20,8 +20,9 @@
 #include "src/compiler/schedule.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
                                "dummy", 0, 0, 0, 0, 0, 0);
@@ -113,3 +114,7 @@ TEST(TestLinkageRuntimeCall) {
 TEST(TestLinkageStubCall) {
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

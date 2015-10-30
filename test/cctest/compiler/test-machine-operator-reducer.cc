@@ -14,8 +14,9 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 template <typename T>
 const Operator* NewConstantOperator(CommonOperatorBuilder* common,
@@ -750,3 +751,7 @@ TEST(ReduceLoadStore) {
 // TODO(titzer): test MachineOperatorReducer for Float64Mul
 // TODO(titzer): test MachineOperatorReducer for Float64Div
 // TODO(titzer): test MachineOperatorReducer for Float64Mod
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

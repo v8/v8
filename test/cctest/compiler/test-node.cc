@@ -12,8 +12,9 @@
 #include "src/compiler/operator.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 #define NONE reinterpret_cast<Node*>(1)
 
@@ -785,3 +786,7 @@ TEST(AppendAndTrim) {
     CHECK_USES(last, NONE);
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
