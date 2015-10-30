@@ -198,6 +198,9 @@ def BuildOptions():
   result.add_option("--asan",
                     help="Regard test expectations for ASAN",
                     default=False, action="store_true")
+  result.add_option("--cfi-vptr",
+                    help="Run tests with UBSAN cfi_vptr option.",
+                    default=False, action="store_true")
   result.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
                     default=False, action="store_true")
@@ -352,6 +355,41 @@ def BuildbotToV8Mode(config):
   mode = config[:-4] if config.endswith('_x64') else config
   return mode.lower()
 
+def SetupEnvironment(options):
+  """Setup additional environment variables."""
+  symbolizer = 'external_symbolizer_path=%s' % (
+      os.path.join(
+          BASE_DIR, 'third_party', 'llvm-build', 'Release+Asserts', 'bin',
+          'llvm-symbolizer',
+      )
+  )
+
+  if options.asan:
+    os.environ['ASAN_OPTIONS'] = symbolizer
+
+  if options.cfi_vptr:
+    os.environ['UBSAN_OPTIONS'] = ":".join([
+      'print_stacktrace=1',
+      'print_summary=1',
+      'symbolize=1',
+      symbolizer,
+    ])
+
+  if options.msan:
+    os.environ['MSAN_OPTIONS'] = symbolizer
+
+  if options.tsan:
+    suppressions_file = os.path.join(
+        BASE_DIR, 'tools', 'sanitizers', 'tsan_suppressions.txt')
+    os.environ['TSAN_OPTIONS'] = " ".join([
+      symbolizer,
+      'suppressions=%s' % suppressions_file,
+      'exit_code=0',
+      'report_thread_leaks=0',
+      'history_size=7',
+      'report_destroy_locked=0',
+    ])
+
 def ProcessOptions(options):
   global ALL_VARIANTS
   global EXHAUSTIVE_VARIANTS
@@ -416,11 +454,6 @@ def ProcessOptions(options):
 
   if options.tsan:
     VARIANTS = ["default"]
-    suppressions_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                     'sanitizers', 'tsan_suppressions.txt')
-    tsan_options = '%s suppressions=%s' % (
-        os.environ.get('TSAN_OPTIONS', ''), suppressions_file)
-    os.environ['TSAN_OPTIONS'] = tsan_options
 
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
@@ -530,6 +563,7 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     return 1
+  SetupEnvironment(options)
 
   exit_code = 0
   if not options.no_presubmit:
