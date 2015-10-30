@@ -1425,6 +1425,66 @@ void FullCodeGenerator::ExitTryBlock(int handler_index) {
 }
 
 
+void FullCodeGenerator::VisitCall(Call* expr) {
+#ifdef DEBUG
+  // We want to verify that RecordJSReturnSite gets called on all paths
+  // through this function.  Avoid early returns.
+  expr->return_is_recorded_ = false;
+#endif
+
+  Comment cmnt(masm_, "[ Call");
+  Expression* callee = expr->expression();
+  Call::CallType call_type = expr->GetCallType(isolate());
+
+  switch (call_type) {
+    case Call::POSSIBLY_EVAL_CALL:
+      EmitPossiblyEvalCall(expr);
+      break;
+    case Call::GLOBAL_CALL:
+      EmitCallWithLoadIC(expr);
+      break;
+    case Call::LOOKUP_SLOT_CALL:
+      // Call to a lookup slot (dynamically introduced variable).
+      PushCalleeAndWithBaseObject(expr);
+      EmitCall(expr);
+      break;
+    case Call::NAMED_PROPERTY_CALL: {
+      Property* property = callee->AsProperty();
+      VisitForStackValue(property->obj());
+      EmitCallWithLoadIC(expr);
+      break;
+    }
+    case Call::KEYED_PROPERTY_CALL: {
+      Property* property = callee->AsProperty();
+      VisitForStackValue(property->obj());
+      EmitKeyedCallWithLoadIC(expr, property->key());
+      break;
+    }
+    case Call::NAMED_SUPER_PROPERTY_CALL:
+      EmitSuperCallWithLoadIC(expr);
+      break;
+    case Call::KEYED_SUPER_PROPERTY_CALL:
+      EmitKeyedSuperCallWithLoadIC(expr);
+      break;
+    case Call::SUPER_CALL:
+      EmitSuperConstructorCall(expr);
+      break;
+    case Call::OTHER_CALL:
+      // Call to an arbitrary expression not handled specially above.
+      VisitForStackValue(callee);
+      __ PushRoot(Heap::kUndefinedValueRootIndex);
+      // Emit function call.
+      EmitCall(expr);
+      break;
+  }
+
+#ifdef DEBUG
+  // RecordJSReturnSite should have been called.
+  DCHECK(expr->return_is_recorded_);
+#endif
+}
+
+
 void FullCodeGenerator::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
 

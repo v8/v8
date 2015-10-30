@@ -3572,6 +3572,14 @@ void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
 }
 
 
+void MacroAssembler::PushRoot(Heap::RootListIndex index) {
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  LoadRoot(temp, index);
+  Push(temp);
+}
+
+
 void MacroAssembler::CompareRoot(const Register& obj,
                                  Heap::RootListIndex index) {
   UseScratchRegisterScope temps(this);

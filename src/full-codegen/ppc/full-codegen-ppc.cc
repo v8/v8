@@ -3033,86 +3033,40 @@ void FullCodeGenerator::PushCalleeAndWithBaseObject(Call* expr) {
 }
 
 
-void FullCodeGenerator::VisitCall(Call* expr) {
-#ifdef DEBUG
-  // We want to verify that RecordJSReturnSite gets called on all paths
-  // through this function.  Avoid early returns.
-  expr->return_is_recorded_ = false;
-#endif
+void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
+  // In a call to eval, we first call RuntimeHidden_ResolvePossiblyDirectEval
+  // to resolve the function we need to call.  Then we call the resolved
+  // function using the given arguments.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
 
-  Comment cmnt(masm_, "[ Call");
-  Expression* callee = expr->expression();
-  Call::CallType call_type = expr->GetCallType(isolate());
+  PushCalleeAndWithBaseObject(expr);
 
-  if (call_type == Call::POSSIBLY_EVAL_CALL) {
-    // In a call to eval, we first call RuntimeHidden_ResolvePossiblyDirectEval
-    // to resolve the function we need to call.  Then we call the resolved
-    // function using the given arguments.
-    ZoneList<Expression*>* args = expr->arguments();
-    int arg_count = args->length();
-
-    PushCalleeAndWithBaseObject(expr);
-
-    // Push the arguments.
-    for (int i = 0; i < arg_count; i++) {
-      VisitForStackValue(args->at(i));
-    }
-
-    // Push a copy of the function (found below the arguments) and
-    // resolve eval.
-    __ LoadP(r4, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
-    __ push(r4);
-    EmitResolvePossiblyDirectEval(arg_count);
-
-    // Touch up the stack with the resolved function.
-    __ StoreP(r3, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
-
-    PrepareForBailoutForId(expr->EvalId(), NO_REGISTERS);
-
-    // Record source position for debugger.
-    SetCallPosition(expr, arg_count);
-    CallFunctionStub stub(isolate(), arg_count, NO_CALL_FUNCTION_FLAGS);
-    __ LoadP(r4, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
-    __ CallStub(&stub);
-    RecordJSReturnSite(expr);
-    // Restore context register.
-    __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-    context()->DropAndPlug(1, r3);
-  } else if (call_type == Call::GLOBAL_CALL) {
-    EmitCallWithLoadIC(expr);
-
-  } else if (call_type == Call::LOOKUP_SLOT_CALL) {
-    // Call to a lookup slot (dynamically introduced variable).
-    PushCalleeAndWithBaseObject(expr);
-    EmitCall(expr);
-  } else if (call_type == Call::NAMED_PROPERTY_CALL) {
-    Property* property = callee->AsProperty();
-    VisitForStackValue(property->obj());
-    EmitCallWithLoadIC(expr);
-  } else if (call_type == Call::KEYED_PROPERTY_CALL) {
-    Property* property = callee->AsProperty();
-    VisitForStackValue(property->obj());
-    EmitKeyedCallWithLoadIC(expr, property->key());
-  } else if (call_type == Call::NAMED_SUPER_PROPERTY_CALL) {
-    EmitSuperCallWithLoadIC(expr);
-  } else if (call_type == Call::KEYED_SUPER_PROPERTY_CALL) {
-    EmitKeyedSuperCallWithLoadIC(expr);
-  } else if (call_type == Call::SUPER_CALL) {
-    EmitSuperConstructorCall(expr);
-  } else {
-    DCHECK(call_type == Call::OTHER_CALL);
-    // Call to an arbitrary expression not handled specially above.
-    VisitForStackValue(callee);
-    __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
-    __ push(r4);
-    // Emit function call.
-    EmitCall(expr);
+  // Push the arguments.
+  for (int i = 0; i < arg_count; i++) {
+    VisitForStackValue(args->at(i));
   }
 
-#ifdef DEBUG
-  // RecordJSReturnSite should have been called.
-  DCHECK(expr->return_is_recorded_);
-#endif
+  // Push a copy of the function (found below the arguments) and
+  // resolve eval.
+  __ LoadP(r4, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
+  __ push(r4);
+  EmitResolvePossiblyDirectEval(arg_count);
+
+  // Touch up the stack with the resolved function.
+  __ StoreP(r3, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
+
+  PrepareForBailoutForId(expr->EvalId(), NO_REGISTERS);
+
+  // Record source position for debugger.
+  SetCallPosition(expr, arg_count);
+  CallFunctionStub stub(isolate(), arg_count, NO_CALL_FUNCTION_FLAGS);
+  __ LoadP(r4, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
+  __ CallStub(&stub);
+  RecordJSReturnSite(expr);
+  // Restore context register.
+  __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  context()->DropAndPlug(1, r3);
 }
 
 

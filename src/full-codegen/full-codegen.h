@@ -477,6 +477,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitSuperCallWithLoadIC(Call* expr);
   void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
   void EmitKeyedSuperCallWithLoadIC(Call* expr);
+  void EmitPossiblyEvalCall(Call* expr);
 
 #define FOR_EACH_FULL_CODE_INTRINSIC(F) \
   F(IsSmi)                              \

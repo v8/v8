@@ -1461,6 +1461,9 @@ class MacroAssembler : public Assembler {
   // register.
   void LoadElementsKindFromMap(Register result, Register map);
 
+  // Load the value from the root list and push it onto the stack.
+  void PushRoot(Heap::RootListIndex index);
+
   // Compare the object in a register to a value from the root list.
   void CompareRoot(const Register& obj, Heap::RootListIndex index);
 
