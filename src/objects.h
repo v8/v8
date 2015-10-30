@@ -2257,10 +2257,8 @@ class JSObject: public JSReceiver {
 
   // Get the header size for a JSObject.  Used to compute the index of
   // internal fields as well as the number of internal fields.
-  static inline int GetHeaderSize(InstanceType instance_type);
   inline int GetHeaderSize();
 
-  static inline int GetInternalFieldCount(Map* map);
   inline int GetInternalFieldCount();
   inline int GetInternalFieldOffset(int index);
   inline Object* GetInternalField(int index);
@@ -5801,10 +5799,6 @@ class Map: public HeapObject {
   // gathering type feedback. Use TryUpdate in those cases instead.
   static Handle<Map> Update(Handle<Map> map);
 
-  static inline Handle<Map> CopyInitialMap(Handle<Map> map);
-  static Handle<Map> CopyInitialMap(Handle<Map> map, int instance_size,
-                                    int in_object_properties,
-                                    int unused_property_fields);
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
   static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
                                           Descriptor* descriptor,
@@ -6836,6 +6830,12 @@ class SharedFunctionInfo: public HeapObject {
   // Source size of this function.
   int SourceSize();
 
+  // Calculate the instance size.
+  int CalculateInstanceSize();
+
+  // Calculate the number of in-object properties.
+  int CalculateInObjectProperties();
+
   inline bool has_simple_parameters();
 
   // Initialize a SharedFunctionInfo from a parsed function literal.
@@ -7329,11 +7329,6 @@ class JSFunction: public JSObject {
                             Handle<Object> prototype);
   inline bool has_initial_map();
   static void EnsureHasInitialMap(Handle<JSFunction> function);
-  // Ensures that the |original_constructor| has correct initial map and
-  // returns it. If the |original_constructor| is not a subclass constructor
-  // its initial map is left unmodified.
-  static Handle<Map> EnsureDerivedHasInitialMap(
-      Handle<JSFunction> original_constructor, Handle<JSFunction> constructor);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
@@ -7381,15 +7376,6 @@ class JSFunction: public JSObject {
   void PrintName(FILE* out = stdout);
 
   DECLARE_CAST(JSFunction)
-
-  // Calculate the instance size and in-object properties count.
-  void CalculateInstanceSize(InstanceType instance_type,
-                             int requested_internal_fields, int* instance_size,
-                             int* in_object_properties);
-  void CalculateInstanceSizeForDerivedClass(InstanceType instance_type,
-                                            int requested_internal_fields,
-                                            int* instance_size,
-                                            int* in_object_properties);
 
   // Iterates the objects, including code objects indirectly referenced
   // through pointers to the first instruction in the code object.

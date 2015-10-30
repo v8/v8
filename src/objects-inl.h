@@ -2134,10 +2134,8 @@ void WeakCell::clear_next(Heap* heap) {
 bool WeakCell::next_cleared() { return next()->IsTheHole(); }
 
 
-int JSObject::GetHeaderSize() { return GetHeaderSize(map()->instance_type()); }
-
-
-int JSObject::GetHeaderSize(InstanceType type) {
+int JSObject::GetHeaderSize() {
+  InstanceType type = map()->instance_type();
   // Check for the most common kind of JavaScript object before
   // falling into the generic switch. This speeds up the internal
   // field operations considerably on average.
@@ -2194,16 +2192,13 @@ int JSObject::GetHeaderSize(InstanceType type) {
 }
 
 
-int JSObject::GetInternalFieldCount(Map* map) {
-  int instance_size = map->instance_size();
-  if (instance_size == kVariableSizeSentinel) return 0;
-  InstanceType instance_type = map->instance_type();
-  return ((instance_size - GetHeaderSize(instance_type)) >> kPointerSizeLog2) -
-         map->GetInObjectProperties();
+int JSObject::GetInternalFieldCount() {
+  DCHECK(1 << kPointerSizeLog2 == kPointerSize);
+  // Make sure to adjust for the number of in-object properties. These
+  // properties do contribute to the size, but are not internal fields.
+  return ((Size() - GetHeaderSize()) >> kPointerSizeLog2) -
+         map()->GetInObjectProperties();
 }
-
-
-int JSObject::GetInternalFieldCount() { return GetInternalFieldCount(map()); }
 
 
 int JSObject::GetInternalFieldOffset(int index) {
@@ -5626,12 +5621,6 @@ void Map::SetConstructor(Object* constructor, WriteBarrierMode mode) {
   // Never overwrite a back pointer with a constructor.
   DCHECK(!constructor_or_backpointer()->IsMap());
   set_constructor_or_backpointer(constructor, mode);
-}
-
-
-Handle<Map> Map::CopyInitialMap(Handle<Map> map) {
-  return CopyInitialMap(map, map->instance_size(), map->GetInObjectProperties(),
-                        map->unused_property_fields());
 }
 
 

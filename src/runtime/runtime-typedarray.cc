@@ -164,8 +164,8 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
 
   // All checks are done, now we can modify objects.
 
-  DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
-            holder->GetInternalFieldCount());
+  DCHECK(holder->GetInternalFieldCount() ==
+         v8::ArrayBufferView::kInternalFieldCount);
   for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }
@@ -238,8 +238,8 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   }
   size_t byte_length = length * element_size;
 
-  DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
-            holder->GetInternalFieldCount());
+  DCHECK(holder->GetInternalFieldCount() ==
+         v8::ArrayBufferView::kInternalFieldCount);
   for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }
@@ -441,8 +441,8 @@ RUNTIME_FUNCTION(Runtime_DataViewInitialize) {
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_offset, 2);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_length, 3);
 
-  DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
-            holder->GetInternalFieldCount());
+  DCHECK(holder->GetInternalFieldCount() ==
+         v8::ArrayBufferView::kInternalFieldCount);
   for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }

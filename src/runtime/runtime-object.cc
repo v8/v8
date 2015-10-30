@@ -991,31 +991,46 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
   // Handle stepping into constructors if step into is active.
   if (debug->StepInActive()) debug->HandleStepIn(function, true);
 
+  if (function->has_initial_map()) {
+    if (function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
+      // The 'Function' function ignores the receiver object when
+      // called using 'new' and creates a new JSFunction object that
+      // is returned.  The receiver object is only used for error
+      // reporting if an error occurs when constructing the new
+      // JSFunction. Factory::NewJSObject() should not be used to
+      // allocate JSFunctions since it does not properly initialize
+      // the shared part of the function. Since the receiver is
+      // ignored anyway, we use the global object as the receiver
+      // instead of a new JSFunction object. This way, errors are
+      // reported the same way whether or not 'Function' is called
+      // using 'new'.
+      return isolate->global_proxy();
+    }
+  }
+
   // The function should be compiled for the optimization hints to be
   // available.
   Compiler::Compile(function, CLEAR_EXCEPTION);
 
-  JSFunction::EnsureHasInitialMap(function);
-  Handle<Map> initial_map =
-      JSFunction::EnsureDerivedHasInitialMap(original_function, function);
-
-  if (initial_map->instance_type() == JS_FUNCTION_TYPE) {
-    // The 'Function' function ignores the receiver object when
-    // called using 'new' and creates a new JSFunction object that
-    // is returned.  The receiver object is only used for error
-    // reporting if an error occurs when constructing the new
-    // JSFunction. Factory::NewJSObject() should not be used to
-    // allocate JSFunctions since it does not properly initialize
-    // the shared part of the function. Since the receiver is
-    // ignored anyway, we use the global object as the receiver
-    // instead of a new JSFunction object. This way, errors are
-    // reported the same way whether or not 'Function' is called
-    // using 'new'.
-    return isolate->global_proxy();
+  Handle<JSObject> result;
+  if (site.is_null()) {
+    result = isolate->factory()->NewJSObject(function);
+  } else {
+    result = isolate->factory()->NewJSObjectWithMemento(function, site);
   }
 
-  Handle<JSObject> result =
-      isolate->factory()->NewJSObjectFromMap(initial_map, NOT_TENURED, site);
+  // Set up the prototoype using original function.
+  // TODO(dslomov): instead of setting the __proto__,
+  // use and cache the correct map.
+  if (*original_function != *function) {
+    if (original_function->has_instance_prototype()) {
+      Handle<Object> prototype =
+          handle(original_function->instance_prototype(), isolate);
+      MAYBE_RETURN(JSObject::SetPrototype(result, prototype, false,
+                                          Object::THROW_ON_ERROR),
+                   isolate->heap()->exception());
+    }
+  }
 
   isolate->counters()->constructed_objects()->Increment();
   isolate->counters()->constructed_objects_runtime()->Increment();

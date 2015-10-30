@@ -209,7 +209,6 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0                     : number of arguments
   //  -- x1                     : constructor function
-  //  -- x3                     : original constructor
   //  -- lr                     : return address
   //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
   //  -- sp[argc * 8]           : receiver
@@ -235,16 +234,16 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   {
     Label convert, done_convert;
     __ JumpIfSmi(x2, &convert);
-    __ JumpIfObjectType(x2, x4, x4, FIRST_NONSTRING_TYPE, &done_convert, lo);
+    __ JumpIfObjectType(x2, x3, x3, FIRST_NONSTRING_TYPE, &done_convert, lo);
     __ Bind(&convert);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       ToStringStub stub(masm->isolate());
-      __ Push(x1, x3);
+      __ Push(x1);
       __ Move(x0, x2);
       __ CallStub(&stub);
       __ Move(x2, x0);
-      __ Pop(x1, x3);
+      __ Pop(x1);
     }
     __ Bind(&done_convert);
   }
@@ -252,18 +251,12 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // 3. Allocate a JSValue wrapper for the string.
   {
     // ----------- S t a t e -------------
-    //  -- x2 : the first argument
     //  -- x1 : constructor function
-    //  -- x3 : original constructor
+    //  -- x2 : the first argument
     //  -- lr : return address
     // -----------------------------------
 
-    Label allocate, done_allocate, rt_call;
-
-    // Fall back to runtime if the original constructor and function differ.
-    __ cmp(x1, x3);
-    __ B(ne, &rt_call);
-
+    Label allocate, done_allocate;
     __ Allocate(JSValue::kSize, x0, x3, x4, &allocate, TAG_OBJECT);
     __ Bind(&done_allocate);
 
@@ -287,17 +280,6 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
       __ Pop(x2, x1);
     }
     __ B(&done_allocate);
-
-    // Fallback to the runtime to create new object.
-    __ bind(&rt_call);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(x1, x2, x1, x3);  // constructor function, original constructor
-      __ CallRuntime(Runtime::kNewObject, 2);
-      __ Pop(x2, x1);
-    }
-    __ Str(x2, FieldMemOperand(x0, JSValue::kValueOffset));
-    __ Ret();
   }
 }
 
@@ -354,7 +336,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- x0     : number of arguments
   //  -- x1     : constructor function
   //  -- x2     : allocation site or undefined
-  //  -- x3     : original constructor
+  //  -- x3    : original constructor
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------

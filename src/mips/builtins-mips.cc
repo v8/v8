@@ -227,7 +227,6 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0                     : number of arguments
   //  -- a1                     : constructor function
-  //  -- a3                     : original constructor
   //  -- ra                     : return address
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
@@ -261,10 +260,10 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       ToStringStub stub(masm->isolate());
-      __ Push(a1, a3);
+      __ Push(a1);
       __ CallStub(&stub);
       __ Move(a0, v0);
-      __ Pop(a1, a3);
+      __ Pop(a1);
     }
     __ bind(&done_convert);
   }
@@ -274,15 +273,10 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  -- a0 : the first argument
     //  -- a1 : constructor function
-    //  -- a3 : original constructor
     //  -- ra : return address
     // -----------------------------------
 
-    Label allocate, done_allocate, rt_call;
-
-    // Fall back to runtime if the original constructor and function differ.
-    __ Branch(&rt_call, ne, a1, Operand(a3));
-
+    Label allocate, done_allocate;
     __ Allocate(JSValue::kSize, v0, a2, a3, &allocate, TAG_OBJECT);
     __ bind(&done_allocate);
 
@@ -306,17 +300,6 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
       __ Pop(a0, a1);
     }
     __ jmp(&done_allocate);
-
-    // Fallback to the runtime to create new object.
-    __ bind(&rt_call);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(a0, a1, a1, a3);  // constructor function, original constructor
-      __ CallRuntime(Runtime::kNewObject, 2);
-      __ Pop(a0, a1);
-    }
-    __ Ret(USE_DELAY_SLOT);
-    __ sw(a0, FieldMemOperand(v0, JSValue::kValueOffset));
   }
 }
 
@@ -527,7 +510,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // a3: original constructor
     __ bind(&rt_call);
 
-    __ Push(a1, a3);  // constructor function, original constructor
+    __ Push(a1, a3);  // arguments 2-3 / 1-2
     __ CallRuntime(Runtime::kNewObject, 2);
     __ mov(t4, v0);
 
