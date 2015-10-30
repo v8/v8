@@ -1893,7 +1893,7 @@ class JSReceiver: public HeapObject {
                                         ShouldThrow should_throw);
 
   static bool GetOwnPropertyDescriptor(Isolate* isolate,
-                                       Handle<JSObject> object,
+                                       Handle<JSReceiver> object,
                                        Handle<Object> key,
                                        PropertyDescriptor* desc);
   static bool GetOwnPropertyDescriptor(LookupIterator* it,

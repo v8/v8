@@ -89,6 +89,8 @@ class PropertyDescriptor {
         (has_writable() && !writable() ? READ_ONLY : NONE));
   }
 
+  Handle<Object> ToObject(Isolate* isolate);
+
   static bool ToPropertyDescriptor(Isolate* isolate, Handle<Object> obj,
                                    PropertyDescriptor* desc);
 

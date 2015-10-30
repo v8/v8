@@ -101,6 +101,45 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<Object> obj,
 }
 
 
+static void CreateDataProperty(Isolate* isolate, Handle<JSObject> object,
+                               Handle<String> name, Handle<Object> value) {
+  LookupIterator it(object, name);
+  Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
+  CHECK(result.IsJust() && result.FromJust());
+}
+
+
+// ES6 6.2.4.4 "FromPropertyDescriptor"
+Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
+  DCHECK(!(PropertyDescriptor::IsAccessorDescriptor(this) &&
+           PropertyDescriptor::IsDataDescriptor(this)));
+  Factory* factory = isolate->factory();
+  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+  if (has_value()) {
+    CreateDataProperty(isolate, result, factory->value_string(), value());
+  }
+  if (has_writable()) {
+    CreateDataProperty(isolate, result, factory->writable_string(),
+                       factory->ToBoolean(writable()));
+  }
+  if (has_get()) {
+    CreateDataProperty(isolate, result, factory->get_string(), get());
+  }
+  if (has_set()) {
+    CreateDataProperty(isolate, result, factory->set_string(), set());
+  }
+  if (has_enumerable()) {
+    CreateDataProperty(isolate, result, factory->enumerable_string(),
+                       factory->ToBoolean(enumerable()));
+  }
+  if (has_configurable()) {
+    CreateDataProperty(isolate, result, factory->configurable_string(),
+                       factory->ToBoolean(configurable()));
+  }
+  return result;
+}
+
+
 // ES6 6.2.4.5
 // Returns false in case of exception.
 // static

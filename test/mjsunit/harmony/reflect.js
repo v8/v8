@@ -47,15 +47,15 @@ var objects = [
   global
 ];
 
-function prepare(tgt) {
-  tgt["bla"] = true;
-  tgt[4] = 42;
-  tgt[sym] = "foo";
-  tgt["noconf"] = 43;
-  Object.defineProperty(tgt, "noconf", {configurable: false});
-  Object.defineProperty(tgt, "getter",
+function prepare(target) {
+  target["bla"] = true;
+  target[4] = 42;
+  target[sym] = "foo";
+  target["noconf"] = 43;
+  Object.defineProperty(target, "noconf", {configurable: false});
+  Object.defineProperty(target, "getter",
     { get: function () {return this.bla}, configurable: true });
-  Object.defineProperty(tgt, "setter",
+  Object.defineProperty(target, "setter",
     { set: function () {}, configurable: true });
 }
 
@@ -78,52 +78,52 @@ function prepare(tgt) {
 
 
 (function testReflectGetKeyConversion() {
-  var tgt = {bla: 42};
+  var target = {bla: 42};
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
-  assertEquals(42, Reflect.get(tgt, a));
-  assertThrows(function() { Reflect.get(tgt, b); }, "gaga");
+  assertEquals(42, Reflect.get(target, a));
+  assertThrows(function() { Reflect.get(target, b); }, "gaga");
 })();
 
 
 (function testReflectGetOnObject() {
   var receiver = {bla: false};
-  for (let tgt of objects) {
-    prepare(tgt);
-    assertEquals(true, Reflect.get(tgt, "bla"));
-    assertEquals(true, Reflect.get(tgt, "bla", tgt));
-    assertEquals(true, Reflect.get(tgt, "bla", receiver));
-    assertEquals(42, Reflect.get(tgt, 4));
-    assertEquals(42, Reflect.get(tgt, 4, tgt));
-    assertEquals(42, Reflect.get(tgt, 4, receiver));
-    assertEquals(42, Reflect.get(tgt, "4"));
-    assertEquals(42, Reflect.get(tgt, "4", tgt));
-    assertEquals(42, Reflect.get(tgt, "4", receiver));
-    assertEquals("foo", Reflect.get(tgt, sym));
-    assertEquals("foo", Reflect.get(tgt, sym, tgt));
-    assertEquals("foo", Reflect.get(tgt, sym, receiver));
-    assertEquals(43, Reflect.get(tgt, "noconf"));
-    assertEquals(43, Reflect.get(tgt, "noconf", tgt));
-    assertEquals(43, Reflect.get(tgt, "noconf", receiver));
-    assertEquals(true, Reflect.get(tgt, "getter"));
-    assertEquals(true, Reflect.get(tgt, "getter", tgt));
-    assertEquals(false, Reflect.get(tgt, "getter", receiver));
-    assertEquals(undefined, Reflect.get(tgt, "setter"));
-    assertEquals(undefined, Reflect.get(tgt, "setter", tgt));
-    assertEquals(undefined, Reflect.get(tgt, "setter", receiver));
-    assertEquals(undefined, Reflect.get(tgt, "foo"));
-    assertEquals(undefined, Reflect.get(tgt, "foo", tgt));
-    assertEquals(undefined, Reflect.get(tgt, "foo", receiver));
-    assertEquals(undefined, Reflect.get(tgt, 666));
-    assertEquals(undefined, Reflect.get(tgt, 666, tgt));
-    assertEquals(undefined, Reflect.get(tgt, 666, receiver));
+  for (let target of objects) {
+    prepare(target);
+    assertEquals(true, Reflect.get(target, "bla"));
+    assertEquals(true, Reflect.get(target, "bla", target));
+    assertEquals(true, Reflect.get(target, "bla", receiver));
+    assertEquals(42, Reflect.get(target, 4));
+    assertEquals(42, Reflect.get(target, 4, target));
+    assertEquals(42, Reflect.get(target, 4, receiver));
+    assertEquals(42, Reflect.get(target, "4"));
+    assertEquals(42, Reflect.get(target, "4", target));
+    assertEquals(42, Reflect.get(target, "4", receiver));
+    assertEquals("foo", Reflect.get(target, sym));
+    assertEquals("foo", Reflect.get(target, sym, target));
+    assertEquals("foo", Reflect.get(target, sym, receiver));
+    assertEquals(43, Reflect.get(target, "noconf"));
+    assertEquals(43, Reflect.get(target, "noconf", target));
+    assertEquals(43, Reflect.get(target, "noconf", receiver));
+    assertEquals(true, Reflect.get(target, "getter"));
+    assertEquals(true, Reflect.get(target, "getter", target));
+    assertEquals(false, Reflect.get(target, "getter", receiver));
+    assertEquals(undefined, Reflect.get(target, "setter"));
+    assertEquals(undefined, Reflect.get(target, "setter", target));
+    assertEquals(undefined, Reflect.get(target, "setter", receiver));
+    assertEquals(undefined, Reflect.get(target, "foo"));
+    assertEquals(undefined, Reflect.get(target, "foo", target));
+    assertEquals(undefined, Reflect.get(target, "foo", receiver));
+    assertEquals(undefined, Reflect.get(target, 666));
+    assertEquals(undefined, Reflect.get(target, 666, target));
+    assertEquals(undefined, Reflect.get(target, 666, receiver));
 
-    let proto = tgt.__proto__;
-    tgt.__proto__ = { get foo() {return this.bla} };
-    assertEquals(true, Reflect.get(tgt, "foo"));
-    assertEquals(true, Reflect.get(tgt, "foo", tgt));
-    assertEquals(false, Reflect.get(tgt, "foo", receiver));
-    tgt.__proto__ = proto;
+    let proto = target.__proto__;
+    target.__proto__ = { get foo() {return this.bla} };
+    assertEquals(true, Reflect.get(target, "foo"));
+    assertEquals(true, Reflect.get(target, "foo", target));
+    assertEquals(false, Reflect.get(target, "foo", receiver));
+    target.__proto__ = proto;
   }
 })();
 
@@ -146,31 +146,31 @@ function prepare(tgt) {
 
 
 (function testReflectHasKeyConversion() {
-  var tgt = {bla: 42};
+  var target = {bla: 42};
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
-  assertTrue(Reflect.has(tgt, a));
-  assertThrows(function() { Reflect.has(tgt, b); }, "gaga");
+  assertTrue(Reflect.has(target, a));
+  assertThrows(function() { Reflect.has(target, b); }, "gaga");
 })();
 
 
 (function testReflectHasOnObject() {
-  for (let tgt of objects) {
-    prepare(tgt);
-    assertTrue(Reflect.has(tgt, "bla"));
-    assertTrue(Reflect.has(tgt, 4));
-    assertTrue(Reflect.has(tgt, "4"));
-    assertTrue(Reflect.has(tgt, sym));
-    assertTrue(Reflect.has(tgt, "noconf"));
-    assertTrue(Reflect.has(tgt, "getter"));
-    assertTrue(Reflect.has(tgt, "setter"));
-    assertFalse(Reflect.has(tgt, "foo"));
-    assertFalse(Reflect.has(tgt, 666));
+  for (let target of objects) {
+    prepare(target);
+    assertTrue(Reflect.has(target, "bla"));
+    assertTrue(Reflect.has(target, 4));
+    assertTrue(Reflect.has(target, "4"));
+    assertTrue(Reflect.has(target, sym));
+    assertTrue(Reflect.has(target, "noconf"));
+    assertTrue(Reflect.has(target, "getter"));
+    assertTrue(Reflect.has(target, "setter"));
+    assertFalse(Reflect.has(target, "foo"));
+    assertFalse(Reflect.has(target, 666));
 
-    let proto = tgt.__proto__;
-    tgt.__proto__ = { get foo() {return this.bla} };
-    assertEquals(true, Reflect.has(tgt, "foo"));
-    tgt.__proto__ = proto;
+    let proto = target.__proto__;
+    target.__proto__ = { get foo() {return this.bla} };
+    assertEquals(true, Reflect.has(target, "foo"));
+    target.__proto__ = proto;
   }
 })();
 
@@ -198,12 +198,12 @@ function prepare(tgt) {
 
 
 (function testReflectDefinePropertyKeyConversion() {
-  var tgt = {};
+  var target = {};
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
-  assertTrue(Reflect.defineProperty(tgt, a, {value: 42}));
-  assertEquals(tgt.bla, 42);
-  assertThrows(function() { Reflect.defineProperty(tgt, b); }, "gaga");
+  assertTrue(Reflect.defineProperty(target, a, {value: 42}));
+  assertEquals(target.bla, 42);
+  assertThrows(function() { Reflect.defineProperty(target, b); }, "gaga");
 })();
 
 
@@ -228,38 +228,38 @@ function prepare(tgt) {
 
 
 (function testReflectDeletePropertyKeyConversion() {
-  var tgt = {bla: 42};
+  var target = {bla: 42};
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
-  assertTrue(Reflect.deleteProperty(tgt, a));
-  assertThrows(function() { Reflect.deleteProperty(tgt, b); }, "gaga");
+  assertTrue(Reflect.deleteProperty(target, a));
+  assertThrows(function() { Reflect.deleteProperty(target, b); }, "gaga");
 })();
 
 
 (function testReflectDeletePropertyOnObject() {
-  for (let tgt of objects) {
-    prepare(tgt);
-    assertTrue(Reflect.deleteProperty(tgt, "bla"));
-    assertEquals(undefined, Object.getOwnPropertyDescriptor(tgt, "bla"));
-    if (tgt instanceof Int32Array) {
-      assertFalse(Reflect.deleteProperty(tgt, 4));
+  for (let target of objects) {
+    prepare(target);
+    assertTrue(Reflect.deleteProperty(target, "bla"));
+    assertEquals(undefined, Object.getOwnPropertyDescriptor(target, "bla"));
+    if (target instanceof Int32Array) {
+      assertFalse(Reflect.deleteProperty(target, 4));
     } else {
-      assertTrue(Reflect.deleteProperty(tgt, 4));
-      assertEquals(undefined, Object.getOwnPropertyDescriptor(tgt, 4));
+      assertTrue(Reflect.deleteProperty(target, 4));
+      assertEquals(undefined, Object.getOwnPropertyDescriptor(target, 4));
     }
-    assertTrue(Reflect.deleteProperty(tgt, sym));
-    assertEquals(undefined, Object.getOwnPropertyDescriptor(tgt, sym));
-    assertFalse(Reflect.deleteProperty(tgt, "noconf"));
-    assertEquals(43, tgt.noconf);
-    assertTrue(Reflect.deleteProperty(tgt, "getter"));
-    assertTrue(Reflect.deleteProperty(tgt, "setter"));
-    assertTrue(Reflect.deleteProperty(tgt, "foo"));
-    assertTrue(Reflect.deleteProperty(tgt, 666));
+    assertTrue(Reflect.deleteProperty(target, sym));
+    assertEquals(undefined, Object.getOwnPropertyDescriptor(target, sym));
+    assertFalse(Reflect.deleteProperty(target, "noconf"));
+    assertEquals(43, target.noconf);
+    assertTrue(Reflect.deleteProperty(target, "getter"));
+    assertTrue(Reflect.deleteProperty(target, "setter"));
+    assertTrue(Reflect.deleteProperty(target, "foo"));
+    assertTrue(Reflect.deleteProperty(target, 666));
 
-    let proto = tgt.__proto__;
-    tgt.__proto__ = { get foo() {return this.bla} };
-    assertEquals(true, Reflect.deleteProperty(tgt, "foo"));
-    tgt.__proto__ = proto;
+    let proto = target.__proto__;
+    target.__proto__ = { get foo() {return this.bla} };
+    assertEquals(true, Reflect.deleteProperty(target, "foo"));
+    target.__proto__ = proto;
   }
 })();
 
@@ -329,12 +329,12 @@ function prepare(tgt) {
 
 (function testReflectIsExtensibleOnObject() {
   // This should be the last test on [objects] as it modifies them irreversibly.
-  for (let tgt of objects) {
-    prepare(tgt);
-    if (tgt instanceof Int32Array) continue;  // issue v8:4460
-    assertTrue(Reflect.isExtensible(tgt));
-    Object.preventExtensions(tgt);
-    assertFalse(Reflect.isExtensible(tgt));
+  for (let target of objects) {
+    prepare(target);
+    if (target instanceof Int32Array) continue;  // issue v8:4460
+    assertTrue(Reflect.isExtensible(target));
+    Object.preventExtensions(target);
+    assertFalse(Reflect.isExtensible(target));
   }
 })();
 
@@ -357,6 +357,38 @@ function prepare(tgt) {
 
 
 // See reflect-enumerate*.js for further tests.
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Reflect.getOwnPropertyDescriptor
+
+
+(function testReflectGetOwnPropertyDescriptorArity() {
+  assertEquals(2, Reflect.getOwnPropertyDescriptor.length);
+})();
+
+
+(function testReflectGetOwnPropertyDescriptorOnNonObject() {
+  assertThrows(function() { Reflect.getOwnPropertyDescriptor(); }, TypeError);
+  assertThrows(function() { Reflect.getOwnPropertyDescriptor(42); },
+      TypeError);
+  assertThrows(function() { Reflect.getOwnPropertyDescriptor(null); },
+      TypeError);
+})();
+
+
+(function testReflectGetOwnPropertyDescriptorKeyConversion() {
+  var target = {bla: 42};
+  var a = { [Symbol.toPrimitive]: function() { return "bla" } };
+  var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
+  assertEquals(42, Reflect.getOwnPropertyDescriptor(target, a).value);
+  assertThrows(function() { Reflect.getOwnPropertyDescriptor(target, b); },
+      "gaga");
+})();
+
+
+// See reflect-get-own-property-descriptor.js for further tests.
 
 
 

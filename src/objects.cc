@@ -6608,7 +6608,7 @@ bool JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
 
 // static
 bool JSReceiver::GetOwnPropertyDescriptor(Isolate* isolate,
-                                          Handle<JSObject> object,
+                                          Handle<JSReceiver> object,
                                           Handle<Object> key,
                                           PropertyDescriptor* desc) {
   bool success = false;
@@ -6672,6 +6672,8 @@ bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
   // 8. Set D.[[Configurable]] to the value of X's [[Configurable]] attribute.
   desc->set_configurable((attrs & DONT_DELETE) == 0);
   // 9. Return D.
+  DCHECK(PropertyDescriptor::IsAccessorDescriptor(desc) !=
+         PropertyDescriptor::IsDataDescriptor(desc));
   return true;
 }
 

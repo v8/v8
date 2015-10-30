@@ -1533,6 +1533,33 @@ BUILTIN(ReflectGet) {
 }
 
 
+// ES6 section 26.1.7 Reflect.getOwnPropertyDescriptor
+BUILTIN(ReflectGetOwnPropertyDescriptor) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> key = args.at<Object>(2);
+
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Reflect.getOwnPropertyDescriptor")));
+  }
+
+  Handle<Name> name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
+                                     Object::ToName(isolate, key));
+
+  PropertyDescriptor desc;
+  bool found = JSReceiver::GetOwnPropertyDescriptor(
+      isolate, Handle<JSReceiver>::cast(target), name, &desc);
+  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  if (!found) return isolate->heap()->undefined_value();
+  return *desc.ToObject(isolate);
+}
+
+
 // ES6 section 26.1.8 Reflect.getPrototypeOf
 BUILTIN(ReflectGetPrototypeOf) {
   HandleScope scope(isolate);
