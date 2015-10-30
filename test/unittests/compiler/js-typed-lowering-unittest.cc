@@ -434,6 +434,36 @@ TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
 
 
 // -----------------------------------------------------------------------------
+// JSToObject
+
+
+TEST_F(JSTypedLoweringTest, JSToObjectWithAny) {
+  Node* const input = Parameter(Type::Any(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToObject(), input,
+                                        context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsPhi(kMachAnyTagged, _, _, _));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSToObjectWithReceiver) {
+  Node* const input = Parameter(Type::Receiver(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToObject(), input,
+                                        context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+
+// -----------------------------------------------------------------------------
 // JSStrictEqual
 
 
