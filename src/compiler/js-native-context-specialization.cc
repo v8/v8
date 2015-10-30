@@ -449,6 +449,9 @@ bool JSNativeContextSpecialization::ComputePropertyAccessInfo(
       return false;
     }
 
+    // Don't lookup private symbols on the prototype chain.
+    if (name->IsPrivate()) return false;
+
     // Walk up the prototype chain.
     if (!map->prototype()->IsJSObject()) {
       // Perform the implicit ToObject for primitives here.
