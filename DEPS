@@ -12,7 +12,7 @@ deps = {
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "94e4b770ce2f6065d4261d29c32683a6099b9d93",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "acafdaa4e81adae617177d57e3c1261cc3565469",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "c2f259809d5ede3275df5ea0842f0431990c4f98",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "8fce79620b04bbe5415ace1103db27505bdc4c06",
   "v8/testing/gtest":
