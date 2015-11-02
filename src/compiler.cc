@@ -747,7 +747,8 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
   MaybeDisableOptimization(shared, lit->dont_optimize_reason());
 
-  if (FLAG_ignition && info->closure()->PassesFilter(FLAG_ignition_filter) &&
+  if (FLAG_ignition && !shared->HasBuiltinFunctionId() &&
+      info->closure()->PassesFilter(FLAG_ignition_filter) &&
       ScriptPassesFilter(FLAG_ignition_script_filter, info->script())) {
     // Compile bytecode for the interpreter.
     if (!GenerateBytecode(info)) return MaybeHandle<Code>();
