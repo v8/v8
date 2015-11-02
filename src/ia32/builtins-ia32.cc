@@ -280,8 +280,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // runtime.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ mov(edi, Operand(esp, offset));
-    __ push(edi);  // argument 2/1: constructor function
-    __ push(edx);  // argument 3/2: original constructor
+    __ push(edi);  // constructor function
+    __ push(edx);  // original constructor
     __ CallRuntime(Runtime::kNewObject, 2);
     __ mov(ebx, eax);  // store result in ebx
 
@@ -1363,6 +1363,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax                 : number of arguments
   //  -- edi                 : constructor function
+  //  -- edx                 : original constructor
   //  -- esp[0]              : return address
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 4] : receiver
@@ -1388,16 +1389,18 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   {
     Label convert, done_convert;
     __ JumpIfSmi(ebx, &convert, Label::kNear);
-    __ CmpObjectType(ebx, FIRST_NONSTRING_TYPE, edx);
+    __ CmpObjectType(ebx, FIRST_NONSTRING_TYPE, ecx);
     __ j(below, &done_convert);
     __ bind(&convert);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       ToStringStub stub(masm->isolate());
       __ Push(edi);
+      __ Push(edx);
       __ Move(eax, ebx);
       __ CallStub(&stub);
       __ Move(ebx, eax);
+      __ Pop(edx);
       __ Pop(edi);
     }
     __ bind(&done_convert);
@@ -1408,9 +1411,15 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  -- ebx : the first argument
     //  -- edi : constructor function
+    //  -- edx : original constructor
     // -----------------------------------
 
-    Label allocate, done_allocate;
+    Label allocate, done_allocate, rt_call;
+
+    // Fall back to runtime if the original constructor and constructor differ.
+    __ cmp(edx, edi);
+    __ j(not_equal, &rt_call);
+
     __ Allocate(JSValue::kSize, eax, ecx, no_reg, &allocate, TAG_OBJECT);
     __ bind(&done_allocate);
 
@@ -1437,6 +1446,21 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
       __ Pop(ebx);
     }
     __ jmp(&done_allocate);
+
+    // Fallback to the runtime to create new object.
+    __ bind(&rt_call);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(ebx);
+      __ Push(edi);
+      __ Push(edi);  // constructor function
+      __ Push(edx);  // original constructor
+      __ CallRuntime(Runtime::kNewObject, 2);
+      __ Pop(edi);
+      __ Pop(ebx);
+    }
+    __ mov(FieldOperand(eax, JSValue::kValueOffset), ebx);
+    __ Ret();
   }
 }
 

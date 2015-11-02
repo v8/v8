@@ -8210,6 +8210,24 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
 }
 
 
+Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
+                                int in_object_properties,
+                                int unused_property_fields) {
+#ifdef DEBUG
+  Object* constructor = map->GetConstructor();
+  DCHECK(constructor->IsJSFunction());
+  DCHECK_EQ(*map, JSFunction::cast(constructor)->initial_map());
+#endif
+  Handle<Map> result = RawCopy(map, instance_size);
+
+  // Please note instance_type and instance_size are set when allocated.
+  result->SetInObjectProperties(in_object_properties);
+  result->set_unused_property_fields(unused_property_fields);
+
+  return result;
+}
+
+
 Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
   Handle<Map> result = RawCopy(map, map->instance_size());
 
@@ -11821,17 +11839,16 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   // First create a new map with the size and number of in-object properties
   // suggested by the function.
   InstanceType instance_type;
-  int instance_size;
-  int in_object_properties;
   if (function->shared()->is_generator()) {
     instance_type = JS_GENERATOR_OBJECT_TYPE;
-    instance_size = JSGeneratorObject::kSize;
-    in_object_properties = 0;
   } else {
     instance_type = JS_OBJECT_TYPE;
-    instance_size = function->shared()->CalculateInstanceSize();
-    in_object_properties = function->shared()->CalculateInObjectProperties();
   }
+  int instance_size;
+  int in_object_properties;
+  function->CalculateInstanceSize(instance_type, 0, &instance_size,
+                                  &in_object_properties);
+
   Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size);
   if (function->map()->is_strong()) {
     map->set_is_strong();
@@ -11854,6 +11871,66 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 
   if (!function->shared()->is_generator()) {
     function->StartInobjectSlackTracking();
+  }
+}
+
+
+Handle<Map> JSFunction::EnsureDerivedHasInitialMap(
+    Handle<JSFunction> original_constructor, Handle<JSFunction> constructor) {
+  DCHECK(constructor->has_initial_map());
+  Isolate* isolate = constructor->GetIsolate();
+  Handle<Map> constructor_initial_map(constructor->initial_map(), isolate);
+  if (*original_constructor == *constructor) return constructor_initial_map;
+  if (original_constructor->has_initial_map()) {
+    // Check that |original_constructor|'s initial map still in sync with
+    // the |constructor|, otherwise we must create a new initial map for
+    // |original_constructor|.
+    if (original_constructor->initial_map()->GetConstructor() == *constructor) {
+      return handle(original_constructor->initial_map(), isolate);
+    }
+  }
+
+  // First create a new map with the size and number of in-object properties
+  // suggested by the function.
+  DCHECK(!original_constructor->shared()->is_generator());
+  DCHECK(!constructor->shared()->is_generator());
+
+  // Fetch or allocate prototype.
+  Handle<Object> prototype;
+  if (original_constructor->has_instance_prototype()) {
+    prototype = handle(original_constructor->instance_prototype(), isolate);
+  } else {
+    prototype = isolate->factory()->NewFunctionPrototype(original_constructor);
+  }
+
+  // Finally link initial map and constructor function if the original
+  // constructor is actually a subclass constructor.
+  if (IsSubclassConstructor(original_constructor->shared()->kind())) {
+    InstanceType instance_type = constructor_initial_map->instance_type();
+    int internal_fields =
+        JSObject::GetInternalFieldCount(*constructor_initial_map);
+    int instance_size;
+    int in_object_properties;
+    original_constructor->CalculateInstanceSizeForDerivedClass(
+        instance_type, internal_fields, &instance_size, &in_object_properties);
+
+    Handle<Map> map =
+        Map::CopyInitialMap(constructor_initial_map, instance_size,
+                            in_object_properties, in_object_properties);
+
+    JSFunction::SetInitialMap(original_constructor, map, prototype);
+    map->SetConstructor(*constructor);
+    original_constructor->StartInobjectSlackTracking();
+    return map;
+
+  } else {
+    Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
+    DCHECK(prototype->IsJSReceiver());
+    if (map->prototype() != *prototype) {
+      Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
+    }
+    map->SetConstructor(*constructor);
+    return map;
   }
 }
 
@@ -12193,19 +12270,56 @@ int SharedFunctionInfo::SourceSize() {
 }
 
 
-int SharedFunctionInfo::CalculateInstanceSize() {
-  int instance_size =
-      JSObject::kHeaderSize +
-      expected_nof_properties() * kPointerSize;
-  if (instance_size > JSObject::kMaxInstanceSize) {
-    instance_size = JSObject::kMaxInstanceSize;
-  }
-  return instance_size;
+namespace {
+
+void CalculateInstanceSizeHelper(InstanceType instance_type,
+                                 int requested_internal_fields,
+                                 int requested_in_object_properties,
+                                 int* instance_size,
+                                 int* in_object_properties) {
+  int header_size = JSObject::GetHeaderSize(instance_type);
+  DCHECK_LE(requested_internal_fields,
+            (JSObject::kMaxInstanceSize - header_size) >> kPointerSizeLog2);
+  *instance_size =
+      Min(header_size +
+              ((requested_internal_fields + requested_in_object_properties)
+               << kPointerSizeLog2),
+          JSObject::kMaxInstanceSize);
+  *in_object_properties = ((*instance_size - header_size) >> kPointerSizeLog2) -
+                          requested_internal_fields;
+}
+
+}  // namespace
+
+
+void JSFunction::CalculateInstanceSize(InstanceType instance_type,
+                                       int requested_internal_fields,
+                                       int* instance_size,
+                                       int* in_object_properties) {
+  CalculateInstanceSizeHelper(instance_type, requested_internal_fields,
+                              shared()->expected_nof_properties(),
+                              instance_size, in_object_properties);
 }
 
 
-int SharedFunctionInfo::CalculateInObjectProperties() {
-  return (CalculateInstanceSize() - JSObject::kHeaderSize) / kPointerSize;
+void JSFunction::CalculateInstanceSizeForDerivedClass(
+    InstanceType instance_type, int requested_internal_fields,
+    int* instance_size, int* in_object_properties) {
+  Isolate* isolate = GetIsolate();
+  int expected_nof_properties = 0;
+  for (PrototypeIterator iter(isolate, this,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    JSFunction* func = iter.GetCurrent<JSFunction>();
+    SharedFunctionInfo* shared = func->shared();
+    expected_nof_properties += shared->expected_nof_properties();
+    if (!IsSubclassConstructor(shared->kind())) {
+      break;
+    }
+  }
+  CalculateInstanceSizeHelper(instance_type, requested_internal_fields,
+                              expected_nof_properties, instance_size,
+                              in_object_properties);
 }
 
 

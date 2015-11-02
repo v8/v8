@@ -3438,7 +3438,7 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj, FixedArray* properties,
   if (constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->IsInobjectSlackTrackingInProgress()) {
     // We might want to shrink the object later.
-    DCHECK(obj->GetInternalFieldCount() == 0);
+    DCHECK_EQ(0, obj->GetInternalFieldCount());
     filler = Heap::one_pointer_filler_map();
   } else {
     filler = Heap::undefined_value();

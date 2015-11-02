@@ -277,8 +277,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Must restore rsi (context) and rdi (constructor) before calling runtime.
     __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ movp(rdi, Operand(rsp, offset));
-    __ Push(rdi);  // argument 2/1: constructor function
-    __ Push(rdx);  // argument 3/2: original constructor
+    __ Push(rdi);  // constructor function
+    __ Push(rdx);  // original constructor
     __ CallRuntime(Runtime::kNewObject, 2);
     __ movp(rbx, rax);  // store result in rbx
 
@@ -1423,6 +1423,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments
   //  -- rdi                 : constructor function
+  //  -- rdx                 : original constructor
   //  -- rsp[0]              : return address
   //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- rsp[(argc + 1) * 8] : receiver
@@ -1449,17 +1450,19 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   {
     Label convert, done_convert;
     __ JumpIfSmi(rbx, &convert, Label::kNear);
-    __ CmpObjectType(rbx, FIRST_NONSTRING_TYPE, rdx);
+    __ CmpObjectType(rbx, FIRST_NONSTRING_TYPE, rcx);
     __ j(below, &done_convert);
     __ bind(&convert);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       ToStringStub stub(masm->isolate());
+      __ Push(rdx);
       __ Push(rdi);
       __ Move(rax, rbx);
       __ CallStub(&stub);
       __ Move(rbx, rax);
       __ Pop(rdi);
+      __ Pop(rdx);
     }
     __ bind(&done_convert);
   }
@@ -1469,9 +1472,14 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  -- rbx : the first argument
     //  -- rdi : constructor function
+    //  -- rdx : original constructor
     // -----------------------------------
+    Label allocate, done_allocate, rt_call;
 
-    Label allocate, done_allocate;
+    // Fall back to runtime if the original constructor and constructor differ.
+    __ cmpp(rdx, rdi);
+    __ j(not_equal, &rt_call);
+
     __ Allocate(JSValue::kSize, rax, rcx, no_reg, &allocate, TAG_OBJECT);
     __ bind(&done_allocate);
 
@@ -1497,6 +1505,21 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
       __ Pop(rbx);
     }
     __ jmp(&done_allocate);
+
+    // Fallback to the runtime to create new object.
+    __ bind(&rt_call);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(rbx);
+      __ Push(rdi);
+      __ Push(rdi);  // constructor function
+      __ Push(rdx);  // original constructor
+      __ CallRuntime(Runtime::kNewObject, 2);
+      __ Pop(rdi);
+      __ Pop(rbx);
+    }
+    __ movp(FieldOperand(rax, JSValue::kValueOffset), rbx);
+    __ Ret();
   }
 }
 
