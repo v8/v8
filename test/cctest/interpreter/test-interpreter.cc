@@ -2577,7 +2577,45 @@ TEST(InterpreterBasicLoops) {
                      "  b *= 2;\n"
                      "}\n"
                      "return b;",
-                     factory->NewHeapNumber(1024))};
+                     factory->NewHeapNumber(1024)),
+      std::make_pair("var a = 10; var b = 1;\n"
+                     "while (false) {\n"
+                     "  b = b * 2;\n"
+                     "  a = a - 1;\n"
+                     "}\n"
+                     "return b;\n",
+                     Handle<Object>(Smi::FromInt(1), isolate)),
+      std::make_pair("var a = 10; var b = 1;\n"
+                     "while (true) {\n"
+                     "  b = b * 2;\n"
+                     "  a = a - 1;\n"
+                     "  if (a == 0) break;"
+                     "  continue;"
+                     "}\n"
+                     "return b;\n",
+                     factory->NewHeapNumber(1024)),
+      std::make_pair("var a = 10; var b = 1;\n"
+                     "do {\n"
+                     "  b = b * 2;\n"
+                     "  a = a - 1;\n"
+                     "  if (a == 0) break;"
+                     "} while(true);\n"
+                     "return b;\n",
+                     factory->NewHeapNumber(1024)),
+      std::make_pair("var a = 10; var b = 1;\n"
+                     "do {\n"
+                     "  b = b * 2;\n"
+                     "  a = a - 1;\n"
+                     "  if (a == 0) break;"
+                     "} while(false);\n"
+                     "return b;\n",
+                     Handle<Object>(Smi::FromInt(2), isolate)),
+      std::make_pair("var a = 10; var b = 1;\n"
+                     "for ( a = 1, b = 30; false; ) {\n"
+                     "  b = b * 2;\n"
+                     "}\n"
+                     "return b;\n",
+                     Handle<Object>(Smi::FromInt(30), isolate))};
 
   for (size_t i = 0; i < arraysize(loops); i++) {
     std::string source(InterpreterTester::SourceForBody(loops[i].first));

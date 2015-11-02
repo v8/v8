@@ -519,23 +519,28 @@ void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
-  // TODO(oth): Spot easy cases where there code would not need to
-  // emit the then block or the else block, e.g. condition is
-  // obviously true/1/false/0.
-
   BytecodeLabel else_label, end_label;
-
-  VisitForAccumulatorValue(stmt->condition());
-  builder()->JumpIfFalse(&else_label);
-  Visit(stmt->then_statement());
-  if (stmt->HasElseStatement()) {
-    builder()->Jump(&end_label);
-    builder()->Bind(&else_label);
-    Visit(stmt->else_statement());
+  if (stmt->condition()->ToBooleanIsTrue()) {
+    // Generate only then block.
+    Visit(stmt->then_statement());
+  } else if (stmt->condition()->ToBooleanIsFalse()) {
+    // Generate only else block if it exists.
+    if (stmt->HasElseStatement()) {
+      Visit(stmt->else_statement());
+    }
   } else {
-    builder()->Bind(&else_label);
+    VisitForAccumulatorValue(stmt->condition());
+    builder()->JumpIfFalse(&else_label);
+    Visit(stmt->then_statement());
+    if (stmt->HasElseStatement()) {
+      builder()->Jump(&end_label);
+      builder()->Bind(&else_label);
+      Visit(stmt->else_statement());
+    } else {
+      builder()->Bind(&else_label);
+    }
+    builder()->Bind(&end_label);
   }
-  builder()->Bind(&end_label);
 }
 
 
@@ -624,15 +629,26 @@ void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder loop_builder(builder());
   ControlScopeForIteration execution_control(this, stmt, &loop_builder);
-
   BytecodeLabel body_label, condition_label, done_label;
-  builder()->Bind(&body_label);
-  Visit(stmt->body());
-  builder()->Bind(&condition_label);
-  VisitForAccumulatorValue(stmt->cond());
-  builder()->JumpIfTrue(&body_label);
-  builder()->Bind(&done_label);
 
+  if (stmt->cond()->ToBooleanIsFalse()) {
+    Visit(stmt->body());
+    // Bind condition_label and done_label for processing continue and break.
+    builder()->Bind(&condition_label);
+    builder()->Bind(&done_label);
+  } else {
+    builder()->Bind(&body_label);
+    Visit(stmt->body());
+
+    builder()->Bind(&condition_label);
+    if (stmt->cond()->ToBooleanIsTrue()) {
+      builder()->Jump(&body_label);
+    } else {
+      VisitForAccumulatorValue(stmt->cond());
+      builder()->JumpIfTrue(&body_label);
+    }
+    builder()->Bind(&done_label);
+  }
   loop_builder.SetBreakTarget(done_label);
   loop_builder.SetContinueTarget(condition_label);
 }
@@ -643,12 +659,24 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   ControlScopeForIteration execution_control(this, stmt, &loop_builder);
 
   BytecodeLabel body_label, condition_label, done_label;
-  builder()->Jump(&condition_label);
+  if (stmt->cond()->ToBooleanIsFalse()) {
+    // If the condition is false there is no need to generating the loop.
+    return;
+  }
+
+  if (!stmt->cond()->ToBooleanIsTrue()) {
+    builder()->Jump(&condition_label);
+  }
   builder()->Bind(&body_label);
   Visit(stmt->body());
+
   builder()->Bind(&condition_label);
-  VisitForAccumulatorValue(stmt->cond());
-  builder()->JumpIfTrue(&body_label);
+  if (stmt->cond()->ToBooleanIsTrue()) {
+    builder()->Jump(&body_label);
+  } else {
+    VisitForAccumulatorValue(stmt->cond());
+    builder()->JumpIfTrue(&body_label);
+  }
   builder()->Bind(&done_label);
 
   loop_builder.SetBreakTarget(done_label);
@@ -664,8 +692,14 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
     Visit(stmt->init());
   }
 
+  if (stmt->cond() && stmt->cond()->ToBooleanIsFalse()) {
+    // If the condition is known to be false there is no need to generate
+    // body, next or condition blocks. Init block should be generated.
+    return;
+  }
+
   BytecodeLabel body_label, condition_label, next_label, done_label;
-  if (stmt->cond() != nullptr) {
+  if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     builder()->Jump(&condition_label);
   }
   builder()->Bind(&body_label);
@@ -674,7 +708,7 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   if (stmt->next() != nullptr) {
     Visit(stmt->next());
   }
-  if (stmt->cond()) {
+  if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     builder()->Bind(&condition_label);
     VisitForAccumulatorValue(stmt->cond());
     builder()->JumpIfTrue(&body_label);
