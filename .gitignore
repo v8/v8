@@ -43,6 +43,7 @@ shell_g
 /build/gyp
 /build/ipch/
 /build/Release
+/build/win_toolchain.json
 /buildtools
 /hydrogen.cfg
 /obj
