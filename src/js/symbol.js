@@ -19,11 +19,7 @@ var isConcatSpreadableSymbol =
 var isRegExpSymbol = utils.ImportNow("is_regexp_symbol");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MakeTypeError;
-var matchSymbol = utils.ImportNow("match_symbol");
 var ObjectGetOwnPropertyKeys;
-var replaceSymbol = utils.ImportNow("replace_symbol");
-var searchSymbol = utils.ImportNow("search_symbol");
-var splitSymbol = utils.ImportNow("split_symbol");
 var toPrimitiveSymbol = utils.ImportNow("to_primitive_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");

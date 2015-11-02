@@ -2157,10 +2157,8 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rest_parameters)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_default_parameters)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_destructuring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_observe)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_concat_spreadable)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tostring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_completion)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tolength)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
@@ -2177,6 +2175,47 @@ static void SimpleInstallFunction(Handle<JSObject>& base, const char* name,
     fun->shared()->DontAdaptArguments();
   }
   fun->shared()->set_length(len);
+}
+
+
+void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
+                         const char* name, Handle<Symbol> value) {
+  Handle<JSGlobalObject> global(
+      JSGlobalObject::cast(native_context->global_object()));
+  Handle<String> symbol_string = factory->InternalizeUtf8String("Symbol");
+  Handle<JSObject> symbol = Handle<JSObject>::cast(
+      JSObject::GetProperty(global, symbol_string).ToHandleChecked());
+  Handle<String> name_string = factory->InternalizeUtf8String(name);
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+  JSObject::AddProperty(symbol, name_string, value, attributes);
+}
+
+
+void Genesis::InitializeGlobal_harmony_tostring() {
+  if (!FLAG_harmony_tostring) return;
+  InstallPublicSymbol(factory(), native_context(), "toStringTag",
+                      factory()->to_string_tag_symbol());
+}
+
+
+void Genesis::InitializeGlobal_harmony_concat_spreadable() {
+  if (!FLAG_harmony_concat_spreadable) return;
+  InstallPublicSymbol(factory(), native_context(), "isConcatSpreadable",
+                      factory()->is_concat_spreadable_symbol());
+}
+
+
+void Genesis::InitializeGlobal_harmony_regexp_subclass() {
+  if (!FLAG_harmony_regexp_subclass) return;
+  InstallPublicSymbol(factory(), native_context(), "match",
+                      factory()->match_symbol());
+  InstallPublicSymbol(factory(), native_context(), "replace",
+                      factory()->replace_symbol());
+  InstallPublicSymbol(factory(), native_context(), "search",
+                      factory()->search_symbol());
+  InstallPublicSymbol(factory(), native_context(), "split",
+                      factory()->split_symbol());
 }
 
 
@@ -2622,8 +2661,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_modules_natives[] = {nullptr};
   static const char* harmony_regexps_natives[] = {"native harmony-regexp.js",
                                                   nullptr};
-  static const char* harmony_tostring_natives[] = {"native harmony-tostring.js",
-                                                   nullptr};
+  static const char* harmony_tostring_natives[] = {nullptr};
   static const char* harmony_sloppy_natives[] = {nullptr};
   static const char* harmony_sloppy_function_natives[] = {nullptr};
   static const char* harmony_sloppy_let_natives[] = {nullptr};
@@ -2637,13 +2675,13 @@ bool Genesis::InstallExperimentalNatives() {
       "native harmony-object-observe.js", nullptr};
   static const char* harmony_sharedarraybuffer_natives[] = {
       "native harmony-sharedarraybuffer.js", "native harmony-atomics.js", NULL};
-  static const char* harmony_concat_spreadable_natives[] = {
-      "native harmony-concat-spreadable.js", nullptr};
+  static const char* harmony_concat_spreadable_natives[] = {nullptr};
   static const char* harmony_simd_natives[] = {"native harmony-simd.js",
                                                nullptr};
   static const char* harmony_tolength_natives[] = {nullptr};
   static const char* harmony_completion_natives[] = {nullptr};
   static const char* harmony_do_expressions_natives[] = {nullptr};
+  static const char* harmony_regexp_subclass_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
