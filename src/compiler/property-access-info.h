@@ -32,25 +32,25 @@ std::ostream& operator<<(std::ostream&, PropertyAccessMode);
 // object property, either on the object itself or on the prototype chain.
 class PropertyAccessInfo final {
  public:
-  enum Kind { kInvalid, kDataConstant, kDataField };
+  enum Kind { kInvalid, kNotFound, kDataConstant, kDataField };
 
+  static PropertyAccessInfo NotFound(Type* receiver_type,
+                                     MaybeHandle<JSObject> holder);
   static PropertyAccessInfo DataConstant(Type* receiver_type,
                                          Handle<Object> constant,
-                                         MaybeHandle<JSObject> holder) {
-    return PropertyAccessInfo(holder, constant, receiver_type);
-  }
+                                         MaybeHandle<JSObject> holder);
   static PropertyAccessInfo DataField(
       Type* receiver_type, FieldIndex field_index, Type* field_type,
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
-      MaybeHandle<Map> transition_map = MaybeHandle<Map>()) {
-    return PropertyAccessInfo(holder, transition_map, field_index, field_type,
-                              receiver_type);
-  }
+      MaybeHandle<Map> transition_map = MaybeHandle<Map>());
 
   PropertyAccessInfo();
 
+  bool IsNotFound() const { return kind() == kNotFound; }
   bool IsDataConstant() const { return kind() == kDataConstant; }
   bool IsDataField() const { return kind() == kDataField; }
+
+  bool HasTransitionMap() const { return !transition_map().is_null(); }
 
   Kind kind() const { return kind_; }
   MaybeHandle<JSObject> holder() const { return holder_; }
@@ -60,9 +60,8 @@ class PropertyAccessInfo final {
   Type* field_type() const { return field_type_; }
   Type* receiver_type() const { return receiver_type_; }
 
-  bool HasTransitionMap() const { return !transition_map().is_null(); }
-
  private:
+  PropertyAccessInfo(MaybeHandle<JSObject> holder, Type* receiver_type);
   PropertyAccessInfo(MaybeHandle<JSObject> holder, Handle<Object> constant,
                      Type* receiver_type);
   PropertyAccessInfo(MaybeHandle<JSObject> holder,

@@ -303,7 +303,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandleList const& receiver_maps,
-    Handle<Name> name, PropertyAccessMode access_mode) {
+    Handle<Name> name, PropertyAccessMode access_mode,
+    LanguageMode language_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -399,7 +400,17 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     }
 
     // Generate the actual property access.
-    if (access_info.IsDataConstant()) {
+    if (access_info.IsNotFound()) {
+      DCHECK_EQ(PropertyAccessMode::kLoad, access_mode);
+      if (is_strong(language_mode)) {
+        // TODO(bmeurer/mstarzinger): Add support for lowering inside try
+        // blocks rewiring the IfException edge to a runtime call/throw.
+        exit_controls.push_back(this_control);
+        continue;
+      } else {
+        this_value = jsgraph()->UndefinedConstant();
+      }
+    } else if (access_info.IsDataConstant()) {
       this_value = jsgraph()->Constant(access_info.constant());
       if (access_mode == PropertyAccessMode::kStore) {
         Node* check = graph()->NewNode(
@@ -586,7 +597,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Generate the final merge point for all (polymorphic) branches.
   int const control_count = static_cast<int>(controls.size());
-  if (control_count == 1) {
+  if (control_count == 0) {
+    value = effect = control = jsgraph()->Dead();
+  } else if (control_count == 1) {
     value = values.front();
     effect = effects.front();
     control = controls.front();
@@ -618,7 +631,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, p.name(),
-                           PropertyAccessMode::kLoad);
+                           PropertyAccessMode::kLoad, p.language_mode());
 }
 
 
@@ -636,7 +649,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, p.name(),
-                           PropertyAccessMode::kStore);
+                           PropertyAccessMode::kStore, p.language_mode());
 }
 
 

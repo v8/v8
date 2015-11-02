@@ -28,8 +28,40 @@ std::ostream& operator<<(std::ostream& os, PropertyAccessMode access_mode) {
 }
 
 
+// static
+PropertyAccessInfo PropertyAccessInfo::NotFound(Type* receiver_type,
+                                                MaybeHandle<JSObject> holder) {
+  return PropertyAccessInfo(holder, receiver_type);
+}
+
+
+// static
+PropertyAccessInfo PropertyAccessInfo::DataConstant(
+    Type* receiver_type, Handle<Object> constant,
+    MaybeHandle<JSObject> holder) {
+  return PropertyAccessInfo(holder, constant, receiver_type);
+}
+
+
+// static
+PropertyAccessInfo PropertyAccessInfo::DataField(
+    Type* receiver_type, FieldIndex field_index, Type* field_type,
+    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
+  return PropertyAccessInfo(holder, transition_map, field_index, field_type,
+                            receiver_type);
+}
+
+
 PropertyAccessInfo::PropertyAccessInfo()
     : kind_(kInvalid), receiver_type_(Type::None()), field_type_(Type::Any()) {}
+
+
+PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
+                                       Type* receiver_type)
+    : kind_(kNotFound),
+      receiver_type_(receiver_type),
+      holder_(holder),
+      field_type_(Type::Any()) {}
 
 
 PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
@@ -95,7 +127,7 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
   }
 
   MaybeHandle<JSObject> holder;
-  while (true) {
+  do {
     // Lookup the named property on the {map}.
     Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
     int const number = descriptors->SearchWithCache(*name, *map);
@@ -187,8 +219,12 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
         if (access_mode == PropertyAccessMode::kStore) {
           return LookupTransition(receiver_map, name, holder, access_info);
         }
-        // TODO(bmeurer): Handle the not found case if the prototype is null.
-        return false;
+        // The property was not found, return undefined or throw depending
+        // on the language mode of the load operation.
+        // Implemented according to ES6 section 9.1.8 [[Get]] (P, Receiver)
+        *access_info = PropertyAccessInfo::NotFound(
+            Type::Class(receiver_map, zone()), holder);
+        return true;
       } else {
         return false;
       }
@@ -201,11 +237,25 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
     }
     map = handle(map_prototype->map(), isolate());
     holder = map_prototype;
-
-    // Check if it is safe to inline property access for the {map}.
-    if (!CanInlinePropertyAccess(map)) return false;
-  }
+  } while (CanInlinePropertyAccess(map));
   return false;
+}
+
+
+bool PropertyAccessInfoFactory::ComputePropertyAccessInfos(
+    MapHandleList const& maps, Handle<Name> name,
+    PropertyAccessMode access_mode,
+    ZoneVector<PropertyAccessInfo>* access_infos) {
+  for (Handle<Map> map : maps) {
+    if (Map::TryUpdate(map).ToHandle(&map)) {
+      PropertyAccessInfo access_info;
+      if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
+        return false;
+      }
+      access_infos->push_back(access_info);
+    }
+  }
+  return true;
 }
 
 
@@ -296,23 +346,6 @@ bool PropertyAccessInfoFactory::LookupTransition(
     return true;
   }
   return false;
-}
-
-
-bool PropertyAccessInfoFactory::ComputePropertyAccessInfos(
-    MapHandleList const& maps, Handle<Name> name,
-    PropertyAccessMode access_mode,
-    ZoneVector<PropertyAccessInfo>* access_infos) {
-  for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(map).ToHandle(&map)) {
-      PropertyAccessInfo access_info;
-      if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
-        return false;
-      }
-      access_infos->push_back(access_info);
-    }
-  }
-  return true;
 }
 
 
