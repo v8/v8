@@ -47,40 +47,12 @@ RUNTIME_FUNCTION(Runtime_FunctionNameShouldPrintAsAnonymous) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CompleteFunctionConstruction) {
+RUNTIME_FUNCTION(Runtime_FunctionMarkNameShouldPrintAsAnonymous) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, new_target, 2);
-  func->shared()->set_name_should_print_as_anonymous(true);
-
-  // If new.target is equal to |constructor| then the function |func| created
-  // is already correctly setup and nothing else should be done here.
-  // But if new.target is not equal to |constructor| then we are have a
-  // Function builtin subclassing case and therefore the function |func|
-  // has wrong initial map. To fix that we create a new function object with
-  // correct initial map.
-  if (new_target->IsUndefined() || *constructor == *new_target) {
-    return *func;
-  }
-
-  // Create a new JSFunction object with correct initial map.
-  HandleScope handle_scope(isolate);
-  Handle<JSFunction> original_constructor =
-      Handle<JSFunction>::cast(new_target);
-
-  DCHECK(constructor->has_initial_map());
-  Handle<Map> initial_map =
-      JSFunction::EnsureDerivedHasInitialMap(original_constructor, constructor);
-
-  Handle<SharedFunctionInfo> shared_info(func->shared(), isolate);
-  Handle<Context> context(func->context(), isolate);
-  Handle<JSFunction> result =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          initial_map, shared_info, context, NOT_TENURED);
-  DCHECK_EQ(func->IsConstructor(), result->IsConstructor());
-  return *result;
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, f, 0);
+  f->shared()->set_name_should_print_as_anonymous(true);
+  return isolate->heap()->undefined_value();
 }
 
 

@@ -507,11 +507,8 @@ class Factory final {
                                                  bool is_strict = false);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
-      Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Context> context, PretenureFlag pretenure = TENURED);
-
-  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
-      Handle<SharedFunctionInfo> function_info, Handle<Context> context,
+      Handle<SharedFunctionInfo> function_info,
+      Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,

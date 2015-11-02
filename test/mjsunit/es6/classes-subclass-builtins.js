@@ -18,30 +18,6 @@ function checkPrototypeChain(object, constructors) {
 
 
 (function() {
-  class A extends Function {
-    constructor(...args) {
-      assertTrue(%IsConstructCall());
-      super(...args);
-      this.a = 42;
-    }
-  }
-
-  var o = new A("this.foo = 153;");
-  assertTrue(o instanceof Object);
-  assertTrue(o instanceof Function);
-  assertTrue(o instanceof A);
-  assertEquals("function", typeof o);
-  checkPrototypeChain(o, [A, Function, Object]);
-  assertEquals(42, o.a);
-  var oo = new o();
-  assertEquals(153, oo.foo);
-
-  var o1 = new A("return 312;");
-  assertTrue(%HaveSameMap(o, o1));
-})();
-
-
-(function() {
   class A extends Boolean {
     constructor(...args) {
       assertTrue(%IsConstructCall());
@@ -321,42 +297,6 @@ function TestArraySubclassing(array) {
   var o1 = new A(buffer);
   assertTrue(%HaveSameMap(o, o1));
 
-})();
-
-
-(function() {
-  // TODO(ishell): remove once GeneratorFunction is available.
-  var GeneratorFunction = (function*() {}).__proto__.constructor;
-  class A extends GeneratorFunction {
-    constructor(...args) {
-      assertTrue(%IsConstructCall());
-      super(...args);
-      this.a = 42;
-    }
-  }
-  var generator_func = new A("var index = 0; while (index < 5) { yield ++index; }");
-  assertTrue(generator_func instanceof Object);
-  assertTrue(generator_func instanceof Function);
-  assertTrue(generator_func instanceof GeneratorFunction);
-  assertTrue(generator_func instanceof A);
-  assertEquals("function", typeof generator_func);
-  checkPrototypeChain(generator_func, [A, GeneratorFunction, Function, Object]);
-  assertEquals(42, generator_func.a);
-
-  var o = new generator_func();
-  assertTrue(o instanceof Object);
-  assertTrue(o instanceof generator_func);
-  assertEquals("object", typeof o);
-
-  assertPropertiesEqual({done: false, value: 1}, o.next());
-  assertPropertiesEqual({done: false, value: 2}, o.next());
-  assertPropertiesEqual({done: false, value: 3}, o.next());
-  assertPropertiesEqual({done: false, value: 4}, o.next());
-  assertPropertiesEqual({done: false, value: 5}, o.next());
-  assertPropertiesEqual({done: true, value: undefined}, o.next());
-
-  var generator_func1 = new A("return 0;");
-  assertTrue(%HaveSameMap(generator_func, generator_func1));
 })();
 
 

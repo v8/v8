@@ -1318,19 +1318,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     PretenureFlag pretenure) {
   int map_index =
       Context::FunctionMapIndex(info->language_mode(), info->kind());
-  Handle<Map> initial_map(Map::cast(context->native_context()->get(map_index)));
-
-  return NewFunctionFromSharedFunctionInfo(initial_map, info, context,
-                                           pretenure);
-}
-
-
-Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Context> context, PretenureFlag pretenure) {
-  DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
-  Handle<JSFunction> result =
-      NewFunction(initial_map, info, context, pretenure);
+  Handle<Map> map(Map::cast(context->native_context()->get(map_index)));
+  Handle<JSFunction> result = NewFunction(map, info, context, pretenure);
 
   if (info->ic_age() != isolate()->heap()->global_ic_age()) {
     info->ResetForNewContext(isolate()->heap()->global_ic_age());

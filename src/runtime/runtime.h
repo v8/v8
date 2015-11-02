@@ -236,7 +236,7 @@ namespace internal {
   F(FunctionGetName, 1, 1)                                  \
   F(FunctionSetName, 2, 1)                                  \
   F(FunctionNameShouldPrintAsAnonymous, 1, 1)               \
-  F(CompleteFunctionConstruction, 3, 1)                     \
+  F(FunctionMarkNameShouldPrintAsAnonymous, 1, 1)           \
   F(FunctionIsArrow, 1, 1)                                  \
   F(FunctionIsConciseMethod, 1, 1)                          \
   F(FunctionRemovePrototype, 1, 1)                          \

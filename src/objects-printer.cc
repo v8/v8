@@ -870,9 +870,6 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   if (has_initial_map()) os << Brief(initial_map());
   os << "\n - shared_info = " << Brief(shared());
   os << "\n   - name = " << Brief(shared()->name());
-  if (shared()->is_generator()) {
-    os << "\n   - generator";
-  }
   os << "\n - context = " << Brief(context());
   if (shared()->bound()) {
     os << "\n - bindings = " << Brief(function_bindings());
