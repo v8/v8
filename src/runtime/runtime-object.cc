@@ -996,23 +996,15 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
   Compiler::Compile(function, CLEAR_EXCEPTION);
 
   JSFunction::EnsureHasInitialMap(function);
-  Handle<Map> initial_map =
-      JSFunction::EnsureDerivedHasInitialMap(original_function, function);
-
-  if (initial_map->instance_type() == JS_FUNCTION_TYPE) {
+  if (function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
     // The 'Function' function ignores the receiver object when
     // called using 'new' and creates a new JSFunction object that
-    // is returned.  The receiver object is only used for error
-    // reporting if an error occurs when constructing the new
-    // JSFunction. Factory::NewJSObject() should not be used to
-    // allocate JSFunctions since it does not properly initialize
-    // the shared part of the function. Since the receiver is
-    // ignored anyway, we use the global object as the receiver
-    // instead of a new JSFunction object. This way, errors are
-    // reported the same way whether or not 'Function' is called
-    // using 'new'.
-    return isolate->global_proxy();
+    // is returned.
+    return isolate->heap()->undefined_value();
   }
+
+  Handle<Map> initial_map =
+      JSFunction::EnsureDerivedHasInitialMap(original_function, function);
 
   Handle<JSObject> result =
       isolate->factory()->NewJSObjectFromMap(initial_map, NOT_TENURED, site);
