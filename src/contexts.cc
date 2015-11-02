@@ -118,17 +118,6 @@ String* Context::catch_name() {
 }
 
 
-JSBuiltinsObject* Context::builtins() {
-  GlobalObject* object = global_object();
-  if (object->IsJSGlobalObject()) {
-    return JSGlobalObject::cast(object)->builtins();
-  } else {
-    DCHECK(object->IsJSBuiltinsObject());
-    return JSBuiltinsObject::cast(object);
-  }
-}
-
-
 Context* Context::script_context() {
   Context* current = this;
   while (!current->IsScriptContext()) {

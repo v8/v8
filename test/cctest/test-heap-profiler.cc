@@ -1698,9 +1698,6 @@ TEST(GlobalObjectFields) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* builtins =
-      GetProperty(global, v8::HeapGraphEdge::kInternal, "builtins");
-  CHECK(builtins);
   const v8::HeapGraphNode* native_context =
       GetProperty(global, v8::HeapGraphEdge::kInternal, "native_context");
   CHECK(native_context);

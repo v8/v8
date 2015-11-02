@@ -1594,18 +1594,11 @@ void HGraphBuilder::BuildNonGlobalObjectCheck(HValue* receiver) {
       Add<HLoadNamedField>(receiver, nullptr, HObjectAccess::ForMap());
   HValue* instance_type =
       Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapInstanceType());
-  STATIC_ASSERT(JS_BUILTINS_OBJECT_TYPE == JS_GLOBAL_OBJECT_TYPE + 1);
-  HValue* min_global_type = Add<HConstant>(JS_GLOBAL_OBJECT_TYPE);
-  HValue* max_global_type = Add<HConstant>(JS_BUILTINS_OBJECT_TYPE);
+  HValue* global_type = Add<HConstant>(JS_GLOBAL_OBJECT_TYPE);
 
   IfBuilder if_global_object(this);
-  if_global_object.If<HCompareNumericAndBranch>(instance_type,
-                                                max_global_type,
-                                                Token::LTE);
-  if_global_object.And();
-  if_global_object.If<HCompareNumericAndBranch>(instance_type,
-                                                min_global_type,
-                                                Token::GTE);
+  if_global_object.If<HCompareNumericAndBranch>(instance_type, global_type,
+                                                Token::EQ);
   if_global_object.ThenDeopt(Deoptimizer::kReceiverWasAGlobalObject);
   if_global_object.End();
 }

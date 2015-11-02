@@ -1017,7 +1017,6 @@ bool Object::IsGlobalObject() const {
 
 
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
-TYPE_CHECKER(JSBuiltinsObject, JS_BUILTINS_OBJECT_TYPE)
 
 
 bool Object::IsUndetectableObject() const {
@@ -2151,8 +2150,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
       return JSGlobalObject::kSize;
-    case JS_BUILTINS_OBJECT_TYPE:
-      return JSBuiltinsObject::kSize;
     case JS_FUNCTION_TYPE:
       return JSFunction::kSize;
     case JS_VALUE_TYPE:
@@ -3321,7 +3318,6 @@ CAST_ACCESSOR(Int8x16)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
-CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(JSDataView)
 CAST_ACCESSOR(JSDate)
 CAST_ACCESSOR(JSFunction)
@@ -4932,7 +4928,7 @@ bool Map::IsJSGlobalObjectMap() {
 bool Map::IsJSTypedArrayMap() { return instance_type() == JS_TYPED_ARRAY_TYPE; }
 bool Map::IsGlobalObjectMap() {
   const InstanceType type = instance_type();
-  return type == JS_GLOBAL_OBJECT_TYPE || type == JS_BUILTINS_OBJECT_TYPE;
+  return type == JS_GLOBAL_OBJECT_TYPE;
 }
 
 
@@ -5639,7 +5635,6 @@ ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, literals_or_bindings, FixedArray, kLiteralsOffset)
 ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
-ACCESSORS(GlobalObject, builtins, JSBuiltinsObject, kBuiltinsOffset)
 ACCESSORS(GlobalObject, native_context, Context, kNativeContextOffset)
 ACCESSORS(GlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 

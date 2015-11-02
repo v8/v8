@@ -26,8 +26,6 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, Register type,
   //   type: holds the receiver instance type on entry.
   __ cmpi(type, Operand(JS_GLOBAL_OBJECT_TYPE));
   __ beq(global_object);
-  __ cmpi(type, Operand(JS_BUILTINS_OBJECT_TYPE));
-  __ beq(global_object);
   __ cmpi(type, Operand(JS_GLOBAL_PROXY_TYPE));
   __ beq(global_object);
 }

@@ -3456,7 +3456,6 @@ AllocationResult Heap::AllocateJSObjectFromMap(
   // Both types of global objects should be allocated using
   // AllocateGlobalObject to be properly initialized.
   DCHECK(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
-  DCHECK(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
   FixedArray* properties = empty_fixed_array();

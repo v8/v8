@@ -1165,16 +1165,13 @@ void V8HeapExplorer::ExtractJSObjectReferences(
   } else if (obj->IsGlobalObject()) {
     GlobalObject* global_obj = GlobalObject::cast(obj);
     SetInternalReference(global_obj, entry,
-                         "builtins", global_obj->builtins(),
-                         GlobalObject::kBuiltinsOffset);
-    SetInternalReference(global_obj, entry,
                          "native_context", global_obj->native_context(),
                          GlobalObject::kNativeContextOffset);
     SetInternalReference(global_obj, entry,
                          "global_proxy", global_obj->global_proxy(),
                          GlobalObject::kGlobalProxyOffset);
     STATIC_ASSERT(GlobalObject::kHeaderSize - JSObject::kHeaderSize ==
-                 3 * kPointerSize);
+                  2 * kPointerSize);
   } else if (obj->IsJSArrayBufferView()) {
     JSArrayBufferView* view = JSArrayBufferView::cast(obj);
     SetInternalReference(view, entry, "buffer", view->buffer(),

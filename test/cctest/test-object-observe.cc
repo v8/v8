@@ -755,8 +755,15 @@ static int GetGlobalObjectsCount() {
   int count = 0;
   i::HeapIterator it(CcTest::heap());
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
-    if (object->IsJSGlobalObject()) count++;
-  return count;
+    if (object->IsJSGlobalObject()) {
+      i::JSGlobalObject* g = i::JSGlobalObject::cast(object);
+      // Skip dummy global object.
+      if (i::GlobalDictionary::cast(g->properties())->NumberOfElements() != 0) {
+        count++;
+      }
+    }
+  // Subtract one to compensate for the code stub context that is always present
+  return count - 1;
 }
 
 
@@ -797,7 +804,7 @@ TEST(DontLeakContextOnObserve) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(2);
+  CheckSurvivingGlobalObjectsCount(1);
 }
 
 
@@ -820,7 +827,7 @@ TEST(DontLeakContextOnGetNotifier) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(2);
+  CheckSurvivingGlobalObjectsCount(1);
 }
 
 
@@ -851,7 +858,7 @@ TEST(DontLeakContextOnNotifierPerformChange) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(2);
+  CheckSurvivingGlobalObjectsCount(1);
 }
 
 

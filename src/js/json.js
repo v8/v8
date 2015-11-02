@@ -23,8 +23,6 @@ utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
 });
 

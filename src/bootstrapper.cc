@@ -421,13 +421,7 @@ Handle<JSFunction> InstallFunction(Handle<JSObject> target, const char* name,
                                    Builtins::Name call,
                                    bool strict_function_map = false) {
   Factory* const factory = target->GetIsolate()->factory();
-  PropertyAttributes attributes;
-  if (target->IsJSBuiltinsObject()) {
-    attributes =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  } else {
-    attributes = DONT_ENUM;
-  }
+  PropertyAttributes attributes = DONT_ENUM;
   return InstallFunction(target, factory->InternalizeUtf8String(name), type,
                          instance_size, maybe_prototype, call, attributes,
                          strict_function_map);
@@ -1054,7 +1048,6 @@ void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object,
                                  Handle<FixedArray> outdated_contexts) {
   Handle<GlobalObject> global_object_from_snapshot(
       GlobalObject::cast(native_context()->extension()));
-  Handle<JSBuiltinsObject> builtins_global(native_context()->builtins());
   native_context()->set_extension(*global_object);
   native_context()->set_security_token(*global_object);
 
@@ -1067,13 +1060,6 @@ void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object,
     context->set_global_object(*global_object);
   }
 
-  static const PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  JSObject::SetOwnPropertyIgnoreAttributes(builtins_global,
-                                           factory()->global_string(),
-                                           global_object, attributes).Assert();
-  // Set up the reference from the global object to the builtins object.
-  JSGlobalObject::cast(*global_object)->set_builtins(*builtins_global);
   TransferNamedProperties(global_object_from_snapshot, global_object);
   TransferIndexedProperties(global_object_from_snapshot, global_object);
 }
@@ -1597,9 +1583,8 @@ bool Bootstrapper::CompileBuiltin(Isolate* isolate, int index) {
   Handle<Object> extras_utils = isolate->extras_utils_object();
   Handle<Object> args[] = {global, utils, extras_utils};
 
-  return Bootstrapper::CompileNative(
-      isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
-      source_code, arraysize(args), args);
+  return Bootstrapper::CompileNative(isolate, name, source_code,
+                                     arraysize(args), args);
 }
 
 
@@ -1611,9 +1596,8 @@ bool Bootstrapper::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Handle<Object> global = isolate->global_object();
   Handle<Object> utils = isolate->natives_utils_object();
   Handle<Object> args[] = {global, utils};
-  return Bootstrapper::CompileNative(
-      isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
-      source_code, arraysize(args), args);
+  return Bootstrapper::CompileNative(isolate, name, source_code,
+                                     arraysize(args), args);
 }
 
 
@@ -1626,9 +1610,8 @@ bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
   Handle<Object> binding = isolate->extras_binding_object();
   Handle<Object> extras_utils = isolate->extras_utils_object();
   Handle<Object> args[] = {global, binding, extras_utils};
-  return Bootstrapper::CompileNative(
-      isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
-      source_code, arraysize(args), args);
+  return Bootstrapper::CompileNative(isolate, name, source_code,
+                                     arraysize(args), args);
 }
 
 
@@ -1642,9 +1625,8 @@ bool Bootstrapper::CompileExperimentalExtraBuiltin(Isolate* isolate,
   Handle<Object> binding = isolate->extras_binding_object();
   Handle<Object> extras_utils = isolate->extras_utils_object();
   Handle<Object> args[] = {global, binding, extras_utils};
-  return Bootstrapper::CompileNative(
-      isolate, name, Handle<JSObject>(isolate->native_context()->builtins()),
-      source_code, arraysize(args), args);
+  return Bootstrapper::CompileNative(isolate, name, source_code,
+                                     arraysize(args), args);
 }
 
 
@@ -1657,13 +1639,12 @@ bool Bootstrapper::CompileCodeStubBuiltin(Isolate* isolate, int index) {
   Handle<JSObject> exports(isolate->heap()->code_stub_exports_object());
   Handle<Object> args[] = {global, exports};
   bool result =
-      CompileNative(isolate, name, global, source_code, arraysize(args), args);
+      CompileNative(isolate, name, source_code, arraysize(args), args);
   return result;
 }
 
 
 bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
-                                 Handle<JSObject> receiver,
                                  Handle<String> source, int argc,
                                  Handle<Object> argv[]) {
   SuppressDebug compiling_natives(isolate->debug());
@@ -1692,6 +1673,7 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(function_info,
                                                             runtime_context);
+  Handle<Object> receiver = isolate->factory()->undefined_value();
 
   // For non-extension scripts, run script to get the function wrapper.
   Handle<Object> wrapper;
@@ -1872,6 +1854,12 @@ void Genesis::ConfigureUtilsObject(ContextType context_type) {
 
   // The utils object can be removed for cases that reach this point.
   native_context()->set_natives_utils_object(heap()->undefined_value());
+
+#ifdef DEBUG
+  GlobalObject* dummy = native_context()->runtime_context()->global_object();
+  DCHECK_EQ(0, dummy->elements()->length());
+  DCHECK_EQ(0, GlobalDictionary::cast(dummy->properties())->NumberOfElements());
+#endif
 }
 
 
@@ -2336,42 +2324,30 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
 bool Genesis::InstallNatives(ContextType context_type) {
   HandleScope scope(isolate());
 
-  // Create a function for the builtins object. Allocate space for the
-  // JavaScript builtins, a reference to the builtins object
-  // (itself) and a reference to the native_context directly in the object.
-  Handle<Code> code = Handle<Code>(
-      isolate()->builtins()->builtin(Builtins::kIllegal));
-  Handle<JSFunction> builtins_fun = factory()->NewFunction(
-      factory()->empty_string(), code, JS_BUILTINS_OBJECT_TYPE,
-      JSBuiltinsObject::kSize);
-
-  Handle<String> name =
-      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("builtins"));
-  builtins_fun->shared()->set_instance_class_name(*name);
-  builtins_fun->initial_map()->set_dictionary_map(true);
-  builtins_fun->initial_map()->set_prototype(heap()->null_value());
-
-  // Allocate the builtins object.
-  Handle<JSBuiltinsObject> builtins =
-      Handle<JSBuiltinsObject>::cast(factory()->NewGlobalObject(builtins_fun));
-  builtins->set_builtins(*builtins);
-  builtins->set_native_context(*native_context());
-  builtins->set_global_proxy(native_context()->global_proxy());
-
-  // Set up the reference from the global object to the builtins object.
-  JSGlobalObject::cast(native_context()->global_object())->
-      set_builtins(*builtins);
-
   // Create a bridge function that has context in the native context.
   Handle<JSFunction> bridge = factory()->NewFunction(factory()->empty_string());
   DCHECK(bridge->context() == *isolate()->native_context());
 
-  // Allocate the builtins context.
-  Handle<Context> context =
-    factory()->NewFunctionContext(Context::MIN_CONTEXT_SLOTS, bridge);
-  context->set_global_object(*builtins);  // override builtins global object
-
-  native_context()->set_runtime_context(*context);
+  // Allocate the runtime context.
+  {
+    Handle<Context> context =
+        factory()->NewFunctionContext(Context::MIN_CONTEXT_SLOTS, bridge);
+    native_context()->set_runtime_context(*context);
+    Handle<Code> code = isolate()->builtins()->Illegal();
+    Handle<JSFunction> global_fun =
+        factory()->NewFunction(factory()->empty_string(), code,
+                               JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
+    global_fun->initial_map()->set_dictionary_map(true);
+    global_fun->initial_map()->set_prototype(heap()->null_value());
+    Handle<JSGlobalObject> dummy_global =
+        Handle<JSGlobalObject>::cast(factory()->NewGlobalObject(global_fun));
+    dummy_global->set_native_context(*native_context());
+    dummy_global->set_global_proxy(native_context()->global_proxy());
+    context->set_global_object(*dummy_global);
+    // Something went wrong if we actually need to write into the dummy global.
+    dummy_global->set_properties(*GlobalDictionary::New(isolate(), 0));
+    dummy_global->set_elements(heap()->empty_fixed_array());
+  }
 
   // Set up the utils object as shared container between native scripts.
   Handle<JSObject> utils = factory()->NewJSObject(isolate()->object_function());
@@ -2635,12 +2611,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
       map->AppendDescriptor(&d);
     }
   }
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    builtins->ObjectVerify();
-  }
-#endif
 
   return true;
 }
@@ -3270,8 +3240,6 @@ Genesis::Genesis(Isolate* isolate,
 
     HookUpGlobalProxy(global_object, global_proxy);
     HookUpGlobalObject(global_object, outdated_contexts);
-    native_context()->builtins()->set_global_proxy(
-        native_context()->global_proxy());
     HookUpGlobalThisBinding(outdated_contexts);
 
     if (!ConfigureGlobalObjects(global_proxy_template)) return;

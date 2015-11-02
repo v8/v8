@@ -231,7 +231,6 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_TYPE:
-    case JS_BUILTINS_OBJECT_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:

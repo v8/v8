@@ -329,14 +329,6 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
     MarkPrototypeFailure(name);
     return;
   }
-
-  // The builtins object is special.  It only changes when JavaScript
-  // builtins are loaded lazily.  It is important to keep inline
-  // caches for the builtins object monomorphic.  Therefore, if we get
-  // an inline cache miss for the builtins object after lazily loading
-  // JavaScript builtins, we return uninitialized as the state to
-  // force the inline cache back to monomorphic state.
-  if (receiver->IsJSBuiltinsObject()) state_ = PREMONOMORPHIC;
 }
 
 

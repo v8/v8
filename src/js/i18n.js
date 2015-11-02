@@ -1115,7 +1115,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
   if (!IS_UNDEFINED(mxfd) || internalOptions.style !== 'currency') {
     var min_mxfd = internalOptions.style === 'percent' ? 0 : 3;
     mnfd = IS_UNDEFINED(mnfd) ? 0 : mnfd;
-    fallback_limit = (mnfd > min_mxfd) ? mnfd : min_mxfd;
+    var fallback_limit = (mnfd > min_mxfd) ? mnfd : min_mxfd;
     mxfd = getNumberOption(options, 'maximumFractionDigits', mnfd, 20, fallback_limit);
     defineWEProperty(internalOptions, 'maximumFractionDigits', mxfd);
   }

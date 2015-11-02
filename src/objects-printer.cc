@@ -113,9 +113,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_GLOBAL_OBJECT_TYPE:
       JSGlobalObject::cast(this)->JSGlobalObjectPrint(os);
       break;
-    case JS_BUILTINS_OBJECT_TYPE:
-      JSBuiltinsObject::cast(this)->JSBuiltinsObjectPrint(os);
-      break;
     case JS_VALUE_TYPE:
       JSValue::cast(this)->JSValuePrint(os);
       break;
@@ -933,12 +930,6 @@ void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {  // NOLINT
   JSObjectPrint(os);
   os << "native context : " << Brief(native_context());
   os << "\n";
-}
-
-
-void JSBuiltinsObject::JSBuiltinsObjectPrint(std::ostream& os) {  // NOLINT
-  os << "builtins ";
-  JSObjectPrint(os);
 }
 
 

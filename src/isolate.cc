@@ -316,9 +316,8 @@ static bool IsVisibleInStackTrace(JSFunction* fun,
   // exposed, in which case the native flag is set.
   // The --builtins-in-stack-traces command line flag allows including
   // internal call sites in the stack trace for debugging purposes.
-  if (!FLAG_builtins_in_stack_traces) {
-    if (receiver->IsJSBuiltinsObject()) return false;
-    if (fun->IsBuiltin()) return fun->shared()->native();
+  if (!FLAG_builtins_in_stack_traces && fun->IsBuiltin()) {
+    return fun->shared()->native();
   }
   return true;
 }

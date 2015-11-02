@@ -119,9 +119,6 @@ void HeapObject::HeapObjectVerify() {
     case JS_GLOBAL_OBJECT_TYPE:
       JSGlobalObject::cast(this)->JSGlobalObjectVerify();
       break;
-    case JS_BUILTINS_OBJECT_TYPE:
-      JSBuiltinsObject::cast(this)->JSBuiltinsObjectVerify();
-      break;
     case CELL_TYPE:
       Cell::cast(this)->CellVerify();
       break;
@@ -570,20 +567,13 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
 
 void JSGlobalObject::JSGlobalObjectVerify() {
   CHECK(IsJSGlobalObject());
-  JSObjectVerify();
-  for (int i = GlobalObject::kBuiltinsOffset;
-       i < JSGlobalObject::kSize;
-       i += kPointerSize) {
-    VerifyObjectField(i);
+  // Do not check the dummy global object for the builtins.
+  if (GlobalDictionary::cast(properties())->NumberOfElements() == 0 &&
+      elements()->length() == 0) {
+    return;
   }
-}
-
-
-void JSBuiltinsObject::JSBuiltinsObjectVerify() {
-  CHECK(IsJSBuiltinsObject());
   JSObjectVerify();
-  for (int i = GlobalObject::kBuiltinsOffset;
-       i < JSBuiltinsObject::kSize;
+  for (int i = GlobalObject::kHeaderSize; i < JSGlobalObject::kSize;
        i += kPointerSize) {
     VerifyObjectField(i);
   }

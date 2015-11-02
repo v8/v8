@@ -1510,7 +1510,7 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
   // Initial size of the backing store to avoid resize of the storage during
   // bootstrapping. The size differs between the JS global object ad the
   // builtins object.
-  int initial_size = map->instance_type() == JS_GLOBAL_OBJECT_TYPE ? 64 : 512;
+  int initial_size = 64;
 
   // Allocate a dictionary object for backing storage.
   int at_least_space_for = map->NumberOfOwnDescriptors() * 2 + initial_size;

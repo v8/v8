@@ -44,6 +44,8 @@ var InnerArrayIndexOf;
 var InnerArrayJoin;
 var InnerArrayLastIndexOf;
 var InnerArrayMap;
+var InnerArrayReduce;
+var InnerArrayReduceRight;
 var InnerArraySome;
 var InnerArraySort;
 var InnerArrayToLocaleString;

@@ -22,7 +22,6 @@ namespace internal {
 static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, Register type,
                                             Label* global_object) {
   __ Cmp(type, JS_GLOBAL_OBJECT_TYPE);
-  __ Ccmp(type, JS_BUILTINS_OBJECT_TYPE, ZFlag, ne);
   __ Ccmp(type, JS_GLOBAL_PROXY_TYPE, ZFlag, ne);
   __ B(eq, global_object);
 }

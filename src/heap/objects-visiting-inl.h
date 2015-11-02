@@ -667,9 +667,8 @@ void StaticMarkingVisitor<StaticVisitor>::MarkInlinedFunctionsCode(Heap* heap,
 }
 
 
-inline static bool IsValidNonBuiltinContext(Object* context) {
-  return context->IsContext() &&
-         !Context::cast(context)->global_object()->IsJSBuiltinsObject();
+inline static bool HasValidNonBuiltinContext(JSFunction* function) {
+  return function->context()->IsContext() && !function->IsBuiltin();
 }
 
 
@@ -693,7 +692,7 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(Heap* heap,
   }
 
   // The function must have a valid context and not be a builtin.
-  if (!IsValidNonBuiltinContext(function->context())) {
+  if (!HasValidNonBuiltinContext(function)) {
     return false;
   }
 

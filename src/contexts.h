@@ -426,9 +426,6 @@ class Context: public FixedArray {
   JSObject* global_proxy();
   void set_global_proxy(JSObject* global);
 
-  // The builtins object.
-  JSBuiltinsObject* builtins();
-
   // Get the script context by traversing the context chain.
   Context* script_context();
 

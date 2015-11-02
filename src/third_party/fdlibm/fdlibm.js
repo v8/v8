@@ -1081,10 +1081,10 @@ function MathLog2(x) {
   v = s_l * t_h + t_l * ss;
 
   // 2 / (3 * log(2)) * (ss + ...)
-  p_h = %_ConstructDouble(%_DoubleHi(u + v), 0);
-  p_l = v - (p_h - u);
-  z_h = CP_H * p_h;
-  z_l = CP_L * p_h + p_l * CP + dp_l;
+  var p_h = %_ConstructDouble(%_DoubleHi(u + v), 0);
+  var p_l = v - (p_h - u);
+  var z_h = CP_H * p_h;
+  var z_l = CP_L * p_h + p_l * CP + dp_l;
 
   // log2(ax) = (ss + ...) * 2 / (3 * log(2)) = n + dp_h + z_h + z_l
   var t = n;

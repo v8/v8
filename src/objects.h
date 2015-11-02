@@ -64,7 +64,6 @@
 //         - JSModule
 //         - GlobalObject
 //           - JSGlobalObject
-//           - JSBuiltinsObject
 //         - JSGlobalProxy
 //         - JSValue
 //           - JSDate
@@ -423,7 +422,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_GENERATOR_OBJECT_TYPE)                                   \
   V(JS_MODULE_TYPE)                                             \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
-  V(JS_BUILTINS_OBJECT_TYPE)                                    \
   V(JS_GLOBAL_PROXY_TYPE)                                       \
   V(JS_ARRAY_TYPE)                                              \
   V(JS_ARRAY_BUFFER_TYPE)                                       \
@@ -723,7 +721,6 @@ enum InstanceType {
   JS_GENERATOR_OBJECT_TYPE,
   JS_MODULE_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
-  JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
@@ -853,7 +850,6 @@ class ElementsAccessor;
 class FixedArrayBase;
 class FunctionLiteral;
 class GlobalObject;
-class JSBuiltinsObject;
 class KeyAccumulator;
 class LayoutDescriptor;
 class LiteralsArray;
@@ -999,7 +995,6 @@ template <class C> inline bool Is(Object* obj);
   V(Primitive)                     \
   V(GlobalObject)                  \
   V(JSGlobalObject)                \
-  V(JSBuiltinsObject)              \
   V(JSGlobalProxy)                 \
   V(UndetectableObject)            \
   V(AccessCheckNeeded)             \
@@ -7466,9 +7461,6 @@ class JSGlobalProxy : public JSObject {
 // builtins global objects.
 class GlobalObject: public JSObject {
  public:
-  // [builtins]: the object holding the runtime routines written in JS.
-  DECL_ACCESSORS(builtins, JSBuiltinsObject)
-
   // [native context]: the natives corresponding to this global object.
   DECL_ACCESSORS(native_context, Context)
 
@@ -7484,8 +7476,7 @@ class GlobalObject: public JSObject {
                                                  Handle<Name> name);
 
   // Layout description.
-  static const int kBuiltinsOffset = JSObject::kHeaderSize;
-  static const int kNativeContextOffset = kBuiltinsOffset + kPointerSize;
+  static const int kNativeContextOffset = JSObject::kHeaderSize;
   static const int kGlobalProxyOffset = kNativeContextOffset + kPointerSize;
   static const int kHeaderSize = kGlobalProxyOffset + kPointerSize;
 
@@ -7510,24 +7501,6 @@ class JSGlobalObject: public GlobalObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalObject);
-};
-
-
-// Builtins global object which holds the runtime routines written in
-// JavaScript.
-class JSBuiltinsObject: public GlobalObject {
- public:
-  DECLARE_CAST(JSBuiltinsObject)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(JSBuiltinsObject)
-  DECLARE_VERIFIER(JSBuiltinsObject)
-
-  // Layout description.
-  static const int kSize = GlobalObject::kHeaderSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSBuiltinsObject);
 };
 
 

@@ -133,7 +133,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_ARRAY_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
-    case JS_BUILTINS_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
@@ -232,7 +231,6 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_REGEXP_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
-    case JS_BUILTINS_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
       JSObject::BodyDescriptor::IterateBody(this, object_size, v);
       break;
