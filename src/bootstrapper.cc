@@ -1811,7 +1811,6 @@ Handle<JSTypedArray> CreateTypedArray(Isolate* isolate, ExternalArrayType type,
 bool Genesis::InitializeBuiltinTypedArrays() {
   HandleScope scope(isolate());
   Handle<JSTypedArray> rng_state;
-  Handle<JSTypedArray> math_constants;
   Handle<JSTypedArray> rempio2result;
 
   {
@@ -1824,13 +1823,6 @@ bool Genesis::InitializeBuiltinTypedArrays() {
     do {
       isolate()->random_number_generator()->NextBytes(state, num_bytes);
     } while (state[0] == 0 || state[1] == 0);
-  }
-
-  {  // Initialize trigonometric lookup tables and constants.
-    const size_t num_elements = arraysize(fdlibm::MathConstants::constants);
-    double* constants = const_cast<double*>(fdlibm::MathConstants::constants);
-    math_constants = CreateTypedArray(isolate(), kExternalFloat64Array,
-                                      num_elements, &constants);
   }
 
   {  // Initialize a result array for rempio2 calculation
@@ -1847,7 +1839,7 @@ bool Genesis::InitializeBuiltinTypedArrays() {
       "InitializeBuiltinTypedArrays");
   Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
   Handle<Object> receiver = isolate()->factory()->undefined_value();
-  Handle<Object> args[] = {utils, rng_state, math_constants, rempio2result};
+  Handle<Object> args[] = {utils, rng_state, rempio2result};
   return !Execution::Call(isolate(), fun, receiver, arraysize(args), args)
               .is_null();
 }

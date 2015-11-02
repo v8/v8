@@ -272,12 +272,11 @@ function PostDebug(utils) {
 }
 
 
-function InitializeBuiltinTypedArrays(
-    utils, rng_state, math_constants, rempio2result) {
+function InitializeBuiltinTypedArrays(utils, rng_state, rempio2result) {
   var setup_list =  typed_array_setup;
 
   for ( ; !IS_UNDEFINED(setup_list); setup_list = setup_list.next) {
-    setup_list(rng_state, math_constants, rempio2result);
+    setup_list(rng_state, rempio2result);
   }
 }
 

@@ -242,7 +242,7 @@ def ExpandInlineMacros(lines):
     lines = ExpandMacroDefinition(lines, pos, name_pattern, macro, non_expander)
 
 
-INLINE_CONSTANT_PATTERN = re.compile(r'define\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+)[;\n]')
+INLINE_CONSTANT_PATTERN = re.compile(r'define\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+);\n')
 
 def ExpandInlineConstants(lines):
   pos = 0
