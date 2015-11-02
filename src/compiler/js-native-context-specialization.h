@@ -6,8 +6,8 @@
 #define V8_COMPILER_JS_NATIVE_CONTEXT_SPECIALIZATION_H_
 
 #include "src/base/flags.h"
+#include "src/compiler/access-info.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/property-access-info.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {
@@ -65,13 +65,17 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   }
   Reduction Replace(Node* node, Handle<Object> value);
 
+  Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
+                                MapHandleList const& receiver_maps,
+                                AccessMode access_mode,
+                                LanguageMode language_mode);
   Reduction ReduceKeyedAccess(Node* node, Node* index, Node* value,
                               FeedbackNexus const& nexus,
-                              PropertyAccessMode access_mode,
+                              AccessMode access_mode,
                               LanguageMode language_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               MapHandleList const& receiver_maps,
-                              Handle<Name> name, PropertyAccessMode access_mode,
+                              Handle<Name> name, AccessMode access_mode,
                               LanguageMode language_mode,
                               Node* index = nullptr);
 
@@ -96,9 +100,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Handle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
-  PropertyAccessInfoFactory& access_info_factory() {
-    return access_info_factory_;
-  }
+  AccessInfoFactory& access_info_factory() { return access_info_factory_; }
 
   JSGraph* const jsgraph_;
   Flags const flags_;
@@ -107,7 +109,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
   TypeCache const& type_cache_;
-  PropertyAccessInfoFactory access_info_factory_;
+  AccessInfoFactory access_info_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);
 };

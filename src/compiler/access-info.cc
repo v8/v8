@@ -6,7 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/compilation-dependencies.h"
-#include "src/compiler/property-access-info.h"
+#include "src/compiler/access-info.h"
 #include "src/field-index-inl.h"
 #include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/type-cache.h"
@@ -16,11 +16,35 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-std::ostream& operator<<(std::ostream& os, PropertyAccessMode access_mode) {
+namespace {
+
+bool CanInlineElementAccess(Handle<Map> map) {
+  // TODO(bmeurer): IsJSObjectMap
+  // TODO(bmeurer): !map->has_dictionary_elements()
+  // TODO(bmeurer): !map->has_sloppy_arguments_elements()
+  return map->IsJSArrayMap() && map->has_fast_elements() &&
+         !map->has_indexed_interceptor() && !map->is_access_check_needed();
+}
+
+
+bool CanInlinePropertyAccess(Handle<Map> map) {
+  // TODO(bmeurer): Add support for Number primitives.
+  // if (map->instance_type() == HEAP_NUMBER_TYPE) return false;
+  if (map->instance_type() < FIRST_NONSTRING_TYPE) return true;
+  return map->IsJSObjectMap() && !map->is_dictionary_map() &&
+         !map->has_named_interceptor() &&
+         // TODO(verwaest): Whitelist contexts to which we have access.
+         !map->is_access_check_needed();
+}
+
+}  // namespace
+
+
+std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
   switch (access_mode) {
-    case PropertyAccessMode::kLoad:
+    case AccessMode::kLoad:
       return os << "Load";
-    case PropertyAccessMode::kStore:
+    case AccessMode::kStore:
       return os << "Store";
   }
   UNREACHABLE();
@@ -50,6 +74,9 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
   return PropertyAccessInfo(holder, transition_map, field_index, field_type,
                             receiver_type);
 }
+
+
+ElementAccessInfo::ElementAccessInfo() : receiver_type_(Type::None()) {}
 
 
 PropertyAccessInfo::PropertyAccessInfo()
@@ -86,9 +113,8 @@ PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
       field_type_(field_type) {}
 
 
-PropertyAccessInfoFactory::PropertyAccessInfoFactory(
-    CompilationDependencies* dependencies, Handle<Context> native_context,
-    Zone* zone)
+AccessInfoFactory::AccessInfoFactory(CompilationDependencies* dependencies,
+                                     Handle<Context> native_context, Zone* zone)
     : dependencies_(dependencies),
       native_context_(native_context),
       isolate_(native_context->GetIsolate()),
@@ -96,23 +122,52 @@ PropertyAccessInfoFactory::PropertyAccessInfoFactory(
       zone_(zone) {}
 
 
-namespace {
+bool AccessInfoFactory::ComputeElementAccessInfo(
+    Handle<Map> map, AccessMode access_mode, ElementAccessInfo* access_info) {
+  // Check if it is safe to inline element access for the {map}.
+  if (!CanInlineElementAccess(map)) return false;
 
-bool CanInlinePropertyAccess(Handle<Map> map) {
-  // TODO(bmeurer): Do something about the number stuff.
-  if (map->instance_type() == HEAP_NUMBER_TYPE) return false;
-  if (map->instance_type() < FIRST_NONSTRING_TYPE) return true;
-  return map->IsJSObjectMap() && !map->is_dictionary_map() &&
-         !map->has_named_interceptor() &&
-         // TODO(verwaest): Whitelist contexts to which we have access.
-         !map->is_access_check_needed();
+  // TODO(bmeurer): Add support for holey elements.
+  ElementsKind elements_kind = map->elements_kind();
+  if (IsHoleyElementsKind(elements_kind)) return false;
+
+  // Certain (monomorphic) stores need a prototype chain check because shape
+  // changes could allow callbacks on elements in the chain that are not
+  // compatible with monomorphic keyed stores.
+  MaybeHandle<JSObject> holder;
+  if (access_mode == AccessMode::kStore && map->prototype()->IsJSObject()) {
+    for (PrototypeIterator i(map); !i.IsAtEnd(); i.Advance()) {
+      Handle<JSReceiver> prototype =
+          PrototypeIterator::GetCurrent<JSReceiver>(i);
+      if (!prototype->IsJSObject()) return false;
+      holder = Handle<JSObject>::cast(prototype);
+    }
+  }
+
+  *access_info =
+      ElementAccessInfo(Type::Class(map, zone()), elements_kind, holder);
+  return true;
 }
 
-}  // namespace
+
+bool AccessInfoFactory::ComputeElementAccessInfos(
+    MapHandleList const& maps, AccessMode access_mode,
+    ZoneVector<ElementAccessInfo>* access_infos) {
+  for (Handle<Map> map : maps) {
+    if (Map::TryUpdate(map).ToHandle(&map)) {
+      ElementAccessInfo access_info;
+      if (!ComputeElementAccessInfo(map, access_mode, &access_info)) {
+        return false;
+      }
+      access_infos->push_back(access_info);
+    }
+  }
+  return true;
+}
 
 
-bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
-    Handle<Map> map, Handle<Name> name, PropertyAccessMode access_mode,
+bool AccessInfoFactory::ComputePropertyAccessInfo(
+    Handle<Map> map, Handle<Name> name, AccessMode access_mode,
     PropertyAccessInfo* access_info) {
   // Check if it is safe to inline property access for the {map}.
   if (!CanInlinePropertyAccess(map)) return false;
@@ -121,7 +176,7 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
   Handle<Map> receiver_map = map;
 
   // We support fast inline cases for certain JSObject getters.
-  if (access_mode == PropertyAccessMode::kLoad &&
+  if (access_mode == AccessMode::kLoad &&
       LookupSpecialFieldAccessor(map, name, access_info)) {
     return true;
   }
@@ -133,7 +188,7 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
     int const number = descriptors->SearchWithCache(*name, *map);
     if (number != DescriptorArray::kNotFound) {
       PropertyDetails const details = descriptors->GetDetails(number);
-      if (access_mode == PropertyAccessMode::kStore) {
+      if (access_mode == AccessMode::kStore) {
         // Don't bother optimizing stores to read-only properties.
         if (details.IsReadOnly()) {
           return false;
@@ -170,7 +225,7 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
               Type::TaggedPointer(), zone());
           if (field_type->Is(Type::None())) {
             // Store is not safe if the field type was cleared.
-            if (access_mode == PropertyAccessMode::kStore) return false;
+            if (access_mode == AccessMode::kStore) return false;
 
             // The field type was cleared by the GC, so we don't know anything
             // about the contents now.
@@ -216,7 +271,7 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
         // Store to property not found on the receiver or any prototype, we need
         // to transition to a new data property.
         // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
-        if (access_mode == PropertyAccessMode::kStore) {
+        if (access_mode == AccessMode::kStore) {
           return LookupTransition(receiver_map, name, holder, access_info);
         }
         // The property was not found, return undefined or throw depending
@@ -242,9 +297,8 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfo(
 }
 
 
-bool PropertyAccessInfoFactory::ComputePropertyAccessInfos(
-    MapHandleList const& maps, Handle<Name> name,
-    PropertyAccessMode access_mode,
+bool AccessInfoFactory::ComputePropertyAccessInfos(
+    MapHandleList const& maps, Handle<Name> name, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* access_infos) {
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(map).ToHandle(&map)) {
@@ -259,7 +313,7 @@ bool PropertyAccessInfoFactory::ComputePropertyAccessInfos(
 }
 
 
-bool PropertyAccessInfoFactory::LookupSpecialFieldAccessor(
+bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) {
   // Check for special JSObject field accessors.
   int offset;
@@ -294,9 +348,9 @@ bool PropertyAccessInfoFactory::LookupSpecialFieldAccessor(
 }
 
 
-bool PropertyAccessInfoFactory::LookupTransition(
-    Handle<Map> map, Handle<Name> name, MaybeHandle<JSObject> holder,
-    PropertyAccessInfo* access_info) {
+bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
+                                         MaybeHandle<JSObject> holder,
+                                         PropertyAccessInfo* access_info) {
   // Check if the {map} has a data transition with the given {name}.
   if (map->unused_property_fields() == 0) return false;
   Handle<Map> transition_map;
@@ -349,9 +403,7 @@ bool PropertyAccessInfoFactory::LookupTransition(
 }
 
 
-Factory* PropertyAccessInfoFactory::factory() const {
-  return isolate()->factory();
-}
+Factory* AccessInfoFactory::factory() const { return isolate()->factory(); }
 
 }  // namespace compiler
 }  // namespace internal

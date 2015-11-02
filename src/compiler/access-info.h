@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_PROPERTY_ACCESS_INFO_H_
-#define V8_COMPILER_PROPERTY_ACCESS_INFO_H_
+#ifndef V8_COMPILER_ACCESS_INFO_H_
+#define V8_COMPILER_ACCESS_INFO_H_
 
 #include <iosfwd>
 
@@ -23,9 +23,30 @@ class TypeCache;
 namespace compiler {
 
 // Whether we are loading a property or storing to a property.
-enum class PropertyAccessMode { kLoad, kStore };
+enum class AccessMode { kLoad, kStore };
 
-std::ostream& operator<<(std::ostream&, PropertyAccessMode);
+std::ostream& operator<<(std::ostream&, AccessMode);
+
+
+// This class encapsulates all information required to access a certain element.
+class ElementAccessInfo final {
+ public:
+  ElementAccessInfo();
+  ElementAccessInfo(Type* receiver_type, ElementsKind elements_kind,
+                    MaybeHandle<JSObject> holder)
+      : elements_kind_(elements_kind),
+        holder_(holder),
+        receiver_type_(receiver_type) {}
+
+  MaybeHandle<JSObject> holder() const { return holder_; }
+  ElementsKind elements_kind() const { return elements_kind_; }
+  Type* receiver_type() const { return receiver_type_; }
+
+ private:
+  ElementsKind elements_kind_;
+  MaybeHandle<JSObject> holder_;
+  Type* receiver_type_;
+};
 
 
 // This class encapsulates all information required to access a certain
@@ -78,17 +99,22 @@ class PropertyAccessInfo final {
 };
 
 
-// Factory class for {PropertyAccessInfo}s.
-class PropertyAccessInfoFactory final {
+// Factory class for {ElementAccessInfo}s and {PropertyAccessInfo}s.
+class AccessInfoFactory final {
  public:
-  PropertyAccessInfoFactory(CompilationDependencies* dependencies,
-                            Handle<Context> native_context, Zone* zone);
+  AccessInfoFactory(CompilationDependencies* dependencies,
+                    Handle<Context> native_context, Zone* zone);
 
+  bool ComputeElementAccessInfo(Handle<Map> map, AccessMode access_mode,
+                                ElementAccessInfo* access_info);
+  bool ComputeElementAccessInfos(MapHandleList const& maps,
+                                 AccessMode access_mode,
+                                 ZoneVector<ElementAccessInfo>* access_infos);
   bool ComputePropertyAccessInfo(Handle<Map> map, Handle<Name> name,
-                                 PropertyAccessMode access_mode,
+                                 AccessMode access_mode,
                                  PropertyAccessInfo* access_info);
   bool ComputePropertyAccessInfos(MapHandleList const& maps, Handle<Name> name,
-                                  PropertyAccessMode access_mode,
+                                  AccessMode access_mode,
                                   ZoneVector<PropertyAccessInfo>* access_infos);
 
  private:
@@ -110,11 +136,11 @@ class PropertyAccessInfoFactory final {
   TypeCache const& type_cache_;
   Zone* const zone_;
 
-  DISALLOW_COPY_AND_ASSIGN(PropertyAccessInfoFactory);
+  DISALLOW_COPY_AND_ASSIGN(AccessInfoFactory);
 };
 
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_PROPERTY_ACCESS_INFO_H_
+#endif  // V8_COMPILER_ACCESS_INFO_H_

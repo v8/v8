@@ -307,8 +307,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandleList const& receiver_maps,
-    Handle<Name> name, PropertyAccessMode access_mode,
-    LanguageMode language_mode, Node* index) {
+    Handle<Name> name, AccessMode access_mode, LanguageMode language_mode,
+    Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -417,7 +417,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
     // Generate the actual property access.
     if (access_info.IsNotFound()) {
-      DCHECK_EQ(PropertyAccessMode::kLoad, access_mode);
+      DCHECK_EQ(AccessMode::kLoad, access_mode);
       if (is_strong(language_mode)) {
         // TODO(bmeurer/mstarzinger): Add support for lowering inside try
         // blocks rewiring the IfException edge to a runtime call/throw.
@@ -428,7 +428,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
     } else if (access_info.IsDataConstant()) {
       this_value = jsgraph()->Constant(access_info.constant());
-      if (access_mode == PropertyAccessMode::kStore) {
+      if (access_mode == AccessMode::kStore) {
         Node* check = graph()->NewNode(
             simplified()->ReferenceEqual(Type::Tagged()), value, this_value);
         Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
@@ -440,7 +440,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       DCHECK(access_info.IsDataField());
       FieldIndex const field_index = access_info.field_index();
       Type* const field_type = access_info.field_type();
-      if (access_mode == PropertyAccessMode::kLoad &&
+      if (access_mode == AccessMode::kLoad &&
           access_info.holder().ToHandle(&holder)) {
         this_receiver = jsgraph()->Constant(holder);
       }
@@ -452,7 +452,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
       FieldAccess field_access = {kTaggedBase, field_index.offset(), name,
                                   field_type, kMachAnyTagged};
-      if (access_mode == PropertyAccessMode::kLoad) {
+      if (access_mode == AccessMode::kLoad) {
         if (field_type->Is(Type::UntaggedFloat64())) {
           if (!field_index.is_inobject() || field_index.is_hidden_field() ||
               !FLAG_unbox_double_fields) {
@@ -468,7 +468,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
             graph()->NewNode(simplified()->LoadField(field_access),
                              this_storage, this_effect, this_control);
       } else {
-        DCHECK_EQ(PropertyAccessMode::kStore, access_mode);
+        DCHECK_EQ(AccessMode::kStore, access_mode);
         if (field_type->Is(Type::UntaggedFloat64())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
@@ -581,9 +581,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     controls.push_back(this_control);
   }
 
-  // Collect the fallthru control as final "exit" control.
+  // Collect the fallthrough control as final "exit" control.
   if (fallthrough_control != control) {
-    // Mark the last fallthru branch as deferred.
+    // Mark the last fallthrough branch as deferred.
     Node* branch = NodeProperties::GetControlInput(fallthrough_control);
     DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
     if (fallthrough_control->opcode() == IrOpcode::kIfTrue) {
@@ -647,7 +647,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, p.name(),
-                           PropertyAccessMode::kLoad, p.language_mode());
+                           AccessMode::kLoad, p.language_mode());
 }
 
 
@@ -665,13 +665,269 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, p.name(),
-                           PropertyAccessMode::kStore, p.language_mode());
+                           AccessMode::kStore, p.language_mode());
+}
+
+
+Reduction JSNativeContextSpecialization::ReduceElementAccess(
+    Node* node, Node* index, Node* value, MapHandleList const& receiver_maps,
+    AccessMode access_mode, LanguageMode language_mode) {
+  DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
+         node->opcode() == IrOpcode::kJSStoreProperty);
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Not much we can do if deoptimization support is disabled.
+  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+
+  // Compute element access infos for the receiver maps.
+  ZoneVector<ElementAccessInfo> access_infos(zone());
+  if (!access_info_factory().ComputeElementAccessInfos(
+          receiver_maps, access_mode, &access_infos)) {
+    return NoChange();
+  }
+
+  // Nothing to do if we have no non-deprecated maps.
+  if (access_infos.empty()) return NoChange();
+
+  // The final states for every polymorphic branch. We join them with
+  // Merge+Phi+EffectPhi at the bottom.
+  ZoneVector<Node*> values(zone());
+  ZoneVector<Node*> effects(zone());
+  ZoneVector<Node*> controls(zone());
+
+  // The list of "exiting" controls, which currently go to a single deoptimize.
+  // TODO(bmeurer): Consider using an IC as fallback.
+  Node* const exit_effect = effect;
+  ZoneVector<Node*> exit_controls(zone());
+
+  // Ensure that {receiver} is a heap object.
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+  exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+  control = graph()->NewNode(common()->IfFalse(), branch);
+
+  // Load the {receiver} map. The resulting effect is the dominating effect for
+  // all (polymorphic) branches.
+  Node* receiver_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       receiver, effect, control);
+
+  // Generate code for the various different element access patterns.
+  Node* fallthrough_control = control;
+  for (ElementAccessInfo const& access_info : access_infos) {
+    Node* this_receiver = receiver;
+    Node* this_value = value;
+    Node* this_index = index;
+    Node* this_effect = effect;
+    Node* this_control;
+
+    // Perform map check on {receiver}.
+    Type* receiver_type = access_info.receiver_type();
+    {
+      ZoneVector<Node*> this_controls(zone());
+      for (auto i = access_info.receiver_type()->Classes(); !i.Done();
+           i.Advance()) {
+        Handle<Map> map = i.Current();
+        Node* check =
+            graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
+                             receiver_map, jsgraph()->Constant(map));
+        Node* branch =
+            graph()->NewNode(common()->Branch(), check, fallthrough_control);
+        this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+        fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+      }
+      int const this_control_count = static_cast<int>(this_controls.size());
+      this_control =
+          (this_control_count == 1)
+              ? this_controls.front()
+              : graph()->NewNode(common()->Merge(this_control_count),
+                                 this_control_count, &this_controls.front());
+    }
+
+    // Certain stores need a prototype chain check because shape changes
+    // could allow callbacks on elements in the prototype chain that are
+    // not compatible with (monomorphic) keyed stores.
+    Handle<JSObject> holder;
+    if (access_info.holder().ToHandle(&holder)) {
+      AssumePrototypesStable(receiver_type, holder);
+    }
+
+    // Check that the {index} is actually a Number.
+    if (!NumberMatcher(this_index).HasValue()) {
+      Node* check =
+          graph()->NewNode(simplified()->ObjectIsNumber(), this_index);
+      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                      check, this_control);
+      exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
+      this_control = graph()->NewNode(common()->IfTrue(), branch);
+      this_index = graph()->NewNode(common()->Guard(Type::Number()), this_index,
+                                    this_control);
+    }
+
+    // Convert the {index} to an unsigned32 value and check if the result is
+    // equal to the original {index}.
+    if (!NumberMatcher(this_index).IsInRange(0.0, kMaxUInt32)) {
+      Node* this_index32 =
+          graph()->NewNode(simplified()->NumberToUint32(), this_index);
+      Node* check = graph()->NewNode(simplified()->NumberEqual(), this_index32,
+                                     this_index);
+      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                      check, this_control);
+      exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
+      this_control = graph()->NewNode(common()->IfTrue(), branch);
+      this_index = this_index32;
+    }
+
+    // TODO(bmeurer): We currently specialize based on elements kind. We should
+    // also be able to properly support strings and other JSObjects here.
+    ElementsKind elements_kind = access_info.elements_kind();
+
+    // Load the elements for the {receiver}.
+    Node* this_elements = this_effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+        this_receiver, this_effect, this_control);
+
+    // Don't try to store to a copy-on-write backing store.
+    if (access_mode == AccessMode::kStore &&
+        IsFastSmiOrObjectElementsKind(elements_kind)) {
+      Node* this_elements_map = this_effect =
+          graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                           this_elements, this_effect, this_control);
+      check = graph()->NewNode(
+          simplified()->ReferenceEqual(Type::Any()), this_elements_map,
+          jsgraph()->HeapConstant(factory()->fixed_array_map()));
+      branch = graph()->NewNode(common()->Branch(BranchHint::kTrue), check,
+                                this_control);
+      exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
+      this_control = graph()->NewNode(common()->IfTrue(), branch);
+    }
+
+    // Load the length of the {receiver}.
+    FieldAccess length_access = {
+        kTaggedBase, JSArray::kLengthOffset, factory()->name_string(),
+        type_cache_.kJSArrayLengthType, kMachAnyTagged};
+    if (IsFastDoubleElementsKind(elements_kind)) {
+      length_access.type = type_cache_.kFixedDoubleArrayLengthType;
+    } else if (IsFastElementsKind(elements_kind)) {
+      length_access.type = type_cache_.kFixedArrayLengthType;
+    }
+    Node* this_length = this_effect =
+        graph()->NewNode(simplified()->LoadField(length_access), this_receiver,
+                         this_effect, this_control);
+
+    // Check that the {index} is in the valid range for the {receiver}.
+    Node* check = graph()->NewNode(simplified()->NumberLessThan(), this_index,
+                                   this_length);
+    Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue), check,
+                                    this_control);
+    exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
+    this_control = graph()->NewNode(common()->IfTrue(), branch);
+
+    // Compute the element access.
+    Type* element_type = Type::Any();
+    MachineType element_machine_type = kMachAnyTagged;
+    if (IsFastDoubleElementsKind(elements_kind)) {
+      element_type = type_cache_.kFloat64;
+      element_machine_type = kMachFloat64;
+    } else if (IsFastSmiElementsKind(elements_kind)) {
+      element_type = type_cache_.kSmi;
+    }
+    ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
+                                    element_type, element_machine_type};
+
+    // Access the actual element.
+    if (access_mode == AccessMode::kLoad) {
+      this_value = this_effect = graph()->NewNode(
+          simplified()->LoadElement(element_access), this_elements, this_index,
+          this_effect, this_control);
+    } else {
+      DCHECK_EQ(AccessMode::kStore, access_mode);
+      if (IsFastSmiElementsKind(elements_kind)) {
+        Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
+        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check, this_control);
+        exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
+        this_control = graph()->NewNode(common()->IfTrue(), branch);
+      } else if (IsFastDoubleElementsKind(elements_kind)) {
+        Node* check =
+            graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
+        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check, this_control);
+        exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
+        this_control = graph()->NewNode(common()->IfTrue(), branch);
+        this_value = graph()->NewNode(common()->Guard(Type::Number()),
+                                      this_value, this_control);
+      }
+      this_effect = graph()->NewNode(simplified()->StoreElement(element_access),
+                                     this_elements, this_index, this_value,
+                                     this_effect, this_control);
+    }
+
+    // Remember the final state for this element access.
+    values.push_back(this_value);
+    effects.push_back(this_effect);
+    controls.push_back(this_control);
+  }
+
+  // Collect the fallthrough control as final "exit" control.
+  if (fallthrough_control != control) {
+    // Mark the last fallthrough branch as deferred.
+    Node* branch = NodeProperties::GetControlInput(fallthrough_control);
+    DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
+    if (fallthrough_control->opcode() == IrOpcode::kIfTrue) {
+      NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kFalse));
+    } else {
+      DCHECK_EQ(IrOpcode::kIfFalse, fallthrough_control->opcode());
+      NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kTrue));
+    }
+  }
+  exit_controls.push_back(fallthrough_control);
+
+  // Generate the single "exit" point, where we get if either all map/instance
+  // type checks failed, or one of the assumptions inside one of the cases
+  // failes (i.e. failing prototype chain check).
+  // TODO(bmeurer): Consider falling back to IC here if deoptimization is
+  // disabled.
+  int const exit_control_count = static_cast<int>(exit_controls.size());
+  Node* exit_control =
+      (exit_control_count == 1)
+          ? exit_controls.front()
+          : graph()->NewNode(common()->Merge(exit_control_count),
+                             exit_control_count, &exit_controls.front());
+  Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
+                                      exit_effect, exit_control);
+  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+
+  // Generate the final merge point for all (polymorphic) branches.
+  int const control_count = static_cast<int>(controls.size());
+  if (control_count == 0) {
+    value = effect = control = jsgraph()->Dead();
+  } else if (control_count == 1) {
+    value = values.front();
+    effect = effects.front();
+    control = controls.front();
+  } else {
+    control = graph()->NewNode(common()->Merge(control_count), control_count,
+                               &controls.front());
+    values.push_back(control);
+    value = graph()->NewNode(common()->Phi(kMachAnyTagged, control_count),
+                             control_count + 1, &values.front());
+    effects.push_back(control);
+    effect = graph()->NewNode(common()->EffectPhi(control_count),
+                              control_count + 1, &effects.front());
+  }
+  return Replace(node, value, effect, control);
 }
 
 
 Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     Node* node, Node* index, Node* value, FeedbackNexus const& nexus,
-    PropertyAccessMode access_mode, LanguageMode language_mode) {
+    AccessMode access_mode, LanguageMode language_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
 
@@ -691,7 +947,8 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     if (Object::ToName(isolate(), mindex.Value()).ToHandle(&name)) {
       uint32_t array_index;
       if (name->AsArrayIndex(&array_index)) {
-        // TODO(bmeurer): Optimize element access with constant {index}.
+        // Use the constant array index.
+        index = jsgraph()->Constant(static_cast<double>(array_index));
       } else {
         name = factory()->InternalizeName(name);
         return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
@@ -707,7 +964,9 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
                              language_mode, index);
   }
 
-  return NoChange();
+  // Try to lower the element access based on the {receiver_maps}.
+  return ReduceElementAccess(node, index, value, receiver_maps, access_mode,
+                             language_mode);
 }
 
 
@@ -722,7 +981,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
   KeyedLoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Try to lower the keyed access based on the {nexus}.
-  return ReduceKeyedAccess(node, index, value, nexus, PropertyAccessMode::kLoad,
+  return ReduceKeyedAccess(node, index, value, nexus, AccessMode::kLoad,
                            p.language_mode());
 }
 
@@ -738,8 +997,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
   KeyedStoreICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Try to lower the keyed access based on the {nexus}.
-  return ReduceKeyedAccess(node, index, value, nexus,
-                           PropertyAccessMode::kStore, p.language_mode());
+  return ReduceKeyedAccess(node, index, value, nexus, AccessMode::kStore,
+                           p.language_mode());
 }
 
 
@@ -780,7 +1039,7 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
             .ToHandle(&constructor)) {
       map = handle(constructor->initial_map(), isolate());
     }
-    for (PrototypeIterator j(map);; j.Advance()) {
+    for (PrototypeIterator j(map); !j.IsAtEnd(); j.Advance()) {
       // Check that the {prototype} still has the same map.  All prototype
       // maps are guaranteed to be stable, so it's sufficient to add a
       // stability dependency here.
