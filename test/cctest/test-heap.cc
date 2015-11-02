@@ -3588,7 +3588,7 @@ static int forced_gc_counter = 0;
 
 void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {
-  isolate->GetCallingContext();
+  isolate->GetCurrentContext();
   if (feature == v8::Isolate::kForcedGC) {
     forced_gc_counter++;
   }

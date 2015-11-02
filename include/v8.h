@@ -5598,7 +5598,10 @@ class V8_EXPORT Isolate {
   /** Returns true if this isolate has a current context. */
   bool InContext();
 
-  /** Returns the context that is on the top of the stack. */
+  /**
+   * Returns the context of the currently running JavaScript, or the context
+   * on the top of the stack if no JavaScript is running.
+   */
   Local<Context> GetCurrentContext();
 
   /**
@@ -5606,9 +5609,12 @@ class V8_EXPORT Isolate {
    * context of the top-most JavaScript frame.  If there are no
    * JavaScript frames an empty handle is returned.
    */
-  Local<Context> GetCallingContext();
+  V8_DEPRECATE_SOON(
+      "Calling context concept is not compatible with tail calls, and will be "
+      "removed.",
+      Local<Context> GetCallingContext());
 
-  /** Returns the last entered context. */
+  /** Returns the last context entered through V8's C++ API. */
   Local<Context> GetEnteredContext();
 
   /**

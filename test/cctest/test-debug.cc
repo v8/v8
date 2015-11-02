@@ -6814,9 +6814,6 @@ static void NamedGetterWithCallingContextCheck(
   v8::Handle<v8::Context> current = info.GetIsolate()->GetCurrentContext();
   CHECK(current == debugee_context);
   CHECK(current != debugger_context);
-  v8::Handle<v8::Context> calling = info.GetIsolate()->GetCallingContext();
-  CHECK(calling == debugee_context);
-  CHECK(calling != debugger_context);
   info.GetReturnValue().Set(1);
 }
 

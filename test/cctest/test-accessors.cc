@@ -612,13 +612,11 @@ THREADED_TEST(JSONStringifyNamedInterceptorObject) {
 
 
 static v8::Local<v8::Context> expected_current_context;
-static v8::Local<v8::Context> expected_calling_context;
 
 
 static void check_contexts(const v8::FunctionCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   CHECK(expected_current_context == info.GetIsolate()->GetCurrentContext());
-  CHECK(expected_calling_context == info.GetIsolate()->GetCallingContext());
 }
 
 
@@ -634,7 +632,6 @@ THREADED_TEST(AccessorPropertyCrossContext) {
             .FromJust());
   v8::TryCatch try_catch(isolate);
   expected_current_context = env.local();
-  expected_calling_context = switch_context.local();
   CompileRun(
       "var o = Object.create(null, { n: { get:fun } });"
       "for (var i = 0; i < 10; i++) o.n;");

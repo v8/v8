@@ -13678,24 +13678,6 @@ TEST(DefineOwnProperty) {
 }
 
 
-static v8::Local<Context> calling_context0;
-static v8::Local<Context> calling_context1;
-static v8::Local<Context> calling_context2;
-
-
-// Check that the call to the callback is initiated in
-// calling_context2, the directly calling context is calling_context1
-// and the callback itself is in calling_context0.
-static void GetCallingContextCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(args.GetIsolate()->GetCurrentContext() == calling_context0);
-  CHECK(args.GetIsolate()->GetCallingContext() == calling_context1);
-  CHECK(args.GetIsolate()->GetEnteredContext() == calling_context2);
-  args.GetReturnValue().Set(42);
-}
-
-
 THREADED_TEST(GetCurrentContextWhenNotInContext) {
   i::Isolate* isolate = CcTest::i_isolate();
   CHECK(isolate != NULL);
@@ -13705,52 +13687,6 @@ THREADED_TEST(GetCurrentContextWhenNotInContext) {
   // The following should not crash, but return an empty handle.
   v8::Local<v8::Context> current = v8_isolate->GetCurrentContext();
   CHECK(current.IsEmpty());
-}
-
-
-THREADED_TEST(GetCallingContext) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-
-  Local<Context> calling_context0(Context::New(isolate));
-  Local<Context> calling_context1(Context::New(isolate));
-  Local<Context> calling_context2(Context::New(isolate));
-  ::calling_context0 = calling_context0;
-  ::calling_context1 = calling_context1;
-  ::calling_context2 = calling_context2;
-
-  // Allow cross-domain access.
-  Local<String> token = v8_str("<security token>");
-  calling_context0->SetSecurityToken(token);
-  calling_context1->SetSecurityToken(token);
-  calling_context2->SetSecurityToken(token);
-
-  // Create an object with a C++ callback in context0.
-  calling_context0->Enter();
-  Local<v8::FunctionTemplate> callback_templ =
-      v8::FunctionTemplate::New(isolate, GetCallingContextCallback);
-  calling_context0->Global()->Set(v8_str("callback"),
-                                  callback_templ->GetFunction());
-  calling_context0->Exit();
-
-  // Expose context0 in context1 and set up a function that calls the
-  // callback function.
-  calling_context1->Enter();
-  calling_context1->Global()->Set(v8_str("context0"),
-                                  calling_context0->Global());
-  CompileRun("function f() { context0.callback() }");
-  calling_context1->Exit();
-
-  // Expose context1 in context2 and call the callback function in
-  // context0 indirectly through f in context1.
-  calling_context2->Enter();
-  calling_context2->Global()->Set(v8_str("context1"),
-                                  calling_context1->Global());
-  CompileRun("context1.f()");
-  calling_context2->Exit();
-  ::calling_context0.Clear();
-  ::calling_context1.Clear();
-  ::calling_context2.Clear();
 }
 
 
