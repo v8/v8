@@ -244,6 +244,12 @@ Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
 }
 
 
+Handle<Name> Factory::InternalizeName(Handle<Name> name) {
+  if (name->IsUniqueName()) return name;
+  return InternalizeString(Handle<String>::cast(name));
+}
+
+
 MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
                                                   PretenureFlag pretenure) {
   int length = string.length();

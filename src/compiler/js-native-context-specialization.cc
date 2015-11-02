@@ -57,6 +57,10 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSStoreNamed:
       return ReduceJSStoreNamed(node);
+    case IrOpcode::kJSLoadProperty:
+      return ReduceJSLoadProperty(node);
+    case IrOpcode::kJSStoreProperty:
+      return ReduceJSStoreProperty(node);
     default:
       break;
   }
@@ -304,9 +308,11 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandleList const& receiver_maps,
     Handle<Name> name, PropertyAccessMode access_mode,
-    LanguageMode language_mode) {
+    LanguageMode language_mode, Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamed);
+         node->opcode() == IrOpcode::kJSStoreNamed ||
+         node->opcode() == IrOpcode::kJSLoadProperty ||
+         node->opcode() == IrOpcode::kJSStoreProperty);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -335,6 +341,16 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // TODO(bmeurer): Consider using an IC as fallback.
   Node* const exit_effect = effect;
   ZoneVector<Node*> exit_controls(zone());
+
+  // Ensure that {index} matches the specified {name} (if {index} is given).
+  if (index != nullptr) {
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Name()),
+                                   index, jsgraph()->HeapConstant(name));
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
+    control = graph()->NewNode(common()->IfTrue(), branch);
+  }
 
   // Ensure that {receiver} is a heap object.
   Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
@@ -649,6 +665,80 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, p.name(),
+                           PropertyAccessMode::kStore, p.language_mode());
+}
+
+
+Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
+    Node* node, Node* index, Node* value, FeedbackNexus const& nexus,
+    PropertyAccessMode access_mode, LanguageMode language_mode) {
+  DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
+         node->opcode() == IrOpcode::kJSStoreProperty);
+
+  // Extract receiver maps from the {nexus}.
+  MapHandleList receiver_maps;
+  if (nexus.ExtractMaps(&receiver_maps) == 0) return NoChange();
+  DCHECK_LT(0, receiver_maps.length());
+
+  // Optimize access for constant {index}.
+  HeapObjectMatcher mindex(index);
+  if (mindex.HasValue() && mindex.Value()->IsPrimitive()) {
+    // Keyed access requires a ToPropertyKey on the {index} first before
+    // looking up the property on the object (see ES6 section 12.3.2.1).
+    // We can only do this for non-observable ToPropertyKey invocations,
+    // so we limit the constant indices to primitives at this point.
+    Handle<Name> name;
+    if (Object::ToName(isolate(), mindex.Value()).ToHandle(&name)) {
+      uint32_t array_index;
+      if (name->AsArrayIndex(&array_index)) {
+        // TODO(bmeurer): Optimize element access with constant {index}.
+      } else {
+        name = factory()->InternalizeName(name);
+        return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
+                                 language_mode);
+      }
+    }
+  }
+
+  // Check if we have feedback for a named access.
+  if (Name* name = nexus.FindFirstName()) {
+    return ReduceNamedAccess(node, value, receiver_maps,
+                             handle(name, isolate()), access_mode,
+                             language_mode, index);
+  }
+
+  return NoChange();
+}
+
+
+Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
+  PropertyAccess const& p = PropertyAccessOf(node->op());
+  Node* const index = NodeProperties::GetValueInput(node, 1);
+  Node* const value = jsgraph()->Dead();
+
+  // Extract receiver maps from the KEYED_LOAD_IC using the KeyedLoadICNexus.
+  if (!p.feedback().IsValid()) return NoChange();
+  KeyedLoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
+
+  // Try to lower the keyed access based on the {nexus}.
+  return ReduceKeyedAccess(node, index, value, nexus, PropertyAccessMode::kLoad,
+                           p.language_mode());
+}
+
+
+Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreProperty, node->opcode());
+  PropertyAccess const& p = PropertyAccessOf(node->op());
+  Node* const index = NodeProperties::GetValueInput(node, 1);
+  Node* const value = NodeProperties::GetValueInput(node, 2);
+
+  // Extract receiver maps from the KEYED_STORE_IC using the KeyedStoreICNexus.
+  if (!p.feedback().IsValid()) return NoChange();
+  KeyedStoreICNexus nexus(p.feedback().vector(), p.feedback().slot());
+
+  // Try to lower the keyed access based on the {nexus}.
+  return ReduceKeyedAccess(node, index, value, nexus,
                            PropertyAccessMode::kStore, p.language_mode());
 }
 

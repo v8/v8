@@ -80,6 +80,8 @@ class Factory final {
   template<class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
+  Handle<Name> InternalizeName(Handle<Name> name);
+
 
   // String creation functions.  Most of the string creation functions take
   // a Heap::PretenureFlag argument to optionally request that they be

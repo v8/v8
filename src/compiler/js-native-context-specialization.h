@@ -16,6 +16,7 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
+class FeedbackNexus;
 class TypeCache;
 
 
@@ -54,6 +55,8 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction ReduceJSStoreGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
+  Reduction ReduceJSLoadProperty(Node* node);
+  Reduction ReduceJSStoreProperty(Node* node);
 
   Reduction Replace(Node* node, Node* value, Node* effect = nullptr,
                     Node* control = nullptr) {
@@ -62,10 +65,15 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   }
   Reduction Replace(Node* node, Handle<Object> value);
 
+  Reduction ReduceKeyedAccess(Node* node, Node* index, Node* value,
+                              FeedbackNexus const& nexus,
+                              PropertyAccessMode access_mode,
+                              LanguageMode language_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               MapHandleList const& receiver_maps,
                               Handle<Name> name, PropertyAccessMode access_mode,
-                              LanguageMode language_mode);
+                              LanguageMode language_mode,
+                              Node* index = nullptr);
 
   struct ScriptContextTableLookupResult;
   bool LookupInScriptContextTable(Handle<Name> name,
