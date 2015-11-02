@@ -14,12 +14,19 @@ var GlobalMath = global.Math;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var NaN = %GetRootNaN();
-var rngstate;
+var rngstate_0;
+var rngstate_1;
+var rngstate_2;
+var rngstate_3;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
-utils.SetupTypedArray(function(arg1, arg2, arg3) {
-  rngstate = arg1;
-});
+utils.InitializeRNG = function() {
+  var rngstate = %InitializeRNG();
+  rngstate_0 = rngstate[0];
+  rngstate_1 = rngstate[1];
+  rngstate_2 = rngstate[2];
+  rngstate_3 = rngstate[3];
+};
 
 //-------------------------------------------------------------------
 
@@ -134,22 +141,25 @@ function MathPowJS(x, y) {
 
 // ECMA 262 - 15.8.2.14
 function MathRandom() {
-  var r0 = (MathImul(18030, rngstate[0] & 0xFFFF) + (rngstate[0] >>> 16)) | 0;
-  rngstate[0] = r0;
-  var r1 = (MathImul(36969, rngstate[1] & 0xFFFF) + (rngstate[1] >>> 16)) | 0;
-  rngstate[1] = r1;
-  var x = ((r0 << 16) + (r1 & 0xFFFF)) | 0;
-  // Division by 0x100000000 through multiplication by reciprocal.
-  return (x < 0 ? (x + 0x100000000) : x) * 2.3283064365386962890625e-10;
+  var r0 = (MathImul(18030, rngstate_0) + rngstate_1) | 0;
+  var r1 = (MathImul(36969, rngstate_2) + rngstate_3) | 0;
+  rngstate_0 = r0 & 0xFFFF;
+  rngstate_1 = r0 >>> 16;
+  rngstate_2 = r1 & 0xFFFF;
+  rngstate_3 = r1 >>> 16;
+  // Construct a double number 1.<32-bits of randomness> and subtract 1.
+  return %_ConstructDouble(0x3FF00000 | (r0 & 0x000FFFFF), r1 & 0xFFF00000) - 1;
 }
 
 function MathRandomRaw() {
-  var r0 = (MathImul(18030, rngstate[0] & 0xFFFF) + (rngstate[0] >>> 16)) | 0;
-  rngstate[0] = r0;
-  var r1 = (MathImul(36969, rngstate[1] & 0xFFFF) + (rngstate[1] >>> 16)) | 0;
-  rngstate[1] = r1;
+  var r0 = (MathImul(18030, rngstate_0) + rngstate_1) | 0;
+  var r1 = (MathImul(36969, rngstate_2) + rngstate_3) | 0;
+  rngstate_0 = r0 & 0xFFFF;
+  rngstate_1 = r0 >>> 16;
+  rngstate_2 = r1 & 0xFFFF;
+  rngstate_3 = r1 >>> 16;
   var x = ((r0 << 16) + (r1 & 0xFFFF)) | 0;
-  return x & 0x3fffffff;
+  return x & 0x3FFFFFFF;
 }
 
 // ECMA 262 - 15.8.2.15

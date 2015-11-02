@@ -6,7 +6,6 @@
 
 #include "src/accessors.h"
 #include "src/api-natives.h"
-#include "src/base/utils/random-number-generator.h"
 #include "src/code-stubs.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
@@ -1792,28 +1791,11 @@ Handle<JSTypedArray> CreateTypedArray(Isolate* isolate, ExternalArrayType type,
 
 bool Genesis::InitializeBuiltinTypedArrays() {
   HandleScope scope(isolate());
-  Handle<JSTypedArray> rng_state;
-  Handle<JSTypedArray> rempio2result;
-
-  {
-    // Seed the per-context RNG using the per-isolate RNG.
-    const size_t num_elements = 2;
-    const size_t num_bytes = num_elements * sizeof(uint32_t);
-    uint32_t* state = NULL;
-    rng_state =
-        CreateTypedArray(isolate(), kExternalUint32Array, num_elements, &state);
-    do {
-      isolate()->random_number_generator()->NextBytes(state, num_bytes);
-    } while (state[0] == 0 || state[1] == 0);
-  }
-
-  {  // Initialize a result array for rempio2 calculation
-    const size_t num_elements = 2;
-    double* data = NULL;
-    rempio2result =
-        CreateTypedArray(isolate(), kExternalFloat64Array, num_elements, &data);
-    for (size_t i = 0; i < num_elements; i++) data[i] = 0;
-  }
+  const size_t num_elements = 2;
+  double* data = NULL;
+  Handle<JSTypedArray> rempio2result =
+      CreateTypedArray(isolate(), kExternalFloat64Array, num_elements, &data);
+  for (size_t i = 0; i < num_elements; i++) data[i] = 0;
 
   Handle<JSObject> utils =
       Handle<JSObject>::cast(isolate()->natives_utils_object());
@@ -1821,7 +1803,7 @@ bool Genesis::InitializeBuiltinTypedArrays() {
       "InitializeBuiltinTypedArrays");
   Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
   Handle<Object> receiver = isolate()->factory()->undefined_value();
-  Handle<Object> args[] = {utils, rng_state, rempio2result};
+  Handle<Object> args[] = {utils, rempio2result};
   return !Execution::Call(isolate(), fun, receiver, arraysize(args), args)
               .is_null();
 }

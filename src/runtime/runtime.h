@@ -404,7 +404,8 @@ namespace internal {
   F(RoundNumber, 1, 1)              \
   F(MathSqrt, 1, 1)                 \
   F(MathFround, 1, 1)               \
-  F(IsMinusZero, 1, 1)
+  F(IsMinusZero, 1, 1)              \
+  F(InitializeRNG, 0, 1)
 
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F)  \

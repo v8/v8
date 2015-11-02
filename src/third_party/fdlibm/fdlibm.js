@@ -39,8 +39,8 @@ utils.Import(function(from) {
   MathExp = from.MathExp;
 });
 
-utils.SetupTypedArray(function(arg1, arg2) {
-  rempio2result = arg2;
+utils.SetupTypedArray(function(arg) {
+  rempio2result = arg;
 });
 
 // -------------------------------------------------------------------
