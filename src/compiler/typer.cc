@@ -1319,14 +1319,7 @@ Type* Typer::Visitor::TypeJSStoreContext(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeJSLoadDynamicGlobal(Node* node) {
-  return Type::Any();
-}
-
-
-Type* Typer::Visitor::TypeJSLoadDynamicContext(Node* node) {
-  return Type::Any();
-}
+Type* Typer::Visitor::TypeJSLoadDynamic(Node* node) { return Type::Any(); }
 
 
 Type* Typer::Visitor::WrapContextTypeForInput(Node* node) {

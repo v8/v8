@@ -3062,6 +3062,17 @@ VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
 }
 
 
+namespace {
+
+// Limit of context chain length to which inline check is possible.
+const int kMaxCheckDepth = 30;
+
+// Sentinel for {TryLoadDynamicVariable} disabling inline checks.
+const uint32_t kFullCheckRequired = -1;
+
+}  // namespace
+
+
 uint32_t AstGraphBuilder::ComputeBitsetForDynamicGlobal(Variable* variable) {
   DCHECK_EQ(DYNAMIC_GLOBAL, variable->mode());
   bool found_eval_scope = false;
@@ -3074,9 +3085,7 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicGlobal(Variable* variable) {
     if (s->is_eval_scope()) found_eval_scope = true;
     if (!s->calls_sloppy_eval() && !found_eval_scope) continue;
     int depth = current_scope()->ContextChainLength(s);
-    if (depth > DynamicGlobalAccess::kMaxCheckDepth) {
-      return DynamicGlobalAccess::kFullCheckRequired;
-    }
+    if (depth > kMaxCheckDepth) return kFullCheckRequired;
     check_depths |= 1 << depth;
   }
   return check_depths;
@@ -3090,9 +3099,7 @@ uint32_t AstGraphBuilder::ComputeBitsetForDynamicContext(Variable* variable) {
     if (s->num_heap_slots() <= 0) continue;
     if (!s->calls_sloppy_eval() && s != variable->scope()) continue;
     int depth = current_scope()->ContextChainLength(s);
-    if (depth > DynamicContextAccess::kMaxCheckDepth) {
-      return DynamicContextAccess::kFullCheckRequired;
-    }
+    if (depth > kMaxCheckDepth) return kFullCheckRequired;
     check_depths |= 1 << depth;
     if (s == variable->scope()) break;
   }
@@ -3380,40 +3387,15 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
     }
     case VariableLocation::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
-      Node* value = jsgraph()->TheHoleConstant();
       Handle<String> name = variable->name();
-      if (mode == DYNAMIC_GLOBAL) {
-        uint32_t check_bitset = ComputeBitsetForDynamicGlobal(variable);
-        const Operator* op = javascript()->LoadDynamicGlobal(
-            name, check_bitset, feedback, typeof_mode);
-        value = NewNode(op, BuildLoadFeedbackVector(), current_context());
-        states.AddToNode(value, bailout_id, combine);
-      } else if (mode == DYNAMIC_LOCAL) {
-        Variable* local = variable->local_if_not_shadowed();
-        DCHECK(local->location() ==
-               VariableLocation::CONTEXT);  // Must be context.
-        int depth = current_scope()->ContextChainLength(local->scope());
-        uint32_t check_bitset = ComputeBitsetForDynamicContext(variable);
-        const Operator* op = javascript()->LoadDynamicContext(
-            name, check_bitset, depth, local->index());
-        value = NewNode(op, current_context());
-        PrepareFrameState(value, bailout_id, combine);
-        VariableMode local_mode = local->mode();
-        if (local_mode == CONST_LEGACY) {
-          // Perform check for uninitialized legacy const variables.
-          Node* undefined = jsgraph()->UndefinedConstant();
-          value = BuildHoleCheckSilent(value, undefined, value);
-        } else if (local_mode == LET || local_mode == CONST) {
-          // Perform check for uninitialized let/const variables.
-          value = BuildHoleCheckThenThrow(value, local, value, bailout_id);
-        }
-      } else if (mode == DYNAMIC) {
-        uint32_t check_bitset = DynamicGlobalAccess::kFullCheckRequired;
-        const Operator* op = javascript()->LoadDynamicGlobal(
-            name, check_bitset, feedback, typeof_mode);
-        value = NewNode(op, BuildLoadFeedbackVector(), current_context());
-        states.AddToNode(value, bailout_id, combine);
+      if (Node* node =
+              TryLoadDynamicVariable(variable, name, bailout_id, states,
+                                     feedback, combine, typeof_mode)) {
+        return node;
       }
+      const Operator* op = javascript()->LoadDynamic(name, typeof_mode);
+      Node* value = NewNode(op, BuildLoadFeedbackVector(), current_context());
+      states.AddToNode(value, bailout_id, combine);
       return value;
     }
   }
@@ -3903,6 +3885,102 @@ Node* AstGraphBuilder::TryLoadGlobalConstant(Handle<Name> name) {
   // Optimize global constants like "undefined", "Infinity", and "NaN".
   Handle<Object> constant_value = isolate()->factory()->GlobalConstantFor(name);
   if (!constant_value.is_null()) return jsgraph()->Constant(constant_value);
+  return nullptr;
+}
+
+
+Node* AstGraphBuilder::TryLoadDynamicVariable(
+    Variable* variable, Handle<String> name, BailoutId bailout_id,
+    FrameStateBeforeAndAfter& states, const VectorSlotPair& feedback,
+    OutputFrameStateCombine combine, TypeofMode typeof_mode) {
+  VariableMode mode = variable->mode();
+
+  if (mode == DYNAMIC_GLOBAL) {
+    uint32_t bitset = ComputeBitsetForDynamicGlobal(variable);
+    if (bitset == kFullCheckRequired) return nullptr;
+
+    // We are using two blocks to model fast and slow cases.
+    BlockBuilder fast_block(this);
+    BlockBuilder slow_block(this);
+    environment()->Push(jsgraph()->TheHoleConstant());
+    slow_block.BeginBlock();
+    environment()->Pop();
+    fast_block.BeginBlock();
+
+    // Perform checks whether the fast mode applies, by looking for any
+    // extension object which might shadow the optimistic declaration.
+    for (int depth = 0; bitset != 0; bitset >>= 1, depth++) {
+      if ((bitset & 1) == 0) continue;
+      Node* load = NewNode(
+          javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
+          current_context());
+      Node* check =
+          NewNode(javascript()->CallRuntime(Runtime::kInlineIsSmi, 1), load);
+      fast_block.BreakUnless(check, BranchHint::kTrue);
+    }
+
+    // Fast case, because variable is not shadowed. Perform global slot load.
+    Node* fast = BuildGlobalLoad(name, feedback, typeof_mode);
+    states.AddToNode(fast, bailout_id, combine);
+    environment()->Push(fast);
+    slow_block.Break();
+    environment()->Pop();
+    fast_block.EndBlock();
+
+    // Slow case, because variable potentially shadowed. Perform dynamic lookup.
+    const Operator* op = javascript()->LoadDynamic(name, typeof_mode);
+    Node* slow = NewNode(op, BuildLoadFeedbackVector(), current_context());
+    states.AddToNode(slow, bailout_id, combine);
+    environment()->Push(slow);
+    slow_block.EndBlock();
+
+    return environment()->Pop();
+  }
+
+  if (mode == DYNAMIC_LOCAL) {
+    uint32_t bitset = ComputeBitsetForDynamicContext(variable);
+    if (bitset == kFullCheckRequired) return nullptr;
+
+    // We are using two blocks to model fast and slow cases.
+    BlockBuilder fast_block(this);
+    BlockBuilder slow_block(this);
+    environment()->Push(jsgraph()->TheHoleConstant());
+    slow_block.BeginBlock();
+    environment()->Pop();
+    fast_block.BeginBlock();
+
+    // Perform checks whether the fast mode applies, by looking for any
+    // extension object which might shadow the optimistic declaration.
+    for (int depth = 0; bitset != 0; bitset >>= 1, depth++) {
+      if ((bitset & 1) == 0) continue;
+      Node* load = NewNode(
+          javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
+          current_context());
+      Node* check =
+          NewNode(javascript()->CallRuntime(Runtime::kInlineIsSmi, 1), load);
+      fast_block.BreakUnless(check, BranchHint::kTrue);
+    }
+
+    // Fast case, because variable is not shadowed. Perform context slot load.
+    Variable* local = variable->local_if_not_shadowed();
+    DCHECK(local->location() == VariableLocation::CONTEXT);  // Must be context.
+    Node* fast = BuildVariableLoad(local, bailout_id, states, feedback, combine,
+                                   typeof_mode);
+    environment()->Push(fast);
+    slow_block.Break();
+    environment()->Pop();
+    fast_block.EndBlock();
+
+    // Slow case, because variable potentially shadowed. Perform dynamic lookup.
+    const Operator* op = javascript()->LoadDynamic(name, typeof_mode);
+    Node* slow = NewNode(op, BuildLoadFeedbackVector(), current_context());
+    states.AddToNode(slow, bailout_id, combine);
+    environment()->Push(slow);
+    slow_block.EndBlock();
+
+    return environment()->Pop();
+  }
+
   return nullptr;
 }
 

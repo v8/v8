@@ -363,6 +363,15 @@ class AstGraphBuilder : public AstVisitor {
   // Optimization for variable load from global object.
   Node* TryLoadGlobalConstant(Handle<Name> name);
 
+  // Optimization for variable load of dynamic lookup slot that is most likely
+  // to resolve to a global slot or context slot (inferred from scope chain).
+  Node* TryLoadDynamicVariable(Variable* variable, Handle<String> name,
+                               BailoutId bailout_id,
+                               FrameStateBeforeAndAfter& states,
+                               const VectorSlotPair& feedback,
+                               OutputFrameStateCombine combine,
+                               TypeofMode typeof_mode);
+
   // Optimizations for automatic type conversion.
   Node* TryFastToBoolean(Node* input);
   Node* TryFastToName(Node* input);
