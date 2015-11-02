@@ -58,7 +58,7 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
                                            Handle<Object> receiver, int argc,
                                            Handle<Object> args[],
                                            Handle<Object> new_target) {
-  DCHECK(!receiver->IsGlobalObject());
+  DCHECK(!receiver->IsJSGlobalObject());
 
   // Entering JavaScript.
   VMState<JS> state(isolate);
@@ -131,9 +131,9 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
   // Convert calls on global objects to be calls on the global
   // receiver instead to avoid having a 'this' pointer which refers
   // directly to a global object.
-  if (receiver->IsGlobalObject()) {
+  if (receiver->IsJSGlobalObject()) {
     receiver =
-        handle(Handle<GlobalObject>::cast(receiver)->global_proxy(), isolate);
+        handle(Handle<JSGlobalObject>::cast(receiver)->global_proxy(), isolate);
   }
 
   // api callbacks can be called directly.
@@ -152,7 +152,7 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
             isolate, receiver, Execution::ToObject(isolate, receiver), Object);
       }
     }
-    DCHECK(function->context()->global_object()->IsGlobalObject());
+    DCHECK(function->context()->global_object()->IsJSGlobalObject());
     auto value = Builtins::InvokeApiFunction(function, receiver, argc, argv);
     bool has_exception = value.is_null();
     DCHECK(has_exception == isolate->has_pending_exception());

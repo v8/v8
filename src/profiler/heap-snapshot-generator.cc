@@ -1162,15 +1162,15 @@ void V8HeapExplorer::ExtractJSObjectReferences(
                  == JSFunction::kNonWeakFieldsEndOffset);
     STATIC_ASSERT(JSFunction::kNextFunctionLinkOffset + kPointerSize
                  == JSFunction::kSize);
-  } else if (obj->IsGlobalObject()) {
-    GlobalObject* global_obj = GlobalObject::cast(obj);
-    SetInternalReference(global_obj, entry,
-                         "native_context", global_obj->native_context(),
-                         GlobalObject::kNativeContextOffset);
-    SetInternalReference(global_obj, entry,
-                         "global_proxy", global_obj->global_proxy(),
-                         GlobalObject::kGlobalProxyOffset);
-    STATIC_ASSERT(GlobalObject::kHeaderSize - JSObject::kHeaderSize ==
+  } else if (obj->IsJSGlobalObject()) {
+    JSGlobalObject* global_obj = JSGlobalObject::cast(obj);
+    SetInternalReference(global_obj, entry, "native_context",
+                         global_obj->native_context(),
+                         JSGlobalObject::kNativeContextOffset);
+    SetInternalReference(global_obj, entry, "global_proxy",
+                         global_obj->global_proxy(),
+                         JSGlobalObject::kGlobalProxyOffset);
+    STATIC_ASSERT(JSGlobalObject::kSize - JSObject::kHeaderSize ==
                   2 * kPointerSize);
   } else if (obj->IsJSArrayBufferView()) {
     JSArrayBufferView* view = JSArrayBufferView::cast(obj);
@@ -1260,7 +1260,7 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
   EXTRACT_CONTEXT_FIELD(CLOSURE_INDEX, JSFunction, closure);
   EXTRACT_CONTEXT_FIELD(PREVIOUS_INDEX, Context, previous);
   EXTRACT_CONTEXT_FIELD(EXTENSION_INDEX, Object, extension);
-  EXTRACT_CONTEXT_FIELD(GLOBAL_OBJECT_INDEX, GlobalObject, global);
+  EXTRACT_CONTEXT_FIELD(GLOBAL_OBJECT_INDEX, JSGlobalObject, global);
   if (context->IsNativeContext()) {
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
     TagObject(context->runtime_context(), "(runtime context)");
@@ -1640,7 +1640,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
           break;
       }
     }
-  } else if (js_obj->IsGlobalObject()) {
+  } else if (js_obj->IsJSGlobalObject()) {
     // We assume that global objects can only have slow properties.
     GlobalDictionary* dictionary = js_obj->global_dictionary();
     int length = dictionary->Capacity();
@@ -2129,7 +2129,7 @@ void V8HeapExplorer::SetGcSubrootReference(
     // Add a shortcut to JS global object reference at snapshot root.
     if (child_obj->IsNativeContext()) {
       Context* context = Context::cast(child_obj);
-      GlobalObject* global = context->global_object();
+      JSGlobalObject* global = context->global_object();
       if (global->IsJSGlobalObject()) {
         bool is_debug_object = false;
         is_debug_object = heap_->isolate()->debug()->IsDebugGlobal(global);

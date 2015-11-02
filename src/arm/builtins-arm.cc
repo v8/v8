@@ -71,8 +71,7 @@ static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
 
   __ ldr(result,
          MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ ldr(result,
-         FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ ldr(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
   // Load the InternalArray function from the native context.
   __ ldr(result,
          MemOperand(result,
@@ -87,8 +86,7 @@ static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
 
   __ ldr(result,
          MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ ldr(result,
-         FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ ldr(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
   // Load the Array function from the native context.
   __ ldr(result,
          MemOperand(result,

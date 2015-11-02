@@ -118,7 +118,7 @@ void FullCodeGenerator::Generate() {
     __ j(not_equal, &ok, Label::kNear);
 
     __ mov(ecx, GlobalObjectOperand());
-    __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalProxyOffset));
+    __ mov(ecx, FieldOperand(ecx, JSGlobalObject::kGlobalProxyOffset));
 
     __ mov(Operand(esp, receiver_offset), ecx);
 
@@ -2171,7 +2171,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   __ bind(&done_allocate);
   __ mov(ebx, GlobalObjectOperand());
-  __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
+  __ mov(ebx, FieldOperand(ebx, JSGlobalObject::kNativeContextOffset));
   __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
@@ -4168,7 +4168,7 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
 
   __ Allocate(JSIteratorResult::kSize, eax, ecx, edx, &runtime, TAG_OBJECT);
   __ mov(ebx, GlobalObjectOperand());
-  __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
+  __ mov(ebx, FieldOperand(ebx, JSGlobalObject::kNativeContextOffset));
   __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
@@ -4193,7 +4193,7 @@ void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   __ push(Immediate(isolate()->factory()->undefined_value()));
 
   __ mov(eax, GlobalObjectOperand());
-  __ mov(eax, FieldOperand(eax, GlobalObject::kNativeContextOffset));
+  __ mov(eax, FieldOperand(eax, JSGlobalObject::kNativeContextOffset));
   __ mov(eax, ContextOperand(eax, expr->context_index()));
 }
 

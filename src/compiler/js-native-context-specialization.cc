@@ -32,7 +32,7 @@ struct JSNativeContextSpecialization::ScriptContextTableLookupResult {
 
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, Flags flags,
-    Handle<GlobalObject> global_object, CompilationDependencies* dependencies,
+    Handle<JSGlobalObject> global_object, CompilationDependencies* dependencies,
     Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),

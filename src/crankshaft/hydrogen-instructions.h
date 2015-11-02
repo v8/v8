@@ -6192,8 +6192,8 @@ class HObjectAccess final {
         JSArrayBufferView::kByteLengthOffset);
   }
 
-  static HObjectAccess ForGlobalObjectNativeContext() {
-    return HObjectAccess(kInobject, GlobalObject::kNativeContextOffset);
+  static HObjectAccess ForJSGlobalObjectNativeContext() {
+    return HObjectAccess(kInobject, JSGlobalObject::kNativeContextOffset);
   }
 
   static HObjectAccess ForJSCollectionTable() {

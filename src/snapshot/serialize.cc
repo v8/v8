@@ -2461,7 +2461,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!obj->IsMap());
   // There should be no references to the global object embedded.
-  CHECK(!obj->IsJSGlobalProxy() && !obj->IsGlobalObject());
+  CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
   // There should be no hash table embedded. They would require rehashing.
   CHECK(!obj->IsHashTable());
   // We expect no instantiated function objects or contexts.

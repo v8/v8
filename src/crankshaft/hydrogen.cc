@@ -1863,7 +1863,7 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
       context(), nullptr,
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
   HValue* native_context = Add<HLoadNamedField>(
-      global_object, nullptr, HObjectAccess::ForGlobalObjectNativeContext());
+      global_object, nullptr, HObjectAccess::ForJSGlobalObjectNativeContext());
   Add<HStoreNamedField>(
       result, HObjectAccess::ForMap(),
       Add<HLoadNamedField>(
@@ -3266,7 +3266,7 @@ HInstruction* HGraphBuilder::BuildGetNativeContext() {
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
   return Add<HLoadNamedField>(global_object, nullptr,
                               HObjectAccess::ForObservableJSObjectOffset(
-                                  GlobalObject::kNativeContextOffset));
+                                  JSGlobalObject::kNativeContextOffset));
 }
 
 
@@ -3278,7 +3278,7 @@ HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* closure) {
       context, nullptr,
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
   HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(
-      GlobalObject::kNativeContextOffset);
+      JSGlobalObject::kNativeContextOffset);
   return Add<HLoadNamedField>(global_object, nullptr, access);
 }
 
@@ -3554,7 +3554,7 @@ HValue* HGraphBuilder::AddLoadJSBuiltin(int context_index) {
       context(), nullptr,
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
   HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(
-      GlobalObject::kNativeContextOffset);
+      JSGlobalObject::kNativeContextOffset);
   HValue* native_context = Add<HLoadNamedField>(global_object, nullptr, access);
   HObjectAccess function_access = HObjectAccess::ForContextSlot(context_index);
   return Add<HLoadNamedField>(native_context, nullptr, function_access);
@@ -5634,7 +5634,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         return ast_context()->ReturnInstruction(instr, expr->id());
       }
 
-      Handle<GlobalObject> global(current_info()->global_object());
+      Handle<JSGlobalObject> global(current_info()->global_object());
 
       // Lookup in script contexts.
       {
@@ -6843,7 +6843,7 @@ void HOptimizedGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
 // owning expression instead of position and ast_id separately.
 void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     Variable* var, HValue* value, FeedbackVectorSlot slot, BailoutId ast_id) {
-  Handle<GlobalObject> global(current_info()->global_object());
+  Handle<JSGlobalObject> global(current_info()->global_object());
 
   // Lookup in script contexts.
   {
@@ -10033,7 +10033,7 @@ HValue* HGraphBuilder::BuildAllocateEmptyArrayBuffer(HValue* byte_length) {
       context(), nullptr,
       HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
   HValue* native_context = Add<HLoadNamedField>(
-      global_object, nullptr, HObjectAccess::ForGlobalObjectNativeContext());
+      global_object, nullptr, HObjectAccess::ForJSGlobalObjectNativeContext());
   Add<HStoreNamedField>(
       result, HObjectAccess::ForMap(),
       Add<HLoadNamedField>(

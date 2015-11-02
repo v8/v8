@@ -419,8 +419,8 @@ class Context: public FixedArray {
   Context* declaration_context();
   bool is_declaration_context();
 
-  inline GlobalObject* global_object();
-  inline void set_global_object(GlobalObject* object);
+  inline JSGlobalObject* global_object();
+  inline void set_global_object(JSGlobalObject* object);
 
   // Returns a JSGlobalProxy object or null.
   JSObject* global_proxy();

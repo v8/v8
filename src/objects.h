@@ -62,8 +62,7 @@
 //         - JSFunction
 //         - JSGeneratorObject
 //         - JSModule
-//         - GlobalObject
-//           - JSGlobalObject
+//         - JSGlobalObject
 //         - JSGlobalProxy
 //         - JSValue
 //           - JSDate
@@ -849,7 +848,7 @@ class ConsString;
 class ElementsAccessor;
 class FixedArrayBase;
 class FunctionLiteral;
-class GlobalObject;
+class JSGlobalObject;
 class KeyAccumulator;
 class LayoutDescriptor;
 class LiteralsArray;
@@ -993,7 +992,6 @@ template <class C> inline bool Is(Object* obj);
   V(PolymorphicCodeCacheHashTable) \
   V(MapCache)                      \
   V(Primitive)                     \
-  V(GlobalObject)                  \
   V(JSGlobalObject)                \
   V(JSGlobalProxy)                 \
   V(UndetectableObject)            \
@@ -5935,7 +5933,6 @@ class Map: public HeapObject {
   inline bool IsJSGlobalProxyMap();
   inline bool IsJSGlobalObjectMap();
   inline bool IsJSTypedArrayMap();
-  inline bool IsGlobalObjectMap();
 
   inline bool CanOmitMapChecks();
 
@@ -7441,7 +7438,7 @@ class JSGlobalProxy : public JSObject {
 
   DECLARE_CAST(JSGlobalProxy)
 
-  inline bool IsDetachedFrom(GlobalObject* global) const;
+  inline bool IsDetachedFrom(JSGlobalObject* global) const;
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSGlobalProxy)
@@ -7457,9 +7454,8 @@ class JSGlobalProxy : public JSObject {
 };
 
 
-// Common super class for JavaScript global objects and the special
-// builtins global objects.
-class GlobalObject: public JSObject {
+// JavaScript global object.
+class JSGlobalObject : public JSObject {
  public:
   // [native context]: the natives corresponding to this global object.
   DECL_ACCESSORS(native_context, Context)
@@ -7467,27 +7463,13 @@ class GlobalObject: public JSObject {
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSObject)
 
-  DECLARE_CAST(GlobalObject)
 
-  static void InvalidatePropertyCell(Handle<GlobalObject> object,
+  static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);
   // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsurePropertyCell(Handle<GlobalObject> global,
+  static Handle<PropertyCell> EnsurePropertyCell(Handle<JSGlobalObject> global,
                                                  Handle<Name> name);
 
-  // Layout description.
-  static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kGlobalProxyOffset = kNativeContextOffset + kPointerSize;
-  static const int kHeaderSize = kGlobalProxyOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(GlobalObject);
-};
-
-
-// JavaScript global object.
-class JSGlobalObject: public GlobalObject {
- public:
   DECLARE_CAST(JSGlobalObject)
 
   inline bool IsDetached();
@@ -7497,7 +7479,10 @@ class JSGlobalObject: public GlobalObject {
   DECLARE_VERIFIER(JSGlobalObject)
 
   // Layout description.
-  static const int kSize = GlobalObject::kHeaderSize;
+  static const int kNativeContextOffset = JSObject::kHeaderSize;
+  static const int kGlobalProxyOffset = kNativeContextOffset + kPointerSize;
+  static const int kHeaderSize = kGlobalProxyOffset + kPointerSize;
+  static const int kSize = kHeaderSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalObject);

@@ -117,7 +117,7 @@ void FullCodeGenerator::Generate() {
     __ j(not_equal, &ok, Label::kNear);
 
     __ movp(rcx, GlobalObjectOperand());
-    __ movp(rcx, FieldOperand(rcx, GlobalObject::kGlobalProxyOffset));
+    __ movp(rcx, FieldOperand(rcx, JSGlobalObject::kGlobalProxyOffset));
 
     __ movp(args.GetReceiverOperand(), rcx);
 
@@ -2204,7 +2204,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   __ bind(&done_allocate);
   __ movp(rbx, GlobalObjectOperand());
-  __ movp(rbx, FieldOperand(rbx, GlobalObject::kNativeContextOffset));
+  __ movp(rbx, FieldOperand(rbx, JSGlobalObject::kNativeContextOffset));
   __ movp(rbx, ContextOperand(rbx, Context::ITERATOR_RESULT_MAP_INDEX));
   __ movp(FieldOperand(rax, HeapObject::kMapOffset), rbx);
   __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
@@ -4192,7 +4192,7 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
 
   __ Allocate(JSIteratorResult::kSize, rax, rcx, rdx, &runtime, TAG_OBJECT);
   __ movp(rbx, GlobalObjectOperand());
-  __ movp(rbx, FieldOperand(rbx, GlobalObject::kNativeContextOffset));
+  __ movp(rbx, FieldOperand(rbx, JSGlobalObject::kNativeContextOffset));
   __ movp(rbx, ContextOperand(rbx, Context::ITERATOR_RESULT_MAP_INDEX));
   __ movp(FieldOperand(rax, HeapObject::kMapOffset), rbx);
   __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
@@ -4216,7 +4216,7 @@ void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   __ PushRoot(Heap::kUndefinedValueRootIndex);
 
   __ movp(rax, GlobalObjectOperand());
-  __ movp(rax, FieldOperand(rax, GlobalObject::kNativeContextOffset));
+  __ movp(rax, FieldOperand(rax, JSGlobalObject::kNativeContextOffset));
   __ movp(rax, ContextOperand(rax, expr->context_index()));
 }
 

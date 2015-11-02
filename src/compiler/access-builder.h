@@ -64,11 +64,11 @@ class AccessBuilder final : public AllStatic {
   // Provides access to String::length() field.
   static FieldAccess ForStringLength();
 
-  // Provides access to GlobalObject::global_proxy() field.
-  static FieldAccess ForGlobalObjectGlobalProxy();
+  // Provides access to JSGlobalObject::global_proxy() field.
+  static FieldAccess ForJSGlobalObjectGlobalProxy();
 
-  // Provides access to GlobalObject::native_context() field.
-  static FieldAccess ForGlobalObjectNativeContext();
+  // Provides access to JSGlobalObject::native_context() field.
+  static FieldAccess ForJSGlobalObjectNativeContext();
 
   // Provides access to JSValue::value() field.
   static FieldAccess ForValue();

@@ -1088,7 +1088,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
         Handle<String>::cast(name));
   }
 
-  if (object->IsGlobalObject()) {
+  if (object->IsJSGlobalObject()) {
     Handle<GlobalDictionary> property_dictionary(object->global_dictionary());
 
     int entry = property_dictionary->FindEntry(name);
@@ -2198,7 +2198,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
                                PropertyAttributes attributes) {
   DCHECK(!object->HasFastProperties());
   Isolate* isolate = object->GetIsolate();
-  if (object->IsGlobalObject()) {
+  if (object->IsJSGlobalObject()) {
     Handle<GlobalDictionary> dict(object->global_dictionary());
     PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
     int entry = dict->FindEntry(name);
@@ -5101,7 +5101,7 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
                                  Handle<Map> new_map,
                                  int expected_additional_properties) {
   // The global object is always normalized.
-  DCHECK(!object->IsGlobalObject());
+  DCHECK(!object->IsJSGlobalObject());
   // JSGlobalProxy must never be normalized
   DCHECK(!object->IsJSGlobalProxy());
 
@@ -5218,7 +5218,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
                                  int unused_property_fields,
                                  const char* reason) {
   if (object->HasFastProperties()) return;
-  DCHECK(!object->IsGlobalObject());
+  DCHECK(!object->IsJSGlobalObject());
   Isolate* isolate = object->GetIsolate();
   Factory* factory = isolate->factory();
   Handle<NameDictionary> dictionary(object->property_dictionary());
@@ -5765,7 +5765,7 @@ void JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
   DCHECK(!object->HasFastProperties());
   Isolate* isolate = object->GetIsolate();
 
-  if (object->IsGlobalObject()) {
+  if (object->IsJSGlobalObject()) {
     // If we have a global object, invalidate the cell and swap in a new one.
     Handle<GlobalDictionary> dictionary(object->global_dictionary());
     DCHECK_NE(GlobalDictionary::kNotFound, entry);
@@ -6965,7 +6965,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     JSObject::MigrateToMap(object, new_map);
 
     if (attrs != NONE) {
-      if (object->IsGlobalObject()) {
+      if (object->IsJSGlobalObject()) {
         ApplyAttributesToDictionary(object->global_dictionary(), attrs);
       } else {
         ApplyAttributesToDictionary(object->property_dictionary(), attrs);
@@ -7527,7 +7527,7 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
   if (object->HasFastProperties()) {
     return GetFastEnumPropertyKeys(isolate, object, cache_enum_length);
-  } else if (object->IsGlobalObject()) {
+  } else if (object->IsJSGlobalObject()) {
     Handle<GlobalDictionary> dictionary(object->global_dictionary());
     int length = dictionary->NumberOfEnumElements();
     if (length == 0) {
@@ -8088,7 +8088,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
       }
     }
     return GetHeap()->undefined_value();
-  } else if (IsGlobalObject()) {
+  } else if (IsJSGlobalObject()) {
     return global_dictionary()->SlowReverseLookup(value);
   } else {
     return property_dictionary()->SlowReverseLookup(value);
@@ -11427,7 +11427,7 @@ static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
 // static
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                    PrototypeOptimizationMode mode) {
-  if (object->IsGlobalObject()) return;
+  if (object->IsJSGlobalObject()) return;
   if (object->IsJSGlobalProxy()) return;
   if (mode == FAST_PROTOTYPE && PrototypeBenefitsFromNormalization(object)) {
     // First normalize to ensure all JSFunctions are DATA_CONSTANT.
@@ -14875,7 +14875,7 @@ int JSObject::NumberOfOwnProperties(PropertyAttributes filter) {
       if (result != kInvalidEnumCacheSentinel) return result;
     }
     return map->NumberOfDescribedProperties(OWN_DESCRIPTORS, filter);
-  } else if (IsGlobalObject()) {
+  } else if (IsJSGlobalObject()) {
     return global_dictionary()->NumberOfElementsFilterAttributes(filter);
   } else {
     return property_dictionary()->NumberOfElementsFilterAttributes(filter);
@@ -15013,7 +15013,7 @@ int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
       }
     }
     return index - start_index;
-  } else if (IsGlobalObject()) {
+  } else if (IsJSGlobalObject()) {
     return global_dictionary()->CopyKeysTo(storage, index, filter,
                                            GlobalDictionary::UNSORTED);
   } else {
@@ -16070,8 +16070,8 @@ size_t JSTypedArray::element_size() {
 }
 
 
-void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
-                                          Handle<Name> name) {
+void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
+                                            Handle<Name> name) {
   DCHECK(!global->HasFastProperties());
   auto dictionary = handle(global->global_dictionary());
   int entry = dictionary->FindEntry(name);
@@ -16081,8 +16081,8 @@ void GlobalObject::InvalidatePropertyCell(Handle<GlobalObject> global,
 
 
 // TODO(ishell): rename to EnsureEmptyPropertyCell or something.
-Handle<PropertyCell> GlobalObject::EnsurePropertyCell(
-    Handle<GlobalObject> global, Handle<Name> name) {
+Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
+    Handle<JSGlobalObject> global, Handle<Name> name) {
   DCHECK(!global->HasFastProperties());
   auto dictionary = handle(global->global_dictionary());
   int entry = dictionary->FindEntry(name);

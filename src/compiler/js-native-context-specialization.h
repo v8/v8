@@ -43,7 +43,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   typedef base::Flags<Flag> Flags;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
-                                Handle<GlobalObject> global_object,
+                                Handle<JSGlobalObject> global_object,
                                 CompilationDependencies* dependencies,
                                 Zone* zone);
 
@@ -92,7 +92,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   SimplifiedOperatorBuilder* simplified() const;
   MachineOperatorBuilder* machine() const;
   Flags flags() const { return flags_; }
-  Handle<GlobalObject> global_object() const { return global_object_; }
+  Handle<JSGlobalObject> global_object() const { return global_object_; }
   Handle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
@@ -102,7 +102,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   JSGraph* const jsgraph_;
   Flags const flags_;
-  Handle<GlobalObject> global_object_;
+  Handle<JSGlobalObject> global_object_;
   Handle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;

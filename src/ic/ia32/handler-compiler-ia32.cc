@@ -116,7 +116,7 @@ void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     MacroAssembler* masm, int index, Register result, Label* miss) {
   const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
   __ mov(result, Operand(esi, offset));
-  __ mov(result, FieldOperand(result, GlobalObject::kNativeContextOffset));
+  __ mov(result, FieldOperand(result, JSGlobalObject::kNativeContextOffset));
   __ mov(result, Operand(result, Context::SlotOffset(index)));
   // Load its initial map. The global functions all have initial maps.
   __ mov(result,

@@ -56,7 +56,7 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
       DisallowHeapAllocation no_allocation;
       Handle<JSObject> receiver = Handle<JSObject>::cast(receiver_obj);
       Handle<Name> key = Handle<Name>::cast(key_obj);
-      if (receiver->IsGlobalObject()) {
+      if (receiver->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
         GlobalDictionary* dictionary = receiver->global_dictionary();
         int entry = dictionary->FindEntry(key);
@@ -338,7 +338,8 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
   // Lookup the named property on the global object.
   Handle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
-  Handle<GlobalObject> global_object(script_context->global_object(), isolate);
+  Handle<JSGlobalObject> global_object(script_context->global_object(),
+                                       isolate);
   LookupIterator it(global_object, name, LookupIterator::HIDDEN);
 
   // Switch to fast mode only if there is a data property and it's not on
@@ -372,7 +373,8 @@ Object* StoreGlobalViaContext(Isolate* isolate, int slot, Handle<Object> value,
   // Lookup the named property on the global object.
   Handle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
-  Handle<GlobalObject> global_object(script_context->global_object(), isolate);
+  Handle<JSGlobalObject> global_object(script_context->global_object(),
+                                       isolate);
   LookupIterator it(global_object, name, LookupIterator::HIDDEN);
 
   // Switch to fast mode only if there is a data property and it's not on
@@ -949,7 +951,7 @@ RUNTIME_FUNCTION(Runtime_ToFastProperties) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  if (object->IsJSObject() && !object->IsGlobalObject()) {
+  if (object->IsJSObject() && !object->IsJSGlobalObject()) {
     JSObject::MigrateSlowToFast(Handle<JSObject>::cast(object), 0,
                                 "RuntimeToFastProperties");
   }

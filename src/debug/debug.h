@@ -441,7 +441,7 @@ class Debug {
       BreakPositionAlignment position_aligment);
 
   // Check whether a global object is the debug global object.
-  bool IsDebugGlobal(GlobalObject* global);
+  bool IsDebugGlobal(JSGlobalObject* global);
 
   // Check whether this frame is just about to return.
   bool IsBreakAtReturn(JavaScriptFrame* frame);

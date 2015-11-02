@@ -125,7 +125,7 @@ void FullCodeGenerator::Generate() {
     __ JumpIfNotRoot(x10, Heap::kUndefinedValueRootIndex, &ok);
 
     __ Ldr(x10, GlobalObjectMemOperand());
-    __ Ldr(x10, FieldMemOperand(x10, GlobalObject::kGlobalProxyOffset));
+    __ Ldr(x10, FieldMemOperand(x10, JSGlobalObject::kGlobalProxyOffset));
     __ Poke(x10, receiver_offset);
 
     __ Bind(&ok);
@@ -3948,7 +3948,8 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
   Register empty_fixed_array = x4;
   Register untagged_result = x5;
   __ Ldr(map_reg, GlobalObjectMemOperand());
-  __ Ldr(map_reg, FieldMemOperand(map_reg, GlobalObject::kNativeContextOffset));
+  __ Ldr(map_reg,
+         FieldMemOperand(map_reg, JSGlobalObject::kNativeContextOffset));
   __ Ldr(map_reg,
          ContextMemOperand(map_reg, Context::ITERATOR_RESULT_MAP_INDEX));
   __ Pop(boolean_done);
@@ -3981,7 +3982,7 @@ void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   __ Push(x0);
 
   __ Ldr(x0, GlobalObjectMemOperand());
-  __ Ldr(x0, FieldMemOperand(x0, GlobalObject::kNativeContextOffset));
+  __ Ldr(x0, FieldMemOperand(x0, JSGlobalObject::kNativeContextOffset));
   __ Ldr(x0, ContextMemOperand(x0, expr->context_index()));
 }
 
@@ -4904,7 +4905,8 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Register empty_fixed_array = x4;
   Register untagged_result = x5;
   __ Ldr(map_reg, GlobalObjectMemOperand());
-  __ Ldr(map_reg, FieldMemOperand(map_reg, GlobalObject::kNativeContextOffset));
+  __ Ldr(map_reg,
+         FieldMemOperand(map_reg, JSGlobalObject::kNativeContextOffset));
   __ Ldr(map_reg,
          ContextMemOperand(map_reg, Context::ITERATOR_RESULT_MAP_INDEX));
   __ Pop(result_value);

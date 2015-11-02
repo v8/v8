@@ -290,8 +290,8 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
     }
   }
 
-  if (receiver->IsGlobalObject()) {
-    Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
+  if (receiver->IsJSGlobalObject()) {
+    Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
     LookupIterator it(global, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::ACCESS_CHECK) return false;
     if (!it.IsFound()) return false;
@@ -695,10 +695,10 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
 
   bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;
 
-  if (object->IsGlobalObject() && name->IsString()) {
+  if (object->IsJSGlobalObject() && name->IsString()) {
     // Look up in script context table.
     Handle<String> str_name = Handle<String>::cast(name);
-    Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
+    Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(object);
     Handle<ScriptContextTable> script_contexts(
         global->native_context()->script_context_table());
 
@@ -1238,7 +1238,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::DATA: {
       if (lookup->is_dictionary_holder()) {
         if (kind() != Code::LOAD_IC) break;
-        if (holder->IsGlobalObject()) {
+        if (holder->IsJSGlobalObject()) {
           NamedLoadHandlerCompiler compiler(isolate(), map, holder,
                                             cache_holder);
           Handle<PropertyCell> cell = lookup->GetPropertyCell();
@@ -1513,10 +1513,10 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     return result;
   }
 
-  if (object->IsGlobalObject() && name->IsString()) {
+  if (object->IsJSGlobalObject() && name->IsString()) {
     // Look up in script context table.
     Handle<String> str_name = Handle<String>::cast(name);
-    Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
+    Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(object);
     Handle<ScriptContextTable> script_contexts(
         global->native_context()->script_context_table());
 
@@ -1698,7 +1698,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
 
 
 static Handle<Code> PropertyCellStoreHandler(
-    Isolate* isolate, Handle<JSObject> receiver, Handle<GlobalObject> holder,
+    Isolate* isolate, Handle<JSObject> receiver, Handle<JSGlobalObject> holder,
     Handle<Name> name, Handle<PropertyCell> cell, PropertyCellType type) {
   auto constant_type = Nothing<PropertyCellConstantType>();
   if (type == PropertyCellType::kConstantType) {
@@ -1727,12 +1727,12 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
   switch (lookup->state()) {
     case LookupIterator::TRANSITION: {
       auto store_target = lookup->GetStoreTarget();
-      if (store_target->IsGlobalObject()) {
+      if (store_target->IsJSGlobalObject()) {
         // TODO(dcarney): this currently just deopts. Use the transition cell.
         auto cell = isolate()->factory()->NewPropertyCell();
         cell->set_value(*value);
         auto code = PropertyCellStoreHandler(
-            isolate(), store_target, Handle<GlobalObject>::cast(store_target),
+            isolate(), store_target, Handle<JSGlobalObject>::cast(store_target),
             lookup->name(), cell, PropertyCellType::kConstant);
         cell->set_value(isolate()->heap()->the_hole_value());
         return code;
@@ -1810,14 +1810,14 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
 
     case LookupIterator::DATA: {
       if (lookup->is_dictionary_holder()) {
-        if (holder->IsGlobalObject()) {
+        if (holder->IsJSGlobalObject()) {
           DCHECK(holder.is_identical_to(receiver) ||
                  receiver->map()->prototype() == *holder);
           auto cell = lookup->GetPropertyCell();
           auto updated_type = PropertyCell::UpdatedType(
               cell, value, lookup->property_details());
           auto code = PropertyCellStoreHandler(
-              isolate(), receiver, Handle<GlobalObject>::cast(holder),
+              isolate(), receiver, Handle<JSGlobalObject>::cast(holder),
               lookup->name(), cell, updated_type);
           return code;
         }

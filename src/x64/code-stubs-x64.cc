@@ -664,7 +664,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Get the arguments map from the current native context into r9.
   Label has_mapped_parameters, instantiate;
   __ movp(r9, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ movp(r9, FieldOperand(r9, GlobalObject::kNativeContextOffset));
+  __ movp(r9, FieldOperand(r9, JSGlobalObject::kNativeContextOffset));
   __ testp(rbx, rbx);
   __ j(not_zero, &has_mapped_parameters, Label::kNear);
 
@@ -946,7 +946,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Get the arguments map from the current native context.
   __ movp(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ movp(rdi, FieldOperand(rdi, GlobalObject::kNativeContextOffset));
+  __ movp(rdi, FieldOperand(rdi, JSGlobalObject::kNativeContextOffset));
   const int offset = Context::SlotOffset(Context::STRICT_ARGUMENTS_MAP_INDEX);
   __ movp(rdi, Operand(rdi, offset));
 

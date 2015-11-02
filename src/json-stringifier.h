@@ -519,7 +519,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   HandleScope handle_scope(isolate_);
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
-  DCHECK(!object->IsJSGlobalProxy() && !object->IsGlobalObject());
+  DCHECK(!object->IsJSGlobalProxy() && !object->IsJSGlobalObject());
 
   builder_.AppendCharacter('{');
   bool comma = false;

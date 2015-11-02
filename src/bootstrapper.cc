@@ -174,18 +174,18 @@ class Genesis BASE_EMBEDDED {
   // but in the latter case we don't use the objects it produces directly, as
   // we have to used the deserialized ones that are linked together with the
   // rest of the context snapshot.
-  Handle<GlobalObject> CreateNewGlobals(
+  Handle<JSGlobalObject> CreateNewGlobals(
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       Handle<JSGlobalProxy> global_proxy);
   // Hooks the given global proxy into the context.  If the context was created
   // by deserialization then this will unhook the global proxy that was
   // deserialized, leaving the GC to pick it up.
-  void HookUpGlobalProxy(Handle<GlobalObject> global_object,
+  void HookUpGlobalProxy(Handle<JSGlobalObject> global_object,
                          Handle<JSGlobalProxy> global_proxy);
   // Similarly, we want to use the global that has been created by the templates
   // passed through the API.  The global from the snapshot is detached from the
   // other objects in the snapshot.
-  void HookUpGlobalObject(Handle<GlobalObject> global_object,
+  void HookUpGlobalObject(Handle<JSGlobalObject> global_object,
                           Handle<FixedArray> outdated_contexts);
   // The native context has a ScriptContextTable that store declarative bindings
   // made in script scopes.  Add a "this" binding to that table pointing to the
@@ -193,7 +193,7 @@ class Genesis BASE_EMBEDDED {
   void InstallGlobalThisBinding();
   void HookUpGlobalThisBinding(Handle<FixedArray> outdated_contexts);
   // New context initialization.  Used for creating a context from scratch.
-  void InitializeGlobal(Handle<GlobalObject> global_object,
+  void InitializeGlobal(Handle<JSGlobalObject> global_object,
                         Handle<JSFunction> empty_function,
                         ContextType context_type);
   void InitializeExperimentalGlobal();
@@ -936,7 +936,7 @@ void Genesis::HookUpGlobalThisBinding(Handle<FixedArray> outdated_contexts) {
 }
 
 
-Handle<GlobalObject> Genesis::CreateNewGlobals(
+Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     Handle<JSGlobalProxy> global_proxy) {
   // The argument global_proxy_template aka data is an ObjectTemplateInfo.
@@ -996,8 +996,8 @@ Handle<GlobalObject> Genesis::CreateNewGlobals(
   js_global_object_function->initial_map()->set_is_prototype_map(true);
   js_global_object_function->initial_map()->set_is_hidden_prototype();
   js_global_object_function->initial_map()->set_dictionary_map(true);
-  Handle<GlobalObject> global_object =
-      factory()->NewGlobalObject(js_global_object_function);
+  Handle<JSGlobalObject> global_object =
+      factory()->NewJSGlobalObject(js_global_object_function);
 
   // Step 2: (re)initialize the global proxy object.
   Handle<JSFunction> global_proxy_function;
@@ -1029,7 +1029,7 @@ Handle<GlobalObject> Genesis::CreateNewGlobals(
 }
 
 
-void Genesis::HookUpGlobalProxy(Handle<GlobalObject> global_object,
+void Genesis::HookUpGlobalProxy(Handle<JSGlobalObject> global_object,
                                 Handle<JSGlobalProxy> global_proxy) {
   // Set the native context for the global object.
   global_object->set_native_context(*native_context());
@@ -1043,10 +1043,10 @@ void Genesis::HookUpGlobalProxy(Handle<GlobalObject> global_object,
 }
 
 
-void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object,
+void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object,
                                  Handle<FixedArray> outdated_contexts) {
-  Handle<GlobalObject> global_object_from_snapshot(
-      GlobalObject::cast(native_context()->extension()));
+  Handle<JSGlobalObject> global_object_from_snapshot(
+      JSGlobalObject::cast(native_context()->extension()));
   native_context()->set_extension(*global_object);
   native_context()->set_security_token(*global_object);
 
@@ -1066,7 +1066,7 @@ void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object,
 
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
-void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
+void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                Handle<JSFunction> empty_function,
                                ContextType context_type) {
   // --- N a t i v e   C o n t e x t ---
@@ -1743,7 +1743,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
                                                const char* holder_expr) {
   Isolate* isolate = native_context->GetIsolate();
   Factory* factory = isolate->factory();
-  Handle<GlobalObject> global(native_context->global_object());
+  Handle<JSGlobalObject> global(native_context->global_object());
   const char* period_pos = strchr(holder_expr, '.');
   if (period_pos == NULL) {
     return Handle<JSObject>::cast(
@@ -1838,7 +1838,7 @@ void Genesis::ConfigureUtilsObject(ContextType context_type) {
   native_context()->set_natives_utils_object(heap()->undefined_value());
 
 #ifdef DEBUG
-  GlobalObject* dummy = native_context()->runtime_context()->global_object();
+  JSGlobalObject* dummy = native_context()->runtime_context()->global_object();
   DCHECK_EQ(0, dummy->elements()->length());
   DCHECK_EQ(0, GlobalDictionary::cast(dummy->properties())->NumberOfElements());
 #endif
@@ -2248,7 +2248,7 @@ void Genesis::InitializeGlobal_harmony_simd() {
   JSObject::AddProperty(global, name, simd_object, DONT_ENUM);
 
 // Install SIMD type functions. Set the instance class names since
-// InstallFunction only does this when we install on the GlobalObject.
+// InstallFunction only does this when we install on the JSGlobalObject.
 #define SIMD128_INSTALL_FUNCTION(TYPE, Type, type, lane_count, lane_type) \
   Handle<JSFunction> type##_function = InstallFunction(                   \
       simd_object, #Type, JS_VALUE_TYPE, JSValue::kSize,                  \
@@ -2322,7 +2322,7 @@ bool Genesis::InstallNatives(ContextType context_type) {
     global_fun->initial_map()->set_dictionary_map(true);
     global_fun->initial_map()->set_prototype(heap()->null_value());
     Handle<JSGlobalObject> dummy_global =
-        Handle<JSGlobalObject>::cast(factory()->NewGlobalObject(global_fun));
+        Handle<JSGlobalObject>::cast(factory()->NewJSGlobalObject(global_fun));
     dummy_global->set_native_context(*native_context());
     dummy_global->set_global_proxy(native_context()->global_proxy());
     context->set_global_object(*dummy_global);
@@ -3050,7 +3050,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         }
       }
     }
-  } else if (from->IsGlobalObject()) {
+  } else if (from->IsJSGlobalObject()) {
     Handle<GlobalDictionary> properties =
         Handle<GlobalDictionary>(from->global_dictionary());
     int capacity = properties->Capacity();
@@ -3217,7 +3217,7 @@ Genesis::Genesis(Isolate* isolate,
       Map::TraceAllTransitions(object_fun->initial_map());
     }
 #endif
-    Handle<GlobalObject> global_object =
+    Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
 
     HookUpGlobalProxy(global_object, global_proxy);
@@ -3232,7 +3232,7 @@ Genesis::Genesis(Isolate* isolate,
     CreateStrictModeFunctionMaps(empty_function);
     CreateStrongModeFunctionMaps(empty_function);
     CreateIteratorMaps();
-    Handle<GlobalObject> global_object =
+    Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
     HookUpGlobalProxy(global_object, global_proxy);
     InitializeGlobal(global_object, empty_function, context_type);

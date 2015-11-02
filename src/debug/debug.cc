@@ -1596,7 +1596,7 @@ void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
 }
 
 
-bool Debug::IsDebugGlobal(GlobalObject* global) {
+bool Debug::IsDebugGlobal(JSGlobalObject* global) {
   return is_loaded() && global == debug_context()->global_object();
 }
 
@@ -2245,7 +2245,8 @@ void Debug::HandleDebugBreak() {
     if (fun && fun->IsJSFunction()) {
       // Don't stop in builtin functions.
       if (!JSFunction::cast(fun)->IsSubjectToDebugging()) return;
-      GlobalObject* global = JSFunction::cast(fun)->context()->global_object();
+      JSGlobalObject* global =
+          JSFunction::cast(fun)->context()->global_object();
       // Don't stop in debugger functions.
       if (IsDebugGlobal(global)) return;
     }

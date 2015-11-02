@@ -203,7 +203,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() {
     }
   }
   if (context_->IsNativeContext()) {
-    DCHECK(context_->global_object()->IsGlobalObject());
+    DCHECK(context_->global_object()->IsJSGlobalObject());
     // If we are at the native context and have not yet seen script scope,
     // fake it.
     return seen_script_scope_ ? ScopeTypeGlobal : ScopeTypeScript;
@@ -404,7 +404,7 @@ void ScopeIterator::RetrieveScopeChain(Scope* scope,
 
 
 MaybeHandle<JSObject> ScopeIterator::MaterializeScriptScope() {
-  Handle<GlobalObject> global(CurrentContext()->global_object());
+  Handle<JSGlobalObject> global(CurrentContext()->global_object());
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table());
 

@@ -1699,7 +1699,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
       Context::SlotOffset(Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
 
   __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ lw(t0, FieldMemOperand(t0, GlobalObject::kNativeContextOffset));
+  __ lw(t0, FieldMemOperand(t0, JSGlobalObject::kNativeContextOffset));
   Label skip2_ne, skip2_eq;
   __ Branch(&skip2_ne, ne, t2, Operand(zero_reg));
   __ lw(t0, MemOperand(t0, kNormalOffset));
@@ -1903,7 +1903,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Get the arguments boilerplate from the current native context.
   __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ lw(t0, FieldMemOperand(t0, GlobalObject::kNativeContextOffset));
+  __ lw(t0, FieldMemOperand(t0, JSGlobalObject::kNativeContextOffset));
   __ lw(t0, MemOperand(
                 t0, Context::SlotOffset(Context::STRICT_ARGUMENTS_MAP_INDEX)));
 

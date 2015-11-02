@@ -22,8 +22,7 @@ namespace internal {
 static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
   // Load the native context.
   __ Ldr(result, GlobalObjectMemOperand());
-  __ Ldr(result,
-         FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ Ldr(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
   // Load the InternalArray function from the native context.
   __ Ldr(result,
          MemOperand(result,
@@ -36,8 +35,7 @@ static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
                                               Register result) {
   // Load the native context.
   __ Ldr(result, GlobalObjectMemOperand());
-  __ Ldr(result,
-         FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ Ldr(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
   // Load the InternalArray function from the native context.
   __ Ldr(result, ContextMemOperand(result,
                                    Context::INTERNAL_ARRAY_FUNCTION_INDEX));

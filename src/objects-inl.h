@@ -1010,12 +1010,6 @@ bool Object::IsJSGlobalProxy() const {
 }
 
 
-bool Object::IsGlobalObject() const {
-  if (!IsHeapObject()) return false;
-  return HeapObject::cast(this)->map()->IsGlobalObjectMap();
-}
-
-
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
 
 
@@ -1029,7 +1023,7 @@ bool Object::IsAccessCheckNeeded() const {
   if (!IsHeapObject()) return false;
   if (IsJSGlobalProxy()) {
     const JSGlobalProxy* proxy = JSGlobalProxy::cast(this);
-    GlobalObject* global = proxy->GetIsolate()->context()->global_object();
+    JSGlobalObject* global = proxy->GetIsolate()->context()->global_object();
     return proxy->IsDetachedFrom(global);
   }
   return HeapObject::cast(this)->map()->is_access_check_needed();
@@ -3309,7 +3303,6 @@ CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(Float32x4)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(GlobalDictionary)
-CAST_ACCESSOR(GlobalObject)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(Int16x8)
@@ -4926,10 +4919,6 @@ bool Map::IsJSGlobalObjectMap() {
   return instance_type() == JS_GLOBAL_OBJECT_TYPE;
 }
 bool Map::IsJSTypedArrayMap() { return instance_type() == JS_TYPED_ARRAY_TYPE; }
-bool Map::IsGlobalObjectMap() {
-  const InstanceType type = instance_type();
-  return type == JS_GLOBAL_OBJECT_TYPE;
-}
 
 
 bool Map::CanOmitMapChecks() {
@@ -5635,8 +5624,8 @@ ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, literals_or_bindings, FixedArray, kLiteralsOffset)
 ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
-ACCESSORS(GlobalObject, native_context, Context, kNativeContextOffset)
-ACCESSORS(GlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
+ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
+ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 ACCESSORS(JSGlobalProxy, hash, Object, kHashOffset)
@@ -6964,14 +6953,14 @@ bool JSObject::HasIndexedInterceptor() {
 
 NameDictionary* JSObject::property_dictionary() {
   DCHECK(!HasFastProperties());
-  DCHECK(!IsGlobalObject());
+  DCHECK(!IsJSGlobalObject());
   return NameDictionary::cast(properties());
 }
 
 
 GlobalDictionary* JSObject::global_dictionary() {
   DCHECK(!HasFastProperties());
-  DCHECK(IsGlobalObject());
+  DCHECK(IsJSGlobalObject());
   return GlobalDictionary::cast(properties());
 }
 
@@ -7374,7 +7363,7 @@ bool JSGlobalObject::IsDetached() {
 }
 
 
-bool JSGlobalProxy::IsDetachedFrom(GlobalObject* global) const {
+bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject* global) const {
   const PrototypeIterator iter(this->GetIsolate(),
                                const_cast<JSGlobalProxy*>(this));
   return iter.GetCurrent() != global;

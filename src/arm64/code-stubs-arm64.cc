@@ -1806,8 +1806,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   Register sloppy_args_map = x11;
   Register aliased_args_map = x10;
   __ Ldr(global_object, GlobalObjectMemOperand());
-  __ Ldr(global_ctx, FieldMemOperand(global_object,
-                                     GlobalObject::kNativeContextOffset));
+  __ Ldr(global_ctx,
+         FieldMemOperand(global_object, JSGlobalObject::kNativeContextOffset));
 
   __ Ldr(sloppy_args_map,
          ContextMemOperand(global_ctx, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
@@ -2051,8 +2051,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   Register global_ctx = x10;
   Register strict_args_map = x4;
   __ Ldr(global_object, GlobalObjectMemOperand());
-  __ Ldr(global_ctx, FieldMemOperand(global_object,
-                                     GlobalObject::kNativeContextOffset));
+  __ Ldr(global_ctx,
+         FieldMemOperand(global_object, JSGlobalObject::kNativeContextOffset));
   __ Ldr(strict_args_map,
          ContextMemOperand(global_ctx, Context::STRICT_ARGUMENTS_MAP_INDEX));
 

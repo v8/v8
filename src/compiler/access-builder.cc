@@ -139,16 +139,16 @@ FieldAccess AccessBuilder::ForStringLength() {
 
 
 // static
-FieldAccess AccessBuilder::ForGlobalObjectGlobalProxy() {
-  FieldAccess access = {kTaggedBase, GlobalObject::kGlobalProxyOffset,
+FieldAccess AccessBuilder::ForJSGlobalObjectGlobalProxy() {
+  FieldAccess access = {kTaggedBase, JSGlobalObject::kGlobalProxyOffset,
                         Handle<Name>(), Type::Receiver(), kMachAnyTagged};
   return access;
 }
 
 
 // static
-FieldAccess AccessBuilder::ForGlobalObjectNativeContext() {
-  FieldAccess access = {kTaggedBase, GlobalObject::kNativeContextOffset,
+FieldAccess AccessBuilder::ForJSGlobalObjectNativeContext() {
+  FieldAccess access = {kTaggedBase, JSGlobalObject::kNativeContextOffset,
                         Handle<Name>(), Type::Internal(), kMachAnyTagged};
   return access;
 }

@@ -1492,7 +1492,8 @@ Handle<JSModule> Factory::NewJSModule(Handle<Context> context,
 }
 
 
-Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
+Handle<JSGlobalObject> Factory::NewJSGlobalObject(
+    Handle<JSFunction> constructor) {
   DCHECK(constructor->has_initial_map());
   Handle<Map> map(constructor->initial_map());
   DCHECK(map->is_dictionary_map());
@@ -1534,7 +1535,7 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
   }
 
   // Allocate the global object and initialize it with the backing store.
-  Handle<GlobalObject> global = New<GlobalObject>(map, OLD_SPACE);
+  Handle<JSGlobalObject> global = New<JSGlobalObject>(map, OLD_SPACE);
   isolate()->heap()->InitializeJSObjectFromMap(*global, *dictionary, *map);
 
   // Create a new map for the global object.
@@ -1546,7 +1547,7 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
   global->set_properties(*dictionary);
 
   // Make sure result is a global object with properties in dictionary.
-  DCHECK(global->IsGlobalObject() && !global->HasFastProperties());
+  DCHECK(global->IsJSGlobalObject() && !global->HasFastProperties());
   return global;
 }
 

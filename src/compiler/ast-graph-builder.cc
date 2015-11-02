@@ -3687,7 +3687,7 @@ Node* AstGraphBuilder::BuildLoadGlobalObject() {
 Node* AstGraphBuilder::BuildLoadNativeContextField(int index) {
   Node* global = BuildLoadGlobalObject();
   Node* native_context =
-      BuildLoadObjectField(global, GlobalObject::kNativeContextOffset);
+      BuildLoadObjectField(global, JSGlobalObject::kNativeContextOffset);
   return NewNode(javascript()->LoadContext(0, index, true), native_context);
 }
 

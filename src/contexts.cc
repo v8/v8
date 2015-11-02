@@ -133,7 +133,7 @@ Context* Context::native_context() {
   // The global object has a direct pointer to the native context. If the
   // following DCHECK fails, the native context is probably being accessed
   // indirectly during bootstrapping. This is unsupported.
-  DCHECK(global_object()->IsGlobalObject());
+  DCHECK(global_object()->IsJSGlobalObject());
   return global_object()->native_context();
 }
 
@@ -573,8 +573,7 @@ bool Context::IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object) {
   // During bootstrapping we allow all objects to pass as global
   // objects. This is necessary to fix circular dependencies.
   return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
-      isolate->bootstrapper()->IsActive() ||
-      object->IsGlobalObject();
+         isolate->bootstrapper()->IsActive() || object->IsJSGlobalObject();
 }
 #endif
 

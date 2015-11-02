@@ -317,7 +317,7 @@ class LoadIC : public IC {
   }
 
   bool ShouldThrowReferenceError(Handle<Object> receiver) {
-    return receiver->IsGlobalObject() && typeof_mode() == NOT_INSIDE_TYPEOF;
+    return receiver->IsJSGlobalObject() && typeof_mode() == NOT_INSIDE_TYPEOF;
   }
 
   // Code generator routines.

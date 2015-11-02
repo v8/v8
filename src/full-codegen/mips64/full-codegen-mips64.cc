@@ -135,7 +135,7 @@ void FullCodeGenerator::Generate() {
     __ Branch(&ok, ne, a2, Operand(at));
 
     __ ld(a2, GlobalObjectOperand());
-    __ ld(a2, FieldMemOperand(a2, GlobalObject::kGlobalProxyOffset));
+    __ ld(a2, FieldMemOperand(a2, JSGlobalObject::kGlobalProxyOffset));
 
     __ sd(a2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
@@ -2254,7 +2254,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   __ bind(&done_allocate);
   __ ld(a1, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ ld(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
+  __ ld(a1, FieldMemOperand(a1, JSGlobalObject::kNativeContextOffset));
   __ ld(a1, ContextOperand(a1, Context::ITERATOR_RESULT_MAP_INDEX));
   __ pop(a2);
   __ LoadRoot(a3,
@@ -4268,7 +4268,7 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
 
   __ Allocate(JSIteratorResult::kSize, v0, a2, a3, &runtime, TAG_OBJECT);
   __ ld(a1, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ ld(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
+  __ ld(a1, FieldMemOperand(a1, JSGlobalObject::kNativeContextOffset));
   __ ld(a1, ContextOperand(a1, Context::ITERATOR_RESULT_MAP_INDEX));
   __ Pop(a2, a3);
   __ LoadRoot(a4, Heap::kEmptyFixedArrayRootIndex);
@@ -4294,7 +4294,7 @@ void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   __ push(v0);
 
   __ ld(v0, GlobalObjectOperand());
-  __ ld(v0, FieldMemOperand(v0, GlobalObject::kNativeContextOffset));
+  __ ld(v0, FieldMemOperand(v0, JSGlobalObject::kNativeContextOffset));
   __ ld(v0, ContextOperand(v0, expr->context_index()));
 }
 

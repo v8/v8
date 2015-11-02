@@ -58,7 +58,7 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
       cache_name = name;
       JSReceiver* prototype = JSReceiver::cast(current_map->prototype());
       if (!prototype->map()->is_hidden_prototype() &&
-          !prototype->map()->IsGlobalObjectMap()) {
+          !prototype->map()->IsJSGlobalObjectMap()) {
         break;
       }
     }

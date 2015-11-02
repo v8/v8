@@ -1135,7 +1135,7 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
             context, context, effect);
         receiver = effect =
             graph()->NewNode(simplified()->LoadField(
-                                 AccessBuilder::ForGlobalObjectGlobalProxy()),
+                                 AccessBuilder::ForJSGlobalObjectGlobalProxy()),
                              global_object, effect, control);
       }
     } else if (!receiver_type->Maybe(Type::NullOrUndefined()) ||
@@ -1188,10 +1188,10 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
           Node* global_object = eglobal = graph()->NewNode(
               javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true),
               context, context, eglobal);
-          rglobal = eglobal =
-              graph()->NewNode(simplified()->LoadField(
-                                   AccessBuilder::ForGlobalObjectGlobalProxy()),
-                               global_object, eglobal, if_global);
+          rglobal = eglobal = graph()->NewNode(
+              simplified()->LoadField(
+                  AccessBuilder::ForJSGlobalObjectGlobalProxy()),
+              global_object, eglobal, if_global);
         }
       }
 
@@ -1281,9 +1281,10 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
         simplified()->LoadField(
             AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
         context, effect, control);
-    Node* const load_native_context = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForGlobalObjectNativeContext()),
-        load_global_object, effect, control);
+    Node* const load_native_context =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForJSGlobalObjectNativeContext()),
+                         load_global_object, effect, control);
     Node* const load_arguments_map = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForContextSlot(
             has_aliased_arguments ? Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX
@@ -1323,9 +1324,10 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
         simplified()->LoadField(
             AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
         context, effect, control);
-    Node* const load_native_context = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForGlobalObjectNativeContext()),
-        load_global_object, effect, control);
+    Node* const load_native_context =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForJSGlobalObjectNativeContext()),
+                         load_global_object, effect, control);
     Node* const load_arguments_map = graph()->NewNode(
         simplified()->LoadField(
             AccessBuilder::ForContextSlot(Context::STRICT_ARGUMENTS_MAP_INDEX)),

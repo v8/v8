@@ -199,7 +199,8 @@ TEST(HeapObjects) {
   CHECK_EQ(10, s->length());
 
   Handle<String> object_string = Handle<String>::cast(factory->Object_string());
-  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object());
   CHECK(Just(true) == JSReceiver::HasOwnProperty(global, object_string));
 
   // Check ToString for oddballs
@@ -439,7 +440,8 @@ TEST(GarbageCollection) {
   // Check GC.
   heap->CollectGarbage(NEW_SPACE);
 
-  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<String> prop_namex = factory->InternalizeUtf8String("theSlotx");
@@ -2354,7 +2356,7 @@ static int NumberOfGlobalObjects() {
   int count = 0;
   HeapIterator iterator(CcTest::heap());
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    if (obj->IsGlobalObject()) count++;
+    if (obj->IsJSGlobalObject()) count++;
   }
   // Subtract two to compensate for the two global objects (not global
   // JSObjects, of which there would only be one) that are part of the code stub
@@ -5590,7 +5592,8 @@ TEST(Regress442710) {
   Factory* factory = isolate->factory();
 
   HandleScope sc(isolate);
-  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object());
   Handle<JSArray> array = factory->NewJSArray(2);
 
   Handle<String> name = factory->InternalizeUtf8String("testArray");
