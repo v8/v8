@@ -28,7 +28,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var GlobalFloat64Array = global.Float64Array;
 var GlobalMath = global.Math;
 var MathAbs;
 var MathExp;
@@ -40,9 +39,9 @@ utils.Import(function(from) {
   MathExp = from.MathExp;
 });
 
-utils.CreateDoubleResultArray = function(global) {
-  rempio2result = new GlobalFloat64Array(2);
-};
+utils.SetupTypedArray(function(arg) {
+  rempio2result = arg;
+});
 
 // -------------------------------------------------------------------
 

@@ -247,12 +247,12 @@ function PostExperimentals(utils) {
 
   utils.InitializeRNG();
   utils.InitializeRNG = UNDEFINED;
-  utils.CreateDoubleResultArray();
-  utils.CreateDoubleResultArray = UNDEFINED;
 
   utils.Export = UNDEFINED;
   utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
+  utils.InitializeBuiltinTypedArrays = UNDEFINED;
+  utils.SetupTypedArray = UNDEFINED;
   typed_array_setup = UNDEFINED;
 }
 
@@ -264,8 +264,6 @@ function PostDebug(utils) {
 
   utils.InitializeRNG();
   utils.InitializeRNG = UNDEFINED;
-  utils.CreateDoubleResultArray();
-  utils.CreateDoubleResultArray = UNDEFINED;
 
   exports_container = UNDEFINED;
 
@@ -274,6 +272,8 @@ function PostDebug(utils) {
   utils.ImportNow = UNDEFINED;
   utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
+  utils.InitializeBuiltinTypedArrays = UNDEFINED;
+  utils.SetupTypedArray = UNDEFINED;
   typed_array_setup = UNDEFINED;
 }
 
@@ -304,6 +304,8 @@ utils.SetUpLockedPrototype = SetUpLockedPrototype;
 utils.PostNatives = PostNatives;
 utils.PostExperimentals = PostExperimentals;
 utils.PostDebug = PostDebug;
+utils.SetupTypedArray = SetupTypedArray;
+utils.InitializeBuiltinTypedArrays = InitializeBuiltinTypedArrays;
 
 %ToFastProperties(utils);
 

@@ -197,6 +197,8 @@ class Genesis BASE_EMBEDDED {
                         Handle<JSFunction> empty_function,
                         ContextType context_type);
   void InitializeExperimentalGlobal();
+  // Typed arrays are not serializable and have to initialized afterwards.
+  bool InitializeBuiltinTypedArrays();
   // Depending on the situation, expose and/or get rid of the utils object.
   void ConfigureUtilsObject(ContextType context_type);
 
@@ -1787,6 +1789,26 @@ Handle<JSTypedArray> CreateTypedArray(Isolate* isolate, ExternalArrayType type,
 }
 
 
+bool Genesis::InitializeBuiltinTypedArrays() {
+  HandleScope scope(isolate());
+  const size_t num_elements = 2;
+  double* data = NULL;
+  Handle<JSTypedArray> rempio2result =
+      CreateTypedArray(isolate(), kExternalFloat64Array, num_elements, &data);
+  for (size_t i = 0; i < num_elements; i++) data[i] = 0;
+
+  Handle<JSObject> utils =
+      Handle<JSObject>::cast(isolate()->natives_utils_object());
+  Handle<String> name_string = isolate()->factory()->NewStringFromAsciiChecked(
+      "InitializeBuiltinTypedArrays");
+  Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
+  Handle<Object> receiver = isolate()->factory()->undefined_value();
+  Handle<Object> args[] = {utils, rempio2result};
+  return !Execution::Call(isolate(), fun, receiver, arraysize(args), args)
+              .is_null();
+}
+
+
 void Genesis::ConfigureUtilsObject(ContextType context_type) {
   switch (context_type) {
     // We still need the utils object to find debug functions.
@@ -3231,6 +3253,7 @@ Genesis::Genesis(Isolate* isolate,
   // snapshot as we should be able to turn them off at runtime. Re-installing
   // them after they have already been deserialized would also fail.
   if (context_type == FULL_CONTEXT) {
+    if (!InitializeBuiltinTypedArrays()) return;
     if (!isolate->serializer_enabled()) {
       InitializeExperimentalGlobal();
       if (!InstallExperimentalNatives()) return;
@@ -3243,6 +3266,7 @@ Genesis::Genesis(Isolate* isolate,
     // for each new context.
   } else if (context_type == DEBUG_CONTEXT) {
     DCHECK(!isolate->serializer_enabled());
+    if (!InitializeBuiltinTypedArrays()) return;
     InitializeExperimentalGlobal();
     if (!InstallDebuggerNatives()) return;
   }
