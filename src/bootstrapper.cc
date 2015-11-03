@@ -1098,6 +1098,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
                       empty_function, Builtins::kIllegal);
   function_function->initial_map()->set_is_callable();
+  function_function->initial_map()->set_is_constructor(true);
 
   {  // --- A r r a y ---
     Handle<JSFunction> array_function =
@@ -1854,6 +1855,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                         JSFunction::kSize, generator_function_prototype,
                         Builtins::kIllegal, kUseStrictFunctionMap);
     generator_function_function->initial_map()->set_is_callable();
+    generator_function_function->initial_map()->set_is_constructor(true);
   }
 
   {  // -- S e t I t e r a t o r
