@@ -3267,7 +3267,6 @@ bool MarkCompactCollector::EvacuateLiveObjectsFromPage(
   DCHECK(p->IsEvacuationCandidate() && !p->WasSwept());
 
   int offsets[16];
-
   for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
     Address cell_base = it.CurrentCellBase();
     MarkBit::CellType* cell = it.CurrentCell();
@@ -3309,23 +3308,33 @@ bool MarkCompactCollector::EvacuateLiveObjectsFromPage(
 
 int MarkCompactCollector::NumberOfParallelCompactionTasks() {
   if (!FLAG_parallel_compaction) return 1;
-  // We cap the number of parallel compaction tasks by
-  // - (#cores - 1)
-  // - a value depending on the live memory in evacuation candidates
-  // - a hard limit
+  // Compute the number of needed tasks based on a target compaction time, the
+  // profiled compaction speed and marked live memory.
   //
-  // TODO(mlippautz): Instead of basing the limit on live memory, we could also
-  //   compute the number from the time it takes to evacuate memory and a given
-  //   desired time in which compaction should be finished.
-  const int kLiveMemoryPerCompactionTask = 2 * Page::kPageSize;
+  // The number of parallel compaction tasks is limited by:
+  // - #evacuation pages
+  // - (#cores - 1)
+  // - a hard limit
+  const double kTargetCompactionTimeInMs = 1;
   const int kMaxCompactionTasks = 8;
-  int live_bytes = 0;
+
+  intptr_t compaction_speed =
+      heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
+  if (compaction_speed == 0) return 1;
+
+  intptr_t live_bytes = 0;
   for (Page* page : evacuation_candidates_) {
     live_bytes += page->LiveBytes();
   }
-  return Min(kMaxCompactionTasks,
-             Min(1 + live_bytes / kLiveMemoryPerCompactionTask,
-                 Max(1, base::SysInfo::NumberOfProcessors() - 1)));
+
+  const int cores = Max(1, base::SysInfo::NumberOfProcessors() - 1);
+  const int tasks =
+      1 + static_cast<int>(static_cast<double>(live_bytes) / compaction_speed /
+                           kTargetCompactionTimeInMs);
+  const int tasks_capped_pages = Min(evacuation_candidates_.length(), tasks);
+  const int tasks_capped_cores = Min(cores, tasks_capped_pages);
+  const int tasks_capped_hard = Min(kMaxCompactionTasks, tasks_capped_cores);
+  return tasks_capped_hard;
 }
 
 
@@ -3333,7 +3342,17 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   const int num_pages = evacuation_candidates_.length();
   if (num_pages == 0) return;
 
+  // Used for trace summary.
+  intptr_t live_bytes = 0;
+  intptr_t compaction_speed = 0;
+  if (FLAG_trace_fragmentation) {
+    for (Page* page : evacuation_candidates_) {
+      live_bytes += page->LiveBytes();
+    }
+    compaction_speed = heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
+  }
   const int num_tasks = NumberOfParallelCompactionTasks();
+
 
   // Set up compaction spaces.
   CompactionSpaceCollection** compaction_spaces_for_tasks =
@@ -3361,15 +3380,20 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   WaitUntilCompactionCompleted();
 
+  double compaction_duration = 0.0;
+  intptr_t compacted_memory = 0;
   // Merge back memory (compacted and unused) from compaction spaces.
   for (int i = 0; i < num_tasks; i++) {
     heap()->old_space()->MergeCompactionSpace(
         compaction_spaces_for_tasks[i]->Get(OLD_SPACE));
     heap()->code_space()->MergeCompactionSpace(
         compaction_spaces_for_tasks[i]->Get(CODE_SPACE));
+    compacted_memory += compaction_spaces_for_tasks[i]->bytes_compacted();
+    compaction_duration += compaction_spaces_for_tasks[i]->duration();
     delete compaction_spaces_for_tasks[i];
   }
   delete[] compaction_spaces_for_tasks;
+  heap()->tracer()->AddCompactionEvent(compaction_duration, compacted_memory);
 
   // Finalize sequentially.
   int abandoned_pages = 0;
@@ -3410,10 +3434,12 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   if (FLAG_trace_fragmentation) {
     PrintIsolate(isolate(),
                  "%8.0f ms: compaction: parallel=%d pages=%d aborted=%d "
-                 "tasks=%d cores=%d\n",
+                 "tasks=%d cores=%d live_bytes=%" V8_PTR_PREFIX
+                 "d compaction_speed=%" V8_PTR_PREFIX "d\n",
                  isolate()->time_millis_since_init(), FLAG_parallel_compaction,
                  num_pages, abandoned_pages, num_tasks,
-                 base::SysInfo::NumberOfProcessors());
+                 base::SysInfo::NumberOfProcessors(), live_bytes,
+                 compaction_speed);
   }
 }
 
@@ -3441,11 +3467,15 @@ void MarkCompactCollector::EvacuatePages(
       if (p->IsEvacuationCandidate()) {
         DCHECK_EQ(p->parallel_compaction_state().Value(),
                   MemoryChunk::kCompactingInProgress);
+        double start = heap()->MonotonicallyIncreasingTimeInMs();
+        intptr_t live_bytes = p->LiveBytes();
         if (EvacuateLiveObjectsFromPage(
                 p, compaction_spaces->Get(p->owner()->identity()),
                 evacuation_slots_buffer)) {
           p->parallel_compaction_state().SetValue(
               MemoryChunk::kCompactingFinalize);
+          compaction_spaces->ReportCompactionProgress(
+              heap()->MonotonicallyIncreasingTimeInMs() - start, live_bytes);
         } else {
           p->parallel_compaction_state().SetValue(
               MemoryChunk::kCompactingAborted);
