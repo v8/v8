@@ -179,15 +179,18 @@ DEFINE_BOOL(strong_mode, false, "experimental strong language mode")
 DEFINE_IMPLICATION(use_strong, strong_mode)
 DEFINE_BOOL(strong_this, true, "don't allow 'this' to escape from constructors")
 
-DEFINE_BOOL(es_staging, false, "enable all completed harmony features")
+DEFINE_BOOL(es_staging, false,
+            "enable test-worthy harmony features (for internal use only)")
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
-DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
 DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
 // ES2015 const semantics are staged
-DEFINE_NEG_IMPLICATION(es_staging, legacy_const)
+DEFINE_NEG_IMPLICATION(harmony, legacy_const)
+
+// Activate on ClusterFuzz.
+DEFINE_IMPLICATION(es_staging, harmony_destructuring)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                         \
@@ -232,7 +235,7 @@ HARMONY_INPROGRESS(FLAG_INPROGRESS_FEATURES)
 
 #define FLAG_STAGED_FEATURES(id, description) \
   DEFINE_BOOL(id, false, "enable " #description) \
-  DEFINE_IMPLICATION(es_staging, id)
+  DEFINE_IMPLICATION(harmony, id)
 HARMONY_STAGED(FLAG_STAGED_FEATURES)
 #undef FLAG_STAGED_FEATURES
 
