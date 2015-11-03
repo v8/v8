@@ -44,14 +44,19 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadAccumulatorWithRegister(reg).StoreAccumulatorInRegister(reg);
 
   // Emit global load / store operations.
-  builder.LoadGlobal(0, 1, LanguageMode::SLOPPY)
-      .LoadGlobal(0, 1, LanguageMode::STRICT)
+  builder.LoadGlobal(0, 1, LanguageMode::SLOPPY, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(0, 1, LanguageMode::STRICT, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(0, 1, LanguageMode::SLOPPY, TypeofMode::INSIDE_TYPEOF)
+      .LoadGlobal(0, 1, LanguageMode::STRICT, TypeofMode::INSIDE_TYPEOF)
       .StoreGlobal(0, 1, LanguageMode::SLOPPY)
       .StoreGlobal(0, 1, LanguageMode::STRICT);
 
   // Emit wide global load / store operations.
-  builder.LoadGlobal(0, 1024, LanguageMode::SLOPPY)
-      .LoadGlobal(1024, 1, LanguageMode::STRICT)
+  builder.LoadGlobal(0, 1024, LanguageMode::SLOPPY,
+                     TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(1024, 1, LanguageMode::STRICT, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(0, 1024, LanguageMode::SLOPPY, TypeofMode::INSIDE_TYPEOF)
+      .LoadGlobal(1024, 1, LanguageMode::STRICT, TypeofMode::INSIDE_TYPEOF)
       .StoreGlobal(0, 1024, LanguageMode::SLOPPY)
       .StoreGlobal(1024, 1, LanguageMode::STRICT);
 

@@ -47,8 +47,12 @@ namespace interpreter {
   /* Globals */                                                                \
   V(LdaGlobalSloppy, OperandType::kIdx8, OperandType::kIdx8)                   \
   V(LdaGlobalStrict, OperandType::kIdx8, OperandType::kIdx8)                   \
+  V(LdaGlobalInsideTypeofSloppy, OperandType::kIdx8, OperandType::kIdx8)       \
+  V(LdaGlobalInsideTypeofStrict, OperandType::kIdx8, OperandType::kIdx8)       \
   V(LdaGlobalSloppyWide, OperandType::kIdx16, OperandType::kIdx16)             \
   V(LdaGlobalStrictWide, OperandType::kIdx16, OperandType::kIdx16)             \
+  V(LdaGlobalInsideTypeofSloppyWide, OperandType::kIdx16, OperandType::kIdx16) \
+  V(LdaGlobalInsideTypeofStrictWide, OperandType::kIdx16, OperandType::kIdx16) \
   V(StaGlobalSloppy, OperandType::kIdx8, OperandType::kIdx8)                   \
   V(StaGlobalStrict, OperandType::kIdx8, OperandType::kIdx8)                   \
   V(StaGlobalSloppyWide, OperandType::kIdx16, OperandType::kIdx16)             \

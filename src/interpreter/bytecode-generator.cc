@@ -1193,7 +1193,8 @@ void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
 
 
 void BytecodeGenerator::VisitVariableLoad(Variable* variable,
-                                          FeedbackVectorSlot slot) {
+                                          FeedbackVectorSlot slot,
+                                          TypeofMode typeof_mode) {
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
       Register source(Register(variable->index()));
@@ -1210,7 +1211,8 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       size_t name_index = builder()->GetConstantPoolEntry(variable->name());
-      builder()->LoadGlobal(name_index, feedback_index(slot), language_mode());
+      builder()->LoadGlobal(name_index, feedback_index(slot), language_mode(),
+                            typeof_mode);
       execution_result()->SetResultInAccumulator();
       break;
     }
@@ -1247,16 +1249,16 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
 
 
 void BytecodeGenerator::VisitVariableLoadForAccumulatorValue(
-    Variable* variable, FeedbackVectorSlot slot) {
+    Variable* variable, FeedbackVectorSlot slot, TypeofMode typeof_mode) {
   AccumulatorResultScope accumulator_result(this);
-  VisitVariableLoad(variable, slot);
+  VisitVariableLoad(variable, slot, typeof_mode);
 }
 
 
 Register BytecodeGenerator::VisitVariableLoadForRegisterValue(
-    Variable* variable, FeedbackVectorSlot slot) {
+    Variable* variable, FeedbackVectorSlot slot, TypeofMode typeof_mode) {
   RegisterResultScope register_scope(this);
-  VisitVariableLoad(variable, slot);
+  VisitVariableLoad(variable, slot, typeof_mode);
   return register_scope.ResultRegister();
 }
 
@@ -1616,9 +1618,15 @@ void BytecodeGenerator::VisitVoid(UnaryOperation* expr) {
 
 
 void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
-  // TODO(rmcilroy): Set TypeofMode to INSIDE_TYPEOF for any loadICs performed
-  // while visiting the expression.
-  VisitForAccumulatorValue(expr->expression());
+  if (expr->expression()->IsVariableProxy()) {
+    // Typeof does not throw a reference error on global variables, hence we
+    // perform a non-contextual load in case the operand is a variable proxy.
+    VariableProxy* proxy = expr->expression()->AsVariableProxy();
+    VisitVariableLoadForAccumulatorValue(
+        proxy->var(), proxy->VariableFeedbackSlot(), INSIDE_TYPEOF);
+  } else {
+    VisitForAccumulatorValue(expr->expression());
+  }
   builder()->TypeOf();
   execution_result()->SetResultInAccumulator();
 }

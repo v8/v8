@@ -288,8 +288,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
-    size_t name_index, int feedback_slot, LanguageMode language_mode) {
-  Bytecode bytecode = BytecodeForLoadGlobal(language_mode);
+    size_t name_index, int feedback_slot, LanguageMode language_mode,
+    TypeofMode typeof_mode) {
+  // TODO(rmcilroy): Potentially store language and typeof information in an
+  // operand rather than having extra bytecodes.
+  Bytecode bytecode = BytecodeForLoadGlobal(language_mode, typeof_mode);
   if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
@@ -1030,6 +1033,10 @@ Bytecode BytecodeArrayBuilder::BytecodeForWideOperands(Bytecode bytecode) {
       return Bytecode::kLdaGlobalSloppyWide;
     case Bytecode::kLdaGlobalStrict:
       return Bytecode::kLdaGlobalStrictWide;
+    case Bytecode::kLdaGlobalInsideTypeofSloppy:
+      return Bytecode::kLdaGlobalInsideTypeofSloppyWide;
+    case Bytecode::kLdaGlobalInsideTypeofStrict:
+      return Bytecode::kLdaGlobalInsideTypeofStrictWide;
     case Bytecode::kStaGlobalSloppy:
       return Bytecode::kStaGlobalSloppyWide;
     case Bytecode::kStaGlobalStrict:
@@ -1108,13 +1115,17 @@ Bytecode BytecodeArrayBuilder::BytecodeForKeyedStoreIC(
 
 
 // static
-Bytecode BytecodeArrayBuilder::BytecodeForLoadGlobal(
-    LanguageMode language_mode) {
+Bytecode BytecodeArrayBuilder::BytecodeForLoadGlobal(LanguageMode language_mode,
+                                                     TypeofMode typeof_mode) {
   switch (language_mode) {
     case SLOPPY:
-      return Bytecode::kLdaGlobalSloppy;
+      return typeof_mode == INSIDE_TYPEOF
+                 ? Bytecode::kLdaGlobalInsideTypeofSloppy
+                 : Bytecode::kLdaGlobalSloppy;
     case STRICT:
-      return Bytecode::kLdaGlobalStrict;
+      return typeof_mode == INSIDE_TYPEOF
+                 ? Bytecode::kLdaGlobalInsideTypeofStrict
+                 : Bytecode::kLdaGlobalStrict;
     case STRONG:
       UNIMPLEMENTED();
     default:

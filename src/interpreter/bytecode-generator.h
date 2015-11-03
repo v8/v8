@@ -60,11 +60,14 @@ class BytecodeGenerator : public AstVisitor {
   void VisitPropertyLoad(Register obj, Property* expr);
   void VisitPropertyLoadForAccumulator(Register obj, Property* expr);
 
-  void VisitVariableLoad(Variable* variable, FeedbackVectorSlot slot);
-  void VisitVariableLoadForAccumulatorValue(Variable* variable,
-                                            FeedbackVectorSlot slot);
-  MUST_USE_RESULT Register VisitVariableLoadForRegisterValue(
-      Variable* variable, FeedbackVectorSlot slot);
+  void VisitVariableLoad(Variable* variable, FeedbackVectorSlot slot,
+                         TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
+  void VisitVariableLoadForAccumulatorValue(
+      Variable* variable, FeedbackVectorSlot slot,
+      TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
+  MUST_USE_RESULT Register
+  VisitVariableLoadForRegisterValue(Variable* variable, FeedbackVectorSlot slot,
+                                    TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   void VisitVariableAssignment(Variable* variable, FeedbackVectorSlot slot);
 
   void VisitArgumentsObject(Variable* variable);

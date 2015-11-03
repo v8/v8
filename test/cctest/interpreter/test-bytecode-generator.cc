@@ -2456,19 +2456,6 @@ TEST(UnaryOperators) {
        1,
        {1234}},
       {"var x = 13;"
-       "return typeof(x);",
-       kPointerSize,
-       1,
-       8,
-       {
-           B(LdaSmi8), U8(13),  //
-           B(Star), R(0),       // TODO(oth): Ldar R(X) following Star R(X)
-           B(Ldar), R(0),       // could be culled in bytecode array builder.
-           B(TypeOf),           //
-           B(Return),           //
-       },
-       0},
-      {"var x = 13;"
        "return ~x;",
        1 * kPointerSize,
        1,
@@ -2511,6 +2498,73 @@ TEST(UnaryOperators) {
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(Typeof) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function f() {\n"
+       " var x = 13;\n"
+       " return typeof(x);\n"
+       "}; f();",
+       kPointerSize,
+       1,
+       8,
+       {
+           B(LdaSmi8), U8(13),  //
+           B(Star), R(0),       // TODO(oth): Ldar R(X) following Star R(X)
+           B(Ldar), R(0),       // could be culled in bytecode array builder.
+           B(TypeOf),           //
+           B(Return),           //
+       }},
+      {"var x = 13;\n"
+       "function f() {\n"
+       " return typeof(x);\n"
+       "}; f();",
+       0,
+       1,
+       5,
+       {
+           B(LdaGlobalInsideTypeofSloppy), U8(0),                       //
+                                           U8(vector->GetIndex(slot)),  //
+           B(TypeOf),                                                   //
+           B(Return),                                                   //
+       },
+       1,
+       {"x"}},
+      {"var x = 13;\n"
+       "function f() {\n"
+       " 'use strict';\n"
+       " return typeof(x);\n"
+       "}; f();",
+       0,
+       1,
+       5,
+       {
+           B(LdaGlobalInsideTypeofStrict), U8(0),                       //
+                                           U8(vector->GetIndex(slot)),  //
+           B(TypeOf),                                                   //
+           B(Return),                                                   //
+       },
+       1,
+       {"x"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunction(snippets[i].code_snippet);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }

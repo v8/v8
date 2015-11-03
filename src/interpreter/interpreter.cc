@@ -243,6 +243,30 @@ void Interpreter::DoLdaGlobalStrict(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// LdaGlobalInsideTypeofSloppy <name_index> <slot>
+//
+// Load the global with name in constant pool entry <name_index> into the
+// accumulator using FeedBackVector slot <slot> in sloppy mode.
+void Interpreter::DoLdaGlobalInsideTypeofSloppy(
+    compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
+                                                   SLOPPY, UNINITIALIZED);
+  DoLoadGlobal(ic, assembler);
+}
+
+
+// LdaGlobalInsideTypeofStrict <name_index> <slot>
+//
+// Load the global with name in constant pool entry <name_index> into the
+// accumulator using FeedBackVector slot <slot> in strict mode.
+void Interpreter::DoLdaGlobalInsideTypeofStrict(
+    compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
+                                                   STRICT, UNINITIALIZED);
+  DoLoadGlobal(ic, assembler);
+}
+
+
 // LdaGlobalSloppyWide <name_index> <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
@@ -262,6 +286,30 @@ void Interpreter::DoLdaGlobalSloppyWide(
 void Interpreter::DoLdaGlobalStrictWide(
     compiler::InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
+                                                   STRICT, UNINITIALIZED);
+  DoLoadGlobal(ic, assembler);
+}
+
+
+// LdaGlobalInsideTypeofSloppyWide <name_index> <slot>
+//
+// Load the global with name in constant pool entry <name_index> into the
+// accumulator using FeedBackVector slot <slot> in sloppy mode.
+void Interpreter::DoLdaGlobalInsideTypeofSloppyWide(
+    compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
+                                                   SLOPPY, UNINITIALIZED);
+  DoLoadGlobal(ic, assembler);
+}
+
+
+// LdaGlobalInsideTypeofSloppyWide <name_index> <slot>
+//
+// Load the global with name in constant pool entry <name_index> into the
+// accumulator using FeedBackVector slot <slot> in strict mode.
+void Interpreter::DoLdaGlobalInsideTypeofStrictWide(
+    compiler::InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
                                                    STRICT, UNINITIALIZED);
   DoLoadGlobal(ic, assembler);
 }

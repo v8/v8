@@ -268,6 +268,18 @@ void BytecodeGraphBuilder::VisitLdaGlobalStrict(
 }
 
 
+void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeofSloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeofStrict(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitLdaGlobalSloppyWide(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
@@ -275,6 +287,18 @@ void BytecodeGraphBuilder::VisitLdaGlobalSloppyWide(
 
 
 void BytecodeGraphBuilder::VisitLdaGlobalStrictWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeofSloppyWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeofStrictWide(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
 }

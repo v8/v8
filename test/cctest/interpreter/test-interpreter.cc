@@ -1640,38 +1640,29 @@ TEST(InterpreterUnaryNotNonBoolean) {
 }
 
 
-TEST(InterpreterTypeOf) {
+TEST(InterpreterTypeof) {
   HandleAndZoneScope handles;
-  i::Factory* factory = handles.main_isolate()->factory();
 
-  std::pair<Handle<Object>, const char*> object_type_tuples[] = {
-      std::make_pair(factory->undefined_value(), "undefined"),
-      std::make_pair(factory->null_value(), "object"),
-      std::make_pair(factory->true_value(), "boolean"),
-      std::make_pair(factory->false_value(), "boolean"),
-      std::make_pair(factory->NewNumber(9.1), "number"),
-      std::make_pair(factory->NewNumberFromInt(7771), "number"),
-      std::make_pair(
-          Handle<Object>::cast(factory->NewStringFromStaticChars("hello")),
-          "string"),
+  std::pair<const char*, const char*> typeof_vals[] = {
+      std::make_pair("return typeof undefined;", "undefined"),
+      std::make_pair("return typeof null;", "object"),
+      std::make_pair("return typeof true;", "boolean"),
+      std::make_pair("return typeof false;", "boolean"),
+      std::make_pair("return typeof 9.1;", "number"),
+      std::make_pair("return typeof 7771;", "number"),
+      std::make_pair("return typeof 'hello';", "string"),
+      std::make_pair("return typeof global_unallocated;", "undefined"),
   };
 
-  for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    Register r0(0);
-    builder.set_locals_count(0);
-    builder.set_context_count(0);
-    builder.set_parameter_count(0);
-    LoadAny(&builder, factory, object_type_tuples[i].first);
-    builder.TypeOf();
-    builder.Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  for (size_t i = 0; i < arraysize(typeof_vals); i++) {
+    std::string source(InterpreterTester::SourceForBody(typeof_vals[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+
     auto callable = tester.GetCallable<>();
     Handle<v8::internal::String> return_value =
         Handle<v8::internal::String>::cast(callable().ToHandleChecked());
     auto actual = return_value->ToCString();
-    CHECK_EQ(strcmp(&actual[0], object_type_tuples[i].second), 0);
+    CHECK_EQ(strcmp(&actual[0], typeof_vals[i].second), 0);
   }
 }
 

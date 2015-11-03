@@ -82,7 +82,8 @@ class BytecodeArrayBuilder {
 
   // Global loads to the accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(size_t name_index, int feedback_slot,
-                                   LanguageMode language_mode);
+                                   LanguageMode language_mode,
+                                   TypeofMode typeof_mode);
   BytecodeArrayBuilder& StoreGlobal(size_t name_index, int feedback_slot,
                                     LanguageMode language_mode);
 
@@ -208,7 +209,8 @@ class BytecodeArrayBuilder {
   static Bytecode BytecodeForKeyedLoadIC(LanguageMode language_mode);
   static Bytecode BytecodeForStoreIC(LanguageMode language_mode);
   static Bytecode BytecodeForKeyedStoreIC(LanguageMode language_mode);
-  static Bytecode BytecodeForLoadGlobal(LanguageMode language_mode);
+  static Bytecode BytecodeForLoadGlobal(LanguageMode language_mode,
+                                        TypeofMode typeof_mode);
   static Bytecode BytecodeForStoreGlobal(LanguageMode language_mode);
   static Bytecode BytecodeForCreateArguments(CreateArgumentsType type);
   static Bytecode BytecodeForDelete(LanguageMode language_mode);
