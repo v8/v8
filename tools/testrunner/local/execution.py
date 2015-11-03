@@ -216,8 +216,10 @@ class Runner(object):
     self.indicator.Starting()
     self._RunInternal(jobs)
     self.indicator.Done()
-    if self.failed or self.remaining:
+    if self.failed:
       return 1
+    elif self.remaining:
+      return 2
     return 0
 
   def _RunInternal(self, jobs):

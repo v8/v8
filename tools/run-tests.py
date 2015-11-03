@@ -788,6 +788,11 @@ def Execute(arch, mode, args, options, suites):
   if num_tests == 0:
     print("Warning: no tests were run!")
 
+  if exit_code == 1 and options.json_test_results:
+    print("Force exit code 0 after failures. Json test results file generated "
+          "with failure information.")
+    exit_code = 0
+
   return exit_code
 
 
