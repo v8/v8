@@ -248,11 +248,10 @@ function prepare(target) {
     // assertFalse(Reflect.set({}, "nowrite", value, target));
 
     // Data vs Accessor
-    // TODO(neis): These must return false but currently don't.
-    // assertFalse(Reflect.set(target, "unknown", value, {set bla(x) {}}));
-    // assertFalse(Reflect.set(target, "unknown", value, {get bla() {}}));
-    // assertFalse(Reflect.set(target, "bla", value, {set bla(x) {}}));
-    // assertFalse(Reflect.set(target, "bla", value, {get bla() {}}));
+    assertFalse(Reflect.set({}, "unknown", 0, {set unknown(x) {}}));
+    assertFalse(Reflect.set(target, "unknown", value, {set unknown(x) {}}));
+    assertFalse(Reflect.set(target, "bla", value, {set bla(x) {}}));
+    assertFalse(Reflect.set(target, "bla", value, {get bla() {}}));
 
     // Accessor vs Data
     assertTrue(Reflect.set({set bla(x) {}}), "bla", value, target);

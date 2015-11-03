@@ -1264,7 +1264,7 @@ class Object {
   MUST_USE_RESULT static Maybe<bool> WriteToReadOnlyProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
       Handle<Object> value, ShouldThrow should_throw);
-  MUST_USE_RESULT static Maybe<bool> RedefineNonconfigurableProperty(
+  MUST_USE_RESULT static Maybe<bool> RedefineIncompatibleProperty(
       Isolate* isolate, Handle<Object> name, Handle<Object> value,
       ShouldThrow should_throw);
   MUST_USE_RESULT static Maybe<bool> SetDataProperty(LookupIterator* it,

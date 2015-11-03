@@ -3738,6 +3738,9 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
       SetPropertyInternal(it, value, language_mode, store_mode, &found);
   if (found) return result;
 
+  // The property either doesn't exist on the holder or exists there as a data
+  // property.
+
   if (!it->GetReceiver()->IsJSReceiver()) {
     return WriteToReadOnlyProperty(it, value, should_throw);
   }
@@ -3758,8 +3761,8 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
         break;
 
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
-                                               value, should_throw);
+        return RedefineIncompatibleProperty(it->isolate(), it->GetName(), value,
+                                            should_throw);
 
       case LookupIterator::DATA: {
         PropertyDetails details = own_lookup.property_details();
@@ -3771,14 +3774,8 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
       }
 
       case LookupIterator::ACCESSOR: {
-        PropertyDetails details = own_lookup.property_details();
-        if (details.IsConfigurable()) {
-          return JSObject::DefineOwnPropertyIgnoreAttributes(
-              &own_lookup, value, details.attributes(), should_throw);
-        }
-
-        return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
-                                               value, should_throw);
+        return RedefineIncompatibleProperty(it->isolate(), it->GetName(), value,
+                                            should_throw);
       }
 
       case LookupIterator::INTERCEPTOR:
@@ -3857,10 +3854,10 @@ Maybe<bool> Object::WriteToReadOnlyProperty(Isolate* isolate,
 }
 
 
-Maybe<bool> Object::RedefineNonconfigurableProperty(Isolate* isolate,
-                                                    Handle<Object> name,
-                                                    Handle<Object> value,
-                                                    ShouldThrow should_throw) {
+Maybe<bool> Object::RedefineIncompatibleProperty(Isolate* isolate,
+                                                 Handle<Object> name,
+                                                 Handle<Object> value,
+                                                 ShouldThrow should_throw) {
   RETURN_FAILURE(isolate, should_throw,
                  NewTypeError(MessageTemplate::kRedefineDisallowed, name));
 }
@@ -4850,8 +4847,8 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         return Just(true);
       }
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
-                                               value, should_throw);
+        return RedefineIncompatibleProperty(it->isolate(), it->GetName(), value,
+                                            should_throw);
 
       case LookupIterator::DATA: {
         PropertyDetails details = it->property_details();
@@ -4864,8 +4861,8 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         // Special case: properties of typed arrays cannot be reconfigured to
         // non-writable nor to non-enumerable.
         if (it->IsElement() && object->HasFixedTypedArrayElements()) {
-          return RedefineNonconfigurableProperty(it->isolate(), it->GetName(),
-                                                 value, should_throw);
+          return RedefineIncompatibleProperty(it->isolate(), it->GetName(),
+                                              value, should_throw);
         }
 
         // Reconfigure the data property if the attributes mismatch.
