@@ -361,15 +361,15 @@ namespace internal {
   V(search_symbol, Symbol.search)             \
   V(split_symbol, Symbol.split)               \
   V(to_primitive_symbol, Symbol.toPrimitive)  \
-  V(to_string_tag_symbol, Symbol.toStringTag) \
   V(unscopables_symbol, Symbol.unscopables)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
 // them to produce an undefined value when a load results in a failed access
 // check. Because this behaviour is not specified properly as of yet, it only
 // applies to a subset of spec-defined Well-Known Symbols.
-#define WELL_KNOWN_SYMBOL_LIST(V) \
-  V(is_concat_spreadable_symbol, Symbol.isConcatSpreadable)
+#define WELL_KNOWN_SYMBOL_LIST(V)                           \
+  V(is_concat_spreadable_symbol, Symbol.isConcatSpreadable) \
+  V(to_string_tag_symbol, Symbol.toStringTag)
 
 // Heap roots that are known to be immortal immovable, for which we can safely
 // skip write barriers. This list is not complete and has omissions.

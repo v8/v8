@@ -22018,6 +22018,34 @@ TEST(AccessCheckedIsConcatSpreadable) {
 }
 
 
+TEST(AccessCheckedToStringTag) {
+  i::FLAG_harmony_tostring = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+
+  // Object with access check
+  Local<ObjectTemplate> object_template = v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallback(AccessBlocker);
+  Local<Object> object = object_template->NewInstance();
+
+  allowed_access = true;
+  env->Global()->Set(v8_str("object"), object);
+  object->Set(v8::Symbol::GetToStringTag(isolate), v8_str("hello"));
+
+  // Access check is allowed, and the toStringTag is read
+  CompileRun("var result = Object.prototype.toString.call(object)");
+  ExpectString("result", "[object hello]");
+  ExpectString("object[Symbol.toStringTag]", "hello");
+
+  // If access check fails, the value of @@toStringTag is ignored
+  allowed_access = false;
+  CompileRun("var result = Object.prototype.toString.call(object)");
+  ExpectString("result", "[object Object]");
+  ExpectTrue("object[Symbol.toStringTag] === undefined");
+}
+
+
 TEST(ObjectTemplateIntrinsics) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
