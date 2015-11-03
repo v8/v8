@@ -1978,8 +1978,8 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
   class F extends Object { }
   var f = new F(42);
 
-  // TODO(dslomov,arv): Fix this. BUG=v8:3886.
-  assertInstanceof(f, Number);
+  assertInstanceof(f, F);
+  assertInstanceof(f, Object);
 }());
 
 

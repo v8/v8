@@ -18,6 +18,55 @@ function checkPrototypeChain(object, constructors) {
 
 
 (function() {
+  class A extends Object {
+    constructor(...args) {
+      assertTrue(%IsConstructCall());
+      super(...args);
+      this.a = 42;
+      this.d = 4.2;
+    }
+  }
+
+  var s = new A("foo");
+  assertTrue(s instanceof Object);
+  assertTrue(s instanceof A);
+  assertEquals("object", typeof s);
+  checkPrototypeChain(s, [A, Object]);
+  assertEquals(42, s.a);
+  assertEquals(4.2, s.d);
+
+  var s1 = new A("bar");
+  assertTrue(%HaveSameMap(s, s1));
+
+
+  var n = new A(153);
+  assertTrue(n instanceof Object);
+  assertTrue(n instanceof A);
+  assertEquals("object", typeof s);
+  checkPrototypeChain(s, [A, Object]);
+  assertEquals(42, n.a);
+  assertEquals(4.2, n.d);
+
+  var n1 = new A(312);
+  assertTrue(%HaveSameMap(n, n1));
+  assertTrue(%HaveSameMap(n, s));
+
+
+  var b = new A(true);
+  assertTrue(b instanceof Object);
+  assertTrue(b instanceof A);
+  assertEquals("object", typeof s);
+  checkPrototypeChain(s, [A, Object]);
+  assertEquals(42, b.a);
+  assertEquals(4.2, b.d);
+
+  var b1 = new A(true);
+  assertTrue(%HaveSameMap(b, b1));
+  assertTrue(%HaveSameMap(b, s));
+})();
+
+
+(function() {
   class A extends Function {
     constructor(...args) {
       assertTrue(%IsConstructCall());

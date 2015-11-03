@@ -1311,14 +1311,13 @@ function ObjectSetProto(proto) {
 }
 
 
+// ECMA-262, Edition 6, section 19.1.1.1
 function ObjectConstructor(x) {
-  if (%_IsConstructCall()) {
-    if (x == null) return this;
-    return TO_OBJECT(x);
-  } else {
-    if (x == null) return { };
-    return TO_OBJECT(x);
+  if (GlobalObject != new.target && !IS_UNDEFINED(new.target)) {
+    return this;
   }
+  if (IS_NULL(x) || IS_UNDEFINED(x)) return {};
+  return TO_OBJECT(x);
 }
 
 
