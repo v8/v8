@@ -673,7 +673,7 @@ DEFINE_INT(min_progress_during_incremental_marking_finalization, 32,
 DEFINE_INT(max_incremental_marking_finalization_rounds, 3,
            "at most try this many times to finalize incremental marking")
 DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
-DEFINE_BOOL(parallel_compaction, false, "use parallel compaction")
+DEFINE_BOOL(parallel_compaction, true, "use parallel compaction")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_BOOL(track_gc_object_stats, false,
