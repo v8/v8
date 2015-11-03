@@ -354,10 +354,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Ensure that {receiver} is a heap object.
   Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-  exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+  Node* branch = graph()->NewNode(common()->Branch(), check, control);
   control = graph()->NewNode(common()->IfFalse(), branch);
+  Node* receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
+  Node* receiverissmi_effect = effect;
 
   // Load the {receiver} map. The resulting effect is the dominating effect for
   // all (polymorphic) branches.
@@ -388,8 +388,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
       this_control = graph()->NewNode(common()->IfTrue(), branch);
     } else {
-      // Emit a (sequence of) map checks for other properties.
+      // Emit a (sequence of) map checks for other {receiver}s.
       ZoneVector<Node*> this_controls(zone());
+      ZoneVector<Node*> this_effects(zone());
       for (auto i = access_info.receiver_type()->Classes(); !i.Done();
            i.Advance()) {
         Handle<Map> map = i.Current();
@@ -398,15 +399,37 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                              receiver_map, jsgraph()->Constant(map));
         Node* branch =
             graph()->NewNode(common()->Branch(), check, fallthrough_control);
-        this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
         fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+        this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+        this_effects.push_back(this_effect);
       }
+
+      // The Number case requires special treatment to also deal with Smis.
+      if (receiver_type->Is(Type::Number())) {
+        // Join this check with the "receiver is smi" check above, and mark the
+        // "receiver is smi" check as "consumed" so that we don't deoptimize if
+        // the {receiver} is actually a Smi.
+        if (receiverissmi_control != nullptr) {
+          this_controls.push_back(receiverissmi_control);
+          this_effects.push_back(receiverissmi_effect);
+          receiverissmi_control = receiverissmi_effect = nullptr;
+        }
+      }
+
+      // Create dominating Merge+EffectPhi for this {receiver} type.
       int const this_control_count = static_cast<int>(this_controls.size());
       this_control =
           (this_control_count == 1)
               ? this_controls.front()
               : graph()->NewNode(common()->Merge(this_control_count),
                                  this_control_count, &this_controls.front());
+      this_effects.push_back(this_control);
+      int const this_effect_count = static_cast<int>(this_effects.size());
+      this_effect =
+          (this_control_count == 1)
+              ? this_effects.front()
+              : graph()->NewNode(common()->EffectPhi(this_control_count),
+                                 this_effect_count, &this_effects.front());
     }
 
     // Determine actual holder and perform prototype chain checks.
@@ -584,16 +607,18 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Collect the fallthrough control as final "exit" control.
   if (fallthrough_control != control) {
     // Mark the last fallthrough branch as deferred.
-    Node* branch = NodeProperties::GetControlInput(fallthrough_control);
-    DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
-    if (fallthrough_control->opcode() == IrOpcode::kIfTrue) {
-      NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kFalse));
-    } else {
-      DCHECK_EQ(IrOpcode::kIfFalse, fallthrough_control->opcode());
-      NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kTrue));
-    }
+    MarkAsDeferred(fallthrough_control);
   }
   exit_controls.push_back(fallthrough_control);
+
+  // Also collect the "receiver is smi" control if we didn't handle the case of
+  // Number primitives in the polymorphic branches above.
+  if (receiverissmi_control != nullptr) {
+    // Mark the "receiver is smi" case as deferred.
+    MarkAsDeferred(receiverissmi_control);
+    DCHECK_EQ(exit_effect, receiverissmi_effect);
+    exit_controls.push_back(receiverissmi_control);
+  }
 
   // Generate the single "exit" point, where we get if either all map/instance
   // type checks failed, or one of the assumptions inside one of the cases
@@ -876,14 +901,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   // Collect the fallthrough control as final "exit" control.
   if (fallthrough_control != control) {
     // Mark the last fallthrough branch as deferred.
-    Node* branch = NodeProperties::GetControlInput(fallthrough_control);
-    DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
-    if (fallthrough_control->opcode() == IrOpcode::kIfTrue) {
-      NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kFalse));
-    } else {
-      DCHECK_EQ(IrOpcode::kIfFalse, fallthrough_control->opcode());
-      NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kTrue));
-    }
+    MarkAsDeferred(fallthrough_control);
   }
   exit_controls.push_back(fallthrough_control);
 
@@ -1049,6 +1067,18 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
       // Stop once we get to the holder.
       if (prototype.is_identical_to(holder)) break;
     }
+  }
+}
+
+
+void JSNativeContextSpecialization::MarkAsDeferred(Node* if_projection) {
+  Node* branch = NodeProperties::GetControlInput(if_projection);
+  DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
+  if (if_projection->opcode() == IrOpcode::kIfTrue) {
+    NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kFalse));
+  } else {
+    DCHECK_EQ(IrOpcode::kIfFalse, if_projection->opcode());
+    NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kTrue));
   }
 }
 

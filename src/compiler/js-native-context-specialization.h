@@ -87,6 +87,10 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   // {receiver_type} up to (and including) the {holder}.
   void AssumePrototypesStable(Type* receiver_type, Handle<JSObject> holder);
 
+  // Assuming that {if_projection} is either IfTrue or IfFalse, adds a hint on
+  // the dominating Branch that {if_projection} is the unlikely (deferred) case.
+  void MarkAsDeferred(Node* if_projection);
+
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;

@@ -28,8 +28,7 @@ bool CanInlineElementAccess(Handle<Map> map) {
 
 
 bool CanInlinePropertyAccess(Handle<Map> map) {
-  // TODO(bmeurer): Add support for Number primitives.
-  // if (map->instance_type() == HEAP_NUMBER_TYPE) return false;
+  if (map->instance_type() == HEAP_NUMBER_TYPE) return true;
   if (map->instance_type() < FIRST_NONSTRING_TYPE) return true;
   return map->IsJSObjectMap() && !map->is_dictionary_map() &&
          !map->has_named_interceptor() &&
