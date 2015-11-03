@@ -385,6 +385,23 @@
 })();
 
 
+// Has to be top-level to be inlined.
+function get_new_target() { return new.target; }
+(function TestInlining() {
+  "use strict";
+  new function() { assertEquals(undefined, get_new_target()); }
+  new function() { assertEquals(get_new_target, new get_new_target()); }
+
+  class A extends get_new_target {
+    constructor() {
+      var new_target = super();
+      this.new_target = new_target;
+    }
+  }
+  assertEquals(A, new A().new_target);
+})();
+
+
 (function TestEarlyErrors() {
   assertThrows(function() { Function("new.target = 42"); }, ReferenceError);
   assertThrows(function() { Function("var foo = 1; new.target = foo = 42"); }, ReferenceError);

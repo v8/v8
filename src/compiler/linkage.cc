@@ -227,7 +227,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kFinalizeClassDefinition:        // TODO(conradw): Is it safe?
     case Runtime::kForInDone:
     case Runtime::kForInStep:
-    case Runtime::kGetOriginalConstructor:
     case Runtime::kNewClosure:
     case Runtime::kNewClosure_Tenured:
     case Runtime::kNewFunctionContext:

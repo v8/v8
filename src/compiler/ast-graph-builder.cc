@@ -3255,6 +3255,7 @@ Node* AstGraphBuilder::BuildNewTargetVariable(Variable* new_target_var) {
   const Operator* op =
       javascript()->CallRuntime(Runtime::kGetOriginalConstructor, 0);
   Node* object = NewNode(op);
+  PrepareFrameState(object, BailoutId::None());
 
   // Assign the object to the {new.target} variable. This should never lazy
   // deopt, so it is fine to send invalid bailout id.

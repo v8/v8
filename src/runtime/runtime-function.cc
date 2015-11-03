@@ -542,8 +542,10 @@ RUNTIME_FUNCTION(Runtime_GetOriginalConstructor) {
   DCHECK(args.length() == 0);
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  return frame->IsConstructor() ? frame->GetOriginalConstructor()
-                                : isolate->heap()->undefined_value();
+  // Currently we don't inline [[Construct]] calls.
+  return frame->IsConstructor() && !frame->HasInlinedFrames()
+             ? frame->GetOriginalConstructor()
+             : isolate->heap()->undefined_value();
 }
 
 

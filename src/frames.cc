@@ -749,7 +749,7 @@ bool JavaScriptFrame::IsConstructor() const {
 }
 
 
-bool JavaScriptFrame::HasInlinedFrames() {
+bool JavaScriptFrame::HasInlinedFrames() const {
   List<JSFunction*> functions(1);
   GetFunctions(&functions);
   return functions.length() > 1;
@@ -757,6 +757,7 @@ bool JavaScriptFrame::HasInlinedFrames() {
 
 
 Object* JavaScriptFrame::GetOriginalConstructor() const {
+  DCHECK(!HasInlinedFrames());
   Address fp = caller_fp();
   if (has_adapted_arguments()) {
     // Skip the arguments adaptor frame and look at the real caller.
@@ -799,7 +800,7 @@ Address JavaScriptFrame::GetCallerStackPointer() const {
 }
 
 
-void JavaScriptFrame::GetFunctions(List<JSFunction*>* functions) {
+void JavaScriptFrame::GetFunctions(List<JSFunction*>* functions) const {
   DCHECK(functions->length() == 0);
   functions->Add(function());
 }
@@ -1041,7 +1042,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
 
 
 DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
-    int* deopt_index) {
+    int* deopt_index) const {
   DCHECK(is_optimized());
 
   JSFunction* opt_function = function();
@@ -1065,7 +1066,7 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
 }
 
 
-void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
+void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) const {
   DCHECK(functions->length() == 0);
   DCHECK(is_optimized());
 
