@@ -6141,11 +6141,11 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
         Handle<Object> getter(
             desc->has_get()
                 ? desc->get()
-                : Handle<Object>::cast(isolate->factory()->undefined_value()));
+                : Handle<Object>::cast(isolate->factory()->null_value()));
         Handle<Object> setter(
             desc->has_set()
                 ? desc->set()
-                : Handle<Object>::cast(isolate->factory()->undefined_value()));
+                : Handle<Object>::cast(isolate->factory()->null_value()));
         MaybeHandle<Object> result =
             JSObject::DefineAccessor(it, getter, setter, desc->ToAttributes());
         if (result.is_null()) return false;
@@ -6338,15 +6338,15 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       Handle<Object> getter(
           desc->has_get()
               ? desc->get()
-              : current.has_get() ? current.get()
-                                  : Handle<Object>::cast(
-                                        isolate->factory()->undefined_value()));
+              : current.has_get()
+                    ? current.get()
+                    : Handle<Object>::cast(isolate->factory()->null_value()));
       Handle<Object> setter(
           desc->has_set()
               ? desc->set()
-              : current.has_set() ? current.set()
-                                  : Handle<Object>::cast(
-                                        isolate->factory()->undefined_value()));
+              : current.has_set()
+                    ? current.set()
+                    : Handle<Object>::cast(isolate->factory()->null_value()));
       MaybeHandle<Object> result =
           JSObject::DefineAccessor(it, getter, setter, attrs);
       if (result.is_null()) return false;
