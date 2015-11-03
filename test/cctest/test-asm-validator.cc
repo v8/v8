@@ -719,6 +719,62 @@ TEST(UnsignedDivide) {
 }
 
 
+TEST(UnsignedFromFloat64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; return (x>>>0)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill typed bitwise operation\n");
+}
+
+
+TEST(TypeMismatchAddInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; var y = 0; return (x + y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(TypeMismatchSubInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; var y = 0; return (x - y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(TypeMismatchDivInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; var y = 0; return (x / y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(TypeMismatchModInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; var y = 0; return (x % y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(ModFloat32) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = fround(1.0); return (x % x)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(TernaryMismatchInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 0.0; return (1 ? x : y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed conditional\n");
+}
+
+
 TEST(FroundFloat32) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; return fround(x); }\n"
@@ -809,6 +865,36 @@ TEST(CompareMismatchInt32Float32) {
       "function bar() { var x = 1; var y = 2; return (x < fround(y))|0; }\n"
       "function foo() { bar(); }",
       "asm: line 39: ill-typed comparison operation\n");
+}
+
+
+TEST(Float64ToInt32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 0.0; x = ~~y; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
+        CHECK_VAR(y, Bounds(cache.kFloat64));
+        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+            CHECK_VAR(y, Bounds(cache.kFloat64));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
 }
 
 

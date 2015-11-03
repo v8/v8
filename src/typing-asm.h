@@ -84,8 +84,9 @@ class AsmTyper : public AstVisitor {
   void VisitWithExpectation(Expression* expr, Type* expected_type,
                             const char* msg);
 
-  void VisitIntegerBinaryOperation(BinaryOperation* expr, Type* expected_type,
-                                   Type* result_type);
+  void VisitIntegerBitwiseOperator(BinaryOperation* expr, Type* left_expected,
+                                   Type* right_expected, Type* result_type,
+                                   bool conversion);
 
   Zone* zone() const { return zone_; }
 

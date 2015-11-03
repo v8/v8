@@ -446,8 +446,9 @@ void AsmTyper::VisitConditional(Conditional* expr) {
       expr->else_expression(), expected_type_,
       "conditional else branch type mismatch with enclosing expression"));
   Type* else_type = computed_type_;
-  Type* type = Type::Intersect(then_type, else_type, zone());
-  if (!(type->Is(cache_.kInt32) || type->Is(cache_.kFloat64))) {
+  Type* type = Type::Union(then_type, else_type, zone());
+  if (!(type->Is(cache_.kInt32) || type->Is(cache_.kUint32) ||
+        type->Is(cache_.kFloat32) || type->Is(cache_.kFloat64))) {
     FAIL(expr, "ill-typed conditional");
   }
   IntersectResult(expr, type);
@@ -794,15 +795,18 @@ void AsmTyper::VisitCountOperation(CountOperation* expr) {
 }
 
 
-void AsmTyper::VisitIntegerBinaryOperation(BinaryOperation* expr,
-                                           Type* expected_type,
-                                           Type* result_type) {
-  RECURSE(VisitWithExpectation(expr->left(), expected_type,
+void AsmTyper::VisitIntegerBitwiseOperator(BinaryOperation* expr,
+                                           Type* left_expected,
+                                           Type* right_expected,
+                                           Type* result_type, bool conversion) {
+  RECURSE(VisitWithExpectation(expr->left(), left_expected,
                                "left bit operand expected to be integer"));
   int left_intish = intish_;
-  RECURSE(VisitWithExpectation(expr->right(), expected_type,
+  Type* left_type = computed_type_;
+  RECURSE(VisitWithExpectation(expr->right(), right_expected,
                                "right bit operand expected to be integer"));
   int right_intish = intish_;
+  Type* right_type = computed_type_;
   if (left_intish > kMaxUncombinedAdditiveSteps) {
     FAIL(expr, "too many consecutive additive ops");
   }
@@ -810,6 +814,11 @@ void AsmTyper::VisitIntegerBinaryOperation(BinaryOperation* expr,
     FAIL(expr, "too many consecutive additive ops");
   }
   intish_ = 0;
+  if (!conversion) {
+    if (!left_type->Is(right_type) || !right_type->Is(left_type)) {
+      FAIL(expr, "ill typed bitwise operation");
+    }
+  }
   IntersectResult(expr, result_type);
 }
 
@@ -829,22 +838,26 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       FAIL(expr, "logical operator encountered");
     case Token::BIT_OR: {
       // BIT_OR allows Any since it is used as a type coercion.
-      VisitIntegerBinaryOperation(expr, Type::Any(), cache_.kInt32);
+      VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kIntegral32,
+                                  cache_.kInt32, true);
       return;
     }
     case Token::BIT_XOR: {
-      // BIT_XOR allows Number since it is used as a type coercion (encoding ~).
-      VisitIntegerBinaryOperation(expr, Type::Number(), cache_.kInt32);
+      // BIT_XOR allows Number since it is used as a type coercion (via ~~).
+      VisitIntegerBitwiseOperator(expr, Type::Number(), cache_.kIntegral32,
+                                  cache_.kInt32, true);
       return;
     }
     case Token::SHR: {
-      VisitIntegerBinaryOperation(expr, Type::Number(), cache_.kUint32);
+      VisitIntegerBitwiseOperator(expr, cache_.kIntegral32, cache_.kIntegral32,
+                                  cache_.kUint32, false);
       return;
     }
     case Token::SHL:
     case Token::SAR:
     case Token::BIT_AND: {
-      VisitIntegerBinaryOperation(expr, cache_.kInt32, cache_.kInt32);
+      VisitIntegerBitwiseOperator(expr, cache_.kIntegral32, cache_.kIntegral32,
+                                  cache_.kInt32, false);
       return;
     }
     case Token::ADD:
@@ -863,7 +876,7 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       Type* right_type = computed_type_;
       int right_intish = intish_;
       Type* type = Type::Union(left_type, right_type, zone());
-      if (type->Is(cache_.kInt32)) {
+      if (type->Is(cache_.kInt32) || type->Is(cache_.kUint32)) {
         if (expr->op() == Token::MUL) {
           if (!expr->left()->IsLiteral() && !expr->right()->IsLiteral()) {
             FAIL(expr, "direct integer multiply forbidden");
@@ -885,7 +898,16 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
           IntersectResult(expr, cache_.kInt32);
           return;
         }
-      } else if (type->Is(Type::Number())) {
+      } else if (expr->op() == Token::MUL &&
+                 left_type->Is(cache_.kIntegral32) &&
+                 right_type->Is(cache_.kFloat64)) {
+        // For unary +, expressed as x * 1.0
+        IntersectResult(expr, cache_.kFloat64);
+        return;
+      } else if (type->Is(cache_.kFloat32) && expr->op() != Token::MOD) {
+        IntersectResult(expr, cache_.kFloat32);
+        return;
+      } else if (type->Is(cache_.kFloat64)) {
         IntersectResult(expr, cache_.kFloat64);
         return;
       } else {

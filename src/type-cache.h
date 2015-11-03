@@ -47,6 +47,8 @@ class TypeCache final {
   Type* const kInteger = CreateRange(-V8_INFINITY, V8_INFINITY);
   Type* const kWeakint = Type::Union(kInteger, Type::MinusZeroOrNaN(), zone());
 
+  Type* const kIntegral32 = Type::Union(kInt32, kUint32, zone());
+
   // The FixedArray::length property always containts a smi in the range
   // [0, FixedArray::kMaxLength].
   Type* const kFixedArrayLengthType = CreateNative(
