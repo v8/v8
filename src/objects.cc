@@ -1071,10 +1071,7 @@ Maybe<bool> JSObject::SetPropertyWithFailedAccessCheck(
 
   it->isolate()->ReportFailedAccessCheck(checked);
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
-  UNREACHABLE();
-  it->isolate()->Throw(
-      *it->isolate()->factory()->NewTypeError(MessageTemplate::kNoAccess));
-  return Nothing<bool>();
+  return Just(true);
 }
 
 
