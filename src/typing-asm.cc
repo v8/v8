@@ -794,6 +794,26 @@ void AsmTyper::VisitCountOperation(CountOperation* expr) {
 }
 
 
+void AsmTyper::VisitIntegerBinaryOperation(BinaryOperation* expr,
+                                           Type* expected_type,
+                                           Type* result_type) {
+  RECURSE(VisitWithExpectation(expr->left(), expected_type,
+                               "left bit operand expected to be integer"));
+  int left_intish = intish_;
+  RECURSE(VisitWithExpectation(expr->right(), expected_type,
+                               "right bit operand expected to be integer"));
+  int right_intish = intish_;
+  if (left_intish > kMaxUncombinedAdditiveSteps) {
+    FAIL(expr, "too many consecutive additive ops");
+  }
+  if (right_intish > kMaxUncombinedAdditiveSteps) {
+    FAIL(expr, "too many consecutive additive ops");
+  }
+  intish_ = 0;
+  IntersectResult(expr, result_type);
+}
+
+
 void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA: {
@@ -807,34 +827,24 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::OR:
     case Token::AND:
       FAIL(expr, "logical operator encountered");
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR: {
+    case Token::BIT_OR: {
       // BIT_OR allows Any since it is used as a type coercion.
+      VisitIntegerBinaryOperation(expr, Type::Any(), cache_.kInt32);
+      return;
+    }
+    case Token::BIT_XOR: {
       // BIT_XOR allows Number since it is used as a type coercion (encoding ~).
-      Type* expectation =
-          expr->op() == Token::BIT_OR
-              ? Type::Any()
-              : expr->op() == Token::BIT_XOR ? Type::Number() : cache_.kInt32;
-      Type* result =
-          expr->op() == Token::SHR ? Type::Unsigned32() : cache_.kInt32;
-      RECURSE(VisitWithExpectation(expr->left(), expectation,
-                                   "left bit operand expected to be integer"));
-      int left_intish = intish_;
-      RECURSE(VisitWithExpectation(expr->right(), expectation,
-                                   "right bit operand expected to be integer"));
-      int right_intish = intish_;
-      if (left_intish > kMaxUncombinedAdditiveSteps) {
-        FAIL(expr, "too many consecutive additive ops");
-      }
-      if (right_intish > kMaxUncombinedAdditiveSteps) {
-        FAIL(expr, "too many consecutive additive ops");
-      }
-      intish_ = 0;
-      IntersectResult(expr, result);
+      VisitIntegerBinaryOperation(expr, Type::Number(), cache_.kInt32);
+      return;
+    }
+    case Token::SHR: {
+      VisitIntegerBinaryOperation(expr, Type::Number(), cache_.kUint32);
+      return;
+    }
+    case Token::SHL:
+    case Token::SAR:
+    case Token::BIT_AND: {
+      VisitIntegerBinaryOperation(expr, cache_.kInt32, cache_.kInt32);
       return;
     }
     case Token::ADD:
@@ -899,7 +909,8 @@ void AsmTyper::VisitCompareOperation(CompareOperation* expr) {
   Type* right_type = computed_type_;
   Type* type = Type::Union(left_type, right_type, zone());
   expr->set_combined_type(type);
-  if (type->Is(Type::Integral32()) || type->Is(Type::UntaggedFloat64())) {
+  if (type->Is(cache_.kInt32) || type->Is(cache_.kUint32) ||
+      type->Is(cache_.kFloat32) || type->Is(cache_.kFloat64)) {
     IntersectResult(expr, cache_.kInt32);
   } else {
     FAIL(expr, "ill-typed comparison operation");

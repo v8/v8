@@ -516,6 +516,41 @@ TEST(ReturnVoid) {
 }
 
 
+TEST(EmptyBody) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE);
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Call, Bounds(Type::Undefined())) {
+        CHECK_VAR(bar, FUNC_V_TYPE);
+      }
+    }
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(DoesNothing) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1.0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
+        CHECK_VAR(x, Bounds(cache.kFloat64));
+        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      }
+    }
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Call, Bounds(Type::Undefined())) {
+        CHECK_VAR(bar, FUNC_V_TYPE);
+      }
+    }
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
 TEST(ReturnInt32Literal) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { return 1; }\n"
@@ -618,6 +653,92 @@ TEST(Addition2) {
 }
 
 
+TEST(UnsignedCompare) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; return ((x>>>0) < (y>>>0))|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(y, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+        CHECK_EXPR(CompareOperation, Bounds(cache.kInt32)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
+            CHECK_VAR(x, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
+            CHECK_VAR(y, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(UnsignedDivide) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; return ((x>>>0) / (y>>>0))|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(y, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+        CHECK_EXPR(BinaryOperation, Bounds(Type::None(), Type::Any())) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
+            CHECK_VAR(x, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
+            CHECK_VAR(y, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(FroundFloat32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; return fround(x); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Call, Bounds(cache.kFloat32)) {
+        CHECK_VAR(fround, FUNC_N2F_TYPE);
+        CHECK_VAR(x, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
 TEST(Addition4) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; var y = 2; return (x+y+x+y)|0; }\n"
@@ -664,6 +785,30 @@ TEST(Division4) {
       "function bar() { var x = 1; var y = 2; return (x/y/x/y)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 39: too many consecutive multiplicative ops\n");
+}
+
+
+TEST(CompareMismatchInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 2.0; return (x < y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed comparison operation\n");
+}
+
+
+TEST(CompareMismatchInt32Uint32) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 2; return (x < (y>>>0))|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed comparison operation\n");
+}
+
+
+TEST(CompareMismatchInt32Float32) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 2; return (x < fround(y))|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed comparison operation\n");
 }
 
 
