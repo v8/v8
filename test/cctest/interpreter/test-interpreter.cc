@@ -1527,12 +1527,11 @@ TEST(InterpreterUnaryNot) {
     builder.set_locals_count(0);
     builder.set_context_count(0);
     builder.set_parameter_count(0);
-    builder.EnterBlock();
     builder.LoadFalse();
     for (size_t j = 0; j < i; j++) {
       builder.LogicalNot();
     }
-    builder.LeaveBlock().Return();
+    builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
     InterpreterTester tester(handles.main_isolate(), bytecode_array);
     auto callable = tester.GetCallable<>();
@@ -1591,10 +1590,9 @@ TEST(InterpreterToBoolean) {
     builder.set_locals_count(0);
     builder.set_context_count(0);
     builder.set_parameter_count(0);
-    builder.EnterBlock();
     LoadAny(&builder, factory, object_type_tuples[i].first);
     builder.CastAccumulatorToBoolean();
-    builder.LeaveBlock().Return();
+    builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
     InterpreterTester tester(handles.main_isolate(), bytecode_array);
     auto callable = tester.GetCallable<>();
@@ -1629,10 +1627,9 @@ TEST(InterpreterUnaryNotNonBoolean) {
     builder.set_locals_count(0);
     builder.set_context_count(0);
     builder.set_parameter_count(0);
-    builder.EnterBlock();
     LoadAny(&builder, factory, object_type_tuples[i].first);
     builder.LogicalNot();
-    builder.LeaveBlock().Return();
+    builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
     InterpreterTester tester(handles.main_isolate(), bytecode_array);
     auto callable = tester.GetCallable<>();
@@ -1665,10 +1662,9 @@ TEST(InterpreterTypeOf) {
     builder.set_locals_count(0);
     builder.set_context_count(0);
     builder.set_parameter_count(0);
-    builder.EnterBlock();
     LoadAny(&builder, factory, object_type_tuples[i].first);
     builder.TypeOf();
-    builder.LeaveBlock().Return();
+    builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
     InterpreterTester tester(handles.main_isolate(), bytecode_array);
     auto callable = tester.GetCallable<>();

@@ -185,9 +185,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
       .JumpIfFalse(&start);
 
-  builder.EnterBlock()
-      .Throw()
-      .LeaveBlock();
+  // Emit throw in it's own basic block so that the rest of the code isn't
+  // omitted due to being dead.
+  BytecodeLabel after_throw;
+  builder.Jump(&after_throw)
+    .Throw()
+    .Bind(&after_throw);
 
   builder.ForInPrepare(reg).ForInDone(reg).ForInNext(reg, reg);
 
@@ -483,19 +486,19 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   BytecodeLabel label0, label1, label2, label3, label4;
   builder.Bind(&label0)
       .Jump(&label0)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
       .Bind(&label1)
-      .JumpIfTrue(&label1)
       .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .JumpIfTrue(&label1)
       .Bind(&label2)
+      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
       .JumpIfFalse(&label2)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
       .Bind(&label3)
-      .JumpIfTrue(&label3)
       .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .JumpIfTrue(&label3)
       .Bind(&label4)
+      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
       .JumpIfFalse(&label4);
-  for (int i = 0; i < 64; i++) {
+  for (int i = 0; i < 63; i++) {
     builder.Jump(&label4);
   }
   builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
@@ -517,26 +520,26 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   // Ignore compare operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrue);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -2);
   iterator.Advance();
   // Ignore compare operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfFalse);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -2);
   iterator.Advance();
   // Ignore binary operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanTrue);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -2);
   iterator.Advance();
   // Ignore binary operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanFalse);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -2);
   iterator.Advance();
-  for (int i = 0; i < 64; i++) {
+  for (int i = 0; i < 63; i++) {
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-    CHECK_EQ(iterator.GetImmediateOperand(0), -i * 2 - 2);
+    CHECK_EQ(iterator.GetImmediateOperand(0), -i * 2 - 4);
     iterator.Advance();
   }
   // Ignore binary operation.
@@ -561,7 +564,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   CHECK_EQ(Smi::cast(*iterator.GetConstantForIndexOperand(0))->value(), -156);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpConstant);
-  CHECK_EQ(Smi::cast(*iterator.GetConstantForIndexOperand(0))->value(), -162);
+  CHECK_EQ(Smi::cast(*iterator.GetConstantForIndexOperand(0))->value(), -160);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();
@@ -638,8 +641,8 @@ TEST_F(BytecodeArrayBuilderTest, ToBoolean) {
   builder.set_locals_count(0);
   builder.set_context_count(0);
 
-  // Check ToBoolean emitted at start of block.
-  builder.EnterBlock().CastAccumulatorToBoolean();
+  // Check ToBoolean emitted at start of a basic block.
+  builder.CastAccumulatorToBoolean();
 
   // Check ToBoolean emitted preceding bytecode is non-boolean.
   builder.LoadNull().CastAccumulatorToBoolean();
@@ -647,12 +650,18 @@ TEST_F(BytecodeArrayBuilderTest, ToBoolean) {
   // Check ToBoolean omitted if preceding bytecode is boolean.
   builder.LoadFalse().CastAccumulatorToBoolean();
 
-  // Check ToBoolean emitted if it is at the start of the next block.
+  // Check ToBoolean emitted if it is at the start of a basic block caused by a
+  // bound label.
+  BytecodeLabel label;
   builder.LoadFalse()
-      .LeaveBlock()
-      .EnterBlock()
-      .CastAccumulatorToBoolean()
-      .LeaveBlock();
+      .Bind(&label)
+      .CastAccumulatorToBoolean();
+
+  // Check ToBoolean emitted if it is at the start of a basic block caused by a
+  // jump.
+  builder.LoadFalse()
+      .JumpIfTrue(&label)
+      .CastAccumulatorToBoolean();
 
   builder.Return();
 
@@ -670,6 +679,13 @@ TEST_F(BytecodeArrayBuilderTest, ToBoolean) {
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
+  iterator.Advance();
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
+  iterator.Advance();
+
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
+  iterator.Advance();
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrue);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
   iterator.Advance();

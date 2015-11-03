@@ -1605,56 +1605,79 @@ TEST(IfConditions) {
       {"function f() { if (0) { return 1; } else { return -1; } } f()",
        0,
        1,
-       5,
-       {B(LdaSmi8), U8(-1),  //
-        B(Return),           //
-        B(LdaUndefined),     // TODO(mythria) redundant return statement
-        B(Return)},          // could be eliminated.
+       3,
+       {
+           B(LdaSmi8), U8(-1),  //
+           B(Return),           //
+       },
        0,
        {unused, unused, unused, unused, unused, unused}},
       {"function f() { if ('lucky') { return 1; } else { return -1; } } f();",
        0,
        1,
-       5,
-       {B(LdaSmi8), U8(1),  //
-        B(Return),          //
-        B(LdaUndefined),    // TODO(mythria) redundant return statement
-        B(Return)},         // could be eliminated.
+       3,
+       {
+           B(LdaSmi8), U8(1),  //
+           B(Return),          //
+       },
        0,
        {unused, unused, unused, unused, unused, unused}},
       {"function f() { if (false) { return 1; } else { return -1; } } f();",
        0,
        1,
-       5,
-       {B(LdaSmi8), U8(-1),  //
-        B(Return),           //
-        B(LdaUndefined),     // TODO(mythria) redundant return statement
-        B(Return)},          // could be eliminated.
+       3,
+       {
+           B(LdaSmi8), U8(-1),  //
+           B(Return),           //
+       },
        0,
        {unused, unused, unused, unused, unused, unused}},
       {"function f() { if (false) { return 1; } } f();",
        0,
        1,
        2,
-       {B(LdaUndefined),        //
-        B(Return)},
+       {
+           B(LdaUndefined),  //
+           B(Return),        //
+       },
+       0,
+       {unused, unused, unused, unused, unused, unused}},
+      {"function f() { var a = 1; if (a) { a += 1; } else { return 2; } } f();",
+       1 * kPointerSize,
+       1,
+       21,
+       {
+           B(LdaSmi8), U8(1),                //
+           B(Star), R(0),                    //
+           B(Ldar), R(0),                    //
+           B(JumpIfToBooleanFalse), U8(10),  //
+           B(LdaSmi8), U8(1),                //
+           B(Add), R(0),                     //
+           B(Star), R(0),                    //
+           B(Jump), U8(5),                   //
+           B(LdaSmi8), U8(2),                //
+           B(Return),                        //
+           B(LdaUndefined),                  //
+           B(Return),                        //
+       },
        0,
        {unused, unused, unused, unused, unused, unused}},
       {"function f(a) { if (a <= 0) { return 200; } else { return -200; } }"
        "f(99);",
        0,
        2,
-       15,
-       {B(LdaZero),                       //
-        B(TestLessThanOrEqual), A(1, 2),  //
-        B(JumpIfFalse), U8(7),            //
-        B(LdaConstant), U8(0),            //
-        B(Return),                        //
-        B(Jump), U8(5),                   //
-        B(LdaConstant), U8(1),            //
-        B(Return),                        //
-        B(LdaUndefined),                  //
-        B(Return)},                       //
+       13,
+       {
+           B(LdaZero),                       //
+           B(TestLessThanOrEqual), A(1, 2),  //
+           B(JumpIfFalse), U8(5),            //
+           B(LdaConstant), U8(0),            //
+           B(Return),                        //
+           B(LdaConstant), U8(1),            //
+           B(Return),                        //
+           B(LdaUndefined),                  //
+           B(Return),                        //
+       },
        2,
        {helper.factory()->NewNumberFromInt(200),
         helper.factory()->NewNumberFromInt(-200), unused, unused, unused,
@@ -1664,13 +1687,15 @@ TEST(IfConditions) {
        0,
        3,
        11,
-       {B(Ldar), A(2, 3),       //
-        B(TestIn), A(1, 3),     //
-        B(JumpIfFalse), U8(5),  //
-        B(LdaConstant), U8(0),  //
-        B(Return),              //
-        B(LdaUndefined),        //
-        B(Return)},             //
+       {
+           B(Ldar), A(2, 3),       //
+           B(TestIn), A(1, 3),     //
+           B(JumpIfFalse), U8(5),  //
+           B(LdaConstant), U8(0),  //
+           B(Return),              //
+           B(LdaUndefined),        //
+           B(Return),              //
+       },
        1,
        {helper.factory()->NewNumberFromInt(200), unused, unused, unused, unused,
         unused}},
@@ -1679,7 +1704,7 @@ TEST(IfConditions) {
        " return 200; } else { return -200; } } f(0.001)",
        2 * kPointerSize,
        2,
-       278,
+       276,
        {
            B(LdaZero),                     //
            B(Star), R(0),                  //
@@ -1695,7 +1720,6 @@ TEST(IfConditions) {
              B(Star), R(0)),               //
            B(LdaConstant), U8(1),          //
            B(Return),                      //
-           B(Jump), U8(5),                 //
            B(LdaConstant), U8(3),          //
            B(Return),                      //
            B(LdaUndefined),                //
@@ -1703,14 +1727,14 @@ TEST(IfConditions) {
        4,
        {helper.factory()->NewHeapNumber(0.01),
         helper.factory()->NewNumberFromInt(200),
-        helper.factory()->NewNumberFromInt(263),
+        helper.factory()->NewNumberFromInt(261),
         helper.factory()->NewNumberFromInt(-200), unused, unused}},
       {"function f() { var a = 0; var b = 0; if (a) { "
        REPEAT_32(SPACE, "b = a; a = b; ")
        " return 200; } else { return -200; } } f()",
        2 * kPointerSize,
        1,
-       276,
+       274,
        {
            B(LdaZero),                              //
            B(Star), R(0),                           //
@@ -1725,14 +1749,13 @@ TEST(IfConditions) {
              B(Star), R(0)),                        //
            B(LdaConstant), U8(0),                   //
            B(Return),                               //
-           B(Jump), U8(5),                          //
            B(LdaConstant), U8(2),                   //
            B(Return),                               //
            B(LdaUndefined),                         //
            B(Return)},                              //
        3,
        {helper.factory()->NewNumberFromInt(200),
-        helper.factory()->NewNumberFromInt(263),
+        helper.factory()->NewNumberFromInt(261),
         helper.factory()->NewNumberFromInt(-200), unused, unused, unused}},
 
       {"function f(a, b) {\n"
@@ -1779,15 +1802,14 @@ TEST(IfConditions) {
        "f();",
        1 * kPointerSize,
        1,
-       17,
+       15,
        {
            B(LdaZero),                      //
            B(Star), R(0),                   //
            B(Ldar), R(0),                   //
-           B(JumpIfToBooleanFalse), U8(7),  //
+           B(JumpIfToBooleanFalse), U8(5),  //
            B(LdaSmi8), U8(20),              //
            B(Return),                       //
-           B(Jump), U8(5),                  //
            B(LdaSmi8), U8(-20),             //
            B(Return),                       //
            B(LdaUndefined),                 //
@@ -3348,11 +3370,9 @@ TEST(TryCatch) {
       {"try { return 1; } catch(e) { return 2; }",
        kPointerSize,
        1,
-       5,
+       3,
        {
            B(LdaSmi8), U8(1),  //
-           B(Return),          //
-           B(LdaUndefined),    //
            B(Return),          //
        },
        0},
@@ -3437,15 +3457,19 @@ TEST(Throw) {
        },
        1,
        {"Error"}},
-      {"if ('test') { throw 'Error'; };",
-       0,
+      {"var a = 1; if (a) { throw 'Error'; };",
+       1 * kPointerSize,
        1,
-       5,
+       13,
        {
-           B(LdaConstant), U8(0),  //
-           B(Throw),               //
-           B(LdaUndefined),        //
-           B(Return),              //
+           B(LdaSmi8), U8(1),               //
+           B(Star), R(0),                   //
+           B(Ldar), R(0),                   //
+           B(JumpIfToBooleanFalse), U8(5),  //
+           B(LdaConstant), U8(0),           //
+           B(Throw),                        //
+           B(LdaUndefined),                 //
+           B(Return),                       //
        },
        1,
        {"Error"}},
@@ -3615,7 +3639,7 @@ TEST(ContextVariables) {
       {"'use strict'; let a = 1; { let b = 2; return function() { a + b; }; }",
        4 * kPointerSize,
        1,
-       49,
+       45,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),             //
                            R(closure), U8(1),                             //
@@ -3637,11 +3661,6 @@ TEST(ContextVariables) {
            B(LdaConstant), U8(1),                                         //
            B(CreateClosure), U8(0),                                       //
            B(Return),                                                     //
-           // TODO(rmcilroy): Dead code after this point due to return in nested
-           // block - investigate eliminating this.
-           B(PopContext), R(0),
-           B(LdaUndefined),  //
-           B(Return),        //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -4921,6 +4940,131 @@ TEST(Switch) {
            B(Star), R(2),             //
            B(LdaUndefined),           //
            B(Return),                 //
+       }},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(BasicBlockToBoolean) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  // Check that we don't omit ToBoolean calls if they are at the start of basic
+  // blocks.
+  ExpectedSnippet<int> snippets[] = {
+      {"var a = 1; if (a || a < 0) { return 1; }",
+       1 * kPointerSize,
+       1,
+       18,
+       {
+           B(LdaSmi8), U8(1),               //
+           B(Star), R(0),                   //
+           B(Ldar), R(0),                   //
+           B(JumpIfToBooleanTrue), U8(5),   //
+           B(LdaZero),                      //
+           B(TestLessThan), R(0),           //
+           B(JumpIfToBooleanFalse), U8(5),  //
+           B(LdaSmi8), U8(1),               //
+           B(Return),                       //
+           B(LdaUndefined),                 //
+           B(Return),                       //
+       }},
+      {"var a = 1; if (a && a < 0) { return 1; }",
+       1 * kPointerSize,
+       1,
+       18,
+       {
+           B(LdaSmi8), U8(1),               //
+           B(Star), R(0),                   //
+           B(Ldar), R(0),                   //
+           B(JumpIfToBooleanFalse), U8(5),  //
+           B(LdaZero),                      //
+           B(TestLessThan), R(0),           //
+           B(JumpIfToBooleanFalse), U8(5),  //
+           B(LdaSmi8), U8(1),               //
+           B(Return),                       //
+           B(LdaUndefined),                 //
+           B(Return),                       //
+       }},
+      {"var a = 1; a = (a || a < 0) ? 2 : 3;",
+       1 * kPointerSize,
+       1,
+       23,
+       {
+           B(LdaSmi8), U8(1),               //
+           B(Star), R(0),                   //
+           B(Ldar), R(0),                   //
+           B(JumpIfToBooleanTrue), U8(5),   //
+           B(LdaZero),                      //
+           B(TestLessThan), R(0),           //
+           B(JumpIfToBooleanFalse), U8(6),  //
+           B(LdaSmi8), U8(2),               //
+           B(Jump), U8(4),                  //
+           B(LdaSmi8), U8(3),               //
+           B(Star), R(0),                   //
+           B(LdaUndefined),                 //
+           B(Return),                       //
+       }},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(DeadCodeRemoval) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<int> snippets[] = {
+      {"return; var a = 1; a();",
+       1 * kPointerSize,
+       1,
+       2,
+       {
+           B(LdaUndefined),  //
+           B(Return),        //
+       }},
+      {"if (false) { return; }; var a = 1;",
+       1 * kPointerSize,
+       1,
+       6,
+       {
+           B(LdaSmi8), U8(1),  //
+           B(Star), R(0),      //
+           B(LdaUndefined),    //
+           B(Return),          //
+       }},
+      {"if (true) { return 1; } else { return 2; };",
+       0,
+       1,
+       3,
+       {
+           B(LdaSmi8), U8(1),  //
+           B(Return),          //
+       }},
+      {"var a = 1; if (a) { return 1; }; return 2;",
+       1 * kPointerSize,
+       1,
+       14,
+       {
+           B(LdaSmi8), U8(1),               //
+           B(Star), R(0),                   //
+           B(Ldar), R(0),                   //
+           B(JumpIfToBooleanFalse), U8(5),  //
+           B(LdaSmi8), U8(1),               //
+           B(Return),                       //
+           B(LdaSmi8), U8(2),               //
+           B(Return),                       //
        }},
   };
 

@@ -110,6 +110,9 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
 
 template <size_t N>
 void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t(&operands)[N]) {
+  // Don't output dead code.
+  if (exit_seen_in_block_) return;
+
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), static_cast<int>(N));
   last_bytecode_start_ = bytecodes()->size();
   bytecodes()->push_back(Bytecodes::ToByte(bytecode));
@@ -154,6 +157,9 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t operand0) {
 
 
 void BytecodeArrayBuilder::Output(Bytecode bytecode) {
+  // Don't output dead code.
+  if (exit_seen_in_block_) return;
+
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
   last_bytecode_start_ = bytecodes()->size();
   bytecodes()->push_back(Bytecodes::ToByte(bytecode));
@@ -548,17 +554,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
     // Now treat as if the label will only be back referred to.
   }
   label->bind_to(bytecodes()->size());
+  LeaveBasicBlock();
   return *this;
 }
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
                                                  BytecodeLabel* label) {
-  DCHECK_EQ(label->is_bound(), false);
-  DCHECK_EQ(target.is_bound(), true);
+  DCHECK(!label->is_bound());
+  DCHECK(target.is_bound());
   PatchJump(bytecodes()->begin() + target.offset(),
             bytecodes()->begin() + label->offset());
   label->bind_to(target.offset());
+  LeaveBasicBlock();
   return *this;
 }
 
@@ -643,6 +651,9 @@ Bytecode BytecodeArrayBuilder::GetJumpWithToBoolean(Bytecode jump_bytecode) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
                                                        BytecodeLabel* label) {
+  // Don't emit dead code.
+  if (exit_seen_in_block_) return *this;
+
   // Check if the value in accumulator is boolean, if not choose an
   // appropriate JumpIfToBoolean bytecode.
   if (NeedToBooleanCast()) {
@@ -674,6 +685,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
       UNIMPLEMENTED();
     }
   }
+  LeaveBasicBlock();
   return *this;
 }
 
@@ -737,13 +749,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register for_in_state) {
 }
 
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::EnterBlock() { return *this; }
-
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::LeaveBlock() {
+void BytecodeArrayBuilder::LeaveBasicBlock() {
   last_block_end_ = bytecodes()->size();
   exit_seen_in_block_ = false;
-  return *this;
 }
 
 

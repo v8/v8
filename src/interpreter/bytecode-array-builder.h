@@ -192,9 +192,6 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& ForInNext(Register for_in_state, Register index);
   BytecodeArrayBuilder& ForInDone(Register for_in_state);
 
-  BytecodeArrayBuilder& EnterBlock();
-  BytecodeArrayBuilder& LeaveBlock();
-
   // Accessors
   Zone* zone() const { return zone_; }
 
@@ -238,6 +235,7 @@ class BytecodeArrayBuilder {
   void PatchJump(const ZoneVector<uint8_t>::iterator& jump_target,
                  ZoneVector<uint8_t>::iterator jump_location);
 
+  void LeaveBasicBlock();
   void EnsureReturn();
 
   bool OperandIsValid(Bytecode bytecode, int operand_index,

@@ -374,7 +374,6 @@ void BytecodeGenerator::MakeBytecodeBody() {
 
 
 void BytecodeGenerator::VisitBlock(Block* stmt) {
-  builder()->EnterBlock();
   if (stmt->scope() == NULL) {
     // Visit statements in the same scope, no declarations.
     VisitStatements(stmt->statements());
@@ -390,7 +389,6 @@ void BytecodeGenerator::VisitBlock(Block* stmt) {
       VisitStatements(stmt->statements());
     }
   }
-  builder()->LeaveBlock();
 }
 
 
@@ -782,7 +780,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   ControlScopeForIteration control_scope(this, stmt, &loop_builder);
 
   // Prepare the state for executing ForIn.
-  builder()->EnterBlock();
   VisitForAccumulatorValue(stmt->subject());
   loop_builder.BreakIfUndefined();
   loop_builder.BreakIfNull();
@@ -828,8 +825,8 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
       .CountOperation(Token::Value::ADD, language_mode_strength())
       .Jump(&condition_label);
 
-  // End of loop
-  builder()->Bind(&break_label).LeaveBlock();
+  // End of the loop.
+  builder()->Bind(&break_label);
 
   loop_builder.SetBreakTarget(break_label);
   loop_builder.SetContinueTarget(continue_label);
