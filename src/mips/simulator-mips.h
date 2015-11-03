@@ -315,6 +315,7 @@ class Simulator {
   void DecodeTypeRegisterLRsType();
 
   Instruction* currentInstr_;
+
   inline Instruction* get_instr() const { return currentInstr_; }
   inline void set_instr(Instruction* instr) { currentInstr_ = instr; }
 
@@ -345,6 +346,18 @@ class Simulator {
 
   // Used for breakpoints and traps.
   void SoftwareInterrupt(Instruction* instr);
+
+  // Compact branch guard.
+  void CheckForbiddenSlot(int32_t current_pc) {
+    Instruction* instr_aftter_compact_branch =
+        reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
+    if (instr_aftter_compact_branch->IsForbiddenInBranchDelay()) {
+      V8_Fatal(__FILE__, __LINE__,
+               "Error: Unexpected instruction 0x%08x immediately after a "
+               "compact branch instruction.",
+               *reinterpret_cast<uint32_t*>(instr_aftter_compact_branch));
+    }
+  }
 
   // Stop helper functions.
   bool IsWatchpoint(uint32_t code);

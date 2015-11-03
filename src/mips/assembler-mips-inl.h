@@ -445,12 +445,24 @@ void Assembler::CheckTrampolinePoolQuick(int extra_instructions) {
 }
 
 
-void Assembler::emit(Instr x) {
+void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
   }
+  if (IsPrevInstrCompactBranch()) {
+    if (Instruction::IsForbiddenAfterBranchInstr(x)) {
+      // Nop instruction to preceed a CTI in forbidden slot:
+      Instr nop = SPECIAL | SLL;
+      *reinterpret_cast<Instr*>(pc_) = nop;
+      pc_ += kInstrSize;
+    }
+    ClearCompactBranchState();
+  }
   *reinterpret_cast<Instr*>(pc_) = x;
   pc_ += kInstrSize;
+  if (is_compact_branch == CompactBranchType::COMPACT_BRANCH) {
+    EmittedCompactBranchInstruction();
+  }
   CheckTrampolinePoolQuick();
 }
 
