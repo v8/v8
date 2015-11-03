@@ -3311,12 +3311,20 @@ int MarkCompactCollector::NumberOfParallelCompactionTasks() {
   if (!FLAG_parallel_compaction) return 1;
   // We cap the number of parallel compaction tasks by
   // - (#cores - 1)
-  // - a value depending on the list of evacuation candidates
+  // - a value depending on the live memory in evacuation candidates
   // - a hard limit
-  const int kPagesPerCompactionTask = 4;
+  //
+  // TODO(mlippautz): Instead of basing the limit on live memory, we could also
+  //   compute the number from the time it takes to evacuate memory and a given
+  //   desired time in which compaction should be finished.
+  const int kLiveMemoryPerCompactionTask = 2 * Page::kPageSize;
   const int kMaxCompactionTasks = 8;
+  int live_bytes = 0;
+  for (Page* page : evacuation_candidates_) {
+    live_bytes += page->LiveBytes();
+  }
   return Min(kMaxCompactionTasks,
-             Min(1 + evacuation_candidates_.length() / kPagesPerCompactionTask,
+             Min(1 + live_bytes / kLiveMemoryPerCompactionTask,
                  Max(1, base::SysInfo::NumberOfProcessors() - 1)));
 }
 
