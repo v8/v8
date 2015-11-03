@@ -415,6 +415,26 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchDeoptimize: {
       int deopt_state_id =
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
+      int double_register_param_count = 0;
+      int x87_layout = 0;
+      for (size_t i = 0; i < instr->InputCount(); i++) {
+        if (instr->InputAt(i)->IsDoubleRegister()) {
+          double_register_param_count++;
+        }
+      }
+      // Currently we use only one X87 register. If we use more X87 register
+      // in the future. we need to generate the x87 layout according to the
+      // used double registers.
+      DCHECK(double_register_param_count < 2);
+      if (double_register_param_count == 1) {
+        x87_layout = (0 << 3) | 1;
+      }
+      // The layout of x87 register stack is loaded on the top of FPU register
+      // stack for deoptimization.
+      __ push(Immediate(x87_layout));
+      __ fild_s(MemOperand(esp, 0));
+      __ lea(esp, Operand(esp, kPointerSize));
+
       AssembleDeoptimizerCall(deopt_state_id, Deoptimizer::EAGER);
       break;
     }
