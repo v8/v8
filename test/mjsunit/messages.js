@@ -136,9 +136,9 @@ test(function() {
 
 // kIncompatibleMethodReceiver
 test(function() {
-  RegExp.prototype.compile.call(RegExp.prototype);
-}, "Method RegExp.prototype.compile called on incompatible receiver " +
-   "[object RegExp]", TypeError);
+  Set.prototype.add.call([]);
+}, "Method Set.prototype.add called on incompatible receiver [object Array]",
+TypeError);
 
 // kInstanceofFunctionExpected
 test(function() {

@@ -155,8 +155,6 @@
   'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
   'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-2': [FAIL],
   'built-ins/RegExp/prototype/ignoreCase/S15.10.7.3_A9': [FAIL],
-  'built-ins/RegExp/prototype/lastIndex/15.10.7.5-1': [FAIL],
-  'built-ins/RegExp/prototype/lastIndex/15.10.7.5-2': [FAIL],
   'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
   'built-ins/RegExp/prototype/multiline/15.10.7.4-2': [FAIL],
   'built-ins/RegExp/prototype/multiline/S15.10.7.4_A9': [FAIL],
@@ -183,8 +181,15 @@
   'built-ins/RegExp/from-regexp-like-get-ctor-err': [FAIL],
   'built-ins/RegExp/call_with_regexp_not_same_constructor': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4003
-  'built-ins/RegExp/prototype/15.10.6': [FAIL],
+  # https://code.google.com/p/v8/issues/detail?id=4528
+  'built-ins/RegExp/prototype/source/S15.10.7.1_A8': [FAIL],
+  'built-ins/RegExp/prototype/source/S15.10.7.1_A10': [FAIL],
+  'built-ins/RegExp/prototype/global/S15.10.7.2_A8': [FAIL],
+  'built-ins/RegExp/prototype/global/S15.10.7.2_A10': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/S15.10.7.3_A8': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/S15.10.7.3_A10': [FAIL],
+  'built-ins/RegExp/prototype/multiline/S15.10.7.4_A8': [FAIL],
+  'built-ins/RegExp/prototype/multiline/S15.10.7.4_A10': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4006
   'built-ins/String/prototype/S15.5.4_A1': [FAIL],

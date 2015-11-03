@@ -1083,7 +1083,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   Isolate* isolate = global_object->GetIsolate();
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
 
   Handle<ScriptContextTable> script_context_table =
       factory->NewScriptContextTable();
@@ -1272,27 +1271,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     initial_map->set_unused_property_fields(0);
     initial_map->set_instance_size(initial_map->instance_size() +
                                    num_fields * kPointerSize);
-
-    // RegExp prototype object is itself a RegExp.
-    Handle<Map> proto_map = Map::Copy(initial_map, "RegExpPrototype");
-    DCHECK(proto_map->prototype() == *isolate->initial_object_prototype());
-    Handle<JSObject> proto = factory->NewJSObjectFromMap(proto_map);
-    proto->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex,
-                                 heap->query_colon_string());
-    proto->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex,
-                                 heap->false_value());
-    proto->InObjectPropertyAtPut(JSRegExp::kIgnoreCaseFieldIndex,
-                                 heap->false_value());
-    proto->InObjectPropertyAtPut(JSRegExp::kMultilineFieldIndex,
-                                 heap->false_value());
-    proto->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
-                                 Smi::FromInt(0),
-                                 SKIP_WRITE_BARRIER);  // It's a Smi.
-    proto_map->set_is_prototype_map(true);
-    Map::SetPrototype(initial_map, proto);
-    factory->SetRegExpIrregexpData(Handle<JSRegExp>::cast(proto),
-                                   JSRegExp::IRREGEXP, factory->empty_string(),
-                                   JSRegExp::Flags(0), 0);
   }
 
   // Initialize the embedder data slot.

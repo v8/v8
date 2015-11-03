@@ -12,6 +12,7 @@
 var FLAG_harmony_regexps;
 var FLAG_harmony_tolength;
 var FLAG_harmony_unicode_regexps;
+var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
@@ -336,6 +337,7 @@ function RegExpMakeCaptureGetter(n) {
 // -------------------------------------------------------------------
 
 %FunctionSetInstanceClassName(GlobalRegExp, 'RegExp');
+%FunctionSetPrototype(GlobalRegExp, new GlobalObject());
 %AddNamedProperty(
     GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
 %SetCode(GlobalRegExp, RegExpConstructor);
