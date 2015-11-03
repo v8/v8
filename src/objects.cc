@@ -17331,7 +17331,6 @@ void JSMap::Clear(Handle<JSMap> map) {
 
 void JSWeakCollection::Initialize(Handle<JSWeakCollection> weak_collection,
                                   Isolate* isolate) {
-  DCHECK_EQ(0, weak_collection->map()->GetInObjectProperties());
   Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 0);
   weak_collection->set_table(*table);
 }

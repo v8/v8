@@ -266,6 +266,63 @@ function TestArraySubclassing(array) {
 })();
 
 
+function TestMapSetSubclassing(container, is_map) {
+  var keys = [{name: "banana"}, {name: "cow"}, {name: "orange"}, {name: "chicken"}, {name: "apple"}];
+
+  class A extends container {
+    constructor(...args) {
+      assertTrue(%IsConstructCall());
+      super(...args);
+      this.a = 42;
+      this.d = 4.2;
+    }
+  }
+
+  var o = new A();
+  assertTrue(o instanceof Object);
+  assertTrue(o instanceof container);
+  assertTrue(o instanceof A);
+  assertEquals("object", typeof o);
+  checkPrototypeChain(o, [A, container, Object]);
+
+  for (var i = 0; i < keys.length; i++) {
+    if (is_map) {
+      o.set(keys[i], (i + 1) * 11);
+    } else {
+      o.add(keys[i]);
+    }
+  }
+  o.delete(keys[1]);
+  o.delete(keys[3]);
+
+  assertTrue(o.has(keys[0]));
+  assertFalse(o.has(keys[1]));
+  assertTrue(o.has(keys[2]));
+  assertFalse(o.has(keys[1]));
+  assertTrue(o.has(keys[4]));
+  if (is_map) {
+    assertEquals(11, o.get(keys[0]));
+    assertEquals(undefined, o.get(keys[1]));
+    assertEquals(33, o.get(keys[2]));
+    assertEquals(undefined, o.get(keys[3]));
+    assertEquals(55, o.get(keys[4]));
+  }
+  assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
+
+  var o1 = new A();
+  assertTrue(%HaveSameMap(o, o1));
+}
+
+
+(function() {
+  TestMapSetSubclassing(Map, true);
+  TestMapSetSubclassing(WeakMap, true);
+  TestMapSetSubclassing(Set, false);
+  TestMapSetSubclassing(WeakSet, false);
+})();
+
+
 (function() {
   class A extends ArrayBuffer {
     constructor(...args) {
