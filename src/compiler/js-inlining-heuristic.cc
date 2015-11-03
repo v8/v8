@@ -72,14 +72,13 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   // ---------------------------------------------------------------------------
 
   // In the general case we remember the candidate for later.
-  candidates_.push_back({function, node, calls});
+  candidates_.insert({function, node, calls});
   return NoChange();
 }
 
 
 void JSInliningHeuristic::ProcessCandidates() {
   if (candidates_.empty()) return;  // Nothing to do without candidates.
-  std::sort(candidates_.begin(), candidates_.end(), Compare);
   if (FLAG_trace_turbo_inlining) PrintCandidates();
 
   int cumulative_count = 0;
@@ -99,10 +98,9 @@ void JSInliningHeuristic::ProcessCandidates() {
 }
 
 
-// static
-bool JSInliningHeuristic::Compare(const Candidate& left,
-                                  const Candidate& right) {
-  return left.calls > right.calls;
+bool JSInliningHeuristic::CandidateCompare::operator()(
+    const Candidate& left, const Candidate& right) const {
+  return left.node != right.node && left.calls >= right.calls;
 }
 
 
