@@ -12,9 +12,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
-#include "src/contexts.h"
 #include "src/field-index-inl.h"
-#include "src/lookup.h"
 #include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/type-cache.h"
 #include "src/type-feedback-vector.h"
@@ -23,36 +21,24 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-struct JSNativeContextSpecialization::ScriptContextTableLookupResult {
-  Handle<Context> context;
-  bool immutable;
-  int index;
-};
-
-
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, Flags flags,
-    Handle<JSGlobalObject> global_object, CompilationDependencies* dependencies,
+    Handle<Context> native_context, CompilationDependencies* dependencies,
     Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
       flags_(flags),
-      global_object_(global_object),
-      native_context_(global_object->native_context(), isolate()),
+      native_context_(native_context),
       dependencies_(dependencies),
       zone_(zone),
       type_cache_(TypeCache::Get()),
-      access_info_factory_(dependencies, native_context(), graph()->zone()) {}
+      access_info_factory_(dependencies, native_context, graph()->zone()) {}
 
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSCallFunction:
       return ReduceJSCallFunction(node);
-    case IrOpcode::kJSLoadGlobal:
-      return ReduceJSLoadGlobal(node);
-    case IrOpcode::kJSStoreGlobal:
-      return ReduceJSStoreGlobal(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSStoreNamed:
@@ -90,8 +76,7 @@ Reduction JSNativeContextSpecialization::ReduceJSCallFunction(Node* node) {
       // Avoid cross-context leaks, meaning don't embed references to functions
       // in other native contexts.
       Handle<JSFunction> function(JSFunction::cast(cell->value()), isolate());
-      if (function->context()->native_context() !=
-          global_object()->native_context()) {
+      if (function->context()->native_context() != *native_context()) {
         return NoChange();
       }
 
@@ -116,192 +101,6 @@ Reduction JSNativeContextSpecialization::ReduceJSCallFunction(Node* node) {
     // TODO(bmeurer): Also support optimizing bound functions and proxies here.
   }
   return NoChange();
-}
-
-
-Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
-  Handle<Name> name = LoadGlobalParametersOf(node->op()).name();
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // Try to lookup the name on the script context table first (lexical scoping).
-  ScriptContextTableLookupResult result;
-  if (LookupInScriptContextTable(name, &result)) {
-    if (result.context->is_the_hole(result.index)) return NoChange();
-    Node* context = jsgraph()->Constant(result.context);
-    Node* value = effect = graph()->NewNode(
-        javascript()->LoadContext(0, result.index, result.immutable), context,
-        context, effect);
-    return Replace(node, value, effect);
-  }
-
-  // Lookup on the global object instead.  We only deal with own data
-  // properties of the global object here (represented as PropertyCell).
-  LookupIterator it(global_object(), name, LookupIterator::OWN);
-  if (it.state() != LookupIterator::DATA) return NoChange();
-  Handle<PropertyCell> property_cell = it.GetPropertyCell();
-  PropertyDetails property_details = property_cell->property_details();
-  Handle<Object> property_cell_value(property_cell->value(), isolate());
-
-  // Load from non-configurable, read-only data property on the global
-  // object can be constant-folded, even without deoptimization support.
-  if (!property_details.IsConfigurable() && property_details.IsReadOnly()) {
-    return Replace(node, property_cell_value);
-  }
-
-  // Load from non-configurable, data property on the global can be lowered to
-  // a field load, even without deoptimization, because the property cannot be
-  // deleted or reconfigured to an accessor/interceptor property.  Yet, if
-  // deoptimization support is available, we can constant-fold certain global
-  // properties or at least lower them to field loads annotated with more
-  // precise type feedback.
-  Type* property_cell_value_type =
-      Type::Intersect(Type::Any(), Type::Tagged(), graph()->zone());
-  if (flags() & kDeoptimizationEnabled) {
-    // Record a code dependency on the cell if we can benefit from the
-    // additional feedback, or the global property is configurable (i.e.
-    // can be deleted or reconfigured to an accessor property).
-    if (property_details.cell_type() != PropertyCellType::kMutable ||
-        property_details.IsConfigurable()) {
-      dependencies()->AssumePropertyCell(property_cell);
-    }
-
-    // Load from constant/undefined global property can be constant-folded.
-    if ((property_details.cell_type() == PropertyCellType::kConstant ||
-         property_details.cell_type() == PropertyCellType::kUndefined)) {
-      return Replace(node, property_cell_value);
-    }
-
-    // Load from constant type cell can benefit from type feedback.
-    if (property_details.cell_type() == PropertyCellType::kConstantType) {
-      // Compute proper type based on the current value in the cell.
-      if (property_cell_value->IsSmi()) {
-        property_cell_value_type = type_cache_.kSmi;
-      } else if (property_cell_value->IsNumber()) {
-        property_cell_value_type = type_cache_.kHeapNumber;
-      } else {
-        Handle<Map> property_cell_value_map(
-            Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
-        property_cell_value_type =
-            Type::Class(property_cell_value_map, graph()->zone());
-      }
-    }
-  } else if (property_details.IsConfigurable()) {
-    // Access to configurable global properties requires deoptimization support.
-    return NoChange();
-  }
-  Node* value = effect = graph()->NewNode(
-      simplified()->LoadField(
-          AccessBuilder::ForPropertyCellValue(property_cell_value_type)),
-      jsgraph()->Constant(property_cell), effect, control);
-  return Replace(node, value, effect);
-}
-
-
-Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
-  Handle<Name> name = StoreGlobalParametersOf(node->op()).name();
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // Try to lookup the name on the script context table first (lexical scoping).
-  ScriptContextTableLookupResult result;
-  if (LookupInScriptContextTable(name, &result)) {
-    if (result.context->is_the_hole(result.index)) return NoChange();
-    if (result.immutable) return NoChange();
-    Node* context = jsgraph()->Constant(result.context);
-    effect = graph()->NewNode(javascript()->StoreContext(0, result.index),
-                              context, value, context, effect, control);
-    return Replace(node, value, effect, control);
-  }
-
-  // Lookup on the global object instead.  We only deal with own data
-  // properties of the global object here (represented as PropertyCell).
-  LookupIterator it(global_object(), name, LookupIterator::OWN);
-  if (it.state() != LookupIterator::DATA) return NoChange();
-  Handle<PropertyCell> property_cell = it.GetPropertyCell();
-  PropertyDetails property_details = property_cell->property_details();
-  Handle<Object> property_cell_value(property_cell->value(), isolate());
-
-  // Don't even bother trying to lower stores to read-only data properties.
-  if (property_details.IsReadOnly()) return NoChange();
-  switch (property_details.cell_type()) {
-    case PropertyCellType::kUndefined: {
-      return NoChange();
-    }
-    case PropertyCellType::kConstant: {
-      // Store to constant property cell requires deoptimization support,
-      // because we might even need to eager deoptimize for mismatch.
-      if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-      dependencies()->AssumePropertyCell(property_cell);
-      Node* check =
-          graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()), value,
-                           jsgraph()->Constant(property_cell_value));
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                          effect, if_false);
-      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-      control = graph()->NewNode(common()->IfTrue(), branch);
-      return Replace(node, value, effect, control);
-    }
-    case PropertyCellType::kConstantType: {
-      // Store to constant-type property cell requires deoptimization support,
-      // because we might even need to eager deoptimize for mismatch.
-      if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-      dependencies()->AssumePropertyCell(property_cell);
-      Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-      if (property_cell_value->IsHeapObject()) {
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                        check, control);
-        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-        Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                            effect, if_true);
-        // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-        NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-        control = graph()->NewNode(common()->IfFalse(), branch);
-        Node* value_map =
-            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                             value, effect, control);
-        Handle<Map> property_cell_value_map(
-            Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
-        check = graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
-                                 value_map,
-                                 jsgraph()->Constant(property_cell_value_map));
-      }
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                          effect, if_false);
-      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-      control = graph()->NewNode(common()->IfTrue(), branch);
-      break;
-    }
-    case PropertyCellType::kMutable: {
-      // Store to non-configurable, data property on the global can be lowered
-      // to a field store, even without deoptimization, because the property
-      // cannot be deleted or reconfigured to an accessor/interceptor property.
-      if (property_details.IsConfigurable()) {
-        // With deoptimization support, we can lower stores even to configurable
-        // data properties on the global object, by adding a code dependency on
-        // the cell.
-        if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-        dependencies()->AssumePropertyCell(property_cell);
-      }
-      break;
-    }
-  }
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForPropertyCellValue()),
-      jsgraph()->Constant(property_cell), value, effect, control);
-  return Replace(node, value, effect, control);
 }
 
 
@@ -654,7 +453,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     effect = graph()->NewNode(common()->EffectPhi(control_count),
                               control_count + 1, &effects.front());
   }
-  return Replace(node, value, effect, control);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 
@@ -939,7 +739,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     effect = graph()->NewNode(common()->EffectPhi(control_count),
                               control_count + 1, &effects.front());
   }
-  return Replace(node, value, effect, control);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 
@@ -1017,31 +818,6 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
   // Try to lower the keyed access based on the {nexus}.
   return ReduceKeyedAccess(node, index, value, nexus, AccessMode::kStore,
                            p.language_mode());
-}
-
-
-Reduction JSNativeContextSpecialization::Replace(Node* node,
-                                                 Handle<Object> value) {
-  return Replace(node, jsgraph()->Constant(value));
-}
-
-
-bool JSNativeContextSpecialization::LookupInScriptContextTable(
-    Handle<Name> name, ScriptContextTableLookupResult* result) {
-  if (!name->IsString()) return false;
-  Handle<ScriptContextTable> script_context_table(
-      native_context()->script_context_table());
-  ScriptContextTable::LookupResult lookup_result;
-  if (!ScriptContextTable::Lookup(script_context_table,
-                                  Handle<String>::cast(name), &lookup_result)) {
-    return false;
-  }
-  Handle<Context> script_context = ScriptContextTable::GetContext(
-      script_context_table, lookup_result.context_index);
-  result->context = script_context;
-  result->immutable = IsImmutableVariableMode(lookup_result.mode);
-  result->index = lookup_result.slot_index;
-  return true;
 }
 
 

@@ -13,6 +13,7 @@
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/js-global-object-specialization.h"
 #include "src/compiler/js-native-context-specialization.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
@@ -390,15 +391,22 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
                                               jsgraph.common());
     CommonOperatorReducer common_reducer(&graph_reducer, &graph,
                                          jsgraph.common(), jsgraph.machine());
+    JSGlobalObjectSpecialization global_object_specialization(
+        &graph_reducer, &jsgraph,
+        info.is_deoptimization_enabled()
+            ? JSGlobalObjectSpecialization::kDeoptimizationEnabled
+            : JSGlobalObjectSpecialization::kNoFlags,
+        handle(info.global_object(), info.isolate()), info_->dependencies());
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, &jsgraph,
         info.is_deoptimization_enabled()
             ? JSNativeContextSpecialization::kDeoptimizationEnabled
             : JSNativeContextSpecialization::kNoFlags,
-        handle(info.global_object(), info.isolate()), info_->dependencies(),
-        local_zone_);
+        handle(info.global_object()->native_context(), info.isolate()),
+        info_->dependencies(), local_zone_);
     graph_reducer.AddReducer(&dead_code_elimination);
     graph_reducer.AddReducer(&common_reducer);
+    graph_reducer.AddReducer(&global_object_specialization);
     graph_reducer.AddReducer(&native_context_specialization);
     graph_reducer.ReduceGraph();
   }

@@ -8,7 +8,6 @@
 #include "src/base/flags.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
@@ -27,6 +26,7 @@ class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;
+class SimplifiedOperatorBuilder;
 
 
 // Specializes a given JSGraph to a given native context, potentially constant
@@ -43,7 +43,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   typedef base::Flags<Flag> Flags;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
-                                Handle<JSGlobalObject> global_object,
+                                Handle<Context> native_context,
                                 CompilationDependencies* dependencies,
                                 Zone* zone);
 
@@ -51,19 +51,10 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
  private:
   Reduction ReduceJSCallFunction(Node* node);
-  Reduction ReduceJSLoadGlobal(Node* node);
-  Reduction ReduceJSStoreGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
-
-  Reduction Replace(Node* node, Node* value, Node* effect = nullptr,
-                    Node* control = nullptr) {
-    ReplaceWithValue(node, value, effect, control);
-    return Changed(value);
-  }
-  Reduction Replace(Node* node, Handle<Object> value);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
                                 MapHandleList const& receiver_maps,
@@ -78,10 +69,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               Handle<Name> name, AccessMode access_mode,
                               LanguageMode language_mode,
                               Node* index = nullptr);
-
-  struct ScriptContextTableLookupResult;
-  bool LookupInScriptContextTable(Handle<Name> name,
-                                  ScriptContextTableLookupResult* result);
 
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
@@ -100,7 +87,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   SimplifiedOperatorBuilder* simplified() const;
   MachineOperatorBuilder* machine() const;
   Flags flags() const { return flags_; }
-  Handle<JSGlobalObject> global_object() const { return global_object_; }
   Handle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
@@ -108,7 +94,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   JSGraph* const jsgraph_;
   Flags const flags_;
-  Handle<JSGlobalObject> global_object_;
   Handle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
