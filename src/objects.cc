@@ -3684,7 +3684,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           return WriteToReadOnlyProperty(it, value, should_throw);
         }
         if (it->HolderIsReceiverOrHiddenPrototype()) {
-          return SetDataProperty(it, value, should_throw);
+          return SetDataProperty(it, value);
         }
         done = true;
         break;
@@ -3763,11 +3763,10 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
 
       case LookupIterator::DATA: {
         PropertyDetails details = own_lookup.property_details();
-        if (details.IsConfigurable() || !details.IsReadOnly()) {
-          return JSObject::DefineOwnPropertyIgnoreAttributes(
-              &own_lookup, value, details.attributes(), should_throw);
+        if (details.IsReadOnly()) {
+          return WriteToReadOnlyProperty(&own_lookup, value, should_throw);
         }
-        return WriteToReadOnlyProperty(&own_lookup, value, should_throw);
+        return SetDataProperty(&own_lookup, value);
       }
 
       case LookupIterator::ACCESSOR: {
@@ -3860,8 +3859,7 @@ Maybe<bool> Object::RedefineIncompatibleProperty(Isolate* isolate,
 }
 
 
-Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value,
-                                    ShouldThrow should_throw) {
+Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   // Proxies are handled on the WithHandler path. Other non-JSObjects cannot
   // have own properties.
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
@@ -4852,7 +4850,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         Handle<Object> old_value = it->factory()->the_hole_value();
         // Regular property update if the attributes match.
         if (details.attributes() == attributes) {
-          return SetDataProperty(it, value, should_throw);
+          return SetDataProperty(it, value);
         }
 
         // Special case: properties of typed arrays cannot be reconfigured to

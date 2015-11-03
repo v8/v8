@@ -244,8 +244,7 @@ function prepare(target) {
     assertFalse("nowrite" in receiver);
 
     // Data vs Non-Writable
-    // TODO(neis): This must return false but currently doesn't.
-    // assertFalse(Reflect.set({}, "nowrite", value, target));
+    assertFalse(Reflect.set({}, "nowrite", value, target));
 
     // Data vs Accessor
     assertFalse(Reflect.set({}, "unknown", 0, {set unknown(x) {}}));
@@ -264,6 +263,14 @@ function prepare(target) {
     // Accessor vs Non-Object
     assertTrue(Reflect.set(target, "setter2", value, null));
     assertFalse(Reflect.set(target, "getter", value, null));
+
+    let receiver2 = {};
+    Object.defineProperty(receiver2, "bla",
+        {configurable: false, writable: true, value: true});
+    Object.defineProperty(receiver2, "not_in_target",
+        {configurable: false, writable: true, value: true});
+    assertTrue(Reflect.set(target, "bla", value, receiver2));
+    assertTrue(Reflect.set(target, "not_in_target", value, receiver2));
   }
 })();
 

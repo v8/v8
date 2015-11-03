@@ -1268,8 +1268,7 @@ class Object {
       Isolate* isolate, Handle<Object> name, Handle<Object> value,
       ShouldThrow should_throw);
   MUST_USE_RESULT static Maybe<bool> SetDataProperty(LookupIterator* it,
-                                                     Handle<Object> value,
-                                                     ShouldThrow should_throw);
+                                                     Handle<Object> value);
   MUST_USE_RESULT static Maybe<bool> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       ShouldThrow should_throw, StoreFromKeyed store_mode);
