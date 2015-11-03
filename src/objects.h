@@ -5924,6 +5924,7 @@ class Map: public HeapObject {
 
   inline bool CanTransition();
 
+  inline bool IsBooleanMap();
   inline bool IsPrimitiveMap();
   inline bool IsJSObjectMap();
   inline bool IsJSArrayMap();

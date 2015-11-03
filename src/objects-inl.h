@@ -4897,6 +4897,7 @@ bool Map::CanTransition() {
 }
 
 
+bool Map::IsBooleanMap() { return this == GetHeap()->boolean_map(); }
 bool Map::IsPrimitiveMap() {
   STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
   return instance_type() <= LAST_PRIMITIVE_TYPE;
