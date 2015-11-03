@@ -349,6 +349,9 @@
 
   # BUG(v8:3097)
   'debug-references': [SKIP],
+
+  # BUG(v8:4534)
+  'accessor-map-sharing': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
