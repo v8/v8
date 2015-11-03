@@ -5384,6 +5384,15 @@ TEST(RunBitcastFloat64ToInt64) {
     CHECK_EQ(expected, output);
   }
 }
+
+
+TEST(RunRoundInt64ToFloat64) {
+  BufferedRawMachineAssemblerTester<double> m(kMachInt64);
+  m.Return(m.RoundInt64ToFloat64(m.Parameter(0)));
+  FOR_INT64_INPUTS(i) { CHECK_EQ(static_cast<double>(*i), m.Call(*i)); }
+}
+
+
 #endif
 
 

@@ -798,6 +798,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cvt_d_w(i.OutputDoubleRegister(), scratch);
       break;
     }
+    case kMips64CvtDL: {
+      FPURegister scratch = kScratchDoubleReg;
+      __ dmtc1(i.InputRegister(0), scratch);
+      __ cvt_d_l(i.OutputDoubleRegister(), scratch);
+      break;
+    }
     case kMips64CvtDUw: {
       FPURegister scratch = kScratchDoubleReg;
       __ Cvt_d_uw(i.OutputDoubleRegister(), i.InputRegister(0), scratch);

@@ -584,6 +584,11 @@ void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
+  VisitRR(this, kMips64CvtDL, node);
+}
+
+
 void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
   VisitRR(this, kMips64Float64ExtractLowWord32, node);
 }

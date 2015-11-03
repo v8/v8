@@ -918,6 +918,12 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEInt64ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64BitcastFI, g.DefineAsRegister(node), g.Use(node->InputAt(0)));

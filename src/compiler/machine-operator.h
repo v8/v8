@@ -193,11 +193,12 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* ChangeUint32ToFloat64();
   const Operator* ChangeUint32ToUint64();
 
-  // These operators truncate numbers, both changing the representation of
-  // the number and mapping multiple input values onto the same output value.
+  // These operators truncate or round numbers, both changing the representation
+  // of the number and mapping multiple input values onto the same output value.
   const Operator* TruncateFloat64ToFloat32();
   const Operator* TruncateFloat64ToInt32(TruncationMode);
   const Operator* TruncateInt64ToInt32();
+  const Operator* RoundInt64ToFloat64();
 
   // These operators reinterpret the bits of a floating point number as an
   // integer and vice versa.

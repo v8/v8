@@ -2017,6 +2017,11 @@ Type* Typer::Visitor::TypeTruncateInt64ToInt32(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeRoundInt64ToFloat64(Node* node) {
+  return Type::Intersect(Type::PlainNumber(), Type::UntaggedFloat64(), zone());
+}
+
+
 Type* Typer::Visitor::TypeBitcastFloat32ToInt32(Node* node) {
   return Type::Number();
 }
