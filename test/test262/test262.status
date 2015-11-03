@@ -243,6 +243,7 @@
   'built-ins/Array/prototype/values/length': [FAIL],
   'built-ins/Array/prototype/values/iteration': [FAIL],
   'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
+  'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
 
   #https://code.google.com/p/v8/issues/detail?id=3983
   'language/expressions/generators/yield-as-function-expression-binding-identifier': [FAIL],
