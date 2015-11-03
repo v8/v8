@@ -70,9 +70,6 @@
   # TODO(turbofan): Large switch statements crash.
   'js1_5/Regress/regress-398085-01': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Investigate failure with lookup slot declaration.
-  'js1_5/Regress/regress-343713': [PASS, NO_VARIANTS],
-
   ############################ INVALID TESTS #############################
 
   # Function length properties are configurable in ES6
