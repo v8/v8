@@ -7368,6 +7368,8 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     PrototypeIterator iter(map);
     JSObject* holder = NULL;
     while (!iter.IsAtEnd()) {
+      // JSProxies can't occur here because we wouldn't have installed a
+      // non-generic IC if there were any.
       holder = *PrototypeIterator::GetCurrent<JSObject>(iter);
       iter.Advance();
     }

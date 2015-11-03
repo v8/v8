@@ -2244,7 +2244,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
           // from peeking in the code bits of the handlers.
           if (!FLAG_vector_stores) ValidateStoreMode(stub);
         } else {
-          TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "dictionary prototype");
+          TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
+                           "dictionary or proxy prototype");
         }
       } else {
         TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "non-smi-like key");

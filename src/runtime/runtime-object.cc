@@ -630,6 +630,8 @@ static Object* HasOwnPropertyImplementation(Isolate* isolate,
           ->is_hidden_prototype()) {
     // TODO(verwaest): The recursion is not necessary for keys that are array
     // indices. Removing this.
+    // Casting to JSObject is fine because JSProxies are never used as
+    // hidden prototypes.
     return HasOwnPropertyImplementation(
         isolate, Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)),
         key);
@@ -770,8 +772,9 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
   for (PrototypeIterator iter(isolate, object,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
-    Handle<JSObject> jsproto =
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    // Casting to JSObject is fine because |object| is guaranteed to be one,
+    // and we'll only look at hidden prototypes which are never JSProxies.
+    Handle<JSObject> jsproto = PrototypeIterator::GetCurrent<JSObject>(iter);
     total_property_count += jsproto->NumberOfOwnProperties(filter);
   }
 
@@ -786,8 +789,9 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
   for (PrototypeIterator iter(isolate, object,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
-    Handle<JSObject> jsproto =
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    // Casting to JSObject is fine because |object| is guaranteed to be one,
+    // and we'll only look at hidden prototypes which are never JSProxies.
+    Handle<JSObject> jsproto = PrototypeIterator::GetCurrent<JSObject>(iter);
     int own = jsproto->GetOwnPropertyNames(*names, next_copy_index, filter);
     // Names from hidden prototypes may already have been added
     // for inherited function template instances. Count the duplicates
@@ -871,6 +875,8 @@ RUNTIME_FUNCTION(Runtime_GetOwnElementNames) {
     if (iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
       return *isolate->factory()->NewJSArray(0);
     }
+    // Casting to JSObject is fine because |object| is guaranteed to be one,
+    // and we'll only look at hidden prototypes which are never JSProxies.
     object = PrototypeIterator::GetCurrent<JSObject>(iter);
   }
 

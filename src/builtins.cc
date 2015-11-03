@@ -1083,6 +1083,14 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       break;
     }
     case DICTIONARY_ELEMENTS: {
+      // CollectElementIndices() can't be called when there's a JSProxy
+      // on the prototype chain.
+      for (PrototypeIterator iter(isolate, receiver); !iter.IsAtEnd();
+           iter.Advance()) {
+        if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+          return IterateElementsSlow(isolate, receiver, length, visitor);
+        }
+      }
       Handle<SeededNumberDictionary> dict(receiver->element_dictionary());
       List<uint32_t> indices(dict->Capacity() / 2);
       // Collect all indices in the object and the prototypes less
