@@ -1945,7 +1945,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       StringStream accumulator(&allocator);
       PropertyCell* cell = PropertyCell::cast(this);
       cell->value()->ShortPrint(&accumulator);
-      os << accumulator.ToCString().get() << " " << cell->property_details();
+      os << accumulator.ToCString().get();
       break;
     }
     case WEAK_CELL_TYPE: {
@@ -14707,14 +14707,13 @@ void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
     if (this->IsKey(k)) {
-      os << " ";
+      os << "\n   ";
       if (k->IsString()) {
         String::cast(k)->StringPrint(os);
       } else {
         os << Brief(k);
       }
-      os << ": " << Brief(this->ValueAt(i)) << " " << this->DetailsAt(i)
-         << "\n";
+      os << ": " << Brief(this->ValueAt(i)) << " " << this->DetailsAt(i);
     }
   }
 }
