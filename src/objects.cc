@@ -8221,6 +8221,19 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
   result->SetInObjectProperties(in_object_properties);
   result->set_unused_property_fields(unused_property_fields);
 
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  if (number_of_own_descriptors > 0) {
+    DCHECK(map->owns_descriptors());
+    // The copy will use the same descriptors array, but it's not the owner.
+    result->UpdateDescriptors(map->instance_descriptors(),
+                              map->layout_descriptor());
+    result->set_owns_descriptors(false);
+    result->SetNumberOfOwnDescriptors(number_of_own_descriptors);
+
+    DCHECK_EQ(result->NumberOfFields(),
+              in_object_properties - unused_property_fields);
+  }
+
   return result;
 }
 
@@ -11904,17 +11917,25 @@ Handle<Map> JSFunction::EnsureDerivedHasInitialMap(
   // Finally link initial map and constructor function if the original
   // constructor is actually a subclass constructor.
   if (IsSubclassConstructor(original_constructor->shared()->kind())) {
+// TODO(ishell): v8:4531, allow ES6 built-ins subclasses to have
+// in-object properties.
+#if 0
     InstanceType instance_type = constructor_initial_map->instance_type();
     int internal_fields =
         JSObject::GetInternalFieldCount(*constructor_initial_map);
+    int pre_allocated = constructor_initial_map->GetInObjectProperties() -
+                            constructor_initial_map->unused_property_fields();
     int instance_size;
     int in_object_properties;
     original_constructor->CalculateInstanceSizeForDerivedClass(
         instance_type, internal_fields, &instance_size, &in_object_properties);
 
+    int unused_property_fields = in_object_properties - pre_allocated;
     Handle<Map> map =
         Map::CopyInitialMap(constructor_initial_map, instance_size,
-                            in_object_properties, in_object_properties);
+                            in_object_properties, unused_property_fields);
+#endif
+    Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
 
     JSFunction::SetInitialMap(original_constructor, map, prototype);
     map->SetConstructor(*constructor);

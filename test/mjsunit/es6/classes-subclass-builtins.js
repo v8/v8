@@ -23,6 +23,7 @@ function checkPrototypeChain(object, constructors) {
       assertTrue(%IsConstructCall());
       super(...args);
       this.a = 42;
+      this.d = 4.2;
     }
   }
 
@@ -34,6 +35,7 @@ function checkPrototypeChain(object, constructors) {
   checkPrototypeChain(o, [A, Boolean]);
   assertTrue(o.valueOf());
   assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
 
   var o1 = new A(false);
   assertTrue(%HaveSameMap(o, o1));
@@ -46,6 +48,7 @@ function TestErrorSubclassing(error) {
       assertTrue(%IsConstructCall());
       super(...args);
       this.a = 42;
+      this.d = 4.2;
     }
   }
 
@@ -63,6 +66,7 @@ function TestErrorSubclassing(error) {
   assertEquals("message", o.message);
   assertEquals(error.name + ": message", o.toString());
   assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
 
   var o1 = new A("achtung!");
   assertTrue(%HaveSameMap(o, o1));
@@ -86,6 +90,7 @@ function TestErrorSubclassing(error) {
       assertTrue(%IsConstructCall());
       super(...args);
       this.a = 42;
+      this.d = 4.2;
     }
   }
 
@@ -97,6 +102,7 @@ function TestErrorSubclassing(error) {
   checkPrototypeChain(o, [A, Number, Object]);
   assertEquals(153, o.valueOf());
   assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
 
   var o1 = new A(312);
   assertTrue(%HaveSameMap(o, o1));
@@ -109,6 +115,7 @@ function TestErrorSubclassing(error) {
       assertTrue(%IsConstructCall());
       super(...args);
       this.a = 42;
+      this.d = 4.2;
     }
   }
 
@@ -120,6 +127,7 @@ function TestErrorSubclassing(error) {
   checkPrototypeChain(o, [A, Date, Object]);
   assertEquals(1234567890, o.getTime());
   assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
 
   var o1 = new A(2015, 10, 29);
   assertEquals(2015, o1.getFullYear());
@@ -135,6 +143,7 @@ function TestErrorSubclassing(error) {
       assertTrue(%IsConstructCall());
       super(...args);
       this.a = 42;
+      this.d = 4.2;
     }
   }
 
@@ -147,6 +156,7 @@ function TestErrorSubclassing(error) {
 
   assertEquals("foo", o.valueOf());
   assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
 
   var o1 = new A("bar");
   assertTrue(%HaveSameMap(o, o1));
@@ -159,17 +169,25 @@ function TestErrorSubclassing(error) {
       assertTrue(%IsConstructCall());
       super(...args);
       this.a = 42;
+      this.d = 4.2;
     }
   }
 
-  var o = new A("o..h");
+  var o = new A("o(..)h", "g");
   assertTrue(o instanceof Object);
   assertTrue(o instanceof RegExp);
   assertTrue(o instanceof A);
   assertEquals("object", typeof o);
   checkPrototypeChain(o, [A, RegExp, Object]);
   assertTrue(o.test("ouch"));
+  assertArrayEquals(["ouch", "uc"], o.exec("boom! ouch! bam!"));
+  assertEquals("o(..)h", o.source);
+  assertTrue(o.global);
+  assertFalse(o.ignoreCase);
+  assertFalse(o.multiline);
+  assertEquals(10, o.lastIndex);
   assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
 
   var o1 = new A(7);
   assertTrue(%HaveSameMap(o, o1));
@@ -182,6 +200,7 @@ function TestArraySubclassing(array) {
       assertTrue(%IsConstructCall());
       super(...args);
       this.a = 42;
+      this.d = 4.2;
     }
   }
 
@@ -200,6 +219,7 @@ function TestArraySubclassing(array) {
   checkPrototypeChain(o, [A, array, Object]);
   assertEquals(10, o.length);
   assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
 
   var o1 = new A(7);
   assertTrue(%HaveSameMap(o, o1));
@@ -226,6 +246,7 @@ function TestArraySubclassing(array) {
       assertTrue(%IsConstructCall());
       super(...args);
       this.a = 42;
+      this.d = 4.2;
     }
   }
 
@@ -238,6 +259,7 @@ function TestArraySubclassing(array) {
 
   assertEquals(16, o.byteLength);
   assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
 
   var o1 = new A("bar");
   assertTrue(%HaveSameMap(o, o1));
@@ -278,6 +300,7 @@ function TestArraySubclassing(array) {
       assertTrue(%IsConstructCall());
       super(...args);
       this.a = 42;
+      this.d = 4.2;
     }
   }
 
@@ -293,6 +316,7 @@ function TestArraySubclassing(array) {
   assertEquals(0xcafebabe, o.getUint32(0, false));
   assertEquals(0xbebafeca, o.getUint32(0, true));
   assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
 
   var o1 = new A(buffer);
   assertTrue(%HaveSameMap(o, o1));
