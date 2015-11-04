@@ -488,7 +488,7 @@ Type* Typer::Visitor::TypeOsrValue(Node* node) { return Type::Any(); }
 Type* Typer::Visitor::TypeInt32Constant(Node* node) {
   double number = OpParameter<int32_t>(node);
   return Type::Intersect(Type::Range(number, number, zone()),
-                         Type::UntaggedSigned32(), zone());
+                         Type::UntaggedIntegral32(), zone());
 }
 
 
@@ -1645,14 +1645,14 @@ Type* ChangeRepresentation(Type* type, Type* rep, Zone* zone) {
 Type* Typer::Visitor::TypeChangeTaggedToInt32(Node* node) {
   Type* arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg->Is(Type::Signed32()));
-  return ChangeRepresentation(arg, Type::UntaggedSigned32(), zone());
+  return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
 }
 
 
 Type* Typer::Visitor::TypeChangeTaggedToUint32(Node* node) {
   Type* arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg->Is(Type::Unsigned32()));
-  return ChangeRepresentation(arg, Type::UntaggedUnsigned32(), zone());
+  return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
 }
 
 
@@ -1977,12 +1977,12 @@ Type* Typer::Visitor::TypeChangeFloat32ToFloat64(Node* node) {
 
 
 Type* Typer::Visitor::TypeChangeFloat64ToInt32(Node* node) {
-  return Type::Intersect(Type::Signed32(), Type::UntaggedSigned32(), zone());
+  return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());
 }
 
 
 Type* Typer::Visitor::TypeChangeFloat64ToUint32(Node* node) {
-  return Type::Intersect(Type::Unsigned32(), Type::UntaggedUnsigned32(),
+  return Type::Intersect(Type::Unsigned32(), Type::UntaggedIntegral32(),
                          zone());
 }
 
@@ -2013,12 +2013,12 @@ Type* Typer::Visitor::TypeTruncateFloat64ToFloat32(Node* node) {
 
 
 Type* Typer::Visitor::TypeTruncateFloat64ToInt32(Node* node) {
-  return Type::Intersect(Type::Signed32(), Type::UntaggedSigned32(), zone());
+  return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());
 }
 
 
 Type* Typer::Visitor::TypeTruncateInt64ToInt32(Node* node) {
-  return Type::Intersect(Type::Signed32(), Type::UntaggedSigned32(), zone());
+  return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());
 }
 
 

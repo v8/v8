@@ -21,17 +21,18 @@ class TypeCache final {
   TypeCache() = default;
 
   Type* const kInt8 =
-      CreateNative(CreateRange<int8_t>(), Type::UntaggedSigned8());
+      CreateNative(CreateRange<int8_t>(), Type::UntaggedIntegral8());
   Type* const kUint8 =
-      CreateNative(CreateRange<uint8_t>(), Type::UntaggedUnsigned8());
+      CreateNative(CreateRange<uint8_t>(), Type::UntaggedIntegral8());
   Type* const kUint8Clamped = kUint8;
   Type* const kInt16 =
-      CreateNative(CreateRange<int16_t>(), Type::UntaggedSigned16());
+      CreateNative(CreateRange<int16_t>(), Type::UntaggedIntegral16());
   Type* const kUint16 =
-      CreateNative(CreateRange<uint16_t>(), Type::UntaggedUnsigned16());
-  Type* const kInt32 = CreateNative(Type::Signed32(), Type::UntaggedSigned32());
+      CreateNative(CreateRange<uint16_t>(), Type::UntaggedIntegral16());
+  Type* const kInt32 =
+      CreateNative(Type::Signed32(), Type::UntaggedIntegral32());
   Type* const kUint32 =
-      CreateNative(Type::Unsigned32(), Type::UntaggedUnsigned32());
+      CreateNative(Type::Unsigned32(), Type::UntaggedIntegral32());
   Type* const kFloat32 = CreateNative(Type::Number(), Type::UntaggedFloat32());
   Type* const kFloat64 = CreateNative(Type::Number(), Type::UntaggedFloat64());
 

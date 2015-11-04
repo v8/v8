@@ -167,30 +167,21 @@ namespace internal {
 
 #define REPRESENTATION_BITSET_TYPE_LIST(V)    \
   V(None,               0)                    \
-  V(UntaggedBit,        1u << 20 | kSemantic) \
-  V(UntaggedSigned8,    1u << 21 | kSemantic) \
-  V(UntaggedSigned16,   1u << 22 | kSemantic) \
-  V(UntaggedSigned32,   1u << 23 | kSemantic) \
-  V(UntaggedUnsigned8,  1u << 24 | kSemantic) \
-  V(UntaggedUnsigned16, 1u << 25 | kSemantic) \
-  V(UntaggedUnsigned32, 1u << 26 | kSemantic) \
+  V(UntaggedBit,        1u << 23 | kSemantic) \
+  V(UntaggedIntegral8,  1u << 24 | kSemantic) \
+  V(UntaggedIntegral16, 1u << 25 | kSemantic) \
+  V(UntaggedIntegral32, 1u << 26 | kSemantic) \
   V(UntaggedFloat32,    1u << 27 | kSemantic) \
   V(UntaggedFloat64,    1u << 28 | kSemantic) \
   V(UntaggedPointer,    1u << 29 | kSemantic) \
   V(TaggedSigned,       1u << 30 | kSemantic) \
   V(TaggedPointer,      1u << 31 | kSemantic) \
   \
-  V(UntaggedSigned,     kUntaggedSigned8 | kUntaggedSigned16 |              \
-                        kUntaggedSigned32)                                  \
-  V(UntaggedUnsigned,   kUntaggedUnsigned8 | kUntaggedUnsigned16 |          \
-                        kUntaggedUnsigned32)                                \
-  V(UntaggedIntegral8,  kUntaggedSigned8 | kUntaggedUnsigned8)              \
-  V(UntaggedIntegral16, kUntaggedSigned16 | kUntaggedUnsigned16)            \
-  V(UntaggedIntegral32, kUntaggedSigned32 | kUntaggedUnsigned32)            \
-  V(UntaggedIntegral,   kUntaggedBit | kUntaggedSigned | kUntaggedUnsigned) \
-  V(UntaggedFloat,      kUntaggedFloat32 | kUntaggedFloat64)                \
-  V(UntaggedNumber,     kUntaggedIntegral | kUntaggedFloat)                 \
-  V(Untagged,           kUntaggedNumber | kUntaggedPointer)                 \
+  V(UntaggedIntegral,   kUntaggedBit | kUntaggedIntegral8 |        \
+                        kUntaggedIntegral16 | kUntaggedIntegral32) \
+  V(UntaggedFloat,      kUntaggedFloat32 | kUntaggedFloat64)       \
+  V(UntaggedNumber,     kUntaggedIntegral | kUntaggedFloat)        \
+  V(Untagged,           kUntaggedNumber | kUntaggedPointer)        \
   V(Tagged,             kTaggedSigned | kTaggedPointer)
 
 #define INTERNAL_BITSET_TYPE_LIST(V)                                      \
