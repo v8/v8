@@ -474,32 +474,23 @@ class RepresentationSelector {
 
   bool CanLowerToInt32Binop(Node* node, MachineTypeUnion use) {
     return BothInputsAre(node, Type::Signed32()) &&
-           (!CanObserveNonInt32(use) ||
+           (!CanObserveNonWord32(use) ||
             NodeProperties::GetType(node)->Is(Type::Signed32()));
   }
 
-  bool CanLowerToInt32AdditiveBinop(Node* node, MachineTypeUnion use) {
+  bool CanLowerToWord32AdditiveBinop(Node* node, MachineTypeUnion use) {
     return BothInputsAre(node, safe_int_additive_range_) &&
-           !CanObserveNonInt32(use);
+           !CanObserveNonWord32(use);
   }
 
   bool CanLowerToUint32Binop(Node* node, MachineTypeUnion use) {
     return BothInputsAre(node, Type::Unsigned32()) &&
-           (!CanObserveNonUint32(use) ||
+           (!CanObserveNonWord32(use) ||
             NodeProperties::GetType(node)->Is(Type::Unsigned32()));
   }
 
-  bool CanLowerToUint32AdditiveBinop(Node* node, MachineTypeUnion use) {
-    return BothInputsAre(node, safe_int_additive_range_) &&
-           !CanObserveNonUint32(use);
-  }
-
   bool CanObserveNonWord32(MachineTypeUnion use) {
-    return (use & ~(kTypeUint32 | kTypeInt32)) != 0;
-  }
-
-  bool CanObserveNonInt32(MachineTypeUnion use) {
-    return (use & (kTypeUint32 | kTypeNumber | kTypeAny)) != 0;
+    return (use & kTypeMask & ~(kTypeInt32 | kTypeUint32)) != 0;
   }
 
   bool CanObserveMinusZero(MachineTypeUnion use) {
@@ -509,10 +500,6 @@ class RepresentationSelector {
 
   bool CanObserveNaN(MachineTypeUnion use) {
     return (use & (kTypeNumber | kTypeAny)) != 0;
-  }
-
-  bool CanObserveNonUint32(MachineTypeUnion use) {
-    return (use & (kTypeInt32 | kTypeNumber | kTypeAny)) != 0;
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -644,22 +631,16 @@ class RepresentationSelector {
           // => signed Int32Add/Sub
           VisitInt32Binop(node);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-        } else if (CanLowerToInt32AdditiveBinop(node, use)) {
+        } else if (CanLowerToUint32Binop(node, use)) {
+          // => unsigned Int32Add/Sub
+          VisitUint32Binop(node);
+          if (lower()) NodeProperties::ChangeOp(node, Uint32Op(node));
+        } else if (CanLowerToWord32AdditiveBinop(node, use)) {
           // => signed Int32Add/Sub, truncating inputs
           ProcessTruncateWord32Input(node, 0, kTypeInt32);
           ProcessTruncateWord32Input(node, 1, kTypeInt32);
           SetOutput(node, kMachInt32);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-        } else if (CanLowerToUint32Binop(node, use)) {
-          // => unsigned Int32Add/Sub
-          VisitUint32Binop(node);
-          if (lower()) NodeProperties::ChangeOp(node, Uint32Op(node));
-        } else if (CanLowerToUint32AdditiveBinop(node, use)) {
-          // => signed Int32Add/Sub, truncating inputs
-          ProcessTruncateWord32Input(node, 0, kTypeUint32);
-          ProcessTruncateWord32Input(node, 1, kTypeUint32);
-          SetOutput(node, kMachUint32);
-          if (lower()) NodeProperties::ChangeOp(node, Uint32Op(node));
         } else {
           // => Float64Add/Sub
           VisitFloat64Binop(node);
