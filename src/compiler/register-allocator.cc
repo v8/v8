@@ -712,11 +712,11 @@ void TopLevelLiveRange::SpillAtDefinition(Zone* zone, int gap_index,
 }
 
 
-bool TopLevelLiveRange::TryCommitSpillInDeferredBlock(
-    InstructionSequence* code, const InstructionOperand& spill_operand) {
+void TopLevelLiveRange::MarkSpilledInDeferredBlock(
+    const InstructionSequence* code) {
   if (!FLAG_turbo_preprocess_ranges || IsEmpty() || HasNoSpillType() ||
-      spill_operand.IsConstant() || spill_operand.IsImmediate()) {
-    return false;
+      !HasSpillRange()) {
+    return;
   }
 
   int count = 0;
@@ -744,16 +744,23 @@ bool TopLevelLiveRange::TryCommitSpillInDeferredBlock(
             "Live Range %d must be spilled at definition: found a "
             "slot-requiring non-deferred child range %d.\n",
             TopLevel()->vreg(), child->relative_id());
-        return false;
+        return;
       }
     } else {
       if (child->spilled() || has_slot_use) ++count;
     }
   }
-  if (count == 0) return false;
+  if (count == 0) return;
 
   spill_start_index_ = -1;
   spilled_in_deferred_blocks_ = true;
+  spills_at_definition_ = nullptr;
+}
+
+
+bool TopLevelLiveRange::TryCommitSpillInDeferredBlock(
+    InstructionSequence* code, const InstructionOperand& spill_operand) {
+  if (!IsSpilledOnlyInDeferredBlocks()) return false;
 
   TRACE("Live Range %d will be spilled only in deferred blocks.\n", vreg());
   // If we have ranges that aren't spilled but require the operand on the stack,
@@ -2962,10 +2969,20 @@ void SpillSlotLocator::LocateSpillSlots() {
     if (range == nullptr || range->IsEmpty()) continue;
     // We care only about ranges which spill in the frame.
     if (!range->HasSpillRange()) continue;
-    auto spills = range->spills_at_definition();
-    DCHECK_NOT_NULL(spills);
-    for (; spills != nullptr; spills = spills->next) {
-      code->GetInstructionBlock(spills->gap_index)->mark_needs_frame();
+    range->MarkSpilledInDeferredBlock(data()->code());
+    if (range->IsSpilledOnlyInDeferredBlocks()) {
+      for (LiveRange* child = range; child != nullptr; child = child->next()) {
+        if (child->spilled()) {
+          code->GetInstructionBlock(child->Start().ToInstructionIndex())
+              ->mark_needs_frame();
+        }
+      }
+    } else {
+      auto spills = range->spills_at_definition();
+      DCHECK_NOT_NULL(spills);
+      for (; spills != nullptr; spills = spills->next) {
+        code->GetInstructionBlock(spills->gap_index)->mark_needs_frame();
+      }
     }
   }
 }

@@ -550,6 +550,7 @@ class TopLevelLiveRange final : public LiveRange {
   // and instead let the LiveRangeConnector perform the spills within the
   // deferred blocks. If so, we insert here spills for non-spilled ranges
   // with slot use positions.
+  void MarkSpilledInDeferredBlock(const InstructionSequence* code);
   bool TryCommitSpillInDeferredBlock(InstructionSequence* code,
                                      const InstructionOperand& spill_operand);
 
