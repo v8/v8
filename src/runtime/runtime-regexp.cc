@@ -924,26 +924,14 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, escaped_source,
                                      EscapeRegExpSource(isolate, source));
 
-  Handle<Object> global = factory->ToBoolean(flags.is_global());
-  Handle<Object> ignore_case = factory->ToBoolean(flags.is_ignore_case());
-  Handle<Object> multiline = factory->ToBoolean(flags.is_multiline());
-  Handle<Object> sticky = factory->ToBoolean(flags.is_sticky());
-  Handle<Object> unicode = factory->ToBoolean(flags.is_unicode());
-
   Map* map = regexp->map();
   Object* constructor = map->GetConstructor();
-  if (!FLAG_harmony_regexps && !FLAG_harmony_unicode_regexps &&
-      constructor->IsJSFunction() &&
+  if (constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, *escaped_source);
-    // Both true and false are immovable immortal objects so no need for write
-    // barrier.
-    regexp->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex, *global,
-                                  SKIP_WRITE_BARRIER);
-    regexp->InObjectPropertyAtPut(JSRegExp::kIgnoreCaseFieldIndex, *ignore_case,
-                                  SKIP_WRITE_BARRIER);
-    regexp->InObjectPropertyAtPut(JSRegExp::kMultilineFieldIndex, *multiline,
+    regexp->InObjectPropertyAtPut(JSRegExp::kFlagsFieldIndex,
+                                  Smi::FromInt(flags.value()),
                                   SKIP_WRITE_BARRIER);
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(0), SKIP_WRITE_BARRIER);
@@ -958,22 +946,13 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
     PropertyAttributes writable =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
     Handle<Object> zero(Smi::FromInt(0), isolate);
-    JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->source_string(),
-                                             escaped_source, final).Check();
-    JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->global_string(),
-                                             global, final).Check();
     JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->ignore_case_string(), ignore_case, final).Check();
+        regexp, factory->regexp_source_symbol(), escaped_source, final)
+        .Check();
     JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->multiline_string(), multiline, final).Check();
-    if (FLAG_harmony_regexps) {
-      JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->sticky_string(),
-                                               sticky, final).Check();
-    }
-    if (FLAG_harmony_unicode_regexps) {
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          regexp, factory->unicode_string(), unicode, final).Check();
-    }
+        regexp, factory->regexp_flags_symbol(),
+        Handle<Smi>(Smi::FromInt(flags.value()), isolate), final)
+        .Check();
     JSObject::SetOwnPropertyIgnoreAttributes(
         regexp, factory->last_index_string(), zero, writable).Check();
   }
