@@ -11,6 +11,7 @@
 // -------------------------------------------------------------------
 // Imports
 
+var GetRegExpFlagGetter = utils.ImportNow("GetRegExpFlagGetter");
 var GlobalRegExp = global.RegExp;
 var MakeTypeError;
 
@@ -24,7 +25,8 @@ utils.Import(function(from) {
 // + https://bugs.ecmascript.org/show_bug.cgi?id=3423
 function RegExpGetFlags() {
   if (!IS_SPEC_OBJECT(this)) {
-    throw MakeTypeError(kFlagsGetterNonObject, TO_STRING(this));
+    throw MakeTypeError(
+        kRegExpNonObject, "RegExp.prototype.flags", TO_STRING(this));
   }
   var result = '';
   if (this.global) result += 'g';
@@ -39,4 +41,11 @@ function RegExpGetFlags() {
                                  RegExpGetFlags, null, DONT_ENUM);
 %SetNativeFlag(RegExpGetFlags);
 
+%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "sticky",
+    GetRegExpFlagGetter("RegExp.prototype.sticky", REGEXP_STICKY_MASK),
+    DONT_ENUM);
+
+%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "unicode",
+    GetRegExpFlagGetter("RegExp.prototype.unicode", REGEXP_UNICODE_MASK),
+    DONT_ENUM);
 })
