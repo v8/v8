@@ -174,19 +174,6 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
 }
 
 
-Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
-                                             Node* context, Node* frame_state,
-                                             CallFunctionFlags flags) {
-  Callable callable = CodeFactory::CallFunction(isolate(), 0, flags);
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 1,
-      CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
-  Node* stub_code = HeapConstant(callable.code());
-  return AddNode(common()->Call(desc), stub_code, function, receiver, context,
-                 frame_state, graph()->start(), graph()->start());
-}
-
-
 Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
                                         Node* arg1, Node* context) {
   CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(

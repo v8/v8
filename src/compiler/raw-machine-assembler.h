@@ -521,9 +521,6 @@ class RawMachineAssembler {
                             Node* frame_state);
   // Tail call the given call descriptor and the given arguments.
   Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
-  // Call through CallFunctionStub with lazy deopt and frame-state.
-  Node* CallFunctionStub0(Node* function, Node* receiver, Node* context,
-                          Node* frame_state, CallFunctionFlags flags);
   // Call to a runtime function with one arguments.
   Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context);
   // Call to a runtime function with two arguments.
