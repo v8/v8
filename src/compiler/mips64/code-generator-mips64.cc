@@ -786,6 +786,62 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
       break;
     }
+    case kMips64Float64Max: {
+      // (b < a) ? a : b
+      if (kArchVariant == kMips64r6) {
+        __ cmp_d(OLT, i.OutputDoubleRegister(), i.InputDoubleRegister(1),
+                 i.InputDoubleRegister(0));
+        __ sel_d(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
+                 i.InputDoubleRegister(0));
+      } else {
+        __ c_d(OLT, i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        // Left operand is result, passthrough if false.
+        __ movt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(1));
+      }
+      break;
+    }
+    case kMips64Float64Min: {
+      // (a < b) ? a : b
+      if (kArchVariant == kMips64r6) {
+        __ cmp_d(OLT, i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                 i.InputDoubleRegister(1));
+        __ sel_d(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
+                 i.InputDoubleRegister(0));
+      } else {
+        __ c_d(OLT, i.InputDoubleRegister(1), i.InputDoubleRegister(0));
+        // Right operand is result, passthrough if false.
+        __ movt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(1));
+      }
+      break;
+    }
+    case kMips64Float32Max: {
+      // (b < a) ? a : b
+      if (kArchVariant == kMips64r6) {
+        __ cmp_s(OLT, i.OutputDoubleRegister(), i.InputDoubleRegister(1),
+                 i.InputDoubleRegister(0));
+        __ sel_s(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
+                 i.InputDoubleRegister(0));
+      } else {
+        __ c_s(OLT, i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        // Left operand is result, passthrough if false.
+        __ movt_s(i.OutputDoubleRegister(), i.InputDoubleRegister(1));
+      }
+      break;
+    }
+    case kMips64Float32Min: {
+      // (a < b) ? a : b
+      if (kArchVariant == kMips64r6) {
+        __ cmp_s(OLT, i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                 i.InputDoubleRegister(1));
+        __ sel_s(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
+                 i.InputDoubleRegister(0));
+      } else {
+        __ c_s(OLT, i.InputDoubleRegister(1), i.InputDoubleRegister(0));
+        // Right operand is result, passthrough if false.
+        __ movt_s(i.OutputDoubleRegister(), i.InputDoubleRegister(1));
+      }
+      break;
+    }
     case kMips64CvtSD:
       __ cvt_s_d(i.OutputSingleRegister(), i.InputDoubleRegister(0));
       break;

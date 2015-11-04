@@ -79,6 +79,10 @@ namespace compiler {
   V(MipsFloat64ExtractHighWord32)  \
   V(MipsFloat64InsertLowWord32)    \
   V(MipsFloat64InsertHighWord32)   \
+  V(MipsFloat64Max)                \
+  V(MipsFloat64Min)                \
+  V(MipsFloat32Max)                \
+  V(MipsFloat32Min)                \
   V(MipsPush)                      \
   V(MipsStoreToStackSlot)          \
   V(MipsStackClaim)                \

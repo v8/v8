@@ -818,10 +818,10 @@ class Assembler : public AssemblerBase {
 
   void movz_s(FPURegister fd, FPURegister fs, Register rt);
   void movz_d(FPURegister fd, FPURegister fs, Register rt);
-  void movt_s(FPURegister fd, FPURegister fs, uint16_t cc);
-  void movt_d(FPURegister fd, FPURegister fs, uint16_t cc);
-  void movf_s(FPURegister fd, FPURegister fs, uint16_t cc);
-  void movf_d(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movt_s(FPURegister fd, FPURegister fs, uint16_t cc = 0);
+  void movt_d(FPURegister fd, FPURegister fs, uint16_t cc = 0);
+  void movf_s(FPURegister fd, FPURegister fs, uint16_t cc = 0);
+  void movf_d(FPURegister fd, FPURegister fs, uint16_t cc = 0);
   void movn_s(FPURegister fd, FPURegister fs, Register rt);
   void movn_d(FPURegister fd, FPURegister fs, Register rt);
   // Bit twiddling.

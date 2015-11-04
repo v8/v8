@@ -674,16 +674,64 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat32Max(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  Mips64OperandGenerator g(this);
+  if (kArchVariant == kMips64r6) {
+    Emit(kMips64Float32Max, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+
+  } else {
+    // Reverse operands, and use same reg. for result and right operand.
+    Emit(kMips64Float32Max, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+  }
+}
 
 
-void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Max(Node* node) {
+  Mips64OperandGenerator g(this);
+  if (kArchVariant == kMips64r6) {
+    Emit(kMips64Float64Max, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+
+  } else {
+    // Reverse operands, and use same reg. for result and right operand.
+    Emit(kMips64Float64Max, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+  }
+}
 
 
-void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  Mips64OperandGenerator g(this);
+  if (kArchVariant == kMips64r6) {
+    Emit(kMips64Float32Min, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+
+  } else {
+    // Reverse operands, and use same reg. for result and right operand.
+    Emit(kMips64Float32Min, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+  }
+}
 
 
-void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Min(Node* node) {
+  Mips64OperandGenerator g(this);
+  if (kArchVariant == kMips64r6) {
+    Emit(kMips64Float64Min, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+
+  } else {
+    // Reverse operands, and use same reg. for result and right operand.
+    Emit(kMips64Float64Min, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
+  }
+}
 
 
 void InstructionSelector::VisitFloat32Abs(Node* node) {
@@ -1296,7 +1344,11 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kFloat64RoundDown |
+  return MachineOperatorBuilder::kFloat64Min |
+         MachineOperatorBuilder::kFloat64Max |
+         MachineOperatorBuilder::kFloat32Min |
+         MachineOperatorBuilder::kFloat32Max |
+         MachineOperatorBuilder::kFloat64RoundDown |
          MachineOperatorBuilder::kFloat64RoundTruncate;
 }
 

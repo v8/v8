@@ -3391,6 +3391,70 @@ TEST(RunFloat64AddP) {
 }
 
 
+TEST(RunFloa32MaxP) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float32BinopTester bt(&m);
+  if (!m.machine()->Float32Max().IsSupported()) return;
+
+  bt.AddReturn(m.Float32Max(bt.param0, bt.param1));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      double expected = *pl > *pr ? *pl : *pr;
+      CheckDoubleEq(expected, bt.call(*pl, *pr));
+    }
+  }
+}
+
+
+TEST(RunFloat64MaxP) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float64BinopTester bt(&m);
+  if (!m.machine()->Float64Max().IsSupported()) return;
+
+  bt.AddReturn(m.Float64Max(bt.param0, bt.param1));
+
+  FOR_FLOAT64_INPUTS(pl) {
+    FOR_FLOAT64_INPUTS(pr) {
+      double expected = *pl > *pr ? *pl : *pr;
+      CheckDoubleEq(expected, bt.call(*pl, *pr));
+    }
+  }
+}
+
+
+TEST(RunFloat32MinP) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float32BinopTester bt(&m);
+  if (!m.machine()->Float32Min().IsSupported()) return;
+
+  bt.AddReturn(m.Float32Min(bt.param0, bt.param1));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      double expected = *pl < *pr ? *pl : *pr;
+      CheckDoubleEq(expected, bt.call(*pl, *pr));
+    }
+  }
+}
+
+
+TEST(RunFloat64MinP) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float64BinopTester bt(&m);
+  if (!m.machine()->Float64Min().IsSupported()) return;
+
+  bt.AddReturn(m.Float64Min(bt.param0, bt.param1));
+
+  FOR_FLOAT64_INPUTS(pl) {
+    FOR_FLOAT64_INPUTS(pr) {
+      double expected = *pl < *pr ? *pl : *pr;
+      CheckDoubleEq(expected, bt.call(*pl, *pr));
+    }
+  }
+}
+
+
 TEST(RunFloat32SubP) {
   RawMachineAssemblerTester<int32_t> m;
   Float32BinopTester bt(&m);
