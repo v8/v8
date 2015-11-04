@@ -19,7 +19,6 @@ var MakeRangeError;
 var MakeTypeError;
 var RegExpExec;
 var RegExpExecNoTests;
-var regExpFlagsSymbol = utils.ImportNow("regexp_flags_symbol");
 var RegExpLastMatchInfo;
 
 utils.Import(function(from) {
@@ -156,7 +155,7 @@ function StringMatchJS(regexp) {
 
   var subject = TO_STRING(this);
   if (IS_REGEXP(regexp)) {
-    if (!REGEXP_GLOBAL(regexp)) return RegExpExecNoTests(regexp, subject, 0);
+    if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
     var result = %StringMatch(subject, regexp, RegExpLastMatchInfo);
     regexp.lastIndex = 0;
     return result;
@@ -226,7 +225,7 @@ function StringReplace(search, replace) {
     if (!IS_CALLABLE(replace)) {
       replace = TO_STRING(replace);
 
-      if (!REGEXP_GLOBAL(search)) {
+      if (!search.global) {
         // Non-global regexp search, string replace.
         var match = RegExpExec(search, subject, 0);
         if (match == null) {
@@ -248,7 +247,7 @@ function StringReplace(search, replace) {
           subject, search, replace, RegExpLastMatchInfo);
     }
 
-    if (REGEXP_GLOBAL(search)) {
+    if (search.global) {
       // Global regexp search, function replace.
       return StringReplaceGlobalRegExpWithFunction(subject, search, replace);
     }

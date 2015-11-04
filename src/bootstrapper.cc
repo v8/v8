@@ -1228,16 +1228,31 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Map::EnsureDescriptorSlack(initial_map, 5);
 
     {
-      // ES6 21.2.3.2.1
-      DataDescriptor field(factory->regexp_source_symbol(),
+      // ECMA-262, section 15.10.7.1.
+      DataDescriptor field(factory->source_string(),
                            JSRegExp::kSourceFieldIndex, final,
                            Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
     {
-      DataDescriptor field(factory->regexp_flags_symbol(),
-                           JSRegExp::kFlagsFieldIndex, final,
-                           Representation::Smi());
+      // ECMA-262, section 15.10.7.2.
+      DataDescriptor field(factory->global_string(),
+                           JSRegExp::kGlobalFieldIndex, final,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
+    }
+    {
+      // ECMA-262, section 15.10.7.3.
+      DataDescriptor field(factory->ignore_case_string(),
+                           JSRegExp::kIgnoreCaseFieldIndex, final,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
+    }
+    {
+      // ECMA-262, section 15.10.7.4.
+      DataDescriptor field(factory->multiline_string(),
+                           JSRegExp::kMultilineFieldIndex, final,
+                           Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
     {

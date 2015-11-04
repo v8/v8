@@ -175,7 +175,6 @@ function PostNatives(utils) {
     "FunctionSourceString",
     "GetIterator",
     "GetMethod",
-    "GetRegExpFlagGetter",
     "InnerArrayEvery",
     "InnerArrayFilter",
     "InnerArrayForEach",
