@@ -195,7 +195,9 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       if (!(flags() & kDeoptimizationEnabled)) return NoChange();
       dependencies()->AssumePropertyCell(property_cell);
       Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+      Type* property_cell_value_type = Type::TaggedSigned();
       if (property_cell_value->IsHeapObject()) {
+        // Deoptimize if the {value} is a Smi.
         Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                         check, control);
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
@@ -204,7 +206,9 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
         // TODO(bmeurer): This should be on the AdvancedReducer somehow.
         NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
         control = graph()->NewNode(common()->IfFalse(), branch);
-        Node* value_map =
+
+        // Load the {value} map check against the {property_cell} map.
+        Node* value_map = effect =
             graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
                              value, effect, control);
         Handle<Map> property_cell_value_map(
@@ -212,6 +216,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
         check = graph()->NewNode(
             simplified()->ReferenceEqual(Type::Any()), value_map,
             jsgraph()->HeapConstant(property_cell_value_map));
+        property_cell_value_type = Type::TaggedPointer();
       }
       Node* branch =
           graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
@@ -222,7 +227,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
       control = graph()->NewNode(common()->IfTrue(), branch);
       effect = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForPropertyCellValue()),
+          simplified()->StoreField(
+              AccessBuilder::ForPropertyCellValue(property_cell_value_type)),
           jsgraph()->HeapConstant(property_cell), value, effect, control);
       break;
     }

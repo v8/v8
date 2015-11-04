@@ -1171,8 +1171,9 @@ namespace {
 
 WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
                                          MachineType representation,
-                                         Type* type) {
-  if (type->Is(Type::TaggedSigned())) {
+                                         Type* field_type, Type* input_type) {
+  if (field_type->Is(Type::TaggedSigned()) ||
+      input_type->Is(Type::TaggedSigned())) {
     // Write barriers are only for writes of heap objects.
     return kNoWriteBarrier;
   }
@@ -1229,8 +1230,8 @@ void SimplifiedLowering::DoLoadField(Node* node) {
 void SimplifiedLowering::DoStoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   Type* type = NodeProperties::GetType(node->InputAt(1));
-  WriteBarrierKind kind =
-      ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type, type);
+  WriteBarrierKind kind = ComputeWriteBarrierKind(
+      access.base_is_tagged, access.machine_type, access.type, type);
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
   NodeProperties::ChangeOp(
@@ -1338,10 +1339,11 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
   Type* type = NodeProperties::GetType(node->InputAt(2));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
   NodeProperties::ChangeOp(
-      node, machine()->Store(StoreRepresentation(
-                access.machine_type,
-                ComputeWriteBarrierKind(access.base_is_tagged,
-                                        access.machine_type, type))));
+      node,
+      machine()->Store(StoreRepresentation(
+          access.machine_type,
+          ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type,
+                                  access.type, type))));
 }
 
 
