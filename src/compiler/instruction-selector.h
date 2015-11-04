@@ -176,13 +176,6 @@ class InstructionSelector final {
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
 
-  enum class FrameStateInputKind { kAny, kStackSlot };
-  void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,
-                           FrameStateDescriptor* descriptor,
-                           FrameStateInputKind kind);
-  static InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
-                                            FrameStateInputKind kind);
-
   // ===========================================================================
   // ============= Architecture-specific graph covering methods. ===============
   // ===========================================================================
