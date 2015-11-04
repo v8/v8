@@ -386,6 +386,10 @@ class MacroAssembler : public Assembler {
   void ConvertIntToFloat(const DoubleRegister dst, const Register src,
                          const Register int_scratch);
 
+#if V8_TARGET_ARCH_PPC64
+  void ConvertInt64ToDouble(Register src, DoubleRegister double_dst);
+#endif
+
   // Converts the double_input to an integer.  Note that, upon return,
   // the contents of double_dst will also hold the fixed point representation.
   void ConvertDoubleToInt64(const DoubleRegister double_input,

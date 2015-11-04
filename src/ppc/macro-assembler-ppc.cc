@@ -664,6 +664,15 @@ void MacroAssembler::ConvertIntToFloat(const DoubleRegister dst,
 }
 
 
+#if V8_TARGET_ARCH_PPC64
+void MacroAssembler::ConvertInt64ToDouble(Register src,
+                                          DoubleRegister double_dst) {
+  MovInt64ToDouble(double_dst, src);
+  fcfid(double_dst, double_dst);
+}
+#endif
+
+
 void MacroAssembler::ConvertDoubleToInt64(const DoubleRegister double_input,
 #if !V8_TARGET_ARCH_PPC64
                                           const Register dst_hi,
