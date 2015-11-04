@@ -90,7 +90,7 @@ class AsmTyper : public AstVisitor {
 
   Zone* zone() const { return zone_; }
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

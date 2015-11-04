@@ -3269,7 +3269,7 @@ class HPhi final : public HValue {
   Representation RepresentationFromInputs() override;
 
   Range* InferRange(Zone* zone) override;
-  virtual void InferRepresentation(HInferRepresentationPhase* h_infer) override;
+  void InferRepresentation(HInferRepresentationPhase* h_infer) override;
   Representation RequiredInputRepresentation(int index) override {
     return representation();
   }
@@ -3825,15 +3825,15 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     return observed_input_representation_[index - 1];
   }
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) override {
+  void UpdateRepresentation(Representation new_rep,
+                            HInferRepresentationPhase* h_infer,
+                            const char* reason) override {
     Representation rep = !FLAG_smi_binop && new_rep.IsSmi()
         ? Representation::Integer32() : new_rep;
     HValue::UpdateRepresentation(rep, h_infer, reason);
   }
 
-  virtual void InferRepresentation(HInferRepresentationPhase* h_infer) override;
+  void InferRepresentation(HInferRepresentationPhase* h_infer) override;
   Representation RepresentationFromInputs() override;
   Representation RepresentationFromOutput();
   void AssumeRepresentation(Representation r) override;
@@ -4064,7 +4064,7 @@ class HBoundsCheck final : public HTemplateInstruction<2> {
   }
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-  virtual void InferRepresentation(HInferRepresentationPhase* h_infer) override;
+  void InferRepresentation(HInferRepresentationPhase* h_infer) override;
 
   HValue* index() const { return OperandAt(0); }
   HValue* length() const { return OperandAt(1); }
@@ -4158,9 +4158,9 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
     if (to.IsTagged()) SetChangesFlag(kNewSpacePromotion);
   }
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) override {
+  void UpdateRepresentation(Representation new_rep,
+                            HInferRepresentationPhase* h_infer,
+                            const char* reason) override {
     // We only generate either int32 or generic tagged bitwise operations.
     if (new_rep.IsDouble()) new_rep = Representation::Integer32();
     HBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
@@ -4172,8 +4172,7 @@ class HBitwiseBinaryOperation : public HBinaryOperation {
     return r;
   }
 
-  virtual void initialize_output_representation(
-      Representation observed) override {
+  void initialize_output_representation(Representation observed) override {
     if (observed.IsDouble()) observed = Representation::Integer32();
     HBinaryOperation::initialize_output_representation(observed);
   }
@@ -4307,7 +4306,7 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
       observed_input_representation_[1] = right;
   }
 
-  virtual void InferRepresentation(HInferRepresentationPhase* h_infer) override;
+  void InferRepresentation(HInferRepresentationPhase* h_infer) override;
 
   Representation RequiredInputRepresentation(int index) override {
     return representation();
@@ -4355,7 +4354,7 @@ class HCompareHoleAndBranch final : public HUnaryControlInstruction {
   DECLARE_INSTRUCTION_FACTORY_P3(HCompareHoleAndBranch, HValue*,
                                  HBasicBlock*, HBasicBlock*);
 
-  virtual void InferRepresentation(HInferRepresentationPhase* h_infer) override;
+  void InferRepresentation(HInferRepresentationPhase* h_infer) override;
 
   Representation RequiredInputRepresentation(int index) override {
     return representation();
@@ -4378,7 +4377,7 @@ class HCompareMinusZeroAndBranch final : public HUnaryControlInstruction {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HCompareMinusZeroAndBranch, HValue*);
 
-  virtual void InferRepresentation(HInferRepresentationPhase* h_infer) override;
+  void InferRepresentation(HInferRepresentationPhase* h_infer) override;
 
   Representation RequiredInputRepresentation(int index) override {
     return representation();
@@ -4951,9 +4950,9 @@ class HMul final : public HArithmeticBinaryOperation {
   // Only commutative if it is certain that not two objects are multiplicated.
   bool IsCommutative() const override { return !representation().IsTagged(); }
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) override {
+  void UpdateRepresentation(Representation new_rep,
+                            HInferRepresentationPhase* h_infer,
+                            const char* reason) override {
     HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
 
@@ -4982,9 +4981,9 @@ class HMod final : public HArithmeticBinaryOperation {
 
   HValue* Canonicalize() override;
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) override {
+  void UpdateRepresentation(Representation new_rep,
+                            HInferRepresentationPhase* h_infer,
+                            const char* reason) override {
     if (new_rep.IsSmi()) new_rep = Representation::Integer32();
     HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
@@ -5014,9 +5013,9 @@ class HDiv final : public HArithmeticBinaryOperation {
 
   HValue* Canonicalize() override;
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) override {
+  void UpdateRepresentation(Representation new_rep,
+                            HInferRepresentationPhase* h_infer,
+                            const char* reason) override {
     if (new_rep.IsSmi()) new_rep = Representation::Integer32();
     HArithmeticBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
@@ -5048,7 +5047,7 @@ class HMathMinMax final : public HArithmeticBinaryOperation {
     return RequiredInputRepresentation(index);
   }
 
-  virtual void InferRepresentation(HInferRepresentationPhase* h_infer) override;
+  void InferRepresentation(HInferRepresentationPhase* h_infer) override;
 
   Representation RepresentationFromInputs() override {
     Representation left_rep = left()->representation();
@@ -5148,9 +5147,9 @@ class HShl final : public HBitwiseBinaryOperation {
 
   Range* InferRange(Zone* zone) override;
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) override {
+  void UpdateRepresentation(Representation new_rep,
+                            HInferRepresentationPhase* h_infer,
+                            const char* reason) override {
     if (new_rep.IsSmi() &&
         !(right()->IsInteger32Constant() &&
           right()->GetInteger32Constant() >= 0)) {
@@ -5190,9 +5189,9 @@ class HShr final : public HBitwiseBinaryOperation {
 
   Range* InferRange(Zone* zone) override;
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) override {
+  void UpdateRepresentation(Representation new_rep,
+                            HInferRepresentationPhase* h_infer,
+                            const char* reason) override {
     if (new_rep.IsSmi()) new_rep = Representation::Integer32();
     HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
@@ -5228,9 +5227,9 @@ class HSar final : public HBitwiseBinaryOperation {
 
   Range* InferRange(Zone* zone) override;
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) override {
+  void UpdateRepresentation(Representation new_rep,
+                            HInferRepresentationPhase* h_infer,
+                            const char* reason) override {
     if (new_rep.IsSmi()) new_rep = Representation::Integer32();
     HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
@@ -5254,9 +5253,9 @@ class HRor final : public HBitwiseBinaryOperation {
     return new (zone) HRor(context, left, right, strength);
   }
 
-  virtual void UpdateRepresentation(Representation new_rep,
-                                    HInferRepresentationPhase* h_infer,
-                                    const char* reason) override {
+  void UpdateRepresentation(Representation new_rep,
+                            HInferRepresentationPhase* h_infer,
+                            const char* reason) override {
     if (new_rep.IsSmi()) new_rep = Representation::Integer32();
     HBitwiseBinaryOperation::UpdateRepresentation(new_rep, h_infer, reason);
   }
@@ -5521,8 +5520,8 @@ class HAllocate final : public HTemplateInstruction<2> {
     flags_ = static_cast<HAllocate::Flags>(flags_ | ALLOCATE_DOUBLE_ALIGNED);
   }
 
-  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
-                                         HValue* dominator) override;
+  bool HandleSideEffectDominator(GVNFlag side_effect,
+                                 HValue* dominator) override;
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
@@ -6814,8 +6813,8 @@ class HStoreNamedField final : public HTemplateInstruction<3> {
     }
     return Representation::Tagged();
   }
-  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
-                                         HValue* dominator) override {
+  bool HandleSideEffectDominator(GVNFlag side_effect,
+                                 HValue* dominator) override {
     DCHECK(side_effect == kNewSpacePromotion);
     if (!FLAG_use_write_barrier_elimination) return false;
     dominator_ = dominator;
@@ -7072,8 +7071,8 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
     return value()->IsConstant() && HConstant::cast(value())->IsTheHole();
   }
 
-  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
-                                         HValue* dominator) override {
+  bool HandleSideEffectDominator(GVNFlag side_effect,
+                                 HValue* dominator) override {
     DCHECK(side_effect == kNewSpacePromotion);
     dominator_ = dominator;
     return false;

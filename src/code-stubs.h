@@ -542,7 +542,7 @@ class TurboFanCodeStub : public CodeStub {
   // Retrieve the code for the stub. Generate the code if needed.
   Handle<Code> GenerateCode() override;
 
-  virtual int GetStackParameterCount() const override {
+  int GetStackParameterCount() const override {
     return GetCallInterfaceDescriptor().GetStackParameterCount();
   }
 
@@ -633,9 +633,9 @@ class StubRuntimeCallHelper : public RuntimeCallHelper {
  public:
   StubRuntimeCallHelper() {}
 
-  virtual void BeforeCall(MacroAssembler* masm) const;
+  void BeforeCall(MacroAssembler* masm) const override;
 
-  virtual void AfterCall(MacroAssembler* masm) const;
+  void AfterCall(MacroAssembler* masm) const override;
 };
 
 
@@ -644,9 +644,9 @@ class NopRuntimeCallHelper : public RuntimeCallHelper {
  public:
   NopRuntimeCallHelper() {}
 
-  virtual void BeforeCall(MacroAssembler* masm) const {}
+  void BeforeCall(MacroAssembler* masm) const override {}
 
-  virtual void AfterCall(MacroAssembler* masm) const {}
+  void AfterCall(MacroAssembler* masm) const override {}
 };
 
 
@@ -2429,7 +2429,7 @@ class VectorKeyedStoreICStub : public PlatformCodeStub {
 
   Code::Kind GetCodeKind() const final { return Code::KEYED_STORE_IC; }
   InlineCacheState GetICState() const final { return GENERIC; }
-  virtual ExtraICState GetExtraICState() const final {
+  ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
 

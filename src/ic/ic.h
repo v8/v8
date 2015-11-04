@@ -360,9 +360,8 @@ class LoadIC : public IC {
   // lookup result.
   void UpdateCaches(LookupIterator* lookup);
 
-  virtual Handle<Code> CompileHandler(LookupIterator* lookup,
-                                      Handle<Object> unused,
-                                      CacheHolderFlag cache_holder) override;
+  Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> unused,
+                              CacheHolderFlag cache_holder) override;
 
  private:
   Handle<Code> SimpleFieldLoad(FieldIndex index);
@@ -496,9 +495,8 @@ class StoreIC : public IC {
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     JSReceiver::StoreFromKeyed store_mode);
-  virtual Handle<Code> CompileHandler(LookupIterator* lookup,
-                                      Handle<Object> value,
-                                      CacheHolderFlag cache_holder) override;
+  Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> value,
+                              CacheHolderFlag cache_holder) override;
 
  private:
   inline void set_target(Code* code);

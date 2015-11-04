@@ -136,15 +136,15 @@ class MoveInterpreter : public GapResolver::Assembler {
  public:
   explicit MoveInterpreter(Zone* zone) : zone_(zone) {}
 
-  virtual void AssembleMove(InstructionOperand* source,
-                            InstructionOperand* destination) override {
+  void AssembleMove(InstructionOperand* source,
+                    InstructionOperand* destination) override {
     ParallelMove* moves = new (zone_) ParallelMove(zone_);
     moves->AddMove(*source, *destination);
     state_.ExecuteInParallel(moves);
   }
 
-  virtual void AssembleSwap(InstructionOperand* source,
-                            InstructionOperand* destination) override {
+  void AssembleSwap(InstructionOperand* source,
+                    InstructionOperand* destination) override {
     ParallelMove* moves = new (zone_) ParallelMove(zone_);
     moves->AddMove(*source, *destination);
     moves->AddMove(*destination, *source);

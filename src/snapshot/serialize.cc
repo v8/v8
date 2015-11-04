@@ -361,18 +361,17 @@ class CodeAddressMap: public CodeEventLogger {
     isolate->logger()->addCodeEventListener(this);
   }
 
-  virtual ~CodeAddressMap() {
+  ~CodeAddressMap() override {
     isolate_->logger()->removeCodeEventListener(this);
   }
 
-  virtual void CodeMoveEvent(Address from, Address to) {
+  void CodeMoveEvent(Address from, Address to) override {
     address_to_name_map_.Move(from, to);
   }
 
-  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) {
-  }
+  void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) override {}
 
-  virtual void CodeDeleteEvent(Address from) {
+  void CodeDeleteEvent(Address from) override {
     address_to_name_map_.Remove(from);
   }
 
@@ -452,10 +451,8 @@ class CodeAddressMap: public CodeEventLogger {
     DISALLOW_COPY_AND_ASSIGN(NameMap);
   };
 
-  virtual void LogRecordedBuffer(Code* code,
-                                 SharedFunctionInfo*,
-                                 const char* name,
-                                 int length) {
+  void LogRecordedBuffer(Code* code, SharedFunctionInfo*, const char* name,
+                         int length) override {
     address_to_name_map_.Insert(code->address(), name, length);
   }
 
@@ -677,7 +674,7 @@ class StringTableInsertionKey : public HashTableKey {
     return String::cast(key)->Hash();
   }
 
-  MUST_USE_RESULT virtual Handle<Object> AsHandle(Isolate* isolate) override {
+  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) override {
     return handle(string_, isolate);
   }
 

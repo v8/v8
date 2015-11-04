@@ -2932,11 +2932,10 @@ void PagedSpace::ReportStatistics() {
 
 // -----------------------------------------------------------------------------
 // MapSpace implementation
-// TODO(mvstanton): this is weird...the compiler can't make a vtable unless
-// there is at least one non-inlined virtual function. I would prefer to hide
-// the VerifyObject definition behind VERIFY_HEAP.
 
+#ifdef VERIFY_HEAP
 void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
+#endif
 
 
 // -----------------------------------------------------------------------------

@@ -788,15 +788,13 @@ class EffectContext final : public AstContext {
   explicit EffectContext(HOptimizedGraphBuilder* owner)
       : AstContext(owner, Expression::kEffect) {
   }
-  virtual ~EffectContext();
+  ~EffectContext() override;
 
   void ReturnValue(HValue* value) override;
-  virtual void ReturnInstruction(HInstruction* instr,
-                                 BailoutId ast_id) override;
-  virtual void ReturnControl(HControlInstruction* instr,
-                             BailoutId ast_id) override;
-  virtual void ReturnContinuation(HIfContinuation* continuation,
-                                  BailoutId ast_id) override;
+  void ReturnInstruction(HInstruction* instr, BailoutId ast_id) override;
+  void ReturnControl(HControlInstruction* instr, BailoutId ast_id) override;
+  void ReturnContinuation(HIfContinuation* continuation,
+                          BailoutId ast_id) override;
 };
 
 
@@ -805,15 +803,13 @@ class ValueContext final : public AstContext {
   ValueContext(HOptimizedGraphBuilder* owner, ArgumentsAllowedFlag flag)
       : AstContext(owner, Expression::kValue), flag_(flag) {
   }
-  virtual ~ValueContext();
+  ~ValueContext() override;
 
   void ReturnValue(HValue* value) override;
-  virtual void ReturnInstruction(HInstruction* instr,
-                                 BailoutId ast_id) override;
-  virtual void ReturnControl(HControlInstruction* instr,
-                             BailoutId ast_id) override;
-  virtual void ReturnContinuation(HIfContinuation* continuation,
-                                  BailoutId ast_id) override;
+  void ReturnInstruction(HInstruction* instr, BailoutId ast_id) override;
+  void ReturnControl(HControlInstruction* instr, BailoutId ast_id) override;
+  void ReturnContinuation(HIfContinuation* continuation,
+                          BailoutId ast_id) override;
 
   bool arguments_allowed() { return flag_ == ARGUMENTS_ALLOWED; }
 
@@ -835,12 +831,10 @@ class TestContext final : public AstContext {
   }
 
   void ReturnValue(HValue* value) override;
-  virtual void ReturnInstruction(HInstruction* instr,
-                                 BailoutId ast_id) override;
-  virtual void ReturnControl(HControlInstruction* instr,
-                             BailoutId ast_id) override;
-  virtual void ReturnContinuation(HIfContinuation* continuation,
-                                  BailoutId ast_id) override;
+  void ReturnInstruction(HInstruction* instr, BailoutId ast_id) override;
+  void ReturnControl(HControlInstruction* instr, BailoutId ast_id) override;
+  void ReturnContinuation(HIfContinuation* continuation,
+                          BailoutId ast_id) override;
 
   static TestContext* cast(AstContext* context) {
     DCHECK(context->IsTest());
@@ -2392,7 +2386,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void SetUpScope(Scope* scope);
   void VisitStatements(ZoneList<Statement*>* statements) override;
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

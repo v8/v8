@@ -1033,7 +1033,7 @@ class Parser : public ParserBase<ParserTraits> {
     // Visiting functions for AST nodes make this an AstVisitor.
     AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-    virtual void Visit(AstNode* node) override;
+    void Visit(AstNode* node) override;
 
     void RecurseIntoSubpattern(AstNode* pattern, Expression* value) {
       Expression* old_value = current_value_;

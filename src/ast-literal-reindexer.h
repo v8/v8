@@ -20,7 +20,7 @@ class AstLiteralReindexer final : public AstVisitor {
   int NextIndex() { return next_index_++; }
 
  private:
-#define DEFINE_VISIT(type) virtual void Visit##type(type* node) override;
+#define DEFINE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 

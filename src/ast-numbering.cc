@@ -27,7 +27,7 @@ class AstNumberingVisitor final : public AstVisitor {
 
  private:
 // AST node visitor interface.
-#define DEFINE_VISIT(type) virtual void Visit##type(type* node) override;
+#define DEFINE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 

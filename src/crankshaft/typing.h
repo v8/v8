@@ -72,7 +72,7 @@ class AstTyper: public AstVisitor {
   void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
   void VisitStatements(ZoneList<Statement*>* statements) override;
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

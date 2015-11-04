@@ -1324,7 +1324,7 @@ class AstLiteralReindexer;
 // Base class for literals that needs space in the corresponding JSFunction.
 class MaterializedLiteral : public Expression {
  public:
-  virtual MaterializedLiteral* AsMaterializedLiteral() { return this; }
+  MaterializedLiteral* AsMaterializedLiteral() final { return this; }
 
   int literal_index() { return literal_index_; }
 
@@ -2081,7 +2081,7 @@ class UnaryOperation final : public Expression {
   BailoutId MaterializeTrueId() const { return BailoutId(local_id(0)); }
   BailoutId MaterializeFalseId() const { return BailoutId(local_id(1)); }
 
-  virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) override;
+  void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) override;
 
  protected:
   UnaryOperation(Zone* zone, Token::Value op, Expression* expression, int pos)
@@ -2126,7 +2126,7 @@ class BinaryOperation final : public Expression {
     if (arg.IsJust()) fixed_right_arg_value_ = arg.FromJust();
   }
 
-  virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) override;
+  void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) override;
 
  protected:
   BinaryOperation(Zone* zone, Token::Value op, Expression* left,
@@ -2859,8 +2859,7 @@ class RegExpDisjunction final : public RegExpTree {
  public:
   explicit RegExpDisjunction(ZoneList<RegExpTree*>* alternatives);
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpDisjunction* AsDisjunction() override;
   Interval CaptureRegisters() override;
   bool IsDisjunction() override;
@@ -2883,8 +2882,7 @@ class RegExpAlternative final : public RegExpTree {
  public:
   explicit RegExpAlternative(ZoneList<RegExpTree*>* nodes);
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpAlternative* AsAlternative() override;
   Interval CaptureRegisters() override;
   bool IsAlternative() override;
@@ -2912,8 +2910,7 @@ class RegExpAssertion final : public RegExpTree {
   };
   explicit RegExpAssertion(AssertionType type) : assertion_type_(type) { }
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpAssertion* AsAssertion() override;
   bool IsAssertion() override;
   bool IsAnchoredAtStart() override;
@@ -2958,8 +2955,7 @@ class RegExpCharacterClass final : public RegExpTree {
       : set_(type),
         is_negated_(false) { }
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpCharacterClass* AsCharacterClass() override;
   bool IsCharacterClass() override;
   bool IsTextElement() override { return true; }
@@ -2995,8 +2991,7 @@ class RegExpAtom final : public RegExpTree {
  public:
   explicit RegExpAtom(Vector<const uc16> data) : data_(data) { }
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpAtom* AsAtom() override;
   bool IsAtom() override;
   bool IsTextElement() override { return true; }
@@ -3014,8 +3009,7 @@ class RegExpText final : public RegExpTree {
  public:
   explicit RegExpText(Zone* zone) : elements_(2, zone), length_(0) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpText* AsText() override;
   bool IsText() override;
   bool IsTextElement() override { return true; }
@@ -3049,8 +3043,7 @@ class RegExpQuantifier final : public RegExpTree {
     }
   }
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   static RegExpNode* ToNode(int min,
                             int max,
                             bool is_greedy,
@@ -3085,8 +3078,7 @@ class RegExpCapture final : public RegExpTree {
   explicit RegExpCapture(RegExpTree* body, int index)
       : body_(body), index_(index) { }
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   static RegExpNode* ToNode(RegExpTree* body,
                             int index,
                             RegExpCompiler* compiler,
@@ -3121,8 +3113,7 @@ class RegExpLookahead final : public RegExpTree {
         capture_from_(capture_from) { }
 
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpLookahead* AsLookahead() override;
   Interval CaptureRegisters() override;
   bool IsLookahead() override;
@@ -3147,8 +3138,7 @@ class RegExpBackReference final : public RegExpTree {
   explicit RegExpBackReference(RegExpCapture* capture)
       : capture_(capture) { }
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpBackReference* AsBackReference() override;
   bool IsBackReference() override;
   int min_match() override { return 0; }
@@ -3164,8 +3154,7 @@ class RegExpEmpty final : public RegExpTree {
  public:
   RegExpEmpty() { }
   void* Accept(RegExpVisitor* visitor, void* data) override;
-  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
-                             RegExpNode* on_success) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpEmpty* AsEmpty() override;
   bool IsEmpty() override;
   int min_match() override { return 0; }

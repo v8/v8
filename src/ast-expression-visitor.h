@@ -35,7 +35,7 @@ class AstExpressionVisitor : public AstVisitor {
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

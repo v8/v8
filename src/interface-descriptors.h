@@ -224,12 +224,12 @@ class CallInterfaceDescriptor {
   static inline CallDescriptors::Key key();
 
 
-#define DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(name, base)        \
-  DECLARE_DESCRIPTOR(name, base)                                        \
- protected:                                                             \
-  virtual Type::FunctionType* BuildCallInterfaceDescriptorFunctionType( \
-      Isolate* isolate, int register_param_count) override;             \
-                                                                        \
+#define DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(name, base) \
+  DECLARE_DESCRIPTOR(name, base)                                 \
+ protected:                                                      \
+  Type::FunctionType* BuildCallInterfaceDescriptorFunctionType(  \
+      Isolate* isolate, int register_param_count) override;      \
+                                                                 \
  public:
 // LoadDescriptor is used by all stubs that implement Load/KeyedLoad ICs.
 class LoadDescriptor : public CallInterfaceDescriptor {

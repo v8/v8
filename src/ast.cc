@@ -942,8 +942,7 @@ class RegExpUnparser final : public RegExpVisitor {
  public:
   RegExpUnparser(std::ostream& os, Zone* zone) : os_(os), zone_(zone) {}
   void VisitCharacterRange(CharacterRange that);
-#define MAKE_CASE(Name) \
-  virtual void* Visit##Name(RegExp##Name*, void* data) override;
+#define MAKE_CASE(Name) void* Visit##Name(RegExp##Name*, void* data) override;
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:

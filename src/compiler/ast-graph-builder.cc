@@ -277,7 +277,7 @@ class AstGraphBuilder::ControlScopeForBreakable : public ControlScope {
       : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
+  bool Execute(Command cmd, Statement* target, Node* value) override {
     if (target != target_) return false;  // We are not the command target.
     switch (cmd) {
       case CMD_BREAK:
@@ -305,7 +305,7 @@ class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
       : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
+  bool Execute(Command cmd, Statement* target, Node* value) override {
     if (target != target_) return false;  // We are not the command target.
     switch (cmd) {
       case CMD_BREAK:
@@ -341,7 +341,7 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
   }
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
+  bool Execute(Command cmd, Statement* target, Node* value) override {
     switch (cmd) {
       case CMD_THROW:
         control_->Throw(value);
@@ -372,7 +372,7 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
   }
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
+  bool Execute(Command cmd, Statement* target, Node* value) override {
     Node* token = commands_->RecordCommand(cmd, target, value);
     control_->LeaveTry(token, value);
     return true;

@@ -36,7 +36,7 @@ class Processor: public AstVisitor {
     InitializeAstVisitor(parser->stack_limit());
   }
 
-  virtual ~Processor() { }
+  ~Processor() override {}
 
   void Process(ZoneList<Statement*>* statements);
   bool result_assigned() const { return result_assigned_; }
@@ -80,7 +80,7 @@ class Processor: public AstVisitor {
   AstNodeFactory factory_;
 
   // Node visitors.
-#define DEF_VISIT(type) virtual void Visit##type(type* node) override;
+#define DEF_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 

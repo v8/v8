@@ -367,7 +367,7 @@ class Deserializer: public SerializerDeserializer {
     DecodeReservation(data->Reservations());
   }
 
-  virtual ~Deserializer();
+  ~Deserializer() override;
 
   // Deserialize the snapshot into an empty heap.
   void Deserialize(Isolate* isolate);
@@ -387,11 +387,9 @@ class Deserializer: public SerializerDeserializer {
   }
 
  private:
-  virtual void VisitPointers(Object** start, Object** end);
+  void VisitPointers(Object** start, Object** end) override;
 
-  virtual void VisitRuntimeEntry(RelocInfo* rinfo) {
-    UNREACHABLE();
-  }
+  void VisitRuntimeEntry(RelocInfo* rinfo) override { UNREACHABLE(); }
 
   void Initialize(Isolate* isolate);
 
@@ -470,7 +468,7 @@ class CodeAddressMap;
 class Serializer : public SerializerDeserializer {
  public:
   Serializer(Isolate* isolate, SnapshotByteSink* sink);
-  ~Serializer();
+  ~Serializer() override;
   void VisitPointers(Object** start, Object** end) override;
 
   void EncodeReservations(List<SerializedData::Reservation>* out) const;
@@ -617,12 +615,12 @@ class PartialSerializer : public Serializer {
     InitializeCodeAddressMap();
   }
 
-  ~PartialSerializer() { OutputStatistics("PartialSerializer"); }
+  ~PartialSerializer() override { OutputStatistics("PartialSerializer"); }
 
   // Serialize the objects reachable from a single object pointer.
   void Serialize(Object** o);
-  virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) override;
+  void SerializeObject(HeapObject* o, HowToCode how_to_code,
+                       WhereToPoint where_to_point, int skip) override;
 
  private:
   int PartialSnapshotCacheIndex(HeapObject* o);
@@ -641,7 +639,7 @@ class PartialSerializer : public Serializer {
 class StartupSerializer : public Serializer {
  public:
   StartupSerializer(Isolate* isolate, SnapshotByteSink* sink);
-  ~StartupSerializer() { OutputStatistics("StartupSerializer"); }
+  ~StartupSerializer() override { OutputStatistics("StartupSerializer"); }
 
   // The StartupSerializer has to serialize the root array, which is slightly
   // different.
@@ -652,8 +650,8 @@ class StartupSerializer : public Serializer {
   // 2) Partial snapshot cache.
   // 3) Weak references (e.g. the string table).
   virtual void SerializeStrongReferences();
-  virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) override;
+  void SerializeObject(HeapObject* o, HowToCode how_to_code,
+                       WhereToPoint where_to_point, int skip) override;
   void SerializeWeakReferencesAndDeferred();
   void Serialize() {
     SerializeStrongReferences();
@@ -693,10 +691,10 @@ class CodeSerializer : public Serializer {
     back_reference_map_.AddSourceString(source);
   }
 
-  ~CodeSerializer() { OutputStatistics("CodeSerializer"); }
+  ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
-  virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) override;
+  void SerializeObject(HeapObject* o, HowToCode how_to_code,
+                       WhereToPoint where_to_point, int skip) override;
 
   void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);
