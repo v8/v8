@@ -7274,27 +7274,17 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<JSReceiver> holder,
 
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
                                     Handle<Name> name) {
-  // Call the "has" trap on proxies.
-  if (object->IsJSProxy()) {
-    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
-    return JSProxy::HasPropertyWithHandler(proxy, name);
-  }
-
-  Maybe<PropertyAttributes> result = GetPropertyAttributes(object, name);
-  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(object->GetIsolate(), object, name);
+  return HasProperty(&it);
 }
 
 
 Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
                                        Handle<Name> name) {
-  // Call the "has" trap on proxies.
-  if (object->IsJSProxy()) {
-    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
-    return JSProxy::HasPropertyWithHandler(proxy, name);
-  }
-
-  Maybe<PropertyAttributes> result = GetOwnPropertyAttributes(object, name);
-  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      object->GetIsolate(), object, name, LookupIterator::HIDDEN);
+  return HasProperty(&it);
 }
 
 
@@ -7315,31 +7305,16 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
 
 
 Maybe<bool> JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
-  // Call the "has" trap on proxies.
-  if (object->IsJSProxy()) {
-    Isolate* isolate = object->GetIsolate();
-    Handle<Name> name = isolate->factory()->Uint32ToString(index);
-    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
-    return JSProxy::HasPropertyWithHandler(proxy, name);
-  }
-
-  Maybe<PropertyAttributes> result = GetElementAttributes(object, index);
-  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
+  LookupIterator it(object->GetIsolate(), object, index);
+  return HasProperty(&it);
 }
 
 
 Maybe<bool> JSReceiver::HasOwnElement(Handle<JSReceiver> object,
                                       uint32_t index) {
-  // Call the "has" trap on proxies.
-  if (object->IsJSProxy()) {
-    Isolate* isolate = object->GetIsolate();
-    Handle<Name> name = isolate->factory()->Uint32ToString(index);
-    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
-    return JSProxy::HasPropertyWithHandler(proxy, name);
-  }
-
-  Maybe<PropertyAttributes> result = GetOwnElementAttributes(object, index);
-  return result.IsJust() ? Just(result.FromJust() != ABSENT) : Nothing<bool>();
+  LookupIterator it(object->GetIsolate(), object, index,
+                    LookupIterator::HIDDEN);
+  return HasProperty(&it);
 }
 
 
