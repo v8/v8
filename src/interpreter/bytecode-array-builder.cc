@@ -783,7 +783,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
                                                 Register first_arg,
                                                 size_t arg_count) {
   if (!first_arg.is_valid()) {
-    DCHECK_EQ(0, arg_count);
+    DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
   }
   DCHECK(FitsInIdx8Operand(arg_count));
@@ -798,7 +798,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
   DCHECK(FitsInIdx16Operand(function_id));
   DCHECK(FitsInIdx8Operand(arg_count));
   if (!first_arg.is_valid()) {
-    DCHECK_EQ(0, arg_count);
+    DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
   }
   Output(Bytecode::kCallRuntime, static_cast<uint16_t>(function_id),
