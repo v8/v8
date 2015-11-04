@@ -1223,15 +1223,47 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     DCHECK_EQ(0, initial_map->GetInObjectProperties());
 
-    Map::EnsureDescriptorSlack(initial_map, 1);
+    PropertyAttributes final =
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+    Map::EnsureDescriptorSlack(initial_map, 5);
 
-    // ECMA-262, section 15.10.7.5.
-    PropertyAttributes writable =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    DataDescriptor field(factory->last_index_string(),
-                         JSRegExp::kLastIndexFieldIndex, writable,
-                         Representation::Tagged());
-    initial_map->AppendDescriptor(&field);
+    {
+      // ECMA-262, section 15.10.7.1.
+      DataDescriptor field(factory->source_string(),
+                           JSRegExp::kSourceFieldIndex, final,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
+    }
+    {
+      // ECMA-262, section 15.10.7.2.
+      DataDescriptor field(factory->global_string(),
+                           JSRegExp::kGlobalFieldIndex, final,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
+    }
+    {
+      // ECMA-262, section 15.10.7.3.
+      DataDescriptor field(factory->ignore_case_string(),
+                           JSRegExp::kIgnoreCaseFieldIndex, final,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
+    }
+    {
+      // ECMA-262, section 15.10.7.4.
+      DataDescriptor field(factory->multiline_string(),
+                           JSRegExp::kMultilineFieldIndex, final,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
+    }
+    {
+      // ECMA-262, section 15.10.7.5.
+      PropertyAttributes writable =
+          static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+      DataDescriptor field(factory->last_index_string(),
+                           JSRegExp::kLastIndexFieldIndex, writable,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
+    }
 
     static const int num_fields = JSRegExp::kInObjectFieldCount;
     initial_map->SetInObjectProperties(num_fields);
@@ -2023,6 +2055,8 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
                           isolate->factory()->ToBoolean(FLAG), NONE); \
   }
 
+  INITIALIZE_FLAG(FLAG_harmony_regexps)
+  INITIALIZE_FLAG(FLAG_harmony_unicode_regexps)
   INITIALIZE_FLAG(FLAG_harmony_tostring)
   INITIALIZE_FLAG(FLAG_harmony_tolength)
 

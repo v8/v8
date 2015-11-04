@@ -6195,14 +6195,6 @@ class HObjectAccess final {
     return HObjectAccess(kInobject, JSGlobalObject::kNativeContextOffset);
   }
 
-  static HObjectAccess ForJSRegExpFlags() {
-    return HObjectAccess(kInobject, JSRegExp::kFlagsOffset);
-  }
-
-  static HObjectAccess ForJSRegExpSource() {
-    return HObjectAccess(kInobject, JSRegExp::kSourceOffset);
-  }
-
   static HObjectAccess ForJSCollectionTable() {
     return HObjectAccess::ForObservableJSObjectOffset(
         JSCollection::kTableOffset);

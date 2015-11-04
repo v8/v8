@@ -559,8 +559,6 @@ namespace internal {
   F(StringReplaceGlobalRegExpWithString, 4, 1) \
   F(StringSplit, 3, 1)                         \
   F(RegExpExec, 4, 1)                          \
-  F(RegExpFlags, 1, 1)                         \
-  F(RegExpSource, 1, 1)                        \
   F(RegExpConstructResult, 3, 1)               \
   F(RegExpInitializeAndCompile, 3, 1)          \
   F(MaterializeRegExpLiteral, 4, 1)            \

@@ -348,8 +348,8 @@ def BuildFilterChain(macro_filename, message_template_file):
 
   if macro_filename:
     (consts, macros) = ReadMacros(ReadFile(macro_filename))
-    filter_chain.append(lambda l: ExpandMacros(l, macros))
     filter_chain.append(lambda l: ExpandConstants(l, consts))
+    filter_chain.append(lambda l: ExpandMacros(l, macros))
 
   if message_template_file:
     message_templates = ReadMessageTemplates(ReadFile(message_template_file))
