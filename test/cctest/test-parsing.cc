@@ -6514,7 +6514,6 @@ TEST(DestructuringPositiveTests) {
                                    {"function f(argument1, ", ") {}"},
                                    {"var f = (", ") => {};"},
                                    {"var f = (argument1,", ") => {};"},
-                                   {"try {} catch(", ") {}"},
                                    {NULL, NULL}};
 
   // clang-format off
@@ -6576,7 +6575,6 @@ TEST(DestructuringNegativeTests) {
                                      {"var f = (", ") => {};"},
                                      {"var f = ", " => {};"},
                                      {"var f = (argument1,", ") => {};"},
-                                     {"try {} catch(", ") {}"},
                                      {NULL, NULL}};
 
     // clang-format off

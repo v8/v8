@@ -1029,12 +1029,9 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
     Expect(Token::LPAREN, CHECK_OK);
-    ExpressionClassifier pattern_classifier;
-    ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
-    ValidateBindingPattern(&pattern_classifier, CHECK_OK);
+    ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     {
-      // TODO(adamk): Make this CATCH_SCOPE
       Scope* with_scope = NewScope(scope_, WITH_SCOPE);
       BlockState block_state(&scope_, with_scope);
       ParseBlock(CHECK_OK);
