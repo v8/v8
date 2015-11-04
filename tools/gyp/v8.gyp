@@ -1853,8 +1853,6 @@
           '../../src/js/string-iterator.js',
           '../../src/js/templates.js',
           '../../src/js/spread.js',
-          '../../src/js/harmony-array.js',
-          '../../src/js/harmony-typedarray.js',
           '../../src/debug/mirrors.js',
           '../../src/debug/debug.js',
           '../../src/debug/liveedit.js',

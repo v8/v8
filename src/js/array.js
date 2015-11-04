@@ -14,11 +14,15 @@
 var AddIndexedProperty;
 var Delete;
 var FLAG_harmony_tolength;
+var GetIterator;
+var GetMethod;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
+var MaxSimple;
 var MinSimple;
+var ObjectDefineProperty;
 var ObjectHasOwnProperty;
 var ObjectIsFrozen;
 var ObjectIsSealed;
@@ -26,13 +30,18 @@ var ObjectToString;
 var ObserveBeginPerformSplice;
 var ObserveEndPerformSplice;
 var ObserveEnqueueSpliceRecord;
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
   AddIndexedProperty = from.AddIndexedProperty;
   Delete = from.Delete;
+  GetIterator = from.GetIterator;
+  GetMethod = from.GetMethod;
   MakeTypeError = from.MakeTypeError;
+  MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
+  ObjectDefineProperty = from.ObjectDefineProperty;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   ObjectIsFrozen = from.ObjectIsFrozen;
   ObjectIsSealed = from.ObjectIsSealed;
@@ -1219,6 +1228,7 @@ function InnerArrayFilter(f, receiver, array, length) {
   return result;
 }
 
+
 function ArrayFilter(f, receiver) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.filter");
 
@@ -1228,6 +1238,7 @@ function ArrayFilter(f, receiver) {
   var length = TO_LENGTH_OR_UINT32(array.length);
   return InnerArrayFilter(f, receiver, array, length);
 }
+
 
 function InnerArrayForEach(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
@@ -1243,6 +1254,7 @@ function InnerArrayForEach(f, receiver, array, length) {
     }
   }
 }
+
 
 function ArrayForEach(f, receiver) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.forEach");
@@ -1552,11 +1564,253 @@ function ArrayReduceRight(callback, current) {
                                %_ArgumentsLength());
 }
 
+
+function InnerArrayCopyWithin(target, start, end, array, length) {
+  target = TO_INTEGER(target);
+  var to;
+  if (target < 0) {
+    to = MaxSimple(length + target, 0);
+  } else {
+    to = MinSimple(target, length);
+  }
+
+  start = TO_INTEGER(start);
+  var from;
+  if (start < 0) {
+    from = MaxSimple(length + start, 0);
+  } else {
+    from = MinSimple(start, length);
+  }
+
+  end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
+  var final;
+  if (end < 0) {
+    final = MaxSimple(length + end, 0);
+  } else {
+    final = MinSimple(end, length);
+  }
+
+  var count = MinSimple(final - from, length - to);
+  var direction = 1;
+  if (from < to && to < (from + count)) {
+    direction = -1;
+    from = from + count - 1;
+    to = to + count - 1;
+  }
+
+  while (count > 0) {
+    if (from in array) {
+      array[to] = array[from];
+    } else {
+      delete array[to];
+    }
+    from = from + direction;
+    to = to + direction;
+    count--;
+  }
+
+  return array;
+}
+
+
+// ES6 draft 03-17-15, section 22.1.3.3
+function ArrayCopyWithin(target, start, end) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
+
+  var array = TO_OBJECT(this);
+  var length = TO_LENGTH(array.length);
+
+  return InnerArrayCopyWithin(target, start, end, array, length);
+}
+
+
+function InnerArrayFind(predicate, thisArg, array, length) {
+  if (!IS_CALLABLE(predicate)) {
+    throw MakeTypeError(kCalledNonCallable, predicate);
+  }
+
+  for (var i = 0; i < length; i++) {
+    var element = array[i];
+    if (%_Call(predicate, thisArg, element, i, array)) {
+      return element;
+    }
+  }
+
+  return;
+}
+
+
+// ES6 draft 07-15-13, section 15.4.3.23
+function ArrayFind(predicate, thisArg) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.find");
+
+  var array = TO_OBJECT(this);
+  var length = TO_INTEGER(array.length);
+
+  return InnerArrayFind(predicate, thisArg, array, length);
+}
+
+
+function InnerArrayFindIndex(predicate, thisArg, array, length) {
+  if (!IS_CALLABLE(predicate)) {
+    throw MakeTypeError(kCalledNonCallable, predicate);
+  }
+
+  for (var i = 0; i < length; i++) {
+    var element = array[i];
+    if (%_Call(predicate, thisArg, element, i, array)) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+
+// ES6 draft 07-15-13, section 15.4.3.24
+function ArrayFindIndex(predicate, thisArg) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.findIndex");
+
+  var array = TO_OBJECT(this);
+  var length = TO_INTEGER(array.length);
+
+  return InnerArrayFindIndex(predicate, thisArg, array, length);
+}
+
+
+// ES6, draft 04-05-14, section 22.1.3.6
+function InnerArrayFill(value, start, end, array, length) {
+  var i = IS_UNDEFINED(start) ? 0 : TO_INTEGER(start);
+  var end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
+
+  if (i < 0) {
+    i += length;
+    if (i < 0) i = 0;
+  } else {
+    if (i > length) i = length;
+  }
+
+  if (end < 0) {
+    end += length;
+    if (end < 0) end = 0;
+  } else {
+    if (end > length) end = length;
+  }
+
+  if ((end - i) > 0 && ObjectIsFrozen(array)) {
+    throw MakeTypeError(kArrayFunctionsOnFrozen);
+  }
+
+  for (; i < end; i++)
+    array[i] = value;
+  return array;
+}
+
+
+// ES6, draft 04-05-14, section 22.1.3.6
+function ArrayFill(value, start, end) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
+
+  var array = TO_OBJECT(this);
+  var length = TO_LENGTH_OR_UINT32(array.length);
+
+  return InnerArrayFill(value, start, end, array, length);
+}
+
+
 // ES5, 15.4.3.2
 function ArrayIsArray(obj) {
   return IS_ARRAY(obj);
 }
 
+
+function AddArrayElement(constructor, array, i, value) {
+  if (constructor === GlobalArray) {
+    AddIndexedProperty(array, i, value);
+  } else {
+    ObjectDefineProperty(array, i, {
+      value: value, writable: true, configurable: true, enumerable: true
+    });
+  }
+}
+
+
+// ES6, draft 10-14-14, section 22.1.2.1
+function ArrayFrom(arrayLike, mapfn, receiver) {
+  var items = TO_OBJECT(arrayLike);
+  var mapping = !IS_UNDEFINED(mapfn);
+
+  if (mapping) {
+    if (!IS_CALLABLE(mapfn)) {
+      throw MakeTypeError(kCalledNonCallable, mapfn);
+    }
+  }
+
+  var iterable = GetMethod(items, iteratorSymbol);
+  var k;
+  var result;
+  var mappedValue;
+  var nextValue;
+
+  if (!IS_UNDEFINED(iterable)) {
+    result = %IsConstructor(this) ? new this() : [];
+
+    var iterator = GetIterator(items, iterable);
+
+    k = 0;
+    while (true) {
+      var next = iterator.next();
+
+      if (!IS_OBJECT(next)) {
+        throw MakeTypeError(kIteratorResultNotAnObject, next);
+      }
+
+      if (next.done) {
+        result.length = k;
+        return result;
+      }
+
+      nextValue = next.value;
+      if (mapping) {
+        mappedValue = %_Call(mapfn, receiver, nextValue, k);
+      } else {
+        mappedValue = nextValue;
+      }
+      AddArrayElement(this, result, k, mappedValue);
+      k++;
+    }
+  } else {
+    var len = TO_LENGTH(items.length);
+    result = %IsConstructor(this) ? new this(len) : new GlobalArray(len);
+
+    for (k = 0; k < len; ++k) {
+      nextValue = items[k];
+      if (mapping) {
+        mappedValue = %_Call(mapfn, receiver, nextValue, k);
+      } else {
+        mappedValue = nextValue;
+      }
+      AddArrayElement(this, result, k, mappedValue);
+    }
+
+    result.length = k;
+    return result;
+  }
+}
+
+
+// ES6, draft 05-22-14, section 22.1.2.3
+function ArrayOf() {
+  var length = %_ArgumentsLength();
+  var constructor = this;
+  // TODO: Implement IsConstructor (ES6 section 7.2.5)
+  var array = %IsConstructor(constructor) ? new constructor(length) : [];
+  for (var i = 0; i < length; i++) {
+    AddArrayElement(constructor, array, i, %_Arguments(i));
+  }
+  array.length = length;
+  return array;
+}
 
 // -------------------------------------------------------------------
 
@@ -1579,9 +1833,13 @@ var unscopables = {
 %AddNamedProperty(GlobalArray.prototype, unscopablesSymbol, unscopables,
                   DONT_ENUM | READ_ONLY);
 
+%FunctionSetLength(ArrayFrom, 1);
+
 // Set up non-enumerable functions on the Array object.
 utils.InstallFunctions(GlobalArray, DONT_ENUM, [
-  "isArray", ArrayIsArray
+  "isArray", ArrayIsArray,
+  "from", ArrayFrom,
+  "of", ArrayOf
 ]);
 
 var specialFunctions = %SpecialArrayFunctions();
@@ -1621,7 +1879,11 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "indexOf", getFunction("indexOf", ArrayIndexOf, 1),
   "lastIndexOf", getFunction("lastIndexOf", ArrayLastIndexOf, 1),
   "reduce", getFunction("reduce", ArrayReduce, 1),
-  "reduceRight", getFunction("reduceRight", ArrayReduceRight, 1)
+  "reduceRight", getFunction("reduceRight", ArrayReduceRight, 1),
+  "copyWithin", getFunction("copyWithin", ArrayCopyWithin, 2),
+  "find", getFunction("find", ArrayFind, 1),
+  "findIndex", getFunction("findIndex", ArrayFindIndex, 1),
+  "fill", getFunction("fill", ArrayFill, 1)
 ]);
 
 %FinishArrayPrototypeSetup(GlobalArray.prototype);
@@ -1661,12 +1923,17 @@ utils.SetUpLockedPrototype(extrasUtils.InternalPackedArray, GlobalArray(), [
 // Exports
 
 utils.Export(function(to) {
+  to.ArrayFrom = ArrayFrom;
   to.ArrayIndexOf = ArrayIndexOf;
   to.ArrayJoin = ArrayJoin;
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
+  to.InnerArrayCopyWithin = InnerArrayCopyWithin;
   to.InnerArrayEvery = InnerArrayEvery;
+  to.InnerArrayFill = InnerArrayFill;
   to.InnerArrayFilter = InnerArrayFilter;
+  to.InnerArrayFind = InnerArrayFind;
+  to.InnerArrayFindIndex = InnerArrayFindIndex;
   to.InnerArrayForEach = InnerArrayForEach;
   to.InnerArrayIndexOf = InnerArrayIndexOf;
   to.InnerArrayJoin = InnerArrayJoin;
