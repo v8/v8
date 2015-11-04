@@ -231,7 +231,8 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
       case interpreter::OperandType::kImm8:
         os << "#" << static_cast<int>(static_cast<int8_t>(*operand_start));
         break;
-      case interpreter::OperandType::kReg8: {
+      case interpreter::OperandType::kReg8:
+      case interpreter::OperandType::kMaybeReg8: {
         Register reg = Register::FromOperand(*operand_start);
         if (reg.is_function_context()) {
           os << "<context>";

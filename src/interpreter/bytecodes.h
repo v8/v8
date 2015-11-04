@@ -16,18 +16,19 @@ namespace internal {
 namespace interpreter {
 
 // The list of operand types used by bytecodes.
-#define OPERAND_TYPE_LIST(V)    \
-                                \
-  /* None operand. */           \
-  V(None, OperandSize::kNone)   \
-                                \
-  /* Byte operands. */          \
-  V(Count8, OperandSize::kByte) \
-  V(Imm8, OperandSize::kByte)   \
-  V(Idx8, OperandSize::kByte)   \
-  V(Reg8, OperandSize::kByte)   \
-                                \
-  /* Short operands. */         \
+#define OPERAND_TYPE_LIST(V)       \
+                                   \
+  /* None operand. */              \
+  V(None, OperandSize::kNone)      \
+                                   \
+  /* Byte operands. */             \
+  V(Count8, OperandSize::kByte)    \
+  V(Imm8, OperandSize::kByte)      \
+  V(Idx8, OperandSize::kByte)      \
+  V(Reg8, OperandSize::kByte)      \
+  V(MaybeReg8, OperandSize::kByte) \
+                                   \
+  /* Short operands. */            \
   V(Idx16, OperandSize::kShort)
 
 // The list of bytecodes which are interpreted by the interpreter.
@@ -121,11 +122,13 @@ namespace interpreter {
                                                                                \
   /* Call operations */                                                        \
   V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)        \
-  V(CallRuntime, OperandType::kIdx16, OperandType::kReg8,                      \
+  V(CallRuntime, OperandType::kIdx16, OperandType::kMaybeReg8,                 \
+    OperandType::kCount8)                                                      \
+  V(CallJSRuntime, OperandType::kIdx16, OperandType::kReg8,                    \
     OperandType::kCount8)                                                      \
                                                                                \
   /* New operator */                                                           \
-  V(New, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)         \
+  V(New, OperandType::kReg8, OperandType::kMaybeReg8, OperandType::kCount8)    \
                                                                                \
   /* Test Operators */                                                         \
   V(TestEqual, OperandType::kReg8)                                             \

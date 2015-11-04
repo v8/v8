@@ -495,6 +495,12 @@ void BytecodeGraphBuilder::VisitCallRuntime(
 }
 
 
+void BytecodeGraphBuilder::VisitCallJSRuntime(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::VisitNew(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();

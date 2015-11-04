@@ -99,8 +99,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateObjectLiteral(0, 0);
 
   // Call operations.
-  builder.Call(reg, reg, 0);
-  builder.CallRuntime(Runtime::kIsArray, reg, 1);
+  builder.Call(reg, reg, 0)
+      .CallRuntime(Runtime::kIsArray, reg, 1)
+      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg, 1);
 
   // Emit binary operator invocations.
   builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)

@@ -914,6 +914,30 @@ void Interpreter::DoCallRuntime(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// CallJSRuntime <context_index> <receiver> <arg_count>
+//
+// Call the JS runtime function that has the |context_index| with the receiver
+// in register |receiver| and |arg_count| arguments in subsequent registers.
+void Interpreter::DoCallJSRuntime(compiler::InterpreterAssembler* assembler) {
+  Node* context_index = __ BytecodeOperandIdx(0);
+  Node* receiver_reg = __ BytecodeOperandReg(1);
+  Node* first_arg = __ RegisterLocation(receiver_reg);
+  Node* args_count = __ BytecodeOperandCount(2);
+
+  // Get the function to call from the native context.
+  Node* context = __ GetContext();
+  Node* global = __ LoadContextSlot(context, Context::GLOBAL_OBJECT_INDEX);
+  Node* native_context =
+      __ LoadObjectField(global, JSGlobalObject::kNativeContextOffset);
+  Node* function = __ LoadContextSlot(native_context, context_index);
+
+  // Call the function.
+  Node* result = __ CallJS(function, first_arg, args_count);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
 // New <constructor> <arg_count>
 //
 // Call operator new with |constructor| and the first argument in

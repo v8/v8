@@ -1475,6 +1475,10 @@ void BytecodeGenerator::VisitProperty(Property* expr) {
 
 
 Register BytecodeGenerator::VisitArguments(ZoneList<Expression*>* args) {
+  if (args->length() == 0) {
+    return Register();
+  }
+
   // Visit arguments and place in a contiguous block of temporary
   // registers.  Return the first temporary register corresponding to
   // the first argument.
@@ -1554,10 +1558,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   // Evaluate all arguments to the function call and store in sequential
   // registers.
-  if (args->length() > 0) {
-    Register arg = VisitArguments(args);
-    CHECK(arg.index() == receiver.index() + 1);
-  }
+  Register arg = VisitArguments(args);
+  CHECK(args->length() == 0 || arg.index() == receiver.index() + 1);
 
   // TODO(rmcilroy): Deal with possible direct eval here?
   // TODO(rmcilroy): Use CallIC to allow call type feedback.
@@ -1572,40 +1574,33 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
   builder()->StoreAccumulatorInRegister(constructor);
 
   ZoneList<Expression*>* args = expr->arguments();
-  if (args->length() > 0) {
-    Register first_arg = VisitArguments(args);
-    builder()->New(constructor, first_arg, args->length());
-  } else {
-    // The second argument here will be ignored as there are zero
-    // arguments. Using the constructor register avoids avoid
-    // allocating a temporary just to fill the operands.
-    builder()->New(constructor, constructor, 0);
-  }
+  Register first_arg = VisitArguments(args);
+  builder()->New(constructor, first_arg, args->length());
   execution_result()->SetResultInAccumulator();
 }
 
 
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
-  if (expr->is_jsruntime()) {
-    UNIMPLEMENTED();
-  }
-
-  // TODO(rmcilroy): support multiple return values.
-  DCHECK_LE(expr->function()->result_size, 1);
-  Runtime::FunctionId function_id = expr->function()->function_id;
-
-  // Evaluate all arguments to the runtime call.
   ZoneList<Expression*>* args = expr->arguments();
-  Register first_arg;
-  if (args->length() > 0) {
-    first_arg = VisitArguments(args);
-  } else {
-    // Allocation here is just to fullfil the requirement that there
-    // is a register operand for the start of the arguments though
-    // there are zero when this is generated.
-    first_arg = execution_result()->NewRegister();
+  Register receiver;
+  if (expr->is_jsruntime()) {
+    // Allocate a register for the receiver and load it with undefined.
+    execution_result()->PrepareForConsecutiveAllocations(args->length() + 1);
+    receiver = execution_result()->NextConsecutiveRegister();
+    builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
   }
-  builder()->CallRuntime(function_id, first_arg, args->length());
+  // Evaluate all arguments to the runtime call.
+  Register first_arg = VisitArguments(args);
+
+  if (expr->is_jsruntime()) {
+    DCHECK(args->length() == 0 || first_arg.index() == receiver.index() + 1);
+    builder()->CallJSRuntime(expr->context_index(), receiver, args->length());
+  } else {
+    // TODO(rmcilroy): support multiple return values.
+    DCHECK_LE(expr->function()->result_size, 1);
+    Runtime::FunctionId function_id = expr->function()->function_id;
+    builder()->CallRuntime(function_id, first_arg, args->length());
+  }
   execution_result()->SetResultInAccumulator();
 }
 

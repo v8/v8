@@ -226,8 +226,12 @@ Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
 
 
 Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
-  DCHECK_EQ(interpreter::OperandType::kReg8,
-            interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+#ifdef DEBUG
+  interpreter::OperandType operand_type =
+      interpreter::Bytecodes::GetOperandType(bytecode_, operand_index);
+  DCHECK(operand_type == interpreter::OperandType::kReg8 ||
+         operand_type == interpreter::OperandType::kMaybeReg8);
+#endif
   return BytecodeOperandSignExtended(operand_index);
 }
 

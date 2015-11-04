@@ -317,6 +317,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
           EXPECT_THAT(m.BytecodeOperandImm(i),
                       m.IsBytecodeOperandSignExtended(offset));
           break;
+        case interpreter::OperandType::kMaybeReg8:
         case interpreter::OperandType::kReg8:
           EXPECT_THAT(m.BytecodeOperandReg(i),
                       m.IsBytecodeOperandSignExtended(offset));

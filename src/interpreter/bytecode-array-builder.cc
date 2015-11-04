@@ -782,6 +782,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
 BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
                                                 Register first_arg,
                                                 size_t arg_count) {
+  if (!first_arg.is_valid()) {
+    DCHECK_EQ(0, arg_count);
+    first_arg = Register(0);
+  }
   DCHECK(FitsInIdx8Operand(arg_count));
   Output(Bytecode::kNew, constructor.ToOperand(), first_arg.ToOperand(),
          static_cast<uint8_t>(arg_count));
@@ -793,8 +797,23 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     Runtime::FunctionId function_id, Register first_arg, size_t arg_count) {
   DCHECK(FitsInIdx16Operand(function_id));
   DCHECK(FitsInIdx8Operand(arg_count));
+  if (!first_arg.is_valid()) {
+    DCHECK_EQ(0, arg_count);
+    first_arg = Register(0);
+  }
   Output(Bytecode::kCallRuntime, static_cast<uint16_t>(function_id),
          first_arg.ToOperand(), static_cast<uint8_t>(arg_count));
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
+                                                          Register receiver,
+                                                          size_t arg_count) {
+  DCHECK(FitsInIdx16Operand(context_index));
+  DCHECK(FitsInIdx8Operand(arg_count));
+  Output(Bytecode::kCallJSRuntime, static_cast<uint16_t>(context_index),
+         receiver.ToOperand(), static_cast<uint8_t>(arg_count));
   return *this;
 }
 
@@ -910,6 +929,11 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
     case OperandType::kImm8:
     case OperandType::kIdx8:
       return static_cast<uint8_t>(operand_value) == operand_value;
+    case OperandType::kMaybeReg8:
+      if (operand_value == 0) {
+        return true;
+      }
+    // Fall-through to kReg8 case.
     case OperandType::kReg8: {
       Register reg = Register::FromOperand(static_cast<uint8_t>(operand_value));
       if (reg.is_function_context() || reg.is_function_closure()) {

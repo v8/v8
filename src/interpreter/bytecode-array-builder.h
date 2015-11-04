@@ -150,6 +150,12 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
                                     Register first_arg, size_t arg_count);
 
+  // Call the JS runtime function with |context_index|. The the receiver should
+  // be in |receiver| and all subsequent arguments should be in registers
+  // <receiver + 1> to <receiver + 1 + arg_count>.
+  BytecodeArrayBuilder& CallJSRuntime(int context_index, Register receiver,
+                                      size_t arg_count);
+
   // Operators (register holds the lhs value, accumulator holds the rhs value).
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
                                         Strength strength);

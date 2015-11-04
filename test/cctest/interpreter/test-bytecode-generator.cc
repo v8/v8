@@ -1547,10 +1547,10 @@ TEST(CallRuntime) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<int> snippets[] = {
+  ExpectedSnippet<InstanceType> snippets[] = {
       {
           "function f() { %TheHole() }\nf()",
-          1 * kPointerSize,
+          0,
           1,
           7,
           {
@@ -1584,6 +1584,24 @@ TEST(CallRuntime) {
               B(CallRuntime), U16(Runtime::kAdd), R(0), U8(2),  //
               B(Return)                                         //
           },
+      },
+      {
+          "function f() { return %spread_iterable([1]) }\nf()",
+          2 * kPointerSize,
+          1,
+          16,
+          {
+              B(LdaUndefined),                                              //
+              B(Star), R(0),                                                //
+              B(LdaConstant), U8(0),                                        //
+              B(CreateArrayLiteral), U8(0), U8(3),                          //
+              B(Star), R(1),                                                //
+              B(CallJSRuntime), U16(Context::SPREAD_ITERABLE_INDEX), R(0),  //
+              U8(1),                                                        //
+              B(Return),                                                    //
+          },
+          1,
+          {InstanceType::FIXED_ARRAY_TYPE},
       },
   };
 
