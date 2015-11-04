@@ -1969,9 +1969,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       Node* iterable = environment()->Pop();
       Node* function = BuildLoadNativeContextField(
           Context::CONCAT_ITERABLE_TO_ARRAY_BUILTIN_INDEX);
-      result = NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS,
-                                                  language_mode()),
-                       function, array, iterable);
+      result = NewNode(javascript()->CallFunction(3, language_mode()), function,
+                       array, iterable);
       states.AddToNode(result, expr->GetIdForElement(array_index));
     } else {
       VisitForValue(subexpr);
@@ -2317,7 +2316,6 @@ void AstGraphBuilder::VisitCall(Call* expr) {
 
   // Prepare the callee and the receiver to the function call. This depends on
   // the semantics of the underlying call type.
-  CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS;
   ConvertReceiverMode receiver_hint = ConvertReceiverMode::kAny;
   Node* receiver_value = nullptr;
   Node* callee_value = nullptr;
@@ -2363,7 +2361,6 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       // not to be null or undefined at this point.
       receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
       receiver_value = environment()->Pop();
-      flags = CALL_AS_METHOD;
       break;
     }
     case Call::KEYED_PROPERTY_CALL: {
@@ -2383,7 +2380,6 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       // not to be null or undefined at this point.
       receiver_hint = ConvertReceiverMode::kNotNullOrUndefined;
       receiver_value = environment()->Pop();
-      flags = CALL_AS_METHOD;
       break;
     }
     case Call::NAMED_SUPER_PROPERTY_CALL: {
@@ -2403,7 +2399,6 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       // an object for sloppy callees. Since the receiver is not the target of
       // the load, it could very well be null or undefined at this point.
       receiver_value = environment()->Pop();
-      flags = CALL_AS_METHOD;
       environment()->Drop(1);
       break;
     }
@@ -2427,7 +2422,6 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       // an object for sloppy callees. Since the receiver is not the target of
       // the load, it could very well be null or undefined at this point.
       receiver_value = environment()->Pop();
-      flags = CALL_AS_METHOD;
       environment()->Drop(1);
       break;
     }
@@ -2493,7 +2487,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   // Create node to perform the function call.
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
   const Operator* call = javascript()->CallFunction(
-      args->length() + 2, flags, language_mode(), feedback, receiver_hint);
+      args->length() + 2, language_mode(), feedback, receiver_hint);
   FrameStateBeforeAndAfter states(this, expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
   environment()->Push(value->InputAt(0));  // The callee passed to the call.
@@ -2553,7 +2547,6 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
 void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   // The callee and the receiver both have to be pushed onto the operand stack
   // before arguments are being evaluated.
-  CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS;
   Node* callee_value = BuildLoadNativeContextField(expr->context_index());
   Node* receiver_value = jsgraph()->UndefinedConstant();
 
@@ -2566,7 +2559,7 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
 
   // Create node to perform the JS runtime call.
   const Operator* call =
-      javascript()->CallFunction(args->length() + 2, flags, language_mode());
+      javascript()->CallFunction(args->length() + 2, language_mode());
   FrameStateBeforeAndAfter states(this, expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
   states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());

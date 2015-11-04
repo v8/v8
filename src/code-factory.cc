@@ -303,6 +303,13 @@ Callable CodeFactory::ArgumentAdaptor(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::Call(Isolate* isolate) {
+  return Callable(isolate->builtins()->Call(),
+                  CallTrampolineDescriptor(isolate));
+}
+
+
+// static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate) {
   return Callable(isolate->builtins()->InterpreterPushArgsAndCall(),
                   InterpreterPushArgsAndCallDescriptor(isolate));

@@ -539,9 +539,9 @@ Reduction JSIntrinsicLowering::ReduceCallFunction(Node* node) {
   }
   node->ReplaceInput(0, function);
   NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(
-                params.arity(), NO_CALL_FUNCTION_FLAGS, STRICT,
-                VectorSlotPair(), ConvertReceiverMode::kAny, ALLOW_TAIL_CALLS));
+      node, javascript()->CallFunction(params.arity(), STRICT, VectorSlotPair(),
+                                       ConvertReceiverMode::kAny,
+                                       TailCallMode::kAllow));
   return Changed(node);
 }
 

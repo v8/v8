@@ -44,7 +44,7 @@ size_t hash_value(VectorSlotPair const&);
 
 // Defines hints about receiver values based on structural knowledge. This is
 // used as a parameter by JSConvertReceiver operators.
-enum class ConvertReceiverMode : int {
+enum class ConvertReceiverMode : unsigned {
   kNullOrUndefined,     // Guaranteed to be null or undefined.
   kNotNullOrUndefined,  // Guaranteed to never be null or undefined.
   kAny                  // No specific knowledge about receiver.
@@ -58,57 +58,59 @@ ConvertReceiverMode ConvertReceiverModeOf(const Operator* op);
 
 
 // Defines whether tail call optimization is allowed.
-enum TailCallMode { NO_TAIL_CALLS, ALLOW_TAIL_CALLS };
+enum class TailCallMode : unsigned { kAllow, kDisallow };
+
+size_t hash_value(TailCallMode);
+
+std::ostream& operator<<(std::ostream&, TailCallMode);
 
 
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCallFunction operators.
 class CallFunctionParameters final {
  public:
-  CallFunctionParameters(size_t arity, CallFunctionFlags flags,
-                         LanguageMode language_mode,
+  CallFunctionParameters(size_t arity, LanguageMode language_mode,
                          VectorSlotPair const& feedback,
                          TailCallMode tail_call_mode,
                          ConvertReceiverMode convert_mode)
-      : bit_field_(ArityField::encode(arity) | FlagsField::encode(flags) |
-                   LanguageModeField::encode(language_mode)),
-        feedback_(feedback),
-        tail_call_mode_(tail_call_mode),
-        convert_mode_(convert_mode) {}
+      : bit_field_(ArityField::encode(arity) |
+                   ConvertReceiverModeField::encode(convert_mode) |
+                   LanguageModeField::encode(language_mode) |
+                   TailCallModeField::encode(tail_call_mode)),
+        feedback_(feedback) {}
 
   size_t arity() const { return ArityField::decode(bit_field_); }
-  CallFunctionFlags flags() const { return FlagsField::decode(bit_field_); }
   LanguageMode language_mode() const {
     return LanguageModeField::decode(bit_field_);
   }
-  ConvertReceiverMode convert_mode() const { return convert_mode_; }
+  ConvertReceiverMode convert_mode() const {
+    return ConvertReceiverModeField::decode(bit_field_);
+  }
+  TailCallMode tail_call_mode() const {
+    return TailCallModeField::decode(bit_field_);
+  }
   VectorSlotPair const& feedback() const { return feedback_; }
 
   bool operator==(CallFunctionParameters const& that) const {
     return this->bit_field_ == that.bit_field_ &&
-           this->feedback_ == that.feedback_ &&
-           this->tail_call_mode_ == that.tail_call_mode_ &&
-           this->convert_mode_ == that.convert_mode_;
+           this->feedback_ == that.feedback_;
   }
   bool operator!=(CallFunctionParameters const& that) const {
     return !(*this == that);
   }
 
-  bool AllowTailCalls() const { return tail_call_mode_ == ALLOW_TAIL_CALLS; }
-
  private:
   friend size_t hash_value(CallFunctionParameters const& p) {
-    return base::hash_combine(p.bit_field_, p.feedback_, p.convert_mode_);
+    return base::hash_combine(p.bit_field_, p.feedback_);
   }
 
-  typedef BitField<size_t, 0, 28> ArityField;
-  typedef BitField<CallFunctionFlags, 28, 2> FlagsField;
-  typedef BitField<LanguageMode, 30, 2> LanguageModeField;
+  typedef BitField<size_t, 0, 27> ArityField;
+  typedef BitField<ConvertReceiverMode, 27, 2> ConvertReceiverModeField;
+  typedef BitField<LanguageMode, 29, 2> LanguageModeField;
+  typedef BitField<TailCallMode, 31, 1> TailCallModeField;
 
   const uint32_t bit_field_;
   const VectorSlotPair feedback_;
-  TailCallMode tail_call_mode_;
-  ConvertReceiverMode convert_mode_;
 };
 
 size_t hash_value(CallFunctionParameters const&);
@@ -406,10 +408,10 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* CreateLiteralObject(int literal_flags);
 
   const Operator* CallFunction(
-      size_t arity, CallFunctionFlags flags, LanguageMode language_mode,
+      size_t arity, LanguageMode language_mode,
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
-      TailCallMode tail_call_mode = NO_TAIL_CALLS);
+      TailCallMode tail_call_mode = TailCallMode::kDisallow);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallConstruct(int arguments);
 

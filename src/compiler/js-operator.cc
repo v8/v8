@@ -41,7 +41,7 @@ size_t hash_value(VectorSlotPair const& p) {
 
 
 size_t hash_value(ConvertReceiverMode mode) {
-  return base::hash_value(static_cast<int>(mode));
+  return base::hash_value(static_cast<unsigned>(mode));
 }
 
 
@@ -65,11 +65,26 @@ ConvertReceiverMode ConvertReceiverModeOf(Operator const* op) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
-  os << p.arity() << ", " << p.flags() << ", " << p.language_mode();
-  if (p.AllowTailCalls()) {
-    os << ", ALLOW_TAIL_CALLS";
+size_t hash_value(TailCallMode mode) {
+  return base::hash_value(static_cast<unsigned>(mode));
+}
+
+
+std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
+  switch (mode) {
+    case TailCallMode::kAllow:
+      return os << "ALLOW_TAIL_CALLS";
+    case TailCallMode::kDisallow:
+      return os << "DISALLOW_TAIL_CALLS";
   }
+  UNREACHABLE();
+  return os;
+}
+
+
+std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
+  os << p.arity() << ", " << p.language_mode() << ", " << p.convert_mode()
+     << ", " << p.tail_call_mode();
   return os;
 }
 
@@ -470,10 +485,9 @@ CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_LANGUAGE_MODE)
 
 
 const Operator* JSOperatorBuilder::CallFunction(
-    size_t arity, CallFunctionFlags flags, LanguageMode language_mode,
-    VectorSlotPair const& feedback, ConvertReceiverMode convert_mode,
-    TailCallMode tail_call_mode) {
-  CallFunctionParameters parameters(arity, flags, language_mode, feedback,
+    size_t arity, LanguageMode language_mode, VectorSlotPair const& feedback,
+    ConvertReceiverMode convert_mode, TailCallMode tail_call_mode) {
+  CallFunctionParameters parameters(arity, language_mode, feedback,
                                     tail_call_mode, convert_mode);
   return new (zone()) Operator1<CallFunctionParameters>(   // --
       IrOpcode::kJSCallFunction, Operator::kNoProperties,  // opcode

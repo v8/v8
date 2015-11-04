@@ -83,9 +83,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state, frame_state, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state, frame_state, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_TRUE(r.Changed());
   EXPECT_EQ(outer_context, NodeProperties::GetContextInput(node));
@@ -102,9 +101,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state, frame_state, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state, frame_state, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_FALSE(r.Changed());
   EXPECT_EQ(context, NodeProperties::GetContextInput(node));
@@ -121,9 +119,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state, frame_state, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state, frame_state, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_TRUE(r.Changed());
   EXPECT_EQ(outer_context, NodeProperties::GetContextInput(node));
@@ -140,9 +137,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state, frame_state, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state, frame_state, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_FALSE(r.Changed());
   EXPECT_EQ(context, NodeProperties::GetContextInput(node));
@@ -162,9 +158,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state_2, frame_state_2, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state_2, frame_state_2, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_TRUE(r.Changed());
   EXPECT_EQ(outer_context, NodeProperties::GetContextInput(node));
@@ -188,9 +183,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state_2, frame_state_2, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state_2, frame_state_2, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_TRUE(r.Changed());
   EXPECT_EQ(outer_context, NodeProperties::GetContextInput(node));
@@ -212,9 +206,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state_2, frame_state_2, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state_2, frame_state_2, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_TRUE(r.Changed());
   EXPECT_EQ(outer_context, NodeProperties::GetContextInput(node));
@@ -238,9 +231,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state_2, frame_state_2, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state_2, frame_state_2, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_TRUE(r.Changed());
   EXPECT_EQ(nested_context, NodeProperties::GetContextInput(node));
@@ -261,9 +253,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state_2, frame_state_2, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state_2, frame_state_2, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_TRUE(r.Changed());
   EXPECT_EQ(nested_context, NodeProperties::GetContextInput(node));
@@ -284,9 +275,8 @@ TEST_F(JSContextRelaxationTest,
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node = graph()->NewNode(
-      javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS, STRICT,
-                                 VectorSlotPair()),
-      input0, input1, context, frame_state_2, frame_state_2, effect, control);
+      javascript()->CallFunction(2, STRICT, VectorSlotPair()), input0, input1,
+      context, frame_state_2, frame_state_2, effect, control);
   Reduction const r = Reduce(node);
   EXPECT_FALSE(r.Changed());
   EXPECT_EQ(context, NodeProperties::GetContextInput(node));

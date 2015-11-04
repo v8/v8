@@ -97,10 +97,12 @@ class CodeFactory final {
   static Callable AllocateMutableHeapNumber(Isolate* isolate);
   static Callable AllocateInNewSpace(Isolate* isolate);
 
+  // TODO(bmeurer): Kill this!
   static Callable CallFunction(Isolate* isolate, int argc,
                                CallFunctionFlags flags);
 
   static Callable ArgumentAdaptor(Isolate* isolate);
+  static Callable Call(Isolate* isolate);
 
   static Callable InterpreterPushArgsAndCall(Isolate* isolate);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);

@@ -1613,7 +1613,9 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
 
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
-    if (p.AllowTailCalls()) flags |= CallDescriptor::kSupportsTailCalls;
+    if (p.tail_call_mode() == TailCallMode::kAllow) {
+      flags |= CallDescriptor::kSupportsTailCalls;
+    }
 
     if (shared->internal_formal_parameter_count() == arity ||
         shared->internal_formal_parameter_count() ==
