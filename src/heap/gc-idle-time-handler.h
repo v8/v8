@@ -63,12 +63,6 @@ class GCIdleTimeHeapState {
   double contexts_disposal_rate;
   size_t size_of_objects;
   bool incremental_marking_stopped;
-  bool sweeping_in_progress;
-  bool sweeping_completed;
-  bool has_low_allocation_rate;
-  size_t mark_compact_speed_in_bytes_per_ms;
-  size_t incremental_marking_speed_in_bytes_per_ms;
-  size_t final_incremental_mark_compact_speed_in_bytes_per_ms;
 };
 
 
