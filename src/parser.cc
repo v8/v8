@@ -2531,6 +2531,7 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     if (!first_declaration) Consume(Token::COMMA);
 
     Expression* pattern;
+    int decl_pos = peek_position();
     {
       ExpressionClassifier pattern_classifier;
       Token::Value next = peek();
@@ -2548,6 +2549,8 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
         return;
       }
     }
+
+    bool is_pattern = pattern->IsObjectLiteral() || pattern->IsArrayLiteral();
 
     Scanner::Location variable_loc = scanner()->location();
     const AstRawString* single_name =
@@ -2569,10 +2572,7 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     Expression* value = NULL;
     // Harmony consts have non-optional initializers.
     int initializer_position = RelocInfo::kNoPosition;
-    if (peek() == Token::ASSIGN || (parsing_result->descriptor.mode == CONST &&
-                                    !is_for_iteration_variable)) {
-      Expect(Token::ASSIGN, ok);
-      if (!*ok) return;
+    if (Check(Token::ASSIGN)) {
       ExpressionClassifier classifier;
       value = ParseAssignmentExpression(var_context != kForStatement,
                                         &classifier, ok);
@@ -2597,6 +2597,15 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       // End position of the initializer is after the assignment expression.
       initializer_position = scanner()->location().end_pos;
     } else {
+      if ((parsing_result->descriptor.mode == CONST || is_pattern) &&
+          !is_for_iteration_variable) {
+        ParserTraits::ReportMessageAt(
+            Scanner::Location(decl_pos, scanner()->location().end_pos),
+            MessageTemplate::kDeclarationMissingInitializer,
+            is_pattern ? "destructuring" : "const");
+        *ok = false;
+        return;
+      }
       // End position of the initializer is after the variable.
       initializer_position = position();
     }

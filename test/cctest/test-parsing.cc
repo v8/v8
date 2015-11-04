@@ -6702,6 +6702,33 @@ TEST(DestructuringNegativeTests) {
     RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
                       arraysize(always_flags));
   }
+
+  { // Declaration-specific errors
+    const char* context_data[][2] = {{"'use strict'; var ", ""},
+                                     {"'use strict'; let ", ""},
+                                     {"'use strict'; const ", ""},
+                                     {"'use strict'; for (var ", ";;) {}"},
+                                     {"'use strict'; for (let ", ";;) {}"},
+                                     {"'use strict'; for (const ", ";;) {}"},
+                                     {"var ", ""},
+                                     {"let ", ""},
+                                     {"const ", ""},
+                                     {"for (var ", ";;) {}"},
+                                     {"for (let ", ";;) {}"},
+                                     {"for (const ", ";;) {}"},
+                                     {NULL, NULL}};
+
+    // clang-format off
+    const char* data[] = {
+      "{ a }",
+      "[ a ]",
+      NULL};
+    // clang-format on
+    static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring,
+                                              kAllowHarmonySloppyLet};
+    RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                      arraysize(always_flags));
+  }
 }
 
 
@@ -7188,13 +7215,13 @@ TEST(LetSloppyOnly) {
     "for (var [let] = 1; let < 1; let++) {}",
     "for (var [let] in {}) {}",
     "var let",
-    "var [let]",
+    "var [let] = []",
     "for (const let = 1; let < 1; let++) {}",
     "for (const let in {}) {}",
     "for (const [let] = 1; let < 1; let++) {}",
     "for (const [let] in {}) {}",
     "const let",
-    "const [let]",
+    "const [let] = []",
     NULL
   };
   // clang-format on

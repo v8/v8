@@ -948,6 +948,14 @@ class PreParserExpression {
                              right->IsSpreadExpression()));
   }
 
+  static PreParserExpression ObjectLiteral() {
+    return PreParserExpression(TypeField::encode(kObjectLiteralExpression));
+  }
+
+  static PreParserExpression ArrayLiteral() {
+    return PreParserExpression(TypeField::encode(kArrayLiteralExpression));
+  }
+
   static PreParserExpression StringLiteral() {
     return PreParserExpression(TypeField::encode(kStringLiteralExpression));
   }
@@ -1003,6 +1011,14 @@ class PreParserExpression {
   PreParserIdentifier AsIdentifier() const {
     DCHECK(IsIdentifier());
     return PreParserIdentifier(IdentifierTypeField::decode(code_));
+  }
+
+  bool IsObjectLiteral() const {
+    return TypeField::decode(code_) == kObjectLiteralExpression;
+  }
+
+  bool IsArrayLiteral() const {
+    return TypeField::decode(code_) == kArrayLiteralExpression;
   }
 
   bool IsStringLiteral() const {
@@ -1093,7 +1109,9 @@ class PreParserExpression {
     kIdentifierExpression,
     kStringLiteralExpression,
     kBinaryOperationExpression,
-    kSpreadExpression
+    kSpreadExpression,
+    kObjectLiteralExpression,
+    kArrayLiteralExpression
   };
 
   enum ExpressionType {
@@ -1231,12 +1249,12 @@ class PreParserFactory {
                                       int literal_index,
                                       bool is_strong,
                                       int pos) {
-    return PreParserExpression::Default();
+    return PreParserExpression::ArrayLiteral();
   }
   PreParserExpression NewArrayLiteral(PreParserExpressionList values,
                                       int first_spread_index, int literal_index,
                                       bool is_strong, int pos) {
-    return PreParserExpression::Default();
+    return PreParserExpression::ArrayLiteral();
   }
   PreParserExpression NewObjectLiteralProperty(PreParserExpression key,
                                                PreParserExpression value,
@@ -1257,7 +1275,7 @@ class PreParserFactory {
                                        bool has_function,
                                        bool is_strong,
                                        int pos) {
-    return PreParserExpression::Default();
+    return PreParserExpression::ObjectLiteral();
   }
   PreParserExpression NewVariableProxy(void* variable) {
     return PreParserExpression::Default();

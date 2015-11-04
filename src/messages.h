@@ -108,6 +108,7 @@ class CallSite {
   T(DateType, "this is not a Date object.")                                    \
   T(DebuggerFrame, "Debugger: Invalid frame index.")                           \
   T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
+  T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueGenerator,                                                     \

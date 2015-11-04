@@ -532,7 +532,6 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   // ConstBinding ::
   //   BindingPattern '=' AssignmentExpression
   bool require_initializer = false;
-  bool is_strict_const = false;
   bool lexical = false;
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
@@ -557,8 +556,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     if (is_strict(language_mode()) ||
         (allow_harmony_sloppy() && !allow_legacy_const())) {
       DCHECK(var_context != kStatement);
-      is_strict_const = true;
-      require_initializer = var_context != kForStatement;
+      require_initializer = true;
       lexical = true;
     }
   } else if (peek() == Token::LET && allow_let()) {
@@ -579,11 +577,13 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   do {
     // Parse binding pattern.
     if (nvars > 0) Consume(Token::COMMA);
+    int decl_pos = peek_position();
+    PreParserExpression pattern = PreParserExpression::Default();
     {
       ExpressionClassifier pattern_classifier;
       Token::Value next = peek();
-      PreParserExpression pattern =
-          ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+      pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+
       ValidateBindingPattern(&pattern_classifier, CHECK_OK);
       if (lexical) {
         ValidateLetPattern(&pattern_classifier, CHECK_OK);
@@ -596,12 +596,15 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       }
     }
 
+    bool is_pattern = pattern.IsObjectLiteral() || pattern.IsArrayLiteral();
+
+    bool is_for_iteration_variable =
+        var_context == kForStatement &&
+        (peek() == Token::IN || PeekContextualKeyword(CStrVector("of")));
+
     Scanner::Location variable_loc = scanner()->location();
     nvars++;
-    if (peek() == Token::ASSIGN || require_initializer ||
-        // require initializers for multiple consts.
-        (is_strict_const && peek() == Token::COMMA)) {
-      Expect(Token::ASSIGN, CHECK_OK);
+    if (Check(Token::ASSIGN)) {
       ExpressionClassifier classifier;
       ParseAssignmentExpression(var_context != kForStatement, &classifier,
                                 CHECK_OK);
@@ -611,6 +614,14 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       if (first_initializer_loc && !first_initializer_loc->IsValid()) {
         *first_initializer_loc = variable_loc;
       }
+    } else if ((require_initializer || is_pattern) &&
+               !is_for_iteration_variable) {
+      PreParserTraits::ReportMessageAt(
+          Scanner::Location(decl_pos, scanner()->location().end_pos),
+          MessageTemplate::kDeclarationMissingInitializer,
+          is_pattern ? "destructuring" : "const");
+      *ok = false;
+      return Statement::Default();
     }
   } while (peek() == Token::COMMA);
 
