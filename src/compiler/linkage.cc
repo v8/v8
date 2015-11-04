@@ -383,7 +383,9 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              CallDescriptor::Flags flags) {
   const size_t return_count = 1;
   const size_t context_count = 1;
-  const size_t parameter_count = js_parameter_count + context_count;
+  const size_t num_args_count = 1;
+  const size_t parameter_count =
+      js_parameter_count + num_args_count + context_count;
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
   MachineSignature::Builder types(zone, return_count, parameter_count);
@@ -398,6 +400,11 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
     locations.AddParam(LinkageLocation::ForCallerFrameSlot(spill_slot_index));
     types.AddParam(kMachAnyTagged);
   }
+
+  // Add JavaScript call argument count.
+  locations.AddParam(regloc(kJavaScriptCallArgCountRegister));
+  types.AddParam(kMachInt32);
+
   // Add context.
   locations.AddParam(regloc(kContextRegister));
   types.AddParam(kMachAnyTagged);
@@ -544,8 +551,9 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
 
   if (index == kOsrContextSpillSlotIndex) {
     // Context. Use the parameter location of the context spill slot.
-    // Parameter (arity + 1) is special for the context of the function frame.
-    int context_index = 1 + 1 + parameter_count;  // target + receiver + params
+    // Parameter (arity + 2) is special for the context of the function frame.
+    int context_index =
+        1 + 1 + 1 + parameter_count;  // target + receiver + params + #args
     return incoming_->GetInputLocation(context_index);
   } else if (index >= first_stack_slot) {
     // Local variable stored in this (callee) stack.

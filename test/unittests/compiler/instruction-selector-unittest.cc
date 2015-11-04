@@ -382,7 +382,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
                              m.GetFrameStateFunctionInfo(1, 0)),
       parameters, locals, stack, context_dummy, function_node,
       m.UndefinedConstant());
-  Node* args[] = {receiver, context};
+  Node* args[] = {receiver, m.Int32Constant(1), context};
   Node* call =
       m.CallNWithFrameState(descriptor, function_node, args, state_node);
   m.Return(call);

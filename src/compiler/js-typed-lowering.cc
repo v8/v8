@@ -1590,6 +1590,10 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
         Handle<JSFunction>::cast(target_type->AsConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
 
+    // Class constructors are callable, but [[Call]] will raise an exception.
+    // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+    if (IsClassConstructor(shared->kind())) return NoChange();
+
     // Grab the context from the {function}.
     Node* context = jsgraph()->Constant(handle(function->context(), isolate()));
     NodeProperties::ReplaceContextInput(node, context);
@@ -1611,12 +1615,17 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     if (p.AllowTailCalls()) flags |= CallDescriptor::kSupportsTailCalls;
 
-    if (shared->internal_formal_parameter_count() == arity) {
+    if (shared->internal_formal_parameter_count() == arity ||
+        shared->internal_formal_parameter_count() ==
+            SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
       // Patch {node} to a direct call.
+      node->InsertInput(graph()->zone(), arity + 2,
+                        jsgraph()->Int32Constant(arity));
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity, flags)));
     } else {
+      // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
       Callable callable = CodeFactory::ArgumentAdaptor(isolate());
       node->InsertInput(graph()->zone(), 0,
                         jsgraph()->HeapConstant(callable.code()));

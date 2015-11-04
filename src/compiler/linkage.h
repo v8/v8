@@ -258,7 +258,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 //
 //                  #0          #1     #2     #3     [...]             #n
 // Call[CodeStub]   code,       arg 1, arg 2, arg 3, [...],            context
-// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...],            context
+// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...],      #arg, context
 // Call[Runtime]    CEntryStub, arg 1, arg 2, arg 3, [...], fun, #arg, context
 class Linkage : public ZoneObject {
  public:

@@ -134,7 +134,9 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
   Node* control = NodeProperties::GetControlInput(call);
   Node* effect = NodeProperties::GetEffectInput(call);
 
-  // Context is last argument.
+  int const inlinee_arity_index =
+      static_cast<int>(start->op()->ValueOutputCount()) - 2;
+  // Context is last parameter.
   int const inlinee_context_index =
       static_cast<int>(start->op()->ValueOutputCount()) - 1;
 
@@ -148,10 +150,13 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
       case IrOpcode::kParameter: {
         int index = 1 + ParameterIndexOf(use->op());
         DCHECK_LE(index, inlinee_context_index);
-        if (index < inliner_inputs && index < inlinee_context_index) {
+        if (index < inliner_inputs && index < inlinee_arity_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.
           Replace(use, call->InputAt(index));
+        } else if (index == inlinee_arity_index) {
+          // The projection is requesting the number of arguments.
+          Replace(use, jsgraph_->Int32Constant(inliner_inputs - 2));
         } else if (index == inlinee_context_index) {
           // The projection is requesting the inlinee function context.
           Replace(use, context);
@@ -269,6 +274,15 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
   if (!function->shared()->IsInlineable()) {
     // Function must be inlineable.
     TRACE("Not inlining %s into %s because callee is not inlineable\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
+  // Class constructors are callable, but [[Call]] will raise an exception.
+  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+  if (IsClassConstructor(function->shared()->kind())) {
+    TRACE("Not inlining %s into %s because callee is classConstructor\n",
           function->shared()->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
@@ -441,10 +455,10 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
   }
 
   // Insert argument adaptor frame if required. The callees formal parameter
-  // count (i.e. value outputs of start node minus target, receiver & context)
-  // have to match the number of arguments passed to the call.
+  // count (i.e. value outputs of start node minus target, receiver, num args
+  // and context) have to match the number of arguments passed to the call.
   DCHECK_EQ(static_cast<int>(parameter_count),
-            start->op()->ValueOutputCount() - 3);
+            start->op()->ValueOutputCount() - 4);
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info());
   }

@@ -483,9 +483,9 @@ Node* AstGraphBuilder::GetFunctionClosure() {
 
 Node* AstGraphBuilder::GetFunctionContext() {
   if (!function_context_.is_set()) {
-    // Parameter (arity + 1) is special for the outer context of the function
+    // Parameter (arity + 2) is special for the outer context of the function
     const Operator* op = common()->Parameter(
-        info()->num_parameters_including_this(), "%context");
+        info()->num_parameters_including_this() + 1, "%context");
     Node* node = NewNode(op, graph()->start());
     function_context_.set(node);
   }
@@ -498,8 +498,9 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
   DCHECK(graph() != NULL);
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
-  // parameters (including the receiver) plus context and closure.
-  int actual_parameter_count = info()->num_parameters_including_this() + 2;
+  // parameters (including the receiver) plus number of arguments, context and
+  // closure.
+  int actual_parameter_count = info()->num_parameters_including_this() + 3;
   graph()->SetStart(graph()->NewNode(common()->Start(actual_parameter_count)));
 
   // Initialize the top-level environment.
