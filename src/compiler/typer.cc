@@ -1102,6 +1102,8 @@ Type* Typer::Visitor::JSTypeOfTyper(Type* type, Typer* t) {
     return Type::Constant(f->boolean_string(), t->zone());
   } else if (type->Is(Type::Number())) {
     return Type::Constant(f->number_string(), t->zone());
+  } else if (type->Is(Type::String())) {
+    return Type::Constant(f->string_string(), t->zone());
   } else if (type->Is(Type::Symbol())) {
     return Type::Constant(f->symbol_string(), t->zone());
   } else if (type->Is(Type::Union(Type::Undefined(), Type::Undetectable(),
@@ -1109,6 +1111,9 @@ Type* Typer::Visitor::JSTypeOfTyper(Type* type, Typer* t) {
     return Type::Constant(f->undefined_string(), t->zone());
   } else if (type->Is(Type::Null())) {
     return Type::Constant(f->object_string(), t->zone());
+  } else if (type->IsConstant()) {
+    return Type::Constant(
+        Object::TypeOf(t->isolate(), type->AsConstant()->Value()), t->zone());
   }
   return Type::InternalizedString();
 }
