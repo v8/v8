@@ -6914,14 +6914,15 @@ class SharedFunctionInfo: public HeapObject {
   // Total size.
   static const int kSize = kProfilerTicksOffset + kPointerSize;
 #else
-// The only reason to use smi fields instead of int fields is to allow
-// iteration without maps decoding during garbage collections.
-// To avoid wasting space on 64-bit architectures we use the following trick:
-// we group integer fields into pairs
-// The least significant integer in each pair is shifted left by 1.  By doing
-// this we guarantee that LSB of each kPointerSize aligned word is not set and
-// thus this word cannot be treated as pointer to HeapObject during old space
-// traversal.
+  // The only reason to use smi fields instead of int fields
+  // is to allow iteration without maps decoding during
+  // garbage collections.
+  // To avoid wasting space on 64-bit architectures we use
+  // the following trick: we group integer fields into pairs
+// The least significant integer in each pair is shifted left by 1.
+// By doing this we guarantee that LSB of each kPointerSize aligned
+// word is not set and thus this word cannot be treated as pointer
+// to HeapObject during old space traversal.
 #if V8_TARGET_LITTLE_ENDIAN
   static const int kLengthOffset = kLastPointerFieldOffset + kPointerSize;
   static const int kFormalParameterCountOffset =
@@ -7003,7 +7004,6 @@ class SharedFunctionInfo: public HeapObject {
 
   // Bit positions in compiler_hints.
   enum CompilerHints {
-    // byte 0
     kAllowLazyCompilation,
     kAllowLazyCompilationWithoutContext,
     kOptimizationDisabled,
@@ -7012,7 +7012,6 @@ class SharedFunctionInfo: public HeapObject {
     kStrongModeFunction,
     kUsesArguments,
     kNeedsHomeObject,
-    // byte 1
     kHasDuplicateParameters,
     kForceInline,
     kBoundFunction,
@@ -7021,39 +7020,21 @@ class SharedFunctionInfo: public HeapObject {
     kIsFunction,
     kDontCrankshaft,
     kDontFlush,
-    // byte 2
-    kFunctionKind,
-    kIsArrow = kFunctionKind,
+    kIsArrow,
     kIsGenerator,
     kIsConciseMethod,
     kIsAccessorFunction,
     kIsDefaultConstructor,
     kIsSubclassConstructor,
     kIsBaseConstructor,
-    kIsInObjectLiteral,
-    // byte 3
+    kInClassLiteral,
     kIsAsmFunction,
     kDeserialized,
     kNeverCompiled,
-    kCompilerHintsCount,  // Pseudo entry
+    kCompilerHintsCount  // Pseudo entry
   };
   // Add hints for other modes when they're added.
   STATIC_ASSERT(LANGUAGE_END == 3);
-  // kFunctionKind has to be byte-aligned
-  STATIC_ASSERT((kFunctionKind % kBitsPerByte) == 0);
-// Make sure that FunctionKind and byte 2 are in sync:
-#define ASSERT_FUNCTION_KIND_ORDER(functionKind, compilerFunctionKind) \
-  STATIC_ASSERT(FunctionKind::functionKind ==                          \
-                1 << (compilerFunctionKind - kFunctionKind))
-  ASSERT_FUNCTION_KIND_ORDER(kArrowFunction, kIsArrow);
-  ASSERT_FUNCTION_KIND_ORDER(kGeneratorFunction, kIsGenerator);
-  ASSERT_FUNCTION_KIND_ORDER(kConciseMethod, kIsConciseMethod);
-  ASSERT_FUNCTION_KIND_ORDER(kAccessorFunction, kIsAccessorFunction);
-  ASSERT_FUNCTION_KIND_ORDER(kDefaultConstructor, kIsDefaultConstructor);
-  ASSERT_FUNCTION_KIND_ORDER(kSubclassConstructor, kIsSubclassConstructor);
-  ASSERT_FUNCTION_KIND_ORDER(kBaseConstructor, kIsBaseConstructor);
-  ASSERT_FUNCTION_KIND_ORDER(kInObjectLiteral, kIsInObjectLiteral);
-#undef ASSERT_FUNCTION_KIND_ORDER
 
   class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 8> {};
 
@@ -7093,27 +7074,33 @@ class SharedFunctionInfo: public HeapObject {
   static const int kBoundBitWithinByte =
       (kBoundFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
-  static const int kClassConstructorBitsWithinByte =
-      FunctionKind::kClassConstructor << kCompilerHintsSmiTagSize;
-  STATIC_ASSERT(kClassConstructorBitsWithinByte < (1 << kBitsPerByte));
-
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-#define BYTE_OFFSET(compiler_hint) \
-  kCompilerHintsOffset +           \
-      (compiler_hint + kCompilerHintsSmiTagSize) / kBitsPerByte
+  static const int kStrictModeByteOffset = kCompilerHintsOffset +
+      (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kStrongModeByteOffset =
+      kCompilerHintsOffset +
+      (kStrongModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kNativeByteOffset = kCompilerHintsOffset +
+      (kNative + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kBoundByteOffset =
+      kCompilerHintsOffset +
+      (kBoundFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
 #elif defined(V8_TARGET_BIG_ENDIAN)
-#define BYTE_OFFSET(compiler_hint)                   \
-  kCompilerHintsOffset + +(kCompilerHintsSize - 1) - \
-      ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte)
+  static const int kStrictModeByteOffset = kCompilerHintsOffset +
+      (kCompilerHintsSize - 1) -
+      ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+  static const int kStrongModeByteOffset =
+      kCompilerHintsOffset + (kCompilerHintsSize - 1) -
+      ((kStrongModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+  static const int kNativeByteOffset = kCompilerHintsOffset +
+      (kCompilerHintsSize - 1) -
+      ((kNative + kCompilerHintsSmiTagSize) / kBitsPerByte);
+  static const int kBoundByteOffset =
+      kCompilerHintsOffset + (kCompilerHintsSize - 1) -
+      ((kBoundFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
 #else
 #error Unknown byte ordering
 #endif
-  static const int kStrictModeByteOffset = BYTE_OFFSET(kStrictModeFunction);
-  static const int kStrongModeByteOffset = BYTE_OFFSET(kStrongModeFunction);
-  static const int kNativeByteOffset = BYTE_OFFSET(kNative);
-  static const int kBoundByteOffset = BYTE_OFFSET(kBoundFunction);
-  static const int kFunctionKindByteOffset = BYTE_OFFSET(kFunctionKind);
-#undef BYTE_OFFSET
 
  private:
   // Returns entry from optimized code map for specified context and OSR entry.

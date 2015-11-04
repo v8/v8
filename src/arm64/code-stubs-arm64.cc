@@ -2747,22 +2747,10 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
 }
 
 
-static void LoadCompilerHints(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  // -- x1 : the function to call
-  // -----------------------------------
+static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
   // Do not transform the receiver for strict mode functions.
   __ Ldr(x3, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
   __ Ldr(w4, FieldMemOperand(x3, SharedFunctionInfo::kCompilerHintsOffset));
-}
-
-
-static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
-  // ----------- S t a t e -------------
-  // -- a1 : the function to call
-  // -- x3 : the shared function info
-  // -- w4 : the compiler info hints from the shared function info
-  // -----------------------------------
   __ Tbnz(w4, SharedFunctionInfo::kStrictModeFunction, cont);
 
   // Do not transform the receiver for native (Compilerhints already in x3).
@@ -2790,26 +2778,6 @@ static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
 }
 
 
-static void EmitClassConstructorCallCheck(MacroAssembler* masm) {
-  //   ----------- S t a t e -------------
-  //   -- x1 : the function to call
-  //   -- x3 : the shared function info
-  //   -- w4 : the shared function's compiler hints
-  //   -----------------------------------
-  //   ClassConstructor Check: ES6 section 9.2.1 [[Call]]
-  Label non_class_constructor;
-  __ TestAndBranchIfAllClear(
-      w4, (1 << SharedFunctionInfo::kIsDefaultConstructor) |
-              (1 << SharedFunctionInfo::kIsSubclassConstructor) |
-              (1 << SharedFunctionInfo::kIsBaseConstructor),
-      &non_class_constructor);
-  // If we call a classConstructor Function throw a TypeError
-  // indirectly via the CallFunction builtin.
-  __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
-  __ bind(&non_class_constructor);
-}
-
-
 static void CallFunctionNoFeedback(MacroAssembler* masm,
                                    int argc, bool needs_checks,
                                    bool call_as_method) {
@@ -2828,9 +2796,6 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
     // Goto slow case if we do not have a function.
     __ JumpIfNotObjectType(function, x10, type, JS_FUNCTION_TYPE, &slow);
   }
-
-  LoadCompilerHints(masm);
-  EmitClassConstructorCallCheck(masm);
 
   // Fast-case: Invoke the function now.
   // x1  function  pushed function
@@ -3024,10 +2989,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Str(index, FieldMemOperand(feedback_vector, 0));
 
   __ bind(&have_js_function);
-
-  LoadCompilerHints(masm);
-  EmitClassConstructorCallCheck(masm);
-
   if (CallAsMethod()) {
     EmitContinueIfStrictOrNative(masm, &cont);
 

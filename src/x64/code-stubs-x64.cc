@@ -1876,18 +1876,15 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
 
 
 static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
-  // ----------- S t a t e -------------
-  // -- rdi : the function to call
-  // -- rdx : the function's shared function info
-  // -----------------------------------
-  // Assume that SharedFunctionInfo is already loaded into rdx.
   // Do not transform the receiver for strict mode functions.
-  __ testb(FieldOperand(rdx, SharedFunctionInfo::kStrictModeByteOffset),
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ testb(FieldOperand(rcx, SharedFunctionInfo::kStrictModeByteOffset),
            Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
   __ j(not_equal, cont);
 
   // Do not transform the receiver for natives.
-  __ testb(FieldOperand(rdx, SharedFunctionInfo::kNativeByteOffset),
+  // SharedFunctionInfo is already loaded into rcx.
+  __ testb(FieldOperand(rcx, SharedFunctionInfo::kNativeByteOffset),
            Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
   __ j(not_equal, cont);
 }
@@ -1915,30 +1912,10 @@ static void EmitWrapCase(MacroAssembler* masm,
 }
 
 
-static void EmitClassConstructorCallCheck(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  // -- rdi : the function to call
-  // -- rdx : the function's shared function info
-  // -----------------------------------
-  // ClassConstructor Check: ES6 section 9.2.1 [[Call]]
-  Label non_class_constructor;
-  // Check whether the current function is a classConstructor
-  __ testb(FieldOperand(rdx, SharedFunctionInfo::kFunctionKindByteOffset),
-           Immediate(SharedFunctionInfo::kClassConstructorBitsWithinByte));
-  __ j(zero, &non_class_constructor, Label::kNear);
-  // If we call a classConstructor Function throw a TypeError
-  // indirectly via the CallFunction builtin.
-  __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
-  __ bind(&non_class_constructor);
-}
-
-
 static void CallFunctionNoFeedback(MacroAssembler* masm,
                                    int argc, bool needs_checks,
                                    bool call_as_method) {
-  // ----------- S t a t e -------------
-  // -- rdi : the function to call
-  // -----------------------------------
+  // rdi : the function to call
 
   // wrap_and_call can only be true if we are compiling a monomorphic method.
   Label slow, wrap, cont;
@@ -1952,9 +1929,6 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
     __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
     __ j(not_equal, &slow);
   }
-
-  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  EmitClassConstructorCallCheck(masm);
 
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc);
@@ -2073,11 +2047,9 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
 
 
 void CallICStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  // -- rdi - function
-  // -- rdx - slot id
-  // -- rbx - vector
-  // -----------------------------------
+  // rdi - function
+  // rdx - slot id
+  // rbx - vector
   Isolate* isolate = masm->isolate();
   const int with_types_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
@@ -2122,10 +2094,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
                     Smi::FromInt(CallICNexus::kCallCountIncrement));
 
   __ bind(&have_js_function);
-
-  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  EmitClassConstructorCallCheck(masm);
-
   if (CallAsMethod()) {
     EmitContinueIfStrictOrNative(masm, &cont);
 

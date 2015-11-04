@@ -1562,34 +1562,19 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm) {
   //  -- x0 : the number of arguments (not including the receiver)
   //  -- x1 : the function to call (checked to be a JSFunction)
   // -----------------------------------
-  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
 
   Label convert, convert_global_proxy, convert_to_object, done_convert;
   __ AssertFunction(x1);
-
-  __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  {
-    Label non_class_constructor;
-    // Check whether the current function is a classConstructor
-    __ Ldr(w3, FieldMemOperand(x2, SharedFunctionInfo::kCompilerHintsOffset));
-    __ TestAndBranchIfAllClear(
-        w3, (1 << SharedFunctionInfo::kIsDefaultConstructor) |
-                (1 << SharedFunctionInfo::kIsSubclassConstructor) |
-                (1 << SharedFunctionInfo::kIsBaseConstructor),
-        &non_class_constructor);
-    // Step: 2, If we call a classConstructor Function throw a TypeError.
-    {
-      FrameScope frame(masm, StackFrame::INTERNAL);
-      __ CallRuntime(Runtime::kThrowConstructorNonCallableError, 0);
-    }
-    __ bind(&non_class_constructor);
-  }
-
+  // TODO(bmeurer): Throw a TypeError if function's [[FunctionKind]] internal
+  // slot is "classConstructor".
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
+  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
+  __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
+  __ Ldr(w3, FieldMemOperand(x2, SharedFunctionInfo::kCompilerHintsOffset));
   __ TestAndBranchIfAnySet(w3,
                            (1 << SharedFunctionInfo::kNative) |
                                (1 << SharedFunctionInfo::kStrictModeFunction),

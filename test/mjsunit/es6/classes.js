@@ -625,31 +625,6 @@ function assertAccessorDescriptor(object, name) {
   assertTrue(new C(1) instanceof C);
 })();
 
-(function TestConstructorCall(){
-  var realmIndex = Realm.create();
-  var otherTypeError = Realm.eval(realmIndex, "TypeError");
-  var A = Realm.eval(realmIndex, '"use strict"; class A {}');
-  var instance = new A();
-  var constructor = instance.constructor;
-  var otherTypeError = Realm.eval(realmIndex, 'TypeError');
-  if (otherTypeError === TypeError) {
-    throw Error('Should not happen!');
-  }
-
-  // ES6 9.2.1[[Call]] throws a TypeError in the caller context/Realm when the
-  // called function is a classConstructor
-  assertThrows(function() { Realm.eval(realmIndex, "A()") }, otherTypeError);
-  assertThrows(function() { instance.constructor() }, TypeError);
-  assertThrows(function() { A() }, TypeError);
-
-  // ES6 9.3.1 call() first activates the callee context before invoking the
-  // method. The TypeError from the constructor is thus thrown in the other
-  // Realm.
-  assertThrows(function() { Realm.eval(realmIndex, "A.call()") },
-      otherTypeError);
-  assertThrows(function() { constructor.call() }, otherTypeError);
-  assertThrows(function() { A.call() }, otherTypeError);
-})();
 
 (function TestDefaultConstructor() {
   var calls = 0;

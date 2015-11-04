@@ -76,8 +76,6 @@
   'whitespaces': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
   'es6/string-fromcodepoint': [PASS, NO_VARIANTS],
-  # TODO(cbruni): enable once we fix classConstructor calls in optimized code
-  'es6/classes': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
   'regress/regress-2612': [PASS, NO_VARIANTS],
 
