@@ -1251,7 +1251,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> cons = factory->NewFunction(name);
     JSFunction::SetInstancePrototype(cons,
         Handle<Object>(native_context()->initial_object_prototype(), isolate));
-    cons->SetInstanceClassName(*name);
+    cons->shared()->set_instance_class_name(*name);
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     DCHECK(json_object->IsJSObject());
     JSObject::AddProperty(global, name, json_object, DONT_ENUM);
@@ -1263,7 +1263,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSFunction::SetInstancePrototype(
         cons,
         Handle<Object>(native_context()->initial_object_prototype(), isolate));
-    cons->SetInstanceClassName(*name);
+    cons->shared()->set_instance_class_name(*name);
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     DCHECK(json_object->IsJSObject());
     JSObject::AddProperty(global, name, json_object, DONT_ENUM);
@@ -2166,7 +2166,7 @@ void Genesis::InitializeGlobal_harmony_simd() {
   JSFunction::SetInstancePrototype(
       cons,
       Handle<Object>(native_context()->initial_object_prototype(), isolate));
-  cons->SetInstanceClassName(*name);
+  cons->shared()->set_instance_class_name(*name);
   Handle<JSObject> simd_object = factory->NewJSObject(cons, TENURED);
   DCHECK(simd_object->IsJSObject());
   JSObject::AddProperty(global, name, simd_object, DONT_ENUM);
@@ -2178,7 +2178,7 @@ void Genesis::InitializeGlobal_harmony_simd() {
       simd_object, #Type, JS_VALUE_TYPE, JSValue::kSize,                  \
       isolate->initial_object_prototype(), Builtins::kIllegal);           \
   native_context()->set_##type##_function(*type##_function);              \
-  type##_function->SetInstanceClassName(*factory->Type##_string());
+  type##_function->shared()->set_instance_class_name(*factory->Type##_string());
   SIMD128_TYPES(SIMD128_INSTALL_FUNCTION)
 #undef SIMD128_INSTALL_FUNCTION
 }

@@ -668,7 +668,7 @@ void StaticMarkingVisitor<StaticVisitor>::MarkInlinedFunctionsCode(Heap* heap,
 
 
 inline static bool HasValidNonBuiltinContext(JSFunction* function) {
-  return function->context()->IsContext() && !function->IsBuiltin();
+  return function->context()->IsContext() && !function->shared()->IsBuiltin();
 }
 
 

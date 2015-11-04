@@ -11773,11 +11773,6 @@ Handle<Map> JSFunction::EnsureDerivedHasInitialMap(
 }
 
 
-void JSFunction::SetInstanceClassName(String* name) {
-  shared()->set_instance_class_name(name);
-}
-
-
 void JSFunction::PrintName(FILE* out) {
   base::SmartArrayPointer<char> name = shared()->DebugName()->ToCString();
   PrintF(out, "%s", name.get());

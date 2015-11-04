@@ -6221,20 +6221,6 @@ bool SharedFunctionInfo::IsBuiltin() {
 bool SharedFunctionInfo::IsSubjectToDebugging() { return !IsBuiltin(); }
 
 
-bool JSFunction::IsBuiltin() { return shared()->IsBuiltin(); }
-
-
-bool JSFunction::IsSubjectToDebugging() {
-  return shared()->IsSubjectToDebugging();
-}
-
-
-bool JSFunction::NeedsArgumentsAdaption() {
-  return shared()->internal_formal_parameter_count() !=
-         SharedFunctionInfo::kDontAdaptArgumentsSentinel;
-}
-
-
 bool JSFunction::IsOptimized() {
   return code()->kind() == Code::OPTIMIZED_FUNCTION;
 }
@@ -6379,11 +6365,6 @@ bool JSFunction::is_compiled() {
   return code() != builtins->builtin(Builtins::kCompileLazy) &&
          code() != builtins->builtin(Builtins::kCompileOptimized) &&
          code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent);
-}
-
-
-bool JSFunction::has_simple_parameters() {
-  return shared()->has_simple_parameters();
 }
 
 

@@ -163,7 +163,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetInstanceClassName) {
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
-  fun->SetInstanceClassName(name);
+  fun->shared()->set_instance_class_name(name);
   return isolate->heap()->undefined_value();
 }
 

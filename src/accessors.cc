@@ -1321,7 +1321,7 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
   // If caller is a built-in function and caller's caller is also built-in,
   // use that instead.
   JSFunction* potential_caller = caller;
-  while (potential_caller != NULL && potential_caller->IsBuiltin()) {
+  while (potential_caller != NULL && potential_caller->shared()->IsBuiltin()) {
     caller = potential_caller;
     potential_caller = it.next();
   }

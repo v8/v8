@@ -451,7 +451,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
     it.frame()->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0; i--) {
       // Omit functions from native and extension scripts.
-      if (frames[i].function()->IsSubjectToDebugging()) n++;
+      if (frames[i].function()->shared()->IsSubjectToDebugging()) n++;
     }
   }
   return Smi::FromInt(n);
@@ -529,7 +529,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
-  RUNTIME_ASSERT(function->IsSubjectToDebugging());
+  RUNTIME_ASSERT(function->shared()->IsSubjectToDebugging());
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
   DCHECK(*scope_info != ScopeInfo::Empty(isolate));
@@ -705,7 +705,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Add the receiver (same as in function frame).
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  DCHECK(!function->IsBuiltin());
+  DCHECK(!function->shared()->IsBuiltin());
   if (!receiver->IsJSObject() && is_sloppy(shared->language_mode())) {
     // If the receiver is not a JSObject and the function is not a builtin or
     // strict-mode we have hit an optimization where a value object is not
@@ -1638,13 +1638,14 @@ RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
   } else {
     fun = JSGeneratorObject::cast(object)->function();
   }
-  return isolate->heap()->ToBoolean(fun->IsSubjectToDebugging() ||
+  return isolate->heap()->ToBoolean(fun->shared()->IsSubjectToDebugging() ||
                                     fun->shared()->bound());
 }
 
 
 void FloodDebugSubjectWithOneShot(Debug* debug, Handle<JSFunction> function) {
-  if (function->IsSubjectToDebugging() || function->shared()->bound()) {
+  if (function->shared()->IsSubjectToDebugging() ||
+      function->shared()->bound()) {
     // When leaving the function, step out has been activated, but not performed
     // if we do not leave the builtin.  To be able to step into the function
     // again, we need to clear the step out at this point.

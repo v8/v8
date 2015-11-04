@@ -1051,7 +1051,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
         Handle<Object> receiver = lookup->GetReceiver();
         if (getter->IsJSFunction() && holder->HasFastProperties()) {
           Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
-          if (receiver->IsJSObject() || function->IsBuiltin() ||
+          if (receiver->IsJSObject() || function->shared()->IsBuiltin() ||
               !is_sloppy(function->shared()->language_mode())) {
             CallOptimization call_optimization(function);
             if (call_optimization.is_simple_api_call() &&
@@ -1210,7 +1210,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         // When debugging we need to go the slow path to flood the accessor.
         if (GetSharedFunctionInfo()->HasDebugInfo()) break;
         Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
-        if (!receiver->IsJSObject() && !function->IsBuiltin() &&
+        if (!receiver->IsJSObject() && !function->shared()->IsBuiltin() &&
             is_sloppy(function->shared()->language_mode())) {
           // Calling sloppy non-builtins with a value as the receiver
           // requires boxing.
