@@ -67,9 +67,11 @@
         '--path-variable', 'DEPTH', '<(DEPTH)',
         '--path-variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
 
+        '--config-variable', 'CONFIGURATION_NAME=<(CONFIGURATION_NAME)',
         '--config-variable', 'OS=<(OS)',
         '--config-variable', 'asan=<(asan)',
         '--config-variable', 'cfi_vptr=<(cfi_vptr)',
+        '--config-variable', 'icu_use_data_file_flag=0',
         '--config-variable', 'msan=<(msan)',
         '--config-variable', 'tsan=<(tsan)',
         '--config-variable', 'component=<(component)',
@@ -77,6 +79,17 @@
         '--config-variable', 'use_custom_libcxx=<(use_custom_libcxx)',
         '--config-variable', 'v8_use_external_startup_data=<(v8_use_external_startup_data)',
         '--config-variable', 'v8_use_snapshot=<(v8_use_snapshot)',
+      ],
+      'conditions': [
+        ['OS=="win"', {
+          'action': [
+            '--config-variable', 'msvs_version=2013',
+          ],
+        }, {
+          'action': [
+            '--config-variable', 'msvs_version=0',
+          ],
+        }],
       ],
     },
   ],

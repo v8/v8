@@ -131,7 +131,7 @@
 
         # TODO(machenbach): Remove the conditions as more configurations are
         # supported.
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="win"', {
           'test_isolation_mode%': 'check',
         }, {
           'test_isolation_mode%': 'noop',
