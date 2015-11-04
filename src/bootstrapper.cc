@@ -1223,15 +1223,32 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     DCHECK_EQ(0, initial_map->GetInObjectProperties());
 
-    Map::EnsureDescriptorSlack(initial_map, 1);
+    PropertyAttributes final =
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+    Map::EnsureDescriptorSlack(initial_map, 5);
 
-    // ECMA-262, section 15.10.7.5.
-    PropertyAttributes writable =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    DataDescriptor field(factory->last_index_string(),
-                         JSRegExp::kLastIndexFieldIndex, writable,
-                         Representation::Tagged());
-    initial_map->AppendDescriptor(&field);
+    {
+      // ES6 21.2.3.2.1
+      DataDescriptor field(factory->regexp_source_symbol(),
+                           JSRegExp::kSourceFieldIndex, final,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
+    }
+    {
+      DataDescriptor field(factory->regexp_flags_symbol(),
+                           JSRegExp::kFlagsFieldIndex, final,
+                           Representation::Smi());
+      initial_map->AppendDescriptor(&field);
+    }
+    {
+      // ECMA-262, section 15.10.7.5.
+      PropertyAttributes writable =
+          static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+      DataDescriptor field(factory->last_index_string(),
+                           JSRegExp::kLastIndexFieldIndex, writable,
+                           Representation::Tagged());
+      initial_map->AppendDescriptor(&field);
+    }
 
     static const int num_fields = JSRegExp::kInObjectFieldCount;
     initial_map->SetInObjectProperties(num_fields);
