@@ -1589,33 +1589,47 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(target_type->AsConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+
+    // Grab the context from the {function}.
+    Node* context = jsgraph()->Constant(handle(function->context(), isolate()));
+    NodeProperties::ReplaceContextInput(node, context);
+
+    // Check if we need to convert the {receiver}.
+    if (is_sloppy(shared->language_mode()) && !shared->native() &&
+        !receiver_type->Is(Type::Receiver())) {
+      receiver = effect =
+          graph()->NewNode(javascript()->ConvertReceiver(convert_mode),
+                           receiver, context, frame_state, effect, control);
+      NodeProperties::ReplaceEffectInput(node, effect);
+      NodeProperties::ReplaceValueInput(node, receiver, 1);
+    }
+
+    // Remove the eager bailout frame state.
+    NodeProperties::RemoveFrameStateInput(node, 1);
+
+    // Compute flags for the call.
+    CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+    if (p.AllowTailCalls()) flags |= CallDescriptor::kSupportsTailCalls;
+
     if (shared->internal_formal_parameter_count() == arity) {
-      // Grab the context from the {function}.
-      Node* context =
-          jsgraph()->Constant(handle(function->context(), isolate()));
-      NodeProperties::ReplaceContextInput(node, context);
-
-      // Check if we need to convert the {receiver}.
-      if (is_sloppy(shared->language_mode()) && !shared->native() &&
-          !receiver_type->Is(Type::Receiver())) {
-        receiver = effect =
-            graph()->NewNode(javascript()->ConvertReceiver(convert_mode),
-                             receiver, context, frame_state, effect, control);
-        NodeProperties::ReplaceEffectInput(node, effect);
-        NodeProperties::ReplaceValueInput(node, receiver, 1);
-      }
-
-      // Remove the eager bailout frame state.
-      NodeProperties::RemoveFrameStateInput(node, 1);
-
       // Patch {node} to a direct call.
-      CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
-      if (p.AllowTailCalls()) flags |= CallDescriptor::kSupportsTailCalls;
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity, flags)));
-      return Changed(node);
+    } else {
+      Callable callable = CodeFactory::ArgumentAdaptor(isolate());
+      node->InsertInput(graph()->zone(), 0,
+                        jsgraph()->HeapConstant(callable.code()));
+      node->InsertInput(graph()->zone(), 2, jsgraph()->Int32Constant(arity));
+      node->InsertInput(
+          graph()->zone(), 3,
+          jsgraph()->Int32Constant(shared->internal_formal_parameter_count()));
+      NodeProperties::ChangeOp(
+          node, common()->Call(Linkage::GetStubCallDescriptor(
+                    isolate(), graph()->zone(), callable.descriptor(),
+                    1 + arity, flags)));
     }
+    return Changed(node);
   }
 
   return NoChange();

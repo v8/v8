@@ -296,6 +296,13 @@ Callable CodeFactory::CallFunction(Isolate* isolate, int argc,
 
 
 // static
+Callable CodeFactory::ArgumentAdaptor(Isolate* isolate) {
+  return Callable(isolate->builtins()->ArgumentsAdaptorTrampoline(),
+                  ArgumentAdaptorDescriptor(isolate));
+}
+
+
+// static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate) {
   return Callable(isolate->builtins()->InterpreterPushArgsAndCall(),
                   InterpreterPushArgsAndCallDescriptor(isolate));

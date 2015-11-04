@@ -100,6 +100,8 @@ class CodeFactory final {
   static Callable CallFunction(Isolate* isolate, int argc,
                                CallFunctionFlags flags);
 
+  static Callable ArgumentAdaptor(Isolate* isolate);
+
   static Callable InterpreterPushArgsAndCall(Isolate* isolate);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate);
