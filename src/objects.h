@@ -7786,9 +7786,11 @@ class JSRegExp: public JSObject {
 
   // In-object fields.
   static const int kSourceFieldIndex = 0;
-  static const int kFlagsFieldIndex = 1;
-  static const int kLastIndexFieldIndex = 2;
-  static const int kInObjectFieldCount = 3;
+  static const int kGlobalFieldIndex = 1;
+  static const int kIgnoreCaseFieldIndex = 2;
+  static const int kMultilineFieldIndex = 3;
+  static const int kLastIndexFieldIndex = 4;
+  static const int kInObjectFieldCount = 5;
 
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
