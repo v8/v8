@@ -645,5 +645,6 @@ RUNTIME_FUNCTION(Runtime_ThrowStrongModeTooFewArguments) {
   THROW_NEW_ERROR_RETURN_FAILURE(isolate,
                                  NewTypeError(MessageTemplate::kStrongArity));
 }
+
 }  // namespace internal
 }  // namespace v8

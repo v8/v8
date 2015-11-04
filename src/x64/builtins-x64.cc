@@ -1721,6 +1721,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_CallFunction(MacroAssembler* masm) {
+  // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
   //  -- rdi : the function to call (checked to be a JSFunction)
@@ -1729,16 +1730,27 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm) {
   Label convert, convert_global_proxy, convert_to_object, done_convert;
   StackArgumentsAccessor args(rsp, rax);
   __ AssertFunction(rdi);
-  // TODO(bmeurer): Throw a TypeError if function's [[FunctionKind]] internal
-  // slot is "classConstructor".
+  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  {
+    Label non_class_constructor;
+    // Check whether the current function is a classConstructor
+    __ testb(FieldOperand(rdx, SharedFunctionInfo::kFunctionKindByteOffset),
+             Immediate(SharedFunctionInfo::kClassConstructorBitsWithinByte));
+    __ j(zero, &non_class_constructor);
+    // Step: 2, If we call a classConstructor Function throw a TypeError.
+    {
+      FrameScope frame(masm, StackFrame::INTERNAL);
+      __ CallRuntime(Runtime::kThrowConstructorNonCallableError, 0);
+    }
+    __ bind(&non_class_constructor);
+  }
+
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
-  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   STATIC_ASSERT(SharedFunctionInfo::kNativeByteOffset ==
                 SharedFunctionInfo::kStrictModeByteOffset);
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
   __ testb(FieldOperand(rdx, SharedFunctionInfo::kNativeByteOffset),
            Immediate((1 << SharedFunctionInfo::kNativeBitWithinByte) |
