@@ -2267,6 +2267,8 @@ class JSObject: public JSReceiver {
   // index. Returns the number of properties added.
   int GetOwnPropertyNames(FixedArray* storage, int index,
                           PropertyAttributes filter = NONE);
+  int CollectOwnPropertyNames(KeyAccumulator* keys,
+                              PropertyAttributes filter = NONE);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -3416,6 +3418,8 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   // Returns the number of properties added.
   int CopyKeysTo(FixedArray* storage, int index, PropertyAttributes filter,
                  SortMode sort_mode);
+  // Collect the unsorted keys into the given KeyAccumulator.
+  int CollectKeysTo(KeyAccumulator* keys, PropertyAttributes filter);
 
   // Copies enumerable keys to preallocated fixed array.
   void CopyEnumKeysTo(FixedArray* storage);
@@ -10742,67 +10746,6 @@ class BooleanBit : public AllStatic {
   }
 };
 
-
-enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX, PROXY_MAGIC };
-
-// This is a helper class for JSReceiver::GetKeys which collects and sorts keys.
-// GetKeys needs to sort keys per prototype level, first showing the integer
-// indices from elements then the strings from the properties. However, this
-// does not apply to proxies which are in full control of how the keys are
-// sorted.
-//
-// For performance reasons the KeyAccumulator internally separates integer
-// keys in |elements_| into sorted lists per prototype level. String keys are
-// collected in |properties_|, a single OrderedHashSet. To separate the keys per
-// level later when assembling the final list, |levelLengths_| keeps track of
-// the total number of keys (integers + strings) per level.
-//
-// Only unique keys are kept by the KeyAccumulator, strings are stored in a
-// HashSet for inexpensive lookups. Integer keys are kept in sorted lists which
-// are more compact and allow for reasonably fast includes check.
-class KeyAccumulator final BASE_EMBEDDED {
- public:
-  explicit KeyAccumulator(Isolate* isolate,
-                          KeyFilter filter = KeyFilter::SKIP_SYMBOLS)
-      : isolate_(isolate), filter_(filter) {}
-  ~KeyAccumulator();
-
-  bool AddKey(uint32_t key);
-  bool AddKey(Object* key, AddKeyConversion convert = DO_NOT_CONVERT);
-  bool AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
-  void AddKeys(Handle<FixedArray> array,
-               AddKeyConversion convert = DO_NOT_CONVERT);
-  void AddKeys(Handle<JSObject> array,
-               AddKeyConversion convert = DO_NOT_CONVERT);
-  void AddKeysFromProxy(Handle<JSObject> array);
-  void AddElementKeysFromInterceptor(Handle<JSObject> array);
-  // Jump to the next level, pushing the current |levelLength_| to
-  // |levelLengths_| and adding a new list to |elements_|.
-  void NextPrototype();
-  // Sort the integer indices in the last list in |elements_|
-  void SortCurrentElementsList();
-  void SortCurrentElementsListRemoveDuplicates();
-  Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
-
-
- private:
-  Isolate* isolate_;
-  KeyFilter filter_;
-  // |elements_| contains the sorted element keys (indices) per level.
-  std::vector<std::vector<uint32_t>*> elements_;
-  // |protoLengths_| contains the total number of keys (elements + properties)
-  // per level. Negative values mark counts for a level with keys from a proxy.
-  std::vector<int> levelLengths_;
-  // |properties_| contains the property keys per level in insertion order.
-  Handle<OrderedHashSet> properties_;
-  // |length_| keeps track of the total number of all element and property keys.
-  int length_ = 0;
-  // |levelLength_| keeps track of the total number of keys
-  // (elements + properties) in the current level.
-  int levelLength_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(KeyAccumulator);
-};
 
 }  // NOLINT, false-positive due to second-order macros.
 }  // NOLINT, false-positive due to second-order macros.

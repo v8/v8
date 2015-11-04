@@ -843,6 +843,8 @@
         '../../src/isolate.h',
         '../../src/json-parser.h',
         '../../src/json-stringifier.h',
+        '../../src/key-accumulator.h',
+        '../../src/key-accumulator.cc',
         '../../src/layout-descriptor-inl.h',
         '../../src/layout-descriptor.cc',
         '../../src/layout-descriptor.h',

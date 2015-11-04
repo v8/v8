@@ -8,6 +8,7 @@
 #include "src/elements-kind.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
+#include "src/key-accumulator.h"
 #include "src/objects.h"
 
 namespace v8 {

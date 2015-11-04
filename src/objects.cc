@@ -30,6 +30,7 @@
 #include "src/ic/ic.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
+#include "src/key-accumulator.h"
 #include "src/list.h"
 #include "src/log.h"
 #include "src/lookup.h"
@@ -7579,218 +7580,6 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
-KeyAccumulator::~KeyAccumulator() {
-  for (size_t i = 0; i < elements_.size(); i++) {
-    delete elements_[i];
-  }
-}
-
-
-Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
-  if (length_ == 0) {
-    return isolate_->factory()->empty_fixed_array();
-  }
-  // Make sure we have all the lengths collected.
-  NextPrototype();
-
-  // Assemble the result array by first adding the element keys and then
-  // the property keys. We use the total number of keys per level in
-  // |protoLengths_| and the available element keys in the corresponding bucket
-  // in |elements_| to deduce the number of keys to take from the |properties_|
-  // set.
-  Handle<FixedArray> result = isolate_->factory()->NewFixedArray(length_);
-  int index = 0;
-  int properties_index = 0;
-  for (size_t level = 0; level < levelLengths_.size(); level++) {
-    int num_total = levelLengths_[level];
-    int num_elements = 0;
-    if (num_total < 0) {
-      // If the total is negative, the current level contains properties from a
-      // proxy, hence we skip the integer keys in |elements_| since proxies
-      // define the complete ordering.
-      num_total = -num_total;
-    } else if (level < elements_.size()) {
-      std::vector<uint32_t>* elements = elements_[level];
-      num_elements = static_cast<int>(elements->size());
-      for (int i = 0; i < num_elements; i++) {
-        Handle<Object> key;
-        if (convert == KEEP_NUMBERS) {
-          key = isolate_->factory()->NewNumberFromUint(elements->at(i));
-        } else {
-          key = isolate_->factory()->Uint32ToString(elements->at(i));
-        }
-        result->set(index, *key);
-        index++;
-      }
-    }
-    // Add the property keys for this prototype level.
-    int num_properties = num_total - num_elements;
-    for (int i = 0; i < num_properties; i++) {
-      Object* key = properties_->KeyAt(properties_index);
-      result->set(index, key);
-      index++;
-      properties_index++;
-    }
-  }
-
-  DCHECK_EQ(index, length_);
-  return result;
-}
-
-
-namespace {
-
-bool AccumulatorHasKey(std::vector<uint32_t>* sub_elements, uint32_t key) {
-  return std::binary_search(sub_elements->begin(), sub_elements->end(), key);
-}
-
-}  // namespace
-
-
-bool KeyAccumulator::AddKey(uint32_t key) {
-  // Make sure we do not add keys to a proxy-level (see AddKeysFromProxy).
-  // We mark proxy-levels with a negative length
-  DCHECK_LE(0, levelLength_);
-  // Binary search over all but the last level. The last one might not be
-  // sorted yet.
-  for (size_t i = 1; i < elements_.size(); i++) {
-    if (AccumulatorHasKey(elements_[i - 1], key)) return false;
-  }
-  elements_.back()->push_back(key);
-  length_++;
-  levelLength_++;
-  return true;
-}
-
-
-bool KeyAccumulator::AddKey(Object* key, AddKeyConversion convert) {
-  return AddKey(handle(key, isolate_), convert);
-}
-
-
-bool KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
-  if (filter_ == SKIP_SYMBOLS && key->IsSymbol()) {
-    return false;
-  }
-  // Make sure we do not add keys to a proxy-level (see AddKeysFromProxy).
-  DCHECK_LE(0, levelLength_);
-  // In some cases (e.g. proxies) we might get in String-converted ints which
-  // should be added to the elements list instead of the properties. For
-  // proxies we have to convert as well but also respect the original order.
-  // Therefore we add a converted key to both sides
-  if (convert == CONVERT_TO_ARRAY_INDEX || convert == PROXY_MAGIC) {
-    uint32_t index = 0;
-    int prev_length = length_;
-    int prev_proto = levelLength_;
-    bool was_array_index = false;
-    bool key_was_added = false;
-    if ((key->IsString() && Handle<String>::cast(key)->AsArrayIndex(&index)) ||
-        key->ToArrayIndex(&index)) {
-      key_was_added = AddKey(index);
-      was_array_index = true;
-      if (convert == CONVERT_TO_ARRAY_INDEX) return key_was_added;
-    }
-    if (was_array_index && convert == PROXY_MAGIC) {
-      // If we had an array index (number) and it wasn't added, the key
-      // already existed before, hence we cannot add it to the properties
-      // keys as it would lead to duplicate entries.
-      if (!key_was_added) {
-        return false;
-      }
-      length_ = prev_length;
-      levelLength_ = prev_proto;
-    }
-  }
-  if (properties_.is_null()) {
-    properties_ = OrderedHashSet::Allocate(isolate_, 16);
-  }
-  // TODO(cbruni): remove this conversion once we throw the correct TypeError
-  // for non-string/symbol elements returned by proxies
-  if (convert == PROXY_MAGIC && key->IsNumber()) {
-    key = isolate_->factory()->NumberToString(key);
-  }
-  int prev_size = properties_->NumberOfElements();
-  properties_ = OrderedHashSet::Add(properties_, key);
-  if (prev_size < properties_->NumberOfElements()) {
-    length_++;
-    levelLength_++;
-  }
-  return true;
-}
-
-
-void KeyAccumulator::AddKeys(Handle<FixedArray> array,
-                             AddKeyConversion convert) {
-  int add_length = array->length();
-  if (add_length == 0) return;
-  for (int i = 0; i < add_length; i++) {
-    Handle<Object> current(array->get(i), isolate_);
-    AddKey(current);
-  }
-}
-
-
-void KeyAccumulator::AddKeys(Handle<JSObject> array_like,
-                             AddKeyConversion convert) {
-  DCHECK(array_like->IsJSArray() || array_like->HasSloppyArgumentsElements());
-  ElementsAccessor* accessor = array_like->GetElementsAccessor();
-  accessor->AddElementsToKeyAccumulator(array_like, this, convert);
-}
-
-
-void KeyAccumulator::AddKeysFromProxy(Handle<JSObject> array_like) {
-  // Proxies define a complete list of keys with no distinction of
-  // elements and properties, which breaks the normal assumption for the
-  // KeyAccumulator.
-  AddKeys(array_like, PROXY_MAGIC);
-  // Invert the current length to indicate a present proxy, so we can ignore
-  // element keys for this level. Otherwise we would not fully respect the order
-  // given by the proxy.
-  levelLength_ = -levelLength_;
-}
-
-
-void KeyAccumulator::AddElementKeysFromInterceptor(
-    Handle<JSObject> array_like) {
-  AddKeys(array_like, CONVERT_TO_ARRAY_INDEX);
-  // The interceptor might introduce duplicates for the current level, since
-  // these keys get added after the objects's normal element keys.
-  SortCurrentElementsListRemoveDuplicates();
-}
-
-
-void KeyAccumulator::SortCurrentElementsListRemoveDuplicates() {
-  // Sort and remove duplciated from the current elements level and adjust
-  // the lengths accordingly.
-  auto last_level = elements_.back();
-  size_t nof_removed_keys = last_level->size();
-  std::sort(last_level->begin(), last_level->end());
-  last_level->erase(std::unique(last_level->begin(), last_level->end()),
-                    last_level->end());
-  // Adjust total length / level length by the number of removed duplicates
-  nof_removed_keys -= last_level->size();
-  levelLength_ -= static_cast<int>(nof_removed_keys);
-  length_ -= static_cast<int>(nof_removed_keys);
-}
-
-
-void KeyAccumulator::SortCurrentElementsList() {
-  if (elements_.empty()) return;
-  auto element_keys = elements_.back();
-  std::sort(element_keys->begin(), element_keys->end());
-}
-
-
-void KeyAccumulator::NextPrototype() {
-  // Store the protoLength on the first call of this method.
-  if (!elements_.empty()) {
-    levelLengths_.push_back(levelLength_);
-  }
-  elements_.push_back(new std::vector<uint32_t>());
-  levelLength_ = 0;
-}
-
-
 MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                                             KeyCollectionType type,
                                             KeyFilter filter,
@@ -7873,10 +7662,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       DCHECK(filter == INCLUDE_SYMBOLS);
       PropertyAttributes attr_filter =
           static_cast<PropertyAttributes>(DONT_ENUM | PRIVATE_SYMBOL);
-      Handle<FixedArray> property_keys = isolate->factory()->NewFixedArray(
-          current->NumberOfOwnProperties(attr_filter));
-      current->GetOwnPropertyNames(*property_keys, 0, attr_filter);
-      accumulator.AddKeys(property_keys);
+      current->CollectOwnPropertyNames(&accumulator, attr_filter);
     }
 
     // Add the property keys from the interceptor.
@@ -15072,6 +14858,27 @@ int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
 }
 
 
+int JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
+                                      PropertyAttributes filter) {
+  if (HasFastProperties()) {
+    int nof_keys = keys->length();
+    int real_size = map()->NumberOfOwnDescriptors();
+    Handle<DescriptorArray> descs(map()->instance_descriptors());
+    for (int i = 0; i < real_size; i++) {
+      if ((descs->GetDetails(i).attributes() & filter) != 0) continue;
+      Name* key = descs->GetKey(i);
+      if (key->FilterKey(filter)) continue;
+      keys->AddKey(key);
+    }
+    return nof_keys - keys->length();
+  } else if (IsJSGlobalObject()) {
+    return global_dictionary()->CollectKeysTo(keys, filter);
+  } else {
+    return property_dictionary()->CollectKeysTo(keys, filter);
+  }
+}
+
+
 int JSObject::NumberOfOwnElements(PropertyAttributes filter) {
   // Fast case for objects with no elements.
   if (!IsJSValue() && HasFastElements()) {
@@ -16843,18 +16650,36 @@ int Dictionary<Derived, Shape, Key>::CopyKeysTo(
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k) && !k->FilterKey(filter)) {
-      if (this->IsDeleted(i)) continue;
-      PropertyDetails details = this->DetailsAt(i);
-      PropertyAttributes attr = details.attributes();
-      if ((attr & filter) == 0) storage->set(index++, k);
-    }
+    if (!this->IsKey(k) || k->FilterKey(filter)) continue;
+    if (this->IsDeleted(i)) continue;
+    PropertyDetails details = this->DetailsAt(i);
+    PropertyAttributes attr = details.attributes();
+    if ((attr & filter) != 0) continue;
+    storage->set(index++, k);
   }
   if (sort_mode == Dictionary::SORTED) {
     storage->SortPairs(storage, index);
   }
   DCHECK(storage->length() >= index);
   return index - start_index;
+}
+
+
+template <typename Derived, typename Shape, typename Key>
+int Dictionary<Derived, Shape, Key>::CollectKeysTo(KeyAccumulator* keys,
+                                                   PropertyAttributes filter) {
+  int capacity = this->Capacity();
+  int keyLength = keys->length();
+  for (int i = 0; i < capacity; i++) {
+    Object* k = this->KeyAt(i);
+    if (!this->IsKey(k) || k->FilterKey(filter)) continue;
+    if (this->IsDeleted(i)) continue;
+    PropertyDetails details = this->DetailsAt(i);
+    PropertyAttributes attr = details.attributes();
+    if ((attr & filter) != 0) continue;
+    keys->AddKey(k);
+  }
+  return keyLength - keys->length();
 }
 
 
