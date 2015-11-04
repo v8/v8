@@ -945,6 +945,8 @@ enum FunctionKind {
   kInObjectLiteral = 1 << 7,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
+  kClassConstructor =
+      kBaseConstructor | kSubclassConstructor | kDefaultConstructor,
   kConciseMethodInObjectLiteral = kConciseMethod | kInObjectLiteral,
   kConciseGeneratorMethodInObjectLiteral =
       kConciseGeneratorMethod | kInObjectLiteral,
@@ -1013,9 +1015,7 @@ inline bool IsSubclassConstructor(FunctionKind kind) {
 
 inline bool IsClassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind &
-         (FunctionKind::kBaseConstructor | FunctionKind::kSubclassConstructor |
-          FunctionKind::kDefaultConstructor);
+  return kind & FunctionKind::kClassConstructor;
 }
 
 

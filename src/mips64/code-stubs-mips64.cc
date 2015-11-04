@@ -2539,8 +2539,10 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
 
 
 static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
-  __ ld(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-
+  // ----------- S t a t e -------------
+  // -- a1 : the function to call
+  // -- a3 : the shared function info
+  // -----------------------------------
   // Do not transform the receiver for strict mode functions.
   int32_t strict_mode_function_mask =
       1 << SharedFunctionInfo::kStrictModeBitWithinByte;
@@ -2576,6 +2578,23 @@ static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
 }
 
 
+static void EmitClassConstructorCallCheck(MacroAssembler* masm) {
+  //   ----------- S t a t e -------------
+  //   -- a1 : the function to call
+  //   -- a3 : the shared function info
+  //   -----------------------------------
+  //   ClassConstructor Check: ES6 section 9.2.1 [[Call]]
+  Label non_class_constructor;
+  __ lbu(a4, FieldMemOperand(a3, SharedFunctionInfo::kFunctionKindByteOffset));
+  __ And(at, a4, Operand(SharedFunctionInfo::kClassConstructorBitsWithinByte));
+  __ Branch(&non_class_constructor, eq, at, Operand(zero_reg));
+  // If we call a classConstructor Function throw a TypeError
+  // indirectly via the CallFunction builtin.
+  __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
+  __ bind(&non_class_constructor);
+}
+
+
 static void CallFunctionNoFeedback(MacroAssembler* masm,
                                    int argc, bool needs_checks,
                                    bool call_as_method) {
@@ -2591,6 +2610,9 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
     __ GetObjectType(a1, a4, a4);
     __ Branch(&slow, ne, a4, Operand(JS_FUNCTION_TYPE));
   }
+
+  __ ld(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  EmitClassConstructorCallCheck(masm);
 
   // Fast-case: Invoke the function now.
   // a1: pushed function
@@ -2798,6 +2820,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ sd(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
 
   __ bind(&have_js_function);
+
+  __ ld(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  EmitClassConstructorCallCheck(masm);
+
   if (CallAsMethod()) {
     EmitContinueIfStrictOrNative(masm, &cont);
     // Compute the receiver in sloppy mode.

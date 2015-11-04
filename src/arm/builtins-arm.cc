@@ -1567,19 +1567,32 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm) {
   //  -- r0 : the number of arguments (not including the receiver)
   //  -- r1 : the function to call (checked to be a JSFunction)
   // -----------------------------------
+  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
 
   Label convert, convert_global_proxy, convert_to_object, done_convert;
   __ AssertFunction(r1);
-  // TODO(bmeurer): Throw a TypeError if function's [[FunctionKind]] internal
-  // slot is "classConstructor".
+  __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  {
+    Label non_class_constructor;
+    // Check whether the current function is a classConstructor.
+    __ ldrb(r3,
+            FieldMemOperand(r2, SharedFunctionInfo::kFunctionKindByteOffset));
+    __ tst(r3, Operand(SharedFunctionInfo::kClassConstructorBitsWithinByte));
+    __ b(eq, &non_class_constructor);
+    // Step: 2, If we call a classConstructor Function throw a TypeError.
+    {
+      FrameScope frame(masm, StackFrame::INTERNAL);
+      __ CallRuntime(Runtime::kThrowConstructorNonCallableError, 0);
+    }
+    __ bind(&non_class_constructor);
+  }
+
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
-  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   STATIC_ASSERT(SharedFunctionInfo::kNativeByteOffset ==
                 SharedFunctionInfo::kStrictModeByteOffset);
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-  __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
   __ ldrb(r3, FieldMemOperand(r2, SharedFunctionInfo::kNativeByteOffset));
   __ tst(r3, Operand((1 << SharedFunctionInfo::kNativeBitWithinByte) |

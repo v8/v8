@@ -1592,6 +1592,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm) {
   //  -- r3 : the number of arguments (not including the receiver)
   //  -- r4 : the function to call (checked to be a JSFunction)
   // -----------------------------------
+  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
 
   Label convert, convert_global_proxy, convert_to_object, done_convert;
   __ AssertFunction(r4);
@@ -1600,7 +1601,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm) {
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
-  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   STATIC_ASSERT(SharedFunctionInfo::kNativeByteOffset ==
                 SharedFunctionInfo::kStrictModeByteOffset);
   __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
