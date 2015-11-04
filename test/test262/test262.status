@@ -144,6 +144,24 @@
   'built-ins/WeakMap/iterator-items-are-not-object-close-iterator': [FAIL],
   'built-ins/WeakSet/iterator-close-after-add-failure': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=3715
+  'built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-212': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-213': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-214': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptor/15.2.3.3-4-215': [FAIL],
+  'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
+  'built-ins/RegExp/prototype/global/15.10.7.2-2': [FAIL],
+  'built-ins/RegExp/prototype/global/S15.10.7.2_A9': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-2': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/S15.10.7.3_A9': [FAIL],
+  'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
+  'built-ins/RegExp/prototype/multiline/15.10.7.4-2': [FAIL],
+  'built-ins/RegExp/prototype/multiline/S15.10.7.4_A9': [FAIL],
+  'built-ins/RegExp/prototype/source/15.10.7.1-1': [FAIL],
+  'built-ins/RegExp/prototype/source/15.10.7.1-2': [FAIL],
+  'built-ins/RegExp/prototype/source/S15.10.7.1_A9': [FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=4243
   'built-ins/Promise/race/S25.4.4.3_A3.1_T2': [FAIL],
   'built-ins/Promise/reject/S25.4.4.4_A3.1_T1': [FAIL],
@@ -162,6 +180,16 @@
   'built-ins/RegExp/from-regexp-like-get-flags-err': [FAIL],
   'built-ins/RegExp/from-regexp-like-get-ctor-err': [FAIL],
   'built-ins/RegExp/call_with_regexp_not_same_constructor': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=4528
+  'built-ins/RegExp/prototype/source/S15.10.7.1_A8': [FAIL],
+  'built-ins/RegExp/prototype/source/S15.10.7.1_A10': [FAIL],
+  'built-ins/RegExp/prototype/global/S15.10.7.2_A8': [FAIL],
+  'built-ins/RegExp/prototype/global/S15.10.7.2_A10': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/S15.10.7.3_A8': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/S15.10.7.3_A10': [FAIL],
+  'built-ins/RegExp/prototype/multiline/S15.10.7.4_A8': [FAIL],
+  'built-ins/RegExp/prototype/multiline/S15.10.7.4_A10': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4006
   'built-ins/String/prototype/S15.5.4_A1': [FAIL],
@@ -352,7 +380,11 @@
   'built-ins/RegExp/prototype/test/u-captured-value': [FAIL],
   'built-ins/RegExp/prototype/test/u-lastindex-adv': [FAIL],
   'built-ins/RegExp/prototype/test/u-lastindex-value': [FAIL],
+  'built-ins/RegExp/prototype/unicode/length': [FAIL],
   'built-ins/RegExp/prototype/unicode/name': [FAIL],
+  'built-ins/RegExp/prototype/unicode/prop-desc': [FAIL],
+  'built-ins/RegExp/prototype/unicode/this-invald-obj': [FAIL],
+  'built-ins/RegExp/prototype/unicode/this-non-obj': [FAIL],
   'built-ins/RegExp/prototype/unicode/this-regexp': [FAIL],
   'built-ins/RegExp/unicode_identity_escape': [FAIL],
   'language/literals/regexp/u-unicode-esc': [FAIL],
@@ -363,6 +395,9 @@
   # https://code.google.com/p/v8/issues/detail?id=4342
   'built-ins/RegExp/prototype/exec/get-sticky-coerce': [FAIL],
   'built-ins/RegExp/prototype/exec/get-sticky-err': [FAIL],
+  'built-ins/RegExp/prototype/sticky/prop-desc': [FAIL],
+  'built-ins/RegExp/prototype/sticky/this-invalid-obj': [FAIL],
+  'built-ins/RegExp/prototype/sticky/this-non-obj': [FAIL],
   'built-ins/RegExp/prototype/test/get-sticky-coerce': [FAIL],
   'built-ins/RegExp/prototype/test/get-sticky-err': [FAIL],
   'built-ins/RegExp/valid-flags-y': [FAIL],
@@ -406,6 +441,7 @@
 
   # https://code.google.com/p/v8/issues/detail?id=4346
   'built-ins/RegExp/prototype/flags/name': [FAIL],
+  'built-ins/RegExp/prototype/flags/y-attr-err': [FAIL],
   'built-ins/RegExp/prototype/flags/u': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4347
