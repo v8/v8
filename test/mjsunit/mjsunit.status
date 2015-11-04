@@ -148,8 +148,6 @@
   'regress/regress-1122': [PASS, NO_VARIANTS],
 
   # Assumptions about optimization need investigation in TurboFan.
-  'compiler/inlined-call': [PASS, NO_VARIANTS],
-  'deopt-with-fp-regs': [PASS, NO_VARIANTS],
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
 
   # issue 4078:
