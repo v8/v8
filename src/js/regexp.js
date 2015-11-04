@@ -9,18 +9,16 @@
 // -------------------------------------------------------------------
 // Imports
 
-var FLAG_harmony_regexps;
 var FLAG_harmony_tolength;
-var FLAG_harmony_unicode_regexps;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
+var regExpFlagsSymbol = utils.ImportNow("regexp_flags_symbol");
+var regExpSourceSymbol = utils.ImportNow("regexp_source_symbol");
 
 utils.ImportFromExperimental(function(from) {
-  FLAG_harmony_regexps = from.FLAG_harmony_regexps;
   FLAG_harmony_tolength = from.FLAG_harmony_tolength;
-  FLAG_harmony_unicode_regexps = from.FLAG_harmony_unicode_regexps;
 });
 
 utils.Import(function(from) {
@@ -51,14 +49,12 @@ function DoConstructRegExp(object, pattern, flags) {
   // RegExp : Called as constructor; see ECMA-262, section 15.10.4.
   if (IS_REGEXP(pattern)) {
     if (!IS_UNDEFINED(flags)) throw MakeTypeError(kRegExpFlags);
-    flags = (pattern.global ? 'g' : '')
-        + (pattern.ignoreCase ? 'i' : '')
-        + (pattern.multiline ? 'm' : '');
-    if (FLAG_harmony_unicode_regexps)
-        flags += (pattern.unicode ? 'u' : '');
-    if (FLAG_harmony_regexps)
-        flags += (pattern.sticky ? 'y' : '');
-    pattern = pattern.source;
+    flags = (REGEXP_GLOBAL(pattern) ? 'g' : '')
+        + (REGEXP_IGNORE_CASE(pattern) ? 'i' : '')
+        + (REGEXP_MULTILINE(pattern) ? 'm' : '')
+        + (REGEXP_UNICODE(pattern) ? 'u' : '')
+        + (REGEXP_STICKY(pattern) ? 'y' : '');
+    pattern = REGEXP_SOURCE(pattern);
   }
 
   pattern = IS_UNDEFINED(pattern) ? '' : TO_STRING(pattern);
@@ -142,9 +138,7 @@ function RegExpExecNoTests(regexp, string, start) {
   var matchInfo = %_RegExpExec(regexp, string, start, RegExpLastMatchInfo);
   if (matchInfo !== null) {
     // ES6 21.2.5.2.2 step 18.
-    if (FLAG_harmony_regexps && regexp.sticky) {
-      regexp.lastIndex = matchInfo[CAPTURE1];
-    }
+    if (REGEXP_STICKY(regexp)) regexp.lastIndex = matchInfo[CAPTURE1];
     RETURN_NEW_RESULT_FROM_MATCH_INFO(matchInfo, string);
   }
   regexp.lastIndex = 0;
@@ -165,7 +159,7 @@ function RegExpExecJS(string) {
   // algorithm, step 4) even if the value is discarded for non-global RegExps.
   var i = TO_LENGTH_OR_INTEGER(lastIndex);
 
-  var updateLastIndex = this.global || (FLAG_harmony_regexps && this.sticky);
+  var updateLastIndex = REGEXP_GLOBAL(this) || REGEXP_STICKY(this);
   if (updateLastIndex) {
     if (i < 0 || i > string.length) {
       this.lastIndex = 0;
@@ -212,7 +206,7 @@ function RegExpTest(string) {
   // algorithm, step 4) even if the value is discarded for non-global RegExps.
   var i = TO_LENGTH_OR_INTEGER(lastIndex);
 
-  if (this.global || (FLAG_harmony_regexps && this.sticky)) {
+  if (REGEXP_GLOBAL(this) || REGEXP_STICKY(this)) {
     if (i < 0 || i > string.length) {
       this.lastIndex = 0;
       return false;
@@ -231,10 +225,11 @@ function RegExpTest(string) {
     // checks whether this.source starts with '.*' and that the third char is
     // not a '?'.  But see https://code.google.com/p/v8/issues/detail?id=3560
     var regexp = this;
-    if (regexp.source.length >= 3 &&
-        %_StringCharCodeAt(regexp.source, 0) == 46 &&  // '.'
-        %_StringCharCodeAt(regexp.source, 1) == 42 &&  // '*'
-        %_StringCharCodeAt(regexp.source, 2) != 63) {  // '?'
+    var source = REGEXP_SOURCE(regexp);
+    if (regexp.length >= 3 &&
+        %_StringCharCodeAt(regexp, 0) == 46 &&  // '.'
+        %_StringCharCodeAt(regexp, 1) == 42 &&  // '*'
+        %_StringCharCodeAt(regexp, 2) != 63) {  // '?'
       regexp = TrimRegExp(regexp);
     }
     // matchIndices is either null or the RegExpLastMatchInfo array.
@@ -251,9 +246,10 @@ function TrimRegExp(regexp) {
   if (!%_ObjectEquals(regexp_key, regexp)) {
     regexp_key = regexp;
     regexp_val =
-      new GlobalRegExp(%_SubString(regexp.source, 2, regexp.source.length),
-                       (regexp.ignoreCase ? regexp.multiline ? "im" : "i"
-                                          : regexp.multiline ? "m" : ""));
+      new GlobalRegExp(
+          %_SubString(REGEXP_SOURCE(regexp), 2, REGEXP_SOURCE(regexp).length),
+          (REGEXP_IGNORE_CASE(regexp) ? REGEXP_MULTILINE(regexp) ? "im" : "i"
+                                      : REGEXP_MULTILINE(regexp) ? "m" : ""));
   }
   return regexp_val;
 }
@@ -264,12 +260,12 @@ function RegExpToString() {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'RegExp.prototype.toString', this);
   }
-  var result = '/' + this.source + '/';
-  if (this.global) result += 'g';
-  if (this.ignoreCase) result += 'i';
-  if (this.multiline) result += 'm';
-  if (FLAG_harmony_unicode_regexps && this.unicode) result += 'u';
-  if (FLAG_harmony_regexps && this.sticky) result += 'y';
+  var result = '/' + REGEXP_SOURCE(this) + '/';
+  if (REGEXP_GLOBAL(this)) result += 'g';
+  if (REGEXP_IGNORE_CASE(this)) result += 'i';
+  if (REGEXP_MULTILINE(this)) result += 'm';
+  if (REGEXP_UNICODE(this)) result += 'u';
+  if (REGEXP_STICKY(this)) result += 'y';
   return result;
 }
 
@@ -334,6 +330,40 @@ function RegExpMakeCaptureGetter(n) {
   };
 }
 
+
+// ES6 21.2.5.4, 21.2.5.5, 21.2.5.7, 21.2.5.12, 21.2.5.15.
+function GetRegExpFlagGetter(name, mask) {
+  var getter = function() {
+    if (!IS_SPEC_OBJECT(this)) {
+      throw MakeTypeError(kRegExpNonObject, name, TO_STRING(this));
+    }
+    var flags = this[regExpFlagsSymbol];
+    if (IS_UNDEFINED(flags)) {
+      throw MakeTypeError(kRegExpNonRegExp, TO_STRING(this));
+    }
+    return !!(flags & mask);
+  };
+  %FunctionSetName(getter, name);
+  %SetNativeFlag(getter);
+  return getter;
+}
+
+
+// ES6 21.2.5.10.
+function RegExpGetSource() {
+  if (!IS_SPEC_OBJECT(this)) {
+    throw MakeTypeError(kRegExpNonObject, "RegExp.prototype.source",
+                        TO_STRING(this));
+  }
+  var source = this[regExpSourceSymbol];
+  if (IS_UNDEFINED(source)) {
+    throw MakeTypeError(kRegExpNonRegExp, TO_STRING(this));
+  }
+  return source;
+}
+
+%SetNativeFlag(RegExpGetSource);
+
 // -------------------------------------------------------------------
 
 %FunctionSetInstanceClassName(GlobalRegExp, 'RegExp');
@@ -348,6 +378,18 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "toString", RegExpToString,
   "compile", RegExpCompileJS
 ]);
+
+%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "global",
+    GetRegExpFlagGetter("RegExp.prototype.global", REGEXP_GLOBAL_MASK),
+    DONT_ENUM);
+%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "ignoreCase",
+    GetRegExpFlagGetter("RegExp.prototype.ignoreCase", REGEXP_IGNORE_CASE_MASK),
+    DONT_ENUM);
+%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "multiline",
+    GetRegExpFlagGetter("RegExp.prototype.multiline", REGEXP_MULTILINE_MASK),
+    DONT_ENUM);
+%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "source",
+    RegExpGetSource, DONT_ENUM);
 
 // The length of compile is 1 in SpiderMonkey.
 %FunctionSetLength(GlobalRegExp.prototype.compile, 1);
@@ -422,6 +464,7 @@ for (var i = 1; i < 10; ++i) {
 // Exports
 
 utils.Export(function(to) {
+  to.GetRegExpFlagGetter = GetRegExpFlagGetter;
   to.RegExpExec = DoRegExpExec;
   to.RegExpExecNoTests = RegExpExecNoTests;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;

@@ -1228,31 +1228,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Map::EnsureDescriptorSlack(initial_map, 5);
 
     {
-      // ECMA-262, section 15.10.7.1.
-      DataDescriptor field(factory->source_string(),
+      // ES6 21.2.3.2.1
+      DataDescriptor field(factory->regexp_source_symbol(),
                            JSRegExp::kSourceFieldIndex, final,
                            Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
     {
-      // ECMA-262, section 15.10.7.2.
-      DataDescriptor field(factory->global_string(),
-                           JSRegExp::kGlobalFieldIndex, final,
-                           Representation::Tagged());
-      initial_map->AppendDescriptor(&field);
-    }
-    {
-      // ECMA-262, section 15.10.7.3.
-      DataDescriptor field(factory->ignore_case_string(),
-                           JSRegExp::kIgnoreCaseFieldIndex, final,
-                           Representation::Tagged());
-      initial_map->AppendDescriptor(&field);
-    }
-    {
-      // ECMA-262, section 15.10.7.4.
-      DataDescriptor field(factory->multiline_string(),
-                           JSRegExp::kMultilineFieldIndex, final,
-                           Representation::Tagged());
+      DataDescriptor field(factory->regexp_flags_symbol(),
+                           JSRegExp::kFlagsFieldIndex, final,
+                           Representation::Smi());
       initial_map->AppendDescriptor(&field);
     }
     {
@@ -2055,8 +2040,6 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
                           isolate->factory()->ToBoolean(FLAG), NONE); \
   }
 
-  INITIALIZE_FLAG(FLAG_harmony_regexps)
-  INITIALIZE_FLAG(FLAG_harmony_unicode_regexps)
   INITIALIZE_FLAG(FLAG_harmony_tostring)
   INITIALIZE_FLAG(FLAG_harmony_tolength)
 

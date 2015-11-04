@@ -16,7 +16,6 @@ var GlobalSymbol = global.Symbol;
 var hasInstanceSymbol = utils.ImportNow("has_instance_symbol");
 var isConcatSpreadableSymbol =
     utils.ImportNow("is_concat_spreadable_symbol");
-var isRegExpSymbol = utils.ImportNow("is_regexp_symbol");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MakeTypeError;
 var ObjectGetOwnPropertyKeys;
@@ -94,7 +93,6 @@ utils.InstallConstants(GlobalSymbol, [
   // TODO(rossberg): expose when implemented.
   // "hasInstance", hasInstanceSymbol,
   // "isConcatSpreadable", isConcatSpreadableSymbol,
-  // "isRegExp", isRegExpSymbol,
   "iterator", iteratorSymbol,
   // TODO(yangguo): expose when implemented.
   // "match", matchSymbol,
