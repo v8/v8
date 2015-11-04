@@ -331,9 +331,7 @@ class RepresentationSelector {
       if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
         // multiple uses, but we are within 32 bits range => pick kRepWord32.
         return kRepWord32;
-      } else if (((use & kRepMask) == kRepWord32 &&
-                  !CanObserveNonWord32(use)) ||
-                 (use & kTypeMask) == kTypeInt32 ||
+      } else if ((use & kTypeMask) == kTypeInt32 ||
                  (use & kTypeMask) == kTypeUint32) {
         // We only use 32 bits or we use the result consistently.
         return kRepWord32;
@@ -491,11 +489,6 @@ class RepresentationSelector {
 
   bool CanObserveNonWord32(MachineTypeUnion use) {
     return (use & kTypeMask & ~(kTypeInt32 | kTypeUint32)) != 0;
-  }
-
-  bool CanObserveMinusZero(MachineTypeUnion use) {
-    // TODO(turbofan): technically Uint32 cannot observe minus zero either.
-    return (use & (kTypeUint32 | kTypeNumber | kTypeAny)) != 0;
   }
 
   bool CanObserveNaN(MachineTypeUnion use) {
