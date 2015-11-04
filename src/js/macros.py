@@ -185,12 +185,12 @@ define REGEXP_MULTILINE_MASK = 4;
 define REGEXP_STICKY_MASK = 8;
 define REGEXP_UNICODE_MASK = 16;
 
-macro REGEXP_GLOBAL(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_GLOBAL_MASK);
-macro REGEXP_IGNORE_CASE(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_IGNORE_CASE_MASK);
-macro REGEXP_MULTILINE(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_MULTILINE_MASK);
-macro REGEXP_STICKY(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_STICKY_MASK);
-macro REGEXP_UNICODE(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_UNICODE_MASK);
-macro REGEXP_SOURCE(regexp) = (regexp[regExpSourceSymbol]);
+macro REGEXP_GLOBAL(regexp) = (%_RegExpFlags(regexp) & REGEXP_GLOBAL_MASK);
+macro REGEXP_IGNORE_CASE(regexp) = (%_RegExpFlags(regexp) & REGEXP_IGNORE_CASE_MASK);
+macro REGEXP_MULTILINE(regexp) = (%_RegExpFlags(regexp) & REGEXP_MULTILINE_MASK);
+macro REGEXP_STICKY(regexp) = (%_RegExpFlags(regexp) & REGEXP_STICKY_MASK);
+macro REGEXP_UNICODE(regexp) = (%_RegExpFlags(regexp) & REGEXP_UNICODE_MASK);
+macro REGEXP_SOURCE(regexp) = (%_RegExpSource(regexp));
 
 # We can't put macros in macros so we use constants here.
 # REGEXP_NUMBER_OF_CAPTURES

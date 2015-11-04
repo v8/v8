@@ -788,6 +788,22 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_RegExpFlags) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  return regexp->flags();
+}
+
+
+RUNTIME_FUNCTION(Runtime_RegExpSource) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  return regexp->source();
+}
+
+
 RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 3);
@@ -924,37 +940,24 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, escaped_source,
                                      EscapeRegExpSource(isolate, source));
 
+  regexp->set_source(*escaped_source);
+  regexp->set_flags(Smi::FromInt(flags.value()));
+
   Map* map = regexp->map();
   Object* constructor = map->GetConstructor();
   if (constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, *escaped_source);
-    regexp->InObjectPropertyAtPut(JSRegExp::kFlagsFieldIndex,
-                                  Smi::FromInt(flags.value()),
-                                  SKIP_WRITE_BARRIER);
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(0), SKIP_WRITE_BARRIER);
   } else {
-    // Map has changed, so use generic, but slower, method.  We also end here if
-    // the --harmony-regexp flag is set, because the initial map does not have
-    // space for the 'sticky' flag, since it is from the snapshot, but must work
-    // both with and without --harmony-regexp.  When sticky comes out from under
-    // the flag, we will be able to use the fast initial map.
-    PropertyAttributes final =
-        static_cast<PropertyAttributes>(READ_ONLY | DONT_ENUM | DONT_DELETE);
+    // Map has changed, so use generic, but slower, method.
     PropertyAttributes writable =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    Handle<Object> zero(Smi::FromInt(0), isolate);
     JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->regexp_source_symbol(), escaped_source, final)
+        regexp, factory->last_index_string(),
+        Handle<Smi>(Smi::FromInt(0), isolate), writable)
         .Check();
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->regexp_flags_symbol(),
-        Handle<Smi>(Smi::FromInt(flags.value()), isolate), final)
-        .Check();
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->last_index_string(), zero, writable).Check();
   }
 
   Handle<Object> result;

@@ -6772,6 +6772,8 @@ ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
+ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)
+ACCESSORS(JSRegExp, source, Object, kSourceOffset)
 
 
 JSRegExp::Type JSRegExp::TypeTag() {

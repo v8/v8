@@ -14,8 +14,6 @@ var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
-var regExpFlagsSymbol = utils.ImportNow("regexp_flags_symbol");
-var regExpSourceSymbol = utils.ImportNow("regexp_source_symbol");
 
 utils.ImportFromExperimental(function(from) {
   FLAG_harmony_tolength = from.FLAG_harmony_tolength;
@@ -334,14 +332,10 @@ function RegExpMakeCaptureGetter(n) {
 // ES6 21.2.5.4, 21.2.5.5, 21.2.5.7, 21.2.5.12, 21.2.5.15.
 function GetRegExpFlagGetter(name, mask) {
   var getter = function() {
-    if (!IS_SPEC_OBJECT(this)) {
+    if (!IS_REGEXP(this)) {
       throw MakeTypeError(kRegExpNonObject, name, TO_STRING(this));
     }
-    var flags = this[regExpFlagsSymbol];
-    if (IS_UNDEFINED(flags)) {
-      throw MakeTypeError(kRegExpNonRegExp, TO_STRING(this));
-    }
-    return !!(flags & mask);
+    return !!(%_RegExpFlags(this) & mask);
   };
   %FunctionSetName(getter, name);
   %SetNativeFlag(getter);
@@ -351,15 +345,11 @@ function GetRegExpFlagGetter(name, mask) {
 
 // ES6 21.2.5.10.
 function RegExpGetSource() {
-  if (!IS_SPEC_OBJECT(this)) {
+  if (!IS_REGEXP(this)) {
     throw MakeTypeError(kRegExpNonObject, "RegExp.prototype.source",
                         TO_STRING(this));
   }
-  var source = this[regExpSourceSymbol];
-  if (IS_UNDEFINED(source)) {
-    throw MakeTypeError(kRegExpNonRegExp, TO_STRING(this));
-  }
-  return source;
+  return %_RegExpSource(this);
 }
 
 %SetNativeFlag(RegExpGetSource);
