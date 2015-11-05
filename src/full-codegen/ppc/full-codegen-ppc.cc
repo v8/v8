@@ -3868,39 +3868,6 @@ void FullCodeGenerator::EmitCall(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() >= 2);
-
-  int arg_count = args->length() - 2;  // 2 ~ receiver and function.
-  for (int i = 0; i < arg_count + 1; i++) {
-    VisitForStackValue(args->at(i));
-  }
-  VisitForAccumulatorValue(args->last());  // Function.
-
-  PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
-  Label runtime, done;
-  // Check for non-function argument (including proxy).
-  __ JumpIfSmi(r3, &runtime);
-  __ CompareObjectType(r3, r4, r4, JS_FUNCTION_TYPE);
-  __ bne(&runtime);
-
-  // InvokeFunction requires the function in r4. Move it in there.
-  __ mr(r4, result_register());
-  ParameterCount count(arg_count);
-  __ InvokeFunction(r4, count, CALL_FUNCTION, NullCallWrapper());
-  __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ b(&done);
-
-  __ bind(&runtime);
-  __ push(r3);
-  __ CallRuntime(Runtime::kCallFunction, args->length());
-  __ bind(&done);
-
-  context()->Plug(r3);
-}
-
-
 void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);

@@ -35,7 +35,7 @@ code_stubs.MathFloorStub = function MathFloorStub(call_conv, minor_key) {
     // |tv| is the calling function's type vector
     // |v| is the value to floor
     if (f !== %_FixedArrayGet(tv, i|0)) {
-      return %_CallFunction(receiver, v, f);
+      return %_Call(f, receiver, v);
     }
     var r = %_MathFloor(+v);
     if (%_IsMinusZero(r)) {

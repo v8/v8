@@ -134,7 +134,7 @@ var Date_cache = {
 function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
   if (!%_IsConstructCall()) {
     // ECMA 262 - 15.9.2
-    return %_CallFunction(new GlobalDate(), DateToString);
+    return %_Call(DateToString, new GlobalDate());
   }
 
   // ECMA 262 - 15.9.3
@@ -337,7 +337,7 @@ function DateToTimeString() {
 // ECMA 262 - 15.9.5.5
 function DateToLocaleString() {
   CHECK_DATE(this);
-  return %_CallFunction(this, DateToString);
+  return %_Call(DateToString, this);
 }
 
 
@@ -735,7 +735,7 @@ function DateSetYear(year) {
 // do that either.  Instead, we create a new function whose name
 // property will return toGMTString.
 function DateToGMTString() {
-  return %_CallFunction(this, DateToUTCString);
+  return %_Call(DateToUTCString, this);
 }
 
 

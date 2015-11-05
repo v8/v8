@@ -90,10 +90,10 @@ function PromiseCoerce(constructor, x) {
     try {
       then = x.then;
     } catch(r) {
-      return %_CallFunction(constructor, r, PromiseRejected);
+      return %_Call(PromiseRejected, constructor, r);
     }
     if (IS_CALLABLE(then)) {
-      var deferred = %_CallFunction(constructor, PromiseDeferred);
+      var deferred = %_Call(PromiseDeferred, constructor);
       try {
         %_Call(then, x, deferred.resolve, deferred.reject);
       } catch(r) {
@@ -112,7 +112,7 @@ function PromiseHandle(value, handler, deferred) {
     if (result === deferred.promise)
       throw MakeTypeError(kPromiseCyclic, result);
     else if (IsPromise(result))
-      %_CallFunction(result, deferred.resolve, deferred.reject, PromiseChain);
+      %_Call(PromiseChain, result, deferred.resolve, deferred.reject);
     else
       deferred.resolve(result);
   } catch (exception) {
@@ -226,7 +226,7 @@ function PromiseRejected(r) {
 function PromiseChain(onResolve, onReject) {  // a.k.a. flatMap
   onResolve = IS_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
   onReject = IS_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
-  var deferred = %_CallFunction(this.constructor, PromiseDeferred);
+  var deferred = %_Call(PromiseDeferred, this.constructor);
   switch (GET_PRIVATE(this, promiseStatusSymbol)) {
     case UNDEFINED:
       throw MakeTypeError(kNotAPromise, this);
@@ -269,7 +269,8 @@ function PromiseThen(onResolve, onReject) {
   onReject = IS_CALLABLE(onReject) ? onReject : PromiseIdRejectHandler;
   var that = this;
   var constructor = this.constructor;
-  return %_CallFunction(
+  return %_Call(
+    PromiseChain,
     this,
     function(x) {
       x = PromiseCoerce(constructor, x);
@@ -283,8 +284,7 @@ function PromiseThen(onResolve, onReject) {
         return onResolve(x);
       }
     },
-    onReject,
-    PromiseChain
+    onReject
   );
 }
 
@@ -299,7 +299,7 @@ function PromiseCast(x) {
 }
 
 function PromiseAll(iterable) {
-  var deferred = %_CallFunction(this, PromiseDeferred);
+  var deferred = %_Call(PromiseDeferred, this);
   var resolutions = [];
   try {
     var count = 0;
@@ -331,7 +331,7 @@ function PromiseAll(iterable) {
 }
 
 function PromiseRace(iterable) {
-  var deferred = %_CallFunction(this, PromiseDeferred);
+  var deferred = %_Call(PromiseDeferred, this);
   try {
     for (var value of iterable) {
       var reject = function(r) { deferred.reject(r) };

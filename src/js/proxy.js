@@ -81,7 +81,7 @@ function DerivedGetTrap(receiver, name) {
   } else {
     if (IS_UNDEFINED(desc.get)) { return desc.get }
     // The proposal says: desc.get.call(receiver)
-    return %_CallFunction(receiver, desc.get)
+    return %_Call(desc.get, receiver)
   }
 }
 
@@ -99,7 +99,7 @@ function DerivedSetTrap(receiver, name, val) {
     } else { // accessor
       if (desc.set) {
         // The proposal says: desc.set.call(receiver, val)
-        %_CallFunction(receiver, val, desc.set)
+        %_Call(desc.set, receiver, val)
         return true
       } else {
         return false
@@ -117,7 +117,7 @@ function DerivedSetTrap(receiver, name, val) {
     } else { // accessor
       if (desc.set) {
         // The proposal says: desc.set.call(receiver, val)
-        %_CallFunction(receiver, val, desc.set)
+        %_Call(desc.set, receiver, val)
         return true
       } else {
         return false

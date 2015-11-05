@@ -91,26 +91,26 @@ function NoSideEffectToString(obj) {
   if (IS_UNDEFINED(obj)) return 'undefined';
   if (IS_NULL(obj)) return 'null';
   if (IS_FUNCTION(obj)) {
-    var str = %_CallFunction(obj, obj, FunctionSourceString);
+    var str = %_Call(FunctionSourceString, obj, obj);
     if (str.length > 128) {
       str = %_SubString(str, 0, 111) + "...<omitted>..." +
             %_SubString(str, str.length - 2, str.length);
     }
     return str;
   }
-  if (IS_SYMBOL(obj)) return %_CallFunction(obj, SymbolToString);
+  if (IS_SYMBOL(obj)) return %_Call(SymbolToString, obj);
   if (IS_SIMD_VALUE(obj)) {
     switch (typeof(obj)) {
-      case 'float32x4': return %_CallFunction(obj, Float32x4ToString);
-      case 'int32x4':   return %_CallFunction(obj, Int32x4ToString);
-      case 'int16x8':   return %_CallFunction(obj, Int16x8ToString);
-      case 'int8x16':   return %_CallFunction(obj, Int8x16ToString);
-      case 'uint32x4':   return %_CallFunction(obj, Uint32x4ToString);
-      case 'uint16x8':   return %_CallFunction(obj, Uint16x8ToString);
-      case 'uint8x16':   return %_CallFunction(obj, Uint8x16ToString);
-      case 'bool32x4':  return %_CallFunction(obj, Bool32x4ToString);
-      case 'bool16x8':  return %_CallFunction(obj, Bool16x8ToString);
-      case 'bool8x16':  return %_CallFunction(obj, Bool8x16ToString);
+      case 'float32x4': return %_Call(Float32x4ToString, obj);
+      case 'int32x4':   return %_Call(Int32x4ToString, obj);
+      case 'int16x8':   return %_Call(Int16x8ToString, obj);
+      case 'int8x16':   return %_Call(Int8x16ToString, obj);
+      case 'uint32x4':   return %_Call(Uint32x4ToString, obj);
+      case 'uint16x8':   return %_Call(Uint16x8ToString, obj);
+      case 'uint8x16':   return %_Call(Uint8x16ToString, obj);
+      case 'bool32x4':  return %_Call(Bool32x4ToString, obj);
+      case 'bool16x8':  return %_Call(Bool16x8ToString, obj);
+      case 'bool8x16':  return %_Call(Bool8x16ToString, obj);
     }
   }
   if (IS_OBJECT(obj)
@@ -124,10 +124,10 @@ function NoSideEffectToString(obj) {
     }
   }
   if (CanBeSafelyTreatedAsAnErrorObject(obj)) {
-    return %_CallFunction(obj, ErrorToString);
+    return %_Call(ErrorToString, obj);
   }
 
-  return %_CallFunction(obj, NoSideEffectsObjectToString);
+  return %_Call(NoSideEffectsObjectToString, obj);
 }
 
 // To determine whether we can safely stringify an object using ErrorToString
@@ -158,7 +158,7 @@ function CanBeSafelyTreatedAsAnErrorObject(obj) {
 // objects between script tags in a browser setting.
 function ToStringCheckErrorObject(obj) {
   if (CanBeSafelyTreatedAsAnErrorObject(obj)) {
-    return %_CallFunction(obj, ErrorToString);
+    return %_Call(ErrorToString, obj);
   } else {
     return TO_STRING(obj);
   }
@@ -296,7 +296,7 @@ function ScriptLocationFromPosition(position,
   var line_ends = this.line_ends;
   var start = line == 0 ? 0 : line_ends[line - 1] + 1;
   var end = line_ends[line];
-  if (end > 0 && %_CallFunction(this.source, end - 1, StringCharAt) == '\r') {
+  if (end > 0 && %_Call(StringCharAt, this.source, end - 1) == '\r') {
     end--;
   }
   var column = position - start;
@@ -419,7 +419,7 @@ function ScriptSourceLine(opt_line) {
   var line_ends = this.line_ends;
   var start = line == 0 ? 0 : line_ends[line - 1] + 1;
   var end = line_ends[line];
-  return %_CallFunction(this.source, start, end, StringSubstring);
+  return %_Call(StringSubstring, this.source, start, end);
 }
 
 
@@ -518,10 +518,7 @@ function SourceLocation(script, position, line, column, start, end) {
  *     Source text for this location.
  */
 function SourceLocationSourceText() {
-  return %_CallFunction(this.script.source,
-                        this.start,
-                        this.end,
-                        StringSubstring);
+  return %_Call(StringSubstring, this.script.source, this.start, this.end);
 }
 
 
@@ -563,10 +560,10 @@ function SourceSlice(script, from_line, to_line, from_position, to_position) {
  *     the line terminating characters (if any)
  */
 function SourceSliceSourceText() {
-  return %_CallFunction(this.script.source,
-                        this.from_position,
-                        this.to_position,
-                        StringSubstring);
+  return %_Call(StringSubstring,
+                this.script.source,
+                this.from_position,
+                this.to_position);
 }
 
 utils.SetUpLockedPrototype(SourceSlice,
@@ -694,13 +691,12 @@ function CallSiteToString() {
     var typeName = GetTypeName(GET_PRIVATE(this, callSiteReceiverSymbol), true);
     var methodName = this.getMethodName();
     if (functionName) {
-      if (typeName &&
-          %_CallFunction(functionName, typeName, StringIndexOf) != 0) {
+      if (typeName && %_Call(StringIndexOf, functionName, typeName) != 0) {
         line += typeName + ".";
       }
       line += functionName;
       if (methodName &&
-          (%_CallFunction(functionName, "." + methodName, StringIndexOf) !=
+          (%_Call(StringIndexOf, functionName, "." + methodName) !=
            functionName.length - methodName.length - 1)) {
         line += " [as " + methodName + "]";
       }
@@ -782,7 +778,7 @@ function FormatEvalOrigin(script) {
 
 function FormatErrorString(error) {
   try {
-    return %_CallFunction(error, ErrorToString);
+    return %_Call(ErrorToString, error);
   } catch (e) {
     try {
       return "<error: " + e + ">";
@@ -848,7 +844,7 @@ function FormatStackTrace(obj, raw_stack) {
     }
     lines.push("    at " + line);
   }
-  return %_CallFunction(lines, "\n", ArrayJoin);
+  return %_Call(ArrayJoin, lines, "\n");
 }
 
 
@@ -857,12 +853,12 @@ function GetTypeName(receiver, requireConstructor) {
   var constructor = receiver.constructor;
   if (!constructor) {
     return requireConstructor ? null :
-        %_CallFunction(receiver, NoSideEffectsObjectToString);
+        %_Call(NoSideEffectsObjectToString, receiver);
   }
   var constructorName = constructor.name;
   if (!constructorName) {
     return requireConstructor ? null :
-        %_CallFunction(receiver, NoSideEffectsObjectToString);
+        %_Call(NoSideEffectsObjectToString, receiver);
   }
   return constructorName;
 }

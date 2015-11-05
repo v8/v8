@@ -405,7 +405,7 @@ function ArrayToString() {
     func = array.join;
   }
   if (!IS_CALLABLE(func)) {
-    return %_CallFunction(array, ObjectToString);
+    return %_Call(ObjectToString, array);
   }
   return %_Call(func, array);
 }

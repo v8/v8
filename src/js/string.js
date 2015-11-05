@@ -179,11 +179,10 @@ function StringNormalizeJS() {
   var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
 
   var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
-  var normalizationForm =
-      %_CallFunction(NORMALIZATION_FORMS, form, ArrayIndexOf);
+  var normalizationForm = %_Call(ArrayIndexOf, NORMALIZATION_FORMS, form);
   if (normalizationForm === -1) {
     throw MakeRangeError(kNormalizationForm,
-                         %_CallFunction(NORMALIZATION_FORMS, ', ', ArrayJoin));
+                         %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));
   }
 
   return s;
@@ -803,7 +802,7 @@ function StringFromCharCode(code) {
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
-  return %_CallFunction(TO_STRING(str), /"/g, "&quot;", StringReplace);
+  return %_Call(StringReplace, TO_STRING(str), /"/g, "&quot;");
 }
 
 

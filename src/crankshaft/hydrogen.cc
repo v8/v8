@@ -12714,52 +12714,6 @@ void HOptimizedGraphBuilder::GenerateCall(CallRuntime* call) {
 }
 
 
-// Fast call for custom callbacks.
-void HOptimizedGraphBuilder::GenerateCallFunction(CallRuntime* call) {
-  // 1 ~ The function to call is not itself an argument to the call.
-  int arg_count = call->arguments()->length() - 1;
-  DCHECK(arg_count >= 1);  // There's always at least a receiver.
-
-  CHECK_ALIVE(VisitExpressions(call->arguments()));
-  // The function is the last argument
-  HValue* function = Pop();
-  // Push the arguments to the stack
-  PushArgumentsFromEnvironment(arg_count);
-
-  IfBuilder if_is_jsfunction(this);
-  if_is_jsfunction.If<HHasInstanceTypeAndBranch>(function, JS_FUNCTION_TYPE);
-
-  if_is_jsfunction.Then();
-  {
-    HInstruction* invoke_result =
-        Add<HInvokeFunction>(function, arg_count);
-    if (!ast_context()->IsEffect()) {
-      Push(invoke_result);
-    }
-    Add<HSimulate>(call->id(), FIXED_SIMULATE);
-  }
-
-  if_is_jsfunction.Else();
-  {
-    HInstruction* call_result =
-        Add<HCallFunction>(function, arg_count);
-    if (!ast_context()->IsEffect()) {
-      Push(call_result);
-    }
-    Add<HSimulate>(call->id(), FIXED_SIMULATE);
-  }
-  if_is_jsfunction.End();
-
-  if (ast_context()->IsEffect()) {
-    // EffectContext::ReturnValue ignores the value, so we can just pass
-    // 'undefined' (as we do not have the call result anymore).
-    return ast_context()->ReturnValue(graph()->GetConstantUndefined());
-  } else {
-    return ast_context()->ReturnValue(Pop());
-  }
-}
-
-
 // Fast call to math functions.
 void HOptimizedGraphBuilder::GenerateMathPow(CallRuntime* call) {
   DCHECK_EQ(2, call->arguments()->length());

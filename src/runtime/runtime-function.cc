@@ -589,39 +589,6 @@ RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
 }
 
 
-// TODO(bmeurer): Kill %_CallFunction ASAP as it is almost never used
-// correctly because of the weird semantics underneath.
-RUNTIME_FUNCTION(Runtime_CallFunction) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() >= 2);
-  int argc = args.length() - 2;
-  CONVERT_ARG_CHECKED(JSReceiver, fun, argc + 1);
-  Object* receiver = args[0];
-
-  // If there are too many arguments, allocate argv via malloc.
-  const int argv_small_size = 10;
-  Handle<Object> argv_small_buffer[argv_small_size];
-  base::SmartArrayPointer<Handle<Object>> argv_large_buffer;
-  Handle<Object>* argv = argv_small_buffer;
-  if (argc > argv_small_size) {
-    argv = new Handle<Object>[argc];
-    if (argv == NULL) return isolate->StackOverflow();
-    argv_large_buffer = base::SmartArrayPointer<Handle<Object>>(argv);
-  }
-
-  for (int i = 0; i < argc; ++i) {
-    argv[i] = Handle<Object>(args[1 + i], isolate);
-  }
-
-  Handle<JSReceiver> hfun(fun);
-  Handle<Object> hreceiver(receiver, isolate);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Execution::Call(isolate, hfun, hreceiver, argc, argv));
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsConstructCall) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);

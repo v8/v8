@@ -1419,7 +1419,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
       var key = request.command.toLowerCase();
       var handler = DebugCommandProcessor.prototype.dispatch_[key];
       if (IS_FUNCTION(handler)) {
-        %_CallFunction(this, request, response, handler);
+        %_Call(handler, this, request, response);
       } else {
         throw MakeError(kDebugger,
                         'Unknown command "' + request.command + '" in request');

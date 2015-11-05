@@ -38,7 +38,7 @@ function SameCallSiteElements(rawStrings, other) {
 
 
 function GetCachedCallSite(siteObj, hash) {
-  var obj = %_CallFunction(callSiteCache, hash, mapGetFn);
+  var obj = %_Call(mapGetFn, callSiteCache, hash);
 
   if (IS_UNDEFINED(obj)) return;
 
@@ -50,13 +50,13 @@ function GetCachedCallSite(siteObj, hash) {
 
 
 function SetCachedCallSite(siteObj, hash) {
-  var obj = %_CallFunction(callSiteCache, hash, mapGetFn);
+  var obj = %_Call(mapGetFn, callSiteCache, hash);
   var array;
 
   if (IS_UNDEFINED(obj)) {
     array = new InternalArray(1);
     array[0] = siteObj;
-    %_CallFunction(callSiteCache, hash, array, mapSetFn);
+    %_Call(mapSetFn, callSiteCache, hash, array);
   } else {
     obj.push(siteObj);
   }

@@ -117,7 +117,7 @@ function GlobalEval(x) {
   var f = %CompileString(x, false);
   if (!IS_FUNCTION(f)) return f;
 
-  return %_CallFunction(global_proxy, f);
+  return %_Call(f, global_proxy);
 }
 
 
@@ -554,17 +554,17 @@ function GetTrap(handler, name, defaultTrap) {
 
 
 function CallTrap0(handler, name, defaultTrap) {
-  return %_CallFunction(handler, GetTrap(handler, name, defaultTrap));
+  return %_Call(GetTrap(handler, name, defaultTrap), handler);
 }
 
 
 function CallTrap1(handler, name, defaultTrap, x) {
-  return %_CallFunction(handler, x, GetTrap(handler, name, defaultTrap));
+  return %_Call(GetTrap(handler, name, defaultTrap), handler, x);
 }
 
 
 function CallTrap2(handler, name, defaultTrap, x, y) {
-  return %_CallFunction(handler, x, y, GetTrap(handler, name, defaultTrap));
+  return %_Call(GetTrap(handler, name, defaultTrap), handler, x, y);
 }
 
 
@@ -1463,7 +1463,7 @@ function NumberToStringJS(radix) {
 
 // ECMA-262 section 15.7.4.3
 function NumberToLocaleString() {
-  return %_CallFunction(this, NumberToStringJS);
+  return %_Call(NumberToStringJS, this);
 }
 
 
@@ -1767,7 +1767,7 @@ function NewFunctionString(args, function_token) {
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.
-    if (%_CallFunction(p, ')', StringIndexOf) != -1) {
+    if (%_Call(StringIndexOf, p, ')') != -1) {
       throw MakeSyntaxError(kParenthesisInArgString);
     }
     // If the formal parameters include an unbalanced block comment, the
@@ -1785,7 +1785,7 @@ function FunctionConstructor(arg1) {  // length == 1
   var global_proxy = %GlobalProxy(FunctionConstructor);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
-  var func = %_CallFunction(global_proxy, %CompileString(source, true));
+  var func = %_Call(%CompileString(source, true), global_proxy);
   // Set name-should-print-as-anonymous flag on the ShareFunctionInfo and
   // ensure that |func| uses correct initial map from |new.target| if
   // it's available.
@@ -1816,7 +1816,7 @@ function GetIterator(obj, method) {
   if (!IS_CALLABLE(method)) {
     throw MakeTypeError(kNotIterable, obj);
   }
-  var iterator = %_CallFunction(obj, method);
+  var iterator = %_Call(method, obj);
   if (!IS_SPEC_OBJECT(iterator)) {
     throw MakeTypeError(kNotAnIterator, iterator);
   }

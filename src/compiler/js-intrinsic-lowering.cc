@@ -113,8 +113,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceToString(node);
     case Runtime::kInlineThrowNotDateError:
       return ReduceThrowNotDateError(node);
-    case Runtime::kInlineCallFunction:
-      return ReduceCallFunction(node);
+    case Runtime::kInlineCall:
+      return ReduceCall(node);
     default:
       break;
   }
@@ -630,17 +630,10 @@ Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
 }
 
 
-Reduction JSIntrinsicLowering::ReduceCallFunction(Node* node) {
-  CallRuntimeParameters params = CallRuntimeParametersOf(node->op());
-  size_t arity = params.arity();
-  Node* function = node->InputAt(static_cast<int>(arity - 1));
-  while (--arity != 0) {
-    node->ReplaceInput(static_cast<int>(arity),
-                       node->InputAt(static_cast<int>(arity - 1)));
-  }
-  node->ReplaceInput(0, function);
+Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
+  size_t const arity = CallRuntimeParametersOf(node->op()).arity();
   NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(params.arity(), STRICT, VectorSlotPair(),
+      node, javascript()->CallFunction(arity, STRICT, VectorSlotPair(),
                                        ConvertReceiverMode::kAny,
                                        TailCallMode::kAllow));
   return Changed(node);

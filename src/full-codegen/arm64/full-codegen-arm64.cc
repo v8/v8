@@ -3560,7 +3560,7 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
 
 
 void FullCodeGenerator::EmitCall(CallRuntime* expr) {
-  ASM_LOCATION("FullCodeGenerator::EmitCallFunction");
+  ASM_LOCATION("FullCodeGenerator::EmitCall");
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_LE(2, args->length());
   // Push target, receiver and arguments onto the stack.
@@ -3578,39 +3578,6 @@ void FullCodeGenerator::EmitCall(CallRuntime* expr) {
   __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   // Discard the function left on TOS.
   context()->DropAndPlug(1, x0);
-}
-
-
-void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
-  ASM_LOCATION("FullCodeGenerator::EmitCallFunction");
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() >= 2);
-
-  int arg_count = args->length() - 2;  // 2 ~ receiver and function.
-  for (int i = 0; i < arg_count + 1; i++) {
-    VisitForStackValue(args->at(i));
-  }
-  VisitForAccumulatorValue(args->last());  // Function.
-
-  PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
-  Label runtime, done;
-  // Check for non-function argument (including proxy).
-  __ JumpIfSmi(x0, &runtime);
-  __ JumpIfNotObjectType(x0, x1, x1, JS_FUNCTION_TYPE, &runtime);
-
-  // InvokeFunction requires the function in x1. Move it in there.
-  __ Mov(x1, x0);
-  ParameterCount count(arg_count);
-  __ InvokeFunction(x1, count, CALL_FUNCTION, NullCallWrapper());
-  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ B(&done);
-
-  __ Bind(&runtime);
-  __ Push(x0);
-  __ CallRuntime(Runtime::kCallFunction, args->length());
-  __ Bind(&done);
-
-  context()->Plug(x0);
 }
 
 

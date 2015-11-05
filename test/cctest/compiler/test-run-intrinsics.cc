@@ -14,9 +14,8 @@ namespace compiler {
 uint32_t flags = CompilationInfo::kInliningEnabled;
 
 
-TEST(CallFunction) {
-  FunctionTester T("(function(a,b) { return %_CallFunction(a, 1, 2, 3, b); })",
-                   flags);
+TEST(Call) {
+  FunctionTester T("(function(a,b) { return %_Call(b, a, 1, 2, 3); })", flags);
   CompileRun("function f(a,b,c) { return a + b + c + this.d; }");
 
   T.CheckCall(T.Val(129), T.NewObject("({d:123})"), T.NewObject("f"));

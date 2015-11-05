@@ -249,7 +249,7 @@ function addBoundMethod(obj, methodName, implementation, length) {
  * Parameter locales is treated as a priority list.
  */
 function supportedLocalesOf(service, locales, options) {
-  if (IS_NULL(%_CallFunction(service, GetServiceRE(), StringMatch))) {
+  if (IS_NULL(%_Call(StringMatch, service, GetServiceRE()))) {
     throw MakeError(kWrongServiceType, service);
   }
 
@@ -297,20 +297,22 @@ function lookupSupportedLocalesOf(requestedLocales, availableLocales) {
   var matchedLocales = [];
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove -u- extension.
-    var locale = %_CallFunction(requestedLocales[i], GetUnicodeExtensionRE(),
-                                '', StringReplace);
+    var locale = %_Call(StringReplace,
+                        requestedLocales[i],
+                        GetUnicodeExtensionRE(),
+                        '');
     do {
       if (!IS_UNDEFINED(availableLocales[locale])) {
         // Push requested locale not the resolved one.
-        %_CallFunction(matchedLocales, requestedLocales[i], ArrayPush);
+        %_Call(ArrayPush, matchedLocales, requestedLocales[i]);
         break;
       }
       // Truncate locale if possible, if not break.
-      var pos = %_CallFunction(locale, '-', StringLastIndexOf);
+      var pos = %_Call(StringLastIndexOf, locale, '-');
       if (pos === -1) {
         break;
       }
-      locale = %_CallFunction(locale, 0, pos, StringSubstring);
+      locale = %_Call(StringSubstring, locale, 0, pos);
     } while (true);
   }
 
@@ -355,8 +357,7 @@ function getGetOption(options, caller) {
           throw MakeError(kWrongValueType);
       }
 
-      if (!IS_UNDEFINED(values) &&
-          %_CallFunction(values, value, ArrayIndexOf) === -1) {
+      if (!IS_UNDEFINED(values) && %_Call(ArrayIndexOf, values, value) === -1) {
         throw MakeRangeError(kValueOutOfRange, value, caller, property);
       }
 
@@ -405,7 +406,7 @@ function resolveLocale(service, requestedLocales, options) {
  * lookup algorithm.
  */
 function lookupMatcher(service, requestedLocales) {
-  if (IS_NULL(%_CallFunction(service, GetServiceRE(), StringMatch))) {
+  if (IS_NULL(%_Call(StringMatch, service, GetServiceRE()))) {
     throw MakeError(kWrongServiceType, service);
   }
 
@@ -416,23 +417,22 @@ function lookupMatcher(service, requestedLocales) {
 
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove all extensions.
-    var locale = %_CallFunction(requestedLocales[i], GetAnyExtensionRE(), '',
-                                StringReplace);
+    var locale = %_Call(StringReplace, requestedLocales[i],
+                        GetAnyExtensionRE(), '');
     do {
       if (!IS_UNDEFINED(AVAILABLE_LOCALES[service][locale])) {
         // Return the resolved locale and extension.
         var extensionMatch =
-            %_CallFunction(requestedLocales[i], GetUnicodeExtensionRE(),
-                           StringMatch);
+            %_Call(StringMatch, requestedLocales[i], GetUnicodeExtensionRE());
         var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
         return {'locale': locale, 'extension': extension, 'position': i};
       }
       // Truncate locale if possible.
-      var pos = %_CallFunction(locale, '-', StringLastIndexOf);
+      var pos = %_Call(StringLastIndexOf, locale, '-');
       if (pos === -1) {
         break;
       }
-      locale = %_CallFunction(locale, 0, pos, StringSubstring);
+      locale = %_Call(StringSubstring, locale, 0, pos);
     } while (true);
   }
 
@@ -461,7 +461,7 @@ function bestFitMatcher(service, requestedLocales) {
  * We are not concerned with the validity of the values at this point.
  */
 function parseExtension(extension) {
-  var extensionSplit = %_CallFunction(extension, '-', StringSplit);
+  var extensionSplit = %_Call(StringSplit, extension, '-');
 
   // Assume ['', 'u', ...] input, but don't throw.
   if (extensionSplit.length <= 2 ||
@@ -598,7 +598,7 @@ function getOptimalLanguageTag(original, resolved) {
 
   // Preserve extensions of resolved locale, but swap base tags with original.
   var resolvedBase = new GlobalRegExp('^' + locales[1].base);
-  return %_CallFunction(resolved, resolvedBase, locales[0].base, StringReplace);
+  return %_Call(StringReplace, resolved, resolvedBase, locales[0].base);
 }
 
 
@@ -613,8 +613,8 @@ function getAvailableLocalesOf(service) {
 
   for (var i in available) {
     if (%HasOwnProperty(available, i)) {
-      var parts = %_CallFunction(i, /^([a-z]{2,3})-([A-Z][a-z]{3})-([A-Z]{2})$/,
-                                 StringMatch);
+      var parts =
+          %_Call(StringMatch, i, /^([a-z]{2,3})-([A-Z][a-z]{3})-([A-Z]{2})$/);
       if (parts !== null) {
         // Build xx-ZZ. We don't care about the actual value,
         // as long it's not undefined.
@@ -674,8 +674,8 @@ function addWECPropertyIfDefined(object, property, value) {
  * Returns titlecased word, aMeRricA -> America.
  */
 function toTitleCaseWord(word) {
-  return %StringToUpperCase(%_CallFunction(word, 0, 1, StringSubstr)) +
-         %StringToLowerCase(%_CallFunction(word, 1, StringSubstr));
+  return %StringToUpperCase(%_Call(StringSubstr, word, 0, 1)) +
+         %StringToLowerCase(%_Call(StringSubstr, word, 1));
 }
 
 /**
@@ -719,7 +719,7 @@ function initializeLocaleList(locales) {
   } else {
     // We allow single string localeID.
     if (typeof locales === 'string') {
-      %_CallFunction(seen, canonicalizeLanguageTag(locales), ArrayPush);
+      %_Call(ArrayPush, seen, canonicalizeLanguageTag(locales));
       return freezeArray(seen);
     }
 
@@ -732,8 +732,8 @@ function initializeLocaleList(locales) {
 
         var tag = canonicalizeLanguageTag(value);
 
-        if (%_CallFunction(seen, tag, ArrayIndexOf) === -1) {
-          %_CallFunction(seen, tag, ArrayPush);
+        if (%_Call(ArrayIndexOf, seen, tag) === -1) {
+          %_Call(ArrayPush, seen, tag);
         }
       }
     }
@@ -754,40 +754,40 @@ function initializeLocaleList(locales) {
  */
 function isValidLanguageTag(locale) {
   // Check if it's well-formed, including grandfadered tags.
-  if (!%_CallFunction(GetLanguageTagRE(), locale, RegExpTest)) {
+  if (!%_Call(RegExpTest, GetLanguageTagRE(), locale)) {
     return false;
   }
 
   // Just return if it's a x- form. It's all private.
-  if (%_CallFunction(locale, 'x-', StringIndexOf) === 0) {
+  if (%_Call(StringIndexOf, locale, 'x-') === 0) {
     return true;
   }
 
   // Check if there are any duplicate variants or singletons (extensions).
 
   // Remove private use section.
-  locale = %_CallFunction(locale, /-x-/, StringSplit)[0];
+  locale = %_Call(StringSplit, locale, /-x-/)[0];
 
   // Skip language since it can match variant regex, so we start from 1.
   // We are matching i-klingon here, but that's ok, since i-klingon-klingon
   // is not valid and would fail LANGUAGE_TAG_RE test.
   var variants = [];
   var extensions = [];
-  var parts = %_CallFunction(locale, /-/, StringSplit);
+  var parts = %_Call(StringSplit, locale, /-/);
   for (var i = 1; i < parts.length; i++) {
     var value = parts[i];
-    if (%_CallFunction(GetLanguageVariantRE(), value, RegExpTest) &&
+    if (%_Call(RegExpTest, GetLanguageVariantRE(), value) &&
         extensions.length === 0) {
-      if (%_CallFunction(variants, value, ArrayIndexOf) === -1) {
-        %_CallFunction(variants, value, ArrayPush);
+      if (%_Call(ArrayIndexOf, variants, value) === -1) {
+        %_Call(ArrayPush, variants, value);
       } else {
         return false;
       }
     }
 
-    if (%_CallFunction(GetLanguageSingletonRE(), value, RegExpTest)) {
-      if (%_CallFunction(extensions, value, ArrayIndexOf) === -1) {
-        %_CallFunction(extensions, value, ArrayPush);
+    if (%_Call(RegExpTest, GetLanguageSingletonRE(), value)) {
+      if (%_Call(ArrayIndexOf, extensions, value) === -1) {
+        %_Call(ArrayPush, extensions, value);
       } else {
         return false;
       }
@@ -901,8 +901,7 @@ function initializeCollator(collator, locales, options) {
       'pinyin', 'reformed', 'searchjl', 'stroke', 'trad', 'unihan', 'zhuyin'
     ];
 
-    if (%_CallFunction(ALLOWED_CO_VALUES, extensionMap.co, ArrayIndexOf) !==
-        -1) {
+    if (%_Call(ArrayIndexOf, ALLOWED_CO_VALUES, extensionMap.co) !== -1) {
       extension = '-u-co-' + extensionMap.co;
       // ICU can't tell us what the collation is, so save user's input.
       collation = extensionMap.co;
@@ -1042,7 +1041,7 @@ addBoundMethod(Intl.Collator, 'compare', compare, 2);
 function isWellFormedCurrencyCode(currency) {
   return typeof currency == "string" &&
       currency.length == 3 &&
-      %_CallFunction(currency, /[^A-Za-z]/, StringMatch) == null;
+      %_Call(StringMatch, currency, /[^A-Za-z]/) == null;
 }
 
 
@@ -1371,58 +1370,57 @@ function appendToLDMLString(option, pairs) {
  */
 function fromLDMLString(ldmlString) {
   // First remove '' quoted text, so we lose 'Uhr' strings.
-  ldmlString = %_CallFunction(ldmlString, GetQuotedStringRE(), '',
-                              StringReplace);
+  ldmlString = %_Call(StringReplace, ldmlString, GetQuotedStringRE(), '');
 
   var options = {};
-  var match = %_CallFunction(ldmlString, /E{3,5}/g, StringMatch);
+  var match = %_Call(StringMatch, ldmlString, /E{3,5}/g);
   options = appendToDateTimeObject(
       options, 'weekday', match, {EEEEE: 'narrow', EEE: 'short', EEEE: 'long'});
 
-  match = %_CallFunction(ldmlString, /G{3,5}/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /G{3,5}/g);
   options = appendToDateTimeObject(
       options, 'era', match, {GGGGG: 'narrow', GGG: 'short', GGGG: 'long'});
 
-  match = %_CallFunction(ldmlString, /y{1,2}/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /y{1,2}/g);
   options = appendToDateTimeObject(
       options, 'year', match, {y: 'numeric', yy: '2-digit'});
 
-  match = %_CallFunction(ldmlString, /M{1,5}/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /M{1,5}/g);
   options = appendToDateTimeObject(options, 'month', match, {MM: '2-digit',
       M: 'numeric', MMMMM: 'narrow', MMM: 'short', MMMM: 'long'});
 
   // Sometimes we get L instead of M for month - standalone name.
-  match = %_CallFunction(ldmlString, /L{1,5}/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /L{1,5}/g);
   options = appendToDateTimeObject(options, 'month', match, {LL: '2-digit',
       L: 'numeric', LLLLL: 'narrow', LLL: 'short', LLLL: 'long'});
 
-  match = %_CallFunction(ldmlString, /d{1,2}/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /d{1,2}/g);
   options = appendToDateTimeObject(
       options, 'day', match, {d: 'numeric', dd: '2-digit'});
 
-  match = %_CallFunction(ldmlString, /h{1,2}/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /h{1,2}/g);
   if (match !== null) {
     options['hour12'] = true;
   }
   options = appendToDateTimeObject(
       options, 'hour', match, {h: 'numeric', hh: '2-digit'});
 
-  match = %_CallFunction(ldmlString, /H{1,2}/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /H{1,2}/g);
   if (match !== null) {
     options['hour12'] = false;
   }
   options = appendToDateTimeObject(
       options, 'hour', match, {H: 'numeric', HH: '2-digit'});
 
-  match = %_CallFunction(ldmlString, /m{1,2}/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /m{1,2}/g);
   options = appendToDateTimeObject(
       options, 'minute', match, {m: 'numeric', mm: '2-digit'});
 
-  match = %_CallFunction(ldmlString, /s{1,2}/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /s{1,2}/g);
   options = appendToDateTimeObject(
       options, 'second', match, {s: 'numeric', ss: '2-digit'});
 
-  match = %_CallFunction(ldmlString, /z|zzzz/g, StringMatch);
+  match = %_Call(StringMatch, ldmlString, /z|zzzz/g);
   options = appendToDateTimeObject(
       options, 'timeZoneName', match, {z: 'short', zzzz: 'long'});
 
@@ -1755,7 +1753,7 @@ function canonicalizeTimeZoneID(tzID) {
 
   // We expect only _ and / beside ASCII letters.
   // All inputs should conform to Area/Location from now on.
-  var match = %_CallFunction(tzID, GetTimezoneNameCheckRE(), StringMatch);
+  var match = %_Call(StringMatch, tzID, GetTimezoneNameCheckRE());
   if (IS_NULL(match)) throw MakeRangeError(kExpectedLocation, tzID);
 
   var result = toTitleCaseWord(match[1]) + '/' + toTitleCaseWord(match[2]);
@@ -2017,11 +2015,10 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
 
     var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 
-    var normalizationForm =
-        %_CallFunction(NORMALIZATION_FORMS, form, ArrayIndexOf);
+    var normalizationForm = %_Call(ArrayIndexOf, NORMALIZATION_FORMS, form);
     if (normalizationForm === -1) {
       throw MakeRangeError(kNormalizationForm,
-          %_CallFunction(NORMALIZATION_FORMS, ', ', ArrayJoin));
+          %_Call(ArrayJoin, NORMALIZATION_FORMS, ', '));
     }
 
     return %StringNormalize(s, normalizationForm);
