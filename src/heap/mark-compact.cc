@@ -74,7 +74,7 @@ class VerifyMarkingVisitor : public ObjectVisitor {
  public:
   explicit VerifyMarkingVisitor(Heap* heap) : heap_(heap) {}
 
-  void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
@@ -83,7 +83,7 @@ class VerifyMarkingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) {
+  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     if (!rinfo->host()->IsWeakObject(rinfo->target_object())) {
       Object* p = rinfo->target_object();
@@ -91,7 +91,7 @@ class VerifyMarkingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitCell(RelocInfo* rinfo) {
+  void VisitCell(RelocInfo* rinfo) override {
     Code* code = rinfo->host();
     DCHECK(rinfo->rmode() == RelocInfo::CELL);
     if (!code->IsWeakObject(rinfo->target_cell())) {
@@ -168,7 +168,7 @@ static void VerifyMarking(Heap* heap) {
 
 class VerifyEvacuationVisitor : public ObjectVisitor {
  public:
-  void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
@@ -1428,11 +1428,11 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
   explicit SharedFunctionInfoMarkingVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) VisitPointer(p);
   }
 
-  void VisitPointer(Object** slot) {
+  void VisitPointer(Object** slot) override {
     Object* obj = *slot;
     if (obj->IsSharedFunctionInfo()) {
       SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(obj);
@@ -1502,15 +1502,15 @@ class RootMarkingVisitor : public ObjectVisitor {
   explicit RootMarkingVisitor(Heap* heap)
       : collector_(heap->mark_compact_collector()) {}
 
-  void VisitPointer(Object** p) { MarkObjectByPointer(p); }
+  void VisitPointer(Object** p) override { MarkObjectByPointer(p); }
 
-  void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 
   // Skip the weak next code link in a code object, which is visited in
   // ProcessTopOptimizedFrame.
-  void VisitNextCodeLink(Object** p) {}
+  void VisitNextCodeLink(Object** p) override {}
 
  private:
   void MarkObjectByPointer(Object** p) {
@@ -1545,7 +1545,7 @@ class StringTableCleaner : public ObjectVisitor {
  public:
   explicit StringTableCleaner(Heap* heap) : heap_(heap), pointers_removed_(0) {}
 
-  virtual void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
       Object* o = *p;
@@ -2873,13 +2873,13 @@ class PointersUpdatingVisitor : public ObjectVisitor {
  public:
   explicit PointersUpdatingVisitor(Heap* heap) : heap_(heap) {}
 
-  void VisitPointer(Object** p) { UpdatePointer(p); }
+  void VisitPointer(Object** p) override { UpdatePointer(p); }
 
-  void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) UpdatePointer(p);
   }
 
-  void VisitCell(RelocInfo* rinfo) {
+  void VisitCell(RelocInfo* rinfo) override {
     DCHECK(rinfo->rmode() == RelocInfo::CELL);
     Object* cell = rinfo->target_cell();
     Object* old_cell = cell;
@@ -2889,7 +2889,7 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) {
+  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     Object* target = rinfo->target_object();
     Object* old_target = target;
@@ -2901,7 +2901,7 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) {
+  void VisitCodeTarget(RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Object* old_target = target;
@@ -2911,7 +2911,7 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitCodeAgeSequence(RelocInfo* rinfo) {
+  void VisitCodeAgeSequence(RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
     Object* stub = rinfo->code_age_stub();
     DCHECK(stub != NULL);
@@ -2921,7 +2921,7 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     }
   }
 
-  void VisitDebugTarget(RelocInfo* rinfo) {
+  void VisitDebugTarget(RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
            rinfo->IsPatchedDebugBreakSlotSequence());
     Object* target =

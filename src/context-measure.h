@@ -19,7 +19,7 @@ class ContextMeasure : public ObjectVisitor {
   int Size() { return size_; }
   int Count() { return count_; }
 
-  void VisitPointers(Object** start, Object** end);
+  void VisitPointers(Object** start, Object** end) override;
 
  private:
   void MeasureObject(HeapObject* object);

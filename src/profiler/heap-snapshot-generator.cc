@@ -995,12 +995,12 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         parent_(parent),
         next_index_(0) {
   }
-  void VisitCodeEntry(Address entry_address) {
+  void VisitCodeEntry(Address entry_address) override {
      Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
      generator_->SetInternalReference(parent_obj_, parent_, "code", code);
      generator_->TagCodeObject(code);
   }
-  void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
       ++next_index_;
       if (CheckVisitedAndUnmark(p)) continue;
@@ -1769,7 +1769,7 @@ class RootsReferencesExtractor : public ObjectVisitor {
         heap_(heap) {
   }
 
-  void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     if (collecting_all_references_) {
       for (Object** p = start; p < end; p++) all_references_.Add(*p);
     } else {
@@ -1802,7 +1802,7 @@ class RootsReferencesExtractor : public ObjectVisitor {
     }
   }
 
-  void Synchronize(VisitorSynchronization::SyncTag tag) {
+  void Synchronize(VisitorSynchronization::SyncTag tag) override {
     if (collecting_all_references_ &&
         previous_reference_count_ != all_references_.length()) {
       previous_reference_count_ = all_references_.length();
@@ -2188,7 +2188,7 @@ void V8HeapExplorer::MarkAsWeakContainer(Object* object) {
 
 class GlobalObjectsEnumerator : public ObjectVisitor {
  public:
-  virtual void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsNativeContext()) {
         Context* context = Context::cast(*p);
@@ -2241,11 +2241,9 @@ class GlobalHandlesExtractor : public ObjectVisitor {
  public:
   explicit GlobalHandlesExtractor(NativeObjectsExplorer* explorer)
       : explorer_(explorer) {}
-  virtual ~GlobalHandlesExtractor() {}
-  virtual void VisitPointers(Object** start, Object** end) {
-    UNREACHABLE();
-  }
-  virtual void VisitEmbedderReference(Object** p, uint16_t class_id) {
+  ~GlobalHandlesExtractor() override {}
+  void VisitPointers(Object** start, Object** end) override { UNREACHABLE(); }
+  void VisitEmbedderReference(Object** p, uint16_t class_id) override {
     explorer_->VisitSubtreeWrapper(p, class_id);
   }
  private:

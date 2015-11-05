@@ -1367,21 +1367,21 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
         code_has_been_output_(false) {}
   void Serialize();
   void SerializeDeferred();
-  void VisitPointers(Object** start, Object** end);
-  void VisitEmbeddedPointer(RelocInfo* target);
-  void VisitExternalReference(Address* p);
-  void VisitExternalReference(RelocInfo* rinfo);
-  void VisitInternalReference(RelocInfo* rinfo);
-  void VisitCodeTarget(RelocInfo* target);
-  void VisitCodeEntry(Address entry_address);
-  void VisitCell(RelocInfo* rinfo);
-  void VisitRuntimeEntry(RelocInfo* reloc);
+  void VisitPointers(Object** start, Object** end) override;
+  void VisitEmbeddedPointer(RelocInfo* target) override;
+  void VisitExternalReference(Address* p) override;
+  void VisitExternalReference(RelocInfo* rinfo) override;
+  void VisitInternalReference(RelocInfo* rinfo) override;
+  void VisitCodeTarget(RelocInfo* target) override;
+  void VisitCodeEntry(Address entry_address) override;
+  void VisitCell(RelocInfo* rinfo) override;
+  void VisitRuntimeEntry(RelocInfo* reloc) override;
   // Used for seralizing the external strings that hold the natives source.
   void VisitExternalOneByteString(
-      v8::String::ExternalOneByteStringResource** resource);
+      v8::String::ExternalOneByteStringResource** resource) override;
   // We can't serialize a heap with external two byte strings.
   void VisitExternalTwoByteString(
-      v8::String::ExternalStringResource** resource) {
+      v8::String::ExternalStringResource** resource) override {
     UNREACHABLE();
   }
 

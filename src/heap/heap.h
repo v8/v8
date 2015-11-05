@@ -2428,14 +2428,14 @@ class AlwaysAllocateScope {
 // objects in a heap space but above the allocation pointer.
 class VerifyPointersVisitor : public ObjectVisitor {
  public:
-  inline void VisitPointers(Object** start, Object** end);
+  inline void VisitPointers(Object** start, Object** end) override;
 };
 
 
 // Verify that all objects are Smis.
 class VerifySmisVisitor : public ObjectVisitor {
  public:
-  inline void VisitPointers(Object** start, Object** end);
+  inline void VisitPointers(Object** start, Object** end) override;
 };
 
 
@@ -2696,7 +2696,7 @@ class PathTracer : public ObjectVisitor {
         object_stack_(20),
         no_allocation() {}
 
-  virtual void VisitPointers(Object** start, Object** end);
+  void VisitPointers(Object** start, Object** end) override;
 
   void Reset();
   void TracePathFrom(Object** root);

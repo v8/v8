@@ -7616,10 +7616,10 @@ class VisitorAdapter : public i::ObjectVisitor {
  public:
   explicit VisitorAdapter(PersistentHandleVisitor* visitor)
       : visitor_(visitor) {}
-  virtual void VisitPointers(i::Object** start, i::Object** end) {
+  void VisitPointers(i::Object** start, i::Object** end) override {
     UNREACHABLE();
   }
-  virtual void VisitEmbedderReference(i::Object** p, uint16_t class_id) {
+  void VisitEmbedderReference(i::Object** p, uint16_t class_id) override {
     Value* value = ToApi<Value>(i::Handle<i::Object>(p));
     visitor_->VisitPersistentHandle(
         reinterpret_cast<Persistent<Value>*>(&value), class_id);
