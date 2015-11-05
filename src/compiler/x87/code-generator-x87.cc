@@ -422,11 +422,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
           double_register_param_count++;
         }
       }
-      // Currently we use only one X87 register. If we use more X87 register
-      // in the future. we need to generate the x87 layout according to the
-      // used double registers.
-      DCHECK(double_register_param_count < 2);
-      if (double_register_param_count == 1) {
+      // Currently we use only one X87 register. If double_register_param_count
+      // is bigger than 1, it means duplicated double register is added to input
+      // of this instruction.
+      if (double_register_param_count > 0) {
         x87_layout = (0 << 3) | 1;
       }
       // The layout of x87 register stack is loaded on the top of FPU register
