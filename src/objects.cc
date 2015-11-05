@@ -11102,21 +11102,28 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     DCHECK(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
   }
 #endif
+
+  if (Heap::ShouldZapGarbage()) {
+    // Zap any old optimized code map for heap-verifier.
+    if (!shared->optimized_code_map()->IsSmi()) {
+      FixedArray* old_code_map = FixedArray::cast(shared->optimized_code_map());
+      old_code_map->FillWithHoles(0, old_code_map->length());
+    }
+  }
+
   shared->set_optimized_code_map(*new_code_map);
 }
 
 
 void SharedFunctionInfo::ClearOptimizedCodeMap() {
-  FixedArray* code_map = FixedArray::cast(optimized_code_map());
-
-  // If the next map link slot is already used then the function was
-  // enqueued with code flushing and we remove it now.
-  if (!code_map->get(kNextMapIndex)->IsUndefined()) {
-    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
-    flusher->EvictOptimizedCodeMap(this);
+  if (Heap::ShouldZapGarbage()) {
+    // Zap any old optimized code map for heap-verifier.
+    if (!optimized_code_map()->IsSmi()) {
+      FixedArray* old_code_map = FixedArray::cast(optimized_code_map());
+      old_code_map->FillWithHoles(0, old_code_map->length());
+    }
   }
 
-  DCHECK(code_map->get(kNextMapIndex)->IsUndefined());
   set_optimized_code_map(Smi::FromInt(0));
 }
 
