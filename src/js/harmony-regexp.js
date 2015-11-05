@@ -13,6 +13,7 @@
 
 var GlobalRegExp = global.RegExp;
 var MakeTypeError;
+var regExpFlagsSymbol = utils.ImportNow("regexp_flags_symbol");
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
@@ -24,7 +25,8 @@ utils.Import(function(from) {
 // + https://bugs.ecmascript.org/show_bug.cgi?id=3423
 function RegExpGetFlags() {
   if (!IS_SPEC_OBJECT(this)) {
-    throw MakeTypeError(kFlagsGetterNonObject, TO_STRING(this));
+    throw MakeTypeError(
+        kRegExpNonObject, "RegExp.prototype.flags", TO_STRING(this));
   }
   var result = '';
   if (this.global) result += 'g';
@@ -34,9 +36,37 @@ function RegExpGetFlags() {
   if (this.sticky) result += 'y';
   return result;
 }
-
-%DefineAccessorPropertyUnchecked(GlobalRegExp.prototype, 'flags',
-                                 RegExpGetFlags, null, DONT_ENUM);
+%FunctionSetName(RegExpGetFlags, "RegExp.prototype.flags");
 %SetNativeFlag(RegExpGetFlags);
 
+
+// ES6 21.2.5.12.
+function RegExpGetSticky() {
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.sticky");
+  }
+  return !!REGEXP_STICKY(this);
+}
+%FunctionSetName(RegExpGetSticky, "RegExp.prototype.sticky");
+%SetNativeFlag(RegExpGetSticky);
+
+
+// ES6 21.2.5.15.
+function RegExpGetUnicode() {
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.unicode");
+  }
+  return !!REGEXP_UNICODE(this);
+}
+%FunctionSetName(RegExpGetUnicode, "RegExp.prototype.unicode");
+%SetNativeFlag(RegExpGetUnicode);
+
+%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, 'flags',
+                               RegExpGetFlags, DONT_ENUM);
+
+%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "sticky",
+                               RegExpGetSticky, DONT_ENUM);
+
+%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "unicode",
+                               RegExpGetUnicode, DONT_ENUM);
 })
