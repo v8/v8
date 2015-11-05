@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sloppy
+// Flags: --harmony-sloppy --allow-natives-syntax
 
 (function TestBasics() {
   var C = class C {}
@@ -625,6 +625,7 @@ function assertAccessorDescriptor(object, name) {
   assertTrue(new C(1) instanceof C);
 })();
 
+
 (function TestConstructorCall(){
   var realmIndex = Realm.create();
   var otherTypeError = Realm.eval(realmIndex, "TypeError");
@@ -650,6 +651,30 @@ function assertAccessorDescriptor(object, name) {
   assertThrows(function() { constructor.call() }, otherTypeError);
   assertThrows(function() { A.call() }, otherTypeError);
 })();
+
+
+(function TestConstructorCallOptimized() {
+  class A { };
+
+  function invoke_constructor() { A() }
+  function call_constructor() { A.call() }
+  function apply_constructor() { A.apply() }
+
+  for (var i=0; i<3; i++) {
+    assertThrows(invoke_constructor);
+    assertThrows(call_constructor);
+    assertThrows(apply_constructor);
+  }
+  // Make sure we still check for class constructors when calling optimized
+  // code.
+  %OptimizeFunctionOnNextCall(invoke_constructor);
+  assertThrows(invoke_constructor);
+  %OptimizeFunctionOnNextCall(call_constructor);
+  assertThrows(call_constructor);
+  %OptimizeFunctionOnNextCall(apply_constructor);
+  assertThrows(apply_constructor);
+})();
+
 
 (function TestDefaultConstructor() {
   var calls = 0;

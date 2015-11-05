@@ -24,19 +24,19 @@ function listener(event, execState, eventData, data) {
 }
 
 class Base {
-  constructor() {  // 2.
-    var x = 1;     // 3.
-  }                // 4.
+  constructor() {
+    var x = 1;     // 2.
+  }                // 3.
 }
 
-class Derived extends Base {}  // 1. // 5.
+class Derived extends Base {}  // 1. // 4.
 
 Debug.setListener(listener);
 var bp = Debug.setBreakPoint(Derived, 0);
 
 new Derived();
 
-Debug.setListener(null);  // 6.
+Debug.setListener(null);  // 5.
 
 assertNull(exception);
-assertEquals(6, step_count);
+assertEquals(5, step_count);

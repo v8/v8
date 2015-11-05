@@ -8357,6 +8357,11 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   CompilationInfo target_info(&parse_info);
   Handle<SharedFunctionInfo> target_shared(target->shared());
+
+  if (IsClassConstructor(target_shared->kind())) {
+    TraceInline(target, caller, "target is classConstructor");
+    return false;
+  }
   if (target_shared->HasDebugInfo()) {
     TraceInline(target, caller, "target is being debugged");
     return false;
@@ -9353,6 +9358,7 @@ bool HOptimizedGraphBuilder::TryIndirectCall(Call* expr) {
 }
 
 
+// f.apply(...)
 void HOptimizedGraphBuilder::BuildFunctionApply(Call* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   CHECK_ALIVE(VisitForValue(args->at(0)));
@@ -9751,7 +9757,8 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     Push(graph()->GetConstantUndefined());
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
-    if (expr->IsMonomorphic()) {
+    if (expr->IsMonomorphic() &&
+        !IsClassConstructor(expr->target()->shared()->kind())) {
       Add<HCheckValue>(function, expr->target());
 
       // Patch the global object on the stack by the expected receiver.

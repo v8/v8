@@ -359,7 +359,6 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
                                  kind, &function_factory);
 
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
-    AddAssertIsConstruct(body, pos);
     if (call_super) {
       // %_DefaultConstructorCallSuper(new.target, %GetPrototype(<this-fun>))
       ZoneList<Expression*>* args =
@@ -4536,21 +4535,6 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
 }
 
 
-void Parser::AddAssertIsConstruct(ZoneList<Statement*>* body, int pos) {
-  ZoneList<Expression*>* arguments =
-      new (zone()) ZoneList<Expression*>(0, zone());
-  CallRuntime* construct_check = factory()->NewCallRuntime(
-      Runtime::kInlineIsConstructCall, arguments, pos);
-  CallRuntime* non_callable_error = factory()->NewCallRuntime(
-      Runtime::kThrowConstructorNonCallableError, arguments, pos);
-  IfStatement* if_statement = factory()->NewIfStatement(
-      factory()->NewUnaryOperation(Token::NOT, construct_check, pos),
-      factory()->NewReturnStatement(non_callable_error, pos),
-      factory()->NewEmptyStatement(pos), pos);
-  body->Add(if_statement, zone());
-}
-
-
 Statement* Parser::BuildAssertIsCoercible(Variable* var) {
   // if (var === null || var === undefined)
   //     throw /* type error kNonCoercible) */;
@@ -4742,12 +4726,6 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     // so we reserve a spot and create the actual const assignment later.
     DCHECK_EQ(kFunctionNameAssignmentIndex, result->length());
     result->Add(NULL, zone());
-  }
-
-  // For concise constructors, check that they are constructed,
-  // not called.
-  if (IsClassConstructor(kind)) {
-    AddAssertIsConstruct(result, pos);
   }
 
   ZoneList<Statement*>* body = result;

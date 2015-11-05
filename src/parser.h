@@ -1154,7 +1154,6 @@ class Parser : public ParserBase<ParserTraits> {
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);
   IterationStatement* LookupContinueTarget(const AstRawString* label, bool* ok);
 
-  void AddAssertIsConstruct(ZoneList<Statement*>* body, int pos);
   Statement* BuildAssertIsCoercible(Variable* var);
 
   // Factory methods.
