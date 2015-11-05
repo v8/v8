@@ -255,6 +255,7 @@ class AstValue : public ZoneObject {
   F(dot_module, ".module")                      \
   F(dot_result, ".result")                      \
   F(dot_switch_tag, ".switch_tag")              \
+  F(dot_catch, ".catch")                        \
   F(empty, "")                                  \
   F(eval, "eval")                               \
   F(let, "let")                                 \
