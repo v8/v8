@@ -3242,7 +3242,10 @@ TEST(RunFloat32Add) {
   m.Return(m.Float32Add(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CheckFloatEq(*i + *j, m.Call(*i, *j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      volatile float expected = *i + *j;
+      CheckFloatEq(expected, m.Call(*i, *j));
+    }
   }
 }
 
@@ -3252,7 +3255,10 @@ TEST(RunFloat32Sub) {
   m.Return(m.Float32Sub(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CheckFloatEq(*i - *j, m.Call(*i, *j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      volatile float expected = *i - *j;
+      CheckFloatEq(expected, m.Call(*i, *j));
+    }
   }
 }
 
@@ -3262,7 +3268,10 @@ TEST(RunFloat32Mul) {
   m.Return(m.Float32Mul(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CheckFloatEq(*i * *j, m.Call(*i, *j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      volatile float expected = *i * *j;
+      CheckFloatEq(expected, m.Call(*i, *j));
+    }
   }
 }
 
@@ -3272,7 +3281,10 @@ TEST(RunFloat32Div) {
   m.Return(m.Float32Div(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CheckFloatEq(*i / *j, m.Call(*i, *j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      volatile float expected = *i / *j;
+      CheckFloatEq(expected, m.Call(*i, *j));
+    }
   }
 }
 
@@ -3302,7 +3314,10 @@ TEST(RunFloat64Mul) {
   m.Return(m.Float64Mul(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CheckDoubleEq(*i * *j, m.Call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) {
+      volatile double expected = *i * *j;
+      CheckDoubleEq(expected, m.Call(*i, *j));
+    }
   }
 }
 
@@ -3312,7 +3327,10 @@ TEST(RunFloat64Div) {
   m.Return(m.Float64Div(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CheckDoubleEq(*i / *j, m.Call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) {
+      volatile double expected = *i / *j;
+      CheckDoubleEq(expected, m.Call(*i, *j));
+    }
   }
 }
 
@@ -3475,7 +3493,10 @@ TEST(RunFloat32SubImm1) {
     BufferedRawMachineAssemblerTester<float> m(kMachFloat32);
     m.Return(m.Float32Sub(m.Float32Constant(*i), m.Parameter(0)));
 
-    FOR_FLOAT32_INPUTS(j) { CheckFloatEq(*i - *j, m.Call(*j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      volatile float expected = *i - *j;
+      CheckFloatEq(expected, m.Call(*j));
+    }
   }
 }
 
@@ -3485,7 +3506,10 @@ TEST(RunFloat32SubImm2) {
     BufferedRawMachineAssemblerTester<float> m(kMachFloat32);
     m.Return(m.Float32Sub(m.Parameter(0), m.Float32Constant(*i)));
 
-    FOR_FLOAT32_INPUTS(j) { CheckFloatEq(*j - *i, m.Call(*j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      volatile float expected = *j - *i;
+      CheckFloatEq(expected, m.Call(*j));
+    }
   }
 }
 
