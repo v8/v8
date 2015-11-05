@@ -7110,8 +7110,8 @@ class SharedFunctionInfo: public HeapObject {
       (compiler_hint + kCompilerHintsSmiTagSize) / kBitsPerByte
 #elif defined(V8_TARGET_BIG_ENDIAN)
 #define BYTE_OFFSET(compiler_hint)                   \
-  kCompilerHintsOffset + +(kCompilerHintsSize - 1) - \
-      ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte)
+  kCompilerHintsOffset + (kCompilerHintsSize - 1) - \
+      ((compiler_hint + kCompilerHintsSmiTagSize) / kBitsPerByte)
 #else
 #error Unknown byte ordering
 #endif
