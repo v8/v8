@@ -421,8 +421,7 @@ class ParserBase : public Traits {
     }
   }
 
-  bool CheckInOrOf(
-      bool accept_OF, ForEachStatement::VisitMode* visit_mode, bool* ok) {
+  bool CheckInOrOf(ForEachStatement::VisitMode* visit_mode, bool* ok) {
     if (Check(Token::IN)) {
       if (is_strong(language_mode())) {
         ReportMessageAt(scanner()->location(), MessageTemplate::kStrongForIn);
@@ -431,7 +430,7 @@ class ParserBase : public Traits {
         *visit_mode = ForEachStatement::ENUMERATE;
       }
       return true;
-    } else if (accept_OF && CheckContextualKeyword(CStrVector("of"))) {
+    } else if (CheckContextualKeyword(CStrVector("of"))) {
       *visit_mode = ForEachStatement::ITERATE;
       return true;
     }

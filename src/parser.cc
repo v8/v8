@@ -3635,12 +3635,11 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
       int num_decl = parsing_result.declarations.length();
       bool accept_IN = num_decl >= 1;
-      bool accept_OF = true;
       ForEachStatement::VisitMode mode;
       int each_beg_pos = scanner()->location().beg_pos;
       int each_end_pos = scanner()->location().end_pos;
 
-      if (accept_IN && CheckInOrOf(accept_OF, &mode, ok)) {
+      if (accept_IN && CheckInOrOf(&mode, ok)) {
         if (!*ok) return nullptr;
         if (num_decl != 1) {
           const char* loop_type =
@@ -3798,13 +3797,12 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       Expression* expression = ParseExpression(false, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
       ForEachStatement::VisitMode mode;
-      bool accept_OF = expression->IsVariableProxy();
       is_let_identifier_expression =
           expression->IsVariableProxy() &&
           expression->AsVariableProxy()->raw_name() ==
               ast_value_factory()->let_string();
 
-      if (CheckInOrOf(accept_OF, &mode, ok)) {
+      if (CheckInOrOf(&mode, ok)) {
         if (!*ok) return nullptr;
         expression = this->CheckAndRewriteReferenceExpression(
             expression, lhs_beg_pos, lhs_end_pos,

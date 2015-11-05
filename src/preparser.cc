@@ -925,8 +925,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
                                 &first_initializer_loc, &bindings_loc,
                                 CHECK_OK);
       bool accept_IN = decl_count >= 1;
-      bool accept_OF = true;
-      if (accept_IN && CheckInOrOf(accept_OF, &mode, ok)) {
+      if (accept_IN && CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
         if (decl_count != 1) {
           const char* loop_type =
@@ -961,7 +960,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       int lhs_end_pos = scanner()->location().end_pos;
       is_let_identifier_expression =
           lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
-      if (CheckInOrOf(lhs.IsIdentifier(), &mode, ok)) {
+      if (CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
         lhs = CheckAndRewriteReferenceExpression(
             lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
