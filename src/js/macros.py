@@ -181,20 +181,6 @@ python macro CHAR_CODE(str) = ord(str[1]);
 define REGEXP_NUMBER_OF_CAPTURES = 0;
 define REGEXP_FIRST_CAPTURE = 3;
 
-# Constants and macros for internal slot access.
-define REGEXP_GLOBAL_MASK = 1;
-define REGEXP_IGNORE_CASE_MASK = 2;
-define REGEXP_MULTILINE_MASK = 4;
-define REGEXP_STICKY_MASK = 8;
-define REGEXP_UNICODE_MASK = 16;
-
-macro REGEXP_GLOBAL(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_GLOBAL_MASK);
-macro REGEXP_IGNORE_CASE(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_IGNORE_CASE_MASK);
-macro REGEXP_MULTILINE(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_MULTILINE_MASK);
-macro REGEXP_STICKY(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_STICKY_MASK);
-macro REGEXP_UNICODE(regexp) = (regexp[regExpFlagsSymbol] & REGEXP_UNICODE_MASK);
-macro REGEXP_SOURCE(regexp) = (regexp[regExpSourceSymbol]);
-
 # We can't put macros in macros so we use constants here.
 # REGEXP_NUMBER_OF_CAPTURES
 macro NUMBER_OF_CAPTURES(array) = ((array)[0]);

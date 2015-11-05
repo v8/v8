@@ -249,6 +249,7 @@ namespace internal {
   V(Generator_string, "Generator")                         \
   V(get_string, "get")                                     \
   V(global_string, "global")                               \
+  V(ignore_case_string, "ignoreCase")                      \
   V(illegal_access_string, "illegal access")               \
   V(illegal_argument_string, "illegal argument")           \
   V(index_string, "index")                                 \
@@ -267,6 +268,7 @@ namespace internal {
   V(Map_string, "Map")                                     \
   V(minus_infinity_string, "-Infinity")                    \
   V(minus_zero_string, "-0")                               \
+  V(multiline_string, "multiline")                         \
   V(name_string, "name")                                   \
   V(nan_string, "NaN")                                     \
   V(next_string, "next")                                   \
@@ -286,6 +288,7 @@ namespace internal {
   V(source_string, "source")                               \
   V(source_url_string, "source_url")                       \
   V(stack_string, "stack")                                 \
+  V(sticky_string, "sticky")                               \
   V(strict_compare_ic_string, "===")                       \
   V(string_string, "string")                               \
   V(String_string, "String")                               \
@@ -302,6 +305,7 @@ namespace internal {
   V(uint8x16_string, "uint8x16")                           \
   V(Uint8x16_string, "Uint8x16")                           \
   V(undefined_string, "undefined")                         \
+  V(unicode_string, "unicode")                             \
   V(valueOf_string, "valueOf")                             \
   V(value_string, "value")                                 \
   V(WeakMap_string, "WeakMap")                             \
@@ -345,8 +349,6 @@ namespace internal {
   V(promise_raw_symbol)                     \
   V(promise_status_symbol)                  \
   V(promise_value_symbol)                   \
-  V(regexp_flags_symbol)                    \
-  V(regexp_source_symbol)                   \
   V(sealed_symbol)                          \
   V(stack_trace_symbol)                     \
   V(string_iterator_iterated_string_symbol) \
@@ -355,6 +357,7 @@ namespace internal {
 
 #define PUBLIC_SYMBOL_LIST(V)                 \
   V(has_instance_symbol, Symbol.hasInstance)  \
+  V(is_regexp_symbol, Symbol.isRegExp)        \
   V(iterator_symbol, Symbol.iterator)         \
   V(match_symbol, Symbol.match)               \
   V(replace_symbol, Symbol.replace)           \
