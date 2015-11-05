@@ -504,7 +504,6 @@ class FullCodeGenerator: public AstVisitor {
   F(DebugBreakInOptimizedCode)          \
   F(ClassOf)                            \
   F(StringCharCodeAt)                   \
-  F(StringAdd)                          \
   F(SubString)                          \
   F(RegExpExec)                         \
   F(RegExpConstructResult)              \

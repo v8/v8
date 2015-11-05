@@ -3543,22 +3543,6 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
-  ASM_LOCATION("FullCodeGenerator::EmitStringAdd");
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-
-  VisitForStackValue(args->at(0));
-  VisitForAccumulatorValue(args->at(1));
-
-  __ Pop(x1);
-  StringAddStub stub(isolate(), STRING_ADD_CHECK_BOTH, NOT_TENURED);
-  __ CallStub(&stub);
-
-  context()->Plug(x0);
-}
-
-
 void FullCodeGenerator::EmitCall(CallRuntime* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitCall");
   ZoneList<Expression*>* args = expr->arguments();

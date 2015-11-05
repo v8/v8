@@ -2230,7 +2230,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(FastOneByteArrayJoin)              \
   F(DebugBreakInOptimizedCode)         \
   F(StringCharCodeAt)                  \
-  F(StringAdd)                         \
   F(SubString)                         \
   F(RegExpExec)                        \
   F(RegExpConstructResult)             \

@@ -12603,18 +12603,6 @@ void HOptimizedGraphBuilder::GenerateObjectEquals(CallRuntime* call) {
 }
 
 
-// Fast support for StringAdd.
-void HOptimizedGraphBuilder::GenerateStringAdd(CallRuntime* call) {
-  DCHECK_EQ(2, call->arguments()->length());
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  HValue* right = Pop();
-  HValue* left = Pop();
-  HInstruction* result = NewUncasted<HStringAdd>(left, right);
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
 // Fast support for SubString.
 void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   DCHECK_EQ(3, call->arguments()->length());
