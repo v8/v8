@@ -126,7 +126,7 @@ void FullCodeGenerator::Generate() {
 
   if (FLAG_debug_code && info->ExpectsJSReceiverAsReceiver()) {
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
-    __ lw(a2, MemOperand(sp, receiver_offset));
+    __ ld(a2, MemOperand(sp, receiver_offset));
     __ AssertNotSmi(a2);
     __ GetObjectType(a2, a2, a2);
     __ Check(ge, kSloppyFunctionExpectsJSReceiverReceiver, a2,
