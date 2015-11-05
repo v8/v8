@@ -1633,6 +1633,29 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     return Changed(node);
   }
 
+  // Check if {target} is a JSFunction.
+  if (target_type->Is(Type::Function())) {
+    // Remove the eager bailout frame state.
+    NodeProperties::RemoveFrameStateInput(node, 1);
+
+    // Compute flags for the call.
+    CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+    if (p.tail_call_mode() == TailCallMode::kAllow) {
+      flags |= CallDescriptor::kSupportsTailCalls;
+    }
+
+    // Patch {node} to an indirect call via the CallFunction builtin.
+    Callable callable = CodeFactory::CallFunction(isolate());
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->Int32Constant(arity));
+    NodeProperties::ChangeOp(
+        node, common()->Call(Linkage::GetStubCallDescriptor(
+                  isolate(), graph()->zone(), callable.descriptor(), 1 + arity,
+                  flags)));
+    return Changed(node);
+  }
+
   return NoChange();
 }
 

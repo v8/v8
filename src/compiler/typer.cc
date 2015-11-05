@@ -1161,6 +1161,8 @@ Type* Typer::Visitor::JSTypeOfTyper(Type* type, Typer* t) {
     return Type::Constant(f->undefined_string(), t->zone());
   } else if (type->Is(Type::Null())) {
     return Type::Constant(f->object_string(), t->zone());
+  } else if (type->Is(Type::Function())) {
+    return Type::Constant(f->function_string(), t->zone());
   } else if (type->IsConstant()) {
     return Type::Constant(
         Object::TypeOf(t->isolate(), type->AsConstant()->Value()), t->zone());

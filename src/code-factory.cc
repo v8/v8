@@ -299,6 +299,13 @@ Callable CodeFactory::Call(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::CallFunction(Isolate* isolate) {
+  return Callable(isolate->builtins()->CallFunction(),
+                  CallTrampolineDescriptor(isolate));
+}
+
+
+// static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate) {
   return Callable(isolate->builtins()->InterpreterPushArgsAndCall(),
                   InterpreterPushArgsAndCallDescriptor(isolate));
