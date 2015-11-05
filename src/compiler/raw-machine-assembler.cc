@@ -22,14 +22,11 @@ RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
       machine_(zone(), word, flags),
       common_(zone()),
       call_descriptor_(call_descriptor),
-      parameters_(nullptr),
+      parameters_(parameter_count(), zone()),
       current_block_(schedule()->start()) {
   int param_count = static_cast<int>(parameter_count());
-  // Add an extra input node for the JSFunction parameter to the start node.
-  Node* s = graph->NewNode(common_.Start(param_count + 1));
-  graph->SetStart(s);
-  if (parameter_count() == 0) return;
-  parameters_ = zone()->NewArray<Node*>(param_count);
+  // Add an extra input for the JSFunction parameter to the start node.
+  graph->SetStart(graph->NewNode(common_.Start(param_count + 1)));
   for (size_t i = 0; i < parameter_count(); ++i) {
     parameters_[i] =
         AddNode(common()->Parameter(static_cast<int>(i)), graph->start());

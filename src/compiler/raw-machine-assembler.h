@@ -602,7 +602,7 @@ class RawMachineAssembler {
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
   CallDescriptor* call_descriptor_;
-  Node** parameters_;
+  NodeVector parameters_;
   BasicBlock* current_block_;
 
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);
