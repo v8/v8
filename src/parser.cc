@@ -1073,7 +1073,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       // unchanged if the property already exists.
       InsertSloppyBlockFunctionVarBindings(scope, &ok);
     }
-    if (ok && (is_strict(language_mode()) || allow_harmony_sloppy())) {
+    if (ok && (is_strict(language_mode()) || allow_harmony_sloppy() ||
+               allow_harmony_destructuring())) {
       CheckConflictingVarDeclarations(scope_, &ok);
     }
 
@@ -3157,21 +3158,79 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   Scope* catch_scope = NULL;
   Variable* catch_variable = NULL;
   Block* catch_block = NULL;
-  const AstRawString* name = NULL;
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
 
     Expect(Token::LPAREN, CHECK_OK);
     catch_scope = NewScope(scope_, CATCH_SCOPE);
     catch_scope->set_start_position(scanner()->location().beg_pos);
-    name = ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
 
-    Expect(Token::RPAREN, CHECK_OK);
+    ExpressionClassifier pattern_classifier;
+    Expression* pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+    ValidateBindingPattern(&pattern_classifier, CHECK_OK);
+
+    const AstRawString* name = ast_value_factory()->dot_catch_string();
+    bool is_simple = pattern->IsVariableProxy();
+    if (is_simple) {
+      auto proxy = pattern->AsVariableProxy();
+      scope_->RemoveUnresolved(proxy);
+      name = proxy->raw_name();
+    }
 
     catch_variable = catch_scope->DeclareLocal(name, VAR, kCreatedInitialized,
                                                Variable::NORMAL);
-    BlockState block_state(&scope_, catch_scope);
-    catch_block = ParseBlock(NULL, CHECK_OK);
+
+    Expect(Token::RPAREN, CHECK_OK);
+
+    {
+      BlockState block_state(&scope_, catch_scope);
+
+      // TODO(adamk): Make a version of ParseScopedBlock that takes a scope and
+      // a block.
+      catch_block =
+          factory()->NewBlock(nullptr, 16, false, RelocInfo::kNoPosition);
+      Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
+
+      block_scope->set_start_position(scanner()->location().beg_pos);
+      {
+        BlockState block_state(&scope_, block_scope);
+        Target target(&this->target_stack_, catch_block);
+
+        if (!is_simple) {
+          DeclarationDescriptor descriptor;
+          descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
+          descriptor.parser = this;
+          descriptor.declaration_scope = scope_;
+          descriptor.scope = scope_;
+          descriptor.hoist_scope = nullptr;
+          descriptor.mode = LET;
+          descriptor.is_const = false;
+          descriptor.needs_init = true;
+          descriptor.declaration_pos = pattern->position();
+          descriptor.initialization_pos = pattern->position();
+          descriptor.init_op = Token::INIT_LET;
+
+          DeclarationParsingResult::Declaration decl(
+              pattern, pattern->position(),
+              factory()->NewVariableProxy(catch_variable));
+
+          PatternRewriter::DeclareAndInitializeVariables(
+              catch_block, &descriptor, &decl, nullptr, CHECK_OK);
+        }
+
+        Expect(Token::LBRACE, CHECK_OK);
+        while (peek() != Token::RBRACE) {
+          Statement* stat = ParseStatementListItem(CHECK_OK);
+          if (stat && !stat->IsEmpty()) {
+            catch_block->statements()->Add(stat, zone());
+          }
+        }
+        Consume(Token::RBRACE);
+      }
+      block_scope->set_end_position(scanner()->location().end_pos);
+      block_scope = block_scope->FinalizeBlockScope();
+      catch_block->set_scope(block_scope);
+    }
 
     catch_scope->set_end_position(scanner()->location().end_pos);
     tok = peek();
@@ -4371,7 +4430,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_sloppy(language_mode) && allow_harmony_sloppy_function()) {
       InsertSloppyBlockFunctionVarBindings(scope, CHECK_OK);
     }
-    if (is_strict(language_mode) || allow_harmony_sloppy()) {
+    if (is_strict(language_mode) || allow_harmony_sloppy() ||
+        allow_harmony_destructuring()) {
       CheckConflictingVarDeclarations(scope, CHECK_OK);
     }
   }
