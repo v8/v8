@@ -328,9 +328,8 @@ base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
 }
 
 
-bool CompilationInfo::MustReplaceUndefinedReceiverWithGlobalProxy() {
-  return is_sloppy(language_mode()) && !is_native() &&
-         scope()->has_this_declaration() && scope()->receiver()->is_used();
+bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
+  return is_sloppy(language_mode()) && !is_native();
 }
 
 

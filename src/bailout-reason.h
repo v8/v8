@@ -175,6 +175,8 @@ namespace internal {
   V(kRegisterWasClobbered, "Register was clobbered")                           \
   V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
+  V(kSloppyFunctionExpectsJSReceiverReceiver,                                  \
+    "Sloppy function expects JSReceiver as receiver.")                         \
   V(kSmiAdditionOverflow, "Smi addition overflow")                             \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
   V(kSpread, "Spread in array literal")                                        \

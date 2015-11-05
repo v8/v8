@@ -326,7 +326,7 @@ class CompilationInfo {
   }
   bool ShouldEnsureSpaceForLazyDeopt() { return !IsStub(); }
 
-  bool MustReplaceUndefinedReceiverWithGlobalProxy();
+  bool ExpectsJSReceiverAsReceiver();
 
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();

@@ -526,14 +526,6 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
     env.RawParameterBind(0, jsgraph()->TheHoleConstant());
   }
 
-  // Build receiver check for sloppy mode if necessary.
-  // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
-  if (scope->has_this_declaration()) {
-    Node* original_receiver = env.RawParameterLookup(0);
-    Node* patched_receiver = BuildPatchReceiverToGlobalProxy(original_receiver);
-    env.RawParameterBind(0, patched_receiver);
-  }
-
   // Build local context only if there are context allocated variables.
   if (info()->num_heap_slots() > 0) {
     // Push a new inner context scope for the current activation.
@@ -3109,28 +3101,6 @@ Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {
   }
   Node* value = NewNode(op, arity, all);
   return value;
-}
-
-
-Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
-  // Sloppy mode functions and builtins need to replace the receiver with the
-  // global proxy when called as functions (without an explicit receiver
-  // object). Otherwise there is nothing left to do here.
-  if (info()->MustReplaceUndefinedReceiverWithGlobalProxy()) {
-    IfBuilder receiver_check(this);
-    Node* undefined = jsgraph()->UndefinedConstant();
-    Node* check = NewNode(javascript()->StrictEqual(), receiver, undefined);
-    receiver_check.If(check);
-    receiver_check.Then();
-    Node* proxy = BuildLoadGlobalProxy();
-    environment()->Push(proxy);
-    receiver_check.Else();
-    environment()->Push(receiver);
-    receiver_check.End();
-    return environment()->Pop();
-  } else {
-    return receiver;
-  }
 }
 
 

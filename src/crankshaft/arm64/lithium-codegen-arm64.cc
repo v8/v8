@@ -628,22 +628,6 @@ bool LCodeGen::GeneratePrologue() {
       __ Debug("stop-at", __LINE__, BREAK);
     }
 #endif
-
-    // Sloppy mode functions and builtins need to replace the receiver with the
-    // global proxy when called as functions (without an explicit receiver
-    // object).
-    if (info()->MustReplaceUndefinedReceiverWithGlobalProxy()) {
-      Label ok;
-      int receiver_offset = info_->scope()->num_parameters() * kXRegSize;
-      __ Peek(x10, receiver_offset);
-      __ JumpIfNotRoot(x10, Heap::kUndefinedValueRootIndex, &ok);
-
-      __ Ldr(x10, GlobalObjectMemOperand());
-      __ Ldr(x10, FieldMemOperand(x10, JSGlobalObject::kGlobalProxyOffset));
-      __ Poke(x10, receiver_offset);
-
-      __ Bind(&ok);
-    }
   }
 
   DCHECK(__ StackPointer().Is(jssp));

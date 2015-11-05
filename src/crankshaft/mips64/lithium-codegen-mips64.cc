@@ -113,24 +113,6 @@ bool LCodeGen::GeneratePrologue() {
     // cp: Callee's context.
     // fp: Caller's frame pointer.
     // lr: Caller's pc.
-
-    // Sloppy mode functions and builtins need to replace the receiver with the
-    // global proxy when called as functions (without an explicit receiver
-    // object).
-    if (info()->MustReplaceUndefinedReceiverWithGlobalProxy()) {
-      Label ok;
-      int receiver_offset = info_->scope()->num_parameters() * kPointerSize;
-      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-      __ ld(a2, MemOperand(sp, receiver_offset));
-      __ Branch(&ok, ne, a2, Operand(at));
-
-      __ ld(a2, GlobalObjectOperand());
-      __ ld(a2, FieldMemOperand(a2, JSGlobalObject::kGlobalProxyOffset));
-
-      __ sd(a2, MemOperand(sp, receiver_offset));
-
-      __ bind(&ok);
-    }
   }
 
   info()->set_prologue_offset(masm_->pc_offset());

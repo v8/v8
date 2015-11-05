@@ -116,22 +116,12 @@ void FullCodeGenerator::Generate() {
   }
 #endif
 
-  // Sloppy mode functions and builtins need to replace the receiver with the
-  // global proxy when called as functions (without an explicit receiver
-  // object).
-  if (info->MustReplaceUndefinedReceiverWithGlobalProxy()) {
-    Label ok;
+  if (FLAG_debug_code && info->ExpectsJSReceiverAsReceiver()) {
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ ldr(r2, MemOperand(sp, receiver_offset));
-    __ CompareRoot(r2, Heap::kUndefinedValueRootIndex);
-    __ b(ne, &ok);
-
-    __ ldr(r2, GlobalObjectOperand());
-    __ ldr(r2, FieldMemOperand(r2, JSGlobalObject::kGlobalProxyOffset));
-
-    __ str(r2, MemOperand(sp, receiver_offset));
-
-    __ bind(&ok);
+    __ AssertNotSmi(r2);
+    __ CompareObjectType(r2, r2, no_reg, FIRST_SPEC_OBJECT_TYPE);
+    __ Assert(ge, kSloppyFunctionExpectsJSReceiverReceiver);
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The

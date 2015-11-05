@@ -242,9 +242,6 @@ class AstGraphBuilder : public AstVisitor {
   // resulting node. The operand stack height remains the same, variables and
   // other dependencies tracked by the environment might be mutated though.
 
-  // Builder to create a receiver check for sloppy mode.
-  Node* BuildPatchReceiverToGlobalProxy(Node* receiver);
-
   // Builders to create local function, script and block contexts.
   Node* BuildLocalActivationContext(Node* context);
   Node* BuildLocalFunctionContext(Scope* scope);

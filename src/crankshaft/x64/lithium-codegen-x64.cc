@@ -125,24 +125,6 @@ bool LCodeGen::GeneratePrologue() {
       __ int3();
     }
 #endif
-
-    // Sloppy mode functions need to replace the receiver with the global proxy
-    // when called as functions (without an explicit receiver object).
-    if (info()->MustReplaceUndefinedReceiverWithGlobalProxy()) {
-      Label ok;
-      StackArgumentsAccessor args(rsp, scope()->num_parameters());
-      __ movp(rcx, args.GetReceiverOperand());
-
-      __ CompareRoot(rcx, Heap::kUndefinedValueRootIndex);
-      __ j(not_equal, &ok, Label::kNear);
-
-      __ movp(rcx, GlobalObjectOperand());
-      __ movp(rcx, FieldOperand(rcx, JSGlobalObject::kGlobalProxyOffset));
-
-      __ movp(args.GetReceiverOperand(), rcx);
-
-      __ bind(&ok);
-    }
   }
 
   info()->set_prologue_offset(masm_->pc_offset());
