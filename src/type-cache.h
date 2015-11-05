@@ -46,7 +46,13 @@ class TypeCache final {
   Type* const kZeroish =
       Type::Union(kSingletonZero, Type::MinusZeroOrNaN(), zone());
   Type* const kInteger = CreateRange(-V8_INFINITY, V8_INFINITY);
-  Type* const kWeakint = Type::Union(kInteger, Type::MinusZeroOrNaN(), zone());
+  Type* const kPositiveInteger = CreateRange(0.0, V8_INFINITY);
+  Type* const kIntegerOrMinusZero =
+      Type::Union(kInteger, Type::MinusZero(), zone());
+  Type* const kIntegerOrMinusZeroOrNaN =
+      Type::Union(kIntegerOrMinusZero, Type::NaN(), zone());
+
+  Type* const kPositiveSafeInteger = CreateRange(0.0, kMaxSafeInteger);
 
   Type* const kIntegral32 = Type::Union(kInt32, kUint32, zone());
 

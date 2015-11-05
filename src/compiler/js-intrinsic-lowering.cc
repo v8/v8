@@ -6,13 +6,16 @@
 
 #include <stack>
 
+#include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
+#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +23,10 @@ namespace compiler {
 
 JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
                                          DeoptimizationMode mode)
-    : AdvancedReducer(editor), jsgraph_(jsgraph), mode_(mode) {}
+    : AdvancedReducer(editor),
+      jsgraph_(jsgraph),
+      mode_(mode),
+      type_cache_(TypeCache::Get()) {}
 
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
@@ -91,8 +97,20 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGetTypeFeedbackVector(node);
     case Runtime::kInlineGetCallerJSFunction:
       return ReduceGetCallerJSFunction(node);
+    case Runtime::kInlineToInteger:
+      return ReduceToInteger(node);
+    case Runtime::kInlineToLength:
+      return ReduceToLength(node);
+    case Runtime::kInlineToName:
+      return ReduceToName(node);
+    case Runtime::kInlineToNumber:
+      return ReduceToNumber(node);
     case Runtime::kInlineToObject:
       return ReduceToObject(node);
+    case Runtime::kInlineToPrimitive:
+      return ReduceToPrimitive(node);
+    case Runtime::kInlineToString:
+      return ReduceToString(node);
     case Runtime::kInlineThrowNotDateError:
       return ReduceThrowNotDateError(node);
     case Runtime::kInlineCallFunction:
@@ -523,8 +541,91 @@ Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
 }
 
 
+Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Type* value_type = NodeProperties::GetType(value);
+  if (value_type->Is(type_cache().kIntegerOrMinusZero)) {
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+
+Reduction JSIntrinsicLowering::ReduceToName(Node* node) {
+  NodeProperties::ChangeOp(node, javascript()->ToName());
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceToNumber(Node* node) {
+  NodeProperties::ChangeOp(node, javascript()->ToNumber());
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceToLength(Node* node) {
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Type* value_type = NodeProperties::GetType(value);
+  if (value_type->Is(type_cache().kIntegerOrMinusZero)) {
+    if (value_type->Max() <= 0.0) {
+      value = jsgraph()->ZeroConstant();
+    } else if (value_type->Min() >= kMaxSafeInteger) {
+      value = jsgraph()->Constant(kMaxSafeInteger);
+    } else {
+      if (value_type->Min() <= 0.0) {
+        value = graph()->NewNode(
+            common()->Select(kMachAnyTagged),
+            graph()->NewNode(simplified()->NumberLessThanOrEqual(), value,
+                             jsgraph()->ZeroConstant()),
+            jsgraph()->ZeroConstant(), value);
+        value_type = Type::Range(0.0, value_type->Max(), graph()->zone());
+        NodeProperties::SetType(value, value_type);
+      }
+      if (value_type->Max() > kMaxSafeInteger) {
+        value = graph()->NewNode(
+            common()->Select(kMachAnyTagged),
+            graph()->NewNode(simplified()->NumberLessThanOrEqual(),
+                             jsgraph()->Constant(kMaxSafeInteger), value),
+            jsgraph()->Constant(kMaxSafeInteger), value);
+        value_type =
+            Type::Range(value_type->Min(), kMaxSafeInteger, graph()->zone());
+        NodeProperties::SetType(value, value_type);
+      }
+    }
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  Callable callable = CodeFactory::ToLength(isolate());
+  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0,
+      CallDescriptor::kNeedsFrameState, node->op()->properties());
+  node->InsertInput(graph()->zone(), 0,
+                    jsgraph()->HeapConstant(callable.code()));
+  NodeProperties::ChangeOp(node, common()->Call(desc));
+  return Changed(node);
+}
+
+
 Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->ToObject());
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceToPrimitive(Node* node) {
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Type* value_type = NodeProperties::GetType(value);
+  if (value_type->Is(Type::Primitive())) {
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+
+Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
+  NodeProperties::ChangeOp(node, javascript()->ToString());
   return Changed(node);
 }
 
@@ -589,6 +690,9 @@ Reduction JSIntrinsicLowering::ChangeToUndefined(Node* node, Node* effect) {
 
 
 Graph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
+
+
+Isolate* JSIntrinsicLowering::isolate() const { return jsgraph()->isolate(); }
 
 
 CommonOperatorBuilder* JSIntrinsicLowering::common() const {

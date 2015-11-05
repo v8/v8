@@ -464,6 +464,26 @@ TEST_F(JSTypedLoweringTest, JSToObjectWithReceiver) {
 
 
 // -----------------------------------------------------------------------------
+// JSToString
+
+
+TEST_F(JSTypedLoweringTest, JSToStringWithBoolean) {
+  Node* const input = Parameter(Type::Boolean(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToString(), input,
+                                        context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(
+      r.replacement(),
+      IsSelect(kMachAnyTagged, input, IsHeapConstant(factory()->true_string()),
+               IsHeapConstant(factory()->false_string())));
+}
+
+
+// -----------------------------------------------------------------------------
 // JSStrictEqual
 
 

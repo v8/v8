@@ -143,11 +143,6 @@ class JSBinopReduction final {
     node_->ReplaceInput(1, ConvertToUI32(right(), right_signedness));
   }
 
-  void ConvertInputsToString() {
-    node_->ReplaceInput(0, ConvertToString(left()));
-    node_->ReplaceInput(1, ConvertToString(right()));
-  }
-
   void SwapInputs() {
     Node* l = left();
     Node* r = right();
@@ -256,16 +251,6 @@ class JSBinopReduction final {
  private:
   JSTypedLowering* lowering_;  // The containing lowering instance.
   Node* node_;                 // The original node.
-
-  Node* ConvertToString(Node* node) {
-    // Avoid introducing too many eager ToString() operations.
-    Reduction reduced = lowering_->ReduceJSToStringInput(node);
-    if (reduced.Changed()) return reduced.replacement();
-    Node* n = graph()->NewNode(javascript()->ToString(), node, context(),
-                               effect(), control());
-    update_effect(n);
-    return n;
-  }
 
   Node* CreateFrameStateForLeftInput(Node* frame_state) {
     FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
@@ -820,13 +805,18 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
   if (input_type->Is(Type::String())) {
     return Changed(input);  // JSToString(x:string) => x
   }
+  if (input_type->Is(Type::Boolean())) {
+    return Replace(
+        graph()->NewNode(common()->Select(kMachAnyTagged), input,
+                         jsgraph()->HeapConstant(factory()->true_string()),
+                         jsgraph()->HeapConstant(factory()->false_string())));
+  }
   if (input_type->Is(Type::Undefined())) {
     return Replace(jsgraph()->HeapConstant(factory()->undefined_string()));
   }
   if (input_type->Is(Type::Null())) {
     return Replace(jsgraph()->HeapConstant(factory()->null_string()));
   }
-  // TODO(turbofan): js-typed-lowering of ToString(x:boolean)
   // TODO(turbofan): js-typed-lowering of ToString(x:number)
   return NoChange();
 }

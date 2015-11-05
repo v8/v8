@@ -240,6 +240,7 @@ namespace internal {
   V(enumerable_string, "enumerable")                       \
   V(Error_string, "Error")                                 \
   V(eval_string, "eval")                                   \
+  V(false_string, "false")                                 \
   V(float32x4_string, "float32x4")                         \
   V(Float32x4_string, "Float32x4")                         \
   V(for_api_string, "for_api")                             \
@@ -298,6 +299,7 @@ namespace internal {
   V(throw_string, "throw")                                 \
   V(toJSON_string, "toJSON")                               \
   V(toString_string, "toString")                           \
+  V(true_string, "true")                                   \
   V(uint16x8_string, "uint16x8")                           \
   V(Uint16x8_string, "Uint16x8")                           \
   V(uint32x4_string, "uint32x4")                           \

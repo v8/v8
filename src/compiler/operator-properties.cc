@@ -59,9 +59,10 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSCreateWithContext:
 
     // Conversions
-    case IrOpcode::kJSToObject:
-    case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToName:
+    case IrOpcode::kJSToNumber:
+    case IrOpcode::kJSToObject:
+    case IrOpcode::kJSToString:
 
     // Misc operations
     case IrOpcode::kJSConvertReceiver:
