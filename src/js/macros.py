@@ -73,6 +73,9 @@ define kSafeArgumentsLength = 0x800000;
 # 2^53 - 1
 define kMaxSafeInteger = 9007199254740991;
 
+# 2^32 - 1
+define kMaxUint32 = 4294967295;
+
 # Strict mode flags for passing to %SetProperty
 define kSloppyMode = 0;
 define kStrictMode = 1;

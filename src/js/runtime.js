@@ -210,7 +210,7 @@ function ConcatIterableToArray(target, iterable) {
 // argument might not be less than 2**32-1. ES2015 ToLength semantics mean that
 // this is a concern at basically all callsites.
 function AddIndexedProperty(obj, index, value) {
-  if (index === TO_UINT32(index)) {
+  if (index === TO_UINT32(index) && index !== kMaxUint32) {
     %AddElement(obj, index, value);
   } else {
     %AddNamedProperty(obj, TO_STRING(index), value, NONE);
