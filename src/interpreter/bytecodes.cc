@@ -182,18 +182,6 @@ bool Bytecodes::IsJumpConstant(Bytecode bytecode) {
 
 
 // static
-uint16_t Bytecodes::ShortOperandFromBytes(const uint8_t* bytes) {
-  return *reinterpret_cast<const uint16_t*>(bytes);
-}
-
-
-// static
-void Bytecodes::ShortOperandToBytes(uint16_t operand, uint8_t* bytes_out) {
-  *reinterpret_cast<uint16_t*>(bytes_out) = operand;
-}
-
-
-// static
 std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
                                 int parameter_count) {
   Vector<char> buf = Vector<char>::New(50);
@@ -225,7 +213,7 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
         os << "[" << static_cast<unsigned int>(*operand_start) << "]";
         break;
       case interpreter::OperandType::kIdx16: {
-        os << "[" << Bytecodes::ShortOperandFromBytes(operand_start) << "]";
+        os << "[" << ReadUnalignedUInt16(operand_start) << "]";
         break;
       }
       case interpreter::OperandType::kImm8:

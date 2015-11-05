@@ -126,7 +126,7 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t(&operands)[N]) {
         break;
       case OperandSize::kShort: {
         uint8_t operand_bytes[2];
-        Bytecodes::ShortOperandToBytes(operands[i], operand_bytes);
+        WriteUnalignedUInt16(operand_bytes, operands[i]);
         bytecodes()->insert(bytecodes()->end(), operand_bytes,
                             operand_bytes + 2);
         break;

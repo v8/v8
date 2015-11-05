@@ -328,12 +328,6 @@ class Bytecodes {
   // constant pool entry (OperandType::kIdx).
   static bool IsJumpConstant(Bytecode bytecode);
 
-  // Converts bytes[0] and bytes[1] to a 16 bit 'short' operand value.
-  static uint16_t ShortOperandFromBytes(const uint8_t* bytes);
-
-  // Converts 16 bit 'short' |operand| into bytes_out[0] and bytes_out[1].
-  static void ShortOperandToBytes(uint16_t operand, uint8_t* bytes_out);
-
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
                               int number_of_parameters);

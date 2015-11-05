@@ -210,8 +210,8 @@ static void CheckBytecodeArrayEqual(const ExpectedSnippet<T, C>& expected,
               static_cast<uint32_t>(expected.bytecode[operand_index]);
           break;
         case OperandSize::kShort:
-          expected_operand = Bytecodes::ShortOperandFromBytes(
-              &expected.bytecode[operand_index]);
+          expected_operand =
+              ReadUnalignedUInt16(&expected.bytecode[operand_index]);
           break;
         default:
           UNREACHABLE();

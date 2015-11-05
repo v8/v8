@@ -48,7 +48,7 @@ uint32_t BytecodeArrayIterator::GetRawOperand(int operand_index,
     case OperandSize::kByte:
       return static_cast<uint32_t>(*operand_start);
     case OperandSize::kShort:
-      return Bytecodes::ShortOperandFromBytes(operand_start);
+      return ReadUnalignedUInt16(operand_start);
   }
 }
 
