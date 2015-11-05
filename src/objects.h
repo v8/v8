@@ -1637,43 +1637,66 @@ class HeapObject: public Object {
 };
 
 
+// This is the base class for object's body descriptors.
+class BodyDescriptorBase {
+ protected:
+  static inline void IterateBodyImpl(HeapObject* obj, int start_offset,
+                                     int end_offset, ObjectVisitor* v);
+
+  template <typename StaticVisitor>
+  static inline void IterateBodyImpl(HeapObject* obj, int start_offset,
+                                     int end_offset);
+};
+
+
 // This class describes a body of an object of a fixed size
 // in which all pointer fields are located in the [start_offset, end_offset)
 // interval.
-template<int start_offset, int end_offset, int size>
-class FixedBodyDescriptor {
+template <int start_offset, int end_offset, int size>
+class FixedBodyDescriptor : public BodyDescriptorBase {
  public:
   static const int kStartOffset = start_offset;
   static const int kEndOffset = end_offset;
   static const int kSize = size;
 
-  static inline void IterateBody(HeapObject* obj, ObjectVisitor* v);
+  static inline void IterateBody(HeapObject* obj, ObjectVisitor* v) {
+    IterateBodyImpl(obj, start_offset, end_offset, v);
+  }
 
-  template<typename StaticVisitor>
+  template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj) {
-    StaticVisitor::VisitPointers(HeapObject::RawField(obj, start_offset),
-                                 HeapObject::RawField(obj, end_offset));
+    IterateBodyImpl<StaticVisitor>(obj, start_offset, end_offset);
+  }
+};
+
+
+// This base class describes a body of an object of a variable size
+// in which all pointer fields are located in the [start_offset, object_size)
+// interval.
+template <int start_offset>
+class FlexibleBodyDescriptorBase : public BodyDescriptorBase {
+ public:
+  static const int kStartOffset = start_offset;
+
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IterateBodyImpl(obj, start_offset, object_size, v);
+  }
+
+  template <typename StaticVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size) {
+    IterateBodyImpl<StaticVisitor>(obj, start_offset, object_size);
   }
 };
 
 
 // This class describes a body of an object of a variable size
 // in which all pointer fields are located in the [start_offset, object_size)
-// interval.
-template<int start_offset>
-class FlexibleBodyDescriptor {
+// interval. The size of the object is taken from the map.
+template <int start_offset>
+class FlexibleBodyDescriptor : public FlexibleBodyDescriptorBase<start_offset> {
  public:
-  static const int kStartOffset = start_offset;
-
-  static inline void IterateBody(HeapObject* obj,
-                                 int object_size,
-                                 ObjectVisitor* v);
-
-  template<typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    StaticVisitor::VisitPointers(HeapObject::RawField(obj, start_offset),
-                                 HeapObject::RawField(obj, object_size));
-  }
+  static inline int SizeOf(Map* map, HeapObject* object);
 };
 
 
@@ -2477,10 +2500,7 @@ class JSObject: public JSReceiver {
 
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
 
-  class BodyDescriptor : public FlexibleBodyDescriptor<kPropertiesOffset> {
-   public:
-    static inline int SizeOf(Map* map, HeapObject* object);
-  };
+  typedef FlexibleBodyDescriptor<kPropertiesOffset> BodyDescriptor;
 
   Context* GetCreationContext();
 
@@ -2659,7 +2679,7 @@ class FixedArray: public FixedArrayBase {
   // object, the prefix of this array is sorted.
   void SortPairs(FixedArray* numbers, uint32_t len);
 
-  class BodyDescriptor : public FlexibleBodyDescriptor<kHeaderSize> {
+  class BodyDescriptor : public FlexibleBodyDescriptorBase<kHeaderSize> {
    public:
     static inline int SizeOf(Map* map, HeapObject* object);
   };
@@ -10713,11 +10733,7 @@ class ObjectVisitor BASE_EMBEDDED {
 };
 
 
-class StructBodyDescriptor : public
-  FlexibleBodyDescriptor<HeapObject::kHeaderSize> {
- public:
-  static inline int SizeOf(Map* map, HeapObject* object);
-};
+typedef FlexibleBodyDescriptor<HeapObject::kHeaderSize> StructBodyDescriptor;
 
 
 // BooleanBit is a helper class for setting and getting a bit in an integer.

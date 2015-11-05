@@ -7841,7 +7841,8 @@ Relocatable::~Relocatable() {
 
 
 // static
-int JSObject::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
+template <int start_offset>
+int FlexibleBodyDescriptor<start_offset>::SizeOf(Map* map, HeapObject* object) {
   return map->instance_size();
 }
 
@@ -7849,12 +7850,6 @@ int JSObject::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
 // static
 int FixedArray::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
   return SizeFor(reinterpret_cast<FixedArray*>(object)->synchronized_length());
-}
-
-
-// static
-int StructBodyDescriptor::SizeOf(Map* map, HeapObject* object) {
-  return map->instance_size();
 }
 
 
@@ -7914,48 +7909,54 @@ void ExternalTwoByteString::ExternalTwoByteStringIterateBody() {
 }
 
 
-static inline void IterateBodyUsingLayoutDescriptor(HeapObject* object,
-                                                    int start_offset,
-                                                    int end_offset,
-                                                    ObjectVisitor* v) {
-  DCHECK(FLAG_unbox_double_fields);
-  DCHECK(IsAligned(start_offset, kPointerSize) &&
-         IsAligned(end_offset, kPointerSize));
+void BodyDescriptorBase::IterateBodyImpl(HeapObject* obj, int start_offset,
+                                         int end_offset, ObjectVisitor* v) {
+  if (!FLAG_unbox_double_fields || obj->map()->HasFastPointerLayout()) {
+    v->VisitPointers(HeapObject::RawField(obj, start_offset),
+                     HeapObject::RawField(obj, end_offset));
+  } else {
+    DCHECK(FLAG_unbox_double_fields);
+    DCHECK(IsAligned(start_offset, kPointerSize) &&
+           IsAligned(end_offset, kPointerSize));
 
-  LayoutDescriptorHelper helper(object->map());
-  DCHECK(!helper.all_fields_tagged());
-
-  for (int offset = start_offset; offset < end_offset; offset += kPointerSize) {
-    // Visit all tagged fields.
-    if (helper.IsTagged(offset)) {
-      v->VisitPointer(HeapObject::RawField(object, offset));
+    LayoutDescriptorHelper helper(obj->map());
+    DCHECK(!helper.all_fields_tagged());
+    for (int offset = start_offset; offset < end_offset;) {
+      int end_of_region_offset;
+      if (helper.IsTagged(offset, end_offset, &end_of_region_offset)) {
+        v->VisitPointers(HeapObject::RawField(obj, offset),
+                         HeapObject::RawField(obj, end_of_region_offset));
+      }
+      offset = end_of_region_offset;
     }
   }
 }
 
 
-template<int start_offset, int end_offset, int size>
-void FixedBodyDescriptor<start_offset, end_offset, size>::IterateBody(
-    HeapObject* obj,
-    ObjectVisitor* v) {
+template <typename StaticVisitor>
+void BodyDescriptorBase::IterateBodyImpl(HeapObject* obj, int start_offset,
+                                         int end_offset) {
+  Heap* heap = obj->GetHeap();
   if (!FLAG_unbox_double_fields || obj->map()->HasFastPointerLayout()) {
-    v->VisitPointers(HeapObject::RawField(obj, start_offset),
-                     HeapObject::RawField(obj, end_offset));
+    StaticVisitor::VisitPointers(heap, obj,
+                                 HeapObject::RawField(obj, start_offset),
+                                 HeapObject::RawField(obj, end_offset));
   } else {
-    IterateBodyUsingLayoutDescriptor(obj, start_offset, end_offset, v);
-  }
-}
+    DCHECK(FLAG_unbox_double_fields);
+    DCHECK(IsAligned(start_offset, kPointerSize) &&
+           IsAligned(end_offset, kPointerSize));
 
-
-template<int start_offset>
-void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
-                                                       int object_size,
-                                                       ObjectVisitor* v) {
-  if (!FLAG_unbox_double_fields || obj->map()->HasFastPointerLayout()) {
-    v->VisitPointers(HeapObject::RawField(obj, start_offset),
-                     HeapObject::RawField(obj, object_size));
-  } else {
-    IterateBodyUsingLayoutDescriptor(obj, start_offset, object_size, v);
+    LayoutDescriptorHelper helper(obj->map());
+    DCHECK(!helper.all_fields_tagged());
+    for (int offset = start_offset; offset < end_offset;) {
+      int end_of_region_offset;
+      if (helper.IsTagged(offset, end_offset, &end_of_region_offset)) {
+        StaticVisitor::VisitPointers(
+            heap, obj, HeapObject::RawField(obj, offset),
+            HeapObject::RawField(obj, end_of_region_offset));
+      }
+      offset = end_of_region_offset;
+    }
   }
 }
 
