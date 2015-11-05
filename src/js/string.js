@@ -19,6 +19,7 @@ var MakeRangeError;
 var MakeTypeError;
 var RegExpExec;
 var RegExpExecNoTests;
+var regExpFlagsSymbol = utils.ImportNow("regexp_flags_symbol");
 var RegExpLastMatchInfo;
 
 utils.Import(function(from) {
