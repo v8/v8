@@ -199,8 +199,6 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring)
   V(harmony_unicode_regexps, "harmony unicode regexps")               \
   V(harmony_reflect, "harmony Reflect API")                           \
   V(harmony_sloppy_function, "harmony sloppy function block scoping") \
-  V(harmony_destructuring, "harmony destructuring")                   \
-  V(harmony_default_parameters, "harmony default parameters")         \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
   V(harmony_simd, "harmony simd")                                     \
   V(harmony_do_expressions, "harmony do-expressions")                 \
@@ -208,6 +206,8 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                     \
+  V(harmony_default_parameters, "harmony default parameters") \
+  V(harmony_destructuring, "harmony destructuring")           \
   V(harmony_regexps, "harmony regular expression extensions") \
   V(harmony_tostring, "harmony toString")                     \
   V(harmony_sloppy, "harmony features in sloppy mode")        \

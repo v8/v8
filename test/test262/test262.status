@@ -184,19 +184,8 @@
   # This should work as soon as rest parameters are re-implemented via desaguring.
   'language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-rest': [PASS, FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=2160
-  'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-1': [FAIL],
-  'language/expressions/arrow-function/syntax/arrowparameters-cover-initialize-2': [FAIL],
-  'language/expressions/object/method-definition/generator-super-prop-param': [FAIL],
-  'language/expressions/object/method-definition/name-param-init-yield': [FAIL],
-  'language/expressions/object/method-definition/name-super-prop-param': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=3673
   'language/statements/class/definition/basics': [FAIL],
-
-  # Destructuring
-  # https://code.google.com/p/v8/issues/detail?id=811
-  'language/statements/for-of/body-dstr-assign': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=3566
   'language/statements/for-of/body-dstr-assign-error': [FAIL],
@@ -247,9 +236,11 @@
   'built-ins/GeneratorPrototype/return/try-finally-within-finally': [FAIL],
   'built-ins/GeneratorPrototype/return/try-finally-within-try': [FAIL],
 
-   # https://code.google.com/p/v8/issues/detail?id=811
+  # Destructuring assignment
+  # https://code.google.com/p/v8/issues/detail?id=811
   'language/expressions/assignment/destructuring/*': [SKIP],
-  'language/default-parameters/*': [SKIP],
+  'language/statements/for-of/body-dstr-assign': [FAIL],
+
 
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
