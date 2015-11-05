@@ -52,6 +52,19 @@ struct Heap::StrongRootsList {
   StrongRootsList* next;
 };
 
+class IdleScavengeObserver : public InlineAllocationObserver {
+ public:
+  IdleScavengeObserver(Heap& heap, intptr_t step_size)
+      : InlineAllocationObserver(step_size), heap_(heap) {}
+
+  virtual void Step(int bytes_allocated) {
+    heap_.ScheduleIdleScavengeIfNeeded(bytes_allocated);
+  }
+
+ private:
+  Heap& heap_;
+};
+
 
 Heap::Heap()
     : amount_of_external_allocated_memory_(0),
@@ -129,6 +142,7 @@ Heap::Heap()
       memory_reducer_(nullptr),
       object_stats_(nullptr),
       scavenge_job_(nullptr),
+      idle_scavenge_observer_(nullptr),
       full_codegen_bytes_generated_(0),
       crankshaft_codegen_bytes_generated_(0),
       new_space_allocation_counter_(0),
@@ -1719,8 +1733,9 @@ void Heap::Scavenge() {
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
 
-  new_space_.LowerInlineAllocationLimit(
-      new_space_.inline_allocation_limit_step());
+  // We start a new step without accounting the objects copied into to space
+  // as those are not allocations.
+  new_space_.UpdateInlineAllocationLimitStep();
 
   array_buffer_tracker()->FreeDead(true);
 
@@ -5022,17 +5037,6 @@ void Heap::DisableInlineAllocation() {
 }
 
 
-void Heap::LowerInlineAllocationLimit(intptr_t step) {
-  new_space()->LowerInlineAllocationLimit(step);
-}
-
-
-void Heap::ResetInlineAllocationLimit() {
-  new_space()->LowerInlineAllocationLimit(
-      ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
-}
-
-
 V8_DECLARE_ONCE(initialize_gc_once);
 
 static void InitializeGCOnce() {
@@ -5141,7 +5145,9 @@ bool Heap::SetUp() {
 
   mark_compact_collector()->SetUp();
 
-  ResetInlineAllocationLimit();
+  idle_scavenge_observer_ = new IdleScavengeObserver(
+      *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
+  new_space()->AddInlineAllocationObserver(idle_scavenge_observer_);
 
   return true;
 }
@@ -5239,6 +5245,10 @@ void Heap::TearDown() {
   if (FLAG_verify_predictable) {
     PrintAlloctionsHash();
   }
+
+  new_space()->RemoveInlineAllocationObserver(idle_scavenge_observer_);
+  delete idle_scavenge_observer_;
+  idle_scavenge_observer_ = nullptr;
 
   delete scavenge_collector_;
   scavenge_collector_ = nullptr;

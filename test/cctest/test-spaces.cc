@@ -792,3 +792,99 @@ UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
   }
   isolate->Dispose();
 }
+
+
+static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
+  AllocationResult allocation = space->AllocateRawUnaligned(size);
+  CHECK(!allocation.IsRetry());
+  HeapObject* filler = NULL;
+  CHECK(allocation.To(&filler));
+  space->heap()->CreateFillerObjectAt(filler->address(), size);
+  return filler;
+}
+
+class Observer : public InlineAllocationObserver {
+ public:
+  explicit Observer(intptr_t step_size)
+      : InlineAllocationObserver(step_size), count_(0) {}
+
+  virtual void Step(int bytes_allocated) { count_++; }
+
+  int count() const { return count_; }
+
+ private:
+  int count_;
+};
+
+
+UNINITIALIZED_TEST(InlineAllocationObserver) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::New(isolate)->Enter();
+
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+    NewSpace* new_space = i_isolate->heap()->new_space();
+
+    Observer observer1(128);
+    new_space->AddInlineAllocationObserver(&observer1);
+
+    // The observer should not get notified if we have only allocated less than
+    // 128 bytes.
+    AllocateUnaligned(new_space, 64);
+    CHECK_EQ(observer1.count(), 0);
+
+    // The observer should not get called even when we have allocated exactly
+    // 128 bytes.
+    AllocateUnaligned(new_space, 64);
+    CHECK_EQ(observer1.count(), 0);
+
+    // The next allocation gets the notification.
+    AllocateUnaligned(new_space, 8);
+    CHECK_EQ(observer1.count(), 1);
+
+    // Another >128 bytes should get another notification.
+    AllocateUnaligned(new_space, 136);
+    CHECK_EQ(observer1.count(), 2);
+
+    // Allocating a large object should get only one notification.
+    AllocateUnaligned(new_space, 1024);
+    CHECK_EQ(observer1.count(), 3);
+
+    // Allocating another 2048 bytes in small objects should get 12
+    // notifications.
+    for (int i = 0; i < 64; ++i) {
+      AllocateUnaligned(new_space, 32);
+    }
+    CHECK_EQ(observer1.count(), 15);
+
+    // Multiple observers should work.
+    Observer observer2(96);
+    new_space->AddInlineAllocationObserver(&observer2);
+
+    AllocateUnaligned(new_space, 2048);
+    CHECK_EQ(observer1.count(), 16);
+    CHECK_EQ(observer2.count(), 1);
+
+    AllocateUnaligned(new_space, 104);
+    CHECK_EQ(observer1.count(), 16);
+    CHECK_EQ(observer2.count(), 2);
+
+    // Callback should stop getting called after an observer is removed.
+    new_space->RemoveInlineAllocationObserver(&observer1);
+
+    AllocateUnaligned(new_space, 384);
+    CHECK_EQ(observer1.count(), 16);  // no more notifications.
+    CHECK_EQ(observer2.count(), 3);   // this one is still active.
+
+    new_space->RemoveInlineAllocationObserver(&observer2);
+    AllocateUnaligned(new_space, 384);
+    CHECK_EQ(observer1.count(), 16);
+    CHECK_EQ(observer2.count(), 3);
+  }
+  isolate->Dispose();
+}

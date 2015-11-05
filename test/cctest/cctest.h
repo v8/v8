@@ -525,11 +525,6 @@ static inline void ExpectUndefined(const char* code) {
 }
 
 
-static inline void DisableInlineAllocationSteps(v8::internal::NewSpace* space) {
-  space->LowerInlineAllocationLimit(0);
-}
-
-
 static inline void CheckDoubleEquals(double expected, double actual) {
   const double kEpsilon = 1e-10;
   CHECK_LE(expected, actual + kEpsilon);
@@ -557,7 +552,7 @@ static inline void CreatePadding(i::Heap* heap, int padding_size,
                          *heap->old_space()->allocation_top_address());
     CHECK(padding_size <= current_free_memory || current_free_memory == 0);
   } else {
-    DisableInlineAllocationSteps(heap->new_space());
+    heap->new_space()->DisableInlineAllocationSteps();
     int current_free_memory =
         static_cast<int>(*heap->new_space()->allocation_limit_address() -
                          *heap->new_space()->allocation_top_address());
@@ -587,7 +582,7 @@ static inline void CreatePadding(i::Heap* heap, int padding_size,
 
 // Helper function that simulates a full new-space in the heap.
 static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
-  DisableInlineAllocationSteps(space);
+  space->DisableInlineAllocationSteps();
   int space_remaining = static_cast<int>(*space->allocation_limit_address() -
                                          *space->allocation_top_address());
   if (space_remaining == 0) return false;
@@ -599,7 +594,7 @@ static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
 // Helper function that simulates a fill new-space in the heap.
 static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
                                         int extra_bytes) {
-  DisableInlineAllocationSteps(space);
+  space->DisableInlineAllocationSteps();
   int space_remaining = static_cast<int>(*space->allocation_limit_address() -
                                          *space->allocation_top_address());
   CHECK(space_remaining >= extra_bytes);

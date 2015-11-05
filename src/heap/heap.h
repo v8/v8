@@ -1896,13 +1896,6 @@ class Heap {
                                        double mutator_speed);
 
   // ===========================================================================
-  // Inline allocation. ========================================================
-  // ===========================================================================
-
-  void LowerInlineAllocationLimit(intptr_t step);
-  void ResetInlineAllocationLimit();
-
-  // ===========================================================================
   // Idle notification. ========================================================
   // ===========================================================================
 
@@ -2289,6 +2282,8 @@ class Heap {
 
   ScavengeJob* scavenge_job_;
 
+  InlineAllocationObserver* idle_scavenge_observer_;
+
   // These two counters are monotomically increasing and never reset.
   size_t full_codegen_bytes_generated_;
   size_t crankshaft_codegen_bytes_generated_;
@@ -2359,6 +2354,7 @@ class Heap {
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapIterator;
+  friend class IdleScavengeObserver;
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;

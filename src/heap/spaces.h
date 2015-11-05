@@ -2509,6 +2509,43 @@ class NewSpacePageIterator BASE_EMBEDDED {
   NewSpacePage* last_page_;
 };
 
+// -----------------------------------------------------------------------------
+// Allows observation of inline allocation in the new space.
+class InlineAllocationObserver {
+ public:
+  explicit InlineAllocationObserver(intptr_t step_size)
+      : step_size_(step_size), bytes_to_next_step_(step_size) {
+    DCHECK(step_size >= kPointerSize && (step_size & kHeapObjectTagMask) == 0);
+  }
+  virtual ~InlineAllocationObserver() {}
+
+ private:
+  intptr_t step_size() const { return step_size_; }
+
+  // Pure virtual method provided by the subclasses that gets called when more
+  // than step_size byte have been allocated.
+  virtual void Step(int bytes_allocated) = 0;
+
+  // Called each time the new space does an inline allocation step. This may be
+  // more frequently than the step_size we are monitoring (e.g. when there are
+  // multiple observers, or when page or space boundary is encountered.) The
+  // Step method is only called once more than step_size bytes have been
+  // allocated.
+  void InlineAllocationStep(int bytes_allocated) {
+    bytes_to_next_step_ -= bytes_allocated;
+    if (bytes_to_next_step_ <= 0) {
+      Step(static_cast<int>(step_size_ - bytes_to_next_step_));
+      bytes_to_next_step_ = step_size_;
+    }
+  }
+
+  intptr_t step_size_;
+  intptr_t bytes_to_next_step_;
+
+  friend class NewSpace;
+
+  DISALLOW_COPY_AND_ASSIGN(InlineAllocationObserver);
+};
 
 // -----------------------------------------------------------------------------
 // The young generation space.
@@ -2698,10 +2735,21 @@ class NewSpace : public Space {
   void ResetAllocationInfo();
 
   void UpdateInlineAllocationLimit(int size_in_bytes);
-  void LowerInlineAllocationLimit(intptr_t step) {
-    inline_allocation_limit_step_ = step;
+  void UpdateInlineAllocationLimitStep();
+
+  // Allows observation of inline allocation. The observer->Step() method gets
+  // called after every step_size bytes have been allocated (approximately).
+  // This works by adjusting the allocation limit to a lower value and adjusting
+  // it after each step.
+  void AddInlineAllocationObserver(InlineAllocationObserver* observer);
+
+  // Removes a previously installed observer.
+  void RemoveInlineAllocationObserver(InlineAllocationObserver* observer);
+
+  void DisableInlineAllocationSteps() {
+    inline_allocation_limit_step_ = 0;
+    top_on_previous_step_ = 0;
     UpdateInlineAllocationLimit(0);
-    top_on_previous_step_ = step ? allocation_info_.top() : 0;
   }
 
   // Get the extent of the inactive semispace (for use as a marking stack,
@@ -2771,10 +2819,6 @@ class NewSpace : public Space {
 
   bool IsFromSpaceCommitted() { return from_space_.is_committed(); }
 
-  inline intptr_t inline_allocation_limit_step() {
-    return inline_allocation_limit_step_;
-  }
-
   SemiSpace* active_space() { return &to_space_; }
 
  private:
@@ -2800,11 +2844,13 @@ class NewSpace : public Space {
   // mark-compact collection.
   AllocationInfo allocation_info_;
 
-  // When incremental marking is active we will set allocation_info_.limit
-  // to be lower than actual limit and then will gradually increase it
-  // in steps to guarantee that we do incremental marking steps even
-  // when all allocation is performed from inlined generated code.
+  // When inline allocation stepping is active, either because of incremental
+  // marking or because of idle scavenge, we 'interrupt' inline allocation every
+  // once in a while. This is done by setting allocation_info_.limit to be lower
+  // than the actual limit and and increasing it in steps to guarantee that the
+  // observers are notified periodically.
   intptr_t inline_allocation_limit_step_;
+  List<InlineAllocationObserver*> inline_allocation_observers_;
 
   Address top_on_previous_step_;
 
@@ -2814,8 +2860,7 @@ class NewSpace : public Space {
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
 
   // If we are doing inline allocation in steps, this method performs the 'step'
-  // operation. Right now incremental marking is the only consumer of inline
-  // allocation steps. top is the memory address of the bump pointer at the last
+  // operation. top is the memory address of the bump pointer at the last
   // inline allocation (i.e. it determines the numbers of bytes actually
   // allocated since the last step.) new_top is the address of the bump pointer
   // where the next byte is going to be allocated from. top and new_top may be

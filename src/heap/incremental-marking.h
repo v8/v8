@@ -8,6 +8,7 @@
 #include "src/cancelable-task.h"
 #include "src/execution.h"
 #include "src/heap/incremental-marking-job.h"
+#include "src/heap/spaces.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -214,6 +215,21 @@ class IncrementalMarking {
   }
 
  private:
+  class Observer : public InlineAllocationObserver {
+   public:
+    Observer(IncrementalMarking& incremental_marking, intptr_t step_size)
+        : InlineAllocationObserver(step_size),
+          incremental_marking_(incremental_marking) {}
+
+    virtual void Step(int bytes_allocated) {
+      incremental_marking_.Step(bytes_allocated,
+                                IncrementalMarking::GC_VIA_STACK_GUARD);
+    }
+
+   private:
+    IncrementalMarking& incremental_marking_;
+  };
+
   int64_t SpaceLeftInOldSpace();
 
   void SpeedUp();
@@ -247,6 +263,8 @@ class IncrementalMarking {
   void IncrementIdleMarkingDelayCounter();
 
   Heap* heap_;
+
+  Observer observer_;
 
   State state_;
   bool is_compacting_;
