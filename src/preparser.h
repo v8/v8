@@ -2246,11 +2246,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
   //   TemplateLiteral
   //   do Block
 
-  int beg_pos = scanner()->peek_location().beg_pos;
-  int end_pos = scanner()->peek_location().end_pos;
-  ExpressionT result = this->EmptyExpression();
-  Token::Value token = peek();
-  switch (token) {
+  int beg_pos = peek_position();
+  switch (peek()) {
     case Token::THIS: {
       BindingPatternUnexpectedToken(classifier);
       Consume(Token::THIS);
@@ -2260,29 +2257,22 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         if (IsClassConstructor(function_state_->kind())) {
           ReportMessage(MessageTemplate::kStrongConstructorThis);
           *ok = false;
-          break;
+          return this->EmptyExpression();
         }
       }
-      result = this->ThisExpression(scope_, factory(), beg_pos);
-      break;
+      return this->ThisExpression(scope_, factory(), beg_pos);
     }
 
     case Token::NULL_LITERAL:
     case Token::TRUE_LITERAL:
     case Token::FALSE_LITERAL:
       BindingPatternUnexpectedToken(classifier);
-      Next();
-      result =
-          this->ExpressionFromLiteral(token, beg_pos, scanner(), factory());
-      break;
+      return this->ExpressionFromLiteral(Next(), beg_pos, scanner(), factory());
     case Token::SMI:
     case Token::NUMBER:
       classifier->RecordBindingPatternError(
           scanner()->peek_location(), MessageTemplate::kUnexpectedTokenNumber);
-      Next();
-      result =
-          this->ExpressionFromLiteral(token, beg_pos, scanner(), factory());
-      break;
+      return this->ExpressionFromLiteral(Next(), beg_pos, scanner(), factory());
 
     case Token::IDENTIFIER:
     case Token::LET:
@@ -2291,46 +2281,40 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
       IdentifierT name = ParseAndClassifyIdentifier(classifier, CHECK_OK);
-      result = this->ExpressionFromIdentifier(name, beg_pos, end_pos, scope_,
-                                              factory());
-      break;
+      return this->ExpressionFromIdentifier(
+          name, beg_pos, scanner()->location().end_pos, scope_, factory());
     }
 
     case Token::STRING: {
       classifier->RecordBindingPatternError(
           scanner()->peek_location(), MessageTemplate::kUnexpectedTokenString);
       Consume(Token::STRING);
-      result = this->ExpressionFromString(beg_pos, scanner(), factory());
-      break;
+      return this->ExpressionFromString(beg_pos, scanner(), factory());
     }
 
     case Token::ASSIGN_DIV:
       classifier->RecordBindingPatternError(
           scanner()->peek_location(), MessageTemplate::kUnexpectedTokenRegExp);
-      result = this->ParseRegExpLiteral(true, classifier, CHECK_OK);
-      break;
+      return this->ParseRegExpLiteral(true, classifier, ok);
 
     case Token::DIV:
       classifier->RecordBindingPatternError(
           scanner()->peek_location(), MessageTemplate::kUnexpectedTokenRegExp);
-      result = this->ParseRegExpLiteral(false, classifier, CHECK_OK);
-      break;
+      return this->ParseRegExpLiteral(false, classifier, ok);
 
     case Token::LBRACK:
       if (!allow_harmony_destructuring()) {
         BindingPatternUnexpectedToken(classifier);
       }
-      result = this->ParseArrayLiteral(classifier, CHECK_OK);
-      break;
+      return this->ParseArrayLiteral(classifier, ok);
 
     case Token::LBRACE:
       if (!allow_harmony_destructuring()) {
         BindingPatternUnexpectedToken(classifier);
       }
-      result = this->ParseObjectLiteral(classifier, CHECK_OK);
-      break;
+      return this->ParseObjectLiteral(classifier, ok);
 
-    case Token::LPAREN:
+    case Token::LPAREN: {
       // Arrow function formal parameters are either a single identifier or a
       // list of BindingPattern productions enclosed in parentheses.
       // Parentheses are not valid on the LHS of a BindingPattern, so we use the
@@ -2350,28 +2334,27 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         classifier->RecordBindingPatternError(scanner()->location(),
                                               MessageTemplate::kUnexpectedToken,
                                               Token::String(Token::RPAREN));
-        result = factory()->NewEmptyParentheses(beg_pos);
+        return factory()->NewEmptyParentheses(beg_pos);
       } else if (allow_harmony_rest_parameters() && Check(Token::ELLIPSIS)) {
         // (...x)=>x.  The continuation that looks for the => is in
         // ParseAssignmentExpression.
-        int ellipsis_pos = scanner()->location().beg_pos;
+        int ellipsis_pos = position();
         classifier->RecordExpressionError(scanner()->location(),
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::ELLIPSIS));
         classifier->RecordNonSimpleParameter();
         Scanner::Location expr_loc = scanner()->peek_location();
         Token::Value tok = peek();
-        result = this->ParseAssignmentExpression(true, classifier, CHECK_OK);
+        ExpressionT expr =
+            this->ParseAssignmentExpression(true, classifier, CHECK_OK);
         // Patterns are not allowed as rest parameters.  There is no way we can
         // succeed so go ahead and use the convenient ReportUnexpectedToken
         // interface.
-        if (!Traits::IsIdentifier(result)) {
+        if (!Traits::IsIdentifier(expr)) {
           ReportUnexpectedTokenAt(expr_loc, tok);
           *ok = false;
           return this->EmptyExpression();
         }
-        result = factory()->NewSpread(result, ellipsis_pos);
-
         if (peek() == Token::COMMA) {
           ReportMessageAt(scanner()->peek_location(),
                           MessageTemplate::kParamAfterRest);
@@ -2379,14 +2362,15 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
           return this->EmptyExpression();
         }
         Expect(Token::RPAREN, CHECK_OK);
-      } else {
-        // Heuristically try to detect immediately called functions before
-        // seeing the call parentheses.
-        parenthesized_function_ = (peek() == Token::FUNCTION);
-        result = this->ParseExpression(true, classifier, CHECK_OK);
-        Expect(Token::RPAREN, CHECK_OK);
+        return factory()->NewSpread(expr, ellipsis_pos);
       }
-      break;
+      // Heuristically try to detect immediately called functions before
+      // seeing the call parentheses.
+      parenthesized_function_ = (peek() == Token::FUNCTION);
+      ExpressionT expr = this->ParseExpression(true, classifier, CHECK_OK);
+      Expect(Token::RPAREN, CHECK_OK);
+      return expr;
+    }
 
     case Token::CLASS: {
       BindingPatternUnexpectedToken(classifier);
@@ -2394,7 +2378,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
         ReportMessage(MessageTemplate::kSloppyLexical);
         *ok = false;
-        break;
+        return this->EmptyExpression();
       }
       int class_token_position = position();
       IdentifierT name = this->EmptyIdentifier();
@@ -2405,10 +2389,9 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
                                                    CHECK_OK);
         class_name_location = scanner()->location();
       }
-      result = this->ParseClassLiteral(name, class_name_location,
-                                       is_strict_reserved_name,
-                                       class_token_position, CHECK_OK);
-      break;
+      return this->ParseClassLiteral(name, class_name_location,
+                                     is_strict_reserved_name,
+                                     class_token_position, ok);
     }
 
     case Token::TEMPLATE_SPAN:
@@ -2416,35 +2399,29 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       classifier->RecordBindingPatternError(
           scanner()->peek_location(),
           MessageTemplate::kUnexpectedTemplateString);
-      result = this->ParseTemplateLiteral(Traits::NoTemplateTag(), beg_pos,
-                                          classifier, CHECK_OK);
-      break;
+      return this->ParseTemplateLiteral(Traits::NoTemplateTag(), beg_pos,
+                                        classifier, ok);
 
     case Token::MOD:
       if (allow_natives() || extension_ != NULL) {
-        result = this->ParseV8Intrinsic(CHECK_OK);
-        break;
+        return this->ParseV8Intrinsic(ok);
       }
+      break;
 
     case Token::DO:
-      // TODO(caitp): reorganize ParsePrimaryExpression() to not require this
-      // extra `token == Token::DO` test due to potential fall-through
-      if (token == Token::DO && allow_harmony_do_expressions()) {
+      if (allow_harmony_do_expressions()) {
         BindingPatternUnexpectedToken(classifier);
-        result = Traits::ParseDoExpression(CHECK_OK);
-        break;
+        return Traits::ParseDoExpression(ok);
       }
-      // If we're not allowing special syntax we fall-through to the
-      // default case.
+      break;
 
-    default: {
-      Next();
-      ReportUnexpectedToken(token);
-      *ok = false;
-    }
+    default:
+      break;
   }
 
-  return result;
+  ReportUnexpectedToken(Next());
+  *ok = false;
+  return this->EmptyExpression();
 }
 
 
