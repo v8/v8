@@ -209,7 +209,6 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring)
   V(harmony_default_parameters, "harmony default parameters") \
   V(harmony_destructuring, "harmony destructuring")           \
   V(harmony_regexps, "harmony regular expression extensions") \
-  V(harmony_tostring, "harmony toString")                     \
   V(harmony_sloppy, "harmony features in sloppy mode")        \
   V(harmony_sloppy_let, "harmony let in sloppy mode")
 
@@ -220,6 +219,7 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring)
   V(harmony_rest_parameters, "harmony rest parameters")         \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \
   V(harmony_tolength, "harmony ToLength")                       \
+  V(harmony_tostring, "harmony toString")                       \
   V(harmony_completion, "harmony completion value semantics")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped

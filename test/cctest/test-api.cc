@@ -22038,11 +22038,21 @@ TEST(AccessCheckedToStringTag) {
   ExpectString("result", "[object hello]");
   ExpectString("object[Symbol.toStringTag]", "hello");
 
+  // ToString through the API should succeed too.
+  String::Utf8Value result_allowed(
+      object->ObjectProtoToString(env.local()).ToLocalChecked());
+  CHECK_EQ(0, strcmp(*result_allowed, "[object hello]"));
+
   // If access check fails, the value of @@toStringTag is ignored
   allowed_access = false;
   CompileRun("var result = Object.prototype.toString.call(object)");
   ExpectString("result", "[object Object]");
   ExpectTrue("object[Symbol.toStringTag] === undefined");
+
+  // ToString through the API should also fail.
+  String::Utf8Value result_denied(
+      object->ObjectProtoToString(env.local()).ToLocalChecked());
+  CHECK_EQ(0, strcmp(*result_denied, "[object Object]"));
 }
 
 
