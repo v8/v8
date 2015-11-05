@@ -12743,17 +12743,6 @@ void HOptimizedGraphBuilder::GenerateMathSqrt(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateLikely(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  Visit(call->arguments()->at(0));
-}
-
-
-void HOptimizedGraphBuilder::GenerateUnlikely(CallRuntime* call) {
-  return GenerateLikely(call);
-}
-
-
 void HOptimizedGraphBuilder::GenerateHasInPrototypeChain(CallRuntime* call) {
   DCHECK_EQ(2, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

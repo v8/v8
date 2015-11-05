@@ -55,7 +55,6 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceSeqStringGetChar(Node* node, String::Encoding encoding);
   Reduction ReduceSeqStringSetChar(Node* node, String::Encoding encoding);
   Reduction ReduceStringGetLength(Node* node);
-  Reduction ReduceUnLikely(Node* node, BranchHint hint);
   Reduction ReduceValueOf(Node* node);
   Reduction ReduceFixedArrayGet(Node* node);
   Reduction ReduceFixedArraySet(Node* node);

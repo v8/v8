@@ -2235,8 +2235,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(RegExpConstructResult)             \
   F(NumberToString)                    \
   F(DebugIsActive)                     \
-  F(Likely)                            \
-  F(Unlikely)                          \
   F(HasInPrototypeChain)               \
   /* Typed Arrays */                   \
   F(TypedArrayInitialize)              \
