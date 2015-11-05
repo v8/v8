@@ -11107,16 +11107,6 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
 
 
 void SharedFunctionInfo::ClearOptimizedCodeMap() {
-  FixedArray* code_map = FixedArray::cast(optimized_code_map());
-
-  // If the next map link slot is already used then the function was
-  // enqueued with code flushing and we remove it now.
-  if (!code_map->get(kNextMapIndex)->IsUndefined()) {
-    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
-    flusher->EvictOptimizedCodeMap(this);
-  }
-
-  DCHECK(code_map->get(kNextMapIndex)->IsUndefined());
   set_optimized_code_map(Smi::FromInt(0));
 }
 

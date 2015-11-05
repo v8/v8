@@ -6555,9 +6555,8 @@ class SharedFunctionInfo: public HeapObject {
                         Handle<Object> script_object);
 
   // Layout description of the optimized code map.
-  static const int kNextMapIndex = 0;
-  static const int kSharedCodeIndex = 1;
-  static const int kEntriesStart = 2;
+  static const int kSharedCodeIndex = 0;
+  static const int kEntriesStart = 1;
   static const int kContextOffset = 0;
   static const int kCachedCodeOffset = 1;
   static const int kLiteralsOffset = 2;

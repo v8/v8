@@ -263,10 +263,9 @@ class MarkingDeque {
 // CodeFlusher collects candidates for code flushing during marking and
 // processes those candidates after marking has completed in order to
 // reset those functions referencing code objects that would otherwise
-// be unreachable. Code objects can be referenced in three ways:
+// be unreachable. Code objects can be referenced in two ways:
 //    - SharedFunctionInfo references unoptimized code.
 //    - JSFunction references either unoptimized or optimized code.
-//    - OptimizedCodeMap references optimized code.
 // We are not allowed to flush unoptimized code for functions that got
 // optimized or inlined into optimized code, because we might bailout
 // into the unoptimized code again during deoptimization.
@@ -274,26 +273,21 @@ class CodeFlusher {
  public:
   explicit CodeFlusher(Isolate* isolate)
       : isolate_(isolate),
-        jsfunction_candidates_head_(NULL),
-        shared_function_info_candidates_head_(NULL),
-        optimized_code_map_holder_head_(NULL) {}
+        jsfunction_candidates_head_(nullptr),
+        shared_function_info_candidates_head_(nullptr) {}
 
   inline void AddCandidate(SharedFunctionInfo* shared_info);
   inline void AddCandidate(JSFunction* function);
-  inline void AddOptimizedCodeMap(SharedFunctionInfo* code_map_holder);
 
-  void EvictOptimizedCodeMap(SharedFunctionInfo* code_map_holder);
   void EvictCandidate(SharedFunctionInfo* shared_info);
   void EvictCandidate(JSFunction* function);
 
   void ProcessCandidates() {
-    ProcessOptimizedCodeMaps();
     ProcessSharedFunctionInfoCandidates();
     ProcessJSFunctionCandidates();
   }
 
   void EvictAllCandidates() {
-    EvictOptimizedCodeMaps();
     EvictJSFunctionCandidates();
     EvictSharedFunctionInfoCandidates();
   }
@@ -301,10 +295,8 @@ class CodeFlusher {
   void IteratePointersToFromSpace(ObjectVisitor* v);
 
  private:
-  void ProcessOptimizedCodeMaps();
   void ProcessJSFunctionCandidates();
   void ProcessSharedFunctionInfoCandidates();
-  void EvictOptimizedCodeMaps();
   void EvictJSFunctionCandidates();
   void EvictSharedFunctionInfoCandidates();
 
@@ -321,15 +313,9 @@ class CodeFlusher {
                                       SharedFunctionInfo* next_candidate);
   static inline void ClearNextCandidate(SharedFunctionInfo* candidate);
 
-  static inline SharedFunctionInfo* GetNextCodeMap(SharedFunctionInfo* holder);
-  static inline void SetNextCodeMap(SharedFunctionInfo* holder,
-                                    SharedFunctionInfo* next_holder);
-  static inline void ClearNextCodeMap(SharedFunctionInfo* holder);
-
   Isolate* isolate_;
   JSFunction* jsfunction_candidates_head_;
   SharedFunctionInfo* shared_function_info_candidates_head_;
-  SharedFunctionInfo* optimized_code_map_holder_head_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeFlusher);
 };
@@ -694,9 +680,13 @@ class MarkCompactCollector {
   // collections when incremental marking is aborted.
   void AbortWeakCollections();
 
-
   void ProcessAndClearWeakCells();
   void AbortWeakCells();
+
+  // After all reachable objects have been marked, those entries within
+  // optimized code maps that became unreachable are removed, potentially
+  // trimming or clearing out the entire optimized code map.
+  void ProcessAndClearOptimizedCodeMaps();
 
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for
