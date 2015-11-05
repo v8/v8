@@ -1098,36 +1098,8 @@
     function(){ eval("(class{foo(a, {}) {'use strict';}});") }, SyntaxError);
 })();
 
-
 (function TestLegacyConstDestructuringInForLoop() {
   var result;
   for (const {foo} of [{foo: 1}]) { result = foo; }
   assertEquals(1, result);
-})();
-
-
-(function TestCatch() {
-  "use strict";
-
-  // For testing proper scoping.
-  var foo = "hello", bar = "world", baz = 42;
-
-  try {
-    throw {foo: 1, bar: 2};
-  } catch ({foo, bar, baz = 3}) {
-    assertEquals(1, foo);
-    assertEquals(2, bar);
-    assertEquals(3, baz);
-  }
-
-  try {
-    throw [1, 2, 3];
-  } catch ([foo, ...bar]) {
-    assertEquals(1, foo);
-    assertEquals([2, 3], bar);
-  }
-
-  assertEquals("hello", foo);
-  assertEquals("world", bar);
-  assertEquals(42, baz);
 })();
