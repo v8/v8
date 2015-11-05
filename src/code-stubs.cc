@@ -893,11 +893,6 @@ void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
 }
 
 
-void CallFunctionStub::PrintName(std::ostream& os) const {  // NOLINT
-  os << "CallFunctionStub_Args" << argc();
-}
-
-
 void CallConstructStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "CallConstructStub";
   if (RecordCallTarget()) os << "_Recording";

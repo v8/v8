@@ -2395,12 +2395,9 @@ class HInvokeFunction final : public HBinaryCall {
 class HCallFunction final : public HBinaryCall {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallFunction, HValue*, int);
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(
-      HCallFunction, HValue*, int, CallFunctionFlags);
 
   HValue* context() const { return first(); }
   HValue* function() const { return second(); }
-  CallFunctionFlags function_flags() const { return function_flags_; }
 
   FeedbackVectorSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
@@ -2420,11 +2417,8 @@ class HCallFunction final : public HBinaryCall {
   int argument_delta() const override { return -argument_count(); }
 
  private:
-  HCallFunction(HValue* context, HValue* function, int argument_count,
-                CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS)
-      : HBinaryCall(context, function, argument_count),
-        function_flags_(flags) {}
-  CallFunctionFlags function_flags_;
+  HCallFunction(HValue* context, HValue* function, int argument_count)
+      : HBinaryCall(context, function, argument_count) {}
   Handle<TypeFeedbackVector> feedback_vector_;
   FeedbackVectorSlot slot_;
 };

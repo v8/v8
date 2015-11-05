@@ -286,10 +286,9 @@ class CallIC : public IC {
   void HandleMiss(Handle<Object> function);
 
   // Code generator routines.
-  static Handle<Code> initialize_stub(Isolate* isolate, int argc,
-                                      CallICState::CallType call_type);
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, int argc, CallICState::CallType call_type);
+  static Handle<Code> initialize_stub(Isolate* isolate, int argc);
+  static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate,
+                                                        int argc);
 
   static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };

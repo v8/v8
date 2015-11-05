@@ -23,12 +23,7 @@ class ICUtility : public AllStatic {
 
 class CallICState final BASE_EMBEDDED {
  public:
-  explicit CallICState(ExtraICState extra_ic_state);
-
-  enum CallType { METHOD, FUNCTION };
-
-  CallICState(int argc, CallType call_type)
-      : argc_(argc), call_type_(call_type) {}
+  explicit CallICState(int argc) : argc_(argc) {}
 
   ExtraICState GetExtraICState() const;
 
@@ -37,16 +32,11 @@ class CallICState final BASE_EMBEDDED {
                                                    const CallICState&));
 
   int arg_count() const { return argc_; }
-  CallType call_type() const { return call_type_; }
-
-  bool CallAsMethod() const { return call_type_ == METHOD; }
 
  private:
   class ArgcBits : public BitField<int, 0, Code::kArgumentsBits> {};
-  class CallTypeBits : public BitField<CallType, Code::kArgumentsBits, 1> {};
 
   const int argc_;
-  const CallType call_type_;
 };
 
 

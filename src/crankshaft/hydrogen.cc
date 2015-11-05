@@ -6589,7 +6589,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     if (info->NeedsWrappingFor(info->accessor())) {
       HValue* function = Add<HConstant>(info->accessor());
       PushArgumentsFromEnvironment(argument_count);
-      return New<HCallFunction>(function, argument_count, WRAP_AND_CALL);
+      return New<HCallFunction>(function, argument_count);
     } else if (FLAG_inline_accessors && can_inline_accessor) {
       bool success = info->IsLoad()
           ? TryInlineGetter(info->accessor(), info->map(), ast_id, return_id)
@@ -8169,10 +8169,9 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
       // use the regular CallFunctionStub for method calls to wrap the receiver.
       // TODO(verwaest): Support creation of value wrappers directly in
       // HWrapReceiver.
-      HInstruction* call = needs_wrapping
-          ? NewUncasted<HCallFunction>(
-              function, argument_count, WRAP_AND_CALL)
-          : BuildCallConstantFunction(target, argument_count);
+      HInstruction* call =
+          needs_wrapping ? NewUncasted<HCallFunction>(function, argument_count)
+                         : BuildCallConstantFunction(target, argument_count);
       PushArgumentsFromEnvironment(argument_count);
       AddInstruction(call);
       Drop(1);  // Drop the function.
@@ -8201,10 +8200,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     environment()->SetExpressionStackAt(0, receiver);
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
-    CallFunctionFlags flags = receiver->type().IsJSObject()
-        ? NO_CALL_FUNCTION_FLAGS : CALL_AS_METHOD;
-    HInstruction* call = New<HCallFunction>(
-        function, argument_count, flags);
+    HInstruction* call = New<HCallFunction>(function, argument_count);
 
     PushArgumentsFromEnvironment(argument_count);
 
@@ -9707,8 +9703,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         // the receiver.
         // TODO(verwaest): Support creation of value wrappers directly in
         // HWrapReceiver.
-        call = New<HCallFunction>(
-            function, argument_count, WRAP_AND_CALL);
+        call = New<HCallFunction>(function, argument_count);
       } else if (TryInlineCall(expr)) {
         return;
       } else {
@@ -9731,9 +9726,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       Push(receiver);
 
       CHECK_ALIVE(VisitExpressions(expr->arguments(), arguments_flag));
-      CallFunctionFlags flags = receiver->type().IsJSObject()
-          ? NO_CALL_FUNCTION_FLAGS : CALL_AS_METHOD;
-      call = New<HCallFunction>(function, argument_count, flags);
+      call = New<HCallFunction>(function, argument_count);
     }
     PushArgumentsFromEnvironment(argument_count);
 

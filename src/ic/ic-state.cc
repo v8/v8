@@ -16,21 +16,14 @@ void ICUtility::Clear(Isolate* isolate, Address address,
 }
 
 
-CallICState::CallICState(ExtraICState extra_ic_state)
-    : argc_(ArgcBits::decode(extra_ic_state)),
-      call_type_(CallTypeBits::decode(extra_ic_state)) {}
-
-
 ExtraICState CallICState::GetExtraICState() const {
-  ExtraICState extra_ic_state =
-      ArgcBits::encode(argc_) | CallTypeBits::encode(call_type_);
+  ExtraICState extra_ic_state = ArgcBits::encode(argc_);
   return extra_ic_state;
 }
 
 
 std::ostream& operator<<(std::ostream& os, const CallICState& s) {
   return os << "(args(" << s.arg_count() << "), "
-            << (s.call_type() == CallICState::METHOD ? "METHOD" : "FUNCTION")
             << ", ";
 }
 

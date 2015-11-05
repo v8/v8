@@ -58,19 +58,16 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(
 
 
 // static
-Callable CodeFactory::CallIC(Isolate* isolate, int argc,
-                             CallICState::CallType call_type) {
-  return Callable(CallIC::initialize_stub(isolate, argc, call_type),
+Callable CodeFactory::CallIC(Isolate* isolate, int argc) {
+  return Callable(CallIC::initialize_stub(isolate, argc),
                   CallFunctionWithFeedbackDescriptor(isolate));
 }
 
 
 // static
-Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
-                                            CallICState::CallType call_type) {
-  return Callable(
-      CallIC::initialize_stub_in_optimized_code(isolate, argc, call_type),
-      CallFunctionWithFeedbackAndVectorDescriptor(isolate));
+Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc) {
+  return Callable(CallIC::initialize_stub_in_optimized_code(isolate, argc),
+                  CallFunctionWithFeedbackAndVectorDescriptor(isolate));
 }
 
 
@@ -283,14 +280,6 @@ Callable CodeFactory::AllocateMutableHeapNumber(Isolate* isolate) {
 // static
 Callable CodeFactory::AllocateInNewSpace(Isolate* isolate) {
   AllocateInNewSpaceStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-
-// static
-Callable CodeFactory::CallFunction(Isolate* isolate, int argc,
-                                   CallFunctionFlags flags) {
-  CallFunctionStub stub(isolate, argc, flags);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

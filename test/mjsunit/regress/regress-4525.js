@@ -27,13 +27,11 @@ function check(x, value, type) {
 var o = construct(receiver);
 check(o.bar.call(123), Object(123), Number);
 check(o.bar.call("a"), Object("a"), String);
-// TODO(4526): Should convert to global receiver instead of throwing TypeError.
-// check(o.bar.call(undefined), this, Object);
-// check(o.bar.call(null), this, Object);
+check(o.bar.call(undefined), this, Object);
+check(o.bar.call(null), this, Object);
 
 %OptimizeFunctionOnNextCall(o.bar);
 check(o.bar.call(456), Object(456), Number);
 check(o.bar.call("b"), Object("b"), String);
-// TODO(4526): Should convert to global receiver instead of throwing TypeError.
-// check(o.bar.call(undefined), this, Object);
-// check(o.bar.call(null), this, Object);
+check(o.bar.call(undefined), this, Object);
+check(o.bar.call(null), this, Object);

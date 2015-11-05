@@ -27,7 +27,6 @@ namespace internal {
   V(CallApiAccessor)                        \
   V(CallApiGetter)                          \
   V(CallConstruct)                          \
-  V(CallFunction)                           \
   V(CallIC)                                 \
   V(CEntry)                                 \
   V(CompareIC)                              \
@@ -983,10 +982,6 @@ class CallICStub: public PlatformCodeStub {
   }
 
  protected:
-  bool CallAsMethod() const {
-    return state().call_type() == CallICState::METHOD;
-  }
-
   int arg_count() const { return state().arg_count(); }
 
   CallICState state() const {
@@ -1960,38 +1955,6 @@ class RegExpConstructResultStub final : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(RegExpConstructResult);
   DEFINE_HYDROGEN_CODE_STUB(RegExpConstructResult, HydrogenCodeStub);
-};
-
-
-// TODO(bmeurer): Deprecate the CallFunctionStub in favor of the more general
-// Invoke family of builtins.
-class CallFunctionStub: public PlatformCodeStub {
- public:
-  CallFunctionStub(Isolate* isolate, int argc, CallFunctionFlags flags)
-      : PlatformCodeStub(isolate) {
-    DCHECK(argc >= 0 && argc <= Code::kMaxArguments);
-    minor_key_ = ArgcBits::encode(argc) | FlagBits::encode(flags);
-  }
-
- private:
-  int argc() const { return ArgcBits::decode(minor_key_); }
-  int flags() const { return FlagBits::decode(minor_key_); }
-
-  bool CallAsMethod() const {
-    return flags() == CALL_AS_METHOD || flags() == WRAP_AND_CALL;
-  }
-
-  bool NeedsChecks() const { return flags() != WRAP_AND_CALL; }
-
-  void PrintName(std::ostream& os) const override;  // NOLINT
-
-  // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
-  class FlagBits : public BitField<CallFunctionFlags, 0, 2> {};
-  class ArgcBits : public BitField<unsigned, 2, Code::kArgumentsBits> {};
-  STATIC_ASSERT(Code::kArgumentsBits + 2 <= kStubMinorKeyBits);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunction);
-  DEFINE_PLATFORM_CODE_STUB(CallFunction, PlatformCodeStub);
 };
 
 
