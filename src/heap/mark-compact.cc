@@ -984,6 +984,85 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
 }
 
 
+void CodeFlusher::ProcessOptimizedCodeMaps() {
+  STATIC_ASSERT(SharedFunctionInfo::kEntryLength == 4);
+
+  SharedFunctionInfo* holder = optimized_code_map_holder_head_;
+  SharedFunctionInfo* next_holder;
+
+  while (holder != NULL) {
+    next_holder = GetNextCodeMap(holder);
+    ClearNextCodeMap(holder);
+
+    // Process context-dependent entries in the optimized code map.
+    FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
+    int new_length = SharedFunctionInfo::kEntriesStart;
+    int old_length = code_map->length();
+    for (int i = SharedFunctionInfo::kEntriesStart; i < old_length;
+         i += SharedFunctionInfo::kEntryLength) {
+      // Each entry contains [ context, code, literals, ast-id ] as fields.
+      STATIC_ASSERT(SharedFunctionInfo::kEntryLength == 4);
+      Context* context =
+          Context::cast(code_map->get(i + SharedFunctionInfo::kContextOffset));
+      HeapObject* code = HeapObject::cast(
+          code_map->get(i + SharedFunctionInfo::kCachedCodeOffset));
+      FixedArray* literals = FixedArray::cast(
+          code_map->get(i + SharedFunctionInfo::kLiteralsOffset));
+      Smi* ast_id =
+          Smi::cast(code_map->get(i + SharedFunctionInfo::kOsrAstIdOffset));
+      if (Marking::IsWhite(Marking::MarkBitFrom(context))) continue;
+      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(context)));
+      if (Marking::IsWhite(Marking::MarkBitFrom(code))) continue;
+      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(code)));
+      if (Marking::IsWhite(Marking::MarkBitFrom(literals))) continue;
+      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(literals)));
+      // Move every slot in the entry and record slots when needed.
+      code_map->set(new_length + SharedFunctionInfo::kCachedCodeOffset, code);
+      code_map->set(new_length + SharedFunctionInfo::kContextOffset, context);
+      code_map->set(new_length + SharedFunctionInfo::kLiteralsOffset, literals);
+      code_map->set(new_length + SharedFunctionInfo::kOsrAstIdOffset, ast_id);
+      Object** code_slot = code_map->RawFieldOfElementAt(
+          new_length + SharedFunctionInfo::kCachedCodeOffset);
+      isolate_->heap()->mark_compact_collector()->RecordSlot(
+          code_map, code_slot, *code_slot);
+      Object** context_slot = code_map->RawFieldOfElementAt(
+          new_length + SharedFunctionInfo::kContextOffset);
+      isolate_->heap()->mark_compact_collector()->RecordSlot(
+          code_map, context_slot, *context_slot);
+      Object** literals_slot = code_map->RawFieldOfElementAt(
+          new_length + SharedFunctionInfo::kLiteralsOffset);
+      isolate_->heap()->mark_compact_collector()->RecordSlot(
+          code_map, literals_slot, *literals_slot);
+      new_length += SharedFunctionInfo::kEntryLength;
+    }
+
+    // Process context-independent entry in the optimized code map.
+    Object* shared_object = code_map->get(SharedFunctionInfo::kSharedCodeIndex);
+    if (shared_object->IsCode()) {
+      Code* shared_code = Code::cast(shared_object);
+      if (Marking::IsWhite(Marking::MarkBitFrom(shared_code))) {
+        code_map->set_undefined(SharedFunctionInfo::kSharedCodeIndex);
+      } else {
+        DCHECK(Marking::IsBlack(Marking::MarkBitFrom(shared_code)));
+        Object** slot =
+            code_map->RawFieldOfElementAt(SharedFunctionInfo::kSharedCodeIndex);
+        isolate_->heap()->mark_compact_collector()->RecordSlot(code_map, slot,
+                                                               *slot);
+      }
+    }
+
+    // Trim the optimized code map if entries have been removed.
+    if (new_length < old_length) {
+      holder->TrimOptimizedCodeMap(old_length - new_length);
+    }
+
+    holder = next_holder;
+  }
+
+  optimized_code_map_holder_head_ = NULL;
+}
+
+
 void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
   // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(shared_info);
@@ -1054,6 +1133,44 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
 }
 
 
+void CodeFlusher::EvictOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
+  FixedArray* code_map =
+      FixedArray::cast(code_map_holder->optimized_code_map());
+  DCHECK(!code_map->get(SharedFunctionInfo::kNextMapIndex)->IsUndefined());
+
+  // Make sure previous flushing decisions are revisited.
+  isolate_->heap()->incremental_marking()->RecordWrites(code_map);
+  isolate_->heap()->incremental_marking()->RecordWrites(code_map_holder);
+
+  if (FLAG_trace_code_flushing) {
+    PrintF("[code-flushing abandons code-map: ");
+    code_map_holder->ShortPrint();
+    PrintF("]\n");
+  }
+
+  SharedFunctionInfo* holder = optimized_code_map_holder_head_;
+  SharedFunctionInfo* next_holder;
+  if (holder == code_map_holder) {
+    next_holder = GetNextCodeMap(code_map_holder);
+    optimized_code_map_holder_head_ = next_holder;
+    ClearNextCodeMap(code_map_holder);
+  } else {
+    while (holder != NULL) {
+      next_holder = GetNextCodeMap(holder);
+
+      if (next_holder == code_map_holder) {
+        next_holder = GetNextCodeMap(code_map_holder);
+        SetNextCodeMap(holder, next_holder);
+        ClearNextCodeMap(code_map_holder);
+        break;
+      }
+
+      holder = next_holder;
+    }
+  }
+}
+
+
 void CodeFlusher::EvictJSFunctionCandidates() {
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;
@@ -1075,6 +1192,18 @@ void CodeFlusher::EvictSharedFunctionInfoCandidates() {
     candidate = next_candidate;
   }
   DCHECK(shared_function_info_candidates_head_ == NULL);
+}
+
+
+void CodeFlusher::EvictOptimizedCodeMaps() {
+  SharedFunctionInfo* holder = optimized_code_map_holder_head_;
+  SharedFunctionInfo* next_holder;
+  while (holder != NULL) {
+    next_holder = GetNextCodeMap(holder);
+    EvictOptimizedCodeMap(holder);
+    holder = next_holder;
+  }
+  DCHECK(optimized_code_map_holder_head_ == NULL);
 }
 
 
@@ -2105,84 +2234,11 @@ void MarkCompactCollector::AfterMarking() {
     code_flusher_->ProcessCandidates();
   }
 
-  // Process and clear all optimized code maps.
-  if (!FLAG_flush_optimized_code_cache) {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_MARK_OPTIMIZED_CODE_MAPS);
-    ProcessAndClearOptimizedCodeMaps();
-  }
-
   if (FLAG_track_gc_object_stats) {
     if (FLAG_trace_gc_object_stats) {
       heap()->object_stats_->TraceObjectStats();
     }
     heap()->object_stats_->CheckpointObjectStats();
-  }
-}
-
-
-void MarkCompactCollector::ProcessAndClearOptimizedCodeMaps() {
-  SharedFunctionInfo::Iterator iterator(isolate());
-  while (SharedFunctionInfo* shared = iterator.Next()) {
-    if (shared->optimized_code_map()->IsSmi()) continue;
-
-    // Process context-dependent entries in the optimized code map.
-    FixedArray* code_map = FixedArray::cast(shared->optimized_code_map());
-    int new_length = SharedFunctionInfo::kEntriesStart;
-    int old_length = code_map->length();
-    for (int i = SharedFunctionInfo::kEntriesStart; i < old_length;
-         i += SharedFunctionInfo::kEntryLength) {
-      // Each entry contains [ context, code, literals, ast-id ] as fields.
-      STATIC_ASSERT(SharedFunctionInfo::kEntryLength == 4);
-      Context* context =
-          Context::cast(code_map->get(i + SharedFunctionInfo::kContextOffset));
-      HeapObject* code = HeapObject::cast(
-          code_map->get(i + SharedFunctionInfo::kCachedCodeOffset));
-      FixedArray* literals = FixedArray::cast(
-          code_map->get(i + SharedFunctionInfo::kLiteralsOffset));
-      Smi* ast_id =
-          Smi::cast(code_map->get(i + SharedFunctionInfo::kOsrAstIdOffset));
-      if (Marking::IsWhite(Marking::MarkBitFrom(context))) continue;
-      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(context)));
-      if (Marking::IsWhite(Marking::MarkBitFrom(code))) continue;
-      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(code)));
-      if (Marking::IsWhite(Marking::MarkBitFrom(literals))) continue;
-      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(literals)));
-      // Move every slot in the entry and record slots when needed.
-      code_map->set(new_length + SharedFunctionInfo::kCachedCodeOffset, code);
-      code_map->set(new_length + SharedFunctionInfo::kContextOffset, context);
-      code_map->set(new_length + SharedFunctionInfo::kLiteralsOffset, literals);
-      code_map->set(new_length + SharedFunctionInfo::kOsrAstIdOffset, ast_id);
-      Object** code_slot = code_map->RawFieldOfElementAt(
-          new_length + SharedFunctionInfo::kCachedCodeOffset);
-      RecordSlot(code_map, code_slot, *code_slot);
-      Object** context_slot = code_map->RawFieldOfElementAt(
-          new_length + SharedFunctionInfo::kContextOffset);
-      RecordSlot(code_map, context_slot, *context_slot);
-      Object** literals_slot = code_map->RawFieldOfElementAt(
-          new_length + SharedFunctionInfo::kLiteralsOffset);
-      RecordSlot(code_map, literals_slot, *literals_slot);
-      new_length += SharedFunctionInfo::kEntryLength;
-    }
-
-    // Process context-independent entry in the optimized code map.
-    Object* shared_object = code_map->get(SharedFunctionInfo::kSharedCodeIndex);
-    if (shared_object->IsCode()) {
-      Code* shared_code = Code::cast(shared_object);
-      if (Marking::IsWhite(Marking::MarkBitFrom(shared_code))) {
-        code_map->set_undefined(SharedFunctionInfo::kSharedCodeIndex);
-      } else {
-        DCHECK(Marking::IsBlack(Marking::MarkBitFrom(shared_code)));
-        Object** slot =
-            code_map->RawFieldOfElementAt(SharedFunctionInfo::kSharedCodeIndex);
-        RecordSlot(code_map, slot, *slot);
-      }
-    }
-
-    // Trim the optimized code map if entries have been removed.
-    if (new_length < old_length) {
-      shared->TrimOptimizedCodeMap(old_length - new_length);
-    }
   }
 }
 
