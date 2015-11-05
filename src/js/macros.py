@@ -182,12 +182,12 @@ define REGEXP_NUMBER_OF_CAPTURES = 0;
 define REGEXP_FIRST_CAPTURE = 3;
 
 # Macros for internal slot access.
-macro REGEXP_GLOBAL(regexp) = (regexp[regExpFlagsSymbol] & 1);
-macro REGEXP_IGNORE_CASE(regexp) = (regexp[regExpFlagsSymbol] & 2);
-macro REGEXP_MULTILINE(regexp) = (regexp[regExpFlagsSymbol] & 4);
-macro REGEXP_STICKY(regexp) = (regexp[regExpFlagsSymbol] & 8);
-macro REGEXP_UNICODE(regexp) = (regexp[regExpFlagsSymbol] & 16);
-macro REGEXP_SOURCE(regexp) = (regexp[regExpSourceSymbol]);
+macro REGEXP_GLOBAL(regexp) = (%_RegExpFlags(regexp) & 1);
+macro REGEXP_IGNORE_CASE(regexp) = (%_RegExpFlags(regexp) & 2);
+macro REGEXP_MULTILINE(regexp) = (%_RegExpFlags(regexp) & 4);
+macro REGEXP_STICKY(regexp) = (%_RegExpFlags(regexp) & 8);
+macro REGEXP_UNICODE(regexp) = (%_RegExpFlags(regexp) & 16);
+macro REGEXP_SOURCE(regexp) = (%_RegExpSource(regexp));
 
 # We can't put macros in macros so we use constants here.
 # REGEXP_NUMBER_OF_CAPTURES

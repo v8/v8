@@ -14,8 +14,6 @@ var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
-var regExpFlagsSymbol = utils.ImportNow("regexp_flags_symbol");
-var regExpSourceSymbol = utils.ImportNow("regexp_source_symbol");
 
 utils.ImportFromExperimental(function(from) {
   FLAG_harmony_tolength = from.FLAG_harmony_tolength;

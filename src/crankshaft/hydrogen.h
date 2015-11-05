@@ -2233,6 +2233,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(SubString)                         \
   F(RegExpExec)                        \
   F(RegExpConstructResult)             \
+  F(RegExpFlags)                       \
+  F(RegExpSource)                      \
   F(NumberToString)                    \
   F(DebugIsActive)                     \
   F(HasInPrototypeChain)               \

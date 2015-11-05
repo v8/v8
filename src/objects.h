@@ -7726,6 +7726,8 @@ class JSRegExp: public JSObject {
   };
 
   DECL_ACCESSORS(data, Object)
+  DECL_ACCESSORS(flags, Object)
+  DECL_ACCESSORS(source, Object)
 
   inline Type TypeTag();
   inline int CaptureCount();
@@ -7758,7 +7760,9 @@ class JSRegExp: public JSObject {
   DECLARE_VERIFIER(JSRegExp)
 
   static const int kDataOffset = JSObject::kHeaderSize;
-  static const int kSize = kDataOffset + kPointerSize;
+  static const int kSourceOffset = kDataOffset + kPointerSize;
+  static const int kFlagsOffset = kSourceOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
 
   // Indices in the data array.
   static const int kTagIndex = 0;
@@ -7807,10 +7811,8 @@ class JSRegExp: public JSObject {
       FixedArray::kHeaderSize + kIrregexpCaptureCountIndex * kPointerSize;
 
   // In-object fields.
-  static const int kSourceFieldIndex = 0;
-  static const int kFlagsFieldIndex = 1;
-  static const int kLastIndexFieldIndex = 2;
-  static const int kInObjectFieldCount = 3;
+  static const int kLastIndexFieldIndex = 0;
+  static const int kInObjectFieldCount = 1;
 
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;

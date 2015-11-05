@@ -12625,6 +12625,26 @@ void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateRegExpFlags(CallRuntime* call) {
+  DCHECK_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitExpressions(call->arguments()));
+  HValue* regexp = Pop();
+  HInstruction* result =
+      New<HLoadNamedField>(regexp, nullptr, HObjectAccess::ForJSRegExpFlags());
+  return ast_context()->ReturnInstruction(result, call->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateRegExpSource(CallRuntime* call) {
+  DCHECK_EQ(1, call->arguments()->length());
+  CHECK_ALIVE(VisitExpressions(call->arguments()));
+  HValue* regexp = Pop();
+  HInstruction* result =
+      New<HLoadNamedField>(regexp, nullptr, HObjectAccess::ForJSRegExpSource());
+  return ast_context()->ReturnInstruction(result, call->id());
+}
+
+
 void HOptimizedGraphBuilder::GenerateDoubleLo(CallRuntime* call) {
   DCHECK_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
