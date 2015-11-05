@@ -7,6 +7,10 @@ import("//build/config/arm.gni")
 import("//build/config/mips.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 
+if (is_android) {
+  import("//build/config/android/rules.gni")
+}
+
 # Because standalone V8 builds are not supported, assume this is part of a
 # Chromium build.
 import("//build_overrides/v8.gni")
@@ -409,6 +413,21 @@ action("d8_js2c") {
 
   args = rebase_path(outputs, root_build_dir) + [ "D8" ] +
          rebase_path(inputs, root_build_dir)
+}
+
+if (is_android) {
+  android_assets("v8_external_startup_data_assets") {
+    if (v8_use_external_startup_data) {
+      deps = [
+        "//v8",
+      ]
+      sources = [
+        "$root_out_dir/natives_blob.bin",
+        "$root_out_dir/snapshot_blob.bin",
+      ]
+      disable_compression = true
+    }
+  }
 }
 
 if (v8_use_external_startup_data) {
