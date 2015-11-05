@@ -7106,18 +7106,25 @@ class SharedFunctionInfo: public HeapObject {
 
  public:
   // Constants for optimizing codegen for strict mode function and
+  // native tests when using integer-width instructions.
+  static const int kStrictModeBit =
+      kStrictModeFunction + kCompilerHintsSmiTagSize;
+  static const int kStrongModeBit =
+      kStrongModeFunction + kCompilerHintsSmiTagSize;
+  static const int kNativeBit = kNative + kCompilerHintsSmiTagSize;
+  static const int kBoundBit = kBoundFunction + kCompilerHintsSmiTagSize;
+
+  static const int kClassConstructorBits =
+      FunctionKind::kClassConstructor
+      << (kFunctionKind + kCompilerHintsSmiTagSize);
+
+  // Constants for optimizing codegen for strict mode function and
   // native tests.
   // Allows to use byte-width instructions.
-  static const int kStrictModeBitWithinByte =
-      (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
-  static const int kStrongModeBitWithinByte =
-      (kStrongModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
-
-  static const int kNativeBitWithinByte =
-      (kNative + kCompilerHintsSmiTagSize) % kBitsPerByte;
-
-  static const int kBoundBitWithinByte =
-      (kBoundFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
+  static const int kStrictModeBitWithinByte = kStrictModeBit % kBitsPerByte;
+  static const int kStrongModeBitWithinByte = kStrongModeBit % kBitsPerByte;
+  static const int kNativeBitWithinByte = kNativeBit % kBitsPerByte;
+  static const int kBoundBitWithinByte = kBoundBit % kBitsPerByte;
 
   static const int kClassConstructorBitsWithinByte =
       FunctionKind::kClassConstructor << kCompilerHintsSmiTagSize;
@@ -7128,7 +7135,7 @@ class SharedFunctionInfo: public HeapObject {
   kCompilerHintsOffset +           \
       (compiler_hint + kCompilerHintsSmiTagSize) / kBitsPerByte
 #elif defined(V8_TARGET_BIG_ENDIAN)
-#define BYTE_OFFSET(compiler_hint)                   \
+#define BYTE_OFFSET(compiler_hint)                  \
   kCompilerHintsOffset + (kCompilerHintsSize - 1) - \
       ((compiler_hint + kCompilerHintsSmiTagSize) / kBitsPerByte)
 #else

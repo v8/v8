@@ -3460,28 +3460,13 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
 
   if (!instr->hydrogen()->known_function()) {
     // Do not transform the receiver to object for strict mode
-    // functions.
+    // functions or builtins.
     __ LoadP(scratch,
              FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
     __ lwz(scratch,
            FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
-    __ TestBit(scratch,
-#if V8_TARGET_ARCH_PPC64
-               SharedFunctionInfo::kStrictModeFunction,
-#else
-               SharedFunctionInfo::kStrictModeFunction + kSmiTagSize,
-#endif
-               r0);
-    __ bne(&result_in_receiver, cr0);
-
-    // Do not transform the receiver to object for builtins.
-    __ TestBit(scratch,
-#if V8_TARGET_ARCH_PPC64
-               SharedFunctionInfo::kNative,
-#else
-               SharedFunctionInfo::kNative + kSmiTagSize,
-#endif
-               r0);
+    __ andi(r0, scratch, Operand((1 << SharedFunctionInfo::kStrictModeBit) |
+                                 (1 << SharedFunctionInfo::kNativeBit)));
     __ bne(&result_in_receiver, cr0);
   }
 

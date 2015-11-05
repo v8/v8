@@ -1596,19 +1596,28 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm) {
 
   Label convert, convert_global_proxy, convert_to_object, done_convert;
   __ AssertFunction(r4);
-  // TODO(bmeurer): Throw a TypeError if function's [[FunctionKind]] internal
-  // slot is "classConstructor".
+  __ LoadP(r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+  __ lwz(r6, FieldMemOperand(r5, SharedFunctionInfo::kCompilerHintsOffset));
+  {
+    Label non_class_constructor;
+    // Check whether the current function is a classConstructor.
+    __ TestBitMask(r6, SharedFunctionInfo::kClassConstructorBits, r0);
+    __ beq(&non_class_constructor, cr0);
+    // Step: 2, If we call a classConstructor Function throw a TypeError.
+    {
+      FrameAndConstantPoolScope frame(masm, StackFrame::INTERNAL);
+      __ CallRuntime(Runtime::kThrowConstructorNonCallableError, 0);
+    }
+    __ bind(&non_class_constructor);
+  }
+
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
-  STATIC_ASSERT(SharedFunctionInfo::kNativeByteOffset ==
-                SharedFunctionInfo::kStrictModeByteOffset);
   __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
-  __ LoadP(r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
-  __ lbz(r6, FieldMemOperand(r5, SharedFunctionInfo::kNativeByteOffset));
-  __ andi(r0, r6, Operand((1 << SharedFunctionInfo::kNativeBitWithinByte) |
-                          (1 << SharedFunctionInfo::kStrictModeBitWithinByte)));
+  __ andi(r0, r6, Operand((1 << SharedFunctionInfo::kStrictModeBit) |
+                          (1 << SharedFunctionInfo::kNativeBit)));
   __ bne(&done_convert, cr0);
   {
     __ ShiftLeftImm(r6, r3, Operand(kPointerSizeLog2));
@@ -1866,13 +1875,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Label no_strong_error;
     __ LoadP(r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
     __ lwz(r8, FieldMemOperand(r7, SharedFunctionInfo::kCompilerHintsOffset));
-    __ TestBit(r8,
-#if V8_TARGET_ARCH_PPC64
-               SharedFunctionInfo::kStrongModeFunction,
-#else
-               SharedFunctionInfo::kStrongModeFunction + kSmiTagSize,
-#endif
-               r0);
+    __ TestBit(r8, SharedFunctionInfo::kStrongModeBit, r0);
     __ beq(&no_strong_error, cr0);
 
     // What we really care about is the required number of arguments.
