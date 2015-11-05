@@ -346,8 +346,8 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
   Scope* function_scope = NewScope(scope, FUNCTION_SCOPE, kind);
-  function_scope->SetLanguageMode(
-      static_cast<LanguageMode>(language_mode | STRICT));
+  SetLanguageMode(function_scope,
+                  static_cast<LanguageMode>(language_mode | STRICT));
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
@@ -1048,6 +1048,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     FunctionState function_state(&function_state_, &scope_, scope,
                                  kNormalFunction, &function_factory);
 
+    // Don't count the mode in the use counters--give the program a chance
+    // to enable script/module-wide strict/strong mode below.
     scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
@@ -1190,7 +1192,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
     if (shared_info->is_arrow()) {
       Scope* scope =
           NewScope(scope_, FUNCTION_SCOPE, FunctionKind::kArrowFunction);
-      scope->SetLanguageMode(shared_info->language_mode());
+      SetLanguageMode(scope, shared_info->language_mode());
       scope->set_start_position(shared_info->start_position());
       ExpressionClassifier formals_classifier;
       ParserFormalParameters formals(scope);
@@ -1335,13 +1337,11 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
           // Strong mode implies strict mode. If there are several "use strict"
           // / "use strong" directives, do the strict mode changes only once.
           if (is_sloppy(scope_->language_mode())) {
-            scope_->SetLanguageMode(
-                static_cast<LanguageMode>(scope_->language_mode() | STRICT));
+            RaiseLanguageMode(STRICT);
           }
 
           if (use_strong_found) {
-            scope_->SetLanguageMode(
-                static_cast<LanguageMode>(scope_->language_mode() | STRONG));
+            RaiseLanguageMode(STRONG);
             if (IsClassConstructor(function_state_->kind())) {
               // "use strong" cannot occur in a class constructor body, to avoid
               // unintuitive strong class object semantics.
@@ -1377,11 +1377,18 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
           // incremented after parsing is done.
           ++use_counts_[v8::Isolate::kUseAsm];
           scope_->SetAsmModule();
+        } else {
+          // Should not change mode, but will increment UseCounter
+          // if appropriate. Ditto usages below.
+          RaiseLanguageMode(SLOPPY);
         }
       } else {
         // End of the directive prologue.
         directive_prologue = false;
+        RaiseLanguageMode(SLOPPY);
       }
+    } else {
+      RaiseLanguageMode(SLOPPY);
     }
 
     body->Add(stat, zone());
@@ -1458,8 +1465,7 @@ void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
   //    ModuleItem*
 
   DCHECK(scope_->is_module_scope());
-  scope_->SetLanguageMode(
-      static_cast<LanguageMode>(scope_->language_mode() | STRICT));
+  RaiseLanguageMode(STRICT);
 
   while (peek() != Token::EOS) {
     Statement* stat = ParseModuleItem(CHECK_OK);
@@ -4189,7 +4195,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                           declaration_scope != original_declaration_scope)
                      ? NewScope(declaration_scope, FUNCTION_SCOPE, kind)
                      : NewScope(scope_, FUNCTION_SCOPE, kind);
-  scope->SetLanguageMode(language_mode);
+  SetLanguageMode(scope, language_mode);
   ZoneList<Statement*>* body = NULL;
   int arity = -1;
   int materialized_literal_count = -1;
@@ -4421,7 +4427,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
       total_preparse_skipped_ += scope_->end_position() - function_block_pos;
       *materialized_literal_count = entry.literal_count();
       *expected_property_count = entry.property_count();
-      scope_->SetLanguageMode(entry.language_mode());
+      SetLanguageMode(scope_, entry.language_mode());
       if (entry.uses_super_property()) scope_->RecordSuperPropertyUsage();
       if (entry.calls_eval()) scope_->RecordEvalCall();
       return;
@@ -4457,7 +4463,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
   total_preparse_skipped_ += scope_->end_position() - function_block_pos;
   *materialized_literal_count = logger.literals();
   *expected_property_count = logger.properties();
-  scope_->SetLanguageMode(logger.language_mode());
+  SetLanguageMode(scope_, logger.language_mode());
   if (logger.uses_super_property()) {
     scope_->RecordSuperPropertyUsage();
   }
@@ -4729,7 +4735,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   if (!parameters.is_simple) {
     DCHECK_NOT_NULL(inner_scope);
     DCHECK_EQ(body, inner_block->statements());
-    scope_->SetLanguageMode(inner_scope->language_mode());
+    SetLanguageMode(scope_, inner_scope->language_mode());
     Block* init_block = BuildParameterInitializationBlock(parameters, CHECK_OK);
     DCHECK_NOT_NULL(init_block);
 
@@ -4833,8 +4839,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
 
   Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
   BlockState block_state(&scope_, block_scope);
-  scope_->SetLanguageMode(
-      static_cast<LanguageMode>(scope_->language_mode() | STRICT));
+  RaiseLanguageMode(STRICT);
   scope_->SetScopeName(name);
 
   VariableProxy* proxy = NULL;
@@ -6371,5 +6376,27 @@ Expression* Parser::SpreadCallNew(Expression* function,
 
   return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args, pos);
 }
+
+
+void Parser::SetLanguageMode(Scope* scope, LanguageMode mode) {
+  v8::Isolate::UseCounterFeature feature;
+  if (is_sloppy(mode))
+    feature = v8::Isolate::kSloppyMode;
+  else if (is_strong(mode))
+    feature = v8::Isolate::kStrongMode;
+  else if (is_strict(mode))
+    feature = v8::Isolate::kStrictMode;
+  else
+    UNREACHABLE();
+  ++use_counts_[feature];
+  scope->SetLanguageMode(mode);
+}
+
+
+void Parser::RaiseLanguageMode(LanguageMode mode) {
+  SetLanguageMode(scope_,
+                  static_cast<LanguageMode>(scope_->language_mode() | mode));
+}
+
 }  // namespace internal
 }  // namespace v8

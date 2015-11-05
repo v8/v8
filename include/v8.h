@@ -5430,6 +5430,9 @@ class V8_EXPORT Isolate {
     kSlotsBufferOverflow = 5,
     kObjectObserve = 6,
     kForcedGC = 7,
+    kSloppyMode = 8,
+    kStrictMode = 9,
+    kStrongMode = 10,
     kUseCounterFeatureCount  // This enum value must be last.
   };
 

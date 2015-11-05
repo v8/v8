@@ -3548,6 +3548,47 @@ TEST(UseConstLegacyCount) {
 }
 
 
+TEST(StrictModeUseCount) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun(
+      "\"use strict\";\n"
+      "function bar() { var baz = 1; }");  // strict mode inherits
+  CHECK_LT(0, use_counts[v8::Isolate::kStrictMode]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kSloppyMode]);
+}
+
+
+TEST(SloppyModeUseCount) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun("function bar() { var baz = 1; }");
+  CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kStrictMode]);
+}
+
+
+TEST(BothModesUseCount) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun("function bar() { 'use strict'; var baz = 1; }");
+  CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
+  CHECK_LT(0, use_counts[v8::Isolate::kStrictMode]);
+}
+
+
 TEST(ErrorsArrowFormalParameters) {
   const char* context_data[][2] = {
     { "()", "=>{}" },

@@ -1199,6 +1199,9 @@ class Parser : public ParserBase<ParserTraits> {
   Expression* SpreadCallNew(Expression* function,
                             ZoneList<v8::internal::Expression*>* args, int pos);
 
+  void SetLanguageMode(Scope* scope, LanguageMode mode);
+  void RaiseLanguageMode(LanguageMode mode);
+
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
