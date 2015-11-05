@@ -74,6 +74,30 @@ AUTO_PUSH_ARGS = [
 
 
 class ToplevelTest(unittest.TestCase):
+  def testSaniniziteVersionTags(self):
+    self.assertEquals("4.8.230", SanitizeVersionTag("4.8.230"))
+    self.assertEquals("4.8.230", SanitizeVersionTag("tags/4.8.230"))
+    self.assertEquals(None, SanitizeVersionTag("candidate"))
+
+  def testNormalizeVersionTags(self):
+    input = ["4.8.230",
+              "tags/4.8.230",
+              "tags/4.8.224.1",
+              "4.8.224.1",
+              "4.8.223.1",
+              "tags/4.8.223",
+              "tags/4.8.231",
+              "candidates"]
+    expected = ["4.8.230",
+                "4.8.230",
+                "4.8.224.1",
+                "4.8.224.1",
+                "4.8.223.1",
+                "4.8.223",
+                "4.8.231",
+                ]
+    self.assertEquals(expected, NormalizeVersionTags(input))
+
   def testSortBranches(self):
     S = releases.SortBranches
     self.assertEquals(["3.1", "2.25"], S(["2.25", "3.1"])[0:2])
