@@ -87,6 +87,9 @@
   # In ES6, the completion value of a 0-iterations loop is 'undefined'.
   'ecma/Statements/12.6.3-2': [PASS, FAIL],
 
+  # ES2015 ToLength semantics
+  'ecma_3/RegExp/15.10.6.2-2': [FAIL],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory
