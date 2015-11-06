@@ -197,6 +197,11 @@ SharedFunctionInfo* IC::GetSharedFunctionInfo() const {
   // corresponding to the frame.
   StackFrameIterator it(isolate());
   while (it.frame()->fp() != this->fp()) it.Advance();
+  if (FLAG_ignition && it.frame()->type() == StackFrame::STUB) {
+    // Advance over bytecode handler frame.
+    // TODO(rmcilroy): Remove this once bytecode handlers don't need a frame.
+    it.Advance();
+  }
   JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
   // Find the function on the stack and both the active code for the
   // function and the original code.
