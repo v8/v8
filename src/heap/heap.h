@@ -347,8 +347,6 @@ namespace internal {
   V(promise_raw_symbol)                     \
   V(promise_status_symbol)                  \
   V(promise_value_symbol)                   \
-  V(regexp_flags_symbol)                    \
-  V(regexp_source_symbol)                   \
   V(sealed_symbol)                          \
   V(stack_trace_symbol)                     \
   V(string_iterator_iterated_string_symbol) \
