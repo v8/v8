@@ -11035,6 +11035,7 @@ void JSFunction::AttemptConcurrentOptimization() {
 void SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared, Handle<Code> code) {
   Isolate* isolate = shared->GetIsolate();
+  if (isolate->serializer_enabled()) return;
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
   Handle<Object> value(shared->optimized_code_map(), isolate);
   if (value->IsSmi()) return;  // Empty code maps are unsupported.
@@ -11048,6 +11049,7 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<HeapObject> code, Handle<LiteralsArray> literals,
     BailoutId osr_ast_id) {
   Isolate* isolate = shared->GetIsolate();
+  if (isolate->serializer_enabled()) return;
   DCHECK(*code == isolate->heap()->undefined_value() ||
          !shared->SearchOptimizedCodeMap(*native_context, osr_ast_id).code);
   DCHECK(*code == isolate->heap()->undefined_value() ||
