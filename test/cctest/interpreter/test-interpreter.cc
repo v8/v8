@@ -2919,6 +2919,20 @@ TEST(InterpreterSloppyThis) {
   }
 }
 
+
+TEST(InterpreterThisFunction) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  InterpreterTester tester(handles.main_isolate(),
+                           "var f;\n f = function f() { return f.name; }");
+  auto callable = tester.GetCallable<>();
+
+  Handle<i::Object> return_value = callable().ToHandleChecked();
+  CHECK(return_value->SameValue(*factory->NewStringFromStaticChars("f")));
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

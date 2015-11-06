@@ -5147,6 +5147,47 @@ TEST(DeadCodeRemoval) {
   }
 }
 
+
+TEST(ThisFunction) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int closure = Register::function_closure().index();
+
+  ExpectedSnippet<int> snippets[] = {
+      {"var f;\n f = function f() { }",
+       1 * kPointerSize,
+       1,
+       9,
+       {
+           B(LdaTheHole),        //
+           B(Star), R(0),        //
+           B(Ldar), R(closure),  //
+           B(Star), R(0),        //
+           B(LdaUndefined),      //
+           B(Return),            //
+       }},
+      {"var f;\n f = function f() { return f; }",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaTheHole),        //
+           B(Star), R(0),        //
+           B(Ldar), R(closure),  //
+           B(Star), R(0),        //
+           B(Ldar), R(0),        //
+           B(Return),            //
+       }},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunction(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

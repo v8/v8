@@ -1869,7 +1869,7 @@ void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
 
 
 void BytecodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  UNIMPLEMENTED();
+  execution_result()->SetResultInRegister(Register::function_closure());
 }
 
 
