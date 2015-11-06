@@ -4430,6 +4430,62 @@ TEST(Regress514122) {
 }
 
 
+TEST(Regress513496) {
+  i::FLAG_flush_optimized_code_cache = false;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+
+  // Perfrom one initial GC to enable code flushing.
+  CcTest::heap()->CollectAllGarbage();
+
+  // Prepare an optimized closure with containing an inlined function. Then age
+  // the inlined unoptimized code to trigger code flushing but make sure the
+  // outer optimized code is kept in the optimized code map.
+  Handle<SharedFunctionInfo> shared;
+  {
+    HandleScope inner_scope(isolate);
+    CompileRun(
+        "function g(x) { return x + 1 }"
+        "function mkClosure() {"
+        "  return function(x) { return g(x); };"
+        "}"
+        "var f = mkClosure();"
+        "f(1); f(2);"
+        "%OptimizeFunctionOnNextCall(f); f(3);");
+
+    Handle<JSFunction> g = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("g")))));
+    CHECK(g->shared()->is_compiled());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      g->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    }
+
+    Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
+    CHECK(f->is_compiled());
+    shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
+    CompileRun("f = null");
+  }
+
+  // Lookup the optimized code and keep it alive.
+  CodeAndLiterals result = shared->SearchOptimizedCodeMap(
+      isolate->context()->native_context(), BailoutId::None());
+  Handle<Code> optimized_code(result.code, isolate);
+
+  // Finish a full GC cycle so that the unoptimized code of 'g' is flushed even
+  // though the optimized code for 'f' is reachable via the optimized code map.
+  heap->CollectAllGarbage();
+
+  // Make a new closure that will get code installed from the code map.
+  // Unoptimized code is missing and the deoptimizer will go ballistic.
+  CompileRun("var h = mkClosure(); h('bozo');");
+}
+
+
 TEST(LargeObjectSlotRecording) {
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();

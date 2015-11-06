@@ -428,6 +428,13 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(Map* map,
   if (FLAG_age_code && !heap->isolate()->serializer_enabled()) {
     code->MakeOlder(heap->mark_compact_collector()->marking_parity());
   }
+  MarkCompactCollector* collector = heap->mark_compact_collector();
+  if (collector->is_code_flushing_enabled()) {
+    if (code->kind() == Code::OPTIMIZED_FUNCTION) {
+      // Visit all unoptimized code objects to prevent flushing them.
+      MarkInlinedFunctionsCode(heap, code);
+    }
+  }
   code->CodeIterateBody<StaticVisitor>(heap);
 }
 
@@ -511,9 +518,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
     } else {
       // Visit all unoptimized code objects to prevent flushing them.
       StaticVisitor::MarkObject(heap, function->shared()->code());
-      if (function->code()->kind() == Code::OPTIMIZED_FUNCTION) {
-        MarkInlinedFunctionsCode(heap, function->code());
-      }
     }
   }
   VisitJSFunctionStrongCode(heap, object);
@@ -655,13 +659,15 @@ void StaticMarkingVisitor<StaticVisitor>::MarkInlinedFunctionsCode(Heap* heap,
   // For optimized functions we should retain both non-optimized version
   // of its code and non-optimized version of all inlined functions.
   // This is required to support bailing out from inlined code.
-  DeoptimizationInputData* const data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  FixedArray* const literals = data->LiteralArray();
-  int const inlined_count = data->InlinedFunctionCount()->value();
-  for (int i = 0; i < inlined_count; ++i) {
-    StaticVisitor::MarkObject(
-        heap, SharedFunctionInfo::cast(literals->get(i))->code());
+  if (code->deoptimization_data() != heap->empty_fixed_array()) {
+    DeoptimizationInputData* const data =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    FixedArray* const literals = data->LiteralArray();
+    int const inlined_count = data->InlinedFunctionCount()->value();
+    for (int i = 0; i < inlined_count; ++i) {
+      StaticVisitor::MarkObject(
+          heap, SharedFunctionInfo::cast(literals->get(i))->code());
+    }
   }
 }
 
