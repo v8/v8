@@ -5188,6 +5188,32 @@ TEST(ThisFunction) {
   }
 }
 
+
+TEST(NewTarget) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<int> snippets[] = {
+      {"return new.target;",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(CallRuntime), U16(Runtime::kGetOriginalConstructor), R(0),  //
+                           U8(0),                                        //
+           B(Star), R(0),                                                //
+           B(Ldar), R(0),                                                //
+           B(Return),                                                    //
+       }},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

@@ -2933,6 +2933,24 @@ TEST(InterpreterThisFunction) {
   CHECK(return_value->SameValue(*factory->NewStringFromStaticChars("f")));
 }
 
+
+TEST(InterpreterNewTarget) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  // TODO(rmcilroy): Add tests that we get the original constructor for
+  // superclass constructors once we have class support.
+  InterpreterTester tester(handles.main_isolate(),
+                           "function f() { this.a = new.target; }");
+  auto callable = tester.GetCallable<>();
+  callable().ToHandleChecked();
+
+  Handle<Object> new_target_name = v8::Utils::OpenHandle(
+      *CompileRun("(function() { return (new f()).a.name; })();"));
+  CHECK(new_target_name->SameValue(*factory->NewStringFromStaticChars("f")));
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
