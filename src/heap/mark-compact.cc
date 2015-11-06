@@ -1460,8 +1460,9 @@ void MarkCompactCollector::PrepareThreadForCodeFlushing(Isolate* isolate,
     MarkBit code_mark = Marking::MarkBitFrom(code);
     MarkObject(code, code_mark);
     if (frame->is_optimized()) {
-      MarkCompactMarkingVisitor::MarkInlinedFunctionsCode(heap(),
-                                                          frame->LookupCode());
+      Code* optimized_code = frame->LookupCode();
+      MarkBit optimized_code_mark = Marking::MarkBitFrom(optimized_code);
+      MarkObject(optimized_code, optimized_code_mark);
     }
   }
 }
