@@ -233,6 +233,7 @@ class RawMachineAssembler {
   Node* Word64Ror(Node* a, Node* b) {
     return AddNode(machine()->Word64Ror(), a, b);
   }
+  Node* Word64Clz(Node* a) { return AddNode(machine()->Word64Clz(), a); }
   Node* Word64Equal(Node* a, Node* b) {
     return AddNode(machine()->Word64Equal(), a, b);
   }

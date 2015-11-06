@@ -3159,6 +3159,36 @@ void MacroAssembler::Lzcntl(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Lzcntq(Register dst, Register src) {
+  if (CpuFeatures::IsSupported(LZCNT)) {
+    CpuFeatureScope scope(this, LZCNT);
+    lzcntq(dst, src);
+    return;
+  }
+  Label not_zero_src;
+  bsrq(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  Set(dst, 127);  // 127^63 == 64
+  bind(&not_zero_src);
+  xorl(dst, Immediate(63));  // for x in [0..63], 63^x == 63 - x
+}
+
+
+void MacroAssembler::Lzcntq(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(LZCNT)) {
+    CpuFeatureScope scope(this, LZCNT);
+    lzcntq(dst, src);
+    return;
+  }
+  Label not_zero_src;
+  bsrq(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  Set(dst, 127);  // 127^63 == 64
+  bind(&not_zero_src);
+  xorl(dst, Immediate(63));  // for x in [0..63], 63^x == 63 - x
+}
+
+
 void MacroAssembler::Tzcntl(Register dst, Register src) {
   if (CpuFeatures::IsSupported(BMI1)) {
     CpuFeatureScope scope(this, BMI1);

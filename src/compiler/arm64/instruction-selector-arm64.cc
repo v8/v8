@@ -921,6 +921,12 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord64Clz(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64Clz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitWord32Clz(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Clz32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));

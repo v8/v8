@@ -2282,6 +2282,16 @@ void Assembler::clz(Register rd, Register rs) {
 }
 
 
+void Assembler::dclz(Register rd, Register rs) {
+  if (kArchVariant != kMips64r6) {
+    // dclz instr requires same GPR number in 'rd' and 'rt' fields.
+    GenInstrRegister(SPECIAL2, rs, rd, rd, 0, DCLZ);
+  } else {
+    GenInstrRegister(SPECIAL, rs, zero_reg, rd, 1, DCLZ_R6);
+  }
+}
+
+
 void Assembler::ins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Should be called via MacroAssembler::Ins.
   // Ins instr has 'rt' field as dest, and two uint5: msb, lsb.

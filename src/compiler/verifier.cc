@@ -824,6 +824,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kWord64Shr:
     case IrOpcode::kWord64Sar:
     case IrOpcode::kWord64Ror:
+    case IrOpcode::kWord64Clz:
     case IrOpcode::kWord64Equal:
     case IrOpcode::kInt32Add:
     case IrOpcode::kInt32AddWithOverflow:

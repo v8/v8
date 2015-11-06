@@ -37,6 +37,7 @@ namespace compiler {
   V(Mips64Sar)                      \
   V(Mips64Ext)                      \
   V(Mips64Dext)                     \
+  V(Mips64Dclz)                     \
   V(Mips64Dshl)                     \
   V(Mips64Dshr)                     \
   V(Mips64Dsar)                     \

@@ -99,6 +99,7 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Word64Shr, Operator::kNoProperties, 2, 0, 1)                              \
   V(Word64Sar, Operator::kNoProperties, 2, 0, 1)                              \
   V(Word64Ror, Operator::kNoProperties, 2, 0, 1)                              \
+  V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                              \
   V(Word64Equal, Operator::kCommutative, 2, 0, 1)                             \
   V(Int32Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
   V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative, 2, \

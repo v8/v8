@@ -862,6 +862,7 @@ class Assembler : public AssemblerBase {
   void movn_d(FPURegister fd, FPURegister fs, Register rt);
   // Bit twiddling.
   void clz(Register rd, Register rs);
+  void dclz(Register rd, Register rs);
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void dext_(Register rt, Register rs, uint16_t pos, uint16_t size);

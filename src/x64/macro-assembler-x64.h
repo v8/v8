@@ -1010,6 +1010,9 @@ class MacroAssembler: public Assembler {
   void Pinsrd(XMMRegister dst, Register src, int8_t imm8);
   void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
 
+  void Lzcntq(Register dst, Register src);
+  void Lzcntq(Register dst, const Operand& src);
+
   void Lzcntl(Register dst, Register src);
   void Lzcntl(Register dst, const Operand& src);
 

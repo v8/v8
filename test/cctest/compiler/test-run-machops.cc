@@ -127,6 +127,80 @@ TEST(RunInt32Clz) {
 }
 
 
+#if V8_TARGET_ARCH_64_BIT
+TEST(RunWord64Clz) {
+  BufferedRawMachineAssemblerTester<int32_t> m(kMachUint64);
+  m.Return(m.Word64Clz(m.Parameter(0)));
+
+  CHECK_EQ(0, m.Call(uint64_t(0x8000100000000000)));
+  CHECK_EQ(1, m.Call(uint64_t(0x4000050000000000)));
+  CHECK_EQ(2, m.Call(uint64_t(0x2000030000000000)));
+  CHECK_EQ(3, m.Call(uint64_t(0x1000000300000000)));
+  CHECK_EQ(4, m.Call(uint64_t(0x0805000000000000)));
+  CHECK_EQ(5, m.Call(uint64_t(0x0400600000000000)));
+  CHECK_EQ(6, m.Call(uint64_t(0x0200000000000000)));
+  CHECK_EQ(7, m.Call(uint64_t(0x010000a000000000)));
+  CHECK_EQ(8, m.Call(uint64_t(0x00800c0000000000)));
+  CHECK_EQ(9, m.Call(uint64_t(0x0040000000000000)));
+  CHECK_EQ(10, m.Call(uint64_t(0x0020000d00000000)));
+  CHECK_EQ(11, m.Call(uint64_t(0x00100f0000000000)));
+  CHECK_EQ(12, m.Call(uint64_t(0x0008000000000000)));
+  CHECK_EQ(13, m.Call(uint64_t(0x0004100000000000)));
+  CHECK_EQ(14, m.Call(uint64_t(0x0002002000000000)));
+  CHECK_EQ(15, m.Call(uint64_t(0x0001030000000000)));
+  CHECK_EQ(16, m.Call(uint64_t(0x0000804000000000)));
+  CHECK_EQ(17, m.Call(uint64_t(0x0000400500000000)));
+  CHECK_EQ(18, m.Call(uint64_t(0x0000205000000000)));
+  CHECK_EQ(19, m.Call(uint64_t(0x0000170000000000)));
+  CHECK_EQ(20, m.Call(uint64_t(0x0000087000000000)));
+  CHECK_EQ(21, m.Call(uint64_t(0x0000040500000000)));
+  CHECK_EQ(22, m.Call(uint64_t(0x0000020300000000)));
+  CHECK_EQ(23, m.Call(uint64_t(0x0000010100000000)));
+  CHECK_EQ(24, m.Call(uint64_t(0x0000008900000000)));
+  CHECK_EQ(25, m.Call(uint64_t(0x0000004100000000)));
+  CHECK_EQ(26, m.Call(uint64_t(0x0000002200000000)));
+  CHECK_EQ(27, m.Call(uint64_t(0x0000001300000000)));
+  CHECK_EQ(28, m.Call(uint64_t(0x0000000800000000)));
+  CHECK_EQ(29, m.Call(uint64_t(0x0000000400000000)));
+  CHECK_EQ(30, m.Call(uint64_t(0x0000000200000000)));
+  CHECK_EQ(31, m.Call(uint64_t(0x0000000100000000)));
+  CHECK_EQ(32, m.Call(uint64_t(0x0000000080001000)));
+  CHECK_EQ(33, m.Call(uint64_t(0x0000000040000500)));
+  CHECK_EQ(34, m.Call(uint64_t(0x0000000020000300)));
+  CHECK_EQ(35, m.Call(uint64_t(0x0000000010000003)));
+  CHECK_EQ(36, m.Call(uint64_t(0x0000000008050000)));
+  CHECK_EQ(37, m.Call(uint64_t(0x0000000004006000)));
+  CHECK_EQ(38, m.Call(uint64_t(0x0000000002000000)));
+  CHECK_EQ(39, m.Call(uint64_t(0x00000000010000a0)));
+  CHECK_EQ(40, m.Call(uint64_t(0x0000000000800c00)));
+  CHECK_EQ(41, m.Call(uint64_t(0x0000000000400000)));
+  CHECK_EQ(42, m.Call(uint64_t(0x000000000020000d)));
+  CHECK_EQ(43, m.Call(uint64_t(0x0000000000100f00)));
+  CHECK_EQ(44, m.Call(uint64_t(0x0000000000080000)));
+  CHECK_EQ(45, m.Call(uint64_t(0x0000000000041000)));
+  CHECK_EQ(46, m.Call(uint64_t(0x0000000000020020)));
+  CHECK_EQ(47, m.Call(uint64_t(0x0000000000010300)));
+  CHECK_EQ(48, m.Call(uint64_t(0x0000000000008040)));
+  CHECK_EQ(49, m.Call(uint64_t(0x0000000000004005)));
+  CHECK_EQ(50, m.Call(uint64_t(0x0000000000002050)));
+  CHECK_EQ(51, m.Call(uint64_t(0x0000000000001700)));
+  CHECK_EQ(52, m.Call(uint64_t(0x0000000000000870)));
+  CHECK_EQ(53, m.Call(uint64_t(0x0000000000000405)));
+  CHECK_EQ(54, m.Call(uint64_t(0x0000000000000203)));
+  CHECK_EQ(55, m.Call(uint64_t(0x0000000000000101)));
+  CHECK_EQ(56, m.Call(uint64_t(0x0000000000000089)));
+  CHECK_EQ(57, m.Call(uint64_t(0x0000000000000041)));
+  CHECK_EQ(58, m.Call(uint64_t(0x0000000000000022)));
+  CHECK_EQ(59, m.Call(uint64_t(0x0000000000000013)));
+  CHECK_EQ(60, m.Call(uint64_t(0x0000000000000008)));
+  CHECK_EQ(61, m.Call(uint64_t(0x0000000000000004)));
+  CHECK_EQ(62, m.Call(uint64_t(0x0000000000000002)));
+  CHECK_EQ(63, m.Call(uint64_t(0x0000000000000001)));
+  CHECK_EQ(64, m.Call(uint64_t(0x0000000000000000)));
+}
+#endif  // V8_TARGET_ARCH_64_BIT
+
+
 void TestWord32Popcnt(int32_t value, int32_t expected) {
   RawMachineAssemblerTester<int32_t> m;
   compiler::OptionalOperator op = m.machine()->Word32Popcnt();

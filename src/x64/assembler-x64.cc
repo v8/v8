@@ -745,6 +745,24 @@ void Assembler::bsrl(Register dst, const Operand& src) {
 }
 
 
+void Assembler::bsrq(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0xBD);
+  emit_modrm(dst, src);
+}
+
+
+void Assembler::bsrq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0xBD);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::bsfl(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);

@@ -332,6 +332,11 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord64Clz(Node* node) {
+  VisitRR(this, kMips64Dclz, node);
+}
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   Mips64OperandGenerator g(this);
   // TODO(plind): Consider multiply & add optimization from arm port.

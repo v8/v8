@@ -1946,6 +1946,9 @@ Type* Typer::Visitor::TypeWord64Sar(Node* node) { return Type::Internal(); }
 Type* Typer::Visitor::TypeWord64Ror(Node* node) { return Type::Internal(); }
 
 
+Type* Typer::Visitor::TypeWord64Clz(Node* node) { return Type::Internal(); }
+
+
 Type* Typer::Visitor::TypeWord64Equal(Node* node) { return Type::Boolean(); }
 
 

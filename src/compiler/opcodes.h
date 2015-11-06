@@ -240,6 +240,7 @@
   V(Word64Shr)                  \
   V(Word64Sar)                  \
   V(Word64Ror)                  \
+  V(Word64Clz)                  \
   V(Int32Add)                   \
   V(Int32AddWithOverflow)       \
   V(Int32Sub)                   \

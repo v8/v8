@@ -3364,8 +3364,17 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       }
       SetResult(rd_reg(), alu_out);
       break;
-    case MFLO:
-      SetResult(rd_reg(), get_register(LO));
+    case MFLO:  // MFLO == DCLZ on R6.
+      if (kArchVariant != kMips64r6) {
+        DCHECK(sa() == 0);
+        alu_out = get_register(LO);
+      } else {
+        // MIPS spec: If no bits were set in GPR rs(), the result written to
+        // GPR rd() is 64.
+        DCHECK(sa() == 1);
+        alu_out = base::bits::CountLeadingZeros64(static_cast<int64_t>(rs_u()));
+      }
+      SetResult(rd_reg(), alu_out);
       break;
     // Instructions using HI and LO registers.
     case MULT: {  // MULT == D_MUL_MUH.
@@ -3665,7 +3674,13 @@ void Simulator::DecodeTypeRegisterSPECIAL2() {
       // MIPS32 spec: If no bits were set in GPR rs(), the result written to
       // GPR rd is 32.
       alu_out = base::bits::CountLeadingZeros32(static_cast<uint32_t>(rs_u()));
-      set_register(rd_reg(), alu_out);
+      SetResult(rd_reg(), alu_out);
+      break;
+    case DCLZ:
+      // MIPS64 spec: If no bits were set in GPR rs(), the result written to
+      // GPR rd is 64.
+      alu_out = base::bits::CountLeadingZeros64(static_cast<uint64_t>(rs_u()));
+      SetResult(rd_reg(), alu_out);
       break;
     default:
       alu_out = 0x12345678;

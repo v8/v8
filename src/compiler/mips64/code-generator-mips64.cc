@@ -578,6 +578,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMips64Clz:
       __ Clz(i.OutputRegister(), i.InputRegister(0));
       break;
+    case kMips64Dclz:
+      __ dclz(i.OutputRegister(), i.InputRegister(0));
+      break;
     case kMips64Shl:
       if (instr->InputAt(1)->IsRegister()) {
         __ sllv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
