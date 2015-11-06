@@ -77,28 +77,12 @@ template <typename ReturnType>
 class BufferedRawMachineAssemblerTester
     : public RawMachineAssemblerTester<int32_t> {
  public:
-  BufferedRawMachineAssemblerTester()
-      : BufferedRawMachineAssemblerTester(0, kMachNone, kMachNone, kMachNone,
-                                          kMachNone) {}
-
-
-  explicit BufferedRawMachineAssemblerTester(MachineType p0)
-      : BufferedRawMachineAssemblerTester(1, p0, kMachNone, kMachNone,
-                                          kMachNone) {}
-
-
-  BufferedRawMachineAssemblerTester(MachineType p0, MachineType p1)
-      : BufferedRawMachineAssemblerTester(2, p0, p1, kMachNone, kMachNone) {}
-
-
-  BufferedRawMachineAssemblerTester(MachineType p0, MachineType p1,
-                                    MachineType p2)
-      : BufferedRawMachineAssemblerTester(3, p0, p1, p2, kMachNone) {}
-
-
-  BufferedRawMachineAssemblerTester(MachineType p0, MachineType p1,
-                                    MachineType p2, MachineType p3)
-      : BufferedRawMachineAssemblerTester(4, p0, p1, p2, p3) {}
+  BufferedRawMachineAssemblerTester(MachineType p0 = kMachNone,
+                                    MachineType p1 = kMachNone,
+                                    MachineType p2 = kMachNone,
+                                    MachineType p3 = kMachNone)
+      : BufferedRawMachineAssemblerTester(ComputeParameterCount(p0, p1, p2, p3),
+                                          p0, p1, p2, p3) {}
 
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
@@ -190,6 +174,24 @@ class BufferedRawMachineAssemblerTester
         p2 == kMachNone ? nullptr : Load(p2, RawMachineAssembler::Parameter(2));
     parameter_nodes_[3] =
         p3 == kMachNone ? nullptr : Load(p3, RawMachineAssembler::Parameter(3));
+  }
+
+
+  static uint32_t ComputeParameterCount(MachineType p0, MachineType p1,
+                                        MachineType p2, MachineType p3) {
+    if (p0 == kMachNone) {
+      return 0;
+    }
+    if (p1 == kMachNone) {
+      return 1;
+    }
+    if (p2 == kMachNone) {
+      return 2;
+    }
+    if (p3 == kMachNone) {
+      return 3;
+    }
+    return 4;
   }
 
 
