@@ -235,6 +235,8 @@ def BuildOptions():
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
+  result.add_option("--ignition", help="Skip tests which don't run in ignition",
+                    default=False, action="store_true")
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
@@ -681,6 +683,7 @@ def Execute(arch, mode, args, options, suites):
     "asan": options.asan,
     "deopt_fuzzer": False,
     "gc_stress": options.gc_stress,
+    "ignition": options.ignition,
     "isolates": options.isolates,
     "mode": MODES[mode]["status_mode"],
     "no_i18n": options.no_i18n,

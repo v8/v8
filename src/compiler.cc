@@ -691,24 +691,6 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 }
 
 
-// Checks whether top level functions should be passed by {raw_filter}.
-// TODO(rmcilroy): Remove filtering once ignition can handle test262 harness.
-static bool TopLevelFunctionPassesFilter(const char* raw_filter) {
-  Vector<const char> filter = CStrVector(raw_filter);
-  return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
-}
-
-
-// Checks whether the passed {raw_filter} is a prefix of the given scripts name.
-// TODO(rmcilroy): Remove filtering once ignition can handle test262 harness.
-static bool ScriptPassesFilter(const char* raw_filter, Handle<Script> script) {
-  Vector<const char> filter = CStrVector(raw_filter);
-  if (!script->name()->IsString()) return filter.length() == 0;
-  String* name = String::cast(script->name());
-  return name->IsUtf8EqualTo(filter, true);
-}
-
-
 static bool CompileUnoptimizedCode(CompilationInfo* info) {
   DCHECK(AllowCompilation::IsAllowed(info->isolate()));
   if (!Compiler::Analyze(info->parse_info()) ||
@@ -721,15 +703,37 @@ static bool CompileUnoptimizedCode(CompilationInfo* info) {
 }
 
 
+// TODO(rmcilroy): Remove this temporary work-around when ignition supports
+// catch and eval.
+static bool IgnitionShouldFallbackToFullCodeGen(Scope* scope) {
+  if (!FLAG_ignition_fallback_on_eval_and_catch) return false;
+
+  if (scope->is_eval_scope() || scope->is_catch_scope() ||
+      scope->calls_eval()) {
+    return true;
+  }
+  for (auto inner_scope : *scope->inner_scopes()) {
+    if (IgnitionShouldFallbackToFullCodeGen(inner_scope)) return true;
+  }
+  return false;
+}
+
+
 static bool GenerateBytecode(CompilationInfo* info) {
   DCHECK(AllowCompilation::IsAllowed(info->isolate()));
-  if (!Compiler::Analyze(info->parse_info()) ||
-      !interpreter::Interpreter::MakeBytecode(info)) {
+  bool success = false;
+  if (Compiler::Analyze(info->parse_info())) {
+    if (IgnitionShouldFallbackToFullCodeGen(info->scope())) {
+      success = FullCodeGenerator::MakeCode(info);
+    } else {
+      success = interpreter::Interpreter::MakeBytecode(info);
+    }
+  }
+  if (!success) {
     Isolate* isolate = info->isolate();
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return false;
   }
-  return true;
+  return success;
 }
 
 
@@ -747,8 +751,7 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   MaybeDisableOptimization(shared, lit->dont_optimize_reason());
 
   if (FLAG_ignition && !shared->HasBuiltinFunctionId() &&
-      info->closure()->PassesFilter(FLAG_ignition_filter) &&
-      ScriptPassesFilter(FLAG_ignition_script_filter, info->script())) {
+      info->closure()->PassesFilter(FLAG_ignition_filter)) {
     // Compile bytecode for the interpreter.
     if (!GenerateBytecode(info)) return MaybeHandle<Code>();
   } else {
@@ -1173,6 +1176,13 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
 }
 
 
+// Checks whether top level functions should be passed by {raw_filter}.
+static bool TopLevelFunctionPassesFilter(const char* raw_filter) {
+  Vector<const char> filter = CStrVector(raw_filter);
+  return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
+}
+
+
 static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   PostponeInterruptsScope postpone(isolate);
@@ -1236,8 +1246,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     HistogramTimerScope timer(rate);
 
     // Compile the code.
-    if (FLAG_ignition && TopLevelFunctionPassesFilter(FLAG_ignition_filter) &&
-        ScriptPassesFilter(FLAG_ignition_script_filter, script)) {
+    if (FLAG_ignition && TopLevelFunctionPassesFilter(FLAG_ignition_filter)) {
       if (!GenerateBytecode(info)) {
         return Handle<SharedFunctionInfo>::null();
       }
