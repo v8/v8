@@ -924,9 +924,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   //  - Support profiler (specifically profiling_counter).
   //  - Call ProfileEntryHookStub when isolate has a function_entry_hook.
   //  - Allow simulator stop operations if FLAG_stop_at is set.
-  //  - Deal with sloppy mode functions which need to replace the
-  //    receiver with the global proxy when called as functions (without an
-  //    explicit receiver object).
   //  - Code aging of the BytecodeArray object.
 
   // Perform stack guard check.

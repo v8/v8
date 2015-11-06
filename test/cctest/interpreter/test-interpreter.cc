@@ -2885,6 +2885,40 @@ TEST(InterpreterSwitch) {
   }
 }
 
+
+TEST(InterpreterSloppyThis) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> sloppy_this[] = {
+      std::make_pair("var global_val = 100;\n"
+                     "function f() { return this.global_val; }\n",
+                     handle(Smi::FromInt(100), isolate)),
+      std::make_pair("var global_val = 110;\n"
+                     "function g() { return this.global_val; };"
+                     "function f() { return g(); }\n",
+                     handle(Smi::FromInt(110), isolate)),
+      std::make_pair("var global_val = 110;\n"
+                     "function g() { return this.global_val };"
+                     "function f() { 'use strict'; return g(); }\n",
+                     handle(Smi::FromInt(110), isolate)),
+      std::make_pair("function f() { 'use strict'; return this; }\n",
+                     factory->undefined_value()),
+      std::make_pair("function g() { 'use strict'; return this; };"
+                     "function f() { return g(); }\n",
+                     factory->undefined_value()),
+  };
+
+  for (size_t i = 0; i < arraysize(sloppy_this); i++) {
+    InterpreterTester tester(handles.main_isolate(), sloppy_this[i].first);
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*sloppy_this[i].second));
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
