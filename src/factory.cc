@@ -727,6 +727,7 @@ Handle<Context> Factory::NewNativeContext() {
   array->set_map_no_write_barrier(*native_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_js_array_maps(*undefined_value());
+  context->set_errors_thrown(Smi::FromInt(0));
   DCHECK(context->IsNativeContext());
   return context;
 }

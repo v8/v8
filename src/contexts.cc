@@ -577,5 +577,16 @@ bool Context::IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object) {
 }
 #endif
 
+
+void Context::IncrementErrorsThrown() {
+  DCHECK(IsNativeContext());
+
+  int previous_value = errors_thrown()->value();
+  set_errors_thrown(Smi::FromInt(previous_value + 1));
+}
+
+
+int Context::GetErrorsThrown() { return errors_thrown()->value(); }
+
 }  // namespace internal
 }  // namespace v8

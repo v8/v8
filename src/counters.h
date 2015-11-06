@@ -483,7 +483,8 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
   HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000,    \
      101)                                                                     \
-  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
+  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                              \
   /* Garbage collection timers. */                                            \

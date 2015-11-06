@@ -307,6 +307,7 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       MessageTemplate::FormatMessage(template_index, arg0, arg1, arg2));
+  isolate->native_context()->IncrementErrorsThrown();
   return *result;
 }
 

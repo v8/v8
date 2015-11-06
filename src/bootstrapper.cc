@@ -370,6 +370,9 @@ static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
 
 
 void Bootstrapper::DetachGlobal(Handle<Context> env) {
+  env->GetIsolate()->counters()->errors_thrown_per_context()->AddSample(
+    env->GetErrorsThrown());
+
   Factory* factory = env->GetIsolate()->factory();
   Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()));
   global_proxy->set_native_context(*factory->null_value());
@@ -3171,6 +3174,9 @@ Genesis::Genesis(Isolate* isolate,
       if (!ConfigureGlobalObjects(global_proxy_template)) return;
     }
     isolate->counters()->contexts_created_from_scratch()->Increment();
+    // Re-initialize the counter because it got incremented during snapshot
+    // creation.
+    isolate->native_context()->set_errors_thrown(Smi::FromInt(0));
   }
 
   // Install experimental natives. Do not include them into the

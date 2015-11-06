@@ -186,6 +186,7 @@ enum BindingFlags {
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
+  V(ERRORS_THROWN_INDEX, Smi, errors_thrown)                                   \
   V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_binding_object)              \
   V(EXTRAS_UTILS_OBJECT_INDEX, JSObject, extras_utils_object)                  \
   V(FAST_ALIASED_ARGUMENTS_MAP_INDEX, Map, fast_aliased_arguments_map)         \
@@ -395,6 +396,9 @@ class Context: public FixedArray {
     // This slot holds the thrown value in catch contexts.
     THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
   };
+
+  void IncrementErrorsThrown();
+  int GetErrorsThrown();
 
   // Direct slot access.
   inline JSFunction* closure();
