@@ -787,10 +787,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Cmp(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Cmn:
-      __ Cmn(i.InputRegister(0), i.InputOperand(1));
+      __ Cmn(i.InputOrZeroRegister64(0), i.InputOperand(1));
       break;
     case kArm64Cmn32:
-      __ Cmn(i.InputRegister32(0), i.InputOperand32(1));
+      __ Cmn(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Tst:
       __ Tst(i.InputRegister(0), i.InputOperand(1));

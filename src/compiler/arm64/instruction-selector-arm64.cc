@@ -223,14 +223,14 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   size_t input_count = 0;
   InstructionOperand outputs[2];
   size_t output_count = 0;
-  bool is_cmp = opcode == kArm64Cmp32;
+  bool is_cmp = (opcode == kArm64Cmp32) || (opcode == kArm64Cmn32);
 
   // We can commute cmp by switching the inputs and commuting the flags
   // continuation.
   bool can_commute = m.HasProperty(Operator::kCommutative) || is_cmp;
 
-  // The cmp instruction is encoded as sub with zero output register, and
-  // therefore supports the same operand modes.
+  // The cmp and cmn instructions are encoded as sub or add with zero output
+  // register, and therefore support the same operand modes.
   bool is_add_sub = m.IsInt32Add() || m.IsInt64Add() || m.IsInt32Sub() ||
                     m.IsInt64Sub() || is_cmp;
 
@@ -1516,8 +1516,29 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
-  VisitBinop<Int32BinopMatcher>(selector, node, kArm64Cmp32, kArithmeticImm,
-                                cont);
+  Int32BinopMatcher m(node);
+  ArchOpcode opcode = kArm64Cmp32;
+
+  // Select negated compare for comparisons with negated right input.
+  if (m.right().IsInt32Sub()) {
+    Node* sub = m.right().node();
+    Int32BinopMatcher msub(sub);
+    if (msub.left().Is(0)) {
+      bool can_cover = selector->CanCover(node, sub);
+      node->ReplaceInput(1, msub.right().node());
+      // Even if the comparison node covers the subtraction, after the input
+      // replacement above, the node still won't cover the input to the
+      // subtraction; the subtraction still uses it.
+      // In order to get shifted operations to work, we must remove the rhs
+      // input to the subtraction, as TryMatchAnyShift requires this node to
+      // cover the input shift. We do this by setting it to the lhs input,
+      // as we know it's zero, and the result of the subtraction isn't used by
+      // any other node.
+      if (can_cover) sub->ReplaceInput(1, msub.left().node());
+      opcode = kArm64Cmn32;
+    }
+  }
+  VisitBinop<Int32BinopMatcher>(selector, node, opcode, kArithmeticImm, cont);
 }
 
 
