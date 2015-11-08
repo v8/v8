@@ -421,10 +421,8 @@ if (is_android) {
       deps = [
         "//v8",
       ]
-      sources = [
-        "$root_out_dir/natives_blob.bin",
-        "$root_out_dir/snapshot_blob.bin",
-      ]
+      renaming_sources = v8_external_startup_data_renaming_sources
+      renaming_destinations = v8_external_startup_data_renaming_destinations
       disable_compression = true
     }
   }
