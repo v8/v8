@@ -393,6 +393,8 @@ class SourcePositionWrapper final : public Reducer {
     return reducer_->Reduce(node);
   }
 
+  void Finalize() final { reducer_->Finalize(); }
+
  private:
   Reducer* const reducer_;
   SourcePositionTable* const table_;
