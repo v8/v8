@@ -36,7 +36,8 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap-tester.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 #if 0
 static void VerifyRegionMarking(Address page_start) {
@@ -104,9 +105,6 @@ TEST(Page) {
 #endif
 
 
-namespace v8 {
-namespace internal {
-
 // Temporarily sets a given allocator in an isolate.
 class TestMemoryAllocatorScope {
  public:
@@ -148,9 +146,6 @@ class TestCodeRangeScope {
   DISALLOW_COPY_AND_ASSIGN(TestCodeRangeScope);
 };
 
-}  // namespace internal
-}  // namespace v8
-
 
 static void VerifyMemoryChunk(Isolate* isolate,
                               Heap* heap,
@@ -176,14 +171,15 @@ static void VerifyMemoryChunk(Isolate* isolate,
                                                               commit_area_size,
                                                               executable,
                                                               NULL);
-  size_t alignment = code_range != NULL && code_range->valid() ?
-                     MemoryChunk::kAlignment : v8::base::OS::CommitPageSize();
+  size_t alignment = code_range != NULL && code_range->valid()
+                         ? MemoryChunk::kAlignment
+                         : base::OS::CommitPageSize();
   size_t reserved_size =
       ((executable == EXECUTABLE))
           ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
                     alignment)
           : RoundUp(header_size + reserve_area_size,
-                    v8::base::OS::CommitPageSize());
+                    base::OS::CommitPageSize());
   CHECK(memory_chunk->size() == reserved_size);
   CHECK(memory_chunk->area_start() < memory_chunk->address() +
                                      memory_chunk->size());
@@ -888,3 +884,6 @@ UNINITIALIZED_TEST(InlineAllocationObserver) {
   }
   isolate->Dispose();
 }
+
+}  // namespace internal
+}  // namespace v8
