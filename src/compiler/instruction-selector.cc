@@ -1206,7 +1206,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
     CallBuffer buffer(zone(), descriptor, nullptr);
 
     // Compute InstructionOperands for inputs and outputs.
-    InitializeCallBuffer(node, &buffer, true, true);
+    InitializeCallBuffer(node, &buffer, true, IsTailCallAddressImmediate());
 
     // Select the appropriate opcode based on the call type.
     InstructionCode opcode;
