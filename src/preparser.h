@@ -2404,6 +2404,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
 
     case Token::MOD:
       if (allow_natives() || extension_ != NULL) {
+        BindingPatternUnexpectedToken(classifier);
         return this->ParseV8Intrinsic(ok);
       }
       break;
