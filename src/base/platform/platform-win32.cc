@@ -1146,9 +1146,9 @@ static std::vector<OS::SharedLibraryAddress> LoadSymbols(
     WideCharToMultiByte(CP_UTF8, 0, module_entry.szExePath, -1, &lib_name[0],
                         lib_name_length, NULL, NULL);
     result.push_back(OS::SharedLibraryAddress(
-        lib_name, reinterpret_cast<unsigned int>(module_entry.modBaseAddr),
-        reinterpret_cast<unsigned int>(module_entry.modBaseAddr +
-                                       module_entry.modBaseSize)));
+        lib_name, reinterpret_cast<uintptr_t>(module_entry.modBaseAddr),
+        reinterpret_cast<uintptr_t>(module_entry.modBaseAddr +
+                                    module_entry.modBaseSize)));
     cont = _Module32NextW(snapshot, &module_entry);
   }
   CloseHandle(snapshot);
