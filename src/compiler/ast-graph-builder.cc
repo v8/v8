@@ -3653,14 +3653,6 @@ Node* AstGraphBuilder::BuildLoadNativeContextField(int index) {
 }
 
 
-Node* AstGraphBuilder::BuildLoadGlobalProxy() {
-  Node* global = BuildLoadGlobalObject();
-  Node* proxy =
-      BuildLoadObjectField(global, JSGlobalObject::kGlobalProxyOffset);
-  return proxy;
-}
-
-
 Node* AstGraphBuilder::BuildLoadFeedbackVector() {
   if (!feedback_vector_.is_set()) {
     Node* closure = GetFunctionClosure();

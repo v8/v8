@@ -301,7 +301,6 @@ class AstGraphBuilder : public AstVisitor {
   // Builders for accessing the function context.
   Node* BuildLoadGlobalObject();
   Node* BuildLoadNativeContextField(int index);
-  Node* BuildLoadGlobalProxy();
   Node* BuildLoadFeedbackVector();
 
   // Builder for accessing a (potentially immutable) object field.
