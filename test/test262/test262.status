@@ -743,7 +743,7 @@
   'language/default-parameters/param-ref-uninitialized': [SKIP],
   'language/expressions/delete/11.4.1-4.a-5': [SKIP],
   'language/expressions/delete/11.4.1-4.a-6': [SKIP],
-  'language/expressions/object/method-definition/name-super-param': [SKIP],
+  'language/expressions/object/method-definition/name-super-prop-param': [SKIP],
   'language/expressions/object/method-definition/name-super-prop-body': [SKIP],
   'language/expressions/object/prop-def-id-eval-error': [SKIP],
   'language/expressions/tagged-template/call-expression-context-no-strict': [SKIP],
