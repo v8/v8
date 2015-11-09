@@ -2740,20 +2740,21 @@ bool Map::DeprecateTarget(PropertyKind kind, Name* key,
     transition_target_deprecated = true;
   }
 
-  // Don't overwrite the empty descriptor array.
-  if (NumberOfOwnDescriptors() == 0) return transition_target_deprecated;
-
-  DescriptorArray* to_replace = instance_descriptors();
-  Map* current = this;
-  GetHeap()->incremental_marking()->RecordWrites(to_replace);
-  while (current->instance_descriptors() == to_replace) {
-    current->SetEnumLength(kInvalidEnumCacheSentinel);
-    current->UpdateDescriptors(new_descriptors, new_layout_descriptor);
-    Object* next = current->GetBackPointer();
-    if (next->IsUndefined()) break;
-    current = Map::cast(next);
+  // Don't overwrite the empty descriptor array or initial map's descriptors.
+  if (NumberOfOwnDescriptors() == 0 || GetBackPointer()->IsUndefined()) {
+    return transition_target_deprecated;
   }
 
+  DescriptorArray* to_replace = instance_descriptors();
+  GetHeap()->incremental_marking()->RecordWrites(to_replace);
+  Map* current = this;
+  while (current->instance_descriptors() == to_replace) {
+    Object* next = current->GetBackPointer();
+    if (next->IsUndefined()) break;  // Stop overwriting at initial map.
+    current->SetEnumLength(kInvalidEnumCacheSentinel);
+    current->UpdateDescriptors(new_descriptors, new_layout_descriptor);
+    current = Map::cast(next);
+  }
   set_owns_descriptors(false);
   return transition_target_deprecated;
 }
@@ -2763,7 +2764,14 @@ Map* Map::FindRootMap() {
   Map* result = this;
   while (true) {
     Object* back = result->GetBackPointer();
-    if (back->IsUndefined()) return result;
+    if (back->IsUndefined()) {
+      // Initial map always owns descriptors and doesn't have unused entries
+      // in the descriptor array.
+      DCHECK(result->owns_descriptors());
+      DCHECK_EQ(result->NumberOfOwnDescriptors(),
+                result->instance_descriptors()->number_of_descriptors());
+      return result;
+    }
     result = Map::cast(back);
   }
 }
@@ -4123,15 +4131,13 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
   // Replace descriptors by new_descriptors in all maps that share it.
   map->GetHeap()->incremental_marking()->RecordWrites(*descriptors);
 
-  Map* walk_map;
-  for (Object* current = map->GetBackPointer();
-       !current->IsUndefined();
-       current = walk_map->GetBackPointer()) {
-    walk_map = Map::cast(current);
-    if (walk_map->instance_descriptors() != *descriptors) break;
-    walk_map->UpdateDescriptors(*new_descriptors, layout_descriptor);
+  Map* current = *map;
+  while (current->instance_descriptors() == *descriptors) {
+    Object* next = current->GetBackPointer();
+    if (next->IsUndefined()) break;  // Stop overwriting at initial map.
+    current->UpdateDescriptors(*new_descriptors, layout_descriptor);
+    current = Map::cast(next);
   }
-
   map->UpdateDescriptors(*new_descriptors, layout_descriptor);
 }
 
@@ -8034,6 +8040,12 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
   DCHECK(constructor->IsJSFunction());
   DCHECK_EQ(*map, JSFunction::cast(constructor)->initial_map());
 #endif
+  // Initial maps must always own their descriptors and it's descriptor array
+  // does not contain descriptors that do not belong to the map.
+  DCHECK(map->owns_descriptors());
+  DCHECK_EQ(map->NumberOfOwnDescriptors(),
+            map->instance_descriptors()->number_of_descriptors());
+
   Handle<Map> result = RawCopy(map, instance_size);
 
   // Please note instance_type and instance_size are set when allocated.
@@ -8042,11 +8054,9 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
 
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors > 0) {
-    DCHECK(map->owns_descriptors());
-    // The copy will use the same descriptors array, but it's not the owner.
+    // The copy will use the same descriptors array.
     result->UpdateDescriptors(map->instance_descriptors(),
                               map->layout_descriptor());
-    result->set_owns_descriptors(false);
     result->SetNumberOfOwnDescriptors(number_of_own_descriptors);
 
     DCHECK_EQ(result->NumberOfFields(),
@@ -8076,8 +8086,8 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   // Sanity check. This path is only to be taken if the map owns its descriptor
   // array, implying that its NumberOfOwnDescriptors equals the number of
   // descriptors in the descriptor array.
-  DCHECK(map->NumberOfOwnDescriptors() ==
-         map->instance_descriptors()->number_of_descriptors());
+  DCHECK_EQ(map->NumberOfOwnDescriptors(),
+            map->instance_descriptors()->number_of_descriptors());
 
   Handle<Map> result = CopyDropDescriptors(map);
   Handle<Name> name = descriptor->GetKey();
@@ -8142,7 +8152,15 @@ void Map::TraceAllTransitions(Map* map) {
 
 void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
                             Handle<Name> name, SimpleTransitionFlag flag) {
-  parent->set_owns_descriptors(false);
+  if (!parent->GetBackPointer()->IsUndefined()) {
+    parent->set_owns_descriptors(false);
+  } else {
+    // |parent| is initial map and it must keep the ownership, there must be no
+    // descriptors in the descriptors array that do not belong to the map.
+    DCHECK(parent->owns_descriptors());
+    DCHECK_EQ(parent->NumberOfOwnDescriptors(),
+              parent->instance_descriptors()->number_of_descriptors());
+  }
   if (parent->is_prototype_map()) {
     DCHECK(child->is_prototype_map());
 #if TRACE_MAPS
@@ -8640,7 +8658,9 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
   // Ensure the key is unique.
   descriptor->KeyToUniqueName();
 
+  // Share descriptors only if map owns descriptors and it not an initial map.
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
+      !map->GetBackPointer()->IsUndefined() &&
       TransitionArray::CanHaveMoreTransitions(map)) {
     return ShareDescriptor(map, descriptors, descriptor);
   }
