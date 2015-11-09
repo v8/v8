@@ -43,6 +43,7 @@
         'base/sys-info-unittest.cc',
         'base/utils/random-number-generator-unittest.cc',
         'char-predicates-unittest.cc',
+        'compiler/binary-operator-reducer-unittest.cc',
         'compiler/branch-elimination-unittest.cc',
         'compiler/bytecode-graph-builder-unittest.cc',
         'compiler/change-lowering-unittest.cc',
