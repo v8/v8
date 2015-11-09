@@ -34,96 +34,106 @@ TEST(RunInt32Add) {
 }
 
 
-void TestWord32Ctz(int32_t value, int32_t expected) {
-  RawMachineAssemblerTester<int32_t> m;
-  if (m.machine()->Word32Ctz().IsSupported()) {
-    Node* ctz =
-        m.AddNode(m.machine()->Word32Ctz().op(), m.Int32Constant(value));
-    m.Return(ctz);
-    CHECK_EQ(expected, m.Call());
+TEST(RunWord32Ctz) {
+  BufferedRawMachineAssemblerTester<int32_t> m(kMachUint32);
+  if (!m.machine()->Word32Ctz().IsSupported()) {
+    // We can only test the operator if it exists on the testing platform.
+    return;
   }
+  m.Return(m.AddNode(m.machine()->Word32Ctz().op(), m.Parameter(0)));
+
+  CHECK_EQ(32, m.Call(uint32_t(0x00000000)));
+  CHECK_EQ(31, m.Call(uint32_t(0x80000000)));
+  CHECK_EQ(30, m.Call(uint32_t(0x40000000)));
+  CHECK_EQ(29, m.Call(uint32_t(0x20000000)));
+  CHECK_EQ(28, m.Call(uint32_t(0x10000000)));
+  CHECK_EQ(27, m.Call(uint32_t(0xa8000000)));
+  CHECK_EQ(26, m.Call(uint32_t(0xf4000000)));
+  CHECK_EQ(25, m.Call(uint32_t(0x62000000)));
+  CHECK_EQ(24, m.Call(uint32_t(0x91000000)));
+  CHECK_EQ(23, m.Call(uint32_t(0xcd800000)));
+  CHECK_EQ(22, m.Call(uint32_t(0x09400000)));
+  CHECK_EQ(21, m.Call(uint32_t(0xaf200000)));
+  CHECK_EQ(20, m.Call(uint32_t(0xac100000)));
+  CHECK_EQ(19, m.Call(uint32_t(0xe0b80000)));
+  CHECK_EQ(18, m.Call(uint32_t(0x9ce40000)));
+  CHECK_EQ(17, m.Call(uint32_t(0xc7920000)));
+  CHECK_EQ(16, m.Call(uint32_t(0xb8f10000)));
+  CHECK_EQ(15, m.Call(uint32_t(0x3b9f8000)));
+  CHECK_EQ(14, m.Call(uint32_t(0xdb4c4000)));
+  CHECK_EQ(13, m.Call(uint32_t(0xe9a32000)));
+  CHECK_EQ(12, m.Call(uint32_t(0xfca61000)));
+  CHECK_EQ(11, m.Call(uint32_t(0x6c8a7800)));
+  CHECK_EQ(10, m.Call(uint32_t(0x8ce5a400)));
+  CHECK_EQ(9, m.Call(uint32_t(0xcb7d0200)));
+  CHECK_EQ(8, m.Call(uint32_t(0xcb4dc100)));
+  CHECK_EQ(7, m.Call(uint32_t(0xdfbec580)));
+  CHECK_EQ(6, m.Call(uint32_t(0x27a9db40)));
+  CHECK_EQ(5, m.Call(uint32_t(0xde3bcb20)));
+  CHECK_EQ(4, m.Call(uint32_t(0xd7e8a610)));
+  CHECK_EQ(3, m.Call(uint32_t(0x9afdbc88)));
+  CHECK_EQ(2, m.Call(uint32_t(0x9afdbc84)));
+  CHECK_EQ(1, m.Call(uint32_t(0x9afdbc82)));
+  CHECK_EQ(0, m.Call(uint32_t(0x9afdbc81)));
 }
 
 
-TEST(RunInt32Ctz) {
-  TestWord32Ctz(0x00000000, 32);
-  TestWord32Ctz(0x80000000, 31);
-  TestWord32Ctz(0x40000000, 30);
-  TestWord32Ctz(0x20000000, 29);
-  TestWord32Ctz(0x10000000, 28);
-  TestWord32Ctz(0xa8000000, 27);
-  TestWord32Ctz(0xf4000000, 26);
-  TestWord32Ctz(0x62000000, 25);
-  TestWord32Ctz(0x91000000, 24);
-  TestWord32Ctz(0xcd800000, 23);
-  TestWord32Ctz(0x09400000, 22);
-  TestWord32Ctz(0xaf200000, 21);
-  TestWord32Ctz(0xac100000, 20);
-  TestWord32Ctz(0xe0b80000, 19);
-  TestWord32Ctz(0x9ce40000, 18);
-  TestWord32Ctz(0xc7920000, 17);
-  TestWord32Ctz(0xb8f10000, 16);
-  TestWord32Ctz(0x3b9f8000, 15);
-  TestWord32Ctz(0xdb4c4000, 14);
-  TestWord32Ctz(0xe9a32000, 13);
-  TestWord32Ctz(0xfca61000, 12);
-  TestWord32Ctz(0x6c8a7800, 11);
-  TestWord32Ctz(0x8ce5a400, 10);
-  TestWord32Ctz(0xcb7d0200, 9);
-  TestWord32Ctz(0xcb4dc100, 8);
-  TestWord32Ctz(0xdfbec580, 7);
-  TestWord32Ctz(0x27a9db40, 6);
-  TestWord32Ctz(0xde3bcb20, 5);
-  TestWord32Ctz(0xd7e8a610, 4);
-  TestWord32Ctz(0x9afdbc88, 3);
-  TestWord32Ctz(0x9afdbc84, 2);
-  TestWord32Ctz(0x9afdbc82, 1);
-  TestWord32Ctz(0x9afdbc81, 0);
+TEST(RunWord32Clz) {
+  BufferedRawMachineAssemblerTester<int32_t> m(kMachUint32);
+  m.Return(m.Word32Clz(m.Parameter(0)));
+
+  CHECK_EQ(0, m.Call(uint32_t(0x80001000)));
+  CHECK_EQ(1, m.Call(uint32_t(0x40000500)));
+  CHECK_EQ(2, m.Call(uint32_t(0x20000300)));
+  CHECK_EQ(3, m.Call(uint32_t(0x10000003)));
+  CHECK_EQ(4, m.Call(uint32_t(0x08050000)));
+  CHECK_EQ(5, m.Call(uint32_t(0x04006000)));
+  CHECK_EQ(6, m.Call(uint32_t(0x02000000)));
+  CHECK_EQ(7, m.Call(uint32_t(0x010000a0)));
+  CHECK_EQ(8, m.Call(uint32_t(0x00800c00)));
+  CHECK_EQ(9, m.Call(uint32_t(0x00400000)));
+  CHECK_EQ(10, m.Call(uint32_t(0x0020000d)));
+  CHECK_EQ(11, m.Call(uint32_t(0x00100f00)));
+  CHECK_EQ(12, m.Call(uint32_t(0x00080000)));
+  CHECK_EQ(13, m.Call(uint32_t(0x00041000)));
+  CHECK_EQ(14, m.Call(uint32_t(0x00020020)));
+  CHECK_EQ(15, m.Call(uint32_t(0x00010300)));
+  CHECK_EQ(16, m.Call(uint32_t(0x00008040)));
+  CHECK_EQ(17, m.Call(uint32_t(0x00004005)));
+  CHECK_EQ(18, m.Call(uint32_t(0x00002050)));
+  CHECK_EQ(19, m.Call(uint32_t(0x00001700)));
+  CHECK_EQ(20, m.Call(uint32_t(0x00000870)));
+  CHECK_EQ(21, m.Call(uint32_t(0x00000405)));
+  CHECK_EQ(22, m.Call(uint32_t(0x00000203)));
+  CHECK_EQ(23, m.Call(uint32_t(0x00000101)));
+  CHECK_EQ(24, m.Call(uint32_t(0x00000089)));
+  CHECK_EQ(25, m.Call(uint32_t(0x00000041)));
+  CHECK_EQ(26, m.Call(uint32_t(0x00000022)));
+  CHECK_EQ(27, m.Call(uint32_t(0x00000013)));
+  CHECK_EQ(28, m.Call(uint32_t(0x00000008)));
+  CHECK_EQ(29, m.Call(uint32_t(0x00000004)));
+  CHECK_EQ(30, m.Call(uint32_t(0x00000002)));
+  CHECK_EQ(31, m.Call(uint32_t(0x00000001)));
+  CHECK_EQ(32, m.Call(uint32_t(0x00000000)));
 }
 
 
-void TestWord32Clz(int32_t value, int32_t expected) {
-  RawMachineAssemblerTester<int32_t> m;
-  Node* clz = m.Word32Clz(m.Int32Constant(value));
-  m.Return(clz);
-  CHECK_EQ(expected, m.Call());
-}
+TEST(RunWord32Popcnt) {
+  BufferedRawMachineAssemblerTester<int32_t> m(kMachUint32);
+  if (!m.machine()->Word32Popcnt().IsSupported()) {
+    // We can only test the operator if it exists on the testing platform.
+    return;
+  }
+  m.Return(m.AddNode(m.machine()->Word32Popcnt().op(), m.Parameter(0)));
 
-
-TEST(RunInt32Clz) {
-  TestWord32Clz(0x80001000, 0);
-  TestWord32Clz(0x40000500, 1);
-  TestWord32Clz(0x20000300, 2);
-  TestWord32Clz(0x10000003, 3);
-  TestWord32Clz(0x08050000, 4);
-  TestWord32Clz(0x04006000, 5);
-  TestWord32Clz(0x02000000, 6);
-  TestWord32Clz(0x010000a0, 7);
-  TestWord32Clz(0x00800c00, 8);
-  TestWord32Clz(0x00400000, 9);
-  TestWord32Clz(0x0020000d, 10);
-  TestWord32Clz(0x00100f00, 11);
-  TestWord32Clz(0x00080000, 12);
-  TestWord32Clz(0x00041000, 13);
-  TestWord32Clz(0x00020020, 14);
-  TestWord32Clz(0x00010300, 15);
-  TestWord32Clz(0x00008040, 16);
-  TestWord32Clz(0x00004005, 17);
-  TestWord32Clz(0x00002050, 18);
-  TestWord32Clz(0x00001700, 19);
-  TestWord32Clz(0x00000870, 20);
-  TestWord32Clz(0x00000405, 21);
-  TestWord32Clz(0x00000203, 22);
-  TestWord32Clz(0x00000101, 23);
-  TestWord32Clz(0x00000089, 24);
-  TestWord32Clz(0x00000041, 25);
-  TestWord32Clz(0x00000022, 26);
-  TestWord32Clz(0x00000013, 27);
-  TestWord32Clz(0x00000008, 28);
-  TestWord32Clz(0x00000004, 29);
-  TestWord32Clz(0x00000002, 30);
-  TestWord32Clz(0x00000001, 31);
-  TestWord32Clz(0x00000000, 32);
+  CHECK_EQ(0, m.Call(uint32_t(0x00000000)));
+  CHECK_EQ(1, m.Call(uint32_t(0x00000001)));
+  CHECK_EQ(1, m.Call(uint32_t(0x80000000)));
+  CHECK_EQ(32, m.Call(uint32_t(0xffffffff)));
+  CHECK_EQ(6, m.Call(uint32_t(0x000dc100)));
+  CHECK_EQ(9, m.Call(uint32_t(0xe00dc100)));
+  CHECK_EQ(11, m.Call(uint32_t(0xe00dc103)));
+  CHECK_EQ(9, m.Call(uint32_t(0x000dc107)));
 }
 
 
@@ -199,29 +209,6 @@ TEST(RunWord64Clz) {
   CHECK_EQ(64, m.Call(uint64_t(0x0000000000000000)));
 }
 #endif  // V8_TARGET_ARCH_64_BIT
-
-
-void TestWord32Popcnt(int32_t value, int32_t expected) {
-  RawMachineAssemblerTester<int32_t> m;
-  compiler::OptionalOperator op = m.machine()->Word32Popcnt();
-  if (op.IsSupported()) {
-    Node* popcnt = m.AddNode(op.op(), m.Int32Constant(value));
-    m.Return(popcnt);
-    CHECK_EQ(expected, m.Call());
-  }
-}
-
-
-TEST(RunWord32Popcnt) {
-  TestWord32Popcnt(0x00000000, 0);
-  TestWord32Popcnt(0x00000001, 1);
-  TestWord32Popcnt(0x80000000, 1);
-  TestWord32Popcnt(0xffffffff, 32);
-  TestWord32Popcnt(0x000dc100, 6);
-  TestWord32Popcnt(0xe00dc100, 9);
-  TestWord32Popcnt(0xe00dc103, 11);
-  TestWord32Popcnt(0x000dc107, 9);
-}
 
 
 static Node* Int32Input(RawMachineAssemblerTester<int32_t>* m, int index) {
@@ -3799,52 +3786,11 @@ TEST(RunChangeInt32ToFloat64_B) {
 }
 
 
-TEST(RunChangeUint32ToFloat64_B) {
-  RawMachineAssemblerTester<uint32_t> m(kMachUint32);
-  double output = 0;
+TEST(RunChangeUint32ToFloat64) {
+  BufferedRawMachineAssemblerTester<double> m(kMachUint32);
+  m.Return(m.ChangeUint32ToFloat64(m.Parameter(0)));
 
-  Node* convert = m.ChangeUint32ToFloat64(m.Parameter(0));
-  m.Store(kMachFloat64, m.PointerConstant(&output), m.Int32Constant(0), convert,
-          kNoWriteBarrier);
-  m.Return(m.Parameter(0));
-
-  FOR_UINT32_INPUTS(i) {
-    uint32_t expect = *i;
-    CHECK_EQ(expect, m.Call(expect));
-    CHECK_EQ(static_cast<double>(expect), output);
-  }
-}
-
-
-TEST(RunChangeUint32ToFloat64_spilled) {
-  RawMachineAssemblerTester<int32_t> m;
-  const int kNumInputs = 32;
-  int32_t magic = 0x786234;
-  uint32_t input[kNumInputs];
-  double result[kNumInputs];
-  Node* input_node[kNumInputs];
-
-  for (int i = 0; i < kNumInputs; i++) {
-    input_node[i] =
-        m.Load(kMachUint32, m.PointerConstant(&input), m.Int32Constant(i * 4));
-  }
-
-  for (int i = 0; i < kNumInputs; i++) {
-    m.Store(kMachFloat64, m.PointerConstant(&result), m.Int32Constant(i * 8),
-            m.ChangeUint32ToFloat64(input_node[i]), kNoWriteBarrier);
-  }
-
-  m.Return(m.Int32Constant(magic));
-
-  for (int i = 0; i < kNumInputs; i++) {
-    input[i] = 100 + i;
-  }
-
-  CHECK_EQ(magic, m.Call());
-
-  for (int i = 0; i < kNumInputs; i++) {
-    CHECK_EQ(result[i], static_cast<double>(100 + i));
-  }
+  FOR_UINT32_INPUTS(i) { CheckDoubleEq(static_cast<double>(*i), m.Call(*i)); }
 }
 
 
@@ -3874,150 +3820,31 @@ TEST(RunChangeFloat64ToInt32_B) {
 }
 
 
-TEST(RunChangeFloat64ToUint32_B) {
-  RawMachineAssemblerTester<int32_t> m;
-  double input = 0;
-  int32_t output = 0;
-
-  Node* load =
-      m.Load(kMachFloat64, m.PointerConstant(&input), m.Int32Constant(0));
-  Node* convert = m.ChangeFloat64ToUint32(load);
-  m.Store(kMachInt32, m.PointerConstant(&output), m.Int32Constant(0), convert,
-          kNoWriteBarrier);
-  m.Return(convert);
+TEST(RunChangeFloat64ToUint32) {
+  BufferedRawMachineAssemblerTester<uint32_t> m(kMachFloat64);
+  m.Return(m.ChangeFloat64ToUint32(m.Parameter(0)));
 
   {
-    FOR_UINT32_INPUTS(i) {
-      input = *i;
-      // TODO(titzer): add a CheckEqualsHelper overload for uint32_t.
-      int32_t expect = static_cast<int32_t>(*i);
-      CHECK_EQ(expect, m.Call());
-      CHECK_EQ(expect, output);
-    }
+    FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, m.Call(static_cast<double>(*i))); }
   }
 
   // Check various powers of 2.
   for (int32_t n = 1; n < 31; ++n) {
-    {
-      input = 1u << n;
-      int32_t expect = static_cast<int32_t>(static_cast<uint32_t>(input));
-      CHECK_EQ(expect, m.Call());
-      CHECK_EQ(expect, output);
-    }
+    { CHECK_EQ(1u << n, m.Call(static_cast<double>(1u << n))); }
 
-    {
-      input = 3u << n;
-      int32_t expect = static_cast<int32_t>(static_cast<uint32_t>(input));
-      CHECK_EQ(expect, m.Call());
-      CHECK_EQ(expect, output);
-    }
+    { CHECK_EQ(3u << n, m.Call(static_cast<double>(3u << n))); }
   }
   // Note we don't check fractional inputs, because these Convert operators
   // really should be Change operators.
 }
 
 
-TEST(RunChangeFloat64ToInt32_spilled) {
-  RawMachineAssemblerTester<int32_t> m;
-  const int kNumInputs = 32;
-  int32_t magic = 0x786234;
-  double input[kNumInputs];
-  int32_t result[kNumInputs];
-  Node* input_node[kNumInputs];
+TEST(RunTruncateFloat64ToFloat32) {
+  BufferedRawMachineAssemblerTester<float> m(kMachFloat64);
 
-  for (int i = 0; i < kNumInputs; i++) {
-    input_node[i] =
-        m.Load(kMachFloat64, m.PointerConstant(&input), m.Int32Constant(i * 8));
-  }
+  m.Return(m.TruncateFloat64ToFloat32(m.Parameter(0)));
 
-  for (int i = 0; i < kNumInputs; i++) {
-    m.Store(kMachInt32, m.PointerConstant(&result), m.Int32Constant(i * 4),
-            m.ChangeFloat64ToInt32(input_node[i]), kNoWriteBarrier);
-  }
-
-  m.Return(m.Int32Constant(magic));
-
-  for (int i = 0; i < kNumInputs; i++) {
-    input[i] = 100.9 + i;
-  }
-
-  CHECK_EQ(magic, m.Call());
-
-  for (int i = 0; i < kNumInputs; i++) {
-    CHECK_EQ(result[i], 100 + i);
-  }
-}
-
-
-TEST(RunChangeFloat64ToUint32_spilled) {
-  RawMachineAssemblerTester<uint32_t> m;
-  const int kNumInputs = 32;
-  uint32_t magic = 0x786234;
-  double input[kNumInputs];
-  uint32_t result[kNumInputs];
-  Node* input_node[kNumInputs];
-
-  for (int i = 0; i < kNumInputs; i++) {
-    input_node[i] =
-        m.Load(kMachFloat64, m.PointerConstant(&input), m.Int32Constant(i * 8));
-  }
-
-  for (int i = 0; i < kNumInputs; i++) {
-    m.Store(kMachUint32, m.PointerConstant(&result), m.Int32Constant(i * 4),
-            m.ChangeFloat64ToUint32(input_node[i]), kNoWriteBarrier);
-  }
-
-  m.Return(m.Int32Constant(magic));
-
-  for (int i = 0; i < kNumInputs; i++) {
-    if (i % 2) {
-      input[i] = 100 + i + 2147483648u;
-    } else {
-      input[i] = 100 + i;
-    }
-  }
-
-  CHECK_EQ(magic, m.Call());
-
-  for (int i = 0; i < kNumInputs; i++) {
-    if (i % 2) {
-      CHECK_EQ(result[i], static_cast<uint32_t>(100 + i + 2147483648u));
-    } else {
-      CHECK_EQ(result[i], static_cast<uint32_t>(100 + i));
-    }
-  }
-}
-
-
-TEST(RunTruncateFloat64ToFloat32_spilled) {
-  RawMachineAssemblerTester<uint32_t> m;
-  const int kNumInputs = 32;
-  uint32_t magic = 0x786234;
-  double input[kNumInputs];
-  float result[kNumInputs];
-  Node* input_node[kNumInputs];
-
-  for (int i = 0; i < kNumInputs; i++) {
-    input_node[i] =
-        m.Load(kMachFloat64, m.PointerConstant(&input), m.Int32Constant(i * 8));
-  }
-
-  for (int i = 0; i < kNumInputs; i++) {
-    m.Store(kMachFloat32, m.PointerConstant(&result), m.Int32Constant(i * 4),
-            m.TruncateFloat64ToFloat32(input_node[i]), kNoWriteBarrier);
-  }
-
-  m.Return(m.Int32Constant(magic));
-
-  for (int i = 0; i < kNumInputs; i++) {
-    input[i] = 0.1 + i;
-  }
-
-  CHECK_EQ(magic, m.Call());
-
-  for (int i = 0; i < kNumInputs; i++) {
-    CHECK_EQ(result[i], DoubleToFloat32(input[i]));
-  }
+  FOR_FLOAT64_INPUTS(i) { CheckFloatEq(DoubleToFloat32(*i), m.Call(*i)); }
 }
 
 
@@ -5045,178 +4872,82 @@ TEST(RunTruncateFloat64ToInt32P) {
 
 
 TEST(RunChangeFloat32ToFloat64) {
-  double actual = 0.0f;
-  float expected = 0.0;
-  RawMachineAssemblerTester<int32_t> m;
-  m.StoreToPointer(
-      &actual, kMachFloat64,
-      m.ChangeFloat32ToFloat64(m.LoadFromPointer(&expected, kMachFloat32)));
-  m.Return(m.Int32Constant(0));
-  FOR_FLOAT32_INPUTS(i) {
-    expected = *i;
-    CHECK_EQ(0, m.Call());
-    CHECK_EQ(static_cast<double>(expected), actual);
-  }
-}
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat32);
 
+  m.Return(m.ChangeFloat32ToFloat64(m.Parameter(0)));
 
-TEST(RunChangeFloat32ToFloat64_spilled) {
-  RawMachineAssemblerTester<int32_t> m;
-  const int kNumInputs = 32;
-  int32_t magic = 0x786234;
-  float input[kNumInputs];
-  double result[kNumInputs];
-  Node* input_node[kNumInputs];
-
-  for (int i = 0; i < kNumInputs; i++) {
-    input_node[i] =
-        m.Load(kMachFloat32, m.PointerConstant(&input), m.Int32Constant(i * 4));
-  }
-
-  for (int i = 0; i < kNumInputs; i++) {
-    m.Store(kMachFloat64, m.PointerConstant(&result), m.Int32Constant(i * 8),
-            m.ChangeFloat32ToFloat64(input_node[i]), kNoWriteBarrier);
-  }
-
-  m.Return(m.Int32Constant(magic));
-
-  for (int i = 0; i < kNumInputs; i++) {
-    input[i] = 100.9f + i;
-  }
-
-  CHECK_EQ(magic, m.Call());
-
-  for (int i = 0; i < kNumInputs; i++) {
-    CHECK_EQ(result[i], static_cast<double>(input[i]));
-  }
-}
-
-
-TEST(RunTruncateFloat64ToFloat32) {
-  float actual = 0.0f;
-  double input = 0.0;
-  RawMachineAssemblerTester<int32_t> m;
-  m.StoreToPointer(
-      &actual, kMachFloat32,
-      m.TruncateFloat64ToFloat32(m.LoadFromPointer(&input, kMachFloat64)));
-  m.Return(m.Int32Constant(0));
-  FOR_FLOAT64_INPUTS(i) {
-    input = *i;
-    volatile double expected = DoubleToFloat32(input);
-    CHECK_EQ(0, m.Call());
-    CheckDoubleEq(expected, actual);
-  }
+  FOR_FLOAT32_INPUTS(i) { CheckDoubleEq(static_cast<double>(*i), m.Call(*i)); }
 }
 
 
 TEST(RunFloat32Constant) {
   FOR_FLOAT32_INPUTS(i) {
-    float expected = *i;
-    float actual = *i;
-    RawMachineAssemblerTester<int32_t> m;
-    m.StoreToPointer(&actual, kMachFloat32, m.Float32Constant(expected));
-    m.Return(m.Int32Constant(0));
-    CHECK_EQ(0, m.Call());
-    CHECK_EQ(expected, actual);
+    BufferedRawMachineAssemblerTester<float> m;
+    m.Return(m.Float32Constant(*i));
+    CheckFloatEq(*i, m.Call());
   }
 }
 
 
 TEST(RunFloat64ExtractLowWord32) {
-  uint64_t input = 0;
-  RawMachineAssemblerTester<int32_t> m;
-  m.Return(m.Float64ExtractLowWord32(m.LoadFromPointer(&input, kMachFloat64)));
+  BufferedRawMachineAssemblerTester<uint32_t> m(kMachFloat64);
+  m.Return(m.Float64ExtractLowWord32(m.Parameter(0)));
   FOR_FLOAT64_INPUTS(i) {
-    input = bit_cast<uint64_t>(*i);
-    int32_t expected = bit_cast<int32_t>(static_cast<uint32_t>(input));
-    CHECK_EQ(expected, m.Call());
+    uint32_t expected = static_cast<uint32_t>(bit_cast<uint64_t>(*i));
+    CHECK_EQ(expected, m.Call(*i));
   }
 }
 
 
 TEST(RunFloat64ExtractHighWord32) {
-  uint64_t input = 0;
-  RawMachineAssemblerTester<int32_t> m;
-  m.Return(m.Float64ExtractHighWord32(m.LoadFromPointer(&input, kMachFloat64)));
+  BufferedRawMachineAssemblerTester<uint32_t> m(kMachFloat64);
+  m.Return(m.Float64ExtractHighWord32(m.Parameter(0)));
   FOR_FLOAT64_INPUTS(i) {
-    input = bit_cast<uint64_t>(*i);
-    int32_t expected = bit_cast<int32_t>(static_cast<uint32_t>(input >> 32));
-    CHECK_EQ(expected, m.Call());
+    uint32_t expected = static_cast<uint32_t>(bit_cast<uint64_t>(*i) >> 32);
+    CHECK_EQ(expected, m.Call(*i));
   }
 }
 
 
 TEST(RunFloat64InsertLowWord32) {
-  uint64_t input = 0;
-  uint64_t result = 0;
-  RawMachineAssemblerTester<int32_t> m(kMachInt32);
-  m.StoreToPointer(
-      &result, kMachFloat64,
-      m.Float64InsertLowWord32(m.LoadFromPointer(&input, kMachFloat64),
-                               m.Parameter(0)));
-  m.Return(m.Int32Constant(0));
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat64, kMachInt32);
+  m.Return(m.Float64InsertLowWord32(m.Parameter(0), m.Parameter(1)));
   FOR_FLOAT64_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
-      input = bit_cast<uint64_t>(*i);
-      uint64_t expected = (input & ~(V8_UINT64_C(0xFFFFFFFF))) |
-                          (static_cast<uint64_t>(bit_cast<uint32_t>(*j)));
-      CHECK_EQ(0, m.Call(*j));
-      CHECK_EQ(expected, result);
+      double expected = bit_cast<double>(
+          (bit_cast<uint64_t>(*i) & ~(V8_UINT64_C(0xFFFFFFFF))) |
+          (static_cast<uint64_t>(bit_cast<uint32_t>(*j))));
+      CheckDoubleEq(expected, m.Call(*i, *j));
     }
   }
 }
 
 
 TEST(RunFloat64InsertHighWord32) {
-  uint64_t input = 0;
-  uint64_t result = 0;
-  RawMachineAssemblerTester<int32_t> m(kMachInt32);
-  m.StoreToPointer(
-      &result, kMachFloat64,
-      m.Float64InsertHighWord32(m.LoadFromPointer(&input, kMachFloat64),
-                                m.Parameter(0)));
-  m.Return(m.Int32Constant(0));
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat64, kMachUint32);
+  m.Return(m.Float64InsertHighWord32(m.Parameter(0), m.Parameter(1)));
   FOR_FLOAT64_INPUTS(i) {
-    FOR_INT32_INPUTS(j) {
-      input = bit_cast<uint64_t>(*i);
-      uint64_t expected = (input & ~(V8_UINT64_C(0xFFFFFFFF) << 32)) |
-                          (static_cast<uint64_t>(bit_cast<uint32_t>(*j)) << 32);
-      CHECK_EQ(0, m.Call(*j));
-      CHECK_EQ(expected, result);
+    FOR_UINT32_INPUTS(j) {
+      uint64_t expected = (bit_cast<uint64_t>(*i) & 0xFFFFFFFF) |
+                          (static_cast<uint64_t>(*j) << 32);
+
+      CheckDoubleEq(bit_cast<double>(expected), m.Call(*i, *j));
     }
   }
 }
 
 
 TEST(RunFloat32Abs) {
-  float input = -1.0;
-  float result = 0.0;
-  RawMachineAssemblerTester<int32_t> m;
-  m.StoreToPointer(&result, kMachFloat32,
-                   m.Float32Abs(m.LoadFromPointer(&input, kMachFloat32)));
-  m.Return(m.Int32Constant(0));
-  FOR_FLOAT32_INPUTS(i) {
-    input = *i;
-    float expected = std::abs(input);
-    CHECK_EQ(0, m.Call());
-    CheckFloatEq(expected, result);
-  }
+  BufferedRawMachineAssemblerTester<float> m(kMachFloat32);
+  m.Return(m.Float32Abs(m.Parameter(0)));
+  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(std::abs(*i), m.Call(*i)); }
 }
 
 
 TEST(RunFloat64Abs) {
-  double input = -1.0;
-  double result = 0.0;
-  RawMachineAssemblerTester<int32_t> m;
-  m.StoreToPointer(&result, kMachFloat64,
-                   m.Float64Abs(m.LoadFromPointer(&input, kMachFloat64)));
-  m.Return(m.Int32Constant(0));
-  FOR_FLOAT64_INPUTS(i) {
-    input = *i;
-    double expected = std::abs(input);
-    CHECK_EQ(0, m.Call());
-    CheckDoubleEq(expected, result);
-  }
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
+  m.Return(m.Float64Abs(m.Parameter(0)));
+  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(std::abs(*i), m.Call(*i)); }
 }
 
 
@@ -5319,19 +5050,12 @@ static double kValues[] = {0.1,
 
 
 TEST(RunFloat64RoundDown1) {
-  double input = -1.0;
-  double result = 0.0;
-  RawMachineAssemblerTester<int32_t> m;
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
   if (!m.machine()->Float64RoundDown().IsSupported()) return;
-  m.StoreToPointer(&result, kMachFloat64,
-                   m.Float64RoundDown(m.LoadFromPointer(&input, kMachFloat64)));
-  m.Return(m.Int32Constant(0));
-  for (size_t i = 0; i < arraysize(kValues); ++i) {
-    input = kValues[i];
-    CHECK_EQ(0, m.Call());
-    double expected = std::floor(kValues[i]);
-    CHECK_EQ(expected, result);
-  }
+
+  m.Return(m.Float64RoundDown(m.Parameter(0)));
+
+  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(std::floor(*i), m.Call(*i)); }
 }
 
 
