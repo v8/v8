@@ -4614,7 +4614,8 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
   PushSafepointRegistersScope scope(this);
   __ Integer32ToSmi(char_code, char_code);
   __ Push(char_code);
-  CallRuntimeFromDeferred(Runtime::kCharFromCode, 1, instr, instr->context());
+  CallRuntimeFromDeferred(Runtime::kStringCharFromCode, 1, instr,
+                          instr->context());
   __ StoreToSafepointRegisterSlot(result, rax);
 }
 

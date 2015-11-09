@@ -3110,7 +3110,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
   __ Bind(&slow_case_);
   call_helper.BeforeCall(masm);
   __ Push(code_);
-  __ CallRuntime(Runtime::kCharFromCode, 1);
+  __ CallRuntime(Runtime::kStringCharFromCode, 1);
   __ Mov(result_, x0);
   call_helper.AfterCall(masm);
   __ B(&exit_);
