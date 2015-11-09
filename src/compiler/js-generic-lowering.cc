@@ -772,6 +772,27 @@ void JSGenericLowering::LowerJSForInStep(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSLoadMessage(Node* node) {
+  ExternalReference message_address =
+      ExternalReference::address_of_pending_message_obj(isolate());
+  node->RemoveInput(NodeProperties::FirstContextIndex(node));
+  node->InsertInput(zone(), 0, jsgraph()->ExternalConstant(message_address));
+  node->InsertInput(zone(), 1, jsgraph()->IntPtrConstant(0));
+  NodeProperties::ChangeOp(node, machine()->Load(kMachAnyTagged));
+}
+
+
+void JSGenericLowering::LowerJSStoreMessage(Node* node) {
+  ExternalReference message_address =
+      ExternalReference::address_of_pending_message_obj(isolate());
+  node->RemoveInput(NodeProperties::FirstContextIndex(node));
+  node->InsertInput(zone(), 0, jsgraph()->ExternalConstant(message_address));
+  node->InsertInput(zone(), 1, jsgraph()->IntPtrConstant(0));
+  StoreRepresentation representation(kMachAnyTagged, kNoWriteBarrier);
+  NodeProperties::ChangeOp(node, machine()->Store(representation));
+}
+
+
 void JSGenericLowering::LowerJSYield(Node* node) { UNIMPLEMENTED(); }
 
 

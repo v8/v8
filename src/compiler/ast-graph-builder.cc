@@ -1386,8 +1386,6 @@ void AstGraphBuilder::VisitForOfStatement(ForOfStatement* stmt) {
 
 void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   TryCatchBuilder try_control(this);
-  ExternalReference message_object =
-      ExternalReference::address_of_pending_message_obj(isolate());
 
   // Evaluate the try-block inside a control scope. This simulates a handler
   // that is intercepting 'throw' control commands.
@@ -1411,7 +1409,7 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // Clear message object as we enter the catch block.
   Node* the_hole = jsgraph()->TheHoleConstant();
-  BuildStoreExternal(message_object, kMachAnyTagged, the_hole);
+  NewNode(javascript()->StoreMessage(), the_hole);
 
   // Create a catch scope that binds the exception.
   Node* exception = try_control.GetExceptionNode();
@@ -1427,8 +1425,6 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   TryFinallyBuilder try_control(this);
-  ExternalReference message_object =
-      ExternalReference::address_of_pending_message_obj(isolate());
 
   // We keep a record of all paths that enter the finally-block to be able to
   // dispatch to the correct continuation point after the statements in the
@@ -1473,14 +1469,14 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // The result value, dispatch token and message is expected on the operand
   // stack (this is in sync with FullCodeGenerator::EnterFinallyBlock).
-  Node* message = BuildLoadExternal(message_object, kMachAnyTagged);
+  Node* message = NewNode(javascript()->LoadMessage());
   environment()->Push(token);  // TODO(mstarzinger): Cook token!
   environment()->Push(result);
   environment()->Push(message);
 
   // Clear message object as we enter the finally block.
   Node* the_hole = jsgraph()->TheHoleConstant();
-  BuildStoreExternal(message_object, kMachAnyTagged, the_hole);
+  NewNode(javascript()->StoreMessage(), the_hole);
 
   // Evaluate the finally-block.
   Visit(stmt->finally_block());
@@ -1491,7 +1487,7 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   message = environment()->Pop();
   result = environment()->Pop();
   token = environment()->Pop();  // TODO(mstarzinger): Uncook token!
-  BuildStoreExternal(message_object, kMachAnyTagged, message);
+  NewNode(javascript()->StoreMessage(), message);
 
   // Dynamic dispatch after the finally-block.
   commands->ApplyDeferredCommands(token, result);
@@ -3675,23 +3671,6 @@ Node* AstGraphBuilder::BuildLoadFeedbackVector() {
     feedback_vector_.set(vector);
   }
   return feedback_vector_.get();
-}
-
-
-Node* AstGraphBuilder::BuildLoadExternal(ExternalReference reference,
-                                         MachineType type) {
-  return NewNode(jsgraph()->machine()->Load(type),
-                 jsgraph()->ExternalConstant(reference),
-                 jsgraph()->IntPtrConstant(0));
-}
-
-
-Node* AstGraphBuilder::BuildStoreExternal(ExternalReference reference,
-                                          MachineType type, Node* value) {
-  StoreRepresentation representation(type, kNoWriteBarrier);
-  return NewNode(jsgraph()->machine()->Store(representation),
-                 jsgraph()->ExternalConstant(reference),
-                 jsgraph()->IntPtrConstant(0), value);
 }
 
 

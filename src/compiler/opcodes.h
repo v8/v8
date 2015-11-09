@@ -144,6 +144,8 @@
   V(JSForInNext)            \
   V(JSForInPrepare)         \
   V(JSForInStep)            \
+  V(JSLoadMessage)          \
+  V(JSStoreMessage)         \
   V(JSYield)                \
   V(JSStackCheck)
 

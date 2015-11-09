@@ -1574,6 +1574,15 @@ Type* Typer::Visitor::TypeJSForInStep(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeJSLoadMessage(Node* node) { return Type::Any(); }
+
+
+Type* Typer::Visitor::TypeJSStoreMessage(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
+
 Type* Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
 

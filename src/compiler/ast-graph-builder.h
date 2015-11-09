@@ -308,10 +308,6 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildLoadObjectField(Node* object, int offset);
   Node* BuildLoadImmutableObjectField(Node* object, int offset);
 
-  // Builders for accessing external references.
-  Node* BuildLoadExternal(ExternalReference ref, MachineType type);
-  Node* BuildStoreExternal(ExternalReference ref, MachineType type, Node* val);
-
   // Builders for automatic type conversion.
   Node* BuildToBoolean(Node* input);
   Node* BuildToName(Node* input, BailoutId bailout_id);

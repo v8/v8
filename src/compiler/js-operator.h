@@ -441,6 +441,9 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* ForInPrepare();
   const Operator* ForInStep();
 
+  const Operator* LoadMessage();
+  const Operator* StoreMessage();
+
   const Operator* StackCheck();
 
   const Operator* CreateFunctionContext(int slot_count);

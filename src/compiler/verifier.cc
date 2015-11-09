@@ -602,6 +602,10 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
 
+    case IrOpcode::kJSLoadMessage:
+    case IrOpcode::kJSStoreMessage:
+      break;
+
     case IrOpcode::kJSStackCheck:
       // Type is empty.
       CheckNotTyped(node);
