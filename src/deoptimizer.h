@@ -586,16 +586,11 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
-  void DoComputeJSFrame(TranslationIterator* iterator, int frame_index);
-  void DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
-                                      int frame_index);
-  void DoComputeConstructStubFrame(TranslationIterator* iterator,
-                                   int frame_index);
-  void DoComputeAccessorStubFrame(TranslationIterator* iterator,
-                                  int frame_index,
-                                  bool is_setter_stub_frame);
-  void DoComputeCompiledStubFrame(TranslationIterator* iterator,
-                                  int frame_index);
+  void DoComputeJSFrame(int frame_index);
+  void DoComputeArgumentsAdaptorFrame(int frame_index);
+  void DoComputeConstructStubFrame(int frame_index);
+  void DoComputeAccessorStubFrame(int frame_index, bool is_setter_stub_frame);
+  void DoComputeCompiledStubFrame(int frame_index);
 
   void WriteTranslatedValueToOutput(
       TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
