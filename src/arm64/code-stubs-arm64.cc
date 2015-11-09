@@ -2853,7 +2853,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   Register function = x1;
   Register feedback_vector = x2;
   Register index = x3;
-  Register type = x4;
 
   // The checks. First, does x1 match the recorded monomorphic target?
   __ Add(x4, feedback_vector,
