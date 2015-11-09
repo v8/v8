@@ -100,6 +100,9 @@ class AssemblerBase: public Malloced {
   // the assembler could clean up internal data structures.
   virtual void AbortedCodeGeneration() { }
 
+  // Debugging
+  void Print();
+
   static const int kMinimalBufferSize = 4*KB;
 
   static void FlushICache(Isolate* isolate, void* start, size_t size);

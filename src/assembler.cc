@@ -46,9 +46,11 @@
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/disassembler.h"
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/ostreams.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -212,6 +214,12 @@ void AssemblerBase::FlushICacheWithoutIsolate(void* start, size_t size) {
   isolate = nullptr;
 #endif  // USE_SIMULATOR
   FlushICache(isolate, start, size);
+}
+
+
+void AssemblerBase::Print() {
+  OFStream os(stdout);
+  v8::internal::Disassembler::Decode(isolate(), &os, buffer_, pc_, nullptr);
 }
 
 
