@@ -4856,7 +4856,11 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   if (stats->js_stacktrace != NULL) {
     FixedStringAllocator fixed(stats->js_stacktrace, kStacktraceBufferSize - 1);
     StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
-    isolate()->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
+    if (gc_state() == Heap::NOT_IN_GC) {
+      isolate()->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
+    } else {
+      accumulator.Add("Cannot get stack trace in GC.");
+    }
   }
 }
 
