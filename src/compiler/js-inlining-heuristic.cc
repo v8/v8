@@ -5,7 +5,6 @@
 #include "src/compiler/js-inlining-heuristic.h"
 
 #include "src/compiler.h"
-#include "src/compiler/dead-code-elimination.h"  // TODO(mstarzinger): Remove!
 #include "src/compiler/node-matchers.h"
 #include "src/objects-inl.h"
 
@@ -15,6 +14,10 @@ namespace compiler {
 
 Reduction JSInliningHeuristic::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallFunction) return NoChange();
+
+  // Check if we already saw that {node} before, and if so, just skip it.
+  if (seen_.find(node->id()) != seen_.end()) return NoChange();
+  seen_.insert(node->id());
 
   Node* callee = node->InputAt(0);
   HeapObjectMatcher match(callee);
@@ -59,6 +62,14 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   if (info_->shared_info()->asm_function()) return NoChange();
   if (function->shared()->asm_function()) return NoChange();
 
+  // Stop inlinining once the maximum allowed level is reached.
+  int level = 0;
+  for (Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+       frame_state->opcode() == IrOpcode::kFrameState;
+       frame_state = NodeProperties::GetFrameStateInput(frame_state, 0)) {
+    if (++level > FLAG_max_inlining_levels) return NoChange();
+  }
+
   // Gather feedback on how often this call site has been hit before.
   CallFunctionParameters p = CallFunctionParametersOf(node->op());
   int calls = -1;  // Same default as CallICNexus::ExtractCallCount.
@@ -77,24 +88,17 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 }
 
 
-void JSInliningHeuristic::ProcessCandidates() {
-  if (candidates_.empty()) return;  // Nothing to do without candidates.
+void JSInliningHeuristic::Finalize() {
   if (FLAG_trace_turbo_inlining) PrintCandidates();
 
-  int cumulative_count = 0;
-  for (const Candidate& candidate : candidates_) {
-    if (cumulative_count > FLAG_max_inlined_nodes_cumulative) break;
+  while (!candidates_.empty()) {
+    if (cumulative_count_ > FLAG_max_inlined_nodes_cumulative) break;
+    auto i = candidates_.begin();
+    Candidate const& candidate = *i;
     inliner_.ReduceJSCallFunction(candidate.node, candidate.function);
-    cumulative_count += candidate.function->shared()->ast_node_count();
+    cumulative_count_ += candidate.function->shared()->ast_node_count();
+    candidates_.erase(i);
   }
-
-  // TODO(mstarzinger): Temporary workaround to eliminate dead control from the
-  // graph being introduced by the inliner. Make this part of the pipeline.
-  GraphReducer graph_reducer(local_zone_, jsgraph_->graph(), jsgraph_->Dead());
-  DeadCodeElimination dead_code_elimination(&graph_reducer, jsgraph_->graph(),
-                                            jsgraph_->common());
-  graph_reducer.AddReducer(&dead_code_elimination);
-  graph_reducer.ReduceGraph();
 }
 
 

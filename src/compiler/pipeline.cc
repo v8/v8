@@ -554,7 +554,6 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &inlining);
     graph_reducer.ReduceGraph();
-    inlining.ProcessCandidates();
   }
 };
 
