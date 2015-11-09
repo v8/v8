@@ -878,7 +878,7 @@
   'regress/regress-419663': [SKIP],
   'regress/regress-4255-4': [SKIP],
   'regress/regress-430201': [SKIP],
-  'regress/regress-430201-b': [SKIP],
+  'regress/regress-430201b': [SKIP],
   'regress/regress-4309-3': [SKIP],
   'regress/regress-4320': [SKIP],
   'regress/regress-4325': [SKIP],
