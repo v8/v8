@@ -540,6 +540,39 @@ function prepare(target) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Reflect.ownKeys
+
+
+(function testReflectOwnKeysArity() {
+  assertEquals(1, Reflect.ownKeys.length);
+})();
+
+
+(function testReflectOwnKeysOnNonObject() {
+  assertThrows(function() { Reflect.ownKeys(); }, TypeError);
+  assertThrows(function() { Reflect.ownKeys(42); }, TypeError);
+  assertThrows(function() { Reflect.ownKeys(null); }, TypeError);
+})();
+
+
+(function testReflectOwnKeysOnObject(){
+  assertEquals(["z", "y", "x"], Reflect.ownKeys({z: 3, y: 2, x: 1}));
+  assertEquals(["length"], Reflect.ownKeys([]));
+
+  var s1 = Symbol("foo");
+  var s2 = Symbol("bar");
+  var obj = { [s1]: 0, "bla": 0, 42: 0, "0": 0,
+      [s2]: 0, "-1": 0, "88": 0, "aaa": 0 };
+  assertEquals(["0", "42", "88", "bla", "-1", "aaa", s1, s2],
+      Reflect.ownKeys(obj));
+})();
+
+
+// See reflect-own-keys.js for further tests.
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 // Reflect.preventExtensions
 
 

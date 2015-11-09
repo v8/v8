@@ -1833,6 +1833,7 @@ enum AccessorComponent {
 
 enum KeyFilter { SKIP_SYMBOLS, INCLUDE_SYMBOLS };
 
+enum Enumerability { RESPECT_ENUMERABILITY, IGNORE_ENUMERABILITY };
 
 enum GetKeysConversion { KEEP_NUMBERS, CONVERT_TO_STRING };
 
@@ -1959,7 +1960,8 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetKeys(
       Handle<JSReceiver> object, KeyCollectionType type,
       KeyFilter filter = SKIP_SYMBOLS,
-      GetKeysConversion getConversion = KEEP_NUMBERS);
+      GetKeysConversion getConversion = KEEP_NUMBERS,
+      Enumerability enum_policy = RESPECT_ENUMERABILITY);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);

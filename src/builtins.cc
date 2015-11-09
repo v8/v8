@@ -1640,6 +1640,29 @@ BUILTIN(ReflectIsExtensible) {
 }
 
 
+// ES6 section 26.1.11 Reflect.ownKeys
+BUILTIN(ReflectOwnKeys) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> target = args.at<Object>(1);
+
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Reflect.ownKeys")));
+  }
+
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys,
+      JSReceiver::GetKeys(Handle<JSReceiver>::cast(target),
+                          JSReceiver::OWN_ONLY, INCLUDE_SYMBOLS,
+                          CONVERT_TO_STRING, IGNORE_ENUMERABILITY));
+  return *isolate->factory()->NewJSArrayWithElements(keys);
+}
+
+
 // ES6 section 26.1.12 Reflect.preventExtensions
 BUILTIN(ReflectPreventExtensions) {
   HandleScope scope(isolate);
