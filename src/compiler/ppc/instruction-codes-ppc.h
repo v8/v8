@@ -62,6 +62,7 @@ namespace compiler {
   V(PPC_MinDouble)                 \
   V(PPC_AbsDouble)                 \
   V(PPC_Cntlz32)                   \
+  V(PPC_Cntlz64)                   \
   V(PPC_Popcnt32)                  \
   V(PPC_Cmp32)                     \
   V(PPC_Cmp64)                     \

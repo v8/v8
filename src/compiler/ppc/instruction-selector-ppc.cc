@@ -737,6 +737,14 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 }
 
 
+#if V8_TARGET_ARCH_PPC64
+void InstructionSelector::VisitWord64Clz(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_Cntlz64, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+#endif
+
+
 void InstructionSelector::VisitWord32Popcnt(Node* node) {
   PPCOperandGenerator g(this);
   Emit(kPPC_Popcnt32, g.DefineAsRegister(node),
