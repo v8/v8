@@ -450,22 +450,22 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   if (FLAG_cleanup_code_caches_at_gc) {
     shared->ClearTypeFeedbackInfoAtGCTime();
   }
-  if (FLAG_flush_optimized_code_cache &&
-      !shared->optimized_code_map()->IsSmi()) {
-    // Always flush the optimized code map if requested by flag.
-    shared->ClearOptimizedCodeMap();
-  }
-  MarkCompactCollector* collector = heap->mark_compact_collector();
-  if (collector->is_code_flushing_enabled()) {
+  if (FLAG_flush_optimized_code_cache) {
     if (!shared->optimized_code_map()->IsSmi()) {
-      // Add the shared function info holding an optimized code map to
-      // the code flusher for processing of code maps after marking.
-      collector->code_flusher()->AddOptimizedCodeMap(shared);
+      // Always flush the optimized code map if requested by flag.
+      shared->ClearOptimizedCodeMap();
+    }
+  } else {
+    if (!shared->optimized_code_map()->IsSmi()) {
       // Treat some references within the code map weakly by marking the
-      // code map itself but not pushing it onto the marking deque.
+      // code map itself but not pushing it onto the marking deque. The
+      // map will be processed after marking.
       FixedArray* code_map = FixedArray::cast(shared->optimized_code_map());
       MarkOptimizedCodeMap(heap, code_map);
     }
+  }
+  MarkCompactCollector* collector = heap->mark_compact_collector();
+  if (collector->is_code_flushing_enabled()) {
     if (IsFlushable(heap, shared)) {
       // This function's code looks flushable. But we have to postpone
       // the decision until we see all functions that point to the same
@@ -479,6 +479,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
       return;
     }
   } else {
+    // TODO(mstarzinger): Drop this case, it shouldn't be done here!
     if (!shared->optimized_code_map()->IsSmi()) {
       // Flush optimized code map on major GCs without code flushing,
       // needed because cached code doesn't contain breakpoints.
