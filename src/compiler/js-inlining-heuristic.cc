@@ -89,6 +89,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
 
 void JSInliningHeuristic::Finalize() {
+  if (candidates_.empty()) return;  // Nothing to do without candidates.
   if (FLAG_trace_turbo_inlining) PrintCandidates();
 
   while (!candidates_.empty()) {
