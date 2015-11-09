@@ -11104,12 +11104,7 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     // flushed the optimized code map and the copy we created is full of holes.
     // For now we just give up on adding the entry and pretend it got flushed.
     if (shared->optimized_code_map()->IsSmi()) return;
-    int old_length = old_code_map->length();
-    // Zap the old map to avoid any stale entries. Note that this is required
-    // for correctness because entries are being treated weakly by the GC.
-    MemsetPointer(old_code_map->data_start(), isolate->heap()->the_hole_value(),
-                  old_length);
-    entry = old_length;
+    entry = old_code_map->length();
   }
   new_code_map->set(entry + kContextOffset, *native_context);
   new_code_map->set(entry + kCachedCodeOffset, *code);
@@ -11129,12 +11124,10 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   }
 #endif
 
-  if (Heap::ShouldZapGarbage()) {
-    // Zap any old optimized code map for heap-verifier.
-    if (!shared->optimized_code_map()->IsSmi()) {
-      FixedArray* old_code_map = FixedArray::cast(shared->optimized_code_map());
-      old_code_map->FillWithHoles(0, old_code_map->length());
-    }
+  // Zap any old optimized code map.
+  if (!shared->optimized_code_map()->IsSmi()) {
+    FixedArray* old_code_map = FixedArray::cast(shared->optimized_code_map());
+    old_code_map->FillWithHoles(0, old_code_map->length());
   }
 
   shared->set_optimized_code_map(*new_code_map);
@@ -11142,12 +11135,10 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
 
 
 void SharedFunctionInfo::ClearOptimizedCodeMap() {
-  if (Heap::ShouldZapGarbage()) {
-    // Zap any old optimized code map for heap-verifier.
-    if (!optimized_code_map()->IsSmi()) {
-      FixedArray* old_code_map = FixedArray::cast(optimized_code_map());
-      old_code_map->FillWithHoles(0, old_code_map->length());
-    }
+  // Zap any old optimized code map.
+  if (!optimized_code_map()->IsSmi()) {
+    FixedArray* old_code_map = FixedArray::cast(optimized_code_map());
+    old_code_map->FillWithHoles(0, old_code_map->length());
   }
 
   set_optimized_code_map(Smi::FromInt(0));
