@@ -1441,7 +1441,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
           c(UN, D, cmp1, cmp2);
           bc1f(&skip);
           nop();
-          Jr(nan, bd);
+          BranchLong(nan, bd);
           bind(&skip);
         } else {
           c(UN, D, cmp1, cmp2);
@@ -1459,7 +1459,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
           cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(&skip, kDoubleCompareReg);
           nop();
-          Jr(nan, bd);
+          BranchLong(nan, bd);
           bind(&skip);
         } else {
           cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
@@ -1478,7 +1478,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
         Label skip;
         Condition neg_cond = NegateFpuCondition(cond);
         BranchShortF(sizeField, &skip, neg_cond, cmp1, cmp2, bd);
-        Jr(target, bd);
+        BranchLong(target, bd);
         bind(&skip);
       } else {
         BranchShortF(sizeField, target, cond, cmp1, cmp2, bd);
@@ -1957,11 +1957,11 @@ void MacroAssembler::Branch(Label* L, BranchDelaySlot bdslot) {
     if (is_near_branch(L)) {
       BranchShort(L, bdslot);
     } else {
-      Jr(L, bdslot);
+      BranchLong(L, bdslot);
     }
   } else {
     if (is_trampoline_emitted()) {
-      Jr(L, bdslot);
+      BranchLong(L, bdslot);
     } else {
       BranchShort(L, bdslot);
     }
@@ -1978,10 +1978,10 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
         Label skip;
         Condition neg_cond = NegateCondition(cond);
         BranchShort(&skip, neg_cond, rs, rt);
-        Jr(L, bdslot);
+        BranchLong(L, bdslot);
         bind(&skip);
       } else {
-        Jr(L, bdslot);
+        BranchLong(L, bdslot);
       }
     }
   } else {
@@ -1990,10 +1990,10 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
         Label skip;
         Condition neg_cond = NegateCondition(cond);
         BranchShort(&skip, neg_cond, rs, rt);
-        Jr(L, bdslot);
+        BranchLong(L, bdslot);
         bind(&skip);
       } else {
-        Jr(L, bdslot);
+        BranchLong(L, bdslot);
       }
     } else {
       BranchShort(L, cond, rs, rt, bdslot);
@@ -2014,6 +2014,7 @@ void MacroAssembler::Branch(Label* L,
 
 void MacroAssembler::BranchShortHelper(int16_t offset, Label* L,
                                        BranchDelaySlot bdslot) {
+  DCHECK(L == nullptr || offset == 0);
   offset = GetOffset(offset, L, OffsetSize::kOffset16);
   b(offset);
 
@@ -2024,6 +2025,7 @@ void MacroAssembler::BranchShortHelper(int16_t offset, Label* L,
 
 
 void MacroAssembler::BranchShortHelperR6(int32_t offset, Label* L) {
+  DCHECK(L == nullptr || offset == 0);
   offset = GetOffset(offset, L, OffsetSize::kOffset26);
   bc(offset);
 }
@@ -2085,6 +2087,7 @@ Register MacroAssembler::GetRtAsRegisterHelper(const Operand& rt,
 bool MacroAssembler::BranchShortHelperR6(int32_t offset, Label* L,
                                          Condition cond, Register rs,
                                          const Operand& rt) {
+  DCHECK(L == nullptr || offset == 0);
   Register scratch = rs.is(at) ? t8 : at;
   OffsetSize bits = OffsetSize::kOffset16;
 
@@ -2362,6 +2365,7 @@ bool MacroAssembler::BranchShortHelperR6(int32_t offset, Label* L,
 bool MacroAssembler::BranchShortHelper(int16_t offset, Label* L, Condition cond,
                                        Register rs, const Operand& rt,
                                        BranchDelaySlot bdslot) {
+  DCHECK(L == nullptr || offset == 0);
   if (!is_near(L, OffsetSize::kOffset16)) return false;
 
   Register scratch = at;
@@ -2548,11 +2552,11 @@ void MacroAssembler::BranchAndLink(Label* L, BranchDelaySlot bdslot) {
     if (is_near_branch(L)) {
       BranchAndLinkShort(L, bdslot);
     } else {
-      Jalr(L, bdslot);
+      BranchAndLinkLong(L, bdslot);
     }
   } else {
     if (is_trampoline_emitted()) {
-      Jalr(L, bdslot);
+      BranchAndLinkLong(L, bdslot);
     } else {
       BranchAndLinkShort(L, bdslot);
     }
@@ -2568,7 +2572,7 @@ void MacroAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
       Label skip;
       Condition neg_cond = NegateCondition(cond);
       BranchShort(&skip, neg_cond, rs, rt);
-      Jalr(L, bdslot);
+      BranchAndLinkLong(L, bdslot);
       bind(&skip);
     }
   } else {
@@ -2576,7 +2580,7 @@ void MacroAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
       Label skip;
       Condition neg_cond = NegateCondition(cond);
       BranchShort(&skip, neg_cond, rs, rt);
-      Jalr(L, bdslot);
+      BranchAndLinkLong(L, bdslot);
       bind(&skip);
     } else {
       BranchAndLinkShortCheck(0, L, cond, rs, rt, bdslot);
@@ -2587,6 +2591,7 @@ void MacroAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
 
 void MacroAssembler::BranchAndLinkShortHelper(int16_t offset, Label* L,
                                               BranchDelaySlot bdslot) {
+  DCHECK(L == nullptr || offset == 0);
   offset = GetOffset(offset, L, OffsetSize::kOffset16);
   bal(offset);
 
@@ -2597,6 +2602,7 @@ void MacroAssembler::BranchAndLinkShortHelper(int16_t offset, Label* L,
 
 
 void MacroAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L) {
+  DCHECK(L == nullptr || offset == 0);
   offset = GetOffset(offset, L, OffsetSize::kOffset26);
   balc(offset);
 }
@@ -2626,6 +2632,7 @@ void MacroAssembler::BranchAndLinkShort(Label* L, BranchDelaySlot bdslot) {
 bool MacroAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
                                                 Condition cond, Register rs,
                                                 const Operand& rt) {
+  DCHECK(L == nullptr || offset == 0);
   Register scratch = rs.is(at) ? t8 : at;
   OffsetSize bits = OffsetSize::kOffset16;
 
@@ -2783,6 +2790,7 @@ bool MacroAssembler::BranchAndLinkShortHelper(int16_t offset, Label* L,
                                               Condition cond, Register rs,
                                               const Operand& rt,
                                               BranchDelaySlot bdslot) {
+  DCHECK(L == nullptr || offset == 0);
   if (!is_near(L, OffsetSize::kOffset16)) return false;
 
   Register scratch = t8;
@@ -3081,43 +3089,51 @@ void MacroAssembler::Ret(Condition cond,
 }
 
 
-void MacroAssembler::Jr(Label* L, BranchDelaySlot bdslot) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
+void MacroAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT &&
+      (!L->is_bound() || is_near_r6(L))) {
+    BranchShortHelperR6(0, L);
+  } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    uint32_t imm32;
+    imm32 = jump_address(L);
+    {
+      BlockGrowBufferScope block_buf_growth(this);
+      // Buffer growth (and relocation) must be blocked for internal references
+      // until associated instructions are emitted and available to be patched.
+      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+      lui(at, (imm32 & kHiMask) >> kLuiShift);
+      ori(at, at, (imm32 & kImm16Mask));
+    }
+    jr(at);
 
-  uint32_t imm32;
-  imm32 = jump_address(L);
-  { BlockGrowBufferScope block_buf_growth(this);
-    // Buffer growth (and relocation) must be blocked for internal references
-    // until associated instructions are emitted and available to be patched.
-    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    lui(at, (imm32 & kHiMask) >> kLuiShift);
-    ori(at, at, (imm32 & kImm16Mask));
+    // Emit a nop in the branch delay slot if required.
+    if (bdslot == PROTECT) nop();
   }
-  jr(at);
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
 }
 
 
-void MacroAssembler::Jalr(Label* L, BranchDelaySlot bdslot) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
+void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT &&
+      (!L->is_bound() || is_near_r6(L))) {
+    BranchAndLinkShortHelperR6(0, L);
+  } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    uint32_t imm32;
+    imm32 = jump_address(L);
+    {
+      BlockGrowBufferScope block_buf_growth(this);
+      // Buffer growth (and relocation) must be blocked for internal references
+      // until associated instructions are emitted and available to be patched.
+      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+      lui(at, (imm32 & kHiMask) >> kLuiShift);
+      ori(at, at, (imm32 & kImm16Mask));
+    }
+    jalr(at);
 
-  uint32_t imm32;
-  imm32 = jump_address(L);
-  { BlockGrowBufferScope block_buf_growth(this);
-    // Buffer growth (and relocation) must be blocked for internal references
-    // until associated instructions are emitted and available to be patched.
-    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    lui(at, (imm32 & kHiMask) >> kLuiShift);
-    ori(at, at, (imm32 & kImm16Mask));
+    // Emit a nop in the branch delay slot if required.
+    if (bdslot == PROTECT) nop();
   }
-  jalr(at);
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
 }
 
 

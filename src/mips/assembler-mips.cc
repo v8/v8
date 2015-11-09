@@ -849,12 +849,13 @@ void Assembler::bind_to(Label* L, int pos) {
       target_at_put(fixup_pos, pos, is_internal);
     } else {
       if (IsBranch(instr)) {
-        if (dist > kMaxBranchOffset) {
+        int branch_offset = BranchOffset(instr);
+        if (dist > branch_offset) {
           if (trampoline_pos == kInvalidSlotPos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
             CHECK(trampoline_pos != kInvalidSlotPos);
           }
-          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
+          CHECK((trampoline_pos - fixup_pos) <= branch_offset);
           target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
           dist = pos - fixup_pos;
@@ -894,22 +895,46 @@ void Assembler::next(Label* L, bool is_internal) {
 
 bool Assembler::is_near(Label* L) {
   DCHECK(L->is_bound());
-  return ((pc_offset() - L->pos()) < kMaxBranchOffset - 4 * kInstrSize);
+  return pc_offset() - L->pos() < kMaxBranchOffset - 4 * kInstrSize;
 }
 
 
 bool Assembler::is_near(Label* L, OffsetSize bits) {
   if (L == nullptr || !L->is_bound()) return true;
-  return ((pc_offset() - L->pos()) <
-          (1 << (bits + 2 - 1)) - 1 - 5 * kInstrSize);
+  return pc_offset() - L->pos() < (1 << (bits + 2 - 1)) - 1 - 5 * kInstrSize;
 }
 
 
 bool Assembler::is_near_branch(Label* L) {
   DCHECK(L->is_bound());
-  int max_offset =
-      IsMipsArchVariant(kMips32r6) ? kMaxCompactBranchOffset : kMaxBranchOffset;
-  return pc_offset() - L->pos() < max_offset - 4 * kInstrSize;
+  return IsMipsArchVariant(kMips32r6) ? is_near_r6(L) : is_near_pre_r6(L);
+}
+
+
+int Assembler::BranchOffset(Instr instr) {
+  // At pre-R6 and for other R6 branches the offset is 16 bits.
+  int bits = OffsetSize::kOffset16;
+
+  if (IsMipsArchVariant(kMips32r6)) {
+    uint32_t opcode = GetOpcodeField(instr);
+    switch (opcode) {
+      // Checks BC or BALC.
+      case BC:
+      case BALC:
+        bits = OffsetSize::kOffset26;
+        break;
+
+      // Checks BEQZC or BNEZC.
+      case POP66:
+      case POP76:
+        if (GetRsField(instr) != 0) bits = OffsetSize::kOffset21;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return (1 << (bits + 2 - 1)) - 1;
 }
 
 
@@ -1398,6 +1423,7 @@ void Assembler::beqc(Register rs, Register rt, int16_t offset) {
 void Assembler::beqzc(Register rs, int32_t offset) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(!(rs.is(zero_reg)));
+  DCHECK(is_int21(offset));
   GenInstrImmediate(POP66, rs, offset, CompactBranchType::COMPACT_BRANCH);
 }
 
@@ -1416,6 +1442,7 @@ void Assembler::bnec(Register rs, Register rt, int16_t offset) {
 void Assembler::bnezc(Register rs, int32_t offset) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(!(rs.is(zero_reg)));
+  DCHECK(is_int21(offset));
   GenInstrImmediate(POP76, rs, offset, CompactBranchType::COMPACT_BRANCH);
 }
 
@@ -1818,7 +1845,7 @@ void Assembler::lwpc(Register rs, int32_t offset19) {
 
 void Assembler::auipc(Register rs, int16_t imm16) {
   DCHECK(IsMipsArchVariant(kMips32r6));
-  DCHECK(rs.is_valid() && is_int16(imm16));
+  DCHECK(rs.is_valid());
   uint32_t imm21 = AUIPC << kImm16Bits | (imm16 & kImm16Mask);
   GenInstrImmediate(PCREL, rs, imm21);
 }
@@ -1826,7 +1853,7 @@ void Assembler::auipc(Register rs, int16_t imm16) {
 
 void Assembler::aluipc(Register rs, int16_t imm16) {
   DCHECK(IsMipsArchVariant(kMips32r6));
-  DCHECK(rs.is_valid() && is_int16(imm16));
+  DCHECK(rs.is_valid());
   uint32_t imm21 = ALUIPC << kImm16Bits | (imm16 & kImm16Mask);
   GenInstrImmediate(PCREL, rs, imm21);
 }

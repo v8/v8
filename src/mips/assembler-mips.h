@@ -416,6 +416,16 @@ class Assembler : public AssemblerBase {
   bool is_near(Label* L);
   bool is_near(Label* L, OffsetSize bits);
   bool is_near_branch(Label* L);
+  inline bool is_near_pre_r6(Label* L) {
+    DCHECK(!IsMipsArchVariant(kMips32r6));
+    return pc_offset() - L->pos() < kMaxBranchOffset - 4 * kInstrSize;
+  }
+  inline bool is_near_r6(Label* L) {
+    DCHECK(IsMipsArchVariant(kMips32r6));
+    return pc_offset() - L->pos() < kMaxCompactBranchOffset - 4 * kInstrSize;
+  }
+
+  int BranchOffset(Instr instr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
