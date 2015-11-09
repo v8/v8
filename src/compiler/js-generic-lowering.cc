@@ -543,7 +543,8 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
 void JSGenericLowering::LowerJSCallFunction(Node* node) {
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
-  Callable callable = CodeFactory::Call(isolate());
+  ConvertReceiverMode const mode = p.convert_mode();
+  Callable callable = CodeFactory::Call(isolate(), mode);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   if (p.tail_call_mode() == TailCallMode::kAllow) {
     flags |= CallDescriptor::kSupportsTailCalls;

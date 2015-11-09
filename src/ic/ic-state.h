@@ -23,20 +23,29 @@ class ICUtility : public AllStatic {
 
 class CallICState final BASE_EMBEDDED {
  public:
-  explicit CallICState(int argc) : argc_(argc) {}
+  explicit CallICState(ExtraICState extra_ic_state)
+      : bit_field_(extra_ic_state) {}
+  CallICState(int argc, ConvertReceiverMode convert_mode)
+      : bit_field_(ArgcBits::encode(argc) |
+                   ConvertModeBits::encode(convert_mode)) {}
 
-  ExtraICState GetExtraICState() const;
+  ExtraICState GetExtraICState() const { return bit_field_; }
 
   static void GenerateAheadOfTime(Isolate*,
                                   void (*Generate)(Isolate*,
                                                    const CallICState&));
 
-  int arg_count() const { return argc_; }
+  int argc() const { return ArgcBits::decode(bit_field_); }
+  ConvertReceiverMode convert_mode() const {
+    return ConvertModeBits::decode(bit_field_);
+  }
 
  private:
-  class ArgcBits : public BitField<int, 0, Code::kArgumentsBits> {};
+  typedef BitField<int, 0, Code::kArgumentsBits> ArgcBits;
+  typedef BitField<ConvertReceiverMode, Code::kArgumentsBits, 2>
+      ConvertModeBits;
 
-  const int argc_;
+  int const bit_field_;
 };
 
 

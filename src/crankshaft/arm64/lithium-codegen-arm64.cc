@@ -371,6 +371,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   DCHECK(ToRegister(instr->result()).Is(x0));
 
   int arity = instr->arity();
+  ConvertReceiverMode mode = instr->hydrogen()->convert_mode();
   if (instr->hydrogen()->HasVectorAndSlot()) {
     Register slot_register = ToRegister(instr->temp_slot());
     Register vector_register = ToRegister(instr->temp_vector());
@@ -385,11 +386,11 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
     __ Mov(slot_register, Operand(Smi::FromInt(index)));
 
     Handle<Code> ic =
-        CodeFactory::CallICInOptimizedCode(isolate(), arity).code();
+        CodeFactory::CallICInOptimizedCode(isolate(), arity, mode).code();
     CallCode(ic, RelocInfo::CODE_TARGET, instr);
   } else {
     __ Mov(x0, arity);
-    CallCode(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET, instr);
+    CallCode(isolate()->builtins()->Call(mode), RelocInfo::CODE_TARGET, instr);
   }
   RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
 }

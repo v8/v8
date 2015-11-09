@@ -1882,6 +1882,34 @@ BUILTIN(HandleApiCallConstruct) {
 }
 
 
+Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode) {
+  switch (mode) {
+    case ConvertReceiverMode::kNullOrUndefined:
+      return CallFunction_ReceiverIsNullOrUndefined();
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      return CallFunction_ReceiverIsNotNullOrUndefined();
+    case ConvertReceiverMode::kAny:
+      return CallFunction_ReceiverIsAny();
+  }
+  UNREACHABLE();
+  return Handle<Code>::null();
+}
+
+
+Handle<Code> Builtins::Call(ConvertReceiverMode mode) {
+  switch (mode) {
+    case ConvertReceiverMode::kNullOrUndefined:
+      return Call_ReceiverIsNullOrUndefined();
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      return Call_ReceiverIsNotNullOrUndefined();
+    case ConvertReceiverMode::kAny:
+      return Call_ReceiverIsAny();
+  }
+  UNREACHABLE();
+  return Handle<Code>::null();
+}
+
+
 namespace {
 
 class RelocatableArguments : public BuiltinArguments<NEEDS_CALLED_FUNCTION>,

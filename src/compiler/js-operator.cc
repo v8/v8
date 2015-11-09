@@ -40,25 +40,6 @@ size_t hash_value(VectorSlotPair const& p) {
 }
 
 
-size_t hash_value(ConvertReceiverMode mode) {
-  return base::hash_value(static_cast<unsigned>(mode));
-}
-
-
-std::ostream& operator<<(std::ostream& os, ConvertReceiverMode mode) {
-  switch (mode) {
-    case ConvertReceiverMode::kNullOrUndefined:
-      return os << "NULL_OR_UNDEFINED";
-    case ConvertReceiverMode::kNotNullOrUndefined:
-      return os << "NOT_NULL_OR_UNDEFINED";
-    case ConvertReceiverMode::kAny:
-      return os << "ANY";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
 ConvertReceiverMode ConvertReceiverModeOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kJSConvertReceiver, op->opcode());
   return OpParameter<ConvertReceiverMode>(op);

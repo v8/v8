@@ -982,7 +982,7 @@ class CallICStub: public PlatformCodeStub {
   }
 
  protected:
-  int arg_count() const { return state().arg_count(); }
+  int arg_count() const { return state().argc(); }
 
   CallICState state() const {
     return CallICState(static_cast<ExtraICState>(minor_key_));

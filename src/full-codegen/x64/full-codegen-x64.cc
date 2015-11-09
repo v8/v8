@@ -2065,7 +2065,9 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       SetCallPosition(expr, 1);
       __ Set(rax, 1);
-      __ Call(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+      __ Call(
+          isolate()->builtins()->Call(ConvertReceiverMode::kNotNullOrUndefined),
+          RelocInfo::CODE_TARGET);
 
       __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
       __ Drop(1);  // The function is still on the stack; drop it.
@@ -2697,14 +2699,16 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   Expression* callee = expr->expression();
 
   // Get the target function.
+  ConvertReceiverMode convert_mode;
   if (callee->IsVariableProxy()) {
     { StackValueContext context(this);
       EmitVariableLoad(callee->AsVariableProxy());
       PrepareForBailout(callee, NO_REGISTERS);
     }
-    // Push undefined as receiver. This is patched in the method prologue if it
+    // Push undefined as receiver. This is patched in the Call builtin if it
     // is a sloppy mode method.
     __ Push(isolate()->factory()->undefined_value());
+    convert_mode = ConvertReceiverMode::kNullOrUndefined;
   } else {
     // Load the function from the receiver.
     DCHECK(callee->IsProperty());
@@ -2715,9 +2719,10 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
     // Push the target function under the receiver.
     __ Push(Operand(rsp, 0));
     __ movp(Operand(rsp, kPointerSize), rax);
+    convert_mode = ConvertReceiverMode::kNotNullOrUndefined;
   }
 
-  EmitCall(expr);
+  EmitCall(expr, convert_mode);
 }
 
 
@@ -2778,7 +2783,7 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
   __ Push(Operand(rsp, 0));
   __ movp(Operand(rsp, kPointerSize), rax);
 
-  EmitCall(expr);
+  EmitCall(expr, ConvertReceiverMode::kNotNullOrUndefined);
 }
 
 
@@ -2818,7 +2823,7 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
 }
 
 
-void FullCodeGenerator::EmitCall(Call* expr) {
+void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   // Load the arguments.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2828,7 +2833,7 @@ void FullCodeGenerator::EmitCall(Call* expr) {
 
   PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
   SetCallPosition(expr, arg_count);
-  Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count).code();
+  Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count, mode).code();
   __ Move(rdx, SmiFromSlot(expr->CallFeedbackICSlot()));
   __ movp(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
   // Don't assign a type feedback id to the IC, since type feedback is provided
@@ -4168,7 +4173,8 @@ void FullCodeGenerator::EmitCallJSRuntimeFunction(CallRuntime* expr) {
   SetCallPosition(expr, arg_count);
   __ movp(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
   __ Set(rax, arg_count);
-  __ Call(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  __ Call(isolate()->builtins()->Call(ConvertReceiverMode::kNullOrUndefined),
+          RelocInfo::CODE_TARGET);
 }
 
 

@@ -2510,6 +2510,7 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   Expression* callee = expr->expression();
 
   // Get the target function.
+  ConvertReceiverMode convert_mode;
   if (callee->IsVariableProxy()) {
     { StackValueContext context(this);
       EmitVariableLoad(callee->AsVariableProxy());
@@ -2523,6 +2524,7 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
       __ LoadRoot(temp, Heap::kUndefinedValueRootIndex);
       __ Push(temp);
     }
+    convert_mode = ConvertReceiverMode::kNullOrUndefined;
   } else {
     // Load the function from the receiver.
     DCHECK(callee->IsProperty());
@@ -2533,9 +2535,10 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
     // Push the target function under the receiver.
     __ Pop(x10);
     __ Push(x0, x10);
+    convert_mode = ConvertReceiverMode::kNotNullOrUndefined;
   }
 
-  EmitCall(expr);
+  EmitCall(expr, convert_mode);
 }
 
 
@@ -2598,7 +2601,7 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
   __ Pop(x10);
   __ Push(x0, x10);
 
-  EmitCall(expr);
+  EmitCall(expr, ConvertReceiverMode::kNotNullOrUndefined);
 }
 
 
@@ -2640,7 +2643,7 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
 }
 
 
-void FullCodeGenerator::EmitCall(Call* expr) {
+void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   // Load the arguments.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2651,7 +2654,7 @@ void FullCodeGenerator::EmitCall(Call* expr) {
   PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
   SetCallPosition(expr, arg_count);
 
-  Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count).code();
+  Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count, mode).code();
   __ Mov(x3, SmiFromSlot(expr->CallFeedbackICSlot()));
   __ Peek(x1, (arg_count + 1) * kXRegSize);
   // Don't assign a type feedback id to the IC, since type feedback is provided
@@ -3933,7 +3936,8 @@ void FullCodeGenerator::EmitCallJSRuntimeFunction(CallRuntime* expr) {
   SetCallPosition(expr, arg_count);
   __ Peek(x1, (arg_count + 1) * kPointerSize);
   __ Mov(x0, arg_count);
-  __ Call(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  __ Call(isolate()->builtins()->Call(ConvertReceiverMode::kNullOrUndefined),
+          RelocInfo::CODE_TARGET);
 }
 
 
@@ -4700,7 +4704,9 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ Poke(x1, 2 * kPointerSize);
       SetCallPosition(expr, 1);
       __ Mov(x0, 1);
-      __ Call(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+      __ Call(
+          isolate()->builtins()->Call(ConvertReceiverMode::kNotNullOrUndefined),
+          RelocInfo::CODE_TARGET);
 
       __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
       __ Drop(1);  // The function is still on the stack; drop it.

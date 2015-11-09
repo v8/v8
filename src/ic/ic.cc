@@ -1589,16 +1589,17 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 }
 
 
-Handle<Code> CallIC::initialize_stub(Isolate* isolate, int argc) {
-  CallICTrampolineStub stub(isolate, CallICState(argc));
+Handle<Code> CallIC::initialize_stub(Isolate* isolate, int argc,
+                                     ConvertReceiverMode mode) {
+  CallICTrampolineStub stub(isolate, CallICState(argc, mode));
   Handle<Code> code = stub.GetCode();
   return code;
 }
 
 
-Handle<Code> CallIC::initialize_stub_in_optimized_code(Isolate* isolate,
-                                                       int argc) {
-  CallICStub stub(isolate, CallICState(argc));
+Handle<Code> CallIC::initialize_stub_in_optimized_code(
+    Isolate* isolate, int argc, ConvertReceiverMode mode) {
+  CallICStub stub(isolate, CallICState(argc, mode));
   Handle<Code> code = stub.GetCode();
   return code;
 }

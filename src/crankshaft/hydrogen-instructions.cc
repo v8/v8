@@ -949,6 +949,7 @@ std::ostream& HCallFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
   if (HasVectorAndSlot()) {
     os << " (type-feedback-vector icslot " << slot().ToInt() << ")";
   }
+  os << " (convert mode" << convert_mode() << ")";
   return os;
 }
 

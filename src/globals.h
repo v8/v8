@@ -743,6 +743,31 @@ enum CpuFeature {
 };
 
 
+// Defines hints about receiver values based on structural knowledge.
+enum class ConvertReceiverMode : unsigned {
+  kNullOrUndefined,     // Guaranteed to be null or undefined.
+  kNotNullOrUndefined,  // Guaranteed to never be null or undefined.
+  kAny                  // No specific knowledge about receiver.
+};
+
+inline size_t hash_value(ConvertReceiverMode mode) {
+  return bit_cast<unsigned>(mode);
+}
+
+inline std::ostream& operator<<(std::ostream& os, ConvertReceiverMode mode) {
+  switch (mode) {
+    case ConvertReceiverMode::kNullOrUndefined:
+      return os << "NULL_OR_UNDEFINED";
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      return os << "NOT_NULL_OR_UNDEFINED";
+    case ConvertReceiverMode::kAny:
+      return os << "ANY";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
 // Used to specify if a macro instruction must perform a smi check on tagged
 // values.
 enum SmiCheckType {

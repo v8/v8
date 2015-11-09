@@ -1564,7 +1564,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
   int const arity = static_cast<int>(p.arity() - 2);
-  ConvertReceiverMode const convert_mode = p.convert_mode();
+  ConvertReceiverMode convert_mode = p.convert_mode();
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type* target_type = NodeProperties::GetType(target);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -1572,6 +1572,13 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+
+  // Try to infer receiver {convert_mode} from {receiver} type.
+  if (receiver_type->Is(Type::NullOrUndefined())) {
+    convert_mode = ConvertReceiverMode::kNullOrUndefined;
+  } else if (!receiver_type->Maybe(Type::NullOrUndefined())) {
+    convert_mode = ConvertReceiverMode::kNotNullOrUndefined;
+  }
 
   // Check if {target} is a known JSFunction.
   if (target_type->IsConstant() &&
@@ -1645,7 +1652,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     }
 
     // Patch {node} to an indirect call via the CallFunction builtin.
-    Callable callable = CodeFactory::CallFunction(isolate());
+    Callable callable = CodeFactory::CallFunction(isolate(), convert_mode);
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
     node->InsertInput(graph()->zone(), 2, jsgraph()->Int32Constant(arity));
@@ -1653,6 +1660,15 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
         node, common()->Call(Linkage::GetStubCallDescriptor(
                   isolate(), graph()->zone(), callable.descriptor(), 1 + arity,
                   flags)));
+    return Changed(node);
+  }
+
+  // Maybe we did at least learn something about the {receiver}.
+  if (p.convert_mode() != convert_mode) {
+    NodeProperties::ChangeOp(
+        node,
+        javascript()->CallFunction(p.arity(), p.language_mode(), p.feedback(),
+                                   convert_mode, p.tail_call_mode()));
     return Changed(node);
   }
 

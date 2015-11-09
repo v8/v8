@@ -58,16 +58,19 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(
 
 
 // static
-Callable CodeFactory::CallIC(Isolate* isolate, int argc) {
-  return Callable(CallIC::initialize_stub(isolate, argc),
+Callable CodeFactory::CallIC(Isolate* isolate, int argc,
+                             ConvertReceiverMode mode) {
+  return Callable(CallIC::initialize_stub(isolate, argc, mode),
                   CallFunctionWithFeedbackDescriptor(isolate));
 }
 
 
 // static
-Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc) {
-  return Callable(CallIC::initialize_stub_in_optimized_code(isolate, argc),
-                  CallFunctionWithFeedbackAndVectorDescriptor(isolate));
+Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
+                                            ConvertReceiverMode mode) {
+  return Callable(
+      CallIC::initialize_stub_in_optimized_code(isolate, argc, mode),
+      CallFunctionWithFeedbackAndVectorDescriptor(isolate));
 }
 
 
@@ -292,15 +295,15 @@ Callable CodeFactory::ArgumentAdaptor(Isolate* isolate) {
 
 
 // static
-Callable CodeFactory::Call(Isolate* isolate) {
-  return Callable(isolate->builtins()->Call(),
+Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode) {
+  return Callable(isolate->builtins()->Call(mode),
                   CallTrampolineDescriptor(isolate));
 }
 
 
 // static
-Callable CodeFactory::CallFunction(Isolate* isolate) {
-  return Callable(isolate->builtins()->CallFunction(),
+Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
+  return Callable(isolate->builtins()->CallFunction(mode),
                   CallTrampolineDescriptor(isolate));
 }
 

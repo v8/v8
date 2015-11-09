@@ -1559,30 +1559,21 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
 
 
 // static
-void Builtins::Generate_CallFunction(MacroAssembler* masm) {
+void Builtins::Generate_CallFunction(MacroAssembler* masm,
+                                     ConvertReceiverMode mode) {
   // ----------- S t a t e -------------
   //  -- r0 : the number of arguments (not including the receiver)
   //  -- r1 : the function to call (checked to be a JSFunction)
   // -----------------------------------
-  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
-
-  Label convert, convert_global_proxy, convert_to_object, done_convert;
   __ AssertFunction(r1);
+
+  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
+  // Check that the function is not a "classConstructor".
+  Label class_constructor;
   __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  {
-    Label non_class_constructor;
-    // Check whether the current function is a classConstructor.
-    __ ldrb(r3,
-            FieldMemOperand(r2, SharedFunctionInfo::kFunctionKindByteOffset));
-    __ tst(r3, Operand(SharedFunctionInfo::kClassConstructorBitsWithinByte));
-    __ b(eq, &non_class_constructor);
-    // Step: 2, If we call a classConstructor Function throw a TypeError.
-    {
-      FrameScope frame(masm, StackFrame::INTERNAL);
-      __ CallRuntime(Runtime::kThrowConstructorNonCallableError, 0);
-    }
-    __ bind(&non_class_constructor);
-  }
+  __ ldrb(r3, FieldMemOperand(r2, SharedFunctionInfo::kFunctionKindByteOffset));
+  __ tst(r3, Operand(SharedFunctionInfo::kClassConstructorBitsWithinByte));
+  __ b(ne, &class_constructor);
 
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
@@ -1591,51 +1582,59 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm) {
                 SharedFunctionInfo::kStrictModeByteOffset);
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
+  Label done_convert;
   __ ldrb(r3, FieldMemOperand(r2, SharedFunctionInfo::kNativeByteOffset));
   __ tst(r3, Operand((1 << SharedFunctionInfo::kNativeBitWithinByte) |
                      (1 << SharedFunctionInfo::kStrictModeBitWithinByte)));
   __ b(ne, &done_convert);
   {
-    __ ldr(r3, MemOperand(sp, r0, LSL, kPointerSizeLog2));
-
     // ----------- S t a t e -------------
     //  -- r0 : the number of arguments (not including the receiver)
     //  -- r1 : the function to call (checked to be a JSFunction)
     //  -- r2 : the shared function info.
-    //  -- r3 : the receiver
     //  -- cp : the function context.
     // -----------------------------------
 
-    Label convert_receiver;
-    __ JumpIfSmi(r3, &convert_to_object);
-    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-    __ CompareObjectType(r3, r4, r4, FIRST_JS_RECEIVER_TYPE);
-    __ b(hs, &done_convert);
-    __ JumpIfRoot(r3, Heap::kUndefinedValueRootIndex, &convert_global_proxy);
-    __ JumpIfNotRoot(r3, Heap::kNullValueRootIndex, &convert_to_object);
-    __ bind(&convert_global_proxy);
-    {
+    if (mode == ConvertReceiverMode::kNullOrUndefined) {
       // Patch receiver to global proxy.
       __ LoadGlobalProxy(r3);
+    } else {
+      Label convert_to_object, convert_receiver;
+      __ ldr(r3, MemOperand(sp, r0, LSL, kPointerSizeLog2));
+      __ JumpIfSmi(r3, &convert_to_object);
+      STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+      __ CompareObjectType(r3, r4, r4, FIRST_JS_RECEIVER_TYPE);
+      __ b(hs, &done_convert);
+      if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
+        Label convert_global_proxy;
+        __ JumpIfRoot(r3, Heap::kUndefinedValueRootIndex,
+                      &convert_global_proxy);
+        __ JumpIfNotRoot(r3, Heap::kNullValueRootIndex, &convert_to_object);
+        __ bind(&convert_global_proxy);
+        {
+          // Patch receiver to global proxy.
+          __ LoadGlobalProxy(r3);
+        }
+        __ b(&convert_receiver);
+      }
+      __ bind(&convert_to_object);
+      {
+        // Convert receiver using ToObject.
+        // TODO(bmeurer): Inline the allocation here to avoid building the frame
+        // in the fast case? (fall back to AllocateInNewSpace?)
+        FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+        __ SmiTag(r0);
+        __ Push(r0, r1);
+        __ mov(r0, r3);
+        ToObjectStub stub(masm->isolate());
+        __ CallStub(&stub);
+        __ mov(r3, r0);
+        __ Pop(r0, r1);
+        __ SmiUntag(r0);
+      }
+      __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+      __ bind(&convert_receiver);
     }
-    __ b(&convert_receiver);
-    __ bind(&convert_to_object);
-    {
-      // Convert receiver using ToObject.
-      // TODO(bmeurer): Inline the allocation here to avoid building the frame
-      // in the fast case? (fall back to AllocateInNewSpace?)
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(r0);
-      __ Push(r0, r1);
-      __ mov(r0, r3);
-      ToObjectStub stub(masm->isolate());
-      __ CallStub(&stub);
-      __ mov(r3, r0);
-      __ Pop(r0, r1);
-      __ SmiUntag(r0);
-    }
-    __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-    __ bind(&convert_receiver);
     __ str(r3, MemOperand(sp, r0, LSL, kPointerSizeLog2));
   }
   __ bind(&done_convert);
@@ -1654,11 +1653,18 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm) {
   ParameterCount actual(r0);
   ParameterCount expected(r2);
   __ InvokeCode(r3, expected, actual, JUMP_FUNCTION, NullCallWrapper());
+
+  // The function is a "classConstructor", need to raise an exception.
+  __ bind(&class_constructor);
+  {
+    FrameScope frame(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kThrowConstructorNonCallableError, 0);
+  }
 }
 
 
 // static
-void Builtins::Generate_Call(MacroAssembler* masm) {
+void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // ----------- S t a t e -------------
   //  -- r0 : the number of arguments (not including the receiver)
   //  -- r1 : the target to call (can be any Object).
@@ -1668,8 +1674,8 @@ void Builtins::Generate_Call(MacroAssembler* masm) {
   __ JumpIfSmi(r1, &non_callable);
   __ bind(&non_smi);
   __ CompareObjectType(r1, r4, r5, JS_FUNCTION_TYPE);
-  __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET,
-          eq);
+  __ Jump(masm->isolate()->builtins()->CallFunction(mode),
+          RelocInfo::CODE_TARGET, eq);
   __ cmp(r5, Operand(JS_FUNCTION_PROXY_TYPE));
   __ b(ne, &non_function);
 
@@ -1690,7 +1696,9 @@ void Builtins::Generate_Call(MacroAssembler* masm) {
   __ str(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
   // Let the "call_as_function_delegate" take care of the rest.
   __ LoadGlobalFunction(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, r1);
-  __ Jump(masm->isolate()->builtins()->CallFunction(), RelocInfo::CODE_TARGET);
+  __ Jump(masm->isolate()->builtins()->CallFunction(
+              ConvertReceiverMode::kNotNullOrUndefined),
+          RelocInfo::CODE_TARGET);
 
   // 3. Call to something that is not callable.
   __ bind(&non_callable);

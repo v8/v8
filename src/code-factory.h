@@ -42,8 +42,11 @@ class CodeFactory final {
   static Callable KeyedLoadICInOptimizedCode(
       Isolate* isolate, LanguageMode language_mode,
       InlineCacheState initialization_state);
-  static Callable CallIC(Isolate* isolate, int argc);
-  static Callable CallICInOptimizedCode(Isolate* isolate, int argc);
+  static Callable CallIC(Isolate* isolate, int argc,
+                         ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable CallICInOptimizedCode(
+      Isolate* isolate, int argc,
+      ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
   static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode,
                                          InlineCacheState initialization_state);
@@ -96,8 +99,10 @@ class CodeFactory final {
   static Callable AllocateInNewSpace(Isolate* isolate);
 
   static Callable ArgumentAdaptor(Isolate* isolate);
-  static Callable Call(Isolate* isolate);
-  static Callable CallFunction(Isolate* isolate);
+  static Callable Call(Isolate* isolate,
+                       ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable CallFunction(
+      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
 
   static Callable InterpreterPushArgsAndCall(Isolate* isolate);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
