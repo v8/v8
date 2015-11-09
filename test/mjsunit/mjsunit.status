@@ -725,7 +725,7 @@
   'regress/regress-1132': [SKIP],
 }],  # 'arch == ppc and simulator_run == True'
 
-['ignition == True ', {
+['ignition == True', {
   'asm/*': [SKIP],
   'compiler/*': [SKIP],
   'const*': [SKIP],
@@ -1013,5 +1013,21 @@
   'with-prototype': [SKIP],
   'with-readonly': [SKIP],
 }],  # ignition == True
+
+['ignition == True and arch == arm and mode == debug', {
+  'date-parse': [SKIP],
+  'math-floor-part1': [SKIP],
+  'regress/regress-1167': [SKIP],
+  'regress/regress-165637': [SKIP],
+  'regress/regress-2249': [SKIP],
+  'regress/regress-542823': [SKIP],
+  'regress/regress-634-debug': [SKIP],
+  'regress/regress-78270': [SKIP],
+  'regress/regress-crbug-347903': [SKIP],
+  'regress/short-circuit': [SKIP],
+  'stack-traces-overflow': [SKIP],
+  'unicodelctest': [SKIP],
+  'unicodelctest-no-optimization': [SKIP],
+}],  # ignition == True and arch == arm and mode == debug
 
 ]

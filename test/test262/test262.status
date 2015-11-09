@@ -671,7 +671,7 @@
   'built-ins/encodeURIComponent/S15.1.3.4_A2.3_T1': [SKIP],
 }],  # 'arch == arm or arch == mipsel or arch == mips or arch == arm64'
 
-['ignition == True ', {
+['ignition == True', {
   'annexB/B.2.3.*': [SKIP],
   'built-ins/Array/prototype/reduce/*': [SKIP],
   'built-ins/Array/prototype/reduceRight/*': [SKIP],
@@ -772,5 +772,9 @@
   'language/statements/function/S13.2.2_A19_T8': [SKIP],
   'language/statements/while/S12.6.2_A4_T5': [SKIP],
 }],  # ignition == True
+
+['ignition == True and arch == arm and mode == debug', {
+  'built-ins/encodeURI*': [SKIP],
+}],  # ignition == True and arch == arm and mode == debug
 
 ]
