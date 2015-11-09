@@ -794,6 +794,7 @@
   'osr-elements-kind': [SKIP],
   'property-load-across-eval': [SKIP],
   'proto-accessor': [SKIP],
+  'readonly': [SKIP],
   'regress-3225': [SKIP],
   'regress/clear-keyed-call': [SKIP],
   'regress/regress-102153': [SKIP],
