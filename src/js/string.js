@@ -773,17 +773,12 @@ function StringTrimRight() {
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
-  if (n == 1) {
-    if (!%_IsSmi(code)) code = TO_NUMBER(code);
-    return %_StringCharFromCode(code & 0xffff);
-  }
+  if (n == 1) return %_StringCharFromCode(code & 0xffff);
 
   var one_byte = %NewString(n, NEW_ONE_BYTE_STRING);
   var i;
   for (i = 0; i < n; i++) {
-    var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = TO_NUMBER(code) & 0xffff;
-    if (code < 0) code = code & 0xffff;
+    code = %_Arguments(i) & 0xffff;
     if (code > 0xff) break;
     %_OneByteSeqStringSetChar(i, code, one_byte);
   }
@@ -791,9 +786,10 @@ function StringFromCharCode(code) {
   one_byte = %TruncateString(one_byte, i);
 
   var two_byte = %NewString(n - i, NEW_TWO_BYTE_STRING);
-  for (var j = 0; i < n; i++, j++) {
-    var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = TO_NUMBER(code) & 0xffff;
+  %_TwoByteSeqStringSetChar(0, code, two_byte);
+  i++;
+  for (var j = 1; i < n; i++, j++) {
+    code = %_Arguments(i) & 0xffff;
     %_TwoByteSeqStringSetChar(j, code, two_byte);
   }
   return one_byte + two_byte;
