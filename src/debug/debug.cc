@@ -1305,8 +1305,16 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   List<Handle<JSFunction> > functions;
   List<Handle<JSGeneratorObject> > suspended_generators;
 
-  if (!shared->optimized_code_map()->IsSmi()) {
-    shared->ClearOptimizedCodeMap();
+  // Flush all optimized code maps. Note that the below heap iteration does not
+  // cover this, because the given function might have been inlined into code
+  // for which no JSFunction exists.
+  {
+    SharedFunctionInfo::Iterator iterator(isolate_);
+    while (SharedFunctionInfo* shared = iterator.Next()) {
+      if (!shared->optimized_code_map()->IsSmi()) {
+        shared->ClearOptimizedCodeMap();
+      }
+    }
   }
 
   // Make sure we abort incremental marking.

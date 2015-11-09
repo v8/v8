@@ -478,13 +478,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
       VisitSharedFunctionInfoWeakCode(heap, object);
       return;
     }
-  } else {
-    // TODO(mstarzinger): Drop this case, it shouldn't be done here!
-    if (!shared->optimized_code_map()->IsSmi()) {
-      // Flush optimized code map on major GCs without code flushing,
-      // needed because cached code doesn't contain breakpoints.
-      shared->ClearOptimizedCodeMap();
-    }
   }
   VisitSharedFunctionInfoStrongCode(heap, object);
 }
