@@ -90,6 +90,11 @@
   # ES2015 ToLength semantics
   'ecma_3/RegExp/15.10.6.2-2': [FAIL],
 
+  # RegExp.multiline is not part of any ECMAScript specification, and is
+  # slated for deprecation in Mozilla
+  # (https://bugzilla.mozilla.org/show_bug.cgi?id=1220457)
+  'js1_5/Regress/regress-418504': [FAIL],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory

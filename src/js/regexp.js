@@ -416,25 +416,6 @@ var RegExpSetInput = function(string) {
 %DefineAccessorPropertyUnchecked(GlobalRegExp, '$_', RegExpGetInput,
                                  RegExpSetInput, DONT_ENUM | DONT_DELETE);
 
-// The properties multiline and $* are aliases for each other.  When this
-// value is set in SpiderMonkey, the value it is set to is coerced to a
-// boolean.  We mimic that behavior with a slight difference: in SpiderMonkey
-// the value of the expression 'RegExp.multiline = null' (for instance) is the
-// boolean false (i.e., the value after coercion), while in V8 it is the value
-// null (i.e., the value before coercion).
-
-// Getter and setter for multiline.
-var multiline = false;
-var RegExpGetMultiline = function() { return multiline; };
-var RegExpSetMultiline = function(flag) { multiline = flag ? true : false; };
-
-%DefineAccessorPropertyUnchecked(GlobalRegExp, 'multiline', RegExpGetMultiline,
-                                 RegExpSetMultiline, DONT_DELETE);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, '$*', RegExpGetMultiline,
-                                 RegExpSetMultiline,
-                                 DONT_ENUM | DONT_DELETE);
-
-
 var NoOpSetter = function(ignored) {};
 
 
