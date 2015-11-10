@@ -165,6 +165,10 @@ class Bitmap {
     return index >> kBitsPerCellLog2;
   }
 
+  V8_INLINE static uint32_t IndexInCell(uint32_t index) {
+    return index & kBitIndexMask;
+  }
+
   INLINE(static uint32_t CellToIndex(uint32_t index)) {
     return index << kBitsPerCellLog2;
   }
@@ -184,7 +188,7 @@ class Bitmap {
   }
 
   inline MarkBit MarkBitFromIndex(uint32_t index) {
-    MarkBit::CellType mask = 1 << (index & kBitIndexMask);
+    MarkBit::CellType mask = 1u << IndexInCell(index);
     MarkBit::CellType* cell = this->cells() + (index >> kBitsPerCellLog2);
     return MarkBit(cell, mask);
   }
@@ -255,6 +259,23 @@ class Bitmap {
       }
     }
     return true;
+  }
+
+  // Clears all bits starting from {cell_base_index} up to and excluding
+  // {index}. Note that {cell_base_index} is required to be cell aligned.
+  void ClearRange(uint32_t cell_base_index, uint32_t index) {
+    DCHECK_EQ(IndexInCell(cell_base_index), 0);
+    DCHECK_GE(index, cell_base_index);
+    uint32_t start_cell_index = IndexToCell(cell_base_index);
+    uint32_t end_cell_index = IndexToCell(index);
+    DCHECK_GE(end_cell_index, start_cell_index);
+    // Clear all cells till the cell containing the last index.
+    for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
+      cells()[i] = 0;
+    }
+    // Clear all bits in the last cell till the last bit before index.
+    uint32_t clear_mask = ~((1u << IndexInCell(index)) - 1);
+    cells()[end_cell_index] &= clear_mask;
   }
 };
 
