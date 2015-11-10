@@ -610,24 +610,30 @@ void AsmTyper::VisitHeapAccess(Property* expr) {
     }
     bin->set_bounds(Bounds(cache_.kInt32));
   } else {
-    BinaryOperation* bin = expr->key()->AsBinaryOperation();
-    if (bin == NULL || bin->op() != Token::SAR) {
-      FAIL(expr->key(), "expected >> in heap access");
+    Literal* literal = expr->key()->AsLiteral();
+    if (literal) {
+      RECURSE(VisitWithExpectation(literal, cache_.kInt32,
+                                   "array index expected to be integer"));
+    } else {
+      BinaryOperation* bin = expr->key()->AsBinaryOperation();
+      if (bin == NULL || bin->op() != Token::SAR) {
+        FAIL(expr->key(), "expected >> in heap access");
+      }
+      RECURSE(VisitWithExpectation(bin->left(), cache_.kInt32,
+                                   "array index expected to be integer"));
+      Literal* right = bin->right()->AsLiteral();
+      if (right == NULL || right->raw_value()->ContainsDot()) {
+        FAIL(right, "heap access shift must be integer");
+      }
+      RECURSE(VisitWithExpectation(bin->right(), cache_.kInt32,
+                                   "array shift expected to be integer"));
+      int n = static_cast<int>(right->raw_value()->AsNumber());
+      int expected_shift = ElementShiftSize(type);
+      if (expected_shift < 0 || n != expected_shift) {
+        FAIL(right, "heap access shift must match element size");
+      }
+      bin->set_bounds(Bounds(cache_.kInt32));
     }
-    RECURSE(VisitWithExpectation(bin->left(), cache_.kInt32,
-                                 "array index expected to be integer"));
-    Literal* right = bin->right()->AsLiteral();
-    if (right == NULL || right->raw_value()->ContainsDot()) {
-      FAIL(right, "heap access shift must be integer");
-    }
-    RECURSE(VisitWithExpectation(bin->right(), cache_.kInt32,
-                                 "array shift expected to be integer"));
-    int n = static_cast<int>(right->raw_value()->AsNumber());
-    int expected_shift = ElementShiftSize(type);
-    if (expected_shift < 0 || n != expected_shift) {
-      FAIL(right, "heap access shift must match element size");
-    }
-    bin->set_bounds(Bounds(cache_.kInt32));
   }
   IntersectResult(expr, type);
 }

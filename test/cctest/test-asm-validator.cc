@@ -927,6 +927,32 @@ TEST(Load1) {
 }
 
 
+TEST(Load1Constant) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = i8[5]|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(y, Bounds(cache.kInt32));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+          CHECK_EXPR(Property, Bounds(cache.kInt8)) {
+            CHECK_VAR(i8, Bounds(cache.kInt8Array));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
 TEST(FunctionTables) {
   CHECK_FUNC_TYPES_BEGIN(
       "function func1(x) { x = x | 0; return (x * 5) | 0; }\n"
