@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/code-factory.h"
+#include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-typed-lowering.h"
@@ -22,8 +23,13 @@ namespace compiler {
 // - relax effects from generic but not-side-effecting operations
 
 
-JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph, Zone* zone)
-    : AdvancedReducer(editor), jsgraph_(jsgraph) {
+JSTypedLowering::JSTypedLowering(Editor* editor,
+                                 CompilationDependencies* dependencies,
+                                 Flags flags, JSGraph* jsgraph, Zone* zone)
+    : AdvancedReducer(editor),
+      dependencies_(dependencies),
+      flags_(flags),
+      jsgraph_(jsgraph) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
     double max = kMaxInt / (1 << k);
@@ -1059,6 +1065,117 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
+
+  // If deoptimization is disabled, we cannot optimize.
+  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+
+  JSBinopReduction r(this, node);
+  Node* effect = r.effect();
+  Node* control = r.control();
+
+  if (r.right_type()->IsConstant() &&
+      r.right_type()->AsConstant()->Value()->IsJSFunction()) {
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(r.right_type()->AsConstant()->Value());
+    Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+    if (!function->map()->has_non_instance_prototype()) {
+      JSFunction::EnsureHasInitialMap(function);
+      DCHECK(function->has_initial_map());
+      Handle<Map> initial_map(function->initial_map(), isolate());
+      this->dependencies()->AssumeInitialMapCantChange(initial_map);
+      Node* prototype =
+          jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
+
+      Node* if_is_smi = nullptr;
+      Node* e_is_smi = nullptr;
+      // If the left hand side is an object, no smi check is needed.
+      if (r.left_type()->Maybe(Type::TaggedSigned())) {
+        Node* is_smi = graph()->NewNode(simplified()->ObjectIsSmi(), r.left());
+        Node* branch_is_smi = graph()->NewNode(
+            common()->Branch(BranchHint::kFalse), is_smi, control);
+        if_is_smi = graph()->NewNode(common()->IfTrue(), branch_is_smi);
+        e_is_smi = effect;
+        control = graph()->NewNode(common()->IfFalse(), branch_is_smi);
+      }
+
+      Node* object_map = effect =
+          graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                           r.left(), effect, control);
+
+      // Loop through the {object}s prototype chain looking for the {prototype}.
+      Node* loop = control =
+          graph()->NewNode(common()->Loop(2), control, control);
+
+      Node* loop_effect = effect =
+          graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
+
+      Node* loop_object_map = graph()->NewNode(common()->Phi(kMachAnyTagged, 2),
+                                               object_map, r.left(), loop);
+
+
+      Node* object_prototype = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForMapPrototype()),
+          loop_object_map, loop_effect, control);
+
+      // Check if object prototype is equal to function prototype.
+      Node* eq_proto =
+          graph()->NewNode(simplified()->ReferenceEqual(r.right_type()),
+                           object_prototype, prototype);
+      Node* branch_eq_proto = graph()->NewNode(
+          common()->Branch(BranchHint::kFalse), eq_proto, control);
+      Node* if_eq_proto = graph()->NewNode(common()->IfTrue(), branch_eq_proto);
+      Node* e_eq_proto = effect;
+
+      control = graph()->NewNode(common()->IfFalse(), branch_eq_proto);
+
+      // If not, check if object prototype is the null prototype.
+      Node* null_proto =
+          graph()->NewNode(simplified()->ReferenceEqual(r.right_type()),
+                           object_prototype, jsgraph()->NullConstant());
+      Node* branch_null_proto = graph()->NewNode(
+          common()->Branch(BranchHint::kFalse), null_proto, control);
+      Node* if_null_proto =
+          graph()->NewNode(common()->IfTrue(), branch_null_proto);
+      Node* e_null_proto = effect;
+
+      control = graph()->NewNode(common()->IfFalse(), branch_null_proto);
+      Node* load_object_map = effect =
+          graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                           object_prototype, effect, control);
+      // Close the loop.
+      loop_effect->ReplaceInput(1, effect);
+      loop_object_map->ReplaceInput(1, load_object_map);
+      loop->ReplaceInput(1, control);
+
+      control =
+          graph()->NewNode(common()->Merge(2), if_eq_proto, if_null_proto);
+      effect = graph()->NewNode(common()->EffectPhi(2), e_eq_proto,
+                                e_null_proto, control);
+
+
+      Node* result = graph()->NewNode(common()->Phi(kTypeBool, 2),
+                                      jsgraph()->TrueConstant(),
+                                      jsgraph()->FalseConstant(), control);
+
+      if (if_is_smi != nullptr) {
+        DCHECK(e_is_smi != nullptr);
+        control = graph()->NewNode(common()->Merge(2), if_is_smi, control);
+        effect =
+            graph()->NewNode(common()->EffectPhi(2), e_is_smi, effect, control);
+        result = graph()->NewNode(common()->Phi(kTypeBool, 2),
+                                  jsgraph()->FalseConstant(), result, control);
+      }
+      ReplaceWithValue(node, result, effect, control);
+      return Changed(result);
+    }
+  }
+
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
@@ -2028,6 +2145,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
+    case IrOpcode::kJSInstanceOf:
+      return ReduceJSInstanceOf(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:
@@ -2173,6 +2292,11 @@ SimplifiedOperatorBuilder* JSTypedLowering::simplified() const {
 
 MachineOperatorBuilder* JSTypedLowering::machine() const {
   return jsgraph()->machine();
+}
+
+
+CompilationDependencies* JSTypedLowering::dependencies() const {
+  return dependencies_;
 }
 
 }  // namespace compiler

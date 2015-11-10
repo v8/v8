@@ -591,7 +591,11 @@ struct TypedLoweringPhase {
                                               data->common());
     LoadElimination load_elimination(&graph_reducer);
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
-    JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
+    JSTypedLowering typed_lowering(&graph_reducer, data->info()->dependencies(),
+                                   data->info()->is_deoptimization_enabled()
+                                       ? JSTypedLowering::kDeoptimizationEnabled
+                                       : JSTypedLowering::kNoFlags,
+                                   data->jsgraph(), temp_zone);
     JSIntrinsicLowering intrinsic_lowering(
         &graph_reducer, data->jsgraph(),
         data->info()->is_deoptimization_enabled()

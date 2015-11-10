@@ -5,6 +5,7 @@
 // TODO(jochen): Remove this after the setting is turned on globally.
 #define V8_IMMINENT_DEPRECATION_WARNINGS
 
+#include "src/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator.h"
@@ -42,6 +43,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         machine(main_zone()),
         simplified(main_zone()),
         common(main_zone()),
+        deps(main_isolate(), main_zone()),
         graph(main_zone()),
         typer(main_isolate(), &graph),
         context_node(NULL) {
@@ -57,6 +59,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   MachineOperatorBuilder machine;
   SimplifiedOperatorBuilder simplified;
   CommonOperatorBuilder common;
+  CompilationDependencies deps;
   Graph graph;
   Typer typer;
   Node* context_node;
@@ -94,7 +97,9 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(main_zone(), &graph);
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, main_zone());
+    JSTypedLowering reducer(&graph_reducer, &deps,
+                            JSTypedLowering::kDeoptimizationEnabled, &jsgraph,
+                            main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;

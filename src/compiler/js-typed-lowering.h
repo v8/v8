@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_JS_TYPED_LOWERING_H_
 #define V8_COMPILER_JS_TYPED_LOWERING_H_
 
+#include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/opcodes.h"
 
@@ -12,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class CompilationDependencies;
 class Factory;
 
 
@@ -28,7 +30,15 @@ class SimplifiedOperatorBuilder;
 // Lowers JS-level operators to simplified operators based on types.
 class JSTypedLowering final : public AdvancedReducer {
  public:
-  JSTypedLowering(Editor* editor, JSGraph* jsgraph, Zone* zone);
+  // Flags that control the mode of operation.
+  enum Flag {
+    kNoFlags = 0u,
+    kDeoptimizationEnabled = 1u << 0,
+  };
+  typedef base::Flags<Flag> Flags;
+
+  JSTypedLowering(Editor* editor, CompilationDependencies* dependencies,
+                  Flags flags, JSGraph* jsgraph, Zone* zone);
   ~JSTypedLowering() final {}
 
   Reduction Reduce(Node* node) final;
@@ -44,6 +54,7 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
+  Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
@@ -87,14 +98,20 @@ class JSTypedLowering final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
   MachineOperatorBuilder* machine() const;
+  CompilationDependencies* dependencies() const;
+  Flags flags() const { return flags_; }
 
   // Limits up to which context allocations are inlined.
   static const int kFunctionContextAllocationLimit = 16;
   static const int kBlockContextAllocationLimit = 16;
 
+  CompilationDependencies* dependencies_;
+  Flags flags_;
   JSGraph* jsgraph_;
   Type* shifted_int32_ranges_[4];
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(JSTypedLowering::Flags)
 
 }  // namespace compiler
 }  // namespace internal

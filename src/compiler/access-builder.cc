@@ -131,6 +131,14 @@ FieldAccess AccessBuilder::ForMapInstanceType() {
 
 
 // static
+FieldAccess AccessBuilder::ForMapPrototype() {
+  FieldAccess access = {kTaggedBase, Map::kPrototypeOffset, Handle<Name>(),
+                        Type::TaggedPointer(), kMachAnyTagged};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForStringLength() {
   FieldAccess access = {kTaggedBase, String::kLengthOffset, Handle<Name>(),
                         TypeCache::Get().kStringLengthType, kMachAnyTagged};
