@@ -1016,6 +1016,7 @@
 }],  # ignition == True
 
 ['ignition == True and mode == debug and (arch == arm or arch == arm64)', {
+  'array-sort': [SKIP],
   'date-parse': [SKIP],
   'math-floor-part1': [SKIP],
   'math-floor-part2': [SKIP],
