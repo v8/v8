@@ -755,6 +755,11 @@ void InstructionSelector::VisitWord32Popcnt(Node* node) {
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
 
+#if V8_TARGET_ARCH_PPC64
+void InstructionSelector::VisitWord64Ctz(Node* node) { UNREACHABLE(); }
+#endif
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kPPC_Add, kInt16Imm);
 }
