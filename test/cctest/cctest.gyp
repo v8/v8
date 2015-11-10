@@ -100,7 +100,9 @@
         'test-alloc.cc',
         'test-api.cc',
         'test-api.h',
-        'test-api-accessors.cc',
+        # TODO(epertoso): re-enable the following test after the API change is
+        # checked in.
+        # 'test-api-accessors.cc',
         'test-api-interceptors.cc',
         'test-array-list.cc',
         'test-ast.cc',
