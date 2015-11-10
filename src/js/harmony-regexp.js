@@ -36,8 +36,6 @@ function RegExpGetFlags() {
   if (this.sticky) result += 'y';
   return result;
 }
-%FunctionSetName(RegExpGetFlags, "RegExp.prototype.flags");
-%SetNativeFlag(RegExpGetFlags);
 
 
 // ES6 21.2.5.12.
@@ -61,12 +59,8 @@ function RegExpGetUnicode() {
 %FunctionSetName(RegExpGetUnicode, "RegExp.prototype.unicode");
 %SetNativeFlag(RegExpGetUnicode);
 
-%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, 'flags',
-                               RegExpGetFlags, DONT_ENUM);
+utils.InstallGetter(GlobalRegExp.prototype, 'flags', RegExpGetFlags);
+utils.InstallGetter(GlobalRegExp.prototype, 'sticky', RegExpGetSticky);
+utils.InstallGetter(GlobalRegExp.prototype, 'unicode', RegExpGetUnicode);
 
-%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "sticky",
-                               RegExpGetSticky, DONT_ENUM);
-
-%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "unicode",
-                               RegExpGetUnicode, DONT_ENUM);
 })

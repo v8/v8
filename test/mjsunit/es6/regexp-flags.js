@@ -52,7 +52,7 @@ assertEquals(4, get_count);
 function testName(name) {
   assertThrows(() => RegExp.prototype[name], TypeError);
   assertEquals(
-      "RegExp.prototype." + name,
+      "get " + name,
       Object.getOwnPropertyDescriptor(RegExp.prototype, name).get.name);
 }
 

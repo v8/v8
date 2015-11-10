@@ -994,9 +994,8 @@ function MakeURIError() {
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().
 var StackOverflowBoilerplate = MakeRangeError(kStackOverflow);
-%DefineAccessorPropertyUnchecked(StackOverflowBoilerplate, 'stack',
-                                 StackTraceGetter, StackTraceSetter,
-                                 DONT_ENUM);
+utils.InstallGetterSetter(StackOverflowBoilerplate, 'stack',
+                          StackTraceGetter, StackTraceSetter)
 
 // Define actual captureStackTrace function after everything has been set up.
 captureStackTrace = function captureStackTrace(obj, cons_opt) {

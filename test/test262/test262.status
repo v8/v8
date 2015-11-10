@@ -343,7 +343,6 @@
   'built-ins/RegExp/prototype/test/u-captured-value': [FAIL],
   'built-ins/RegExp/prototype/test/u-lastindex-adv': [FAIL],
   'built-ins/RegExp/prototype/test/u-lastindex-value': [FAIL],
-  'built-ins/RegExp/prototype/unicode/name': [FAIL],
   'built-ins/RegExp/prototype/unicode/this-regexp': [FAIL],
   'built-ins/RegExp/unicode_identity_escape': [FAIL],
   'language/literals/regexp/u-unicode-esc': [FAIL],
@@ -396,15 +395,7 @@
   'built-ins/String/prototype/split/cstm-split-get-err': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4346
-  'built-ins/RegExp/prototype/flags/name': [FAIL],
   'built-ins/RegExp/prototype/flags/u': [FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=4347
-  'built-ins/RegExp/prototype/global/name': [FAIL],
-  'built-ins/RegExp/prototype/ignoreCase/name': [FAIL],
-  'built-ins/RegExp/prototype/multiline/name': [FAIL],
-  'built-ins/RegExp/prototype/source/name': [FAIL],
-  'built-ins/RegExp/prototype/sticky/name': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],

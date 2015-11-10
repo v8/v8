@@ -102,21 +102,20 @@ function InstallFunctions(object, attributes, functions) {
 
 
 // Helper function to install a getter-only accessor property.
-function InstallGetter(object, name, getter, attributes) {
+function InstallGetter(object, name, getter, attributes, prefix) {
   %CheckIsBootstrapping();
-  if (typeof attributes == "undefined") {
-    attributes = DONT_ENUM;
-  }
-  SetFunctionName(getter, name, "get");
+  if (IS_UNDEFINED(attributes)) attributes = DONT_ENUM;
+  SetFunctionName(getter, name, IS_UNDEFINED(prefix) ? "get" : prefix);
   %FunctionRemovePrototype(getter);
-  %DefineAccessorPropertyUnchecked(object, name, getter, null, attributes);
+  %DefineGetterPropertyUnchecked(object, name, getter, attributes);
   %SetNativeFlag(getter);
 }
 
 
 // Helper function to install a getter/setter accessor property.
-function InstallGetterSetter(object, name, getter, setter) {
+function InstallGetterSetter(object, name, getter, setter, attributes) {
   %CheckIsBootstrapping();
+  if (IS_UNDEFINED(attributes)) attributes = DONT_ENUM;
   SetFunctionName(getter, name, "get");
   SetFunctionName(setter, name, "set");
   %FunctionRemovePrototype(getter);

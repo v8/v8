@@ -387,14 +387,10 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "compile", RegExpCompileJS
 ]);
 
-%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "global",
-                               RegExpGetGlobal, DONT_ENUM);
-%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "ignoreCase",
-                               RegExpGetIgnoreCase, DONT_ENUM);
-%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "multiline",
-                               RegExpGetMultiline, DONT_ENUM);
-%DefineGetterPropertyUnchecked(GlobalRegExp.prototype, "source",
-                               RegExpGetSource, DONT_ENUM);
+utils.InstallGetter(GlobalRegExp.prototype, 'global', RegExpGetGlobal);
+utils.InstallGetter(GlobalRegExp.prototype, 'ignoreCase', RegExpGetIgnoreCase);
+utils.InstallGetter(GlobalRegExp.prototype, 'multiline', RegExpGetMultiline);
+utils.InstallGetter(GlobalRegExp.prototype, 'source', RegExpGetSource);
 
 // The length of compile is 1 in SpiderMonkey.
 %FunctionSetLength(GlobalRegExp.prototype.compile, 1);
@@ -411,38 +407,36 @@ var RegExpSetInput = function(string) {
 };
 
 %OptimizeObjectForAddingMultipleProperties(GlobalRegExp, 22);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, 'input', RegExpGetInput,
-                                 RegExpSetInput, DONT_DELETE);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, '$_', RegExpGetInput,
-                                 RegExpSetInput, DONT_ENUM | DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, 'input', RegExpGetInput, RegExpSetInput,
+                          DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, '$_', RegExpGetInput, RegExpSetInput,
+                          DONT_ENUM | DONT_DELETE);
+
 
 var NoOpSetter = function(ignored) {};
 
 
 // Static properties set by a successful match.
-%DefineAccessorPropertyUnchecked(GlobalRegExp, 'lastMatch', RegExpGetLastMatch,
-                                 NoOpSetter, DONT_DELETE);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, '$&', RegExpGetLastMatch,
-                                 NoOpSetter, DONT_ENUM | DONT_DELETE);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, 'lastParen', RegExpGetLastParen,
-                                 NoOpSetter, DONT_DELETE);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, '$+', RegExpGetLastParen,
-                                 NoOpSetter, DONT_ENUM | DONT_DELETE);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, 'leftContext',
-                                 RegExpGetLeftContext, NoOpSetter,
-                                 DONT_DELETE);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, '$`', RegExpGetLeftContext,
-                                 NoOpSetter, DONT_ENUM | DONT_DELETE);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, 'rightContext',
-                                 RegExpGetRightContext, NoOpSetter,
-                                 DONT_DELETE);
-%DefineAccessorPropertyUnchecked(GlobalRegExp, "$'", RegExpGetRightContext,
-                                 NoOpSetter, DONT_ENUM | DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, 'lastMatch', RegExpGetLastMatch,
+                          NoOpSetter, DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, '$&', RegExpGetLastMatch, NoOpSetter,
+                          DONT_ENUM | DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, 'lastParen', RegExpGetLastParen,
+                          NoOpSetter, DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, '$+', RegExpGetLastParen, NoOpSetter,
+                          DONT_ENUM | DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, 'leftContext', RegExpGetLeftContext,
+                          NoOpSetter, DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, '$`', RegExpGetLeftContext, NoOpSetter,
+                          DONT_ENUM | DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, 'rightContext', RegExpGetRightContext,
+                          NoOpSetter, DONT_DELETE);
+utils.InstallGetterSetter(GlobalRegExp, "$'", RegExpGetRightContext, NoOpSetter,
+                          DONT_ENUM | DONT_DELETE);
 
 for (var i = 1; i < 10; ++i) {
-  %DefineAccessorPropertyUnchecked(GlobalRegExp, '$' + i,
-                                   RegExpMakeCaptureGetter(i), NoOpSetter,
-                                   DONT_DELETE);
+  utils.InstallGetterSetter(GlobalRegExp, '$' + i, RegExpMakeCaptureGetter(i),
+                            NoOpSetter, DONT_DELETE);
 }
 %ToFastProperties(GlobalRegExp);
 
