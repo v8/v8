@@ -49,7 +49,12 @@ TruncationMode TruncationModeOf(Operator const*);
 
 
 // Supported write barrier modes.
-enum WriteBarrierKind { kNoWriteBarrier, kFullWriteBarrier };
+enum WriteBarrierKind {
+  kNoWriteBarrier,
+  kMapWriteBarrier,
+  kPointerWriteBarrier,
+  kFullWriteBarrier
+};
 
 std::ostream& operator<<(std::ostream& os, WriteBarrierKind);
 

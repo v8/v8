@@ -393,58 +393,80 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
+  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineType rep = RepresentationOf(store_rep.machine_type());
-  if (store_rep.write_barrier_kind() == kFullWriteBarrier) {
-    DCHECK(rep == kRepTagged);
-    // TODO(dcarney): refactor RecordWrite function to take temp registers
-    //                and pass them here instead of using fixed regs
-    // TODO(dcarney): handle immediate indices.
-    InstructionOperand temps[] = {g.TempRegister(x11), g.TempRegister(x12)};
-    Emit(kArm64StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, x10),
-         g.UseFixed(index, x11), g.UseFixed(value, x12), arraysize(temps),
-         temps);
-    return;
-  }
-  DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
-  ArchOpcode opcode;
-  ImmediateMode immediate_mode = kNoImmediate;
-  switch (rep) {
-    case kRepFloat32:
-      opcode = kArm64StrS;
-      immediate_mode = kLoadStoreImm32;
-      break;
-    case kRepFloat64:
-      opcode = kArm64StrD;
-      immediate_mode = kLoadStoreImm64;
-      break;
-    case kRepBit:  // Fall through.
-    case kRepWord8:
-      opcode = kArm64Strb;
-      immediate_mode = kLoadStoreImm8;
-      break;
-    case kRepWord16:
-      opcode = kArm64Strh;
-      immediate_mode = kLoadStoreImm16;
-      break;
-    case kRepWord32:
-      opcode = kArm64StrW;
-      immediate_mode = kLoadStoreImm32;
-      break;
-    case kRepTagged:  // Fall through.
-    case kRepWord64:
-      opcode = kArm64Str;
-      immediate_mode = kLoadStoreImm64;
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-  if (g.CanBeImmediate(index, immediate_mode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+
+  // TODO(arm64): I guess this could be done in a better way.
+  if (write_barrier_kind != kNoWriteBarrier) {
+    DCHECK_EQ(kRepTagged, rep);
+    InstructionOperand inputs[3];
+    size_t input_count = 0;
+    inputs[input_count++] = g.UseUniqueRegister(base);
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    inputs[input_count++] = (write_barrier_kind == kMapWriteBarrier)
+                                ? g.UseRegister(value)
+                                : g.UseUniqueRegister(value);
+    RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
+    switch (write_barrier_kind) {
+      case kNoWriteBarrier:
+        UNREACHABLE();
+        break;
+      case kMapWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsMap;
+        break;
+      case kPointerWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsPointer;
+        break;
+      case kFullWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsAny;
+        break;
+    }
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+    size_t const temp_count = arraysize(temps);
+    InstructionCode code = kArchStoreWithWriteBarrier;
+    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
-    Emit(opcode | AddressingModeField::encode(kMode_MRR), g.NoOutput(),
-         g.UseRegister(base), g.UseRegister(index), g.UseRegister(value));
+    ArchOpcode opcode;
+    ImmediateMode immediate_mode = kNoImmediate;
+    switch (rep) {
+      case kRepFloat32:
+        opcode = kArm64StrS;
+        immediate_mode = kLoadStoreImm32;
+        break;
+      case kRepFloat64:
+        opcode = kArm64StrD;
+        immediate_mode = kLoadStoreImm64;
+        break;
+      case kRepBit:  // Fall through.
+      case kRepWord8:
+        opcode = kArm64Strb;
+        immediate_mode = kLoadStoreImm8;
+        break;
+      case kRepWord16:
+        opcode = kArm64Strh;
+        immediate_mode = kLoadStoreImm16;
+        break;
+      case kRepWord32:
+        opcode = kArm64StrW;
+        immediate_mode = kLoadStoreImm32;
+        break;
+      case kRepTagged:  // Fall through.
+      case kRepWord64:
+        opcode = kArm64Str;
+        immediate_mode = kLoadStoreImm64;
+        break;
+      default:
+        UNREACHABLE();
+        return;
+    }
+    if (g.CanBeImmediate(index, immediate_mode)) {
+      Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+           g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+    } else {
+      Emit(opcode | AddressingModeField::encode(kMode_MRR), g.NoOutput(),
+           g.UseRegister(base), g.UseRegister(index), g.UseRegister(value));
+    }
   }
 }
 

@@ -96,7 +96,6 @@ namespace compiler {
   V(IA32Lea)                       \
   V(IA32Push)                      \
   V(IA32Poke)                      \
-  V(IA32StoreWriteBarrier)         \
   V(IA32StackCheck)
 
 

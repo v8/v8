@@ -129,8 +129,7 @@ namespace compiler {
   V(Arm64LdrW)                     \
   V(Arm64StrW)                     \
   V(Arm64Ldr)                      \
-  V(Arm64Str)                      \
-  V(Arm64StoreWriteBarrier)
+  V(Arm64Str)
 
 
 // Addressing modes represent the "shape" of inputs to an instruction.

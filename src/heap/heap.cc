@@ -4380,11 +4380,16 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
 
 bool Heap::RootIsImmortalImmovable(int root_index) {
   switch (root_index) {
-#define CASE(name)               \
-  case Heap::k##name##RootIndex: \
+#define IMMORTAL_IMMOVABLE_ROOT(name) case Heap::k##name##RootIndex:
+    IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
+#undef IMMORTAL_IMMOVABLE_ROOT
+#define INTERNALIZED_STRING(name, value) case Heap::k##name##RootIndex:
+    INTERNALIZED_STRING_LIST(INTERNALIZED_STRING)
+#undef INTERNALIZED_STRING
+#define STRING_TYPE(NAME, size, name, Name) case Heap::k##Name##MapRootIndex:
+    STRING_TYPE_LIST(STRING_TYPE)
+#undef STRING_TYPE
     return true;
-    IMMORTAL_IMMOVABLE_ROOT_LIST(CASE);
-#undef CASE
     default:
       return false;
   }

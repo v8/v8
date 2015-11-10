@@ -61,7 +61,6 @@ class ArmOperandGenerator : public OperandGenerator {
       case kArmStrb:
       case kArmLdr:
       case kArmStr:
-      case kArmStoreWriteBarrier:
         return value >= -4095 && value <= 4095;
 
       case kArmLdrh:
@@ -351,49 +350,70 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
+  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineType rep = RepresentationOf(store_rep.machine_type());
-  if (store_rep.write_barrier_kind() == kFullWriteBarrier) {
-    DCHECK(rep == kRepTagged);
-    // TODO(dcarney): refactor RecordWrite function to take temp registers
-    //                and pass them here instead of using fixed regs
-    // TODO(dcarney): handle immediate indices.
-    InstructionOperand temps[] = {g.TempRegister(r5), g.TempRegister(r6)};
-    Emit(kArmStoreWriteBarrier, g.NoOutput(), g.UseFixed(base, r4),
-         g.UseFixed(index, r5), g.UseFixed(value, r6), arraysize(temps), temps);
-    return;
-  }
-  DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
 
-  ArchOpcode opcode;
-  switch (rep) {
-    case kRepFloat32:
-      opcode = kArmVstrF32;
-      break;
-    case kRepFloat64:
-      opcode = kArmVstrF64;
-      break;
-    case kRepBit:  // Fall through.
-    case kRepWord8:
-      opcode = kArmStrb;
-      break;
-    case kRepWord16:
-      opcode = kArmStrh;
-      break;
-    case kRepTagged:  // Fall through.
-    case kRepWord32:
-      opcode = kArmStr;
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-
-  if (g.CanBeImmediate(index, opcode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_Offset_RI), g.NoOutput(),
-         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+  if (write_barrier_kind != kNoWriteBarrier) {
+    DCHECK_EQ(kRepTagged, rep);
+    InstructionOperand inputs[3];
+    size_t input_count = 0;
+    inputs[input_count++] = g.UseUniqueRegister(base);
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    inputs[input_count++] = (write_barrier_kind == kMapWriteBarrier)
+                                ? g.UseRegister(value)
+                                : g.UseUniqueRegister(value);
+    RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
+    switch (write_barrier_kind) {
+      case kNoWriteBarrier:
+        UNREACHABLE();
+        break;
+      case kMapWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsMap;
+        break;
+      case kPointerWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsPointer;
+        break;
+      case kFullWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsAny;
+        break;
+    }
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+    size_t const temp_count = arraysize(temps);
+    InstructionCode code = kArchStoreWithWriteBarrier;
+    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
-    Emit(opcode | AddressingModeField::encode(kMode_Offset_RR), g.NoOutput(),
-         g.UseRegister(base), g.UseRegister(index), g.UseRegister(value));
+    ArchOpcode opcode;
+    switch (rep) {
+      case kRepFloat32:
+        opcode = kArmVstrF32;
+        break;
+      case kRepFloat64:
+        opcode = kArmVstrF64;
+        break;
+      case kRepBit:  // Fall through.
+      case kRepWord8:
+        opcode = kArmStrb;
+        break;
+      case kRepWord16:
+        opcode = kArmStrh;
+        break;
+      case kRepTagged:  // Fall through.
+      case kRepWord32:
+        opcode = kArmStr;
+        break;
+      default:
+        UNREACHABLE();
+        return;
+    }
+
+    if (g.CanBeImmediate(index, opcode)) {
+      Emit(opcode | AddressingModeField::encode(kMode_Offset_RI), g.NoOutput(),
+           g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+    } else {
+      Emit(opcode | AddressingModeField::encode(kMode_Offset_RR), g.NoOutput(),
+           g.UseRegister(base), g.UseRegister(index), g.UseRegister(value));
+    }
   }
 }
 

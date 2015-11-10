@@ -34,6 +34,10 @@ std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
   switch (kind) {
     case kNoWriteBarrier:
       return os << "NoWriteBarrier";
+    case kMapWriteBarrier:
+      return os << "MapWriteBarrier";
+    case kPointerWriteBarrier:
+      return os << "PointerWriteBarrier";
     case kFullWriteBarrier:
       return os << "FullWriteBarrier";
   }
@@ -255,6 +259,16 @@ struct MachineOperatorGlobalCache {
     Store##Type##NoWriteBarrier##Operator()                                    \
         : Store##Type##Operator(kNoWriteBarrier) {}                            \
   };                                                                           \
+  struct Store##Type##MapWriteBarrier##Operator final                          \
+      : public Store##Type##Operator {                                         \
+    Store##Type##MapWriteBarrier##Operator()                                   \
+        : Store##Type##Operator(kMapWriteBarrier) {}                           \
+  };                                                                           \
+  struct Store##Type##PointerWriteBarrier##Operator final                      \
+      : public Store##Type##Operator {                                         \
+    Store##Type##PointerWriteBarrier##Operator()                               \
+        : Store##Type##Operator(kPointerWriteBarrier) {}                       \
+  };                                                                           \
   struct Store##Type##FullWriteBarrier##Operator final                         \
       : public Store##Type##Operator {                                         \
     Store##Type##FullWriteBarrier##Operator()                                  \
@@ -268,6 +282,9 @@ struct MachineOperatorGlobalCache {
               "CheckedStore", 4, 1, 1, 0, 1, 0, k##Type) {}                    \
   };                                                                           \
   Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;          \
+  Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;        \
+  Store##Type##PointerWriteBarrier##Operator                                   \
+      kStore##Type##PointerWriteBarrier;                                       \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;      \
   CheckedStore##Type##Operator kCheckedStore##Type;
   MACHINE_TYPE_LIST(STORE)
@@ -331,14 +348,18 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
   switch (rep.machine_type()) {
-#define STORE(Type)                                      \
-  case k##Type:                                          \
-    switch (rep.write_barrier_kind()) {                  \
-      case kNoWriteBarrier:                              \
-        return &cache_.k##Store##Type##NoWriteBarrier;   \
-      case kFullWriteBarrier:                            \
-        return &cache_.k##Store##Type##FullWriteBarrier; \
-    }                                                    \
+#define STORE(Type)                                         \
+  case k##Type:                                             \
+    switch (rep.write_barrier_kind()) {                     \
+      case kNoWriteBarrier:                                 \
+        return &cache_.k##Store##Type##NoWriteBarrier;      \
+      case kMapWriteBarrier:                                \
+        return &cache_.k##Store##Type##MapWriteBarrier;     \
+      case kPointerWriteBarrier:                            \
+        return &cache_.k##Store##Type##PointerWriteBarrier; \
+      case kFullWriteBarrier:                               \
+        return &cache_.k##Store##Type##FullWriteBarrier;    \
+    }                                                       \
     break;
     MACHINE_TYPE_LIST(STORE)
 #undef STORE

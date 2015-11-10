@@ -213,6 +213,48 @@ class OutOfLineCeil final : public OutOfLineRound {
 };
 
 
+class OutOfLineRecordWrite final : public OutOfLineCode {
+ public:
+  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
+                       Register value, Register scratch0, Register scratch1,
+                       RecordWriteMode mode)
+      : OutOfLineCode(gen),
+        object_(object),
+        index_(index),
+        value_(value),
+        scratch0_(scratch0),
+        scratch1_(scratch1),
+        mode_(mode) {}
+
+  void Generate() final {
+    if (mode_ > RecordWriteMode::kValueIsPointer) {
+      __ JumpIfSmi(value_, exit());
+    }
+    if (mode_ > RecordWriteMode::kValueIsMap) {
+      __ CheckPageFlag(value_, scratch0_,
+                       MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                       exit());
+    }
+    SaveFPRegsMode const save_fp_mode =
+        frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
+    // TODO(turbofan): Once we get frame elision working, we need to save
+    // and restore lr properly here if the frame was elided.
+    RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
+                         EMIT_REMEMBERED_SET, save_fp_mode);
+    __ Addu(scratch1_, object_, index_);
+    __ CallStub(&stub);
+  }
+
+ private:
+  Register const object_;
+  Register const index_;
+  Register const value_;
+  Register const scratch0_;
+  Register const scratch1_;
+  RecordWriteMode const mode_;
+};
+
+
 Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
   switch (condition) {
     case kEqual:
@@ -518,6 +560,24 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
+    case kArchStoreWithWriteBarrier: {
+      RecordWriteMode mode =
+          static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
+      Register object = i.InputRegister(0);
+      Register index = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      Register scratch0 = i.TempRegister(0);
+      Register scratch1 = i.TempRegister(1);
+      auto ool = new (zone()) OutOfLineRecordWrite(this, object, index, value,
+                                                   scratch0, scratch1, mode);
+      __ Daddu(at, object, index);
+      __ sd(value, MemOperand(at));
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                       ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
     case kMips64Add:
       __ Addu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -965,18 +1025,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         __ sd(i.InputRegister(0), MemOperand(sp, i.InputInt32(1)));
       }
-      break;
-    }
-    case kMips64StoreWriteBarrier: {
-      Register object = i.InputRegister(0);
-      Register index = i.InputRegister(1);
-      Register value = i.InputRegister(2);
-      __ daddu(index, object, index);
-      __ sd(value, MemOperand(index));
-      SaveFPRegsMode mode =
-          frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-      RAStatus ra_status = kRAHasNotBeenSaved;
-      __ RecordWrite(object, index, value, ra_status, mode);
       break;
     }
     case kCheckedLoadInt8:

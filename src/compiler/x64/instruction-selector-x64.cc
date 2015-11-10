@@ -157,61 +157,84 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
+  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineType rep = RepresentationOf(store_rep.machine_type());
-  if (store_rep.write_barrier_kind() == kFullWriteBarrier) {
-    DCHECK_EQ(kRepTagged, rep);
-    // TODO(dcarney): refactor RecordWrite function to take temp registers
-    //                and pass them here instead of using fixed regs
-    if (g.CanBeImmediate(index)) {
-      InstructionOperand temps[] = {g.TempRegister(rcx), g.TempRegister()};
-      Emit(kX64StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, rbx),
-           g.UseImmediate(index), g.UseFixed(value, rcx), arraysize(temps),
-           temps);
-    } else {
-      InstructionOperand temps[] = {g.TempRegister(rcx), g.TempRegister(rdx)};
-      Emit(kX64StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, rbx),
-           g.UseFixed(index, rcx), g.UseFixed(value, rdx), arraysize(temps),
-           temps);
-    }
-    return;
-  }
-  DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
 
-  ArchOpcode opcode;
-  switch (rep) {
-    case kRepFloat32:
-      opcode = kX64Movss;
-      break;
-    case kRepFloat64:
-      opcode = kX64Movsd;
-      break;
-    case kRepBit:  // Fall through.
-    case kRepWord8:
-      opcode = kX64Movb;
-      break;
-    case kRepWord16:
-      opcode = kX64Movw;
-      break;
-    case kRepWord32:
-      opcode = kX64Movl;
-      break;
-    case kRepTagged:  // Fall through.
-    case kRepWord64:
-      opcode = kX64Movq;
-      break;
-    default:
-      UNREACHABLE();
-      return;
+  if (write_barrier_kind != kNoWriteBarrier) {
+    DCHECK_EQ(kRepTagged, rep);
+    AddressingMode addressing_mode;
+    InstructionOperand inputs[3];
+    size_t input_count = 0;
+    inputs[input_count++] = g.UseUniqueRegister(base);
+    if (g.CanBeImmediate(index)) {
+      inputs[input_count++] = g.UseImmediate(index);
+      addressing_mode = kMode_MRI;
+    } else {
+      inputs[input_count++] = g.UseUniqueRegister(index);
+      addressing_mode = kMode_MR1;
+    }
+    inputs[input_count++] = (write_barrier_kind == kMapWriteBarrier)
+                                ? g.UseRegister(value)
+                                : g.UseUniqueRegister(value);
+    RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
+    switch (write_barrier_kind) {
+      case kNoWriteBarrier:
+        UNREACHABLE();
+        break;
+      case kMapWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsMap;
+        break;
+      case kPointerWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsPointer;
+        break;
+      case kFullWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsAny;
+        break;
+    }
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+    size_t const temp_count = arraysize(temps);
+    InstructionCode code = kArchStoreWithWriteBarrier;
+    code |= AddressingModeField::encode(addressing_mode);
+    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
+  } else {
+    ArchOpcode opcode;
+    switch (rep) {
+      case kRepFloat32:
+        opcode = kX64Movss;
+        break;
+      case kRepFloat64:
+        opcode = kX64Movsd;
+        break;
+      case kRepBit:  // Fall through.
+      case kRepWord8:
+        opcode = kX64Movb;
+        break;
+      case kRepWord16:
+        opcode = kX64Movw;
+        break;
+      case kRepWord32:
+        opcode = kX64Movl;
+        break;
+      case kRepTagged:  // Fall through.
+      case kRepWord64:
+        opcode = kX64Movq;
+        break;
+      default:
+        UNREACHABLE();
+        return;
+    }
+    InstructionOperand inputs[4];
+    size_t input_count = 0;
+    AddressingMode addressing_mode =
+        g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+    InstructionCode code =
+        opcode | AddressingModeField::encode(addressing_mode);
+    InstructionOperand value_operand =
+        g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
+    inputs[input_count++] = value_operand;
+    Emit(code, 0, static_cast<InstructionOperand*>(NULL), input_count, inputs);
   }
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  AddressingMode mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  InstructionCode code = opcode | AddressingModeField::encode(mode);
-  InstructionOperand value_operand =
-      g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
-  inputs[input_count++] = value_operand;
-  Emit(code, 0, static_cast<InstructionOperand*>(NULL), input_count, inputs);
 }
 
 

@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "src/address-map.h"
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
@@ -1151,8 +1152,35 @@ WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
     // Write barriers are only for writes of heap objects.
     return kNoWriteBarrier;
   }
+  if (input_type->Is(Type::BooleanOrNullOrUndefined())) {
+    // Write barriers are not necessary when storing true, false, null or
+    // undefined, because these special oddballs are always in the root set.
+    return kNoWriteBarrier;
+  }
   if (base_is_tagged == kTaggedBase &&
       RepresentationOf(representation) == kRepTagged) {
+    if (input_type->IsConstant() &&
+        input_type->AsConstant()->Value()->IsHeapObject()) {
+      Handle<HeapObject> input =
+          Handle<HeapObject>::cast(input_type->AsConstant()->Value());
+      if (input->IsMap()) {
+        // Write barriers for storing maps are cheaper.
+        return kMapWriteBarrier;
+      }
+      Isolate* const isolate = input->GetIsolate();
+      RootIndexMap root_index_map(isolate);
+      int root_index = root_index_map.Lookup(*input);
+      if (root_index != RootIndexMap::kInvalidRootIndex &&
+          isolate->heap()->RootIsImmortalImmovable(root_index)) {
+        // Write barriers are unnecessary for immortal immovable roots.
+        return kNoWriteBarrier;
+      }
+    }
+    if (field_type->Is(Type::TaggedPointer()) ||
+        input_type->Is(Type::TaggedPointer())) {
+      // Write barriers for heap objects don't need a Smi check.
+      return kPointerWriteBarrier;
+    }
     // Write barriers are only for writes into heap objects (i.e. tagged base).
     return kFullWriteBarrier;
   }

@@ -85,8 +85,7 @@ namespace compiler {
   V(MipsFloat32Min)                \
   V(MipsPush)                      \
   V(MipsStoreToStackSlot)          \
-  V(MipsStackClaim)                \
-  V(MipsStoreWriteBarrier)
+  V(MipsStackClaim)
 
 
 // Addressing modes represent the "shape" of inputs to an instruction.

@@ -124,7 +124,6 @@ namespace compiler {
   V(X64Inc32)                      \
   V(X64Push)                       \
   V(X64Poke)                       \
-  V(X64StoreWriteBarrier)          \
   V(X64StackCheck)
 
 

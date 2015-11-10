@@ -664,7 +664,7 @@ void CodeGenerator::MarkLazyDeoptSite() {
 
 
 OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
-    : masm_(gen->masm()), next_(gen->ools_) {
+    : frame_(gen->frame()), masm_(gen->masm()), next_(gen->ools_) {
   gen->ools_ = this;
 }
 
