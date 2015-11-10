@@ -79,6 +79,7 @@ namespace compiler {
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
+  V(SSEInt64ToFloat32)             \
   V(SSEInt64ToFloat64)             \
   V(SSEUint32ToFloat64)            \
   V(SSEFloat64ExtractLowWord32)    \

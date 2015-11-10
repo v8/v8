@@ -1316,6 +1316,11 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundInt64ToFloat32(Node* node) {
+  VisitRR(this, kArm64Int64ToFloat32, node);
+}
+
+
 void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
   VisitRR(this, kArm64Int64ToFloat64, node);
 }

@@ -1018,6 +1018,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Cvtlsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
+    case kSSEInt64ToFloat32:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ Cvtqsi2ss(i.OutputDoubleRegister(), i.InputRegister(0));
+      } else {
+        __ Cvtqsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
+      }
+      break;
     case kSSEInt64ToFloat64:
       if (instr->InputAt(0)->IsRegister()) {
         __ Cvtqsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));

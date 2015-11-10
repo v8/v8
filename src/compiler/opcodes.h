@@ -274,6 +274,7 @@
   V(TruncateFloat64ToInt32)     \
   V(TruncateInt64ToInt32)       \
   V(RoundInt64ToFloat64)        \
+  V(RoundInt64ToFloat32)        \
   V(BitcastFloat32ToInt32)      \
   V(BitcastFloat64ToInt64)      \
   V(BitcastInt32ToFloat32)      \

@@ -5367,6 +5367,13 @@ TEST(RunBitcastFloat64ToInt64) {
 }
 
 
+TEST(RunRoundInt64ToFloat32) {
+  BufferedRawMachineAssemblerTester<float> m(kMachInt64);
+  m.Return(m.RoundInt64ToFloat32(m.Parameter(0)));
+  FOR_INT64_INPUTS(i) { CHECK_EQ(static_cast<float>(*i), m.Call(*i)); }
+}
+
+
 TEST(RunRoundInt64ToFloat64) {
   BufferedRawMachineAssemblerTester<double> m(kMachInt64);
   m.Return(m.RoundInt64ToFloat64(m.Parameter(0)));

@@ -974,6 +974,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Int32ToFloat64:
       __ Scvtf(i.OutputDoubleRegister(), i.InputRegister32(0));
       break;
+    case kArm64Int64ToFloat32:
+      __ Scvtf(i.OutputDoubleRegister().S(), i.InputRegister64(0));
+      break;
     case kArm64Int64ToFloat64:
       __ Scvtf(i.OutputDoubleRegister(), i.InputRegister64(0));
       break;
