@@ -251,22 +251,15 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     for (Object** p = start; p < end; p++) StaticVisitor::VisitPointer(heap, p);
   }
 
- private:
-  INLINE(static int VisitJSFunction(Map* map, HeapObject* object)) {
-    Heap* heap = map->GetHeap();
-    VisitPointers(heap, object,
-                  HeapObject::RawField(object, JSFunction::kPropertiesOffset),
-                  HeapObject::RawField(object, JSFunction::kCodeEntryOffset));
-
-    // Don't visit code entry. We are using this visitor only during scavenges.
-
-    VisitPointers(
-        heap, object, HeapObject::RawField(
-                          object, JSFunction::kCodeEntryOffset + kPointerSize),
-        HeapObject::RawField(object, JSFunction::kNonWeakFieldsEndOffset));
-    return JSFunction::kSize;
+  // Although we are using the JSFunction body descriptor which does not
+  // visit the code entry, compiler wants it to be accessible.
+  // See JSFunction::BodyDescriptorImpl.
+  INLINE(static void VisitCodeEntry(Heap* heap, HeapObject* object,
+                                    Address entry_address)) {
+    UNREACHABLE();
   }
 
+ private:
   INLINE(static int VisitByteArray(Map* map, HeapObject* object)) {
     return reinterpret_cast<ByteArray*>(object)->ByteArraySize();
   }
@@ -405,8 +398,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // references to code objects either strongly or weakly.
   static void VisitSharedFunctionInfoStrongCode(Heap* heap, HeapObject* object);
   static void VisitSharedFunctionInfoWeakCode(Heap* heap, HeapObject* object);
-  static void VisitJSFunctionStrongCode(Heap* heap, HeapObject* object);
-  static void VisitJSFunctionWeakCode(Heap* heap, HeapObject* object);
+  static void VisitJSFunctionStrongCode(Map* map, HeapObject* object);
+  static void VisitJSFunctionWeakCode(Map* map, HeapObject* object);
 
   class DataObjectVisitor {
    public:

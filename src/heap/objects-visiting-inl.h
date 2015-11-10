@@ -63,7 +63,11 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitSeqTwoByteString, &VisitSeqTwoByteString);
 
-  table_.Register(kVisitJSFunction, &VisitJSFunction);
+  // Don't visit code entry. We are using this visitor only during scavenges.
+  table_.Register(
+      kVisitJSFunction,
+      &FlexibleBodyVisitor<StaticVisitor, JSFunction::BodyDescriptorWeakCode,
+                           int>::Visit);
 
   table_.Register(kVisitJSArrayBuffer, &VisitJSArrayBuffer);
 
@@ -507,14 +511,14 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
         VisitSharedFunctionInfoWeakCode(heap, shared);
       }
       // Treat the reference to the code object weakly.
-      VisitJSFunctionWeakCode(heap, object);
+      VisitJSFunctionWeakCode(map, object);
       return;
     } else {
       // Visit all unoptimized code objects to prevent flushing them.
       StaticVisitor::MarkObject(heap, function->shared()->code());
     }
   }
-  VisitJSFunctionStrongCode(heap, object);
+  VisitJSFunctionStrongCode(map, object);
 }
 
 
@@ -801,42 +805,20 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfoWeakCode(
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitJSFunctionStrongCode(
-    Heap* heap, HeapObject* object) {
-  Object** start_slot =
-      HeapObject::RawField(object, JSFunction::kPropertiesOffset);
-  Object** end_slot =
-      HeapObject::RawField(object, JSFunction::kCodeEntryOffset);
-  StaticVisitor::VisitPointers(heap, object, start_slot, end_slot);
-
-  VisitCodeEntry(heap, object,
-                 object->address() + JSFunction::kCodeEntryOffset);
-  STATIC_ASSERT(JSFunction::kCodeEntryOffset + kPointerSize ==
-                JSFunction::kPrototypeOrInitialMapOffset);
-
-  start_slot =
-      HeapObject::RawField(object, JSFunction::kPrototypeOrInitialMapOffset);
-  end_slot = HeapObject::RawField(object, JSFunction::kNonWeakFieldsEndOffset);
-  StaticVisitor::VisitPointers(heap, object, start_slot, end_slot);
+    Map* map, HeapObject* object) {
+  typedef FlexibleBodyVisitor<StaticVisitor,
+                              JSFunction::BodyDescriptorStrongCode,
+                              void> JSFunctionStrongCodeBodyVisitor;
+  JSFunctionStrongCodeBodyVisitor::Visit(map, object);
 }
 
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitJSFunctionWeakCode(
-    Heap* heap, HeapObject* object) {
-  Object** start_slot =
-      HeapObject::RawField(object, JSFunction::kPropertiesOffset);
-  Object** end_slot =
-      HeapObject::RawField(object, JSFunction::kCodeEntryOffset);
-  StaticVisitor::VisitPointers(heap, object, start_slot, end_slot);
-
-  // Skip visiting kCodeEntryOffset as it is treated weakly here.
-  STATIC_ASSERT(JSFunction::kCodeEntryOffset + kPointerSize ==
-                JSFunction::kPrototypeOrInitialMapOffset);
-
-  start_slot =
-      HeapObject::RawField(object, JSFunction::kPrototypeOrInitialMapOffset);
-  end_slot = HeapObject::RawField(object, JSFunction::kNonWeakFieldsEndOffset);
-  StaticVisitor::VisitPointers(heap, object, start_slot, end_slot);
+    Map* map, HeapObject* object) {
+  typedef FlexibleBodyVisitor<StaticVisitor, JSFunction::BodyDescriptorWeakCode,
+                              void> JSFunctionWeakCodeBodyVisitor;
+  JSFunctionWeakCodeBodyVisitor::Visit(map, object);
 }
 
 

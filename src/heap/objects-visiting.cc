@@ -238,8 +238,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       JSArrayBuffer::JSArrayBufferIterateBody(this, v);
       break;
     case JS_FUNCTION_TYPE:
-      reinterpret_cast<JSFunction*>(this)
-          ->JSFunctionIterateBody(object_size, v);
+      JSFunction::BodyDescriptor::IterateBody(this, object_size, v);
       break;
     case ODDBALL_TYPE:
       Oddball::BodyDescriptor::IterateBody(this, v);

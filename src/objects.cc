@@ -10980,15 +10980,6 @@ bool Map::EquivalentToForNormalization(Map* other,
 }
 
 
-void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
-  // Iterate over all fields in the body but take care in dealing with
-  // the code entry.
-  IteratePointers(v, kPropertiesOffset, kCodeEntryOffset);
-  v->VisitCodeEntry(this->address() + kCodeEntryOffset);
-  IteratePointers(v, kCodeEntryOffset + kPointerSize, object_size);
-}
-
-
 bool JSFunction::Inlines(SharedFunctionInfo* candidate) {
   DisallowHeapAllocation no_gc;
   if (shared() == candidate) return true;

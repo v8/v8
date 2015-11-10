@@ -1158,8 +1158,11 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     SetWeakReference(js_fun, entry,
                      "next_function_link", js_fun->next_function_link(),
                      JSFunction::kNextFunctionLinkOffset);
-    STATIC_ASSERT(JSFunction::kNextFunctionLinkOffset
-                 == JSFunction::kNonWeakFieldsEndOffset);
+    // Ensure no new weak references appeared in JSFunction.
+    STATIC_ASSERT(JSFunction::kCodeEntryOffset ==
+                  JSFunction::kNonWeakFieldsEndOffset);
+    STATIC_ASSERT(JSFunction::kCodeEntryOffset + kPointerSize ==
+                  JSFunction::kNextFunctionLinkOffset);
     STATIC_ASSERT(JSFunction::kNextFunctionLinkOffset + kPointerSize
                  == JSFunction::kSize);
   } else if (obj->IsJSGlobalObject()) {
