@@ -12,8 +12,10 @@
 var FLAG_harmony_tolength;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
+var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
+var splitSymbol = utils.ImportNow("split_symbol");
 
 utils.ImportFromExperimental(function(from) {
   FLAG_harmony_tolength = from.FLAG_harmony_tolength;
@@ -268,6 +270,76 @@ function RegExpToString() {
 }
 
 
+// ES6 21.2.5.11.
+function RegExpSplit(string, limit) {
+  // TODO(yangguo): allow non-regexp receivers.
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@split", this);
+  }
+  var separator = this;
+  var subject = TO_STRING(string);
+
+  limit = (IS_UNDEFINED(limit)) ? kMaxUint32 : TO_UINT32(limit);
+  var length = subject.length;
+
+  if (limit === 0) return [];
+
+  if (length === 0) {
+    if (DoRegExpExec(separator, subject, 0, 0) !== null) return [];
+    return [subject];
+  }
+
+  var currentIndex = 0;
+  var startIndex = 0;
+  var startMatch = 0;
+  var result = new InternalArray();
+
+  outer_loop:
+  while (true) {
+    if (startIndex === length) {
+      result[result.length] = %_SubString(subject, currentIndex, length);
+      break;
+    }
+
+    var matchInfo = DoRegExpExec(separator, subject, startIndex);
+    if (matchInfo === null || length === (startMatch = matchInfo[CAPTURE0])) {
+      result[result.length] = %_SubString(subject, currentIndex, length);
+      break;
+    }
+    var endIndex = matchInfo[CAPTURE1];
+
+    // We ignore a zero-length match at the currentIndex.
+    if (startIndex === endIndex && endIndex === currentIndex) {
+      startIndex++;
+      continue;
+    }
+
+    result[result.length] = %_SubString(subject, currentIndex, startMatch);
+
+    if (result.length === limit) break;
+
+    var matchinfo_len = NUMBER_OF_CAPTURES(matchInfo) + REGEXP_FIRST_CAPTURE;
+    for (var i = REGEXP_FIRST_CAPTURE + 2; i < matchinfo_len; ) {
+      var start = matchInfo[i++];
+      var end = matchInfo[i++];
+      if (end != -1) {
+        result[result.length] = %_SubString(subject, start, end);
+      } else {
+        result[result.length] = UNDEFINED;
+      }
+      if (result.length === limit) break outer_loop;
+    }
+
+    startIndex = currentIndex = endIndex;
+  }
+
+  var array_result = [];
+  %MoveArrayContents(result, array_result);
+  return array_result;
+}
+
+
 // Getters for the static properties lastMatch, lastParen, leftContext, and
 // rightContext of the RegExp constructor.  The properties are computed based
 // on the captures array of the last successful match and the subject string
@@ -384,7 +456,8 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "exec", RegExpExecJS,
   "test", RegExpTest,
   "toString", RegExpToString,
-  "compile", RegExpCompileJS
+  "compile", RegExpCompileJS,
+  splitSymbol, RegExpSplit,
 ]);
 
 utils.InstallGetter(GlobalRegExp.prototype, 'global', RegExpGetGlobal);

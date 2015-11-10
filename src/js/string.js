@@ -20,6 +20,7 @@ var MakeTypeError;
 var RegExpExec;
 var RegExpExecNoTests;
 var RegExpLastMatchInfo;
+var splitSymbol = utils.ImportNow("split_symbol");
 
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
@@ -554,95 +555,38 @@ function StringSlice(start, end) {
 }
 
 
-// ECMA-262 section 15.5.4.14
+// ES6 21.1.3.17.
 function StringSplitJS(separator, limit) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.split");
 
+  if (!IS_NULL_OR_UNDEFINED(separator)) {
+    var splitter = separator[splitSymbol];
+    if (!IS_UNDEFINED(splitter)) {
+      if (!IS_CALLABLE(splitter)) {
+        throw MakeTypeError(kCalledNonCallable, splitter);
+      }
+      return %_Call(splitter, separator, this, limit);
+    }
+  }
+
   var subject = TO_STRING(this);
-  limit = (IS_UNDEFINED(limit)) ? 0xffffffff : TO_UINT32(limit);
+  limit = (IS_UNDEFINED(limit)) ? kMaxUint32 : TO_UINT32(limit);
 
   var length = subject.length;
-  if (!IS_REGEXP(separator)) {
-    var separator_string = TO_STRING(separator);
-
-    if (limit === 0) return [];
-
-    // ECMA-262 says that if separator is undefined, the result should
-    // be an array of size 1 containing the entire string.
-    if (IS_UNDEFINED(separator)) return [subject];
-
-    var separator_length = separator_string.length;
-
-    // If the separator string is empty then return the elements in the subject.
-    if (separator_length === 0) return %StringToArray(subject, limit);
-
-    var result = %StringSplit(subject, separator_string, limit);
-
-    return result;
-  }
+  var separator_string = TO_STRING(separator);
 
   if (limit === 0) return [];
 
-  // Separator is a regular expression.
-  return StringSplitOnRegExp(subject, separator, limit, length);
-}
+  // ECMA-262 says that if separator is undefined, the result should
+  // be an array of size 1 containing the entire string.
+  if (IS_UNDEFINED(separator)) return [subject];
 
+  var separator_length = separator_string.length;
 
-function StringSplitOnRegExp(subject, separator, limit, length) {
-  if (length === 0) {
-    if (RegExpExec(separator, subject, 0, 0) != null) {
-      return [];
-    }
-    return [subject];
-  }
+  // If the separator string is empty then return the elements in the subject.
+  if (separator_length === 0) return %StringToArray(subject, limit);
 
-  var currentIndex = 0;
-  var startIndex = 0;
-  var startMatch = 0;
-  var result = new InternalArray();
-
-  outer_loop:
-  while (true) {
-
-    if (startIndex === length) {
-      result[result.length] = %_SubString(subject, currentIndex, length);
-      break;
-    }
-
-    var matchInfo = RegExpExec(separator, subject, startIndex);
-    if (matchInfo == null || length === (startMatch = matchInfo[CAPTURE0])) {
-      result[result.length] = %_SubString(subject, currentIndex, length);
-      break;
-    }
-    var endIndex = matchInfo[CAPTURE1];
-
-    // We ignore a zero-length match at the currentIndex.
-    if (startIndex === endIndex && endIndex === currentIndex) {
-      startIndex++;
-      continue;
-    }
-
-    result[result.length] = %_SubString(subject, currentIndex, startMatch);
-
-    if (result.length === limit) break;
-
-    var matchinfo_len = NUMBER_OF_CAPTURES(matchInfo) + REGEXP_FIRST_CAPTURE;
-    for (var i = REGEXP_FIRST_CAPTURE + 2; i < matchinfo_len; ) {
-      var start = matchInfo[i++];
-      var end = matchInfo[i++];
-      if (end != -1) {
-        result[result.length] = %_SubString(subject, start, end);
-      } else {
-        result[result.length] = UNDEFINED;
-      }
-      if (result.length === limit) break outer_loop;
-    }
-
-    startIndex = currentIndex = endIndex;
-  }
-  var array_result = [];
-  %MoveArrayContents(result, array_result);
-  return array_result;
+  return %StringSplit(subject, separator_string, limit);
 }
 
 
