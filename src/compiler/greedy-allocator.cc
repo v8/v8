@@ -368,7 +368,7 @@ void GreedyAllocator::AllocateRegisters() {
   TRACE("Begin allocating function %s with the Greedy Allocator\n",
         data()->debug_name());
 
-  SplitAndSpillRangesDefinedByMemoryOperand();
+  SplitAndSpillRangesDefinedByMemoryOperand(true);
   GroupLiveRanges();
   ScheduleAllocationCandidates();
   PreallocateFixedRanges();

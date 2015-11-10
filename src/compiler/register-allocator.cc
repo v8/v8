@@ -2228,12 +2228,15 @@ LifetimePosition RegisterAllocator::GetSplitPositionForInstruction(
 }
 
 
-void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
+void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand(
+    bool operands_only) {
   size_t initial_range_count = data()->live_ranges().size();
   for (size_t i = 0; i < initial_range_count; ++i) {
     TopLevelLiveRange* range = data()->live_ranges()[i];
     if (!CanProcessRange(range)) continue;
-    if (!range->HasSpillOperand()) continue;
+    if (range->HasNoSpillType() || (operands_only && range->HasSpillRange())) {
+      continue;
+    }
 
     LifetimePosition start = range->Start();
     TRACE("Live range %d:%d is defined by a spill operand.\n",
@@ -2416,7 +2419,7 @@ void LinearScanAllocator::AllocateRegisters() {
   DCHECK(active_live_ranges().empty());
   DCHECK(inactive_live_ranges().empty());
 
-  SplitAndSpillRangesDefinedByMemoryOperand();
+  SplitAndSpillRangesDefinedByMemoryOperand(false);
 
   for (TopLevelLiveRange* range : data()->live_ranges()) {
     if (!CanProcessRange(range)) continue;
@@ -2449,28 +2452,6 @@ void LinearScanAllocator::AllocateRegisters() {
 #endif
     TRACE("Processing interval %d:%d start=%d\n", current->TopLevel()->vreg(),
           current->relative_id(), position.value());
-
-    if (current->IsTopLevel() && !current->TopLevel()->HasNoSpillType()) {
-      TRACE("Live range %d:%d already has a spill operand\n",
-            current->TopLevel()->vreg(), current->relative_id());
-      auto next_pos = position;
-      if (next_pos.IsGapPosition()) {
-        next_pos = next_pos.NextStart();
-      }
-      auto pos = current->NextUsePositionRegisterIsBeneficial(next_pos);
-      // If the range already has a spill operand and it doesn't need a
-      // register immediately, split it and spill the first part of the range.
-      if (pos == nullptr) {
-        Spill(current);
-        continue;
-      } else if (pos->pos() > current->Start().NextStart()) {
-        // Do not spill live range eagerly if use position that can benefit from
-        // the register is too close to the start of live range.
-        SpillBetween(current, current->Start(), pos->pos());
-        DCHECK(UnhandledIsSorted());
-        continue;
-      }
-    }
 
     if (current->IsTopLevel() && TryReuseSpillForPhi(current->TopLevel()))
       continue;

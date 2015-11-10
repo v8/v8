@@ -922,7 +922,7 @@ class RegisterAllocator : public ZoneObject {
 
   // Find the optimal split for ranges defined by a memory operand, e.g.
   // constants or function parameters passed on the stack.
-  void SplitAndSpillRangesDefinedByMemoryOperand();
+  void SplitAndSpillRangesDefinedByMemoryOperand(bool operands_only);
 
   // Split the given range at the given position.
   // If range starts at or after the given position then the
