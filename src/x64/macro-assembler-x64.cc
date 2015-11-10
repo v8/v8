@@ -3189,6 +3189,36 @@ void MacroAssembler::Lzcntq(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Tzcntq(Register dst, Register src) {
+  if (CpuFeatures::IsSupported(BMI1)) {
+    CpuFeatureScope scope(this, BMI1);
+    tzcntq(dst, src);
+    return;
+  }
+  Label not_zero_src;
+  bsfq(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  // Define the result of tzcnt(0) separately, because bsf(0) is undefined.
+  Set(dst, 64);
+  bind(&not_zero_src);
+}
+
+
+void MacroAssembler::Tzcntq(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(BMI1)) {
+    CpuFeatureScope scope(this, BMI1);
+    tzcntq(dst, src);
+    return;
+  }
+  Label not_zero_src;
+  bsfq(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  // Define the result of tzcnt(0) separately, because bsf(0) is undefined.
+  Set(dst, 64);
+  bind(&not_zero_src);
+}
+
+
 void MacroAssembler::Tzcntl(Register dst, Register src) {
   if (CpuFeatures::IsSupported(BMI1)) {
     CpuFeatureScope scope(this, BMI1);

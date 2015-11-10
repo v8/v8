@@ -851,6 +851,8 @@ class Assembler : public AssemblerBase {
   void bsrq(Register dst, const Operand& src);
   void bsrl(Register dst, Register src);
   void bsrl(Register dst, const Operand& src);
+  void bsfq(Register dst, Register src);
+  void bsfq(Register dst, const Operand& src);
   void bsfl(Register dst, Register src);
   void bsfl(Register dst, const Operand& src);
 

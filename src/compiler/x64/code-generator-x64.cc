@@ -782,6 +782,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Lzcntl(i.OutputRegister(), i.InputOperand(0));
       }
       break;
+    case kX64Tzcnt:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ Tzcntq(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ Tzcntq(i.OutputRegister(), i.InputOperand(0));
+      }
+      break;
     case kX64Tzcnt32:
       if (instr->InputAt(0)->IsRegister()) {
         __ Tzcntl(i.OutputRegister(), i.InputRegister(0));

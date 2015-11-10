@@ -208,6 +208,82 @@ TEST(RunWord64Clz) {
   CHECK_EQ(63, m.Call(uint64_t(0x0000000000000001)));
   CHECK_EQ(64, m.Call(uint64_t(0x0000000000000000)));
 }
+
+
+TEST(RunWord64Ctz) {
+  RawMachineAssemblerTester<int32_t> m(kMachUint64);
+  if (!m.machine()->Word64Ctz().IsSupported()) {
+    return;
+  }
+
+  m.Return(m.AddNode(m.machine()->Word64Ctz().op(), m.Parameter(0)));
+
+  CHECK_EQ(64, m.Call(uint64_t(0x0000000000000000)));
+  CHECK_EQ(63, m.Call(uint64_t(0x8000000000000000)));
+  CHECK_EQ(62, m.Call(uint64_t(0x4000000000000000)));
+  CHECK_EQ(61, m.Call(uint64_t(0x2000000000000000)));
+  CHECK_EQ(60, m.Call(uint64_t(0x1000000000000000)));
+  CHECK_EQ(59, m.Call(uint64_t(0xa800000000000000)));
+  CHECK_EQ(58, m.Call(uint64_t(0xf400000000000000)));
+  CHECK_EQ(57, m.Call(uint64_t(0x6200000000000000)));
+  CHECK_EQ(56, m.Call(uint64_t(0x9100000000000000)));
+  CHECK_EQ(55, m.Call(uint64_t(0xcd80000000000000)));
+  CHECK_EQ(54, m.Call(uint64_t(0x0940000000000000)));
+  CHECK_EQ(53, m.Call(uint64_t(0xaf20000000000000)));
+  CHECK_EQ(52, m.Call(uint64_t(0xac10000000000000)));
+  CHECK_EQ(51, m.Call(uint64_t(0xe0b8000000000000)));
+  CHECK_EQ(50, m.Call(uint64_t(0x9ce4000000000000)));
+  CHECK_EQ(49, m.Call(uint64_t(0xc792000000000000)));
+  CHECK_EQ(48, m.Call(uint64_t(0xb8f1000000000000)));
+  CHECK_EQ(47, m.Call(uint64_t(0x3b9f800000000000)));
+  CHECK_EQ(46, m.Call(uint64_t(0xdb4c400000000000)));
+  CHECK_EQ(45, m.Call(uint64_t(0xe9a3200000000000)));
+  CHECK_EQ(44, m.Call(uint64_t(0xfca6100000000000)));
+  CHECK_EQ(43, m.Call(uint64_t(0x6c8a780000000000)));
+  CHECK_EQ(42, m.Call(uint64_t(0x8ce5a40000000000)));
+  CHECK_EQ(41, m.Call(uint64_t(0xcb7d020000000000)));
+  CHECK_EQ(40, m.Call(uint64_t(0xcb4dc10000000000)));
+  CHECK_EQ(39, m.Call(uint64_t(0xdfbec58000000000)));
+  CHECK_EQ(38, m.Call(uint64_t(0x27a9db4000000000)));
+  CHECK_EQ(37, m.Call(uint64_t(0xde3bcb2000000000)));
+  CHECK_EQ(36, m.Call(uint64_t(0xd7e8a61000000000)));
+  CHECK_EQ(35, m.Call(uint64_t(0x9afdbc8800000000)));
+  CHECK_EQ(34, m.Call(uint64_t(0x9afdbc8400000000)));
+  CHECK_EQ(33, m.Call(uint64_t(0x9afdbc8200000000)));
+  CHECK_EQ(32, m.Call(uint64_t(0x9afdbc8100000000)));
+  CHECK_EQ(31, m.Call(uint64_t(0x0000000080000000)));
+  CHECK_EQ(30, m.Call(uint64_t(0x0000000040000000)));
+  CHECK_EQ(29, m.Call(uint64_t(0x0000000020000000)));
+  CHECK_EQ(28, m.Call(uint64_t(0x0000000010000000)));
+  CHECK_EQ(27, m.Call(uint64_t(0x00000000a8000000)));
+  CHECK_EQ(26, m.Call(uint64_t(0x00000000f4000000)));
+  CHECK_EQ(25, m.Call(uint64_t(0x0000000062000000)));
+  CHECK_EQ(24, m.Call(uint64_t(0x0000000091000000)));
+  CHECK_EQ(23, m.Call(uint64_t(0x00000000cd800000)));
+  CHECK_EQ(22, m.Call(uint64_t(0x0000000009400000)));
+  CHECK_EQ(21, m.Call(uint64_t(0x00000000af200000)));
+  CHECK_EQ(20, m.Call(uint64_t(0x00000000ac100000)));
+  CHECK_EQ(19, m.Call(uint64_t(0x00000000e0b80000)));
+  CHECK_EQ(18, m.Call(uint64_t(0x000000009ce40000)));
+  CHECK_EQ(17, m.Call(uint64_t(0x00000000c7920000)));
+  CHECK_EQ(16, m.Call(uint64_t(0x00000000b8f10000)));
+  CHECK_EQ(15, m.Call(uint64_t(0x000000003b9f8000)));
+  CHECK_EQ(14, m.Call(uint64_t(0x00000000db4c4000)));
+  CHECK_EQ(13, m.Call(uint64_t(0x00000000e9a32000)));
+  CHECK_EQ(12, m.Call(uint64_t(0x00000000fca61000)));
+  CHECK_EQ(11, m.Call(uint64_t(0x000000006c8a7800)));
+  CHECK_EQ(10, m.Call(uint64_t(0x000000008ce5a400)));
+  CHECK_EQ(9, m.Call(uint64_t(0x00000000cb7d0200)));
+  CHECK_EQ(8, m.Call(uint64_t(0x00000000cb4dc100)));
+  CHECK_EQ(7, m.Call(uint64_t(0x00000000dfbec580)));
+  CHECK_EQ(6, m.Call(uint64_t(0x0000000027a9db40)));
+  CHECK_EQ(5, m.Call(uint64_t(0x00000000de3bcb20)));
+  CHECK_EQ(4, m.Call(uint64_t(0x00000000d7e8a610)));
+  CHECK_EQ(3, m.Call(uint64_t(0x000000009afdbc88)));
+  CHECK_EQ(2, m.Call(uint64_t(0x000000009afdbc84)));
+  CHECK_EQ(1, m.Call(uint64_t(0x000000009afdbc82)));
+  CHECK_EQ(0, m.Call(uint64_t(0x000000009afdbc81)));
+}
 #endif  // V8_TARGET_ARCH_64_BIT
 
 

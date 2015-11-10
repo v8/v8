@@ -1016,6 +1016,9 @@ class MacroAssembler: public Assembler {
   void Lzcntl(Register dst, Register src);
   void Lzcntl(Register dst, const Operand& src);
 
+  void Tzcntq(Register dst, Register src);
+  void Tzcntq(Register dst, const Operand& src);
+
   void Tzcntl(Register dst, Register src);
   void Tzcntl(Register dst, const Operand& src);
 
