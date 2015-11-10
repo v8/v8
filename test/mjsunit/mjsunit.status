@@ -1015,7 +1015,7 @@
   'with-readonly': [SKIP],
 }],  # ignition == True
 
-['ignition == True and mode == debug and (arch == arm or arch == arm64)', {
+['ignition == True and (arch == arm or arch == arm64)', {
   'array-sort': [SKIP],
   'date-parse': [SKIP],
   'math-floor-part1': [SKIP],
@@ -1036,6 +1036,6 @@
   'stack-traces-overflow': [SKIP],
   'unicodelctest': [SKIP],
   'unicodelctest-no-optimization': [SKIP],
-}],  # ignition == True and mode == debug and (arch == arm or arch == arm64)
+}],  # ignition == True and (arch == arm or arch == arm64)
 
 ]
