@@ -1143,6 +1143,8 @@ class Assembler : public AssemblerBase {
     UNREACHABLE();
   }
 
+  bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
+
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
@@ -1205,8 +1207,6 @@ class Assembler : public AssemblerBase {
   bool is_buffer_growth_blocked() const {
     return block_buffer_growth_;
   }
-
-  bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
 
  private:
   inline static void set_target_internal_reference_encoded_at(Address pc,

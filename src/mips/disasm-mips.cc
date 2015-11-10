@@ -1435,9 +1435,9 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
       break;
     case POP76:
       if (instr->RsValue() == JIALC) {
-        Format(instr, "jialc   'rt, 'imm16x");
+        Format(instr, "jialc   'rt, 'imm16s");
       } else {
-        Format(instr, "bnezc   'rs, 'imm21x -> 'imm21p4s2");
+        Format(instr, "bnezc   'rs, 'imm21s -> 'imm21p4s2");
       }
       break;
     // ------------- Arithmetic instructions.

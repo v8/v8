@@ -166,6 +166,17 @@ bool Instruction::IsForbiddenAfterBranchInstr(Instr instr) {
           return false;
       }
       break;
+    case COP1:
+      switch (instr & kRsFieldMask) {
+        case BC1:
+        case BC1EQZ:
+        case BC1NEZ:
+          return true;
+          break;
+        default:
+          return false;
+      }
+      break;
     default:
       return false;
   }

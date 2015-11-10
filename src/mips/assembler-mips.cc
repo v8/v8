@@ -1423,7 +1423,6 @@ void Assembler::beqc(Register rs, Register rt, int16_t offset) {
 void Assembler::beqzc(Register rs, int32_t offset) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(!(rs.is(zero_reg)));
-  DCHECK(is_int21(offset));
   GenInstrImmediate(POP66, rs, offset, CompactBranchType::COMPACT_BRANCH);
 }
 
@@ -1442,7 +1441,6 @@ void Assembler::bnec(Register rs, Register rt, int16_t offset) {
 void Assembler::bnezc(Register rs, int32_t offset) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(!(rs.is(zero_reg)));
-  DCHECK(is_int21(offset));
   GenInstrImmediate(POP76, rs, offset, CompactBranchType::COMPACT_BRANCH);
 }
 
@@ -1497,16 +1495,14 @@ void Assembler::jalr(Register rs, Register rd) {
 
 void Assembler::jic(Register rt, int16_t offset) {
   DCHECK(IsMipsArchVariant(kMips32r6));
-  GenInstrImmediate(POP66, zero_reg, rt, offset,
-                    CompactBranchType::COMPACT_BRANCH);
+  GenInstrImmediate(POP66, zero_reg, rt, offset);
 }
 
 
 void Assembler::jialc(Register rt, int16_t offset) {
   DCHECK(IsMipsArchVariant(kMips32r6));
   positions_recorder()->WriteRecordedPositions();
-  GenInstrImmediate(POP76, zero_reg, rt, offset,
-                    CompactBranchType::COMPACT_BRANCH);
+  GenInstrImmediate(POP76, zero_reg, rt, offset);
 }
 
 
