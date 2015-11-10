@@ -235,6 +235,7 @@
   V(Word32Clz)                  \
   V(Word32Ctz)                  \
   V(Word32Popcnt)               \
+  V(Word64Popcnt)               \
   V(Word64And)                  \
   V(Word64Or)                   \
   V(Word64Xor)                  \

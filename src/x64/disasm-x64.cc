@@ -1852,13 +1852,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     } else {
       AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
     }
-  } else if (opcode == 0xBC) {
-    AppendToBuffer("%s%c ", mnemonic, operand_size_code());
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
-    AppendToBuffer("%s,", NameOfCPURegister(regop));
-    current += PrintRightOperand(current);
-  } else if (opcode == 0xBD) {
+  } else if (opcode == 0xB8 || opcode == 0xBC || opcode == 0xBD) {
+    // POPCNT, CTZ, CLZ.
     AppendToBuffer("%s%c ", mnemonic, operand_size_code());
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);

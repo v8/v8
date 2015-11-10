@@ -854,6 +854,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Tzcntl(i.OutputRegister(), i.InputOperand(0));
       }
       break;
+    case kX64Popcnt:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ Popcntq(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ Popcntq(i.OutputRegister(), i.InputOperand(0));
+      }
+      break;
     case kX64Popcnt32:
       if (instr->InputAt(0)->IsRegister()) {
         __ Popcntl(i.OutputRegister(), i.InputRegister(0));

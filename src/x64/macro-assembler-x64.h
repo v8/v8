@@ -1025,6 +1025,9 @@ class MacroAssembler: public Assembler {
   void Popcntl(Register dst, Register src);
   void Popcntl(Register dst, const Operand& src);
 
+  void Popcntq(Register dst, Register src);
+  void Popcntq(Register dst, const Operand& src);
+
   // Non-x64 instructions.
   // Push/pop all general purpose registers.
   // Does not push rsp/rbp nor any of the assembler's special purpose registers

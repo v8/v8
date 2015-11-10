@@ -3267,6 +3267,26 @@ void MacroAssembler::Popcntl(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Popcntq(Register dst, Register src) {
+  if (CpuFeatures::IsSupported(POPCNT)) {
+    CpuFeatureScope scope(this, POPCNT);
+    popcntq(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
+
+void MacroAssembler::Popcntq(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(POPCNT)) {
+    CpuFeatureScope scope(this, POPCNT);
+    popcntq(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
+
 void MacroAssembler::Pushad() {
   Push(rax);
   Push(rcx);

@@ -352,6 +352,9 @@ void InstructionSelector::VisitWord64Ctz(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 
 
+void InstructionSelector::VisitWord64Popcnt(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitWord64Ror(Node* node) {
   VisitRRO(this, kMips64Dror, node);
 }
