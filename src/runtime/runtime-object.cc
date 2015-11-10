@@ -1038,8 +1038,8 @@ RUNTIME_FUNCTION(Runtime_FinalizeInstanceSize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
 
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  function->CompleteInobjectSlackTracking();
+  CONVERT_ARG_HANDLE_CHECKED(Map, initial_map, 0);
+  initial_map->CompleteInobjectSlackTracking();
 
   return isolate->heap()->undefined_value();
 }

@@ -149,20 +149,24 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ cmpp(Operand(kScratchRegister, 0), Immediate(0));
       __ j(not_equal, &rt_call);
 
-      // Fall back to runtime if the original constructor and function differ.
-      __ cmpp(rdx, rdi);
+      // Verify that the original constructor is a JSFunction.
+      __ CmpObjectType(rdx, JS_FUNCTION_TYPE, rbx);
       __ j(not_equal, &rt_call);
 
-      // Verified that the constructor is a JSFunction.
       // Load the initial map and verify that it is in fact a map.
-      // rdi: constructor
-      __ movp(rax, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+      // rdx: original constructor
+      __ movp(rax, FieldOperand(rdx, JSFunction::kPrototypeOrInitialMapOffset));
       // Will both indicate a NULL and a Smi
       DCHECK(kSmiTag == 0);
       __ JumpIfSmi(rax, &rt_call);
       // rdi: constructor
       // rax: initial map (if proven valid below)
       __ CmpObjectType(rax, MAP_TYPE, rbx);
+      __ j(not_equal, &rt_call);
+
+      // Fall back to runtime if the expected base constructor and base
+      // constructor differ.
+      __ cmpp(rdi, FieldOperand(rax, Map::kConstructorOrBackPointerOffset));
       __ j(not_equal, &rt_call);
 
       // Check that the constructor is not constructing a JSFunction (see
@@ -192,7 +196,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ Push(rdx);
         __ Push(rdi);
 
-        __ Push(rdi);  // constructor
+        __ Push(rax);  // initial map
         __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
         __ Pop(rdi);

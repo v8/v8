@@ -11244,16 +11244,22 @@ static void ShrinkInstanceSize(Map* map, void* data) {
 
 void JSFunction::CompleteInobjectSlackTracking() {
   DCHECK(has_initial_map());
-  Map* map = initial_map();
+  initial_map()->CompleteInobjectSlackTracking();
+}
 
-  DCHECK(map->counter() >= Map::kSlackTrackingCounterEnd - 1);
-  map->set_counter(Map::kRetainingCounterStart);
 
-  int slack = map->unused_property_fields();
-  TransitionArray::TraverseTransitionTree(map, &GetMinInobjectSlack, &slack);
+void Map::CompleteInobjectSlackTracking() {
+  // Has to be an initial map.
+  DCHECK(GetBackPointer()->IsUndefined());
+
+  DCHECK_GE(counter(), kSlackTrackingCounterEnd - 1);
+  set_counter(kRetainingCounterStart);
+
+  int slack = unused_property_fields();
+  TransitionArray::TraverseTransitionTree(this, &GetMinInobjectSlack, &slack);
   if (slack != 0) {
     // Resize the initial map and all maps in its transition tree.
-    TransitionArray::TraverseTransitionTree(map, &ShrinkInstanceSize, &slack);
+    TransitionArray::TraverseTransitionTree(this, &ShrinkInstanceSize, &slack);
   }
 }
 

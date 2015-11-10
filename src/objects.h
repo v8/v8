@@ -5579,6 +5579,10 @@ class Map: public HeapObject {
   static const int kRetainingCounterStart = kSlackTrackingCounterEnd - 1;
   static const int kRetainingCounterEnd = 0;
 
+  // Completes inobject slack tracking for the transition tree starting at this
+  // initial map.
+  void CompleteInobjectSlackTracking();
+
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
