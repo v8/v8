@@ -396,16 +396,22 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ cmpi(r5, Operand::Zero());
       __ bne(&rt_call);
 
-      // Fall back to runtime if the original constructor and function differ.
-      __ cmp(r4, r6);
+      // Verify that the original constructor is a JSFunction.
+      __ CompareObjectType(r6, r8, r7, JS_FUNCTION_TYPE);
       __ bne(&rt_call);
 
       // Load the initial map and verify that it is in fact a map.
-      // r4: constructor function
+      // r6: original constructor
       __ LoadP(r5,
-               FieldMemOperand(r4, JSFunction::kPrototypeOrInitialMapOffset));
+               FieldMemOperand(r6, JSFunction::kPrototypeOrInitialMapOffset));
       __ JumpIfSmi(r5, &rt_call);
       __ CompareObjectType(r5, r8, r7, MAP_TYPE);
+      __ bne(&rt_call);
+
+      // Fall back to runtime if the expected base constructor and base
+      // constructor differ.
+      __ LoadP(r8, FieldMemOperand(r5, Map::kConstructorOrBackPointerOffset));
+      __ cmp(r4, r8);
       __ bne(&rt_call);
 
       // Check that the constructor is not constructing a JSFunction (see
@@ -430,9 +436,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ cmpi(r11, Operand(Map::kSlackTrackingCounterEnd));
         __ bne(&allocate);
 
-        __ push(r4);
-
-        __ Push(r5, r4);  // r4 = constructor
+        __ Push(r4, r5, r5);  // r5 = initial map
         __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
         __ Pop(r4, r5);
