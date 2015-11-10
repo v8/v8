@@ -774,6 +774,15 @@ void InstructionSelector::VisitWord32Popcnt(Node* node) {
 }
 
 
+#if V8_TARGET_ARCH_PPC64
+void InstructionSelector::VisitWord64Popcnt(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_Popcnt64, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+#endif
+
+
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
 
@@ -1616,7 +1625,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   return MachineOperatorBuilder::kFloat64RoundDown |
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
-         MachineOperatorBuilder::kWord32Popcnt;
+         MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kWord64Popcnt;
   // We omit kWord32ShiftIsSafe as s[rl]w use 0x3f as a mask rather than 0x1f.
 }
 

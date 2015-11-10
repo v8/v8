@@ -998,6 +998,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ popcntw(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+#if V8_TARGET_ARCH_PPC64
+    case kPPC_Popcnt64:
+      __ popcntd(i.OutputRegister(), i.InputRegister(0));
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+#endif
     case kPPC_Cmp32:
       ASSEMBLE_COMPARE(cmpw, cmplw);
       break;

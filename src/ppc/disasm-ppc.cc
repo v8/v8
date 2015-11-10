@@ -613,6 +613,12 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "popcntw  'ra, 'rs");
       return;
     }
+#if V8_TARGET_ARCH_PPC64
+    case POPCNTD: {
+      Format(instr, "popcntd  'ra, 'rs");
+      return;
+    }
+#endif
   }
 
   switch (instr->Bits(10, 2) << 2) {
