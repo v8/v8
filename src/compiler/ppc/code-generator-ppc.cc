@@ -621,6 +621,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 
   switch (opcode) {
     case kArchCallCodeObject: {
+      v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
+          masm());
       EnsureSpaceForLazyDeopt();
       if (HasRegisterInput(instr, 0)) {
         __ addi(ip, i.InputRegister(0),
@@ -651,6 +653,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchCallJSFunction: {
+      v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
+          masm());
       EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
@@ -682,6 +686,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchLazyBailout: {
+      v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
+          masm());
       EnsureSpaceForLazyDeopt();
       RecordCallPosition(instr);
       break;
@@ -1707,6 +1713,9 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
   // instruction for patching the code here.
   int current_pc = masm()->pc_offset();
   if (current_pc < last_lazy_deopt_pc_ + space_needed) {
+    // Block tramoline pool emission for duration of padding.
+    v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
+        masm());
     int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
     DCHECK_EQ(0, padding_size % v8::internal::Assembler::kInstrSize);
     while (padding_size > 0) {
