@@ -151,19 +151,23 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ cmp(Operand::StaticVariable(debug_step_in_fp), Immediate(0));
       __ j(not_equal, &rt_call);
 
-      // Fall back to runtime if the original constructor and function differ.
-      __ cmp(edx, edi);
+      // Verify that the original constructor is a JSFunction.
+      __ CmpObjectType(edx, JS_FUNCTION_TYPE, ebx);
       __ j(not_equal, &rt_call);
 
-      // Verified that the constructor is a JSFunction.
       // Load the initial map and verify that it is in fact a map.
-      // edi: constructor
-      __ mov(eax, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
+      // edx: original constructor
+      __ mov(eax, FieldOperand(edx, JSFunction::kPrototypeOrInitialMapOffset));
       // Will both indicate a NULL and a Smi
       __ JumpIfSmi(eax, &rt_call);
       // edi: constructor
       // eax: initial map (if proven valid below)
       __ CmpObjectType(eax, MAP_TYPE, ebx);
+      __ j(not_equal, &rt_call);
+
+      // Fall back to runtime if the expected base constructor and base
+      // constructor differ.
+      __ cmp(edi, FieldOperand(eax, Map::kConstructorOrBackPointerOffset));
       __ j(not_equal, &rt_call);
 
       // Check that the constructor is not constructing a JSFunction (see
@@ -194,7 +198,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ push(edx);
         __ push(edi);
 
-        __ push(edi);  // constructor
+        __ push(eax);  // initial map
         __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
         __ pop(edi);
