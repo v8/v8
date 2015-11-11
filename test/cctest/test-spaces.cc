@@ -885,5 +885,37 @@ UNINITIALIZED_TEST(InlineAllocationObserver) {
   isolate->Dispose();
 }
 
+
+UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::New(isolate)->Enter();
+
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+    NewSpace* new_space = i_isolate->heap()->new_space();
+
+    Observer observer1(512);
+    new_space->AddInlineAllocationObserver(&observer1);
+    Observer observer2(576);
+    new_space->AddInlineAllocationObserver(&observer2);
+
+    for (int i = 0; i < 512; ++i) {
+      AllocateUnaligned(new_space, 32);
+    }
+
+    new_space->RemoveInlineAllocationObserver(&observer1);
+    new_space->RemoveInlineAllocationObserver(&observer2);
+
+    CHECK_EQ(observer1.count(), 30);
+    CHECK_EQ(observer2.count(), 26);
+  }
+  isolate->Dispose();
+}
+
 }  // namespace internal
 }  // namespace v8

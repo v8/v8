@@ -2521,6 +2521,7 @@ class InlineAllocationObserver {
 
  private:
   intptr_t step_size() const { return step_size_; }
+  intptr_t bytes_to_next_step() const { return bytes_to_next_step_; }
 
   // Pure virtual method provided by the subclasses that gets called when more
   // than step_size byte have been allocated.
@@ -2561,7 +2562,6 @@ class NewSpace : public Space {
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
-        inline_allocation_limit_step_(0),
         top_on_previous_step_(0) {}
 
   // Sets up the new space using the given chunk.
@@ -2735,7 +2735,7 @@ class NewSpace : public Space {
   void ResetAllocationInfo();
 
   void UpdateInlineAllocationLimit(int size_in_bytes);
-  void UpdateInlineAllocationLimitStep();
+  void StartNextInlineAllocationStep();
 
   // Allows observation of inline allocation. The observer->Step() method gets
   // called after every step_size bytes have been allocated (approximately).
@@ -2747,7 +2747,6 @@ class NewSpace : public Space {
   void RemoveInlineAllocationObserver(InlineAllocationObserver* observer);
 
   void DisableInlineAllocationSteps() {
-    inline_allocation_limit_step_ = 0;
     top_on_previous_step_ = 0;
     UpdateInlineAllocationLimit(0);
   }
@@ -2849,7 +2848,6 @@ class NewSpace : public Space {
   // once in a while. This is done by setting allocation_info_.limit to be lower
   // than the actual limit and and increasing it in steps to guarantee that the
   // observers are notified periodically.
-  intptr_t inline_allocation_limit_step_;
   List<InlineAllocationObserver*> inline_allocation_observers_;
 
   Address top_on_previous_step_;
@@ -2866,6 +2864,7 @@ class NewSpace : public Space {
   // where the next byte is going to be allocated from. top and new_top may be
   // different when we cross a page boundary or reset the space.
   void InlineAllocationStep(Address top, Address new_top);
+  intptr_t GetNextInlineAllocationStepSize();
 
   friend class SemiSpaceIterator;
 };

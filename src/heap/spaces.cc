@@ -1516,7 +1516,7 @@ void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
     // Lower limit during incremental marking.
     Address high = to_space_.page_high();
     Address new_top = allocation_info_.top() + size_in_bytes;
-    Address new_limit = new_top + inline_allocation_limit_step_;
+    Address new_limit = new_top + GetNextInlineAllocationStepSize();
     allocation_info_.set_limit(Min(new_limit, high));
   }
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
@@ -1601,21 +1601,28 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 }
 
 
-void NewSpace::UpdateInlineAllocationLimitStep() {
-  intptr_t step = 0;
-  for (int i = 0; i < inline_allocation_observers_.length(); ++i) {
-    InlineAllocationObserver* observer = inline_allocation_observers_[i];
-    step = step ? Min(step, observer->step_size()) : observer->step_size();
-  }
-  inline_allocation_limit_step_ = step;
-  top_on_previous_step_ = step ? allocation_info_.top() : 0;
+void NewSpace::StartNextInlineAllocationStep() {
+  top_on_previous_step_ =
+      inline_allocation_observers_.length() ? allocation_info_.top() : 0;
   UpdateInlineAllocationLimit(0);
+}
+
+
+intptr_t NewSpace::GetNextInlineAllocationStepSize() {
+  intptr_t next_step = 0;
+  for (int i = 0; i < inline_allocation_observers_.length(); ++i) {
+    InlineAllocationObserver* o = inline_allocation_observers_[i];
+    next_step = next_step ? Min(next_step, o->bytes_to_next_step())
+                          : o->bytes_to_next_step();
+  }
+  DCHECK(inline_allocation_observers_.length() == 0 || next_step != 0);
+  return next_step;
 }
 
 
 void NewSpace::AddInlineAllocationObserver(InlineAllocationObserver* observer) {
   inline_allocation_observers_.Add(observer);
-  UpdateInlineAllocationLimitStep();
+  StartNextInlineAllocationStep();
 }
 
 
@@ -1625,7 +1632,7 @@ void NewSpace::RemoveInlineAllocationObserver(
   // Only used in assertion. Suppress unused variable warning.
   static_cast<void>(removed);
   DCHECK(removed);
-  UpdateInlineAllocationLimitStep();
+  StartNextInlineAllocationStep();
 }
 
 

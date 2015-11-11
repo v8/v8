@@ -1736,7 +1736,7 @@ void Heap::Scavenge() {
 
   // We start a new step without accounting the objects copied into to space
   // as those are not allocations.
-  new_space_.UpdateInlineAllocationLimitStep();
+  new_space_.StartNextInlineAllocationStep();
 
   array_buffer_tracker()->FreeDead(true);
 
