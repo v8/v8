@@ -764,9 +764,9 @@
   'language/statements/while/S12.6.2_A4_T5': [SKIP],
 }],  # ignition == True
 
-['ignition == True and mode == debug and (arch == arm or arch == arm64)', {
+['ignition == True and (arch == arm or arch == arm64)', {
   'built-ins/encodeURI*': [SKIP],
   'intl402/9.2.2': [SKIP],
-}],  # ignition == True and mode == debug and (arch == arm or arch == arm64)
+}],  # ignition == True and (arch == arm or arch == arm64)
 
 ]
