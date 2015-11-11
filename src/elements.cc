@@ -942,8 +942,12 @@ class ElementsAccessorBase : public ElementsAccessor {
                  ? index
                  : kMaxUInt32;
     } else {
-      Smi* smi_length = Smi::cast(JSArray::cast(holder)->length());
-      uint32_t length = static_cast<uint32_t>(smi_length->value());
+      uint32_t length =
+          holder->IsJSArray()
+              ? static_cast<uint32_t>(
+                    Smi::cast(JSArray::cast(holder)->length())->value())
+              : ElementsAccessorSubclass::GetCapacityImpl(holder,
+                                                          backing_store);
       return index < length ? index : kMaxUInt32;
     }
   }

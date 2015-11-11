@@ -1354,8 +1354,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         arguments_string, code);
     function->shared()->set_instance_class_name(*arguments_string);
 
-    Handle<Map> map =
-        factory->NewMap(JS_OBJECT_TYPE, Heap::kSloppyArgumentsObjectSize);
+    Handle<Map> map = factory->NewMap(
+        JS_OBJECT_TYPE, Heap::kSloppyArgumentsObjectSize, FAST_ELEMENTS);
     // Create the descriptor array for the arguments object.
     Map::EnsureDescriptorSlack(map, 2);
 
@@ -1414,8 +1414,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     caller->set_setter(*poison);
 
     // Create the map. Allocate one in-object field for length.
-    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE,
-                                      Heap::kStrictArgumentsObjectSize);
+    Handle<Map> map = factory->NewMap(
+        JS_OBJECT_TYPE, Heap::kStrictArgumentsObjectSize, FAST_ELEMENTS);
     // Create the descriptor array for the arguments object.
     Map::EnsureDescriptorSlack(map, 3);
 

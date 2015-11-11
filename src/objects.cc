@@ -14505,8 +14505,8 @@ int JSObject::GetFastElementsUsage() {
     case FAST_SMI_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_ELEMENTS:
-      // Only JSArray have packed elements.
-      return Smi::cast(JSArray::cast(this)->length())->value();
+      return IsJSArray() ? Smi::cast(JSArray::cast(this)->length())->value()
+                         : store->length();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
       store = FixedArray::cast(FixedArray::cast(store)->get(1));
     // Fall through.
