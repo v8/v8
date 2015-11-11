@@ -81,7 +81,6 @@ namespace compiler {
   V(X87PushFloat64)                \
   V(X87PushFloat32)                \
   V(X87Poke)                       \
-  V(X87StoreWriteBarrier)          \
   V(X87StackCheck)
 
 
