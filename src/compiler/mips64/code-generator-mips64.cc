@@ -241,7 +241,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     // and restore lr properly here if the frame was elided.
     RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
                          EMIT_REMEMBERED_SET, save_fp_mode);
-    __ Addu(scratch1_, object_, index_);
+    __ Daddu(scratch1_, object_, index_);
     __ CallStub(&stub);
   }
 
