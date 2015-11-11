@@ -17,6 +17,12 @@ import("//build_overrides/v8.gni")
 
 import("snapshot_toolchain.gni")
 
+declare_args() {
+  # Enable the snapshot feature, for fast context creation.
+  # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
+  v8_use_snapshot = true
+}
+
 # TODO(jochen): These will need to be user-settable to support standalone V8
 # builds.
 v8_deprecation_warnings = false
@@ -28,7 +34,6 @@ v8_enable_verify_heap = false
 v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
-v8_use_snapshot = true
 v8_random_seed = "314159265"
 v8_toolset_for_d8 = "host"
 
