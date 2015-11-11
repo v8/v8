@@ -19,10 +19,9 @@ namespace compiler {
 namespace {
 
 bool CanInlineElementAccess(Handle<Map> map) {
-  // TODO(bmeurer): IsJSObjectMap
-  // TODO(bmeurer): !map->has_dictionary_elements()
-  // TODO(bmeurer): !map->has_sloppy_arguments_elements()
-  return map->IsJSArrayMap() && map->has_fast_elements() &&
+  // TODO(bmeurer): Add support for holey elements.
+  return map->IsJSObjectMap() &&
+         IsFastPackedElementsKind(map->elements_kind()) &&
          !map->has_indexed_interceptor() && !map->is_access_check_needed();
 }
 
@@ -130,9 +129,7 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
   // Check if it is safe to inline element access for the {map}.
   if (!CanInlineElementAccess(map)) return false;
 
-  // TODO(bmeurer): Add support for holey elements.
   ElementsKind elements_kind = map->elements_kind();
-  if (IsHoleyElementsKind(elements_kind)) return false;
 
   // Certain (monomorphic) stores need a prototype chain check because shape
   // changes could allow callbacks on elements in the chain that are not

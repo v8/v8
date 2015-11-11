@@ -552,6 +552,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
     // Perform map check on {receiver}.
     Type* receiver_type = access_info.receiver_type();
+    bool receiver_is_jsarray = true;
     {
       ZoneVector<Node*> this_controls(zone());
       for (auto i = access_info.receiver_type()->Classes(); !i.Done();
@@ -564,6 +565,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
             graph()->NewNode(common()->Branch(), check, fallthrough_control);
         this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
         fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+        if (!map->IsJSArrayMap()) receiver_is_jsarray = false;
       }
       int const this_control_count = static_cast<int>(this_controls.size());
       this_control =
@@ -632,17 +634,24 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
 
     // Load the length of the {receiver}.
-    FieldAccess length_access = {
-        kTaggedBase, JSArray::kLengthOffset, factory()->name_string(),
-        type_cache_.kJSArrayLengthType, kMachAnyTagged};
-    if (IsFastDoubleElementsKind(elements_kind)) {
-      length_access.type = type_cache_.kFixedDoubleArrayLengthType;
-    } else if (IsFastElementsKind(elements_kind)) {
-      length_access.type = type_cache_.kFixedArrayLengthType;
+    Node* this_length;
+    if (receiver_is_jsarray) {
+      FieldAccess length_access = {
+          kTaggedBase, JSArray::kLengthOffset, factory()->name_string(),
+          type_cache_.kJSArrayLengthType, kMachAnyTagged};
+      if (IsFastDoubleElementsKind(elements_kind)) {
+        length_access.type = type_cache_.kFixedDoubleArrayLengthType;
+      } else if (IsFastElementsKind(elements_kind)) {
+        length_access.type = type_cache_.kFixedArrayLengthType;
+      }
+      this_length = this_effect =
+          graph()->NewNode(simplified()->LoadField(length_access),
+                           this_receiver, this_effect, this_control);
+    } else {
+      this_length = this_effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+          this_elements, this_effect, this_control);
     }
-    Node* this_length = this_effect =
-        graph()->NewNode(simplified()->LoadField(length_access), this_receiver,
-                         this_effect, this_control);
 
     // Check that the {index} is in the valid range for the {receiver}.
     Node* check = graph()->NewNode(simplified()->NumberLessThan(), this_index,
