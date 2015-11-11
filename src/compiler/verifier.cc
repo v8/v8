@@ -887,6 +887,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kTruncateInt64ToInt32:
     case IrOpcode::kRoundInt64ToFloat32:
     case IrOpcode::kRoundInt64ToFloat64:
+    case IrOpcode::kRoundUint64ToFloat64:
     case IrOpcode::kTruncateFloat64ToFloat32:
     case IrOpcode::kTruncateFloat64ToInt32:
     case IrOpcode::kBitcastFloat32ToInt32:

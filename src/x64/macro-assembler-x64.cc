@@ -899,6 +899,21 @@ void MacroAssembler::Cvtqsi2sd(XMMRegister dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Cvtqui2sd(XMMRegister dst, Register src) {
+  Label msb_set_src;
+  Label jmp_return;
+  testq(src, src);
+  j(sign, &msb_set_src, Label::kNear);
+  Cvtqsi2sd(dst, src);
+  jmp(&jmp_return, Label::kNear);
+  bind(&msb_set_src);
+  shrq(src, Immediate(1));
+  Cvtqsi2sd(dst, src);
+  addsd(dst, dst);
+  bind(&jmp_return);
+}
+
+
 void MacroAssembler::Cvtsd2si(Register dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

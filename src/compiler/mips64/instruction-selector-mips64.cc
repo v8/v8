@@ -627,6 +627,11 @@ void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundUint64ToFloat64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
 void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
   VisitRR(this, kMips64Float64ExtractLowWord32, node);
 }

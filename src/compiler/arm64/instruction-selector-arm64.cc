@@ -1326,6 +1326,11 @@ void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundUint64ToFloat64(Node* node) {
+  VisitRR(this, kArm64Uint64ToFloat64, node);
+}
+
+
 void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
   VisitRR(this, kArm64Float64ExtractLowWord32, node);
 }

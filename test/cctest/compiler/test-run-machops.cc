@@ -5381,6 +5381,13 @@ TEST(RunRoundInt64ToFloat64) {
 }
 
 
+TEST(RunRoundUint64ToFloat64) {
+  BufferedRawMachineAssemblerTester<double> m(kMachUint64);
+  m.Return(m.RoundUint64ToFloat64(m.Parameter(0)));
+  FOR_UINT64_INPUTS(i) { CHECK_EQ(static_cast<double>(*i), m.Call(*i)); }
+}
+
+
 #endif
 
 

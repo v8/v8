@@ -823,6 +823,7 @@ class MacroAssembler: public Assembler {
 
   void Cvtqsi2sd(XMMRegister dst, Register src);
   void Cvtqsi2sd(XMMRegister dst, const Operand& src);
+  void Cvtqui2sd(XMMRegister dst, Register src);
 
   void Cvtsd2si(Register dst, XMMRegister src);
 
