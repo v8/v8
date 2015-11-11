@@ -1050,6 +1050,8 @@ class Assembler : public AssemblerBase {
             RCBit rc = LeaveRC);
   void fcfid(const DoubleRegister frt, const DoubleRegister frb,
              RCBit rc = LeaveRC);
+  void fcfids(const DoubleRegister frt, const DoubleRegister frb,
+              RCBit rc = LeaveRC);
   void fctid(const DoubleRegister frt, const DoubleRegister frb,
              RCBit rc = LeaveRC);
   void fctidz(const DoubleRegister frt, const DoubleRegister frb,

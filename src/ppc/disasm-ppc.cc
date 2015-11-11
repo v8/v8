@@ -78,6 +78,7 @@ class Decoder {
 
   void DecodeExt1(Instruction* instr);
   void DecodeExt2(Instruction* instr);
+  void DecodeExt3(Instruction* instr);
   void DecodeExt4(Instruction* instr);
   void DecodeExt5(Instruction* instr);
 
@@ -882,6 +883,19 @@ void Decoder::DecodeExt2(Instruction* instr) {
 }
 
 
+void Decoder::DecodeExt3(Instruction* instr) {
+  switch (instr->Bits(10, 1) << 1) {
+    case FCFID: {
+      Format(instr, "fcfids'. 'Dt, 'Db");
+      break;
+    }
+    default: {
+      Unknown(instr);  // not used by V8
+    }
+  }
+}
+
+
 void Decoder::DecodeExt4(Instruction* instr) {
   switch (instr->Bits(5, 1) << 1) {
     case FDIV: {
@@ -1299,7 +1313,10 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       Format(instr, "stfdu   'Dt, 'int16('ra)");
       break;
     }
-    case EXT3:
+    case EXT3: {
+      DecodeExt3(instr);
+      break;
+    }
     case EXT4: {
       DecodeExt4(instr);
       break;

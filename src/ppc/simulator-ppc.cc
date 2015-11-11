@@ -2695,6 +2695,24 @@ void Simulator::ExecuteExt2(Instruction* instr) {
 }
 
 
+void Simulator::ExecuteExt3(Instruction* instr) {
+  int opcode = instr->Bits(10, 1) << 1;
+  switch (opcode) {
+    case FCFID: {
+      // fcfids
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double t_val = get_double_from_d_register(frb);
+      int64_t* frb_val_p = reinterpret_cast<int64_t*>(&t_val);
+      double frt_val = static_cast<float>(*frb_val_p);
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+  }
+  UNIMPLEMENTED();  // Not used by V8.
+}
+
+
 void Simulator::ExecuteExt4(Instruction* instr) {
   switch (instr->Bits(5, 1) << 1) {
     case FDIV: {
@@ -3610,8 +3628,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 
-    case EXT3:
-      UNIMPLEMENTED();
+    case EXT3: {
+      ExecuteExt3(instr);
+      break;
+    }
     case EXT4: {
       ExecuteExt4(instr);
       break;

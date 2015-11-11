@@ -659,8 +659,7 @@ void MacroAssembler::ConvertIntToFloat(const DoubleRegister dst,
                                        const Register src,
                                        const Register int_scratch) {
   MovIntToDouble(dst, src, int_scratch);
-  fcfid(dst, dst);
-  frsp(dst, dst);
+  fcfids(dst, dst);
 }
 
 
@@ -669,6 +668,13 @@ void MacroAssembler::ConvertInt64ToDouble(Register src,
                                           DoubleRegister double_dst) {
   MovInt64ToDouble(double_dst, src);
   fcfid(double_dst, double_dst);
+}
+
+
+void MacroAssembler::ConvertInt64ToFloat(Register src,
+                                         DoubleRegister double_dst) {
+  MovInt64ToDouble(double_dst, src);
+  fcfids(double_dst, double_dst);
 }
 #endif
 

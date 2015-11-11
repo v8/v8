@@ -1087,6 +1087,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Move(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kPPC_Int64ToFloat32:
+      __ ConvertInt64ToFloat(i.InputRegister(0), i.OutputDoubleRegister());
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
     case kPPC_Int64ToDouble:
       __ ConvertInt64ToDouble(i.InputRegister(0), i.OutputDoubleRegister());
       DCHECK_EQ(LeaveRC, i.OutputRCBit());

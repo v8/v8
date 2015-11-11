@@ -963,6 +963,11 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundInt64ToFloat32(Node* node) {
+  VisitRR(this, kPPC_Int64ToFloat32, node);
+}
+
+
 void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
   VisitRR(this, kPPC_Int64ToDouble, node);
 }
