@@ -653,6 +653,154 @@ TEST(Addition2) {
 }
 
 
+#define TEST_COMPARE_OP(name, op)                              \
+  TEST(name) {                                                 \
+    CHECK_FUNC_TYPES_BEGIN("function bar() { return (0 " op    \
+                           " 0)|0; }\n"                        \
+                           "function foo() { bar(); }") {      \
+      CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {               \
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {    \
+          CHECK_EXPR(CompareOperation, Bounds(cache.kInt32)) { \
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));         \
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));         \
+          }                                                    \
+          CHECK_EXPR(Literal, Bounds(cache.kInt32));           \
+        }                                                      \
+      }                                                        \
+      CHECK_SKIP();                                            \
+    }                                                          \
+    CHECK_FUNC_TYPES_END                                       \
+  }
+
+
+TEST_COMPARE_OP(EqOperator, "==")
+TEST_COMPARE_OP(LtOperator, "<")
+TEST_COMPARE_OP(LteOperator, "<=")
+TEST_COMPARE_OP(GtOperator, ">")
+TEST_COMPARE_OP(GteOperator, ">=")
+
+
+TEST(NeqOperator) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { return (0 != 0)|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+        CHECK_EXPR(UnaryOperation, Bounds(cache.kInt32)) {
+          CHECK_EXPR(CompareOperation, Bounds(cache.kInt32)) {
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(NotOperator) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 0; return (!x)|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+        CHECK_EXPR(UnaryOperation, Bounds(cache.kInt32)) {
+          CHECK_VAR(x, Bounds(cache.kInt32));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(InvertOperator) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 0; return (~x)|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+          CHECK_VAR(x, Bounds(cache.kInt32));
+          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(InvertConversion) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 0.0; return (~~x)|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
+        CHECK_VAR(x, Bounds(cache.kFloat64));
+        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+            CHECK_VAR(x, Bounds(cache.kFloat64));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+#define TEST_INT_BIN_OP(name, op)                                      \
+  TEST(name) {                                                         \
+    CHECK_FUNC_TYPES_BEGIN("function bar() { var x = 0; return (x " op \
+                           " 123)|0; }\n"                              \
+                           "function foo() { bar(); }") {              \
+      CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {                       \
+        CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {                 \
+          CHECK_VAR(x, Bounds(cache.kInt32));                          \
+          CHECK_EXPR(Literal, Bounds(cache.kInt32));                   \
+        }                                                              \
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {            \
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {          \
+            CHECK_VAR(x, Bounds(cache.kInt32));                        \
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));                 \
+          }                                                            \
+          CHECK_EXPR(Literal, Bounds(cache.kInt32));                   \
+        }                                                              \
+      }                                                                \
+      CHECK_SKIP();                                                    \
+    }                                                                  \
+    CHECK_FUNC_TYPES_END                                               \
+  }
+
+
+TEST_INT_BIN_OP(AndOperator, "&")
+TEST_INT_BIN_OP(OrOperator, "|")
+TEST_INT_BIN_OP(XorOperator, "^")
+
+
 TEST(UnsignedCompare) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; var y = 1; return ((x>>>0) < (y>>>0))|0; }\n"
@@ -1124,6 +1272,62 @@ TEST(UnboundVariable) {
       "function bar() { var x = y; }\n"
       "function foo() { bar(); }",
       "asm: line 39: unbound variable\n");
+}
+
+
+TEST(EqStrict) {
+  CHECK_FUNC_ERROR(
+      "function bar() { return (0 === 0)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: illegal comparison operator\n");
+}
+
+
+TEST(NeStrict) {
+  CHECK_FUNC_ERROR(
+      "function bar() { return (0 !== 0)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: illegal comparison operator\n");
+}
+
+
+TEST(InstanceOf) {
+  CHECK_FUNC_ERROR(
+      "function bar() { return (0 instanceof 0)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: illegal comparison operator\n");
+}
+
+
+TEST(InOperator) {
+  CHECK_FUNC_ERROR(
+      "function bar() { return (0 in 0)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: illegal comparison operator\n");
+}
+
+
+TEST(LogicalAndOperator) {
+  CHECK_FUNC_ERROR(
+      "function bar() { return (0 && 0)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: illegal logical operator\n");
+}
+
+
+TEST(LogicalOrOperator) {
+  CHECK_FUNC_ERROR(
+      "function bar() { return (0 || 0)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: illegal logical operator\n");
+}
+
+
+TEST(BadLiteral) {
+  CHECK_FUNC_ERROR(
+      "function bar() { return true | 0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: illegal literal\n");
 }
 
 

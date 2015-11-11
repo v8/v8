@@ -841,7 +841,7 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
     }
     case Token::OR:
     case Token::AND:
-      FAIL(expr, "logical operator encountered");
+      FAIL(expr, "illegal logical operator");
     case Token::BIT_OR: {
       // BIT_OR allows Any since it is used as a type coercion.
       VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kIntegral32,
@@ -849,6 +849,19 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       return;
     }
     case Token::BIT_XOR: {
+      // Handle booleans specially to handle de-sugared !
+      Literal* left = expr->left()->AsLiteral();
+      if (left && left->value()->IsBoolean()) {
+        if (left->ToBooleanIsTrue()) {
+          left->set_bounds(Bounds(cache_.kSingletonOne));
+          RECURSE(VisitWithExpectation(expr->right(), cache_.kIntegral32,
+                                       "not operator expects an integer"));
+          IntersectResult(expr, cache_.kInt32);
+          return;
+        } else {
+          FAIL(left, "unexpected false");
+        }
+      }
       // BIT_XOR allows Number since it is used as a type coercion (via ~~).
       VisitIntegerBitwiseOperator(expr, Type::Number(), cache_.kIntegral32,
                                   cache_.kInt32, true);
@@ -934,6 +947,11 @@ void AsmTyper::VisitCompareOperation(CompareOperation* expr) {
   RECURSE(
       VisitWithExpectation(expr->right(), Type::Number(),
                            "right comparison operand expected to be number"));
+  Token::Value op = expr->op();
+  if (op != Token::EQ && op != Token::NE && op != Token::LT &&
+      op != Token::LTE && op != Token::GT && op != Token::GTE) {
+    FAIL(expr, "illegal comparison operator");
+  }
   Type* right_type = computed_type_;
   Type* type = Type::Union(left_type, right_type, zone());
   expr->set_combined_type(type);
