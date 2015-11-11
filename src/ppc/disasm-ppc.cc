@@ -945,6 +945,10 @@ void Decoder::DecodeExt4(Instruction* instr) {
       Format(instr, "fcfid'.  'Dt, 'Db");
       break;
     }
+    case FCFIDU: {
+      Format(instr, "fcfidu'. 'Dt, 'Db");
+      break;
+    }
     case FCTID: {
       Format(instr, "fctid   'Dt, 'Db");
       break;

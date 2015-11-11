@@ -292,7 +292,8 @@ enum OpcodeExt4 {
   MTFSF = 711 << 1,   // move to FPSCR fields XFL-form
   FCFID = 846 << 1,   // Floating convert from integer doubleword
   FCTID = 814 << 1,   // Floating convert from integer doubleword
-  FCTIDZ = 815 << 1   // Floating convert from integer doubleword
+  FCTIDZ = 815 << 1,  // Floating convert from integer doubleword
+  FCFIDU = 974 << 1   // Floating convert from integer doubleword unsigned
 };
 
 enum OpcodeExt5 {

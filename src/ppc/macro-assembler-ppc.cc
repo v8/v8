@@ -671,6 +671,13 @@ void MacroAssembler::ConvertInt64ToDouble(Register src,
 }
 
 
+void MacroAssembler::ConvertUnsignedInt64ToDouble(Register src,
+                                                  DoubleRegister double_dst) {
+  MovInt64ToDouble(double_dst, src);
+  fcfidu(double_dst, double_dst);
+}
+
+
 void MacroAssembler::ConvertInt64ToFloat(Register src,
                                          DoubleRegister double_dst) {
   MovInt64ToDouble(double_dst, src);

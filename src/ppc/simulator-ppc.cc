@@ -2892,6 +2892,15 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       set_d_register_from_double(frt, frt_val);
       return;
     }
+    case FCFIDU: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double t_val = get_double_from_d_register(frb);
+      uint64_t* frb_val_p = reinterpret_cast<uint64_t*>(&t_val);
+      double frt_val = static_cast<double>(*frb_val_p);
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
     case FCTID: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();

@@ -974,7 +974,7 @@ void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
 
 
 void InstructionSelector::VisitRoundUint64ToFloat64(Node* node) {
-  UNIMPLEMENTED();
+  VisitRR(this, kPPC_Uint64ToDouble, node);
 }
 #endif
 
