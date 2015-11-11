@@ -197,16 +197,12 @@ inline bool ClampedToInteger(Object* object, int* out) {
 
 inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
                                      int* out) {
-  Map* arguments_map =
-      isolate->context()->native_context()->sloppy_arguments_map();
-  if (object->map() != arguments_map || !object->HasFastElements()) {
-    return false;
-  }
+  Map* arguments_map = isolate->native_context()->sloppy_arguments_map();
+  if (object->map() != arguments_map) return false;
+  DCHECK(object->HasFastElements());
   Object* len_obj = object->InObjectPropertyAt(Heap::kArgumentsLengthIndex);
-  if (!len_obj->IsSmi()) {
-    return false;
-  }
-  *out = Smi::cast(len_obj)->value();
+  if (!len_obj->IsSmi()) return false;
+  *out = Max(0, Smi::cast(len_obj)->value());
   return *out <= object->elements()->length();
 }
 
@@ -993,11 +989,11 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
   uint32_t length = 0;
 
   if (receiver->IsJSArray()) {
-    Handle<JSArray> array(Handle<JSArray>::cast(receiver));
+    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
     length = static_cast<uint32_t>(array->length()->Number());
   } else {
     Handle<Object> val;
-    Handle<Object> key(isolate->heap()->length_string(), isolate);
+    Handle<Object> key = isolate->factory()->length_string();
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, val, Runtime::GetObjectProperty(isolate, receiver, key),
         false);
