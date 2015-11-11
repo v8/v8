@@ -48,6 +48,9 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   // Built-in functions are handled by the JSBuiltinReducer.
   if (function->shared()->HasBuiltinFunctionId()) return NoChange();
 
+  // Don't inline builtins.
+  if (function->shared()->IsBuiltin()) return NoChange();
+
   // Quick check on source code length to avoid parsing large candidate.
   if (function->shared()->SourceSize() > FLAG_max_inlined_source_size) {
     return NoChange();
