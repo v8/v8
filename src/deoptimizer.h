@@ -252,9 +252,9 @@ class TranslatedState {
 
   Isolate* isolate() { return isolate_; }
 
-  void Init(Address input_frame_pointer, JSFunction* input_frame_function,
-            TranslationIterator* iterator, FixedArray* literal_array,
-            RegisterValues* registers, FILE* trace_file);
+  void Init(Address input_frame_pointer, TranslationIterator* iterator,
+            FixedArray* literal_array, RegisterValues* registers,
+            FILE* trace_file);
 
  private:
   friend TranslatedValue;
@@ -262,7 +262,6 @@ class TranslatedState {
   TranslatedFrame CreateNextTranslatedFrame(TranslationIterator* iterator,
                                             FixedArray* literal_array,
                                             Address fp,
-                                            JSFunction* frame_function,
                                             FILE* trace_file);
   TranslatedValue CreateNextTranslatedValue(int frame_index, int value_index,
                                             TranslationIterator* iterator,

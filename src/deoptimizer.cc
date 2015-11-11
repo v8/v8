@@ -736,7 +736,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   TranslationIterator state_iterator(translations, translation_index);
   translated_state_.Init(
-      input_->GetFramePointerAddress(), function_, &state_iterator,
+      input_->GetFramePointerAddress(), &state_iterator,
       input_data->LiteralArray(), input_->GetRegisterValues(),
       trace_scope_ == nullptr ? nullptr : trace_scope_->file());
 
@@ -2686,7 +2686,7 @@ void TranslatedFrame::Handlify() {
 
 TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     TranslationIterator* iterator, FixedArray* literal_array, Address fp,
-    JSFunction* frame_function, FILE* trace_file) {
+    FILE* trace_file) {
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator->Next());
   switch (opcode) {
@@ -3009,8 +3009,8 @@ TranslatedState::TranslatedState(JavaScriptFrame* frame)
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
-  Init(frame->fp(), frame->function(), &it, data->LiteralArray(),
-       nullptr /* registers */, nullptr /* trace file */);
+  Init(frame->fp(), &it, data->LiteralArray(), nullptr /* registers */,
+       nullptr /* trace file */);
 }
 
 
@@ -3021,7 +3021,6 @@ TranslatedState::TranslatedState()
 
 
 void TranslatedState::Init(Address input_frame_pointer,
-                           JSFunction* input_frame_function,
                            TranslationIterator* iterator,
                            FixedArray* literal_array, RegisterValues* registers,
                            FILE* trace_file) {
@@ -3043,9 +3042,8 @@ void TranslatedState::Init(Address input_frame_pointer,
   // Read the frames
   for (int i = 0; i < count; i++) {
     // Read the frame descriptor.
-    frames_.push_back(
-        CreateNextTranslatedFrame(iterator, literal_array, input_frame_pointer,
-                                  input_frame_function, trace_file));
+    frames_.push_back(CreateNextTranslatedFrame(
+        iterator, literal_array, input_frame_pointer, trace_file));
     TranslatedFrame& frame = frames_.back();
 
     // Read the values.
