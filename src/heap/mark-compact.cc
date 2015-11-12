@@ -668,7 +668,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   int area_size = space->AreaSize();
 
   // Pairs of (live_bytes_in_page, page).
-  std::vector<std::pair<int, Page*> > pages;
+  typedef std::pair<int, Page*> LiveBytesPagePair;
+  std::vector<LiveBytesPagePair> pages;
   pages.reserve(number_of_pages);
 
   PageIterator it(space);
@@ -739,7 +740,10 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     // - the total size of evacuated objects does not exceed the specified
     // limit.
     // - fragmentation of (n+1)-th page does not exceed the specified limit.
-    std::sort(pages.begin(), pages.end());
+    std::sort(pages.begin(), pages.end(),
+              [](const LiveBytesPagePair& a, const LiveBytesPagePair& b) {
+                return a.first < b.first;
+              });
     for (size_t i = 0; i < pages.size(); i++) {
       int live_bytes = pages[i].first;
       int free_bytes = area_size - live_bytes;
@@ -1968,7 +1972,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_MARK);
   double start_time = 0.0;
   if (FLAG_print_cumulative_gc_stat) {
-    start_time = base::OS::TimeCurrentMillis();
+    start_time = heap_->MonotonicallyIncreasingTimeInMs();
   }
   // The recursive GC marker detects when it is nearing stack overflow,
   // and switches to a different marking system.  JS interrupts interfere
@@ -2058,7 +2062,8 @@ void MarkCompactCollector::MarkLiveObjects() {
   AfterMarking();
 
   if (FLAG_print_cumulative_gc_stat) {
-    heap_->tracer()->AddMarkingTime(base::OS::TimeCurrentMillis() - start_time);
+    heap_->tracer()->AddMarkingTime(heap_->MonotonicallyIncreasingTimeInMs() -
+                                    start_time);
   }
 }
 
@@ -4404,7 +4409,7 @@ void MarkCompactCollector::SweepSpaces() {
   GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
   double start_time = 0.0;
   if (FLAG_print_cumulative_gc_stat) {
-    start_time = base::OS::TimeCurrentMillis();
+    start_time = heap_->MonotonicallyIncreasingTimeInMs();
   }
 
 #ifdef DEBUG
@@ -4456,7 +4461,7 @@ void MarkCompactCollector::SweepSpaces() {
   ReleaseEvacuationCandidates();
 
   if (FLAG_print_cumulative_gc_stat) {
-    heap_->tracer()->AddSweepingTime(base::OS::TimeCurrentMillis() -
+    heap_->tracer()->AddSweepingTime(heap_->MonotonicallyIncreasingTimeInMs() -
                                      start_time);
   }
 

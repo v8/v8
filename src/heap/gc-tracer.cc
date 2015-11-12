@@ -21,6 +21,19 @@ static intptr_t CountTotalHolesSize(Heap* heap) {
 }
 
 
+GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
+    : tracer_(tracer), scope_(scope) {
+  start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
+}
+
+
+GCTracer::Scope::~Scope() {
+  DCHECK(scope_ < NUMBER_OF_SCOPES);  // scope_ is unsigned.
+  tracer_->current_.scopes[scope_] +=
+      tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_;
+}
+
+
 GCTracer::AllocationEvent::AllocationEvent(double duration,
                                            size_t allocation_in_bytes) {
   duration_ = duration;
@@ -111,7 +124,7 @@ GCTracer::GCTracer(Heap* heap)
       combined_mark_compact_speed_cache_(0.0),
       start_counter_(0) {
   current_ = Event(Event::START, NULL, NULL);
-  current_.end_time = base::OS::TimeCurrentMillis();
+  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
   previous_ = previous_incremental_mark_compactor_event_ = current_;
 }
 
@@ -851,7 +864,7 @@ size_t GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
 double GCTracer::ContextDisposalRateInMilliseconds() const {
   if (context_disposal_events_.size() < kRingBufferMaxSize) return 0.0;
 
-  double begin = base::OS::TimeCurrentMillis();
+  double begin = heap_->MonotonicallyIncreasingTimeInMs();
   double end = 0.0;
   ContextDisposalEventBuffer::const_iterator iter =
       context_disposal_events_.begin();

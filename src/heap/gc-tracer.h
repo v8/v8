@@ -143,15 +143,8 @@ class GCTracer {
       NUMBER_OF_SCOPES
     };
 
-    Scope(GCTracer* tracer, ScopeId scope) : tracer_(tracer), scope_(scope) {
-      start_time_ = base::OS::TimeCurrentMillis();
-    }
-
-    ~Scope() {
-      DCHECK(scope_ < NUMBER_OF_SCOPES);  // scope_ is unsigned.
-      tracer_->current_.scopes[scope_] +=
-          base::OS::TimeCurrentMillis() - start_time_;
-    }
+    Scope(GCTracer* tracer, ScopeId scope);
+    ~Scope();
 
    private:
     GCTracer* tracer_;

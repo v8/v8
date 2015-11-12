@@ -888,10 +888,6 @@ class Heap {
   // Number of "runtime allocations" done so far.
   uint32_t allocations_count() { return allocations_count_; }
 
-  // Returns deterministic "time" value in ms. Works only with
-  // FLAG_verify_predictable.
-  double synthetic_time() { return allocations_count() / 2.0; }
-
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
@@ -2162,9 +2158,6 @@ class Heap {
 
   // Running hash over allocations performed.
   uint32_t raw_allocations_hash_;
-
-  // Countdown counter, dumps allocation hash when 0.
-  uint32_t dump_allocations_hash_countdown_;
 
   // How many mark-sweep collections happened.
   unsigned int ms_count_;

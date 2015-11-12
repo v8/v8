@@ -102,7 +102,6 @@ Heap::Heap()
       gc_post_processing_depth_(0),
       allocations_count_(0),
       raw_allocations_hash_(0),
-      dump_allocations_hash_countdown_(FLAG_dump_allocations_digest_at_alloc),
       ms_count_(0),
       gc_count_(0),
       remembered_unmapped_pages_index_(0),
@@ -1056,7 +1055,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   }
   AgeInlineCaches();
   set_retained_maps(ArrayList::cast(empty_fixed_array()));
-  tracer()->AddContextDisposalTime(base::OS::TimeCurrentMillis());
+  tracer()->AddContextDisposalTime(MonotonicallyIncreasingTimeInMs());
   MemoryReducer::Event event;
   event.type = MemoryReducer::kContextDisposed;
   event.time_ms = MonotonicallyIncreasingTimeInMs();

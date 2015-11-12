@@ -2242,7 +2242,7 @@ bool Isolate::Init(Deserializer* des) {
                heap_.amount_of_external_allocated_memory_at_last_global_gc_)),
            Internals::kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset);
 
-  time_millis_at_init_ = base::OS::TimeCurrentMillis();
+  time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
   heap_.NotifyDeserializationComplete();
 

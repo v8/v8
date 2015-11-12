@@ -88,8 +88,7 @@ RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   // the OS time.
   double millis;
   if (FLAG_verify_predictable) {
-    millis = 1388534400000.0;  // Jan 1 2014 00:00:00 GMT+0000
-    millis += Floor(isolate->heap()->synthetic_time());
+    millis = Floor(isolate->heap()->MonotonicallyIncreasingTimeInMs());
   } else {
     millis = Floor(base::OS::TimeCurrentMillis());
   }

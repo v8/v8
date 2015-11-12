@@ -786,7 +786,7 @@ void IncrementalMarking::Hurry() {
   if (state() == MARKING) {
     double start = 0.0;
     if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
-      start = base::OS::TimeCurrentMillis();
+      start = heap_->MonotonicallyIncreasingTimeInMs();
       if (FLAG_trace_incremental_marking) {
         PrintF("[IncrementalMarking] Hurry\n");
       }
@@ -796,7 +796,7 @@ void IncrementalMarking::Hurry() {
     ProcessMarkingDeque();
     state_ = COMPLETE;
     if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
-      double end = base::OS::TimeCurrentMillis();
+      double end = heap_->MonotonicallyIncreasingTimeInMs();
       double delta = end - start;
       heap_->tracer()->AddMarkingTime(delta);
       if (FLAG_trace_incremental_marking) {
@@ -1058,7 +1058,7 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
   {
     HistogramTimerScope incremental_marking_scope(
         heap_->isolate()->counters()->gc_incremental_marking());
-    double start = base::OS::TimeCurrentMillis();
+    double start = heap_->MonotonicallyIncreasingTimeInMs();
 
     // The marking speed is driven either by the allocation rate or by the rate
     // at which we are having to check the color of objects in the write
@@ -1109,7 +1109,7 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
     // with marking.
     SpeedUp();
 
-    double end = base::OS::TimeCurrentMillis();
+    double end = heap_->MonotonicallyIncreasingTimeInMs();
     double duration = (end - start);
     // Note that we report zero bytes here when sweeping was in progress or
     // when we just started incremental marking. In these cases we did not

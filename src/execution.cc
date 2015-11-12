@@ -497,6 +497,11 @@ void StackGuard::HandleGCInterrupt() {
 
 
 Object* StackGuard::HandleInterrupts() {
+  if (FLAG_verify_predictable) {
+    // Advance synthetic time by making a time request.
+    isolate_->heap()->MonotonicallyIncreasingTimeInMs();
+  }
+
   if (CheckAndClearInterrupt(GC_REQUEST)) {
     isolate_->heap()->HandleGCRequest();
   }
