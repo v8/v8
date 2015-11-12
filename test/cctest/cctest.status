@@ -451,6 +451,14 @@
 }],  # 'system == aix and arch == ppc64'
 
 ##############################################################################
+['system == aix or (arch == ppc64 and byteorder == big)', {
+
+  # Test currently broken for platforms with function desciptors
+  'test-run-machops/RunComputedCodeObject' : [SKIP],
+
+}],  # 'system == aix or (arch == ppc64 and byteorder == big)'
+
+##############################################################################
 ['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
 
   # Pass but take too long with the simulator.
