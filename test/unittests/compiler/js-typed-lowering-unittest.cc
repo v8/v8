@@ -979,6 +979,27 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
 
 
 // -----------------------------------------------------------------------------
+// JSCreate
+
+
+TEST_F(JSTypedLoweringTest, JSCreate) {
+  Handle<JSFunction> function = isolate()->object_function();
+  Node* const target = Parameter(Type::Constant(function, graph()->zone()));
+  Node* const context = Parameter(Type::Any());
+  Node* const effect = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->Create(), target, target,
+                                        context, effect));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(
+      r.replacement(),
+      IsFinishRegion(
+          IsAllocate(IsNumberConstant(function->initial_map()->instance_size()),
+                     IsBeginRegion(effect), _),
+          _));
+}
+
+
+// -----------------------------------------------------------------------------
 // JSCreateArguments
 
 

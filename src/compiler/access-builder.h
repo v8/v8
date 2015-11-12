@@ -31,6 +31,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSObject::elements() field.
   static FieldAccess ForJSObjectElements();
 
+  // Provides access to JSObject inobject property fields.
+  static FieldAccess ForJSObjectInObjectProperty(Handle<Map> map, int index);
+
   // Provides access to JSFunction::context() field.
   static FieldAccess ForJSFunctionContext();
 
