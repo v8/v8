@@ -373,6 +373,11 @@ class IrOpcode {
     return kIfTrue <= value && value <= kIfDefault;
   }
 
+  // Returns true if opcode can be inlined.
+  static bool IsInlineeOpcode(Value value) {
+    return value == kJSCallConstruct || value == kJSCallFunction;
+  }
+
   // Returns true if opcode for comparison operator.
   static bool IsComparisonOpcode(Value value) {
     return (kJSEqual <= value && value <= kJSGreaterThanOrEqual) ||

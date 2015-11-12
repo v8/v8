@@ -570,10 +570,18 @@ RUNTIME_FUNCTION(Runtime_GetOriginalConstructor) {
   DCHECK(args.length() == 0);
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  // Currently we don't inline [[Construct]] calls.
-  return frame->IsConstructor() && !frame->HasInlinedFrames()
-             ? frame->GetOriginalConstructor()
-             : isolate->heap()->undefined_value();
+  // TODO(4544): Currently we never inline any [[Construct]] calls where the
+  // actual constructor differs from the original constructor. Fix this soon!
+  if (frame->HasInlinedFrames()) {
+    HandleScope scope(isolate);
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    it.frame()->Summarize(&frames);
+    FrameSummary& summary = frames.last();
+    return summary.is_constructor() ? Object::cast(*summary.function())
+                                    : isolate->heap()->undefined_value();
+  }
+  return frame->IsConstructor() ? frame->GetOriginalConstructor()
+                                : isolate->heap()->undefined_value();
 }
 
 
@@ -590,11 +598,13 @@ RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
 
 
 RUNTIME_FUNCTION(Runtime_IsConstructCall) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  return isolate->heap()->ToBoolean(frame->IsConstructor());
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  it.frame()->Summarize(&frames);
+  FrameSummary& summary = frames.last();
+  return isolate->heap()->ToBoolean(summary.is_constructor());
 }
 
 

@@ -230,6 +230,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kNewClosure:
     case Runtime::kNewClosure_Tenured:
     case Runtime::kNewFunctionContext:
+    case Runtime::kNewObject:
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
@@ -244,6 +245,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kInlineDefaultConstructorCallSuper:
     case Runtime::kInlineGetCallerJSFunction:
     case Runtime::kInlineGetPrototype:
+    case Runtime::kInlineIsConstructCall:
     case Runtime::kInlineRegExpExec:
     case Runtime::kInlineSubString:
     case Runtime::kInlineToInteger:

@@ -77,7 +77,8 @@ class OutputFrameStateCombine {
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
   kJavaScriptFunction,  // Represents an unoptimized JavaScriptFrame.
-  kArgumentsAdaptor     // Represents an ArgumentsAdaptorFrame.
+  kArgumentsAdaptor,    // Represents an ArgumentsAdaptorFrame.
+  kConstructStub        // Represents a ConstructStubFrame.
 };
 
 

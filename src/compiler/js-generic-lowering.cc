@@ -456,7 +456,12 @@ void JSGenericLowering::LowerJSLoadDynamic(Node* node) {
 }
 
 
-void JSGenericLowering::LowerJSCreate(Node* node) { UNIMPLEMENTED(); }
+void JSGenericLowering::LowerJSCreate(Node* node) {
+  // TODO(4544): The duplication of the constructor function is only valid if
+  // actual constructor and original constructor coincide. Fix this!
+  node->InsertInput(zone(), 1, node->InputAt(0));  // Duplicate constructor.
+  ReplaceWithRuntimeCall(node, Runtime::kNewObject);
+}
 
 
 void JSGenericLowering::LowerJSCreateArguments(Node* node) {

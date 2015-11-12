@@ -34,34 +34,45 @@ namespace compiler {
   } while (false)
 
 
-// Provides convenience accessors for calls to JS functions.
-class JSCallFunctionAccessor {
+// Provides convenience accessors for the common layout of nodes having either
+// the {JSCallFunction} or the {JSCallConstruct} operator.
+class JSCallAccessor {
  public:
-  explicit JSCallFunctionAccessor(Node* call) : call_(call) {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, call->opcode());
+  explicit JSCallAccessor(Node* call) : call_(call) {
+    DCHECK(call->opcode() == IrOpcode::kJSCallFunction ||
+           call->opcode() == IrOpcode::kJSCallConstruct);
   }
 
-  Node* jsfunction() { return call_->InputAt(0); }
-
-  Node* receiver() { return call_->InputAt(1); }
-
-  Node* formal_argument(size_t index) {
-    DCHECK(index < formal_arguments());
-    return call_->InputAt(static_cast<int>(2 + index));
+  Node* target() {
+    // Both, {JSCallFunction} and {JSCallConstruct}, have same layout here.
+    return call_->InputAt(0);
   }
 
-  size_t formal_arguments() {
-    // {value_inputs} includes jsfunction and receiver.
-    size_t value_inputs = call_->op()->ValueInputCount();
-    DCHECK_GE(call_->InputCount(), 2);
-    return value_inputs - 2;
+  Node* receiver() {
+    DCHECK_EQ(IrOpcode::kJSCallFunction, call_->opcode());
+    return call_->InputAt(1);
+  }
+
+  Node* original_constructor() {
+    DCHECK_EQ(IrOpcode::kJSCallConstruct, call_->opcode());
+    return call_->InputAt(formal_arguments() + 1);
   }
 
   Node* frame_state_before() {
+    DCHECK_EQ(IrOpcode::kJSCallFunction, call_->opcode());
     return NodeProperties::GetFrameStateInput(call_, 1);
   }
+
   Node* frame_state_after() {
+    // Both, {JSCallFunction} and {JSCallConstruct}, have frame state after.
     return NodeProperties::GetFrameStateInput(call_, 0);
+  }
+
+  int formal_arguments() {
+    // Both, {JSCallFunction} and {JSCallConstruct}, have two extra inputs:
+    //  - JSCallConstruct: Includes target function and original constructor.
+    //  - JSCallFunction: Includes target function and receiver.
+    return call_->op()->ValueInputCount() - 2;
   }
 
  private:
@@ -227,12 +238,13 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
 }
 
 
-Node* JSInliner::CreateArgumentsAdaptorFrameState(
-    JSCallFunctionAccessor* call, Handle<SharedFunctionInfo> shared_info) {
+Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
+                                            int parameter_count,
+                                            FrameStateType frame_state_type,
+                                            Handle<SharedFunctionInfo> shared) {
   const FrameStateFunctionInfo* state_info =
       jsgraph_->common()->CreateFrameStateFunctionInfo(
-          FrameStateType::kArgumentsAdaptor,
-          static_cast<int>(call->formal_arguments()) + 1, 0, shared_info,
+          frame_state_type, parameter_count + 1, 0, shared,
           CALL_MAINTAINS_NATIVE_CONTEXT);
 
   const Operator* op = jsgraph_->common()->FrameState(
@@ -240,36 +252,37 @@ Node* JSInliner::CreateArgumentsAdaptorFrameState(
   const Operator* op0 = jsgraph_->common()->StateValues(0);
   Node* node0 = jsgraph_->graph()->NewNode(op0);
   NodeVector params(local_zone_);
-  params.push_back(call->receiver());
-  for (size_t argument = 0; argument != call->formal_arguments(); ++argument) {
-    params.push_back(call->formal_argument(argument));
+  for (int parameter = 0; parameter < parameter_count + 1; ++parameter) {
+    params.push_back(node->InputAt(1 + parameter));
   }
   const Operator* op_param =
       jsgraph_->common()->StateValues(static_cast<int>(params.size()));
   Node* params_node = jsgraph_->graph()->NewNode(
       op_param, static_cast<int>(params.size()), &params.front());
-  return jsgraph_->graph()->NewNode(
-      op, params_node, node0, node0, jsgraph_->UndefinedConstant(),
-      call->jsfunction(), call->frame_state_after());
+  return jsgraph_->graph()->NewNode(op, params_node, node0, node0,
+                                    jsgraph_->UndefinedConstant(),
+                                    node->InputAt(0), outer_frame_state);
 }
 
 
 Reduction JSInliner::Reduce(Node* node) {
-  if (node->opcode() != IrOpcode::kJSCallFunction) return NoChange();
+  if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
-  JSCallFunctionAccessor call(node);
-  HeapObjectMatcher match(call.jsfunction());
+  // This reducer can handle both normal function calls as well a constructor
+  // calls whenever the target is a constant function object, as follows:
+  //  - JSCallFunction(target:constant, receiver, args...)
+  //  - JSCallConstruct(target:constant, args..., new.target)
+  HeapObjectMatcher match(node->InputAt(0));
   if (!match.HasValue() || !match.Value()->IsJSFunction()) return NoChange();
   Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
 
-  return ReduceJSCallFunction(node, function);
+  return ReduceJSCall(node, function);
 }
 
 
-Reduction JSInliner::ReduceJSCallFunction(Node* node,
-                                          Handle<JSFunction> function) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
-  JSCallFunctionAccessor call(node);
+Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
+  DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
+  JSCallAccessor call(node);
 
   if (!function->shared()->IsInlineable()) {
     // Function must be inlineable.
@@ -359,7 +372,7 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
 
   // In strong mode, in case of too few arguments we need to throw a TypeError
   // so we must not inline this call.
-  size_t parameter_count = info.literal()->parameter_count();
+  int parameter_count = info.literal()->parameter_count();
   if (is_strong(info.language_mode()) &&
       call.formal_arguments() < parameter_count) {
     TRACE("Not inlining %s into %s because too few arguments for strong mode\n",
@@ -425,12 +438,6 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
     graph_reducer.ReduceGraph();
   }
 
-  // The inlinee specializes to the context from the JSFunction object.
-  // TODO(turbofan): We might want to load the context from the JSFunction at
-  // runtime in case we only know the SharedFunctionInfo once we have dynamic
-  // type feedback in the compiler.
-  Node* context = jsgraph_->Constant(handle(function->context()));
-
   CopyVisitor visitor(&graph, jsgraph_->graph(), &zone);
   visitor.CopyGraph();
 
@@ -438,13 +445,60 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
   Node* end = visitor.GetCopy(graph.end());
   Node* frame_state = call.frame_state_after();
 
+  // Insert nodes around the call that model the behavior required for a
+  // constructor dispatch and turn the constructor call into a regular call.
+  // This models the behavior usually accomplished by our {JSConstructStub}.
+  // Note that the context has to be the callers context (input to call node).
+  if (node->opcode() == IrOpcode::kJSCallConstruct) {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* context = NodeProperties::GetContextInput(node);
+    Node* create = jsgraph_->graph()->NewNode(jsgraph_->javascript()->Create(),
+                                              call.target(), context, effect);
+    NodeProperties::ReplaceEffectInput(node, create);
+    // TODO(4544): For now {JSCreate} requires the actual constructor to
+    // coincide with the original constructor. Adapt JSGenericLowering to fix.
+    // Also Runtime_GetOriginalConstructor depends on this for now. Fix as well!
+    CHECK_EQ(call.target(), call.original_constructor());
+    // TODO(4544): For derived constructors we should not allocate an implicit
+    // receiver and also the return value should not be checked afterwards.
+    CHECK(!IsClassConstructor(function->shared()->kind()));
+    // Swizzle the inputs of the {JSCallConstruct} node to look like inputs to
+    // any {JSCallFunction} node so that the rest of the inlining machinery
+    // behaves as if we were dealing with a regular function invocation.
+    node->RemoveInput(call.formal_arguments() + 1);  // Drop new.target.
+    node->InsertInput(jsgraph_->graph()->zone(), 1, create);
+    // Insert a check of the return value to determine whether the return value
+    // or the implicit receiver should be selected as a result of the call.
+    Node* check = jsgraph_->graph()->NewNode(
+        jsgraph_->javascript()->CallRuntime(Runtime::kInlineIsSpecObject, 1),
+        node, context, node, start);
+    Node* select = jsgraph_->graph()->NewNode(
+        jsgraph_->common()->Select(kMachAnyTagged), check, node, create);
+    NodeProperties::ReplaceUses(node, select, check, node, node);
+    NodeProperties::ReplaceValueInput(select, node, 1);
+    NodeProperties::ReplaceValueInput(check, node, 0);
+    NodeProperties::ReplaceEffectInput(check, node);
+    // Insert a construct stub frame into the chain of frame states. This will
+    // reconstruct the proper frame when deoptimizing within the constructor.
+    frame_state = CreateArtificialFrameState(
+        node, frame_state, call.formal_arguments(),
+        FrameStateType::kConstructStub, info.shared_info());
+  }
+
+  // The inlinee specializes to the context from the JSFunction object.
+  // TODO(turbofan): We might want to load the context from the JSFunction at
+  // runtime in case we only know the SharedFunctionInfo once we have dynamic
+  // type feedback in the compiler.
+  Node* context = jsgraph_->Constant(handle(function->context()));
+
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context
   // passed into this node has to be the callees context (loaded above). Note
   // that the frame state passed to the JSConvertReceiver must be the frame
   // state _before_ the call; it is not necessary to fiddle with the receiver
   // in that frame state tho, as the conversion of the receiver can be repeated
   // any number of times, it's not observable.
-  if (is_sloppy(info.language_mode()) && !function->shared()->native()) {
+  if (node->opcode() == IrOpcode::kJSCallFunction &&
+      is_sloppy(info.language_mode()) && !function->shared()->native()) {
     const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* convert = jsgraph_->graph()->NewNode(
@@ -457,10 +511,11 @@ Reduction JSInliner::ReduceJSCallFunction(Node* node,
   // Insert argument adaptor frame if required. The callees formal parameter
   // count (i.e. value outputs of start node minus target, receiver, num args
   // and context) have to match the number of arguments passed to the call.
-  DCHECK_EQ(static_cast<int>(parameter_count),
-            start->op()->ValueOutputCount() - 4);
+  DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 4);
   if (call.formal_arguments() != parameter_count) {
-    frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info());
+    frame_state = CreateArtificialFrameState(
+        node, frame_state, call.formal_arguments(),
+        FrameStateType::kArgumentsAdaptor, info.shared_info());
   }
 
   return InlineCall(node, context, frame_state, start, end);

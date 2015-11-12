@@ -551,6 +551,11 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
           shared_info_id,
           static_cast<unsigned int>(descriptor->parameters_count()));
       break;
+    case FrameStateType::kConstructStub:
+      translation->BeginConstructStubFrame(
+          shared_info_id,
+          static_cast<unsigned int>(descriptor->parameters_count()));
+      break;
   }
 
   for (size_t i = 0; i < descriptor->GetSize(state_combine); i++) {

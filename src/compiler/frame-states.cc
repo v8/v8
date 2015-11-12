@@ -54,6 +54,9 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kArgumentsAdaptor:
       os << "ARGUMENTS_ADAPTOR";
       break;
+    case FrameStateType::kConstructStub:
+      os << "CONSTRUCT_STUB";
+      break;
   }
   return os;
 }

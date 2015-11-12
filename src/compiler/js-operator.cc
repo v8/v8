@@ -363,7 +363,7 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
   V(ToName, Operator::kNoProperties, 1, 1)            \
   V(ToObject, Operator::kNoProperties, 1, 1)          \
   V(Yield, Operator::kNoProperties, 1, 1)             \
-  V(Create, Operator::kEliminatable, 0, 1)            \
+  V(Create, Operator::kEliminatable, 1, 1)            \
   V(HasProperty, Operator::kNoProperties, 2, 1)       \
   V(TypeOf, Operator::kEliminatable, 1, 1)            \
   V(InstanceOf, Operator::kNoProperties, 2, 1)        \
