@@ -452,12 +452,12 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   if (node->opcode() == IrOpcode::kJSCallConstruct) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* context = NodeProperties::GetContextInput(node);
-    Node* create = jsgraph_->graph()->NewNode(jsgraph_->javascript()->Create(),
-                                              call.target(), context, effect);
+    Node* create = jsgraph_->graph()->NewNode(
+        jsgraph_->javascript()->Create(), call.target(),
+        call.original_constructor(), context, effect);
     NodeProperties::ReplaceEffectInput(node, create);
-    // TODO(4544): For now {JSCreate} requires the actual constructor to
-    // coincide with the original constructor. Adapt JSGenericLowering to fix.
-    // Also Runtime_GetOriginalConstructor depends on this for now. Fix as well!
+    // TODO(4544): For now Runtime_GetOriginalConstructor depends on the actual
+    // constructor to coincide with the original constructor. Fix this!
     CHECK_EQ(call.target(), call.original_constructor());
     // TODO(4544): For derived constructors we should not allocate an implicit
     // receiver and also the return value should not be checked afterwards.
