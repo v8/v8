@@ -947,19 +947,16 @@ function initializeCollator(collator, locales, options) {
  *
  * @constructor
  */
-%AddNamedProperty(Intl, 'Collator', function() {
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+function Collator() {
+  var locales = %_Arguments(0);
+  var options = %_Arguments(1);
 
-    if (!this || this === Intl) {
-      // Constructor is called as a function.
-      return new Intl.Collator(locales, options);
-    }
+  if (IS_UNDEFINED(new.target)) return new Collator(locales, options);
 
-    return initializeCollator(TO_OBJECT(this), locales, options);
-  },
-  DONT_ENUM
-);
+  return initializeCollator(this, locales, options);
+}
+
+%AddNamedProperty(Intl, 'Collator', Collator, DONT_ENUM);
 
 
 /**
@@ -1189,19 +1186,15 @@ function initializeNumberFormat(numberFormat, locales, options) {
  *
  * @constructor
  */
-%AddNamedProperty(Intl, 'NumberFormat', function() {
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+function NumberFormat() {
+  var locales = %_Arguments(0);
+  var options = %_Arguments(1);
 
-    if (!this || this === Intl) {
-      // Constructor is called as a function.
-      return new Intl.NumberFormat(locales, options);
-    }
+  if (IS_UNDEFINED(new.target)) return new NumberFormat(locales, options);
 
-    return initializeNumberFormat(TO_OBJECT(this), locales, options);
-  },
-  DONT_ENUM
-);
+  return initializeNumberFormat(this, locales, options);
+}
+%AddNamedProperty(Intl, 'NumberFormat', NumberFormat, DONT_ENUM);
 
 
 /**
@@ -1591,19 +1584,15 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  *
  * @constructor
  */
-%AddNamedProperty(Intl, 'DateTimeFormat', function() {
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+function DateTimeFormat() {
+  var locales = %_Arguments(0);
+  var options = %_Arguments(1);
 
-    if (!this || this === Intl) {
-      // Constructor is called as a function.
-      return new Intl.DateTimeFormat(locales, options);
-    }
+  if (IS_UNDEFINED(new.target)) return new DateTimeFormat(locales, options);
 
-    return initializeDateTimeFormat(TO_OBJECT(this), locales, options);
-  },
-  DONT_ENUM
-);
+  return initializeDateTimeFormat(this, locales, options);
+}
+%AddNamedProperty(Intl, 'DateTimeFormat', DateTimeFormat, DONT_ENUM);
 
 
 /**
