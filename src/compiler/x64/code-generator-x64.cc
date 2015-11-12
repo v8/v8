@@ -1038,7 +1038,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         __ movq(kScratchRegister, i.InputOperand(0));
       }
-      __ Cvtqui2sd(i.OutputDoubleRegister(), kScratchRegister);
+      __ Cvtqui2sd(i.OutputDoubleRegister(), kScratchRegister,
+                   i.TempRegister(0));
       break;
     case kSSEUint32ToFloat64:
       if (instr->InputAt(0)->IsRegister()) {

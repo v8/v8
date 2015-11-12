@@ -159,7 +159,9 @@ class ValueHelper {
         0x00003fff,         0x00001fff,         0x00000fff,
         0x000007ff,         0x000003ff,         0x000001ff,
         0x00003fffffffffff, 0x00001fffffffffff, 0x00000fffffffffff,
-        0x000007ffffffffff, 0x000003ffffffffff, 0x000001ffffffffff};
+        0x000007ffffffffff, 0x000003ffffffffff, 0x000001ffffffffff,
+        0x8000008000000000, 0x8000008000000001, 0x8000000000000400,
+        0x8000000000000401};
     return std::vector<uint64_t>(&kValues[0], &kValues[arraysize(kValues)]);
   }
 
