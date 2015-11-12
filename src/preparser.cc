@@ -477,19 +477,12 @@ PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
 
 PreParser::Statement PreParser::ParseBlock(bool* ok) {
   // Block ::
-  //   '{' Statement* '}'
+  //   '{' StatementList '}'
 
-  // Note that a Block does not introduce a new execution scope!
-  // (ECMA-262, 3rd, 12.2)
-  //
   Expect(Token::LBRACE, CHECK_OK);
   Statement final = Statement::Default();
   while (peek() != Token::RBRACE) {
-    if (is_strict(language_mode()) || allow_harmony_sloppy()) {
-      final = ParseStatementListItem(CHECK_OK);
-    } else {
-      final = ParseStatement(CHECK_OK);
-    }
+    final = ParseStatementListItem(CHECK_OK);
   }
   Expect(Token::RBRACE, ok);
   return final;

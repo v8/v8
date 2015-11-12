@@ -2352,34 +2352,6 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
 
 
 Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
-  if (is_strict(language_mode()) || allow_harmony_sloppy()) {
-    return ParseScopedBlock(labels, ok);
-  }
-
-  // Block ::
-  //   '{' Statement* '}'
-
-  // Note that a Block does not introduce a new execution scope!
-  // (ECMA-262, 3rd, 12.2)
-  //
-  // Construct block expecting 16 statements.
-  Block* result =
-      factory()->NewBlock(labels, 16, false, RelocInfo::kNoPosition);
-  Target target(&this->target_stack_, result);
-  Expect(Token::LBRACE, CHECK_OK);
-  while (peek() != Token::RBRACE) {
-    Statement* stat = ParseStatement(NULL, CHECK_OK);
-    if (stat && !stat->IsEmpty()) {
-      result->statements()->Add(stat, zone());
-    }
-  }
-  Expect(Token::RBRACE, CHECK_OK);
-  return result;
-}
-
-
-Block* Parser::ParseScopedBlock(ZoneList<const AstRawString*>* labels,
-                                bool* ok) {
   // The harmony mode uses block elements instead of statements.
   //
   // Block ::
@@ -3190,7 +3162,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     {
       BlockState block_state(&scope_, catch_scope);
 
-      // TODO(adamk): Make a version of ParseScopedBlock that takes a scope and
+      // TODO(adamk): Make a version of ParseBlock that takes a scope and
       // a block.
       catch_block =
           factory()->NewBlock(nullptr, 16, false, RelocInfo::kNoPosition);
@@ -4136,7 +4108,7 @@ DoExpression* Parser::ParseDoExpression(bool* ok) {
   Expect(Token::DO, CHECK_OK);
   Variable* result =
       scope_->NewTemporary(ast_value_factory()->dot_result_string());
-  Block* block = ParseScopedBlock(nullptr, CHECK_OK);
+  Block* block = ParseBlock(nullptr, CHECK_OK);
   DoExpression* expr = factory()->NewDoExpression(block, result, pos);
   if (!Rewriter::Rewrite(this, expr, ast_value_factory())) {
     *ok = false;

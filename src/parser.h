@@ -1086,9 +1086,6 @@ class Parser : public ParserBase<ParserTraits> {
   TryStatement* ParseTryStatement(bool* ok);
   DebuggerStatement* ParseDebuggerStatement(bool* ok);
 
-  // Support for hamony block scoped bindings.
-  Block* ParseScopedBlock(ZoneList<const AstRawString*>* labels, bool* ok);
-
   // !%_IsSpecObject(result = iterator.next()) &&
   //     %ThrowIteratorResultNotAnObject(result)
   Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
