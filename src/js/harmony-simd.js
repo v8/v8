@@ -62,11 +62,11 @@ function NAMECheckJS(a) {
 }
 
 function NAMEToString() {
-  if (typeof(this) !== 'TYPE' && %_ClassOf(this) !== 'NAME') {
+  var value = %_ValueOf(this);
+  if (typeof(value) !== 'TYPE') {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "NAME.prototype.toString", this);
   }
-  var value = %_ValueOf(this);
   var str = "SIMD.NAME(";
   str += %NAMEExtractLane(value, 0);
   for (var i = 1; i < LANES; i++) {
@@ -76,11 +76,11 @@ function NAMEToString() {
 }
 
 function NAMEToLocaleString() {
-  if (typeof(this) !== 'TYPE' && %_ClassOf(this) !== 'NAME') {
+  var value = %_ValueOf(this);
+  if (typeof(value) !== 'TYPE') {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "NAME.prototype.toLocaleString", this);
   }
-  var value = %_ValueOf(this);
   var str = "SIMD.NAME(";
   str += %NAMEExtractLane(value, 0).toLocaleString();
   for (var i = 1; i < LANES; i++) {
@@ -90,11 +90,12 @@ function NAMEToLocaleString() {
 }
 
 function NAMEValueOf() {
-  if (typeof(this) !== 'TYPE' && %_ClassOf(this) !== 'NAME') {
+  var value = %_ValueOf(this);
+  if (typeof(value) !== 'TYPE') {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "NAME.prototype.valueOf", this);
   }
-  return %_ValueOf(this);
+  return value;
 }
 
 function NAMEExtractLaneJS(instance, lane) {

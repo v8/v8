@@ -433,6 +433,19 @@ RUNTIME_FUNCTION(Runtime_IsSharedIntegerTypedArray) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  if (!args[0]->IsJSTypedArray()) {
+    return isolate->heap()->false_value();
+  }
+
+  Handle<JSTypedArray> obj(JSTypedArray::cast(args[0]));
+  return isolate->heap()->ToBoolean(obj->GetBuffer()->is_shared() &&
+                                    obj->type() == kExternalInt32Array);
+}
+
+
 RUNTIME_FUNCTION(Runtime_DataViewInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);

@@ -1008,6 +1008,7 @@ namespace internal {
   F(IsTypedArray, 1, 1)                      \
   F(IsSharedTypedArray, 1, 1)                \
   F(IsSharedIntegerTypedArray, 1, 1)         \
+  F(IsSharedInteger32TypedArray, 1, 1)       \
   F(DataViewInitialize, 4, 1)                \
   F(DataViewGetUint8, 3, 1)                  \
   F(DataViewGetInt8, 3, 1)                   \
