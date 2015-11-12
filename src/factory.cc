@@ -1936,7 +1936,8 @@ Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
 }
 
 
-Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
+Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
+                                    Handle<JSReceiver> handler,
                                     Handle<Object> prototype) {
   // Allocate map.
   // TODO(rossberg): Once we optimize proxies, think about a scheme to share
@@ -1946,14 +1947,15 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
 
   // Allocate the proxy object.
   Handle<JSProxy> result = New<JSProxy>(map, NEW_SPACE);
-  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
+  result->set_target(*target);
   result->set_handler(*handler);
   result->set_hash(*undefined_value(), SKIP_WRITE_BARRIER);
   return result;
 }
 
 
-Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<Object> handler,
+Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<JSReceiver> target,
+                                            Handle<JSReceiver> handler,
                                             Handle<JSReceiver> call_trap,
                                             Handle<Object> construct_trap,
                                             Handle<Object> prototype) {
@@ -1967,72 +1969,12 @@ Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<Object> handler,
 
   // Allocate the proxy object.
   Handle<JSFunctionProxy> result = New<JSFunctionProxy>(map, NEW_SPACE);
-  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
+  result->set_target(*target);
   result->set_handler(*handler);
   result->set_hash(*undefined_value(), SKIP_WRITE_BARRIER);
   result->set_call_trap(*call_trap);
   result->set_construct_trap(*construct_trap);
   return result;
-}
-
-
-void Factory::ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type,
-                                  int size) {
-  DCHECK(type == JS_OBJECT_TYPE || type == JS_FUNCTION_TYPE);
-
-  Handle<Map> proxy_map(proxy->map());
-  Handle<Map> map = Map::FixProxy(proxy_map, type, size);
-
-  // Check that the receiver has at least the size of the fresh object.
-  int size_difference = proxy_map->instance_size() - map->instance_size();
-  DCHECK(size_difference >= 0);
-
-  // Allocate the backing storage for the properties.
-  Handle<FixedArray> properties = empty_fixed_array();
-
-  Heap* heap = isolate()->heap();
-  MaybeHandle<SharedFunctionInfo> shared;
-  if (type == JS_FUNCTION_TYPE) {
-    OneByteStringKey key(STATIC_CHAR_VECTOR("<freezing call trap>"),
-                         heap->HashSeed());
-    Handle<String> name = InternalizeStringWithKey(&key);
-    shared = NewSharedFunctionInfo(name, MaybeHandle<Code>());
-  }
-
-  // In order to keep heap in consistent state there must be no allocations
-  // before object re-initialization is finished and filler object is installed.
-  DisallowHeapAllocation no_allocation;
-
-  // Put in filler if the new object is smaller than the old.
-  if (size_difference > 0) {
-    Address address = proxy->address();
-    heap->CreateFillerObjectAt(address + map->instance_size(), size_difference);
-    heap->AdjustLiveBytes(*proxy, -size_difference,
-                          Heap::CONCURRENT_TO_SWEEPER);
-  }
-
-  // Reset the map for the object.
-  proxy->synchronized_set_map(*map);
-  Handle<JSObject> jsobj = Handle<JSObject>::cast(proxy);
-
-  // Reinitialize the object from the constructor map.
-  heap->InitializeJSObjectFromMap(*jsobj, *properties, *map);
-
-  // The current native context is used to set up certain bits.
-  // TODO(adamk): Using the current context seems wrong, it should be whatever
-  // context the JSProxy originated in. But that context isn't stored anywhere.
-  Handle<Context> context(isolate()->native_context());
-
-  // Functions require some minimal initialization.
-  if (type == JS_FUNCTION_TYPE) {
-    map->set_is_constructor(true);
-    map->set_is_callable();
-    Handle<JSFunction> js_function = Handle<JSFunction>::cast(proxy);
-    InitializeFunction(js_function, shared.ToHandleChecked(), context);
-  } else {
-    // Provide JSObjects with a constructor.
-    map->SetConstructor(context->object_function());
-  }
 }
 
 
@@ -2077,16 +2019,6 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 
   // Restore the saved hash.
   object->set_hash(*hash);
-}
-
-
-void Factory::BecomeJSObject(Handle<JSProxy> proxy) {
-  ReinitializeJSProxy(proxy, JS_OBJECT_TYPE, JSObject::kHeaderSize);
-}
-
-
-void Factory::BecomeJSFunction(Handle<JSProxy> proxy) {
-  ReinitializeJSProxy(proxy, JS_FUNCTION_TYPE, JSFunction::kSize);
 }
 
 

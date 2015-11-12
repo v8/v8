@@ -80,19 +80,21 @@ var childObjAccessor2 = { set foo(_){}, set "1"(_){}, __proto__: proxy2 };
   // semantics.
   Object.freeze(baseObj);
 
-  Object.freeze(proxy1);
-  assertThrows(function(){proxy1.foo}, TypeError);
-  assertThrows(function(){proxy1[1]}, TypeError);
-  assertThrows(function(){childObj1.foo}, TypeError);
-  assertThrows(function(){childObj1[1]}, TypeError);
-  assertThrows(function(){childObjAccessor1.foo}, TypeError);
-  assertThrows(function(){childObjAccessor1[1]}, TypeError);
-
-  Object.freeze(proxy2);
-  assertThrows(function(){proxy2.foo}, TypeError);
-  assertThrows(function(){proxy2[1]}, TypeError);
-  assertThrows(function(){childObj2.foo}, TypeError);
-  assertThrows(function(){childObj2[1]}, TypeError);
-  assertThrows(function(){childObjAccessor2.foo}, TypeError);
-  assertThrows(function(){childObjAccessor2[1]}, TypeError);
+  // TODO(neis): Reenable once proxies properly support freeze.
+  //
+  // Object.freeze(proxy1);
+  // assertThrows(function(){proxy1.foo}, TypeError);
+  // assertThrows(function(){proxy1[1]}, TypeError);
+  // assertThrows(function(){childObj1.foo}, TypeError);
+  // assertThrows(function(){childObj1[1]}, TypeError);
+  // assertThrows(function(){childObjAccessor1.foo}, TypeError);
+  // assertThrows(function(){childObjAccessor1[1]}, TypeError);
+  //
+  // Object.freeze(proxy2);
+  // assertThrows(function(){proxy2.foo}, TypeError);
+  // assertThrows(function(){proxy2[1]}, TypeError);
+  // assertThrows(function(){childObj2.foo}, TypeError);
+  // assertThrows(function(){childObj2[1]}, TypeError);
+  // assertThrows(function(){childObjAccessor2.foo}, TypeError);
+  // assertThrows(function(){childObjAccessor2[1]}, TypeError);
 })();

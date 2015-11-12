@@ -13,24 +13,26 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_CreateJSProxy) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, handler, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, handler, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 2);
   if (!prototype->IsJSReceiver()) prototype = isolate->factory()->null_value();
-  return *isolate->factory()->NewJSProxy(handler, prototype);
+  return *isolate->factory()->NewJSProxy(target, handler, prototype);
 }
 
 
 RUNTIME_FUNCTION(Runtime_CreateJSFunctionProxy) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, handler, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, call_trap, 1);
+  DCHECK(args.length() == 5);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, handler, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, call_trap, 2);
   RUNTIME_ASSERT(call_trap->IsJSFunction() || call_trap->IsJSFunctionProxy());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, construct_trap, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, construct_trap, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 4);
   if (!prototype->IsJSReceiver()) prototype = isolate->factory()->null_value();
-  return *isolate->factory()->NewJSFunctionProxy(handler, call_trap,
+  return *isolate->factory()->NewJSFunctionProxy(target, handler, call_trap,
                                                  construct_trap, prototype);
 }
 
@@ -74,13 +76,5 @@ RUNTIME_FUNCTION(Runtime_GetConstructTrap) {
   return proxy->construct_trap();
 }
 
-
-RUNTIME_FUNCTION(Runtime_Fix) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSProxy, proxy, 0);
-  JSProxy::Fix(proxy);
-  return isolate->heap()->undefined_value();
-}
 }  // namespace internal
 }  // namespace v8

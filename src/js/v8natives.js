@@ -1116,43 +1116,12 @@ function ObjectDefineProperties(obj, properties) {
 }
 
 
-// Harmony proxies.
-function ProxyFix(obj) {
-  var handler = %GetHandler(obj);
-  var props = CallTrap0(handler, "fix", UNDEFINED);
-  if (IS_UNDEFINED(props)) {
-    throw MakeTypeError(kProxyHandlerReturned, handler, "undefined", "fix");
-  }
-
-  if (%IsJSFunctionProxy(obj)) {
-    var callTrap = %GetCallTrap(obj);
-    var constructTrap = %GetConstructTrap(obj);
-    var code = ProxyDelegateCallAndConstruct(callTrap, constructTrap);
-    %Fix(obj);  // becomes a regular function
-    %SetCode(obj, code);
-    // TODO(rossberg): What about length and other properties? Not specified.
-    // We just put in some half-reasonable defaults for now.
-    var prototype = new GlobalObject();
-    ObjectDefineProperty(prototype, "constructor",
-      {value: obj, writable: true, enumerable: false, configurable: true});
-    // TODO(v8:1530): defineProperty does not handle prototype and length.
-    %FunctionSetPrototype(obj, prototype);
-    obj.length = 0;
-  } else {
-    %Fix(obj);
-  }
-  ObjectDefineProperties(obj, props);
-}
-
-
 // ES5 section 15.2.3.8.
 function ObjectSealJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) return obj;
   var isProxy = %_IsJSProxy(obj);
   if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
-    if (isProxy) {
-      ProxyFix(obj);
-    }
+    // TODO(neis): For proxies, must call preventExtensions trap first.
     var names = OwnPropertyKeys(obj);
     for (var i = 0; i < names.length; i++) {
       var name = names[i];
@@ -1180,9 +1149,7 @@ function ObjectFreezeJS(obj) {
   // objects.
   if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj) ||
       IS_STRONG(obj)) {
-    if (isProxy) {
-      ProxyFix(obj);
-    }
+    // TODO(neis): For proxies, must call preventExtensions trap first.
     var names = OwnPropertyKeys(obj);
     for (var i = 0; i < names.length; i++) {
       var name = names[i];
@@ -1206,11 +1173,7 @@ function ObjectFreezeJS(obj) {
 // ES5 section 15.2.3.10
 function ObjectPreventExtension(obj) {
   if (!IS_SPEC_OBJECT(obj)) return obj;
-  if (%_IsJSProxy(obj)) {
-    ProxyFix(obj);
-  }
-  %PreventExtensions(obj);
-  return obj;
+  return %PreventExtensions(obj);
 }
 
 
@@ -1218,7 +1181,7 @@ function ObjectPreventExtension(obj) {
 function ObjectIsSealed(obj) {
   if (!IS_SPEC_OBJECT(obj)) return true;
   if (%_IsJSProxy(obj)) {
-    return false;
+    return false;  // TODO(neis): Must call isExtensible trap and ownKeys trap.
   }
   if (%IsExtensible(obj)) {
     return false;
@@ -1239,7 +1202,7 @@ function ObjectIsSealed(obj) {
 function ObjectIsFrozen(obj) {
   if (!IS_SPEC_OBJECT(obj)) return true;
   if (%_IsJSProxy(obj)) {
-    return false;
+    return false;  // TODO(neis): Must call isExtensible trap and ownKeys trap.
   }
   if (%IsExtensible(obj)) {
     return false;

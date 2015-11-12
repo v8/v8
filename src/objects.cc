@@ -4654,28 +4654,6 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
 }
 
 
-void JSProxy::Fix(Handle<JSProxy> proxy) {
-  Isolate* isolate = proxy->GetIsolate();
-
-  // Save identity hash.
-  Handle<Object> hash(proxy->GetIdentityHash(), isolate);
-
-  if (proxy->IsJSFunctionProxy()) {
-    isolate->factory()->BecomeJSFunction(proxy);
-    // Code will be set on the JavaScript side.
-  } else {
-    isolate->factory()->BecomeJSObject(proxy);
-  }
-  DCHECK(proxy->IsJSObject());
-
-  // Inherit identity, if it was present.
-  if (hash->IsSmi()) {
-    JSObject::SetIdentityHash(Handle<JSObject>::cast(proxy),
-                              Handle<Smi>::cast(hash));
-  }
-}
-
-
 MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
                                       const char* name,
                                       Handle<Object> derived,
@@ -8417,25 +8395,6 @@ Handle<Map> Map::CopyForPreventExtensions(Handle<Map> map,
   if (!IsFixedTypedArrayElementsKind(map->elements_kind())) {
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
   }
-  return new_map;
-}
-
-
-Handle<Map> Map::FixProxy(Handle<Map> map, InstanceType type, int size) {
-  DCHECK(type == JS_OBJECT_TYPE || type == JS_FUNCTION_TYPE);
-  DCHECK(map->IsJSProxyMap());
-
-  Isolate* isolate = map->GetIsolate();
-
-  // Allocate fresh map.
-  // TODO(rossberg): Once we optimize proxies, cache these maps.
-  Handle<Map> new_map = isolate->factory()->NewMap(type, size);
-
-  Handle<Object> prototype(map->prototype(), isolate);
-  Map::SetPrototype(new_map, prototype);
-
-  map->NotifyLeafMapLayoutChange();
-
   return new_map;
 }
 

@@ -6402,18 +6402,11 @@ int JSFunction::NumberOfLiterals() {
 }
 
 
+ACCESSORS(JSProxy, target, Object, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 ACCESSORS(JSProxy, hash, Object, kHashOffset)
 ACCESSORS(JSFunctionProxy, call_trap, JSReceiver, kCallTrapOffset)
 ACCESSORS(JSFunctionProxy, construct_trap, Object, kConstructTrapOffset)
-
-
-void JSProxy::InitializeBody(int object_size, Object* value) {
-  DCHECK(!value->IsHeapObject() || !GetHeap()->InNewSpace(value));
-  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
-    WRITE_FIELD(this, offset, value);
-  }
-}
 
 
 ACCESSORS(JSCollection, table, Object, kTableOffset)

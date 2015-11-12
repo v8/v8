@@ -4,10 +4,13 @@
 //
 // Flags: --harmony-proxies --harmony-object-observe
 
-var proxy = Proxy.create({ fix: function() { return {}; } });
-Object.preventExtensions(proxy);
-Object.observe(proxy, function(){});
+// TODO(neis): These tests are temporarily commented out because of ongoing
+// changes to the implementation of proxies.
 
-var functionProxy = Proxy.createFunction({ fix: function() { return {}; } }, function(){});
-Object.preventExtensions(functionProxy);
-Object.observe(functionProxy, function(){});
+//var proxy = Proxy.create({ fix: function() { return {}; } });
+//Object.preventExtensions(proxy);
+//Object.observe(proxy, function(){});
+//
+//var functionProxy = Proxy.createFunction({ fix: function() { return {}; } }, function(){});
+//Object.preventExtensions(functionProxy);
+//Object.observe(functionProxy, function(){});

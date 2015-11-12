@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,7 +30,7 @@ function ProxyCreate(handler, proto) {
     proto = null
   else if (!(IS_SPEC_OBJECT(proto) || IS_NULL(proto)))
     throw MakeTypeError(kProxyProtoNonObject)
-  return %CreateJSProxy(handler, proto)
+  return %CreateJSProxy({}, handler, proto)
 }
 
 function ProxyCreateFunction(handler, callTrap, constructTrap) {
@@ -50,7 +50,7 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
     throw MakeTypeError(kProxyTrapFunctionExpected, "construct")
   }
   return %CreateJSFunctionProxy(
-    handler, callTrap, constructTrap, GlobalFunction.prototype)
+    {}, handler, callTrap, constructTrap, GlobalFunction.prototype)
 }
 
 // -------------------------------------------------------------------

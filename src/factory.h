@@ -476,10 +476,13 @@ class Factory final {
                                                Handle<Object> done);
 
   // Allocates a Harmony proxy.
-  Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
+  Handle<JSProxy> NewJSProxy(Handle<JSReceiver> target,
+                             Handle<JSReceiver> handler,
+                             Handle<Object> prototype);
 
   // Allocates a Harmony function proxy.
-  Handle<JSProxy> NewJSFunctionProxy(Handle<Object> handler,
+  Handle<JSProxy> NewJSFunctionProxy(Handle<JSReceiver> target,
+                                     Handle<JSReceiver> handler,
                                      Handle<JSReceiver> call_trap,
                                      Handle<Object> construct_trap,
                                      Handle<Object> prototype);
@@ -492,10 +495,6 @@ class Factory final {
                                  Handle<JSFunction> constructor);
 
   Handle<JSGlobalProxy> NewUninitializedJSGlobalProxy();
-
-  // Change the type of the argument into a JS object/function and reinitialize.
-  void BecomeJSObject(Handle<JSProxy> object);
-  void BecomeJSFunction(Handle<JSProxy> object);
 
   Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
                                  Handle<Object> prototype,
@@ -713,12 +712,6 @@ class Factory final {
   Handle<JSFunction> NewFunction(Handle<Map> map,
                                  Handle<String> name,
                                  MaybeHandle<Code> maybe_code);
-
-  // Reinitialize a JSProxy into an (empty) JS object of respective type and
-  // size, but keeping the original prototype.  The receiver must have at least
-  // the size of the new object.  The object is reinitialized and behaves as an
-  // object that has been freshly allocated.
-  void ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type, int size);
 };
 
 }  // namespace internal
