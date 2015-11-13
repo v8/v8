@@ -4590,8 +4590,9 @@ TEST(LargeObjectSlotRecording) {
   FixedArray* old_location = *lit;
 
   // Allocate a large object.
-  const int kSize = 1000000;
-  Handle<FixedArray> lo = isolate->factory()->NewFixedArray(kSize, TENURED);
+  int size = Max(1000000, Page::kMaxRegularHeapObjectSize + KB);
+  CHECK(size > Page::kMaxRegularHeapObjectSize);
+  Handle<FixedArray> lo = isolate->factory()->NewFixedArray(size, TENURED);
   CHECK(heap->lo_space()->Contains(*lo));
 
   // Start incremental marking to active write barrier.
@@ -4601,8 +4602,8 @@ TEST(LargeObjectSlotRecording) {
 
   // Create references from the large object to the object on the evacuation
   // candidate.
-  const int kStep = kSize / 10;
-  for (int i = 0; i < kSize; i += kStep) {
+  const int kStep = size / 10;
+  for (int i = 0; i < size; i += kStep) {
     lo->set(i, *lit);
     CHECK(lo->get(i) == old_location);
   }
@@ -4611,7 +4612,7 @@ TEST(LargeObjectSlotRecording) {
   CcTest::heap()->CollectAllGarbage();
 
   // Verify that the pointers in the large object got updated.
-  for (int i = 0; i < kSize; i += kStep) {
+  for (int i = 0; i < size; i += kStep) {
     CHECK_EQ(lo->get(i), *lit);
     CHECK(lo->get(i) != old_location);
   }
