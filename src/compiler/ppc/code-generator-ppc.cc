@@ -605,11 +605,15 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   } while (0)
 
 
-void CodeGenerator::AssembleDeconstructActivationRecord() {
+void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int stack_slots = frame()->GetSpillSlotCount();
+  int sp_delta =
+      (stack_param_delta < 0) ? -stack_param_delta * kPointerSize : 0;
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    __ LeaveFrame(StackFrame::MANUAL);
+    __ LeaveFrame(StackFrame::MANUAL, sp_delta);
+  } else if (sp_delta) {
+    __ Add(sp, sp, sp_delta, r0);
   }
 }
 
@@ -637,7 +641,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchTailCallCodeObject: {
-      AssembleDeconstructActivationRecord();
+      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
+      AssembleDeconstructActivationRecord(stack_param_delta);
       if (HasRegisterInput(instr, 0)) {
         __ addi(ip, i.InputRegister(0),
                 Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -679,7 +684,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ cmp(cp, kScratchReg);
         __ Assert(eq, kWrongFunctionContext);
       }
-      AssembleDeconstructActivationRecord();
+      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
+      AssembleDeconstructActivationRecord(stack_param_delta);
       __ LoadP(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Jump(ip);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
