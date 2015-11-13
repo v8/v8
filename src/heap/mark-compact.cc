@@ -1813,7 +1813,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
       Code* code = it.frame()->LookupCode();
       if (!code->CanDeoptAt(it.frame()->pc())) {
-        code->CodeIterateBody(visitor);
+        Code::BodyDescriptor::IterateBody(code, visitor);
       }
       ProcessMarkingDeque();
       return;
@@ -2723,8 +2723,7 @@ void MarkCompactCollector::MigrateObjectMixed(
     heap()->MoveBlock(dst->address(), src->address(), size);
 
     // Visit inherited JSObject properties and byte length of ArrayBuffer
-    Address regular_slot =
-        dst->address() + JSArrayBuffer::BodyDescriptor::kStartOffset;
+    Address regular_slot = dst->address() + JSArrayBuffer::kPropertiesOffset;
     Address regular_slots_end =
         dst->address() + JSArrayBuffer::kByteLengthOffset + kPointerSize;
     while (regular_slot < regular_slots_end) {
@@ -2793,7 +2792,7 @@ static inline void UpdateSlot(Isolate* isolate, ObjectVisitor* v,
     }
     case SlotsBuffer::RELOCATED_CODE_OBJECT: {
       HeapObject* obj = HeapObject::FromAddress(addr);
-      Code::cast(obj)->CodeIterateBody(v);
+      Code::BodyDescriptor::IterateBody(obj, v);
       break;
     }
     case SlotsBuffer::DEBUG_TARGET_SLOT: {
@@ -3140,7 +3139,7 @@ bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
                  BytecodeArray::kConstantPoolOffset;
         } else if (object->IsJSArrayBuffer()) {
           int off = static_cast<int>(slot - object->address());
-          return (off >= JSArrayBuffer::BodyDescriptor::kStartOffset &&
+          return (off >= JSArrayBuffer::kPropertiesOffset &&
                   off <= JSArrayBuffer::kByteLengthOffset) ||
                  (off >= JSArrayBuffer::kSize &&
                   off < JSArrayBuffer::kSizeWithInternalFields);

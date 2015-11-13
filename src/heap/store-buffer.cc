@@ -502,8 +502,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
                         slot_callback);
                   } else if (heap_object->IsJSArrayBuffer()) {
                     FindPointersToNewSpaceInRegion(
-                        obj_address +
-                            JSArrayBuffer::BodyDescriptor::kStartOffset,
+                        obj_address + JSArrayBuffer::kPropertiesOffset,
                         obj_address + JSArrayBuffer::kByteLengthOffset +
                             kPointerSize,
                         slot_callback);

@@ -9,6 +9,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 #include "src/layout-descriptor.h"
+#include "src/objects-body-descriptors.h"
 
 // This file provides base classes and auxiliary methods for defining
 // static object visitors used during GC.

@@ -867,6 +867,8 @@
         '../../src/modules.cc',
         '../../src/modules.h',
         '../../src/msan.h',
+        '../../src/objects-body-descriptors-inl.h',
+        '../../src/objects-body-descriptors.h',
         '../../src/objects-debug.cc',
         '../../src/objects-inl.h',
         '../../src/objects-printer.cc',

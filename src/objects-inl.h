@@ -1530,22 +1530,6 @@ HeapObjectContents HeapObject::ContentType() {
 }
 
 
-void HeapObject::IteratePointers(ObjectVisitor* v, int start, int end) {
-  v->VisitPointers(reinterpret_cast<Object**>(FIELD_ADDR(this, start)),
-                   reinterpret_cast<Object**>(FIELD_ADDR(this, end)));
-}
-
-
-void HeapObject::IteratePointer(ObjectVisitor* v, int offset) {
-  v->VisitPointer(reinterpret_cast<Object**>(FIELD_ADDR(this, offset)));
-}
-
-
-void HeapObject::IterateNextCodeLink(ObjectVisitor* v, int offset) {
-  v->VisitNextCodeLink(reinterpret_cast<Object**>(FIELD_ADDR(this, offset)));
-}
-
-
 double HeapNumber::value() const {
   return READ_DOUBLE_FIELD(this, kValueOffset);
 }
@@ -4173,11 +4157,6 @@ Address ByteArray::GetDataStartAddress() {
 }
 
 
-void BytecodeArray::BytecodeArrayIterateBody(ObjectVisitor* v) {
-  IteratePointer(v, kConstantPoolOffset);
-}
-
-
 byte BytecodeArray::get(int index) {
   DCHECK(index >= 0 && index < this->length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
@@ -4538,7 +4517,8 @@ int HeapObject::SizeFromMap(Map* map) {
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
   if (instance_type == FIXED_ARRAY_TYPE) {
-    return FixedArray::BodyDescriptor::SizeOf(map, this);
+    return FixedArray::SizeFor(
+        reinterpret_cast<FixedArray*>(this)->synchronized_length());
   }
   if (instance_type == ONE_BYTE_STRING_TYPE ||
       instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
@@ -6677,32 +6657,6 @@ void JSArrayBuffer::set_is_shared(bool value) {
 }
 
 
-// static
-template <typename StaticVisitor>
-void JSArrayBuffer::JSArrayBufferIterateBody(Heap* heap, HeapObject* obj) {
-  StaticVisitor::VisitPointers(
-      heap, obj,
-      HeapObject::RawField(obj, JSArrayBuffer::BodyDescriptor::kStartOffset),
-      HeapObject::RawField(obj,
-                           JSArrayBuffer::kByteLengthOffset + kPointerSize));
-  StaticVisitor::VisitPointers(
-      heap, obj, HeapObject::RawField(obj, JSArrayBuffer::kSize),
-      HeapObject::RawField(obj, JSArrayBuffer::kSizeWithInternalFields));
-}
-
-
-void JSArrayBuffer::JSArrayBufferIterateBody(HeapObject* obj,
-                                             ObjectVisitor* v) {
-  v->VisitPointers(
-      HeapObject::RawField(obj, JSArrayBuffer::BodyDescriptor::kStartOffset),
-      HeapObject::RawField(obj,
-                           JSArrayBuffer::kByteLengthOffset + kPointerSize));
-  v->VisitPointers(
-      HeapObject::RawField(obj, JSArrayBuffer::kSize),
-      HeapObject::RawField(obj, JSArrayBuffer::kSizeWithInternalFields));
-}
-
-
 Object* JSArrayBufferView::byte_offset() const {
   if (WasNeutered()) return Smi::FromInt(0);
   return Object::cast(READ_FIELD(this, kByteOffsetOffset));
@@ -7833,189 +7787,6 @@ Relocatable::~Relocatable() {
   DCHECK_EQ(isolate_->relocatable_top(), this);
   isolate_->set_relocatable_top(prev_);
 }
-
-
-// static
-template <int start_offset>
-int FlexibleBodyDescriptor<start_offset>::SizeOf(Map* map, HeapObject* object) {
-  return map->instance_size();
-}
-
-
-// static
-int FixedArray::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
-  return SizeFor(reinterpret_cast<FixedArray*>(object)->synchronized_length());
-}
-
-
-void Foreign::ForeignIterateBody(ObjectVisitor* v) {
-  v->VisitExternalReference(
-      reinterpret_cast<Address*>(FIELD_ADDR(this, kForeignAddressOffset)));
-}
-
-
-template<typename StaticVisitor>
-void Foreign::ForeignIterateBody() {
-  StaticVisitor::VisitExternalReference(
-      reinterpret_cast<Address*>(FIELD_ADDR(this, kForeignAddressOffset)));
-}
-
-
-void FixedTypedArrayBase::FixedTypedArrayBaseIterateBody(ObjectVisitor* v) {
-  v->VisitPointer(
-      reinterpret_cast<Object**>(FIELD_ADDR(this, kBasePointerOffset)));
-}
-
-
-template <typename StaticVisitor>
-void FixedTypedArrayBase::FixedTypedArrayBaseIterateBody() {
-  StaticVisitor::VisitPointer(
-      reinterpret_cast<Object**>(FIELD_ADDR(this, kBasePointerOffset)));
-}
-
-
-void ExternalOneByteString::ExternalOneByteStringIterateBody(ObjectVisitor* v) {
-  typedef v8::String::ExternalOneByteStringResource Resource;
-  v->VisitExternalOneByteString(
-      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
-}
-
-
-template <typename StaticVisitor>
-void ExternalOneByteString::ExternalOneByteStringIterateBody() {
-  typedef v8::String::ExternalOneByteStringResource Resource;
-  StaticVisitor::VisitExternalOneByteString(
-      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
-}
-
-
-void ExternalTwoByteString::ExternalTwoByteStringIterateBody(ObjectVisitor* v) {
-  typedef v8::String::ExternalStringResource Resource;
-  v->VisitExternalTwoByteString(
-      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
-}
-
-
-template<typename StaticVisitor>
-void ExternalTwoByteString::ExternalTwoByteStringIterateBody() {
-  typedef v8::String::ExternalStringResource Resource;
-  StaticVisitor::VisitExternalTwoByteString(
-      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
-}
-
-
-void BodyDescriptorBase::IterateBodyImpl(HeapObject* obj, int start_offset,
-                                         int end_offset, ObjectVisitor* v) {
-  if (!FLAG_unbox_double_fields || obj->map()->HasFastPointerLayout()) {
-    IteratePointers(obj, start_offset, end_offset, v);
-  } else {
-    DCHECK(FLAG_unbox_double_fields);
-    DCHECK(IsAligned(start_offset, kPointerSize) &&
-           IsAligned(end_offset, kPointerSize));
-
-    LayoutDescriptorHelper helper(obj->map());
-    DCHECK(!helper.all_fields_tagged());
-    for (int offset = start_offset; offset < end_offset;) {
-      int end_of_region_offset;
-      if (helper.IsTagged(offset, end_offset, &end_of_region_offset)) {
-        IteratePointers(obj, offset, end_of_region_offset, v);
-      }
-      offset = end_of_region_offset;
-    }
-  }
-}
-
-
-template <typename StaticVisitor>
-void BodyDescriptorBase::IterateBodyImpl(Heap* heap, HeapObject* obj,
-                                         int start_offset, int end_offset) {
-  if (!FLAG_unbox_double_fields || obj->map()->HasFastPointerLayout()) {
-    IteratePointers<StaticVisitor>(heap, obj, start_offset, end_offset);
-  } else {
-    DCHECK(FLAG_unbox_double_fields);
-    DCHECK(IsAligned(start_offset, kPointerSize) &&
-           IsAligned(end_offset, kPointerSize));
-
-    LayoutDescriptorHelper helper(obj->map());
-    DCHECK(!helper.all_fields_tagged());
-    for (int offset = start_offset; offset < end_offset;) {
-      int end_of_region_offset;
-      if (helper.IsTagged(offset, end_offset, &end_of_region_offset)) {
-        IteratePointers<StaticVisitor>(heap, obj, offset, end_of_region_offset);
-      }
-      offset = end_of_region_offset;
-    }
-  }
-}
-
-
-void BodyDescriptorBase::IteratePointers(HeapObject* obj, int start_offset,
-                                         int end_offset, ObjectVisitor* v) {
-  v->VisitPointers(HeapObject::RawField(obj, start_offset),
-                   HeapObject::RawField(obj, end_offset));
-}
-
-
-template <typename StaticVisitor>
-void BodyDescriptorBase::IteratePointers(Heap* heap, HeapObject* obj,
-                                         int start_offset, int end_offset) {
-  StaticVisitor::VisitPointers(heap, obj,
-                               HeapObject::RawField(obj, start_offset),
-                               HeapObject::RawField(obj, end_offset));
-}
-
-
-// Iterates the function object according to the visiting policy.
-template <JSFunction::BodyVisitingPolicy body_visiting_policy>
-class JSFunction::BodyDescriptorImpl : public BodyDescriptorBase {
- public:
-  STATIC_ASSERT(kNonWeakFieldsEndOffset == kCodeEntryOffset);
-  STATIC_ASSERT(kCodeEntryOffset + kPointerSize == kNextFunctionLinkOffset);
-  STATIC_ASSERT(kNextFunctionLinkOffset + kPointerSize == kSize);
-
-  static inline void IterateBody(HeapObject* obj, int object_size,
-                                 ObjectVisitor* v) {
-    IteratePointers(obj, kPropertiesOffset, kNonWeakFieldsEndOffset, v);
-
-    if (body_visiting_policy & kVisitCodeEntry) {
-      v->VisitCodeEntry(obj->address() + kCodeEntryOffset);
-    }
-
-    if (body_visiting_policy & kVisitNextFunction) {
-      IteratePointers(obj, kNextFunctionLinkOffset, kSize, v);
-    }
-
-    // TODO(ishell): v8:4531, fix when JFunctions are allowed to have in-object
-    // properties
-    // IterateBodyImpl(obj, kSize, object_size, v);
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
-                                   kNonWeakFieldsEndOffset);
-
-    if (body_visiting_policy & kVisitCodeEntry) {
-      StaticVisitor::VisitCodeEntry(heap, obj,
-                                    obj->address() + kCodeEntryOffset);
-    }
-
-    if (body_visiting_policy & kVisitNextFunction) {
-      IteratePointers<StaticVisitor>(heap, obj, kNextFunctionLinkOffset, kSize);
-    }
-
-    // TODO(ishell): v8:4531, fix when JFunctions are allowed to have in-object
-    // properties
-    // IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
-  }
-
-  static inline int SizeOf(Map* map, HeapObject* object) {
-    // TODO(ishell): v8:4531, fix when JFunctions are allowed to have in-object
-    // properties
-    return JSFunction::kSize;
-  }
-};
 
 
 template<class Derived, class TableType>

@@ -7,6 +7,7 @@
 #include "src/code-stubs.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
+#include "src/objects-body-descriptors.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
@@ -1542,7 +1543,7 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
   // Do not visit weak_next as it is not visited by the StaticVisitor,
   // and we're not very interested in weak_next field here.
   STATIC_ASSERT(AllocationSite::kWeakNextOffset >=
-               AllocationSite::BodyDescriptor::kEndOffset);
+                AllocationSite::BodyDescriptor::kEndOffset);
 }
 
 

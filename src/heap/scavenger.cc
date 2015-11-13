@@ -266,7 +266,8 @@ class ScavengingVisitor : public StaticVisitorBase {
 
   static inline void EvacuateFixedArray(Map* map, HeapObject** slot,
                                         HeapObject* object) {
-    int object_size = FixedArray::BodyDescriptor::SizeOf(map, object);
+    int length = reinterpret_cast<FixedArray*>(object)->synchronized_length();
+    int object_size = FixedArray::SizeFor(length);
     EvacuateObject<POINTER_OBJECT, kWordAligned>(map, slot, object,
                                                  object_size);
   }

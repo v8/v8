@@ -37,6 +37,7 @@
 #include "src/macro-assembler.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
+#include "src/objects-body-descriptors-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
@@ -1999,12 +2000,33 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void HeapObject::Iterate(ObjectVisitor* v) {
-  // Handle header
-  IteratePointer(v, kMapOffset);
-  // Handle object body
+void HeapObject::Iterate(ObjectVisitor* v) { IterateFast<ObjectVisitor>(v); }
+
+
+void HeapObject::IterateBody(ObjectVisitor* v) {
   Map* m = map();
-  IterateBody(m->instance_type(), SizeFromMap(m), v);
+  IterateBodyFast<ObjectVisitor>(m->instance_type(), SizeFromMap(m), v);
+}
+
+
+void HeapObject::IterateBody(InstanceType type, int object_size,
+                             ObjectVisitor* v) {
+  IterateBodyFast<ObjectVisitor>(type, object_size, v);
+}
+
+
+struct CallIsValidSlot {
+  template <typename BodyDescriptor>
+  static bool apply(HeapObject* obj, int offset, int) {
+    return BodyDescriptor::IsValidSlot(obj, offset);
+  }
+};
+
+
+bool HeapObject::IsValidSlot(int offset) {
+  DCHECK_NE(0, offset);
+  return BodyDescriptorApply<CallIsValidSlot, bool>(map()->instance_type(),
+                                                    this, offset, 0);
 }
 
 
@@ -15249,15 +15271,14 @@ class InternalizedStringKey : public HashTableKey {
 
 template<typename Derived, typename Shape, typename Key>
 void HashTable<Derived, Shape, Key>::IteratePrefix(ObjectVisitor* v) {
-  IteratePointers(v, 0, kElementsStartOffset);
+  BodyDescriptorBase::IteratePointers(this, 0, kElementsStartOffset, v);
 }
 
 
 template<typename Derived, typename Shape, typename Key>
 void HashTable<Derived, Shape, Key>::IterateElements(ObjectVisitor* v) {
-  IteratePointers(v,
-                  kElementsStartOffset,
-                  kHeaderSize + length() * kPointerSize);
+  BodyDescriptorBase::IteratePointers(this, kElementsStartOffset,
+                                      kHeaderSize + length() * kPointerSize, v);
 }
 
 
