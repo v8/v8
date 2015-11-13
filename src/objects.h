@@ -1843,6 +1843,7 @@ class JSReceiver: public HeapObject {
                                 Handle<Object> key, PropertyDescriptor* desc,
                                 ShouldThrow should_throw);
 
+  // ES6 9.1.6.1
   static bool OrdinaryDefineOwnProperty(Isolate* isolate,
                                         Handle<JSObject> object,
                                         Handle<Object> key,
@@ -1851,6 +1852,18 @@ class JSReceiver: public HeapObject {
   static bool OrdinaryDefineOwnProperty(LookupIterator* it,
                                         PropertyDescriptor* desc,
                                         ShouldThrow should_throw);
+  // ES6 9.1.6.2
+  static bool IsCompatiblePropertyDescriptor(bool extensible,
+                                             PropertyDescriptor* desc,
+                                             PropertyDescriptor* current,
+                                             Handle<Name> property_name);
+  // ES6 9.1.6.3
+  // |it| can be NULL in cases where the ES spec passes |undefined| as the
+  // receiver. Exactly one of |it| and |property_name| must be provided.
+  static bool ValidateAndApplyPropertyDescriptor(
+      LookupIterator* it, bool extensible, PropertyDescriptor* desc,
+      PropertyDescriptor* current, ShouldThrow should_throw,
+      Handle<Name> property_name = Handle<Name>());
 
   static bool GetOwnPropertyDescriptor(Isolate* isolate,
                                        Handle<JSReceiver> object,

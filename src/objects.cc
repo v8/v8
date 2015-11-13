@@ -6171,13 +6171,11 @@ bool JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
 bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
                                            PropertyDescriptor* desc,
                                            ShouldThrow should_throw) {
-  Isolate* isolate = it->isolate();
-  // == OrdinaryDefineOwnProperty (O, P, Desc) ==
   // 1. Let current be O.[[GetOwnProperty]](P).
   // 2. ReturnIfAbrupt(current).
   PropertyDescriptor current;
   if (!GetOwnPropertyDescriptor(it, &current) &&
-      isolate->has_pending_exception()) {
+      it->isolate()->has_pending_exception()) {
     return false;
   }
   // TODO(jkummerow/verwaest): It would be nice if we didn't have to reset
@@ -6189,20 +6187,49 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   bool extensible = JSObject::IsExtensible(object);
 
+  return ValidateAndApplyPropertyDescriptor(it, extensible, desc, &current,
+                                            should_throw);
+}
+
+
+// ES6 9.1.6.2
+// static
+bool JSReceiver::IsCompatiblePropertyDescriptor(bool extensible,
+                                                PropertyDescriptor* desc,
+                                                PropertyDescriptor* current,
+                                                Handle<Name> property_name) {
+  // 1. Return ValidateAndApplyPropertyDescriptor(undefined, undefined,
+  //    Extensible, Desc, Current).
+  return ValidateAndApplyPropertyDescriptor(NULL, extensible, desc, current,
+                                            THROW_ON_ERROR, property_name);
+}
+
+
+// ES6 9.1.6.3
+// static
+bool JSReceiver::ValidateAndApplyPropertyDescriptor(
+    LookupIterator* it, bool extensible, PropertyDescriptor* desc,
+    PropertyDescriptor* current, ShouldThrow should_throw,
+    Handle<Name> property_name) {
+  // We either need a LookupIterator, or a property name.
+  DCHECK((it == NULL) != property_name.is_null());
+  Handle<JSObject> object;
+  if (it != NULL) object = Handle<JSObject>::cast(it->GetReceiver());
+  Isolate* isolate = it->isolate();
   bool desc_is_data_descriptor = PropertyDescriptor::IsDataDescriptor(desc);
   bool desc_is_accessor_descriptor =
       PropertyDescriptor::IsAccessorDescriptor(desc);
   bool desc_is_generic_descriptor =
       PropertyDescriptor::IsGenericDescriptor(desc);
-
-  // == ValidateAndApplyPropertyDescriptor (O, P, extensible, Desc, current) ==
+  // 1. (Assert)
   // 2. If current is undefined, then
-  if (current.is_empty()) {
+  if (current->is_empty()) {
     // 2a. If extensible is false, return false.
     if (!extensible) {
       if (should_throw == THROW_ON_ERROR) {
         isolate->Throw(*isolate->factory()->NewTypeError(
-            MessageTemplate::kDefineDisallowed, it->GetName()));
+            MessageTemplate::kDefineDisallowed,
+            it != NULL ? it->GetName() : property_name));
       }
       return false;
     }
@@ -6216,7 +6243,7 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       // [[Configurable]] attribute values are described by Desc. If the value
       // of an attribute field of Desc is absent, the attribute of the newly
       // created property is set to its default value.
-      if (!object->IsUndefined()) {
+      if (it != NULL) {
         if (!desc->has_writable()) desc->set_writable(false);
         if (!desc->has_enumerable()) desc->set_enumerable(false);
         if (!desc->has_configurable()) desc->set_configurable(false);
@@ -6237,7 +6264,7 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       // [[Configurable]] attribute values are described by Desc. If the value
       // of an attribute field of Desc is absent, the attribute of the newly
       // created property is set to its default value.
-      if (!object->IsUndefined()) {
+      if (it != NULL) {
         if (!desc->has_enumerable()) desc->set_enumerable(false);
         if (!desc->has_configurable()) desc->set_configurable(false);
         Handle<Object> getter(
@@ -6260,43 +6287,46 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
   // 4. Return true, if every field in Desc also occurs in current and the
   // value of every field in Desc is the same value as the corresponding field
   // in current when compared using the SameValue algorithm.
-  if ((!desc->has_enumerable() || desc->enumerable() == current.enumerable()) &&
+  if ((!desc->has_enumerable() ||
+       desc->enumerable() == current->enumerable()) &&
       (!desc->has_configurable() ||
-       desc->configurable() == current.configurable()) &&
+       desc->configurable() == current->configurable()) &&
       (!desc->has_value() ||
-       (current.has_value() && current.value()->SameValue(*desc->value()))) &&
+       (current->has_value() && current->value()->SameValue(*desc->value()))) &&
       (!desc->has_writable() ||
-       (current.has_writable() && current.writable() == desc->writable())) &&
+       (current->has_writable() && current->writable() == desc->writable())) &&
       (!desc->has_get() ||
-       (current.has_get() && current.get()->SameValue(*desc->get()))) &&
+       (current->has_get() && current->get()->SameValue(*desc->get()))) &&
       (!desc->has_set() ||
-       (current.has_set() && current.set()->SameValue(*desc->set())))) {
+       (current->has_set() && current->set()->SameValue(*desc->set())))) {
     return true;
   }
   // 5. If the [[Configurable]] field of current is false, then
-  if (!current.configurable()) {
+  if (!current->configurable()) {
     // 5a. Return false, if the [[Configurable]] field of Desc is true.
     if (desc->has_configurable() && desc->configurable()) {
       if (should_throw == THROW_ON_ERROR) {
         isolate->Throw(*isolate->factory()->NewTypeError(
-            MessageTemplate::kRedefineDisallowed, it->GetName()));
+            MessageTemplate::kRedefineDisallowed,
+            it != NULL ? it->GetName() : property_name));
       }
       return false;
     }
     // 5b. Return false, if the [[Enumerable]] field of Desc is present and the
     // [[Enumerable]] fields of current and Desc are the Boolean negation of
     // each other.
-    if (desc->has_enumerable() && desc->enumerable() != current.enumerable()) {
+    if (desc->has_enumerable() && desc->enumerable() != current->enumerable()) {
       if (should_throw == THROW_ON_ERROR) {
         isolate->Throw(*isolate->factory()->NewTypeError(
-            MessageTemplate::kRedefineDisallowed, it->GetName()));
+            MessageTemplate::kRedefineDisallowed,
+            it != NULL ? it->GetName() : property_name));
       }
       return false;
     }
   }
 
   bool current_is_data_descriptor =
-      PropertyDescriptor::IsDataDescriptor(&current);
+      PropertyDescriptor::IsDataDescriptor(current);
   // 6. If IsGenericDescriptor(Desc) is true, no further validation is required.
   if (desc_is_generic_descriptor) {
     // Nothing to see here.
@@ -6305,10 +6335,11 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
     // different results, then:
   } else if (current_is_data_descriptor != desc_is_data_descriptor) {
     // 7a. Return false, if the [[Configurable]] field of current is false.
-    if (!current.configurable()) {
+    if (!current->configurable()) {
       if (should_throw == THROW_ON_ERROR) {
         isolate->Throw(*isolate->factory()->NewTypeError(
-            MessageTemplate::kRedefineDisallowed, it->GetName()));
+            MessageTemplate::kRedefineDisallowed,
+            it != NULL ? it->GetName() : property_name));
       }
       return false;
     }
@@ -6333,11 +6364,11 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
     // true, then:
   } else if (current_is_data_descriptor && desc_is_data_descriptor) {
     // 8a. If the [[Configurable]] field of current is false, then:
-    if (!current.configurable()) {
+    if (!current->configurable()) {
       // [Strong mode] Disallow changing writable -> readonly for
       // non-configurable properties.
-      if (current.writable() && desc->has_writable() && !desc->writable() &&
-          object->map()->is_strong()) {
+      if (it != NULL && current->writable() && desc->has_writable() &&
+          !desc->writable() && object->map()->is_strong()) {
         if (should_throw == THROW_ON_ERROR) {
           isolate->Throw(*isolate->factory()->NewTypeError(
               MessageTemplate::kStrongRedefineDisallowed, object,
@@ -6347,21 +6378,23 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
       }
       // 8a i. Return false, if the [[Writable]] field of current is false and
       // the [[Writable]] field of Desc is true.
-      if (!current.writable() && desc->has_writable() && desc->writable()) {
+      if (!current->writable() && desc->has_writable() && desc->writable()) {
         if (should_throw == THROW_ON_ERROR) {
           isolate->Throw(*isolate->factory()->NewTypeError(
-              MessageTemplate::kRedefineDisallowed, it->GetName()));
+              MessageTemplate::kRedefineDisallowed,
+              it != NULL ? it->GetName() : property_name));
         }
         return false;
       }
       // 8a ii. If the [[Writable]] field of current is false, then:
-      if (!current.writable()) {
+      if (!current->writable()) {
         // 8a ii 1. Return false, if the [[Value]] field of Desc is present and
         // SameValue(Desc.[[Value]], current.[[Value]]) is false.
-        if (desc->has_value() && !desc->value()->SameValue(*current.value())) {
+        if (desc->has_value() && !desc->value()->SameValue(*current->value())) {
           if (should_throw == THROW_ON_ERROR) {
             isolate->Throw(*isolate->factory()->NewTypeError(
-                MessageTemplate::kRedefineDisallowed, it->GetName()));
+                MessageTemplate::kRedefineDisallowed,
+                it != NULL ? it->GetName() : property_name));
           }
           return false;
         }
@@ -6370,25 +6403,27 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
   } else {
     // 9. Else IsAccessorDescriptor(current) and IsAccessorDescriptor(Desc)
     // are both true,
-    DCHECK(PropertyDescriptor::IsAccessorDescriptor(&current) &&
+    DCHECK(PropertyDescriptor::IsAccessorDescriptor(current) &&
            desc_is_accessor_descriptor);
     // 9a. If the [[Configurable]] field of current is false, then:
-    if (!current.configurable()) {
+    if (!current->configurable()) {
       // 9a i. Return false, if the [[Set]] field of Desc is present and
       // SameValue(Desc.[[Set]], current.[[Set]]) is false.
-      if (desc->has_set() && !desc->set()->SameValue(*current.set())) {
+      if (desc->has_set() && !desc->set()->SameValue(*current->set())) {
         if (should_throw == THROW_ON_ERROR) {
           isolate->Throw(*isolate->factory()->NewTypeError(
-              MessageTemplate::kRedefineDisallowed, it->GetName()));
+              MessageTemplate::kRedefineDisallowed,
+              it != NULL ? it->GetName() : property_name));
         }
         return false;
       }
       // 9a ii. Return false, if the [[Get]] field of Desc is present and
       // SameValue(Desc.[[Get]], current.[[Get]]) is false.
-      if (desc->has_get() && !desc->get()->SameValue(*current.get())) {
+      if (desc->has_get() && !desc->get()->SameValue(*current->get())) {
         if (should_throw == THROW_ON_ERROR) {
           isolate->Throw(*isolate->factory()->NewTypeError(
-              MessageTemplate::kRedefineDisallowed, it->GetName()));
+              MessageTemplate::kRedefineDisallowed,
+              it != NULL ? it->GetName() : property_name));
         }
         return false;
       }
@@ -6396,7 +6431,7 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
   }
 
   // 10. If O is not undefined, then:
-  if (!object->IsUndefined()) {
+  if (it != NULL) {
     // 10a. For each field of Desc that is present, set the corresponding
     // attribute of the property named P of object O to the value of the field.
     PropertyAttributes attrs = NONE;
@@ -6406,14 +6441,14 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
           attrs | (desc->enumerable() ? NONE : DONT_ENUM));
     } else {
       attrs = static_cast<PropertyAttributes>(
-          attrs | (current.enumerable() ? NONE : DONT_ENUM));
+          attrs | (current->enumerable() ? NONE : DONT_ENUM));
     }
     if (desc->has_configurable()) {
       attrs = static_cast<PropertyAttributes>(
           attrs | (desc->configurable() ? NONE : DONT_DELETE));
     } else {
       attrs = static_cast<PropertyAttributes>(
-          attrs | (current.configurable() ? NONE : DONT_DELETE));
+          attrs | (current->configurable() ? NONE : DONT_DELETE));
     }
     if (desc_is_data_descriptor ||
         (desc_is_generic_descriptor && current_is_data_descriptor)) {
@@ -6422,12 +6457,12 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
             attrs | (desc->writable() ? NONE : READ_ONLY));
       } else {
         attrs = static_cast<PropertyAttributes>(
-            attrs | (current.writable() ? NONE : READ_ONLY));
+            attrs | (current->writable() ? NONE : READ_ONLY));
       }
       Handle<Object> value(
           desc->has_value() ? desc->value()
-                            : current.has_value()
-                                  ? current.value()
+                            : current->has_value()
+                                  ? current->value()
                                   : Handle<Object>::cast(
                                         isolate->factory()->undefined_value()));
       MaybeHandle<Object> result = JSObject::DefineOwnPropertyIgnoreAttributes(
@@ -6436,18 +6471,18 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
     } else {
       DCHECK(desc_is_accessor_descriptor ||
              (desc_is_generic_descriptor &&
-              PropertyDescriptor::IsAccessorDescriptor(&current)));
+              PropertyDescriptor::IsAccessorDescriptor(current)));
       Handle<Object> getter(
           desc->has_get()
               ? desc->get()
-              : current.has_get()
-                    ? current.get()
+              : current->has_get()
+                    ? current->get()
                     : Handle<Object>::cast(isolate->factory()->null_value()));
       Handle<Object> setter(
           desc->has_set()
               ? desc->set()
-              : current.has_set()
-                    ? current.set()
+              : current->has_set()
+                    ? current->set()
                     : Handle<Object>::cast(isolate->factory()->null_value()));
       MaybeHandle<Object> result =
           JSObject::DefineAccessor(it, getter, setter, attrs);
