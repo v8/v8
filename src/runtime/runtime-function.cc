@@ -528,6 +528,24 @@ RUNTIME_FUNCTION(Runtime_Call) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_TailCall) {
+  HandleScope scope(isolate);
+  DCHECK_LE(2, args.length());
+  int const argc = args.length() - 2;
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
+  ScopedVector<Handle<Object>> argv(argc);
+  for (int i = 0; i < argc; ++i) {
+    argv[i] = args.at<Object>(2 + i);
+  }
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, target, receiver, argc, argv.start()));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_Apply) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 5);

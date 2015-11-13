@@ -114,6 +114,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceThrowNotDateError(node);
     case Runtime::kInlineCall:
       return ReduceCall(node);
+    case Runtime::kInlineTailCall:
+      return ReduceTailCall(node);
     default:
       break;
   }
@@ -648,6 +650,16 @@ Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
+  size_t const arity = CallRuntimeParametersOf(node->op()).arity();
+  NodeProperties::ChangeOp(
+      node, javascript()->CallFunction(arity, STRICT, VectorSlotPair(),
+                                       ConvertReceiverMode::kAny,
+                                       TailCallMode::kDisallow));
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceTailCall(Node* node) {
   size_t const arity = CallRuntimeParametersOf(node->op()).arity();
   NodeProperties::ChangeOp(
       node, javascript()->CallFunction(arity, STRICT, VectorSlotPair(),

@@ -89,79 +89,36 @@ bool CallDescriptor::HasSameReturnLocationsAs(
 }
 
 
-bool CallDescriptor::CanTailCall(const Node* node) const {
-  // Determine the number of stack parameters passed in
-  size_t stack_params = 0;
-  for (size_t i = 0; i < InputCount(); ++i) {
-    if (!GetInputLocation(i).IsRegister()) {
-      ++stack_params;
-    }
-  }
-  // Ensure the input linkage contains the stack parameters in the right order
-  size_t current_stack_param = 0;
-  for (size_t i = 0; i < InputCount(); ++i) {
-    if (!GetInputLocation(i).IsRegister()) {
-      if (GetInputLocation(i) != LinkageLocation::ForCallerFrameSlot(
-                                     static_cast<int>(current_stack_param) -
-                                     static_cast<int>(stack_params))) {
-        return false;
-      }
-      ++current_stack_param;
-    }
-  }
-  // Tail calling is currently allowed if return locations match and all
-  // parameters are either in registers or on the stack but match exactly in
-  // number and content.
+bool CallDescriptor::CanTailCall(const Node* node,
+                                 int* stack_param_delta) const {
+  // TODO(danno): TF only current supports tail calls where the number of stack
+  // parameters of the callee is the same or fewer of the caller.
   CallDescriptor const* other = OpParameter<CallDescriptor const*>(node);
   if (!HasSameReturnLocationsAs(other)) return false;
   size_t current_input = 0;
   size_t other_input = 0;
-  while (true) {
-    if (other_input >= other->InputCount()) {
-      while (current_input < InputCount()) {
-        if (!GetInputLocation(current_input).IsRegister()) {
-          return false;
-        }
-        ++current_input;
+  *stack_param_delta = 0;
+  bool more_other = true;
+  bool more_this = true;
+  while (more_other || more_this) {
+    if (other_input < other->InputCount()) {
+      if (!other->GetInputLocation(other_input).IsRegister()) {
+        (*stack_param_delta)++;
       }
-      return true;
+    } else {
+      more_other = false;
     }
-    if (current_input >= InputCount()) {
-      while (other_input < other->InputCount()) {
-        if (!other->GetInputLocation(other_input).IsRegister()) {
-          return false;
-        }
-        ++other_input;
+    if (current_input < InputCount()) {
+      if (!GetInputLocation(current_input).IsRegister()) {
+        (*stack_param_delta)--;
       }
-      return true;
-    }
-    if (GetInputLocation(current_input).IsRegister()) {
-      ++current_input;
-      continue;
-    }
-    if (other->GetInputLocation(other_input).IsRegister()) {
-      ++other_input;
-      continue;
-    }
-    if (GetInputLocation(current_input) !=
-        other->GetInputLocation(other_input)) {
-      return false;
-    }
-    Node* input = node->InputAt(static_cast<int>(other_input));
-    if (input->opcode() != IrOpcode::kParameter) {
-      return false;
-    }
-    // Make sure that the parameter input passed through to the tail call
-    // corresponds to the correct stack slot.
-    size_t param_index = ParameterIndexOf(input->op());
-    if (param_index != current_input - 1) {
-      return false;
+    } else {
+      more_this = false;
     }
     ++current_input;
     ++other_input;
   }
-  UNREACHABLE();
-  return false;
+  return *stack_param_delta <= 0;
 }
 
 
@@ -258,6 +215,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kInlineToString:
       return 1;
     case Runtime::kInlineCall:
+    case Runtime::kInlineTailCall:
     case Runtime::kInlineDeoptimizeNow:
     case Runtime::kInlineThrowNotDateError:
       return 2;

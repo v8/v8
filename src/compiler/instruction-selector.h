@@ -164,14 +164,20 @@ class InstructionSelector final {
   // operand {op}.
   void MarkAsRepresentation(MachineType rep, const InstructionOperand& op);
 
+  enum CallBufferFlag {
+    kCallCodeImmediate = 1u << 0,
+    kCallAddressImmediate = 1u << 1,
+    kCallTail = 1u << 2
+  };
+  typedef base::Flags<CallBufferFlag> CallBufferFlags;
+
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding
   // to the inputs and outputs of the call.
   // {call_code_immediate} to generate immediate operands to calls of code.
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
-                            bool call_code_immediate,
-                            bool call_address_immediate);
+                            CallBufferFlags flags, int stack_param_delta = 0);
   bool IsTailCallAddressImmediate();
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);

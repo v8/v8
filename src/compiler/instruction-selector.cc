@@ -374,8 +374,8 @@ struct CallBuffer {
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
 void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
-                                               bool call_code_immediate,
-                                               bool call_address_immediate) {
+                                               CallBufferFlags flags,
+                                               int stack_param_delta) {
   OperandGenerator g(this);
   DCHECK_LE(call->op()->ValueOutputCount(),
             static_cast<int>(buffer->descriptor->ReturnCount()));
@@ -426,6 +426,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 
   // The first argument is always the callee code.
   Node* callee = call->InputAt(0);
+  bool call_code_immediate = (flags & kCallCodeImmediate) != 0;
+  bool call_address_immediate = (flags & kCallAddressImmediate) != 0;
   switch (buffer->descriptor->kind()) {
     case CallDescriptor::kCallCodeObject:
       buffer->instruction_args.push_back(
@@ -478,14 +480,20 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   // as an InstructionOperand argument to the call.
   auto iter(call->inputs().begin());
   size_t pushed_count = 0;
+  bool call_tail = (flags & kCallTail) != 0;
   for (size_t index = 0; index < input_count; ++iter, ++index) {
     DCHECK(iter != call->inputs().end());
     DCHECK((*iter)->op()->opcode() != IrOpcode::kFrameState);
     if (index == 0) continue;  // The first argument (callee) is already done.
+
+    LinkageLocation location = buffer->descriptor->GetInputLocation(index);
+    if (call_tail) {
+      location = LinkageLocation::ConvertToTailCallerLocation(
+          location, stack_param_delta);
+    }
     InstructionOperand op =
-        g.UseLocation(*iter, buffer->descriptor->GetInputLocation(index),
-                      buffer->descriptor->GetInputType(index));
-    if (UnallocatedOperand::cast(op).HasFixedSlotPolicy()) {
+        g.UseLocation(*iter, location, buffer->descriptor->GetInputType(index));
+    if (UnallocatedOperand::cast(op).HasFixedSlotPolicy() && !call_tail) {
       int stack_index = -UnallocatedOperand::cast(op).fixed_slot_index() - 1;
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
         buffer->pushed_nodes.resize(stack_index + 1, NULL);
@@ -1173,7 +1181,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // the code object in a register if there are multiple uses of it.
   // Improve constant pool and the heuristics in the register allocator
   // for where to emit constants.
-  InitializeCallBuffer(node, &buffer, true, true);
+  CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
+  InitializeCallBuffer(node, &buffer, call_buffer_flags);
 
   EmitPrepareArguments(&(buffer.pushed_nodes), descriptor, node);
 
@@ -1226,11 +1235,17 @@ void InstructionSelector::VisitTailCall(Node* node) {
 
   // TODO(turbofan): Relax restriction for stack parameters.
 
-  if (linkage()->GetIncomingDescriptor()->CanTailCall(node)) {
+  int stack_param_delta = 0;
+  if (linkage()->GetIncomingDescriptor()->CanTailCall(node,
+                                                      &stack_param_delta)) {
     CallBuffer buffer(zone(), descriptor, nullptr);
 
     // Compute InstructionOperands for inputs and outputs.
-    InitializeCallBuffer(node, &buffer, true, IsTailCallAddressImmediate());
+    CallBufferFlags flags(kCallCodeImmediate | kCallTail);
+    if (IsTailCallAddressImmediate()) {
+      flags |= kCallAddressImmediate;
+    }
+    InitializeCallBuffer(node, &buffer, flags, stack_param_delta);
 
     // Select the appropriate opcode based on the call type.
     InstructionCode opcode;
@@ -1247,6 +1262,8 @@ void InstructionSelector::VisitTailCall(Node* node) {
     }
     opcode |= MiscField::encode(descriptor->flags());
 
+    buffer.instruction_args.push_back(g.TempImmediate(stack_param_delta));
+
     // Emit the tailcall instruction.
     Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
          &buffer.instruction_args.front());
@@ -1260,7 +1277,11 @@ void InstructionSelector::VisitTailCall(Node* node) {
     CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
 
     // Compute InstructionOperands for inputs and outputs.
-    InitializeCallBuffer(node, &buffer, true, IsTailCallAddressImmediate());
+    CallBufferFlags flags = kCallCodeImmediate;
+    if (IsTailCallAddressImmediate()) {
+      flags |= kCallAddressImmediate;
+    }
+    InitializeCallBuffer(node, &buffer, flags);
 
     EmitPrepareArguments(&(buffer.pushed_nodes), descriptor, node);
 

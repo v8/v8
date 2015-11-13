@@ -573,12 +573,19 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   } while (false)
 
 
-void CodeGenerator::AssembleDeconstructActivationRecord() {
+void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ movq(rsp, rbp);
     __ popq(rbp);
+  }
+  if (stack_param_delta < 0) {
+    int offset = -(stack_param_delta + 1) * kPointerSize;
+    __ popq(Operand(rsp, offset));
+    if (offset != 0) {
+      __ addq(rsp, Immediate(offset));
+    }
   }
 }
 
@@ -602,7 +609,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchTailCallCodeObject: {
-      AssembleDeconstructActivationRecord();
+      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
+      AssembleDeconstructActivationRecord(stack_param_delta);
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
         __ jmp(code, RelocInfo::CODE_TARGET);
@@ -632,7 +640,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ cmpp(rsi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, kWrongFunctionContext);
       }
-      AssembleDeconstructActivationRecord();
+      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
+      AssembleDeconstructActivationRecord(stack_param_delta);
       __ jmp(FieldOperand(func, JSFunction::kCodeEntryOffset));
       break;
     }

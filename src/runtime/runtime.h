@@ -258,6 +258,7 @@ namespace internal {
   F(BoundFunctionGetBindings, 1, 1)           \
   F(NewObjectFromBound, 1, 1)                 \
   F(Call, -1 /* >= 2 */, 1)                   \
+  F(TailCall, -1 /* >= 2 */, 1)               \
   F(Apply, 5, 1)                              \
   F(GetNewTarget, 0, 1)                       \
   F(ConvertReceiver, 1, 1)                    \

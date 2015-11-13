@@ -446,11 +446,21 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
   } while (0)
 
 
-void CodeGenerator::AssembleDeconstructActivationRecord() {
+void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int stack_slots = frame()->GetSpillSlotCount();
+  int stack_pointer_delta = 0;
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    __ LeaveFrame(StackFrame::MANUAL);
+    __ mov(sp, fp);
+    __ lw(fp, MemOperand(sp, 0 * kPointerSize));
+    __ lw(ra, MemOperand(sp, 1 * kPointerSize));
+    stack_pointer_delta = 2 * kPointerSize;
+  }
+  if (stack_param_delta < 0) {
+    stack_pointer_delta += -stack_param_delta * kPointerSize;
+  }
+  if (stack_pointer_delta != 0) {
+    __ addiu(sp, sp, stack_pointer_delta);
   }
 }
 
@@ -474,7 +484,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchTailCallCodeObject: {
-      AssembleDeconstructActivationRecord();
+      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
+      AssembleDeconstructActivationRecord(stack_param_delta);
       if (instr->InputAt(0)->IsImmediate()) {
         __ Jump(Handle<Code>::cast(i.InputHeapObject(0)),
                 RelocInfo::CODE_TARGET);
@@ -506,7 +517,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Assert(eq, kWrongFunctionContext, cp, Operand(kScratchReg));
       }
 
-      AssembleDeconstructActivationRecord();
+      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
+      AssembleDeconstructActivationRecord(stack_param_delta);
       __ lw(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Jump(at);
       break;

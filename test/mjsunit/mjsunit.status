@@ -1028,6 +1028,7 @@
   'string-replace-with-empty': [SKIP],
   'string-slices': [SKIP],
   'switch-opt': [SKIP],
+  'tail-call-intrinsic': [SKIP],
   'tools/profile': [SKIP],
   'tools/profviz': [SKIP],
   'try-finally-continue': [SKIP],

@@ -70,6 +70,7 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceToPrimitive(Node* node);
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
+  Reduction ReduceTailCall(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);

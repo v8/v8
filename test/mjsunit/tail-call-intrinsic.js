@@ -16,7 +16,7 @@ tailee1 = function() {
   if (count1-- == 0) {
     return this;
   }
-  return %_Call(tailee1, this);
+  return %_TailCall(tailee1, this);
 };
 
 %OptimizeFunctionOnNextCall(tailee1);
@@ -33,25 +33,25 @@ tailee2 = function(px) {
   if ((count2 | 0) === 0) {
     return this;
   }
-  return %_Call(tailee2, this, px);
+  return %_TailCall(tailee2, this, px);
 };
 
 %OptimizeFunctionOnNextCall(tailee2);
 assertEquals(p1, tailee2.call(p1, p2));
 
-// Ensure swapped 2 parameters don't trigger a tail call (parameter swizzling
-// for the tail call isn't supported yet).
-var count3 = 100000;
+// Ensure swapped 2 parameters trigger a tail call and do the appropriate
+// parameters swapping
+var count3 = 999999;
 tailee3 = function(px) {
   "use strict";
   if (count3-- == 0) {
     return this;
   }
-  return %_Call(tailee3, px, this);
+  return %_TailCall(tailee3, px, this);
 };
 
 %OptimizeFunctionOnNextCall(tailee3);
-assertThrows(function() { tailee3.call(p1, p2); });
+assertEquals(p2, tailee3.call(p1, p2));
 
 // Ensure too many parameters defeats the tail call optimization (currently
 // unsupported).
@@ -61,22 +61,48 @@ tailee4 = function(px) {
   if (count4-- == 0) {
     return this;
   }
-  return %_Call(tailee4, this, px, undefined);
+  return %_TailCall(tailee4, this, px, undefined);
 };
 
 %OptimizeFunctionOnNextCall(tailee4);
 assertThrows(function() { tailee4.call(p1, p2); });
 
-// Ensure too few parameters defeats the tail call optimization (currently
-// unsupported).
+// Ensure that calling the arguments adapter defeats the tail call optimization.
 var count5 = 1000000;
 tailee5 = function(px) {
   "use strict";
   if (count5-- == 0) {
     return this;
   }
-  return %_Call(tailee5, this);
+  return %_TailCall(tailee5, this);
 };
 
 %OptimizeFunctionOnNextCall(tailee5);
 assertThrows(function() { tailee5.call(p1, p2); });
+
+// Ensure tail calls with fewer stack parameters properly re-arranges the stack.
+tailee6 = function(px) {
+  return px;
+}
+
+tailee7 = function(px, py, pz, pa, pb, pc) {
+  "use strict";
+  return %_TailCall(tailee6, this, pc);
+};
+
+%OptimizeFunctionOnNextCall(tailee6);
+%OptimizeFunctionOnNextCall(tailee7);
+assertEquals(110, tailee7.call(null, 15, 16, 17, 18, 0, 110));
+
+tailee8 = function(px, py, pz, pa, pb) {
+  return pb + pz + px;
+}
+
+tailee9 = function(px, py, pz, pa, pb, pc) {
+  "use strict";
+  return %_TailCall(tailee8, this, pb, py, px, pa, pz);
+};
+
+%OptimizeFunctionOnNextCall(tailee8);
+%OptimizeFunctionOnNextCall(tailee9);
+assertEquals(32, tailee9.call(null, 15, 16, 17, 18, 0, 110));
