@@ -1005,6 +1005,7 @@
   'regress/regress-lazy-deopt-reloc': [SKIP],
   'regress/regress-map-invalidation-2': [SKIP],
   'regress/regress-opt-after-debug-deopt': [SKIP],
+  'regress/regress-osr-in-case-label': [SKIP],
   'regress/regress-param-local-type': [SKIP],
   'regress/regress-prepare-break-while-recompile': [SKIP],
   'regress/regress-put-prototype-transition': [SKIP],

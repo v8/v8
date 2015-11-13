@@ -1204,7 +1204,6 @@ void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
   // Keep the switch value on the stack until a case matches.
   VisitForValue(stmt->tag());
-  Node* tag = environment()->Top();
 
   // Iterate over all cases and create nodes for label comparison.
   for (int i = 0; i < clauses->length(); i++) {
@@ -1220,6 +1219,7 @@ void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     // value is still on the operand stack while the label is evaluated.
     VisitForValue(clause->label());
     Node* label = environment()->Pop();
+    Node* tag = environment()->Top();
     const Operator* op = javascript()->StrictEqual();
     Node* condition = NewNode(op, tag, label);
     compare_switch.BeginLabel(i, condition);
