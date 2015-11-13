@@ -6,61 +6,36 @@
 
 // Var-let conflict in a function throws, even if the var is in an eval
 
-let caught = false;
-
 // Throws at the top level of a function
-try {
-  (function() {
-    let x = 1;
-    eval('const x = 2');
-  })()
-} catch (e) {
-  caught = true;
-}
-assertTrue(caught);
+assertThrows(function() {
+  let x = 1;
+  eval('const x = 2');
+}, TypeError);
 
 // If the eval is in its own block scope, throws
-caught = false;
-try {
-  (function() {
-    let y = 1;
-    { eval('const y = 2'); }
-  })()
-} catch (e) {
-  caught = true;
-}
-assertTrue(caught);
+assertThrows(function() {
+  let y = 1;
+  { eval('const y = 2'); }
+}, TypeError);
 
 // If the let is in its own block scope, with the eval, throws
-caught = false
-try {
-  (function() {
-    {
-      let x = 1;
-      eval('const x = 2');
-    }
-  })();
-} catch (e) {
-  caught = true;
-}
-assertTrue(caught);
+assertThrows(function() {
+  {
+    let x = 1;
+    eval('const x = 2');
+  }
+}, TypeError);
 
 // Legal if the let is no longer visible
-caught = false
-try {
-  (function() {
-    {
-      let x = 1;
-    }
-    eval('const x = 2');
-  })();
-} catch (e) {
-  caught = true;
-}
-assertFalse(caught);
+assertDoesNotThrow(function() {
+  {
+    let x = 1;
+  }
+  eval('const x = 2');
+});
 
 // In global scope
-caught = false;
+let caught = false;
 try {
   let z = 1;
   eval('const z = 2');

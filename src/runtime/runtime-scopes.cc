@@ -231,7 +231,8 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
                         &binding_flags);
     if (attributes != ABSENT &&
         (binding_flags == MUTABLE_CHECK_INITIALIZED ||
-         binding_flags == IMMUTABLE_CHECK_INITIALIZED)) {
+         binding_flags == IMMUTABLE_CHECK_INITIALIZED ||
+         binding_flags == IMMUTABLE_CHECK_INITIALIZED_HARMONY)) {
       return ThrowRedeclarationError(isolate, name);
     }
     attr = static_cast<PropertyAttributes>(attr & ~EVAL_DECLARED);
