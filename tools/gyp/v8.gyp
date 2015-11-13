@@ -520,6 +520,8 @@
         '../../src/compiler/interpreter-assembler.h',
         '../../src/compiler/js-builtin-reducer.cc',
         '../../src/compiler/js-builtin-reducer.h',
+        '../../src/compiler/js-call-reducer.cc',
+        '../../src/compiler/js-call-reducer.h',
         '../../src/compiler/js-context-relaxation.cc',
         '../../src/compiler/js-context-relaxation.h',
         '../../src/compiler/js-context-specialization.cc',

@@ -28,6 +28,7 @@
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/js-builtin-reducer.h"
+#include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-context-relaxation.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-frame-specialization.h"
@@ -537,6 +538,7 @@ struct InliningPhase {
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
+    JSCallReducer call_reducer(data->jsgraph());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_function_context_specializing()
@@ -555,6 +557,7 @@ struct InliningPhase {
       AddReducer(data, &graph_reducer, &frame_specialization);
     }
     AddReducer(data, &graph_reducer, &context_specialization);
+    AddReducer(data, &graph_reducer, &call_reducer);
     AddReducer(data, &graph_reducer, &inlining);
     graph_reducer.ReduceGraph();
   }

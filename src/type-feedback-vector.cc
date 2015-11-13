@@ -520,6 +520,19 @@ void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
 }
 
 
+void CallICNexus::ConfigureMegamorphic() {
+  FeedbackNexus::ConfigureMegamorphic();
+}
+
+
+void CallICNexus::ConfigureMegamorphic(int call_count) {
+  SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(GetIsolate()),
+              SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(call_count * kCallCountIncrement),
+                   SKIP_WRITE_BARRIER);
+}
+
+
 void LoadICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
                                        Handle<Code> handler) {
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
