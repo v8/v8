@@ -136,8 +136,8 @@ class Frame : public ZoneObject {
     return frame_slot_count_ - 1;
   }
 
-  static const int kContextSlot = 2;
-  static const int kJSFunctionSlot = 3;
+  static const int kContextSlot = 2 + StandardFrameConstants::kCPSlotCount;
+  static const int kJSFunctionSlot = 3 + StandardFrameConstants::kCPSlotCount;
 
  private:
   int AllocateAlignedFrameSlot(int width) {
