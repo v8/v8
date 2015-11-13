@@ -731,7 +731,7 @@ intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond(
 
 
 intptr_t GCTracer::CompactionSpeedInBytesPerMillisecond() const {
-  if (compaction_events_.size() < kRingBufferMaxSize) return 0;
+  if (compaction_events_.size() == 0) return 0;
   intptr_t bytes = 0;
   double durations = 0.0;
   CompactionEventBuffer::const_iterator iter = compaction_events_.begin();
