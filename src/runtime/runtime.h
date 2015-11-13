@@ -232,36 +232,36 @@ namespace internal {
   F(InterpreterForInPrepare, 1, 1)
 
 
-#define FOR_EACH_INTRINSIC_FUNCTION(F)                      \
-  F(FunctionGetName, 1, 1)                                  \
-  F(FunctionSetName, 2, 1)                                  \
-  F(FunctionNameShouldPrintAsAnonymous, 1, 1)               \
-  F(CompleteFunctionConstruction, 3, 1)                     \
-  F(FunctionIsArrow, 1, 1)                                  \
-  F(FunctionIsConciseMethod, 1, 1)                          \
-  F(FunctionRemovePrototype, 1, 1)                          \
-  F(FunctionGetScript, 1, 1)                                \
-  F(FunctionGetSourceCode, 1, 1)                            \
-  F(FunctionGetScriptSourcePosition, 1, 1)                  \
-  F(FunctionGetPositionForOffset, 2, 1)                     \
-  F(FunctionSetInstanceClassName, 2, 1)                     \
-  F(FunctionSetLength, 2, 1)                                \
-  F(FunctionSetPrototype, 2, 1)                             \
-  F(FunctionIsAPIFunction, 1, 1)                            \
-  F(FunctionHidesSource, 1, 1)                              \
-  F(SetCode, 2, 1)                                          \
-  F(SetNativeFlag, 1, 1)                                    \
-  F(ThrowStrongModeTooFewArguments, 0, 1)                   \
-  F(IsConstructor, 1, 1)                                    \
-  F(SetForceInlineFlag, 1, 1)                               \
-  F(FunctionBindArguments, 4, 1)                            \
-  F(BoundFunctionGetBindings, 1, 1)                         \
-  F(NewObjectFromBound, 1, 1)                               \
-  F(Call, -1 /* >= 2 */, 1)                                 \
-  F(Apply, 5, 1)                                            \
-  F(GetOriginalConstructor, 0, 1)                           \
-  F(ConvertReceiver, 1, 1)                                  \
-  F(IsConstructCall, 0, 1)                                  \
+#define FOR_EACH_INTRINSIC_FUNCTION(F)        \
+  F(FunctionGetName, 1, 1)                    \
+  F(FunctionSetName, 2, 1)                    \
+  F(FunctionNameShouldPrintAsAnonymous, 1, 1) \
+  F(CompleteFunctionConstruction, 3, 1)       \
+  F(FunctionIsArrow, 1, 1)                    \
+  F(FunctionIsConciseMethod, 1, 1)            \
+  F(FunctionRemovePrototype, 1, 1)            \
+  F(FunctionGetScript, 1, 1)                  \
+  F(FunctionGetSourceCode, 1, 1)              \
+  F(FunctionGetScriptSourcePosition, 1, 1)    \
+  F(FunctionGetPositionForOffset, 2, 1)       \
+  F(FunctionSetInstanceClassName, 2, 1)       \
+  F(FunctionSetLength, 2, 1)                  \
+  F(FunctionSetPrototype, 2, 1)               \
+  F(FunctionIsAPIFunction, 1, 1)              \
+  F(FunctionHidesSource, 1, 1)                \
+  F(SetCode, 2, 1)                            \
+  F(SetNativeFlag, 1, 1)                      \
+  F(ThrowStrongModeTooFewArguments, 0, 1)     \
+  F(IsConstructor, 1, 1)                      \
+  F(SetForceInlineFlag, 1, 1)                 \
+  F(FunctionBindArguments, 4, 1)              \
+  F(BoundFunctionGetBindings, 1, 1)           \
+  F(NewObjectFromBound, 1, 1)                 \
+  F(Call, -1 /* >= 2 */, 1)                   \
+  F(Apply, 5, 1)                              \
+  F(GetNewTarget, 0, 1)                       \
+  F(ConvertReceiver, 1, 1)                    \
+  F(IsConstructCall, 0, 1)                    \
   F(IsFunction, 1, 1)
 
 

@@ -268,8 +268,7 @@ void FullCodeGenerator::Generate() {
     function_in_register_r4 = false;
 
     __ bne(&non_construct_frame);
-    __ LoadP(r3, MemOperand(
-                     r5, ConstructFrameConstants::kOriginalConstructorOffset));
+    __ LoadP(r3, MemOperand(r5, ConstructFrameConstants::kNewTargetOffset));
     __ b(&done);
 
     __ bind(&non_construct_frame);

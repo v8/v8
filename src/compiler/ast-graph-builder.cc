@@ -2503,7 +2503,7 @@ void AstGraphBuilder::VisitCallSuper(Call* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
-  // Original constructor is loaded from the {new.target} variable.
+  // The new target is loaded from the {new.target} variable.
   VisitForValue(super->new_target_var());
 
   // Create node to perform the super call.
@@ -2521,7 +2521,7 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
-  // Original constructor is the same as the callee.
+  // The new target is the same as the callee.
   environment()->Push(environment()->Peek(args->length()));
 
   // Create node to perform the construct call.
@@ -3211,9 +3211,8 @@ Node* AstGraphBuilder::BuildThisFunctionVariable(Variable* this_function_var) {
 Node* AstGraphBuilder::BuildNewTargetVariable(Variable* new_target_var) {
   if (new_target_var == nullptr) return nullptr;
 
-  // Retrieve the original constructor in case we are called as a constructor.
-  const Operator* op =
-      javascript()->CallRuntime(Runtime::kGetOriginalConstructor, 0);
+  // Retrieve the new target in case we are called as a constructor.
+  const Operator* op = javascript()->CallRuntime(Runtime::kGetNewTarget, 0);
   Node* object = NewNode(op);
   // TODO(4544): Bailout id only needed for JavaScriptFrame::Summarize.
   PrepareFrameState(object, BailoutId::FunctionContext());

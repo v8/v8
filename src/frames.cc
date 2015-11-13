@@ -756,7 +756,7 @@ bool JavaScriptFrame::HasInlinedFrames() const {
 }
 
 
-Object* JavaScriptFrame::GetOriginalConstructor() const {
+Object* JavaScriptFrame::GetNewTarget() const {
   DCHECK(!HasInlinedFrames());
   Address fp = caller_fp();
   if (has_adapted_arguments()) {
@@ -764,7 +764,7 @@ Object* JavaScriptFrame::GetOriginalConstructor() const {
     fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
   }
   DCHECK(IsConstructFrame(fp));
-  STATIC_ASSERT(ConstructFrameConstants::kOriginalConstructorOffset ==
+  STATIC_ASSERT(ConstructFrameConstants::kNewTargetOffset ==
                 StandardFrameConstants::kExpressionsOffset - 3 * kPointerSize);
   return GetExpression(fp, 3);
 }

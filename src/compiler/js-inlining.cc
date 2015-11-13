@@ -53,7 +53,7 @@ class JSCallAccessor {
     return call_->InputAt(1);
   }
 
-  Node* original_constructor() {
+  Node* new_target() {
     DCHECK_EQ(IrOpcode::kJSCallConstruct, call_->opcode());
     return call_->InputAt(formal_arguments() + 1);
   }
@@ -70,7 +70,7 @@ class JSCallAccessor {
 
   int formal_arguments() {
     // Both, {JSCallFunction} and {JSCallConstruct}, have two extra inputs:
-    //  - JSCallConstruct: Includes target function and original constructor.
+    //  - JSCallConstruct: Includes target function and new target.
     //  - JSCallFunction: Includes target function and receiver.
     return call_->op()->ValueInputCount() - 2;
   }
@@ -452,13 +452,13 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   if (node->opcode() == IrOpcode::kJSCallConstruct) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* context = NodeProperties::GetContextInput(node);
-    Node* create = jsgraph_->graph()->NewNode(
-        jsgraph_->javascript()->Create(), call.target(),
-        call.original_constructor(), context, effect);
+    Node* create = jsgraph_->graph()->NewNode(jsgraph_->javascript()->Create(),
+                                              call.target(), call.new_target(),
+                                              context, effect);
     NodeProperties::ReplaceEffectInput(node, create);
-    // TODO(4544): For now Runtime_GetOriginalConstructor depends on the actual
-    // constructor to coincide with the original constructor. Fix this!
-    CHECK_EQ(call.target(), call.original_constructor());
+    // TODO(4544): For now Runtime_GetNewTarget depends on the actual target to
+    // coincide with the new target. Fix this!
+    CHECK_EQ(call.target(), call.new_target());
     // TODO(4544): For derived constructors we should not allocate an implicit
     // receiver and also the return value should not be checked afterwards.
     CHECK(!IsClassConstructor(function->shared()->kind()));

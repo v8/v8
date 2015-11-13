@@ -250,8 +250,7 @@ void FullCodeGenerator::Generate() {
     __ j(not_equal, &non_construct_frame);
 
     // Construct frame
-    __ movp(rax,
-            Operand(rax, ConstructFrameConstants::kOriginalConstructorOffset));
+    __ movp(rax, Operand(rax, ConstructFrameConstants::kNewTargetOffset));
     __ jmp(&done);
 
     // Non-construct frame

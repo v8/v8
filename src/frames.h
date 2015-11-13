@@ -162,7 +162,7 @@ class ConstructFrameConstants : public AllStatic {
   // FP-relative.
   static const int kImplicitReceiverOffset =
       StandardFrameConstants::kExpressionsOffset - 4 * kPointerSize;
-  static const int kOriginalConstructorOffset =
+  static const int kNewTargetOffset =
       StandardFrameConstants::kExpressionsOffset - 3 * kPointerSize;
   static const int kLengthOffset =
       StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
@@ -583,9 +583,9 @@ class JavaScriptFrame: public StandardFrame {
   // about the inlined frames use {GetFunctions} and {Summarize}.
   bool HasInlinedFrames() const;
 
-  // Returns the original constructor function that was used in the constructor
-  // call to this frame. Note that this is only valid on constructor frames.
-  Object* GetOriginalConstructor() const;
+  // Returns the new target function that was used in the constructor call to
+  // this frame. Note that this is only valid on constructor frames.
+  Object* GetNewTarget() const;
 
   // Check if this frame has "adapted" arguments in the sense that the
   // actual passed arguments are available in an arguments adaptor

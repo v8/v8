@@ -565,13 +565,13 @@ RUNTIME_FUNCTION(Runtime_Apply) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetOriginalConstructor) {
+RUNTIME_FUNCTION(Runtime_GetNewTarget) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
   // TODO(4544): Currently we never inline any [[Construct]] calls where the
-  // actual constructor differs from the original constructor. Fix this soon!
+  // actual target differs from the new target. Fix this soon!
   if (frame->HasInlinedFrames()) {
     HandleScope scope(isolate);
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
@@ -580,7 +580,7 @@ RUNTIME_FUNCTION(Runtime_GetOriginalConstructor) {
     return summary.is_constructor() ? Object::cast(*summary.function())
                                     : isolate->heap()->undefined_value();
   }
-  return frame->IsConstructor() ? frame->GetOriginalConstructor()
+  return frame->IsConstructor() ? frame->GetNewTarget()
                                 : isolate->heap()->undefined_value();
 }
 

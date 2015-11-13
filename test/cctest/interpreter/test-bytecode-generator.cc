@@ -5199,11 +5199,10 @@ TEST(NewTarget) {
        1,
        10,
        {
-           B(CallRuntime), U16(Runtime::kGetOriginalConstructor), R(0),  //
-                           U8(0),                                        //
-           B(Star), R(0),                                                //
-           B(Ldar), R(0),                                                //
-           B(Return),                                                    //
+           B(CallRuntime), U16(Runtime::kGetNewTarget), R(0), U8(0),  //
+           B(Star), R(0),                                             //
+           B(Ldar), R(0),                                             //
+           B(Return),                                                 //
        }},
   };
 

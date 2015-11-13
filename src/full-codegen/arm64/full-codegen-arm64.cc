@@ -263,8 +263,7 @@ void FullCodeGenerator::Generate() {
     Label non_construct_frame, done;
 
     __ B(ne, &non_construct_frame);
-    __ Ldr(x0,
-           MemOperand(x2, ConstructFrameConstants::kOriginalConstructorOffset));
+    __ Ldr(x0, MemOperand(x2, ConstructFrameConstants::kNewTargetOffset));
     __ B(&done);
 
     __ Bind(&non_construct_frame);
