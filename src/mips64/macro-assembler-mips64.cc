@@ -1542,6 +1542,41 @@ void MacroAssembler::Cvt_d_uw(FPURegister fd,
 }
 
 
+void MacroAssembler::Cvt_d_ul(FPURegister fd, FPURegister fs) {
+  // Move the data from fs to t8.
+  dmfc1(t8, fs);
+  Cvt_d_ul(fd, t8);
+}
+
+
+void MacroAssembler::Cvt_d_ul(FPURegister fd, Register rs) {
+  // Convert rs to a FP value in fd.
+
+  DCHECK(!rs.is(t9));
+  DCHECK(!rs.is(at));
+
+  Label positive, conversion_done;
+
+  Branch(&positive, ge, rs, Operand(zero_reg));
+
+  // Rs >= 2^31.
+  andi(t9, rs, 1);
+  dsrl(rs, rs, 1);
+  or_(t9, t9, rs);
+  dmtc1(t9, fd);
+  cvt_d_l(fd, fd);
+  Branch(USE_DELAY_SLOT, &conversion_done);
+  add_d(fd, fd, fd);  // In delay slot.
+
+  bind(&positive);
+  // Rs < 2^31, we can do simple conversion.
+  dmtc1(rs, fd);
+  cvt_d_l(fd, fd);
+
+  bind(&conversion_done);
+}
+
+
 void MacroAssembler::Round_l_d(FPURegister fd, FPURegister fs) {
   round_l_d(fd, fs);
 }

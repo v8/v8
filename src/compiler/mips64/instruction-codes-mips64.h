@@ -77,6 +77,7 @@ namespace compiler {
   V(Mips64CvtSL)                    \
   V(Mips64CvtDL)                    \
   V(Mips64CvtDUw)                   \
+  V(Mips64CvtDUl)                   \
   V(Mips64Lb)                       \
   V(Mips64Lbu)                      \
   V(Mips64Sb)                       \

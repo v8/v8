@@ -934,6 +934,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Cvt_d_uw(i.OutputDoubleRegister(), i.InputRegister(0), scratch);
       break;
     }
+    case kMips64CvtDUl: {
+      __ Cvt_d_ul(i.OutputDoubleRegister(), i.InputRegister(0));
+      break;
+    }
     case kMips64TruncWD: {
       FPURegister scratch = kScratchDoubleReg;
       // Other arches use round to zero here, so we follow.
