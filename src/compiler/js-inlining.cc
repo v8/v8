@@ -454,7 +454,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     Node* context = NodeProperties::GetContextInput(node);
     Node* create = jsgraph_->graph()->NewNode(jsgraph_->javascript()->Create(),
                                               call.target(), call.new_target(),
-                                              context, effect);
+                                              context, frame_state, effect);
     NodeProperties::ReplaceEffectInput(node, create);
     // TODO(4544): For now Runtime_GetNewTarget depends on the actual target to
     // coincide with the new target. Fix this!

@@ -988,7 +988,7 @@ TEST_F(JSTypedLoweringTest, JSCreate) {
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Reduction r = Reduce(graph()->NewNode(javascript()->Create(), target, target,
-                                        context, effect));
+                                        context, EmptyFrameState(), effect));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
