@@ -2702,9 +2702,8 @@ void Simulator::ExecuteExt3(Instruction* instr) {
       // fcfids
       int frt = instr->RTValue();
       int frb = instr->RBValue();
-      double t_val = get_double_from_d_register(frb);
-      int64_t* frb_val_p = reinterpret_cast<int64_t*>(&t_val);
-      double frt_val = static_cast<float>(*frb_val_p);
+      int64_t frb_val = get_d_register(frb);
+      double frt_val = static_cast<float>(frb_val);
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -2886,18 +2885,16 @@ void Simulator::ExecuteExt4(Instruction* instr) {
     case FCFID: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
-      double t_val = get_double_from_d_register(frb);
-      int64_t* frb_val_p = reinterpret_cast<int64_t*>(&t_val);
-      double frt_val = static_cast<double>(*frb_val_p);
+      int64_t frb_val = get_d_register(frb);
+      double frt_val = static_cast<double>(frb_val);
       set_d_register_from_double(frt, frt_val);
       return;
     }
     case FCFIDU: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
-      double t_val = get_double_from_d_register(frb);
-      uint64_t* frb_val_p = reinterpret_cast<uint64_t*>(&t_val);
-      double frt_val = static_cast<double>(*frb_val_p);
+      uint64_t frb_val = get_d_register(frb);
+      double frt_val = static_cast<double>(frb_val);
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -2931,8 +2928,7 @@ void Simulator::ExecuteExt4(Instruction* instr) {
             break;
         }
       }
-      double* p = reinterpret_cast<double*>(&frt_val);
-      set_d_register_from_double(frt, *p);
+      set_d_register(frt, frt_val);
       return;
     }
     case FCTIDZ: {
@@ -2951,8 +2947,7 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       } else {
         frt_val = (int64_t)frb_val;
       }
-      double* p = reinterpret_cast<double*>(&frt_val);
-      set_d_register_from_double(frt, *p);
+      set_d_register(frt, frt_val);
       return;
     }
     case FCTIW:
@@ -2996,8 +2991,7 @@ void Simulator::ExecuteExt4(Instruction* instr) {
           }
         }
       }
-      double* p = reinterpret_cast<double*>(&frt_val);
-      set_d_register_from_double(frt, *p);
+      set_d_register(frt, frt_val);
       return;
     }
     case FNEG: {
