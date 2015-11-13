@@ -50,8 +50,8 @@ function handlerMaker2(obj) {
   };
 }
 var baseObj = {};
-var proxy1 = Proxy.create(handlerMaker1(baseObj));
-var proxy2 = Proxy.create(handlerMaker2(baseObj));
+var proxy1 = new Proxy({}, handlerMaker1(baseObj));
+var proxy2 = new Proxy({}, handlerMaker2(baseObj));
 var childObj1 = { __proto__: proxy1 };
 var childObj2 = { __proto__: proxy2 };
 var childObjAccessor1 = { set foo(_){}, set "1"(_){}, __proto__: proxy1 };

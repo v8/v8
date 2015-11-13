@@ -477,8 +477,7 @@ class Factory final {
 
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(Handle<JSReceiver> target,
-                             Handle<JSReceiver> handler,
-                             Handle<Object> prototype);
+                             Handle<JSReceiver> handler);
 
   // Allocates a Harmony function proxy.
   Handle<JSProxy> NewJSFunctionProxy(Handle<JSReceiver> target,

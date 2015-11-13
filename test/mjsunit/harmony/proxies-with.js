@@ -31,8 +31,10 @@
 // Helper.
 
 function TestWithProxies(test, x, y, z) {
-  test(Proxy.create, x, y, z)
-  test(function(h) {return Proxy.createFunction(h, function() {})}, x, y, z)
+  test(function(h) { return new Proxy({}, h) }, x, y, z)
+  test(function(h) {
+      return Proxy.createFunction(h, function() {})
+  }, x, y, z)
 }
 
 
@@ -66,7 +68,10 @@ function TestWithGet2(create, handler) {
 }
 
 TestWithGet({
-  get: function(r, k) { key = k; return k === "a" ? "onproxy" : undefined },
+  get: function(r, k) {
+    key = k;
+    return k === "a" ? "onproxy" : undefined
+  },
   getPropertyDescriptor: function(k) {
     key = k;
     return k === "a" ? {value: "onproxy", configurable: true} : undefined

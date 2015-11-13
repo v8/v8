@@ -31,7 +31,7 @@
 // Helper.
 
 function TestWithProxies(test, construct, handler) {
-  test(construct, handler, Proxy.create)
+  test(construct, handler, function(h) { return new Proxy({}, h) })
   test(construct, handler, function(h) {
     return Proxy.createFunction(h, function() {})
   })

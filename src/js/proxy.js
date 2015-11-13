@@ -10,7 +10,8 @@
 
 // ----------------------------------------------------------------------------
 // Imports
-
+//
+var GlobalProxy = global.Proxy;
 var GlobalFunction = global.Function;
 var GlobalObject = global.Object;
 var MakeTypeError;
@@ -23,14 +24,13 @@ utils.Import(function(from) {
 
 //----------------------------------------------------------------------------
 
-function ProxyCreate(handler, proto) {
-  if (!IS_SPEC_OBJECT(handler))
-    throw MakeTypeError(kProxyHandlerNonObject, "create")
-  if (IS_UNDEFINED(proto))
-    proto = null
-  else if (!(IS_SPEC_OBJECT(proto) || IS_NULL(proto)))
-    throw MakeTypeError(kProxyProtoNonObject)
-  return %CreateJSProxy({}, handler, proto)
+function ProxyCreate(target, handler) {
+  if (!%_IsConstructCall()) {
+    throw MakeTypeError(kConstructorNotFunction, "Proxy");
+  }
+  // TODO(cbruni): Get the construct call right, this is just a prelimiary
+  // version to get started with tests.
+  return %CreateJSProxy(this, target, handler);
 }
 
 function ProxyCreateFunction(handler, callTrap, constructTrap) {
@@ -182,16 +182,15 @@ function ProxyEnumerate(proxy) {
 }
 
 //-------------------------------------------------------------------
-
-var Proxy = new GlobalObject();
-%AddNamedProperty(global, "Proxy", Proxy, DONT_ENUM);
+%SetCode(GlobalProxy, ProxyCreate);
+%FunctionSetPrototype(GlobalProxy, new GlobalObject());
 
 //Set up non-enumerable properties of the Proxy object.
-utils.InstallFunctions(Proxy, DONT_ENUM, [
-  "create", ProxyCreate,
+utils.InstallFunctions(GlobalProxy, DONT_ENUM, [
   "createFunction", ProxyCreateFunction
-])
+]);
 
+%AddNamedProperty(GlobalProxy.prototype, "constructor", GlobalProxy, DONT_ENUM);
 // -------------------------------------------------------------------
 // Exports
 

@@ -11,7 +11,7 @@
 function TestBasics() {
   var log = [];
 
-  var proxy = Proxy.create({
+  var proxy = new Proxy({}, {
     getPropertyDescriptor: function(key) {
       log.push(key);
       if (key === 'x') {
@@ -40,7 +40,7 @@ function TestInconsistent() {
   var log = [];
   var calls = 0;
 
-  var proxy = Proxy.create({
+  var proxy = new Proxy({}, {
     getPropertyDescriptor: function(key) {
       log.push(key);
       if (key === 'x' && calls < 1) {
@@ -72,7 +72,7 @@ function TestUseProxyAsUnscopables() {
     x: 2
   };
   var calls = 0;
-  var proxy = Proxy.create({
+  var proxy = new Proxy({}, {
     has: function(key) {
       assertUnreachable();
     },
@@ -110,7 +110,7 @@ function TestThrowInHasUnscopables() {
   function CustomError() {}
 
   var calls = 0;
-  var proxy = Proxy.create({
+  var proxy = new Proxy({}, {
     has: function(key) {
       assertUnreachable();
     },
@@ -136,7 +136,7 @@ TestThrowInHasUnscopables();
 var global = this;
 function TestGlobalShouldIgnoreUnscopables() {
   global.x = 1;
-  var proxy = Proxy.create({
+  var proxy = new Proxy({}, {
     getPropertyDescriptor: function() {
       assertUnreachable();
     }

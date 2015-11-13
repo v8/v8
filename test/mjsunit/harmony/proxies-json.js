@@ -47,7 +47,7 @@ var handler1 = {
   }
 }
 
-var proxy1 = Proxy.create(handler1);
+var proxy1 = new Proxy({}, handler1);
 testStringify('{"a":"A","b":"B","c":"C"}', proxy1);
 
 var proxy_fun = Proxy.createFunction(handler1, function() { return 1; });
@@ -77,7 +77,7 @@ var handler2 = {
   }
 }
 
-var proxy2 = Proxy.create(handler2);
+var proxy2 = new Proxy({}, handler2);
 var parent2 = { a: "delete", b: proxy2, c: "remove" };
 var expected2 = '{"a":"delete","b":{"a":"A","b":"B","c":"C"}}';
 assertEquals(expected2, JSON.stringify(parent2));
@@ -98,7 +98,7 @@ var handler3 = {
   }
 }
 
-var proxy3 = Proxy.create(handler3);
+var proxy3 = new Proxy({}, handler3);
 var parent3 = { x: 123, y: proxy3 }
 testStringify('{"x":123,"y":{"a":"a(proxy)","b":"b(proxy)","c":"c(proxy)"}}',
               parent3);
@@ -116,7 +116,7 @@ var handler4 = {
   }
 }
 
-var proxy4 = Proxy.create(handler4);
+var proxy4 = new Proxy({}, handler4);
 testStringify('{}', proxy4);
 testStringify('{"a":{}}', { a: proxy4 });
 
@@ -134,7 +134,7 @@ var handler5 = {
   }
 }
 
-var proxy5 = Proxy.create(handler5);
+var proxy5 = new Proxy({}, handler5);
 testStringify('{"a":97097}', { a: proxy5 });
 
 // Proxy that provides a toJSON function that returns undefined.
@@ -150,7 +150,7 @@ var handler6 = {
   }
 }
 
-var proxy6 = Proxy.create(handler6);
+var proxy6 = new Proxy({}, handler6);
 testStringify('[1,null,true]', [1, proxy6, true]);
 testStringify('{"a":1,"c":true}', {a: 1, b: proxy6, c: true});
 
@@ -170,7 +170,7 @@ var handler7 = {
   }
 }
 
-var proxy7 = Proxy.create(handler7);
+var proxy7 = new Proxy({}, handler7);
 var parent7 = { a: "1", b: proxy7, c: "3", d: "4" };
 assertEquals('{"a":"1","b":{"a":"A","b":"B","c":"C"},"d":"4"}',
              JSON.stringify(parent7));

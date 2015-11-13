@@ -13,6 +13,6 @@ var handler = {
   }
 };
 
-var p = Proxy.create(handler);
+var p = new Proxy({}, handler);
 var o = Object.create(p);
 with (o) { f() }

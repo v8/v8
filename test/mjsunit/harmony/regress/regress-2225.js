@@ -28,7 +28,7 @@
 // Flags: --harmony-proxies
 
 var proxy_has_x = false;
-var proxy = Proxy.create({ getPropertyDescriptor:function(key) {
+var proxy = new Proxy({}, { getPropertyDescriptor:function(key) {
   assertSame('x', key);
   if (proxy_has_x) {
     return { configurable:true, writable:false, value:19 };

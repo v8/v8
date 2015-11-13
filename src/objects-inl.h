@@ -1194,16 +1194,20 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
 }
 
 
-Handle<Object> Object::GetPrototype(Isolate* isolate, Handle<Object> obj) {
+MaybeHandle<Object> Object::GetPrototype(Isolate* isolate,
+                                         Handle<Object> receiver) {
   // We don't expect access checks to be needed on JSProxy objects.
-  DCHECK(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
+  DCHECK(!receiver->IsAccessCheckNeeded() || receiver->IsJSObject());
   Handle<Context> context(isolate->context());
-  if (obj->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(context, Handle<JSObject>::cast(obj))) {
+  if (receiver->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(context, Handle<JSObject>::cast(receiver))) {
     return isolate->factory()->null_value();
   }
-
-  PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
+  if (receiver->IsJSProxy()) {
+    return JSProxy::GetPrototype(Handle<JSProxy>::cast(receiver));
+  }
+  PrototypeIterator iter(isolate, receiver,
+                         PrototypeIterator::START_AT_RECEIVER);
   do {
     iter.AdvanceIgnoringProxies();
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
@@ -6385,6 +6389,8 @@ int JSFunction::NumberOfLiterals() {
 ACCESSORS(JSProxy, target, Object, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 ACCESSORS(JSProxy, hash, Object, kHashOffset)
+bool JSProxy::has_handler() { return !handler()->IsNull(); }
+
 ACCESSORS(JSFunctionProxy, call_trap, JSReceiver, kCallTrapOffset)
 ACCESSORS(JSFunctionProxy, construct_trap, Object, kConstructTrapOffset)
 

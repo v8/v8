@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --harmony-proxies
 
-var p = Proxy.create({ fix: function() { return {}; } });
+var p = new Proxy({}, { fix: function() { return {}; } });
 
 var obj = {};
 obj.x = p;

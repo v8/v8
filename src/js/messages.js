@@ -850,6 +850,9 @@ function FormatStackTrace(obj, raw_stack) {
 
 function GetTypeName(receiver, requireConstructor) {
   if (IS_NULL_OR_UNDEFINED(receiver)) return null;
+  if (%_IsJSProxy(receiver)) {
+    return "Proxy";
+  };
   var constructor = receiver.constructor;
   if (!constructor) {
     return requireConstructor ? null :

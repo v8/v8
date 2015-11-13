@@ -846,6 +846,66 @@ Handle<FixedArray> JSObject::EnsureWritableFastElements(
 }
 
 
+// ES6 9.5.1
+// static
+MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
+  Isolate* isolate = proxy->GetIsolate();
+  // 1. Let handler be the value of the [[ProxyHandler]] internal slot.
+  Handle<Object> raw_handler(proxy->handler(), isolate);
+  // 2. If handler is null, throw a TypeError exception.
+  // 3. Assert: Type(handler) is Object.
+  if (!raw_handler->IsSpecObject()) {
+    // TODO(cbruni): Throw correct error message.
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kProxyHandlerNonObject), Object);
+  }
+  Handle<JSReceiver> handler = Handle<JSReceiver>::cast(raw_handler);
+  // 4. Let target be the value of the [[ProxyTarget]] internal slot.
+  // TODO(cbruni): Change target type to JSReceiver by default.
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  // 5. Let trap be ? GetMethod(handler, "getPrototypeOf").
+  Handle<Object> trap;
+  Handle<String> trap_name = isolate->factory()->getPrototypeOf_string();
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap, GetMethod(handler, trap_name),
+                             Object);
+  // 6. If trap is undefined, then return target.[[GetPrototypeOf]]().
+  if (trap->IsUndefined()) {
+    return Object::GetPrototype(isolate, target);
+  }
+  // 7. Let handlerProto be ? Call(trap, handler, «target»).
+  Handle<Object> argv[] = {target};
+  Handle<Object> handler_proto;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, handler_proto,
+      Execution::Call(isolate, trap, handler, arraysize(argv), argv), Object);
+  // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError.
+  if (!(handler_proto->IsSpecObject() || handler_proto->IsNull())) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kProxyHandlerTrapMissing,
+                                 handler, trap_name),
+                    Object);
+  }
+  // 9. Let extensibleTarget be ? IsExtensible(target).
+  Maybe<bool> is_extensible = JSReceiver::IsExtensible(target);
+  if (is_extensible.IsNothing()) return MaybeHandle<Object>();
+  // 10. If extensibleTarget is true, return handlerProto.
+  if (is_extensible.FromJust()) return handler_proto;
+  // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
+  Handle<Object> target_proto;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, handler_proto,
+                             Object::GetPrototype(isolate, target), Object);
+  // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError.
+  if (!handler_proto->SameValue(*target_proto)) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kProxyHandlerTrapMissing,
+                                 handler, trap_name),
+                    Object);
+  }
+  // 13. Return handlerProto.
+  return handler_proto;
+}
+
+
 MaybeHandle<Object> JSProxy::GetPropertyWithHandler(Handle<JSProxy> proxy,
                                                     Handle<Object> receiver,
                                                     Handle<Name> name) {
@@ -5576,7 +5636,6 @@ Handle<Smi> JSObject::GetOrCreateIdentityHash(Handle<JSObject> object) {
   if (object->IsJSGlobalProxy()) {
     return GetOrCreateIdentityHashHelper(Handle<JSGlobalProxy>::cast(object));
   }
-
   Isolate* isolate = object->GetIsolate();
 
   Handle<Object> maybe_hash(object->GetIdentityHash(), isolate);
@@ -6879,6 +6938,16 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
 }
 
 
+// static
+Maybe<bool> JSReceiver::IsExtensible(Handle<JSReceiver> object) {
+  if (object->IsJSProxy()) {
+    // TODO(neis,cbruni): Redirect to the trap on JSProxy.
+    return Just(true);
+  }
+  return Just(JSObject::IsExtensible(Handle<JSObject>::cast(object)));
+}
+
+
 bool JSObject::IsExtensible(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
   if (object->IsAccessCheckNeeded() &&
@@ -8071,9 +8140,10 @@ Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
   Handle<Map> result = RawCopy(map, map->instance_size());
 
   // Please note instance_type and instance_size are set when allocated.
-  result->SetInObjectProperties(map->GetInObjectProperties());
-  result->set_unused_property_fields(map->unused_property_fields());
-
+  if (map->IsJSObjectMap()) {
+    result->SetInObjectProperties(map->GetInObjectProperties());
+    result->set_unused_property_fields(map->unused_property_fields());
+  }
   result->ClearCodeCache(map->GetHeap());
   map->NotifyLeafMapLayoutChange();
   return result;
@@ -13922,7 +13992,9 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   const bool observed = from_javascript && object->map()->is_observed();
   Handle<Object> old_value;
   if (observed) {
-    old_value = Object::GetPrototype(isolate, object);
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, old_value,
+                                     Object::GetPrototype(isolate, object),
+                                     Nothing<bool>());
   }
 
   Maybe<bool> result =
@@ -13930,7 +14002,10 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   MAYBE_RETURN(result, Nothing<bool>());
 
   if (result.FromJust() && observed) {
-    Handle<Object> new_value = Object::GetPrototype(isolate, object);
+    Handle<Object> new_value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, new_value,
+                                     Object::GetPrototype(isolate, object),
+                                     Nothing<bool>());
     if (!new_value->SameValue(*old_value)) {
       RETURN_ON_EXCEPTION_VALUE(
           isolate, JSObject::EnqueueChangeRecord(

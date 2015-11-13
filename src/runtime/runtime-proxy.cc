@@ -14,11 +14,31 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_CreateJSProxy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, handler, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 2);
-  if (!prototype->IsJSReceiver()) prototype = isolate->factory()->null_value();
-  return *isolate->factory()->NewJSProxy(target, handler, prototype);
+  CONVERT_ARG_HANDLE_CHECKED(JSProxy, instance, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, handler, 2);
+  if (!target->IsSpecObject()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kProxyTargetNonObject));
+  }
+  if (target->IsJSProxy() && !JSProxy::cast(*target)->has_handler()) {
+    // TODO(cbruni): Use better error message.
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kProxyTargetNonObject));
+  }
+  if (!handler->IsSpecObject()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kProxyHandlerNonObject));
+  }
+  if (handler->IsJSProxy() && !JSProxy::cast(*handler)->has_handler()) {
+    // TODO(cbruni): Use better error message.
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kProxyHandlerNonObject));
+  }
+  instance->set_target(*target);
+  instance->set_handler(*handler);
+  instance->set_hash(isolate->heap()->undefined_value(), SKIP_WRITE_BARRIER);
+  return *instance;
 }
 
 

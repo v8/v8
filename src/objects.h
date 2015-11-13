@@ -1306,8 +1306,8 @@ class Object {
       Handle<Object> value, LanguageMode language_mode);
 
   // Get the first non-hidden prototype.
-  static inline Handle<Object> GetPrototype(Isolate* isolate,
-                                            Handle<Object> receiver);
+  static inline MaybeHandle<Object> GetPrototype(Isolate* isolate,
+                                                 Handle<Object> receiver);
 
   bool HasInPrototypeChain(Isolate* isolate, Object* object);
 
@@ -1863,6 +1863,8 @@ class JSReceiver: public HeapObject {
   // ES6's [[PreventExtensions]] when passed DONT_THROW.
   MUST_USE_RESULT static Maybe<bool> PreventExtensions(
       Handle<JSReceiver> object, ShouldThrow should_throw);
+
+  MUST_USE_RESULT static Maybe<bool> IsExtensible(Handle<JSReceiver> object);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -9497,16 +9499,18 @@ class WeakCell : public HeapObject {
 // The JSProxy describes EcmaScript Harmony proxies
 class JSProxy: public JSReceiver {
  public:
-  // [target]: The target property.
-  DECL_ACCESSORS(target, Object)
-
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
-
+  // [target]: The target property.
+  DECL_ACCESSORS(target, Object)
   // [hash]: The hash code property (undefined if not initialized yet).
   DECL_ACCESSORS(hash, Object)
 
+  inline bool has_handler();
+
   DECLARE_CAST(JSProxy)
+
+  static MaybeHandle<Object> GetPrototype(Handle<JSProxy> receiver);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithHandler(
       Handle<JSProxy> proxy,
@@ -9545,6 +9549,10 @@ class JSProxy: public JSReceiver {
 
   typedef FixedBodyDescriptor<kTargetOffset, kSize, kSize> BodyDescriptor;
 
+  MUST_USE_RESULT Object* GetIdentityHash();
+
+  static Handle<Smi> GetOrCreateIdentityHash(Handle<JSProxy> proxy);
+
  private:
   friend class JSReceiver;
 
@@ -9559,10 +9567,6 @@ class JSProxy: public JSReceiver {
 
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
-
-  MUST_USE_RESULT Object* GetIdentityHash();
-
-  static Handle<Smi> GetOrCreateIdentityHash(Handle<JSProxy> proxy);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };

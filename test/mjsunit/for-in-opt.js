@@ -46,7 +46,7 @@ var handler = {
 };
 
 
-var proxy = Proxy.create(handler);
+var proxy = new Proxy({}, handler);
 var o = {__proto__: proxy};
 
 function f2(o) {
@@ -92,7 +92,7 @@ var handler2 = {
     return {value: 10, configurable: true, writable: false, enumerable: true};
   }
 }
-var proxy2 = Proxy.create(handler2);
+var proxy2 = new Proxy({}, handler2);
 var o2 = {__proto__: proxy2};
 var p = {x: "x"}
 
@@ -139,7 +139,7 @@ var handler3 = {
   }
 };
 
-var proxy3 = Proxy.create(handler3);
+var proxy3 = new Proxy({}, handler3);
 var o3 = {__proto__: proxy3};
 
 function f5() {

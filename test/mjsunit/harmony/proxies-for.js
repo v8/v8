@@ -31,8 +31,10 @@
 // Helper.
 
 function TestWithProxies(test, x, y, z) {
-  test(Proxy.create, x, y, z)
-  test(function(h) {return Proxy.createFunction(h, function() {})}, x, y, z)
+  test(function(h){ return new Proxy({}, h) }, x, y, z)
+  test(function(h) {
+    return Proxy.createFunction(h, function() {})
+  }, x, y, z)
 }
 
 
@@ -71,7 +73,7 @@ TestForIn(["b", "d"], {
   }
 })
 
-TestForIn(["b", "a", "0", "c"], Proxy.create({
+TestForIn(["b", "a", "0", "c"], new Proxy({}, {
   get: function(pr, pk) {
     return function() { return ["b", "a", 0, "c"] }
   }
@@ -161,14 +163,14 @@ TestForInThrow({
   getPropertyDescriptor: function() { throw "myexn" }
 })
 
-TestForInThrow(Proxy.create({
+TestForInThrow(new Proxy({}, {
   get: function(pr, pk) {
     return function() { throw "myexn" }
   }
 }));
 
 (function() {
-  var p = Proxy.create({enumerate:function() { return [0]; }});
+  var p = new Proxy({}, {enumerate:function() { return [0]; }});
   var o = [0];
   o.__proto__ = p;
   var keys = [];
@@ -177,7 +179,7 @@ TestForInThrow(Proxy.create({
 })();
 
 (function () {
-  var p = Proxy.create({getOwnPropertyNames:
+  var p = new Proxy({}, {getOwnPropertyNames:
     function() { return [1, Symbol(), 2] }});
   assertEquals(["1","2"], Object.getOwnPropertyNames(p));
 })();

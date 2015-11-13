@@ -30,8 +30,8 @@ var global = this;
     }
   };
 
-  var proto = {};
-  var proxy = Proxy.create(handler, proto);
+  var target = {};
+  var proxy = new Proxy(target, handler);
   var object = {
     __proto__: proxy,
     setX(v) {
@@ -74,7 +74,7 @@ var global = this;
     }
   };
 
-  var proxy = Proxy.create(handler);
+  var proxy = new Proxy({}, handler);
   object.setY.call(proxy, 3);
   assertEquals(1, calls);
 })();

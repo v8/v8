@@ -31,8 +31,10 @@
 // Helper.
 
 function TestWithProxies(test, x, y, z) {
-  test(Proxy.create, x, y, z)
-  test(function(h) {return Proxy.createFunction(h, function() {})}, x, y, z)
+  test(function(h) { return new Proxy({}, h) }, x, y, z)
+  test(function(h) {
+    return Proxy.createFunction(h, function() {})
+  }, x, y, z)
 }
 
 
