@@ -26,17 +26,11 @@ class SimplifiedLowering final {
 
   void LowerAllNodes();
 
-  // TODO(titzer): These are exposed for direct testing. Use a friend class.
-  void DoAllocate(Node* node);
-  void DoLoadField(Node* node);
-  void DoStoreField(Node* node);
   // TODO(turbofan): The output_type can be removed once the result of the
   // representation analysis is stored in the node bounds.
   void DoLoadBuffer(Node* node, MachineType output_type,
                     RepresentationChanger* changer);
   void DoStoreBuffer(Node* node);
-  void DoLoadElement(Node* node);
-  void DoStoreElement(Node* node);
   void DoObjectIsNumber(Node* node);
   void DoObjectIsSmi(Node* node);
   void DoShift(Node* node, Operator const* op);
@@ -56,7 +50,6 @@ class SimplifiedLowering final {
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
 
-  Node* ComputeIndex(const ElementAccess& access, Node* const key);
   Node* StringComparison(Node* node);
   Node* Int32Div(Node* const node);
   Node* Int32Mod(Node* const node);

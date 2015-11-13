@@ -177,6 +177,161 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToUint32WithTaggedPointer) {
 }
 
 
+TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldSmi) {
+  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                        Handle<Name>::null(), Type::Any(), kMachAnyTagged};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::TaggedSigned());
+  Node* store = graph()->NewNode(simplified()->StoreField(access), p0, p1,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(store);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(kMachAnyTagged, kNoWriteBarrier), p0,
+                      IsIntPtrConstant(access.offset - access.tag()), p1,
+                      graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldTagged) {
+  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                        Handle<Name>::null(), Type::Any(), kMachAnyTagged};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Tagged());
+  Node* store = graph()->NewNode(simplified()->StoreField(access), p0, p1,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(store);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(kMachAnyTagged, kFullWriteBarrier),
+                      p0, IsIntPtrConstant(access.offset - access.tag()), p1,
+                      graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, LoadField) {
+  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                        Handle<Name>::null(), Type::Any(), kMachAnyTagged};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* load = graph()->NewNode(simplified()->LoadField(access), p0,
+                                graph()->start(), graph()->start());
+  Reduction r = Reduce(load);
+
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match = IsIntPtrConstant(access.offset - access.tag());
+  EXPECT_THAT(
+      r.replacement(),
+      IsLoad(kMachAnyTagged, p0, IsIntPtrConstant(access.offset - access.tag()),
+             graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementTagged) {
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
+                          kMachAnyTagged};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Signed32());
+  Node* p2 = Parameter(Type::Tagged());
+  Node* store = graph()->NewNode(simplified()->StoreElement(access), p0, p1, p2,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(store);
+
+  const int element_size_shift = ElementSizeLog2Of(access.machine_type);
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match =
+      IsInt32Add(IsWord32Shl(p1, IsInt32Constant(element_size_shift)),
+                 IsInt32Constant(access.header_size - access.tag()));
+  if (!Is32()) {
+    index_match = IsChangeUint32ToUint64(index_match);
+  }
+
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(kMachAnyTagged, kFullWriteBarrier),
+                      p0, index_match, p2, graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementUint8) {
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                          Type::Signed32(), kMachUint8};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Signed32());
+  Node* p2 = Parameter(Type::Signed32());
+  Node* store = graph()->NewNode(simplified()->StoreElement(access), p0, p1, p2,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(store);
+
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match =
+      IsInt32Add(p1, IsInt32Constant(access.header_size - access.tag()));
+  if (!Is32()) {
+    index_match = IsChangeUint32ToUint64(index_match);
+  }
+
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(kMachUint8, kNoWriteBarrier), p0,
+                      index_match, p2, graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, LoadElementTagged) {
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
+                          kMachAnyTagged};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Signed32());
+  Node* load = graph()->NewNode(simplified()->LoadElement(access), p0, p1,
+                                graph()->start(), graph()->start());
+  Reduction r = Reduce(load);
+
+  const int element_size_shift = ElementSizeLog2Of(access.machine_type);
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match =
+      IsInt32Add(IsWord32Shl(p1, IsInt32Constant(element_size_shift)),
+                 IsInt32Constant(access.header_size - access.tag()));
+  if (!Is32()) {
+    index_match = IsChangeUint32ToUint64(index_match);
+  }
+
+  EXPECT_THAT(r.replacement(), IsLoad(kMachAnyTagged, p0, index_match,
+                                      graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, LoadElementInt8) {
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                          Type::Signed32(), kMachInt8};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Signed32());
+  Node* load = graph()->NewNode(simplified()->LoadElement(access), p0, p1,
+                                graph()->start(), graph()->start());
+  Reduction r = Reduce(load);
+
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match =
+      IsInt32Add(p1, IsInt32Constant(access.header_size - access.tag()));
+  if (!Is32()) {
+    index_match = IsChangeUint32ToUint64(index_match);
+  }
+
+  EXPECT_THAT(r.replacement(), IsLoad(kMachInt8, p0, index_match,
+                                      graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, Allocate) {
+  Node* p0 = Parameter(Type::Signed32());
+  Node* alloc = graph()->NewNode(simplified()->Allocate(TENURED), p0,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(alloc);
+
+  // Only check that we lowered, but do not specify the exact form since
+  // this is subject to change.
+  ASSERT_TRUE(r.Changed());
+}
+
+
 INSTANTIATE_TEST_CASE_P(ChangeLoweringTest, ChangeLoweringCommonTest,
                         ::testing::Values(kRepWord32, kRepWord64));
 

@@ -6,7 +6,6 @@
 
 #include <limits>
 
-#include "src/address-map.h"
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
@@ -820,7 +819,6 @@ class RepresentationSelector {
         ProcessInput(node, 0, kMachAnyTagged);
         ProcessRemainingInputs(node, 1);
         SetOutput(node, kMachAnyTagged);
-        if (lower()) lowering->DoAllocate(node);
         break;
       }
       case IrOpcode::kLoadField: {
@@ -828,7 +826,6 @@ class RepresentationSelector {
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessRemainingInputs(node, 1);
         SetOutput(node, access.machine_type);
-        if (lower()) lowering->DoLoadField(node);
         break;
       }
       case IrOpcode::kStoreField: {
@@ -837,7 +834,6 @@ class RepresentationSelector {
         ProcessInput(node, 1, access.machine_type);
         ProcessRemainingInputs(node, 2);
         SetOutput(node, 0);
-        if (lower()) lowering->DoStoreField(node);
         break;
       }
       case IrOpcode::kLoadBuffer: {
@@ -883,7 +879,6 @@ class RepresentationSelector {
         ProcessInput(node, 1, kMachInt32);                            // index
         ProcessRemainingInputs(node, 2);
         SetOutput(node, access.machine_type);
-        if (lower()) lowering->DoLoadElement(node);
         break;
       }
       case IrOpcode::kStoreElement: {
@@ -893,7 +888,6 @@ class RepresentationSelector {
         ProcessInput(node, 2, access.machine_type);                   // value
         ProcessRemainingInputs(node, 3);
         SetOutput(node, 0);
-        if (lower()) lowering->DoStoreElement(node);
         break;
       }
       case IrOpcode::kObjectIsNumber: {
@@ -1142,128 +1136,6 @@ void SimplifiedLowering::LowerAllNodes() {
 }
 
 
-namespace {
-
-WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
-                                         MachineType representation,
-                                         Type* field_type, Type* input_type) {
-  if (field_type->Is(Type::TaggedSigned()) ||
-      input_type->Is(Type::TaggedSigned())) {
-    // Write barriers are only for writes of heap objects.
-    return kNoWriteBarrier;
-  }
-  if (input_type->Is(Type::BooleanOrNullOrUndefined())) {
-    // Write barriers are not necessary when storing true, false, null or
-    // undefined, because these special oddballs are always in the root set.
-    return kNoWriteBarrier;
-  }
-  if (base_is_tagged == kTaggedBase &&
-      RepresentationOf(representation) == kRepTagged) {
-    if (input_type->IsConstant() &&
-        input_type->AsConstant()->Value()->IsHeapObject()) {
-      Handle<HeapObject> input =
-          Handle<HeapObject>::cast(input_type->AsConstant()->Value());
-      if (input->IsMap()) {
-        // Write barriers for storing maps are cheaper.
-        return kMapWriteBarrier;
-      }
-      Isolate* const isolate = input->GetIsolate();
-      RootIndexMap root_index_map(isolate);
-      int root_index = root_index_map.Lookup(*input);
-      if (root_index != RootIndexMap::kInvalidRootIndex &&
-          isolate->heap()->RootIsImmortalImmovable(root_index)) {
-        // Write barriers are unnecessary for immortal immovable roots.
-        return kNoWriteBarrier;
-      }
-    }
-    if (field_type->Is(Type::TaggedPointer()) ||
-        input_type->Is(Type::TaggedPointer())) {
-      // Write barriers for heap objects don't need a Smi check.
-      return kPointerWriteBarrier;
-    }
-    // Write barriers are only for writes into heap objects (i.e. tagged base).
-    return kFullWriteBarrier;
-  }
-  return kNoWriteBarrier;
-}
-
-}  // namespace
-
-
-void SimplifiedLowering::DoAllocate(Node* node) {
-  PretenureFlag pretenure = OpParameter<PretenureFlag>(node->op());
-  if (pretenure == NOT_TENURED) {
-    Callable callable = CodeFactory::AllocateInNewSpace(isolate());
-    Node* target = jsgraph()->HeapConstant(callable.code());
-    CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-        isolate(), jsgraph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNoFlags, Operator::kNoThrow);
-    const Operator* op = common()->Call(descriptor);
-    node->InsertInput(graph()->zone(), 0, target);
-    node->InsertInput(graph()->zone(), 2, jsgraph()->NoContextConstant());
-    NodeProperties::ChangeOp(node, op);
-  } else {
-    DCHECK_EQ(TENURED, pretenure);
-    AllocationSpace space = OLD_SPACE;
-    Runtime::FunctionId f = Runtime::kAllocateInTargetSpace;
-    Operator::Properties props = node->op()->properties();
-    CallDescriptor* desc =
-        Linkage::GetRuntimeCallDescriptor(zone(), f, 2, props);
-    ExternalReference ref(f, jsgraph()->isolate());
-    int32_t flags = AllocateTargetSpace::encode(space);
-    node->InsertInput(graph()->zone(), 0, jsgraph()->CEntryStubConstant(1));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->SmiConstant(flags));
-    node->InsertInput(graph()->zone(), 3, jsgraph()->ExternalConstant(ref));
-    node->InsertInput(graph()->zone(), 4, jsgraph()->Int32Constant(2));
-    node->InsertInput(graph()->zone(), 5, jsgraph()->NoContextConstant());
-    NodeProperties::ChangeOp(node, common()->Call(desc));
-  }
-}
-
-
-void SimplifiedLowering::DoLoadField(Node* node) {
-  const FieldAccess& access = FieldAccessOf(node->op());
-  Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
-  node->InsertInput(graph()->zone(), 1, offset);
-  NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
-}
-
-
-void SimplifiedLowering::DoStoreField(Node* node) {
-  const FieldAccess& access = FieldAccessOf(node->op());
-  Type* type = NodeProperties::GetType(node->InputAt(1));
-  WriteBarrierKind kind = ComputeWriteBarrierKind(
-      access.base_is_tagged, access.machine_type, access.type, type);
-  Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
-  node->InsertInput(graph()->zone(), 1, offset);
-  NodeProperties::ChangeOp(
-      node, machine()->Store(StoreRepresentation(access.machine_type, kind)));
-}
-
-
-Node* SimplifiedLowering::ComputeIndex(const ElementAccess& access,
-                                       Node* const key) {
-  Node* index = key;
-  const int element_size_shift = ElementSizeLog2Of(access.machine_type);
-  if (element_size_shift) {
-    index = graph()->NewNode(machine()->Word32Shl(), index,
-                             jsgraph()->Int32Constant(element_size_shift));
-  }
-  const int fixed_offset = access.header_size - access.tag();
-  if (fixed_offset) {
-    index = graph()->NewNode(machine()->Int32Add(), index,
-                             jsgraph()->Int32Constant(fixed_offset));
-  }
-  if (machine()->Is64()) {
-    // TODO(turbofan): This is probably only correct for typed arrays, and only
-    // if the typed arrays are at most 2GiB in size, which happens to match
-    // exactly our current situation.
-    index = graph()->NewNode(machine()->ChangeUint32ToUint64(), index);
-  }
-  return index;
-}
-
-
 void SimplifiedLowering::DoLoadBuffer(Node* node, MachineType output_type,
                                       RepresentationChanger* changer) {
   DCHECK_EQ(IrOpcode::kLoadBuffer, node->opcode());
@@ -1326,26 +1198,6 @@ void SimplifiedLowering::DoStoreBuffer(Node* node) {
   DCHECK_EQ(IrOpcode::kStoreBuffer, node->opcode());
   MachineType const type = BufferAccessOf(node->op()).machine_type();
   NodeProperties::ChangeOp(node, machine()->CheckedStore(type));
-}
-
-
-void SimplifiedLowering::DoLoadElement(Node* node) {
-  const ElementAccess& access = ElementAccessOf(node->op());
-  node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
-  NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
-}
-
-
-void SimplifiedLowering::DoStoreElement(Node* node) {
-  const ElementAccess& access = ElementAccessOf(node->op());
-  Type* type = NodeProperties::GetType(node->InputAt(2));
-  node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
-  NodeProperties::ChangeOp(
-      node,
-      machine()->Store(StoreRepresentation(
-          access.machine_type,
-          ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type,
-                                  access.type, type))));
 }
 
 
