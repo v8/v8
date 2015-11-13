@@ -39,9 +39,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadTrue()
       .LoadFalse();
 
-  // Emit accumulator transfers.
+  // Emit accumulator transfers. Stores followed by loads to the same register
+  // are not generated. Hence, a dummy instruction in between.
   Register reg(0);
-  builder.LoadAccumulatorWithRegister(reg).StoreAccumulatorInRegister(reg);
+  builder.LoadAccumulatorWithRegister(reg)
+      .LoadNull()
+      .StoreAccumulatorInRegister(reg);
 
   // Emit global load / store operations.
   builder.LoadGlobal(0, 1, LanguageMode::SLOPPY, TypeofMode::NOT_INSIDE_TYPEOF)

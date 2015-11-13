@@ -251,6 +251,7 @@ class BytecodeArrayBuilder {
   bool LastBytecodeInSameBlock() const;
 
   bool NeedToBooleanCast();
+  bool IsRegisterInAccumulator(Register reg);
 
   int BorrowTemporaryRegister();
   void ReturnTemporaryRegister(int reg_index);

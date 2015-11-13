@@ -271,18 +271,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadFalse() {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
     Register reg) {
-  // TODO(oth): Avoid loading the accumulator with the register if the
-  // previous bytecode stored the accumulator with the same register.
-  Output(Bytecode::kLdar, reg.ToOperand());
+  if (!IsRegisterInAccumulator(reg)) {
+    Output(Bytecode::kLdar, reg.ToOperand());
+  }
   return *this;
 }
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
     Register reg) {
-  // TODO(oth): Avoid storing the accumulator in the register if the
-  // previous bytecode loaded the accumulator with the same register.
-  Output(Bytecode::kStar, reg.ToOperand());
+  if (!IsRegisterInAccumulator(reg)) {
+    Output(Bytecode::kStar, reg.ToOperand());
+  }
   return *this;
 }
 
@@ -952,9 +952,26 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
   return false;
 }
 
+
 bool BytecodeArrayBuilder::LastBytecodeInSameBlock() const {
   return last_bytecode_start_ < bytecodes()->size() &&
          last_bytecode_start_ >= last_block_end_;
+}
+
+
+bool BytecodeArrayBuilder::IsRegisterInAccumulator(Register reg) {
+  if (!LastBytecodeInSameBlock()) return false;
+  Bytecode previous_bytecode =
+      Bytecodes::FromByte(bytecodes()->at(last_bytecode_start_));
+  if (previous_bytecode == Bytecode::kLdar ||
+      previous_bytecode == Bytecode::kStar) {
+    size_t operand_offset = last_bytecode_start_ +
+                            Bytecodes::GetOperandOffset(previous_bytecode, 0);
+    if (reg == Register::FromOperand(bytecodes()->at(operand_offset))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 

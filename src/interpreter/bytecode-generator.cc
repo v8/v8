@@ -658,7 +658,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
   BytecodeLabel body_label, condition_label, done_label;
   if (stmt->cond()->ToBooleanIsFalse()) {
-    // If the condition is false there is no need to generating the loop.
+    // If the condition is false there is no need to generate the loop.
     return;
   }
 
