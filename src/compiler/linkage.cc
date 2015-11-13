@@ -524,6 +524,28 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
     return incoming_->GetInputLocation(parameter_index);
   }
 }
+
+
+bool Linkage::ParameterHasSecondaryLocation(int index) const {
+  if (incoming_->kind() != CallDescriptor::kCallJSFunction) return false;
+  LinkageLocation loc = GetParameterLocation(index);
+  return (loc == regloc(kJSFunctionRegister) ||
+          loc == regloc(kContextRegister));
+}
+
+LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
+  DCHECK(ParameterHasSecondaryLocation(index));
+  LinkageLocation loc = GetParameterLocation(index);
+
+  if (loc == regloc(kJSFunctionRegister)) {
+    return LinkageLocation::ForCalleeFrameSlot(Frame::kJSFunctionSlot);
+  } else {
+    DCHECK(loc == regloc(kContextRegister));
+    return LinkageLocation::ForCalleeFrameSlot(Frame::kContextSlot);
+  }
+}
+
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

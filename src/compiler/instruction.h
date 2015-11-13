@@ -192,6 +192,12 @@ class UnallocatedOperand : public InstructionOperand {
     value_ |= LifetimeField::encode(lifetime);
   }
 
+  UnallocatedOperand(int reg_id, int slot_id, int virtual_register)
+      : UnallocatedOperand(FIXED_REGISTER, reg_id, virtual_register) {
+    value_ |= HasSecondaryStorageField::encode(true);
+    value_ |= SecondaryStorageField::encode(slot_id);
+  }
+
   // Predicates for the operand policy.
   bool HasAnyPolicy() const {
     return basic_policy() == EXTENDED_POLICY && extended_policy() == ANY;
@@ -221,6 +227,15 @@ class UnallocatedOperand : public InstructionOperand {
   bool HasFixedDoubleRegisterPolicy() const {
     return basic_policy() == EXTENDED_POLICY &&
            extended_policy() == FIXED_DOUBLE_REGISTER;
+  }
+  bool HasSecondaryStorage() const {
+    return basic_policy() == EXTENDED_POLICY &&
+           extended_policy() == FIXED_REGISTER &&
+           HasSecondaryStorageField::decode(value_);
+  }
+  int GetSecondaryStorage() const {
+    DCHECK(HasSecondaryStorage());
+    return SecondaryStorageField::decode(value_);
   }
 
   // [basic_policy]: Distinguish between FIXED_SLOT and all other policies.
@@ -301,7 +316,9 @@ class UnallocatedOperand : public InstructionOperand {
   // BitFields specific to BasicPolicy::EXTENDED_POLICY.
   class ExtendedPolicyField : public BitField64<ExtendedPolicy, 36, 3> {};
   class LifetimeField : public BitField64<Lifetime, 39, 1> {};
-  class FixedRegisterField : public BitField64<int, 40, 6> {};
+  class HasSecondaryStorageField : public BitField64<bool, 40, 1> {};
+  class FixedRegisterField : public BitField64<int, 41, 6> {};
+  class SecondaryStorageField : public BitField64<int, 47, 3> {};
 
  private:
   explicit UnallocatedOperand(int virtual_register)

@@ -1097,9 +1097,15 @@ void InstructionSelector::VisitGuard(Node* node) {
 void InstructionSelector::VisitParameter(Node* node) {
   OperandGenerator g(this);
   int index = ParameterIndexOf(node->op());
-  Emit(kArchNop,
-       g.DefineAsLocation(node, linkage()->GetParameterLocation(index),
-                          linkage()->GetParameterType(index)));
+  InstructionOperand op =
+      linkage()->ParameterHasSecondaryLocation(index)
+          ? g.DefineAsDualLocation(
+                node, linkage()->GetParameterLocation(index),
+                linkage()->GetParameterSecondaryLocation(index))
+          : g.DefineAsLocation(node, linkage()->GetParameterLocation(index),
+                               linkage()->GetParameterType(index));
+
+  Emit(kArchNop, op);
 }
 
 

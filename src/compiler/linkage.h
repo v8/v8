@@ -326,6 +326,9 @@ class Linkage : public ZoneObject {
     return incoming_->GetReturnType(index);
   }
 
+  bool ParameterHasSecondaryLocation(int index) const;
+  LinkageLocation GetParameterSecondaryLocation(int index) const;
+
   // Get the frame offset for a given spill slot. The location depends on the
   // calling convention and the specific frame layout, and may thus be
   // architecture-specific. Negative spill slots indicate arguments on the
