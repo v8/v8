@@ -4148,6 +4148,7 @@ void ParserTraits::ReindexLiterals(const ParserFormalParameters& parameters) {
 
     for (const auto p : parameters.params) {
       if (p.pattern != nullptr) reindexer.Reindex(p.pattern);
+      if (p.initializer != nullptr) reindexer.Reindex(p.initializer);
     }
 
     if (parameters.has_rest) {
