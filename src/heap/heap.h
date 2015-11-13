@@ -2361,6 +2361,7 @@ class Heap {
   friend class HeapIterator;
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
+  friend class IteratePointersToFromSpaceVisitor;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class NewSpace;

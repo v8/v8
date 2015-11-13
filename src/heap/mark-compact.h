@@ -416,12 +416,6 @@ class MarkCompactCollector {
                      AllocationSpace to_old_space,
                      SlotsBuffer** evacuation_slots_buffer);
 
-  void MigrateObjectTagged(HeapObject* dst, HeapObject* src, int size,
-                           SlotsBuffer** evacuation_slots_buffer);
-  void MigrateObjectMixed(HeapObject* dst, HeapObject* src, int size,
-                          SlotsBuffer** evacuation_slots_buffer);
-  void MigrateObjectRaw(HeapObject* dst, HeapObject* src, int size);
-
   bool TryPromoteObject(HeapObject* object, int object_size);
 
   void InvalidateCode(Code* code);
@@ -570,11 +564,12 @@ class MarkCompactCollector {
   //   After: Live objects are marked and non-live objects are unmarked.
 
   friend class CodeMarkingVisitor;
+  friend class IncrementalMarkingMarkingVisitor;
   friend class MarkCompactMarkingVisitor;
   friend class MarkingVisitor;
+  friend class RecordMigratedSlotVisitor;
   friend class RootMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
-  friend class IncrementalMarkingMarkingVisitor;
 
   // Mark code objects that are active on the stack to prevent them
   // from being flushed.

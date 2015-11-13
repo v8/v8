@@ -162,8 +162,9 @@ class StoreBuffer {
   void VerifyPointers(LargeObjectSpace* space);
 #endif
 
-  friend class StoreBufferRebuildScope;
   friend class DontMoveStoreBufferEntriesScope;
+  friend class FindPointersToNewSpaceVisitor;
+  friend class StoreBufferRebuildScope;
 };
 
 
