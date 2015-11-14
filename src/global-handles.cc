@@ -533,10 +533,10 @@ class GlobalHandles::PendingPhantomCallbacksSecondPassTask
   }
 
   void RunInternal() override {
-    isolate_->heap()->CallGCPrologueCallbacks(
+    isolate()->heap()->CallGCPrologueCallbacks(
         GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
-    InvokeSecondPassPhantomCallbacks(&pending_phantom_callbacks_, isolate_);
-    isolate_->heap()->CallGCEpilogueCallbacks(
+    InvokeSecondPassPhantomCallbacks(&pending_phantom_callbacks_, isolate());
+    isolate()->heap()->CallGCEpilogueCallbacks(
         GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
   }
 

@@ -1797,6 +1797,7 @@ Isolate::Isolate(bool enable_serializer)
 #endif
       use_counter_callback_(NULL),
       basic_block_profiler_(NULL),
+      cancelable_task_manager_(new CancelableTaskManager()),
       abort_on_uncaught_exception_callback_(NULL) {
   {
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
@@ -1920,10 +1921,7 @@ void Isolate::Deinit() {
   delete basic_block_profiler_;
   basic_block_profiler_ = NULL;
 
-  for (Cancelable* task : cancelable_tasks_) {
-    task->Cancel();
-  }
-  cancelable_tasks_.clear();
+  cancelable_task_manager()->CancelAndWait();
 
   heap_.TearDown();
   logger_->TearDown();
@@ -2027,6 +2025,9 @@ Isolate::~Isolate() {
 
   delete debug_;
   debug_ = NULL;
+
+  delete cancelable_task_manager_;
+  cancelable_task_manager_ = nullptr;
 
 #if USE_SIMULATOR
   Simulator::TearDown(simulator_i_cache_, simulator_redirection_);
@@ -2795,18 +2796,6 @@ void Isolate::CheckDetachedContextsAfterGC() {
     heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
         *detached_contexts, length - new_length);
   }
-}
-
-
-void Isolate::RegisterCancelableTask(Cancelable* task) {
-  cancelable_tasks_.insert(task);
-}
-
-
-void Isolate::RemoveCancelableTask(Cancelable* task) {
-  auto removed = cancelable_tasks_.erase(task);
-  USE(removed);
-  DCHECK(removed == 1);
 }
 
 
