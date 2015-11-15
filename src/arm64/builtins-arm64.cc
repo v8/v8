@@ -247,7 +247,12 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ Bind(&done_convert);
   }
 
-  // 3. Allocate a JSValue wrapper for the string.
+  // 3. Check if original constructor and constructor differ.
+  Label new_object;
+  __ Cmp(x1, x3);
+  __ B(ne, &new_object);
+
+  // 4. Allocate a JSValue wrapper for the string.
   {
     // ----------- S t a t e -------------
     //  -- x2 : the first argument
@@ -255,15 +260,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     //  -- x3 : original constructor
     //  -- lr : return address
     // -----------------------------------
-
-    Label allocate, done_allocate, rt_call;
-
-    // Fall back to runtime if the original constructor and function differ.
-    __ cmp(x1, x3);
-    __ B(ne, &rt_call);
-
-    __ Allocate(JSValue::kSize, x0, x3, x4, &allocate, TAG_OBJECT);
-    __ Bind(&done_allocate);
+    __ Allocate(JSValue::kSize, x0, x4, x5, &new_object, TAG_OBJECT);
 
     // Initialize the JSValue in eax.
     __ LoadGlobalFunctionInitialMap(x1, x3, x4);
@@ -274,29 +271,19 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ Str(x2, FieldMemOperand(x0, JSValue::kValueOffset));
     STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
     __ Ret();
-
-    // Fallback to the runtime to allocate in new space.
-    __ Bind(&allocate);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(x1, x2);
-      __ Push(Smi::FromInt(JSValue::kSize));
-      __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-      __ Pop(x2, x1);
-    }
-    __ B(&done_allocate);
-
-    // Fallback to the runtime to create new object.
-    __ bind(&rt_call);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(x1, x2, x1, x3);  // constructor function, original constructor
-      __ CallRuntime(Runtime::kNewObject, 2);
-      __ Pop(x2, x1);
-    }
-    __ Str(x2, FieldMemOperand(x0, JSValue::kValueOffset));
-    __ Ret();
   }
+
+  // 5. Fallback to the runtime to create new object.
+  __ bind(&new_object);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(x2, x1);  // first argument, constructor
+    __ Push(x1, x3);  // constructor, original constructor
+    __ CallRuntime(Runtime::kNewObject, 2);
+    __ Pop(x1, x2);
+  }
+  __ Str(x2, FieldMemOperand(x0, JSValue::kValueOffset));
+  __ Ret();
 }
 
 

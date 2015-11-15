@@ -841,6 +841,7 @@ class MacroAssembler: public Assembler {
   void Push(const Operand& src) { push(src); }
   void Push(Immediate value) { push(value); }
   void Pop(Register dst) { pop(dst); }
+  void Pop(const Operand& dst) { pop(dst); }
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
 

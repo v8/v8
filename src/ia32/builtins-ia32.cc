@@ -1407,22 +1407,19 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&done_convert);
   }
 
-  // 3. Allocate a JSValue wrapper for the string.
+  // 3. Check if original constructor and constructor differ.
+  Label new_object;
+  __ cmp(edx, edi);
+  __ j(not_equal, &new_object);
+
+  // 4. Allocate a JSValue wrapper for the string.
   {
     // ----------- S t a t e -------------
     //  -- ebx : the first argument
     //  -- edi : constructor function
     //  -- edx : original constructor
     // -----------------------------------
-
-    Label allocate, done_allocate, rt_call;
-
-    // Fall back to runtime if the original constructor and constructor differ.
-    __ cmp(edx, edi);
-    __ j(not_equal, &rt_call);
-
-    __ Allocate(JSValue::kSize, eax, ecx, no_reg, &allocate, TAG_OBJECT);
-    __ bind(&done_allocate);
+    __ Allocate(JSValue::kSize, eax, ecx, no_reg, &new_object, TAG_OBJECT);
 
     // Initialize the JSValue in eax.
     __ LoadGlobalFunctionInitialMap(edi, ecx);
@@ -1434,35 +1431,19 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ mov(FieldOperand(eax, JSValue::kValueOffset), ebx);
     STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
     __ Ret();
-
-    // Fallback to the runtime to allocate in new space.
-    __ bind(&allocate);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(ebx);
-      __ Push(edi);
-      __ Push(Smi::FromInt(JSValue::kSize));
-      __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-      __ Pop(edi);
-      __ Pop(ebx);
-    }
-    __ jmp(&done_allocate);
-
-    // Fallback to the runtime to create new object.
-    __ bind(&rt_call);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(ebx);
-      __ Push(edi);
-      __ Push(edi);  // constructor function
-      __ Push(edx);  // original constructor
-      __ CallRuntime(Runtime::kNewObject, 2);
-      __ Pop(edi);
-      __ Pop(ebx);
-    }
-    __ mov(FieldOperand(eax, JSValue::kValueOffset), ebx);
-    __ Ret();
   }
+
+  // 5. Fallback to the runtime to create new object.
+  __ bind(&new_object);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(ebx);  // the first argument
+    __ Push(edi);  // constructor function
+    __ Push(edx);  // original constructor
+    __ CallRuntime(Runtime::kNewObject, 2);
+    __ Pop(FieldOperand(eax, JSValue::kValueOffset));
+  }
+  __ Ret();
 }
 
 

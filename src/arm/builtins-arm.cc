@@ -251,7 +251,12 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&done_convert);
   }
 
-  // 3. Allocate a JSValue wrapper for the string.
+  // 3. Check if original constructor and constructor differ.
+  Label new_object;
+  __ cmp(r1, r3);
+  __ b(ne, &new_object);
+
+  // 4. Allocate a JSValue wrapper for the string.
   {
     // ----------- S t a t e -------------
     //  -- r2 : the first argument
@@ -259,15 +264,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     //  -- r3 : original constructor
     //  -- lr : return address
     // -----------------------------------
-
-    Label allocate, done_allocate, rt_call;
-
-    // Fall back to runtime if the original constructor and function differ.
-    __ cmp(r1, r3);
-    __ b(ne, &rt_call);
-
-    __ Allocate(JSValue::kSize, r0, r3, r4, &allocate, TAG_OBJECT);
-    __ bind(&done_allocate);
+    __ Allocate(JSValue::kSize, r0, r4, r5, &new_object, TAG_OBJECT);
 
     // Initialize the JSValue in r0.
     __ LoadGlobalFunctionInitialMap(r1, r3, r4);
@@ -278,30 +275,18 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ str(r2, FieldMemOperand(r0, JSValue::kValueOffset));
     STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
     __ Ret();
-
-    // Fallback to the runtime to allocate in new space.
-    __ bind(&allocate);
-    {
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ Move(r3, Smi::FromInt(JSValue::kSize));
-      __ Push(r1, r2, r3);
-      __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-      __ Pop(r1, r2);
-    }
-    __ b(&done_allocate);
-
-    // Fallback to the runtime to create new object.
-    __ bind(&rt_call);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(r1, r2);
-      __ Push(r1, r3);  // constructor function, original constructor
-      __ CallRuntime(Runtime::kNewObject, 2);
-      __ Pop(r1, r2);
-    }
-    __ str(r2, FieldMemOperand(r0, JSValue::kValueOffset));
-    __ Ret();
   }
+
+  // 5. Fallback to the runtime to create new object.
+  __ bind(&new_object);
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    __ Push(r2, r1, r3);  // first argument, constructor, original constructor
+    __ CallRuntime(Runtime::kNewObject, 2);
+    __ Pop(r2);
+  }
+  __ str(r2, FieldMemOperand(r0, JSValue::kValueOffset));
+  __ Ret();
 }
 
 
