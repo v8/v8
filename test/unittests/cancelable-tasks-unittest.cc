@@ -116,8 +116,8 @@ TEST(CancelableTask, SequentialMultipleTasks) {
   TestTask* task2 = new TestTask(&manager, &result2);
   SequentialRunner runner1(task1);
   SequentialRunner runner2(task2);
-  EXPECT_EQ(task1->id(), 1);
-  EXPECT_EQ(task2->id(), 2);
+  EXPECT_EQ(task1->id(), 1u);
+  EXPECT_EQ(task2->id(), 2u);
 
   EXPECT_EQ(GetValue(&result1), 0);
   runner1.Run();  // Don't touch task1 after running it.
@@ -181,7 +181,7 @@ TEST(CancelableTask, RemoveBeforeCancelAndWait) {
   TestTask* task1 = new TestTask(&manager, &result1, TestTask::kCheckNotRun);
   ThreadedRunner runner1(task1);
   uint32_t id = task1->id();
-  EXPECT_EQ(id, 1);
+  EXPECT_EQ(id, 1u);
   EXPECT_TRUE(manager.TryAbort(id));
   runner1.Start();
   runner1.Join();
@@ -196,7 +196,7 @@ TEST(CancelableTask, RemoveAfterCancelAndWait) {
   TestTask* task1 = new TestTask(&manager, &result1);
   ThreadedRunner runner1(task1);
   uint32_t id = task1->id();
-  EXPECT_EQ(id, 1);
+  EXPECT_EQ(id, 1u);
   runner1.Start();
   runner1.Join();
   manager.CancelAndWait();
