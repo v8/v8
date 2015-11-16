@@ -189,7 +189,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     DCHECK_NOT_NULL(proxy->var());
     DCHECK_NOT_NULL(value);
     Assignment* assignment = factory()->NewAssignment(
-        descriptor_->init_op, proxy, value, descriptor_->initialization_pos);
+        Token::INIT, proxy, value, descriptor_->initialization_pos);
     block_->statements()->Add(
         factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
         zone());
@@ -205,7 +205,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     // property).
     VariableProxy* proxy = initialization_scope->NewUnresolved(factory(), name);
     Assignment* assignment = factory()->NewAssignment(
-        descriptor_->init_op, proxy, value, descriptor_->initialization_pos);
+        Token::INIT, proxy, value, descriptor_->initialization_pos);
     block_->statements()->Add(
         factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
         zone());

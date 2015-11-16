@@ -1632,7 +1632,7 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     VectorSlotPair feedback = CreateVectorSlotPair(
         expr->NeedsProxySlot() ? expr->ProxySlot()
                                : FeedbackVectorSlot::Invalid());
-    BuildVariableAssignment(var, literal, Token::INIT_CONST, feedback,
+    BuildVariableAssignment(var, literal, Token::INIT, feedback,
                             BailoutId::None(), states);
   }
   ast_context()->ProduceValue(literal);
@@ -3202,7 +3202,7 @@ Node* AstGraphBuilder::BuildThisFunctionVariable(Variable* this_function_var) {
   // Assign the object to the {.this_function} variable. This should never lazy
   // deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  BuildVariableAssignment(this_function_var, this_function, Token::INIT_CONST,
+  BuildVariableAssignment(this_function_var, this_function, Token::INIT,
                           VectorSlotPair(), BailoutId::None(), states);
   return this_function;
 }
@@ -3220,8 +3220,8 @@ Node* AstGraphBuilder::BuildNewTargetVariable(Variable* new_target_var) {
   // Assign the object to the {new.target} variable. This should never lazy
   // deopt, so it is fine to send invalid bailout id.
   FrameStateBeforeAndAfter states(this, BailoutId::None());
-  BuildVariableAssignment(new_target_var, object, Token::INIT_CONST,
-                          VectorSlotPair(), BailoutId::None(), states);
+  BuildVariableAssignment(new_target_var, object, Token::INIT, VectorSlotPair(),
+                          BailoutId::None(), states);
   return object;
 }
 
@@ -3418,13 +3418,13 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
       // Local var, const, or let variable.
-      if (mode == CONST_LEGACY && op == Token::INIT_CONST_LEGACY) {
+      if (mode == CONST_LEGACY && op == Token::INIT) {
         // Perform an initialization check for legacy const variables.
         Node* current = environment()->Lookup(variable);
         if (current->op() != the_hole->op()) {
           value = BuildHoleCheckSilent(current, value, current);
         }
-      } else if (mode == CONST_LEGACY && op != Token::INIT_CONST_LEGACY) {
+      } else if (mode == CONST_LEGACY && op != Token::INIT) {
         // Non-initializing assignment to legacy const is
         // - exception in strict mode.
         // - ignored in sloppy mode.
@@ -3432,13 +3432,13 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           return BuildThrowConstAssignError(bailout_id);
         }
         return value;
-      } else if (mode == LET && op == Token::INIT_LET) {
+      } else if (mode == LET && op == Token::INIT) {
         // No initialization check needed because scoping guarantees it. Note
         // that we still perform a lookup to keep the variable live, because
         // baseline code might contain debug code that inspects the variable.
         Node* current = environment()->Lookup(variable);
         CHECK_NOT_NULL(current);
-      } else if (mode == LET && op != Token::INIT_LET) {
+      } else if (mode == LET && op != Token::INIT) {
         // Perform an initialization check for let declared variables.
         Node* current = environment()->Lookup(variable);
         if (current->op() == the_hole->op()) {
@@ -3446,7 +3446,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         } else if (current->opcode() == IrOpcode::kPhi) {
           BuildHoleCheckThenThrow(current, variable, value, bailout_id);
         }
-      } else if (mode == CONST && op == Token::INIT_CONST) {
+      } else if (mode == CONST && op == Token::INIT) {
         // Perform an initialization check for const {this} variables.
         // Note that the {this} variable is the only const variable being able
         // to trigger bind operations outside the TDZ, via {super} calls.
@@ -3454,7 +3454,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
         if (current->op() != the_hole->op() && variable->is_this()) {
           value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
         }
-      } else if (mode == CONST && op != Token::INIT_CONST) {
+      } else if (mode == CONST && op != Token::INIT) {
         // Assignment to const is exception in all modes.
         Node* current = environment()->Lookup(variable);
         if (current->op() == the_hole->op()) {
@@ -3469,13 +3469,13 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     case VariableLocation::CONTEXT: {
       // Context variable (potentially up the context chain).
       int depth = current_scope()->ContextChainLength(variable->scope());
-      if (mode == CONST_LEGACY && op == Token::INIT_CONST_LEGACY) {
+      if (mode == CONST_LEGACY && op == Token::INIT) {
         // Perform an initialization check for legacy const variables.
         const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);
         Node* current = NewNode(op, current_context());
         value = BuildHoleCheckSilent(current, value, current);
-      } else if (mode == CONST_LEGACY && op != Token::INIT_CONST_LEGACY) {
+      } else if (mode == CONST_LEGACY && op != Token::INIT) {
         // Non-initializing assignment to legacy const is
         // - exception in strict mode.
         // - ignored in sloppy mode.
@@ -3483,13 +3483,13 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           return BuildThrowConstAssignError(bailout_id);
         }
         return value;
-      } else if (mode == LET && op != Token::INIT_LET) {
+      } else if (mode == LET && op != Token::INIT) {
         // Perform an initialization check for let declared variables.
         const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);
         Node* current = NewNode(op, current_context());
         value = BuildHoleCheckThenThrow(current, variable, value, bailout_id);
-      } else if (mode == CONST && op == Token::INIT_CONST) {
+      } else if (mode == CONST && op == Token::INIT) {
         // Perform an initialization check for const {this} variables.
         // Note that the {this} variable is the only const variable being able
         // to trigger bind operations outside the TDZ, via {super} calls.
@@ -3499,7 +3499,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
           Node* current = NewNode(op, current_context());
           value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
         }
-      } else if (mode == CONST && op != Token::INIT_CONST) {
+      } else if (mode == CONST && op != Token::INIT) {
         // Assignment to const is exception in all modes.
         const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);

@@ -7074,11 +7074,11 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
     Variable* var = proxy->var();
 
     if (var->mode() == CONST) {
-      if (expr->op() != Token::INIT_CONST) {
+      if (expr->op() != Token::INIT) {
         return Bailout(kNonInitializerAssignmentToConst);
       }
     } else if (var->mode() == CONST_LEGACY) {
-      if (expr->op() != Token::INIT_CONST_LEGACY) {
+      if (expr->op() != Token::INIT) {
         CHECK_ALIVE(VisitForValue(expr->value()));
         return ast_context()->ReturnValue(Pop());
       }
@@ -7152,14 +7152,13 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
             default:
               mode = HStoreContextSlot::kNoCheck;
           }
-        } else if (expr->op() == Token::INIT_VAR ||
-                   expr->op() == Token::INIT_LET ||
-                   expr->op() == Token::INIT_CONST) {
-          mode = HStoreContextSlot::kNoCheck;
         } else {
-          DCHECK(expr->op() == Token::INIT_CONST_LEGACY);
-
-          mode = HStoreContextSlot::kCheckIgnoreAssignment;
+          DCHECK_EQ(Token::INIT, expr->op());
+          if (var->mode() == CONST_LEGACY) {
+            mode = HStoreContextSlot::kCheckIgnoreAssignment;
+          } else {
+            mode = HStoreContextSlot::kNoCheck;
+          }
         }
 
         HValue* context = BuildContextChainWalk(var);

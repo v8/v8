@@ -3013,10 +3013,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     // Check if the right hand side is a call to avoid inferring a
     // name if we're dealing with "a = function(){...}();"-like
     // expression.
-    if ((op == Token::INIT_VAR
-         || op == Token::INIT_CONST_LEGACY
-         || op == Token::ASSIGN)
-        && (!right->IsCall() && !right->IsCallNew())) {
+    if ((op == Token::INIT || op == Token::ASSIGN) &&
+        (!right->IsCall() && !right->IsCallNew())) {
       fni_->Infer();
     } else {
       fni_->RemoveLastFunction();
@@ -3329,8 +3327,8 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         // implicit binding assignment to the 'this' variable.
         if (is_super_call) {
           ExpressionT this_expr = this->ThisExpression(scope_, factory(), pos);
-          result = factory()->NewAssignment(Token::INIT_CONST, this_expr,
-                                            result, pos);
+          result =
+              factory()->NewAssignment(Token::INIT, this_expr, result, pos);
         }
 
         if (fni_ != NULL) fni_->RemoveLastFunction();
@@ -3617,7 +3615,7 @@ ParserBase<Traits>::ParseStrongSuperCallExpression(
   // Explicit calls to the super constructor using super() perform an implicit
   // binding assignment to the 'this' variable.
   ExpressionT this_expr = this->ThisExpression(scope_, factory(), pos);
-  return factory()->NewAssignment(Token::INIT_CONST, this_expr, expr, pos);
+  return factory()->NewAssignment(Token::INIT, this_expr, expr, pos);
 }
 
 

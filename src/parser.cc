@@ -2222,8 +2222,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   NativeFunctionLiteral* lit = factory()->NewNativeFunctionLiteral(
       name, extension_, RelocInfo::kNoPosition);
   return factory()->NewExpressionStatement(
-      factory()->NewAssignment(
-          Token::INIT_VAR, proxy, lit, RelocInfo::kNoPosition),
+      factory()->NewAssignment(Token::INIT, proxy, lit, RelocInfo::kNoPosition),
       pos);
 }
 
@@ -2341,9 +2340,8 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
             outer_class_variable->AsClassVariable()->declaration_group_start());
   }
 
-  Token::Value init_op =
-      is_strong(language_mode()) ? Token::INIT_CONST : Token::INIT_LET;
-  Assignment* assignment = factory()->NewAssignment(init_op, proxy, value, pos);
+  Assignment* assignment =
+      factory()->NewAssignment(Token::INIT, proxy, value, pos);
   Statement* assignment_statement =
       factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
   if (names) names->Add(name, zone());
@@ -2460,7 +2458,6 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
   // immediately by their declaration nodes.
   parsing_result->descriptor.needs_init = false;
   parsing_result->descriptor.is_const = false;
-  parsing_result->descriptor.init_op = Token::INIT_VAR;
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
       Scanner::Location location = scanner()->peek_location();
@@ -2473,13 +2470,11 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     Consume(Token::CONST);
     if (is_sloppy(language_mode()) && allow_legacy_const()) {
       parsing_result->descriptor.mode = CONST_LEGACY;
-      parsing_result->descriptor.init_op = Token::INIT_CONST_LEGACY;
       ++use_counts_[v8::Isolate::kLegacyConst];
     } else {
       DCHECK(is_strict(language_mode()) || allow_harmony_sloppy());
       DCHECK(var_context != kStatement);
       parsing_result->descriptor.mode = CONST;
-      parsing_result->descriptor.init_op = Token::INIT_CONST;
     }
     parsing_result->descriptor.is_const = true;
     parsing_result->descriptor.needs_init = true;
@@ -2488,7 +2483,6 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     DCHECK(var_context != kStatement);
     parsing_result->descriptor.mode = LET;
     parsing_result->descriptor.needs_init = true;
-    parsing_result->descriptor.init_op = Token::INIT_LET;
   } else {
     UNREACHABLE();  // by current callers
   }
@@ -3185,7 +3179,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
           descriptor.needs_init = true;
           descriptor.declaration_pos = pattern->position();
           descriptor.initialization_pos = pattern->position();
-          descriptor.init_op = Token::INIT_LET;
 
           DeclarationParsingResult::Declaration decl(
               pattern, pattern->position(),
@@ -3512,9 +3505,8 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
     inner_vars.Add(declaration->proxy()->var(), zone());
     VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
-    Assignment* assignment =
-        factory()->NewAssignment(is_const ? Token::INIT_CONST : Token::INIT_LET,
-                                 proxy, temp_proxy, RelocInfo::kNoPosition);
+    Assignment* assignment = factory()->NewAssignment(
+        Token::INIT, proxy, temp_proxy, RelocInfo::kNoPosition);
     Statement* assignment_statement =
         factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
     DCHECK(init->position() != RelocInfo::kNoPosition);
@@ -4559,7 +4551,6 @@ Block* Parser::BuildParameterInitializationBlock(
     descriptor.needs_init = true;
     descriptor.declaration_pos = parameter.pattern->position();
     descriptor.initialization_pos = parameter.pattern->position();
-    descriptor.init_op = Token::INIT_LET;
     Expression* initial_value =
         factory()->NewVariableProxy(parameters.scope->parameter(i));
     if (parameter.initializer != nullptr) {
@@ -4593,7 +4584,7 @@ Block* Parser::BuildParameterInitializationBlock(
           is_strong(language_mode()), RelocInfo::kNoPosition);
 
       auto init_array = factory()->NewAssignment(
-          Token::INIT_VAR, factory()->NewVariableProxy(temp_var), empty_array,
+          Token::INIT, factory()->NewVariableProxy(temp_var), empty_array,
           RelocInfo::kNoPosition);
 
       auto loop = factory()->NewForStatement(NULL, RelocInfo::kNoPosition);
@@ -4602,7 +4593,7 @@ Block* Parser::BuildParameterInitializationBlock(
           parameters.scope->NewTemporary(ast_value_factory()->empty_string());
       auto init = factory()->NewExpressionStatement(
           factory()->NewAssignment(
-              Token::INIT_VAR, factory()->NewVariableProxy(argument_index),
+              Token::INIT, factory()->NewVariableProxy(argument_index),
               factory()->NewSmiLiteral(i, RelocInfo::kNoPosition),
               RelocInfo::kNoPosition),
           RelocInfo::kNoPosition);
@@ -4731,7 +4722,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
       VariableProxy* init_proxy = factory()->NewVariableProxy(
           function_state_->generator_object_variable());
       Assignment* assignment = factory()->NewAssignment(
-          Token::INIT_VAR, init_proxy, allocation, RelocInfo::kNoPosition);
+          Token::INIT, init_proxy, allocation, RelocInfo::kNoPosition);
       VariableProxy* get_proxy = factory()->NewVariableProxy(
           function_state_->generator_object_variable());
       Yield* yield = factory()->NewYield(
@@ -4789,10 +4780,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     // NOTE: We create a proxy and resolve it here so that in the
     // future we can change the AST to only refer to VariableProxies
     // instead of Variables and Proxies as is the case now.
-    const bool use_strict_const = is_strict(scope_->language_mode());
-    Token::Value fvar_init_op =
-        use_strict_const ? Token::INIT_CONST : Token::INIT_CONST_LEGACY;
-    VariableMode fvar_mode = use_strict_const ? CONST : CONST_LEGACY;
+    VariableMode fvar_mode = is_strict(language_mode()) ? CONST : CONST_LEGACY;
     Variable* fvar = new (zone())
         Variable(scope_, function_name, fvar_mode, Variable::NORMAL,
                  kCreatedInitialized, kNotAssigned);
@@ -4804,7 +4792,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     VariableProxy* fproxy = factory()->NewVariableProxy(fvar);
     result->Set(kFunctionNameAssignmentIndex,
                 factory()->NewExpressionStatement(
-                    factory()->NewAssignment(fvar_init_op, fproxy,
+                    factory()->NewAssignment(Token::INIT, fproxy,
                                              factory()->NewThisFunction(pos),
                                              RelocInfo::kNoPosition),
                     RelocInfo::kNoPosition));

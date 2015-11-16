@@ -985,7 +985,6 @@ class Parser : public ParserBase<ParserTraits> {
     bool needs_init;
     int declaration_pos;
     int initialization_pos;
-    Token::Value init_op;
     Kind declaration_kind;
   };
 
