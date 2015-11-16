@@ -213,6 +213,13 @@ class OutOfLineCeil final : public OutOfLineRound {
 };
 
 
+class OutOfLineTiesEven final : public OutOfLineRound {
+ public:
+  OutOfLineTiesEven(CodeGenerator* gen, DoubleRegister result)
+      : OutOfLineRound(gen, result) {}
+};
+
+
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
@@ -859,6 +866,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kMips64Float64RoundUp: {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
+      break;
+    }
+    case kMips64Float64RoundTiesEven: {
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(round_l_d, TiesEven);
       break;
     }
     case kMips64Float64Max: {

@@ -5176,6 +5176,15 @@ TEST(RunFloat64RoundUp) {
 }
 
 
+TEST(RunFloat64RoundTiesEven) {
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
+  if (!m.machine()->Float64RoundTiesEven().IsSupported()) return;
+  m.Return(m.Float64RoundTiesEven(m.Parameter(0)));
+
+  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(nearbyint(*i), m.Call(*i)); }
+}
+
+
 TEST(RunFloat64RoundTruncate) {
   BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
   if (!m.machine()->Float64RoundTruncate().IsSupported()) return;

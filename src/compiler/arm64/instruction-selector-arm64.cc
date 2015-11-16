@@ -1478,6 +1478,11 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
+  VisitRR(this, kArm64Float64RoundTiesEven, node);
+}
+
+
 void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
                                                const CallDescriptor* descriptor,
                                                Node* node) {
@@ -2049,6 +2054,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundUp |
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
+         MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe;

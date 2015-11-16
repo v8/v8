@@ -2252,6 +2252,12 @@ Type* Typer::Visitor::TypeFloat64RoundTiesAway(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeFloat64RoundTiesEven(Node* node) {
+  // TODO(sigurds): We could have a tighter bound here.
+  return Type::Number();
+}
+
+
 Type* Typer::Visitor::TypeFloat64ExtractLowWord32(Node* node) {
   return Type::Signed32();
 }

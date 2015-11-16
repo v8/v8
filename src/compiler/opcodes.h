@@ -301,6 +301,7 @@
   V(Float64RoundUp)             \
   V(Float64RoundTruncate)       \
   V(Float64RoundTiesAway)       \
+  V(Float64RoundTiesEven)       \
   V(Float64ExtractLowWord32)    \
   V(Float64ExtractHighWord32)   \
   V(Float64InsertLowWord32)     \

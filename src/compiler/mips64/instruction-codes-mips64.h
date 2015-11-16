@@ -69,6 +69,7 @@ namespace compiler {
   V(Mips64Float64RoundDown)         \
   V(Mips64Float64RoundTruncate)     \
   V(Mips64Float64RoundUp)           \
+  V(Mips64Float64RoundTiesEven)     \
   V(Mips64CvtSD)                    \
   V(Mips64CvtDS)                    \
   V(Mips64TruncWD)                  \

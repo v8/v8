@@ -864,6 +864,11 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
+  UNREACHABLE();
+}
+
+
 void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
                                                const CallDescriptor* descriptor,
                                                Node* node) {

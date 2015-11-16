@@ -779,6 +779,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArmVrintaF64:
       __ vrinta(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
+    case kArmVrintnF64:
+      __ vrintn(i.OutputFloat64Register(), i.InputFloat64Register(0));
+      break;
     case kArmVcvtF32F64: {
       __ vcvt_f32_f64(i.OutputFloat32Register(), i.InputFloat64Register(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
