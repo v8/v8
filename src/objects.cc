@@ -6717,14 +6717,16 @@ bool JSReceiver::GetOwnPropertyDescriptor(Isolate* isolate,
 // TODO(jkummerow): Any chance to unify this with
 // "MaybeHandle<Object> GetOwnProperty()" in runtime-object.cc?
 
-// TODO(jkummerow/verwaest): Proxy support: call getOwnPropertyDescriptor trap
-// and convert the result (if it's an object) with ToPropertyDescriptor.
-
 // ES6 9.1.5.1
 // Returns true on success; false if there was an exception or no property.
 // static
 bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
                                           PropertyDescriptor* desc) {
+  // "Virtual" dispatch.
+  if (it->IsFound() && it->GetHolder<JSReceiver>()->IsJSProxy()) {
+    return JSProxy::GetOwnPropertyDescriptor(it, desc);
+  }
+
   Isolate* isolate = it->isolate();
   // 1. (Assert)
   // 2. If O does not have an own property with key P, return undefined.
@@ -6768,6 +6770,122 @@ bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
   // 9. Return D.
   DCHECK(PropertyDescriptor::IsAccessorDescriptor(desc) !=
          PropertyDescriptor::IsDataDescriptor(desc));
+  return true;
+}
+
+
+// ES6 9.5.5
+// static
+bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
+                                       PropertyDescriptor* desc) {
+  DCHECK(it->GetHolder<Object>()->IsJSProxy());
+  Isolate* isolate = it->isolate();
+  Handle<Name> property_name = it->GetName();
+  // 1. (Assert)
+  // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Handle<Object> handler(it->GetHolder<JSProxy>()->handler(), isolate);
+  // 3. If handler is null, throw a TypeError exception.
+  if (handler->IsNull()) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyHandlerNonObject));
+    return false;
+  }
+  // 4. Assert: Type(handler) is Object.
+  DCHECK(handler->IsSpecObject());
+  // If the handler is not null, the target can't be null either.
+  DCHECK(it->GetHolder<JSProxy>()->target()->IsSpecObject());
+  // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
+  Handle<JSReceiver> target(
+      JSReceiver::cast(it->GetHolder<JSProxy>()->target()), isolate);
+  // 6. Let trap be ? GetMethod(handler, "getOwnPropertyDescriptor").
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap,
+      Object::GetMethod(Handle<JSReceiver>::cast(handler),
+                        isolate->factory()->getOwnPropertyDescriptor_string()),
+      false);
+  // 7. If trap is undefined, then
+  if (trap->IsUndefined()) {
+    // 7a. Return target.[[GetOwnProperty]](P).
+    return JSReceiver::GetOwnPropertyDescriptor(isolate, target, property_name,
+                                                desc);
+  }
+  // 8. Let trapResultObj be ? Call(trap, handler, «target, P»).
+  Handle<Object> trap_result_obj;
+  Handle<Object> args[] = {target, property_name};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result_obj,
+      Execution::Call(isolate, trap, handler, arraysize(args), args), false);
+  // 9. If Type(trapResultObj) is neither Object nor Undefined, throw a
+  //    TypeError exception.
+  if (!trap_result_obj->IsSpecObject() && !trap_result_obj->IsUndefined()) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyHandlerReturned, handler, trap_result_obj,
+        property_name));
+    return false;
+  }
+  // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
+  PropertyDescriptor target_desc;
+  JSReceiver::GetOwnPropertyDescriptor(isolate, target, property_name,
+                                       &target_desc);
+  if (isolate->has_pending_exception()) return false;
+  // 11. If trapResultObj is undefined, then
+  if (trap_result_obj->IsUndefined()) {
+    // 11a. If targetDesc is undefined, return undefined.
+    if (target_desc.is_empty()) return false;
+    // 11b. If targetDesc.[[Configurable]] is false, throw a TypeError
+    //      exception.
+    if (!target_desc.configurable()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyTargetPropNotConfigurable, property_name));
+      return false;
+    }
+    // 11c. Let extensibleTarget be ? IsExtensible(target).
+    Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
+    if (maybe_extensible.IsNothing()) return false;
+    bool extensible_target = maybe_extensible.FromJust();
+    // 11d. (Assert)
+    // 11e. If extensibleTarget is false, throw a TypeError exception.
+    if (!extensible_target) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyTargetNotExtensible));
+      return false;
+    }
+    // 11f. Return undefined.
+    return false;  // |desc->is_empty()| is what JavaScript calls "undefined".
+  }
+  // 12. Let extensibleTarget be ? IsExtensible(target).
+  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
+  if (maybe_extensible.IsNothing()) return false;
+  bool extensible_target = maybe_extensible.FromJust();
+  // 13. Let resultDesc be ? ToPropertyDescriptor(trapResultObj).
+  if (!PropertyDescriptor::ToPropertyDescriptor(isolate, trap_result_obj,
+                                                desc)) {
+    DCHECK(isolate->has_pending_exception());
+    return false;
+  }
+  // 14. Call CompletePropertyDescriptor(resultDesc).
+  PropertyDescriptor::CompletePropertyDescriptor(isolate, desc);
+  // 15. Let valid be IsCompatiblePropertyDescriptor (extensibleTarget,
+  //     resultDesc, targetDesc).
+  bool valid = IsCompatiblePropertyDescriptor(extensible_target, desc,
+                                              &target_desc, property_name);
+  // 16. If valid is false, throw a TypeError exception.
+  if (!valid) {
+    DCHECK(isolate->has_pending_exception());
+    return false;
+  }
+  // 17. If resultDesc.[[Configurable]] is false, then
+  if (!desc->configurable()) {
+    // 17a. If targetDesc is undefined or targetDesc.[[Configurable]] is true:
+    if (target_desc.is_empty() || target_desc.configurable()) {
+      // 17a i. Throw a TypeError exception.
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kRedefineDisallowed, property_name));
+      return false;
+    }
+  }
+  // 18. Return resultDesc.
   return true;
 }
 

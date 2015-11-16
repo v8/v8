@@ -9513,7 +9513,12 @@ class JSProxy: public JSReceiver {
 
   DECLARE_CAST(JSProxy)
 
+  // ES6 9.5.1
   static MaybeHandle<Object> GetPrototype(Handle<JSProxy> receiver);
+
+  // ES6 9.5.5
+  static bool GetOwnPropertyDescriptor(LookupIterator* it,
+                                       PropertyDescriptor* desc);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithHandler(
       Handle<JSProxy> proxy,

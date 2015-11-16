@@ -192,7 +192,10 @@ class CallSite {
     "Proxy handler % returned non-configurable descriptor for property '%' "   \
     "from '%' trap")                                                           \
   T(ProxyRepeatedPropName, "Trap '%' returned repeated property name '%'")     \
+  T(ProxyTargetNotExtensible, "Proxy target is not extensible")                \
   T(ProxyTargetNonObject, "Proxy.% called with non-object as target")          \
+  T(ProxyTargetPropNotConfigurable,                                            \
+    "Proxy target property '%' is not configurable")                           \
   T(ProxyTrapFunctionExpected,                                                 \
     "Proxy.createFunction called with non-function for '%' trap")              \
   T(RedefineDisallowed, "Cannot redefine property: %")                         \
