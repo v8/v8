@@ -19,10 +19,13 @@ namespace compiler {
 namespace {
 
 bool CanInlineElementAccess(Handle<Map> map) {
-  // TODO(bmeurer): Add support for holey elements.
-  return map->IsJSObjectMap() &&
-         IsFastPackedElementsKind(map->elements_kind()) &&
-         !map->has_indexed_interceptor() && !map->is_access_check_needed();
+  if (!map->IsJSObjectMap()) return false;
+  if (map->is_access_check_needed()) return false;
+  if (map->has_indexed_interceptor()) return false;
+  ElementsKind const elements_kind = map->elements_kind();
+  if (IsFastElementsKind(elements_kind)) return true;
+  // TODO(bmeurer): Add support for other elements kind.
+  return false;
 }
 
 
@@ -137,7 +140,12 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
   // Check if it is safe to inline element access for the {map}.
   if (!CanInlineElementAccess(map)) return false;
 
-  ElementsKind elements_kind = map->elements_kind();
+  ElementsKind const elements_kind = map->elements_kind();
+  if (access_mode == AccessMode::kLoad &&
+      elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+    // TODO(bmeurer): Add support for holey loads.
+    return false;
+  }
 
   // Certain (monomorphic) stores need a prototype chain check because shape
   // changes could allow callbacks on elements in the chain that are not
