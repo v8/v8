@@ -28,24 +28,28 @@ enum class AccessMode { kLoad, kStore };
 std::ostream& operator<<(std::ostream&, AccessMode);
 
 
+// Mapping of transition source to transition target.
+typedef std::vector<std::pair<Handle<Map>, Handle<Map>>> MapTransitionList;
+
+
 // This class encapsulates all information required to access a certain element.
 class ElementAccessInfo final {
  public:
   ElementAccessInfo();
   ElementAccessInfo(Type* receiver_type, ElementsKind elements_kind,
-                    MaybeHandle<JSObject> holder)
-      : elements_kind_(elements_kind),
-        holder_(holder),
-        receiver_type_(receiver_type) {}
+                    MaybeHandle<JSObject> holder);
 
   MaybeHandle<JSObject> holder() const { return holder_; }
   ElementsKind elements_kind() const { return elements_kind_; }
   Type* receiver_type() const { return receiver_type_; }
+  MapTransitionList& transitions() { return transitions_; }
+  MapTransitionList const& transitions() const { return transitions_; }
 
  private:
   ElementsKind elements_kind_;
   MaybeHandle<JSObject> holder_;
   Type* receiver_type_;
+  MapTransitionList transitions_;
 };
 
 

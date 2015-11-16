@@ -81,6 +81,14 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
 ElementAccessInfo::ElementAccessInfo() : receiver_type_(Type::None()) {}
 
 
+ElementAccessInfo::ElementAccessInfo(Type* receiver_type,
+                                     ElementsKind elements_kind,
+                                     MaybeHandle<JSObject> holder)
+    : elements_kind_(elements_kind),
+      holder_(holder),
+      receiver_type_(receiver_type) {}
+
+
 PropertyAccessInfo::PropertyAccessInfo()
     : kind_(kInvalid), receiver_type_(Type::None()), field_type_(Type::Any()) {}
 
@@ -153,14 +161,49 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
 bool AccessInfoFactory::ComputeElementAccessInfos(
     MapHandleList const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) {
+  // Collect possible transition targets.
+  MapHandleList possible_transition_targets(maps.length());
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(map).ToHandle(&map)) {
-      ElementAccessInfo access_info;
-      if (!ComputeElementAccessInfo(map, access_mode, &access_info)) {
-        return false;
+      if (CanInlineElementAccess(map) &&
+          IsFastElementsKind(map->elements_kind()) &&
+          GetInitialFastElementsKind() != map->elements_kind()) {
+        possible_transition_targets.Add(map);
       }
-      access_infos->push_back(access_info);
     }
+  }
+
+  // Separate the actual receiver maps and the possible transition sources.
+  MapHandleList receiver_maps(maps.length());
+  MapTransitionList transitions(maps.length());
+  for (Handle<Map> map : maps) {
+    if (Map::TryUpdate(map).ToHandle(&map)) {
+      Handle<Map> transition_target =
+          Map::FindTransitionedMap(map, &possible_transition_targets);
+      if (transition_target.is_null()) {
+        receiver_maps.Add(map);
+      } else {
+        transitions.push_back(std::make_pair(map, transition_target));
+      }
+    }
+  }
+
+  for (Handle<Map> receiver_map : receiver_maps) {
+    // Compute the element access information.
+    ElementAccessInfo access_info;
+    if (!ComputeElementAccessInfo(receiver_map, access_mode, &access_info)) {
+      return false;
+    }
+
+    // Collect the possible transitions for the {receiver_map}.
+    for (auto transition : transitions) {
+      if (transition.second.is_identical_to(receiver_map)) {
+        access_info.transitions().push_back(transition);
+      }
+    }
+
+    // Schedule the access information.
+    access_infos->push_back(access_info);
   }
   return true;
 }

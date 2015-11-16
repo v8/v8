@@ -500,6 +500,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -547,7 +548,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* this_receiver = receiver;
     Node* this_value = value;
     Node* this_index = index;
-    Node* this_effect = effect;
+    Node* this_effect;
     Node* this_control;
 
     // Perform map check on {receiver}.
@@ -555,24 +556,77 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     bool receiver_is_jsarray = true;
     {
       ZoneVector<Node*> this_controls(zone());
+      ZoneVector<Node*> this_effects(zone());
       for (auto i = access_info.receiver_type()->Classes(); !i.Done();
            i.Advance()) {
         Handle<Map> map = i.Current();
         Node* check =
-            graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
+            graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
                              receiver_map, jsgraph()->Constant(map));
         Node* branch =
             graph()->NewNode(common()->Branch(), check, fallthrough_control);
         this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+        this_effects.push_back(effect);
         fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
         if (!map->IsJSArrayMap()) receiver_is_jsarray = false;
       }
+
+      // Generate possible elements kind transitions.
+      for (auto transition : access_info.transitions()) {
+        Handle<Map> transition_source = transition.first;
+        Handle<Map> transition_target = transition.second;
+
+        // Check if {receiver} has the specified {transition_source} map.
+        Node* check = graph()->NewNode(
+            simplified()->ReferenceEqual(Type::Any()), receiver_map,
+            jsgraph()->HeapConstant(transition_source));
+        Node* branch =
+            graph()->NewNode(common()->Branch(), check, fallthrough_control);
+
+        // Migrate {receiver} from {transition_source} to {transition_target}.
+        Node* transition_control = graph()->NewNode(common()->IfTrue(), branch);
+        Node* transition_effect = effect;
+        if (IsSimpleMapChangeTransition(transition_source->elements_kind(),
+                                        transition_target->elements_kind())) {
+          // In-place migration, just store the {transition_target} map.
+          transition_effect = graph()->NewNode(
+              simplified()->StoreField(AccessBuilder::ForMap()), receiver,
+              jsgraph()->HeapConstant(transition_target), transition_effect,
+              transition_control);
+        } else {
+          // Instance migration, let the stub deal with the {receiver}.
+          TransitionElementsKindStub stub(isolate(),
+                                          transition_source->elements_kind(),
+                                          transition_target->elements_kind(),
+                                          transition_source->IsJSArrayMap());
+          CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+              isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 0,
+              CallDescriptor::kNeedsFrameState, node->op()->properties());
+          transition_effect = graph()->NewNode(
+              common()->Call(desc), jsgraph()->HeapConstant(stub.GetCode()),
+              receiver, jsgraph()->HeapConstant(transition_target), context,
+              frame_state, transition_effect, transition_control);
+        }
+        this_controls.push_back(transition_control);
+        this_effects.push_back(transition_effect);
+
+        fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+      }
+
+      // Create single chokepoint for the control.
       int const this_control_count = static_cast<int>(this_controls.size());
-      this_control =
-          (this_control_count == 1)
-              ? this_controls.front()
-              : graph()->NewNode(common()->Merge(this_control_count),
-                                 this_control_count, &this_controls.front());
+      if (this_control_count == 1) {
+        this_control = this_controls.front();
+        this_effect = this_effects.front();
+      } else {
+        this_control =
+            graph()->NewNode(common()->Merge(this_control_count),
+                             this_control_count, &this_controls.front());
+        this_effects.push_back(this_control);
+        this_effect =
+            graph()->NewNode(common()->EffectPhi(this_control_count),
+                             this_control_count + 1, &this_effects.front());
+      }
     }
 
     // Certain stores need a prototype chain check because shape changes
