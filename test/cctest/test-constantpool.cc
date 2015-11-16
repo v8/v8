@@ -4,6 +4,9 @@
 
 // Test embedded constant pool builder code.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "src/assembler.h"
