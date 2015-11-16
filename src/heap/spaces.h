@@ -1489,8 +1489,6 @@ class AllocationInfo {
   Address* top_address() { return &top_; }
 
   INLINE(void set_limit(Address limit)) {
-    SLOW_DCHECK(limit == NULL ||
-                (reinterpret_cast<intptr_t>(limit) & kHeapObjectTagMask) == 0);
     limit_ = limit;
   }
 
