@@ -65,8 +65,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       sweeping_in_progress_(false),
       compaction_in_progress_(false),
       pending_sweeper_tasks_semaphore_(0),
-      pending_compaction_tasks_semaphore_(0),
-      concurrent_compaction_tasks_active_(0) {
+      pending_compaction_tasks_semaphore_(0) {
 }
 
 #ifdef VERIFY_HEAP
@@ -481,24 +480,24 @@ void MarkCompactCollector::ClearMarkbits() {
 }
 
 
-class MarkCompactCollector::CompactionTask : public v8::Task {
+class MarkCompactCollector::CompactionTask : public CancelableTask {
  public:
   explicit CompactionTask(Heap* heap, CompactionSpaceCollection* spaces)
-      : heap_(heap), spaces_(spaces) {}
+      : CancelableTask(heap->isolate()), spaces_(spaces) {}
 
   virtual ~CompactionTask() {}
 
  private:
-  // v8::Task overrides.
-  void Run() override {
-    MarkCompactCollector* mark_compact = heap_->mark_compact_collector();
+  // v8::internal::CancelableTask overrides.
+  void RunInternal() override {
+    MarkCompactCollector* mark_compact =
+        isolate()->heap()->mark_compact_collector();
     SlotsBuffer* evacuation_slots_buffer = nullptr;
     mark_compact->EvacuatePages(spaces_, &evacuation_slots_buffer);
     mark_compact->AddEvacuationSlotsBufferSynchronized(evacuation_slots_buffer);
     mark_compact->pending_compaction_tasks_semaphore_.Signal();
   }
 
-  Heap* heap_;
   CompactionSpaceCollection* spaces_;
 
   DISALLOW_COPY_AND_ASSIGN(CompactionTask);
@@ -3199,7 +3198,6 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
   const int num_tasks = NumberOfParallelCompactionTasks();
 
-
   // Set up compaction spaces.
   CompactionSpaceCollection** compaction_spaces_for_tasks =
       new CompactionSpaceCollection*[num_tasks];
@@ -3212,19 +3210,12 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   heap()->code_space()->DivideUponCompactionSpaces(compaction_spaces_for_tasks,
                                                    num_tasks);
 
-  compaction_in_progress_ = true;
+  uint32_t* task_ids = new uint32_t[num_tasks - 1];
   // Kick off parallel tasks.
-  for (int i = 1; i < num_tasks; i++) {
-    concurrent_compaction_tasks_active_++;
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompactionTask(heap(), compaction_spaces_for_tasks[i]),
-        v8::Platform::kShortRunningTask);
-  }
-
-  // Contribute in main thread. Counter and signal are in principal not needed.
-  EvacuatePages(compaction_spaces_for_tasks[0], &migration_slots_buffer_);
-
-  WaitUntilCompactionCompleted();
+  StartParallelCompaction(compaction_spaces_for_tasks, task_ids, num_tasks);
+  // Wait for unfinished and not-yet-started tasks.
+  WaitUntilCompactionCompleted(task_ids, num_tasks - 1);
+  delete[] task_ids;
 
   double compaction_duration = 0.0;
   intptr_t compacted_memory = 0;
@@ -3290,10 +3281,32 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 }
 
 
-void MarkCompactCollector::WaitUntilCompactionCompleted() {
-  while (concurrent_compaction_tasks_active_ > 0) {
-    pending_compaction_tasks_semaphore_.Wait();
-    concurrent_compaction_tasks_active_--;
+void MarkCompactCollector::StartParallelCompaction(
+    CompactionSpaceCollection** compaction_spaces, uint32_t* task_ids,
+    int len) {
+  compaction_in_progress_ = true;
+  for (int i = 1; i < len; i++) {
+    CompactionTask* task = new CompactionTask(heap(), compaction_spaces[i]);
+    task_ids[i - 1] = task->id();
+    V8::GetCurrentPlatform()->CallOnBackgroundThread(
+        task, v8::Platform::kShortRunningTask);
+  }
+
+  // Contribute in main thread.
+  EvacuatePages(compaction_spaces[0], &migration_slots_buffer_);
+}
+
+
+void MarkCompactCollector::WaitUntilCompactionCompleted(uint32_t* task_ids,
+                                                        int len) {
+  // Try to cancel compaction tasks that have not been run (as they might be
+  // stuck in a worker queue). Tasks that cannot be canceled, have either
+  // already completed or are still running, hence we need to wait for their
+  // semaphore signal.
+  for (int i = 0; i < len; i++) {
+    if (!heap()->isolate()->cancelable_task_manager()->TryAbort(task_ids[i])) {
+      pending_compaction_tasks_semaphore_.Wait();
+    }
   }
   compaction_in_progress_ = false;
 }

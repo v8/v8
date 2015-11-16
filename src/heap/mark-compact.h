@@ -718,7 +718,10 @@ class MarkCompactCollector {
   // The number of parallel compaction tasks, including the main thread.
   int NumberOfParallelCompactionTasks();
 
-  void WaitUntilCompactionCompleted();
+
+  void StartParallelCompaction(CompactionSpaceCollection** compaction_spaces,
+                               uint32_t* task_ids, int len);
+  void WaitUntilCompactionCompleted(uint32_t* task_ids, int len);
 
   void EvacuateNewSpaceAndCandidates();
 
@@ -796,9 +799,6 @@ class MarkCompactCollector {
 
   // Semaphore used to synchronize compaction tasks.
   base::Semaphore pending_compaction_tasks_semaphore_;
-
-  // Number of active compaction tasks (including main thread).
-  intptr_t concurrent_compaction_tasks_active_;
 
   friend class Heap;
 };
