@@ -849,6 +849,9 @@ void InstructionSelector::VisitFloat64RoundDown(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64RoundUp(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
   X87OperandGenerator g(this);
   Emit(kX87Float64Round | MiscField::encode(kRoundToZero),

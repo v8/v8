@@ -5155,57 +5155,43 @@ TEST(RunFloat64RoundDown1) {
 
 
 TEST(RunFloat64RoundDown2) {
-  double input = -1.0;
-  double result = 0.0;
-  RawMachineAssemblerTester<int32_t> m;
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
   if (!m.machine()->Float64RoundDown().IsSupported()) return;
-  m.StoreToPointer(&result, kMachFloat64,
-                   m.Float64Sub(m.Float64Constant(-0.0),
-                                m.Float64RoundDown(m.Float64Sub(
-                                    m.Float64Constant(-0.0),
-                                    m.LoadFromPointer(&input, kMachFloat64)))));
-  m.Return(m.Int32Constant(0));
+  m.Return(m.Float64Sub(m.Float64Constant(-0.0),
+                        m.Float64RoundDown(m.Float64Sub(m.Float64Constant(-0.0),
+                                                        m.Parameter(0)))));
+
   for (size_t i = 0; i < arraysize(kValues); ++i) {
-    input = kValues[i];
-    CHECK_EQ(0, m.Call());
-    double expected = std::ceil(kValues[i]);
-    CHECK_EQ(expected, result);
+    CHECK_EQ(std::ceil(kValues[i]), m.Call(kValues[i]));
   }
 }
 
 
+TEST(RunFloat64RoundUp) {
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
+  if (!m.machine()->Float64RoundUp().IsSupported()) return;
+  m.Return(m.Float64RoundUp(m.Parameter(0)));
+
+  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(std::ceil(*i), m.Call(*i)); }
+}
+
+
 TEST(RunFloat64RoundTruncate) {
-  double input = -1.0;
-  double result = 0.0;
-  RawMachineAssemblerTester<int32_t> m;
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
   if (!m.machine()->Float64RoundTruncate().IsSupported()) return;
-  m.StoreToPointer(
-      &result, kMachFloat64,
-      m.Float64RoundTruncate(m.LoadFromPointer(&input, kMachFloat64)));
-  m.Return(m.Int32Constant(0));
+  m.Return(m.Float64RoundTruncate(m.Parameter(0)));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
-    input = kValues[i];
-    CHECK_EQ(0, m.Call());
-    double expected = trunc(kValues[i]);
-    CHECK_EQ(expected, result);
+    CHECK_EQ(trunc(kValues[i]), m.Call(kValues[i]));
   }
 }
 
 
 TEST(RunFloat64RoundTiesAway) {
-  double input = -1.0;
-  double result = 0.0;
-  RawMachineAssemblerTester<int32_t> m;
+  BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
   if (!m.machine()->Float64RoundTiesAway().IsSupported()) return;
-  m.StoreToPointer(
-      &result, kMachFloat64,
-      m.Float64RoundTiesAway(m.LoadFromPointer(&input, kMachFloat64)));
-  m.Return(m.Int32Constant(0));
+  m.Return(m.Float64RoundTiesAway(m.Parameter(0)));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
-    input = kValues[i];
-    CHECK_EQ(0, m.Call());
-    double expected = round(kValues[i]);
-    CHECK_EQ(expected, result);
+    CHECK_EQ(round(kValues[i]), m.Call(kValues[i]));
   }
 }
 
