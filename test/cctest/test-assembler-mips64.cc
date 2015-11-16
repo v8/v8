@@ -1186,14 +1186,14 @@ TEST(MIPS13) {
   MacroAssembler assm(isolate, NULL, 0);
 
   __ sw(a4, MemOperand(a0, offsetof(T, cvt_small_in)));
-  __ Cvt_d_uw(f10, a4, f4);
+  __ Cvt_d_uw(f10, a4);
   __ sdc1(f10, MemOperand(a0, offsetof(T, cvt_small_out)));
 
   __ Trunc_uw_d(f10, f10, f4);
   __ swc1(f10, MemOperand(a0, offsetof(T, trunc_small_out)));
 
   __ sw(a4, MemOperand(a0, offsetof(T, cvt_big_in)));
-  __ Cvt_d_uw(f8, a4, f4);
+  __ Cvt_d_uw(f8, a4);
   __ sdc1(f8, MemOperand(a0, offsetof(T, cvt_big_out)));
 
   __ Trunc_uw_d(f8, f8, f4);

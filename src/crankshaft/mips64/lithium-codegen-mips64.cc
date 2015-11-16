@@ -4736,7 +4736,7 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
 
   FPURegister dbl_scratch = double_scratch0();
   __ mtc1(ToRegister(input), dbl_scratch);
-  __ Cvt_d_uw(ToDoubleRegister(output), dbl_scratch, f22);  // TODO(plind): f22?
+  __ Cvt_d_uw(ToDoubleRegister(output), dbl_scratch);
 }
 
 
@@ -4793,7 +4793,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
     __ cvt_d_w(dbl_scratch, dbl_scratch);
   } else {
     __ mtc1(src, dbl_scratch);
-    __ Cvt_d_uw(dbl_scratch, dbl_scratch, f22);
+    __ Cvt_d_uw(dbl_scratch, dbl_scratch);
   }
 
   if (FLAG_inline_new) {

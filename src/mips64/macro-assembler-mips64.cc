@@ -1494,51 +1494,23 @@ void MacroAssembler::Ins(Register rt,
 }
 
 
-void MacroAssembler::Cvt_d_uw(FPURegister fd,
-                              FPURegister fs,
-                              FPURegister scratch) {
+void MacroAssembler::Cvt_d_uw(FPURegister fd, FPURegister fs) {
   // Move the data from fs to t8.
   mfc1(t8, fs);
-  Cvt_d_uw(fd, t8, scratch);
+  Cvt_d_uw(fd, t8);
 }
 
 
-void MacroAssembler::Cvt_d_uw(FPURegister fd,
-                              Register rs,
-                              FPURegister scratch) {
-  // Convert rs to a FP value in fd (and fd + 1).
-  // We do this by converting rs minus the MSB to avoid sign conversion,
-  // then adding 2^31 to the result (if needed).
-
+void MacroAssembler::Cvt_d_uw(FPURegister fd, Register rs) {
+  // Convert rs to a FP value in fd.
   DCHECK(!fd.is(scratch));
   DCHECK(!rs.is(t9));
   DCHECK(!rs.is(at));
 
-  // Save rs's MSB to t9.
-  Ext(t9, rs, 31, 1);
-  // Remove rs's MSB.
-  Ext(at, rs, 0, 31);
-  // Move the result to fd.
-  mtc1(at, fd);
-  mthc1(zero_reg, fd);
-
-  // Convert fd to a real FP value.
-  cvt_d_w(fd, fd);
-
-  Label conversion_done;
-
-  // If rs's MSB was 0, it's done.
-  // Otherwise we need to add that to the FP register.
-  Branch(&conversion_done, eq, t9, Operand(zero_reg));
-
-  // Load 2^31 into f20 as its float representation.
-  li(at, 0x41E00000);
-  mtc1(zero_reg, scratch);
-  mthc1(at, scratch);
-  // Add it to fd.
-  add_d(fd, fd, scratch);
-
-  bind(&conversion_done);
+  // Zero extend int32 in rs.
+  Dext(t9, rs, 0, 32);
+  dmtc1(t9, fd);
+  cvt_d_l(fd, fd);
 }
 
 
@@ -1555,11 +1527,11 @@ void MacroAssembler::Cvt_d_ul(FPURegister fd, Register rs) {
   DCHECK(!rs.is(t9));
   DCHECK(!rs.is(at));
 
-  Label positive, conversion_done;
+  Label msb_clear, conversion_done;
 
-  Branch(&positive, ge, rs, Operand(zero_reg));
+  Branch(&msb_clear, ge, rs, Operand(zero_reg));
 
-  // Rs >= 2^31.
+  // Rs >= 2^63
   andi(t9, rs, 1);
   dsrl(rs, rs, 1);
   or_(t9, t9, rs);
@@ -1568,8 +1540,8 @@ void MacroAssembler::Cvt_d_ul(FPURegister fd, Register rs) {
   Branch(USE_DELAY_SLOT, &conversion_done);
   add_d(fd, fd, fd);  // In delay slot.
 
-  bind(&positive);
-  // Rs < 2^31, we can do simple conversion.
+  bind(&msb_clear);
+  // Rs < 2^63, we can do simple conversion.
   dmtc1(rs, fd);
   cvt_d_l(fd, fd);
 
