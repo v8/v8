@@ -2249,6 +2249,21 @@ String* JSReceiver::constructor_name() {
 }
 
 
+Context* JSReceiver::GetCreationContext() {
+  Object* constructor = map()->GetConstructor();
+  JSFunction* function;
+  if (!constructor->IsJSFunction()) {
+    // Functions have null as a constructor,
+    // but any JSFunction knows its context immediately.
+    function = JSFunction::cast(this);
+  } else {
+    function = JSFunction::cast(constructor);
+  }
+
+  return function->context()->native_context();
+}
+
+
 static Handle<Object> WrapType(Handle<HeapType> type) {
   if (type->IsClass()) return Map::WeakCellForMap(type->AsClass()->Map());
   return type;
@@ -2350,21 +2365,6 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
         NameDictionary::Add(dict, name, value, details);
     if (*dict != *result) object->set_properties(*result);
   }
-}
-
-
-Context* JSObject::GetCreationContext() {
-  Object* constructor = this->map()->GetConstructor();
-  JSFunction* function;
-  if (!constructor->IsJSFunction()) {
-    // Functions have null as a constructor,
-    // but any JSFunction knows its context immediately.
-    function = JSFunction::cast(this);
-  } else {
-    function = JSFunction::cast(constructor);
-  }
-
-  return function->context()->native_context();
 }
 
 
@@ -6492,6 +6492,15 @@ bool JSReceiver::ValidateAndApplyPropertyDescriptor(
 
   // 11. Return true.
   return true;
+}
+
+
+// static
+Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
+                                           Handle<Object> value) {
+  // TODO(rossberg): Support proxies.
+  if (!it->GetReceiver()->IsJSObject()) return Nothing<bool>();
+  return JSObject::CreateDataProperty(it, value);
 }
 
 
@@ -14868,9 +14877,11 @@ MaybeHandle<JSObject> JSObject::GetKeysForNamedInterceptor(
   }
   if (result.IsEmpty()) return MaybeHandle<JSObject>();
   DCHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
-         v8::Utils::OpenHandle(*result)->HasSloppyArgumentsElements());
+         (v8::Utils::OpenHandle(*result)->IsJSObject() &&
+          Handle<JSObject>::cast(v8::Utils::OpenHandle(*result))
+              ->HasSloppyArgumentsElements()));
   // Rebox before returning.
-  return handle(*v8::Utils::OpenHandle(*result), isolate);
+  return handle(JSObject::cast(*v8::Utils::OpenHandle(*result)), isolate);
 }
 
 
@@ -14891,9 +14902,11 @@ MaybeHandle<JSObject> JSObject::GetKeysForIndexedInterceptor(
   }
   if (result.IsEmpty()) return MaybeHandle<JSObject>();
   DCHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
-         v8::Utils::OpenHandle(*result)->HasSloppyArgumentsElements());
+         (v8::Utils::OpenHandle(*result)->IsJSObject() &&
+          Handle<JSObject>::cast(v8::Utils::OpenHandle(*result))
+              ->HasSloppyArgumentsElements()));
   // Rebox before returning.
-  return handle(*v8::Utils::OpenHandle(*result), isolate);
+  return handle(JSObject::cast(*v8::Utils::OpenHandle(*result)), isolate);
 }
 
 

@@ -2635,7 +2635,7 @@ TEST(PrototypeTransitionClearing) {
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
   CompileRun("var base = {};");
-  i::Handle<JSObject> baseObject =
+  i::Handle<JSReceiver> baseObject =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
           CcTest::global()->Get(ctx, v8_str("base")).ToLocalChecked()));
 
@@ -2877,7 +2877,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
                   ->Int32Value(ctx)
                   .FromJust());
 
-  i::Handle<JSObject> o =
+  i::Handle<JSReceiver> o =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
 
   CHECK(CcTest::heap()->InNewSpace(*o));
@@ -2918,14 +2918,14 @@ TEST(OptimizedPretenuringAllocationFolding) {
 
   v8::Local<v8::Value> int_array =
       v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
-  i::Handle<JSObject> int_array_handle =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array));
+  i::Handle<JSObject> int_array_handle = i::Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array)));
   v8::Local<v8::Value> double_array =
       v8::Object::Cast(*res)->Get(ctx, v8_str("1")).ToLocalChecked();
-  i::Handle<JSObject> double_array_handle =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array));
+  i::Handle<JSObject> double_array_handle = i::Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array)));
 
-  i::Handle<JSObject> o =
+  i::Handle<JSReceiver> o =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(*int_array_handle));
@@ -2967,8 +2967,8 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  i::Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  i::Handle<JSObject> o = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
   CHECK(CcTest::heap()->InOldSpace(o->elements()));
   CHECK(CcTest::heap()->InOldSpace(*o));
@@ -3008,8 +3008,8 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  i::Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  i::Handle<JSObject> o = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
   CHECK(CcTest::heap()->InOldSpace(*o));
   FieldIndex idx1 = FieldIndex::ForPropertyIndex(o->map(), 0);
@@ -3065,8 +3065,8 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  i::Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  i::Handle<JSObject> o = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(o->properties()));
@@ -3105,8 +3105,8 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  i::Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  i::Handle<JSObject> o = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
   CHECK(CcTest::heap()->InOldSpace(o->elements()));
   CHECK(CcTest::heap()->InOldSpace(*o));
@@ -3146,14 +3146,15 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 
   v8::Local<v8::Value> int_array =
       v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
-  i::Handle<JSObject> int_array_handle =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array));
+  i::Handle<JSObject> int_array_handle = i::Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array)));
   v8::Local<v8::Value> double_array =
       v8::Object::Cast(*res)->Get(ctx, v8_str("1")).ToLocalChecked();
-  i::Handle<JSObject> double_array_handle =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array));
+  i::Handle<JSObject> double_array_handle = i::Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array)));
 
-  Handle<JSObject> o = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  Handle<JSObject> o = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(*int_array_handle));
   CHECK(CcTest::heap()->InOldSpace(int_array_handle->elements()));
@@ -3196,14 +3197,15 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 
   v8::Local<v8::Value> int_array_1 =
       v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
-  Handle<JSObject> int_array_handle_1 =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array_1));
+  Handle<JSObject> int_array_handle_1 = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array_1)));
   v8::Local<v8::Value> int_array_2 =
       v8::Object::Cast(*res)->Get(ctx, v8_str("1")).ToLocalChecked();
-  Handle<JSObject> int_array_handle_2 =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array_2));
+  Handle<JSObject> int_array_handle_2 = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array_2)));
 
-  Handle<JSObject> o = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  Handle<JSObject> o = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(*int_array_handle_1));
   CHECK(CcTest::heap()->InOldSpace(int_array_handle_1->elements()));
@@ -3246,15 +3248,15 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
 
   v8::Local<v8::Value> double_array_1 =
       v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
-  i::Handle<JSObject> double_array_handle_1 =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array_1));
+  i::Handle<JSObject> double_array_handle_1 = i::Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array_1)));
   v8::Local<v8::Value> double_array_2 =
       v8::Object::Cast(*res)->Get(ctx, v8_str("1")).ToLocalChecked();
-  i::Handle<JSObject> double_array_handle_2 =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array_2));
+  i::Handle<JSObject> double_array_handle_2 = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array_2)));
 
-  i::Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  i::Handle<JSObject> o = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(*double_array_handle_1));
   CHECK(CcTest::heap()->InOldSpace(double_array_handle_1->elements()));
@@ -3286,8 +3288,8 @@ TEST(OptimizedAllocationArrayLiterals) {
                                        ->Int32Value(ctx)
                                        .FromJust());
 
-  i::Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+  i::Handle<JSObject> o = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
   CHECK(CcTest::heap()->InNewSpace(o->elements()));
 }
@@ -3321,8 +3323,9 @@ TEST(Regress1465) {
     CompileRun("var root = new F;");
   }
 
-  i::Handle<JSObject> root = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
-      CcTest::global()->Get(ctx, v8_str("root")).ToLocalChecked()));
+  i::Handle<JSReceiver> root =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+          CcTest::global()->Get(ctx, v8_str("root")).ToLocalChecked()));
 
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(root->map());
@@ -3352,10 +3355,11 @@ static void AddTransitions(int transitions_count) {
 
 
 static i::Handle<JSObject> GetByName(const char* name) {
-  return v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
-      CcTest::global()
-          ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(name))
-          .ToLocalChecked()));
+  return i::Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+          CcTest::global()
+              ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(name))
+              .ToLocalChecked())));
 }
 
 
@@ -3515,7 +3519,7 @@ TEST(Regress2143a) {
   // Explicitly request GC to perform final marking step and sweeping.
   CcTest::heap()->CollectAllGarbage();
 
-  Handle<JSObject> root = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+  Handle<JSReceiver> root = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
       CcTest::global()
           ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("root"))
           .ToLocalChecked()));
@@ -3558,7 +3562,7 @@ TEST(Regress2143b) {
   // Explicitly request GC to perform final marking step and sweeping.
   CcTest::heap()->CollectAllGarbage();
 
-  Handle<JSObject> root = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+  Handle<JSReceiver> root = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
       CcTest::global()
           ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("root"))
           .ToLocalChecked()));
@@ -3761,7 +3765,7 @@ TEST(ICInBuiltInIsClearedAppropriately) {
   {
     LocalContext env;
     v8::Local<v8::Value> res = CompileRun("Function.apply");
-    i::Handle<JSObject> maybe_apply =
+    i::Handle<JSReceiver> maybe_apply =
         v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
     apply = i::Handle<JSFunction>::cast(maybe_apply);
     i::Handle<TypeFeedbackVector> vector(apply->shared()->feedback_vector());
@@ -5573,8 +5577,8 @@ TEST(ArrayShiftSweeping) {
       "array.shift();"
       "array;");
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
+  Handle<JSObject> o = Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result)));
   CHECK(heap->InOldSpace(o->elements()));
   CHECK(heap->InOldSpace(*o));
   Page* page = Page::FromAddress(o->elements()->address());
@@ -5722,7 +5726,7 @@ TEST(Regress3631) {
     CcTest::heap()->StartIncrementalMarking();
   }
   // Incrementally mark the backing store.
-  Handle<JSObject> obj =
+  Handle<JSReceiver> obj =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj));
   while (!Marking::IsBlack(
@@ -5782,7 +5786,7 @@ TEST(Regress3877) {
   {
     HandleScope inner_scope(isolate);
     v8::Local<v8::Value> result = CompileRun("cls.prototype");
-    Handle<JSObject> proto =
+    Handle<JSReceiver> proto =
         v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
     weak_prototype = inner_scope.CloseAndEscape(factory->NewWeakCell(proto));
   }
@@ -5810,7 +5814,7 @@ Handle<WeakCell> AddRetainedMap(Isolate* isolate, Heap* heap) {
     Handle<Map> map = Map::Create(isolate, 1);
     v8::Local<v8::Value> result =
         CompileRun("(function () { return {x : 10}; })();");
-    Handle<JSObject> proto =
+    Handle<JSReceiver> proto =
         v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
     Map::SetPrototype(map, proto);
     heap->AddRetainedMap(map);

@@ -144,9 +144,7 @@ static void TestNaN(const char *code) {
 
   v8::Local<v8::Script> script = v8::Script::Compile(v8_str(code));
   v8::Local<v8::Object> result = v8::Local<v8::Object>::Cast(script->Run());
-  // Have to populate the handle manually, as it's not Cast-able.
-  i::Handle<i::JSObject> o =
-      v8::Utils::OpenHandle<v8::Object, i::JSObject>(result);
+  i::Handle<i::JSReceiver> o = v8::Utils::OpenHandle(*result);
   i::Handle<i::JSArray> array1(reinterpret_cast<i::JSArray*>(*o));
   i::FixedDoubleArray* a = i::FixedDoubleArray::cast(array1->elements());
   double value = a->get_scalar(0);

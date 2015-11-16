@@ -161,7 +161,8 @@ void Accessors::ArgumentsIteratorSetter(
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> object_handle = Utils::OpenHandle(*info.This());
+  Handle<JSObject> object_handle =
+      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
   Handle<Object> value_handle = Utils::OpenHandle(*val);
   Handle<Name> name_handle = Utils::OpenHandle(*name);
 
@@ -205,7 +206,7 @@ void Accessors::ArrayLengthSetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
 
-  Handle<JSObject> object = Utils::OpenHandle(*info.This());
+  Handle<JSReceiver> object = Utils::OpenHandle(*info.This());
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   Handle<Object> length_obj = Utils::OpenHandle(*val);
 

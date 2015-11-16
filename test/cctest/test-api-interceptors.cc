@@ -1582,7 +1582,8 @@ void SloppyArgsIndexedPropertyEnumerator(
   Local<Object> result =
       Local<Object>::Cast(indexed_property_names_script->Run());
   // Have to populate the handle manually, as it's not Cast-able.
-  i::Handle<i::JSObject> o = v8::Utils::OpenHandle<Object, i::JSObject>(result);
+  i::Handle<i::JSReceiver> o =
+      v8::Utils::OpenHandle<Object, i::JSReceiver>(result);
   i::Handle<i::JSArray> array(reinterpret_cast<i::JSArray*>(*o));
   info.GetReturnValue().Set(v8::Utils::ToLocal(array));
 }

@@ -54,10 +54,12 @@ static Handle<String> MakeName(const char* str, int suffix) {
 
 
 Handle<JSObject> GetObject(const char* name) {
-  return v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
-      CcTest::global()
-          ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str(name))
-          .ToLocalChecked()));
+  return Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+          CcTest::global()
+              ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                    v8_str(name))
+              .ToLocalChecked())));
 }
 
 

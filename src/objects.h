@@ -1833,6 +1833,10 @@ class JSReceiver: public HeapObject {
                                 Handle<Object> key, PropertyDescriptor* desc,
                                 ShouldThrow should_throw);
 
+  // "virtual" dispatcher to the correct [[CreateDataProperty]] implementation.
+  MUST_USE_RESULT static Maybe<bool> CreateDataProperty(LookupIterator* it,
+                                                        Handle<Object> value);
+
   // ES6 9.1.6.1
   static bool OrdinaryDefineOwnProperty(Isolate* isolate,
                                         Handle<JSObject> object,
@@ -1878,6 +1882,8 @@ class JSReceiver: public HeapObject {
   // Returns the constructor name (the name (possibly, inferred name) of the
   // function that was used to instantiate the object).
   String* constructor_name();
+
+  Context* GetCreationContext();
 
   MUST_USE_RESULT static inline Maybe<PropertyAttributes> GetPropertyAttributes(
       Handle<JSReceiver> object, Handle<Name> name);
@@ -2462,8 +2468,6 @@ class JSObject: public JSReceiver {
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
 
   typedef FlexibleBodyDescriptor<kPropertiesOffset> BodyDescriptor;
-
-  Context* GetCreationContext();
 
   // Enqueue change record for Object.observe. May cause GC.
   MUST_USE_RESULT static MaybeHandle<Object> EnqueueChangeRecord(

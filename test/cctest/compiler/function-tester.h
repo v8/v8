@@ -124,8 +124,8 @@ class FunctionTester : public InitializedHandleScope {
   }
 
   Handle<JSObject> NewObject(const char* source) {
-    return v8::Utils::OpenHandle(
-        *v8::Local<v8::Object>::Cast(CompileRun(source)));
+    return Handle<JSObject>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Object>::Cast(CompileRun(source))));
   }
 
   Handle<String> Val(const char* string) {

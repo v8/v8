@@ -145,7 +145,7 @@ class RegisteredExtension {
   V(TypeSwitch, TypeSwitchInfo)              \
   V(Data, Object)                            \
   V(RegExp, JSRegExp)                        \
-  V(Object, JSObject)                        \
+  V(Object, JSReceiver)                      \
   V(Array, JSArray)                          \
   V(Map, JSMap)                              \
   V(Set, JSSet)                              \
@@ -201,7 +201,11 @@ class Utils {
   static inline Local<RegExp> ToLocal(
       v8::internal::Handle<v8::internal::JSRegExp> obj);
   static inline Local<Object> ToLocal(
+      v8::internal::Handle<v8::internal::JSReceiver> obj);
+  static inline Local<Object> ToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
+  static inline Local<Object> ToLocal(
+      v8::internal::Handle<v8::internal::JSProxy> obj);
   static inline Local<Array> ToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<Map> ToLocal(
@@ -353,7 +357,9 @@ MAKE_TO_LOCAL(ToLocal, Name, Name)
 MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, Symbol, Symbol)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
+MAKE_TO_LOCAL(ToLocal, JSReceiver, Object)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
+MAKE_TO_LOCAL(ToLocal, JSProxy, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
 MAKE_TO_LOCAL(ToLocal, JSMap, Map)
 MAKE_TO_LOCAL(ToLocal, JSSet, Set)

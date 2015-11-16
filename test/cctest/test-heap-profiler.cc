@@ -1829,31 +1829,37 @@ TEST(GetConstructorName) {
   v8::Local<v8::Object> js_global =
       env->Global()->GetPrototype().As<v8::Object>();
   v8::Local<v8::Object> obj1 = js_global->Get(v8_str("obj1")).As<v8::Object>();
-  i::Handle<i::JSObject> js_obj1 = v8::Utils::OpenHandle(*obj1);
+  i::Handle<i::JSObject> js_obj1 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
   CHECK_EQ(0, StringCmp(
       "Constructor1", i::V8HeapExplorer::GetConstructorName(*js_obj1)));
   v8::Local<v8::Object> obj2 = js_global->Get(v8_str("obj2")).As<v8::Object>();
-  i::Handle<i::JSObject> js_obj2 = v8::Utils::OpenHandle(*obj2);
+  i::Handle<i::JSObject> js_obj2 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
   CHECK_EQ(0, StringCmp(
       "Constructor2", i::V8HeapExplorer::GetConstructorName(*js_obj2)));
   v8::Local<v8::Object> obj3 = js_global->Get(v8_str("obj3")).As<v8::Object>();
-  i::Handle<i::JSObject> js_obj3 = v8::Utils::OpenHandle(*obj3);
+  i::Handle<i::JSObject> js_obj3 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
   // TODO(verwaest): Restore to Constructor3 once supported by the
   // heap-snapshot-generator.
   CHECK_EQ(
       0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(*js_obj3)));
   v8::Local<v8::Object> obj4 = js_global->Get(v8_str("obj4")).As<v8::Object>();
-  i::Handle<i::JSObject> js_obj4 = v8::Utils::OpenHandle(*obj4);
+  i::Handle<i::JSObject> js_obj4 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
   // TODO(verwaest): Restore to Constructor4 once supported by the
   // heap-snapshot-generator.
   CHECK_EQ(
       0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(*js_obj4)));
   v8::Local<v8::Object> obj5 = js_global->Get(v8_str("obj5")).As<v8::Object>();
-  i::Handle<i::JSObject> js_obj5 = v8::Utils::OpenHandle(*obj5);
+  i::Handle<i::JSObject> js_obj5 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
   CHECK_EQ(0, StringCmp(
       "Object", i::V8HeapExplorer::GetConstructorName(*js_obj5)));
   v8::Local<v8::Object> obj6 = js_global->Get(v8_str("obj6")).As<v8::Object>();
-  i::Handle<i::JSObject> js_obj6 = v8::Utils::OpenHandle(*obj6);
+  i::Handle<i::JSObject> js_obj6 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
   CHECK_EQ(0, StringCmp(
       "Object", i::V8HeapExplorer::GetConstructorName(*js_obj6)));
 }
@@ -1912,7 +1918,7 @@ TEST(FastCaseRedefinedAccessors) {
       "});\n");
   v8::Local<v8::Object> js_global =
       env->Global()->GetPrototype().As<v8::Object>();
-  i::Handle<i::JSObject> js_obj1 =
+  i::Handle<i::JSReceiver> js_obj1 =
       v8::Utils::OpenHandle(*js_global->Get(v8_str("obj1")).As<v8::Object>());
   USE(js_obj1);
 
