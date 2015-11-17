@@ -2202,14 +2202,13 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   for (HeapObject* obj = map_iterator.Next(); obj != NULL;
        obj = map_iterator.Next()) {
     Map* map = Map::cast(obj);
-
     if (!map->CanTransition()) continue;
-
     MarkBit map_mark = Marking::MarkBitFrom(map);
-    ClearNonLivePrototypeTransitions(map);
-    ClearNonLiveMapTransitions(map, map_mark);
-
-    if (Marking::IsWhite(map_mark)) {
+    bool alive = Marking::IsBlackOrGrey(map_mark);
+    if (alive) {
+      ClearNonLivePrototypeTransitions(map);
+    } else {
+      ClearNonLiveMapTransitions(map);
       have_code_to_deoptimize_ |=
           map->dependent_code()->MarkCodeForDeoptimization(
               isolate(), DependentCode::kWeakCodeGroup);
@@ -2271,17 +2270,16 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
 }
 
 
-void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
-                                                      MarkBit map_mark) {
+void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map) {
   Object* potential_parent = map->GetBackPointer();
   if (!potential_parent->IsMap()) return;
   Map* parent = Map::cast(potential_parent);
 
   // Follow back pointer, check whether we are dealing with a map transition
   // from a live map to a dead path and in case clear transitions of parent.
-  bool current_is_alive = Marking::IsBlackOrGrey(map_mark);
+  DCHECK(!Marking::IsBlackOrGrey(Marking::MarkBitFrom(map)));
   bool parent_is_alive = Marking::IsBlackOrGrey(Marking::MarkBitFrom(parent));
-  if (!current_is_alive && parent_is_alive) {
+  if (parent_is_alive) {
     ClearMapTransitions(parent, map);
   }
 }
