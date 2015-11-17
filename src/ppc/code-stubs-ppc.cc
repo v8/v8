@@ -2716,6 +2716,14 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ cmp(r4, r7);
   __ beq(&miss);
 
+  // Make sure the function belongs to the same native context (which implies
+  // the same global object).
+  __ LoadP(r7, FieldMemOperand(r4, JSFunction::kContextOffset));
+  __ LoadP(r7, ContextOperand(r7, Context::GLOBAL_OBJECT_INDEX));
+  __ LoadP(ip, GlobalObjectOperand());
+  __ cmp(r7, ip);
+  __ bne(&miss);
+
   // Update stats.
   __ LoadP(r7, FieldMemOperand(r5, with_types_offset));
   __ AddSmiLiteral(r7, r7, Smi::FromInt(1), r0);
