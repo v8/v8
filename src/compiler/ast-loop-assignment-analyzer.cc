@@ -126,6 +126,7 @@ void ALAA::VisitClassLiteral(ClassLiteral* e) {
   VisitIfNotNull(e->constructor());
   ZoneList<ObjectLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
+    Visit(properties->at(i)->key());
     Visit(properties->at(i)->value());
   }
 }

@@ -1555,18 +1555,18 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
 
   // The prototype is ensured to exist by Runtime_DefineClass. No access check
   // is needed here since the constructor is created by the class literal.
-  Node* proto =
+  Node* prototype =
       BuildLoadObjectField(literal, JSFunction::kPrototypeOrInitialMapOffset);
 
   // The class literal and the prototype are both expected on the operand stack
   // during evaluation of the method values.
   environment()->Push(literal);
-  environment()->Push(proto);
+  environment()->Push(prototype);
 
   // Create nodes to store method values into the literal.
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
-    environment()->Push(property->is_static() ? literal : proto);
+    environment()->Push(environment()->Peek(property->is_static() ? 1 : 0));
 
     VisitForValue(property->key());
     Node* name = BuildToName(environment()->Pop(), expr->GetIdForProperty(i));
@@ -1619,11 +1619,11 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
 
   // Set both the prototype and constructor to have fast properties, and also
   // freeze them in strong mode.
-  environment()->Pop();  // proto
-  environment()->Pop();  // literal
+  prototype = environment()->Pop();
+  literal = environment()->Pop();
   const Operator* op =
       javascript()->CallRuntime(Runtime::kFinalizeClassDefinition, 2);
-  literal = NewNode(op, literal, proto);
+  literal = NewNode(op, literal, prototype);
 
   // Assign to class variable.
   if (expr->class_variable_proxy() != nullptr) {

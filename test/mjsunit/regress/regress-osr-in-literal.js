@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax --harmony-do-expressions
 
+"use strict";
+
 var p = {};
 var testCases = [
   { s:"[1, do { _OSR_ 2 }, 3]",                 r:[1, 2, 3] },
@@ -14,11 +16,13 @@ var testCases = [
   { s:"{ [do { _OSR_ 'b' }]: 3 }",              r:{ b:3 } },
   { s:"{ [do { _OSR_ 'b' }]: 3, c: 4 }",        r:{ b:3, c:4 } },
   { s:"{ [do { _OSR_ 'b' }]: 3, __proto__:p }", r:{ b:3, __proto__:p } },
+  { s:"class { [do { _OSR_ 'f' }]() {} }" },
+  { s:"class { [do { _OSR_ 'f' }]() {}; g() {} }" },
 ];
 
 for (var i = 0; i < testCases.length; ++i) {
   var source = "(function f" + i + "(x) { return " + testCases[i].s + "})";
   var osr = "for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }";
-  var fun = eval(source.replace("_OSR_", osr));
-  assertEquals(testCases[i].r, fun(23));
+  var result = eval(source.replace("_OSR_", osr))();
+  if (testCases[i].r) assertEquals(testCases[i].r, result);
 }
