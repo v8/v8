@@ -90,6 +90,9 @@
   # ES2015 ToLength semantics
   'ecma_3/RegExp/15.10.6.2-2': [FAIL],
 
+  # Escaped keywords are early errors in ES6
+  'ecma_3/Unicode/uc-003': [FAIL],
+
   # RegExp.multiline is not part of any ECMAScript specification, and is
   # slated for deprecation in Mozilla
   # (https://bugzilla.mozilla.org/show_bug.cgi?id=1220457)

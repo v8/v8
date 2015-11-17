@@ -1532,17 +1532,19 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
                              i::EnumSet<ParserFlag> flags,
-                             ParserSyncTestResult result) {
+                             ParserSyncTestResult result,
+                             bool is_module = false) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
 
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
   int preparser_materialized_literals = -1;
   int parser_materialized_literals = -2;
+  bool test_preparser = !is_module;
 
   // Preparse the data.
   i::CompleteParserRecorder log;
-  {
+  if (test_preparser) {
     i::Scanner scanner(isolate->unicode_cache());
     i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
     i::Zone zone;
@@ -1556,7 +1558,6 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         &preparser_materialized_literals);
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
-
   bool preparse_error = log.HasError();
 
   // Parse the data
@@ -1567,7 +1568,11 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::ParseInfo info(&zone, script);
     i::Parser parser(&info);
     SetParserFlags(&parser, flags);
-    info.set_global();
+    if (is_module) {
+      info.set_module();
+    } else {
+      info.set_global();
+    }
     parser.Parse(&info);
     function = info.literal();
     if (function) {
@@ -1596,7 +1601,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
       CHECK(false);
     }
 
-    if (!preparse_error) {
+    if (test_preparser && !preparse_error) {
       v8::base::OS::Print(
           "Parser failed on:\n"
           "\t%s\n"
@@ -1607,21 +1612,22 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
       CHECK(false);
     }
     // Check that preparser and parser produce the same error.
-    i::Handle<i::String> preparser_message =
-        FormatMessage(log.ErrorMessageData());
-    if (!i::String::Equals(message_string, preparser_message)) {
-      v8::base::OS::Print(
-          "Expected parser and preparser to produce the same error on:\n"
-          "\t%s\n"
-          "However, found the following error messages\n"
-          "\tparser:    %s\n"
-          "\tpreparser: %s\n",
-          source->ToCString().get(),
-          message_string->ToCString().get(),
-          preparser_message->ToCString().get());
-      CHECK(false);
+    if (test_preparser) {
+      i::Handle<i::String> preparser_message =
+          FormatMessage(log.ErrorMessageData());
+      if (!i::String::Equals(message_string, preparser_message)) {
+        v8::base::OS::Print(
+            "Expected parser and preparser to produce the same error on:\n"
+            "\t%s\n"
+            "However, found the following error messages\n"
+            "\tparser:    %s\n"
+            "\tpreparser: %s\n",
+            source->ToCString().get(), message_string->ToCString().get(),
+            preparser_message->ToCString().get());
+        CHECK(false);
+      }
     }
-  } else if (preparse_error) {
+  } else if (test_preparser && preparse_error) {
     v8::base::OS::Print(
         "Preparser failed on:\n"
         "\t%s\n"
@@ -1638,7 +1644,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "However, parser and preparser succeeded",
         source->ToCString().get());
     CHECK(false);
-  } else if (preparser_materialized_literals != parser_materialized_literals) {
+  } else if (test_preparser &&
+             preparser_materialized_literals != parser_materialized_literals) {
     v8::base::OS::Print(
         "Preparser materialized literals (%d) differ from Parser materialized "
         "literals (%d) on:\n"
@@ -1651,14 +1658,14 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
 }
 
 
-void TestParserSync(const char* source,
-                    const ParserFlag* varying_flags,
+void TestParserSync(const char* source, const ParserFlag* varying_flags,
                     size_t varying_flags_length,
                     ParserSyncTestResult result = kSuccessOrError,
                     const ParserFlag* always_true_flags = NULL,
                     size_t always_true_flags_length = 0,
                     const ParserFlag* always_false_flags = NULL,
-                    size_t always_false_flags_length = 0) {
+                    size_t always_false_flags_length = 0,
+                    bool is_module = false) {
   i::Handle<i::String> str =
       CcTest::i_isolate()->factory()->NewStringFromAsciiChecked(source);
   for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
@@ -1675,7 +1682,7 @@ void TestParserSync(const char* source,
          ++flag_index) {
       flags.Remove(always_false_flags[flag_index]);
     }
-    TestParserSyncWithFlags(str, flags, result);
+    TestParserSyncWithFlags(str, flags, result, is_module);
   }
 }
 
@@ -1819,12 +1826,11 @@ TEST(StrictOctal) {
 void RunParserSyncTest(const char* context_data[][2],
                        const char* statement_data[],
                        ParserSyncTestResult result,
-                       const ParserFlag* flags = NULL,
-                       int flags_len = 0,
+                       const ParserFlag* flags = NULL, int flags_len = 0,
                        const ParserFlag* always_true_flags = NULL,
                        int always_true_len = 0,
                        const ParserFlag* always_false_flags = NULL,
-                       int always_false_len = 0) {
+                       int always_false_len = 0, bool is_module = false) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
@@ -1877,17 +1883,29 @@ void RunParserSyncTest(const char* context_data[][2],
                                statement_data[j],
                                context_data[i][1]);
       CHECK(length == kProgramSize);
-      TestParserSync(program.start(),
-                     flags,
-                     flags_len,
-                     result,
-                     always_true_flags,
-                     always_true_len,
-                     always_false_flags,
-                     always_false_len);
+      TestParserSync(program.start(), flags, flags_len, result,
+                     always_true_flags, always_true_len, always_false_flags,
+                     always_false_len, is_module);
     }
   }
   delete[] generated_flags;
+}
+
+
+void RunModuleParserSyncTest(const char* context_data[][2],
+                             const char* statement_data[],
+                             ParserSyncTestResult result,
+                             const ParserFlag* flags = NULL, int flags_len = 0,
+                             const ParserFlag* always_true_flags = NULL,
+                             int always_true_len = 0,
+                             const ParserFlag* always_false_flags = NULL,
+                             int always_false_len = 0) {
+  bool flag = i::FLAG_harmony_modules;
+  i::FLAG_harmony_modules = true;
+  RunParserSyncTest(context_data, statement_data, result, flags, flags_len,
+                    always_true_flags, always_true_len, always_false_flags,
+                    always_false_len, true);
+  i::FLAG_harmony_modules = flag;
 }
 
 
@@ -7304,4 +7322,152 @@ TEST(LetSloppyOnly) {
       kAllowHarmonyDestructuring};
   RunParserSyncTest(context_data, fail_data, kError, NULL, 0, fail_flags,
                     arraysize(fail_flags));
+}
+
+
+TEST(EscapedKeywords) {
+  // clang-format off
+  const char* sloppy_context_data[][2] = {
+    {"", ""},
+    {NULL, NULL}
+  };
+
+  const char* strict_context_data[][2] = {
+    {"'use strict';", ""},
+    {NULL, NULL}
+  };
+
+  const char* fail_data[] = {
+    "for (var i = 0; i < 100; ++i) { br\\u0065ak; }",
+    "cl\\u0061ss Foo {}",
+    "var x = cl\\u0061ss {}",
+    "\\u0063onst foo = 1;",
+    "while (i < 10) { if (i++ & 1) c\\u006fntinue; this.x++; }",
+    "d\\u0065bugger;",
+    "d\\u0065lete this.a;",
+    "\\u0063o { } while(0)",
+    "if (d\\u006f { true }) {}",
+    "if (false) { this.a = 1; } \\u0065lse { this.b = 1; }",
+    "e\\u0078port var foo;",
+    "try { } catch (e) {} f\\u0069nally { }",
+    "f\\u006fr (var i = 0; i < 10; ++i);",
+    "f\\u0075nction fn() {}",
+    "var f = f\\u0075nction() {}",
+    "\\u0069f (true) { }",
+    "\\u0069mport blah from './foo.js';",
+    "n\\u0065w function f() {}",
+    "(function() { r\\u0065turn; })()",
+    "class C extends function() {} { constructor() { sup\\u0065r() } }",
+    "class C extends function() {} { constructor() { sup\\u0065r.a = 1 } }",
+    "sw\\u0069tch (this.a) {}",
+    "var x = th\\u0069s;",
+    "th\\u0069s.a = 1;",
+    "thr\\u006fw 'boo';",
+    "t\\u0072y { true } catch (e) {}",
+    "var x = typ\\u0065of 'blah'",
+    "v\\u0061r a = true",
+    "var v\\u0061r = true",
+    "(function() { return v\\u006fid 0; })()",
+    "wh\\u0069le (true) { }",
+    "w\\u0069th (this.scope) { }",
+    "(function*() { y\\u0069eld 1; })()",
+
+    "var \\u0065num = 1;",
+    "var { \\u0065num } = {}",
+    "(\\u0065num = 1);",
+
+    // Null / Boolean literals
+    "(x === n\\u0075ll);",
+    "var x = n\\u0075ll;",
+    "var n\\u0075ll = 1;",
+    "var { n\\u0075ll } = { 1 };",
+    "n\\u0075ll = 1;",
+    "(x === tr\\u0075e);",
+    "var x = tr\\u0075e;",
+    "var tr\\u0075e = 1;",
+    "var { tr\\u0075e } = {};",
+    "tr\\u0075e = 1;",
+    "(x === f\\u0061lse);",
+    "var x = f\\u0061lse;",
+    "var f\\u0061lse = 1;",
+    "var { f\\u0061lse } = {};",
+    "f\\u0061lse = 1;",
+
+    // TODO(caitp): consistent error messages for labeled statements and
+    // expressions
+    "switch (this.a) { c\\u0061se 6: break; }",
+    "try { } c\\u0061tch (e) {}",
+    "switch (this.a) { d\\u0065fault: break; }",
+    "class C \\u0065xtends function B() {} {}",
+    "for (var a i\\u006e this) {}",
+    "if ('foo' \\u0069n this) {}",
+    "if (this \\u0069nstanceof Array) {}",
+    "(n\\u0065w function f() {})",
+    "(typ\\u0065of 123)",
+    "(v\\u006fid 0)",
+    "do { ; } wh\\u0069le (true) { }",
+    "(function*() { return (n++, y\\u0069eld 1); })()",
+    "class C { st\\u0061tic bar() {} }",
+
+    "(y\\u0069eld);",
+    "var y\\u0069eld = 1;",
+    "var { y\\u0069eld } = {};",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
+                                            kAllowHarmonyDestructuring};
+  RunParserSyncTest(sloppy_context_data, fail_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, fail_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(sloppy_context_data, fail_data, kError, NULL, 0,
+                          always_flags, arraysize(always_flags));
+
+  // clang-format off
+  const char* let_data[] = {
+    "var l\\u0065t = 1;",
+    "l\\u0065t = 1;",
+    "(l\\u0065t === 1);",
+    NULL
+  };
+  // clang-format on
+
+  RunParserSyncTest(sloppy_context_data, let_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, let_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  static const ParserFlag sloppy_let_flags[] = {
+      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kAllowHarmonyDestructuring};
+  RunParserSyncTest(sloppy_context_data, let_data, kError, NULL, 0,
+                    sloppy_let_flags, arraysize(sloppy_let_flags));
+
+  // Non-errors in sloppy mode
+  const char* valid_data[] = {"(\\u0069mplements = 1);",
+                              "var impl\\u0065ments = 1;",
+                              "var { impl\\u0065ments  } = {};",
+                              "(\\u0069nterface = 1);",
+                              "var int\\u0065rface = 1;",
+                              "var { int\\u0065rface  } = {};",
+                              "(p\\u0061ckage = 1);",
+                              "var packa\\u0067e = 1;",
+                              "var { packa\\u0067e  } = {};",
+                              "(p\\u0072ivate = 1);",
+                              "var p\\u0072ivate;",
+                              "var { p\\u0072ivate } = {};",
+                              "(prot\\u0065cted);",
+                              "var prot\\u0065cted = 1;",
+                              "var { prot\\u0065cted  } = {};",
+                              "(publ\\u0069c);",
+                              "var publ\\u0069c = 1;",
+                              "var { publ\\u0069c } = {};",
+                              NULL};
+  RunParserSyncTest(sloppy_context_data, valid_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, valid_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(strict_context_data, valid_data, kError, NULL, 0,
+                          always_flags, arraysize(always_flags));
 }

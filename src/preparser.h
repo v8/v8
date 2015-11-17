@@ -684,6 +684,7 @@ class ParserBase : public Traits {
   ExpressionT ParseArrayLiteral(ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParsePropertyName(IdentifierT* name, bool* is_get, bool* is_set,
                                 bool* is_static, bool* is_computed_name,
+                                bool* is_identifier, bool* is_escaped_keyword,
                                 ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseObjectLiteral(ExpressionClassifier* classifier, bool* ok);
   ObjectLiteralPropertyT ParsePropertyDefinition(
@@ -2016,6 +2017,11 @@ void ParserBase<Traits>::GetUnexpectedTokenMessage(
       *message = MessageTemplate::kUnexpectedTemplateString;
       *arg = nullptr;
       break;
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_KEYWORD:
+      *message = MessageTemplate::kInvalidEscapedReservedWord;
+      *arg = nullptr;
+      break;
     default:
       const char* name = Token::String(token);
       DCHECK(name != NULL);
@@ -2115,10 +2121,17 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
     return name;
   } else if (is_sloppy(language_mode()) &&
              (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+              next == Token::ESCAPED_STRICT_RESERVED_WORD ||
               next == Token::LET || next == Token::STATIC ||
               (next == Token::YIELD && !is_generator()))) {
     classifier->RecordStrictModeFormalParameterError(
         scanner()->location(), MessageTemplate::kUnexpectedStrictReserved);
+    if (next == Token::ESCAPED_STRICT_RESERVED_WORD &&
+        is_strict(language_mode())) {
+      ReportUnexpectedToken(next);
+      *ok = false;
+      return Traits::EmptyIdentifier();
+    }
     if (next == Token::LET) {
       classifier->RecordLetPatternError(scanner()->location(),
                                         MessageTemplate::kLetInLexicalBinding);
@@ -2161,7 +2174,9 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   Token::Value next = Next();
   if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
       next != Token::LET && next != Token::STATIC && next != Token::YIELD &&
-      next != Token::FUTURE_STRICT_RESERVED_WORD && !Token::IsKeyword(next)) {
+      next != Token::FUTURE_STRICT_RESERVED_WORD &&
+      next != Token::ESCAPED_KEYWORD &&
+      next != Token::ESCAPED_STRICT_RESERVED_WORD && !Token::IsKeyword(next)) {
     this->ReportUnexpectedToken(next);
     *ok = false;
     return Traits::EmptyIdentifier();
@@ -2278,6 +2293,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::LET:
     case Token::STATIC:
     case Token::YIELD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
       IdentifierT name = ParseAndClassifyIdentifier(classifier, CHECK_OK);
@@ -2542,7 +2558,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
     IdentifierT* name, bool* is_get, bool* is_set, bool* is_static,
-    bool* is_computed_name, ExpressionClassifier* classifier, bool* ok) {
+    bool* is_computed_name, bool* is_identifier, bool* is_escaped_keyword,
+    ExpressionClassifier* classifier, bool* ok) {
   Token::Value token = peek();
   int pos = peek_position();
 
@@ -2583,11 +2600,17 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
       return expression;
     }
 
+    case Token::ESCAPED_KEYWORD:
+      *is_escaped_keyword = true;
+      *name = ParseIdentifierNameOrGetOrSet(is_get, is_set, CHECK_OK);
+      break;
+
     case Token::STATIC:
       *is_static = true;
 
     // Fall through.
     default:
+      *is_identifier = true;
       *name = ParseIdentifierNameOrGetOrSet(is_get, is_set, CHECK_OK);
       break;
   }
@@ -2616,13 +2639,20 @@ ParserBase<Traits>::ParsePropertyDefinition(
   Token::Value name_token = peek();
   int next_beg_pos = scanner()->peek_location().beg_pos;
   int next_end_pos = scanner()->peek_location().end_pos;
+  bool is_identifier = false;
+  bool is_escaped_keyword = false;
   ExpressionT name_expression = ParsePropertyName(
-      &name, &is_get, &is_set, &name_is_static, is_computed_name, classifier,
+      &name, &is_get, &is_set, &name_is_static, is_computed_name,
+      &is_identifier, &is_escaped_keyword, classifier,
       CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   if (fni_ != nullptr && !*is_computed_name) {
     this->PushLiteralName(fni_, name);
   }
+
+  bool escaped_static =
+      is_escaped_keyword &&
+      scanner()->is_literal_contextual_keyword(CStrVector("static"));
 
   if (!in_class && !is_generator) {
     DCHECK(!is_static);
@@ -2641,8 +2671,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
                                                  *is_computed_name);
     }
 
-    if (Token::IsIdentifier(name_token, language_mode(),
-                            this->is_generator()) &&
+    if ((is_identifier || is_escaped_keyword) &&
         (peek() == Token::COMMA || peek() == Token::RBRACE ||
          peek() == Token::ASSIGN)) {
       // PropertyDefinition
@@ -2651,6 +2680,14 @@ ParserBase<Traits>::ParsePropertyDefinition(
       //
       // CoverInitializedName
       //    IdentifierReference Initializer?
+      if (!Token::IsIdentifier(name_token, language_mode(),
+                               this->is_generator())) {
+        if (!escaped_static) {
+          ReportUnexpectedTokenAt(scanner()->location(), name_token);
+          *ok = false;
+          return this->EmptyObjectLiteralProperty();
+        }
+      }
       if (classifier->duplicate_finder() != nullptr &&
           scanner()->FindSymbol(classifier->duplicate_finder(), 1) != 0) {
         classifier->RecordDuplicateFormalParameterError(scanner()->location());
@@ -2683,6 +2720,11 @@ ParserBase<Traits>::ParsePropertyDefinition(
     }
   }
 
+  if (in_class && escaped_static && !is_static) {
+    ReportUnexpectedTokenAt(scanner()->location(), name_token);
+    *ok = false;
+    return this->EmptyObjectLiteralProperty();
+  }
 
   if (is_generator || peek() == Token::LPAREN) {
     // MethodDefinition
@@ -2732,8 +2774,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     name_token = peek();
 
     name_expression = ParsePropertyName(
-        &name, &dont_care, &dont_care, &dont_care, is_computed_name, classifier,
-        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        &name, &dont_care, &dont_care, &dont_care, is_computed_name, &dont_care,
+        &dont_care, classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     if (!*is_computed_name) {
       checker->CheckProperty(name_token, kAccessorProperty, is_static,

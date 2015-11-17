@@ -373,13 +373,10 @@ class Scanner {
   Location peek_location() const { return next_.location; }
 
   bool literal_contains_escapes() const {
-    Location location = current_.location;
-    int source_length = (location.end_pos - location.beg_pos);
-    if (current_.token == Token::STRING) {
-      // Subtract delimiters.
-      source_length -= 2;
-    }
-    return current_.literal_chars->length() != source_length;
+    return LiteralContainsEscapes(current_);
+  }
+  bool next_literal_contains_escapes() const {
+    return LiteralContainsEscapes(next_);
   }
   bool is_literal_contextual_keyword(Vector<const char> keyword) {
     DCHECK_NOT_NULL(current_.literal_chars);
@@ -665,7 +662,7 @@ class Scanner {
   void ScanDecimalDigits();
   Token::Value ScanNumber(bool seen_period);
   Token::Value ScanIdentifierOrKeyword();
-  Token::Value ScanIdentifierSuffix(LiteralScope* literal);
+  Token::Value ScanIdentifierSuffix(LiteralScope* literal, bool escaped);
 
   Token::Value ScanString();
 
@@ -687,6 +684,16 @@ class Scanner {
   // Return the current source position.
   int source_pos() {
     return static_cast<int>(source_->pos()) - kCharacterLookaheadBufferSize;
+  }
+
+  static bool LiteralContainsEscapes(const TokenDesc& token) {
+    Location location = token.location;
+    int source_length = (location.end_pos - location.beg_pos);
+    if (token.token == Token::STRING) {
+      // Subtract delimiters.
+      source_length -= 2;
+    }
+    return token.literal_chars->length() != source_length;
   }
 
   UnicodeCache* unicode_cache_;

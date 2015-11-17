@@ -1177,7 +1177,7 @@ uc32 Scanner::ScanUnicodeEscape() {
 
 
 static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
-                                             int input_length) {
+                                             int input_length, bool escaped) {
   DCHECK(input_length >= 1);
   const int kMinLength = 2;
   const int kMaxLength = 10;
@@ -1189,26 +1189,30 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
 #define KEYWORD_GROUP_CASE(ch)                                \
       break;                                                  \
     case ch:
-#define KEYWORD(keyword, token)                               \
-    {                                                         \
-      /* 'keyword' is a char array, so sizeof(keyword) is */  \
-      /* strlen(keyword) plus 1 for the NUL char. */          \
-      const int keyword_length = sizeof(keyword) - 1;         \
-      STATIC_ASSERT(keyword_length >= kMinLength);            \
-      STATIC_ASSERT(keyword_length <= kMaxLength);            \
-      if (input_length == keyword_length &&                   \
-          input[1] == keyword[1] &&                           \
-          (keyword_length <= 2 || input[2] == keyword[2]) &&  \
-          (keyword_length <= 3 || input[3] == keyword[3]) &&  \
-          (keyword_length <= 4 || input[4] == keyword[4]) &&  \
-          (keyword_length <= 5 || input[5] == keyword[5]) &&  \
-          (keyword_length <= 6 || input[6] == keyword[6]) &&  \
-          (keyword_length <= 7 || input[7] == keyword[7]) &&  \
-          (keyword_length <= 8 || input[8] == keyword[8]) &&  \
-          (keyword_length <= 9 || input[9] == keyword[9])) {  \
-        return token;                                         \
-      }                                                       \
-    }
+#define KEYWORD(keyword, token)                                     \
+  {                                                                 \
+    /* 'keyword' is a char array, so sizeof(keyword) is */          \
+    /* strlen(keyword) plus 1 for the NUL char. */                  \
+    const int keyword_length = sizeof(keyword) - 1;                 \
+    STATIC_ASSERT(keyword_length >= kMinLength);                    \
+    STATIC_ASSERT(keyword_length <= kMaxLength);                    \
+    if (input_length == keyword_length && input[1] == keyword[1] && \
+        (keyword_length <= 2 || input[2] == keyword[2]) &&          \
+        (keyword_length <= 3 || input[3] == keyword[3]) &&          \
+        (keyword_length <= 4 || input[4] == keyword[4]) &&          \
+        (keyword_length <= 5 || input[5] == keyword[5]) &&          \
+        (keyword_length <= 6 || input[6] == keyword[6]) &&          \
+        (keyword_length <= 7 || input[7] == keyword[7]) &&          \
+        (keyword_length <= 8 || input[8] == keyword[8]) &&          \
+        (keyword_length <= 9 || input[9] == keyword[9])) {          \
+      if (escaped) {                                                \
+        return token == Token::FUTURE_STRICT_RESERVED_WORD          \
+                   ? Token::ESCAPED_STRICT_RESERVED_WORD            \
+                   : Token::ESCAPED_KEYWORD;                        \
+      }                                                             \
+      return token;                                                 \
+    }                                                               \
+  }
     KEYWORDS(KEYWORD_GROUP_CASE, KEYWORD)
   }
   return Token::IDENTIFIER;
@@ -1224,7 +1228,7 @@ bool Scanner::IdentifierIsFutureStrictReserved(
     return true;
   }
   return Token::FUTURE_STRICT_RESERVED_WORD ==
-         KeywordOrIdentifierToken(string->raw_data(), string->length());
+         KeywordOrIdentifierToken(string->raw_data(), string->length(), false);
 }
 
 
@@ -1257,7 +1261,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       // Only a-z+: could be a keyword or identifier.
       literal.Complete();
       Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
-      return KeywordOrIdentifierToken(chars.start(), chars.length());
+      return KeywordOrIdentifierToken(chars.start(), chars.length(), false);
     }
 
     HandleLeadSurrogate();
@@ -1284,7 +1288,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       return Token::ILLEGAL;
     }
     AddLiteralChar(c);
-    return ScanIdentifierSuffix(&literal);
+    return ScanIdentifierSuffix(&literal, true);
   } else {
     uc32 first_char = c0_;
     Advance();
@@ -1300,24 +1304,26 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       continue;
     }
     // Fallthrough if no longer able to complete keyword.
-    return ScanIdentifierSuffix(&literal);
+    return ScanIdentifierSuffix(&literal, false);
   }
 
   literal.Complete();
 
   if (next_.literal_chars->is_one_byte()) {
     Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
-    return KeywordOrIdentifierToken(chars.start(), chars.length());
+    return KeywordOrIdentifierToken(chars.start(), chars.length(), false);
   }
   return Token::IDENTIFIER;
 }
 
 
-Token::Value Scanner::ScanIdentifierSuffix(LiteralScope* literal) {
+Token::Value Scanner::ScanIdentifierSuffix(LiteralScope* literal,
+                                           bool escaped) {
   // Scan the rest of the identifier characters.
   while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
+      escaped = true;
       // Only allow legal identifier part characters.
       if (c < 0 ||
           c == '\\' ||
@@ -1332,6 +1338,10 @@ Token::Value Scanner::ScanIdentifierSuffix(LiteralScope* literal) {
   }
   literal->Complete();
 
+  if (escaped && next_.literal_chars->is_one_byte()) {
+    Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
+    return KeywordOrIdentifierToken(chars.start(), chars.length(), true);
+  }
   return Token::IDENTIFIER;
 }
 

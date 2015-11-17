@@ -160,6 +160,8 @@ namespace internal {
                                                                      \
   /* Illegal token - not able to scan. */                            \
   T(ILLEGAL, "ILLEGAL", 0)                                           \
+  T(ESCAPED_KEYWORD, NULL, 0)                                        \
+  T(ESCAPED_STRICT_RESERVED_WORD, NULL, 0)                           \
                                                                      \
   /* Scanner-internal use only. */                                   \
   T(WHITESPACE, NULL, 0)                                             \
@@ -197,6 +199,7 @@ class Token {
     switch (tok) {
       case IDENTIFIER:
         return true;
+      case ESCAPED_STRICT_RESERVED_WORD:
       case FUTURE_STRICT_RESERVED_WORD:
       case LET:
       case STATIC:
