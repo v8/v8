@@ -78,8 +78,7 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
   return Callable(
       StoreIC::initialize_stub(isolate, language_mode, UNINITIALIZED),
-      FLAG_vector_stores ? VectorStoreICTrampolineDescriptor(isolate)
-                         : StoreDescriptor(isolate));
+      VectorStoreICTrampolineDescriptor(isolate));
 }
 
 
@@ -87,10 +86,9 @@ Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
 Callable CodeFactory::StoreICInOptimizedCode(
     Isolate* isolate, LanguageMode language_mode,
     InlineCacheState initialization_state) {
-  CallInterfaceDescriptor descriptor =
-      FLAG_vector_stores && initialization_state != MEGAMORPHIC
-          ? VectorStoreICDescriptor(isolate)
-          : StoreDescriptor(isolate);
+  CallInterfaceDescriptor descriptor = initialization_state != MEGAMORPHIC
+                                           ? VectorStoreICDescriptor(isolate)
+                                           : StoreDescriptor(isolate);
   return Callable(StoreIC::initialize_stub_in_optimized_code(
                       isolate, language_mode, initialization_state),
                   descriptor);
@@ -102,8 +100,7 @@ Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
                                    LanguageMode language_mode) {
   return Callable(
       KeyedStoreIC::initialize_stub(isolate, language_mode, UNINITIALIZED),
-      FLAG_vector_stores ? VectorStoreICTrampolineDescriptor(isolate)
-                         : StoreDescriptor(isolate));
+      VectorStoreICTrampolineDescriptor(isolate));
 }
 
 
@@ -111,10 +108,9 @@ Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
 Callable CodeFactory::KeyedStoreICInOptimizedCode(
     Isolate* isolate, LanguageMode language_mode,
     InlineCacheState initialization_state) {
-  CallInterfaceDescriptor descriptor =
-      FLAG_vector_stores && initialization_state != MEGAMORPHIC
-          ? VectorStoreICDescriptor(isolate)
-          : StoreDescriptor(isolate);
+  CallInterfaceDescriptor descriptor = initialization_state != MEGAMORPHIC
+                                           ? VectorStoreICDescriptor(isolate)
+                                           : StoreDescriptor(isolate);
   return Callable(KeyedStoreIC::initialize_stub_in_optimized_code(
                       isolate, language_mode, initialization_state),
                   descriptor);

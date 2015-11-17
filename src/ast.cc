@@ -120,18 +120,16 @@ void VariableProxy::AssignFeedbackVectorSlots(Isolate* isolate,
 
 static void AssignVectorSlots(Expression* expr, FeedbackVectorSpec* spec,
                               FeedbackVectorSlot* out_slot) {
-  if (FLAG_vector_stores) {
-    Property* property = expr->AsProperty();
-    LhsKind assign_type = Property::GetAssignType(property);
-    if ((assign_type == VARIABLE &&
-         expr->AsVariableProxy()->var()->IsUnallocated()) ||
-        assign_type == NAMED_PROPERTY || assign_type == KEYED_PROPERTY) {
-      // TODO(ishell): consider using ICSlotCache for variables here.
-      FeedbackVectorSlotKind kind = assign_type == KEYED_PROPERTY
-                                        ? FeedbackVectorSlotKind::KEYED_STORE_IC
-                                        : FeedbackVectorSlotKind::STORE_IC;
-      *out_slot = spec->AddSlot(kind);
-    }
+  Property* property = expr->AsProperty();
+  LhsKind assign_type = Property::GetAssignType(property);
+  if ((assign_type == VARIABLE &&
+       expr->AsVariableProxy()->var()->IsUnallocated()) ||
+      assign_type == NAMED_PROPERTY || assign_type == KEYED_PROPERTY) {
+    // TODO(ishell): consider using ICSlotCache for variables here.
+    FeedbackVectorSlotKind kind = assign_type == KEYED_PROPERTY
+                                      ? FeedbackVectorSlotKind::KEYED_STORE_IC
+                                      : FeedbackVectorSlotKind::STORE_IC;
+    *out_slot = spec->AddSlot(kind);
   }
 }
 
@@ -256,8 +254,6 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
 void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                              FeedbackVectorSpec* spec,
                                              FeedbackVectorSlotCache* cache) {
-  if (!FLAG_vector_stores) return;
-
   // This logic that computes the number of slots needed for vector store
   // ICs must mirror FullCodeGenerator::VisitClassLiteral.
   if (NeedsProxySlot()) {
@@ -294,8 +290,6 @@ bool ObjectLiteral::Property::emit_store() {
 void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                               FeedbackVectorSpec* spec,
                                               FeedbackVectorSlotCache* cache) {
-  if (!FLAG_vector_stores) return;
-
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitObjectLiteral.
   int property_index = 0;
@@ -550,8 +544,6 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
 void ArrayLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                              FeedbackVectorSpec* spec,
                                              FeedbackVectorSlotCache* cache) {
-  if (!FLAG_vector_stores) return;
-
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitArrayLiteral.
   int array_index = 0;
@@ -719,9 +711,6 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);
   if (call_type == POSSIBLY_EVAL_CALL) {
-    return false;
-  }
-  if (call_type == SUPER_CALL && !FLAG_vector_stores) {
     return false;
   }
   return true;

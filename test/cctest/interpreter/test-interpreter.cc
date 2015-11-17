@@ -67,7 +67,6 @@ class InterpreterTester {
         source_(source),
         bytecode_(bytecode),
         feedback_vector_(feedback_vector) {
-    i::FLAG_vector_stores = true;
     i::FLAG_ignition = true;
     i::FLAG_ignition_fake_try_catch = true;
     i::FLAG_always_opt = false;

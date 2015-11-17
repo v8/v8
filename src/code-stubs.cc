@@ -640,8 +640,7 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
     return LoadWithVectorDescriptor(isolate());
   } else {
     DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
-    return FLAG_vector_stores ? VectorStoreICDescriptor(isolate())
-                              : StoreDescriptor(isolate());
+    return VectorStoreICDescriptor(isolate());
   }
 }
 
@@ -667,19 +666,13 @@ void ToObjectStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 
 CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor()
     const {
-  if (FLAG_vector_stores) {
-    return VectorStoreTransitionDescriptor(isolate());
-  }
-  return StoreTransitionDescriptor(isolate());
+  return VectorStoreTransitionDescriptor(isolate());
 }
 
 
 CallInterfaceDescriptor
 ElementsTransitionAndStoreStub::GetCallInterfaceDescriptor() const {
-  if (FLAG_vector_stores) {
-    return VectorStoreTransitionDescriptor(isolate());
-  }
-  return StoreTransitionDescriptor(isolate());
+  return VectorStoreTransitionDescriptor(isolate());
 }
 
 

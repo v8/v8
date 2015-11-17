@@ -26,7 +26,6 @@ class BytecodeGeneratorHelper {
       -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
 
   BytecodeGeneratorHelper() {
-    i::FLAG_vector_stores = true;
     i::FLAG_ignition = true;
     i::FLAG_ignition_fake_try_catch = true;
     i::FLAG_ignition_filter = StrDup(kFunctionName);

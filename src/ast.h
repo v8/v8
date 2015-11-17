@@ -2690,7 +2690,7 @@ class ClassLiteral final : public Expression {
                                  FeedbackVectorSlotCache* cache) override;
 
   bool NeedsProxySlot() const {
-    return FLAG_vector_stores && class_variable_proxy() != nullptr &&
+    return class_variable_proxy() != nullptr &&
            class_variable_proxy()->var()->IsUnallocated();
   }
 
