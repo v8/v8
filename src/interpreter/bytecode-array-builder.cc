@@ -453,7 +453,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
     int literal_index, int flags) {
-  DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bytes.
+  DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bits.
   if (FitsInIdx8Operand(literal_index)) {
     Output(Bytecode::kCreateArrayLiteral, static_cast<uint8_t>(literal_index),
            static_cast<uint8_t>(flags));
@@ -466,7 +466,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
     int literal_index, int flags) {
-  DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bytes.
+  DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bits.
   if (FitsInIdx8Operand(literal_index)) {
     Output(Bytecode::kCreateObjectLiteral, static_cast<uint8_t>(literal_index),
            static_cast<uint8_t>(flags));

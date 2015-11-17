@@ -1404,6 +1404,7 @@ class IsUnopMatcher final : public NodeMatcher {
   const Matcher<Node*> input_matcher_;
 };
 
+
 class IsParameterMatcher final : public NodeMatcher {
  public:
   explicit IsParameterMatcher(const Matcher<int>& index_matcher)
@@ -1423,6 +1424,60 @@ class IsParameterMatcher final : public NodeMatcher {
 
  private:
   const Matcher<int> index_matcher_;
+};
+
+
+// TODO(mythria): Check if we can use the same matcher for Load and Store
+class IsJSLoadNamedMatcher final : public NodeMatcher {
+ public:
+  IsJSLoadNamedMatcher(const Matcher<Handle<Name>>& name_matcher,
+                       const Matcher<Node*>& object_value_matcher,
+                       const Matcher<Node*>& feedback_vector_matcher,
+                       const Matcher<Node*>& effect_matcher,
+                       const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSLoadNamed),
+        name_matcher_(name_matcher),
+        object_value_matcher_(object_value_matcher),
+        feedback_vector_matcher_(feedback_vector_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose object (";
+    object_value_matcher_.DescribeTo(os);
+    *os << "), name (";
+    name_matcher_.DescribeTo(os);
+    *os << "), feedback vector (";
+    feedback_vector_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << "), and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<const NamedAccess>(node).name(),
+                                 "Name", name_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "object", object_value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
+                                 "feedback vector", feedback_vector_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Handle<Name>> name_matcher_;
+  const Matcher<Node*> object_value_matcher_;
+  const Matcher<Node*> feedback_vector_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
 };
 
 }  // namespace
@@ -1995,6 +2050,17 @@ Matcher<Node*> IsParameter(const Matcher<int> index_matcher) {
 
 Matcher<Node*> IsLoadFramePointer() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kLoadFramePointer));
+}
+
+
+Matcher<Node*> IsJSLoadNamed(const Handle<Name> name,
+                             const Matcher<Node*>& object_value_matcher,
+                             const Matcher<Node*>& feedback_vector_matcher,
+                             const Matcher<Node*>& effect_matcher,
+                             const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsJSLoadNamedMatcher(name, object_value_matcher,
+                                              feedback_vector_matcher,
+                                              effect_matcher, control_matcher));
 }
 
 

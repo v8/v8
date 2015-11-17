@@ -353,6 +353,11 @@ Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher);
 Matcher<Node*> IsLoadFramePointer();
+Matcher<Node*> IsJSLoadNamed(const Handle<Name> name,
+                             const Matcher<Node*>& object_value_matcher,
+                             const Matcher<Node*>& feedback_vector_matcher,
+                             const Matcher<Node*>& effect_matcher,
+                             const Matcher<Node*>& control_matcher);
 
 }  // namespace compiler
 }  // namespace internal

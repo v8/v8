@@ -11,6 +11,7 @@
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/parser.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
@@ -24,28 +25,47 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+static const LanguageMode kLanguageModes[] = {LanguageMode::SLOPPY,
+                                              LanguageMode::STRICT};
+
+Handle<TypeFeedbackVector> NewTypeFeedbackVector(Isolate* isolate,
+                                                 FeedbackVectorSpec* spec) {
+  Handle<TypeFeedbackMetadata> vector_metadata =
+      TypeFeedbackMetadata::New(isolate, spec);
+  return TypeFeedbackVector::New(isolate, vector_metadata);
+}
+
 class BytecodeGraphBuilderTest : public TestWithIsolateAndZone {
  public:
-  BytecodeGraphBuilderTest() : array_builder_(isolate(), zone()) {}
+  BytecodeGraphBuilderTest() {}
 
-  Graph* GetCompletedGraph();
+  Graph* GetCompletedGraph(Handle<BytecodeArray> bytecode_array,
+                           MaybeHandle<TypeFeedbackVector> feedback_vector =
+                               MaybeHandle<TypeFeedbackVector>(),
+                           LanguageMode language_mode = LanguageMode::SLOPPY);
 
   Matcher<Node*> IsUndefinedConstant();
   Matcher<Node*> IsNullConstant();
   Matcher<Node*> IsTheHoleConstant();
   Matcher<Node*> IsFalseConstant();
   Matcher<Node*> IsTrueConstant();
+  Matcher<Node*> IsIntPtrConstant(int value);
+  Matcher<Node*> IsFeedbackVector(Node* effect, Node* control);
 
-  interpreter::BytecodeArrayBuilder* array_builder() { return &array_builder_; }
+  static Handle<String> GetName(Isolate* isolate, const char* name) {
+    Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(name);
+    return isolate->factory()->string_table()->LookupString(isolate, result);
+  }
 
  private:
-  interpreter::BytecodeArrayBuilder array_builder_;
-
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphBuilderTest);
 };
 
 
-Graph* BytecodeGraphBuilderTest::GetCompletedGraph() {
+Graph* BytecodeGraphBuilderTest::GetCompletedGraph(
+    Handle<BytecodeArray> bytecode_array,
+    MaybeHandle<TypeFeedbackVector> feedback_vector,
+    LanguageMode language_mode) {
   MachineOperatorBuilder* machine = new (zone()) MachineOperatorBuilder(
       zone(), kMachPtr, InstructionSelector::SupportedMachineOperatorFlags());
   CommonOperatorBuilder* common = new (zone()) CommonOperatorBuilder(zone());
@@ -59,10 +79,13 @@ Graph* BytecodeGraphBuilderTest::GetCompletedGraph() {
   Handle<SharedFunctionInfo> shared_info =
       factory()->NewSharedFunctionInfo(name, MaybeHandle<Code>());
   shared_info->set_script(*factory()->NewScript(script));
+  if (!feedback_vector.is_null()) {
+    shared_info->set_feedback_vector(*feedback_vector.ToHandleChecked());
+  }
 
   ParseInfo parse_info(zone(), shared_info);
+  parse_info.set_language_mode(language_mode);
   CompilationInfo info(&parse_info);
-  Handle<BytecodeArray> bytecode_array = array_builder()->ToBytecodeArray();
   info.shared_info()->set_function_data(*bytecode_array);
 
   BytecodeGraphBuilder graph_builder(zone(), &info, jsgraph);
@@ -96,13 +119,36 @@ Matcher<Node*> BytecodeGraphBuilderTest::IsTrueConstant() {
 }
 
 
-TEST_F(BytecodeGraphBuilderTest, ReturnUndefined) {
-  array_builder()->set_locals_count(0);
-  array_builder()->set_context_count(0);
-  array_builder()->set_parameter_count(1);
-  array_builder()->LoadUndefined().Return();
+Matcher<Node*> BytecodeGraphBuilderTest::IsIntPtrConstant(int value) {
+  if (kPointerSize == 8) {
+    return IsInt64Constant(value);
+  } else {
+    return IsInt32Constant(value);
+  }
+}
 
-  Graph* graph = GetCompletedGraph();
+
+Matcher<Node*> BytecodeGraphBuilderTest::IsFeedbackVector(Node* effect,
+                                                          Node* control) {
+  int offset = SharedFunctionInfo::kFeedbackVectorOffset - kHeapObjectTag;
+  int offset1 = JSFunction::kSharedFunctionInfoOffset - kHeapObjectTag;
+
+  return IsLoad(kMachAnyTagged,
+                IsLoad(kMachAnyTagged,
+                       IsParameter(Linkage::kJSFunctionCallClosureParamIndex),
+                       IsIntPtrConstant(offset1), effect, control),
+                IsIntPtrConstant(offset), effect, control);
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, ReturnUndefined) {
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(0);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(1);
+  array_builder.LoadUndefined().Return();
+
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
   Node* end = graph->end();
   EXPECT_EQ(1, end->InputCount());
   Node* ret = end->InputAt(0);
@@ -113,12 +159,13 @@ TEST_F(BytecodeGraphBuilderTest, ReturnUndefined) {
 
 
 TEST_F(BytecodeGraphBuilderTest, ReturnNull) {
-  array_builder()->set_locals_count(0);
-  array_builder()->set_context_count(0);
-  array_builder()->set_parameter_count(1);
-  array_builder()->LoadNull().Return();
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(0);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(1);
+  array_builder.LoadNull().Return();
 
-  Graph* graph = GetCompletedGraph();
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
   Node* end = graph->end();
   EXPECT_EQ(1, end->InputCount());
   Node* ret = end->InputAt(0);
@@ -127,12 +174,13 @@ TEST_F(BytecodeGraphBuilderTest, ReturnNull) {
 
 
 TEST_F(BytecodeGraphBuilderTest, ReturnTheHole) {
-  array_builder()->set_locals_count(0);
-  array_builder()->set_context_count(0);
-  array_builder()->set_parameter_count(1);
-  array_builder()->LoadTheHole().Return();
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(0);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(1);
+  array_builder.LoadTheHole().Return();
 
-  Graph* graph = GetCompletedGraph();
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
   Node* end = graph->end();
   EXPECT_EQ(1, end->InputCount());
   Node* ret = end->InputAt(0);
@@ -143,12 +191,13 @@ TEST_F(BytecodeGraphBuilderTest, ReturnTheHole) {
 
 
 TEST_F(BytecodeGraphBuilderTest, ReturnTrue) {
-  array_builder()->set_locals_count(0);
-  array_builder()->set_context_count(0);
-  array_builder()->set_parameter_count(1);
-  array_builder()->LoadTrue().Return();
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(0);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(1);
+  array_builder.LoadTrue().Return();
 
-  Graph* graph = GetCompletedGraph();
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
   Node* end = graph->end();
   EXPECT_EQ(1, end->InputCount());
   Node* ret = end->InputAt(0);
@@ -159,12 +208,13 @@ TEST_F(BytecodeGraphBuilderTest, ReturnTrue) {
 
 
 TEST_F(BytecodeGraphBuilderTest, ReturnFalse) {
-  array_builder()->set_locals_count(0);
-  array_builder()->set_context_count(0);
-  array_builder()->set_parameter_count(1);
-  array_builder()->LoadFalse().Return();
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(0);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(1);
+  array_builder.LoadFalse().Return();
 
-  Graph* graph = GetCompletedGraph();
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
   Node* end = graph->end();
   EXPECT_EQ(1, end->InputCount());
   Node* ret = end->InputAt(0);
@@ -175,13 +225,14 @@ TEST_F(BytecodeGraphBuilderTest, ReturnFalse) {
 
 
 TEST_F(BytecodeGraphBuilderTest, ReturnInt8) {
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
   static const int kValue = 3;
-  array_builder()->set_locals_count(0);
-  array_builder()->set_context_count(0);
-  array_builder()->set_parameter_count(1);
-  array_builder()->LoadLiteral(Smi::FromInt(kValue)).Return();
+  array_builder.set_locals_count(0);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(1);
+  array_builder.LoadLiteral(Smi::FromInt(kValue)).Return();
 
-  Graph* graph = GetCompletedGraph();
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
   Node* end = graph->end();
   EXPECT_EQ(1, end->InputCount());
   Node* ret = end->InputAt(0);
@@ -192,14 +243,15 @@ TEST_F(BytecodeGraphBuilderTest, ReturnInt8) {
 
 
 TEST_F(BytecodeGraphBuilderTest, ReturnDouble) {
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
   const double kValue = 0.123456789;
-  array_builder()->set_locals_count(0);
-  array_builder()->set_context_count(0);
-  array_builder()->set_parameter_count(1);
-  array_builder()->LoadLiteral(factory()->NewHeapNumber(kValue));
-  array_builder()->Return();
+  array_builder.set_locals_count(0);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(1);
+  array_builder.LoadLiteral(factory()->NewHeapNumber(kValue));
+  array_builder.Return();
 
-  Graph* graph = GetCompletedGraph();
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
   Node* end = graph->end();
   EXPECT_EQ(1, end->InputCount());
   Node* ret = end->InputAt(0);
@@ -210,17 +262,17 @@ TEST_F(BytecodeGraphBuilderTest, ReturnDouble) {
 
 
 TEST_F(BytecodeGraphBuilderTest, SimpleExpressionWithParameters) {
-  array_builder()->set_locals_count(1);
-  array_builder()->set_context_count(0);
-  array_builder()->set_parameter_count(3);
-  array_builder()
-      ->LoadAccumulatorWithRegister(array_builder()->Parameter(1))
-      .BinaryOperation(Token::Value::ADD, array_builder()->Parameter(2),
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(1);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(3);
+  array_builder.LoadAccumulatorWithRegister(array_builder.Parameter(1))
+      .BinaryOperation(Token::Value::ADD, array_builder.Parameter(2),
                        Strength::WEAK)
       .StoreAccumulatorInRegister(interpreter::Register(0))
       .Return();
 
-  Graph* graph = GetCompletedGraph();
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
   Node* end = graph->end();
   EXPECT_EQ(1, end->InputCount());
   Node* ret = end->InputAt(0);
@@ -232,26 +284,67 @@ TEST_F(BytecodeGraphBuilderTest, SimpleExpressionWithParameters) {
 
 
 TEST_F(BytecodeGraphBuilderTest, SimpleExpressionWithRegister) {
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
   static const int kLeft = -655371;
   static const int kRight = +2000000;
-  array_builder()->set_locals_count(1);
-  array_builder()->set_context_count(0);
-  array_builder()->set_parameter_count(1);
-  array_builder()
-      ->LoadLiteral(Smi::FromInt(kLeft))
+  array_builder.set_locals_count(1);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(1);
+  array_builder.LoadLiteral(Smi::FromInt(kLeft))
       .StoreAccumulatorInRegister(interpreter::Register(0))
       .LoadLiteral(Smi::FromInt(kRight))
       .BinaryOperation(Token::Value::ADD, interpreter::Register(0),
                        Strength::WEAK)
       .Return();
 
-  Graph* graph = GetCompletedGraph();
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
   Node* end = graph->end();
   EXPECT_EQ(1, end->InputCount());
   Node* ret = end->InputAt(0);
   EXPECT_THAT(
       ret, IsReturn(IsJSAdd(IsNumberConstant(kLeft), IsNumberConstant(kRight)),
                     _, _));
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, NamedLoad) {
+  const bool kWideBytecode[] = {false, true};
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    TRACED_FOREACH(bool, wide_bytecode, kWideBytecode) {
+      FeedbackVectorSpec feedback_spec(zone());
+      if (wide_bytecode) {
+        for (int i = 0; i < 128; i++) {
+          feedback_spec.AddLoadICSlot();
+        }
+      }
+      FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+      Handle<TypeFeedbackVector> vector =
+          NewTypeFeedbackVector(isolate(), &feedback_spec);
+
+      interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+      array_builder.set_locals_count(1);
+      array_builder.set_context_count(0);
+      array_builder.set_parameter_count(2);
+
+      Handle<Name> name = GetName(isolate(), "val");
+      size_t name_index = array_builder.GetConstantPoolEntry(name);
+
+      array_builder.LoadNamedProperty(array_builder.Parameter(1), name_index,
+                                      vector->GetIndex(slot), language_mode)
+          .Return();
+      Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector,
+                                       language_mode);
+
+      Node* ret = graph->end()->InputAt(0);
+      Node* start = graph->start();
+
+      Matcher<Node*> feedback_vector_matcher = IsFeedbackVector(start, start);
+      Matcher<Node*> load_named_matcher = IsJSLoadNamed(
+          name, IsParameter(1), feedback_vector_matcher, start, start);
+
+      EXPECT_THAT(ret, IsReturn(load_named_matcher, _, _));
+    }
+  }
 }
 
 }  // namespace compiler

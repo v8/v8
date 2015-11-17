@@ -123,6 +123,55 @@ Node* BytecodeGraphBuilder::GetFunctionContext() {
 }
 
 
+Node* BytecodeGraphBuilder::GetFunctionClosure() {
+  if (!function_closure_.is_set()) {
+    const Operator* op = common()->Parameter(
+        Linkage::kJSFunctionCallClosureParamIndex, "%closure");
+    Node* node = NewNode(op, graph()->start());
+    function_closure_.set(node);
+  }
+  return function_closure_.get();
+}
+
+
+Node* BytecodeGraphBuilder::BuildLoadImmutableObjectField(Node* object,
+                                                          int offset) {
+  return graph()->NewNode(jsgraph()->machine()->Load(kMachAnyTagged), object,
+                          jsgraph()->IntPtrConstant(offset - kHeapObjectTag),
+                          graph()->start(), graph()->start());
+}
+
+
+Node* BytecodeGraphBuilder::BuildLoadFeedbackVector() {
+  if (!feedback_vector_.is_set()) {
+    Node* closure = GetFunctionClosure();
+    Node* shared = BuildLoadImmutableObjectField(
+        closure, JSFunction::kSharedFunctionInfoOffset);
+    Node* vector = BuildLoadImmutableObjectField(
+        shared, SharedFunctionInfo::kFeedbackVectorOffset);
+    feedback_vector_.set(vector);
+  }
+  return feedback_vector_.get();
+}
+
+
+VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
+  Handle<TypeFeedbackVector> feedback_vector = info()->feedback_vector();
+  FeedbackVectorSlot slot = feedback_vector->ToSlot(slot_id);
+  return VectorSlotPair(feedback_vector, slot);
+}
+
+
+void BytecodeGraphBuilder::AddEmptyFrameStateInputs(Node* node) {
+  int frame_state_count =
+      OperatorProperties::GetFrameStateInputCount(node->op());
+  for (int i = 0; i < frame_state_count; i++) {
+    NodeProperties::ReplaceFrameStateInput(node, i,
+                                           jsgraph()->EmptyFrameState());
+  }
+}
+
+
 bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
   // Set up the basic structure of the graph. Outputs for {Start} are
   // the formal parameters (including the receiver) plus context and
@@ -339,15 +388,33 @@ void BytecodeGraphBuilder::VisitStaContextSlot(
 }
 
 
+void BytecodeGraphBuilder::BuildNamedLoad(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  Node* object = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  Handle<Name> name =
+      Handle<Name>::cast(iterator.GetConstantForIndexOperand(1));
+  VectorSlotPair feedback = CreateVectorSlotPair(iterator.GetIndexOperand(2));
+
+  const Operator* op = javascript()->LoadNamed(language_mode(), name, feedback);
+  Node* node = NewNode(op, object, BuildLoadFeedbackVector());
+  // TODO(mythria): Replace with real frame state. Also add before and after
+  // frame states if required.
+  AddEmptyFrameStateInputs(node);
+  environment()->BindAccumulator(node);
+}
+
+
 void BytecodeGraphBuilder::VisitLoadICSloppy(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_sloppy(language_mode()));
+  BuildNamedLoad(iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitLoadICStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_strict(language_mode()));
+  BuildNamedLoad(iterator);
 }
 
 
@@ -365,13 +432,15 @@ void BytecodeGraphBuilder::VisitKeyedLoadICStrict(
 
 void BytecodeGraphBuilder::VisitLoadICSloppyWide(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_sloppy(language_mode()));
+  BuildNamedLoad(iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitLoadICStrictWide(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_strict(language_mode()));
+  BuildNamedLoad(iterator);
 }
 
 
@@ -520,12 +589,7 @@ void BytecodeGraphBuilder::BuildBinaryOp(
   Node* node = NewNode(js_op, left, right);
 
   // TODO(oth): Real frame state and environment check pointing.
-  int frame_state_count =
-      OperatorProperties::GetFrameStateInputCount(node->op());
-  for (int i = 0; i < frame_state_count; i++) {
-    NodeProperties::ReplaceFrameStateInput(node, i,
-                                           jsgraph()->EmptyFrameState());
-  }
+  AddEmptyFrameStateInputs(node);
   environment()->BindAccumulator(node);
 }
 

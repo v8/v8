@@ -81,6 +81,10 @@ class BytecodeGraphTester {
     return BytecodeGraphCallable<A...>(isolate_, GetFunction());
   }
 
+  static Handle<Object> NewObject(const char* script) {
+    return v8::Utils::OpenHandle(*CompileRun(script));
+  }
+
  private:
   Isolate* isolate_;
   Zone* zone_;
@@ -100,8 +104,8 @@ class BytecodeGraphTester {
 
     CompilationInfo compilation_info(&parse_info);
     compilation_info.SetOptimizing(BailoutId::None(), Handle<Code>());
-    Parser parser(&parse_info);
-    CHECK(parser.Parse(&parse_info));
+    // TODO(mythria): Remove this step once parse_info is not needed.
+    CHECK(Compiler::ParseAndAnalyze(&parse_info));
     compiler::Pipeline pipeline(&compilation_info);
     Handle<Code> code = pipeline.GenerateCode();
     function->ReplaceCode(*code);
@@ -111,6 +115,36 @@ class BytecodeGraphTester {
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphTester);
 };
+
+
+#define SPACE()
+
+#define REPEAT_2(SEP, ...) __VA_ARGS__ SEP() __VA_ARGS__
+#define REPEAT_4(SEP, ...) \
+  REPEAT_2(SEP, __VA_ARGS__) SEP() REPEAT_2(SEP, __VA_ARGS__)
+#define REPEAT_8(SEP, ...) \
+  REPEAT_4(SEP, __VA_ARGS__) SEP() REPEAT_4(SEP, __VA_ARGS__)
+#define REPEAT_16(SEP, ...) \
+  REPEAT_8(SEP, __VA_ARGS__) SEP() REPEAT_8(SEP, __VA_ARGS__)
+#define REPEAT_32(SEP, ...) \
+  REPEAT_16(SEP, __VA_ARGS__) SEP() REPEAT_16(SEP, __VA_ARGS__)
+#define REPEAT_64(SEP, ...) \
+  REPEAT_32(SEP, __VA_ARGS__) SEP() REPEAT_32(SEP, __VA_ARGS__)
+#define REPEAT_128(SEP, ...) \
+  REPEAT_64(SEP, __VA_ARGS__) SEP() REPEAT_64(SEP, __VA_ARGS__)
+#define REPEAT_256(SEP, ...) \
+  REPEAT_128(SEP, __VA_ARGS__) SEP() REPEAT_128(SEP, __VA_ARGS__)
+
+#define REPEAT_127(SEP, ...)  \
+  REPEAT_64(SEP, __VA_ARGS__) \
+  SEP()                       \
+  REPEAT_32(SEP, __VA_ARGS__) \
+  SEP()                       \
+  REPEAT_16(SEP, __VA_ARGS__) \
+  SEP()                       \
+  REPEAT_8(SEP, __VA_ARGS__)  \
+  SEP()                       \
+  REPEAT_4(SEP, __VA_ARGS__) SEP() REPEAT_2(SEP, __VA_ARGS__) SEP() __VA_ARGS__
 
 
 template <int N>
@@ -250,6 +284,50 @@ TEST(BytecodeGraphBuilderTwoParameterTests) {
     Handle<Object> return_value =
         callable(snippets[i].parameter(0), snippets[i].parameter(1))
             .ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderNamedLoad) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<1> snippets[] = {
+      {"return p1.val;",
+       {factory->NewNumberFromInt(10),
+        BytecodeGraphTester::NewObject("({val : 10})")}},
+      {"return p1[\"name\"];",
+       {factory->NewStringFromStaticChars("abc"),
+        BytecodeGraphTester::NewObject("({name : 'abc'})")}},
+      {"'use strict'; return p1.val;",
+       {factory->NewNumberFromInt(10),
+        BytecodeGraphTester::NewObject("({val : 10 })")}},
+      {"'use strict'; return p1[\"val\"];",
+       {factory->NewNumberFromInt(10),
+        BytecodeGraphTester::NewObject("({val : 10, name : 'abc'})")}},
+      {"var b;\n" REPEAT_127(SPACE, " b = p1.name; ") " return p1.name;\n",
+       {factory->NewStringFromStaticChars("abc"),
+        BytecodeGraphTester::NewObject("({name : 'abc'})")}},
+      {"'use strict'; var b;\n"
+       REPEAT_127(SPACE, " b = p1.name; ")
+       "return p1.name;\n",
+       {factory->NewStringFromStaticChars("abc"),
+        BytecodeGraphTester::NewObject("({ name : 'abc'})")}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(2048);
+    SNPrintF(script, "function %s(p1) { %s };\n%s(0);", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }

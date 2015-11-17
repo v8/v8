@@ -34,7 +34,24 @@ class BytecodeGraphBuilder {
 
   Node* LoadAccumulator(Node* value);
 
+  // Get or create the node that represents the outer function closure.
+  Node* GetFunctionClosure();
+
+  // Get or create the node that represents the outer function context.
   Node* GetFunctionContext();
+
+  // Builders for accessing an immutable object field.
+  Node* BuildLoadImmutableObjectField(Node* object, int offset);
+
+  // Builder for accessing type feedback vector.
+  Node* BuildLoadFeedbackVector();
+
+  // Helper function for creating a pair containing type feedback vector and
+  // a feedback slot.
+  VectorSlotPair CreateVectorSlotPair(int slot_id);
+
+  // Replaces the frame state inputs with empty frame states.
+  void AddEmptyFrameStateInputs(Node* node);
 
   void set_environment(Environment* env) { environment_ = env; }
   const Environment* environment() const { return environment_; }
@@ -55,6 +72,11 @@ class BytecodeGraphBuilder {
     return MakeNode(op, arraysize(buffer), buffer, false);
   }
 
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
+    Node* buffer[] = {n1, n2, n3};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
   Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
                  bool incomplete);
 
@@ -66,6 +88,8 @@ class BytecodeGraphBuilder {
 
   void BuildBinaryOp(const Operator* op,
                      const interpreter::BytecodeArrayIterator& iterator);
+
+  void BuildNamedLoad(const interpreter::BytecodeArrayIterator& iterator);
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
@@ -83,8 +107,8 @@ class BytecodeGraphBuilder {
   }
 
   LanguageMode language_mode() const {
-    // TODO(oth): need to propagate language mode through
-    return LanguageMode::SLOPPY;
+    // TODO(mythria): Don't rely on parse information to get language mode.
+    return info()->language_mode();
   }
 
 #define DECLARE_VISIT_BYTECODE(name, ...) \
@@ -104,6 +128,10 @@ class BytecodeGraphBuilder {
 
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_context_;
+  SetOncePointer<Node> function_closure_;
+
+  // Optimization to cache loaded feedback vector.
+  SetOncePointer<Node> feedback_vector_;
 
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;
