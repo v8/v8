@@ -26,6 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "src/api.h"
@@ -49,7 +52,7 @@ using ::v8::internal::String;
 using ::v8::internal::Vector;
 
 
-static void CheckFunctionName(v8::Handle<v8::Script> script,
+static void CheckFunctionName(v8::Local<v8::Script> script,
                               const char* func_pos_src,
                               const char* ref_inferred_name) {
   Isolate* isolate = CcTest::i_isolate();
@@ -93,8 +96,12 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 }
 
 
-static v8::Handle<v8::Script> Compile(v8::Isolate* isolate, const char* src) {
-  return v8::Script::Compile(v8::String::NewFromUtf8(isolate, src));
+static v8::Local<v8::Script> Compile(v8::Isolate* isolate, const char* src) {
+  return v8::Script::Compile(
+             isolate->GetCurrentContext(),
+             v8::String::NewFromUtf8(isolate, src, v8::NewStringType::kNormal)
+                 .ToLocalChecked())
+      .ToLocalChecked();
 }
 
 
@@ -102,10 +109,9 @@ TEST(GlobalProperty) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "fun1 = function() { return 1; }\n"
-      "fun2 = function() { return 2; }\n");
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "fun1 = function() { return 1; }\n"
+                                         "fun2 = function() { return 2; }\n");
   CheckFunctionName(script, "return 1", "fun1");
   CheckFunctionName(script, "return 2", "fun2");
 }
@@ -115,10 +121,10 @@ TEST(GlobalVar) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "var fun1 = function() { return 1; }\n"
-      "var fun2 = function() { return 2; }\n");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "var fun1 = function() { return 1; }\n"
+              "var fun2 = function() { return 2; }\n");
   CheckFunctionName(script, "return 1", "fun1");
   CheckFunctionName(script, "return 2", "fun2");
 }
@@ -128,12 +134,12 @@ TEST(LocalVar) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "function outer() {\n"
-      "  var fun1 = function() { return 1; }\n"
-      "  var fun2 = function() { return 2; }\n"
-      "}");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "function outer() {\n"
+              "  var fun1 = function() { return 1; }\n"
+              "  var fun2 = function() { return 2; }\n"
+              "}");
   CheckFunctionName(script, "return 1", "fun1");
   CheckFunctionName(script, "return 2", "fun2");
 }
@@ -143,12 +149,12 @@ TEST(InConstructor) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "function MyClass() {\n"
-      "  this.method1 = function() { return 1; }\n"
-      "  this.method2 = function() { return 2; }\n"
-      "}");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "function MyClass() {\n"
+              "  this.method1 = function() { return 1; }\n"
+              "  this.method2 = function() { return 2; }\n"
+              "}");
   CheckFunctionName(script, "return 1", "MyClass.method1");
   CheckFunctionName(script, "return 2", "MyClass.method2");
 }
@@ -158,14 +164,14 @@ TEST(Factory) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "function createMyObj() {\n"
-      "  var obj = {};\n"
-      "  obj.method1 = function() { return 1; }\n"
-      "  obj.method2 = function() { return 2; }\n"
-      "  return obj;\n"
-      "}");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "function createMyObj() {\n"
+              "  var obj = {};\n"
+              "  obj.method1 = function() { return 1; }\n"
+              "  obj.method2 = function() { return 2; }\n"
+              "  return obj;\n"
+              "}");
   CheckFunctionName(script, "return 1", "obj.method1");
   CheckFunctionName(script, "return 2", "obj.method2");
 }
@@ -175,14 +181,14 @@ TEST(Static) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "function MyClass() {}\n"
-      "MyClass.static1 = function() { return 1; }\n"
-      "MyClass.static2 = function() { return 2; }\n"
-      "MyClass.MyInnerClass = {}\n"
-      "MyClass.MyInnerClass.static3 = function() { return 3; }\n"
-      "MyClass.MyInnerClass.static4 = function() { return 4; }");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "function MyClass() {}\n"
+              "MyClass.static1 = function() { return 1; }\n"
+              "MyClass.static2 = function() { return 2; }\n"
+              "MyClass.MyInnerClass = {}\n"
+              "MyClass.MyInnerClass.static3 = function() { return 3; }\n"
+              "MyClass.MyInnerClass.static4 = function() { return 4; }");
   CheckFunctionName(script, "return 1", "MyClass.static1");
   CheckFunctionName(script, "return 2", "MyClass.static2");
   CheckFunctionName(script, "return 3", "MyClass.MyInnerClass.static3");
@@ -194,7 +200,7 @@ TEST(Prototype) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
+  v8::Local<v8::Script> script = Compile(
       CcTest::isolate(),
       "function MyClass() {}\n"
       "MyClass.prototype.method1 = function() { return 1; }\n"
@@ -213,12 +219,12 @@ TEST(ObjectLiteral) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "function MyClass() {}\n"
-      "MyClass.prototype = {\n"
-      "  method1: function() { return 1; },\n"
-      "  method2: function() { return 2; } }");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "function MyClass() {}\n"
+              "MyClass.prototype = {\n"
+              "  method1: function() { return 1; },\n"
+              "  method2: function() { return 2; } }");
   CheckFunctionName(script, "return 1", "MyClass.method1");
   CheckFunctionName(script, "return 2", "MyClass.method2");
 }
@@ -228,16 +234,16 @@ TEST(UpperCaseClass) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(CcTest::isolate(),
-                                          "'use strict';\n"
-                                          "class MyClass {\n"
-                                          "  constructor() {\n"
-                                          "    this.value = 1;\n"
-                                          "  }\n"
-                                          "  method() {\n"
-                                          "    this.value = 2;\n"
-                                          "  }\n"
-                                          "}");
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "'use strict';\n"
+                                         "class MyClass {\n"
+                                         "  constructor() {\n"
+                                         "    this.value = 1;\n"
+                                         "  }\n"
+                                         "  method() {\n"
+                                         "    this.value = 2;\n"
+                                         "  }\n"
+                                         "}");
   CheckFunctionName(script, "this.value = 1", "MyClass");
   CheckFunctionName(script, "this.value = 2", "MyClass.method");
 }
@@ -247,16 +253,16 @@ TEST(LowerCaseClass) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(CcTest::isolate(),
-                                          "'use strict';\n"
-                                          "class myclass {\n"
-                                          "  constructor() {\n"
-                                          "    this.value = 1;\n"
-                                          "  }\n"
-                                          "  method() {\n"
-                                          "    this.value = 2;\n"
-                                          "  }\n"
-                                          "}");
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "'use strict';\n"
+                                         "class myclass {\n"
+                                         "  constructor() {\n"
+                                         "    this.value = 1;\n"
+                                         "  }\n"
+                                         "  method() {\n"
+                                         "    this.value = 2;\n"
+                                         "  }\n"
+                                         "}");
   CheckFunctionName(script, "this.value = 1", "myclass");
   CheckFunctionName(script, "this.value = 2", "myclass.method");
 }
@@ -266,7 +272,7 @@ TEST(AsParameter) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
+  v8::Local<v8::Script> script = Compile(
       CcTest::isolate(),
       "function f1(a) { return a(); }\n"
       "function f2(a, b) { return a() + b(); }\n"
@@ -283,11 +289,10 @@ TEST(MultipleFuncsConditional) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "fun1 = 0 ?\n"
-      "    function() { return 1; } :\n"
-      "    function() { return 2; }");
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "fun1 = 0 ?\n"
+                                         "    function() { return 1; } :\n"
+                                         "    function() { return 2; }");
   CheckFunctionName(script, "return 1", "fun1");
   CheckFunctionName(script, "return 2", "fun1");
 }
@@ -297,12 +302,12 @@ TEST(MultipleFuncsInLiteral) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "function MyClass() {}\n"
-      "MyClass.prototype = {\n"
-      "  method1: 0 ? function() { return 1; } :\n"
-      "               function() { return 2; } }");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "function MyClass() {}\n"
+              "MyClass.prototype = {\n"
+              "  method1: 0 ? function() { return 1; } :\n"
+              "               function() { return 2; } }");
   CheckFunctionName(script, "return 1", "MyClass.method1");
   CheckFunctionName(script, "return 2", "MyClass.method1");
 }
@@ -312,18 +317,17 @@ TEST(AnonymousInAnonymousClosure1) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "(function() {\n"
-      "  (function() {\n"
-      "      var a = 1;\n"
-      "      return;\n"
-      "  })();\n"
-      "  var b = function() {\n"
-      "      var c = 1;\n"
-      "      return;\n"
-      "  };\n"
-      "})();");
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "(function() {\n"
+                                         "  (function() {\n"
+                                         "      var a = 1;\n"
+                                         "      return;\n"
+                                         "  })();\n"
+                                         "  var b = function() {\n"
+                                         "      var c = 1;\n"
+                                         "      return;\n"
+                                         "  };\n"
+                                         "})();");
   CheckFunctionName(script, "return", "");
 }
 
@@ -332,15 +336,14 @@ TEST(AnonymousInAnonymousClosure2) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "(function() {\n"
-      "  (function() {\n"
-      "      var a = 1;\n"
-      "      return;\n"
-      "  })();\n"
-      "  var c = 1;\n"
-      "})();");
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "(function() {\n"
+                                         "  (function() {\n"
+                                         "      var a = 1;\n"
+                                         "      return;\n"
+                                         "  })();\n"
+                                         "  var c = 1;\n"
+                                         "})();");
   CheckFunctionName(script, "return", "");
 }
 
@@ -349,15 +352,14 @@ TEST(NamedInAnonymousClosure) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "var foo = function() {\n"
-      "  (function named() {\n"
-      "      var a = 1;\n"
-      "  })();\n"
-      "  var c = 1;\n"
-      "  return;\n"
-      "};");
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "var foo = function() {\n"
+                                         "  (function named() {\n"
+                                         "      var a = 1;\n"
+                                         "  })();\n"
+                                         "  var c = 1;\n"
+                                         "  return;\n"
+                                         "};");
   CheckFunctionName(script, "return", "foo");
 }
 
@@ -367,12 +369,12 @@ TEST(Issue380) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "function a() {\n"
-      "var result = function(p,a,c,k,e,d)"
-      "{return p}(\"if blah blah\",62,1976,\'a|b\'.split(\'|\'),0,{})\n"
-      "}");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "function a() {\n"
+              "var result = function(p,a,c,k,e,d)"
+              "{return p}(\"if blah blah\",62,1976,\'a|b\'.split(\'|\'),0,{})\n"
+              "}");
   CheckFunctionName(script, "return p", "");
 }
 
@@ -381,12 +383,12 @@ TEST(MultipleAssignments) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "var fun1 = fun2 = function () { return 1; }\n"
-      "var bar1 = bar2 = bar3 = function () { return 2; }\n"
-      "foo1 = foo2 = function () { return 3; }\n"
-      "baz1 = baz2 = baz3 = function () { return 4; }");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "var fun1 = fun2 = function () { return 1; }\n"
+              "var bar1 = bar2 = bar3 = function () { return 2; }\n"
+              "foo1 = foo2 = function () { return 3; }\n"
+              "baz1 = baz2 = baz3 = function () { return 4; }");
   CheckFunctionName(script, "return 1", "fun2");
   CheckFunctionName(script, "return 2", "bar3");
   CheckFunctionName(script, "return 3", "foo2");
@@ -398,7 +400,7 @@ TEST(AsConstructorParameter) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
+  v8::Local<v8::Script> script = Compile(
       CcTest::isolate(),
       "function Foo() {}\n"
       "var foo = new Foo(function() { return 1; })\n"
@@ -413,14 +415,14 @@ TEST(FactoryHashmap) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "function createMyObj() {\n"
-      "  var obj = {};\n"
-      "  obj[\"method1\"] = function() { return 1; }\n"
-      "  obj[\"method2\"] = function() { return 2; }\n"
-      "  return obj;\n"
-      "}");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "function createMyObj() {\n"
+              "  var obj = {};\n"
+              "  obj[\"method1\"] = function() { return 1; }\n"
+              "  obj[\"method2\"] = function() { return 2; }\n"
+              "  return obj;\n"
+              "}");
   CheckFunctionName(script, "return 1", "obj.method1");
   CheckFunctionName(script, "return 2", "obj.method2");
 }
@@ -430,16 +432,16 @@ TEST(FactoryHashmapVariable) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "function createMyObj() {\n"
-      "  var obj = {};\n"
-      "  var methodName = \"method1\";\n"
-      "  obj[methodName] = function() { return 1; }\n"
-      "  methodName = \"method2\";\n"
-      "  obj[methodName] = function() { return 2; }\n"
-      "  return obj;\n"
-      "}");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "function createMyObj() {\n"
+              "  var obj = {};\n"
+              "  var methodName = \"method1\";\n"
+              "  obj[methodName] = function() { return 1; }\n"
+              "  methodName = \"method2\";\n"
+              "  obj[methodName] = function() { return 2; }\n"
+              "  return obj;\n"
+              "}");
   // Can't infer function names statically.
   CheckFunctionName(script, "return 1", "obj.(anonymous function)");
   CheckFunctionName(script, "return 2", "obj.(anonymous function)");
@@ -450,7 +452,7 @@ TEST(FactoryHashmapConditional) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
+  v8::Local<v8::Script> script = Compile(
       CcTest::isolate(),
       "function createMyObj() {\n"
       "  var obj = {};\n"
@@ -466,14 +468,13 @@ TEST(GlobalAssignmentAndCall) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "var Foo = function() {\n"
-      "  return 1;\n"
-      "}();\n"
-      "var Baz = Bar = function() {\n"
-      "  return 2;\n"
-      "}");
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "var Foo = function() {\n"
+                                         "  return 1;\n"
+                                         "}();\n"
+                                         "var Baz = Bar = function() {\n"
+                                         "  return 2;\n"
+                                         "}");
   // The inferred name is empty, because this is an assignment of a result.
   CheckFunctionName(script, "return 1", "");
   // See MultipleAssignments test.
@@ -485,17 +486,16 @@ TEST(AssignmentAndCall) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "(function Enclosing() {\n"
-      "  var Foo;\n"
-      "  Foo = function() {\n"
-      "    return 1;\n"
-      "  }();\n"
-      "  var Baz = Bar = function() {\n"
-      "    return 2;\n"
-      "  }\n"
-      "})();");
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "(function Enclosing() {\n"
+                                         "  var Foo;\n"
+                                         "  Foo = function() {\n"
+                                         "    return 1;\n"
+                                         "  }();\n"
+                                         "  var Baz = Bar = function() {\n"
+                                         "    return 2;\n"
+                                         "  }\n"
+                                         "})();");
   // The inferred name is empty, because this is an assignment of a result.
   CheckFunctionName(script, "return 1", "");
   // See MultipleAssignments test.
@@ -509,15 +509,15 @@ TEST(MethodAssignmentInAnonymousFunctionCall) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "(function () {\n"
-      "    var EventSource = function () { };\n"
-      "    EventSource.prototype.addListener = function () {\n"
-      "        return 2012;\n"
-      "    };\n"
-      "    this.PublicEventSource = EventSource;\n"
-      "})();");
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "(function () {\n"
+              "    var EventSource = function () { };\n"
+              "    EventSource.prototype.addListener = function () {\n"
+              "        return 2012;\n"
+              "    };\n"
+              "    this.PublicEventSource = EventSource;\n"
+              "})();");
   CheckFunctionName(script, "return 2012", "EventSource.addListener");
 }
 
@@ -526,20 +526,19 @@ TEST(ReturnAnonymousFunction) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
-  v8::Handle<v8::Script> script = Compile(
-      CcTest::isolate(),
-      "(function() {\n"
-      "  function wrapCode() {\n"
-      "    return function () {\n"
-      "      return 2012;\n"
-      "    };\n"
-      "  };\n"
-      "  var foo = 10;\n"
-      "  function f() {\n"
-      "    return wrapCode();\n"
-      "  }\n"
-      "  this.ref = f;\n"
-      "})()");
-  script->Run();
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "(function() {\n"
+                                         "  function wrapCode() {\n"
+                                         "    return function () {\n"
+                                         "      return 2012;\n"
+                                         "    };\n"
+                                         "  };\n"
+                                         "  var foo = 10;\n"
+                                         "  function f() {\n"
+                                         "    return wrapCode();\n"
+                                         "  }\n"
+                                         "  this.ref = f;\n"
+                                         "})()");
+  script->Run(CcTest::isolate()->GetCurrentContext()).ToLocalChecked();
   CheckFunctionName(script, "return 2012", "");
 }

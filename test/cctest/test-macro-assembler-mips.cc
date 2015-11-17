@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <stdlib.h>
 #include <iostream>  // NOLINT(readability/streams)
 
@@ -142,8 +145,10 @@ static void TestNaN(const char *code) {
   v8::Local<v8::Context> context = CcTest::NewContext(PRINT_EXTENSION);
   v8::Context::Scope context_scope(context);
 
-  v8::Local<v8::Script> script = v8::Script::Compile(v8_str(code));
-  v8::Local<v8::Object> result = v8::Local<v8::Object>::Cast(script->Run());
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(context, v8_str(code)).ToLocalChecked();
+  v8::Local<v8::Object> result =
+      v8::Local<v8::Object>::Cast(script->Run(context).ToLocalChecked());
   i::Handle<i::JSReceiver> o = v8::Utils::OpenHandle(*result);
   i::Handle<i::JSArray> array1(reinterpret_cast<i::JSArray*>(*o));
   i::FixedDoubleArray* a = i::FixedDoubleArray::cast(array1->elements());

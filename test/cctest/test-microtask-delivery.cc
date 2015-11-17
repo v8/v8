@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "test/cctest/cctest.h"
@@ -82,13 +85,20 @@ TEST(MicrotaskDeliverySimple) {
       "});"
       "Object.observe(obj, observer);"
       "obj.id = 1;");
-  CHECK_EQ(6, CompileRun("ordering.length")->Int32Value());
-  CHECK_EQ(1, CompileRun("ordering[0]")->Int32Value());
-  CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
-  CHECK_EQ(3, CompileRun("ordering[2]")->Int32Value());
-  CHECK_EQ(4, CompileRun("ordering[3]")->Int32Value());
-  CHECK_EQ(5, CompileRun("ordering[4]")->Int32Value());
-  CHECK_EQ(6, CompileRun("ordering[5]")->Int32Value());
+  CHECK_EQ(
+      6, CompileRun("ordering.length")->Int32Value(context.local()).FromJust());
+  CHECK_EQ(1,
+           CompileRun("ordering[0]")->Int32Value(context.local()).FromJust());
+  CHECK_EQ(2,
+           CompileRun("ordering[1]")->Int32Value(context.local()).FromJust());
+  CHECK_EQ(3,
+           CompileRun("ordering[2]")->Int32Value(context.local()).FromJust());
+  CHECK_EQ(4,
+           CompileRun("ordering[3]")->Int32Value(context.local()).FromJust());
+  CHECK_EQ(5,
+           CompileRun("ordering[4]")->Int32Value(context.local()).FromJust());
+  CHECK_EQ(6,
+           CompileRun("ordering[5]")->Int32Value(context.local()).FromJust());
 }
 
 
@@ -99,11 +109,16 @@ TEST(MicrotaskPerIsolateState) {
   isolate.GetIsolate()->SetAutorunMicrotasks(false);
   CompileRun(
       "var obj = { calls: 0 };");
-  v8::Handle<v8::Value> obj = CompileRun("obj");
+  v8::Local<v8::Value> obj = CompileRun("obj");
   {
     LocalContext context2(isolate.GetIsolate());
-    context2->Global()->Set(
-        v8::String::NewFromUtf8(isolate.GetIsolate(), "obj"), obj);
+    context2->Global()
+        ->Set(context2.local(),
+              v8::String::NewFromUtf8(isolate.GetIsolate(), "obj",
+                                      v8::NewStringType::kNormal)
+                  .ToLocalChecked(),
+              obj)
+        .FromJust();
     CompileRun(
         "var resolver = {};"
         "new Promise(function(resolve) {"
@@ -117,8 +132,13 @@ TEST(MicrotaskPerIsolateState) {
   }
   {
     LocalContext context3(isolate.GetIsolate());
-    context3->Global()->Set(
-        v8::String::NewFromUtf8(isolate.GetIsolate(), "obj"), obj);
+    context3->Global()
+        ->Set(context3.local(),
+              v8::String::NewFromUtf8(isolate.GetIsolate(), "obj",
+                                      v8::NewStringType::kNormal)
+                  .ToLocalChecked(),
+              obj)
+        .FromJust();
     CompileRun(
         "var foo = { id: 1 };"
         "Object.observe(foo, function() {"
@@ -128,9 +148,15 @@ TEST(MicrotaskPerIsolateState) {
   }
   {
     LocalContext context4(isolate.GetIsolate());
-    context4->Global()->Set(
-        v8::String::NewFromUtf8(isolate.GetIsolate(), "obj"), obj);
+    context4->Global()
+        ->Set(context4.local(),
+              v8::String::NewFromUtf8(isolate.GetIsolate(), "obj",
+                                      v8::NewStringType::kNormal)
+                  .ToLocalChecked(),
+              obj)
+        .FromJust();
     isolate.GetIsolate()->RunMicrotasks();
-    CHECK_EQ(2, CompileRun("obj.calls")->Int32Value());
+    CHECK_EQ(2,
+             CompileRun("obj.calls")->Int32Value(context4.local()).FromJust());
   }
 }

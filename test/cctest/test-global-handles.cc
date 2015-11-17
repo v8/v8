@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/global-handles.h"
 
 #include "test/cctest/cctest.h"
@@ -337,7 +340,9 @@ TEST(EternalHandles) {
     indices[i] = -1;
     HandleScope scope(isolate);
     v8::Local<v8::Object> object = v8::Object::New(v8_isolate);
-    object->Set(i, v8::Integer::New(v8_isolate, i));
+    object->Set(v8_isolate->GetCurrentContext(), i,
+                v8::Integer::New(v8_isolate, i))
+        .FromJust();
     // Create with internal api
     eternal_handles->Create(
         isolate, *v8::Utils::OpenHandle(*object), &indices[i]);
@@ -360,10 +365,12 @@ TEST(EternalHandles) {
         // Test external api
         local = eternals[i].Get(v8_isolate);
       }
-      v8::Local<v8::Object> object = v8::Handle<v8::Object>::Cast(local);
-      v8::Local<v8::Value> value = object->Get(i);
+      v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(local);
+      v8::Local<v8::Value> value =
+          object->Get(v8_isolate->GetCurrentContext(), i).ToLocalChecked();
       CHECK(value->IsInt32());
-      CHECK_EQ(i, value->Int32Value());
+      CHECK_EQ(i,
+               value->Int32Value(v8_isolate->GetCurrentContext()).FromJust());
     }
   }
 
