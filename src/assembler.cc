@@ -521,7 +521,8 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) ||
-               RelocInfo::IsDebugBreakSlotAtCall(rmode)) {
+               RelocInfo::IsDebugBreakSlotAtCall(rmode) ||
+               RelocInfo::IsDebugBreakSlotAtConstructCall(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
@@ -713,7 +714,8 @@ void RelocIterator::next() {
           }
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
-                   RelocInfo::IsDebugBreakSlotAtCall(rmode)) {
+                   RelocInfo::IsDebugBreakSlotAtCall(rmode) ||
+                   RelocInfo::IsDebugBreakSlotAtConstructCall(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;

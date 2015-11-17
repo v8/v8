@@ -1028,10 +1028,6 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
         isolate, NewTypeError(MessageTemplate::kNotConstructor, constructor));
   }
 
-  Debug* debug = isolate->debug();
-  // Handle stepping into constructors if step into is active.
-  if (debug->StepInActive()) debug->HandleStepIn(function, true);
-
   // The function should be compiled for the optimization hints to be
   // available.
   Compiler::Compile(function, CLEAR_EXCEPTION);

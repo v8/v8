@@ -91,7 +91,6 @@ namespace internal {
   F(StoreToSuper_Sloppy, 4, 1)                \
   F(StoreKeyedToSuper_Strict, 4, 1)           \
   F(StoreKeyedToSuper_Sloppy, 4, 1)           \
-  F(HandleStepInForDerivedConstructors, 1, 1) \
   F(DefaultConstructorCallSuper, 2, 1)
 
 

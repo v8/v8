@@ -3052,7 +3052,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetConstructCallPosition(expr);
+  SetConstructCallPosition(expr, arg_count);
 
   // Load function and argument count into a1 and a0.
   __ li(a0, Operand(arg_count));
@@ -3088,7 +3088,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetConstructCallPosition(expr);
+  SetConstructCallPosition(expr, arg_count);
 
   // Load new target into t0.
   VisitForAccumulatorValue(super_call_ref->new_target_var());
@@ -3840,6 +3840,10 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   // Evaluate new.target and super constructor.
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
+
+  // Call the construct call builtin that handles allocation and
+  // constructor invocation.
+  SetConstructCallPosition(expr, 0);
 
   // Load new target into a3.
   __ lw(a3, MemOperand(sp, 1 * kPointerSize));

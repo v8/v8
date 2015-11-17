@@ -1737,7 +1737,7 @@ RUNTIME_FUNCTION(Runtime_DebugHandleStepIntoAccessor) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   Debug* debug = isolate->debug();
   // Handle stepping into constructors if step into is active.
-  if (debug->StepInActive()) debug->HandleStepIn(function, false);
+  if (debug->StepInActive()) debug->HandleStepIn(function);
   return *isolate->factory()->undefined_value();
 }
 

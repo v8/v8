@@ -612,13 +612,13 @@ void FullCodeGenerator::SetCallPosition(Expression* expr, int argc) {
 }
 
 
-void FullCodeGenerator::SetConstructCallPosition(Expression* expr) {
+void FullCodeGenerator::SetConstructCallPosition(Expression* expr, int argc) {
   if (expr->position() == RelocInfo::kNoPosition) return;
   RecordPosition(masm_, expr->position());
   if (info_->is_debug()) {
     // Always emit a debug break slot before a construct call.
-    DebugCodegen::GenerateSlot(masm_,
-                               RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL);
+    DebugCodegen::GenerateSlot(
+        masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL, argc);
   }
 }
 

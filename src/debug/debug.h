@@ -90,7 +90,7 @@ class BreakLocation {
     return RelocInfo::IsDebugBreakSlotAtConstructCall(rmode_);
   }
   inline int CallArgumentsCount() const {
-    DCHECK(IsCall());
+    DCHECK(IsStepInLocation());
     return RelocInfo::DebugBreakCallArgumentsCount(data_);
   }
 
@@ -411,7 +411,7 @@ class Debug {
   bool IsStepping() { return thread_local_.step_count_ > 0; }
   bool StepNextContinue(BreakLocation* location, JavaScriptFrame* frame);
   bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
-  void HandleStepIn(Handle<Object> function_obj, bool is_constructor);
+  void HandleStepIn(Handle<Object> function_obj);
   bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
 
   void GetStepinPositions(JavaScriptFrame* frame, StackFrame::Id frame_id,

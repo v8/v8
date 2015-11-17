@@ -1056,7 +1056,7 @@ MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
   Debug* debug = isolate->debug();
   // Handle stepping into a getter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
-  if (debug->is_active()) debug->HandleStepIn(getter, false);
+  if (debug->is_active()) debug->HandleStepIn(getter);
 
   return Execution::Call(isolate, getter, receiver, 0, NULL);
 }
@@ -1071,7 +1071,7 @@ Maybe<bool> Object::SetPropertyWithDefinedSetter(Handle<Object> receiver,
   Debug* debug = isolate->debug();
   // Handle stepping into a setter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
-  if (debug->is_active()) debug->HandleStepIn(setter, false);
+  if (debug->is_active()) debug->HandleStepIn(setter);
 
   Handle<Object> argv[] = { value };
   RETURN_ON_EXCEPTION_VALUE(isolate, Execution::Call(isolate, setter, receiver,

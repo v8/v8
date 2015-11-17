@@ -945,21 +945,22 @@ void Debug::PrepareStep(StepAction step_action,
       Handle<JSFunction> restarted_function(
           JSFunction::cast(*thread_local_.restarter_frame_function_pointer_));
       FloodWithOneShot(restarted_function);
-    } else if (location.IsCall()) {
+    } else if (location.IsStepInLocation()) {
       // Find target function on the expression stack.
       // Expression stack looks like this (top to bottom):
       // argN
       // ...
       // arg0
-      // Receiver
+      // Receiver (only present for calls, not for construct).
       // Function to call
+      int base = location.IsCall() ? 2 : 1;
       int num_expressions_without_args =
           frame->ComputeExpressionsCount() - location.CallArgumentsCount();
-      DCHECK(num_expressions_without_args >= 2);
-      Object* fun = frame->GetExpression(num_expressions_without_args - 2);
+      DCHECK(num_expressions_without_args >= base);
+      Object* fun = frame->GetExpression(num_expressions_without_args - base);
 
       // Flood the actual target of call/apply.
-      if (fun->IsJSFunction()) {
+      if (location.IsCall() && fun->IsJSFunction()) {
         Isolate* isolate = JSFunction::cast(fun)->GetIsolate();
         Code* apply = isolate->builtins()->builtin(Builtins::kFunctionApply);
         Code* call = isolate->builtins()->builtin(Builtins::kFunctionCall);
@@ -1085,7 +1086,7 @@ Handle<Object> Debug::GetSourceBreakLocations(
 
 
 // Handle stepping into a function.
-void Debug::HandleStepIn(Handle<Object> function_obj, bool is_constructor) {
+void Debug::HandleStepIn(Handle<Object> function_obj) {
   // Flood getter/setter if we either step in or step to another frame.
   bool step_frame = thread_local_.last_step_action_ == StepFrame;
   if (!StepInActive() && !step_frame) return;
@@ -1095,11 +1096,6 @@ void Debug::HandleStepIn(Handle<Object> function_obj, bool is_constructor) {
 
   StackFrameIterator it(isolate);
   it.Advance();
-  // For constructor functions skip another frame.
-  if (is_constructor) {
-    DCHECK(it.frame()->is_construct());
-    it.Advance();
-  }
   Address fp = it.frame()->fp();
 
   // Flood the function with one-shot break points if it is called from where

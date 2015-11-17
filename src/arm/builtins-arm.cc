@@ -366,13 +366,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // the preconditions is not met, the code bails out to the runtime call.
     Label rt_call, allocated;
     if (FLAG_inline_new) {
-      ExternalReference debug_step_in_fp =
-          ExternalReference::debug_step_in_fp_address(isolate);
-      __ mov(r2, Operand(debug_step_in_fp));
-      __ ldr(r2, MemOperand(r2));
-      __ tst(r2, r2);
-      __ b(ne, &rt_call);
-
       // Verify that the new target is a JSFunction.
       __ CompareObjectType(r3, r5, r4, JS_FUNCTION_TYPE);
       __ b(ne, &rt_call);
@@ -676,24 +669,6 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     __ bind(&entry);
     __ sub(r4, r4, Operand(2), SetCC);
     __ b(ge, &loop);
-
-    // Handle step in.
-    Label skip_step_in;
-    ExternalReference debug_step_in_fp =
-        ExternalReference::debug_step_in_fp_address(masm->isolate());
-    __ mov(r2, Operand(debug_step_in_fp));
-    __ ldr(r2, MemOperand(r2));
-    __ tst(r2, r2);
-    __ b(eq, &skip_step_in);
-
-    __ Push(r0);
-    __ Push(r1);
-    __ Push(r1);
-    __ CallRuntime(Runtime::kHandleStepInForDerivedConstructors, 1);
-    __ Pop(r1);
-    __ Pop(r0);
-
-    __ bind(&skip_step_in);
 
     // Call the function.
     // r0: number of arguments

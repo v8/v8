@@ -482,17 +482,6 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_HandleStepInForDerivedConstructors) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  Debug* debug = isolate->debug();
-  // Handle stepping into constructors if step into is active.
-  if (debug->StepInActive()) debug->HandleStepIn(function, true);
-  return *isolate->factory()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

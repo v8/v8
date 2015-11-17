@@ -662,7 +662,7 @@ class FullCodeGenerator: public AstVisitor {
 
   void SetCallPosition(Expression* expr, int argc);
 
-  void SetConstructCallPosition(Expression* expr);
+  void SetConstructCallPosition(Expression* expr, int argc);
 
   // Non-local control flow support.
   void EnterTryBlock(int handler_index, Label* handler);

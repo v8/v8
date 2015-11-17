@@ -2944,7 +2944,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetConstructCallPosition(expr);
+  SetConstructCallPosition(expr, arg_count);
 
   // Load function and argument count into edi and eax.
   __ Move(eax, Immediate(arg_count));
@@ -2980,7 +2980,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetConstructCallPosition(expr);
+  SetConstructCallPosition(expr, arg_count);
 
   // Load new target into ecx.
   VisitForAccumulatorValue(super_call_ref->new_target_var());
@@ -3720,6 +3720,10 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   // Evaluate new.target and super constructor.
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
+
+  // Call the construct call builtin that handles allocation and
+  // constructor invocation.
+  SetConstructCallPosition(expr, 0);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, args_set_up, runtime;
