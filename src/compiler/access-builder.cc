@@ -305,26 +305,6 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
 
 
 // static
-ElementAccess AccessBuilder::ForSeqStringChar(String::Encoding encoding) {
-  switch (encoding) {
-    case String::ONE_BYTE_ENCODING: {
-      ElementAccess access = {kTaggedBase, SeqString::kHeaderSize,
-                              Type::Unsigned32(), kMachUint8};
-      return access;
-    }
-    case String::TWO_BYTE_ENCODING: {
-      ElementAccess access = {kTaggedBase, SeqString::kHeaderSize,
-                              Type::Unsigned32(), kMachUint16};
-      return access;
-    }
-  }
-  UNREACHABLE();
-  ElementAccess access = {kUntaggedBase, 0, Type::None(), kMachNone};
-  return access;
-}
-
-
-// static
 FieldAccess AccessBuilder::ForStatsCounter() {
   FieldAccess access = {kUntaggedBase, 0, MaybeHandle<Name>(),
                         TypeCache::Get().kInt32, kMachInt32};

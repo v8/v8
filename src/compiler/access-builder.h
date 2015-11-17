@@ -103,9 +103,6 @@ class AccessBuilder final : public AllStatic {
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
 
-  // Provides access to the characters of sequential strings.
-  static ElementAccess ForSeqStringChar(String::Encoding encoding);
-
   // ===========================================================================
   // Access to global per-isolate variables (based on external reference).
 
