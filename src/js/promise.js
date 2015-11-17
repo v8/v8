@@ -34,6 +34,32 @@ utils.Import(function(from) {
 // Status values: 0 = pending, +1 = resolved, -1 = rejected
 var lastMicrotaskId = 0;
 
+function CreateResolvingFunctions(promise) {
+  var alreadyResolved = false;
+
+  var resolve = function(value) {
+    if (alreadyResolved === true) return;
+    alreadyResolved = true;
+    if (value === promise) {
+      return PromiseReject(promise, MakeTypeError(kPromiseCyclic, value));
+    }
+    PromiseResolve(promise, value);
+  };
+
+  var reject = function(reason) {
+    if (alreadyResolved === true) return;
+    alreadyResolved = true;
+    PromiseReject(promise, reason);
+  };
+
+  return {
+    __proto__: null,
+    resolve: resolve,
+    reject: reject
+  };
+}
+
+
 var GlobalPromise = function Promise(resolver) {
   if (resolver === promiseRawSymbol) return;
   if (!%_IsConstructCall()) throw MakeTypeError(kNotAPromise, this);
@@ -42,8 +68,8 @@ var GlobalPromise = function Promise(resolver) {
   var promise = PromiseInit(this);
   try {
     %DebugPushPromise(promise, Promise, resolver);
-    resolver(function(x) { PromiseResolve(promise, x) },
-             function(r) { PromiseReject(promise, r) });
+    var callbacks = CreateResolvingFunctions(promise);
+    resolver(callbacks.resolve, callbacks.reject);
   } catch (e) {
     PromiseReject(promise, e);
   } finally {
@@ -93,7 +119,7 @@ function PromiseCoerce(constructor, x) {
       return %_Call(PromiseRejected, constructor, r);
     }
     if (IS_CALLABLE(then)) {
-      var deferred = %_Call(PromiseDeferred, constructor);
+      var deferred = NewPromiseCapability(constructor);
       try {
         %_Call(then, x, deferred.resolve, deferred.reject);
       } catch(r) {
@@ -161,7 +187,28 @@ function PromiseCreate() {
 }
 
 function PromiseResolve(promise, x) {
-  PromiseDone(promise, +1, x, promiseOnResolveSymbol)
+  if (GET_PRIVATE(promise, promiseStatusSymbol) === 0) {
+    if (IS_SPEC_OBJECT(x)) {
+      // 25.4.1.3.2 steps 8-12
+      try {
+        var then = x.then;
+      } catch (e) {
+        return PromiseReject(promise, e);
+      }
+      if (IS_CALLABLE(then)) {
+        // PromiseResolveThenableJob
+        return %EnqueueMicrotask(function() {
+          try {
+            var callbacks = CreateResolvingFunctions(promise);
+            %_Call(then, x, callbacks.resolve, callbacks.reject);
+          } catch (e) {
+            PromiseReject(promise, e);
+          }
+        });
+      }
+    }
+    PromiseDone(promise, +1, x, promiseOnResolveSymbol);
+  }
 }
 
 function PromiseReject(promise, r) {
@@ -179,23 +226,28 @@ function PromiseReject(promise, r) {
 
 // Convenience.
 
-function PromiseDeferred() {
-  if (this === GlobalPromise) {
+function NewPromiseCapability(C) {
+  if (C === GlobalPromise) {
     // Optimized case, avoid extra closure.
     var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+    var callbacks = CreateResolvingFunctions(promise);
     return {
       promise: promise,
-      resolve: function(x) { PromiseResolve(promise, x) },
-      reject: function(r) { PromiseReject(promise, r) }
+      resolve: callbacks.resolve,
+      reject: callbacks.reject
     };
   } else {
-    var result = {promise: UNDEFINED, reject: UNDEFINED, resolve: UNDEFINED};
-    result.promise = new this(function(resolve, reject) {
+    var result = {promise: UNDEFINED, resolve: UNDEFINED, reject: UNDEFINED };
+    result.promise = new C(function(resolve, reject) {
       result.resolve = resolve;
       result.reject = reject;
     });
     return result;
   }
+}
+
+function PromiseDeferred() {
+  return NewPromiseCapability(this);
 }
 
 function PromiseResolved(x) {
@@ -223,10 +275,11 @@ function PromiseRejected(r) {
 
 // Simple chaining.
 
-function PromiseChain(onResolve, onReject) {  // a.k.a. flatMap
+// PromiseChain a.k.a. flatMap
+function PromiseChainInternal(constructor, onResolve, onReject) {
   onResolve = IS_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
   onReject = IS_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
-  var deferred = %_Call(PromiseDeferred, this.constructor);
+  var deferred = NewPromiseCapability(constructor);
   switch (GET_PRIVATE(this, promiseStatusSymbol)) {
     case UNDEFINED:
       throw MakeTypeError(kNotAPromise, this);
@@ -258,6 +311,11 @@ function PromiseChain(onResolve, onReject) {  // a.k.a. flatMap
   return deferred.promise;
 }
 
+function PromiseChain(onResolve, onReject) {
+  return %_Call(PromiseChainInternal, this, this.constructor,
+                onResolve, onReject);
+}
+
 function PromiseCatch(onReject) {
   return this.then(UNDEFINED, onReject);
 }
@@ -270,8 +328,9 @@ function PromiseThen(onResolve, onReject) {
   var that = this;
   var constructor = this.constructor;
   return %_Call(
-    PromiseChain,
+    PromiseChainInternal,
     this,
+    constructor,
     function(x) {
       x = PromiseCoerce(constructor, x);
       if (x === that) {
@@ -299,7 +358,7 @@ function PromiseCast(x) {
 }
 
 function PromiseAll(iterable) {
-  var deferred = %_Call(PromiseDeferred, this);
+  var deferred = NewPromiseCapability(this);
   var resolutions = [];
   try {
     var count = 0;
@@ -331,7 +390,7 @@ function PromiseAll(iterable) {
 }
 
 function PromiseRace(iterable) {
-  var deferred = %_Call(PromiseDeferred, this);
+  var deferred = NewPromiseCapability(this);
   try {
     for (var value of iterable) {
       var reject = function(r) { deferred.reject(r) };

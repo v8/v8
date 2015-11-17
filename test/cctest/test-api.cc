@@ -20308,13 +20308,13 @@ TEST(PromiseThen) {
   Handle<Function> f1 = Handle<Function>::Cast(global->Get(v8_str("f1")));
   Handle<Function> f2 = Handle<Function>::Cast(global->Get(v8_str("f2")));
 
-  // Chain
-  q->Chain(f1);
-  CHECK(global->Get(v8_str("x1"))->IsNumber());
+  // TODO(caitp): remove tests once PromiseChain is removed, per bug 3237
+  /* q->Chain(f1);
+  CHECK(global->Get(v8_str2("x1"))->IsNumber());
   CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
   isolate->RunMicrotasks();
   CHECK(!global->Get(v8_str("x1"))->IsNumber());
-  CHECK(p->Equals(global->Get(v8_str("x1"))));
+  CHECK(p->Equals(global->Get(v8_str("x1")))); */
 
   // Then
   CompileRun("x1 = x2 = 0;");
