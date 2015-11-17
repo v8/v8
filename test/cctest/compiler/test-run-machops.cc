@@ -5377,161 +5377,91 @@ TEST(RunRoundInt64ToFloat64) {
 
 
 TEST(RunRoundUint64ToFloat64) {
+  struct {
+    uint64_t input;
+    uint64_t expected;
+  } values[] = {{0x0, 0x0},
+                {0x1, 0x3ff0000000000000},
+                {0xffffffff, 0x41efffffffe00000},
+                {0x1b09788b, 0x41bb09788b000000},
+                {0x4c5fce8, 0x419317f3a0000000},
+                {0xcc0de5bf, 0x41e981bcb7e00000},
+                {0x2, 0x4000000000000000},
+                {0x3, 0x4008000000000000},
+                {0x4, 0x4010000000000000},
+                {0x5, 0x4014000000000000},
+                {0x8, 0x4020000000000000},
+                {0x9, 0x4022000000000000},
+                {0xffffffffffffffff, 0x43f0000000000000},
+                {0xfffffffffffffffe, 0x43f0000000000000},
+                {0xfffffffffffffffd, 0x43f0000000000000},
+                {0x100000000, 0x41f0000000000000},
+                {0xffffffff00000000, 0x43efffffffe00000},
+                {0x1b09788b00000000, 0x43bb09788b000000},
+                {0x4c5fce800000000, 0x439317f3a0000000},
+                {0xcc0de5bf00000000, 0x43e981bcb7e00000},
+                {0x200000000, 0x4200000000000000},
+                {0x300000000, 0x4208000000000000},
+                {0x400000000, 0x4210000000000000},
+                {0x500000000, 0x4214000000000000},
+                {0x800000000, 0x4220000000000000},
+                {0x900000000, 0x4222000000000000},
+                {0x273a798e187937a3, 0x43c39d3cc70c3c9c},
+                {0xece3af835495a16b, 0x43ed9c75f06a92b4},
+                {0xb668ecc11223344, 0x43a6cd1d98224467},
+                {0x9e, 0x4063c00000000000},
+                {0x43, 0x4050c00000000000},
+                {0xaf73, 0x40e5ee6000000000},
+                {0x116b, 0x40b16b0000000000},
+                {0x658ecc, 0x415963b300000000},
+                {0x2b3b4c, 0x41459da600000000},
+                {0x88776655, 0x41e10eeccaa00000},
+                {0x70000000, 0x41dc000000000000},
+                {0x7200000, 0x419c800000000000},
+                {0x7fffffff, 0x41dfffffffc00000},
+                {0x56123761, 0x41d5848dd8400000},
+                {0x7fffff00, 0x41dfffffc0000000},
+                {0x761c4761eeeeeeee, 0x43dd8711d87bbbbc},
+                {0x80000000eeeeeeee, 0x43e00000001dddde},
+                {0x88888888dddddddd, 0x43e11111111bbbbc},
+                {0xa0000000dddddddd, 0x43e40000001bbbbc},
+                {0xddddddddaaaaaaaa, 0x43ebbbbbbbb55555},
+                {0xe0000000aaaaaaaa, 0x43ec000000155555},
+                {0xeeeeeeeeeeeeeeee, 0x43edddddddddddde},
+                {0xfffffffdeeeeeeee, 0x43efffffffbdddde},
+                {0xf0000000dddddddd, 0x43ee0000001bbbbc},
+                {0x7fffffdddddddd, 0x435ffffff7777777},
+                {0x3fffffaaaaaaaa, 0x434fffffd5555555},
+                {0x1fffffaaaaaaaa, 0x433fffffaaaaaaaa},
+                {0xfffff, 0x412ffffe00000000},
+                {0x7ffff, 0x411ffffc00000000},
+                {0x3ffff, 0x410ffff800000000},
+                {0x1ffff, 0x40fffff000000000},
+                {0xffff, 0x40efffe000000000},
+                {0x7fff, 0x40dfffc000000000},
+                {0x3fff, 0x40cfff8000000000},
+                {0x1fff, 0x40bfff0000000000},
+                {0xfff, 0x40affe0000000000},
+                {0x7ff, 0x409ffc0000000000},
+                {0x3ff, 0x408ff80000000000},
+                {0x1ff, 0x407ff00000000000},
+                {0x3fffffffffff, 0x42cfffffffffff80},
+                {0x1fffffffffff, 0x42bfffffffffff00},
+                {0xfffffffffff, 0x42affffffffffe00},
+                {0x7ffffffffff, 0x429ffffffffffc00},
+                {0x3ffffffffff, 0x428ffffffffff800},
+                {0x1ffffffffff, 0x427ffffffffff000},
+                {0x8000008000000000, 0x43e0000010000000},
+                {0x8000008000000001, 0x43e0000010000000},
+                {0x8000000000000400, 0x43e0000000000000},
+                {0x8000000000000401, 0x43e0000000000001}};
+
   BufferedRawMachineAssemblerTester<double> m(kMachUint64);
   m.Return(m.RoundUint64ToFloat64(m.Parameter(0)));
 
-  CHECK_EQ(bit_cast<double>(uint64_t(0x0000000000000000)),
-           m.Call(uint64_t(0x0000000000000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x3ff0000000000000)),
-           m.Call(uint64_t(0x0000000000000001)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41efffffffe00000)),
-           m.Call(uint64_t(0x00000000ffffffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41bb09788b000000)),
-           m.Call(uint64_t(0x000000001b09788b)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x419317f3a0000000)),
-           m.Call(uint64_t(0x0000000004c5fce8)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41e981bcb7e00000)),
-           m.Call(uint64_t(0x00000000cc0de5bf)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4000000000000000)),
-           m.Call(uint64_t(0x0000000000000002)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4008000000000000)),
-           m.Call(uint64_t(0x0000000000000003)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4010000000000000)),
-           m.Call(uint64_t(0x0000000000000004)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4014000000000000)),
-           m.Call(uint64_t(0x0000000000000005)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4020000000000000)),
-           m.Call(uint64_t(0x0000000000000008)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4022000000000000)),
-           m.Call(uint64_t(0x0000000000000009)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43f0000000000000)),
-           m.Call(uint64_t(0xffffffffffffffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43f0000000000000)),
-           m.Call(uint64_t(0xfffffffffffffffe)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43f0000000000000)),
-           m.Call(uint64_t(0xfffffffffffffffd)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x0000000000000000)),
-           m.Call(uint64_t(0x0000000000000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41f0000000000000)),
-           m.Call(uint64_t(0x0000000100000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43efffffffe00000)),
-           m.Call(uint64_t(0xffffffff00000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43bb09788b000000)),
-           m.Call(uint64_t(0x1b09788b00000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x439317f3a0000000)),
-           m.Call(uint64_t(0x04c5fce800000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43e981bcb7e00000)),
-           m.Call(uint64_t(0xcc0de5bf00000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4200000000000000)),
-           m.Call(uint64_t(0x0000000200000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4208000000000000)),
-           m.Call(uint64_t(0x0000000300000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4210000000000000)),
-           m.Call(uint64_t(0x0000000400000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4214000000000000)),
-           m.Call(uint64_t(0x0000000500000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4220000000000000)),
-           m.Call(uint64_t(0x0000000800000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4222000000000000)),
-           m.Call(uint64_t(0x0000000900000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43c39d3cc70c3c9c)),
-           m.Call(uint64_t(0x273a798e187937a3)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43ed9c75f06a92b4)),
-           m.Call(uint64_t(0xece3af835495a16b)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43a6cd1d98224467)),
-           m.Call(uint64_t(0x0b668ecc11223344)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4063c00000000000)),
-           m.Call(uint64_t(0x000000000000009e)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x4050c00000000000)),
-           m.Call(uint64_t(0x0000000000000043)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x40e5ee6000000000)),
-           m.Call(uint64_t(0x000000000000af73)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x40b16b0000000000)),
-           m.Call(uint64_t(0x000000000000116b)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x415963b300000000)),
-           m.Call(uint64_t(0x0000000000658ecc)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41459da600000000)),
-           m.Call(uint64_t(0x00000000002b3b4c)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41e10eeccaa00000)),
-           m.Call(uint64_t(0x0000000088776655)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41dc000000000000)),
-           m.Call(uint64_t(0x0000000070000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x419c800000000000)),
-           m.Call(uint64_t(0x0000000007200000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41dfffffffc00000)),
-           m.Call(uint64_t(0x000000007fffffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41d5848dd8400000)),
-           m.Call(uint64_t(0x0000000056123761)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x41dfffffc0000000)),
-           m.Call(uint64_t(0x000000007fffff00)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43dd8711d87bbbbc)),
-           m.Call(uint64_t(0x761c4761eeeeeeee)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43e00000001dddde)),
-           m.Call(uint64_t(0x80000000eeeeeeee)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43e11111111bbbbc)),
-           m.Call(uint64_t(0x88888888dddddddd)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43e40000001bbbbc)),
-           m.Call(uint64_t(0xa0000000dddddddd)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43ebbbbbbbb55555)),
-           m.Call(uint64_t(0xddddddddaaaaaaaa)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43ec000000155555)),
-           m.Call(uint64_t(0xe0000000aaaaaaaa)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43edddddddddddde)),
-           m.Call(uint64_t(0xeeeeeeeeeeeeeeee)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43efffffffbdddde)),
-           m.Call(uint64_t(0xfffffffdeeeeeeee)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43ee0000001bbbbc)),
-           m.Call(uint64_t(0xf0000000dddddddd)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x435ffffff7777777)),
-           m.Call(uint64_t(0x007fffffdddddddd)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x434fffffd5555555)),
-           m.Call(uint64_t(0x003fffffaaaaaaaa)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x433fffffaaaaaaaa)),
-           m.Call(uint64_t(0x001fffffaaaaaaaa)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x412ffffe00000000)),
-           m.Call(uint64_t(0x00000000000fffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x411ffffc00000000)),
-           m.Call(uint64_t(0x000000000007ffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x410ffff800000000)),
-           m.Call(uint64_t(0x000000000003ffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x40fffff000000000)),
-           m.Call(uint64_t(0x000000000001ffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x40efffe000000000)),
-           m.Call(uint64_t(0x000000000000ffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x40dfffc000000000)),
-           m.Call(uint64_t(0x0000000000007fff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x40cfff8000000000)),
-           m.Call(uint64_t(0x0000000000003fff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x40bfff0000000000)),
-           m.Call(uint64_t(0x0000000000001fff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x40affe0000000000)),
-           m.Call(uint64_t(0x0000000000000fff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x409ffc0000000000)),
-           m.Call(uint64_t(0x00000000000007ff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x408ff80000000000)),
-           m.Call(uint64_t(0x00000000000003ff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x407ff00000000000)),
-           m.Call(uint64_t(0x00000000000001ff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x42cfffffffffff80)),
-           m.Call(uint64_t(0x00003fffffffffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x42bfffffffffff00)),
-           m.Call(uint64_t(0x00001fffffffffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x42affffffffffe00)),
-           m.Call(uint64_t(0x00000fffffffffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x429ffffffffffc00)),
-           m.Call(uint64_t(0x000007ffffffffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x428ffffffffff800)),
-           m.Call(uint64_t(0x000003ffffffffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x427ffffffffff000)),
-           m.Call(uint64_t(0x000001ffffffffff)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43e0000010000000)),
-           m.Call(uint64_t(0x8000008000000000)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43e0000010000000)),
-           m.Call(uint64_t(0x8000008000000001)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43e0000000000000)),
-           m.Call(uint64_t(0x8000000000000400)));
-  CHECK_EQ(bit_cast<double>(uint64_t(0x43e0000000000001)),
-           m.Call(uint64_t(0x8000000000000401)));
+  for (int i = 0; i < arraysize(values); i++) {
+    CHECK_EQ(bit_cast<double>(values[i].expected), m.Call(values[i].input));
+  }
 }
 
 
