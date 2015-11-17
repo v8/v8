@@ -440,6 +440,93 @@ TEST_F(BytecodeGraphBuilderTest, CallProperty2) {
 }
 
 
+TEST_F(BytecodeGraphBuilderTest, LoadGlobal) {
+  const TypeofMode kTypeOfModes[] = {TypeofMode::NOT_INSIDE_TYPEOF,
+                                     TypeofMode::INSIDE_TYPEOF};
+  const bool kWideBytecode[] = {false, true};
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    TRACED_FOREACH(TypeofMode, typeof_mode, kTypeOfModes) {
+      TRACED_FOREACH(bool, wide_bytecode, kWideBytecode) {
+        FeedbackVectorSpec feedback_spec(zone());
+        if (wide_bytecode) {
+          for (int i = 0; i < 128; i++) {
+            feedback_spec.AddLoadICSlot();
+          }
+        }
+        FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+        Handle<TypeFeedbackVector> vector =
+            NewTypeFeedbackVector(isolate(), &feedback_spec);
+
+        interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+        array_builder.set_locals_count(0);
+        array_builder.set_context_count(0);
+        array_builder.set_parameter_count(1);
+
+        Handle<Name> name = GetName(isolate(), "global");
+        size_t name_index = array_builder.GetConstantPoolEntry(name);
+
+        array_builder.LoadGlobal(name_index, vector->GetIndex(slot),
+                                 language_mode, typeof_mode)
+            .Return();
+        Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(),
+                                         vector, language_mode);
+
+        Node* ret = graph->end()->InputAt(0);
+        Node* start = graph->start();
+
+        Matcher<Node*> feedback_vector_matcher = IsFeedbackVector(start, start);
+        Matcher<Node*> load_global_matcher = IsJSLoadGlobal(
+            name, typeof_mode, feedback_vector_matcher, start, start);
+
+        EXPECT_THAT(ret, IsReturn(load_global_matcher, _, _));
+      }
+    }
+  }
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, StoreGlobal) {
+  const bool kWideBytecode[] = {false, true};
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    TRACED_FOREACH(bool, wide_bytecode, kWideBytecode) {
+      FeedbackVectorSpec feedback_spec(zone());
+      if (wide_bytecode) {
+        for (int i = 0; i < 128; i++) {
+          feedback_spec.AddStoreICSlot();
+        }
+      }
+      FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
+      Handle<TypeFeedbackVector> vector =
+          NewTypeFeedbackVector(isolate(), &feedback_spec);
+
+      interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+      array_builder.set_locals_count(0);
+      array_builder.set_context_count(0);
+      array_builder.set_parameter_count(1);
+
+      Handle<Name> name = GetName(isolate(), "global");
+      size_t name_index = array_builder.GetConstantPoolEntry(name);
+
+      array_builder.LoadLiteral(Smi::FromInt(321))
+          .StoreGlobal(name_index, vector->GetIndex(slot), language_mode)
+          .Return();
+      Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector,
+                                       language_mode);
+
+      Node* ret = graph->end()->InputAt(0);
+      Node* start = graph->start();
+
+      Matcher<Node*> value_matcher = IsNumberConstant(321);
+      Matcher<Node*> feedback_vector_matcher = IsFeedbackVector(start, start);
+      Matcher<Node*> store_global_matcher = IsJSStoreGlobal(
+          name, value_matcher, feedback_vector_matcher, start, start);
+
+      EXPECT_THAT(ret, IsReturn(_, store_global_matcher, _));
+    }
+  }
+}
+
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

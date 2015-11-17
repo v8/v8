@@ -12,6 +12,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/handles-inl.h"
+#include "src/objects.h"
 
 using testing::_;
 using testing::MakeMatcher;
@@ -1481,6 +1482,115 @@ class IsJSLoadNamedMatcher final : public NodeMatcher {
 };
 
 
+class IsJSLoadGlobalMatcher final : public NodeMatcher {
+ public:
+  IsJSLoadGlobalMatcher(const Matcher<Handle<Name>>& name_matcher,
+                        const Matcher<TypeofMode> typeof_mode_matcher,
+                        const Matcher<Node*>& feedback_vector_matcher,
+                        const Matcher<Node*>& effect_matcher,
+                        const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSLoadGlobal),
+        name_matcher_(name_matcher),
+        typeof_mode_matcher_(typeof_mode_matcher),
+        feedback_vector_matcher_(feedback_vector_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose name (";
+    name_matcher_.DescribeTo(os);
+    *os << "), typeof mode (";
+    typeof_mode_matcher_.DescribeTo(os);
+    *os << "), feedback vector (";
+    feedback_vector_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << "), and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(
+                OpParameter<const LoadGlobalParameters>(node).name(), "name",
+                name_matcher_, listener) &&
+            PrintMatchAndExplain(
+                OpParameter<const LoadGlobalParameters>(node).typeof_mode(),
+                "typeof mode", typeof_mode_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "feedback vector", feedback_vector_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Handle<Name>> name_matcher_;
+  const Matcher<TypeofMode> typeof_mode_matcher_;
+  const Matcher<Node*> feedback_vector_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsJSStoreGlobalMatcher final : public NodeMatcher {
+ public:
+  IsJSStoreGlobalMatcher(const Matcher<Handle<Name>>& name_matcher,
+                         const Matcher<Node*>& value_matcher,
+                         const Matcher<Node*>& feedback_vector_matcher,
+                         const Matcher<Node*>& effect_matcher,
+                         const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSStoreGlobal),
+        name_matcher_(name_matcher),
+        value_matcher_(value_matcher),
+        feedback_vector_matcher_(feedback_vector_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose name (";
+    name_matcher_.DescribeTo(os);
+    *os << "), value (";
+    value_matcher_.DescribeTo(os);
+    *os << "), feedback vector (";
+    feedback_vector_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << "), and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(
+                OpParameter<const StoreGlobalParameters>(node).name(), "name",
+                name_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "value", value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
+                                 "feedback vector", feedback_vector_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Handle<Name>> name_matcher_;
+  const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> feedback_vector_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
 class IsJSCallFunctionMatcher final : public NodeMatcher {
  public:
   IsJSCallFunctionMatcher(const std::vector<Matcher<Node*>>& value_matchers,
@@ -2114,6 +2224,28 @@ Matcher<Node*> IsJSLoadNamed(const Handle<Name> name,
   return MakeMatcher(new IsJSLoadNamedMatcher(name, object_value_matcher,
                                               feedback_vector_matcher,
                                               effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsJSLoadGlobal(const Handle<Name> name,
+                              const TypeofMode typeof_mode,
+                              const Matcher<Node*>& feedback_vector_matcher,
+                              const Matcher<Node*>& effect_matcher,
+                              const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(
+      new IsJSLoadGlobalMatcher(name, typeof_mode, feedback_vector_matcher,
+                                effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsJSStoreGlobal(const Handle<Name> name,
+                               const Matcher<Node*>& value_matcher,
+                               const Matcher<Node*>& feedback_vector_matcher,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(
+      new IsJSStoreGlobalMatcher(name, value_matcher, feedback_vector_matcher,
+                                 effect_matcher, control_matcher));
 }
 
 

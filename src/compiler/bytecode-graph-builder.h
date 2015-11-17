@@ -86,16 +86,17 @@ class BytecodeGraphBuilder {
 
   void UpdateControlDependencyToLeaveFunction(Node* exit);
 
-  void BuildBinaryOp(const Operator* op,
-                     const interpreter::BytecodeArrayIterator& iterator);
-
-  void BuildNamedLoad(const interpreter::BytecodeArrayIterator& iterator);
-
   Node* ProcessCallArguments(const Operator* call_op,
                              interpreter::Register callee,
                              interpreter::Register receiver, size_t arity);
 
+  void BuildLoadGlobal(const interpreter::BytecodeArrayIterator& iterator,
+                       TypeofMode typeof_mode);
+  void BuildStoreGlobal(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildNamedLoad(const interpreter::BytecodeArrayIterator& iterator);
   void BuildCall(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildBinaryOp(const Operator* op,
+                     const interpreter::BytecodeArrayIterator& iterator);
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.

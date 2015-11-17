@@ -19,6 +19,7 @@ class Handle;
 class HeapObject;
 template <class>
 class TypeImpl;
+enum TypeofMode : int;
 struct ZoneTypeConfig;
 typedef TypeImpl<ZoneTypeConfig> Type;
 
@@ -362,6 +363,16 @@ Matcher<Node*> IsJSLoadNamed(const Handle<Name> name,
                              const Matcher<Node*>& feedback_vector_matcher,
                              const Matcher<Node*>& effect_matcher,
                              const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSLoadGlobal(const Handle<Name> name,
+                              const TypeofMode typeof_mode,
+                              const Matcher<Node*>& feedback_vector_matcher,
+                              const Matcher<Node*>& effect_matcher,
+                              const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSStoreGlobal(const Handle<Name> name,
+                               const Matcher<Node*>& value,
+                               const Matcher<Node*>& feedback_vector_matcher,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsJSCallFunction(std::vector<Matcher<Node*>> value_matchers,
                                 const Matcher<Node*>& effect_matcher,
                                 const Matcher<Node*>& control_matcher);

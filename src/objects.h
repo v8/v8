@@ -179,7 +179,7 @@ enum class ToPrimitiveHint { kDefault, kNumber, kString };
 enum class OrdinaryToPrimitiveHint { kNumber, kString };
 
 
-enum TypeofMode { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
+enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
 enum MutableMode {

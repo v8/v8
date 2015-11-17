@@ -156,6 +156,8 @@ struct ExpectedSnippet {
   }
 
   inline Handle<Object> parameter(int i) const {
+    DCHECK_GE(i, 0);
+    DCHECK_LT(i, N);
     return return_value_and_parameters[1 + i];
   }
 };
@@ -362,6 +364,52 @@ TEST(BytecodeGraphBuilderPropertyCall) {
     auto callable = tester.GetCallable<Handle<Object>>();
     Handle<Object> return_value =
         callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderGlobals) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<0> snippets[] = {
+      {"var global = 321;\n function f() { return global; };\n f();",
+       {factory->NewNumberFromInt(321)}},
+      {"var global = 321;\n"
+       "function f() { global = 123; return global };\n f();",
+       {factory->NewNumberFromInt(123)}},
+      {"var global = function() { return 'abc'};\n"
+       "function f() { return global(); };\n f();",
+       {factory->NewStringFromStaticChars("abc")}},
+      {"var global = 456;\n"
+       "function f() { 'use strict'; return global; };\n f();",
+       {factory->NewNumberFromInt(456)}},
+      {"var global = 987;\n"
+       "function f() { 'use strict'; global = 789; return global };\n f();",
+       {factory->NewNumberFromInt(789)}},
+      {"var global = function() { return 'xyz'};\n"
+       "function f() { 'use strict'; return global(); };\n f();",
+       {factory->NewStringFromStaticChars("xyz")}},
+      {"var global = 'abc'; var global_obj = {val:123};\n"
+       "function f() {\n" REPEAT_127(
+           SPACE, " var b = global_obj.name;\n") "return global; };\n f();\n",
+       {factory->NewStringFromStaticChars("abc")}},
+      {"var global = 'abc'; var global_obj = {val:123};\n"
+       "function f() { 'use strict';\n" REPEAT_127(
+           SPACE, " var b = global_obj.name;\n") "global = 'xyz'; return "
+                                                 "global };\n f();\n",
+       {factory->NewStringFromStaticChars("xyz")}},
+      // TODO(rmcilroy): Add tests for typeof_mode once we have typeof support.
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
