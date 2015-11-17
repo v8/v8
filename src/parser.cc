@@ -5182,6 +5182,7 @@ RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
       in_(in),
       current_(kEndMarker),
       next_pos_(0),
+      captures_started_(0),
       capture_count_(0),
       has_more_(true),
       multiline_(multiline),
@@ -5285,25 +5286,26 @@ RegExpTree* RegExpParser::ParsePattern() {
 //   Atom Quantifier
 RegExpTree* RegExpParser::ParseDisjunction() {
   // Used to store current state while parsing subexpressions.
-  RegExpParserState initial_state(NULL, INITIAL, 0, zone());
-  RegExpParserState* stored_state = &initial_state;
+  RegExpParserState initial_state(NULL, INITIAL, RegExpLookaround::LOOKAHEAD, 0,
+                                  zone());
+  RegExpParserState* state = &initial_state;
   // Cache the builder in a local variable for quick access.
   RegExpBuilder* builder = initial_state.builder();
   while (true) {
     switch (current()) {
     case kEndMarker:
-      if (stored_state->IsSubexpression()) {
+      if (state->IsSubexpression()) {
         // Inside a parenthesized group when hitting end of input.
         ReportError(CStrVector("Unterminated group") CHECK_FAILED);
       }
-      DCHECK_EQ(INITIAL, stored_state->group_type());
+      DCHECK_EQ(INITIAL, state->group_type());
       // Parsing completed successfully.
       return builder->ToRegExp();
     case ')': {
-      if (!stored_state->IsSubexpression()) {
+      if (!state->IsSubexpression()) {
         ReportError(CStrVector("Unmatched ')'") CHECK_FAILED);
       }
-      DCHECK_NE(INITIAL, stored_state->group_type());
+      DCHECK_NE(INITIAL, state->group_type());
 
       Advance();
       // End disjunction parsing and convert builder content to new single
@@ -5312,27 +5314,27 @@ RegExpTree* RegExpParser::ParseDisjunction() {
 
       int end_capture_index = captures_started();
 
-      int capture_index = stored_state->capture_index();
-      SubexpressionType group_type = stored_state->group_type();
-
-      // Restore previous state.
-      stored_state = stored_state->previous_state();
-      builder = stored_state->builder();
+      int capture_index = state->capture_index();
+      SubexpressionType group_type = state->group_type();
 
       // Build result of subexpression.
       if (group_type == CAPTURE) {
-        RegExpCapture* capture = new(zone()) RegExpCapture(body, capture_index);
-        captures_->at(capture_index - 1) = capture;
+        RegExpCapture* capture = GetCapture(capture_index);
+        capture->set_body(body);
         body = capture;
       } else if (group_type != GROUPING) {
-        DCHECK(group_type == POSITIVE_LOOKAHEAD ||
-               group_type == NEGATIVE_LOOKAHEAD);
-        bool is_positive = (group_type == POSITIVE_LOOKAHEAD);
-        body = new(zone()) RegExpLookahead(body,
-                                   is_positive,
-                                   end_capture_index - capture_index,
-                                   capture_index);
+        DCHECK(group_type == POSITIVE_LOOKAROUND ||
+               group_type == NEGATIVE_LOOKAROUND);
+        bool is_positive = (group_type == POSITIVE_LOOKAROUND);
+        body = new (zone()) RegExpLookaround(
+            body, is_positive, end_capture_index - capture_index, capture_index,
+            state->lookaround_type());
       }
+
+      // Restore previous state.
+      state = state->previous_state();
+      builder = state->builder();
+
       builder->AddAtom(body);
       // For compatability with JSC and ES3, we allow quantifiers after
       // lookaheads, and break in all cases.
@@ -5379,6 +5381,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     }
     case '(': {
       SubexpressionType subexpr_type = CAPTURE;
+      RegExpLookaround::Type lookaround_type = state->lookaround_type();
       Advance();
       if (current() == '?') {
         switch (Next()) {
@@ -5386,29 +5389,41 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             subexpr_type = GROUPING;
             break;
           case '=':
-            subexpr_type = POSITIVE_LOOKAHEAD;
+            lookaround_type = RegExpLookaround::LOOKAHEAD;
+            subexpr_type = POSITIVE_LOOKAROUND;
             break;
           case '!':
-            subexpr_type = NEGATIVE_LOOKAHEAD;
+            lookaround_type = RegExpLookaround::LOOKAHEAD;
+            subexpr_type = NEGATIVE_LOOKAROUND;
             break;
+          case '<':
+            if (FLAG_harmony_regexp_lookbehind) {
+              Advance();
+              lookaround_type = RegExpLookaround::LOOKBEHIND;
+              if (Next() == '=') {
+                subexpr_type = POSITIVE_LOOKAROUND;
+                break;
+              } else if (Next() == '!') {
+                subexpr_type = NEGATIVE_LOOKAROUND;
+                break;
+              }
+            }
+          // Fall through.
           default:
             ReportError(CStrVector("Invalid group") CHECK_FAILED);
             break;
         }
         Advance(2);
       } else {
-        if (captures_ == NULL) {
-          captures_ = new(zone()) ZoneList<RegExpCapture*>(2, zone());
-        }
-        if (captures_started() >= kMaxCaptures) {
+        if (captures_started_ >= kMaxCaptures) {
           ReportError(CStrVector("Too many captures") CHECK_FAILED);
         }
-        captures_->Add(NULL, zone());
+        captures_started_++;
       }
       // Store current state and begin new disjunction parsing.
-      stored_state = new(zone()) RegExpParserState(stored_state, subexpr_type,
-                                                   captures_started(), zone());
-      builder = stored_state->builder();
+      state = new (zone()) RegExpParserState(
+          state, subexpr_type, lookaround_type, captures_started_, zone());
+      builder = state->builder();
       continue;
     }
     case '[': {
@@ -5451,16 +5466,15 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       case '7': case '8': case '9': {
         int index = 0;
         if (ParseBackReferenceIndex(&index)) {
-          RegExpCapture* capture = NULL;
-          if (captures_ != NULL && index <= captures_->length()) {
-            capture = captures_->at(index - 1);
-          }
-          if (capture == NULL) {
+          if (state->IsInsideCaptureGroup(index)) {
+            // The backreference is inside the capture group it refers to.
+            // Nothing can possibly have been captured yet.
             builder->AddEmpty();
-            break;
+          } else {
+            RegExpCapture* capture = GetCapture(index);
+            RegExpTree* atom = new (zone()) RegExpBackReference(capture);
+            builder->AddAtom(atom);
           }
-          RegExpTree* atom = new(zone()) RegExpBackReference(capture);
-          builder->AddAtom(atom);
           break;
         }
         uc32 first_digit = Next();
@@ -5718,6 +5732,34 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
   }
   *index_out = value;
   return true;
+}
+
+
+RegExpCapture* RegExpParser::GetCapture(int index) {
+  // The index for the capture groups are one-based. Its index in the list is
+  // zero-based.
+  int know_captures =
+      is_scanned_for_captures_ ? capture_count_ : captures_started_;
+  DCHECK(index <= know_captures);
+  if (captures_ == NULL) {
+    captures_ = new (zone()) ZoneList<RegExpCapture*>(know_captures, zone());
+  }
+  while (captures_->length() < know_captures) {
+    captures_->Add(new (zone()) RegExpCapture(captures_->length() + 1), zone());
+  }
+  return captures_->at(index - 1);
+}
+
+
+bool RegExpParser::RegExpParserState::IsInsideCaptureGroup(int index) {
+  for (RegExpParserState* s = this; s != NULL; s = s->previous_state()) {
+    if (s->group_type() != CAPTURE) continue;
+    // Return true if we found the matching capture index.
+    if (index == s->capture_index()) return true;
+    // Abort if index is larger than what has been parsed up till this state.
+    if (index > s->capture_index()) return false;
+  }
+  return false;
 }
 
 
@@ -6052,7 +6094,7 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
     ranges->Add(CharacterRange::Everything(), zone());
     is_negated = !is_negated;
   }
-  return new(zone()) RegExpCharacterClass(ranges, is_negated);
+  return new (zone()) RegExpCharacterClass(ranges, is_negated);
 }
 
 
