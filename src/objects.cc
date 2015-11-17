@@ -6171,11 +6171,12 @@ bool JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
 bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
                                            PropertyDescriptor* desc,
                                            ShouldThrow should_throw) {
+  Isolate* isolate = it->isolate();
   // 1. Let current be O.[[GetOwnProperty]](P).
   // 2. ReturnIfAbrupt(current).
   PropertyDescriptor current;
   if (!GetOwnPropertyDescriptor(it, &current) &&
-      it->isolate()->has_pending_exception()) {
+      isolate->has_pending_exception()) {
     return false;
   }
   // TODO(jkummerow/verwaest): It would be nice if we didn't have to reset
@@ -6187,35 +6188,35 @@ bool JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   bool extensible = JSObject::IsExtensible(object);
 
-  return ValidateAndApplyPropertyDescriptor(it, extensible, desc, &current,
-                                            should_throw);
+  return ValidateAndApplyPropertyDescriptor(isolate, it, extensible, desc,
+                                            &current, should_throw);
 }
 
 
 // ES6 9.1.6.2
 // static
-bool JSReceiver::IsCompatiblePropertyDescriptor(bool extensible,
+bool JSReceiver::IsCompatiblePropertyDescriptor(Isolate* isolate,
+                                                bool extensible,
                                                 PropertyDescriptor* desc,
                                                 PropertyDescriptor* current,
                                                 Handle<Name> property_name) {
   // 1. Return ValidateAndApplyPropertyDescriptor(undefined, undefined,
   //    Extensible, Desc, Current).
-  return ValidateAndApplyPropertyDescriptor(NULL, extensible, desc, current,
-                                            THROW_ON_ERROR, property_name);
+  return ValidateAndApplyPropertyDescriptor(
+      isolate, NULL, extensible, desc, current, THROW_ON_ERROR, property_name);
 }
 
 
 // ES6 9.1.6.3
 // static
 bool JSReceiver::ValidateAndApplyPropertyDescriptor(
-    LookupIterator* it, bool extensible, PropertyDescriptor* desc,
-    PropertyDescriptor* current, ShouldThrow should_throw,
-    Handle<Name> property_name) {
+    Isolate* isolate, LookupIterator* it, bool extensible,
+    PropertyDescriptor* desc, PropertyDescriptor* current,
+    ShouldThrow should_throw, Handle<Name> property_name) {
   // We either need a LookupIterator, or a property name.
   DCHECK((it == NULL) != property_name.is_null());
   Handle<JSObject> object;
   if (it != NULL) object = Handle<JSObject>::cast(it->GetReceiver());
-  Isolate* isolate = it->isolate();
   bool desc_is_data_descriptor = PropertyDescriptor::IsDataDescriptor(desc);
   bool desc_is_accessor_descriptor =
       PropertyDescriptor::IsAccessorDescriptor(desc);
@@ -6877,7 +6878,7 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
   PropertyDescriptor::CompletePropertyDescriptor(isolate, desc);
   // 15. Let valid be IsCompatiblePropertyDescriptor (extensibleTarget,
   //     resultDesc, targetDesc).
-  bool valid = IsCompatiblePropertyDescriptor(extensible_target, desc,
+  bool valid = IsCompatiblePropertyDescriptor(isolate, extensible_target, desc,
                                               &target_desc, property_name);
   // 16. If valid is false, throw a TypeError exception.
   if (!valid) {

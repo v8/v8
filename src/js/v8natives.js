@@ -309,24 +309,6 @@ function IsInconsistentDescriptor(desc) {
 }
 
 
-// ES5 8.10.4
-function FromPropertyDescriptor(desc) {
-  if (IS_UNDEFINED(desc)) return desc;
-
-  if (IsDataDescriptor(desc)) {
-    return { value: desc.getValue(),
-             writable: desc.isWritable(),
-             enumerable: desc.isEnumerable(),
-             configurable: desc.isConfigurable() };
-  }
-  // Must be an AccessorDescriptor then. We never return a generic descriptor.
-  return { get: desc.getGet(),
-           set: desc.getSet(),
-           enumerable: desc.isEnumerable(),
-           configurable: desc.isConfigurable() };
-}
-
-
 // Harmony Proxies
 function FromGenericPropertyDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return desc;
@@ -569,6 +551,8 @@ function CallTrap2(handler, name, defaultTrap, x, y) {
 
 
 // ES5 section 8.12.1.
+// TODO(jkummerow): Deprecated. Migrate all callers to
+// ObjectGetOwnPropertyDescriptor and delete this.
 function GetOwnPropertyJS(obj, v) {
   var p = TO_NAME(v);
   if (%_IsJSProxy(obj)) {
@@ -590,7 +574,7 @@ function GetOwnPropertyJS(obj, v) {
   // GetOwnProperty returns an array indexed by the constants
   // defined in macros.py.
   // If p is not a property on obj undefined is returned.
-  var props = %GetOwnProperty(TO_OBJECT(obj), p);
+  var props = %GetOwnProperty_Legacy(TO_OBJECT(obj), p);
 
   return ConvertDescriptorArrayToDescriptor(props);
 }
@@ -641,7 +625,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
 // ES5 8.12.9.
 function DefineObjectProperty(obj, p, desc, should_throw) {
-  var current_array = %GetOwnProperty(obj, TO_NAME(p));
+  var current_array = %GetOwnProperty_Legacy(obj, TO_NAME(p));
   var current = ConvertDescriptorArrayToDescriptor(current_array);
   var extensible = %IsExtensible(obj);
 
@@ -889,8 +873,7 @@ function ObjectSetPrototypeOf(obj, proto) {
 
 // ES6 section 19.1.2.6
 function ObjectGetOwnPropertyDescriptor(obj, p) {
-  var desc = GetOwnPropertyJS(TO_OBJECT(obj), p);
-  return FromPropertyDescriptor(desc);
+  return %GetOwnProperty(obj, p);
 }
 
 
