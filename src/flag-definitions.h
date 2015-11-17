@@ -202,7 +202,8 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
   V(harmony_simd, "harmony simd")                                     \
   V(harmony_do_expressions, "harmony do-expressions")                 \
-  V(harmony_regexp_subclass, "harmony regexp subclassing")
+  V(harmony_regexp_subclass, "harmony regexp subclassing")            \
+  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                     \

@@ -387,17 +387,17 @@ class DispatchTable : public ZoneObject {
   VISIT(Text)
 
 
-#define FOR_EACH_REG_EXP_TREE_TYPE(VISIT)                            \
-  VISIT(Disjunction)                                                 \
-  VISIT(Alternative)                                                 \
-  VISIT(Assertion)                                                   \
-  VISIT(CharacterClass)                                              \
-  VISIT(Atom)                                                        \
-  VISIT(Quantifier)                                                  \
-  VISIT(Capture)                                                     \
-  VISIT(Lookahead)                                                   \
-  VISIT(BackReference)                                               \
-  VISIT(Empty)                                                       \
+#define FOR_EACH_REG_EXP_TREE_TYPE(VISIT) \
+  VISIT(Disjunction)                      \
+  VISIT(Alternative)                      \
+  VISIT(Assertion)                        \
+  VISIT(CharacterClass)                   \
+  VISIT(Atom)                             \
+  VISIT(Quantifier)                       \
+  VISIT(Capture)                          \
+  VISIT(Lookaround)                       \
+  VISIT(BackReference)                    \
+  VISIT(Empty)                            \
   VISIT(Text)
 
 
@@ -603,7 +603,7 @@ class RegExpNode: public ZoneObject {
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start) = 0;
-  static const int kNodeIsTooComplexForGreedyLoops = -1;
+  static const int kNodeIsTooComplexForGreedyLoops = kMinInt;
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
   // Only returns the successor for a text node of length 1 that matches any
   // character and that has no guards on it.
@@ -827,14 +827,14 @@ class ActionNode: public SeqRegExpNode {
 
 class TextNode: public SeqRegExpNode {
  public:
-  TextNode(ZoneList<TextElement>* elms,
+  TextNode(ZoneList<TextElement>* elms, bool read_backward,
+           RegExpNode* on_success)
+      : SeqRegExpNode(on_success), elms_(elms), read_backward_(read_backward) {}
+  TextNode(RegExpCharacterClass* that, bool read_backward,
            RegExpNode* on_success)
       : SeqRegExpNode(on_success),
-        elms_(elms) { }
-  TextNode(RegExpCharacterClass* that,
-           RegExpNode* on_success)
-      : SeqRegExpNode(on_success),
-        elms_(new(zone()) ZoneList<TextElement>(1, zone())) {
+        elms_(new (zone()) ZoneList<TextElement>(1, zone())),
+        read_backward_(read_backward) {
     elms_->Add(TextElement::CharClass(that), zone());
   }
   virtual void Accept(NodeVisitor* visitor);
@@ -845,6 +845,7 @@ class TextNode: public SeqRegExpNode {
                                     int characters_filled_in,
                                     bool not_at_start);
   ZoneList<TextElement>* elements() { return elms_; }
+  bool read_backward() { return read_backward_; }
   void MakeCaseIndependent(Isolate* isolate, bool is_one_byte);
   virtual int GreedyLoopTextLength();
   virtual RegExpNode* GetSuccessorOfOmnivorousTextNode(
@@ -873,6 +874,7 @@ class TextNode: public SeqRegExpNode {
                     int* checked_up_to);
   int Length();
   ZoneList<TextElement>* elms_;
+  bool read_backward_;
 };
 
 
@@ -925,15 +927,16 @@ class AssertionNode: public SeqRegExpNode {
 
 class BackReferenceNode: public SeqRegExpNode {
  public:
-  BackReferenceNode(int start_reg,
-                    int end_reg,
+  BackReferenceNode(int start_reg, int end_reg, bool read_backward,
                     RegExpNode* on_success)
       : SeqRegExpNode(on_success),
         start_reg_(start_reg),
-        end_reg_(end_reg) { }
+        end_reg_(end_reg),
+        read_backward_(read_backward) {}
   virtual void Accept(NodeVisitor* visitor);
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
+  bool read_backward() { return read_backward_; }
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int still_to_find,
                           int recursion_depth,
@@ -950,6 +953,7 @@ class BackReferenceNode: public SeqRegExpNode {
  private:
   int start_reg_;
   int end_reg_;
+  bool read_backward_;
 };
 
 
@@ -1074,6 +1078,7 @@ class ChoiceNode: public RegExpNode {
     return true;
   }
   virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
+  virtual bool read_backward() { return false; }
 
  protected:
   int GreedyLoopTextLengthForAlternative(GuardedAlternative* alternative);
@@ -1150,12 +1155,12 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
 
 class LoopChoiceNode: public ChoiceNode {
  public:
-  explicit LoopChoiceNode(bool body_can_be_zero_length, Zone* zone)
+  LoopChoiceNode(bool body_can_be_zero_length, bool read_backward, Zone* zone)
       : ChoiceNode(2, zone),
         loop_node_(NULL),
         continue_node_(NULL),
-        body_can_be_zero_length_(body_can_be_zero_length)
-        { }
+        body_can_be_zero_length_(body_can_be_zero_length),
+        read_backward_(read_backward) {}
   void AddLoopAlternative(GuardedAlternative alt);
   void AddContinueAlternative(GuardedAlternative alt);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
@@ -1169,6 +1174,7 @@ class LoopChoiceNode: public ChoiceNode {
   RegExpNode* loop_node() { return loop_node_; }
   RegExpNode* continue_node() { return continue_node_; }
   bool body_can_be_zero_length() { return body_can_be_zero_length_; }
+  virtual bool read_backward() { return read_backward_; }
   virtual void Accept(NodeVisitor* visitor);
   virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
 
@@ -1183,6 +1189,7 @@ class LoopChoiceNode: public ChoiceNode {
   RegExpNode* loop_node_;
   RegExpNode* continue_node_;
   bool body_can_be_zero_length_;
+  bool read_backward_;
 };
 
 
@@ -1438,9 +1445,7 @@ class Trace {
            at_start_ == UNKNOWN;
   }
   TriBool at_start() { return at_start_; }
-  void set_at_start(bool at_start) {
-    at_start_ = at_start ? TRUE_VALUE : FALSE_VALUE;
-  }
+  void set_at_start(TriBool at_start) { at_start_ = at_start; }
   Label* backtrack() { return backtrack_; }
   Label* loop_label() { return loop_label_; }
   RegExpNode* stop_node() { return stop_node_; }
