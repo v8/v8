@@ -469,6 +469,47 @@ TEST_F(InstructionSelectorTest, ChangesFromToSmi) {
 }
 
 
+TEST_F(InstructionSelectorTest, CombineShiftsWithMul) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Int32Mul(m.Word64Sar(m.Parameter(0), m.Int32Constant(32)),
+                        m.Word64Sar(m.Parameter(0), m.Int32Constant(32))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMips64DMulHigh, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, CombineShiftsWithDivMod) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Int32Div(m.Word64Sar(m.Parameter(0), m.Int32Constant(32)),
+                        m.Word64Sar(m.Parameter(0), m.Int32Constant(32))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMips64Ddiv, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Int32Mod(m.Word64Sar(m.Parameter(0), m.Int32Constant(32)),
+                        m.Word64Sar(m.Parameter(0), m.Int32Constant(32))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMips64Dmod, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
 // ----------------------------------------------------------------------------
 // Loads and stores.
 // ----------------------------------------------------------------------------

@@ -419,6 +419,21 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
       return;
     }
   }
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  if (CanCover(node, left) && CanCover(node, right)) {
+    if (left->opcode() == IrOpcode::kWord64Sar &&
+        right->opcode() == IrOpcode::kWord64Sar) {
+      Int64BinopMatcher leftInput(left), rightInput(right);
+      if (leftInput.right().Is(32) && rightInput.right().Is(32)) {
+        // Combine untagging shifts with Dmul high.
+        Emit(kMips64DMulHigh, g.DefineSameAsFirst(node),
+             g.UseRegister(leftInput.left().node()),
+             g.UseRegister(rightInput.left().node()));
+        return;
+      }
+    }
+  }
   VisitRRR(this, kMips64Mul, node);
 }
 
@@ -429,12 +444,7 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
 
 
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
-  Mips64OperandGenerator g(this);
-  InstructionOperand const dmul_operand = g.TempRegister();
-  Emit(kMips64MulHighU, dmul_operand, g.UseRegister(node->InputAt(0)),
-       g.UseRegister(node->InputAt(1)));
-  Emit(kMips64Ext, g.DefineAsRegister(node), dmul_operand, g.TempImmediate(0),
-       g.TempImmediate(32));
+  VisitRRR(this, kMips64MulHighU, node);
 }
 
 
@@ -477,6 +487,21 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 void InstructionSelector::VisitInt32Div(Node* node) {
   Mips64OperandGenerator g(this);
   Int32BinopMatcher m(node);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  if (CanCover(node, left) && CanCover(node, right)) {
+    if (left->opcode() == IrOpcode::kWord64Sar &&
+        right->opcode() == IrOpcode::kWord64Sar) {
+      Int64BinopMatcher rightInput(right), leftInput(left);
+      if (rightInput.right().Is(32) && leftInput.right().Is(32)) {
+        // Combine both shifted operands with Ddiv.
+        Emit(kMips64Ddiv, g.DefineSameAsFirst(node),
+             g.UseRegister(leftInput.left().node()),
+             g.UseRegister(rightInput.left().node()));
+        return;
+      }
+    }
+  }
   Emit(kMips64Div, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
 }
@@ -493,6 +518,21 @@ void InstructionSelector::VisitUint32Div(Node* node) {
 void InstructionSelector::VisitInt32Mod(Node* node) {
   Mips64OperandGenerator g(this);
   Int32BinopMatcher m(node);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  if (CanCover(node, left) && CanCover(node, right)) {
+    if (left->opcode() == IrOpcode::kWord64Sar &&
+        right->opcode() == IrOpcode::kWord64Sar) {
+      Int64BinopMatcher rightInput(right), leftInput(left);
+      if (rightInput.right().Is(32) && leftInput.right().Is(32)) {
+        // Combine both shifted operands with Dmod.
+        Emit(kMips64Dmod, g.DefineSameAsFirst(node),
+             g.UseRegister(leftInput.left().node()),
+             g.UseRegister(rightInput.left().node()));
+        return;
+      }
+    }
+  }
   Emit(kMips64Mod, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
 }
@@ -587,7 +627,8 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
         if (m.right().IsInRange(32, 63)) {
           // After smi untagging no need for truncate. Combine sequence.
           Emit(kMips64Dsar, g.DefineSameAsFirst(node),
-               g.UseRegister(m.left().node()), g.TempImmediate(kSmiShift));
+               g.UseRegister(m.left().node()),
+               g.UseImmediate(m.right().node()));
           return;
         }
         break;
