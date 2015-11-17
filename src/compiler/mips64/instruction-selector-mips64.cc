@@ -263,11 +263,75 @@ void InstructionSelector::VisitStore(Node* node) {
 
 
 void InstructionSelector::VisitWord32And(Node* node) {
+  Mips64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  if (m.left().IsWord32Shr() && CanCover(node, m.left().node()) &&
+      m.right().HasValue()) {
+    uint32_t mask = m.right().Value();
+    uint32_t mask_width = base::bits::CountPopulation32(mask);
+    uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
+    if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
+      // The mask must be contiguous, and occupy the least-significant bits.
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
+
+      // Select Ext for And(Shr(x, imm), mask) where the mask is in the least
+      // significant bits.
+      Int32BinopMatcher mleft(m.left().node());
+      if (mleft.right().HasValue()) {
+        // Any shift value can match; int32 shifts use `value % 32`.
+        uint32_t lsb = mleft.right().Value() & 0x1f;
+
+        // Ext cannot extract bits past the register size, however since
+        // shifting the original value would have introduced some zeros we can
+        // still use Ext with a smaller mask and the remaining bits will be
+        // zeros.
+        if (lsb + mask_width > 32) mask_width = 32 - lsb;
+
+        Emit(kMips64Ext, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
+             g.TempImmediate(mask_width));
+        return;
+      }
+      // Other cases fall through to the normal And operation.
+    }
+  }
   VisitBinop(this, node, kMips64And);
 }
 
 
 void InstructionSelector::VisitWord64And(Node* node) {
+  Mips64OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  if (m.left().IsWord64Shr() && CanCover(node, m.left().node()) &&
+      m.right().HasValue()) {
+    uint64_t mask = m.right().Value();
+    uint32_t mask_width = base::bits::CountPopulation64(mask);
+    uint32_t mask_msb = base::bits::CountLeadingZeros64(mask);
+    if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
+      // The mask must be contiguous, and occupy the least-significant bits.
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros64(mask));
+
+      // Select Dext for And(Shr(x, imm), mask) where the mask is in the least
+      // significant bits.
+      Int64BinopMatcher mleft(m.left().node());
+      if (mleft.right().HasValue()) {
+        // Any shift value can match; int64 shifts use `value % 64`.
+        uint32_t lsb = static_cast<uint32_t>(mleft.right().Value() & 0x3f);
+
+        // Dext cannot extract bits past the register size, however since
+        // shifting the original value would have introduced some zeros we can
+        // still use Dext with a smaller mask and the remaining bits will be
+        // zeros.
+        if (lsb + mask_width > 64) mask_width = 64 - lsb;
+
+        Emit(kMips64Dext, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
+             g.TempImmediate(static_cast<int32_t>(mask_width)));
+        return;
+      }
+      // Other cases fall through to the normal And operation.
+    }
+  }
   VisitBinop(this, node, kMips64And);
 }
 
@@ -298,6 +362,26 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
 
 
 void InstructionSelector::VisitWord32Shr(Node* node) {
+  Int32BinopMatcher m(node);
+  if (m.left().IsWord32And() && m.right().HasValue()) {
+    uint32_t lsb = m.right().Value() & 0x1f;
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      // Select Ext for Shr(And(x, mask), imm) where the result of the mask is
+      // shifted into the least-significant bits.
+      uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
+      unsigned mask_width = base::bits::CountPopulation32(mask);
+      unsigned mask_msb = base::bits::CountLeadingZeros32(mask);
+      if ((mask_msb + mask_width + lsb) == 32) {
+        Mips64OperandGenerator g(this);
+        DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(mask));
+        Emit(kMips64Ext, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
+             g.TempImmediate(mask_width));
+        return;
+      }
+    }
+  }
   VisitRRO(this, kMips64Shr, node);
 }
 
@@ -324,6 +408,26 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
 
 
 void InstructionSelector::VisitWord64Shr(Node* node) {
+  Int64BinopMatcher m(node);
+  if (m.left().IsWord64And() && m.right().HasValue()) {
+    uint32_t lsb = m.right().Value() & 0x3f;
+    Int64BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      // Select Dext for Shr(And(x, mask), imm) where the result of the mask is
+      // shifted into the least-significant bits.
+      uint64_t mask = (mleft.right().Value() >> lsb) << lsb;
+      unsigned mask_width = base::bits::CountPopulation64(mask);
+      unsigned mask_msb = base::bits::CountLeadingZeros64(mask);
+      if ((mask_msb + mask_width + lsb) == 64) {
+        Mips64OperandGenerator g(this);
+        DCHECK_EQ(lsb, base::bits::CountTrailingZeros64(mask));
+        Emit(kMips64Dext, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
+             g.TempImmediate(mask_width));
+        return;
+      }
+    }
+  }
   VisitRRO(this, kMips64Dshr, node);
 }
 

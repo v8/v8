@@ -663,6 +663,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ sra(i.OutputRegister(), i.InputRegister(0), imm);
       }
       break;
+    case kMipsExt:
+      __ Ext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+             i.InputInt8(2));
+      break;
     case kMipsRor:
       __ Ror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
