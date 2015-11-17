@@ -1563,7 +1563,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   // TODO(rmcilroy): Deal with possible direct eval here?
   // TODO(rmcilroy): Use CallIC to allow call type feedback.
-  builder()->Call(callee, receiver, args->length());
+  builder()->Call(callee, receiver, args->length(),
+                  feedback_index(expr->CallFeedbackICSlot()));
   execution_result()->SetResultInAccumulator();
 }
 

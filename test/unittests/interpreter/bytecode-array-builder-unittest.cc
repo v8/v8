@@ -102,7 +102,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateObjectLiteral(0, 0);
 
   // Call operations.
-  builder.Call(reg, reg, 0)
+  builder.Call(reg, reg, 0, 0)
+      .Call(reg, reg, 0, 1024)
       .CallRuntime(Runtime::kIsArray, reg, 1)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg, 1);
 

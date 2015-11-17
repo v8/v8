@@ -322,6 +322,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
           EXPECT_THAT(m.BytecodeOperandReg(i),
                       m.IsBytecodeOperandSignExtended(offset));
           break;
+        case interpreter::OperandType::kCount16:
+          EXPECT_THAT(m.BytecodeOperandCount(i),
+                      m.IsBytecodeOperandShort(offset));
+          break;
         case interpreter::OperandType::kIdx16:
           EXPECT_THAT(m.BytecodeOperandIdx(i),
                       m.IsBytecodeOperandShort(offset));

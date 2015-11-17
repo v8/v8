@@ -84,6 +84,9 @@ class Interpreter {
   // Generates code to perform a keyed property store via |ic|.
   void DoKeyedStoreIC(Callable ic, compiler::InterpreterAssembler* assembler);
 
+  // Generates code to perform a JS call.
+  void DoJSCall(compiler::InterpreterAssembler* assembler);
+
   // Generates code ro create a literal via |function_id|.
   void DoCreateLiteral(Runtime::FunctionId function_id,
                        compiler::InterpreterAssembler* assembler);

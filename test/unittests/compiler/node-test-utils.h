@@ -101,6 +101,10 @@ Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
                             const Matcher<Node*>& base_matcher);
 Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
+                      const Matcher<Node*>& value0_matcher,
                       const Matcher<Node*>& value1_matcher,
                       const Matcher<Node*>& effect_matcher,
                       const Matcher<Node*>& control_matcher);
@@ -358,6 +362,9 @@ Matcher<Node*> IsJSLoadNamed(const Handle<Name> name,
                              const Matcher<Node*>& feedback_vector_matcher,
                              const Matcher<Node*>& effect_matcher,
                              const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSCallFunction(std::vector<Matcher<Node*>> value_matchers,
+                                const Matcher<Node*>& effect_matcher,
+                                const Matcher<Node*>& control_matcher);
 
 }  // namespace compiler
 }  // namespace internal

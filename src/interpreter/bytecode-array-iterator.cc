@@ -60,7 +60,11 @@ int8_t BytecodeArrayIterator::GetImmediateOperand(int operand_index) const {
 
 
 int BytecodeArrayIterator::GetCountOperand(int operand_index) const {
-  uint32_t operand = GetRawOperand(operand_index, OperandType::kCount8);
+  OperandSize size =
+      Bytecodes::GetOperandSize(current_bytecode(), operand_index);
+  OperandType type = (size == OperandSize::kByte) ? OperandType::kCount8
+                                                  : OperandType::kCount16;
+  uint32_t operand = GetRawOperand(operand_index, type);
   return static_cast<int>(operand);
 }
 

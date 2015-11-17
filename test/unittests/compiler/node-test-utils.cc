@@ -1480,6 +1480,59 @@ class IsJSLoadNamedMatcher final : public NodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
+
+class IsJSCallFunctionMatcher final : public NodeMatcher {
+ public:
+  IsJSCallFunctionMatcher(const std::vector<Matcher<Node*>>& value_matchers,
+                          const Matcher<Node*>& effect_matcher,
+                          const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSCallFunction),
+        value_matchers_(value_matchers),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    for (size_t i = 0; i < value_matchers_.size(); ++i) {
+      if (i == 0) {
+        *os << " whose value0 (";
+      } else {
+        *os << "), value" << i << " (";
+      }
+      value_matchers_[i].DescribeTo(os);
+    }
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    if (!NodeMatcher::MatchAndExplain(node, listener)) {
+      return false;
+    }
+    for (size_t i = 0; i < value_matchers_.size(); ++i) {
+      std::ostringstream ost;
+      ost << "value" << i;
+      if (!PrintMatchAndExplain(
+              NodeProperties::GetValueInput(node, static_cast<int>(i)),
+              ost.str(), value_matchers_[i], listener)) {
+        return false;
+      }
+    }
+    return (PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const std::vector<Matcher<Node*>> value_matchers_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
 }  // namespace
 
 
@@ -2061,6 +2114,14 @@ Matcher<Node*> IsJSLoadNamed(const Handle<Name> name,
   return MakeMatcher(new IsJSLoadNamedMatcher(name, object_value_matcher,
                                               feedback_vector_matcher,
                                               effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsJSCallFunction(std::vector<Matcher<Node*>> value_matchers,
+                                const Matcher<Node*>& effect_matcher,
+                                const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsJSCallFunctionMatcher(value_matchers, effect_matcher,
+                                                 control_matcher));
 }
 
 

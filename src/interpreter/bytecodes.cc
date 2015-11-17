@@ -209,13 +209,15 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
       case interpreter::OperandType::kCount8:
         os << "#" << static_cast<unsigned int>(*operand_start);
         break;
+      case interpreter::OperandType::kCount16:
+        os << '#' << ReadUnalignedUInt16(operand_start);
+        break;
       case interpreter::OperandType::kIdx8:
         os << "[" << static_cast<unsigned int>(*operand_start) << "]";
         break;
-      case interpreter::OperandType::kIdx16: {
+      case interpreter::OperandType::kIdx16:
         os << "[" << ReadUnalignedUInt16(operand_start) << "]";
         break;
-      }
       case interpreter::OperandType::kImm8:
         os << "#" << static_cast<int>(static_cast<int8_t>(*operand_start));
         break;

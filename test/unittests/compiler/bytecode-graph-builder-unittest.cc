@@ -35,6 +35,7 @@ Handle<TypeFeedbackVector> NewTypeFeedbackVector(Isolate* isolate,
   return TypeFeedbackVector::New(isolate, vector_metadata);
 }
 
+
 class BytecodeGraphBuilderTest : public TestWithIsolateAndZone {
  public:
   BytecodeGraphBuilderTest() {}
@@ -346,6 +347,98 @@ TEST_F(BytecodeGraphBuilderTest, NamedLoad) {
     }
   }
 }
+
+
+TEST_F(BytecodeGraphBuilderTest, CallProperty0) {
+  FeedbackVectorSpec feedback_spec(zone());
+  FeedbackVectorSlot call_slot = feedback_spec.AddCallICSlot();
+  FeedbackVectorSlot load_slot = feedback_spec.AddLoadICSlot();
+  Handle<TypeFeedbackVector> vector =
+      NewTypeFeedbackVector(isolate(), &feedback_spec);
+
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(1);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(2);
+
+  Handle<Name> func_name = GetName(isolate(), "func");
+  size_t func_name_index = array_builder.GetConstantPoolEntry(func_name);
+
+  interpreter::Register reg0 = interpreter::Register(0);
+  array_builder.LoadNamedProperty(
+        array_builder.Parameter(1), func_name_index,
+        vector->GetIndex(load_slot), LanguageMode::SLOPPY)
+      .StoreAccumulatorInRegister(reg0)
+      .Call(reg0, array_builder.Parameter(1), 0, vector->GetIndex(call_slot))
+      .Return();
+
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector);
+  Node* ret = graph->end()->InputAt(0);
+  Node* start = graph->start();
+
+  Matcher<Node*> feedback_vector_matcher = IsFeedbackVector(start, start);
+  Matcher<Node*> load_named_matcher = IsJSLoadNamed(
+      func_name, IsParameter(1), feedback_vector_matcher, start, start);
+  std::vector<Matcher<Node*>> call_inputs;
+  call_inputs.push_back(load_named_matcher);
+  call_inputs.push_back(IsParameter(1));
+  Matcher<Node*> call_matcher =
+      IsJSCallFunction(call_inputs, load_named_matcher, IsIfSuccess(_));
+
+  EXPECT_THAT(ret, IsReturn(call_matcher, _, _));
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, CallProperty2) {
+  FeedbackVectorSpec feedback_spec(zone());
+  FeedbackVectorSlot call_slot = feedback_spec.AddCallICSlot();
+  FeedbackVectorSlot load_slot = feedback_spec.AddLoadICSlot();
+  Handle<TypeFeedbackVector> vector =
+      NewTypeFeedbackVector(isolate(), &feedback_spec);
+
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(4);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(4);
+
+  Handle<Name> func_name = GetName(isolate(), "func");
+  size_t func_name_index = array_builder.GetConstantPoolEntry(func_name);
+
+  interpreter::Register reg0 = interpreter::Register(0);
+  interpreter::Register reg1 = interpreter::Register(1);
+  interpreter::Register reg2 = interpreter::Register(2);
+  interpreter::Register reg3 = interpreter::Register(3);
+  array_builder.LoadNamedProperty(
+        array_builder.Parameter(1), func_name_index,
+        vector->GetIndex(load_slot), LanguageMode::SLOPPY)
+      .StoreAccumulatorInRegister(reg0)
+      .LoadAccumulatorWithRegister(array_builder.Parameter(1))
+      .StoreAccumulatorInRegister(reg1)
+      .LoadAccumulatorWithRegister(array_builder.Parameter(2))
+      .StoreAccumulatorInRegister(reg2)
+      .LoadAccumulatorWithRegister(array_builder.Parameter(3))
+      .StoreAccumulatorInRegister(reg3)
+      .Call(reg0, reg1, 2, vector->GetIndex(call_slot))
+      .Return();
+
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector);
+  Node* ret = graph->end()->InputAt(0);
+  Node* start = graph->start();
+
+  Matcher<Node*> feedback_vector_matcher = IsFeedbackVector(start, start);
+  Matcher<Node*> load_named_matcher = IsJSLoadNamed(
+      func_name, IsParameter(1), feedback_vector_matcher, start, start);
+  std::vector<Matcher<Node*>> call_inputs;
+  call_inputs.push_back(load_named_matcher);
+  call_inputs.push_back(IsParameter(1));
+  call_inputs.push_back(IsParameter(2));
+  call_inputs.push_back(IsParameter(3));
+  Matcher<Node*> call_matcher =
+      IsJSCallFunction(call_inputs, load_named_matcher, IsIfSuccess(_));
+
+  EXPECT_THAT(ret, IsReturn(call_matcher, _, _));
+}
+
 
 }  // namespace compiler
 }  // namespace internal

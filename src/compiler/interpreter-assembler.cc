@@ -193,9 +193,21 @@ Node* InterpreterAssembler::BytecodeOperandShort(int operand_index) {
 
 
 Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
-  DCHECK_EQ(interpreter::OperandType::kCount8,
-            interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
-  return BytecodeOperand(operand_index);
+  switch (interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index)) {
+    case interpreter::OperandSize::kByte:
+      DCHECK_EQ(
+          interpreter::OperandType::kCount8,
+          interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+      return BytecodeOperand(operand_index);
+    case interpreter::OperandSize::kShort:
+      DCHECK_EQ(
+          interpreter::OperandType::kCount16,
+          interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
+      return BytecodeOperandShort(operand_index);
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
 }
 
 

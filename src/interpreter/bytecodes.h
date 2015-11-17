@@ -29,6 +29,7 @@ namespace interpreter {
   V(MaybeReg8, OperandSize::kByte) \
                                    \
   /* Short operands. */            \
+  V(Count16, OperandSize::kShort)  \
   V(Idx16, OperandSize::kShort)
 
 // The list of bytecodes which are interpreted by the interpreter.
@@ -121,7 +122,10 @@ namespace interpreter {
   V(DeletePropertySloppy, OperandType::kReg8)                                  \
                                                                                \
   /* Call operations */                                                        \
-  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)        \
+  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8,        \
+    OperandType::kIdx8)                                                        \
+  V(CallWide, OperandType::kReg8, OperandType::kReg8, OperandType::kCount16,   \
+    OperandType::kIdx16)                                                       \
   V(CallRuntime, OperandType::kIdx16, OperandType::kMaybeReg8,                 \
     OperandType::kCount8)                                                      \
   V(CallJSRuntime, OperandType::kIdx16, OperandType::kReg8,                    \

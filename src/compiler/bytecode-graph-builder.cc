@@ -162,6 +162,8 @@ VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
 }
 
 
+// TODO(mythria): Replace this function with one which adds real frame state.
+// Also add before and after frame states and checkpointing if required.
 void BytecodeGraphBuilder::AddEmptyFrameStateInputs(Node* node) {
   int frame_state_count =
       OperatorProperties::GetFrameStateInputCount(node->op());
@@ -397,8 +399,6 @@ void BytecodeGraphBuilder::BuildNamedLoad(
 
   const Operator* op = javascript()->LoadNamed(language_mode(), name, feedback);
   Node* node = NewNode(op, object, BuildLoadFeedbackVector());
-  // TODO(mythria): Replace with real frame state. Also add before and after
-  // frame states if required.
   AddEmptyFrameStateInputs(node);
   environment()->BindAccumulator(node);
 }
@@ -552,9 +552,51 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral(
 }
 
 
+Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
+                                                 interpreter::Register callee,
+                                                 interpreter::Register receiver,
+                                                 size_t arity) {
+  Node** all = info()->zone()->NewArray<Node*>(arity);
+  all[0] = environment()->LookupRegister(callee);
+  all[1] = environment()->LookupRegister(receiver);
+  int receiver_index = receiver.index();
+  for (int i = 2; i < static_cast<int>(arity); ++i) {
+    all[i] = environment()->LookupRegister(
+        interpreter::Register(receiver_index + i - 1));
+  }
+  Node* value = MakeNode(call_op, static_cast<int>(arity), all, false);
+  return value;
+}
+
+
+void BytecodeGraphBuilder::BuildCall(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  // TODO(rmcilroy): Set receiver_hint correctly based on whether the receiver
+  // register has been loaded with null / undefined explicitly or we are sure it
+  // is not null / undefined.
+  ConvertReceiverMode receiver_hint = ConvertReceiverMode::kAny;
+  interpreter::Register callee = iterator.GetRegisterOperand(0);
+  interpreter::Register receiver = iterator.GetRegisterOperand(1);
+  size_t arg_count = iterator.GetCountOperand(2);
+  VectorSlotPair feedback = CreateVectorSlotPair(iterator.GetIndexOperand(3));
+
+  const Operator* call = javascript()->CallFunction(
+      arg_count + 2, language_mode(), feedback, receiver_hint);
+  Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 2);
+  AddEmptyFrameStateInputs(value);
+  environment()->BindAccumulator(value);
+}
+
+
 void BytecodeGraphBuilder::VisitCall(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCall(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitCallWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCall(iterator);
 }
 
 
@@ -588,7 +630,6 @@ void BytecodeGraphBuilder::BuildBinaryOp(
   Node* right = environment()->LookupAccumulator();
   Node* node = NewNode(js_op, left, right);
 
-  // TODO(oth): Real frame state and environment check pointing.
   AddEmptyFrameStateInputs(node);
   environment()->BindAccumulator(node);
 }

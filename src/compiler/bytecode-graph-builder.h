@@ -91,6 +91,12 @@ class BytecodeGraphBuilder {
 
   void BuildNamedLoad(const interpreter::BytecodeArrayIterator& iterator);
 
+  Node* ProcessCallArguments(const Operator* call_op,
+                             interpreter::Register callee,
+                             interpreter::Register receiver, size_t arity);
+
+  void BuildCall(const interpreter::BytecodeArrayIterator& iterator);
+
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;

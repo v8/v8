@@ -137,6 +137,14 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t(&operands)[N]) {
 
 
 void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t operand0,
+                                  uint32_t operand1, uint32_t operand2,
+                                  uint32_t operand3) {
+  uint32_t operands[] = {operand0, operand1, operand2, operand3};
+  Output(bytecode, operands);
+}
+
+
+void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t operand0,
                                   uint32_t operand1, uint32_t operand2) {
   uint32_t operands[] = {operand0, operand1, operand2};
   Output(bytecode, operands);
@@ -768,10 +776,17 @@ void BytecodeArrayBuilder::EnsureReturn() {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
                                                  Register receiver,
-                                                 size_t arg_count) {
-  if (FitsInIdx8Operand(arg_count)) {
+                                                 size_t arg_count,
+                                                 int feedback_slot) {
+  if (FitsInIdx8Operand(arg_count) && FitsInIdx8Operand(feedback_slot)) {
     Output(Bytecode::kCall, callable.ToOperand(), receiver.ToOperand(),
-           static_cast<uint8_t>(arg_count));
+           static_cast<uint8_t>(arg_count),
+           static_cast<uint8_t>(feedback_slot));
+  } else if (FitsInIdx16Operand(arg_count) &&
+             FitsInIdx16Operand(feedback_slot)) {
+    Output(Bytecode::kCallWide, callable.ToOperand(), receiver.ToOperand(),
+           static_cast<uint16_t>(arg_count),
+           static_cast<uint16_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
   }
@@ -923,6 +938,7 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
   switch (operand_type) {
     case OperandType::kNone:
       return false;
+    case OperandType::kCount16:
     case OperandType::kIdx16:
       return static_cast<uint16_t>(operand_value) == operand_value;
     case OperandType::kCount8:
