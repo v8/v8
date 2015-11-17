@@ -1204,7 +1204,7 @@ void FullCodeGenerator::EmitSetHomeObject(Expression* initializer, int offset,
          Operand(isolate()->factory()->home_object_symbol()));
   __ LoadP(StoreDescriptor::ValueRegister(),
            MemOperand(sp, offset * kPointerSize));
-  if (FLAG_vector_stores) EmitLoadStoreICSlot(slot);
+  EmitLoadStoreICSlot(slot);
   CallStoreIC();
 }
 
@@ -1218,7 +1218,7 @@ void FullCodeGenerator::EmitSetHomeObjectAccumulator(Expression* initializer,
          Operand(isolate()->factory()->home_object_symbol()));
   __ LoadP(StoreDescriptor::ValueRegister(),
            MemOperand(sp, offset * kPointerSize));
-  if (FLAG_vector_stores) EmitLoadStoreICSlot(slot);
+  EmitLoadStoreICSlot(slot);
   CallStoreIC();
 }
 
@@ -1541,12 +1541,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             DCHECK(StoreDescriptor::ValueRegister().is(r3));
             __ mov(StoreDescriptor::NameRegister(), Operand(key->value()));
             __ LoadP(StoreDescriptor::ReceiverRegister(), MemOperand(sp));
-            if (FLAG_vector_stores) {
-              EmitLoadStoreICSlot(property->GetSlot(0));
-              CallStoreIC();
-            } else {
-              CallStoreIC(key->LiteralFeedbackId());
-            }
+            EmitLoadStoreICSlot(property->GetSlot(0));
+            CallStoreIC();
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
 
             if (NeedsHomeObject(value)) {
@@ -1739,29 +1735,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     }
     VisitForAccumulatorValue(subexpr);
 
-    if (FLAG_vector_stores) {
-      __ LoadSmiLiteral(StoreDescriptor::NameRegister(),
-                        Smi::FromInt(array_index));
-      __ LoadP(StoreDescriptor::ReceiverRegister(),
-               MemOperand(sp, kPointerSize));
-      EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
-      Handle<Code> ic =
-          CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-      CallIC(ic);
-    } else if (has_fast_elements) {
-      int offset = FixedArray::kHeaderSize + (array_index * kPointerSize);
-      __ LoadP(r8, MemOperand(sp, kPointerSize));  // Copy of array literal.
-      __ LoadP(r4, FieldMemOperand(r8, JSObject::kElementsOffset));
-      __ StoreP(result_register(), FieldMemOperand(r4, offset), r0);
-      // Update the write barrier for the array store.
-      __ RecordWriteField(r4, offset, result_register(), r5, kLRHasBeenSaved,
-                          kDontSaveFPRegs, EMIT_REMEMBERED_SET,
-                          INLINE_SMI_CHECK);
-    } else {
-      __ LoadSmiLiteral(r6, Smi::FromInt(array_index));
-      StoreArrayLiteralElementStub stub(isolate());
-      __ CallStub(&stub);
-    }
+    __ LoadSmiLiteral(StoreDescriptor::NameRegister(),
+                      Smi::FromInt(array_index));
+    __ LoadP(StoreDescriptor::ReceiverRegister(), MemOperand(sp, kPointerSize));
+    EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
+    Handle<Code> ic =
+        CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
+    CallIC(ic);
 
     PrepareForBailoutForId(expr->GetIdForElement(array_index), NO_REGISTERS);
   }
@@ -2511,7 +2491,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       __ pop(StoreDescriptor::ValueRegister());  // Restore value.
       __ mov(StoreDescriptor::NameRegister(),
              Operand(prop->key()->AsLiteral()->value()));
-      if (FLAG_vector_stores) EmitLoadStoreICSlot(slot);
+      EmitLoadStoreICSlot(slot);
       CallStoreIC();
       break;
     }
@@ -2559,7 +2539,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
       __ Move(StoreDescriptor::NameRegister(), r3);
       __ Pop(StoreDescriptor::ValueRegister(),
              StoreDescriptor::ReceiverRegister());
-      if (FLAG_vector_stores) EmitLoadStoreICSlot(slot);
+      EmitLoadStoreICSlot(slot);
       Handle<Code> ic =
           CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
       CallIC(ic);
@@ -2589,7 +2569,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     // Global var, const, or let.
     __ mov(StoreDescriptor::NameRegister(), Operand(var->name()));
     __ LoadP(StoreDescriptor::ReceiverRegister(), GlobalObjectOperand());
-    if (FLAG_vector_stores) EmitLoadStoreICSlot(slot);
+    EmitLoadStoreICSlot(slot);
     CallStoreIC();
 
   } else if (var->mode() == LET && op != Token::INIT) {
@@ -2697,12 +2677,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   __ mov(StoreDescriptor::NameRegister(),
          Operand(prop->key()->AsLiteral()->value()));
   __ pop(StoreDescriptor::ReceiverRegister());
-  if (FLAG_vector_stores) {
-    EmitLoadStoreICSlot(expr->AssignmentSlot());
-    CallStoreIC();
-  } else {
-    CallStoreIC(expr->AssignmentFeedbackId());
-  }
+  EmitLoadStoreICSlot(expr->AssignmentSlot());
+  CallStoreIC();
 
   PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
   context()->Plug(r3);
@@ -2746,12 +2722,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 
   Handle<Code> ic =
       CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-  if (FLAG_vector_stores) {
-    EmitLoadStoreICSlot(expr->AssignmentSlot());
-    CallIC(ic);
-  } else {
-    CallIC(ic, expr->AssignmentFeedbackId());
-  }
+  EmitLoadStoreICSlot(expr->AssignmentSlot());
+  CallIC(ic);
 
   PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
   context()->Plug(r3);
@@ -4617,12 +4589,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ mov(StoreDescriptor::NameRegister(),
              Operand(prop->key()->AsLiteral()->value()));
       __ pop(StoreDescriptor::ReceiverRegister());
-      if (FLAG_vector_stores) {
-        EmitLoadStoreICSlot(expr->CountSlot());
-        CallStoreIC();
-      } else {
-        CallStoreIC(expr->CountStoreFeedbackId());
-      }
+      EmitLoadStoreICSlot(expr->CountSlot());
+      CallStoreIC();
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
@@ -4660,12 +4628,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
              StoreDescriptor::NameRegister());
       Handle<Code> ic =
           CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
-      if (FLAG_vector_stores) {
-        EmitLoadStoreICSlot(expr->CountSlot());
-        CallIC(ic);
-      } else {
-        CallIC(ic, expr->CountStoreFeedbackId());
-      }
+      EmitLoadStoreICSlot(expr->CountSlot());
+      CallIC(ic);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
@@ -4968,7 +4932,7 @@ void FullCodeGenerator::ClearPendingMessage() {
 
 
 void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
-  DCHECK(FLAG_vector_stores && !slot.IsInvalid());
+  DCHECK(!slot.IsInvalid());
   __ mov(VectorStoreICTrampolineDescriptor::SlotRegister(),
          Operand(SmiFromSlot(slot)));
 }
