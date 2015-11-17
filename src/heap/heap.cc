@@ -1027,6 +1027,10 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   if (!dependant_context) {
     tracer()->ResetSurvivalEvents();
     old_generation_size_configured_ = false;
+    MemoryReducer::Event event;
+    event.type = MemoryReducer::kContextDisposed;
+    event.time_ms = MonotonicallyIncreasingTimeInMs();
+    memory_reducer_->NotifyContextDisposed(event);
   }
   if (isolate()->concurrent_recompilation_enabled()) {
     // Flush the queued recompilation tasks.
@@ -1035,10 +1039,6 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   AgeInlineCaches();
   set_retained_maps(ArrayList::cast(empty_fixed_array()));
   tracer()->AddContextDisposalTime(MonotonicallyIncreasingTimeInMs());
-  MemoryReducer::Event event;
-  event.type = MemoryReducer::kContextDisposed;
-  event.time_ms = MonotonicallyIncreasingTimeInMs();
-  memory_reducer_->NotifyContextDisposed(event);
   return ++contexts_disposed_;
 }
 
