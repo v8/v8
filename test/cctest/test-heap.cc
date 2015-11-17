@@ -3674,19 +3674,16 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   v8::Local<v8::Value> fun1, fun2;
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   {
-    LocalContext env;
     CompileRun("function fun() {};");
-    fun1 = env->Global()->Get(env.local(), v8_str("fun")).ToLocalChecked();
+    fun1 = CcTest::global()->Get(ctx, v8_str("fun")).ToLocalChecked();
   }
 
   {
-    LocalContext env;
     CompileRun("function fun() {};");
-    fun2 = env->Global()->Get(env.local(), v8_str("fun")).ToLocalChecked();
+    fun2 = CcTest::global()->Get(ctx, v8_str("fun")).ToLocalChecked();
   }
 
-  // Prepare function f that contains type feedback for closures
-  // originating from two different native contexts.
+  // Prepare function f that contains type feedback for the two closures.
   CHECK(CcTest::global()->Set(ctx, v8_str("fun1"), fun1).FromJust());
   CHECK(CcTest::global()->Set(ctx, v8_str("fun2"), fun2).FromJust());
   CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");

@@ -38,8 +38,6 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
-    case IrOpcode::kJSCallFunction:
-      return ReduceJSCallFunction(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSStoreNamed:
@@ -50,56 +48,6 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSStoreProperty(node);
     default:
       break;
-  }
-  return NoChange();
-}
-
-
-Reduction JSNativeContextSpecialization::ReduceJSCallFunction(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
-  Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-
-  // Don't mess with JSCallFunction nodes that have a constant {target}.
-  if (HeapObjectMatcher(target).HasValue()) return NoChange();
-  if (!p.feedback().IsValid()) return NoChange();
-  CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-  Handle<Object> feedback(nexus.GetFeedback(), isolate());
-  if (feedback->IsWeakCell()) {
-    Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
-    if (cell->value()->IsJSFunction()) {
-      // Avoid cross-context leaks, meaning don't embed references to functions
-      // in other native contexts.
-      Handle<JSFunction> function(JSFunction::cast(cell->value()), isolate());
-      if (function->context()->native_context() != *native_context()) {
-        return NoChange();
-      }
-
-      // Check that the {target} is still the {target_function}.
-      Node* target_function = jsgraph()->HeapConstant(function);
-      Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                     target, target_function);
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                          effect, if_false);
-      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-      control = graph()->NewNode(common()->IfTrue(), branch);
-
-      // Specialize the JSCallFunction node to the {target_function}.
-      NodeProperties::ReplaceValueInput(node, target_function, 0);
-      NodeProperties::ReplaceControlInput(node, control);
-      return Changed(node);
-    }
-    // TODO(bmeurer): Also support optimizing bound functions and proxies here.
   }
   return NoChange();
 }

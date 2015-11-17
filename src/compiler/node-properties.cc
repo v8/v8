@@ -177,6 +177,15 @@ void NodeProperties::RemoveNonValueInputs(Node* node) {
 }
 
 
+// static
+void NodeProperties::RemoveValueInputs(Node* node) {
+  int value_input_count = node->op()->ValueInputCount();
+  while (--value_input_count >= 0) {
+    node->RemoveInput(value_input_count);
+  }
+}
+
+
 void NodeProperties::MergeControlToEnd(Graph* graph,
                                        CommonOperatorBuilder* common,
                                        Node* node) {

@@ -6,6 +6,7 @@
 
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
 #include "src/type-feedback-vector-inl.h"
 
@@ -38,22 +39,11 @@ VectorSlotPair CallCountFeedback(VectorSlotPair p) {
 
 
 Reduction JSCallReducer::Reduce(Node* node) {
-  if (node->opcode() == IrOpcode::kJSCallFunction) {
-    HeapObjectMatcher m(node->InputAt(0));
-    if (m.HasValue() && m.Value()->IsJSFunction()) {
-      Handle<SharedFunctionInfo> shared(
-          Handle<JSFunction>::cast(m.Value())->shared(), isolate());
-      if (shared->HasBuiltinFunctionId()) {
-        switch (shared->builtin_function_id()) {
-          case kFunctionApply:
-            return ReduceFunctionPrototypeApply(node);
-          case kFunctionCall:
-            return ReduceFunctionPrototypeCall(node);
-          default:
-            break;
-        }
-      }
-    }
+  switch (node->opcode()) {
+    case IrOpcode::kJSCallFunction:
+      return ReduceJSCallFunction(node);
+    default:
+      break;
   }
   return NoChange();
 }
@@ -133,7 +123,9 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   // to ensure any exception is thrown in the correct context.
   NodeProperties::ReplaceContextInput(
       node, jsgraph()->HeapConstant(handle(apply->context(), isolate())));
-  return Changed(node);
+  // Try to further reduce the JSCallFunction {node}.
+  Reduction const reduction = ReduceJSCallFunction(node);
+  return reduction.Changed() ? reduction : Changed(node);
 }
 
 
@@ -168,7 +160,88 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
       node, javascript()->CallFunction(arity, p.language_mode(),
                                        CallCountFeedback(p.feedback()),
                                        convert_mode, p.tail_call_mode()));
-  return Changed(node);
+  // Try to further reduce the JSCallFunction {node}.
+  Reduction const reduction = ReduceJSCallFunction(node);
+  return reduction.Changed() ? reduction : Changed(node);
+}
+
+
+Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+
+  // Try to specialize JSCallFunction {node}s with constant {target}s.
+  HeapObjectMatcher m(target);
+  if (m.HasValue()) {
+    if (m.Value()->IsJSFunction()) {
+      Handle<SharedFunctionInfo> shared(
+          Handle<JSFunction>::cast(m.Value())->shared(), isolate());
+
+      // Raise a TypeError if the {target} is a "classConstructor".
+      if (IsClassConstructor(shared->kind())) {
+        NodeProperties::RemoveFrameStateInput(node, 0);
+        NodeProperties::RemoveValueInputs(node);
+        NodeProperties::ChangeOp(
+            node, javascript()->CallRuntime(
+                      Runtime::kThrowConstructorNonCallableError, 0));
+        return Changed(node);
+      }
+
+      // Check for known builtin functions.
+      if (shared->HasBuiltinFunctionId()) {
+        switch (shared->builtin_function_id()) {
+          case kFunctionApply:
+            return ReduceFunctionPrototypeApply(node);
+          case kFunctionCall:
+            return ReduceFunctionPrototypeCall(node);
+          default:
+            break;
+        }
+      }
+    }
+    // Don't mess with other {node}s that have a constant {target}.
+    // TODO(bmeurer): Also support optimizing bound functions and proxies here.
+    return NoChange();
+  }
+
+  // Not much we can do if deoptimization support is disabled.
+  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+
+  // Extract feedback from the {node} using the CallICNexus.
+  if (!p.feedback().IsValid()) return NoChange();
+  CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  Handle<Object> feedback(nexus.GetFeedback(), isolate());
+  if (feedback->IsWeakCell()) {
+    Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
+    if (cell->value()->IsJSFunction()) {
+      // Check that the {target} is still the {target_function}.
+      Node* target_function = jsgraph()->HeapConstant(
+          handle(JSFunction::cast(cell->value()), isolate()));
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
+                                     target, target_function);
+      Node* branch =
+          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
+                                          effect, if_false);
+      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+      control = graph()->NewNode(common()->IfTrue(), branch);
+
+      // Specialize the JSCallFunction node to the {target_function}.
+      NodeProperties::ReplaceValueInput(node, target_function, 0);
+      NodeProperties::ReplaceControlInput(node, control);
+
+      // Try to further reduce the JSCallFunction {node}.
+      Reduction const reduction = ReduceJSCallFunction(node);
+      return reduction.Changed() ? reduction : Changed(node);
+    }
+  }
+  return NoChange();
 }
 
 
@@ -178,8 +251,18 @@ Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }
 Isolate* JSCallReducer::isolate() const { return jsgraph()->isolate(); }
 
 
+CommonOperatorBuilder* JSCallReducer::common() const {
+  return jsgraph()->common();
+}
+
+
 JSOperatorBuilder* JSCallReducer::javascript() const {
   return jsgraph()->javascript();
+}
+
+
+SimplifiedOperatorBuilder* JSCallReducer::simplified() const {
+  return jsgraph()->simplified();
 }
 
 }  // namespace compiler

@@ -2051,6 +2051,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ cmpp(rdi, rcx);
   __ j(equal, &miss);
 
+  // Make sure the function belongs to the same native context (which implies
+  // the same global object).
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kContextOffset));
+  __ movp(rcx, ContextOperand(rcx, Context::GLOBAL_OBJECT_INDEX));
+  __ cmpp(rcx, GlobalObjectOperand());
+  __ j(not_equal, &miss);
+
   // Update stats.
   __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(1));
 

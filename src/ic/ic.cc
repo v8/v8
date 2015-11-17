@@ -2310,6 +2310,12 @@ void CallIC::HandleMiss(Handle<Object> function) {
     if (array_function.is_identical_to(js_function)) {
       // Alter the slot.
       nexus->ConfigureMonomorphicArray();
+    } else if (js_function->context()->native_context() !=
+               *isolate()->native_context()) {
+      // Don't collect cross-native context feedback for the CallIC.
+      // TODO(bmeurer): We should collect the SharedFunctionInfo as
+      // feedback in this case instead.
+      nexus->ConfigureMegamorphic();
     } else {
       nexus->ConfigureMonomorphic(js_function);
     }

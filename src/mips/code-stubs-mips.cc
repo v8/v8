@@ -2682,6 +2682,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, t0);
   __ Branch(&miss, eq, a1, Operand(t0));
 
+  // Make sure the function belongs to the same native context (which implies
+  // the same global object).
+  __ lw(t0, FieldMemOperand(a1, JSFunction::kContextOffset));
+  __ lw(t0, ContextOperand(t0, Context::GLOBAL_OBJECT_INDEX));
+  __ lw(t1, GlobalObjectOperand());
+  __ Branch(&miss, ne, t0, Operand(t1));
+
   // Update stats.
   __ lw(t0, FieldMemOperand(a2, with_types_offset));
   __ Addu(t0, t0, Operand(Smi::FromInt(1)));

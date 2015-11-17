@@ -538,7 +538,10 @@ struct InliningPhase {
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    JSCallReducer call_reducer(data->jsgraph());
+    JSCallReducer call_reducer(data->jsgraph(),
+                               data->info()->is_deoptimization_enabled()
+                                   ? JSCallReducer::kDeoptimizationEnabled
+                                   : JSCallReducer::kNoFlags);
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_function_context_specializing()

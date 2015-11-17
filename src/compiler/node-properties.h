@@ -86,6 +86,7 @@ class NodeProperties final {
   static void ReplaceFrameStateInput(Node* node, int index, Node* frame_state);
   static void RemoveFrameStateInput(Node* node, int index);
   static void RemoveNonValueInputs(Node* node);
+  static void RemoveValueInputs(Node* node);
 
   // Merge the control node {node} into the end of the graph, introducing a
   // merge node or expanding an existing merge node if necessary.

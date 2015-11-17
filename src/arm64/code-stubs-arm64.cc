@@ -2945,6 +2945,14 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Cmp(function, x5);
   __ B(eq, &miss);
 
+  // Make sure the function belongs to the same native context (which implies
+  // the same global object).
+  __ Ldr(x4, FieldMemOperand(function, JSFunction::kContextOffset));
+  __ Ldr(x4, ContextMemOperand(x4, Context::GLOBAL_OBJECT_INDEX));
+  __ Ldr(x4, GlobalObjectMemOperand());
+  __ Cmp(x4, x5);
+  __ B(ne, &miss);
+
   // Update stats.
   __ Ldr(x4, FieldMemOperand(feedback_vector, with_types_offset));
   __ Adds(x4, x4, Operand(Smi::FromInt(1)));
