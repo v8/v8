@@ -3120,7 +3120,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   // constructor invocation.
   SetConstructCallPosition(expr);
 
-  // Load original constructor into r7.
+  // Load new target into r7.
   VisitForAccumulatorValue(super_call_ref->new_target_var());
   __ mr(r7, result_register());
 
@@ -3858,7 +3858,7 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   __ push(result_register());
   __ mr(r4, result_register());
 
-  // Load original constructor into r6.
+  // Load new target into r6.
   __ LoadP(r6, MemOperand(sp, 1 * kPointerSize));
 
   // Check if the calling frame is an arguments adaptor frame.
