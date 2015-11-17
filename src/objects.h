@@ -7321,11 +7321,11 @@ class JSFunction: public JSObject {
                             Handle<Object> prototype);
   inline bool has_initial_map();
   static void EnsureHasInitialMap(Handle<JSFunction> function);
-  // Ensures that the |original_constructor| has correct initial map and
-  // returns it. If the |original_constructor| is not a subclass constructor
+  // Ensures that the |new_target| has correct initial map and
+  // returns it. If the |new_target| is not a subclass constructor
   // its initial map is left unmodified.
-  static Handle<Map> EnsureDerivedHasInitialMap(
-      Handle<JSFunction> original_constructor, Handle<JSFunction> constructor);
+  static Handle<Map> EnsureDerivedHasInitialMap(Handle<JSFunction> new_target,
+                                                Handle<JSFunction> constructor);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial

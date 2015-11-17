@@ -207,7 +207,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0                     : number of arguments
   //  -- x1                     : constructor function
-  //  -- x3                     : original constructor
+  //  -- x3                     : new target
   //  -- lr                     : return address
   //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
   //  -- sp[argc * 8]           : receiver
@@ -247,7 +247,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ Bind(&done_convert);
   }
 
-  // 3. Check if original constructor and constructor differ.
+  // 3. Check if new target and constructor differ.
   Label new_object;
   __ Cmp(x1, x3);
   __ B(ne, &new_object);
@@ -257,7 +257,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  -- x2 : the first argument
     //  -- x1 : constructor function
-    //  -- x3 : original constructor
+    //  -- x3 : new target
     //  -- lr : return address
     // -----------------------------------
     __ Allocate(JSValue::kSize, x0, x4, x5, &new_object, TAG_OBJECT);
@@ -278,7 +278,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(x2, x1);  // first argument, constructor
-    __ Push(x1, x3);  // constructor, original constructor
+    __ Push(x1, x3);  // constructor, new target
     __ CallRuntime(Runtime::kNewObject, 2);
     __ Pop(x1, x2);
   }
@@ -339,7 +339,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- x0     : number of arguments
   //  -- x1     : constructor function
   //  -- x2     : allocation site or undefined
-  //  -- x3     : original constructor
+  //  -- x3     : new target
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
@@ -356,12 +356,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     Register argc = x0;
     Register constructor = x1;
     Register allocation_site = x2;
-    Register original_constructor = x3;
+    Register new_target = x3;
 
     // Preserve the incoming parameters on the stack.
     __ AssertUndefinedOrAllocationSite(allocation_site, x10);
     __ SmiTag(argc);
-    __ Push(allocation_site, argc, constructor, original_constructor);
+    __ Push(allocation_site, argc, constructor, new_target);
     // sp[0]: new.target
     // sp[1]: Constructor function.
     // sp[2]: number of arguments (smi-tagged)
@@ -377,14 +377,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Ldr(x2, MemOperand(x2));
       __ Cbnz(x2, &rt_call);
 
-      // Verify that the original constructor is a JSFunction.
-      __ JumpIfNotObjectType(original_constructor, x10, x11, JS_FUNCTION_TYPE,
-                             &rt_call);
+      // Verify that the new target is a JSFunction.
+      __ JumpIfNotObjectType(new_target, x10, x11, JS_FUNCTION_TYPE, &rt_call);
 
       // Load the initial map and verify that it is in fact a map.
       Register init_map = x2;
       __ Ldr(init_map,
-             FieldMemOperand(original_constructor,
+             FieldMemOperand(new_target,
                              JSFunction::kPrototypeOrInitialMapOffset));
       __ JumpIfSmi(init_map, &rt_call);
       __ JumpIfNotObjectType(init_map, x10, x11, MAP_TYPE, &rt_call);
@@ -516,16 +515,16 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Continue with JSObject being successfully allocated.
       __ B(&allocated);
 
-      // Reload the original constructor and fall-through.
+      // Reload the new target and fall-through.
       __ Bind(&rt_call_reload_new_target);
       __ Peek(x3, 0 * kXRegSize);
     }
 
     // Allocate the new receiver object using the runtime call.
     // x1: constructor function
-    // x3: original constructor
+    // x3: new target
     __ Bind(&rt_call);
-    __ Push(constructor, original_constructor);  // arguments 1-2
+    __ Push(constructor, new_target);  // arguments 1-2
     __ CallRuntime(Runtime::kNewObject, 2);
     __ Mov(x4, x0);
 
@@ -534,7 +533,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Bind(&allocated);
 
     // Restore the parameters.
-    __ Pop(original_constructor);
+    __ Pop(new_target);
     __ Pop(constructor);
 
     // Reload the number of arguments from the stack.
@@ -543,7 +542,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Peek(argc, 0);  // Load number of arguments.
     __ SmiUntag(argc);
 
-    __ Push(original_constructor, x4, x4);
+    __ Push(new_target, x4, x4);
 
     // Set up pointer to last argument.
     __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);
@@ -623,7 +622,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Bind(&exit);
     // x0: result
     // jssp[0]: receiver (newly allocated object)
-    // jssp[1]: new.target (original constructor)
+    // jssp[1]: new target
     // jssp[2]: number of arguments (smi-tagged)
     __ Peek(x1, 2 * kXRegSize);
 
@@ -652,7 +651,7 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- x0     : number of arguments
   //  -- x1     : constructor function
   //  -- x2     : allocation site or undefined
-  //  -- x3    : original constructor
+  //  -- x3     : new target
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
@@ -1703,7 +1702,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0 : the number of arguments (not including the receiver)
   //  -- x1 : the constructor to call (checked to be a JSFunction)
-  //  -- x3 : the original constructor (checked to be a JSFunction)
+  //  -- x3 : the new target (checked to be a JSFunction)
   // -----------------------------------
   __ AssertFunction(x1);
   __ AssertFunction(x3);
@@ -1726,7 +1725,7 @@ void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0 : the number of arguments (not including the receiver)
   //  -- x1 : the constructor to call (checked to be a JSFunctionProxy)
-  //  -- x3 : the original constructor (either the same as the constructor or
+  //  -- x3 : the new target (either the same as the constructor or
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
@@ -1741,7 +1740,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0 : the number of arguments (not including the receiver)
   //  -- x1 : the constructor to call (can be any Object)
-  //  -- x3 : the original constructor (either the same as the constructor or
+  //  -- x3 : the new target (either the same as the constructor or
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
@@ -1818,7 +1817,7 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   // -- x0 : argument count (not including receiver)
-  // -- x3 : original constructor
+  // -- x3 : new target
   // -- x1 : constructor to call
   // -- x2 : address of the first argument
   // -----------------------------------

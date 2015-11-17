@@ -186,7 +186,7 @@ void CallConstructDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // rax : number of arguments
   // rbx : feedback vector
-  // rcx : original constructor (for IsSuperConstructorCall)
+  // rcx : new target (for IsSuperConstructorCall)
   // rdx : slot in feedback vector (Smi, for RecordCallTarget)
   // rdi : constructor function
   // TODO(turbofan): So far we don't gather type feedback and hence skip the
@@ -410,7 +410,7 @@ void InterpreterPushArgsAndConstructDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       rax,  // argument count (not including receiver)
-      rdx,  // original constructor
+      rdx,  // new target
       rdi,  // constructor
       rbx,  // address of first argument
   };

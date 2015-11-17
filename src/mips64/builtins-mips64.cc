@@ -222,7 +222,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0                     : number of arguments
   //  -- a1                     : constructor function
-  //  -- a3                     : original constructor
+  //  -- a3                     : new target
   //  -- ra                     : return address
   //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
   //  -- sp[argc * 8]           : receiver
@@ -264,7 +264,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&done_convert);
   }
 
-  // 3. Check if original constructor and constructor differ.
+  // 3. Check if new target and constructor differ.
   Label new_object;
   __ Branch(&new_object, ne, a1, Operand(a3));
 
@@ -273,7 +273,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  -- a0 : the first argument
     //  -- a1 : constructor function
-    //  -- a3 : original constructor
+    //  -- a3 : new target
     //  -- ra : return address
     // -----------------------------------
     __ Allocate(JSValue::kSize, v0, a2, t0, &new_object, TAG_OBJECT);
@@ -293,7 +293,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   __ bind(&new_object);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(a0, a1, a3);  // first argument, constructor, original constructor
+    __ Push(a0, a1, a3);  // first argument, constructor, new target
     __ CallRuntime(Runtime::kNewObject, 2);
     __ Pop(a0);
   }
@@ -353,7 +353,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- a0     : number of arguments
   //  -- a1     : constructor function
   //  -- a2     : allocation site or undefined
-  //  -- a3     : original constructor
+  //  -- a3     : new target
   //  -- ra     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
@@ -379,12 +379,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ ld(a2, MemOperand(a2));
       __ Branch(&rt_call, ne, a2, Operand(zero_reg));
 
-      // Verify that the original constructor is a JSFunction.
+      // Verify that the new target is a JSFunction.
       __ GetObjectType(a3, a5, a4);
       __ Branch(&rt_call, ne, a4, Operand(JS_FUNCTION_TYPE));
 
       // Load the initial map and verify that it is in fact a map.
-      // a3: original constructor
+      // a3: new target
       __ ld(a2, FieldMemOperand(a3, JSFunction::kPrototypeOrInitialMapOffset));
       __ JumpIfSmi(a2, &rt_call);
       __ GetObjectType(a2, t1, t0);
@@ -505,17 +505,17 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // a4: JSObject
       __ jmp(&allocated);
 
-      // Reload the original constructor and fall-through.
+      // Reload the new target and fall-through.
       __ bind(&rt_call_reload_new_target);
       __ ld(a3, MemOperand(sp, 0 * kPointerSize));
     }
 
     // Allocate the new receiver object using the runtime call.
     // a1: constructor function
-    // a3: original constructor
+    // a3: new target
     __ bind(&rt_call);
 
-    __ Push(a1, a3);  // constructor function, original constructor
+    __ Push(a1, a3);  // constructor function, new target
     __ CallRuntime(Runtime::kNewObject, 2);
     __ mov(t0, v0);
 
@@ -604,7 +604,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&exit);
     // v0: result
     // sp[0]: receiver (newly allocated object)
-    // sp[1]: new.target (original constructor)
+    // sp[1]: new target
     // sp[2]: number of arguments (smi-tagged)
     __ ld(a1, MemOperand(sp, 2 * kPointerSize));
 
@@ -634,7 +634,7 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- a0     : number of arguments
   //  -- a1     : constructor function
   //  -- a2     : allocation site or undefined
-  //  -- a3     : original constructor
+  //  -- a3     : new target
   //  -- ra     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
@@ -1003,7 +1003,7 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   // -- a0 : argument count (not including receiver)
-  // -- a3 : original constructor
+  // -- a3 : new target
   // -- a1 : constructor to call
   // -- a2 : address of the first argument
   // -----------------------------------
@@ -1717,7 +1717,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a1 : the constructor to call (checked to be a JSFunction)
-  //  -- a3 : the original constructor (checked to be a JSFunction)
+  //  -- a3 : the new target (checked to be a JSFunction)
   // -----------------------------------
   __ AssertFunction(a1);
   __ AssertFunction(a3);
@@ -1740,7 +1740,7 @@ void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a1 : the constructor to call (checked to be a JSFunctionProxy)
-  //  -- a3 : the original constructor (either the same as the constructor or
+  //  -- a3 : the new target (either the same as the constructor or
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
@@ -1755,7 +1755,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a1 : the constructor to call (can be any Object)
-  //  -- a3 : the original constructor (either the same as the constructor or
+  //  -- a3 : the new target (either the same as the constructor or
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 

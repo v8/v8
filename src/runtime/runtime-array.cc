@@ -235,7 +235,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
 
 static Object* ArrayConstructorCommon(Isolate* isolate,
                                       Handle<JSFunction> constructor,
-                                      Handle<JSFunction> original_constructor,
+                                      Handle<JSFunction> new_target,
                                       Handle<AllocationSite> site,
                                       Arguments* caller_args) {
   Factory* factory = isolate->factory();
@@ -317,10 +317,9 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
   // Set up the prototoype using original function.
   // TODO(dslomov): instead of setting the __proto__,
   // use and cache the correct map.
-  if (*original_constructor != *constructor) {
-    if (original_constructor->has_instance_prototype()) {
-      Handle<Object> prototype =
-          handle(original_constructor->instance_prototype(), isolate);
+  if (*new_target != *constructor) {
+    if (new_target->has_instance_prototype()) {
+      Handle<Object> prototype(new_target->instance_prototype(), isolate);
       MAYBE_RETURN(JSObject::SetPrototype(array, prototype, false,
                                           Object::THROW_ON_ERROR),
                    isolate->heap()->exception());
@@ -377,9 +376,9 @@ RUNTIME_FUNCTION(Runtime_ArrayConstructorWithSubclassing) {
   CHECK(last_arg_index >= 0);
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, pre_last_arg_index);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, original_constructor, last_arg_index);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, new_target, last_arg_index);
   Arguments caller_args(args_length - 2, args.arguments());
-  return ArrayConstructorCommon(isolate, constructor, original_constructor,
+  return ArrayConstructorCommon(isolate, constructor, new_target,
                                 Handle<AllocationSite>::null(), &caller_args);
 }
 

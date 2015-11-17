@@ -2395,7 +2395,7 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
   // a2 : feedback vector
   // a3 : slot in feedback vector (Smi)
   // a1 : the function to call
-  // t0 : original constructor (for IsSuperConstructorCall)
+  // t0 : new target (for IsSuperConstructorCall)
   FrameScope scope(masm, StackFrame::INTERNAL);
   const RegList kSavedRegs = 1 << 4 |                   // a0
                              1 << 5 |                   // a1
@@ -2422,7 +2422,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   // a1 : the function to call
   // a2 : feedback vector
   // a3 : slot in feedback vector (Smi)
-  // t0 : original constructor (for IsSuperConstructorCall)
+  // t0 : new target (for IsSuperConstructorCall)
   Label initialize, done, miss, megamorphic, not_array_function;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
@@ -2507,7 +2507,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // a1 : the function to call
   // a2 : feedback vector
   // a3 : slot in feedback vector (Smi, for RecordCallTarget)
-  // t0 : original constructor (for IsSuperConstructorCall)
+  // t0 : new target (for IsSuperConstructorCall)
 
   Label non_function;
   // Check that the function is not a smi.
@@ -2533,7 +2533,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(a2, t1);
   }
 
-  // Pass function as original constructor.
+  // Pass function as new target.
   if (IsSuperConstructorCall()) {
     __ mov(a3, t0);
   } else {

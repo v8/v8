@@ -52,7 +52,7 @@ RUNTIME_FUNCTION(Runtime_CompleteFunctionConstruction) {
   DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, new_target, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, unchecked_new_target, 2);
   func->shared()->set_name_should_print_as_anonymous(true);
 
   // If new.target is equal to |constructor| then the function |func| created
@@ -61,18 +61,19 @@ RUNTIME_FUNCTION(Runtime_CompleteFunctionConstruction) {
   // Function builtin subclassing case and therefore the function |func|
   // has wrong initial map. To fix that we create a new function object with
   // correct initial map.
-  if (new_target->IsUndefined() || *constructor == *new_target) {
+  if (unchecked_new_target->IsUndefined() ||
+      *constructor == *unchecked_new_target) {
     return *func;
   }
 
   // Create a new JSFunction object with correct initial map.
   HandleScope handle_scope(isolate);
-  Handle<JSFunction> original_constructor =
-      Handle<JSFunction>::cast(new_target);
+  Handle<JSFunction> new_target =
+      Handle<JSFunction>::cast(unchecked_new_target);
 
   DCHECK(constructor->has_initial_map());
   Handle<Map> initial_map =
-      JSFunction::EnsureDerivedHasInitialMap(original_constructor, constructor);
+      JSFunction::EnsureDerivedHasInitialMap(new_target, constructor);
 
   Handle<SharedFunctionInfo> shared_info(func->shared(), isolate);
   Handle<Context> context(func->context(), isolate);

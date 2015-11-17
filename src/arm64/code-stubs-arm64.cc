@@ -2622,13 +2622,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
                                        Register argc, Register function,
                                        Register feedback_vector, Register index,
-                                       Register orig_construct, bool is_super) {
+                                       Register new_target, bool is_super) {
   FrameScope scope(masm, StackFrame::INTERNAL);
 
   // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(argc);
   if (is_super) {
-    __ Push(argc, function, feedback_vector, index, orig_construct);
+    __ Push(argc, function, feedback_vector, index, new_target);
   } else {
     __ Push(argc, function, feedback_vector, index);
   }
@@ -2637,7 +2637,7 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
   __ CallStub(stub);
 
   if (is_super) {
-    __ Pop(orig_construct, index, feedback_vector, function, argc);
+    __ Pop(new_target, index, feedback_vector, function, argc);
   } else {
     __ Pop(index, feedback_vector, function, argc);
   }
@@ -2648,19 +2648,19 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
 static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
                                      Register function,
                                      Register feedback_vector, Register index,
-                                     Register orig_construct, Register scratch1,
+                                     Register new_target, Register scratch1,
                                      Register scratch2, Register scratch3,
                                      bool is_super) {
   ASM_LOCATION("GenerateRecordCallTarget");
   DCHECK(!AreAliased(scratch1, scratch2, scratch3, argc, function,
-                     feedback_vector, index, orig_construct));
+                     feedback_vector, index, new_target));
   // Cache the called function in a feedback vector slot. Cache states are
   // uninitialized, monomorphic (indicated by a JSFunction), and megamorphic.
   //  argc :            number of arguments to the construct function
   //  function :        the function to call
   //  feedback_vector : the feedback vector
   //  index :           slot in feedback vector (smi)
-  //  orig_construct :  original constructor (for IsSuperConstructorCall)
+  //  new_target :      new target (for IsSuperConstructorCall)
   Label initialize, done, miss, megamorphic, not_array_function;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
@@ -2736,13 +2736,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
   // slot.
   CreateAllocationSiteStub create_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &create_stub, argc, function,
-                             feedback_vector, index, orig_construct, is_super);
+                             feedback_vector, index, new_target, is_super);
   __ B(&done);
 
   __ Bind(&not_array_function);
   CreateWeakCellStub weak_cell_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &weak_cell_stub, argc, function,
-                             feedback_vector, index, orig_construct, is_super);
+                             feedback_vector, index, new_target, is_super);
   __ Bind(&done);
 }
 
@@ -2753,7 +2753,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // x1 : the function to call
   // x2 : feedback vector
   // x3 : slot in feedback vector (Smi, for RecordCallTarget)
-  // x4 : original constructor (for IsSuperConstructorCall)
+  // x4 : new target (for IsSuperConstructorCall)
   Register function = x1;
 
   Label non_function;
@@ -2828,9 +2828,9 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
 
   // Set up arguments for the array constructor stub.
   Register allocation_site_arg = feedback_vector;
-  Register original_constructor_arg = index;
+  Register new_target_arg = index;
   __ Mov(allocation_site_arg, allocation_site);
-  __ Mov(original_constructor_arg, function);
+  __ Mov(new_target_arg, function);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
 }
@@ -5238,12 +5238,12 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   //  -- x0 : argc (only if argument_count() is ANY or MORE_THAN_ONE)
   //  -- x1 : constructor
   //  -- x2 : AllocationSite or undefined
-  //  -- x3 : original constructor
+  //  -- x3 : new target
   //  -- sp[0] : last argument
   // -----------------------------------
   Register constructor = x1;
   Register allocation_site = x2;
-  Register original_constructor = x3;
+  Register new_target = x3;
 
   if (FLAG_debug_code) {
     // The array construct code is only set for the global and natives
@@ -5266,7 +5266,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   }
 
   Label subclassing;
-  __ Cmp(original_constructor, constructor);
+  __ Cmp(new_target, constructor);
   __ B(ne, &subclassing);
 
   Register kind = x3;
@@ -5285,7 +5285,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   // Subclassing support.
   __ Bind(&subclassing);
-  __ Push(constructor, original_constructor);
+  __ Push(constructor, new_target);
   // Adjust argc.
   switch (argument_count()) {
     case ANY:

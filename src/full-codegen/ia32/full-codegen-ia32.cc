@@ -3013,7 +3013,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   // constructor invocation.
   SetConstructCallPosition(expr);
 
-  // Load original constructor into ecx.
+  // Load new target into ecx.
   VisitForAccumulatorValue(super_call_ref->new_target_var());
   __ mov(ecx, result_register());
 

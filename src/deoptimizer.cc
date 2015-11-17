@@ -1235,7 +1235,7 @@ void Deoptimizer::DoComputeConstructStubFrame(int frame_index) {
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
 
-  // The original constructor.
+  // The new target.
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(isolate_->heap()->undefined_value());
   output_frame->SetFrameSlot(output_offset, value);

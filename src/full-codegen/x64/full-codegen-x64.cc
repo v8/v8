@@ -3004,7 +3004,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   // constructor invocation.
   SetConstructCallPosition(expr);
 
-  // Load original constructor into rcx.
+  // Load new target into rcx.
   VisitForAccumulatorValue(super_call_ref->new_target_var());
   __ movp(rcx, result_register());
 

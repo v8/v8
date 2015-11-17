@@ -11940,36 +11940,36 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 
 
 Handle<Map> JSFunction::EnsureDerivedHasInitialMap(
-    Handle<JSFunction> original_constructor, Handle<JSFunction> constructor) {
+    Handle<JSFunction> new_target, Handle<JSFunction> constructor) {
   DCHECK(constructor->has_initial_map());
   Isolate* isolate = constructor->GetIsolate();
   Handle<Map> constructor_initial_map(constructor->initial_map(), isolate);
-  if (*original_constructor == *constructor) return constructor_initial_map;
-  if (original_constructor->has_initial_map()) {
-    // Check that |original_constructor|'s initial map still in sync with
+  if (*new_target == *constructor) return constructor_initial_map;
+  if (new_target->has_initial_map()) {
+    // Check that |new_target|'s initial map still in sync with
     // the |constructor|, otherwise we must create a new initial map for
-    // |original_constructor|.
-    if (original_constructor->initial_map()->GetConstructor() == *constructor) {
-      return handle(original_constructor->initial_map(), isolate);
+    // |new_target|.
+    if (new_target->initial_map()->GetConstructor() == *constructor) {
+      return handle(new_target->initial_map(), isolate);
     }
   }
 
   // First create a new map with the size and number of in-object properties
   // suggested by the function.
-  DCHECK(!original_constructor->shared()->is_generator());
+  DCHECK(!new_target->shared()->is_generator());
   DCHECK(!constructor->shared()->is_generator());
 
   // Fetch or allocate prototype.
   Handle<Object> prototype;
-  if (original_constructor->has_instance_prototype()) {
-    prototype = handle(original_constructor->instance_prototype(), isolate);
+  if (new_target->has_instance_prototype()) {
+    prototype = handle(new_target->instance_prototype(), isolate);
   } else {
-    prototype = isolate->factory()->NewFunctionPrototype(original_constructor);
+    prototype = isolate->factory()->NewFunctionPrototype(new_target);
   }
 
   // Finally link initial map and constructor function if the original
   // constructor is actually a subclass constructor.
-  if (IsSubclassConstructor(original_constructor->shared()->kind())) {
+  if (IsSubclassConstructor(new_target->shared()->kind())) {
 // TODO(ishell): v8:4531, allow ES6 built-ins subclasses to have
 // in-object properties.
 #if 0
@@ -11980,7 +11980,7 @@ Handle<Map> JSFunction::EnsureDerivedHasInitialMap(
                             constructor_initial_map->unused_property_fields();
     int instance_size;
     int in_object_properties;
-    original_constructor->CalculateInstanceSizeForDerivedClass(
+    new_target->CalculateInstanceSizeForDerivedClass(
         instance_type, internal_fields, &instance_size, &in_object_properties);
 
     int unused_property_fields = in_object_properties - pre_allocated;
@@ -11990,9 +11990,9 @@ Handle<Map> JSFunction::EnsureDerivedHasInitialMap(
 #endif
     Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
 
-    JSFunction::SetInitialMap(original_constructor, map, prototype);
+    JSFunction::SetInitialMap(new_target, map, prototype);
     map->SetConstructor(*constructor);
-    original_constructor->StartInobjectSlackTracking();
+    new_target->StartInobjectSlackTracking();
     return map;
 
   } else {

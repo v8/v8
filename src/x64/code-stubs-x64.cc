@@ -1757,7 +1757,7 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
                                        bool is_super) {
   // rax : number of arguments to the construct function
   // rbx : feedback vector
-  // rcx : original constructor (for IsSuperConstructorCall)
+  // rcx : new target (for IsSuperConstructorCall)
   // rdx : slot in feedback vector (Smi)
   // rdi : the function to call
   FrameScope scope(masm, StackFrame::INTERNAL);
@@ -1792,7 +1792,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   // megamorphic.
   // rax : number of arguments to the construct function
   // rbx : feedback vector
-  // rcx : original constructor (for IsSuperConstructorCall)
+  // rcx : new target (for IsSuperConstructorCall)
   // rdx : slot in feedback vector (Smi)
   // rdi : the function to call
   Isolate* isolate = masm->isolate();
@@ -1878,7 +1878,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
 void CallConstructStub::Generate(MacroAssembler* masm) {
   // rax : number of arguments
   // rbx : feedback vector
-  // rcx : original constructor (for IsSuperConstructorCall)
+  // rcx : new target (for IsSuperConstructorCall)
   // rdx : slot in feedback vector (Smi, for RecordCallTarget)
   // rdi : constructor function
 
@@ -1905,7 +1905,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(rbx);
   }
 
-  // Pass original constructor to construct stub.
+  // Pass new target to construct stub.
   if (IsSuperConstructorCall()) {
     __ movp(rdx, rcx);
   } else {
@@ -4770,7 +4770,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   //  -- rax    : argc
   //  -- rbx    : AllocationSite or undefined
   //  -- rdi    : constructor
-  //  -- rdx    : original constructor
+  //  -- rdx    : new target
   //  -- rsp[0] : return address
   //  -- rsp[8] : last argument
   // -----------------------------------

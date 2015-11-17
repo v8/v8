@@ -105,11 +105,11 @@ class InterpreterAssembler {
 
   // Call constructor |constructor| with |arg_count| arguments (not
   // including receiver) and the first argument located at
-  // |first_arg|. The |original_constructor| is the same as the
+  // |first_arg|. The |new_target| is the same as the
   // |constructor| for the new keyword, but differs for the super
   // keyword.
-  Node* CallConstruct(Node* original_constructor, Node* constructor,
-                      Node* first_arg, Node* arg_count);
+  Node* CallConstruct(Node* new_target, Node* constructor, Node* first_arg,
+                      Node* arg_count);
 
   // Call JSFunction or Callable |function| with |arg_count|
   // arguments (not including receiver) and the first argument

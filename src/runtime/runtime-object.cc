@@ -984,7 +984,7 @@ RUNTIME_FUNCTION(Runtime_AllocateHeapNumber) {
 
 static Object* Runtime_NewObjectHelper(Isolate* isolate,
                                        Handle<Object> constructor,
-                                       Handle<Object> original_constructor,
+                                       Handle<Object> new_target,
                                        Handle<AllocationSite> site) {
   // If the constructor isn't a proper function we throw a type error.
   if (!constructor->IsJSFunction()) {
@@ -994,9 +994,8 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
 
   Handle<JSFunction> function = Handle<JSFunction>::cast(constructor);
 
-  CHECK(original_constructor->IsJSFunction());
-  Handle<JSFunction> original_function =
-      Handle<JSFunction>::cast(original_constructor);
+  CHECK(new_target->IsJSFunction());
+  Handle<JSFunction> original_function = Handle<JSFunction>::cast(new_target);
 
 
   // Check that function is a constructor.
@@ -1038,8 +1037,8 @@ RUNTIME_FUNCTION(Runtime_NewObject) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, original_constructor, 1);
-  return Runtime_NewObjectHelper(isolate, constructor, original_constructor,
+  CONVERT_ARG_HANDLE_CHECKED(Object, new_target, 1);
+  return Runtime_NewObjectHelper(isolate, constructor, new_target,
                                  Handle<AllocationSite>::null());
 }
 

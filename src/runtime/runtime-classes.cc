@@ -496,7 +496,7 @@ RUNTIME_FUNCTION(Runtime_HandleStepInForDerivedConstructors) {
 RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, original_constructor, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, new_target, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, super_constructor, 1);
   JavaScriptFrameIterator it(isolate);
 
@@ -507,9 +507,8 @@ RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::New(isolate, super_constructor, original_constructor,
-                     argument_count, arguments.get()));
+      isolate, result, Execution::New(isolate, super_constructor, new_target,
+                                      argument_count, arguments.get()));
 
   return *result;
 }

@@ -124,7 +124,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- rax: number of arguments
   //  -- rdi: constructor function
   //  -- rbx: allocation site or undefined
-  //  -- rdx: original constructor
+  //  -- rdx: new target
   // -----------------------------------
 
   // Enter a construct frame.
@@ -149,12 +149,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ cmpp(Operand(kScratchRegister, 0), Immediate(0));
       __ j(not_equal, &rt_call);
 
-      // Verify that the original constructor is a JSFunction.
+      // Verify that the new target is a JSFunction.
       __ CmpObjectType(rdx, JS_FUNCTION_TYPE, rbx);
       __ j(not_equal, &rt_call);
 
       // Load the initial map and verify that it is in fact a map.
-      // rdx: original constructor
+      // rdx: new target
       __ movp(rax, FieldOperand(rdx, JSFunction::kPrototypeOrInitialMapOffset));
       // Will both indicate a NULL and a Smi
       DCHECK(kSmiTag == 0);
@@ -274,7 +274,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Allocate the new receiver object using the runtime call.
-    // rdx: original constructor
+    // rdx: new target
     __ bind(&rt_call);
     int offset = kPointerSize;
 
@@ -282,7 +282,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ movp(rdi, Operand(rsp, offset));
     __ Push(rdi);  // constructor function
-    __ Push(rdx);  // original constructor
+    __ Push(rdx);  // new target
     __ CallRuntime(Runtime::kNewObject, 2);
     __ movp(rbx, rax);  // store result in rbx
 
@@ -392,7 +392,7 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- rax: number of arguments
   //  -- rdi: constructor function
   //  -- rbx: allocation site or undefined
-  //  -- rdx: original constructor
+  //  -- rdx: new target
   // -----------------------------------
 
   {
@@ -833,7 +833,7 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
-  //  -- rdx : the original constructor (either the same as the constructor or
+  //  -- rdx : the new target (either the same as the constructor or
   //           the JSFunction on which new was invoked initially)
   //  -- rdi : the constructor to call (can be any Object)
   //  -- rbx : the address of the first argument to be pushed. Subsequent
@@ -1213,7 +1213,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
 
   // Stack at entry:
   // rsp     : return address
-  // rsp[8]  : original constructor (new.target)
+  // rsp[8]  : new target
   // rsp[16] : arguments
   // rsp[24] : constructor
   {
@@ -1221,7 +1221,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     // Stack frame:
     // rbp     : Old base pointer
     // rbp[8]  : return address
-    // rbp[16] : original constructor (new.target)
+    // rbp[16] : new target
     // rbp[24] : arguments
     // rbp[32] : constructor
     static const int kNewTargetOffset = kFPOnStackSize + kPCOnStackSize;
@@ -1424,7 +1424,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments
   //  -- rdi                 : constructor function
-  //  -- rdx                 : original constructor
+  //  -- rdx                 : new target
   //  -- rsp[0]              : return address
   //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- rsp[(argc + 1) * 8] : receiver
@@ -1468,7 +1468,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&done_convert);
   }
 
-  // 3. Check if original constructor and constructor differ.
+  // 3. Check if new target and constructor differ.
   Label new_object;
   __ cmpp(rdx, rdi);
   __ j(not_equal, &new_object);
@@ -1478,7 +1478,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  -- rbx : the first argument
     //  -- rdi : constructor function
-    //  -- rdx : original constructor
+    //  -- rdx : new target
     // -----------------------------------
     __ Allocate(JSValue::kSize, rax, rcx, no_reg, &new_object, TAG_OBJECT);
 
@@ -1499,7 +1499,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(rbx);  // the first argument
     __ Push(rdi);  // constructor function
-    __ Push(rdx);  // original constructor
+    __ Push(rdx);  // new target
     __ CallRuntime(Runtime::kNewObject, 2);
     __ Pop(FieldOperand(rax, JSValue::kValueOffset));
   }
@@ -1868,7 +1868,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
-  //  -- rdx : the original constructor (checked to be a JSFunction)
+  //  -- rdx : the new target (checked to be a JSFunction)
   //  -- rdi : the constructor to call (checked to be a JSFunction)
   // -----------------------------------
   __ AssertFunction(rdx);
@@ -1891,7 +1891,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
-  //  -- rdx : the original constructor (either the same as the constructor or
+  //  -- rdx : the new target (either the same as the constructor or
   //           the JSFunction on which new was invoked initially)
   //  -- rdi : the constructor to call (checked to be a JSFunctionProxy)
   // -----------------------------------
@@ -1906,7 +1906,7 @@ void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
 void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
-  //  -- rdx : the original constructor (either the same as the constructor or
+  //  -- rdx : the new target (either the same as the constructor or
   //           the JSFunction on which new was invoked initially)
   //  -- rdi : the constructor to call (can be any Object)
   // -----------------------------------
