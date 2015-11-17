@@ -20,27 +20,30 @@
 
 // Macros for function types.
 #define FUNC_V_TYPE Bounds(Type::Function(Type::Undefined(), zone))
-#define FUNC_I_TYPE Bounds(Type::Function(cache.kInt32, zone))
-#define FUNC_F_TYPE Bounds(Type::Function(cache.kFloat32, zone))
-#define FUNC_D_TYPE Bounds(Type::Function(cache.kFloat64, zone))
+#define FUNC_I_TYPE Bounds(Type::Function(cache.kAsmSigned, zone))
+#define FUNC_F_TYPE Bounds(Type::Function(cache.kAsmFloat, zone))
+#define FUNC_D_TYPE Bounds(Type::Function(cache.kAsmDouble, zone))
 #define FUNC_D2D_TYPE \
-  Bounds(Type::Function(cache.kFloat64, cache.kFloat64, zone))
+  Bounds(Type::Function(cache.kAsmDouble, cache.kAsmDouble, zone))
 #define FUNC_N2F_TYPE \
-  Bounds(Type::Function(cache.kFloat32, Type::Number(), zone))
-#define FUNC_I2I_TYPE Bounds(Type::Function(cache.kInt32, cache.kInt32, zone))
+  Bounds(Type::Function(cache.kAsmFloat, Type::Number(), zone))
+#define FUNC_I2I_TYPE \
+  Bounds(Type::Function(cache.kAsmSigned, cache.kAsmInt, zone))
 #define FUNC_II2D_TYPE \
-  Bounds(Type::Function(cache.kFloat64, cache.kInt32, cache.kInt32, zone))
+  Bounds(Type::Function(cache.kAsmDouble, cache.kAsmInt, cache.kAsmInt, zone))
 #define FUNC_II2I_TYPE \
-  Bounds(Type::Function(cache.kInt32, cache.kInt32, cache.kInt32, zone))
-#define FUNC_DD2D_TYPE \
-  Bounds(Type::Function(cache.kFloat64, cache.kFloat64, cache.kFloat64, zone))
+  Bounds(Type::Function(cache.kAsmSigned, cache.kAsmInt, cache.kAsmInt, zone))
+#define FUNC_DD2D_TYPE                                                        \
+  Bounds(Type::Function(cache.kAsmDouble, cache.kAsmDouble, cache.kAsmDouble, \
+                        zone))
 #define FUNC_N2N_TYPE \
   Bounds(Type::Function(Type::Number(), Type::Number(), zone))
 
 // Macros for array types.
-#define FLOAT64_ARRAY_TYPE Bounds(Type::Array(cache.kFloat64, zone))
-#define FUNC_I2I_ARRAY_TYPE \
-  Bounds(Type::Array(Type::Function(cache.kInt32, cache.kInt32, zone), zone))
+#define FLOAT64_ARRAY_TYPE Bounds(Type::Array(cache.kAsmDouble, zone))
+#define FUNC_I2I_ARRAY_TYPE                                                 \
+  Bounds(Type::Array(Type::Function(cache.kAsmSigned, cache.kAsmInt, zone), \
+                     zone))
 
 using namespace v8::internal;
 
@@ -126,139 +129,139 @@ TEST(ValidateMinimum) {
     CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
       // function logSum
       CHECK_EXPR(FunctionLiteral, FUNC_II2D_TYPE) {
-        CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-          CHECK_VAR(start, Bounds(cache.kInt32));
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_VAR(start, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(start, Bounds(cache.kAsmInt));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(start, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
-        CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-          CHECK_VAR(end, Bounds(cache.kInt32));
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_VAR(end, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(end, Bounds(cache.kAsmInt));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(end, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
-        CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
-          CHECK_VAR(sum, Bounds(cache.kFloat64));
-          CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+          CHECK_VAR(sum, Bounds(cache.kAsmDouble));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
         }
-        CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-          CHECK_VAR(p, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(p, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
-        CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-          CHECK_VAR(q, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(q, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
         // for (p = start << 3, q = end << 3;
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-            CHECK_VAR(p, Bounds(cache.kInt32));
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-              CHECK_VAR(start, Bounds(cache.kInt32));
-              CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+          CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+            CHECK_VAR(p, Bounds(cache.kAsmInt));
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+              CHECK_VAR(start, Bounds(cache.kAsmInt));
+              CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
             }
           }
-          CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-            CHECK_VAR(q, Bounds(cache.kInt32));
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-              CHECK_VAR(end, Bounds(cache.kInt32));
-              CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+            CHECK_VAR(q, Bounds(cache.kAsmInt));
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+              CHECK_VAR(end, Bounds(cache.kAsmInt));
+              CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
             }
           }
         }
         // (p|0) < (q|0);
-        CHECK_EXPR(CompareOperation, Bounds(cache.kInt32)) {
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_VAR(p, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(CompareOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(p, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_VAR(q, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(q, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
         // p = (p + 8)|0) {\n"
-        CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-          CHECK_VAR(p, Bounds(cache.kInt32));
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-              CHECK_VAR(p, Bounds(cache.kInt32));
-              CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(p, Bounds(cache.kAsmInt));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+              CHECK_VAR(p, Bounds(cache.kAsmInt));
+              CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
             }
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
         // sum = sum + +log(values[p>>3]);
-        CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
-          CHECK_VAR(sum, Bounds(cache.kFloat64));
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kFloat64)) {
-            CHECK_VAR(sum, Bounds(cache.kFloat64));
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kFloat64)) {
-              CHECK_EXPR(Call, Bounds(cache.kFloat64)) {
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+          CHECK_VAR(sum, Bounds(cache.kAsmDouble));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+            CHECK_VAR(sum, Bounds(cache.kAsmDouble));
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+              CHECK_EXPR(Call, Bounds(cache.kAsmDouble)) {
                 CHECK_VAR(log, FUNC_D2D_TYPE);
-                CHECK_EXPR(Property, Bounds(cache.kFloat64)) {
+                CHECK_EXPR(Property, Bounds(cache.kAsmDouble)) {
                   CHECK_VAR(values, FLOAT64_ARRAY_TYPE);
-                  CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-                    CHECK_VAR(p, Bounds(cache.kInt32));
-                    CHECK_EXPR(Literal, Bounds(cache.kInt32));
+                  CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+                    CHECK_VAR(p, Bounds(cache.kAsmSigned));
+                    CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
                   }
                 }
               }
-              CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+              CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
             }
           }
         }
         // return +sum;
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kFloat64)) {
-          CHECK_VAR(sum, Bounds(cache.kFloat64));
-          CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+          CHECK_VAR(sum, Bounds(cache.kAsmDouble));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
         }
       }
       // function geometricMean
       CHECK_EXPR(FunctionLiteral, FUNC_II2D_TYPE) {
-        CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-          CHECK_VAR(start, Bounds(cache.kInt32));
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_VAR(start, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(start, Bounds(cache.kAsmInt));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(start, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
-        CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-          CHECK_VAR(end, Bounds(cache.kInt32));
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_VAR(end, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(end, Bounds(cache.kAsmInt));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(end, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
         // return +exp(+logSum(start, end) / +((end - start)|0));
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kFloat64)) {
-          CHECK_EXPR(Call, Bounds(cache.kFloat64)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+          CHECK_EXPR(Call, Bounds(cache.kAsmDouble)) {
             CHECK_VAR(exp, FUNC_D2D_TYPE);
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kFloat64)) {
-              CHECK_EXPR(BinaryOperation, Bounds(cache.kFloat64)) {
-                CHECK_EXPR(Call, Bounds(cache.kFloat64)) {
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+              CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+                CHECK_EXPR(Call, Bounds(cache.kAsmDouble)) {
                   CHECK_VAR(logSum, FUNC_II2D_TYPE);
-                  CHECK_VAR(start, Bounds(cache.kInt32));
-                  CHECK_VAR(end, Bounds(cache.kInt32));
+                  CHECK_VAR(start, Bounds(cache.kAsmInt));
+                  CHECK_VAR(end, Bounds(cache.kAsmInt));
                 }
-                CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+                CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
               }
-              CHECK_EXPR(BinaryOperation, Bounds(cache.kFloat64)) {
-                CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-                  CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-                    CHECK_VAR(end, Bounds(cache.kInt32));
-                    CHECK_VAR(start, Bounds(cache.kInt32));
+              CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+                CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+                  CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+                    CHECK_VAR(end, Bounds(cache.kAsmInt));
+                    CHECK_VAR(start, Bounds(cache.kAsmInt));
                   }
-                  CHECK_EXPR(Literal, Bounds(cache.kInt32));
+                  CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
                 }
-                CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+                CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
               }
             }
           }
-          CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
         }
       }
       // "use asm";
@@ -400,8 +403,8 @@ namespace {
 void CheckStdlibShortcuts(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
                           size_t& index, int& depth, TypeCache& cache) {
   // var exp = stdlib.*; (D * 12)
-  CHECK_VAR_SHORTCUT(Infinity, Bounds(cache.kFloat64));
-  CHECK_VAR_SHORTCUT(NaN, Bounds(cache.kFloat64));
+  CHECK_VAR_SHORTCUT(Infinity, Bounds(cache.kAsmDouble));
+  CHECK_VAR_SHORTCUT(NaN, Bounds(cache.kAsmDouble));
   // var x = stdlib.Math.x;  D2D
   CHECK_VAR_MATH_SHORTCUT(acos, FUNC_D2D_TYPE);
   CHECK_VAR_MATH_SHORTCUT(asin, FUNC_D2D_TYPE);
@@ -424,14 +427,14 @@ void CheckStdlibShortcuts(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
   CHECK_VAR_MATH_SHORTCUT(imul, FUNC_II2I_TYPE);
   CHECK_VAR_MATH_SHORTCUT(fround, FUNC_N2F_TYPE);
   // var exp = stdlib.Math.*; (D * 12)
-  CHECK_VAR_MATH_SHORTCUT(E, Bounds(cache.kFloat64));
-  CHECK_VAR_MATH_SHORTCUT(LN10, Bounds(cache.kFloat64));
-  CHECK_VAR_MATH_SHORTCUT(LN2, Bounds(cache.kFloat64));
-  CHECK_VAR_MATH_SHORTCUT(LOG2E, Bounds(cache.kFloat64));
-  CHECK_VAR_MATH_SHORTCUT(LOG10E, Bounds(cache.kFloat64));
-  CHECK_VAR_MATH_SHORTCUT(PI, Bounds(cache.kFloat64));
-  CHECK_VAR_MATH_SHORTCUT(SQRT1_2, Bounds(cache.kFloat64));
-  CHECK_VAR_MATH_SHORTCUT(SQRT2, Bounds(cache.kFloat64));
+  CHECK_VAR_MATH_SHORTCUT(E, Bounds(cache.kAsmDouble));
+  CHECK_VAR_MATH_SHORTCUT(LN10, Bounds(cache.kAsmDouble));
+  CHECK_VAR_MATH_SHORTCUT(LN2, Bounds(cache.kAsmDouble));
+  CHECK_VAR_MATH_SHORTCUT(LOG2E, Bounds(cache.kAsmDouble));
+  CHECK_VAR_MATH_SHORTCUT(LOG10E, Bounds(cache.kAsmDouble));
+  CHECK_VAR_MATH_SHORTCUT(PI, Bounds(cache.kAsmDouble));
+  CHECK_VAR_MATH_SHORTCUT(SQRT1_2, Bounds(cache.kAsmDouble));
+  CHECK_VAR_MATH_SHORTCUT(SQRT2, Bounds(cache.kAsmDouble));
   // var values = new stdlib.*Array(buffer);
   CHECK_VAR_NEW_SHORTCUT(u8, Bounds(cache.kUint8Array));
   CHECK_VAR_NEW_SHORTCUT(i8, Bounds(cache.kInt8Array));
@@ -539,9 +542,9 @@ TEST(DoesNothing) {
       "function bar() { var x = 1.0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
-        CHECK_VAR(x, Bounds(cache.kFloat64));
-        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
       }
     }
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
@@ -560,10 +563,12 @@ TEST(ReturnInt32Literal) {
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
       // return 1;
-      CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
     }
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Call, Bounds(cache.kInt32)) { CHECK_VAR(bar, FUNC_I_TYPE); }
+      CHECK_EXPR(Call, Bounds(cache.kAsmSigned)) {
+        CHECK_VAR(bar, FUNC_I_TYPE);
+      }
     }
   }
   CHECK_FUNC_TYPES_END
@@ -576,10 +581,12 @@ TEST(ReturnFloat64Literal) {
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_D_TYPE) {
       // return 1.0;
-      CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
     }
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Call, Bounds(cache.kFloat64)) { CHECK_VAR(bar, FUNC_D_TYPE); }
+      CHECK_EXPR(Call, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(bar, FUNC_D_TYPE);
+      }
     }
   }
   CHECK_FUNC_TYPES_END
@@ -592,13 +599,13 @@ TEST(ReturnFloat32Literal) {
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
       // return fround(1.0);
-      CHECK_EXPR(Call, Bounds(cache.kFloat32)) {
+      CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
         CHECK_VAR(fround, FUNC_N2F_TYPE);
-        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
       }
     }
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Call, Bounds(cache.kFloat32)) { CHECK_VAR(bar, FUNC_F_TYPE); }
+      CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) { CHECK_VAR(bar, FUNC_F_TYPE); }
     }
   }
   CHECK_FUNC_TYPES_END
@@ -611,18 +618,20 @@ TEST(ReturnFloat64Var) {
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_D_TYPE) {
       // return 1.0;
-      CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
-        CHECK_VAR(x, Bounds(cache.kFloat64));
-        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
       }
       // return 1.0;
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kFloat64)) {
-        CHECK_VAR(x, Bounds(cache.kFloat64));
-        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
       }
     }
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Call, Bounds(cache.kFloat64)) { CHECK_VAR(bar, FUNC_D_TYPE); }
+      CHECK_EXPR(Call, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(bar, FUNC_D_TYPE);
+      }
     }
   }
   CHECK_FUNC_TYPES_END
@@ -634,20 +643,20 @@ TEST(Addition2) {
       "function bar() { var x = 1; var y = 2; return (x+y)|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(y, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_VAR(x, Bounds(cache.kInt32));
-          CHECK_VAR(y, Bounds(cache.kInt32));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_VAR(y, Bounds(cache.kAsmInt));
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_SKIP();
@@ -656,23 +665,23 @@ TEST(Addition2) {
 }
 
 
-#define TEST_COMPARE_OP(name, op)                              \
-  TEST(name) {                                                 \
-    CHECK_FUNC_TYPES_BEGIN("function bar() { return (0 " op    \
-                           " 0)|0; }\n"                        \
-                           "function foo() { bar(); }") {      \
-      CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {               \
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {    \
-          CHECK_EXPR(CompareOperation, Bounds(cache.kInt32)) { \
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));         \
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));         \
-          }                                                    \
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));           \
-        }                                                      \
-      }                                                        \
-      CHECK_SKIP();                                            \
-    }                                                          \
-    CHECK_FUNC_TYPES_END                                       \
+#define TEST_COMPARE_OP(name, op)                                  \
+  TEST(name) {                                                     \
+    CHECK_FUNC_TYPES_BEGIN("function bar() { return (0 " op        \
+                           " 0)|0; }\n"                            \
+                           "function foo() { bar(); }") {          \
+      CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {                   \
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {    \
+          CHECK_EXPR(CompareOperation, Bounds(cache.kAsmSigned)) { \
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));         \
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));         \
+          }                                                        \
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));           \
+        }                                                          \
+      }                                                            \
+      CHECK_SKIP();                                                \
+    }                                                              \
+    CHECK_FUNC_TYPES_END                                           \
   }
 
 
@@ -688,14 +697,14 @@ TEST(NeqOperator) {
       "function bar() { return (0 != 0)|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(UnaryOperation, Bounds(cache.kInt32)) {
-          CHECK_EXPR(CompareOperation, Bounds(cache.kInt32)) {
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(UnaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(CompareOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_SKIP();
@@ -709,15 +718,15 @@ TEST(NotOperator) {
       "function bar() { var x = 0; return (!x)|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(UnaryOperation, Bounds(cache.kInt32)) {
-          CHECK_VAR(x, Bounds(cache.kInt32));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(UnaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_SKIP();
@@ -731,16 +740,16 @@ TEST(InvertOperator) {
       "function bar() { var x = 0; return (~x)|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_VAR(x, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_SKIP();
@@ -754,19 +763,47 @@ TEST(InvertConversion) {
       "function bar() { var x = 0.0; return (~~x)|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
-        CHECK_VAR(x, Bounds(cache.kFloat64));
-        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_VAR(x, Bounds(cache.kFloat64));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(x, Bounds(cache.kAsmDouble));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
           }
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(Ternary) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; return (x?y:5)|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(Conditional, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_VAR(y, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_SKIP();
@@ -781,16 +818,16 @@ TEST(InvertConversion) {
                            " 123)|0; }\n"                              \
                            "function foo() { bar(); }") {              \
       CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {                       \
-        CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {                 \
-          CHECK_VAR(x, Bounds(cache.kInt32));                          \
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));                   \
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {                \
+          CHECK_VAR(x, Bounds(cache.kAsmInt));                         \
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));               \
         }                                                              \
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {            \
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {          \
-            CHECK_VAR(x, Bounds(cache.kInt32));                        \
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));                 \
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {        \
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {      \
+            CHECK_VAR(x, Bounds(cache.kAsmInt));                       \
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));             \
           }                                                            \
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));                   \
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));               \
         }                                                              \
       }                                                                \
       CHECK_SKIP();                                                    \
@@ -809,26 +846,26 @@ TEST(UnsignedCompare) {
       "function bar() { var x = 1; var y = 1; return ((x>>>0) < (y>>>0))|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(y, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(CompareOperation, Bounds(cache.kInt32)) {
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
-            CHECK_VAR(x, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(CompareOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+            CHECK_VAR(x, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
-            CHECK_VAR(y, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+            CHECK_VAR(y, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_SKIP();
@@ -842,26 +879,26 @@ TEST(UnsignedDivide) {
       "function bar() { var x = 1; var y = 1; return ((x>>>0) / (y>>>0))|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(y, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
         CHECK_EXPR(BinaryOperation, Bounds(Type::None(), Type::Any())) {
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
-            CHECK_VAR(x, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+            CHECK_VAR(x, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
-            CHECK_VAR(y, Bounds(cache.kInt32));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+            CHECK_VAR(y, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_SKIP();
@@ -874,7 +911,15 @@ TEST(UnsignedFromFloat64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; return (x>>>0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill typed bitwise operation\n");
+      "asm: line 39: left bitwise operand expected to be an integer\n");
+}
+
+
+TEST(AndFloat64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; return (x&0)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: left bitwise operand expected to be an integer\n");
 }
 
 
@@ -922,7 +967,31 @@ TEST(TernaryMismatchInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 0.0; return (1 ? x : y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill-typed conditional\n");
+      "asm: line 39: then and else expressions in ? must have the same type\n");
+}
+
+
+TEST(TernaryMismatchIntish) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 0; return (1 ? x + x : y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: invalid type in ? then expression\n");
+}
+
+
+TEST(TernaryMismatchInt32Float32) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 2; return (x?fround(y):x)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: then and else expressions in ? must have the same type\n");
+}
+
+
+TEST(TernaryBadCondition) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 2.0; return (y?x:1)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: condition must be of type int\n");
 }
 
 
@@ -931,13 +1000,13 @@ TEST(FroundFloat32) {
       "function bar() { var x = 1; return fround(x); }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(Call, Bounds(cache.kFloat32)) {
+      CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
         CHECK_VAR(fround, FUNC_N2F_TYPE);
-        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
       }
     }
     CHECK_SKIP();
@@ -951,26 +1020,26 @@ TEST(Addition4) {
       "function bar() { var x = 1; var y = 2; return (x+y+x+y)|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(y, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-              CHECK_VAR(x, Bounds(cache.kInt32));
-              CHECK_VAR(y, Bounds(cache.kInt32));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+              CHECK_VAR(x, Bounds(cache.kAsmInt));
+              CHECK_VAR(y, Bounds(cache.kAsmInt));
             }
-            CHECK_VAR(x, Bounds(cache.kInt32));
+            CHECK_VAR(x, Bounds(cache.kAsmInt));
           }
-          CHECK_VAR(y, Bounds(cache.kInt32));
+          CHECK_VAR(y, Bounds(cache.kAsmInt));
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_SKIP();
@@ -995,19 +1064,35 @@ TEST(Division4) {
 }
 
 
+TEST(CompareToStringLeft) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; return ('hi' > x)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: bad type on left side of comparison\n");
+}
+
+
+TEST(CompareToStringRight) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; return (x < 'hi')|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: bad type on right side of comparison\n");
+}
+
+
 TEST(CompareMismatchInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2.0; return (x < y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill-typed comparison operation\n");
+      "asm: line 39: left and right side of comparison must match\n");
 }
 
 
 TEST(CompareMismatchInt32Uint32) {
   CHECK_FUNC_ERROR(
-      "function bar() { var x = 1; var y = 2; return (x < (y>>>0))|0; }\n"
+      "function bar() { var x = 1; var y = 2; return ((x|0) < (y>>>0))|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill-typed comparison operation\n");
+      "asm: line 39: left and right side of comparison must match\n");
 }
 
 
@@ -1015,7 +1100,7 @@ TEST(CompareMismatchInt32Float32) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2; return (x < fround(y))|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill-typed comparison operation\n");
+      "asm: line 39: left and right side of comparison must match\n");
 }
 
 
@@ -1024,22 +1109,22 @@ TEST(Float64ToInt32) {
       "function bar() { var x = 1; var y = 0.0; x = ~~y; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
-        CHECK_VAR(y, Bounds(cache.kFloat64));
-        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(y, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
       }
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-            CHECK_VAR(y, Bounds(cache.kFloat64));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(y, Bounds(cache.kAsmDouble));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
           }
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
         }
       }
     }
@@ -1054,21 +1139,21 @@ TEST(Load1) {
       "function bar() { var x = 1; var y = i8[x>>0]|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(y, Bounds(cache.kInt32));
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
           CHECK_EXPR(Property, Bounds(cache.kInt8)) {
             CHECK_VAR(i8, Bounds(cache.kInt8Array));
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-              CHECK_VAR(x, Bounds(cache.kInt32));
-              CHECK_EXPR(Literal, Bounds(cache.kInt32));
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+              CHECK_VAR(x, Bounds(cache.kAsmSigned));
+              CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
             }
           }
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
       }
     }
@@ -1083,18 +1168,18 @@ TEST(Load1Constant) {
       "function bar() { var x = 1; var y = i8[5]|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(y, Bounds(cache.kInt32));
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
           CHECK_EXPR(Property, Bounds(cache.kInt8)) {
             CHECK_VAR(i8, Bounds(cache.kInt8Array));
-            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
       }
     }
@@ -1113,64 +1198,64 @@ TEST(FunctionTables) {
       "   return table1[x & 1](y)|0; }\n"
       "function foo() { bar(1, 2); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I2I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_VAR(x, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_VAR(x, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_EXPR(FunctionLiteral, FUNC_I2I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_VAR(x, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_VAR(x, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_EXPR(FunctionLiteral, FUNC_II2I_TYPE) {
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(x, Bounds(cache.kInt32));
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_VAR(x, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
       }
-      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
-        CHECK_VAR(y, Bounds(cache.kInt32));
-        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-          CHECK_VAR(y, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(y, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
       }
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-        CHECK_EXPR(Call, Bounds(cache.kInt32)) {
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(Call, Bounds(cache.kAsmSigned)) {
           CHECK_EXPR(Property, FUNC_I2I_TYPE) {
             CHECK_VAR(table1, FUNC_I2I_ARRAY_TYPE);
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
-              CHECK_VAR(x, Bounds(cache.kInt32));
-              CHECK_EXPR(Literal, Bounds(cache.kInt32));
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+              CHECK_VAR(x, Bounds(cache.kAsmSigned));
+              CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
             }
           }
-          CHECK_VAR(y, Bounds(cache.kInt32));
+          CHECK_VAR(y, Bounds(cache.kAsmInt));
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_SKIP();
@@ -1340,17 +1425,19 @@ TEST(ForeignFunction) {
       "function bar() { return baz(1, 2)|0; }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
-      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
         CHECK_EXPR(Call, Bounds(Type::Number(zone))) {
           CHECK_VAR(baz, Bounds(Type::Any()));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
-          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
-        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
     }
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Call, Bounds(cache.kInt32)) { CHECK_VAR(bar, FUNC_I_TYPE); }
+      CHECK_EXPR(Call, Bounds(cache.kAsmSigned)) {
+        CHECK_VAR(bar, FUNC_I_TYPE);
+      }
     }
   }
   CHECK_FUNC_TYPES_END_1()
@@ -1377,4 +1464,20 @@ TEST(BadExports) {
   ZoneVector<ExpressionTypeEntry> types(zone);
   CHECK_EQ("asm: line 40: non-function in function table\n",
            Validate(zone, test_function, &types));
+}
+
+
+TEST(TypeConsistency) {
+  v8::V8::Initialize();
+  //  HandleAndZoneScope handles;
+  //  Zone* zone = handles.main_zone();
+  TypeCache cache;
+
+
+  CHECK(!cache.kAsmSigned->Is(cache.kAsmDouble));
+  CHECK(!cache.kAsmSigned->Is(cache.kAsmFloat));
+  CHECK(!cache.kAsmSigned->Is(cache.kAsmUnsigned));
+  CHECK(!cache.kAsmDouble->Is(cache.kAsmSigned));
+  CHECK(cache.kAsmSigned->Is(cache.kAsmInt));
+  CHECK(!cache.kAsmSigned->Is(cache.kAsmDouble));
 }

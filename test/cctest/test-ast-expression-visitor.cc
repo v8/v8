@@ -273,6 +273,33 @@ TEST(VisitExpressions) {
 }
 
 
+TEST(VisitConditional) {
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
+  // Check that traversing the ternary operator works.
+  const char test_function[] =
+      "function foo() {\n"
+      "  var a, b, c;\n"
+      "  var x = a ? b : c;\n"
+      "}\n";
+  CollectTypes(&handles, test_function, &types);
+  CHECK_TYPES_BEGIN {
+    CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
+      CHECK_EXPR(Assignment, Bounds::Unbounded()) {
+        CHECK_VAR(x, Bounds::Unbounded());
+        CHECK_EXPR(Conditional, Bounds::Unbounded()) {
+          CHECK_VAR(a, Bounds::Unbounded());
+          CHECK_VAR(b, Bounds::Unbounded());
+          CHECK_VAR(c, Bounds::Unbounded());
+        }
+      }
+    }
+  }
+  CHECK_TYPES_END
+}
+
+
 TEST(VisitEmptyForStatment) {
   v8::V8::Initialize();
   HandleAndZoneScope handles;

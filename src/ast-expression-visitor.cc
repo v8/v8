@@ -209,9 +209,10 @@ void AstExpressionVisitor::VisitDoExpression(DoExpression* expr) {
 
 
 void AstExpressionVisitor::VisitConditional(Conditional* expr) {
-  RECURSE(Visit(expr->condition()));
-  RECURSE(Visit(expr->then_expression()));
-  RECURSE(Visit(expr->else_expression()));
+  VisitExpression(expr);
+  RECURSE_EXPRESSION(Visit(expr->condition()));
+  RECURSE_EXPRESSION(Visit(expr->then_expression()));
+  RECURSE_EXPRESSION(Visit(expr->else_expression()));
 }
 
 

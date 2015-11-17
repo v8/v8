@@ -149,7 +149,15 @@ void AsmTyper::VisitFunctionAnnotation(FunctionLiteral* fun) {
   if (body->length() > 0) {
     ReturnStatement* stmt = body->last()->AsReturnStatement();
     if (stmt != NULL) {
-      RECURSE(VisitExpressionAnnotation(stmt->expression()));
+      Literal* literal = stmt->expression()->AsLiteral();
+      Type* old_expected = expected_type_;
+      expected_type_ = Type::Any();
+      if (literal) {
+        RECURSE(VisitLiteral(literal, true));
+      } else {
+        RECURSE(VisitExpressionAnnotation(stmt->expression(), true));
+      }
+      expected_type_ = old_expected;
       result_type = computed_type_;
     }
   }
@@ -171,7 +179,7 @@ void AsmTyper::VisitFunctionAnnotation(FunctionLiteral* fun) {
     Variable* var = proxy->var();
     if (var->location() != VariableLocation::PARAMETER || var->index() != i)
       break;
-    RECURSE(VisitExpressionAnnotation(expr->value()));
+    RECURSE(VisitExpressionAnnotation(expr->value(), false));
     SetType(var, computed_type_);
     type->InitParameter(i, computed_type_);
     good = true;
@@ -182,24 +190,28 @@ void AsmTyper::VisitFunctionAnnotation(FunctionLiteral* fun) {
 }
 
 
-void AsmTyper::VisitExpressionAnnotation(Expression* expr) {
+void AsmTyper::VisitExpressionAnnotation(Expression* expr, bool is_return) {
   // Normal +x or x|0 annotations.
   BinaryOperation* bin = expr->AsBinaryOperation();
   if (bin != NULL) {
     Literal* right = bin->right()->AsLiteral();
     if (right != NULL) {
       switch (bin->op()) {
-        case Token::MUL:  // We encode +x as 1*x
+        case Token::MUL:  // We encode +x as x*1.0
           if (right->raw_value()->ContainsDot() &&
               right->raw_value()->AsNumber() == 1.0) {
-            SetResult(expr, cache_.kFloat64);
+            SetResult(expr, cache_.kAsmDouble);
             return;
           }
           break;
         case Token::BIT_OR:
           if (!right->raw_value()->ContainsDot() &&
               right->raw_value()->AsNumber() == 0.0) {
-            SetResult(expr, cache_.kInt32);
+            if (is_return) {
+              SetResult(expr, cache_.kAsmSigned);
+            } else {
+              SetResult(expr, cache_.kAsmInt);
+            }
             return;
           }
           break;
@@ -223,14 +235,14 @@ void AsmTyper::VisitExpressionAnnotation(Expression* expr) {
           call->expression(), Type::Any(zone()),
           "only fround allowed on expression annotations"));
       if (!computed_type_->Is(
-              Type::Function(cache_.kFloat32, Type::Number(zone()), zone()))) {
+              Type::Function(cache_.kAsmFloat, Type::Number(zone()), zone()))) {
         FAIL(call->expression(),
              "only fround allowed on expression annotations");
       }
       if (call->arguments()->length() != 1) {
         FAIL(call, "invalid argument count calling fround");
       }
-      SetResult(expr, cache_.kFloat32);
+      SetResult(expr, cache_.kAsmFloat);
       return;
     }
   }
@@ -274,7 +286,7 @@ void AsmTyper::VisitIfStatement(IfStatement* stmt) {
   if (!in_function_) {
     FAIL(stmt, "if statement inside module body");
   }
-  RECURSE(VisitWithExpectation(stmt->condition(), cache_.kInt32,
+  RECURSE(VisitWithExpectation(stmt->condition(), cache_.kAsmSigned,
                                "if condition expected to be integer"));
   RECURSE(Visit(stmt->then_statement()));
   RECURSE(Visit(stmt->else_statement()));
@@ -300,6 +312,10 @@ void AsmTyper::VisitReturnStatement(ReturnStatement* stmt) {
   if (!in_function_) {
     return;
   }
+  // Returning literals handled in annotations.
+  if (stmt->expression()->IsLiteral()) {
+    return;
+  }
   RECURSE(
       VisitWithExpectation(stmt->expression(), return_type_,
                            "return expression expected to have return type"));
@@ -315,15 +331,15 @@ void AsmTyper::VisitSwitchStatement(SwitchStatement* stmt) {
   if (!in_function_) {
     FAIL(stmt, "switch statement inside module body");
   }
-  RECURSE(VisitWithExpectation(stmt->tag(), cache_.kInt32,
+  RECURSE(VisitWithExpectation(stmt->tag(), cache_.kAsmSigned,
                                "switch expression non-integer"));
   ZoneList<CaseClause*>* clauses = stmt->cases();
   for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
     if (clause->is_default()) continue;
     Expression* label = clause->label();
-    RECURSE(
-        VisitWithExpectation(label, cache_.kInt32, "case label non-integer"));
+    RECURSE(VisitWithExpectation(label, cache_.kAsmSigned,
+                                 "case label non-integer"));
     if (!label->IsLiteral()) FAIL(label, "non-literal case label");
     Handle<Object> value = label->AsLiteral()->value();
     int32_t value32;
@@ -343,7 +359,7 @@ void AsmTyper::VisitDoWhileStatement(DoWhileStatement* stmt) {
     FAIL(stmt, "do statement inside module body");
   }
   RECURSE(Visit(stmt->body()));
-  RECURSE(VisitWithExpectation(stmt->cond(), cache_.kInt32,
+  RECURSE(VisitWithExpectation(stmt->cond(), cache_.kAsmSigned,
                                "do condition expected to be integer"));
 }
 
@@ -352,7 +368,7 @@ void AsmTyper::VisitWhileStatement(WhileStatement* stmt) {
   if (!in_function_) {
     FAIL(stmt, "while statement inside module body");
   }
-  RECURSE(VisitWithExpectation(stmt->cond(), cache_.kInt32,
+  RECURSE(VisitWithExpectation(stmt->cond(), cache_.kAsmSigned,
                                "while condition expected to be integer"));
   RECURSE(Visit(stmt->body()));
 }
@@ -366,7 +382,7 @@ void AsmTyper::VisitForStatement(ForStatement* stmt) {
     RECURSE(Visit(stmt->init()));
   }
   if (stmt->cond() != NULL) {
-    RECURSE(VisitWithExpectation(stmt->cond(), cache_.kInt32,
+    RECURSE(VisitWithExpectation(stmt->cond(), cache_.kAsmSigned,
                                  "for condition expected to be integer"));
   }
   if (stmt->next() != NULL) {
@@ -436,22 +452,33 @@ void AsmTyper::VisitDoExpression(DoExpression* expr) {
 
 
 void AsmTyper::VisitConditional(Conditional* expr) {
-  RECURSE(VisitWithExpectation(expr->condition(), cache_.kInt32,
+  RECURSE(VisitWithExpectation(expr->condition(), Type::Number(),
                                "condition expected to be integer"));
+  if (!computed_type_->Is(cache_.kAsmInt)) {
+    FAIL(expr->condition(), "condition must be of type int");
+  }
+
   RECURSE(VisitWithExpectation(
       expr->then_expression(), expected_type_,
       "conditional then branch type mismatch with enclosing expression"));
-  Type* then_type = computed_type_;
+  Type* then_type = StorageType(computed_type_);
+  if (intish_ != 0 || !then_type->Is(cache_.kAsmComparable)) {
+    FAIL(expr->then_expression(), "invalid type in ? then expression");
+  }
+
   RECURSE(VisitWithExpectation(
       expr->else_expression(), expected_type_,
       "conditional else branch type mismatch with enclosing expression"));
-  Type* else_type = computed_type_;
-  Type* type = Type::Union(then_type, else_type, zone());
-  if (!(type->Is(cache_.kInt32) || type->Is(cache_.kUint32) ||
-        type->Is(cache_.kFloat32) || type->Is(cache_.kFloat64))) {
-    FAIL(expr, "ill-typed conditional");
+  Type* else_type = StorageType(computed_type_);
+  if (intish_ != 0 || !else_type->Is(cache_.kAsmComparable)) {
+    FAIL(expr->else_expression(), "invalid type in ? else expression");
   }
-  IntersectResult(expr, type);
+
+  if (!then_type->Is(else_type) || !else_type->Is(then_type)) {
+    FAIL(expr, "then and else expressions in ? must have the same type");
+  }
+
+  IntersectResult(expr, then_type);
 }
 
 
@@ -461,8 +488,8 @@ void AsmTyper::VisitVariableProxy(VariableProxy* expr) {
     FAIL(expr, "unbound variable");
   }
   Type* type = Type::Intersect(GetType(var), expected_type_, zone());
-  if (type->Is(cache_.kInt32)) {
-    type = cache_.kInt32;
+  if (type->Is(cache_.kAsmInt)) {
+    type = cache_.kAsmInt;
   }
   SetType(var, type);
   intish_ = 0;
@@ -470,22 +497,26 @@ void AsmTyper::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
-void AsmTyper::VisitLiteral(Literal* expr) {
+void AsmTyper::VisitLiteral(Literal* expr, bool is_return) {
   intish_ = 0;
   Handle<Object> value = expr->value();
   if (value->IsNumber()) {
     int32_t i;
     uint32_t u;
     if (expr->raw_value()->ContainsDot()) {
-      IntersectResult(expr, cache_.kFloat64);
-    } else if (value->ToUint32(&u)) {
-      IntersectResult(expr, cache_.kInt32);
+      IntersectResult(expr, cache_.kAsmDouble);
+    } else if (!is_return && value->ToUint32(&u)) {
+      if (u <= 0x7fffffff) {
+        IntersectResult(expr, cache_.kAsmFixnum);
+      } else {
+        IntersectResult(expr, cache_.kAsmUnsigned);
+      }
     } else if (value->ToInt32(&i)) {
-      IntersectResult(expr, cache_.kInt32);
+      IntersectResult(expr, cache_.kAsmSigned);
     } else {
       FAIL(expr, "illegal number");
     }
-  } else if (value->IsString()) {
+  } else if (!is_return && value->IsString()) {
     IntersectResult(expr, Type::String());
   } else if (value->IsUndefined()) {
     IntersectResult(expr, Type::Undefined());
@@ -493,6 +524,9 @@ void AsmTyper::VisitLiteral(Literal* expr) {
     FAIL(expr, "illegal literal");
   }
 }
+
+
+void AsmTyper::VisitLiteral(Literal* expr) { VisitLiteral(expr, false); }
 
 
 void AsmTyper::VisitRegExpLiteral(RegExpLiteral* expr) {
@@ -558,7 +592,11 @@ void AsmTyper::VisitAssignment(Assignment* expr) {
   if (intish_ != 0) {
     FAIL(expr, "value still an intish");
   }
-  RECURSE(VisitWithExpectation(expr->target(), computed_type_,
+  Type* target_type = computed_type_;
+  if (target_type->Is(cache_.kAsmInt)) {
+    target_type = cache_.kAsmInt;
+  }
+  RECURSE(VisitWithExpectation(expr->target(), target_type,
                                "assignment target expected to match value"));
   if (intish_ != 0) {
     FAIL(expr, "value still an intish");
@@ -578,13 +616,20 @@ void AsmTyper::VisitThrow(Throw* expr) {
 
 
 int AsmTyper::ElementShiftSize(Type* type) {
-  if (type->Is(cache_.kInt8) || type->Is(cache_.kUint8)) return 0;
-  if (type->Is(cache_.kInt16) || type->Is(cache_.kUint16)) return 1;
-  if (type->Is(cache_.kInt32) || type->Is(cache_.kUint32) ||
-      type->Is(cache_.kFloat32))
-    return 2;
-  if (type->Is(cache_.kFloat64)) return 3;
+  if (type->Is(cache_.kAsmSize8)) return 0;
+  if (type->Is(cache_.kAsmSize16)) return 1;
+  if (type->Is(cache_.kAsmSize32)) return 2;
+  if (type->Is(cache_.kAsmSize64)) return 3;
   return -1;
+}
+
+
+Type* AsmTyper::StorageType(Type* type) {
+  if (type->Is(cache_.kAsmInt)) {
+    return cache_.kAsmInt;
+  } else {
+    return type;
+  }
 }
 
 
@@ -597,42 +642,42 @@ void AsmTyper::VisitHeapAccess(Property* expr) {
     if (bin == NULL || bin->op() != Token::BIT_AND) {
       FAIL(expr->key(), "expected & in call");
     }
-    RECURSE(VisitWithExpectation(bin->left(), cache_.kInt32,
+    RECURSE(VisitWithExpectation(bin->left(), cache_.kAsmSigned,
                                  "array index expected to be integer"));
     Literal* right = bin->right()->AsLiteral();
     if (right == NULL || right->raw_value()->ContainsDot()) {
       FAIL(right, "call mask must be integer");
     }
-    RECURSE(VisitWithExpectation(bin->right(), cache_.kInt32,
+    RECURSE(VisitWithExpectation(bin->right(), cache_.kAsmSigned,
                                  "call mask expected to be integer"));
     if (static_cast<size_t>(right->raw_value()->AsNumber()) != size - 1) {
       FAIL(right, "call mask must match function table");
     }
-    bin->set_bounds(Bounds(cache_.kInt32));
+    bin->set_bounds(Bounds(cache_.kAsmSigned));
   } else {
     Literal* literal = expr->key()->AsLiteral();
     if (literal) {
-      RECURSE(VisitWithExpectation(literal, cache_.kInt32,
+      RECURSE(VisitWithExpectation(literal, cache_.kAsmSigned,
                                    "array index expected to be integer"));
     } else {
       BinaryOperation* bin = expr->key()->AsBinaryOperation();
       if (bin == NULL || bin->op() != Token::SAR) {
         FAIL(expr->key(), "expected >> in heap access");
       }
-      RECURSE(VisitWithExpectation(bin->left(), cache_.kInt32,
+      RECURSE(VisitWithExpectation(bin->left(), cache_.kAsmSigned,
                                    "array index expected to be integer"));
       Literal* right = bin->right()->AsLiteral();
       if (right == NULL || right->raw_value()->ContainsDot()) {
         FAIL(right, "heap access shift must be integer");
       }
-      RECURSE(VisitWithExpectation(bin->right(), cache_.kInt32,
+      RECURSE(VisitWithExpectation(bin->right(), cache_.kAsmSigned,
                                    "array shift expected to be integer"));
       int n = static_cast<int>(right->raw_value()->AsNumber());
       int expected_shift = ElementShiftSize(type);
       if (expected_shift < 0 || n != expected_shift) {
         FAIL(right, "heap access shift must match element size");
       }
-      bin->set_bounds(Bounds(cache_.kInt32));
+      bin->set_bounds(Bounds(cache_.kAsmSigned));
     }
   }
   IntersectResult(expr, type);
@@ -780,9 +825,9 @@ void AsmTyper::VisitCallRuntime(CallRuntime* expr) {
 void AsmTyper::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
     case Token::NOT:  // Used to encode != and !==
-      RECURSE(VisitWithExpectation(expr->expression(), cache_.kInt32,
+      RECURSE(VisitWithExpectation(expr->expression(), cache_.kAsmInt,
                                    "operand expected to be integer"));
-      IntersectResult(expr, cache_.kInt32);
+      IntersectResult(expr, cache_.kAsmSigned);
       return;
     case Token::DELETE:
       FAIL(expr, "delete operator encountered");
@@ -805,24 +850,40 @@ void AsmTyper::VisitIntegerBitwiseOperator(BinaryOperation* expr,
                                            Type* left_expected,
                                            Type* right_expected,
                                            Type* result_type, bool conversion) {
-  RECURSE(VisitWithExpectation(expr->left(), left_expected,
-                               "left bit operand expected to be integer"));
+  RECURSE(VisitWithExpectation(expr->left(), Type::Number(),
+                               "left bitwise operand expected to be a number"));
   int left_intish = intish_;
   Type* left_type = computed_type_;
-  RECURSE(VisitWithExpectation(expr->right(), right_expected,
-                               "right bit operand expected to be integer"));
+  if (!left_type->Is(left_expected)) {
+    FAIL(expr->left(), "left bitwise operand expected to be an integer");
+  }
+  if (left_intish > kMaxUncombinedAdditiveSteps) {
+    FAIL(expr->left(), "too many consecutive additive ops");
+  }
+
+  RECURSE(
+      VisitWithExpectation(expr->right(), Type::Number(),
+                           "right bitwise operand expected to be a number"));
   int right_intish = intish_;
   Type* right_type = computed_type_;
-  if (left_intish > kMaxUncombinedAdditiveSteps) {
-    FAIL(expr, "too many consecutive additive ops");
+  if (!right_type->Is(right_expected)) {
+    FAIL(expr->right(), "right bitwise operand expected to be an integer");
   }
   if (right_intish > kMaxUncombinedAdditiveSteps) {
-    FAIL(expr, "too many consecutive additive ops");
+    FAIL(expr->right(), "too many consecutive additive ops");
   }
+
   intish_ = 0;
+
+  if (left_type->Is(cache_.kAsmFixnum) && right_type->Is(cache_.kAsmInt)) {
+    left_type = right_type;
+  }
+  if (right_type->Is(cache_.kAsmFixnum) && left_type->Is(cache_.kAsmInt)) {
+    right_type = left_type;
+  }
   if (!conversion) {
     if (!left_type->Is(right_type) || !right_type->Is(left_type)) {
-      FAIL(expr, "ill typed bitwise operation");
+      FAIL(expr, "ill-typed bitwise operation");
     }
   }
   IntersectResult(expr, result_type);
@@ -844,8 +905,8 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       FAIL(expr, "illegal logical operator");
     case Token::BIT_OR: {
       // BIT_OR allows Any since it is used as a type coercion.
-      VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kIntegral32,
-                                  cache_.kInt32, true);
+      VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmInt,
+                                  cache_.kAsmSigned, true);
       return;
     }
     case Token::BIT_XOR: {
@@ -854,29 +915,29 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       if (left && left->value()->IsBoolean()) {
         if (left->ToBooleanIsTrue()) {
           left->set_bounds(Bounds(cache_.kSingletonOne));
-          RECURSE(VisitWithExpectation(expr->right(), cache_.kIntegral32,
+          RECURSE(VisitWithExpectation(expr->right(), cache_.kAsmInt,
                                        "not operator expects an integer"));
-          IntersectResult(expr, cache_.kInt32);
+          IntersectResult(expr, cache_.kAsmSigned);
           return;
         } else {
           FAIL(left, "unexpected false");
         }
       }
       // BIT_XOR allows Number since it is used as a type coercion (via ~~).
-      VisitIntegerBitwiseOperator(expr, Type::Number(), cache_.kIntegral32,
-                                  cache_.kInt32, true);
+      VisitIntegerBitwiseOperator(expr, Type::Number(), cache_.kAsmInt,
+                                  cache_.kAsmSigned, true);
       return;
     }
     case Token::SHR: {
-      VisitIntegerBitwiseOperator(expr, cache_.kIntegral32, cache_.kIntegral32,
-                                  cache_.kUint32, false);
+      VisitIntegerBitwiseOperator(expr, cache_.kAsmInt, cache_.kAsmInt,
+                                  cache_.kAsmUnsigned, false);
       return;
     }
     case Token::SHL:
     case Token::SAR:
     case Token::BIT_AND: {
-      VisitIntegerBitwiseOperator(expr, cache_.kIntegral32, cache_.kIntegral32,
-                                  cache_.kInt32, false);
+      VisitIntegerBitwiseOperator(expr, cache_.kAsmInt, cache_.kAsmInt,
+                                  cache_.kAsmSigned, false);
       return;
     }
     case Token::ADD:
@@ -895,13 +956,25 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       Type* right_type = computed_type_;
       int right_intish = intish_;
       Type* type = Type::Union(left_type, right_type, zone());
-      if (type->Is(cache_.kInt32) || type->Is(cache_.kUint32)) {
+      if (type->Is(cache_.kAsmInt)) {
         if (expr->op() == Token::MUL) {
-          if (!expr->left()->IsLiteral() && !expr->right()->IsLiteral()) {
+          Literal* right = expr->right()->AsLiteral();
+          if (!right) {
             FAIL(expr, "direct integer multiply forbidden");
           }
-          intish_ = 0;
-          IntersectResult(expr, cache_.kInt32);
+          if (!right->value()->IsNumber()) {
+            FAIL(expr, "multiply must be by an integer");
+          }
+          int32_t i;
+          if (!right->value()->ToInt32(&i)) {
+            FAIL(expr, "multiply must be a signed integer");
+          }
+          i = abs(i);
+          if (i >= 1 << 20) {
+            FAIL(expr, "multiply must be by value in -2^20 < n < 2^20");
+          }
+          intish_ = i;
+          IntersectResult(expr, cache_.kAsmInt);
           return;
         } else {
           intish_ = left_intish + right_intish + 1;
@@ -914,20 +987,19 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
               FAIL(expr, "too many consecutive multiplicative ops");
             }
           }
-          IntersectResult(expr, cache_.kInt32);
+          IntersectResult(expr, cache_.kAsmInt);
           return;
         }
-      } else if (expr->op() == Token::MUL &&
-                 left_type->Is(cache_.kIntegral32) &&
-                 right_type->Is(cache_.kFloat64)) {
+      } else if (expr->op() == Token::MUL && left_type->Is(cache_.kAsmInt) &&
+                 right_type->Is(cache_.kAsmDouble)) {
         // For unary +, expressed as x * 1.0
-        IntersectResult(expr, cache_.kFloat64);
+        IntersectResult(expr, cache_.kAsmDouble);
         return;
-      } else if (type->Is(cache_.kFloat32) && expr->op() != Token::MOD) {
-        IntersectResult(expr, cache_.kFloat32);
+      } else if (type->Is(cache_.kAsmFloat) && expr->op() != Token::MOD) {
+        IntersectResult(expr, cache_.kAsmFloat);
         return;
-      } else if (type->Is(cache_.kFloat64)) {
-        IntersectResult(expr, cache_.kFloat64);
+      } else if (type->Is(cache_.kAsmDouble)) {
+        IntersectResult(expr, cache_.kAsmDouble);
         return;
       } else {
         FAIL(expr, "ill-typed arithmetic operation");
@@ -940,27 +1012,33 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
 
 
 void AsmTyper::VisitCompareOperation(CompareOperation* expr) {
-  RECURSE(
-      VisitWithExpectation(expr->left(), Type::Number(),
-                           "left comparison operand expected to be number"));
-  Type* left_type = computed_type_;
-  RECURSE(
-      VisitWithExpectation(expr->right(), Type::Number(),
-                           "right comparison operand expected to be number"));
   Token::Value op = expr->op();
   if (op != Token::EQ && op != Token::NE && op != Token::LT &&
       op != Token::LTE && op != Token::GT && op != Token::GTE) {
     FAIL(expr, "illegal comparison operator");
   }
-  Type* right_type = computed_type_;
-  Type* type = Type::Union(left_type, right_type, zone());
-  expr->set_combined_type(type);
-  if (type->Is(cache_.kInt32) || type->Is(cache_.kUint32) ||
-      type->Is(cache_.kFloat32) || type->Is(cache_.kFloat64)) {
-    IntersectResult(expr, cache_.kInt32);
-  } else {
-    FAIL(expr, "ill-typed comparison operation");
+
+  RECURSE(
+      VisitWithExpectation(expr->left(), Type::Number(),
+                           "left comparison operand expected to be number"));
+  Type* left_type = computed_type_;
+  if (!left_type->Is(cache_.kAsmComparable)) {
+    FAIL(expr->left(), "bad type on left side of comparison");
   }
+
+  RECURSE(
+      VisitWithExpectation(expr->right(), Type::Number(),
+                           "right comparison operand expected to be number"));
+  Type* right_type = computed_type_;
+  if (!right_type->Is(cache_.kAsmComparable)) {
+    FAIL(expr->right(), "bad type on right side of comparison");
+  }
+
+  if (!left_type->Is(right_type) && !right_type->Is(left_type)) {
+    FAIL(expr, "left and right side of comparison must match");
+  }
+
+  IntersectResult(expr, cache_.kAsmSigned);
 }
 
 
@@ -1007,14 +1085,14 @@ void AsmTyper::VisitSuperCallReference(SuperCallReference* expr) {
 
 void AsmTyper::InitializeStdlib() {
   Type* number_type = Type::Number(zone());
-  Type* double_type = cache_.kFloat64;
+  Type* double_type = cache_.kAsmDouble;
   Type* double_fn1_type = Type::Function(double_type, double_type, zone());
   Type* double_fn2_type =
       Type::Function(double_type, double_type, double_type, zone());
 
-  Type* fround_type = Type::Function(cache_.kFloat32, number_type, zone());
+  Type* fround_type = Type::Function(cache_.kAsmFloat, number_type, zone());
   Type* imul_type =
-      Type::Function(cache_.kInt32, cache_.kInt32, cache_.kInt32, zone());
+      Type::Function(cache_.kAsmSigned, cache_.kAsmInt, cache_.kAsmInt, zone());
   // TODO(bradnelson): currently only approximating the proper intersection type
   // (which we cannot currently represent).
   Type* abs_type = Type::Function(number_type, number_type, zone());
