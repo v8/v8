@@ -1503,7 +1503,6 @@ void MacroAssembler::Cvt_d_uw(FPURegister fd, FPURegister fs) {
 
 void MacroAssembler::Cvt_d_uw(FPURegister fd, Register rs) {
   // Convert rs to a FP value in fd.
-  DCHECK(!fd.is(scratch));
   DCHECK(!rs.is(t9));
   DCHECK(!rs.is(at));
 
