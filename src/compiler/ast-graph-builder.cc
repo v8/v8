@@ -1796,6 +1796,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
   // Create nodes to define accessors, using only a single call to the runtime
   // for each pair of corresponding getters and setters.
+  literal = environment()->Top();  // Reload from operand stack.
   for (AccessorTable::Iterator it = accessor_table.begin();
        it != accessor_table.end(); ++it) {
     VisitForValue(it->first);
@@ -1880,6 +1881,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   }
 
   // Transform literals that contain functions to fast properties.
+  literal = environment()->Top();  // Reload from operand stack.
   if (expr->has_function()) {
     const Operator* op =
         javascript()->CallRuntime(Runtime::kToFastProperties, 1);
