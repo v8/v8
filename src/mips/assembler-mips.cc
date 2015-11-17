@@ -2188,13 +2188,13 @@ void Assembler::DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
 
 
 void Assembler::movn_s(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK(IsMipsArchVariant(kMips32r2));
+  DCHECK(!IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, S, rt, fs, fd, MOVN_C);
 }
 
 
 void Assembler::movn_d(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK(IsMipsArchVariant(kMips32r2));
+  DCHECK(!IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, D, rt, fs, fd, MOVN_C);
 }
 
@@ -2261,19 +2261,19 @@ void Assembler::selnez_s(FPURegister fd, FPURegister fs, FPURegister ft) {
 
 
 void Assembler::movz_s(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK(IsMipsArchVariant(kMips32r2));
+  DCHECK(!IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, S, rt, fs, fd, MOVZ_C);
 }
 
 
 void Assembler::movz_d(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK(IsMipsArchVariant(kMips32r2));
+  DCHECK(!IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, D, rt, fs, fd, MOVZ_C);
 }
 
 
 void Assembler::movt_s(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK(IsMipsArchVariant(kMips32r2));
+  DCHECK(!IsMipsArchVariant(kMips32r6));
   FPURegister ft;
   ft.reg_code = (cc & 0x0007) << 2 | 1;
   GenInstrRegister(COP1, S, ft, fs, fd, MOVF);
@@ -2281,7 +2281,7 @@ void Assembler::movt_s(FPURegister fd, FPURegister fs, uint16_t cc) {
 
 
 void Assembler::movt_d(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK(IsMipsArchVariant(kMips32r2));
+  DCHECK(!IsMipsArchVariant(kMips32r6));
   FPURegister ft;
   ft.reg_code = (cc & 0x0007) << 2 | 1;
   GenInstrRegister(COP1, D, ft, fs, fd, MOVF);
@@ -2289,7 +2289,7 @@ void Assembler::movt_d(FPURegister fd, FPURegister fs, uint16_t cc) {
 
 
 void Assembler::movf_s(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK(IsMipsArchVariant(kMips32r2));
+  DCHECK(!IsMipsArchVariant(kMips32r6));
   FPURegister ft;
   ft.reg_code = (cc & 0x0007) << 2 | 0;
   GenInstrRegister(COP1, S, ft, fs, fd, MOVF);
@@ -2297,7 +2297,7 @@ void Assembler::movf_s(FPURegister fd, FPURegister fs, uint16_t cc) {
 
 
 void Assembler::movf_d(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK(IsMipsArchVariant(kMips32r2));
+  DCHECK(!IsMipsArchVariant(kMips32r6));
   FPURegister ft;
   ft.reg_code = (cc & 0x0007) << 2 | 0;
   GenInstrRegister(COP1, D, ft, fs, fd, MOVF);
