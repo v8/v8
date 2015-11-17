@@ -71,11 +71,9 @@ class RegExpMacroAssembler {
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position) = 0;
-  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start) = 0;
-  virtual void CheckNotBackReference(int start_reg, bool read_backward,
-                                     Label* on_no_match) = 0;
+  virtual void CheckNotAtStart(Label* on_not_at_start) = 0;
+  virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward,
                                                Label* on_no_match) = 0;
   // Check the current character for a match with a literal character.  If we
   // fail to match then goto the on_failure label.  End of input always

@@ -850,7 +850,7 @@ Interval RegExpDisjunction::CaptureRegisters() {
 }
 
 
-Interval RegExpLookaround::CaptureRegisters() {
+Interval RegExpLookahead::CaptureRegisters() {
   return body()->CaptureRegisters();
 }
 
@@ -918,8 +918,8 @@ bool RegExpDisjunction::IsAnchoredAtEnd() {
 }
 
 
-bool RegExpLookaround::IsAnchoredAtStart() {
-  return is_positive() && type() == LOOKAHEAD && body()->IsAnchoredAtStart();
+bool RegExpLookahead::IsAnchoredAtStart() {
+  return is_positive() && body()->IsAnchoredAtStart();
 }
 
 
@@ -1068,10 +1068,8 @@ void* RegExpUnparser::VisitCapture(RegExpCapture* that, void* data) {
 }
 
 
-void* RegExpUnparser::VisitLookaround(RegExpLookaround* that, void* data) {
-  os_ << "(";
-  os_ << (that->type() == RegExpLookaround::LOOKAHEAD ? "->" : "<-");
-  os_ << (that->is_positive() ? " + " : " - ");
+void* RegExpUnparser::VisitLookahead(RegExpLookahead* that, void* data) {
+  os_ << "(-> " << (that->is_positive() ? "+ " : "- ");
   that->body()->Accept(this, data);
   os_ << ")";
   return NULL;

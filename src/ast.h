@@ -119,7 +119,7 @@ class RegExpCharacterClass;
 class RegExpCompiler;
 class RegExpDisjunction;
 class RegExpEmpty;
-class RegExpLookaround;
+class RegExpLookahead;
 class RegExpQuantifier;
 class RegExpText;
 
@@ -3075,7 +3075,8 @@ class RegExpQuantifier final : public RegExpTree {
 
 class RegExpCapture final : public RegExpTree {
  public:
-  explicit RegExpCapture(int index) : body_(NULL), index_(index) {}
+  explicit RegExpCapture(RegExpTree* body, int index)
+      : body_(body), index_(index) { }
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   static RegExpNode* ToNode(RegExpTree* body,
@@ -3090,7 +3091,6 @@ class RegExpCapture final : public RegExpTree {
   int min_match() override { return body_->min_match(); }
   int max_match() override { return body_->max_match(); }
   RegExpTree* body() { return body_; }
-  void set_body(RegExpTree* body) { body_ = body; }
   int index() { return index_; }
   static int StartRegister(int index) { return index * 2; }
   static int EndRegister(int index) { return index * 2 + 1; }
@@ -3101,23 +3101,22 @@ class RegExpCapture final : public RegExpTree {
 };
 
 
-class RegExpLookaround final : public RegExpTree {
+class RegExpLookahead final : public RegExpTree {
  public:
-  enum Type { LOOKAHEAD, LOOKBEHIND };
-
-  RegExpLookaround(RegExpTree* body, bool is_positive, int capture_count,
-                   int capture_from, Type type)
+  RegExpLookahead(RegExpTree* body,
+                  bool is_positive,
+                  int capture_count,
+                  int capture_from)
       : body_(body),
         is_positive_(is_positive),
         capture_count_(capture_count),
-        capture_from_(capture_from),
-        type_(type) {}
+        capture_from_(capture_from) { }
 
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
-  RegExpLookaround* AsLookaround() override;
+  RegExpLookahead* AsLookahead() override;
   Interval CaptureRegisters() override;
-  bool IsLookaround() override;
+  bool IsLookahead() override;
   bool IsAnchoredAtStart() override;
   int min_match() override { return 0; }
   int max_match() override { return 0; }
@@ -3125,14 +3124,12 @@ class RegExpLookaround final : public RegExpTree {
   bool is_positive() { return is_positive_; }
   int capture_count() { return capture_count_; }
   int capture_from() { return capture_from_; }
-  Type type() { return type_; }
 
  private:
   RegExpTree* body_;
   bool is_positive_;
   int capture_count_;
   int capture_from_;
-  Type type_;
 };
 
 
@@ -3145,14 +3142,7 @@ class RegExpBackReference final : public RegExpTree {
   RegExpBackReference* AsBackReference() override;
   bool IsBackReference() override;
   int min_match() override { return 0; }
-  // The capture may not be completely parsed yet, if the reference occurs
-  // before the capture. In the ordinary case, nothing has been captured yet,
-  // so the back reference must have the length 0. If the back reference is
-  // inside a lookbehind, effectively making it a forward reference, we return
-  // 0 since lookbehinds have a length of 0.
-  int max_match() override {
-    return capture_->body() ? capture_->max_match() : 0;
-  }
+  int max_match() override { return capture_->max_match(); }
   int index() { return capture_->index(); }
   RegExpCapture* capture() { return capture_; }
  private:

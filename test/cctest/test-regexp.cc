@@ -159,10 +159,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
     CHECK_EQ(max, min_max.max_match);                                          \
   }
 
-
-void TestRegExpParser(bool lookbehind) {
-  FLAG_harmony_regexp_lookbehind = lookbehind;
-
+TEST(Parser) {
   CHECK_PARSE_ERROR("?");
 
   CheckParseEq("abc", "'abc'");
@@ -194,13 +191,6 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
   CheckParseEq("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
   CheckParseEq("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
-  if (lookbehind) {
-    CheckParseEq("foo(?<=bar)baz", "(: 'foo' (<- + 'bar') 'baz')");
-    CheckParseEq("foo(?<!bar)baz", "(: 'foo' (<- - 'bar') 'baz')");
-  } else {
-    CHECK_PARSE_ERROR("foo(?<=bar)baz");
-    CHECK_PARSE_ERROR("foo(?<!bar)baz");
-  }
   CheckParseEq("()", "(^ %)");
   CheckParseEq("(?=)", "(-> + %)");
   CheckParseEq("[]", "^[\\x00-\\uffff]");  // Doesn't compile on windows
@@ -277,16 +267,9 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("(?=a){1,10}a", "(: (-> + 'a') 'a')");
   CheckParseEq("(?=a){9,10}a", "(: (-> + 'a') 'a')");
   CheckParseEq("(?!a)?a", "'a'");
-  CheckParseEq("\\1(a)", "(: (<- 1) (^ 'a'))");
+  CheckParseEq("\\1(a)", "(^ 'a')");
   CheckParseEq("(?!(a))\\1", "(: (-> - (^ 'a')) (<- 1))");
-  CheckParseEq("(?!\\1(a\\1)\\1)\\1",
-               "(: (-> - (: (<- 1) (^ 'a') (<- 1))) (<- 1))");
-  CheckParseEq("\\1\\2(a(?:\\1(b\\1\\2))\\2)\\1",
-               "(: (<- 1) (<- 2) (^ (: 'a' (^ 'b') (<- 2))) (<- 1))");
-  if (lookbehind) {
-    CheckParseEq("\\1\\2(a(?<=\\1(b\\1\\2))\\2)\\1",
-                 "(: (<- 1) (<- 2) (^ (: 'a' (<- + (^ 'b')) (<- 2))) (<- 1))");
-  }
+  CheckParseEq("(?!\\1(a\\1)\\1)\\1", "(: (-> - (: (^ 'a') (<- 1))) (<- 1))");
   CheckParseEq("[\\0]", "[\\x00]");
   CheckParseEq("[\\11]", "[\\x09]");
   CheckParseEq("[\\11a]", "[\\x09 a]");
@@ -414,16 +397,6 @@ void TestRegExpParser(bool lookbehind) {
   CHECK_MIN_MAX("a(?=b)c", 2, 2);
   CHECK_MIN_MAX("a(?=bbb|bb)c", 2, 2);
   CHECK_MIN_MAX("a(?!bbb|bb)c", 2, 2);
-}
-
-
-TEST(ParserWithLookbehind) {
-  TestRegExpParser(true);  // Lookbehind enabled.
-}
-
-
-TEST(ParserWithoutLookbehind) {
-  TestRegExpParser(true);  // Lookbehind enabled.
 }
 
 
@@ -817,7 +790,7 @@ TEST(MacroAssemblerNativeSimple) {
 
   Label fail, backtrack;
   m.PushBacktrack(&fail);
-  m.CheckNotAtStart(0, NULL);
+  m.CheckNotAtStart(NULL);
   m.LoadCurrentCharacter(2, NULL);
   m.CheckNotCharacter('o', NULL);
   m.LoadCurrentCharacter(1, NULL, false);
@@ -884,7 +857,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 
   Label fail, backtrack;
   m.PushBacktrack(&fail);
-  m.CheckNotAtStart(0, NULL);
+  m.CheckNotAtStart(NULL);
   m.LoadCurrentCharacter(2, NULL);
   m.CheckNotCharacter('o', NULL);
   m.LoadCurrentCharacter(1, NULL, false);
@@ -1000,12 +973,12 @@ TEST(MacroAssemblerNativeBackReferenceLATIN1) {
   m.AdvanceCurrentPosition(2);
   m.WriteCurrentPositionToRegister(1, 0);
   Label nomatch;
-  m.CheckNotBackReference(0, false, &nomatch);
+  m.CheckNotBackReference(0, &nomatch);
   m.Fail();
   m.Bind(&nomatch);
   m.AdvanceCurrentPosition(2);
   Label missing_match;
-  m.CheckNotBackReference(0, false, &missing_match);
+  m.CheckNotBackReference(0, &missing_match);
   m.WriteCurrentPositionToRegister(2, 0);
   m.Succeed();
   m.Bind(&missing_match);
@@ -1050,12 +1023,12 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   m.AdvanceCurrentPosition(2);
   m.WriteCurrentPositionToRegister(1, 0);
   Label nomatch;
-  m.CheckNotBackReference(0, false, &nomatch);
+  m.CheckNotBackReference(0, &nomatch);
   m.Fail();
   m.Bind(&nomatch);
   m.AdvanceCurrentPosition(2);
   Label missing_match;
-  m.CheckNotBackReference(0, false, &missing_match);
+  m.CheckNotBackReference(0, &missing_match);
   m.WriteCurrentPositionToRegister(2, 0);
   m.Succeed();
   m.Bind(&missing_match);
@@ -1100,7 +1073,7 @@ TEST(MacroAssemblernativeAtStart) {
                              0);
 
   Label not_at_start, newline, fail;
-  m.CheckNotAtStart(0, &not_at_start);
+  m.CheckNotAtStart(&not_at_start);
   // Check that prevchar = '\n' and current = 'f'.
   m.CheckCharacter('\n', &newline);
   m.Bind(&fail);
@@ -1165,16 +1138,16 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   m.WriteCurrentPositionToRegister(2, 0);
   m.AdvanceCurrentPosition(3);
   m.WriteCurrentPositionToRegister(3, 0);
-  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "AbC".
-  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "ABC".
+  m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "AbC".
+  m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "ABC".
   Label expected_fail;
-  m.CheckNotBackReferenceIgnoreCase(2, false, &expected_fail);
+  m.CheckNotBackReferenceIgnoreCase(2, &expected_fail);
   m.Bind(&fail);
   m.Fail();
 
   m.Bind(&expected_fail);
   m.AdvanceCurrentPosition(3);  // Skip "xYz"
-  m.CheckNotBackReferenceIgnoreCase(2, false, &succ);
+  m.CheckNotBackReferenceIgnoreCase(2, &succ);
   m.Fail();
 
   m.Bind(&succ);
@@ -1366,7 +1339,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   m.WriteCurrentPositionToRegister(0, 0);
   m.WriteCurrentPositionToRegister(1, 1);
   Label done;
-  m.CheckNotBackReference(0, false, &done);  // Performs a system-stack push.
+  m.CheckNotBackReference(0, &done);  // Performs a system-stack push.
   m.Bind(&done);
   m.PushRegister(large_number, RegExpMacroAssembler::kNoStackLimitCheck);
   m.PopRegister(1);
@@ -1415,7 +1388,7 @@ TEST(MacroAssembler) {
   m.Fail();
   m.Bind(&start);
   m.PushBacktrack(&fail);
-  m.CheckNotAtStart(0, NULL);
+  m.CheckNotAtStart(NULL);
   m.LoadCurrentCharacter(0, NULL);
   m.CheckNotCharacter('f', NULL);
   m.LoadCurrentCharacter(1, NULL);

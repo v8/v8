@@ -450,7 +450,7 @@ class RegExpParser BASE_EMBEDDED {
   bool simple();
   bool contains_anchor() { return contains_anchor_; }
   void set_contains_anchor() { contains_anchor_ = true; }
-  int captures_started() { return captures_started_; }
+  int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
   int position() { return next_pos_ - 1; }
   bool failed() { return failed_; }
 
@@ -463,8 +463,8 @@ class RegExpParser BASE_EMBEDDED {
   enum SubexpressionType {
     INITIAL,
     CAPTURE,  // All positive values represent captures.
-    POSITIVE_LOOKAROUND,
-    NEGATIVE_LOOKAROUND,
+    POSITIVE_LOOKAHEAD,
+    NEGATIVE_LOOKAHEAD,
     GROUPING
   };
 
@@ -472,12 +472,11 @@ class RegExpParser BASE_EMBEDDED {
    public:
     RegExpParserState(RegExpParserState* previous_state,
                       SubexpressionType group_type,
-                      RegExpLookaround::Type lookaround_type,
-                      int disjunction_capture_index, Zone* zone)
+                      int disjunction_capture_index,
+                      Zone* zone)
         : previous_state_(previous_state),
-          builder_(new (zone) RegExpBuilder(zone)),
+          builder_(new(zone) RegExpBuilder(zone)),
           group_type_(group_type),
-          lookaround_type_(lookaround_type),
           disjunction_capture_index_(disjunction_capture_index) {}
     // Parser state of containing expression, if any.
     RegExpParserState* previous_state() { return previous_state_; }
@@ -486,15 +485,10 @@ class RegExpParser BASE_EMBEDDED {
     RegExpBuilder* builder() { return builder_; }
     // Type of regexp being parsed (parenthesized group or entire regexp).
     SubexpressionType group_type() { return group_type_; }
-    // Lookahead or Lookbehind.
-    RegExpLookaround::Type lookaround_type() { return lookaround_type_; }
     // Index in captures array of first capture in this sub-expression, if any.
     // Also the capture index of this sub-expression itself, if group_type
     // is CAPTURE.
     int capture_index() { return disjunction_capture_index_; }
-
-    // Check whether the parser is inside a capture group with the given index.
-    bool IsInsideCaptureGroup(int index);
 
    private:
     // Linked list implementation of stack of states.
@@ -503,14 +497,9 @@ class RegExpParser BASE_EMBEDDED {
     RegExpBuilder* builder_;
     // Stored disjunction type (capture, look-ahead or grouping), if any.
     SubexpressionType group_type_;
-    // Stored read direction.
-    RegExpLookaround::Type lookaround_type_;
     // Stored disjunction's capture index (if any).
     int disjunction_capture_index_;
   };
-
-  // Return the 1-indexed RegExpCapture object, allocate if necessary.
-  RegExpCapture* GetCapture(int index);
 
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
@@ -529,7 +518,6 @@ class RegExpParser BASE_EMBEDDED {
   FlatStringReader* in_;
   uc32 current_;
   int next_pos_;
-  int captures_started_;
   // The capture count is only valid after we have scanned for captures.
   int capture_count_;
   bool has_more_;
