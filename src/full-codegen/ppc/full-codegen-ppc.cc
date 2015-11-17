@@ -3054,7 +3054,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetConstructCallPosition(expr);
+  SetConstructCallPosition(expr, arg_count);
 
   // Load function and argument count into r4 and r3.
   __ mov(r3, Operand(arg_count));
@@ -3090,7 +3090,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetConstructCallPosition(expr);
+  SetConstructCallPosition(expr, arg_count);
 
   // Load new target into r7.
   VisitForAccumulatorValue(super_call_ref->new_target_var());
@@ -3822,21 +3822,23 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
 
-  // Evaluate new.target.
+  // Evaluate new.target and super constructor.
   VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
 
-  // Evaluate super constructor (to stack and r4).
-  VisitForAccumulatorValue(args->at(1));
-  __ push(result_register());
-  __ mr(r4, result_register());
-
-  // Load new target into r6.
-  __ LoadP(r6, MemOperand(sp, 1 * kPointerSize));
+  // Call the construct call builtin that handles allocation and
+  // constructor invocation.
+  SetConstructCallPosition(expr, 0);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, args_set_up, runtime;
   __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(r7, MemOperand(r5, StandardFrameConstants::kContextOffset));
+
+  // Load super constructor, new target into r4, r6.
+  __ LoadP(r4, MemOperand(sp));
+  __ LoadP(r6, MemOperand(sp, 1 * kPointerSize));
+
   __ CmpSmiLiteral(r7, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ beq(&adaptor_frame);
 
