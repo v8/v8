@@ -234,9 +234,8 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointer<StaticVisitor>(heap, obj, kConstantPoolOffset);
   }
 
-  static inline int SizeOf(Map* map, HeapObject* object) {
-    return SizeFor(
-        reinterpret_cast<FixedArray*>(object)->synchronized_length());
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return reinterpret_cast<BytecodeArray*>(obj)->BytecodeArraySize();
   }
 };
 
