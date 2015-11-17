@@ -1052,6 +1052,8 @@ class Assembler : public AssemblerBase {
              RCBit rc = LeaveRC);
   void fcfidu(const DoubleRegister frt, const DoubleRegister frb,
               RCBit rc = LeaveRC);
+  void fcfidus(const DoubleRegister frt, const DoubleRegister frb,
+               RCBit rc = LeaveRC);
   void fcfids(const DoubleRegister frt, const DoubleRegister frb,
               RCBit rc = LeaveRC);
   void fctid(const DoubleRegister frt, const DoubleRegister frb,

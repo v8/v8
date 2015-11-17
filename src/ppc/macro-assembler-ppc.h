@@ -387,9 +387,10 @@ class MacroAssembler : public Assembler {
                          const Register int_scratch);
 
 #if V8_TARGET_ARCH_PPC64
-  void ConvertInt64ToDouble(Register src, DoubleRegister double_dst);
-  void ConvertUnsignedInt64ToDouble(Register src, DoubleRegister double_dst);
   void ConvertInt64ToFloat(Register src, DoubleRegister double_dst);
+  void ConvertInt64ToDouble(Register src, DoubleRegister double_dst);
+  void ConvertUnsignedInt64ToFloat(Register src, DoubleRegister double_dst);
+  void ConvertUnsignedInt64ToDouble(Register src, DoubleRegister double_dst);
 #endif
 
   // Converts the double_input to an integer.  Note that, upon return,

@@ -971,6 +971,14 @@ void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundUint64ToFloat32(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(kSSEUint64ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
+       arraysize(temps), temps);
+}
+
+
 void InstructionSelector::VisitRoundUint64ToFloat64(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister()};

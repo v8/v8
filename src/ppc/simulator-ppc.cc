@@ -2707,6 +2707,15 @@ void Simulator::ExecuteExt3(Instruction* instr) {
       set_d_register_from_double(frt, frt_val);
       return;
     }
+    case FCFIDU: {
+      // fcfidus
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      uint64_t frb_val = get_d_register(frb);
+      double frt_val = static_cast<float>(frb_val);
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
   }
   UNIMPLEMENTED();  // Not used by V8.
 }

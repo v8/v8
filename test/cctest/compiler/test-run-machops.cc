@@ -5535,6 +5535,96 @@ TEST(RunRoundUint64ToFloat64) {
 }
 
 
+TEST(RunRoundUint64ToFloat32) {
+  struct {
+    uint64_t input;
+    uint32_t expected;
+  } values[] = {{0x0, 0x0},
+                {0x1, 0x3f800000},
+                {0xffffffff, 0x4f800000},
+                {0x1b09788b, 0x4dd84bc4},
+                {0x4c5fce8, 0x4c98bf9d},
+                {0xcc0de5bf, 0x4f4c0de6},
+                {0x2, 0x40000000},
+                {0x3, 0x40400000},
+                {0x4, 0x40800000},
+                {0x5, 0x40a00000},
+                {0x8, 0x41000000},
+                {0x9, 0x41100000},
+                {0xffffffffffffffff, 0x5f800000},
+                {0xfffffffffffffffe, 0x5f800000},
+                {0xfffffffffffffffd, 0x5f800000},
+                {0x0, 0x0},
+                {0x100000000, 0x4f800000},
+                {0xffffffff00000000, 0x5f800000},
+                {0x1b09788b00000000, 0x5dd84bc4},
+                {0x4c5fce800000000, 0x5c98bf9d},
+                {0xcc0de5bf00000000, 0x5f4c0de6},
+                {0x200000000, 0x50000000},
+                {0x300000000, 0x50400000},
+                {0x400000000, 0x50800000},
+                {0x500000000, 0x50a00000},
+                {0x800000000, 0x51000000},
+                {0x900000000, 0x51100000},
+                {0x273a798e187937a3, 0x5e1ce9e6},
+                {0xece3af835495a16b, 0x5f6ce3b0},
+                {0xb668ecc11223344, 0x5d3668ed},
+                {0x9e, 0x431e0000},
+                {0x43, 0x42860000},
+                {0xaf73, 0x472f7300},
+                {0x116b, 0x458b5800},
+                {0x658ecc, 0x4acb1d98},
+                {0x2b3b4c, 0x4a2ced30},
+                {0x88776655, 0x4f087766},
+                {0x70000000, 0x4ee00000},
+                {0x7200000, 0x4ce40000},
+                {0x7fffffff, 0x4f000000},
+                {0x56123761, 0x4eac246f},
+                {0x7fffff00, 0x4efffffe},
+                {0x761c4761eeeeeeee, 0x5eec388f},
+                {0x80000000eeeeeeee, 0x5f000000},
+                {0x88888888dddddddd, 0x5f088889},
+                {0xa0000000dddddddd, 0x5f200000},
+                {0xddddddddaaaaaaaa, 0x5f5dddde},
+                {0xe0000000aaaaaaaa, 0x5f600000},
+                {0xeeeeeeeeeeeeeeee, 0x5f6eeeef},
+                {0xfffffffdeeeeeeee, 0x5f800000},
+                {0xf0000000dddddddd, 0x5f700000},
+                {0x7fffffdddddddd, 0x5b000000},
+                {0x3fffffaaaaaaaa, 0x5a7fffff},
+                {0x1fffffaaaaaaaa, 0x59fffffd},
+                {0xfffff, 0x497ffff0},
+                {0x7ffff, 0x48ffffe0},
+                {0x3ffff, 0x487fffc0},
+                {0x1ffff, 0x47ffff80},
+                {0xffff, 0x477fff00},
+                {0x7fff, 0x46fffe00},
+                {0x3fff, 0x467ffc00},
+                {0x1fff, 0x45fff800},
+                {0xfff, 0x457ff000},
+                {0x7ff, 0x44ffe000},
+                {0x3ff, 0x447fc000},
+                {0x1ff, 0x43ff8000},
+                {0x3fffffffffff, 0x56800000},
+                {0x1fffffffffff, 0x56000000},
+                {0xfffffffffff, 0x55800000},
+                {0x7ffffffffff, 0x55000000},
+                {0x3ffffffffff, 0x54800000},
+                {0x1ffffffffff, 0x54000000},
+                {0x8000008000000000, 0x5f000000},
+                {0x8000008000000001, 0x5f000001},
+                {0x8000000000000400, 0x5f000000},
+                {0x8000000000000401, 0x5f000000}};
+
+  BufferedRawMachineAssemblerTester<float> m(kMachUint64);
+  m.Return(m.RoundUint64ToFloat32(m.Parameter(0)));
+
+  for (int i = 0; i < arraysize(values); i++) {
+    CHECK_EQ(bit_cast<float>(values[i].expected), m.Call(values[i].input));
+  }
+}
+
+
 #endif
 
 

@@ -899,6 +899,25 @@ void MacroAssembler::Cvtqsi2sd(XMMRegister dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Cvtqui2ss(XMMRegister dst, Register src, Register tmp) {
+  Label msb_set_src;
+  Label jmp_return;
+  testq(src, src);
+  j(sign, &msb_set_src, Label::kNear);
+  Cvtqsi2ss(dst, src);
+  jmp(&jmp_return, Label::kNear);
+  bind(&msb_set_src);
+  movq(tmp, src);
+  shrq(src, Immediate(1));
+  // Recover the least significant bit to avoid rounding errors.
+  andq(tmp, Immediate(1));
+  orq(src, tmp);
+  Cvtqsi2ss(dst, src);
+  addss(dst, dst);
+  bind(&jmp_return);
+}
+
+
 void MacroAssembler::Cvtqui2sd(XMMRegister dst, Register src, Register tmp) {
   Label msb_set_src;
   Label jmp_return;
@@ -909,7 +928,6 @@ void MacroAssembler::Cvtqui2sd(XMMRegister dst, Register src, Register tmp) {
   bind(&msb_set_src);
   movq(tmp, src);
   shrq(src, Immediate(1));
-  // Recover the least significant bit to avoid rounding errors.
   andq(tmp, Immediate(1));
   orq(src, tmp);
   Cvtqsi2sd(dst, src);

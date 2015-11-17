@@ -889,6 +889,10 @@ void Decoder::DecodeExt3(Instruction* instr) {
       Format(instr, "fcfids'. 'Dt, 'Db");
       break;
     }
+    case FCFIDU: {
+      Format(instr, "fcfidus'.'Dt, 'Db");
+      break;
+    }
     default: {
       Unknown(instr);  // not used by V8
     }
