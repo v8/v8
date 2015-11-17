@@ -5459,7 +5459,7 @@ TEST(RunRoundUint64ToFloat64) {
   BufferedRawMachineAssemblerTester<double> m(kMachUint64);
   m.Return(m.RoundUint64ToFloat64(m.Parameter(0)));
 
-  for (int i = 0; i < arraysize(values); i++) {
+  for (size_t i = 0; i < arraysize(values); i++) {
     CHECK_EQ(bit_cast<double>(values[i].expected), m.Call(values[i].input));
   }
 }
@@ -5549,7 +5549,7 @@ TEST(RunRoundUint64ToFloat32) {
   BufferedRawMachineAssemblerTester<float> m(kMachUint64);
   m.Return(m.RoundUint64ToFloat32(m.Parameter(0)));
 
-  for (int i = 0; i < arraysize(values); i++) {
+  for (size_t i = 0; i < arraysize(values); i++) {
     CHECK_EQ(bit_cast<float>(values[i].expected), m.Call(values[i].input));
   }
 }
