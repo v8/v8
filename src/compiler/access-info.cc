@@ -141,11 +141,6 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
   if (!CanInlineElementAccess(map)) return false;
 
   ElementsKind const elements_kind = map->elements_kind();
-  if (access_mode == AccessMode::kLoad &&
-      elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
-    // TODO(bmeurer): Add support for holey loads.
-    return false;
-  }
 
   // Certain (monomorphic) stores need a prototype chain check because shape
   // changes could allow callbacks on elements in the chain that are not

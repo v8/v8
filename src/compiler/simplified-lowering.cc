@@ -776,6 +776,21 @@ class RepresentationSelector {
         }
         break;
       }
+      case IrOpcode::kNumberIsHoleNaN: {
+        VisitUnop(node, kMachFloat64, kMachBool);
+        if (lower()) {
+          // NumberIsHoleNaN(x) => Word32Equal(Float64ExtractLowWord32(x),
+          //                                   #HoleNaNLower32)
+          node->ReplaceInput(0,
+                             jsgraph_->graph()->NewNode(
+                                 lowering->machine()->Float64ExtractLowWord32(),
+                                 node->InputAt(0)));
+          node->AppendInput(jsgraph_->zone(),
+                            jsgraph_->Int32Constant(kHoleNanLower32));
+          NodeProperties::ChangeOp(node, jsgraph_->machine()->Word32Equal());
+        }
+        break;
+      }
       case IrOpcode::kPlainPrimitiveToNumber: {
         VisitUnop(node, kMachAnyTagged, kTypeNumber | kRepTagged);
         if (lower()) {

@@ -176,6 +176,7 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(NumberShiftRightLogical, Operator::kNoProperties, 2) \
   V(NumberToInt32, Operator::kNoProperties, 1)           \
   V(NumberToUint32, Operator::kNoProperties, 1)          \
+  V(NumberIsHoleNaN, Operator::kNoProperties, 1)         \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1)  \
   V(ChangeTaggedToInt32, Operator::kNoProperties, 1)     \
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1)    \

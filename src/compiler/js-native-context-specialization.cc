@@ -711,7 +711,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
         // Check if we are allowed to turn the hole into undefined.
         Type* initial_holey_array_type = Type::Class(
-            handle(isolate()->get_initial_js_array_map(FAST_HOLEY_ELEMENTS)),
+            handle(isolate()->get_initial_js_array_map(elements_kind)),
             graph()->zone());
         if (receiver_type->NowIs(initial_holey_array_type) &&
             isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
@@ -736,6 +736,31 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         // hole).
         this_value = graph()->NewNode(common()->Guard(element_type), this_value,
                                       this_control);
+      } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+        // Perform the hole check on the result.
+        Node* check =
+            graph()->NewNode(simplified()->NumberIsHoleNaN(), this_value);
+        // Check if we are allowed to return the hole directly.
+        Type* initial_holey_array_type = Type::Class(
+            handle(isolate()->get_initial_js_array_map(elements_kind)),
+            graph()->zone());
+        if (receiver_type->NowIs(initial_holey_array_type) &&
+            isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+          // Add a code dependency on the array protector cell.
+          AssumePrototypesStable(receiver_type,
+                                 isolate()->initial_object_prototype());
+          dependencies()->AssumePropertyCell(factory()->array_protector());
+          // Turn the hole into undefined.
+          this_value = graph()->NewNode(
+              common()->Select(kMachAnyTagged, BranchHint::kFalse), check,
+              jsgraph()->UndefinedConstant(), this_value);
+        } else {
+          // Deoptimize in case of the hole.
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                          check, this_control);
+          this_control = graph()->NewNode(common()->IfFalse(), branch);
+          exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+        }
       }
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);

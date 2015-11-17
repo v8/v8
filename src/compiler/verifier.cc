@@ -673,6 +673,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckUpperIs(node, Type::Unsigned32());
       break;
+    case IrOpcode::kNumberIsHoleNaN:
+      // Number -> Boolean
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckUpperIs(node, Type::Boolean());
+      break;
     case IrOpcode::kPlainPrimitiveToNumber:
       // PlainPrimitive -> Number
       CheckValueInputIs(node, 0, Type::PlainPrimitive());

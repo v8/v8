@@ -183,6 +183,7 @@
   V(NumberShiftRightLogical)       \
   V(NumberToInt32)                 \
   V(NumberToUint32)                \
+  V(NumberIsHoleNaN)               \
   V(PlainPrimitiveToNumber)        \
   V(ChangeTaggedToInt32)           \
   V(ChangeTaggedToUint32)          \
