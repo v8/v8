@@ -141,6 +141,7 @@ void ALAA::VisitConditional(Conditional* e) {
 void ALAA::VisitObjectLiteral(ObjectLiteral* e) {
   ZoneList<ObjectLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
+    Visit(properties->at(i)->key());
     Visit(properties->at(i)->value());
   }
 }

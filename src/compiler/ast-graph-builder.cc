@@ -1738,6 +1738,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForValue(property->value());
             FrameStateBeforeAndAfter states(this, property->value()->id());
             Node* value = environment()->Pop();
+            Node* literal = environment()->Top();
             Handle<Name> name = key->AsPropertyName();
             VectorSlotPair feedback =
                 CreateVectorSlotPair(property->GetSlot(0));
@@ -1750,7 +1751,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
           }
           break;
         }
-        environment()->Push(literal);  // Duplicate receiver.
+        environment()->Push(environment()->Top());  // Duplicate receiver.
         VisitForValue(property->key());
         VisitForValue(property->value());
         Node* value = environment()->Pop();
@@ -1768,7 +1769,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         break;
       }
       case ObjectLiteral::Property::PROTOTYPE: {
-        environment()->Push(literal);  // Duplicate receiver.
+        environment()->Push(environment()->Top());  // Duplicate receiver.
         VisitForValue(property->value());
         Node* value = environment()->Pop();
         Node* receiver = environment()->Pop();
@@ -1824,7 +1825,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     ObjectLiteral::Property* property = expr->properties()->at(property_index);
 
     if (property->kind() == ObjectLiteral::Property::PROTOTYPE) {
-      environment()->Push(literal);  // Duplicate receiver.
+      environment()->Push(environment()->Top());  // Duplicate receiver.
       VisitForValue(property->value());
       Node* value = environment()->Pop();
       Node* receiver = environment()->Pop();
@@ -1835,7 +1836,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       continue;
     }
 
-    environment()->Push(literal);  // Duplicate receiver.
+    environment()->Push(environment()->Top());  // Duplicate receiver.
     VisitForValue(property->key());
     Node* name = BuildToName(environment()->Pop(),
                              expr->GetIdForProperty(property_index));
@@ -1933,6 +1934,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       VectorSlotPair pair = CreateVectorSlotPair(expr->LiteralFeedbackSlot());
       Node* value = environment()->Pop();
       Node* index = jsgraph()->Constant(array_index);
+      Node* literal = environment()->Peek(1);
       Node* store = BuildKeyedStore(literal, index, value, pair);
       states.AddToNode(store, expr->GetIdForElement(array_index),
                        OutputFrameStateCombine::Ignore());
