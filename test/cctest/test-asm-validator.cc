@@ -1419,6 +1419,23 @@ TEST(BadLiteral) {
 }
 
 
+TEST(MismatchedReturnTypeLiteral) {
+  CHECK_FUNC_ERROR(
+      "function bar() { if(1) { return 1; } return 1.0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: return type does not match function signature\n");
+}
+
+
+TEST(MismatchedReturnTypeExpression) {
+  CHECK_FUNC_ERROR(
+      "function bar() {\n"
+      "  var x = 1; var y = 1.0; if(1) { return x; } return +y; }\n"
+      "function foo() { bar(); }",
+      "asm: line 40: return type does not match function signature\n");
+}
+
+
 TEST(ForeignFunction) {
   CHECK_FUNC_TYPES_BEGIN(
       "var baz = foreign.baz;\n"
@@ -1469,15 +1486,47 @@ TEST(BadExports) {
 
 TEST(TypeConsistency) {
   v8::V8::Initialize();
-  //  HandleAndZoneScope handles;
-  //  Zone* zone = handles.main_zone();
   TypeCache cache;
+  // Check the consistency of each of the main Asm.js types.
+  CHECK(cache.kAsmFixnum->Is(cache.kAsmFixnum));
+  CHECK(cache.kAsmFixnum->Is(cache.kAsmSigned));
+  CHECK(cache.kAsmFixnum->Is(cache.kAsmUnsigned));
+  CHECK(cache.kAsmFixnum->Is(cache.kAsmInt));
+  CHECK(!cache.kAsmFixnum->Is(cache.kAsmFloat));
+  CHECK(!cache.kAsmFixnum->Is(cache.kAsmDouble));
 
-
-  CHECK(!cache.kAsmSigned->Is(cache.kAsmDouble));
-  CHECK(!cache.kAsmSigned->Is(cache.kAsmFloat));
-  CHECK(!cache.kAsmSigned->Is(cache.kAsmUnsigned));
-  CHECK(!cache.kAsmDouble->Is(cache.kAsmSigned));
+  CHECK(cache.kAsmSigned->Is(cache.kAsmSigned));
   CHECK(cache.kAsmSigned->Is(cache.kAsmInt));
+  CHECK(!cache.kAsmSigned->Is(cache.kAsmFixnum));
+  CHECK(!cache.kAsmSigned->Is(cache.kAsmUnsigned));
+  CHECK(!cache.kAsmSigned->Is(cache.kAsmFloat));
   CHECK(!cache.kAsmSigned->Is(cache.kAsmDouble));
+
+  CHECK(cache.kAsmUnsigned->Is(cache.kAsmUnsigned));
+  CHECK(cache.kAsmUnsigned->Is(cache.kAsmInt));
+  CHECK(!cache.kAsmUnsigned->Is(cache.kAsmSigned));
+  CHECK(!cache.kAsmUnsigned->Is(cache.kAsmFixnum));
+  CHECK(!cache.kAsmUnsigned->Is(cache.kAsmFloat));
+  CHECK(!cache.kAsmUnsigned->Is(cache.kAsmDouble));
+
+  CHECK(cache.kAsmInt->Is(cache.kAsmInt));
+  CHECK(!cache.kAsmInt->Is(cache.kAsmUnsigned));
+  CHECK(!cache.kAsmInt->Is(cache.kAsmSigned));
+  CHECK(!cache.kAsmInt->Is(cache.kAsmFixnum));
+  CHECK(!cache.kAsmInt->Is(cache.kAsmFloat));
+  CHECK(!cache.kAsmInt->Is(cache.kAsmDouble));
+
+  CHECK(cache.kAsmFloat->Is(cache.kAsmFloat));
+  CHECK(!cache.kAsmFloat->Is(cache.kAsmInt));
+  CHECK(!cache.kAsmFloat->Is(cache.kAsmUnsigned));
+  CHECK(!cache.kAsmFloat->Is(cache.kAsmSigned));
+  CHECK(!cache.kAsmFloat->Is(cache.kAsmFixnum));
+  CHECK(!cache.kAsmFloat->Is(cache.kAsmDouble));
+
+  CHECK(cache.kAsmDouble->Is(cache.kAsmDouble));
+  CHECK(!cache.kAsmDouble->Is(cache.kAsmInt));
+  CHECK(!cache.kAsmDouble->Is(cache.kAsmUnsigned));
+  CHECK(!cache.kAsmDouble->Is(cache.kAsmSigned));
+  CHECK(!cache.kAsmDouble->Is(cache.kAsmFixnum));
+  CHECK(!cache.kAsmDouble->Is(cache.kAsmFloat));
 }

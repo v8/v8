@@ -312,13 +312,17 @@ void AsmTyper::VisitReturnStatement(ReturnStatement* stmt) {
   if (!in_function_) {
     return;
   }
-  // Returning literals handled in annotations.
-  if (stmt->expression()->IsLiteral()) {
-    return;
+  Literal* literal = stmt->expression()->AsLiteral();
+  if (literal) {
+    VisitLiteral(literal, true);
+  } else {
+    RECURSE(
+        VisitWithExpectation(stmt->expression(), Type::Any(),
+                             "return expression expected to have return type"));
   }
-  RECURSE(
-      VisitWithExpectation(stmt->expression(), return_type_,
-                           "return expression expected to have return type"));
+  if (!computed_type_->Is(return_type_) || !return_type_->Is(computed_type_)) {
+    FAIL(stmt->expression(), "return type does not match function signature");
+  }
 }
 
 
