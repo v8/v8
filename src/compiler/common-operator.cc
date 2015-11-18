@@ -462,7 +462,6 @@ const Operator* CommonOperatorBuilder::IfException(IfExceptionHint hint) {
 
 
 const Operator* CommonOperatorBuilder::Switch(size_t control_output_count) {
-  DCHECK_GE(control_output_count, 3u);        // Disallow trivial switches.
   return new (zone()) Operator(               // --
       IrOpcode::kSwitch, Operator::kKontrol,  // opcode
       "Switch",                               // name

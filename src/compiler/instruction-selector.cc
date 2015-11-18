@@ -593,7 +593,6 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       DCHECK_EQ(IrOpcode::kIfDefault, sw.default_branch->front()->opcode());
       // All other successors must be cases.
       sw.case_count = block->SuccessorCount() - 1;
-      DCHECK_LE(1u, sw.case_count);
       sw.case_branches = &block->successors().front();
       // Determine case values and their min/max.
       sw.case_values = zone()->NewArray<int32_t>(sw.case_count);
