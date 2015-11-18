@@ -994,6 +994,7 @@
   'regress/regress-crbug-546968': [SKIP],
   'regress/regress-deopt-gcb': [SKIP],
   'regress/regress-deopt-gc': [SKIP],
+  'regress/regress-deopt-in-array-literal-spread': [SKIP],
   'regress/regress-embedded-cons-string': [SKIP],
   'regress/regress-existing-shared-function-info': [SKIP],
   'regress/regress-fast-literal-transition': [SKIP],

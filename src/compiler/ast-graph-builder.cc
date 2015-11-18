@@ -1951,7 +1951,6 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   environment()->Pop();  // Array literal index.
   for (; array_index < expr->values()->length(); array_index++) {
     Expression* subexpr = expr->values()->at(array_index);
-    Node* array = environment()->Pop();
     Node* result;
 
     if (subexpr->IsSpread()) {
@@ -1959,6 +1958,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       FrameStateBeforeAndAfter states(this,
                                       subexpr->AsSpread()->expression()->id());
       Node* iterable = environment()->Pop();
+      Node* array = environment()->Pop();
       Node* function = BuildLoadNativeContextField(
           Context::CONCAT_ITERABLE_TO_ARRAY_BUILTIN_INDEX);
       result = NewNode(javascript()->CallFunction(3, language_mode()), function,
@@ -1967,6 +1967,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     } else {
       VisitForValue(subexpr);
       Node* value = environment()->Pop();
+      Node* array = environment()->Pop();
       const Operator* op =
           javascript()->CallRuntime(Runtime::kAppendElement, 2);
       result = NewNode(op, array, value);

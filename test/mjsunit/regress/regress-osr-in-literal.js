@@ -17,6 +17,7 @@ var testCases = [
   { s:"{ [do { _OSR_ 'b' }]: 3 }",                   r:{ b:3 } },
   { s:"{ [do { _OSR_ 'b' }]: 3, c: 4 }",             r:{ b:3, c:4 } },
   { s:"{ [do { _OSR_ 'b' }]: 3, __proto__:p }",      r:{ b:3, __proto__:p } },
+  { s:"{ get [do { _OSR_ 'c' }]() { return 4; } }",  r:{ c:4 } },
   { s:"class { [do { _OSR_ 'f' }]() {} }" },
   { s:"class { [do { _OSR_ 'f' }]() {}; g() {} }" },
 ];
