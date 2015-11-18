@@ -54,7 +54,7 @@ class RepresentationChanger {
     } else if (use_type & kRepFloat32) {
       return GetFloat32RepresentationFor(node, output_type);
     } else if (use_type & kRepFloat64) {
-      return GetFloat64RepresentationFor(node, output_type);
+      return GetFloat64RepresentationFor(node, output_type, use_type);
     } else if (use_type & kRepBit) {
       return GetBitRepresentationFor(node, output_type);
     } else if (IsWord(use_type)) {
@@ -161,7 +161,8 @@ class RepresentationChanger {
     return jsgraph()->graph()->NewNode(op, node);
   }
 
-  Node* GetFloat64RepresentationFor(Node* node, MachineTypeUnion output_type) {
+  Node* GetFloat64RepresentationFor(Node* node, MachineTypeUnion output_type,
+                                    MachineTypeUnion use_type) {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
       case IrOpcode::kNumberConstant:
@@ -189,6 +190,10 @@ class RepresentationChanger {
       if (output_type & kTypeUint32) {
         op = machine()->ChangeUint32ToFloat64();
       } else {
+        // Either the output is int32 or the uses only care about the
+        // low 32 bits (so we can pick int32 safely).
+        DCHECK(output_type & kTypeInt32 ||
+               !(use_type & ~(kTypeInt32 | kTypeUint32 | kRepMask)));
         op = machine()->ChangeInt32ToFloat64();
       }
     } else if (output_type & kRepTagged) {
@@ -260,6 +265,7 @@ class RepresentationChanger {
     // Select the correct X -> Word32 operator.
     const Operator* op;
     Type* type = NodeProperties::GetType(node);
+
     if (output_type & kRepBit) {
       return node;  // Sloppy comparison -> word32
     } else if (output_type & kRepFloat64) {

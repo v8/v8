@@ -282,7 +282,7 @@ endmacro
 
 function CubeRoot(x) {
   var approx_hi = MathFloorJS(%_DoubleHi(x) / 3) + 0x2A9F7893;
-  var approx = %_ConstructDouble(approx_hi, 0);
+  var approx = %_ConstructDouble(approx_hi | 0, 0);
   approx = NEWTON_ITERATION_CBRT(x, approx);
   approx = NEWTON_ITERATION_CBRT(x, approx);
   approx = NEWTON_ITERATION_CBRT(x, approx);

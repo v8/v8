@@ -400,18 +400,13 @@ class RepresentationSelector {
       if (type != OpParameter<MachineType>(node)) {
         NodeProperties::ChangeOp(node, lowering->common()->Phi(type, values));
       }
+    }
 
-      // Convert inputs to the output representation of this phi.
-      for (int i = 0; i < node->InputCount(); i++) {
-        ProcessInput(node, i, i < values ? output_type : 0);
-      }
-    } else {
-      // Propagate {use} of the phi to value inputs, and 0 to control.
-      MachineType use_type =
-          static_cast<MachineType>((use & kTypeMask) | output);
-      for (int i = 0; i < node->InputCount(); i++) {
-        ProcessInput(node, i, i < values ? use_type : 0);
-      }
+    // Convert inputs to the output representation of this phi, pass the
+    // use truncation along.
+    MachineType use_type = static_cast<MachineType>((use & kTypeMask) | output);
+    for (int i = 0; i < node->InputCount(); i++) {
+      ProcessInput(node, i, i < values ? use_type : 0);
     }
   }
 
