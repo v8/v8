@@ -303,25 +303,15 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
+  Register slot = VectorStoreICDescriptor::SlotRegister();
+  Register vector = VectorStoreICDescriptor::VectorRegister();
 
-  if (FLAG_vector_stores) {
-    Register slot = VectorStoreICDescriptor::SlotRegister();
-    Register vector = VectorStoreICDescriptor::VectorRegister();
-
-    __ xchg(receiver, Operand(esp, 0));
-    __ push(name);
-    __ push(value);
-    __ push(slot);
-    __ push(vector);
-    __ push(receiver);  // which contains the return address.
-  } else {
-    DCHECK(!ebx.is(receiver) && !ebx.is(name) && !ebx.is(value));
-    __ pop(ebx);
-    __ push(receiver);
-    __ push(name);
-    __ push(value);
-    __ push(ebx);
-  }
+  __ xchg(receiver, Operand(esp, 0));
+  __ push(name);
+  __ push(value);
+  __ push(slot);
+  __ push(vector);
+  __ push(receiver);  // which contains the return address.
 }
 
 
@@ -330,7 +320,7 @@ void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kStoreIC_Slow, FLAG_vector_stores ? 5 : 3, 1);
+  __ TailCallRuntime(Runtime::kStoreIC_Slow, 5, 1);
 }
 
 
@@ -339,8 +329,7 @@ void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, FLAG_vector_stores ? 5 : 3,
-                     1);
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, 5, 1);
 }
 
 
