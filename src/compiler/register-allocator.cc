@@ -3174,8 +3174,8 @@ namespace {
 
 class LiveRangeBound {
  public:
-  explicit LiveRangeBound(const LiveRange* range)
-      : range_(range), start_(range->Start()), end_(range->End()) {
+  explicit LiveRangeBound(const LiveRange* range, bool skip)
+      : range_(range), start_(range->Start()), end_(range->End()), skip_(skip) {
     DCHECK(!range->IsEmpty());
   }
 
@@ -3186,6 +3186,7 @@ class LiveRangeBound {
   const LiveRange* const range_;
   const LifetimePosition start_;
   const LifetimePosition end_;
+  const bool skip_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(LiveRangeBound);
@@ -3204,14 +3205,17 @@ class LiveRangeBoundArray {
 
   bool ShouldInitialize() { return start_ == nullptr; }
 
-  void Initialize(Zone* zone, const LiveRange* const range) {
-    size_t length = 0;
-    for (auto i = range; i != nullptr; i = i->next()) length++;
-    start_ = zone->NewArray<LiveRangeBound>(length);
-    length_ = length;
-    auto curr = start_;
-    for (auto i = range; i != nullptr; i = i->next(), ++curr) {
-      new (curr) LiveRangeBound(i);
+  void Initialize(Zone* zone, const TopLevelLiveRange* const range) {
+    length_ = range->GetChildCount();
+
+    start_ = zone->NewArray<LiveRangeBound>(length_);
+    LiveRangeBound* curr = start_;
+    // Normally, spilled ranges do not need connecting moves, because the spill
+    // location has been assigned at definition. For ranges spilled in deferred
+    // blocks, that is not the case, so we need to connect the spilled children.
+    bool spilled_in_blocks = range->IsSpilledOnlyInDeferredBlocks();
+    for (const LiveRange *i = range; i != nullptr; i = i->next(), ++curr) {
+      new (curr) LiveRangeBound(i, !spilled_in_blocks && i->spilled());
     }
   }
 
@@ -3244,21 +3248,29 @@ class LiveRangeBoundArray {
     return Find(succ_start);
   }
 
-  void Find(const InstructionBlock* block, const InstructionBlock* pred,
-            FindResult* result) const {
-    auto pred_end = LifetimePosition::InstructionFromInstructionIndex(
-        pred->last_instruction_index());
-    auto bound = Find(pred_end);
+  bool FindConnectableSubranges(const InstructionBlock* block,
+                                const InstructionBlock* pred,
+                                FindResult* result) const {
+    LifetimePosition pred_end =
+        LifetimePosition::InstructionFromInstructionIndex(
+            pred->last_instruction_index());
+    LiveRangeBound* bound = Find(pred_end);
     result->pred_cover_ = bound->range_;
-    auto cur_start = LifetimePosition::GapFromInstructionIndex(
+    LifetimePosition cur_start = LifetimePosition::GapFromInstructionIndex(
         block->first_instruction_index());
-    // Common case.
+
     if (bound->CanCover(cur_start)) {
-      result->cur_cover_ = bound->range_;
-      return;
+      // Both blocks are covered by the same range, so there is nothing to
+      // connect.
+      return false;
     }
-    result->cur_cover_ = Find(cur_start)->range_;
+    bound = Find(cur_start);
+    if (bound->skip_) {
+      return false;
+    }
+    result->cur_cover_ = bound->range_;
     DCHECK(result->pred_cover_ != nullptr && result->cur_cover_ != nullptr);
+    return (result->cur_cover_ != result->pred_cover_);
   }
 
  private:
@@ -3346,11 +3358,9 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
       for (auto pred : block->predecessors()) {
         FindResult result;
         const auto* pred_block = code()->InstructionBlockAt(pred);
-        array->Find(block, pred_block, &result);
-        if (result.cur_cover_ == result.pred_cover_ ||
-            (!result.cur_cover_->TopLevel()->IsSpilledOnlyInDeferredBlocks() &&
-             result.cur_cover_->spilled()))
+        if (!array->FindConnectableSubranges(block, pred_block, &result)) {
           continue;
+        }
         auto pred_op = result.pred_cover_->GetAssignedOperand();
         auto cur_op = result.cur_cover_->GetAssignedOperand();
         if (pred_op.Equals(cur_op)) continue;

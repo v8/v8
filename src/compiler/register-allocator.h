@@ -572,6 +572,8 @@ class TopLevelLiveRange final : public LiveRange {
                         : ++last_child_id_;
   }
 
+  int GetChildCount() const { return last_child_id_ + 1; }
+
   bool IsSpilledOnlyInDeferredBlocks() const {
     return spilled_in_deferred_blocks_;
   }
