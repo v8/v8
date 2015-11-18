@@ -136,20 +136,14 @@ void CopyObjectToObjectElements(FixedArrayBase* from_base,
   FixedArray* to = FixedArray::cast(to_base);
   DCHECK(IsFastSmiOrObjectElementsKind(from_kind));
   DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
-  Address to_address = to->address() + FixedArray::kHeaderSize;
-  Address from_address = from->address() + FixedArray::kHeaderSize;
-  CopyWords(reinterpret_cast<Object**>(to_address) + to_start,
-            reinterpret_cast<Object**>(from_address) + from_start,
-            static_cast<size_t>(copy_size));
-  if (IsFastObjectElementsKind(from_kind) &&
-      IsFastObjectElementsKind(to_kind)) {
-    Heap* heap = from->GetHeap();
-    if (!heap->InNewSpace(to)) {
-      heap->RecordWrites(to->address(),
-                         to->OffsetOfElementAt(to_start),
-                         copy_size);
-    }
-    heap->incremental_marking()->RecordWrites(to);
+
+  WriteBarrierMode write_barrier_mode =
+      (IsFastObjectElementsKind(from_kind) && IsFastObjectElementsKind(to_kind))
+          ? UPDATE_WRITE_BARRIER
+          : SKIP_WRITE_BARRIER;
+  for (int i = 0; i < copy_size; i++) {
+    Object* value = from->get(from_start + i);
+    to->set(to_start + i, value, write_barrier_mode);
   }
 }
 
@@ -160,7 +154,6 @@ static void CopyDictionaryToObjectElements(
   DisallowHeapAllocation no_allocation;
   SeededNumberDictionary* from = SeededNumberDictionary::cast(from_base);
   int copy_size = raw_copy_size;
-  Heap* heap = from->GetHeap();
   if (raw_copy_size < 0) {
     DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
@@ -183,23 +176,18 @@ static void CopyDictionaryToObjectElements(
   if (to_start + copy_size > to_length) {
     copy_size = to_length - to_start;
   }
+  WriteBarrierMode write_barrier_mode = IsFastObjectElementsKind(to_kind)
+                                            ? UPDATE_WRITE_BARRIER
+                                            : SKIP_WRITE_BARRIER;
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {
       Object* value = from->ValueAt(entry);
       DCHECK(!value->IsTheHole());
-      to->set(i + to_start, value, SKIP_WRITE_BARRIER);
+      to->set(i + to_start, value, write_barrier_mode);
     } else {
       to->set_the_hole(i + to_start);
     }
-  }
-  if (IsFastObjectElementsKind(to_kind)) {
-    if (!heap->InNewSpace(to)) {
-      heap->RecordWrites(to->address(),
-                         to->OffsetOfElementAt(to_start),
-                         copy_size);
-    }
-    heap->incremental_marking()->RecordWrites(to);
   }
 }
 
