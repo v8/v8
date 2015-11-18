@@ -80,6 +80,13 @@
                 'd8_js2c',
               ],
             }],
+            [ 'v8_postmortem_support=="true"', {
+              'xcode_settings': {
+                'OTHER_LDFLAGS': [
+                   '-Wl,-force_load,<(PRODUCT_DIR)/libv8_base.a'
+                ],
+              },
+            }],
           ],
         }],
         ['v8_enable_vtunejit==1', {
