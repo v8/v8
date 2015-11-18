@@ -840,30 +840,14 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
 }
 
 
-static void CallCompileOptimized(MacroAssembler* masm,
-                                            bool concurrent) {
-  FrameScope scope(masm, StackFrame::INTERNAL);
-  // Push a copy of the function onto the stack.
-  __ Push(rdi);
-  // Function is also the parameter to the runtime call.
-  __ Push(rdi);
-  // Whether to compile in a background thread.
-  __ Push(masm->isolate()->factory()->ToBoolean(concurrent));
-
-  __ CallRuntime(Runtime::kCompileOptimized, 2);
-  // Restore receiver.
-  __ Pop(rdi);
-}
-
-
 void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {
-  CallCompileOptimized(masm, false);
+  CallRuntimePassFunction(masm, Runtime::kCompileOptimized_NotConcurrent);
   GenerateTailCallToReturnedCode(masm);
 }
 
 
 void Builtins::Generate_CompileOptimizedConcurrent(MacroAssembler* masm) {
-  CallCompileOptimized(masm, true);
+  CallRuntimePassFunction(masm, Runtime::kCompileOptimized_Concurrent);
   GenerateTailCallToReturnedCode(masm);
 }
 

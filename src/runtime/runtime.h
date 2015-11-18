@@ -125,14 +125,15 @@ namespace internal {
   F(ObservationWeakMapCreate, 0, 1)
 
 
-#define FOR_EACH_INTRINSIC_COMPILER(F)  \
-  F(CompileLazy, 1, 1)                  \
-  F(CompileOptimized, 2, 1)             \
-  F(NotifyStubFailure, 0, 1)            \
-  F(NotifyDeoptimized, 1, 1)            \
-  F(CompileForOnStackReplacement, 1, 1) \
-  F(TryInstallOptimizedCode, 1, 1)      \
-  F(CompileString, 2, 1)                \
+#define FOR_EACH_INTRINSIC_COMPILER(F)    \
+  F(CompileLazy, 1, 1)                    \
+  F(CompileOptimized_Concurrent, 1, 1)    \
+  F(CompileOptimized_NotConcurrent, 1, 1) \
+  F(NotifyStubFailure, 0, 1)              \
+  F(NotifyDeoptimized, 1, 1)              \
+  F(CompileForOnStackReplacement, 1, 1)   \
+  F(TryInstallOptimizedCode, 1, 1)        \
+  F(CompileString, 2, 1)                  \
   F(ResolvePossiblyDirectEval, 5, 1)
 
 
