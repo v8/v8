@@ -2132,6 +2132,8 @@ void Genesis::InitializeGlobal_harmony_reflect() {
                         Builtins::kReflectHas, 2, true);
   SimpleInstallFunction(reflect, "isExtensible",
                         Builtins::kReflectIsExtensible, 1, true);
+  SimpleInstallFunction(reflect, "ownKeys",
+                        Builtins::kReflectOwnKeys, 1, true);
   SimpleInstallFunction(reflect, "preventExtensions",
                         Builtins::kReflectPreventExtensions, 1, true);
   SimpleInstallFunction(reflect, "set",

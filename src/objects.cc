@@ -7821,7 +7821,8 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
 MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                                             KeyCollectionType type,
                                             KeyFilter filter,
-                                            GetKeysConversion getConversion) {
+                                            GetKeysConversion getConversion,
+                                            Enumerability enum_policy) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   KeyAccumulator accumulator(isolate, filter);
@@ -7830,6 +7831,10 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
   PrototypeIterator::WhereToEnd end = type == OWN_ONLY
                                           ? PrototypeIterator::END_AT_NON_HIDDEN
                                           : PrototypeIterator::END_AT_NULL;
+  PropertyAttributes attr_filter = static_cast<PropertyAttributes>(
+      (enum_policy == RESPECT_ENUMERABILITY ? DONT_ENUM : NONE) |
+      PRIVATE_SYMBOL);
+
   // Only collect keys if access is permitted.
   for (PrototypeIterator iter(isolate, object,
                               PrototypeIterator::START_AT_RECEIVER);
@@ -7863,8 +7868,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       break;
     }
 
-    JSObject::CollectOwnElementKeys(current, &accumulator,
-                                    static_cast<PropertyAttributes>(DONT_ENUM));
+    JSObject::CollectOwnElementKeys(current, &accumulator, attr_filter);
 
     // Add the element keys from the interceptor.
     if (current->HasIndexedInterceptor()) {
@@ -7877,6 +7881,8 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
     }
 
     if (filter == SKIP_SYMBOLS) {
+      if (enum_policy == IGNORE_ENUMERABILITY) UNIMPLEMENTED();
+
       // We can cache the computed property keys if access checks are
       // not needed and no interceptors are involved.
       //
@@ -7898,8 +7904,6 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       accumulator.AddKeys(enum_keys);
     } else {
       DCHECK(filter == INCLUDE_SYMBOLS);
-      PropertyAttributes attr_filter =
-          static_cast<PropertyAttributes>(DONT_ENUM | PRIVATE_SYMBOL);
       current->CollectOwnPropertyNames(&accumulator, attr_filter);
     }
 

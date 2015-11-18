@@ -66,6 +66,7 @@ enum BuiltinExtraArguments {
   V(ReflectGetPrototypeOf, NO_EXTRA_ARGUMENTS)               \
   V(ReflectHas, NO_EXTRA_ARGUMENTS)                          \
   V(ReflectIsExtensible, NO_EXTRA_ARGUMENTS)                 \
+  V(ReflectOwnKeys, NO_EXTRA_ARGUMENTS)                      \
   V(ReflectPreventExtensions, NO_EXTRA_ARGUMENTS)            \
   V(ReflectSet, NO_EXTRA_ARGUMENTS)                          \
   V(ReflectSetPrototypeOf, NO_EXTRA_ARGUMENTS)               \
