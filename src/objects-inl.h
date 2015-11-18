@@ -4864,6 +4864,7 @@ bool Map::IsJSGlobalObjectMap() {
   return instance_type() == JS_GLOBAL_OBJECT_TYPE;
 }
 bool Map::IsJSTypedArrayMap() { return instance_type() == JS_TYPED_ARRAY_TYPE; }
+bool Map::IsJSDataViewMap() { return instance_type() == JS_DATA_VIEW_TYPE; }
 
 
 bool Map::CanOmitMapChecks() {

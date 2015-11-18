@@ -43,6 +43,12 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSArrayBuffer::backing_store() field.
   static FieldAccess ForJSArrayBufferBackingStore();
 
+  // Provides access to JSArrayBuffer::bit_field() field.
+  static FieldAccess ForJSArrayBufferBitField();
+
+  // Provides access to JSArrayBufferView::buffer() field.
+  static FieldAccess ForJSArrayBufferViewBuffer();
+
   // Provides access to JSDate fields.
   static FieldAccess ForJSDateField(JSDate::FieldIndex index);
 

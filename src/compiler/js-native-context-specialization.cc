@@ -210,7 +210,33 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     } else {
       DCHECK(access_info.IsDataField());
       FieldIndex const field_index = access_info.field_index();
+      FieldCheck const field_check = access_info.field_check();
       Type* const field_type = access_info.field_type();
+      switch (field_check) {
+        case FieldCheck::kNone:
+          break;
+        case FieldCheck::kJSArrayBufferViewBufferNotNeutered: {
+          Node* this_buffer = this_effect =
+              graph()->NewNode(simplified()->LoadField(
+                                   AccessBuilder::ForJSArrayBufferViewBuffer()),
+                               this_receiver, this_effect, this_control);
+          Node* this_buffer_bit_field = this_effect =
+              graph()->NewNode(simplified()->LoadField(
+                                   AccessBuilder::ForJSArrayBufferBitField()),
+                               this_buffer, this_effect, this_control);
+          Node* check = graph()->NewNode(
+              machine()->Word32Equal(),
+              graph()->NewNode(machine()->Word32And(), this_buffer_bit_field,
+                               jsgraph()->Int32Constant(
+                                   1 << JSArrayBuffer::WasNeutered::kShift)),
+              jsgraph()->Int32Constant(0));
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                          check, this_control);
+          exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+          this_control = graph()->NewNode(common()->IfFalse(), branch);
+          break;
+        }
+      }
       if (access_mode == AccessMode::kLoad &&
           access_info.holder().ToHandle(&holder)) {
         this_receiver = jsgraph()->Constant(holder);

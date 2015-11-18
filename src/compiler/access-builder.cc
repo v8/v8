@@ -82,6 +82,23 @@ FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
 
 
 // static
+FieldAccess AccessBuilder::ForJSArrayBufferBitField() {
+  FieldAccess access = {kTaggedBase, JSArrayBuffer::kBitFieldOffset,
+                        MaybeHandle<Name>(), TypeCache::Get().kInt8, kMachInt8};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForJSArrayBufferViewBuffer() {
+  FieldAccess access = {kTaggedBase, JSArrayBufferView::kBufferOffset,
+                        MaybeHandle<Name>(), Type::TaggedPointer(),
+                        kMachAnyTagged};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
   FieldAccess access = {kTaggedBase,
                         JSDate::kValueOffset + index * kPointerSize,
