@@ -660,18 +660,27 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
 
 void Deserializer::DeserializeDeferredObjects() {
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
-    int space = code & kSpaceMask;
-    DCHECK(space <= kNumberOfSpaces);
-    DCHECK(code - space == kNewObject);
-    HeapObject* object = GetBackReferencedObject(space);
-    int size = source_.GetInt() << kPointerSizeLog2;
-    Address obj_address = object->address();
-    Object** start = reinterpret_cast<Object**>(obj_address + kPointerSize);
-    Object** end = reinterpret_cast<Object**>(obj_address + size);
-    bool filled = ReadData(start, end, space, obj_address);
-    CHECK(filled);
-    DCHECK(CanBeDeferred(object));
-    PostProcessNewObject(object, space);
+    switch (code) {
+      case kAlignmentPrefix:
+      case kAlignmentPrefix + 1:
+      case kAlignmentPrefix + 2:
+        SetAlignment(code);
+        break;
+      default: {
+        int space = code & kSpaceMask;
+        DCHECK(space <= kNumberOfSpaces);
+        DCHECK(code - space == kNewObject);
+        HeapObject* object = GetBackReferencedObject(space);
+        int size = source_.GetInt() << kPointerSizeLog2;
+        Address obj_address = object->address();
+        Object** start = reinterpret_cast<Object**>(obj_address + kPointerSize);
+        Object** end = reinterpret_cast<Object**>(obj_address + size);
+        bool filled = ReadData(start, end, space, obj_address);
+        CHECK(filled);
+        DCHECK(CanBeDeferred(object));
+        PostProcessNewObject(object, space);
+      }
+    }
   }
 }
 
@@ -1212,12 +1221,9 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
 
       case kAlignmentPrefix:
       case kAlignmentPrefix + 1:
-      case kAlignmentPrefix + 2: {
-        DCHECK_EQ(kWordAligned, next_alignment_);
-        next_alignment_ =
-            static_cast<AllocationAlignment>(data - (kAlignmentPrefix - 1));
+      case kAlignmentPrefix + 2:
+        SetAlignment(data);
         break;
-      }
 
       STATIC_ASSERT(kNumberOfRootArrayConstants == Heap::kOldSpaceRoots);
       STATIC_ASSERT(kNumberOfRootArrayConstants == 32);
@@ -2082,6 +2088,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   CHECK_EQ(0, bytes_processed_so_far_);
   bytes_processed_so_far_ = kPointerSize;
 
+  serializer_->PutAlignmentPrefix(object_);
   sink_->Put(kNewObject + reference.space(), "deferred object");
   serializer_->PutBackReference(object_, reference);
   sink_->PutInt(size >> kPointerSizeLog2, "deferred object size");
