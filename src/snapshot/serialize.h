@@ -572,6 +572,14 @@ class Deserializer: public SerializerDeserializer {
     memcpy(dest, src, sizeof(*src));
   }
 
+  void SetAlignment(byte data) {
+    DCHECK_EQ(kWordAligned, next_alignment_);
+    int alignment = data - (kAlignmentPrefix - 1);
+    DCHECK_LE(kWordAligned, alignment);
+    DCHECK_LE(alignment, kSimd128Unaligned);
+    next_alignment_ = static_cast<AllocationAlignment>(alignment);
+  }
+
   void DeserializeDeferredObjects();
 
   void FlushICacheForNewIsolate();
