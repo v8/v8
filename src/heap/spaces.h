@@ -1493,9 +1493,6 @@ class AllocationInfo {
   }
 
   INLINE(Address limit()) const {
-    SLOW_DCHECK(limit_ == NULL ||
-                (reinterpret_cast<intptr_t>(limit_) & kHeapObjectTagMask) ==
-                    0);
     return limit_;
   }
 
@@ -2513,7 +2510,7 @@ class InlineAllocationObserver {
  public:
   explicit InlineAllocationObserver(intptr_t step_size)
       : step_size_(step_size), bytes_to_next_step_(step_size) {
-    DCHECK(step_size >= kPointerSize && (step_size & kHeapObjectTagMask) == 0);
+    DCHECK(step_size >= kPointerSize);
   }
   virtual ~InlineAllocationObserver() {}
 
@@ -2521,15 +2518,13 @@ class InlineAllocationObserver {
   intptr_t step_size() const { return step_size_; }
   intptr_t bytes_to_next_step() const { return bytes_to_next_step_; }
 
-  // Pure virtual method provided by the subclasses that gets called when more
-  // than step_size byte have been allocated.
+  // Pure virtual method provided by the subclasses that gets called when at
+  // least step_size bytes have been allocated.
   virtual void Step(int bytes_allocated) = 0;
 
   // Called each time the new space does an inline allocation step. This may be
   // more frequently than the step_size we are monitoring (e.g. when there are
-  // multiple observers, or when page or space boundary is encountered.) The
-  // Step method is only called once more than step_size bytes have been
-  // allocated.
+  // multiple observers, or when page or space boundary is encountered.)
   void InlineAllocationStep(int bytes_allocated) {
     bytes_to_next_step_ -= bytes_allocated;
     if (bytes_to_next_step_ <= 0) {

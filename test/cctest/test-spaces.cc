@@ -834,13 +834,8 @@ UNINITIALIZED_TEST(InlineAllocationObserver) {
     AllocateUnaligned(new_space, 64);
     CHECK_EQ(observer1.count(), 0);
 
-    // The observer should not get called even when we have allocated exactly
-    // 128 bytes.
+    // The observer should get called when we have allocated exactly 128 bytes.
     AllocateUnaligned(new_space, 64);
-    CHECK_EQ(observer1.count(), 0);
-
-    // The next allocation gets the notification.
-    AllocateUnaligned(new_space, 8);
     CHECK_EQ(observer1.count(), 1);
 
     // Another >128 bytes should get another notification.
@@ -851,35 +846,35 @@ UNINITIALIZED_TEST(InlineAllocationObserver) {
     AllocateUnaligned(new_space, 1024);
     CHECK_EQ(observer1.count(), 3);
 
-    // Allocating another 2048 bytes in small objects should get 12
+    // Allocating another 2048 bytes in small objects should get 16
     // notifications.
     for (int i = 0; i < 64; ++i) {
       AllocateUnaligned(new_space, 32);
     }
-    CHECK_EQ(observer1.count(), 15);
+    CHECK_EQ(observer1.count(), 19);
 
     // Multiple observers should work.
     Observer observer2(96);
     new_space->AddInlineAllocationObserver(&observer2);
 
     AllocateUnaligned(new_space, 2048);
-    CHECK_EQ(observer1.count(), 16);
+    CHECK_EQ(observer1.count(), 20);
     CHECK_EQ(observer2.count(), 1);
 
     AllocateUnaligned(new_space, 104);
-    CHECK_EQ(observer1.count(), 16);
+    CHECK_EQ(observer1.count(), 20);
     CHECK_EQ(observer2.count(), 2);
 
     // Callback should stop getting called after an observer is removed.
     new_space->RemoveInlineAllocationObserver(&observer1);
 
     AllocateUnaligned(new_space, 384);
-    CHECK_EQ(observer1.count(), 16);  // no more notifications.
+    CHECK_EQ(observer1.count(), 20);  // no more notifications.
     CHECK_EQ(observer2.count(), 3);   // this one is still active.
 
     new_space->RemoveInlineAllocationObserver(&observer2);
     AllocateUnaligned(new_space, 384);
-    CHECK_EQ(observer1.count(), 16);
+    CHECK_EQ(observer1.count(), 20);
     CHECK_EQ(observer2.count(), 3);
   }
   isolate->Dispose();
@@ -911,8 +906,8 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
     new_space->RemoveInlineAllocationObserver(&observer1);
     new_space->RemoveInlineAllocationObserver(&observer2);
 
-    CHECK_EQ(observer1.count(), 30);
-    CHECK_EQ(observer2.count(), 26);
+    CHECK_EQ(observer1.count(), 32);
+    CHECK_EQ(observer2.count(), 28);
   }
   isolate->Dispose();
 }
