@@ -1367,10 +1367,12 @@ void Assembler::bgezalc(Register rt, int16_t offset) {
 
 
 void Assembler::bgezall(Register rs, int16_t offset) {
-  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK(!IsMipsArchVariant(kMips32r6));
   DCHECK(!(rs.is(zero_reg)));
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(REGIMM, rs, BGEZALL, offset);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 
@@ -1453,7 +1455,9 @@ void Assembler::j(int32_t target) {
                    (kImm26Bits + kImmFieldShift)) == 0;
   DCHECK(in_range && ((target & 3) == 0));
 #endif
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   GenInstrJump(J, (target >> 2) & kImm26Mask);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 
@@ -1479,8 +1483,10 @@ void Assembler::jal(int32_t target) {
                    (kImm26Bits + kImmFieldShift)) == 0;
   DCHECK(in_range && ((target & 3) == 0));
 #endif
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   positions_recorder()->WriteRecordedPositions();
   GenInstrJump(JAL, (target >> 2) & kImm26Mask);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 

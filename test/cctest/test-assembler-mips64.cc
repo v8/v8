@@ -5492,4 +5492,35 @@ TEST(bal) {
 }
 
 
+TEST(Trampoline) {
+  // Private member of Assembler class.
+  static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, nullptr, 0);
+  Label done;
+  size_t nr_calls = kMaxBranchOffset / (2 * Instruction::kInstrSize) + 2;
+
+  for (size_t i = 0; i < nr_calls; ++i) {
+    __ BranchShort(&done, eq, a0, Operand(a1));
+  }
+  __ bind(&done);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, zero_reg);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  int64_t res =
+      reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, 42, 42, 0, 0, 0));
+  CHECK_EQ(res, 0);
+}
+
+
 #undef __

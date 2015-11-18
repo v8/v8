@@ -1208,6 +1208,8 @@ class Assembler : public AssemblerBase {
     return block_buffer_growth_;
   }
 
+  inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
+
  private:
   inline static void set_target_internal_reference_encoded_at(Address pc,
                                                               Address target);
@@ -1258,7 +1260,6 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
   inline void emit(Instr x,
                    CompactBranchType is_compact_branch = CompactBranchType::NO);
-  inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
 
   // Instruction generation.
   // We have 3 different kind of encoding layout on MIPS.
