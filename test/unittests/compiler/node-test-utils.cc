@@ -1460,8 +1460,8 @@ class IsJSLoadNamedMatcher final : public NodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<const NamedAccess>(node).name(),
-                                 "Name", name_matcher_, listener) &&
+            PrintMatchAndExplain(OpParameter<NamedAccess>(node).name(), "Name",
+                                 name_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
                                  "object", object_value_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
@@ -1513,11 +1513,10 @@ class IsJSLoadGlobalMatcher final : public NodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<LoadGlobalParameters>(node).name(),
+                                 "name", name_matcher_, listener) &&
             PrintMatchAndExplain(
-                OpParameter<const LoadGlobalParameters>(node).name(), "name",
-                name_matcher_, listener) &&
-            PrintMatchAndExplain(
-                OpParameter<const LoadGlobalParameters>(node).typeof_mode(),
+                OpParameter<LoadGlobalParameters>(node).typeof_mode(),
                 "typeof mode", typeof_mode_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
                                  "feedback vector", feedback_vector_matcher_,
@@ -1567,19 +1566,19 @@ class IsJSStoreGlobalMatcher final : public NodeMatcher {
   }
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(
-                OpParameter<const StoreGlobalParameters>(node).name(), "name",
-                name_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
-                                 "value", value_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
-                                 "feedback vector", feedback_vector_matcher_,
-                                 listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
+    return (
+        NodeMatcher::MatchAndExplain(node, listener) &&
+        PrintMatchAndExplain(OpParameter<StoreGlobalParameters>(node).name(),
+                             "name", name_matcher_, listener) &&
+        PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "value",
+                             value_matcher_, listener) &&
+        PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
+                             "feedback vector", feedback_vector_matcher_,
+                             listener) &&
+        PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                             effect_matcher_, listener) &&
+        PrintMatchAndExplain(NodeProperties::GetControlInput(node), "control",
+                             control_matcher_, listener));
   }
 
  private:
