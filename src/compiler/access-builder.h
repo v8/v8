@@ -40,6 +40,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSFunction::shared() field.
   static FieldAccess ForJSFunctionSharedFunctionInfo();
 
+  // Provides access to JSArray::length() field.
+  static FieldAccess ForJSArrayLength(ElementsKind elements_kind);
+
   // Provides access to JSArrayBuffer::backing_store() field.
   static FieldAccess ForJSArrayBufferBackingStore();
 

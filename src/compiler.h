@@ -297,6 +297,12 @@ class CompilationInfo {
     return has_global_object() ? closure()->context()->global_object() : NULL;
   }
 
+  bool has_native_context() const { return has_global_object(); }
+
+  Context* native_context() const {
+    return has_native_context() ? global_object()->native_context() : nullptr;
+  }
+
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
   bool IsStub() const { return mode_ == STUB; }

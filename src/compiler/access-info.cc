@@ -135,7 +135,9 @@ AccessInfoFactory::AccessInfoFactory(CompilationDependencies* dependencies,
       native_context_(native_context),
       isolate_(native_context->GetIsolate()),
       type_cache_(TypeCache::Get()),
-      zone_(zone) {}
+      zone_(zone) {
+  DCHECK(native_context->IsNativeContext());
+}
 
 
 bool AccessInfoFactory::ComputeElementAccessInfo(

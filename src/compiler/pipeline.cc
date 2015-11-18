@@ -496,39 +496,6 @@ struct GraphBuilderPhase {
 };
 
 
-struct NativeContextSpecializationPhase {
-  static const char* phase_name() { return "native context specialization"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common());
-    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->common(), data->machine());
-    JSGlobalObjectSpecialization global_object_specialization(
-        &graph_reducer, data->jsgraph(),
-        data->info()->is_deoptimization_enabled()
-            ? JSGlobalObjectSpecialization::kDeoptimizationEnabled
-            : JSGlobalObjectSpecialization::kNoFlags,
-        handle(data->info()->global_object(), data->isolate()),
-        data->info()->dependencies());
-    JSNativeContextSpecialization native_context_specialization(
-        &graph_reducer, data->jsgraph(),
-        data->info()->is_deoptimization_enabled()
-            ? JSNativeContextSpecialization::kDeoptimizationEnabled
-            : JSNativeContextSpecialization::kNoFlags,
-        handle(data->info()->global_object()->native_context(),
-               data->isolate()),
-        data->info()->dependencies(), temp_zone);
-    AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &global_object_specialization);
-    AddReducer(data, &graph_reducer, &native_context_specialization);
-    graph_reducer.ReduceGraph();
-  }
-};
-
-
 struct InliningPhase {
   static const char* phase_name() { return "inlining"; }
 
@@ -549,6 +516,24 @@ struct InliningPhase {
             : MaybeHandle<Context>());
     JSFrameSpecialization frame_specialization(data->info()->osr_frame(),
                                                data->jsgraph());
+    JSGlobalObjectSpecialization global_object_specialization(
+        &graph_reducer, data->jsgraph(),
+        data->info()->is_deoptimization_enabled()
+            ? JSGlobalObjectSpecialization::kDeoptimizationEnabled
+            : JSGlobalObjectSpecialization::kNoFlags,
+        data->info()->is_native_context_specializing()
+            ? handle(data->info()->native_context(), data->isolate())
+            : MaybeHandle<Context>(),
+        data->info()->dependencies());
+    JSNativeContextSpecialization native_context_specialization(
+        &graph_reducer, data->jsgraph(),
+        data->info()->is_deoptimization_enabled()
+            ? JSNativeContextSpecialization::kDeoptimizationEnabled
+            : JSNativeContextSpecialization::kNoFlags,
+        data->info()->is_native_context_specializing()
+            ? handle(data->info()->native_context(), data->isolate())
+            : MaybeHandle<Context>(),
+        data->info()->dependencies(), temp_zone);
     JSInliningHeuristic inlining(&graph_reducer,
                                  data->info()->is_inlining_enabled()
                                      ? JSInliningHeuristic::kGeneralInlining
@@ -559,6 +544,8 @@ struct InliningPhase {
     if (data->info()->is_frame_specializing()) {
       AddReducer(data, &graph_reducer, &frame_specialization);
     }
+    AddReducer(data, &graph_reducer, &global_object_specialization);
+    AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &call_reducer);
     AddReducer(data, &graph_reducer, &inlining);
@@ -1098,12 +1085,6 @@ Handle<Code> Pipeline::GenerateCode() {
   if (info()->is_osr()) {
     Run<OsrDeconstructionPhase>();
     RunPrintAndVerify("OSR deconstruction", true);
-  }
-
-  // Perform native context specialization (if enabled).
-  if (info()->is_native_context_specializing()) {
-    Run<NativeContextSpecializationPhase>();
-    RunPrintAndVerify("Native context specialized", true);
   }
 
   // Perform function context specialization and inlining (if enabled).

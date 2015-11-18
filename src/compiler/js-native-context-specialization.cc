@@ -8,6 +8,7 @@
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/access-info.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
@@ -24,7 +25,7 @@ namespace compiler {
 
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, Flags flags,
-    Handle<Context> native_context, CompilationDependencies* dependencies,
+    MaybeHandle<Context> native_context, CompilationDependencies* dependencies,
     Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
@@ -32,8 +33,7 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       native_context_(native_context),
       dependencies_(dependencies),
       zone_(zone),
-      type_cache_(TypeCache::Get()),
-      access_info_factory_(dependencies, native_context, graph()->zone()) {}
+      type_cache_(TypeCache::Get()) {}
 
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
@@ -69,9 +69,15 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Not much we can do if deoptimization support is disabled.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
+  // Retrieve the native context from the given {node}.
+  Handle<Context> native_context;
+  if (!GetNativeContext(node).ToHandle(&native_context)) return NoChange();
+
   // Compute property access infos for the receiver maps.
+  AccessInfoFactory access_info_factory(dependencies(), native_context,
+                                        graph()->zone());
   ZoneVector<PropertyAccessInfo> access_infos(zone());
-  if (!access_info_factory().ComputePropertyAccessInfos(
+  if (!access_info_factory.ComputePropertyAccessInfos(
           receiver_maps, name, access_mode, &access_infos)) {
     return NoChange();
   }
@@ -183,7 +189,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      AssumePrototypesStable(receiver_type, holder);
+      AssumePrototypesStable(receiver_type, native_context, holder);
     }
 
     // Generate the actual property access.
@@ -487,10 +493,16 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   // TODO(bmeurer): Add support for non-standard stores.
   if (store_mode != STANDARD_STORE) return NoChange();
 
+  // Retrieve the native context from the given {node}.
+  Handle<Context> native_context;
+  if (!GetNativeContext(node).ToHandle(&native_context)) return NoChange();
+
   // Compute element access infos for the receiver maps.
+  AccessInfoFactory access_info_factory(dependencies(), native_context,
+                                        graph()->zone());
   ZoneVector<ElementAccessInfo> access_infos(zone());
-  if (!access_info_factory().ComputeElementAccessInfos(
-          receiver_maps, access_mode, &access_infos)) {
+  if (!access_info_factory.ComputeElementAccessInfos(receiver_maps, access_mode,
+                                                     &access_infos)) {
     return NoChange();
   }
 
@@ -613,7 +625,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // not compatible with (monomorphic) keyed stores.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      AssumePrototypesStable(receiver_type, holder);
+      AssumePrototypesStable(receiver_type, native_context, holder);
     }
 
     // Check that the {index} is actually a Number.
@@ -667,24 +679,15 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
 
     // Load the length of the {receiver}.
-    Node* this_length;
-    if (receiver_is_jsarray) {
-      FieldAccess length_access = {
-          kTaggedBase, JSArray::kLengthOffset, factory()->name_string(),
-          type_cache_.kJSArrayLengthType, kMachAnyTagged};
-      if (IsFastDoubleElementsKind(elements_kind)) {
-        length_access.type = type_cache_.kFixedDoubleArrayLengthType;
-      } else if (IsFastElementsKind(elements_kind)) {
-        length_access.type = type_cache_.kFixedArrayLengthType;
-      }
-      this_length = this_effect =
-          graph()->NewNode(simplified()->LoadField(length_access),
-                           this_receiver, this_effect, this_control);
-    } else {
-      this_length = this_effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-          this_elements, this_effect, this_control);
-    }
+    Node* this_length = this_effect =
+        receiver_is_jsarray
+            ? graph()->NewNode(
+                  simplified()->LoadField(
+                      AccessBuilder::ForJSArrayLength(elements_kind)),
+                  this_receiver, this_effect, this_control)
+            : graph()->NewNode(
+                  simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+                  this_elements, this_effect, this_control);
 
     // Check that the {index} is in the valid range for the {receiver}.
     Node* check = graph()->NewNode(simplified()->NumberLessThan(), this_index,
@@ -742,7 +745,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         if (receiver_type->NowIs(initial_holey_array_type) &&
             isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
           // Add a code dependency on the array protector cell.
-          AssumePrototypesStable(receiver_type,
+          AssumePrototypesStable(receiver_type, native_context,
                                  isolate()->initial_object_prototype());
           dependencies()->AssumePropertyCell(factory()->array_protector());
           // Turn the hole into undefined.
@@ -773,7 +776,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         if (receiver_type->NowIs(initial_holey_array_type) &&
             isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
           // Add a code dependency on the array protector cell.
-          AssumePrototypesStable(receiver_type,
+          AssumePrototypesStable(receiver_type, native_context,
                                  isolate()->initial_object_prototype());
           dependencies()->AssumePropertyCell(factory()->array_protector());
           // Turn the hole into undefined.
@@ -945,27 +948,19 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
 
 
 void JSNativeContextSpecialization::AssumePrototypesStable(
-    Type* receiver_type, Handle<JSObject> holder) {
+    Type* receiver_type, Handle<Context> native_context,
+    Handle<JSObject> holder) {
   // Determine actual holder and perform prototype chain checks.
   for (auto i = receiver_type->Classes(); !i.Done(); i.Advance()) {
     Handle<Map> map = i.Current();
     // Perform the implicit ToObject for primitives here.
     // Implemented according to ES6 section 7.3.2 GetV (V, P).
     Handle<JSFunction> constructor;
-    if (Map::GetConstructorFunction(map, native_context())
+    if (Map::GetConstructorFunction(map, native_context)
             .ToHandle(&constructor)) {
       map = handle(constructor->initial_map(), isolate());
     }
-    for (PrototypeIterator j(map); !j.IsAtEnd(); j.Advance()) {
-      // Check that the {prototype} still has the same map.  All prototype
-      // maps are guaranteed to be stable, so it's sufficient to add a
-      // stability dependency here.
-      Handle<JSReceiver> const prototype =
-          PrototypeIterator::GetCurrent<JSReceiver>(j);
-      dependencies()->AssumeMapStable(handle(prototype->map(), isolate()));
-      // Stop once we get to the holder.
-      if (prototype.is_identical_to(holder)) break;
-    }
+    dependencies()->AssumePrototypeMapsStable(map, holder);
   }
 }
 
@@ -979,6 +974,14 @@ void JSNativeContextSpecialization::MarkAsDeferred(Node* if_projection) {
     DCHECK_EQ(IrOpcode::kIfFalse, if_projection->opcode());
     NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kTrue));
   }
+}
+
+
+MaybeHandle<Context> JSNativeContextSpecialization::GetNativeContext(
+    Node* node) {
+  Node* const context = NodeProperties::GetContextInput(node);
+  return NodeProperties::GetSpecializationNativeContext(context,
+                                                        native_context());
 }
 
 

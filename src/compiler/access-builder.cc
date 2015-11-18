@@ -74,6 +74,20 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
 
 
 // static
+FieldAccess AccessBuilder::ForJSArrayLength(ElementsKind elements_kind) {
+  TypeCache const& type_cache = TypeCache::Get();
+  FieldAccess access = {kTaggedBase, JSArray::kLengthOffset, Handle<Name>(),
+                        type_cache.kJSArrayLengthType, kMachAnyTagged};
+  if (IsFastDoubleElementsKind(elements_kind)) {
+    access.type = type_cache.kFixedDoubleArrayLengthType;
+  } else if (IsFastElementsKind(elements_kind)) {
+    access.type = type_cache.kFixedArrayLengthType;
+  }
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
   FieldAccess access = {kTaggedBase, JSArrayBuffer::kBackingStoreOffset,
                         MaybeHandle<Name>(), Type::UntaggedPointer(), kMachPtr};

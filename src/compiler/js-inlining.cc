@@ -10,11 +10,7 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/common-operator-reducer.h"
-#include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-global-object-specialization.h"
-#include "src/compiler/js-native-context-specialization.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -356,9 +352,6 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   if (info_->is_deoptimization_enabled()) {
     info.MarkAsDeoptimizationEnabled();
   }
-  if (info_->is_native_context_specializing()) {
-    info.MarkAsNativeContextSpecializing();
-  }
 
   if (!Compiler::ParseAndAnalyze(info.parse_info())) {
     TRACE("Not inlining %s into %s because parsing failed\n",
@@ -409,34 +402,6 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
                   jsgraph_->machine());
   AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
   graph_builder.CreateGraph(false);
-
-  // TODO(mstarzinger): Unify this with the Pipeline once JSInliner refactoring
-  // starts.
-  if (info.is_native_context_specializing()) {
-    GraphReducer graph_reducer(local_zone_, &graph, jsgraph.Dead());
-    DeadCodeElimination dead_code_elimination(&graph_reducer, &graph,
-                                              jsgraph.common());
-    CommonOperatorReducer common_reducer(&graph_reducer, &graph,
-                                         jsgraph.common(), jsgraph.machine());
-    JSGlobalObjectSpecialization global_object_specialization(
-        &graph_reducer, &jsgraph,
-        info.is_deoptimization_enabled()
-            ? JSGlobalObjectSpecialization::kDeoptimizationEnabled
-            : JSGlobalObjectSpecialization::kNoFlags,
-        handle(info.global_object(), info.isolate()), info_->dependencies());
-    JSNativeContextSpecialization native_context_specialization(
-        &graph_reducer, &jsgraph,
-        info.is_deoptimization_enabled()
-            ? JSNativeContextSpecialization::kDeoptimizationEnabled
-            : JSNativeContextSpecialization::kNoFlags,
-        handle(info.global_object()->native_context(), info.isolate()),
-        info_->dependencies(), local_zone_);
-    graph_reducer.AddReducer(&dead_code_elimination);
-    graph_reducer.AddReducer(&common_reducer);
-    graph_reducer.AddReducer(&global_object_specialization);
-    graph_reducer.AddReducer(&native_context_specialization);
-    graph_reducer.ReduceGraph();
-  }
 
   CopyVisitor visitor(&graph, jsgraph_->graph(), &zone);
   visitor.CopyGraph();
