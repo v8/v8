@@ -103,7 +103,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<Object> obj,
 
 static void CreateDataProperty(Isolate* isolate, Handle<JSObject> object,
                                Handle<String> name, Handle<Object> value) {
-  LookupIterator it(object, name);
+  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
   CHECK(result.IsJust() && result.FromJust());
 }
