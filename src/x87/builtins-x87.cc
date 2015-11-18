@@ -127,7 +127,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- eax: number of arguments
   //  -- edi: constructor function
   //  -- ebx: allocation site or undefined
-  //  -- edx: original constructor
+  //  -- edx: new target
   // -----------------------------------
 
   // Enter a construct frame.
@@ -151,12 +151,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ cmp(Operand::StaticVariable(debug_step_in_fp), Immediate(0));
       __ j(not_equal, &rt_call);
 
-      // Verify that the original constructor is a JSFunction.
+      // Verify that the new target is a JSFunction.
       __ CmpObjectType(edx, JS_FUNCTION_TYPE, ebx);
       __ j(not_equal, &rt_call);
 
       // Load the initial map and verify that it is in fact a map.
-      // edx: original constructor
+      // edx: new target
       __ mov(eax, FieldOperand(edx, JSFunction::kPrototypeOrInitialMapOffset));
       // Will both indicate a NULL and a Smi
       __ JumpIfSmi(eax, &rt_call);
@@ -276,7 +276,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Allocate the new receiver object using the runtime call.
-    // edx: original constructor
+    // edx: new target
     __ bind(&rt_call);
     int offset = kPointerSize;
 
@@ -285,7 +285,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ mov(edi, Operand(esp, offset));
     __ push(edi);  // constructor function
-    __ push(edx);  // original constructor
+    __ push(edx);  // new target
     __ CallRuntime(Runtime::kNewObject, 2);
     __ mov(ebx, eax);  // store result in ebx
 
@@ -395,7 +395,7 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- eax: number of arguments
   //  -- edi: constructor function
   //  -- ebx: allocation site or undefined
-  //  -- edx: original constructor
+  //  -- edx: new target
   // -----------------------------------
 
   {
@@ -766,7 +766,7 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
-  //  -- edx : the original constructor
+  //  -- edx : the new target
   //  -- edi : the constructor
   //  -- ebx : the address of the first argument to be pushed. Subsequent
   //           arguments should be consecutive above this, in the same order as
@@ -1157,7 +1157,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
 
   // Stack at entry:
   // esp     : return address
-  // esp[4]  : original constructor (new.target)
+  // esp[4]  : new target
   // esp[8]  : arguments
   // esp[16] : constructor
   {
@@ -1165,7 +1165,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     // Stack frame:
     // ebp     : Old base pointer
     // ebp[4]  : return address
-    // ebp[8]  : original constructor (new.target)
+    // ebp[8]  : new target
     // ebp[12] : arguments
     // ebp[16] : constructor
     static const int kNewTargetOffset = kFPOnStackSize + kPCOnStackSize;
@@ -1364,7 +1364,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax                 : number of arguments
   //  -- edi                 : constructor function
-  //  -- edx                 : original constructor
+  //  -- edx                 : new target
   //  -- esp[0]              : return address
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 4] : receiver
@@ -1407,7 +1407,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&done_convert);
   }
 
-  // 3. Check if original constructor and constructor differ.
+  // 3. Check if new target and constructor differ.
   Label new_object;
   __ cmp(edx, edi);
   __ j(not_equal, &new_object);
@@ -1417,7 +1417,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  -- ebx : the first argument
     //  -- edi : constructor function
-    //  -- edx : original constructor
+    //  -- edx : new target
     // -----------------------------------
     __ Allocate(JSValue::kSize, eax, ecx, no_reg, &new_object, TAG_OBJECT);
 
@@ -1439,7 +1439,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(ebx);  // the first argument
     __ Push(edi);  // constructor function
-    __ Push(edx);  // original constructor
+    __ Push(edx);  // new target
     __ CallRuntime(Runtime::kNewObject, 2);
     __ Pop(FieldOperand(eax, JSValue::kValueOffset));
   }
@@ -1666,7 +1666,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
-  //  -- edx : the original constructor (checked to be a JSFunction)
+  //  -- edx : the new target (checked to be a JSFunction)
   //  -- edi : the constructor to call (checked to be a JSFunction)
   // -----------------------------------
   __ AssertFunction(edx);
@@ -1689,7 +1689,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
-  //  -- edx : the original constructor (either the same as the constructor or
+  //  -- edx : the new target (either the same as the constructor or
   //           the JSFunction on which new was invoked initially)
   //  -- edi : the constructor to call (checked to be a JSFunctionProxy)
   // -----------------------------------
@@ -1704,7 +1704,7 @@ void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
 void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
-  //  -- edx : the original constructor (either the same as the constructor or
+  //  -- edx : the new target (either the same as the constructor or
   //           the JSFunction on which new was invoked initially)
   //  -- edi : the constructor to call (can be any Object)
   // -----------------------------------

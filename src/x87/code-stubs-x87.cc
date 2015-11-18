@@ -1739,7 +1739,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
 void CallConstructStub::Generate(MacroAssembler* masm) {
   // eax : number of arguments
   // ebx : feedback vector
-  // ecx : original constructor (for IsSuperConstructorCall)
+  // ecx : new target (for IsSuperConstructorCall)
   // edx : slot in feedback vector (Smi, for RecordCallTarget)
   // edi : constructor function
 
@@ -1774,7 +1774,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   if (IsSuperConstructorCall()) {
     __ pop(edx);
   } else {
-    // Pass original constructor to construct stub.
+    // Pass new target to construct stub.
     __ mov(edx, edi);
   }
 
