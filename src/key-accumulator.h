@@ -52,6 +52,7 @@ class KeyAccumulator final BASE_EMBEDDED {
   void SortCurrentElementsList();
   Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
   int length() { return length_; }
+  Isolate* isolate() { return isolate_; }
 
  private:
   bool AddIntegerKey(uint32_t key);

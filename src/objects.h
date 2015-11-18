@@ -2257,8 +2257,8 @@ class JSObject: public JSReceiver {
   // index. Returns the number of properties added.
   int GetOwnPropertyNames(FixedArray* storage, int index,
                           PropertyAttributes filter = NONE);
-  int CollectOwnPropertyNames(KeyAccumulator* keys,
-                              PropertyAttributes filter = NONE);
+  void CollectOwnPropertyNames(KeyAccumulator* keys,
+                               PropertyAttributes filter = NONE);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -3400,8 +3400,9 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   // Returns the number of properties added.
   int CopyKeysTo(FixedArray* storage, int index, PropertyAttributes filter,
                  SortMode sort_mode);
-  // Collect the unsorted keys into the given KeyAccumulator.
-  int CollectKeysTo(KeyAccumulator* keys, PropertyAttributes filter);
+  // Collect the keys into the given KeyAccumulator, in ascending chronological
+  // order of property creation.
+  void CollectKeysTo(KeyAccumulator* keys, PropertyAttributes filter);
 
   // Copies enumerable keys to preallocated fixed array.
   void CopyEnumKeysTo(FixedArray* storage);

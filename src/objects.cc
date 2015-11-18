@@ -15097,10 +15097,9 @@ int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
 }
 
 
-int JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
-                                      PropertyAttributes filter) {
+void JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
+                                       PropertyAttributes filter) {
   if (HasFastProperties()) {
-    int nof_keys = keys->length();
     int real_size = map()->NumberOfOwnDescriptors();
     Handle<DescriptorArray> descs(map()->instance_descriptors());
     for (int i = 0; i < real_size; i++) {
@@ -15109,11 +15108,10 @@ int JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
       if (key->FilterKey(filter)) continue;
       keys->AddKey(key);
     }
-    return nof_keys - keys->length();
   } else if (IsJSGlobalObject()) {
-    return global_dictionary()->CollectKeysTo(keys, filter);
+    global_dictionary()->CollectKeysTo(keys, filter);
   } else {
-    return property_dictionary()->CollectKeysTo(keys, filter);
+    property_dictionary()->CollectKeysTo(keys, filter);
   }
 }
 
@@ -16904,10 +16902,13 @@ int Dictionary<Derived, Shape, Key>::CopyKeysTo(
 
 
 template <typename Derived, typename Shape, typename Key>
-int Dictionary<Derived, Shape, Key>::CollectKeysTo(KeyAccumulator* keys,
-                                                   PropertyAttributes filter) {
+void Dictionary<Derived, Shape, Key>::CollectKeysTo(KeyAccumulator* keys,
+                                                    PropertyAttributes filter) {
   int capacity = this->Capacity();
-  int keyLength = keys->length();
+  Handle<FixedArray> array =
+      keys->isolate()->factory()->NewFixedArray(this->NumberOfElements());
+  int array_size = 0;
+
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
     if (!this->IsKey(k) || k->FilterKey(filter)) continue;
@@ -16915,9 +16916,16 @@ int Dictionary<Derived, Shape, Key>::CollectKeysTo(KeyAccumulator* keys,
     PropertyDetails details = this->DetailsAt(i);
     PropertyAttributes attr = details.attributes();
     if ((attr & filter) != 0) continue;
-    keys->AddKey(k);
+    array->set(array_size++, Smi::FromInt(i));
   }
-  return keyLength - keys->length();
+
+  EnumIndexComparator<Derived> cmp(static_cast<Derived*>(this));
+  Smi** start = reinterpret_cast<Smi**>(array->GetFirstElementAddress());
+  std::sort(start, start + array_size, cmp);
+  for (int i = 0; i < array_size; i++) {
+    int index = Smi::cast(array->get(i))->value();
+    keys->AddKey(this->KeyAt(index));
+  }
 }
 
 
