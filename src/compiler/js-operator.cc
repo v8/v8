@@ -677,8 +677,7 @@ const Operator* JSOperatorBuilder::CreateFunctionContext(int slot_count) {
 
 const Operator* JSOperatorBuilder::CreateCatchContext(
     const Handle<String>& name) {
-  return new (zone()) Operator1<Handle<String>, Handle<String>::equal_to,
-                                Handle<String>::hash>(           // --
+  return new (zone()) Operator1<Handle<String>>(                 // --
       IrOpcode::kJSCreateCatchContext, Operator::kNoProperties,  // opcode
       "JSCreateCatchContext",                                    // name
       2, 1, 1, 1, 1, 2,                                          // counts
@@ -688,8 +687,7 @@ const Operator* JSOperatorBuilder::CreateCatchContext(
 
 const Operator* JSOperatorBuilder::CreateBlockContext(
     const Handle<ScopeInfo>& scpope_info) {
-  return new (zone()) Operator1<Handle<ScopeInfo>, Handle<ScopeInfo>::equal_to,
-                                Handle<ScopeInfo>::hash>(        // --
+  return new (zone()) Operator1<Handle<ScopeInfo>>(              // --
       IrOpcode::kJSCreateBlockContext, Operator::kNoProperties,  // opcode
       "JSCreateBlockContext",                                    // name
       1, 1, 1, 1, 1, 2,                                          // counts
@@ -699,8 +697,7 @@ const Operator* JSOperatorBuilder::CreateBlockContext(
 
 const Operator* JSOperatorBuilder::CreateScriptContext(
     const Handle<ScopeInfo>& scpope_info) {
-  return new (zone()) Operator1<Handle<ScopeInfo>, Handle<ScopeInfo>::equal_to,
-                                Handle<ScopeInfo>::hash>(         // --
+  return new (zone()) Operator1<Handle<ScopeInfo>>(               // --
       IrOpcode::kJSCreateScriptContext, Operator::kNoProperties,  // opcode
       "JSCreateScriptContext",                                    // name
       1, 1, 1, 1, 1, 2,                                           // counts
