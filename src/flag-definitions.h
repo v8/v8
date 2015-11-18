@@ -190,7 +190,7 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
 DEFINE_NEG_IMPLICATION(harmony, legacy_const)
 
 // Activate on ClusterFuzz.
-DEFINE_IMPLICATION(es_staging, harmony_destructuring)
+DEFINE_IMPLICATION(es_staging, harmony_destructuring_bind)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                         \
@@ -207,7 +207,7 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                     \
-  V(harmony_destructuring, "harmony destructuring")           \
+  V(harmony_destructuring_bind, "harmony destructuring")      \
   V(harmony_regexps, "harmony regular expression extensions") \
   V(harmony_sloppy, "harmony features in sloppy mode")        \
   V(harmony_sloppy_let, "harmony let in sloppy mode")
@@ -253,7 +253,7 @@ DEFINE_IMPLICATION(harmony_sloppy_function, harmony_sloppy)
 
 // Destructuring shares too much parsing architecture with default parameters
 // to be enabled on its own.
-DEFINE_IMPLICATION(harmony_destructuring, harmony_default_parameters)
+DEFINE_IMPLICATION(harmony_destructuring_bind, harmony_default_parameters)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_generic_loads, false,

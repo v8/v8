@@ -113,7 +113,7 @@ class ParserBase : public Traits {
         allow_harmony_sloppy_let_(false),
         allow_harmony_rest_parameters_(false),
         allow_harmony_default_parameters_(false),
-        allow_harmony_destructuring_(false),
+        allow_harmony_destructuring_bind_(false),
         allow_strong_mode_(false),
         allow_legacy_const_(true),
         allow_harmony_do_expressions_(false) {}
@@ -129,7 +129,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_sloppy_let);
   ALLOW_ACCESSORS(harmony_rest_parameters);
   ALLOW_ACCESSORS(harmony_default_parameters);
-  ALLOW_ACCESSORS(harmony_destructuring);
+  ALLOW_ACCESSORS(harmony_destructuring_bind);
   ALLOW_ACCESSORS(strong_mode);
   ALLOW_ACCESSORS(legacy_const);
   ALLOW_ACCESSORS(harmony_do_expressions);
@@ -835,7 +835,7 @@ class ParserBase : public Traits {
   bool allow_harmony_sloppy_let_;
   bool allow_harmony_rest_parameters_;
   bool allow_harmony_default_parameters_;
-  bool allow_harmony_destructuring_;
+  bool allow_harmony_destructuring_bind_;
   bool allow_strong_mode_;
   bool allow_legacy_const_;
   bool allow_harmony_do_expressions_;
@@ -2319,13 +2319,13 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       return this->ParseRegExpLiteral(false, classifier, ok);
 
     case Token::LBRACK:
-      if (!allow_harmony_destructuring()) {
+      if (!allow_harmony_destructuring_bind()) {
         BindingPatternUnexpectedToken(classifier);
       }
       return this->ParseArrayLiteral(classifier, ok);
 
     case Token::LBRACE:
-      if (!allow_harmony_destructuring()) {
+      if (!allow_harmony_destructuring_bind()) {
         BindingPatternUnexpectedToken(classifier);
       }
       return this->ParseObjectLiteral(classifier, ok);
@@ -3017,7 +3017,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     return expression;
   }
 
-  if (!(allow_harmony_destructuring() || allow_harmony_default_parameters())) {
+  if (!(allow_harmony_destructuring_bind() ||
+        allow_harmony_default_parameters())) {
     BindingPatternUnexpectedToken(classifier);
   }
 
@@ -3797,7 +3798,7 @@ void ParserBase<Traits>::ParseFormalParameter(
   if (!*ok) return;
 
   if (!Traits::IsIdentifier(pattern)) {
-    if (is_rest || !allow_harmony_destructuring()) {
+    if (is_rest || !allow_harmony_destructuring_bind()) {
       ReportUnexpectedToken(next);
       *ok = false;
       return;

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --no-legacy-const --harmony-sloppy --harmony-sloppy-let
-// Flags: --harmony-sloppy-function --harmony-destructuring
+// Flags: --harmony-sloppy-function --harmony-destructuring-bind
 // Flags: --harmony-rest-parameters
 
 // Test Annex B 3.3 semantics for functions declared in blocks in sloppy mode.

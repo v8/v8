@@ -1343,7 +1343,7 @@ void ParserTraits::AddFormalParameter(
     Expression* pattern, Expression* initializer, bool is_rest) {
   bool is_simple =
       !is_rest && pattern->IsVariableProxy() && initializer == nullptr;
-  DCHECK(parser_->allow_harmony_destructuring() ||
+  DCHECK(parser_->allow_harmony_destructuring_bind() ||
          parser_->allow_harmony_rest_parameters() ||
          parser_->allow_harmony_default_parameters() || is_simple);
   const AstRawString* name = is_simple

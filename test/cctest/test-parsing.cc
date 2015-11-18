@@ -1523,7 +1523,7 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyRestParameters));
   parser->set_allow_harmony_sloppy(flags.Contains(kAllowHarmonySloppy));
   parser->set_allow_harmony_sloppy_let(flags.Contains(kAllowHarmonySloppyLet));
-  parser->set_allow_harmony_destructuring(
+  parser->set_allow_harmony_destructuring_bind(
       flags.Contains(kAllowHarmonyDestructuring));
   parser->set_allow_strong_mode(flags.Contains(kAllowStrongMode));
   parser->set_allow_legacy_const(!flags.Contains(kNoLegacyConst));
@@ -6564,7 +6564,7 @@ TEST(StrongModeFreeVariablesNotDeclared) {
 
 
 TEST(DestructuringPositiveTests) {
-  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_destructuring_bind = true;
 
   const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
                                    {"var ", " = {};"},
@@ -6623,7 +6623,7 @@ TEST(DestructuringPositiveTests) {
 
 
 TEST(DestructuringNegativeTests) {
-  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_destructuring_bind = true;
   static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
 
   {  // All modes.
@@ -6794,7 +6794,7 @@ TEST(DestructuringNegativeTests) {
 
 
 TEST(DestructuringDisallowPatternsInForVarIn) {
-  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_destructuring_bind = true;
   static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
   const char* context_data[][2] = {
       {"", ""}, {"function f() {", "}"}, {NULL, NULL}};
@@ -6818,7 +6818,7 @@ TEST(DestructuringDisallowPatternsInForVarIn) {
 
 
 TEST(DestructuringDuplicateParams) {
-  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_destructuring_bind = true;
   static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"function outer() { 'use strict';", "}"},
@@ -6844,7 +6844,7 @@ TEST(DestructuringDuplicateParams) {
 
 
 TEST(DestructuringDuplicateParamsSloppy) {
-  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_destructuring_bind = true;
   static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
   const char* context_data[][2] = {
       {"", ""}, {"function outer() {", "}"}, {nullptr, nullptr}};
@@ -6865,7 +6865,7 @@ TEST(DestructuringDuplicateParamsSloppy) {
 
 
 TEST(DestructuringDisallowPatternsInSingleParamArrows) {
-  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_destructuring_bind = true;
   static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"function outer() { 'use strict';", "}"},
@@ -6885,7 +6885,7 @@ TEST(DestructuringDisallowPatternsInSingleParamArrows) {
 
 
 TEST(DestructuringDisallowPatternsInRestParams) {
-  i::FLAG_harmony_destructuring = true;
+  i::FLAG_harmony_destructuring_bind = true;
   i::FLAG_harmony_rest_parameters = true;
   static const ParserFlag always_flags[] = {kAllowHarmonyRestParameters,
                                             kAllowHarmonyDestructuring};

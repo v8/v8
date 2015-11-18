@@ -919,7 +919,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_sloppy_let(FLAG_harmony_sloppy_let);
   set_allow_harmony_rest_parameters(FLAG_harmony_rest_parameters);
   set_allow_harmony_default_parameters(FLAG_harmony_default_parameters);
-  set_allow_harmony_destructuring(FLAG_harmony_destructuring);
+  set_allow_harmony_destructuring_bind(FLAG_harmony_destructuring_bind);
   set_allow_strong_mode(FLAG_strong_mode);
   set_allow_legacy_const(FLAG_legacy_const);
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
@@ -1075,7 +1075,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       InsertSloppyBlockFunctionVarBindings(scope, &ok);
     }
     if (ok && (is_strict(language_mode()) || allow_harmony_sloppy() ||
-               allow_harmony_destructuring())) {
+               allow_harmony_destructuring_bind())) {
       CheckConflictingVarDeclarations(scope_, &ok);
     }
 
@@ -2515,7 +2515,7 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
         ValidateLetPattern(&pattern_classifier, ok);
         if (!*ok) return;
       }
-      if (!allow_harmony_destructuring() && !pattern->IsVariableProxy()) {
+      if (!allow_harmony_destructuring_bind() && !pattern->IsVariableProxy()) {
         ReportUnexpectedToken(next);
         *ok = false;
         return;
@@ -4401,7 +4401,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       InsertSloppyBlockFunctionVarBindings(scope, CHECK_OK);
     }
     if (is_strict(language_mode) || allow_harmony_sloppy() ||
-        allow_harmony_destructuring()) {
+        allow_harmony_destructuring_bind()) {
       CheckConflictingVarDeclarations(scope, CHECK_OK);
     }
   }
@@ -4821,7 +4821,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_sloppy_let);
     SET_ALLOW(harmony_rest_parameters);
     SET_ALLOW(harmony_default_parameters);
-    SET_ALLOW(harmony_destructuring);
+    SET_ALLOW(harmony_destructuring_bind);
     SET_ALLOW(strong_mode);
     SET_ALLOW(harmony_do_expressions);
 #undef SET_ALLOW
