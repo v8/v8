@@ -373,7 +373,7 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
 
 void AstNumberingVisitor::VisitSpread(Spread* node) {
   IncrementNodeCount();
-  DisableOptimization(kSpread);
+  DisableCrankshaft(kSpread);
   Visit(node->expression());
 }
 
