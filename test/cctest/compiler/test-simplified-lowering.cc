@@ -1203,10 +1203,11 @@ TEST(LowerStringOps_to_call_and_compare) {
   }
 
 
-void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,
-                          MachineType to) {
+  void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,
+                            MachineType to, Type* type = Type::Any()) {
   TestingGraph t(Type::Any());
   Node* in = t.ExampleWithOutput(from);
+  NodeProperties::SetType(in, type);
   Node* use = t.Use(in, to);
   t.Return(use);
   t.Lower();
@@ -1216,13 +1217,16 @@ void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,
 
 
 TEST(InsertBasicChanges) {
-  CheckChangeInsertion(IrOpcode::kChangeFloat64ToInt32, kRepFloat64,
-                       kTypeInt32);
+  CheckChangeInsertion(IrOpcode::kChangeFloat64ToInt32, kRepFloat64, kTypeInt32,
+                       Type::Signed32());
   CheckChangeInsertion(IrOpcode::kChangeFloat64ToUint32, kRepFloat64,
-                       kTypeUint32);
-  CheckChangeInsertion(IrOpcode::kChangeTaggedToInt32, kRepTagged, kTypeInt32);
-  CheckChangeInsertion(IrOpcode::kChangeTaggedToUint32, kRepTagged,
-                       kTypeUint32);
+                       kTypeUint32, Type::Unsigned32());
+  CheckChangeInsertion(IrOpcode::kTruncateFloat64ToInt32, kRepFloat64,
+                       kTypeUint32, Type::Integral32());
+  CheckChangeInsertion(IrOpcode::kChangeTaggedToInt32, kRepTagged, kTypeInt32,
+                       Type::Signed32());
+  CheckChangeInsertion(IrOpcode::kChangeTaggedToUint32, kRepTagged, kTypeUint32,
+                       Type::Unsigned32());
 
   CheckChangeInsertion(IrOpcode::kChangeFloat64ToTagged, kRepFloat64,
                        kRepTagged);

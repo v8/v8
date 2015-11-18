@@ -58,8 +58,7 @@ class RepresentationChanger {
     } else if (use_type & kRepBit) {
       return GetBitRepresentationFor(node, output_type);
     } else if (IsWord(use_type)) {
-      return GetWord32RepresentationFor(node, output_type,
-                                        use_type & kTypeUint32);
+      return GetWord32RepresentationFor(node, output_type);
     } else if (use_type & kRepWord64) {
       return GetWord64RepresentationFor(node, output_type);
     } else {
@@ -245,8 +244,7 @@ class RepresentationChanger {
     return jsgraph()->graph()->NewNode(op, node);
   }
 
-  Node* GetWord32RepresentationFor(Node* node, MachineTypeUnion output_type,
-                                   bool use_unsigned) {
+  Node* GetWord32RepresentationFor(Node* node, MachineTypeUnion output_type) {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
@@ -261,26 +259,34 @@ class RepresentationChanger {
     }
     // Select the correct X -> Word32 operator.
     const Operator* op;
+    Type* type = NodeProperties::GetType(node);
     if (output_type & kRepBit) {
       return node;  // Sloppy comparison -> word32
     } else if (output_type & kRepFloat64) {
-      if (output_type & kTypeUint32 || use_unsigned) {
+      if (output_type & kTypeUint32 || type->Is(Type::Unsigned32())) {
         op = machine()->ChangeFloat64ToUint32();
-      } else {
+      } else if (output_type & kTypeInt32 || type->Is(Type::Signed32())) {
         op = machine()->ChangeFloat64ToInt32();
+      } else {
+        op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
       }
     } else if (output_type & kRepFloat32) {
       node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
-      if (output_type & kTypeUint32 || use_unsigned) {
+      if (output_type & kTypeUint32 || type->Is(Type::Unsigned32())) {
         op = machine()->ChangeFloat64ToUint32();
-      } else {
+      } else if (output_type & kTypeInt32 || type->Is(Type::Signed32())) {
         op = machine()->ChangeFloat64ToInt32();
+      } else {
+        op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
       }
     } else if (output_type & kRepTagged) {
-      if (output_type & kTypeUint32 || use_unsigned) {
+      if (output_type & kTypeUint32 || type->Is(Type::Unsigned32())) {
         op = simplified()->ChangeTaggedToUint32();
-      } else {
+      } else if (output_type & kTypeInt32 || type->Is(Type::Signed32())) {
         op = simplified()->ChangeTaggedToInt32();
+      } else {
+        node = InsertChangeTaggedToFloat64(node);
+        op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
       }
     } else {
       return TypeError(node, output_type, kRepWord32);

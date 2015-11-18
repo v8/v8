@@ -81,7 +81,9 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   }
 
   Node* Parameter(int index = 0) {
-    return graph()->NewNode(common()->Parameter(index), graph()->start());
+    Node* n = graph()->NewNode(common()->Parameter(index), graph()->start());
+    NodeProperties::SetType(n, Type::Any());
+    return n;
   }
 
   void CheckTypeError(MachineTypeUnion from, MachineTypeUnion to) {
@@ -451,17 +453,19 @@ TEST(SignednessInWord32) {
   RepresentationChangerTester r;
 
   // TODO(titzer): assume that uses of a word32 without a sign mean kTypeInt32.
-  CheckChange(IrOpcode::kChangeTaggedToInt32, kRepTagged,
+  CheckChange(IrOpcode::kChangeTaggedToInt32, kRepTagged | kTypeInt32,
               kRepWord32 | kTypeInt32);
-  CheckChange(IrOpcode::kChangeTaggedToUint32, kRepTagged,
+  CheckChange(IrOpcode::kChangeTaggedToUint32, kRepTagged | kTypeUint32,
               kRepWord32 | kTypeUint32);
   CheckChange(IrOpcode::kChangeInt32ToFloat64, kRepWord32, kRepFloat64);
-  CheckChange(IrOpcode::kChangeFloat64ToInt32, kRepFloat64, kRepWord32);
+  CheckChange(IrOpcode::kChangeFloat64ToInt32, kRepFloat64 | kTypeInt32,
+              kRepWord32);
+  CheckChange(IrOpcode::kTruncateFloat64ToInt32, kRepFloat64, kRepWord32);
 
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32, kRepWord32, kRepFloat32);
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
-                  IrOpcode::kChangeFloat64ToInt32, kRepFloat32, kRepWord32);
+                  IrOpcode::kTruncateFloat64ToInt32, kRepFloat32, kRepWord32);
 }
 
 
