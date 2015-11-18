@@ -110,6 +110,7 @@
         'heap/memory-reducer-unittest.cc',
         'heap/heap-unittest.cc',
         'heap/scavenge-job-unittest.cc',
+        'locked-queue-unittest.cc',
         'run-all-unittests.cc',
         'runtime/runtime-interpreter-unittest.cc',
         'test-utils.h',

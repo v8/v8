@@ -854,6 +854,8 @@
         '../../src/layout-descriptor.h',
         '../../src/list-inl.h',
         '../../src/list.h',
+        '../../src/locked-queue-inl.h',
+        '../../src/locked-queue.h',
         '../../src/log-inl.h',
         '../../src/log-utils.cc',
         '../../src/log-utils.h',
