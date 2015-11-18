@@ -1921,10 +1921,10 @@ void Isolate::Deinit() {
   delete basic_block_profiler_;
   basic_block_profiler_ = NULL;
 
-  cancelable_task_manager()->CancelAndWait();
-
   heap_.TearDown();
   logger_->TearDown();
+
+  cancelable_task_manager()->CancelAndWait();
 
   delete heap_profiler_;
   heap_profiler_ = NULL;
