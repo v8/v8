@@ -304,13 +304,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
     Map* map, HeapObject* object) {
   FixedBodyVisitor<StaticVisitor, Context::MarkCompactBodyDescriptor,
                    void>::Visit(map, object);
-
-  MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
-  for (int idx = Context::FIRST_WEAK_SLOT; idx < Context::NATIVE_CONTEXT_SLOTS;
-       ++idx) {
-    Object** slot = Context::cast(object)->RawFieldOfElementAt(idx);
-    collector->RecordSlot(object, slot, *slot);
-  }
 }
 
 
