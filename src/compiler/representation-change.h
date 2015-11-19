@@ -52,7 +52,7 @@ class RepresentationChanger {
     if (use_type & kRepTagged) {
       return GetTaggedRepresentationFor(node, output_type);
     } else if (use_type & kRepFloat32) {
-      return GetFloat32RepresentationFor(node, output_type);
+      return GetFloat32RepresentationFor(node, output_type, use_type);
     } else if (use_type & kRepFloat64) {
       return GetFloat64RepresentationFor(node, output_type, use_type);
     } else if (use_type & kRepBit) {
@@ -115,7 +115,8 @@ class RepresentationChanger {
     return jsgraph()->graph()->NewNode(op, node);
   }
 
-  Node* GetFloat32RepresentationFor(Node* node, MachineTypeUnion output_type) {
+  Node* GetFloat32RepresentationFor(Node* node, MachineTypeUnion output_type,
+                                    MachineTypeUnion truncation) {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
       case IrOpcode::kFloat64Constant:
@@ -143,6 +144,10 @@ class RepresentationChanger {
       if (output_type & kTypeUint32) {
         op = machine()->ChangeUint32ToFloat64();
       } else {
+        // Either the output is int32 or the uses only care about the
+        // low 32 bits (so we can pick int32 safely).
+        DCHECK(output_type & kTypeInt32 ||
+               !(truncation & ~(kTypeInt32 | kTypeUint32 | kRepMask)));
         op = machine()->ChangeInt32ToFloat64();
       }
       // int32 -> float64 -> float32

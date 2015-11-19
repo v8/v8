@@ -56,6 +56,120 @@ enum Phase {
 };
 
 
+namespace {
+
+// The {UseInfo} class is used to describe a use of an input of a node.
+//
+// This information is used in two different ways, based on the phase:
+//
+// 1. During propagation, the use info is used to inform the input node
+//    about what part of the input is used (we call this truncation) and what
+//    is the preferred representation.
+//
+// 2. During lowering, the use info is used to properly convert the input
+//    to the preferred representation. The preferred representation might be
+//    insufficient to do the conversion (e.g. word32->float64 conv), so we also
+//    need the signedness information to produce the correct value.
+class UseInfo {
+ public:
+  // Constructors
+  // ================================================================
+
+  // Uses truncating to the preferred representation.
+  static UseInfo TruncatingWord32() {
+    return UseInfo(kTypeInt32 | kTypeUint32 | kRepWord32);
+  }
+  static UseInfo TruncatingWord64() {
+    return UseInfo(kTypeInt64 | kTypeUint64 | kRepWord64);
+  }
+  static UseInfo Bool() { return UseInfo(kMachBool); }
+  static UseInfo Float32() { return UseInfo(kMachFloat32); }
+  static UseInfo Float64() { return UseInfo(kMachFloat64); }
+  static UseInfo PointerInt() {
+    return kPointerSize == 4 ? TruncatingWord32() : TruncatingWord64();
+  }
+
+  // Non-truncating uses.
+  static UseInfo AnyTagged() { return UseInfo(kMachAnyTagged); }
+  static UseInfo Any() { return UseInfo(kTypeAny); }
+
+  // Ignored-value 'use'.
+  static UseInfo None() { return UseInfo(kMachNone); }
+
+  // Truncating to a representation that is smaller than the preferred
+  // one.
+  static UseInfo Float64TruncatingToWord32() {
+    return UseInfo(kRepFloat64 | kTypeInt32 | kTypeUint32);
+  }
+  static UseInfo Word64TruncatingToWord32() {
+    return UseInfo(kRepWord64 | kTypeInt32 | kTypeUint32);
+  }
+  static UseInfo AnyTruncatingToBool() { return UseInfo(kTypeBool); }
+
+  UseInfo(MachineTypeUnion representation, MachineTypeUnion truncation)
+      : type_(representation | truncation) {
+    DCHECK(base::bits::CountPopulation32(representation & kRepMask) == 1);
+    DCHECK((representation & kTypeMask) == 0);
+    DCHECK((truncation & kRepMask) == 0);
+    // TODO(jarin) Check/normalize truncation?
+  }
+
+  // Queries
+  // ================================================================
+  MachineType GetRepresentation() const {
+    return static_cast<MachineType>(type_ & kRepMask);
+  }
+
+  // This should only be used by the Enqueue method.
+  MachineTypeUnion machine_type() const { return type_; }
+
+ private:
+  explicit UseInfo(MachineTypeUnion type) : type_(type) {}
+
+  MachineTypeUnion type_;
+};
+
+
+UseInfo UseInfoFromRepresentation(MachineTypeUnion rep) {
+  DCHECK((rep & kTypeMask) == 0);
+  if (rep & kRepTagged) return UseInfo::AnyTagged();
+  if (rep & kRepFloat64) {
+    DCHECK((rep & kRepWord64) == 0);
+    return UseInfo::Float64();
+  }
+  if (rep & kRepFloat32) {
+    if (rep == kRepFloat32) return UseInfo::Float32();
+    return UseInfo::AnyTagged();
+  }
+  if (rep & kRepWord64) {
+    return UseInfo::TruncatingWord64();
+  }
+  if (rep & (kRepWord32 | kRepWord16 | kRepWord8)) {
+    CHECK(!(rep & kRepBit));
+    return UseInfo::TruncatingWord32();
+  }
+  DCHECK(rep & kRepBit);
+  return UseInfo::Bool();
+}
+
+
+UseInfo UseInfoFromMachineType(MachineType type) {
+  return UseInfoFromRepresentation(RepresentationOf(type));
+}
+
+
+UseInfo UseInfoForBasePointer(const FieldAccess& access) {
+  return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::PointerInt();
+}
+
+
+UseInfo UseInfoForBasePointer(const ElementAccess& access) {
+  return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::PointerInt();
+}
+
+}  // namespace
+
+
 class RepresentationSelector {
  public:
   // Information for each node tracked during the fixpoint.
@@ -131,7 +245,9 @@ class RepresentationSelector {
 
   // Enqueue {node} if the {use} contains new information for that node.
   // Add {node} to {nodes_} if this is the first time it's been visited.
-  void Enqueue(Node* node, MachineTypeUnion use = 0) {
+  void Enqueue(Node* node, UseInfo use_info = UseInfo::None()) {
+    MachineTypeUnion use = use_info.machine_type();
+
     if (phase_ != PROPAGATE) return;
     NodeInfo* info = GetInfo(node);
     if (!info->visited) {
@@ -163,10 +279,6 @@ class RepresentationSelector {
 
   bool lower() { return phase_ == LOWER; }
 
-  void Enqueue(Node* node, MachineType use) {
-    Enqueue(node, static_cast<MachineTypeUnion>(use));
-  }
-
   void SetOutput(Node* node, MachineTypeUnion output) {
     // Every node should have at most one output representation. Note that
     // phis can have 0, if they have not been used in a representation-inducing
@@ -182,11 +294,11 @@ class RepresentationSelector {
            NodeProperties::GetType(node->InputAt(1))->Is(type);
   }
 
-  void ProcessTruncateWord32Input(Node* node, int index, MachineTypeUnion use) {
+  void ProcessTruncateWord32Input(Node* node, int index) {
     Node* input = node->InputAt(index);
     if (phase_ == PROPAGATE) {
       // In the propagate phase, propagate the usage information backward.
-      Enqueue(input, use);
+      Enqueue(input, UseInfo::TruncatingWord32());
     } else {
       // In the change phase, insert a change before the use if necessary.
       MachineTypeUnion output = GetInfo(input)->output;
@@ -197,8 +309,6 @@ class RepresentationSelector {
               input->op()->mnemonic());
         TRACE(" from ");
         PrintInfo(output);
-        TRACE(" to ");
-        PrintInfo(use);
         TRACE("\n");
         Node* n = changer_->GetTruncatedWord32For(input, output);
         node->ReplaceInput(index, n);
@@ -206,28 +316,36 @@ class RepresentationSelector {
     }
   }
 
-  void ProcessInput(Node* node, int index, MachineTypeUnion use) {
+  void EnqueueInputUse(Node* node, int index, UseInfo use) {
+    Enqueue(node->InputAt(index), use);
+  }
+
+  void ConvertInput(Node* node, int index, UseInfo use) {
     Node* input = node->InputAt(index);
+    // In the change phase, insert a change before the use if necessary.
+    if (use.GetRepresentation() == kMachNone)
+      return;  // No input requirement on the use.
+    MachineTypeUnion output = GetInfo(input)->output;
+    if ((output & kRepMask) != use.GetRepresentation()) {
+      // Output representation doesn't match usage.
+      TRACE("  change: #%d:%s(@%d #%d:%s) ", node->id(), node->op()->mnemonic(),
+            index, input->id(), input->op()->mnemonic());
+      TRACE(" from ");
+      PrintInfo(output);
+      TRACE(" to ");
+      PrintUseInfo(use);
+      TRACE("\n");
+      Node* n =
+          changer_->GetRepresentationFor(input, output, use.machine_type());
+      node->ReplaceInput(index, n);
+    }
+  }
+
+  void ProcessInput(Node* node, int index, UseInfo use) {
     if (phase_ == PROPAGATE) {
-      // In the propagate phase, propagate the usage information backward.
-      Enqueue(input, use);
+      EnqueueInputUse(node, index, use);
     } else {
-      // In the change phase, insert a change before the use if necessary.
-      if ((use & kRepMask) == 0) return;  // No input requirement on the use.
-      MachineTypeUnion output = GetInfo(input)->output;
-      if ((output & kRepMask & use) == 0) {
-        // Output representation doesn't match usage.
-        TRACE("  change: #%d:%s(@%d #%d:%s) ", node->id(),
-              node->op()->mnemonic(), index, input->id(),
-              input->op()->mnemonic());
-        TRACE(" from ");
-        PrintInfo(output);
-        TRACE(" to ");
-        PrintInfo(use);
-        TRACE("\n");
-        Node* n = changer_->GetRepresentationFor(input, output, use);
-        node->ReplaceInput(index, n);
-      }
+      ConvertInput(node, index, use);
     }
   }
 
@@ -253,7 +371,7 @@ class RepresentationSelector {
                        OperatorProperties::GetContextInputCount(node->op());
     // Visit value and context inputs as tagged.
     for (int i = 0; i < tagged_count; i++) {
-      ProcessInput(node, i, kMachAnyTagged);
+      ProcessInput(node, i, UseInfo::AnyTagged());
     }
     // Only enqueue other inputs (framestates, effects, control).
     for (int i = tagged_count; i < node->InputCount(); i++) {
@@ -264,8 +382,8 @@ class RepresentationSelector {
   }
 
   // Helper for binops of the R x L -> O variety.
-  void VisitBinop(Node* node, MachineTypeUnion left_use,
-                  MachineTypeUnion right_use, MachineTypeUnion output) {
+  void VisitBinop(Node* node, UseInfo left_use, UseInfo right_use,
+                  MachineTypeUnion output) {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     ProcessInput(node, 0, left_use);
     ProcessInput(node, 1, right_use);
@@ -276,14 +394,12 @@ class RepresentationSelector {
   }
 
   // Helper for binops of the I x I -> O variety.
-  void VisitBinop(Node* node, MachineTypeUnion input_use,
-                  MachineTypeUnion output) {
+  void VisitBinop(Node* node, UseInfo input_use, MachineTypeUnion output) {
     VisitBinop(node, input_use, input_use, output);
   }
 
   // Helper for unops of the I -> O variety.
-  void VisitUnop(Node* node, MachineTypeUnion input_use,
-                 MachineTypeUnion output) {
+  void VisitUnop(Node* node, UseInfo input_use, MachineTypeUnion output) {
     DCHECK_EQ(1, node->InputCount());
     ProcessInput(node, 0, input_use);
     SetOutput(node, output);
@@ -297,24 +413,38 @@ class RepresentationSelector {
 
   // Helpers for specific types of binops.
   void VisitFloat64Binop(Node* node) {
-    VisitBinop(node, kMachFloat64, kMachFloat64);
+    VisitBinop(node, UseInfo::Float64(), kMachFloat64);
   }
-  void VisitInt32Binop(Node* node) { VisitBinop(node, kMachInt32, kMachInt32); }
+  void VisitInt32Binop(Node* node) {
+    VisitBinop(node, UseInfo::TruncatingWord32(), kMachInt32);
+  }
   void VisitUint32Binop(Node* node) {
-    VisitBinop(node, kMachUint32, kMachUint32);
+    VisitBinop(node, UseInfo::TruncatingWord32(), kMachUint32);
   }
-  void VisitInt64Binop(Node* node) { VisitBinop(node, kMachInt64, kMachInt64); }
+  void VisitInt64Binop(Node* node) {
+    VisitBinop(node, UseInfo::TruncatingWord64(), kMachInt64);
+  }
   void VisitUint64Binop(Node* node) {
-    VisitBinop(node, kMachUint64, kMachUint64);
+    VisitBinop(node, UseInfo::TruncatingWord64(), kMachUint64);
   }
-  void VisitFloat64Cmp(Node* node) { VisitBinop(node, kMachFloat64, kRepBit); }
-  void VisitInt32Cmp(Node* node) { VisitBinop(node, kMachInt32, kRepBit); }
-  void VisitUint32Cmp(Node* node) { VisitBinop(node, kMachUint32, kRepBit); }
-  void VisitInt64Cmp(Node* node) { VisitBinop(node, kMachInt64, kRepBit); }
-  void VisitUint64Cmp(Node* node) { VisitBinop(node, kMachUint64, kRepBit); }
+  void VisitFloat64Cmp(Node* node) {
+    VisitBinop(node, UseInfo::Float64(), kMachBool);
+  }
+  void VisitInt32Cmp(Node* node) {
+    VisitBinop(node, UseInfo::TruncatingWord32(), kMachBool);
+  }
+  void VisitUint32Cmp(Node* node) {
+    VisitBinop(node, UseInfo::TruncatingWord32(), kMachBool);
+  }
+  void VisitInt64Cmp(Node* node) {
+    VisitBinop(node, UseInfo::TruncatingWord64(), kMachBool);
+  }
+  void VisitUint64Cmp(Node* node) {
+    VisitBinop(node, UseInfo::TruncatingWord64(), kMachBool);
+  }
 
   // Infer representation for phi-like nodes.
-  MachineType GetRepresentationForPhi(Node* node, MachineTypeUnion use) {
+  static MachineType GetRepresentationForPhi(Node* node, MachineTypeUnion use) {
     // Phis adapt to the output representation their uses demand.
     Type* upper = NodeProperties::GetType(node);
     if ((use & kRepMask) == kRepFloat32) {
@@ -331,9 +461,8 @@ class RepresentationSelector {
       if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
         // multiple uses, but we are within 32 bits range => pick kRepWord32.
         return kRepWord32;
-      } else if ((use & kTypeMask) == kTypeInt32 ||
-                 (use & kTypeMask) == kTypeUint32) {
-        // We only use 32 bits or we use the result consistently.
+      } else if (!CanObserveNonWord32(use)) {
+        // We only use 32 bits.
         return kRepWord32;
       } else {
         return kRepFloat64;
@@ -353,7 +482,7 @@ class RepresentationSelector {
   // Helper for handling selects.
   void VisitSelect(Node* node, MachineTypeUnion use,
                    SimplifiedLowering* lowering) {
-    ProcessInput(node, 0, kRepBit);
+    ProcessInput(node, 0, UseInfo::Bool());
     MachineType output = GetRepresentationForPhi(node, use);
 
     Type* upper = NodeProperties::GetType(node);
@@ -369,17 +498,12 @@ class RepresentationSelector {
         NodeProperties::ChangeOp(node,
                                  lowering->common()->Select(type, p.hint()));
       }
-
-      // Convert inputs to the output representation of this select.
-      ProcessInput(node, 1, output_type);
-      ProcessInput(node, 2, output_type);
-    } else {
-      // Propagate {use} of the select to value inputs.
-      MachineType use_type =
-          static_cast<MachineType>((use & kTypeMask) | output);
-      ProcessInput(node, 1, use_type);
-      ProcessInput(node, 2, use_type);
     }
+    // Convert inputs to the output representation of this phi, pass the
+    // use truncation along.
+    UseInfo input_use(output, use & kTypeMask);
+    ProcessInput(node, 1, input_use);
+    ProcessInput(node, 2, input_use);
   }
 
   // Helper for handling phis.
@@ -404,9 +528,9 @@ class RepresentationSelector {
 
     // Convert inputs to the output representation of this phi, pass the
     // use truncation along.
-    MachineType use_type = static_cast<MachineType>((use & kTypeMask) | output);
+    UseInfo input_use(output, use & kTypeMask);
     for (int i = 0; i < node->InputCount(); i++) {
-      ProcessInput(node, i, i < values ? use_type : 0);
+      ProcessInput(node, i, i < values ? input_use : UseInfo::None());
     }
   }
 
@@ -418,11 +542,11 @@ class RepresentationSelector {
     for (int i = 0; i < node->InputCount(); i++) {
       if (i == 0) {
         // The target of the call.
-        ProcessInput(node, i, 0);
+        ProcessInput(node, i, UseInfo::None());
       } else if ((i - 1) < params) {
-        ProcessInput(node, i, sig->GetParam(i - 1));
+        ProcessInput(node, i, UseInfoFromMachineType(sig->GetParam(i - 1)));
       } else {
-        ProcessInput(node, i, 0);
+        ProcessInput(node, i, UseInfo::None());
       }
     }
 
@@ -436,7 +560,7 @@ class RepresentationSelector {
   void VisitStateValues(Node* node) {
     if (phase_ == PROPAGATE) {
       for (int i = 0; i < node->InputCount(); i++) {
-        Enqueue(node->InputAt(i), kTypeAny);
+        Enqueue(node->InputAt(i), UseInfo::Any());
       }
     } else {
       Zone* zone = jsgraph_->zone();
@@ -482,11 +606,11 @@ class RepresentationSelector {
             NodeProperties::GetType(node)->Is(Type::Unsigned32()));
   }
 
-  bool CanObserveNonWord32(MachineTypeUnion use) {
+  static bool CanObserveNonWord32(MachineTypeUnion use) {
     return (use & kTypeMask & ~(kTypeInt32 | kTypeUint32)) != 0;
   }
 
-  bool CanObserveNaN(MachineTypeUnion use) {
+  static bool CanObserveNaN(MachineTypeUnion use) {
     return (use & (kTypeNumber | kTypeAny)) != 0;
   }
 
@@ -504,7 +628,7 @@ class RepresentationSelector {
       case IrOpcode::kParameter: {
         // TODO(titzer): use representation from linkage.
         Type* upper = NodeProperties::GetType(node);
-        ProcessInput(node, 0, 0);
+        ProcessInput(node, 0, UseInfo::None());
         SetOutput(node, kRepTagged | changer_->TypeFromUpperBound(upper));
         return;
       }
@@ -524,11 +648,11 @@ class RepresentationSelector {
         return VisitLeaf(node, kRepTagged);
 
       case IrOpcode::kBranch:
-        ProcessInput(node, 0, kRepBit);
+        ProcessInput(node, 0, UseInfo::Bool());
         Enqueue(NodeProperties::GetControlInput(node, 0));
         break;
       case IrOpcode::kSwitch:
-        ProcessInput(node, 0, kRepWord32);
+        ProcessInput(node, 0, UseInfo::TruncatingWord32());
         Enqueue(NodeProperties::GetControlInput(node, 0));
         break;
       case IrOpcode::kSelect:
@@ -569,7 +693,7 @@ class RepresentationSelector {
           }
         } else {
           // No input representation requirement; adapt during lowering.
-          ProcessInput(node, 0, kTypeBool);
+          ProcessInput(node, 0, UseInfo::AnyTruncatingToBool());
           SetOutput(node, kRepBit);
         }
         break;
@@ -587,7 +711,7 @@ class RepresentationSelector {
           }
         } else {
           // No input representation requirement; adapt during lowering.
-          ProcessInput(node, 0, kTypeBool);
+          ProcessInput(node, 0, UseInfo::AnyTruncatingToBool());
           SetOutput(node, kMachInt32);
         }
         break;
@@ -625,8 +749,8 @@ class RepresentationSelector {
           if (lower()) NodeProperties::ChangeOp(node, Uint32Op(node));
         } else if (CanLowerToWord32AdditiveBinop(node, use)) {
           // => signed Int32Add/Sub, truncating inputs
-          ProcessTruncateWord32Input(node, 0, kTypeInt32);
-          ProcessTruncateWord32Input(node, 1, kTypeInt32);
+          ProcessTruncateWord32Input(node, 0);
+          ProcessTruncateWord32Input(node, 1);
           SetOutput(node, kMachInt32);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
         } else {
@@ -695,17 +819,20 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberShiftLeft: {
-        VisitBinop(node, kMachInt32, kMachUint32, kMachInt32);
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   UseInfo::TruncatingWord32(), kMachInt32);
         if (lower()) lowering->DoShift(node, lowering->machine()->Word32Shl());
         break;
       }
       case IrOpcode::kNumberShiftRight: {
-        VisitBinop(node, kMachInt32, kMachUint32, kMachInt32);
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   UseInfo::TruncatingWord32(), kMachInt32);
         if (lower()) lowering->DoShift(node, lowering->machine()->Word32Sar());
         break;
       }
       case IrOpcode::kNumberShiftRightLogical: {
-        VisitBinop(node, kMachUint32, kMachUint32, kMachUint32);
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   UseInfo::TruncatingWord32(), kMachUint32);
         if (lower()) lowering->DoShift(node, lowering->machine()->Word32Shr());
         break;
       }
@@ -716,22 +843,24 @@ class RepresentationSelector {
         MachineTypeUnion in = GetInfo(input)->output;
         if (in_upper->Is(Type::Signed32())) {
           // If the input has type int32, pass through representation.
-          VisitUnop(node, kTypeInt32 | use_rep, kTypeInt32 | use_rep);
+          VisitUnop(node, UseInfoFromRepresentation(use_rep),
+                    kTypeInt32 | use_rep);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if ((in & kTypeMask) == kTypeUint32 ||
                    in_upper->Is(Type::Unsigned32())) {
           // Just change representation if necessary.
-          VisitUnop(node, kTypeUint32 | kRepWord32, kTypeInt32 | kRepWord32);
+          VisitUnop(node, UseInfo::TruncatingWord32(), kTypeInt32 | kRepWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if ((in & kTypeMask) == kTypeInt32 ||
                    (in & kRepMask) == kRepWord32) {
           // Just change representation if necessary.
-          VisitUnop(node, kTypeInt32 | kRepWord32, kTypeInt32 | kRepWord32);
+          VisitUnop(node, UseInfo::TruncatingWord32(), kTypeInt32 | kRepWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           // Require the input in float64 format and perform truncation.
           // TODO(turbofan): avoid a truncation with a smi check.
-          VisitUnop(node, kTypeInt32 | kRepFloat64, kTypeInt32 | kRepWord32);
+          VisitUnop(node, UseInfo::Float64TruncatingToWord32(),
+                    kTypeInt32 | kRepWord32);
           if (lower()) {
             NodeProperties::ChangeOp(
                 node, lowering->machine()->TruncateFloat64ToInt32(
@@ -747,22 +876,26 @@ class RepresentationSelector {
         MachineTypeUnion in = GetInfo(input)->output;
         if (in_upper->Is(Type::Unsigned32())) {
           // If the input has type uint32, pass through representation.
-          VisitUnop(node, kTypeUint32 | use_rep, kTypeUint32 | use_rep);
+          VisitUnop(node, UseInfoFromRepresentation(use_rep),
+                    kTypeUint32 | use_rep);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if ((in & kTypeMask) == kTypeInt32 ||
                    in_upper->Is(Type::Signed32())) {
           // Just change representation if necessary.
-          VisitUnop(node, kTypeInt32 | kRepWord32, kTypeUint32 | kRepWord32);
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    kTypeUint32 | kRepWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if ((in & kTypeMask) == kTypeUint32 ||
                    (in & kRepMask) == kRepWord32) {
           // Just change representation if necessary.
-          VisitUnop(node, kTypeUint32 | kRepWord32, kTypeUint32 | kRepWord32);
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    kTypeUint32 | kRepWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           // Require the input in float64 format and perform truncation.
           // TODO(turbofan): avoid a truncation with a smi check.
-          VisitUnop(node, kTypeUint32 | kRepFloat64, kTypeUint32 | kRepWord32);
+          VisitUnop(node, UseInfo::Float64TruncatingToWord32(),
+                    kTypeUint32 | kRepWord32);
           if (lower()) {
             NodeProperties::ChangeOp(
                 node, lowering->machine()->TruncateFloat64ToInt32(
@@ -772,7 +905,7 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberIsHoleNaN: {
-        VisitUnop(node, kMachFloat64, kMachBool);
+        VisitUnop(node, UseInfo::Float64(), kMachBool);
         if (lower()) {
           // NumberIsHoleNaN(x) => Word32Equal(Float64ExtractLowWord32(x),
           //                                   #HoleNaNLower32)
@@ -787,7 +920,7 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kPlainPrimitiveToNumber: {
-        VisitUnop(node, kMachAnyTagged, kTypeNumber | kRepTagged);
+        VisitUnop(node, UseInfo::AnyTagged(), kTypeNumber | kRepTagged);
         if (lower()) {
           // PlainPrimitiveToNumber(x) => Call(ToNumberStub, x, no-context)
           Operator::Properties properties = node->op()->properties();
@@ -804,53 +937,53 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kReferenceEqual: {
-        VisitBinop(node, kMachAnyTagged, kRepBit);
+        VisitBinop(node, UseInfo::AnyTagged(), kMachBool);
         if (lower()) {
           NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());
         }
         break;
       }
       case IrOpcode::kStringEqual: {
-        VisitBinop(node, kMachAnyTagged, kRepBit);
+        VisitBinop(node, UseInfo::AnyTagged(), kMachBool);
         if (lower()) lowering->DoStringEqual(node);
         break;
       }
       case IrOpcode::kStringLessThan: {
-        VisitBinop(node, kMachAnyTagged, kRepBit);
+        VisitBinop(node, UseInfo::AnyTagged(), kMachBool);
         if (lower()) lowering->DoStringLessThan(node);
         break;
       }
       case IrOpcode::kStringLessThanOrEqual: {
-        VisitBinop(node, kMachAnyTagged, kRepBit);
+        VisitBinop(node, UseInfo::AnyTagged(), kMachBool);
         if (lower()) lowering->DoStringLessThanOrEqual(node);
         break;
       }
       case IrOpcode::kAllocate: {
-        ProcessInput(node, 0, kMachAnyTagged);
+        ProcessInput(node, 0, UseInfo::AnyTagged());
         ProcessRemainingInputs(node, 1);
         SetOutput(node, kMachAnyTagged);
         break;
       }
       case IrOpcode::kLoadField: {
         FieldAccess access = FieldAccessOf(node->op());
-        ProcessInput(node, 0, changer_->TypeForBasePointer(access));
+        ProcessInput(node, 0, UseInfoForBasePointer(access));
         ProcessRemainingInputs(node, 1);
         SetOutput(node, access.machine_type);
         break;
       }
       case IrOpcode::kStoreField: {
         FieldAccess access = FieldAccessOf(node->op());
-        ProcessInput(node, 0, changer_->TypeForBasePointer(access));
-        ProcessInput(node, 1, access.machine_type);
+        ProcessInput(node, 0, UseInfoForBasePointer(access));
+        ProcessInput(node, 1, UseInfoFromMachineType(access.machine_type));
         ProcessRemainingInputs(node, 2);
         SetOutput(node, 0);
         break;
       }
       case IrOpcode::kLoadBuffer: {
         BufferAccess access = BufferAccessOf(node->op());
-        ProcessInput(node, 0, kMachPtr);    // buffer
-        ProcessInput(node, 1, kMachInt32);  // offset
-        ProcessInput(node, 2, kMachInt32);  // length
+        ProcessInput(node, 0, UseInfo::PointerInt());        // buffer
+        ProcessInput(node, 1, UseInfo::TruncatingWord32());  // offset
+        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // length
         ProcessRemainingInputs(node, 3);
         // Tagged overrides everything if we have to do a typed array bounds
         // check, because we may need to return undefined then.
@@ -874,10 +1007,11 @@ class RepresentationSelector {
       }
       case IrOpcode::kStoreBuffer: {
         BufferAccess access = BufferAccessOf(node->op());
-        ProcessInput(node, 0, kMachPtr);               // buffer
-        ProcessInput(node, 1, kMachInt32);             // offset
-        ProcessInput(node, 2, kMachInt32);             // length
-        ProcessInput(node, 3, access.machine_type());  // value
+        ProcessInput(node, 0, UseInfo::PointerInt());        // buffer
+        ProcessInput(node, 1, UseInfo::TruncatingWord32());  // offset
+        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // length
+        ProcessInput(node, 3,
+                     UseInfoFromMachineType(access.machine_type()));  // value
         ProcessRemainingInputs(node, 4);
         SetOutput(node, 0);
         if (lower()) lowering->DoStoreBuffer(node);
@@ -885,30 +1019,31 @@ class RepresentationSelector {
       }
       case IrOpcode::kLoadElement: {
         ElementAccess access = ElementAccessOf(node->op());
-        ProcessInput(node, 0, changer_->TypeForBasePointer(access));  // base
-        ProcessInput(node, 1, kMachInt32);                            // index
+        ProcessInput(node, 0, UseInfoForBasePointer(access));  // base
+        ProcessInput(node, 1, UseInfo::TruncatingWord32());    // index
         ProcessRemainingInputs(node, 2);
         SetOutput(node, access.machine_type);
         break;
       }
       case IrOpcode::kStoreElement: {
         ElementAccess access = ElementAccessOf(node->op());
-        ProcessInput(node, 0, changer_->TypeForBasePointer(access));  // base
-        ProcessInput(node, 1, kMachInt32);                            // index
-        ProcessInput(node, 2, access.machine_type);                   // value
+        ProcessInput(node, 0, UseInfoForBasePointer(access));  // base
+        ProcessInput(node, 1, UseInfo::TruncatingWord32());    // index
+        ProcessInput(node, 2,
+                     UseInfoFromMachineType(access.machine_type));  // value
         ProcessRemainingInputs(node, 3);
         SetOutput(node, 0);
         break;
       }
       case IrOpcode::kObjectIsNumber: {
-        ProcessInput(node, 0, kMachAnyTagged);
-        SetOutput(node, kRepBit | kTypeBool);
+        ProcessInput(node, 0, UseInfo::AnyTagged());
+        SetOutput(node, kMachBool);
         if (lower()) lowering->DoObjectIsNumber(node);
         break;
       }
       case IrOpcode::kObjectIsSmi: {
-        ProcessInput(node, 0, kMachAnyTagged);
-        SetOutput(node, kRepBit | kTypeBool);
+        ProcessInput(node, 0, UseInfo::AnyTagged());
+        SetOutput(node, kMachBool);
         if (lower()) lowering->DoObjectIsSmi(node);
         break;
       }
@@ -917,29 +1052,29 @@ class RepresentationSelector {
       // Machine-level operators.
       //------------------------------------------------------------------
       case IrOpcode::kLoad: {
-        // TODO(titzer): machine loads/stores need to know BaseTaggedness!?
-        MachineTypeUnion tBase = kRepTagged | kMachPtr;
+        // TODO(jarin) Eventually, we should get rid of all machine stores
+        // from the high-level phases, then this becomes UNREACHABLE.
         LoadRepresentation rep = OpParameter<LoadRepresentation>(node);
-        ProcessInput(node, 0, tBase);   // pointer or object
-        ProcessInput(node, 1, kMachIntPtr);  // index
+        ProcessInput(node, 0, UseInfo::AnyTagged());   // tagged pointer
+        ProcessInput(node, 1, UseInfo::PointerInt());  // index
         ProcessRemainingInputs(node, 2);
         SetOutput(node, rep);
         break;
       }
       case IrOpcode::kStore: {
-        // TODO(titzer): machine loads/stores need to know BaseTaggedness!?
-        MachineTypeUnion tBase = kRepTagged | kMachPtr;
+        // TODO(jarin) Eventually, we should get rid of all machine stores
+        // from the high-level phases, then this becomes UNREACHABLE.
         StoreRepresentation rep = OpParameter<StoreRepresentation>(node);
-        ProcessInput(node, 0, tBase);   // pointer or object
-        ProcessInput(node, 1, kMachIntPtr);  // index
-        ProcessInput(node, 2, rep.machine_type());
+        ProcessInput(node, 0, UseInfo::AnyTagged());   // tagged pointer
+        ProcessInput(node, 1, UseInfo::PointerInt());  // index
+        ProcessInput(node, 2, UseInfoFromMachineType(rep.machine_type()));
         ProcessRemainingInputs(node, 3);
         SetOutput(node, 0);
         break;
       }
       case IrOpcode::kWord32Shr:
         // We output unsigned int32 for shift right because JavaScript.
-        return VisitBinop(node, kMachUint32, kMachUint32);
+        return VisitBinop(node, UseInfo::TruncatingWord32(), kMachUint32);
       case IrOpcode::kWord32And:
       case IrOpcode::kWord32Or:
       case IrOpcode::kWord32Xor:
@@ -948,12 +1083,13 @@ class RepresentationSelector {
         // We use signed int32 as the output type for these word32 operations,
         // though the machine bits are the same for either signed or unsigned,
         // because JavaScript considers the result from these operations signed.
-        return VisitBinop(node, kRepWord32, kRepWord32 | kTypeInt32);
+        return VisitBinop(node, UseInfo::TruncatingWord32(),
+                          kRepWord32 | kTypeInt32);
       case IrOpcode::kWord32Equal:
-        return VisitBinop(node, kRepWord32, kRepBit);
+        return VisitBinop(node, UseInfo::TruncatingWord32(), kMachBool);
 
       case IrOpcode::kWord32Clz:
-        return VisitUnop(node, kMachUint32, kMachUint32);
+        return VisitUnop(node, UseInfo::TruncatingWord32(), kMachUint32);
 
       case IrOpcode::kInt32Add:
       case IrOpcode::kInt32Sub:
@@ -997,41 +1133,38 @@ class RepresentationSelector {
       case IrOpcode::kWord64Shl:
       case IrOpcode::kWord64Shr:
       case IrOpcode::kWord64Sar:
-        return VisitBinop(node, kRepWord64, kRepWord64);
+        return VisitBinop(node, UseInfo::TruncatingWord64(), kRepWord64);
       case IrOpcode::kWord64Equal:
-        return VisitBinop(node, kRepWord64, kRepBit);
+        return VisitBinop(node, UseInfo::TruncatingWord64(), kMachBool);
 
       case IrOpcode::kChangeInt32ToInt64:
-        return VisitUnop(node, kTypeInt32 | kRepWord32,
+        return VisitUnop(node, UseInfo::TruncatingWord32(),
                          kTypeInt32 | kRepWord64);
       case IrOpcode::kChangeUint32ToUint64:
-        return VisitUnop(node, kTypeUint32 | kRepWord32,
+        return VisitUnop(node, UseInfo::TruncatingWord32(),
                          kTypeUint32 | kRepWord64);
       case IrOpcode::kTruncateFloat64ToFloat32:
-        return VisitUnop(node, kTypeNumber | kRepFloat64,
-                         kTypeNumber | kRepFloat32);
+        return VisitUnop(node, UseInfo::Float64(), kTypeNumber | kRepFloat32);
       case IrOpcode::kTruncateFloat64ToInt32:
-        return VisitUnop(node, kTypeNumber | kRepFloat64,
-                         kTypeInt32 | kRepWord32);
+        return VisitUnop(node, UseInfo::Float64(), kTypeInt32 | kRepWord32);
       case IrOpcode::kTruncateInt64ToInt32:
         // TODO(titzer): Is kTypeInt32 correct here?
-        return VisitUnop(node, kTypeInt32 | kRepWord64,
+        return VisitUnop(node, UseInfo::Word64TruncatingToWord32(),
                          kTypeInt32 | kRepWord32);
 
       case IrOpcode::kChangeFloat32ToFloat64:
-        return VisitUnop(node, kTypeNumber | kRepFloat32,
-                         kTypeNumber | kRepFloat64);
+        return VisitUnop(node, UseInfo::Float32(), kTypeNumber | kRepFloat64);
       case IrOpcode::kChangeInt32ToFloat64:
-        return VisitUnop(node, kTypeInt32 | kRepWord32,
+        return VisitUnop(node, UseInfo::TruncatingWord32(),
                          kTypeInt32 | kRepFloat64);
       case IrOpcode::kChangeUint32ToFloat64:
-        return VisitUnop(node, kTypeUint32 | kRepWord32,
+        return VisitUnop(node, UseInfo::TruncatingWord32(),
                          kTypeUint32 | kRepFloat64);
       case IrOpcode::kChangeFloat64ToInt32:
-        return VisitUnop(node, kTypeInt32 | kRepFloat64,
+        return VisitUnop(node, UseInfo::Float64TruncatingToWord32(),
                          kTypeInt32 | kRepWord32);
       case IrOpcode::kChangeFloat64ToUint32:
-        return VisitUnop(node, kTypeUint32 | kRepFloat64,
+        return VisitUnop(node, UseInfo::Float64TruncatingToWord32(),
                          kTypeUint32 | kRepWord32);
 
       case IrOpcode::kFloat64Add:
@@ -1046,17 +1179,18 @@ class RepresentationSelector {
       case IrOpcode::kFloat64RoundDown:
       case IrOpcode::kFloat64RoundTruncate:
       case IrOpcode::kFloat64RoundTiesAway:
-        return VisitUnop(node, kMachFloat64, kMachFloat64);
+        return VisitUnop(node, UseInfo::Float64(), kMachFloat64);
       case IrOpcode::kFloat64Equal:
       case IrOpcode::kFloat64LessThan:
       case IrOpcode::kFloat64LessThanOrEqual:
         return VisitFloat64Cmp(node);
       case IrOpcode::kFloat64ExtractLowWord32:
       case IrOpcode::kFloat64ExtractHighWord32:
-        return VisitUnop(node, kMachFloat64, kMachInt32);
+        return VisitUnop(node, UseInfo::Float64(), kMachInt32);
       case IrOpcode::kFloat64InsertLowWord32:
       case IrOpcode::kFloat64InsertHighWord32:
-        return VisitBinop(node, kMachFloat64, kMachInt32, kMachFloat64);
+        return VisitBinop(node, UseInfo::Float64(), UseInfo::TruncatingWord32(),
+                          kMachFloat64);
       case IrOpcode::kLoadStackPointer:
       case IrOpcode::kLoadFramePointer:
         return VisitLeaf(node, kMachPtr);
@@ -1100,6 +1234,13 @@ class RepresentationSelector {
     if (FLAG_trace_representation) {
       OFStream os(stdout);
       os << static_cast<MachineType>(info);
+    }
+  }
+
+  void PrintUseInfo(UseInfo info) {
+    if (FLAG_trace_representation) {
+      OFStream os(stdout);
+      os << static_cast<MachineType>(info.machine_type());
     }
   }
 

@@ -632,7 +632,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     Handle<Object> constant_object;
     switch (constant.type()) {
       case Constant::kInt32:
-        DCHECK(type == kMachInt32 || type == kMachUint32 || type == kRepBit);
+        DCHECK(type == kMachInt32 || type == kMachUint32 || type == kMachBool ||
+               type == kRepBit);
         constant_object =
             isolate()->factory()->NewNumberFromInt(constant.ToInt32());
         break;
