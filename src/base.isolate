@@ -29,6 +29,15 @@
         ],
       },
     }],
+    ['OS=="win" and component=="shared_library"', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/icui18n.dll',
+          '<(PRODUCT_DIR)/icuuc.dll',
+          '<(PRODUCT_DIR)/v8.dll',
+        ],
+      },
+    }],
     ['tsan==1', {
       'variables': {
         'files': [
