@@ -11312,10 +11312,9 @@ void SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(
   Isolate* isolate = shared->GetIsolate();
   if (isolate->serializer_enabled()) return;
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
-  Handle<Object> value(shared->optimized_code_map(), isolate);
-  if (value->IsSmi()) return;  // Empty code maps are unsupported.
-  Handle<FixedArray> code_map = Handle<FixedArray>::cast(value);
-  code_map->set(kSharedCodeIndex, *code);
+  // Empty code maps are unsupported.
+  if (shared->OptimizedCodeMapIsCleared()) return;
+  shared->optimized_code_map()->set(kSharedCodeIndex, *code);
 }
 
 
@@ -11332,15 +11331,12 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   DCHECK(native_context->IsNativeContext());
   STATIC_ASSERT(kEntryLength == 4);
   Handle<FixedArray> new_code_map;
-  Handle<Object> value(shared->optimized_code_map(), isolate);
   int entry;
-  if (value->IsSmi()) {
-    // No optimized code map.
-    DCHECK_EQ(0, Smi::cast(*value)->value());
+  if (shared->OptimizedCodeMapIsCleared()) {
     new_code_map = isolate->factory()->NewFixedArray(kInitialLength, TENURED);
     entry = kEntriesStart;
   } else {
-    Handle<FixedArray> old_code_map = Handle<FixedArray>::cast(value);
+    Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
     entry = shared->SearchOptimizedCodeMapEntry(*native_context, osr_ast_id);
     if (entry > kSharedCodeIndex) {
       // Found an existing context-specific entry, it must not contain any code.
@@ -11358,7 +11354,7 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     // TODO(mstarzinger): Temporary workaround. The allocation above might have
     // flushed the optimized code map and the copy we created is full of holes.
     // For now we just give up on adding the entry and pretend it got flushed.
-    if (shared->optimized_code_map()->IsSmi()) return;
+    if (shared->OptimizedCodeMapIsCleared()) return;
     entry = old_code_map->length();
   }
   new_code_map->set(entry + kContextOffset, *native_context);
@@ -11380,8 +11376,8 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
 #endif
 
   // Zap any old optimized code map.
-  if (!shared->optimized_code_map()->IsSmi()) {
-    FixedArray* old_code_map = FixedArray::cast(shared->optimized_code_map());
+  if (!shared->OptimizedCodeMapIsCleared()) {
+    FixedArray* old_code_map = shared->optimized_code_map();
     old_code_map->FillWithHoles(0, old_code_map->length());
   }
 
@@ -11391,22 +11387,23 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
 
 void SharedFunctionInfo::ClearOptimizedCodeMap() {
   // Zap any old optimized code map.
-  if (!optimized_code_map()->IsSmi()) {
-    FixedArray* old_code_map = FixedArray::cast(optimized_code_map());
+  if (!OptimizedCodeMapIsCleared()) {
+    FixedArray* old_code_map = optimized_code_map();
     old_code_map->FillWithHoles(0, old_code_map->length());
   }
 
-  set_optimized_code_map(Smi::FromInt(0));
+  FixedArray* cleared_map = GetHeap()->cleared_optimized_code_map();
+  set_optimized_code_map(cleared_map, SKIP_WRITE_BARRIER);
 }
 
 
 void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
                                                    const char* reason) {
   DisallowHeapAllocation no_gc;
-  if (optimized_code_map()->IsSmi()) return;
+  if (OptimizedCodeMapIsCleared()) return;
 
   Heap* heap = GetHeap();
-  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+  FixedArray* code_map = optimized_code_map();
   int dst = kEntriesStart;
   int length = code_map->length();
   for (int src = kEntriesStart; src < length; src += kEntryLength) {
@@ -11465,7 +11462,7 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
 
 
 void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
-  FixedArray* code_map = FixedArray::cast(optimized_code_map());
+  FixedArray* code_map = optimized_code_map();
   DCHECK(shrink_by % kEntryLength == 0);
   DCHECK(shrink_by <= code_map->length() - kEntriesStart);
   // Always trim even when array is cleared because of heap verifier.
@@ -12607,9 +12604,8 @@ int SharedFunctionInfo::SearchOptimizedCodeMapEntry(Context* native_context,
                                                     BailoutId osr_ast_id) {
   DisallowHeapAllocation no_gc;
   DCHECK(native_context->IsNativeContext());
-  Object* value = optimized_code_map();
-  if (!value->IsSmi()) {
-    FixedArray* optimized_code_map = FixedArray::cast(value);
+  if (!OptimizedCodeMapIsCleared()) {
+    FixedArray* optimized_code_map = this->optimized_code_map();
     int length = optimized_code_map->length();
     Smi* osr_ast_id_smi = Smi::FromInt(osr_ast_id.ToInt());
     for (int i = kEntriesStart; i < length; i += kEntryLength) {
@@ -12632,7 +12628,7 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
   CodeAndLiterals result = {nullptr, nullptr};
   int entry = SearchOptimizedCodeMapEntry(native_context, osr_ast_id);
   if (entry != kNotFound) {
-    FixedArray* code_map = FixedArray::cast(optimized_code_map());
+    FixedArray* code_map = optimized_code_map();
     if (entry == kSharedCodeIndex) {
       result = {Code::cast(code_map->get(kSharedCodeIndex)), nullptr};
 
@@ -12643,7 +12639,7 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
                 LiteralsArray::cast(code_map->get(entry + kLiteralsOffset))};
     }
   }
-  if (FLAG_trace_opt && !optimized_code_map()->IsSmi() &&
+  if (FLAG_trace_opt && !OptimizedCodeMapIsCleared() &&
       result.code == nullptr) {
     PrintF("[didn't find optimized code in optimized code map for ");
     ShortPrint();

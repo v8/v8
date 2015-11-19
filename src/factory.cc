@@ -2067,7 +2067,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     code = handle(isolate()->builtins()->builtin(Builtins::kIllegal));
   }
   share->set_code(*code);
-  share->set_optimized_code_map(Smi::FromInt(0));
+  share->set_optimized_code_map(*cleared_optimized_code_map());
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   Code* construct_stub =
       isolate()->builtins()->builtin(Builtins::kJSConstructStubGeneric);

@@ -2764,6 +2764,14 @@ void Heap::CreateInitialObjects() {
     set_dummy_vector(*dummy_vector);
   }
 
+  {
+    Handle<FixedArray> cleared_optimized_code_map =
+        factory->NewFixedArray(SharedFunctionInfo::kEntriesStart, TENURED);
+    STATIC_ASSERT(SharedFunctionInfo::kEntriesStart == 1 &&
+                  SharedFunctionInfo::kSharedCodeIndex == 0);
+    set_cleared_optimized_code_map(*cleared_optimized_code_map);
+  }
+
   set_detached_contexts(empty_fixed_array());
   set_retained_maps(ArrayList::cast(empty_fixed_array()));
 

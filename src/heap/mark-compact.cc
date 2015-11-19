@@ -922,7 +922,7 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
         PrintF(" - age: %d]\n", code->GetAge());
       }
       // Always flush the optimized code map if there is one.
-      if (!shared->optimized_code_map()->IsSmi()) {
+      if (!shared->OptimizedCodeMapIsCleared()) {
         shared->ClearOptimizedCodeMap();
       }
       shared->set_code(lazy_compile);
@@ -969,7 +969,7 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
         PrintF(" - age: %d]\n", code->GetAge());
       }
       // Always flush the optimized code map if there is one.
-      if (!candidate->optimized_code_map()->IsSmi()) {
+      if (!candidate->OptimizedCodeMapIsCleared()) {
         candidate->ClearOptimizedCodeMap();
       }
       candidate->set_code(lazy_compile);
@@ -2129,10 +2129,10 @@ void MarkCompactCollector::AfterMarking() {
 void MarkCompactCollector::ProcessAndClearOptimizedCodeMaps() {
   SharedFunctionInfo::Iterator iterator(isolate());
   while (SharedFunctionInfo* shared = iterator.Next()) {
-    if (shared->optimized_code_map()->IsSmi()) continue;
+    if (shared->OptimizedCodeMapIsCleared()) continue;
 
     // Process context-dependent entries in the optimized code map.
-    FixedArray* code_map = FixedArray::cast(shared->optimized_code_map());
+    FixedArray* code_map = shared->optimized_code_map();
     int new_length = SharedFunctionInfo::kEntriesStart;
     int old_length = code_map->length();
     for (int i = SharedFunctionInfo::kEntriesStart; i < old_length;
