@@ -43,6 +43,10 @@ class CancelableTaskManager {
   void CancelAndWait();
 
  private:
+  // Only called by {Cancelable} destructor. The task is done with executing,
+  // but needs to be removed.
+  void RemoveFinishedTask(uint32_t id);
+
   // To mitigate the ABA problem, the api refers to tasks through an id.
   uint32_t task_id_counter_;
 
@@ -53,6 +57,8 @@ class CancelableTaskManager {
   // well as waiting for background tasks on {CancelAndWait}.
   base::ConditionVariable cancelable_tasks_barrier_;
   base::Mutex mutex_;
+
+  friend class Cancelable;
 
   DISALLOW_COPY_AND_ASSIGN(CancelableTaskManager);
 };

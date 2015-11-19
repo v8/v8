@@ -23,7 +23,7 @@ Cancelable::~Cancelable() {
   // manager object. This happens when the manager cancels all pending tasks
   // in {CancelAndWait} only before destroying the manager object.
   if (TryRun() || IsRunning()) {
-    parent_->TryAbort(id_);
+    parent_->RemoveFinishedTask(id_);
   }
 }
 
@@ -50,15 +50,29 @@ uint32_t CancelableTaskManager::Register(Cancelable* task) {
 }
 
 
+void CancelableTaskManager::RemoveFinishedTask(uint32_t id) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  void* removed = cancelable_tasks_.Remove(reinterpret_cast<void*>(id), id);
+  USE(removed);
+  DCHECK(removed != nullptr);
+  cancelable_tasks_barrier_.NotifyOne();
+}
+
+
 bool CancelableTaskManager::TryAbort(uint32_t id) {
   base::LockGuard<base::Mutex> guard(&mutex_);
-  Cancelable* value = reinterpret_cast<Cancelable*>(
-      cancelable_tasks_.Remove(reinterpret_cast<void*>(id), id));
-  if (value != nullptr) {
-    bool success = value->Cancel();
-    cancelable_tasks_barrier_.NotifyOne();
-    if (!success) return false;
-    return true;
+  HashMap::Entry* entry =
+      cancelable_tasks_.Lookup(reinterpret_cast<void*>(id), id);
+  if (entry != nullptr) {
+    Cancelable* value = reinterpret_cast<Cancelable*>(entry->value);
+    if (value->Cancel()) {
+      // Cannot call RemoveFinishedTask here because of recursive locking.
+      void* removed = cancelable_tasks_.Remove(reinterpret_cast<void*>(id), id);
+      USE(removed);
+      DCHECK(removed != nullptr);
+      cancelable_tasks_barrier_.NotifyOne();
+      return true;
+    }
   }
   return false;
 }
