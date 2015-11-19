@@ -376,6 +376,12 @@ Matcher<Node*> IsJSStoreGlobal(const Handle<Name> name,
 Matcher<Node*> IsJSCallFunction(std::vector<Matcher<Node*>> value_matchers,
                                 const Matcher<Node*>& effect_matcher,
                                 const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSUnaryNot(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsJSTypeOf(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsJSDeleteProperty(const Matcher<Node*>& object_value_matcher,
+                                  const Matcher<Node*>& key_matcher,
+                                  const Matcher<Node*>& effect_matcher,
+                                  const Matcher<Node*>& control_matcher);
 
 }  // namespace compiler
 }  // namespace internal

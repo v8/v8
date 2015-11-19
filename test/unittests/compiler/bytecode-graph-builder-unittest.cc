@@ -527,6 +527,70 @@ TEST_F(BytecodeGraphBuilderTest, StoreGlobal) {
 }
 
 
+TEST_F(BytecodeGraphBuilderTest, LogicalNot) {
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(1);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(2);
+  array_builder.LoadAccumulatorWithRegister(array_builder.Parameter(1))
+      .LogicalNot()
+      .Return();
+
+  FeedbackVectorSpec feedback_spec(zone());
+  Handle<TypeFeedbackVector> vector =
+      NewTypeFeedbackVector(isolate(), &feedback_spec);
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector);
+
+  Node* ret = graph->end()->InputAt(0);
+  EXPECT_THAT(ret, IsReturn(IsJSUnaryNot(IsParameter(1)), _, _));
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, TypeOf) {
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(1);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(2);
+  array_builder.LoadAccumulatorWithRegister(array_builder.Parameter(1))
+      .TypeOf()
+      .Return();
+
+  FeedbackVectorSpec feedback_spec(zone());
+  Handle<TypeFeedbackVector> vector =
+      NewTypeFeedbackVector(isolate(), &feedback_spec);
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector);
+
+  Node* ret = graph->end()->InputAt(0);
+  EXPECT_THAT(ret, IsReturn(IsJSTypeOf(IsParameter(1)), _, _));
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, Delete) {
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+    array_builder.set_locals_count(1);
+    array_builder.set_context_count(0);
+    array_builder.set_parameter_count(2);
+    Handle<Name> name = GetName(isolate(), "val");
+    array_builder.LoadLiteral(name)
+        .Delete(array_builder.Parameter(1), language_mode)
+        .Return();
+
+    FeedbackVectorSpec feedback_spec(zone());
+    Handle<TypeFeedbackVector> vector =
+        NewTypeFeedbackVector(isolate(), &feedback_spec);
+    Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector,
+                                     language_mode);
+
+    Node* start = graph->start();
+    Node* ret = graph->end()->InputAt(0);
+
+    Matcher<Node*> delete_matcher =
+        IsJSDeleteProperty(IsParameter(1), IsHeapConstant(name), start, start);
+    EXPECT_THAT(ret, IsReturn(delete_matcher, _, _));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

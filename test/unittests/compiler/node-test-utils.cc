@@ -1428,6 +1428,51 @@ class IsParameterMatcher final : public NodeMatcher {
 };
 
 
+class IsJSDeletePropertyMatcher final : public NodeMatcher {
+ public:
+  IsJSDeletePropertyMatcher(const Matcher<Node*>& object_value_matcher,
+                            const Matcher<Node*>& key_matcher,
+                            const Matcher<Node*>& effect_matcher,
+                            const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSDeleteProperty),
+        object_value_matcher_(object_value_matcher),
+        key_matcher_(key_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose object (";
+    object_value_matcher_.DescribeTo(os);
+    *os << "), key (";
+    key_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << "), and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "object", object_value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "key",
+                                 key_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> object_value_matcher_;
+  const Matcher<Node*> key_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
 // TODO(mythria): Check if we can use the same matcher for Load and Store
 class IsJSLoadNamedMatcher final : public NodeMatcher {
  public:
@@ -2215,6 +2260,15 @@ Matcher<Node*> IsLoadFramePointer() {
 }
 
 
+Matcher<Node*> IsJSDeleteProperty(const Matcher<Node*>& object_value_matcher,
+                                  const Matcher<Node*>& key_matcher,
+                                  const Matcher<Node*>& effect_matcher,
+                                  const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsJSDeletePropertyMatcher(
+      object_value_matcher, key_matcher, effect_matcher, control_matcher));
+}
+
+
 Matcher<Node*> IsJSLoadNamed(const Handle<Name> name,
                              const Matcher<Node*>& object_value_matcher,
                              const Matcher<Node*>& feedback_vector_matcher,
@@ -2334,6 +2388,8 @@ IS_UNOP_MATCHER(NumberToInt32)
 IS_UNOP_MATCHER(NumberToUint32)
 IS_UNOP_MATCHER(ObjectIsSmi)
 IS_UNOP_MATCHER(Word32Clz)
+IS_UNOP_MATCHER(JSUnaryNot)
+IS_UNOP_MATCHER(JSTypeOf)
 #undef IS_UNOP_MATCHER
 
 }  // namespace compiler

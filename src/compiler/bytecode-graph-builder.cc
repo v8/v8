@@ -757,25 +757,43 @@ void BytecodeGraphBuilder::VisitDec(
 
 void BytecodeGraphBuilder::VisitLogicalNot(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* node =
+      NewNode(javascript()->UnaryNot(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(node);
 }
 
 
 void BytecodeGraphBuilder::VisitTypeOf(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* node =
+      NewNode(javascript()->TypeOf(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(node);
+}
+
+
+void BytecodeGraphBuilder::BuildDelete(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  Node* key = environment()->LookupAccumulator();
+  Node* object = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+
+  Node* node =
+      NewNode(javascript()->DeleteProperty(language_mode()), object, key);
+  AddEmptyFrameStateInputs(node);
+  environment()->BindAccumulator(node);
 }
 
 
 void BytecodeGraphBuilder::VisitDeletePropertyStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_strict(language_mode()));
+  BuildDelete(iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitDeletePropertySloppy(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_sloppy(language_mode()));
+  BuildDelete(iterator);
 }
 
 
