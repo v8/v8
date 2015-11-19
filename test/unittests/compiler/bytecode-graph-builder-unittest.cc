@@ -365,9 +365,9 @@ TEST_F(BytecodeGraphBuilderTest, CallProperty0) {
   size_t func_name_index = array_builder.GetConstantPoolEntry(func_name);
 
   interpreter::Register reg0 = interpreter::Register(0);
-  array_builder.LoadNamedProperty(
-        array_builder.Parameter(1), func_name_index,
-        vector->GetIndex(load_slot), LanguageMode::SLOPPY)
+  array_builder.LoadNamedProperty(array_builder.Parameter(1), func_name_index,
+                                  vector->GetIndex(load_slot),
+                                  LanguageMode::SLOPPY)
       .StoreAccumulatorInRegister(reg0)
       .Call(reg0, array_builder.Parameter(1), 0, vector->GetIndex(call_slot))
       .Return();
@@ -408,9 +408,9 @@ TEST_F(BytecodeGraphBuilderTest, CallProperty2) {
   interpreter::Register reg1 = interpreter::Register(1);
   interpreter::Register reg2 = interpreter::Register(2);
   interpreter::Register reg3 = interpreter::Register(3);
-  array_builder.LoadNamedProperty(
-        array_builder.Parameter(1), func_name_index,
-        vector->GetIndex(load_slot), LanguageMode::SLOPPY)
+  array_builder.LoadNamedProperty(array_builder.Parameter(1), func_name_index,
+                                  vector->GetIndex(load_slot),
+                                  LanguageMode::SLOPPY)
       .StoreAccumulatorInRegister(reg0)
       .LoadAccumulatorWithRegister(array_builder.Parameter(1))
       .StoreAccumulatorInRegister(reg1)
@@ -588,6 +588,136 @@ TEST_F(BytecodeGraphBuilderTest, Delete) {
     Matcher<Node*> delete_matcher =
         IsJSDeleteProperty(IsParameter(1), IsHeapConstant(name), start, start);
     EXPECT_THAT(ret, IsReturn(delete_matcher, _, _));
+  }
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, KeyedLoad) {
+  const int kValue = 100;
+  const bool kWideBytecode[] = {false, true};
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    TRACED_FOREACH(bool, wide_bytecode, kWideBytecode) {
+      FeedbackVectorSpec feedback_spec(zone());
+      if (wide_bytecode) {
+        for (int i = 0; i < 128; i++) {
+          feedback_spec.AddLoadICSlot();
+        }
+      }
+      FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+      Handle<TypeFeedbackVector> vector =
+          NewTypeFeedbackVector(isolate(), &feedback_spec);
+
+      interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+      array_builder.set_locals_count(1);
+      array_builder.set_context_count(0);
+      array_builder.set_parameter_count(2);
+
+      array_builder.LoadLiteral(Smi::FromInt(kValue))
+          .LoadKeyedProperty(array_builder.Parameter(1), vector->GetIndex(slot),
+                             language_mode)
+          .Return();
+      Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector,
+                                       language_mode);
+
+      Node* ret = graph->end()->InputAt(0);
+      Node* start = graph->start();
+
+      Matcher<Node*> feedback_vector_matcher = IsFeedbackVector(start, start);
+      Matcher<Node*> load_keyed_matcher =
+          IsJSLoadProperty(IsParameter(1), IsNumberConstant(kValue),
+                           feedback_vector_matcher, start, start);
+
+      EXPECT_THAT(ret, IsReturn(load_keyed_matcher, _, _));
+    }
+  }
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, NamedStore) {
+  const int kValue = 100;
+  const bool kWideBytecode[] = {false, true};
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    TRACED_FOREACH(bool, wide_bytecode, kWideBytecode) {
+      FeedbackVectorSpec feedback_spec(zone());
+      if (wide_bytecode) {
+        for (int i = 0; i < 128; i++) {
+          feedback_spec.AddLoadICSlot();
+        }
+      }
+      FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+      Handle<TypeFeedbackVector> vector =
+          NewTypeFeedbackVector(isolate(), &feedback_spec);
+
+      interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+      array_builder.set_locals_count(1);
+      array_builder.set_context_count(0);
+      array_builder.set_parameter_count(2);
+
+      Handle<Name> name = GetName(isolate(), "val");
+      size_t name_index = array_builder.GetConstantPoolEntry(name);
+
+      array_builder.LoadLiteral(Smi::FromInt(kValue))
+          .StoreNamedProperty(array_builder.Parameter(1), name_index,
+                              vector->GetIndex(slot), language_mode)
+          .Return();
+      Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector,
+                                       language_mode);
+
+      Node* ret = graph->end()->InputAt(0);
+      Node* start = graph->start();
+
+      Matcher<Node*> feedback_vector_matcher = IsFeedbackVector(start, start);
+      Matcher<Node*> store_named_matcher =
+          IsJSStoreNamed(name, IsParameter(1), IsNumberConstant(kValue),
+                         feedback_vector_matcher, start, start);
+
+      EXPECT_THAT(ret, IsReturn(_, store_named_matcher, _));
+    }
+  }
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, KeyedStore) {
+  const int kValue = 100;
+  const int kKey = 10;
+  const bool kWideBytecode[] = {false, true};
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    TRACED_FOREACH(bool, wide_bytecode, kWideBytecode) {
+      FeedbackVectorSpec feedback_spec(zone());
+      if (wide_bytecode) {
+        for (int i = 0; i < 128; i++) {
+          feedback_spec.AddStoreICSlot();
+        }
+      }
+      FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
+      Handle<TypeFeedbackVector> vector =
+          NewTypeFeedbackVector(isolate(), &feedback_spec);
+
+      interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+      array_builder.set_locals_count(1);
+      array_builder.set_context_count(0);
+      array_builder.set_parameter_count(2);
+
+      array_builder.LoadLiteral(Smi::FromInt(kKey))
+          .StoreAccumulatorInRegister(interpreter::Register(0))
+          .LoadLiteral(Smi::FromInt(kValue))
+          .StoreKeyedProperty(array_builder.Parameter(1),
+                              interpreter::Register(0), vector->GetIndex(slot),
+                              language_mode)
+          .Return();
+      Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray(), vector,
+                                       language_mode);
+
+      Node* ret = graph->end()->InputAt(0);
+      Node* start = graph->start();
+
+      Matcher<Node*> feedback_vector_matcher = IsFeedbackVector(start, start);
+      Matcher<Node*> store_keyed_matcher = IsJSStoreProperty(
+          IsParameter(1), IsNumberConstant(kKey), IsNumberConstant(kValue),
+          feedback_vector_matcher, start, start);
+
+      EXPECT_THAT(ret, IsReturn(_, store_keyed_matcher, _));
+    }
   }
 }
 

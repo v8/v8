@@ -358,11 +358,6 @@ Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher);
 Matcher<Node*> IsLoadFramePointer();
-Matcher<Node*> IsJSLoadNamed(const Handle<Name> name,
-                             const Matcher<Node*>& object_value_matcher,
-                             const Matcher<Node*>& feedback_vector_matcher,
-                             const Matcher<Node*>& effect_matcher,
-                             const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsJSLoadGlobal(const Handle<Name> name,
                               const TypeofMode typeof_mode,
                               const Matcher<Node*>& feedback_vector_matcher,
@@ -373,6 +368,28 @@ Matcher<Node*> IsJSStoreGlobal(const Handle<Name> name,
                                const Matcher<Node*>& feedback_vector_matcher,
                                const Matcher<Node*>& effect_matcher,
                                const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSLoadNamed(const Handle<Name> name,
+                             const Matcher<Node*>& object_value_matcher,
+                             const Matcher<Node*>& feedback_vector_matcher,
+                             const Matcher<Node*>& effect_matcher,
+                             const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSLoadProperty(const Matcher<Node*>& object_matcher,
+                                const Matcher<Node*>& key_matcher,
+                                const Matcher<Node*>& feedback_vector_matcher,
+                                const Matcher<Node*>& effect_matcher,
+                                const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSStoreNamed(const Handle<Name> name,
+                              const Matcher<Node*>& object_matcher,
+                              const Matcher<Node*>& value_matcher,
+                              const Matcher<Node*>& feedback_vector_matcher,
+                              const Matcher<Node*>& effect_matcher,
+                              const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSStoreProperty(const Matcher<Node*>& object_matcher,
+                                 const Matcher<Node*>& key_matcher,
+                                 const Matcher<Node*>& value_matcher,
+                                 const Matcher<Node*>& feedback_vector_matcher,
+                                 const Matcher<Node*>& effect_matcher,
+                                 const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsJSCallFunction(std::vector<Matcher<Node*>> value_matchers,
                                 const Matcher<Node*>& effect_matcher,
                                 const Matcher<Node*>& control_matcher);

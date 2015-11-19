@@ -1473,60 +1473,6 @@ class IsJSDeletePropertyMatcher final : public NodeMatcher {
 };
 
 
-// TODO(mythria): Check if we can use the same matcher for Load and Store
-class IsJSLoadNamedMatcher final : public NodeMatcher {
- public:
-  IsJSLoadNamedMatcher(const Matcher<Handle<Name>>& name_matcher,
-                       const Matcher<Node*>& object_value_matcher,
-                       const Matcher<Node*>& feedback_vector_matcher,
-                       const Matcher<Node*>& effect_matcher,
-                       const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kJSLoadNamed),
-        name_matcher_(name_matcher),
-        object_value_matcher_(object_value_matcher),
-        feedback_vector_matcher_(feedback_vector_matcher),
-        effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
-
-  void DescribeTo(std::ostream* os) const final {
-    NodeMatcher::DescribeTo(os);
-    *os << " whose object (";
-    object_value_matcher_.DescribeTo(os);
-    *os << "), name (";
-    name_matcher_.DescribeTo(os);
-    *os << "), feedback vector (";
-    feedback_vector_matcher_.DescribeTo(os);
-    *os << "), effect (";
-    effect_matcher_.DescribeTo(os);
-    *os << "), and control (";
-    control_matcher_.DescribeTo(os);
-    *os << ")";
-  }
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<NamedAccess>(node).name(), "Name",
-                                 name_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
-                                 "object", object_value_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
-                                 "feedback vector", feedback_vector_matcher_,
-                                 listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
-  }
-
- private:
-  const Matcher<Handle<Name>> name_matcher_;
-  const Matcher<Node*> object_value_matcher_;
-  const Matcher<Node*> feedback_vector_matcher_;
-  const Matcher<Node*> effect_matcher_;
-  const Matcher<Node*> control_matcher_;
-};
-
-
 class IsJSLoadGlobalMatcher final : public NodeMatcher {
  public:
   IsJSLoadGlobalMatcher(const Matcher<Handle<Name>>& name_matcher,
@@ -1628,6 +1574,230 @@ class IsJSStoreGlobalMatcher final : public NodeMatcher {
 
  private:
   const Matcher<Handle<Name>> name_matcher_;
+  const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> feedback_vector_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsJSLoadNamedMatcher final : public NodeMatcher {
+ public:
+  IsJSLoadNamedMatcher(const Matcher<Handle<Name>>& name_matcher,
+                       const Matcher<Node*>& object_value_matcher,
+                       const Matcher<Node*>& feedback_vector_matcher,
+                       const Matcher<Node*>& effect_matcher,
+                       const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSLoadNamed),
+        name_matcher_(name_matcher),
+        object_value_matcher_(object_value_matcher),
+        feedback_vector_matcher_(feedback_vector_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose object (";
+    object_value_matcher_.DescribeTo(os);
+    *os << "), name (";
+    name_matcher_.DescribeTo(os);
+    *os << "), feedback vector (";
+    feedback_vector_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << "), and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<NamedAccess>(node).name(), "Name",
+                                 name_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "object", object_value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
+                                 "feedback vector", feedback_vector_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Handle<Name>> name_matcher_;
+  const Matcher<Node*> object_value_matcher_;
+  const Matcher<Node*> feedback_vector_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsJSLoadPropertyMatcher final : public NodeMatcher {
+ public:
+  IsJSLoadPropertyMatcher(const Matcher<Node*>& object_matcher,
+                          const Matcher<Node*>& key_matcher,
+                          const Matcher<Node*>& feedback_vector_matcher,
+                          const Matcher<Node*>& effect_matcher,
+                          const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSLoadProperty),
+        object_matcher_(object_matcher),
+        key_matcher_(key_matcher),
+        feedback_vector_matcher_(feedback_vector_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose object (";
+    object_matcher_.DescribeTo(os);
+    *os << "), key (";
+    key_matcher_.DescribeTo(os);
+    *os << "), feedback vector (";
+    feedback_vector_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << "), and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "object", object_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "key",
+                                 key_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
+                                 "feedback vector", feedback_vector_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> object_matcher_;
+  const Matcher<Node*> key_matcher_;
+  const Matcher<Node*> feedback_vector_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsJSStoreNamedMatcher final : public NodeMatcher {
+ public:
+  IsJSStoreNamedMatcher(const Matcher<Handle<Name>>& name_matcher,
+                        const Matcher<Node*>& object_matcher,
+                        const Matcher<Node*>& value_matcher,
+                        const Matcher<Node*>& feedback_vector_matcher,
+                        const Matcher<Node*>& effect_matcher,
+                        const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSStoreNamed),
+        name_matcher_(name_matcher),
+        object_matcher_(object_matcher),
+        value_matcher_(value_matcher),
+        feedback_vector_matcher_(feedback_vector_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose object (";
+    object_matcher_.DescribeTo(os);
+    *os << "), name (";
+    name_matcher_.DescribeTo(os);
+    *os << "), value (";
+    value_matcher_.DescribeTo(os);
+    *os << "), feedback vector (";
+    feedback_vector_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << "), and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<NamedAccess>(node).name(), "Name",
+                                 name_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "object", object_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
+                                 "value", value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
+                                 "feedback vector", feedback_vector_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Handle<Name>> name_matcher_;
+  const Matcher<Node*> object_matcher_;
+  const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> feedback_vector_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsJSStorePropertyMatcher final : public NodeMatcher {
+ public:
+  IsJSStorePropertyMatcher(const Matcher<Node*>& object_matcher,
+                           const Matcher<Node*>& key_matcher,
+                           const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& feedback_vector_matcher,
+                           const Matcher<Node*>& effect_matcher,
+                           const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSStoreProperty),
+        object_matcher_(object_matcher),
+        key_matcher_(key_matcher),
+        value_matcher_(value_matcher),
+        feedback_vector_matcher_(feedback_vector_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose object (";
+    object_matcher_.DescribeTo(os);
+    *os << "), key (";
+    key_matcher_.DescribeTo(os);
+    *os << "), value (";
+    value_matcher_.DescribeTo(os);
+    *os << "), feedback vector (";
+    feedback_vector_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << "), and control (";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "object", object_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "key",
+                                 key_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
+                                 "value", value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 3),
+                                 "feedback vector", feedback_vector_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> object_matcher_;
+  const Matcher<Node*> key_matcher_;
   const Matcher<Node*> value_matcher_;
   const Matcher<Node*> feedback_vector_matcher_;
   const Matcher<Node*> effect_matcher_;
@@ -2309,6 +2479,40 @@ Matcher<Node*> IsJSCallFunction(std::vector<Matcher<Node*>> value_matchers,
                                                  control_matcher));
 }
 
+
+Matcher<Node*> IsJSLoadProperty(const Matcher<Node*>& object_matcher,
+                                const Matcher<Node*>& key_matcher,
+                                const Matcher<Node*>& feedback_vector_matcher,
+                                const Matcher<Node*>& effect_matcher,
+                                const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsJSLoadPropertyMatcher(
+      object_matcher, key_matcher, feedback_vector_matcher, effect_matcher,
+      control_matcher));
+}
+
+
+Matcher<Node*> IsJSStoreNamed(const Handle<Name> name,
+                              const Matcher<Node*>& object_matcher,
+                              const Matcher<Node*>& value_matcher,
+                              const Matcher<Node*>& feedback_vector_matcher,
+                              const Matcher<Node*>& effect_matcher,
+                              const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsJSStoreNamedMatcher(
+      _, object_matcher, value_matcher, feedback_vector_matcher, effect_matcher,
+      control_matcher));
+}
+
+
+Matcher<Node*> IsJSStoreProperty(const Matcher<Node*>& object_matcher,
+                                 const Matcher<Node*>& key_matcher,
+                                 const Matcher<Node*>& value_matcher,
+                                 const Matcher<Node*>& feedback_vector_matcher,
+                                 const Matcher<Node*>& effect_matcher,
+                                 const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsJSStorePropertyMatcher(
+      object_matcher, key_matcher, value_matcher, feedback_vector_matcher,
+      effect_matcher, control_matcher));
+}
 
 #define IS_BINOP_MATCHER(Name)                                            \
   Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,              \

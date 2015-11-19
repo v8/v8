@@ -460,18 +460,6 @@ void BytecodeGraphBuilder::VisitLoadICStrict(
 }
 
 
-void BytecodeGraphBuilder::VisitKeyedLoadICSloppy(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
-void BytecodeGraphBuilder::VisitKeyedLoadICStrict(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
 void BytecodeGraphBuilder::VisitLoadICSloppyWide(
     const interpreter::BytecodeArrayIterator& iterator) {
   DCHECK(is_sloppy(language_mode()));
@@ -486,63 +474,130 @@ void BytecodeGraphBuilder::VisitLoadICStrictWide(
 }
 
 
+void BytecodeGraphBuilder::BuildKeyedLoad(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  Node* key = environment()->LookupAccumulator();
+  Node* object = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  VectorSlotPair feedback = CreateVectorSlotPair(iterator.GetIndexOperand(1));
+
+  const Operator* op = javascript()->LoadProperty(language_mode(), feedback);
+  Node* node = NewNode(op, object, key, BuildLoadFeedbackVector());
+  AddEmptyFrameStateInputs(node);
+  environment()->BindAccumulator(node);
+}
+
+
+void BytecodeGraphBuilder::VisitKeyedLoadICSloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  DCHECK(is_sloppy(language_mode()));
+  BuildKeyedLoad(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitKeyedLoadICStrict(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  DCHECK(is_strict(language_mode()));
+  BuildKeyedLoad(iterator);
+}
+
+
 void BytecodeGraphBuilder::VisitKeyedLoadICSloppyWide(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_sloppy(language_mode()));
+  BuildKeyedLoad(iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitKeyedLoadICStrictWide(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_strict(language_mode()));
+  BuildKeyedLoad(iterator);
+}
+
+
+void BytecodeGraphBuilder::BuildNamedStore(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  Node* value = environment()->LookupAccumulator();
+  Node* object = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  Handle<Name> name =
+      Handle<Name>::cast(iterator.GetConstantForIndexOperand(1));
+  VectorSlotPair feedback = CreateVectorSlotPair(iterator.GetIndexOperand(2));
+
+  const Operator* op =
+      javascript()->StoreNamed(language_mode(), name, feedback);
+  Node* node = NewNode(op, object, value, BuildLoadFeedbackVector());
+  AddEmptyFrameStateInputs(node);
+  environment()->BindAccumulator(value);
 }
 
 
 void BytecodeGraphBuilder::VisitStoreICSloppy(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_sloppy(language_mode()));
+  BuildNamedStore(iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitStoreICStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
-void BytecodeGraphBuilder::VisitKeyedStoreICSloppy(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
-void BytecodeGraphBuilder::VisitKeyedStoreICStrict(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_strict(language_mode()));
+  BuildNamedStore(iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitStoreICSloppyWide(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_sloppy(language_mode()));
+  BuildNamedStore(iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitStoreICStrictWide(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_strict(language_mode()));
+  BuildNamedStore(iterator);
+}
+
+
+void BytecodeGraphBuilder::BuildKeyedStore(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  Node* value = environment()->LookupAccumulator();
+  Node* object = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  Node* key = environment()->LookupRegister(iterator.GetRegisterOperand(1));
+  VectorSlotPair feedback = CreateVectorSlotPair(iterator.GetIndexOperand(2));
+
+  const Operator* op = javascript()->StoreProperty(language_mode(), feedback);
+  Node* node = NewNode(op, object, key, value, BuildLoadFeedbackVector());
+  AddEmptyFrameStateInputs(node);
+  environment()->BindAccumulator(value);
+}
+
+
+void BytecodeGraphBuilder::VisitKeyedStoreICSloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  DCHECK(is_sloppy(language_mode()));
+  BuildKeyedStore(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitKeyedStoreICStrict(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  DCHECK(is_strict(language_mode()));
+  BuildKeyedStore(iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitKeyedStoreICSloppyWide(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_sloppy(language_mode()));
+  BuildKeyedStore(iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitKeyedStoreICStrictWide(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  DCHECK(is_strict(language_mode()));
+  BuildKeyedStore(iterator);
 }
 
 

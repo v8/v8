@@ -77,6 +77,11 @@ class BytecodeGraphBuilder {
     return MakeNode(op, arraysize(buffer), buffer, false);
   }
 
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
+    Node* buffer[] = {n1, n2, n3, n4};
+    return MakeNode(op, arraysize(buffer), buffer, false);
+  }
+
   Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
                  bool incomplete);
 
@@ -94,6 +99,9 @@ class BytecodeGraphBuilder {
                        TypeofMode typeof_mode);
   void BuildStoreGlobal(const interpreter::BytecodeArrayIterator& iterator);
   void BuildNamedLoad(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildKeyedLoad(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildNamedStore(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildKeyedStore(const interpreter::BytecodeArrayIterator& iterator);
   void BuildCall(const interpreter::BytecodeArrayIterator& iterator);
   void BuildBinaryOp(const Operator* op,
                      const interpreter::BytecodeArrayIterator& iterator);
