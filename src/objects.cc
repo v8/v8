@@ -4664,75 +4664,14 @@ MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
 }
 
 
-Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
-    Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name) {
-  Isolate* isolate = proxy->GetIsolate();
+Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
+  Isolate* isolate = it->isolate();
   HandleScope scope(isolate);
-
-  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-  if (name->IsSymbol()) return Just(ABSENT);
-
-  Handle<Object> args[] = { name };
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result, proxy->CallTrap(proxy, "getPropertyDescriptor",
-                                       Handle<Object>(), arraysize(args), args),
-      Nothing<PropertyAttributes>());
-
-  if (result->IsUndefined()) return Just(ABSENT);
-
-  Handle<Object> argv[] = { result };
-  Handle<Object> desc;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, desc,
-      Execution::Call(isolate, isolate->to_complete_property_descriptor(),
-                      result, arraysize(argv), argv),
-      Nothing<PropertyAttributes>());
-
-  // Convert result to PropertyAttributes.
-  Handle<String> enum_n = isolate->factory()->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("enumerable_"));
-  Handle<Object> enumerable;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, enumerable,
-                                   Object::GetProperty(desc, enum_n),
-                                   Nothing<PropertyAttributes>());
-  Handle<String> conf_n = isolate->factory()->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("configurable_"));
-  Handle<Object> configurable;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, configurable,
-                                   Object::GetProperty(desc, conf_n),
-                                   Nothing<PropertyAttributes>());
-  Handle<String> writ_n = isolate->factory()->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("writable_"));
-  Handle<Object> writable;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, writable,
-                                   Object::GetProperty(desc, writ_n),
-                                   Nothing<PropertyAttributes>());
-  if (!writable->BooleanValue()) {
-    Handle<String> set_n = isolate->factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("set_"));
-    Handle<Object> setter;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, setter,
-                                     Object::GetProperty(desc, set_n),
-                                     Nothing<PropertyAttributes>());
-    writable = isolate->factory()->ToBoolean(!setter->IsUndefined());
-  }
-
-  if (configurable->IsFalse()) {
-    Handle<Object> handler(proxy->handler(), isolate);
-    Handle<String> trap = isolate->factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("getPropertyDescriptor"));
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyPropNotConfigurable, handler, name, trap);
-    isolate->Throw(*error);
-    return Nothing<PropertyAttributes>();
-  }
-
-  int attributes = NONE;
-  if (!enumerable->BooleanValue()) attributes |= DONT_ENUM;
-  if (!configurable->BooleanValue()) attributes |= DONT_DELETE;
-  if (!writable->BooleanValue()) attributes |= READ_ONLY;
-  return Just(static_cast<PropertyAttributes>(attributes));
+  PropertyDescriptor desc;
+  bool found = JSProxy::GetOwnPropertyDescriptor(it, &desc);
+  if (isolate->has_pending_exception()) return Nothing<PropertyAttributes>();
+  if (!found) return Just(ABSENT);
+  return Just(desc.ToAttributes());
 }
 
 
@@ -5115,8 +5054,7 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
-        return JSProxy::GetPropertyAttributesWithHandler(
-            it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName());
+        return JSProxy::GetPropertyAttributes(it);
       case LookupIterator::INTERCEPTOR: {
         Maybe<PropertyAttributes> result =
             JSObject::GetPropertyAttributesWithInterceptor(it);
@@ -6014,8 +5952,7 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
                                    Handle<Object> key,
                                    Handle<Object> attributes) {
   // 1. If Type(O) is not Object, throw a TypeError exception.
-  // TODO(jkummerow): Implement Proxy support, change to "IsSpecObject".
-  if (!object->IsJSObject()) {
+  if (!object->IsSpecObject()) {
     Handle<String> fun_name =
         isolate->factory()->InternalizeUtf8String("Object.defineProperty");
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -6031,8 +5968,8 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
     return isolate->heap()->exception();
   }
   // 6. Let success be DefinePropertyOrThrow(O,key, desc).
-  bool success = DefineOwnProperty(isolate, Handle<JSObject>::cast(object), key,
-                                   &desc, THROW_ON_ERROR);
+  bool success = DefineOwnProperty(isolate, Handle<JSReceiver>::cast(object),
+                                   key, &desc, THROW_ON_ERROR);
   // 7. ReturnIfAbrupt(success).
   if (isolate->has_pending_exception()) return isolate->heap()->exception();
   CHECK(success == true);
@@ -6046,8 +5983,7 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
 Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
                                      Handle<Object> properties) {
   // 1. If Type(O) is not Object, throw a TypeError exception.
-  // TODO(jkummerow): Implement Proxy support, change to "IsSpecObject".
-  if (!object->IsJSObject()) {
+  if (!object->IsSpecObject()) {
     Handle<String> fun_name =
         isolate->factory()->InternalizeUtf8String("Object.defineProperties");
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -6078,10 +6014,7 @@ Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
     LookupIterator it = LookupIterator::PropertyOrElement(
         isolate, props, next_key, &success, LookupIterator::HIDDEN);
     DCHECK(success);
-    // TODO(jkummerow): Support JSProxies. Make sure we call the correct
-    // getOwnPropertyDescriptor trap, and convert the result object to a
-    // PropertyDescriptor.
-    Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
+    Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     if (!maybe.IsJust()) return isolate->heap()->exception();
     PropertyAttributes attrs = maybe.FromJust();
     // 7c. If propDesc is not undefined and propDesc.[[Enumerable]] is true:
@@ -6092,7 +6025,7 @@ Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
     // 7c ii. ReturnIfAbrupt(descObj).
     Handle<Object> desc_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, desc_obj,
-                                       JSObject::GetProperty(&it));
+                                       Object::GetProperty(&it));
     // 7c iii. Let desc be ToPropertyDescriptor(descObj).
     success = PropertyDescriptor::ToPropertyDescriptor(isolate, desc_obj,
                                                        &descriptors[i]);
@@ -6108,7 +6041,7 @@ Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
     // 8a. Let P be the first element of pair.
     // 8b. Let desc be the second element of pair.
     // 8c. Let status be DefinePropertyOrThrow(O, P, desc).
-    bool status = DefineOwnProperty(isolate, Handle<JSObject>::cast(object),
+    bool status = DefineOwnProperty(isolate, Handle<JSReceiver>::cast(object),
                                     desc->name(), desc, THROW_ON_ERROR);
     // 8d. ReturnIfAbrupt(status).
     if (isolate->has_pending_exception()) return isolate->heap()->exception();
@@ -6127,9 +6060,11 @@ bool JSReceiver::DefineOwnProperty(Isolate* isolate, Handle<JSReceiver> object,
     return JSArray::DefineOwnProperty(isolate, Handle<JSArray>::cast(object),
                                       key, desc, should_throw);
   }
+  if (object->IsJSProxy()) {
+    return JSProxy::DefineOwnProperty(isolate, Handle<JSProxy>::cast(object),
+                                      key, desc, should_throw);
+  }
   // TODO(jkummerow): Support Modules (ES6 9.4.6.6)
-  // TODO(jkummerow): Support Proxies (ES6 9.5.6)
-  if (!object->IsJSObject()) return true;
 
   // OrdinaryDefineOwnProperty, by virtue of calling
   // DefineOwnPropertyIgnoreAttributes, can handle arguments (ES6 9.4.4.2)
@@ -6707,6 +6642,117 @@ bool JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
         isolate->factory()->NewNumberFromUint(actual_new_len - 1), a));
   }
   return success;
+}
+
+
+// ES6 9.5.6
+// static
+bool JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> object,
+                                Handle<Object> key, PropertyDescriptor* desc,
+                                ShouldThrow should_throw) {
+  // 1. Assert: IsPropertyKey(P) is true.
+  DCHECK(key->IsName() || key->IsNumber());
+  // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Handle<Object> handler(object->handler(), isolate);
+  // 3. If handler is null, throw a TypeError exception.
+  // TODO(jkummerow): Use "IsRevoked()" instead once we have it.
+  if (handler->IsNull()) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyHandlerNonObject));
+    return false;
+  }
+  // 4. Assert: Type(handler) is Object.
+  DCHECK(handler->IsJSReceiver());
+  // If the handler is not null, the target can't be null either.
+  DCHECK(object->target()->IsSpecObject());
+  // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
+  Handle<JSReceiver> target(JSReceiver::cast(object->target()), isolate);
+  // 6. Let trap be ? GetMethod(handler, "defineProperty").
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap,
+      Object::GetMethod(Handle<JSReceiver>::cast(handler),
+                        isolate->factory()->defineProperty_string()),
+      false);
+  // 7. If trap is undefined, then:
+  if (trap->IsUndefined()) {
+    // 7a. Return target.[[DefineOwnProperty]](P, Desc).
+    return JSReceiver::DefineOwnProperty(isolate, target, key, desc,
+                                         should_throw);
+  }
+  // 8. Let descObj be FromPropertyDescriptor(Desc).
+  Handle<Object> desc_obj = desc->ToObject(isolate);
+  // 9. Let booleanTrapResult be
+  //    ToBoolean(? Call(trap, handler, «target, P, descObj»)).
+  Handle<Name> property_name =
+      key->IsName()
+          ? Handle<Name>::cast(key)
+          : Handle<Name>::cast(isolate->factory()->NumberToString(key));
+  Handle<Object> trap_result_obj;
+  Handle<Object> args[] = {target, property_name, desc_obj};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result_obj,
+      Execution::Call(isolate, trap, handler, arraysize(args), args), false);
+  // 10. If booleanTrapResult is false, return false.
+  if (!trap_result_obj->BooleanValue()) {
+    if (should_throw == THROW_ON_ERROR) {
+      // TODO(jkummerow): Better error message?
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyHandlerReturned, handler, trap_result_obj,
+          key));
+    }
+    return false;
+  }
+  // 11. Let targetDesc be ? target.[[GetOwnProperty]](P).
+  PropertyDescriptor target_desc;
+  bool target_found =
+      JSReceiver::GetOwnPropertyDescriptor(isolate, target, key, &target_desc);
+  if (isolate->has_pending_exception()) return false;
+  // 12. Let extensibleTarget be ? IsExtensible(target).
+  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
+  if (maybe_extensible.IsNothing()) return false;
+  bool extensible_target = maybe_extensible.FromJust();
+  // 13. If Desc has a [[Configurable]] field and if Desc.[[Configurable]]
+  //     is false, then:
+  // 13a. Let settingConfigFalse be true.
+  // 14. Else let settingConfigFalse be false.
+  bool setting_config_false = desc->has_configurable() && !desc->configurable();
+  // 15. If targetDesc is undefined, then
+  if (!target_found) {
+    // 15a. If extensibleTarget is false, throw a TypeError exception.
+    if (!extensible_target) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyTargetNotExtensible));
+      return false;
+    }
+    // 15b. If settingConfigFalse is true, throw a TypeError exception.
+    if (setting_config_false) {
+      // TODO(jkummerow): Better error message?
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kRedefineDisallowed, key));
+      return false;
+    }
+  } else {
+    // 16. Else targetDesc is not undefined,
+    // 16a. If IsCompatiblePropertyDescriptor(extensibleTarget, Desc,
+    //      targetDesc) is false, throw a TypeError exception.
+    bool valid = IsCompatiblePropertyDescriptor(
+        isolate, extensible_target, desc, &target_desc, property_name);
+    if (!valid) {
+      DCHECK(isolate->has_pending_exception());
+      return false;
+    }
+    // 16b. If settingConfigFalse is true and targetDesc.[[Configurable]] is
+    //      true, throw a TypeError exception.
+    if (setting_config_false && target_desc.configurable()) {
+      // TODO(jkummerow): Better error message?
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kRedefineDisallowed, key));
+      return false;
+    }
+  }
+  // 17. Return true.
+  return true;
 }
 
 

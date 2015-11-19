@@ -9528,6 +9528,11 @@ class JSProxy: public JSReceiver {
   static bool GetOwnPropertyDescriptor(LookupIterator* it,
                                        PropertyDescriptor* desc);
 
+  // ES6 9.5.6
+  static bool DefineOwnProperty(Isolate* isolate, Handle<JSProxy> object,
+                                Handle<Object> key, PropertyDescriptor* desc,
+                                ShouldThrow should_throw);
+
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithHandler(
       Handle<JSProxy> proxy,
       Handle<Object> receiver,
@@ -9543,10 +9548,9 @@ class JSProxy: public JSReceiver {
       Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
       Handle<Object> value, ShouldThrow should_throw, bool* done);
 
-  MUST_USE_RESULT static Maybe<PropertyAttributes>
-      GetPropertyAttributesWithHandler(Handle<JSProxy> proxy,
-                                       Handle<Object> receiver,
-                                       Handle<Name> name);
+  MUST_USE_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
+      LookupIterator* it);
+
   MUST_USE_RESULT static Maybe<bool> SetPropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
       Handle<Object> value, ShouldThrow should_throw);
