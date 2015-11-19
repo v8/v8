@@ -1180,8 +1180,6 @@ class MacroAssembler : public Assembler {
   // 'call_kind' must be x5.
   void InvokePrologue(const ParameterCount& expected,
                       const ParameterCount& actual,
-                      Handle<Code> code_constant,
-                      Register code_reg,
                       Label* done,
                       InvokeFlag flag,
                       bool* definitely_mismatches,

@@ -4024,8 +4024,6 @@ void MacroAssembler::InvokeCode(Register code,
   bool definitely_mismatches = false;
   InvokePrologue(expected,
                  actual,
-                 Handle<Code>::null(),
-                 code,
                  &done,
                  &definitely_mismatches,
                  flag,
@@ -4047,8 +4045,6 @@ void MacroAssembler::InvokeCode(Register code,
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
-                                    Handle<Code> code_constant,
-                                    Register code_register,
                                     Label* done,
                                     bool* definitely_mismatches,
                                     InvokeFlag flag,
@@ -4098,13 +4094,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
   if (!definitely_matches) {
     Handle<Code> adaptor = isolate()->builtins()->ArgumentsAdaptorTrampoline();
-    if (!code_constant.is_null()) {
-      Move(rdx, code_constant, RelocInfo::EMBEDDED_OBJECT);
-      addp(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    } else if (!code_register.is(rdx)) {
-      movp(rdx, code_register);
-    }
-
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(adaptor));
       Call(adaptor, RelocInfo::CODE_TARGET);

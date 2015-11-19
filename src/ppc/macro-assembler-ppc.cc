@@ -1001,9 +1001,7 @@ void MacroAssembler::MovFromFloatParameter(const DoubleRegister dst) {
 
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    Handle<Code> code_constant,
-                                    Register code_reg, Label* done,
+                                    const ParameterCount& actual, Label* done,
                                     bool* definitely_mismatches,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper) {
@@ -1024,8 +1022,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   // ARM has some sanity checks as per below, considering add them for PPC
   //  DCHECK(actual.is_immediate() || actual.reg().is(r3));
   //  DCHECK(expected.is_immediate() || expected.reg().is(r5));
-  //  DCHECK((!code_constant.is_null() && code_reg.is(no_reg))
-  //          || code_reg.is(r6));
 
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
@@ -1057,11 +1053,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 
   if (!definitely_matches) {
-    if (!code_constant.is_null()) {
-      mov(r6, Operand(code_constant));
-      addi(r6, r6, Operand(Code::kHeaderSize - kHeapObjectTag));
-    }
-
     Handle<Code> adaptor = isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(adaptor));
@@ -1086,8 +1077,8 @@ void MacroAssembler::InvokeCode(Register code, const ParameterCount& expected,
 
   Label done;
   bool definitely_mismatches = false;
-  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done,
-                 &definitely_mismatches, flag, call_wrapper);
+  InvokePrologue(expected, actual, &done, &definitely_mismatches, flag,
+                 call_wrapper);
   if (!definitely_mismatches) {
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(code));

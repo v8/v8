@@ -2481,8 +2481,6 @@ void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register type,
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
-                                    Handle<Code> code_constant,
-                                    Register code_reg,
                                     Label* done,
                                     InvokeFlag flag,
                                     bool* definitely_mismatches,
@@ -2502,7 +2500,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   // passed in registers.
   DCHECK(actual.is_immediate() || actual.reg().is(x0));
   DCHECK(expected.is_immediate() || expected.reg().is(x2));
-  DCHECK((!code_constant.is_null() && code_reg.is(no_reg)) || code_reg.is(x3));
 
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
@@ -2537,11 +2534,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   // If the argument counts may mismatch, generate a call to the argument
   // adaptor.
   if (!definitely_matches) {
-    if (!code_constant.is_null()) {
-      Mov(x3, Operand(code_constant));
-      Add(x3, x3, Code::kHeaderSize - kHeapObjectTag);
-    }
-
     Handle<Code> adaptor =
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
@@ -2572,8 +2564,8 @@ void MacroAssembler::InvokeCode(Register code,
   Label done;
 
   bool definitely_mismatches = false;
-  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
-                 &definitely_mismatches, call_wrapper);
+  InvokePrologue(expected, actual, &done, flag, &definitely_mismatches,
+                 call_wrapper);
 
   // If we are certain that actual != expected, then we know InvokePrologue will
   // have handled the call through the argument adaptor mechanism.

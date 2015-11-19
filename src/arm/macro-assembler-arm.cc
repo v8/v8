@@ -1236,8 +1236,6 @@ void MacroAssembler::MovFromFloatParameter(DwVfpRegister dst) {
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
-                                    Handle<Code> code_constant,
-                                    Register code_reg,
                                     Label* done,
                                     bool* definitely_mismatches,
                                     InvokeFlag flag,
@@ -1257,7 +1255,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   // passed in registers.
   DCHECK(actual.is_immediate() || actual.reg().is(r0));
   DCHECK(expected.is_immediate() || expected.reg().is(r2));
-  DCHECK((!code_constant.is_null() && code_reg.is(no_reg)) || code_reg.is(r3));
 
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
@@ -1289,11 +1286,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 
   if (!definitely_matches) {
-    if (!code_constant.is_null()) {
-      mov(r3, Operand(code_constant));
-      add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
-    }
-
     Handle<Code> adaptor =
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
@@ -1321,8 +1313,7 @@ void MacroAssembler::InvokeCode(Register code,
 
   Label done;
   bool definitely_mismatches = false;
-  InvokePrologue(expected, actual, Handle<Code>::null(), code,
-                 &done, &definitely_mismatches, flag,
+  InvokePrologue(expected, actual, &done, &definitely_mismatches, flag,
                  call_wrapper);
   if (!definitely_mismatches) {
     if (flag == CALL_FUNCTION) {
