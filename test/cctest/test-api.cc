@@ -17483,6 +17483,8 @@ TEST(PersistentHandleInNewSpaceVisitor) {
 
 
 TEST(RegExp) {
+  i::FLAG_harmony_regexps = true;
+  i::FLAG_harmony_unicode_regexps = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
@@ -17505,6 +17507,14 @@ TEST(RegExp) {
   CHECK(re->IsRegExp());
   CHECK(re->GetSource()->Equals(v8_str("baz")));
   CHECK_EQ(v8::RegExp::kIgnoreCase | v8::RegExp::kMultiline,
+           static_cast<int>(re->GetFlags()));
+
+  re = v8::RegExp::New(v8_str("baz"),
+                       static_cast<v8::RegExp::Flags>(v8::RegExp::kUnicode |
+                                                      v8::RegExp::kSticky));
+  CHECK(re->IsRegExp());
+  CHECK(re->GetSource()->Equals(v8_str("baz")));
+  CHECK_EQ(v8::RegExp::kUnicode | v8::RegExp::kSticky,
            static_cast<int>(re->GetFlags()));
 
   re = CompileRun("/quux/").As<v8::RegExp>();

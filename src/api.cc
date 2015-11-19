@@ -6109,11 +6109,13 @@ void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
 
 static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
   i::Isolate* isolate = i::Isolate::Current();
-  uint8_t flags_buf[3];
+  uint8_t flags_buf[5];
   int num_flags = 0;
   if ((flags & RegExp::kGlobal) != 0) flags_buf[num_flags++] = 'g';
   if ((flags & RegExp::kMultiline) != 0) flags_buf[num_flags++] = 'm';
   if ((flags & RegExp::kIgnoreCase) != 0) flags_buf[num_flags++] = 'i';
+  if ((flags & RegExp::kSticky) != 0) flags_buf[num_flags++] = 'y';
+  if ((flags & RegExp::kUnicode) != 0) flags_buf[num_flags++] = 'u';
   DCHECK(num_flags <= static_cast<int>(arraysize(flags_buf)));
   return isolate->factory()->InternalizeOneByteString(
       i::Vector<const uint8_t>(flags_buf, num_flags));
