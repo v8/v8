@@ -341,6 +341,13 @@ static inline v8::Local<v8::String> v8_str(const char* x) {
 }
 
 
+static inline v8::Local<v8::String> v8_str(v8::Isolate* isolate,
+                                           const char* x) {
+  return v8::String::NewFromUtf8(isolate, x, v8::NewStringType::kNormal)
+      .ToLocalChecked();
+}
+
+
 static inline v8::Local<v8::Symbol> v8_symbol(const char* name) {
   return v8::Symbol::New(v8::Isolate::GetCurrent(), v8_str(name));
 }
@@ -389,6 +396,18 @@ static inline v8::MaybeLocal<v8::Value> CompileRun(
   return v8::Script::Compile(context, v8_str(source))
       .ToLocalChecked()
       ->Run(context);
+}
+
+
+static inline v8::Local<v8::Value> CompileRunChecked(v8::Isolate* isolate,
+                                                     const char* source) {
+  v8::Local<v8::String> source_string =
+      v8::String::NewFromUtf8(isolate, source, v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(context, source_string).ToLocalChecked();
+  return script->Run(context).ToLocalChecked();
 }
 
 
