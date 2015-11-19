@@ -24,6 +24,7 @@ const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r15};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r16};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r17};
 const Register kJavaScriptCallArgCountRegister = {Register::kCode_r3};
+const Register kJavaScriptCallNewTargetRegister = {Register::kCode_r6};
 const Register kRuntimeCallFunctionRegister = {Register::kCode_r4};
 const Register kRuntimeCallArgCountRegister = {Register::kCode_r3};
 

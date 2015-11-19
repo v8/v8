@@ -113,9 +113,9 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
 
 Node* BytecodeGraphBuilder::GetFunctionContext() {
   if (!function_context_.is_set()) {
-    // Parameter (arity + 1) is special for the outer context of the function
-    const Operator* op = common()->Parameter(
-        bytecode_array()->parameter_count() + 1, "%context");
+    int params = bytecode_array()->parameter_count();
+    int index = Linkage::GetJSCallContextParamIndex(params);
+    const Operator* op = common()->Parameter(index, "%context");
     Node* node = NewNode(op, graph()->start());
     function_context_.set(node);
   }
@@ -125,8 +125,8 @@ Node* BytecodeGraphBuilder::GetFunctionContext() {
 
 Node* BytecodeGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
-    const Operator* op = common()->Parameter(
-        Linkage::kJSFunctionCallClosureParamIndex, "%closure");
+    int index = Linkage::kJSCallClosureParamIndex;
+    const Operator* op = common()->Parameter(index, "%closure");
     Node* node = NewNode(op, graph()->start());
     function_closure_.set(node);
   }
@@ -180,9 +180,9 @@ bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
   // closure.
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
-  // parameters (including the receiver) plus number of arguments, context and
-  // closure.
-  int actual_parameter_count = bytecode_array()->parameter_count() + 3;
+  // parameters (including the receiver) plus new target, number of arguments,
+  // context and closure.
+  int actual_parameter_count = bytecode_array()->parameter_count() + 4;
   graph()->SetStart(graph()->NewNode(common()->Start(actual_parameter_count)));
 
   Environment env(this, bytecode_array()->register_count(),

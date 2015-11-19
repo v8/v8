@@ -472,8 +472,8 @@ Node* AstGraphBuilder::GetFunctionClosureForContext() {
 
 Node* AstGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
-    const Operator* op = common()->Parameter(
-        Linkage::kJSFunctionCallClosureParamIndex, "%closure");
+    int index = Linkage::kJSCallClosureParamIndex;
+    const Operator* op = common()->Parameter(index, "%closure");
     Node* node = NewNode(op, graph()->start());
     function_closure_.set(node);
   }
@@ -483,9 +483,9 @@ Node* AstGraphBuilder::GetFunctionClosure() {
 
 Node* AstGraphBuilder::GetFunctionContext() {
   if (!function_context_.is_set()) {
-    // Parameter (arity + 2) is special for the outer context of the function
-    const Operator* op = common()->Parameter(
-        info()->num_parameters_including_this() + 1, "%context");
+    int params = info()->num_parameters_including_this();
+    int index = Linkage::GetJSCallContextParamIndex(params);
+    const Operator* op = common()->Parameter(index, "%context");
     Node* node = NewNode(op, graph()->start());
     function_context_.set(node);
   }
@@ -498,9 +498,9 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
   DCHECK(graph() != NULL);
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
-  // parameters (including the receiver) plus number of arguments, context and
-  // closure.
-  int actual_parameter_count = info()->num_parameters_including_this() + 3;
+  // parameters (including the receiver) plus new target, number of arguments,
+  // context and closure.
+  int actual_parameter_count = info()->num_parameters_including_this() + 4;
   graph()->SetStart(graph()->NewNode(common()->Start(actual_parameter_count)));
 
   // Initialize the top-level environment.

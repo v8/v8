@@ -134,11 +134,11 @@ Matcher<Node*> BytecodeGraphBuilderTest::IsFeedbackVector(Node* effect,
   int offset = SharedFunctionInfo::kFeedbackVectorOffset - kHeapObjectTag;
   int offset1 = JSFunction::kSharedFunctionInfoOffset - kHeapObjectTag;
 
-  return IsLoad(kMachAnyTagged,
-                IsLoad(kMachAnyTagged,
-                       IsParameter(Linkage::kJSFunctionCallClosureParamIndex),
-                       IsIntPtrConstant(offset1), effect, control),
-                IsIntPtrConstant(offset), effect, control);
+  return IsLoad(
+      kMachAnyTagged,
+      IsLoad(kMachAnyTagged, IsParameter(Linkage::kJSCallClosureParamIndex),
+             IsIntPtrConstant(offset1), effect, control),
+      IsIntPtrConstant(offset), effect, control);
 }
 
 

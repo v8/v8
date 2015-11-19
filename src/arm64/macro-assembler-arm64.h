@@ -45,6 +45,7 @@ namespace internal {
 #define kInterpreterBytecodeArrayRegister x20
 #define kInterpreterDispatchTableRegister x21
 #define kJavaScriptCallArgCountRegister x0
+#define kJavaScriptCallNewTargetRegister x3
 #define kRuntimeCallFunctionRegister x1
 #define kRuntimeCallArgCountRegister x0
 

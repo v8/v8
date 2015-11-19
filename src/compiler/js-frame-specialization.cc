@@ -49,13 +49,14 @@ Reduction JSFrameSpecialization::ReduceParameter(Node* node) {
   Object* object;
   int const index = ParameterIndexOf(node->op());
   int const parameters_count = frame()->ComputeParametersCount() + 1;
-  if (index == Linkage::kJSFunctionCallClosureParamIndex) {
+  if (index == Linkage::kJSCallClosureParamIndex) {
+    // The Parameter index references the closure.
     object = frame()->function();
-  } else if (index == parameters_count) {
-    // The Parameter index (arity + 1) is the parameter count.
+  } else if (index == Linkage::GetJSCallArgCountParamIndex(parameters_count)) {
+    // The Parameter index references the parameter count.
     object = Smi::FromInt(parameters_count - 1);
-  } else if (index == parameters_count + 1) {
-    // The Parameter index (arity + 2) is the context.
+  } else if (index == Linkage::GetJSCallContextParamIndex(parameters_count)) {
+    // The Parameter index references the context.
     object = frame()->context();
   } else {
     // The Parameter index 0 is the receiver.

@@ -45,8 +45,8 @@ class JSInliner final : public AdvancedReducer {
                                    FrameStateType frame_state_type,
                                    Handle<SharedFunctionInfo> shared);
 
-  Reduction InlineCall(Node* call, Node* context, Node* frame_state,
-                       Node* start, Node* end);
+  Reduction InlineCall(Node* call, Node* new_target, Node* context,
+                       Node* frame_state, Node* start, Node* end);
 };
 
 }  // namespace compiler

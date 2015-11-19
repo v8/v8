@@ -385,7 +385,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       m.UndefinedConstant());
 
   // Build the call.
-  Node* args[] = {receiver, m.Int32Constant(1), context};
+  Node* args[] = {receiver, m.UndefinedConstant(), m.Int32Constant(1), context};
   Node* call =
       m.CallNWithFrameState(descriptor, function_node, args, state_node);
   m.Return(call);

@@ -1820,9 +1820,11 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     if (shared->internal_formal_parameter_count() == arity ||
         shared->internal_formal_parameter_count() ==
             SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
+      Node* new_target = jsgraph()->UndefinedConstant();
+      Node* argument_count = jsgraph()->Int32Constant(arity);
       // Patch {node} to a direct call.
-      node->InsertInput(graph()->zone(), arity + 2,
-                        jsgraph()->Int32Constant(arity));
+      node->InsertInput(graph()->zone(), arity + 2, new_target);
+      node->InsertInput(graph()->zone(), arity + 3, argument_count);
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity, flags)));

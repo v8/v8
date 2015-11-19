@@ -133,22 +133,23 @@ class CopyVisitor {
 };
 
 
-Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
-                                Node* start, Node* end) {
+Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
+                                Node* frame_state, Node* start, Node* end) {
   // The scheduler is smart enough to place our code; we just ensure {control}
   // becomes the control input of the start of the inlinee, and {effect} becomes
   // the effect input of the start of the inlinee.
   Node* control = NodeProperties::GetControlInput(call);
   Node* effect = NodeProperties::GetEffectInput(call);
 
+  int const inlinee_new_target_index =
+      static_cast<int>(start->op()->ValueOutputCount()) - 3;
   int const inlinee_arity_index =
       static_cast<int>(start->op()->ValueOutputCount()) - 2;
-  // Context is last parameter.
   int const inlinee_context_index =
       static_cast<int>(start->op()->ValueOutputCount()) - 1;
 
-  // {inliner_inputs} counts JSFunction, Receiver, arguments, but not
-  // context, effect, control.
+  // {inliner_inputs} counts JSFunction, receiver, arguments, but not
+  // new target value, argument count, context, effect or control.
   int inliner_inputs = call->op()->ValueInputCount();
   // Iterate over all uses of the start node.
   for (Edge edge : start->use_edges()) {
@@ -157,10 +158,13 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
       case IrOpcode::kParameter: {
         int index = 1 + ParameterIndexOf(use->op());
         DCHECK_LE(index, inlinee_context_index);
-        if (index < inliner_inputs && index < inlinee_arity_index) {
+        if (index < inliner_inputs && index < inlinee_new_target_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.
           Replace(use, call->InputAt(index));
+        } else if (index == inlinee_new_target_index) {
+          // The projection is requesting the new target value.
+          Replace(use, new_target);
         } else if (index == inlinee_arity_index) {
           // The projection is requesting the number of arguments.
           Replace(use, jsgraph_->Int32Constant(inliner_inputs - 2));
@@ -409,6 +413,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   Node* start = visitor.GetCopy(graph.start());
   Node* end = visitor.GetCopy(graph.end());
   Node* frame_state = call.frame_state_after();
+  Node* new_target = jsgraph_->UndefinedConstant();
 
   // Insert nodes around the call that model the behavior required for a
   // constructor dispatch and turn the constructor call into a regular call.
@@ -430,7 +435,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     // Swizzle the inputs of the {JSCallConstruct} node to look like inputs to
     // any {JSCallFunction} node so that the rest of the inlining machinery
     // behaves as if we were dealing with a regular function invocation.
-    node->RemoveInput(call.formal_arguments() + 1);  // Drop new.target.
+    new_target = call.new_target();  // Retrieve new target value input.
+    node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
     node->InsertInput(jsgraph_->graph()->zone(), 1, create);
     // Insert a check of the return value to determine whether the return value
     // or the implicit receiver should be selected as a result of the call.
@@ -474,16 +480,17 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   }
 
   // Insert argument adaptor frame if required. The callees formal parameter
-  // count (i.e. value outputs of start node minus target, receiver, num args
-  // and context) have to match the number of arguments passed to the call.
-  DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 4);
+  // count (i.e. value outputs of start node minus target, receiver, new target,
+  // arguments count and context) have to match the number of arguments passed
+  // to the call.
+  DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 5);
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.formal_arguments(),
         FrameStateType::kArgumentsAdaptor, info.shared_info());
   }
 
-  return InlineCall(node, context, frame_state, start, end);
+  return InlineCall(node, new_target, context, frame_state, start, end);
 }
 
 }  // namespace compiler

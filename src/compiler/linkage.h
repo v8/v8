@@ -263,11 +263,11 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 // Can be used to translate {arg_index} (i.e. index of the call node input) as
 // well as {param_index} (i.e. as stored in parameter nodes) into an operator
 // representing the architecture-specific location. The following call node
-// layouts are supported (where {n} is the number value inputs):
+// layouts are supported (where {n} is the number of value inputs):
 //
 //                  #0          #1     #2     #3     [...]             #n
 // Call[CodeStub]   code,       arg 1, arg 2, arg 3, [...],            context
-// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...],      #arg, context
+// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...], new, #arg, context
 // Call[Runtime]    CEntryStub, arg 1, arg 2, arg 3, [...], fun, #arg, context
 class Linkage : public ZoneObject {
  public:
@@ -340,8 +340,23 @@ class Linkage : public ZoneObject {
   // Get the location where an incoming OSR value is stored.
   LinkageLocation GetOsrValueLocation(int index) const;
 
-  // A special parameter index for JSCalls that represents the closure.
-  static const int kJSFunctionCallClosureParamIndex = -1;
+  // A special {Parameter} index for JSCalls that represents the new target.
+  static int GetJSCallNewTargetParamIndex(int parameter_count) {
+    return parameter_count + 0;  // Parameter (arity + 0) is special.
+  }
+
+  // A special {Parameter} index for JSCalls that represents the argument count.
+  static int GetJSCallArgCountParamIndex(int parameter_count) {
+    return parameter_count + 1;  // Parameter (arity + 1) is special.
+  }
+
+  // A special {Parameter} index for JSCalls that represents the context.
+  static int GetJSCallContextParamIndex(int parameter_count) {
+    return parameter_count + 2;  // Parameter (arity + 2) is special.
+  }
+
+  // A special {Parameter} index for JSCalls that represents the closure.
+  static const int kJSCallClosureParamIndex = -1;
 
   // A special {OsrValue} index to indicate the context spill slot.
   static const int kOsrContextSpillSlotIndex = -1;
