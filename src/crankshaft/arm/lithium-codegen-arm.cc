@@ -3415,7 +3415,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     // Change context.
     __ ldr(cp, FieldMemOperand(function_reg, JSFunction::kContextOffset));
 
-    // Always initialize r0 to the number of actual arguments.
+    // Always initialize new target and number of actual arguments.
+    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
     __ mov(r0, Operand(arity));
 
     // Invoke function.
@@ -3797,10 +3798,12 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   DCHECK(ToRegister(instr->function()).is(r1));
   DCHECK(ToRegister(instr->result()).is(r0));
 
-  __ mov(r0, Operand(instr->arity()));
-
   // Change context.
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+
+  // Always initialize new target and number of actual arguments.
+  __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+  __ mov(r0, Operand(instr->arity()));
 
   // Load the code entry address
   __ ldr(ip, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));

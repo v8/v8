@@ -3368,7 +3368,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     // Change context.
     __ movp(rsi, FieldOperand(function_reg, JSFunction::kContextOffset));
 
-    // Always initialize rax to the number of actual arguments.
+    // Always initialize new target and number of actual arguments.
+    __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
     __ Set(rax, arity);
 
     // Invoke function.
@@ -3432,10 +3433,12 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   DCHECK(ToRegister(instr->function()).is(rdi));
   DCHECK(ToRegister(instr->result()).is(rax));
 
-  __ Set(rax, instr->arity());
-
   // Change context.
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+
+  // Always initialize new target and number of actual arguments.
+  __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+  __ Set(rax, instr->arity());
 
   LPointerMap* pointers = instr->pointer_map();
   SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);

@@ -3589,7 +3589,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     // Change context.
     __ LoadP(cp, FieldMemOperand(function_reg, JSFunction::kContextOffset));
 
-    // Always initialize r3 to the number of actual arguments.
+    // Always initialize new target and number of actual arguments.
+    __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
     __ mov(r3, Operand(arity));
 
     bool is_self_call = function.is_identical_to(info()->closure());
@@ -4003,10 +4004,12 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   DCHECK(ToRegister(instr->function()).is(r4));
   DCHECK(ToRegister(instr->result()).is(r3));
 
-  __ mov(r3, Operand(instr->arity()));
-
   // Change context.
   __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
+
+  // Always initialize new target and number of actual arguments.
+  __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
+  __ mov(r3, Operand(instr->arity()));
 
   bool is_self_call = false;
   if (instr->hydrogen()->function()->IsConstant()) {

@@ -3562,7 +3562,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     // Change context.
     __ mov(esi, FieldOperand(function_reg, JSFunction::kContextOffset));
 
-    // Always initialize eax to the number of actual arguments.
+    // Always initialize new target and number of actual arguments.
+    __ mov(edx, factory()->undefined_value());
     __ mov(eax, arity);
 
     // Invoke function directly.
@@ -3625,10 +3626,12 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   DCHECK(ToRegister(instr->function()).is(edi));
   DCHECK(ToRegister(instr->result()).is(eax));
 
-  __ mov(eax, instr->arity());
-
   // Change context.
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+
+  // Always initialize new target and number of actual arguments.
+  __ mov(edx, factory()->undefined_value());
+  __ mov(eax, instr->arity());
 
   bool is_self_call = false;
   if (instr->hydrogen()->function()->IsConstant()) {
