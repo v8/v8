@@ -156,6 +156,12 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
       Handle<JSReceiver> prototype =
           PrototypeIterator::GetCurrent<JSReceiver>(i);
       if (!prototype->IsJSObject()) return false;
+      // TODO(bmeurer): We do not currently support unstable prototypes.
+      // We might want to revisit the way we handle certain keyed stores
+      // because this whole prototype chain check is essential a hack,
+      // and I'm not sure that it is correct at all with dictionaries in
+      // the prototype chain.
+      if (!prototype->map()->is_stable()) return false;
       holder = Handle<JSObject>::cast(prototype);
     }
   }
