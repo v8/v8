@@ -267,6 +267,7 @@
   V(ChangeFloat32ToFloat64)     \
   V(ChangeFloat64ToInt32)       \
   V(ChangeFloat64ToUint32)      \
+  V(ChangeFloat64ToInt64)       \
   V(ChangeInt32ToFloat64)       \
   V(ChangeInt32ToInt64)         \
   V(ChangeUint32ToFloat64)      \

@@ -87,6 +87,7 @@ namespace compiler {
   V(PPC_Float32ToDouble)           \
   V(PPC_DoubleToInt32)             \
   V(PPC_DoubleToUint32)            \
+  V(PPC_DoubleToInt64)             \
   V(PPC_DoubleToFloat32)           \
   V(PPC_DoubleExtractLowWord32)    \
   V(PPC_DoubleExtractHighWord32)   \

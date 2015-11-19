@@ -1129,6 +1129,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kPPC_DoubleToInt32:
     case kPPC_DoubleToUint32:
+    case kPPC_DoubleToInt64:
       __ ConvertDoubleToInt64(i.InputDoubleRegister(0),
 #if !V8_TARGET_ARCH_PPC64
                               kScratchReg,
