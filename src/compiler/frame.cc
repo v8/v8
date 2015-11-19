@@ -14,8 +14,9 @@ namespace compiler {
 
 Frame::Frame(int fixed_frame_size_in_slots)
     : frame_slot_count_(fixed_frame_size_in_slots),
-      spilled_callee_register_slot_count_(0),
-      stack_slot_count_(0),
+      outgoing_parameter_slot_count_(0),
+      callee_saved_slot_count_(0),
+      spill_slot_count_(0),
       allocated_registers_(NULL),
       allocated_double_registers_(NULL) {}
 

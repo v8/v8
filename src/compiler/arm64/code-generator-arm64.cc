@@ -207,6 +207,15 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
     FrameOffset offset =
         linkage()->GetFrameOffset(AllocatedOperand::cast(op)->index(), frame());
+    if (offset.from_frame_pointer()) {
+      int from_sp =
+          offset.offset() + (frame()->GetSpToFpSlotCount() * kPointerSize);
+      // Convert FP-offsets to SP-offsets if it results in better code.
+      if (Assembler::IsImmLSUnscaled(from_sp) ||
+          Assembler::IsImmLSScaled(from_sp, LSDoubleWord)) {
+        offset = FrameOffset::FromStackPointer(from_sp);
+      }
+    }
     return MemOperand(offset.from_stack_pointer() ? masm->StackPointer() : fp,
                       offset.offset());
   }
@@ -477,6 +486,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
         __ Call(target);
       }
+      frame()->ClearOutgoingParameterSlots();
       RecordCallPosition(instr);
       break;
     }
@@ -491,6 +501,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
         __ Jump(target);
       }
+      frame()->ClearOutgoingParameterSlots();
       break;
     }
     case kArchCallJSFunction: {
@@ -506,6 +517,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(x10);
+      frame()->ClearOutgoingParameterSlots();
       RecordCallPosition(instr);
       break;
     }
@@ -523,6 +535,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AssembleDeconstructActivationRecord(stack_param_delta);
       __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Jump(x10);
+      frame()->ClearOutgoingParameterSlots();
       break;
     }
     case kArchLazyBailout: {
@@ -545,6 +558,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters, 0);
       }
+      // CallCFunction only supports register arguments so we never need to call
+      // frame()->ClearOutgoingParameterSlots() here.
+      DCHECK(frame()->GetOutgoingParameterSlotCount() == 0);
       break;
     }
     case kArchJmp:
@@ -828,8 +844,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64CompareAndBranch32:
       // Pseudo instruction turned into cbz/cbnz in AssembleArchBranch.
       break;
-    case kArm64Claim: {
+    case kArm64ClaimForCallArguments: {
       __ Claim(i.InputInt32(0));
+      frame()->AllocateOutgoingParameterSlots(i.InputInt32(0));
       break;
     }
     case kArm64Poke: {
@@ -1229,13 +1246,6 @@ void CodeGenerator::AssembleDeoptimizerCall(
 }
 
 
-// TODO(dcarney): increase stack slots in frame once before first use.
-static int AlignedStackSlots(int stack_slots) {
-  if (stack_slots & 1) stack_slots++;
-  return stack_slots;
-}
-
-
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
@@ -1269,13 +1279,12 @@ void CodeGenerator::AssemblePrologue() {
     stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
   }
 
-  if (stack_shrink_slots > 0) {
-    Register sp = __ StackPointer();
-    if (!sp.Is(csp)) {
-      __ Sub(sp, sp, stack_shrink_slots * kPointerSize);
-    }
-    __ Sub(csp, csp, AlignedStackSlots(stack_shrink_slots) * kPointerSize);
+  if (csp.Is(masm()->StackPointer())) {
+    // The system stack pointer requires 16-byte alignment at function call
+    // boundaries.
+    stack_shrink_slots += frame()->AlignSavedCalleeRegisterSlots();
   }
+  __ Claim(stack_shrink_slots);
 
   // Save FP registers.
   CPURegList saves_fp = CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,

@@ -162,10 +162,8 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame) const {
   } else {
     // No frame. Retrieve all parameters relative to stack pointer.
     DCHECK(spill_slot < 0);  // Must be a parameter.
-    int offsetSpToFp =
-        kPointerSize * (StandardFrameConstants::kFixedSlotCountAboveFp -
-                        frame->GetTotalFrameSlotCount());
-    return FrameOffset::FromStackPointer(offset - offsetSpToFp);
+    int sp_offset = offset + (frame->GetSpToFpSlotCount() * kPointerSize);
+    return FrameOffset::FromStackPointer(sp_offset);
   }
 }
 
