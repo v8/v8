@@ -987,6 +987,16 @@ FunctionMirror.prototype.name = function() {
 
 
 /**
+ * Returns the displayName if it is set, otherwise name, otherwise inferred
+ * name.
+ * @return {string} Name of the function
+ */
+FunctionMirror.prototype.debugName = function() {
+  return %FunctionGetDebugName(this.value_);
+}
+
+
+/**
  * Returns the inferred name of the function.
  * @return {string} Name of the function
  */

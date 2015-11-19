@@ -239,6 +239,7 @@ namespace internal {
   V(default_string, "default")                                   \
   V(defineProperty_string, "defineProperty")                     \
   V(deleteProperty_string, "deleteProperty")                     \
+  V(display_name_string, "displayName")                          \
   V(done_string, "done")                                         \
   V(dot_result_string, ".result")                                \
   V(dot_string, ".")                                             \

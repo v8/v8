@@ -12098,12 +12098,21 @@ bool JSFunction::PassesFilter(const char* raw_filter) {
 }
 
 
-Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
+Handle<String> JSFunction::GetName(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   Handle<Object> name =
       JSReceiver::GetDataProperty(function, isolate->factory()->name_string());
   if (name->IsString()) return Handle<String>::cast(name);
   return handle(function->shared()->DebugName(), isolate);
+}
+
+
+Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
+  Isolate* isolate = function->GetIsolate();
+  Handle<Object> name = JSReceiver::GetDataProperty(
+      function, isolate->factory()->display_name_string());
+  if (name->IsString()) return Handle<String>::cast(name);
+  return JSFunction::GetName(function);
 }
 
 

@@ -168,8 +168,9 @@ Handle<Object> CallSite::GetFileName() {
 
 
 Handle<Object> CallSite::GetFunctionName() {
-  Handle<String> result = JSFunction::GetDebugName(fun_);
+  Handle<String> result = JSFunction::GetName(fun_);
   if (result->length() != 0) return result;
+
   Handle<Object> script(fun_->shared()->script(), isolate_);
   if (script->IsScript() &&
       Handle<Script>::cast(script)->compilation_type() ==

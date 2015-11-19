@@ -14472,6 +14472,11 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const char* origin = "capture-stack-trace-test";
   const int kOverviewTest = 1;
   const int kDetailedTest = 2;
+  const int kFunctionName = 3;
+  const int kDisplayName = 4;
+  const int kFunctionNameAndDisplayName = 5;
+  const int kDisplayNameIsNotString = 6;
+  const int kFunctionNameIsNotString = 7;
 
   DCHECK(args.Length() == 1);
 
@@ -14505,6 +14510,35 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
     checkStackFrame(origin, "", 10, 1, false, false, stackTrace->GetFrame(3));
 
     CHECK(stackTrace->AsArray()->IsArray());
+  } else if (testGroup == kFunctionName) {
+    v8::Handle<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
+        args.GetIsolate(), 5, v8::StackTrace::kOverview);
+    CHECK_EQ(3, stackTrace->GetFrameCount());
+    checkStackFrame(origin, "function.name", 2, 24, false, false,
+                    stackTrace->GetFrame(0));
+  } else if (testGroup == kDisplayName) {
+    v8::Handle<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
+        args.GetIsolate(), 5, v8::StackTrace::kOverview);
+    CHECK_EQ(3, stackTrace->GetFrameCount());
+    checkStackFrame(origin, "function.displayName", 2, 24, false, false,
+                    stackTrace->GetFrame(0));
+  } else if (testGroup == kFunctionNameAndDisplayName) {
+    v8::Handle<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
+        args.GetIsolate(), 5, v8::StackTrace::kOverview);
+    CHECK_EQ(3, stackTrace->GetFrameCount());
+    checkStackFrame(origin, "function.displayName", 2, 24, false, false,
+                    stackTrace->GetFrame(0));
+  } else if (testGroup == kDisplayNameIsNotString) {
+    v8::Handle<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
+        args.GetIsolate(), 5, v8::StackTrace::kOverview);
+    CHECK_EQ(3, stackTrace->GetFrameCount());
+    checkStackFrame(origin, "function.name", 2, 24, false, false,
+                    stackTrace->GetFrame(0));
+  } else if (testGroup == kFunctionNameIsNotString) {
+    v8::Handle<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
+        args.GetIsolate(), 5, v8::StackTrace::kOverview);
+    CHECK_EQ(3, stackTrace->GetFrameCount());
+    checkStackFrame(origin, "f", 2, 24, false, false, stackTrace->GetFrame(0));
   }
 }
 
@@ -14566,6 +14600,33 @@ TEST(CaptureStackTrace) {
       detailed_script->BindToCurrentContext()->Run());
   CHECK(!detailed_result.IsEmpty());
   CHECK(detailed_result->IsObject());
+
+  // Test using function.name and function.displayName in stack trace
+  const char* function_name_source =
+      "function bar(function_name, display_name, testGroup) {\n"
+      "  var f = function() { AnalyzeStackInNativeCode(testGroup); };\n"
+      "  if (function_name) {\n"
+      "    Object.defineProperty(f, 'name', { value: function_name });\n"
+      "  }\n"
+      "  if (display_name) {\n"
+      "    f.displayName = display_name;"
+      "  }\n"
+      "  f()\n"
+      "}\n"
+      "bar('function.name', undefined, 3);\n"
+      "bar(undefined, 'function.displayName', 4);\n"
+      "bar('function.name', 'function.displayName', 5);\n"
+      "bar('function.name', 239, 6);\n"
+      "bar(239, undefined, 7);\n";
+  v8::Handle<v8::String> function_name_src =
+      v8::String::NewFromUtf8(isolate, function_name_source);
+  v8::ScriptCompiler::Source script_source3(function_name_src,
+                                            v8::ScriptOrigin(origin));
+  v8::Handle<Value> function_name_result(
+      v8::ScriptCompiler::CompileUnbound(isolate, &script_source3)
+          ->BindToCurrentContext()
+          ->Run());
+  CHECK(!function_name_result.IsEmpty());
 }
 
 
@@ -16096,6 +16157,79 @@ THREADED_TEST(FunctionGetInferredName) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   CHECK_EQ(0,
            strcmp("foo.bar.baz", *v8::String::Utf8Value(f->GetInferredName())));
+}
+
+
+THREADED_TEST(FunctionGetDebugName) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  const char* code =
+      "var error = false;"
+      "function a() { this.x = 1; };"
+      "a.displayName = 'display_a';"
+      "var b = (function() {"
+      "  var f = function() { this.x = 2; };"
+      "  f.displayName = 'display_b';"
+      "  return f;"
+      "})();"
+      "var c = function() {};"
+      "c.__defineGetter__('displayName', function() {"
+      "  error = true;"
+      "  throw new Error();"
+      "});"
+      "function d() {};"
+      "d.__defineGetter__('displayName', function() {"
+      "  error = true;"
+      "  return 'wrong_display_name';"
+      "});"
+      "function e() {};"
+      "e.displayName = 'wrong_display_name';"
+      "e.__defineSetter__('displayName', function() {"
+      "  error = true;"
+      "  throw new Error();"
+      "});"
+      "function f() {};"
+      "f.displayName = { 'foo': 6, toString: function() {"
+      "  error = true;"
+      "  return 'wrong_display_name';"
+      "}};"
+      "var g = function() {"
+      "  arguments.callee.displayName = 'set_in_runtime';"
+      "}; g();"
+      "var h = function() {};"
+      "h.displayName = 'displayName';"
+      "Object.defineProperty(h, 'name', { value: 'function.name' });"
+      "var i = function() {};"
+      "i.displayName = 239;"
+      "Object.defineProperty(i, 'name', { value: 'function.name' });"
+      "var j = function() {};"
+      "Object.defineProperty(j, 'name', { value: 'function.name' });"
+      "var foo = { bar : { baz : function() {}}}; var k = foo.bar.baz;";
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "test"));
+  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), code), &origin)
+      ->Run();
+  v8::Local<v8::Value> error =
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "error"));
+  CHECK_EQ(false, error->BooleanValue());
+  const char* functions[] = {"a", "display_a",
+                             "b", "display_b",
+                             "c", "c",
+                             "d", "d",
+                             "e", "e",
+                             "f", "f",
+                             "g", "set_in_runtime",
+                             "h", "displayName",
+                             "i", "function.name",
+                             "j", "function.name",
+                             "k", "foo.bar.baz"};
+  for (size_t i = 0; i < sizeof(functions) / sizeof(functions[0]) / 2; ++i) {
+    v8::Local<v8::Function> f =
+        v8::Local<v8::Function>::Cast(env->Global()->Get(
+            v8::String::NewFromUtf8(env->GetIsolate(), functions[i * 2])));
+    CHECK_EQ(0, strcmp(functions[i * 2 + 1],
+                       *v8::String::Utf8Value(f->GetDebugName())));
+  }
 }
 
 

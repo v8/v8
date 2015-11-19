@@ -1486,6 +1486,16 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, f, 0);
+  Handle<Object> name = JSFunction::GetDebugName(f);
+  return *name;
+}
+
+
 // A testing entry. Returns statement position which is the closest to
 // source_position.
 RUNTIME_FUNCTION(Runtime_GetFunctionCodePositionFromSource) {

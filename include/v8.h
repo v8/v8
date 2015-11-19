@@ -3252,6 +3252,12 @@ class V8_EXPORT Function : public Object {
   Local<Value> GetInferredName() const;
 
   /**
+   * displayName if it is set, otherwise name if it is configured, otherwise
+   * function name, otherwise inferred name.
+   */
+  Local<Value> GetDebugName() const;
+
+  /**
    * User-defined name assigned to the "displayName" property of this function.
    * Used to facilitate debugging and profiling of JavaScript code.
    */
