@@ -1541,7 +1541,10 @@ class AllocationStats BASE_EMBEDDED {
   // Accessors for the allocation statistics.
   intptr_t Capacity() { return capacity_; }
   intptr_t MaxCapacity() { return max_capacity_; }
-  intptr_t Size() { return size_; }
+  intptr_t Size() {
+    CHECK_GE(size_, 0);
+    return size_;
+  }
 
   // Grow the space by adding available bytes.  They are initially marked as
   // being in use (part of the size), but will normally be immediately freed,
@@ -1552,7 +1555,7 @@ class AllocationStats BASE_EMBEDDED {
     if (capacity_ > max_capacity_) {
       max_capacity_ = capacity_;
     }
-    DCHECK(size_ >= 0);
+    CHECK(size_ >= 0);
   }
 
   // Shrink the space by removing available bytes.  Since shrinking is done
@@ -1561,19 +1564,19 @@ class AllocationStats BASE_EMBEDDED {
   void ShrinkSpace(int size_in_bytes) {
     capacity_ -= size_in_bytes;
     size_ -= size_in_bytes;
-    DCHECK(size_ >= 0);
+    CHECK(size_ >= 0);
   }
 
   // Allocate from available bytes (available -> size).
   void AllocateBytes(intptr_t size_in_bytes) {
     size_ += size_in_bytes;
-    DCHECK(size_ >= 0);
+    CHECK(size_ >= 0);
   }
 
   // Free allocated bytes, making them available (size -> available).
   void DeallocateBytes(intptr_t size_in_bytes) {
     size_ -= size_in_bytes;
-    DCHECK_GE(size_, 0);
+    CHECK_GE(size_, 0);
   }
 
   // Merge {other} into {this}.
@@ -1583,12 +1586,13 @@ class AllocationStats BASE_EMBEDDED {
     if (other.max_capacity_ > max_capacity_) {
       max_capacity_ = other.max_capacity_;
     }
+    CHECK_GE(size_, 0);
   }
 
   void DecreaseCapacity(intptr_t size_in_bytes) {
     capacity_ -= size_in_bytes;
-    DCHECK_GE(capacity_, 0);
-    DCHECK_GE(capacity_, size_);
+    CHECK_GE(capacity_, 0);
+    CHECK_GE(capacity_, size_);
   }
 
   void IncreaseCapacity(intptr_t size_in_bytes) { capacity_ += size_in_bytes; }

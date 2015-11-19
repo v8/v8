@@ -2707,7 +2707,8 @@ void PagedSpace::PrepareForMarkCompact() {
 
 intptr_t PagedSpace::SizeOfObjects() {
   const intptr_t size = Size() - (limit() - top());
-  DCHECK_GE(size, 0);
+  CHECK_GE(limit(), top());
+  CHECK_GE(size, 0);
   USE(size);
   return size;
 }
