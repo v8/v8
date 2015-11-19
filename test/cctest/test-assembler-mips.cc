@@ -4040,7 +4040,8 @@ TEST(CVT) {
 
   GENERATE_CVT_TEST(cvt_d_s, lw, sd)
   GENERATE_CVT_TEST(cvt_d_w, lw, sd)
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     GENERATE_CVT_TEST(cvt_d_l, ld, sd)
   }
 
@@ -4051,7 +4052,8 @@ TEST(CVT) {
 
   GENERATE_CVT_TEST(cvt_s_d, ld, sw)
   GENERATE_CVT_TEST(cvt_s_w, lw, sw)
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     GENERATE_CVT_TEST(cvt_s_l, ld, sw)
   }
 
@@ -4084,7 +4086,8 @@ TEST(CVT) {
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
@@ -4093,7 +4096,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK_EQ(test.cvt_w_s_out, -1);
@@ -4114,7 +4118,8 @@ TEST(CVT) {
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
@@ -4123,7 +4128,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK_EQ(test.cvt_w_s_out, 0);
@@ -4143,7 +4149,8 @@ TEST(CVT) {
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
@@ -4152,7 +4159,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK_EQ(test.cvt_w_s_out, std::numeric_limits<int32_t>::max());
@@ -4173,7 +4181,8 @@ TEST(CVT) {
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   // The returned value when converting from fixed-point to float-point
@@ -4187,7 +4196,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK(test.cvt_w_s_out == std::numeric_limits<int32_t>::min() ||
@@ -4210,7 +4220,8 @@ TEST(CVT) {
   (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
@@ -4219,7 +4230,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK_EQ(test.cvt_w_s_out, 0);
