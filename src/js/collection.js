@@ -461,26 +461,6 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
   "forEach", MapForEach
 ]);
 
-function MapFromArray(array) {
-  var map = new GlobalMap;
-  var length = array.length;
-  for (var i = 0; i < length; i += 2) {
-    var key = array[i];
-    var value = array[i + 1];
-    %_Call(MapSet, map, key, value);
-  }
-  return map;
-};
-
-function SetFromArray(array) {
-  var set = new GlobalSet;
-  var length = array.length;
-  for (var i = 0; i < length; ++i) {
-    %_Call(SetAdd, set, array[i]);
-  }
-  return set;
-};
-
 // -----------------------------------------------------------------------
 // Exports
 
@@ -492,8 +472,6 @@ function SetFromArray(array) {
   "set_add", SetAdd,
   "set_has", SetHas,
   "set_delete", SetDelete,
-  "map_from_array", MapFromArray,
-  "set_from_array",SetFromArray,
 ]);
 
 utils.Export(function(to) {

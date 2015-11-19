@@ -118,7 +118,6 @@ enum BindingFlags {
   V(JSON_SERIALIZE_ADAPTER_INDEX, JSFunction, json_serialize_adapter)         \
   V(MAKE_ERROR_FUNCTION_INDEX, JSFunction, make_error_function)               \
   V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                          \
-  V(MAP_FROM_ARRAY_INDEX, JSFunction, map_from_array)                         \
   V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                                \
   V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                                \
   V(MAP_SET_METHOD_INDEX, JSFunction, map_set)                                \
@@ -152,7 +151,6 @@ enum BindingFlags {
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)     \
   V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                \
   V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                          \
-  V(SET_FROM_ARRAY_INDEX, JSFunction, set_from_array)                         \
   V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                                \
   V(STACK_OVERFLOW_BOILERPLATE_INDEX, JSObject, stack_overflow_boilerplate)   \
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)           \
