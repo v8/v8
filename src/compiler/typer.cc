@@ -2085,6 +2085,11 @@ Type* Typer::Visitor::TypeChangeFloat64ToInt64(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeTruncateFloat64ToUint64(Node* node) {
+  return Type::Internal();
+}
+
+
 Type* Typer::Visitor::TypeChangeInt32ToFloat64(Node* node) {
   return Type::Intersect(Type::Signed32(), Type::UntaggedFloat64(), zone());
 }

@@ -712,6 +712,11 @@ void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat64ToUint64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   Mips64OperandGenerator g(this);
   Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),

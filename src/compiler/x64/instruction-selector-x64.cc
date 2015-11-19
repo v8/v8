@@ -840,6 +840,12 @@ void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat64ToUint64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64ToUint64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64Movsxlq, g.DefineAsRegister(node), g.Use(node->InputAt(0)));

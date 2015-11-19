@@ -815,6 +815,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitChangeFloat64ToUint32(node);
     case IrOpcode::kChangeFloat64ToInt64:
       return MarkAsWord64(node), VisitChangeFloat64ToInt64(node);
+    case IrOpcode::kTruncateFloat64ToUint64:
+      return MarkAsWord64(node), VisitTruncateFloat64ToUint64(node);
     case IrOpcode::kChangeInt32ToInt64:
       return MarkAsWord64(node), VisitChangeInt32ToInt64(node);
     case IrOpcode::kChangeUint32ToUint64:
@@ -1056,6 +1058,11 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
 
 
 void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitTruncateFloat64ToUint64(Node* node) {
   UNIMPLEMENTED();
 }
 
