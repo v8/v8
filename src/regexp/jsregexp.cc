@@ -51,16 +51,6 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<Object> RegExpImpl::CreateRegExpLiteral(
-    Handle<JSFunction> constructor,
-    Handle<String> pattern,
-    Handle<String> flags) {
-  // Call the construct code with 2 arguments.
-  Handle<Object> argv[] = { pattern, flags };
-  return Execution::New(constructor, arraysize(argv), argv);
-}
-
-
 MUST_USE_RESULT
 static inline MaybeHandle<Object> ThrowRegExpException(
     Handle<JSRegExp> re, Handle<String> pattern, Handle<String> error_text) {

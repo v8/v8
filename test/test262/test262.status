@@ -132,11 +132,6 @@
   'built-ins/Promise/reject/S25.4.4.4_A3.1_T1': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4119
-  'built-ins/RegExp/15.10.4.1-1': [FAIL],
-  'built-ins/RegExp/S15.10.3.1_A2_T1': [FAIL],
-  'built-ins/RegExp/S15.10.3.1_A2_T2': [FAIL],
-  'built-ins/RegExp/S15.10.4.1_A2_T1': [FAIL],
-  'built-ins/RegExp/S15.10.4.1_A2_T2': [FAIL],
   'built-ins/RegExp/call_with_non_regexp_same_constructor': [FAIL],
   'built-ins/RegExp/from-regexp-like-short-circuit': [FAIL],
   'built-ins/RegExp/from-regexp-like': [FAIL],
@@ -144,7 +139,6 @@
   'built-ins/RegExp/from-regexp-like-get-source-err': [FAIL],
   'built-ins/RegExp/from-regexp-like-get-flags-err': [FAIL],
   'built-ins/RegExp/from-regexp-like-get-ctor-err': [FAIL],
-  'built-ins/RegExp/call_with_regexp_not_same_constructor': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4245
   'built-ins/String/prototype/split/S15.5.4.14_A2_T37': [FAIL],

@@ -288,6 +288,7 @@ namespace internal {
   V(ownKeys_string, "ownKeys")                                   \
   V(preventExtensions_string, "preventExtensions")               \
   V(private_api_string, "private_api")                           \
+  V(Promise_string, "Promise")                                   \
   V(proto_string, "__proto__")                                   \
   V(prototype_string, "prototype")                               \
   V(query_colon_string, "(?:)")                                  \

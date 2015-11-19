@@ -1007,41 +1007,24 @@ RUNTIME_FUNCTION(Runtime_AllocateHeapNumber) {
 
 
 static Object* Runtime_NewObjectHelper(Isolate* isolate,
-                                       Handle<Object> constructor,
-                                       Handle<Object> new_target,
+                                       Handle<JSFunction> constructor,
+                                       Handle<JSReceiver> new_target,
                                        Handle<AllocationSite> site) {
-  // If the constructor isn't a proper function we throw a type error.
-  if (!constructor->IsJSFunction()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotConstructor, constructor));
-  }
-
-  Handle<JSFunction> function = Handle<JSFunction>::cast(constructor);
-
-  CHECK(new_target->IsJSFunction());
+  // TODO(verwaest): new_target could be a proxy. Read new.target.prototype in
+  // that case.
   Handle<JSFunction> original_function = Handle<JSFunction>::cast(new_target);
-
-
-  // Check that function is a constructor.
-  if (!function->IsConstructor()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotConstructor, constructor));
-  }
 
   // The function should be compiled for the optimization hints to be
   // available.
-  Compiler::Compile(function, CLEAR_EXCEPTION);
+  Compiler::Compile(constructor, CLEAR_EXCEPTION);
 
-  JSFunction::EnsureHasInitialMap(function);
-  if (function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
-    // The 'Function' function ignores the receiver object when
-    // called using 'new' and creates a new JSFunction object that
-    // is returned.
-    return isolate->heap()->undefined_value();
-  }
+  JSFunction::EnsureHasInitialMap(constructor);
+  DCHECK_NE(JS_FUNCTION_TYPE, constructor->initial_map()->instance_type());
 
+  // TODO(verwaest): original_function could have non-instance-prototype
+  // (non-JSReceiver), requiring fallback to the intrinsicDefaultProto.
   Handle<Map> initial_map =
-      JSFunction::EnsureDerivedHasInitialMap(original_function, function);
+      JSFunction::EnsureDerivedHasInitialMap(original_function, constructor);
 
   Handle<JSObject> result =
       isolate->factory()->NewJSObjectFromMap(initial_map, NOT_TENURED, site);
@@ -1056,8 +1039,23 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_NewObject) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, new_target, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, 1);
+
+  // TODO(verwaest): Make sure |constructor| is guaranteed to be a constructor.
+  if (!constructor->IsConstructor()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotConstructor, constructor));
+  }
+
+  // If called through new, new.target can be:
+  // - a subclass of constructor,
+  // - a proxy wrapper around constructor, or
+  // - the constructor itself.
+  // If called through Reflect.construct, it's guaranteed to be a constructor by
+  // REFLECT_CONSTRUCT_PREPARE.
+  DCHECK(new_target->IsConstructor());
+
   return Runtime_NewObjectHelper(isolate, constructor, new_target,
                                  Handle<AllocationSite>::null());
 }

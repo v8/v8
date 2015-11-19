@@ -457,20 +457,6 @@ MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {
 }
 
 
-MaybeHandle<JSRegExp> Execution::NewJSRegExp(Handle<String> pattern,
-                                             Handle<String> flags) {
-  Isolate* isolate = pattern->GetIsolate();
-  Handle<JSFunction> function = Handle<JSFunction>(
-      isolate->native_context()->regexp_function());
-  Handle<Object> re_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, re_obj,
-      RegExpImpl::CreateRegExpLiteral(function, pattern, flags),
-      JSRegExp);
-  return Handle<JSRegExp>::cast(re_obj);
-}
-
-
 Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
                                             Handle<JSFunction> fun,
                                             Handle<Object> pos,

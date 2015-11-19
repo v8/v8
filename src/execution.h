@@ -64,10 +64,6 @@ class Execution final : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Object> NewDate(
       Isolate* isolate, double time);
 
-  // Create a new regular expression object from 'pattern' and 'flags'.
-  MUST_USE_RESULT static MaybeHandle<JSRegExp> NewJSRegExp(
-      Handle<String> pattern, Handle<String> flags);
-
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
                                           Handle<JSFunction> fun,
                                           Handle<Object> pos,

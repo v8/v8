@@ -96,6 +96,7 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case JS_PROMISE_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
     case JS_GENERATOR_OBJECT_TYPE:

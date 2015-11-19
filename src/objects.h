@@ -434,6 +434,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_ITERATOR_RESULT_TYPE)                                    \
   V(JS_WEAK_MAP_TYPE)                                           \
   V(JS_WEAK_SET_TYPE)                                           \
+  V(JS_PROMISE_TYPE)                                            \
   V(JS_REGEXP_TYPE)                                             \
                                                                 \
   V(JS_FUNCTION_TYPE)                                           \
@@ -732,6 +733,7 @@ enum InstanceType {
   JS_ITERATOR_RESULT_TYPE,
   JS_WEAK_MAP_TYPE,
   JS_WEAK_SET_TYPE,
+  JS_PROMISE_TYPE,
   JS_REGEXP_TYPE,
   JS_FUNCTION_TYPE,  // LAST_JS_OBJECT_TYPE, LAST_JS_RECEIVER_TYPE
 
@@ -7709,6 +7711,12 @@ class JSRegExp: public JSObject {
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(flags, Object)
   DECL_ACCESSORS(source, Object)
+
+  static MaybeHandle<JSRegExp> New(Handle<String> source, Handle<String> flags);
+
+  static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
+                                          Handle<String> source,
+                                          Handle<String> flags_string);
 
   inline Type TypeTag();
   inline int CaptureCount();

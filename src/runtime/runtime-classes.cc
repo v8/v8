@@ -142,7 +142,11 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
   constructor->shared()->set_name(*name_string);
 
   if (!super_class->IsTheHole()) {
-    Handle<Code> stub(isolate->builtins()->JSConstructStubForDerived());
+    // Derived classes, just like builtins, don't create implicit receivers in
+    // [[construct]]. Instead they just set up new.target and call into the
+    // constructor. Hence we can reuse the builtins construct stub for derived
+    // classes.
+    Handle<Code> stub(isolate->builtins()->JSBuiltinsConstructStub());
     constructor->shared()->set_construct_stub(*stub);
   }
 

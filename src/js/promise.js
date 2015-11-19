@@ -61,11 +61,15 @@ function CreateResolvingFunctions(promise) {
 
 
 var GlobalPromise = function Promise(resolver) {
-  if (resolver === promiseRawSymbol) return;
-  if (!%_IsConstructCall()) throw MakeTypeError(kNotAPromise, this);
+  if (resolver === promiseRawSymbol) {
+    return %NewObject(GlobalPromise, new.target);
+  }
+  if (IS_UNDEFINED(new.target)) throw MakeTypeError(kNotAPromise, this);
   if (!IS_CALLABLE(resolver))
     throw MakeTypeError(kResolverNotAFunction, resolver);
-  var promise = PromiseInit(this);
+
+  var promise = PromiseInit(%NewObject(GlobalPromise, new.target));
+
   try {
     %DebugPushPromise(promise, Promise, resolver);
     var callbacks = CreateResolvingFunctions(promise);
@@ -75,6 +79,8 @@ var GlobalPromise = function Promise(resolver) {
   } finally {
     %DebugPopPromise();
   }
+
+  return promise;
 }
 
 // Core functionality.

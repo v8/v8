@@ -13,10 +13,9 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_CreateJSProxy) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSProxy, instance, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, handler, 2);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, handler, 1);
   if (!target->IsSpecObject()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProxyTargetNonObject));
@@ -35,10 +34,8 @@ RUNTIME_FUNCTION(Runtime_CreateJSProxy) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProxyHandlerNonObject));
   }
-  instance->set_target(*target);
-  instance->set_handler(*handler);
-  instance->set_hash(isolate->heap()->undefined_value(), SKIP_WRITE_BARRIER);
-  return *instance;
+  return *isolate->factory()->NewJSProxy(Handle<JSReceiver>::cast(target),
+                                         Handle<JSReceiver>::cast(handler));
 }
 
 

@@ -6126,10 +6126,9 @@ MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
                                        Local<String> pattern, Flags flags) {
   PREPARE_FOR_EXECUTION(context, "RegExp::New", RegExp);
   Local<v8::RegExp> result;
-  has_pending_exception =
-      !ToLocal<RegExp>(i::Execution::NewJSRegExp(Utils::OpenHandle(*pattern),
-                                                 RegExpFlagsToString(flags)),
-                       &result);
+  has_pending_exception = !ToLocal<RegExp>(
+      i::JSRegExp::New(Utils::OpenHandle(*pattern), RegExpFlagsToString(flags)),
+      &result);
   RETURN_ON_FAILED_EXECUTION(RegExp);
   RETURN_ESCAPED(result);
 }

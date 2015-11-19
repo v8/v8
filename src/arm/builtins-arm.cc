@@ -338,7 +338,8 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
-                                           bool is_api_function) {
+                                           bool is_api_function,
+                                           bool create_implicit_receiver) {
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments
   //  -- r1     : constructor function
@@ -359,171 +360,186 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ push(r2);
     __ SmiTag(r0);
     __ push(r0);
-    __ push(r1);
-    __ push(r3);
 
-    // Try to allocate the object without transitioning into C code. If any of
-    // the preconditions is not met, the code bails out to the runtime call.
-    Label rt_call, allocated;
-    if (FLAG_inline_new) {
-      // Verify that the new target is a JSFunction.
-      __ CompareObjectType(r3, r5, r4, JS_FUNCTION_TYPE);
-      __ b(ne, &rt_call);
+    if (create_implicit_receiver) {
+      __ push(r1);
+      __ push(r3);
 
-      // Load the initial map and verify that it is in fact a map.
-      // r3: new target
-      __ ldr(r2, FieldMemOperand(r3, JSFunction::kPrototypeOrInitialMapOffset));
-      __ JumpIfSmi(r2, &rt_call);
-      __ CompareObjectType(r2, r5, r4, MAP_TYPE);
-      __ b(ne, &rt_call);
+      // Try to allocate the object without transitioning into C code. If any of
+      // the preconditions is not met, the code bails out to the runtime call.
+      Label rt_call, allocated;
+      if (FLAG_inline_new) {
+        // Verify that the new target is a JSFunction.
+        __ CompareObjectType(r3, r5, r4, JS_FUNCTION_TYPE);
+        __ b(ne, &rt_call);
 
-      // Fall back to runtime if the expected base constructor and base
-      // constructor differ.
-      __ ldr(r5, FieldMemOperand(r2, Map::kConstructorOrBackPointerOffset));
-      __ cmp(r1, r5);
-      __ b(ne, &rt_call);
+        // Load the initial map and verify that it is in fact a map.
+        // r3: new target
+        __ ldr(r2,
+               FieldMemOperand(r3, JSFunction::kPrototypeOrInitialMapOffset));
+        __ JumpIfSmi(r2, &rt_call);
+        __ CompareObjectType(r2, r5, r4, MAP_TYPE);
+        __ b(ne, &rt_call);
 
-      // Check that the constructor is not constructing a JSFunction (see
-      // comments in Runtime_NewObject in runtime.cc). In which case the
-      // initial map's instance type would be JS_FUNCTION_TYPE.
-      // r1: constructor function
-      // r2: initial map
-      __ CompareInstanceType(r2, r5, JS_FUNCTION_TYPE);
-      __ b(eq, &rt_call);
+        // Fall back to runtime if the expected base constructor and base
+        // constructor differ.
+        __ ldr(r5, FieldMemOperand(r2, Map::kConstructorOrBackPointerOffset));
+        __ cmp(r1, r5);
+        __ b(ne, &rt_call);
 
-      if (!is_api_function) {
-        Label allocate;
-        MemOperand bit_field3 = FieldMemOperand(r2, Map::kBitField3Offset);
-        // Check if slack tracking is enabled.
-        __ ldr(r4, bit_field3);
-        __ DecodeField<Map::Counter>(r3, r4);
-        __ cmp(r3, Operand(Map::kSlackTrackingCounterEnd));
-        __ b(lt, &allocate);
-        // Decrease generous allocation count.
-        __ sub(r4, r4, Operand(1 << Map::Counter::kShift));
-        __ str(r4, bit_field3);
-        __ cmp(r3, Operand(Map::kSlackTrackingCounterEnd));
-        __ b(ne, &allocate);
+        // Check that the constructor is not constructing a JSFunction (see
+        // comments in Runtime_NewObject in runtime.cc). In which case the
+        // initial map's instance type would be JS_FUNCTION_TYPE.
+        // r1: constructor function
+        // r2: initial map
+        __ CompareInstanceType(r2, r5, JS_FUNCTION_TYPE);
+        __ b(eq, &rt_call);
 
-        __ Push(r1, r2);
+        if (!is_api_function) {
+          Label allocate;
+          MemOperand bit_field3 = FieldMemOperand(r2, Map::kBitField3Offset);
+          // Check if slack tracking is enabled.
+          __ ldr(r4, bit_field3);
+          __ DecodeField<Map::Counter>(r3, r4);
+          __ cmp(r3, Operand(Map::kSlackTrackingCounterEnd));
+          __ b(lt, &allocate);
+          // Decrease generous allocation count.
+          __ sub(r4, r4, Operand(1 << Map::Counter::kShift));
+          __ str(r4, bit_field3);
+          __ cmp(r3, Operand(Map::kSlackTrackingCounterEnd));
+          __ b(ne, &allocate);
 
-        __ push(r2);  // r2 = intial map
-        __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
+          __ Push(r1, r2);
 
-        __ pop(r2);
-        __ pop(r1);
+          __ push(r2);  // r2 = intial map
+          __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
-        __ bind(&allocate);
-      }
+          __ pop(r2);
+          __ pop(r1);
 
-      // Now allocate the JSObject on the heap.
-      // r1: constructor function
-      // r2: initial map
-      Label rt_call_reload_new_target;
-      __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
-
-      __ Allocate(r3, r4, r5, r6, &rt_call_reload_new_target, SIZE_IN_WORDS);
-
-      // Allocated the JSObject, now initialize the fields. Map is set to
-      // initial map and properties and elements are set to empty fixed array.
-      // r1: constructor function
-      // r2: initial map
-      // r3: object size
-      // r4: JSObject (not tagged)
-      __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
-      __ mov(r5, r4);
-      DCHECK_EQ(0 * kPointerSize, JSObject::kMapOffset);
-      __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
-      DCHECK_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
-      __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
-      DCHECK_EQ(2 * kPointerSize, JSObject::kElementsOffset);
-      __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
-
-      // Fill all the in-object properties with the appropriate filler.
-      // r1: constructor function
-      // r2: initial map
-      // r3: object size
-      // r4: JSObject (not tagged)
-      // r5: First in-object property of JSObject (not tagged)
-      DCHECK_EQ(3 * kPointerSize, JSObject::kHeaderSize);
-      __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
-
-      if (!is_api_function) {
-        Label no_inobject_slack_tracking;
-
-        // Check if slack tracking is enabled.
-        __ ldr(ip, FieldMemOperand(r2, Map::kBitField3Offset));
-        __ DecodeField<Map::Counter>(ip);
-        __ cmp(ip, Operand(Map::kSlackTrackingCounterEnd));
-        __ b(lt, &no_inobject_slack_tracking);
-
-        // Allocate object with a slack.
-        __ ldr(r0, FieldMemOperand(r2, Map::kInstanceSizesOffset));
-        __ Ubfx(r0, r0, Map::kInObjectPropertiesOrConstructorFunctionIndexByte *
-                            kBitsPerByte,
-                kBitsPerByte);
-        __ ldr(r2, FieldMemOperand(r2, Map::kInstanceAttributesOffset));
-        __ Ubfx(r2, r2, Map::kUnusedPropertyFieldsByte * kBitsPerByte,
-                kBitsPerByte);
-        __ sub(r0, r0, Operand(r2));
-        __ add(r0, r5, Operand(r0, LSL, kPointerSizeLog2));
-        // r0: offset of first field after pre-allocated fields
-        if (FLAG_debug_code) {
-          __ add(ip, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
-          __ cmp(r0, ip);
-          __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields);
+          __ bind(&allocate);
         }
-        __ InitializeFieldsWithFiller(r5, r0, r6);
-        // To allow for truncation.
-        __ LoadRoot(r6, Heap::kOnePointerFillerMapRootIndex);
-        // Fill the remaining fields with one pointer filler map.
 
-        __ bind(&no_inobject_slack_tracking);
+        // Now allocate the JSObject on the heap.
+        // r1: constructor function
+        // r2: initial map
+        Label rt_call_reload_new_target;
+        __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
+
+        __ Allocate(r3, r4, r5, r6, &rt_call_reload_new_target, SIZE_IN_WORDS);
+
+        // Allocated the JSObject, now initialize the fields. Map is set to
+        // initial map and properties and elements are set to empty fixed array.
+        // r1: constructor function
+        // r2: initial map
+        // r3: object size
+        // r4: JSObject (not tagged)
+        __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
+        __ mov(r5, r4);
+        DCHECK_EQ(0 * kPointerSize, JSObject::kMapOffset);
+        __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
+        DCHECK_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
+        __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
+        DCHECK_EQ(2 * kPointerSize, JSObject::kElementsOffset);
+        __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
+
+        // Fill all the in-object properties with the appropriate filler.
+        // r1: constructor function
+        // r2: initial map
+        // r3: object size
+        // r4: JSObject (not tagged)
+        // r5: First in-object property of JSObject (not tagged)
+        DCHECK_EQ(3 * kPointerSize, JSObject::kHeaderSize);
+        __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
+
+        if (!is_api_function) {
+          Label no_inobject_slack_tracking;
+
+          // Check if slack tracking is enabled.
+          __ ldr(ip, FieldMemOperand(r2, Map::kBitField3Offset));
+          __ DecodeField<Map::Counter>(ip);
+          __ cmp(ip, Operand(Map::kSlackTrackingCounterEnd));
+          __ b(lt, &no_inobject_slack_tracking);
+
+          // Allocate object with a slack.
+          __ ldr(r0, FieldMemOperand(r2, Map::kInstanceSizesOffset));
+          __ Ubfx(r0, r0,
+                  Map::kInObjectPropertiesOrConstructorFunctionIndexByte *
+                      kBitsPerByte,
+                  kBitsPerByte);
+          __ ldr(r2, FieldMemOperand(r2, Map::kInstanceAttributesOffset));
+          __ Ubfx(r2, r2, Map::kUnusedPropertyFieldsByte * kBitsPerByte,
+                  kBitsPerByte);
+          __ sub(r0, r0, Operand(r2));
+          __ add(r0, r5, Operand(r0, LSL, kPointerSizeLog2));
+          // r0: offset of first field after pre-allocated fields
+          if (FLAG_debug_code) {
+            __ add(ip, r4,
+                   Operand(r3, LSL, kPointerSizeLog2));  // End of object.
+            __ cmp(r0, ip);
+            __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields);
+          }
+          __ InitializeFieldsWithFiller(r5, r0, r6);
+          // To allow for truncation.
+          __ LoadRoot(r6, Heap::kOnePointerFillerMapRootIndex);
+          // Fill the remaining fields with one pointer filler map.
+
+          __ bind(&no_inobject_slack_tracking);
+        }
+
+        __ add(r0, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
+        __ InitializeFieldsWithFiller(r5, r0, r6);
+
+        // Add the object tag to make the JSObject real, so that we can continue
+        // and jump into the continuation code at any time from now on.
+        __ add(r4, r4, Operand(kHeapObjectTag));
+
+        // Continue with JSObject being successfully allocated
+        // r4: JSObject
+        __ jmp(&allocated);
+
+        // Reload the new target and fall-through.
+        __ bind(&rt_call_reload_new_target);
+        __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
       }
 
-      __ add(r0, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
-      __ InitializeFieldsWithFiller(r5, r0, r6);
+      // Allocate the new receiver object using the runtime call.
+      // r1: constructor function
+      // r3: new target
+      __ bind(&rt_call);
 
-      // Add the object tag to make the JSObject real, so that we can continue
-      // and jump into the continuation code at any time from now on.
-      __ add(r4, r4, Operand(kHeapObjectTag));
+      __ push(r1);  // constructor function
+      __ push(r3);  // new target
+      __ CallRuntime(Runtime::kNewObject, 2);
+      __ mov(r4, r0);
 
-      // Continue with JSObject being successfully allocated
+      // Receiver for constructor call allocated.
       // r4: JSObject
-      __ jmp(&allocated);
+      __ bind(&allocated);
 
-      // Reload the new target and fall-through.
-      __ bind(&rt_call_reload_new_target);
-      __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+      // Restore the parameters.
+      __ pop(r3);
+      __ pop(r1);
+
+      // Retrieve smi-tagged arguments count from the stack.
+      __ ldr(r0, MemOperand(sp));
     }
 
-    // Allocate the new receiver object using the runtime call.
-    // r1: constructor function
-    // r3: new target
-    __ bind(&rt_call);
-
-    __ push(r1);  // constructor function
-    __ push(r3);  // new target
-    __ CallRuntime(Runtime::kNewObject, 2);
-    __ mov(r4, r0);
-
-    // Receiver for constructor call allocated.
-    // r4: JSObject
-    __ bind(&allocated);
-
-    // Restore the parameters.
-    __ pop(r3);
-    __ pop(r1);
-
-    // Retrieve smi-tagged arguments count from the stack.
-    __ ldr(r0, MemOperand(sp));
     __ SmiUntag(r0);
 
     // Push new.target onto the construct frame. This is stored just below the
     // receiver on the stack.
     __ push(r3);
-    __ push(r4);
-    __ push(r4);
+
+    if (create_implicit_receiver) {
+      // Push the allocated receiver to the stack. We need two copies
+      // because we may have to return the original one and the calling
+      // conventions dictate that the called function pops the receiver.
+      __ push(r4);
+      __ push(r4);
+    } else {
+      __ PushRoot(Heap::kTheHoleValueRootIndex);
+    }
 
     // Set up pointer to last argument.
     __ add(r2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
@@ -561,7 +577,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    if (!is_api_function) {
+    if (create_implicit_receiver && !is_api_function) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
@@ -572,123 +588,65 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // sp[2]: number of arguments (smi-tagged)
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
-    // If the result is an object (in the ECMA sense), we should get rid
-    // of the receiver and use the result; see ECMA-262 section 13.2.2-7
-    // on page 74.
-    Label use_receiver, exit;
+    if (create_implicit_receiver) {
+      // If the result is an object (in the ECMA sense), we should get rid
+      // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+      // on page 74.
+      Label use_receiver, exit;
 
-    // If the result is a smi, it is *not* an object in the ECMA sense.
-    // r0: result
-    // sp[0]: receiver
-    // sp[1]: new.target
-    // sp[2]: number of arguments (smi-tagged)
-    __ JumpIfSmi(r0, &use_receiver);
+      // If the result is a smi, it is *not* an object in the ECMA sense.
+      // r0: result
+      // sp[0]: receiver
+      // sp[1]: new.target
+      // sp[2]: number of arguments (smi-tagged)
+      __ JumpIfSmi(r0, &use_receiver);
 
-    // If the type of the result (stored in its map) is less than
-    // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
-    __ CompareObjectType(r0, r1, r3, FIRST_SPEC_OBJECT_TYPE);
-    __ b(ge, &exit);
+      // If the type of the result (stored in its map) is less than
+      // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
+      __ CompareObjectType(r0, r1, r3, FIRST_SPEC_OBJECT_TYPE);
+      __ b(ge, &exit);
 
-    // Throw away the result of the constructor invocation and use the
-    // on-stack receiver as the result.
-    __ bind(&use_receiver);
-    __ ldr(r0, MemOperand(sp));
+      // Throw away the result of the constructor invocation and use the
+      // on-stack receiver as the result.
+      __ bind(&use_receiver);
+      __ ldr(r0, MemOperand(sp));
 
-    // Remove receiver from the stack, remove caller arguments, and
-    // return.
-    __ bind(&exit);
-    // r0: result
-    // sp[0]: receiver (newly allocated object)
-    // sp[1]: new target
-    // sp[2]: number of arguments (smi-tagged)
-    __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
+      // Remove receiver from the stack, remove caller arguments, and
+      // return.
+      __ bind(&exit);
+      // r0: result
+      // sp[0]: receiver (newly allocated object)
+      // sp[1]: new target
+      // sp[2]: number of arguments (smi-tagged)
+      __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
+    } else {
+      __ ldr(r1, MemOperand(sp, kPointerSize));
+    }
 
     // Leave construct frame.
   }
 
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
   __ add(sp, sp, Operand(kPointerSize));
-  __ IncrementCounter(isolate->counters()->constructed_objects(), 1, r1, r2);
+  if (create_implicit_receiver) {
+    __ IncrementCounter(isolate->counters()->constructed_objects(), 1, r1, r2);
+  }
   __ Jump(lr);
 }
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false);
+  Generate_JSConstructStubHelper(masm, false, true);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true);
+  Generate_JSConstructStubHelper(masm, true, true);
 }
 
 
-void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r0     : number of arguments
-  //  -- r1     : constructor function
-  //  -- r2     : allocation site or undefined
-  //  -- r3     : new target
-  //  -- lr     : return address
-  //  -- sp[...]: constructor arguments
-  // -----------------------------------
-
-  {
-    FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
-
-    __ AssertUndefinedOrAllocationSite(r2, r4);
-    __ push(r2);
-
-    __ mov(r4, r0);
-    __ SmiTag(r4);
-    __ push(r4);  // Smi-tagged arguments count.
-
-    // Push new.target.
-    __ push(r3);
-
-    // receiver is the hole.
-    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-    __ push(ip);
-
-    // Set up pointer to last argument.
-    __ add(r2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
-
-    // Copy arguments and receiver to the expression stack.
-    // r0: number of arguments
-    // r1: constructor function
-    // r2: address of last argument (caller sp)
-    // r4: number of arguments (smi-tagged)
-    // sp[0]: receiver
-    // sp[1]: new.target
-    // sp[2]: number of arguments (smi-tagged)
-    Label loop, entry;
-    __ b(&entry);
-    __ bind(&loop);
-    __ ldr(ip, MemOperand(r2, r4, LSL, kPointerSizeLog2 - 1));
-    __ push(ip);
-    __ bind(&entry);
-    __ sub(r4, r4, Operand(2), SetCC);
-    __ b(ge, &loop);
-
-    // Call the function.
-    // r0: number of arguments
-    // r1: constructor function
-    ParameterCount actual(r0);
-    __ InvokeFunction(r1, actual, CALL_FUNCTION, NullCallWrapper());
-
-    // Restore context from the frame.
-    // r0: result
-    // sp[0]: number of arguments (smi-tagged)
-    __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-    // Get arguments count, skipping over new.target.
-    __ ldr(r1, MemOperand(sp, kPointerSize));
-
-    // Leave construct frame.
-  }
-
-  __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
-  __ add(sp, sp, Operand(kPointerSize));
-  __ Jump(lr);
+void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, false);
 }
 
 

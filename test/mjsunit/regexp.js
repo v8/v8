@@ -275,7 +275,7 @@ assertEquals('/(?:)/', re.toString());
 re.compile();
 assertEquals('/(?:)/', re.toString());
 re.compile(void 0);
-assertEquals('/undefined/', re.toString());
+assertEquals('/(?:)/', re.toString());
 
 
 // Check for lazy RegExp literal creation

@@ -220,6 +220,7 @@ enum BindingFlags {
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
   V(OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX, Map, object_function_prototype_map)   \
   V(OPAQUE_REFERENCE_FUNCTION_INDEX, JSFunction, opaque_reference_function)    \
+  V(PROXY_FUNCTION_INDEX, JSFunction, proxy_function)                          \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
   V(RUNTIME_CONTEXT_INDEX, Context, runtime_context)                           \

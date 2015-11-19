@@ -95,7 +95,7 @@ macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
 macro IS_STRING(arg)            = (typeof(arg) === 'string');
 macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
 macro IS_SYMBOL(arg)            = (typeof(arg) === 'symbol');
-macro IS_OBJECT(arg)            = (typeof(arg) === 'object');
+macro IS_OBJECT(arg)            = (typeof(arg) === 'object' && arg !== null);
 macro IS_ARRAY(arg)             = (%_IsArray(arg));
 macro IS_DATE(arg)              = (%_IsDate(arg));
 macro IS_FUNCTION(arg)          = (%_IsFunction(arg));

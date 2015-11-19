@@ -544,7 +544,7 @@ namespace internal {
   F(BitwiseXor_Strong, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F) \
-  F(CreateJSProxy, 3, 1)            \
+  F(CreateJSProxy, 2, 1)            \
   F(CreateJSFunctionProxy, 5, 1)    \
   F(IsJSProxy, 1, 1)                \
   F(IsJSFunctionProxy, 1, 1)        \

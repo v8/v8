@@ -469,6 +469,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case FIXED_DOUBLE_ARRAY_TYPE:
       return ReturnType();
     case JS_OBJECT_TYPE:
+    case JS_PROMISE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_TYPE:

@@ -1345,11 +1345,11 @@ function NumberConstructor(x) {
   // TODO(bmeurer): Move this to toplevel.
   "use strict";
   var value = %_ArgumentsLength() == 0 ? 0 : TO_NUMBER(x);
-  if (%_IsConstructCall()) {
-    %_SetValueOf(this, value);
-  } else {
-    return value;
-  }
+  if (IS_UNDEFINED(new.target)) return value;
+
+  var result = %NewObject(GlobalNumber, new.target);
+  %_SetValueOf(result, value);
+  return result;
 }
 
 

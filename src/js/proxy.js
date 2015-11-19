@@ -28,9 +28,7 @@ function ProxyCreate(target, handler) {
   if (!%_IsConstructCall()) {
     throw MakeTypeError(kConstructorNotFunction, "Proxy");
   }
-  // TODO(cbruni): Get the construct call right, this is just a prelimiary
-  // version to get started with tests.
-  return %CreateJSProxy(this, target, handler);
+  return %CreateJSProxy(target, handler);
 }
 
 function ProxyCreateFunction(handler, callTrap, constructTrap) {
@@ -183,14 +181,12 @@ function ProxyEnumerate(proxy) {
 
 //-------------------------------------------------------------------
 %SetCode(GlobalProxy, ProxyCreate);
-%FunctionSetPrototype(GlobalProxy, new GlobalObject());
 
 //Set up non-enumerable properties of the Proxy object.
 utils.InstallFunctions(GlobalProxy, DONT_ENUM, [
   "createFunction", ProxyCreateFunction
 ]);
 
-%AddNamedProperty(GlobalProxy.prototype, "constructor", GlobalProxy, DONT_ENUM);
 // -------------------------------------------------------------------
 // Exports
 

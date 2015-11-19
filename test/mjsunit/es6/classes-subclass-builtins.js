@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --harmony-reflect --harmony-regexp-subclass
 
 "use strict";
 
@@ -603,4 +603,134 @@ function TestMapSetSubclassing(container, is_map) {
 (function() {
   class A extends Symbol {}
   assertThrows("new A");
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        Number, [{valueOf() { f.prototype=p2; return 10; }}], f);
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(10, Number.prototype.valueOf.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        String, [{toString() { f.prototype=p2; return "biep"; }}], f);
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === o.__proto__);
+  assertFalse(p === o.__proto__);
+  assertEquals("biep", String.prototype.toString.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        Date, [{valueOf() { f.prototype=p2; return 1447836899614; }}], f);
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(new Date(1447836899614).toString(),
+               Date.prototype.toString.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        Date, [2015, {valueOf() { f.prototype=p2; return 10; }}], f);
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(new Date(2015, 10).getYear(), Date.prototype.getYear.call(o));
+  assertEquals(new Date(2015, 10).getMonth(), Date.prototype.getMonth.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        DataView, [new ArrayBuffer(100),
+                   {valueOf(){ f.prototype=p2; return 5; }}], f);
+
+  var byteOffset = Object.getOwnPropertyDescriptor(
+      DataView.prototype, "byteOffset").get;
+  var byteLength = Object.getOwnPropertyDescriptor(
+      DataView.prototype, "byteLength").get;
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(5, byteOffset.call(o));
+  assertEquals(95, byteLength.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        DataView, [new ArrayBuffer(100),
+                   30, {valueOf() { f.prototype=p2; return 5; }}], f);
+
+  var byteOffset = Object.getOwnPropertyDescriptor(
+      DataView.prototype, "byteOffset").get;
+  var byteLength = Object.getOwnPropertyDescriptor(
+      DataView.prototype, "byteLength").get;
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(30, byteOffset.call(o));
+  assertEquals(5, byteLength.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var p3 = {};
+
+  var log = [];
+
+  var pattern = {toString() {
+    log.push("tostring");
+    f.prototype = p3; return "biep" }};
+
+  Object.defineProperty(pattern, Symbol.match, {
+    get() { log.push("match"); f.prototype = p2; return false; }});
+
+  var o = Reflect.construct(RegExp, [pattern], f);
+  assertEquals(["match", "tostring"], log);
+  assertEquals(/biep/, o);
+  assertTrue(o.__proto__ === p2);
+  assertTrue(f.prototype === p3);
 })();
