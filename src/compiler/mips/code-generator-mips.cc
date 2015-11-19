@@ -213,6 +213,13 @@ class OutOfLineCeil final : public OutOfLineRound {
 };
 
 
+class OutOfLineTiesEven final : public OutOfLineRound {
+ public:
+  OutOfLineTiesEven(CodeGenerator* gen, DoubleRegister result)
+      : OutOfLineRound(gen, result) {}
+};
+
+
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
@@ -797,6 +804,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
       break;
     }
+    case kMipsFloat64RoundTiesEven: {
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(round_l_d, TiesEven);
+      break;
+    }
     case kMipsFloat64Max: {
       // (b < a) ? a : b
       if (IsMipsArchVariant(kMips32r6)) {
@@ -1000,7 +1011,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       UNREACHABLE();  // currently unsupported checked int64 load/store.
       break;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 
 #define UNSUPPORTED_COND(opcode, condition)                                  \

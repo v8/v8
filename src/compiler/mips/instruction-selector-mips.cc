@@ -640,7 +640,9 @@ void InstructionSelector::VisitFloat64RoundDown(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat64RoundUp(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64RoundUp(Node* node) {
+  VisitRR(this, kMipsFloat64RoundUp, node);
+}
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
@@ -654,7 +656,7 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 
 
 void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
-  UNREACHABLE();
+  VisitRR(this, kMipsFloat64RoundTiesEven, node);
 }
 
 
@@ -1162,7 +1164,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
       IsFp64Mode()) {
     flags |= MachineOperatorBuilder::kFloat64RoundDown |
-             MachineOperatorBuilder::kFloat64RoundTruncate;
+             MachineOperatorBuilder::kFloat64RoundUp |
+             MachineOperatorBuilder::kFloat64RoundTruncate |
+             MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   return flags | MachineOperatorBuilder::kFloat64Min |
          MachineOperatorBuilder::kFloat64Max |
