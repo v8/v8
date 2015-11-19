@@ -1817,11 +1817,11 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
       flags |= CallDescriptor::kSupportsTailCalls;
     }
 
+    Node* new_target = jsgraph()->UndefinedConstant();
+    Node* argument_count = jsgraph()->Int32Constant(arity);
     if (shared->internal_formal_parameter_count() == arity ||
         shared->internal_formal_parameter_count() ==
             SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
-      Node* new_target = jsgraph()->UndefinedConstant();
-      Node* argument_count = jsgraph()->Int32Constant(arity);
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), arity + 2, new_target);
       node->InsertInput(graph()->zone(), arity + 3, argument_count);
@@ -1833,9 +1833,10 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
       Callable callable = CodeFactory::ArgumentAdaptor(isolate());
       node->InsertInput(graph()->zone(), 0,
                         jsgraph()->HeapConstant(callable.code()));
-      node->InsertInput(graph()->zone(), 2, jsgraph()->Int32Constant(arity));
+      node->InsertInput(graph()->zone(), 2, new_target);
+      node->InsertInput(graph()->zone(), 3, argument_count);
       node->InsertInput(
-          graph()->zone(), 3,
+          graph()->zone(), 4,
           jsgraph()->Int32Constant(shared->internal_formal_parameter_count()));
       NodeProperties::ChangeOp(
           node, common()->Call(Linkage::GetStubCallDescriptor(

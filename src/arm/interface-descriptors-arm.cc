@@ -358,6 +358,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
 
   Register registers[] = {
       r1,  // JSFunction
+      r3,  // the new target
       r0,  // actual number of arguments
       r2,  // expected number of arguments
   };

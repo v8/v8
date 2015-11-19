@@ -342,6 +342,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       a1,  // JSFunction
+      a3,  // the new target
       a0,  // actual number of arguments
       a2,  // expected number of arguments
   };
