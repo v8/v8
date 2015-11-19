@@ -211,16 +211,8 @@ class RepresentationChanger {
     return jsgraph()->graph()->NewNode(op, node);
   }
 
-  Node* MakeInt32Constant(double value) {
-    if (value < 0) {
-      DCHECK(IsInt32Double(value));
-      int32_t iv = static_cast<int32_t>(value);
-      return jsgraph()->Int32Constant(iv);
-    } else {
-      DCHECK(IsUint32Double(value));
-      int32_t iv = static_cast<int32_t>(static_cast<uint32_t>(value));
-      return jsgraph()->Int32Constant(iv);
-    }
+  Node* MakeTruncatedInt32Constant(double value) {
+    return jsgraph()->Int32Constant(DoubleToInt32(value));
   }
 
   Node* GetTruncatedWord32For(Node* node, MachineTypeUnion output_type) {
@@ -260,10 +252,10 @@ class RepresentationChanger {
       case IrOpcode::kInt32Constant:
         return node;  // No change necessary.
       case IrOpcode::kFloat32Constant:
-        return MakeInt32Constant(OpParameter<float>(node));
+        return MakeTruncatedInt32Constant(OpParameter<float>(node));
       case IrOpcode::kNumberConstant:
       case IrOpcode::kFloat64Constant:
-        return MakeInt32Constant(OpParameter<double>(node));
+        return MakeTruncatedInt32Constant(OpParameter<double>(node));
       default:
         break;
     }

@@ -840,32 +840,15 @@ class RepresentationSelector {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
         Type* in_upper = NodeProperties::GetType(input);
-        MachineTypeUnion in = GetInfo(input)->output;
         if (in_upper->Is(Type::Signed32())) {
           // If the input has type int32, pass through representation.
           VisitUnop(node, UseInfoFromRepresentation(use_rep),
                     kTypeInt32 | use_rep);
           if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else if ((in & kTypeMask) == kTypeUint32 ||
-                   in_upper->Is(Type::Unsigned32())) {
-          // Just change representation if necessary.
-          VisitUnop(node, UseInfo::TruncatingWord32(), kTypeInt32 | kRepWord32);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else if ((in & kTypeMask) == kTypeInt32 ||
-                   (in & kRepMask) == kRepWord32) {
-          // Just change representation if necessary.
-          VisitUnop(node, UseInfo::TruncatingWord32(), kTypeInt32 | kRepWord32);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
-          // Require the input in float64 format and perform truncation.
-          // TODO(turbofan): avoid a truncation with a smi check.
-          VisitUnop(node, UseInfo::Float64TruncatingToWord32(),
-                    kTypeInt32 | kRepWord32);
-          if (lower()) {
-            NodeProperties::ChangeOp(
-                node, lowering->machine()->TruncateFloat64ToInt32(
-                          TruncationMode::kJavaScript));
-          }
+          // Just change representation if necessary.
+          VisitUnop(node, UseInfo::TruncatingWord32(), kMachInt32);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
         }
         break;
       }
@@ -873,34 +856,15 @@ class RepresentationSelector {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
         Type* in_upper = NodeProperties::GetType(input);
-        MachineTypeUnion in = GetInfo(input)->output;
         if (in_upper->Is(Type::Unsigned32())) {
           // If the input has type uint32, pass through representation.
           VisitUnop(node, UseInfoFromRepresentation(use_rep),
                     kTypeUint32 | use_rep);
           if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else if ((in & kTypeMask) == kTypeInt32 ||
-                   in_upper->Is(Type::Signed32())) {
-          // Just change representation if necessary.
-          VisitUnop(node, UseInfo::TruncatingWord32(),
-                    kTypeUint32 | kRepWord32);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else if ((in & kTypeMask) == kTypeUint32 ||
-                   (in & kRepMask) == kRepWord32) {
-          // Just change representation if necessary.
-          VisitUnop(node, UseInfo::TruncatingWord32(),
-                    kTypeUint32 | kRepWord32);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
-          // Require the input in float64 format and perform truncation.
-          // TODO(turbofan): avoid a truncation with a smi check.
-          VisitUnop(node, UseInfo::Float64TruncatingToWord32(),
-                    kTypeUint32 | kRepWord32);
-          if (lower()) {
-            NodeProperties::ChangeOp(
-                node, lowering->machine()->TruncateFloat64ToInt32(
-                          TruncationMode::kJavaScript));
-          }
+          // Just change representation if necessary.
+          VisitUnop(node, UseInfo::TruncatingWord32(), kMachUint32);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
         }
         break;
       }
