@@ -2080,7 +2080,7 @@ Type* Typer::Visitor::TypeChangeFloat64ToUint32(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeChangeFloat64ToInt64(Node* node) {
+Type* Typer::Visitor::TypeTruncateFloat64ToInt64(Node* node) {
   return Type::Internal();
 }
 

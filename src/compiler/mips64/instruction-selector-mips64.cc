@@ -707,7 +707,7 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
 }
 
 
-void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
+void InstructionSelector::VisitTruncateFloat64ToInt64(Node* node) {
   VisitRR(this, kMips64TruncLD, node);
 }
 

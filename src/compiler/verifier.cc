@@ -909,7 +909,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kChangeFloat32ToFloat64:
     case IrOpcode::kChangeFloat64ToInt32:
     case IrOpcode::kChangeFloat64ToUint32:
-    case IrOpcode::kChangeFloat64ToInt64:
+    case IrOpcode::kTruncateFloat64ToInt64:
     case IrOpcode::kTruncateFloat64ToUint64:
     case IrOpcode::kFloat64ExtractLowWord32:
     case IrOpcode::kFloat64ExtractHighWord32:

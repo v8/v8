@@ -443,8 +443,8 @@ class RawMachineAssembler {
   Node* ChangeFloat64ToUint32(Node* a) {
     return AddNode(machine()->ChangeFloat64ToUint32(), a);
   }
-  Node* ChangeFloat64ToInt64(Node* a) {
-    return AddNode(machine()->ChangeFloat64ToInt64(), a);
+  Node* TruncateFloat64ToInt64(Node* a) {
+    return AddNode(machine()->TruncateFloat64ToInt64(), a);
   }
   Node* TruncateFloat64ToUint64(Node* a) {
     return AddNode(machine()->TruncateFloat64ToUint64(), a);

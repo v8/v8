@@ -5353,9 +5353,9 @@ TEST(RunBitcastFloat64ToInt64) {
 }
 
 
-TEST(RunChangeFloat64ToInt64) {
+TEST(RunTruncateFloat64ToInt64) {
   BufferedRawMachineAssemblerTester<int64_t> m(kMachFloat64);
-  m.Return(m.ChangeFloat64ToInt64(m.Parameter(0)));
+  m.Return(m.TruncateFloat64ToInt64(m.Parameter(0)));
 
   FOR_INT64_INPUTS(i) {
     double input = static_cast<double>(*i);
