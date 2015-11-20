@@ -1215,6 +1215,16 @@
         ['CC', '<(clang_dir)/bin/clang-cl'],
       ],
     }],
+    ['OS=="linux" and target_arch=="arm" and host_arch!="arm" and clang==0', {
+      # Set default ARM cross tools on linux.  These can be overridden
+      # using CC,CXX,CC.host and CXX.host environment variables.
+      'make_global_settings': [
+        ['CC', '<!(which arm-linux-gnueabihf-gcc)'],
+        ['CXX', '<!(which arm-linux-gnueabihf-g++)'],
+        ['CC.host', '<(host_cc)'],
+        ['CXX.host', '<(host_cxx)'],
+      ],
+    }],
     # TODO(yyanagisawa): supports GENERATOR==make
     #  make generator doesn't support CC_wrapper without CC
     #  in make_global_settings yet.
