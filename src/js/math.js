@@ -14,18 +14,12 @@ var GlobalMath = global.Math;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var NaN = %GetRootNaN();
-var rngstate_0;
-var rngstate_1;
-var rngstate_2;
-var rngstate_3;
+var rngstate;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.InitializeRNG = function() {
-  var rngstate = %InitializeRNG();
-  rngstate_0 = rngstate[0];
-  rngstate_1 = rngstate[1];
-  rngstate_2 = rngstate[2];
-  rngstate_3 = rngstate[3];
+  var state = %InitializeRNG();
+  rngstate = { a: state[0], b: state[1], c: state[2], d: state[3] };
 };
 
 //-------------------------------------------------------------------
@@ -141,25 +135,26 @@ function MathPowJS(x, y) {
 
 // ECMA 262 - 15.8.2.14
 function MathRandom() {
-  var r0 = (MathImul(18030, rngstate_0) + rngstate_1) | 0;
-  var r1 = (MathImul(36969, rngstate_2) + rngstate_3) | 0;
-  rngstate_0 = r0 & 0xFFFF;
-  rngstate_1 = r0 >>> 16;
-  rngstate_2 = r1 & 0xFFFF;
-  rngstate_3 = r1 >>> 16;
+  var r0 = (MathImul(18030, rngstate.a) + rngstate.b) | 0;
+  var r1 = (MathImul(36969, rngstate.c) + rngstate.d) | 0;
+  rngstate.a = r0 & 0xFFFF;
+  rngstate.b = r0 >>> 16;
+  rngstate.c = r1 & 0xFFFF;
+  rngstate.d = r1 >>> 16;
+  var r = r0 ^ r1;
   // Construct a double number 1.<32-bits of randomness> and subtract 1.
-  return %_ConstructDouble(0x3FF00000 | (r0 & 0x000FFFFF), r1 & 0xFFF00000) - 1;
+  return %_ConstructDouble(0x3FF00000 | (r & 0x000FFFFF), r & 0xFFF00000) - 1;
 }
 
 function MathRandomRaw() {
-  var r0 = (MathImul(18030, rngstate_0) + rngstate_1) | 0;
-  var r1 = (MathImul(36969, rngstate_2) + rngstate_3) | 0;
-  rngstate_0 = r0 & 0xFFFF;
-  rngstate_1 = r0 >>> 16;
-  rngstate_2 = r1 & 0xFFFF;
-  rngstate_3 = r1 >>> 16;
-  var x = ((r0 << 16) + (r1 & 0xFFFF)) | 0;
-  return x & 0x3FFFFFFF;
+  var r0 = (MathImul(18030, rngstate.a) + rngstate.b) | 0;
+  var r1 = (MathImul(36969, rngstate.d) + rngstate.c) | 0;
+  rngstate.a = r0 & 0xFFFF;
+  rngstate.b = r0 >>> 16;
+  rngstate.c = r1 & 0xFFFF;
+  rngstate.d = r1 >>> 16;
+  var r = r0 ^ r1;
+  return r & 0x3FFFFFFF;
 }
 
 // ECMA 262 - 15.8.2.15
