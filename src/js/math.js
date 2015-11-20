@@ -148,7 +148,7 @@ function MathRandom() {
 
 function MathRandomRaw() {
   var r0 = (MathImul(18030, rngstate.a) + rngstate.b) | 0;
-  var r1 = (MathImul(36969, rngstate.d) + rngstate.c) | 0;
+  var r1 = (MathImul(36969, rngstate.c) + rngstate.d) | 0;
   rngstate.a = r0 & 0xFFFF;
   rngstate.b = r0 >>> 16;
   rngstate.c = r1 & 0xFFFF;
