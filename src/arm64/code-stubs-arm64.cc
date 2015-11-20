@@ -5215,22 +5215,23 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   // Subclassing support.
   __ Bind(&subclassing);
-  __ Push(constructor, new_target);
-  // Adjust argc.
   switch (argument_count()) {
     case ANY:
     case MORE_THAN_ONE:
-      __ add(x0, x0, Operand(2));
+      __ Poke(constructor, Operand(x0, LSL, kPointerSizeLog2));
+      __ Add(x0, x0, Operand(3));
       break;
     case NONE:
-      __ Mov(x0, Operand(2));
-      break;
-    case ONE:
+      __ Poke(constructor, 0 * kPointerSize);
       __ Mov(x0, Operand(3));
       break;
+    case ONE:
+      __ Poke(constructor, 1 * kPointerSize);
+      __ Mov(x0, Operand(4));
+      break;
   }
-  __ JumpToExternalReference(
-      ExternalReference(Runtime::kArrayConstructorWithSubclassing, isolate()));
+  __ Push(new_target, allocation_site);
+  __ JumpToExternalReference(ExternalReference(Runtime::kNewArray, isolate()));
 }
 
 

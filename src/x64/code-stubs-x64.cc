@@ -4734,28 +4734,33 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   // Subclassing
   __ bind(&subclassing);
-  __ Pop(rcx);  // return address.
-  __ Push(rdi);
-  __ Push(rdx);
-
-  // Adjust argc.
   switch (argument_count()) {
     case ANY:
-    case MORE_THAN_ONE:
-      __ addp(rax, Immediate(2));
+    case MORE_THAN_ONE: {
+      StackArgumentsAccessor args(rsp, rax);
+      __ movp(args.GetReceiverOperand(), rdi);
+      __ addp(rax, Immediate(3));
       break;
-    case NONE:
-      __ movp(rax, Immediate(2));
+    }
+    case NONE: {
+      StackArgumentsAccessor args(rsp, 0);
+      __ movp(args.GetReceiverOperand(), rdi);
+      __ Set(rax, 3);
       break;
-    case ONE:
-      __ movp(rax, Immediate(3));
+    }
+    case ONE: {
+      StackArgumentsAccessor args(rsp, 1);
+      __ movp(args.GetReceiverOperand(), rdi);
+      __ Set(rax, 4);
       break;
+    }
   }
-
-  __ Push(rcx);
-  __ JumpToExternalReference(
-      ExternalReference(Runtime::kArrayConstructorWithSubclassing, isolate()),
-      1);
+  __ PopReturnAddressTo(rcx);
+  __ Push(rdx);
+  __ Push(rbx);
+  __ PushReturnAddressFrom(rcx);
+  __ JumpToExternalReference(ExternalReference(Runtime::kNewArray, isolate()),
+                             1);
 }
 
 

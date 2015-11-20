@@ -5055,26 +5055,26 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   // Subclassing.
   __ bind(&subclassing);
-  __ Push(a1);
-  __ Push(a3);
-
-  // Adjust argc.
   switch (argument_count()) {
     case ANY:
     case MORE_THAN_ONE:
-      __ li(at, Operand(2));
-      __ addu(a0, a0, at);
+      __ dsll(at, a0, kPointerSizeLog2);
+      __ Daddu(at, sp, at);
+      __ sd(a1, MemOperand(at));
+      __ li(at, Operand(3));
+      __ Daddu(a0, a0, at);
       break;
     case NONE:
-      __ li(a0, Operand(2));
-      break;
-    case ONE:
+      __ sd(a1, MemOperand(sp, 0 * kPointerSize));
       __ li(a0, Operand(3));
       break;
+    case ONE:
+      __ sd(a1, MemOperand(sp, 1 * kPointerSize));
+      __ li(a0, Operand(4));
+      break;
   }
-
-  __ JumpToExternalReference(
-      ExternalReference(Runtime::kArrayConstructorWithSubclassing, isolate()));
+  __ Push(a3, a2);
+  __ JumpToExternalReference(ExternalReference(Runtime::kNewArray, isolate()));
 }
 
 
