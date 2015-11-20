@@ -139,6 +139,17 @@ void NodeProperties::ReplaceValueInput(Node* node, Node* value, int index) {
 
 
 // static
+void NodeProperties::ReplaceValueInputs(Node* node, Node* value) {
+  int value_input_count = node->op()->ValueInputCount();
+  DCHECK_LE(1, value_input_count);
+  node->ReplaceInput(0, value);
+  while (--value_input_count > 0) {
+    node->RemoveInput(value_input_count);
+  }
+}
+
+
+// static
 void NodeProperties::ReplaceContextInput(Node* node, Node* context) {
   node->ReplaceInput(FirstContextIndex(node), context);
 }

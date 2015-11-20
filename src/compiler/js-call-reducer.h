@@ -16,11 +16,10 @@ namespace compiler {
 class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
-class SimplifiedOperatorBuilder;
 
 
-// Performs strength reduction on {JSCallFunction} nodes, which might allow
-// inlining or other optimizations to be performed afterwards.
+// Performs strength reduction on {JSCallConstruct} and {JSCallFunction} nodes,
+// which might allow inlining or other optimizations to be performed afterwards.
 class JSCallReducer final : public Reducer {
  public:
   // Flags that control the mode of operation.
@@ -30,26 +29,32 @@ class JSCallReducer final : public Reducer {
   };
   typedef base::Flags<Flag> Flags;
 
-  JSCallReducer(JSGraph* jsgraph, Flags flags)
-      : jsgraph_(jsgraph), flags_(flags) {}
+  JSCallReducer(JSGraph* jsgraph, Flags flags,
+                MaybeHandle<Context> native_context)
+      : jsgraph_(jsgraph), flags_(flags), native_context_(native_context) {}
 
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceArrayConstructor(Node* node);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
+  Reduction ReduceJSCallConstruct(Node* node);
   Reduction ReduceJSCallFunction(Node* node);
+
+  MaybeHandle<Context> GetNativeContext(Node* node);
 
   Graph* graph() const;
   Flags flags() const { return flags_; }
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
+  MaybeHandle<Context> native_context() const { return native_context_; }
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
-  SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* const jsgraph_;
   Flags const flags_;
+  MaybeHandle<Context> const native_context_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSCallReducer::Flags)

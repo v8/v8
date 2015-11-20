@@ -198,6 +198,12 @@ class PipelineData {
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
   JSGraph* jsgraph() const { return jsgraph_; }
+  MaybeHandle<Context> native_context() const {
+    if (info()->is_native_context_specializing()) {
+      return handle(info()->native_context(), isolate());
+    }
+    return MaybeHandle<Context>();
+  }
 
   LoopAssignmentAnalysis* loop_assignment() const { return loop_assignment_; }
   void set_loop_assignment(LoopAssignmentAnalysis* loop_assignment) {
@@ -508,7 +514,8 @@ struct InliningPhase {
     JSCallReducer call_reducer(data->jsgraph(),
                                data->info()->is_deoptimization_enabled()
                                    ? JSCallReducer::kDeoptimizationEnabled
-                                   : JSCallReducer::kNoFlags);
+                                   : JSCallReducer::kNoFlags,
+                               data->native_context());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_function_context_specializing()
@@ -521,19 +528,13 @@ struct InliningPhase {
         data->info()->is_deoptimization_enabled()
             ? JSGlobalObjectSpecialization::kDeoptimizationEnabled
             : JSGlobalObjectSpecialization::kNoFlags,
-        data->info()->is_native_context_specializing()
-            ? handle(data->info()->native_context(), data->isolate())
-            : MaybeHandle<Context>(),
-        data->info()->dependencies());
+        data->native_context(), data->info()->dependencies());
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_deoptimization_enabled()
             ? JSNativeContextSpecialization::kDeoptimizationEnabled
             : JSNativeContextSpecialization::kNoFlags,
-        data->info()->is_native_context_specializing()
-            ? handle(data->info()->native_context(), data->isolate())
-            : MaybeHandle<Context>(),
-        data->info()->dependencies(), temp_zone);
+        data->native_context(), data->info()->dependencies(), temp_zone);
     JSInliningHeuristic inlining(&graph_reducer,
                                  data->info()->is_inlining_enabled()
                                      ? JSInliningHeuristic::kGeneralInlining

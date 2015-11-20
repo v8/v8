@@ -266,6 +266,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
       // We ought to find a cleaner solution for compiling stubs parameterised
       // over type or class variables, esp ones with bounds...
       return kDetectable & kTaggedPointer;
+    case ALLOCATION_SITE_TYPE:
     case DECLARED_ACCESSOR_INFO_TYPE:
     case EXECUTABLE_ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
@@ -298,7 +299,6 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case OBJECT_TEMPLATE_INFO_TYPE:
     case SIGNATURE_INFO_TYPE:
     case TYPE_SWITCH_INFO_TYPE:
-    case ALLOCATION_SITE_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
     case CODE_CACHE_TYPE:
     case POLYMORPHIC_CODE_CACHE_TYPE:

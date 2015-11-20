@@ -792,8 +792,9 @@ void BytecodeGraphBuilder::VisitNew(
   interpreter::Register first_arg = iterator.GetRegisterOperand(1);
   size_t arg_count = iterator.GetCountOperand(2);
 
-  const Operator* call =
-      javascript()->CallConstruct(static_cast<int>(arg_count) + 2);
+  // TODO(turbofan): Pass the feedback here.
+  const Operator* call = javascript()->CallConstruct(
+      static_cast<int>(arg_count) + 2, VectorSlotPair());
   Node* value = ProcessCallNewArguments(call, callee, first_arg, arg_count + 2);
   AddEmptyFrameStateInputs(value);
   environment()->BindAccumulator(value);

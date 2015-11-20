@@ -1232,6 +1232,19 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSLoadNativeContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadNativeContext, node->opcode());
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = graph()->start();
+  node->ReplaceInput(1, effect);
+  node->ReplaceInput(2, control);
+  NodeProperties::ChangeOp(
+      node,
+      simplified()->LoadField(AccessBuilder::ForJSGlobalObjectNativeContext()));
+  return Changed(node);
+}
+
+
 Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConvertReceiver, node->opcode());
   ConvertReceiverMode mode = ConvertReceiverModeOf(node->op());
@@ -1545,6 +1558,69 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
   }
 
   return NoChange();
+}
+
+
+Reduction JSTypedLowering::ReduceJSCreateArray(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
+  CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
+  Node* const target = NodeProperties::GetValueInput(node, 0);
+  Node* const new_target = NodeProperties::GetValueInput(node, 1);
+
+  // TODO(bmeurer): Optimize the subclassing case.
+  if (target != new_target) return NoChange();
+
+  // Check if we have a feedback {site} on the {node}.
+  Handle<AllocationSite> site = p.site();
+  if (p.site().is_null()) return NoChange();
+  ElementsKind const elements_kind = site->GetElementsKind();
+  AllocationSiteOverrideMode override_mode =
+      (AllocationSite::GetMode(elements_kind) == TRACK_ALLOCATION_SITE)
+          ? DISABLE_ALLOCATION_SITES
+          : DONT_OVERRIDE;
+
+  // Reduce {node} to the appropriate ArrayConstructorStub backend.
+  // Note that these stubs "behave" like JSFunctions, which means they
+  // expect a receiver on the stack, which they remove. We just push
+  // undefined for the receiver.
+  if (p.arity() == 0) {
+    ArrayNoArgumentConstructorStub stub(isolate(), elements_kind,
+                                        override_mode);
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 1,
+        CallDescriptor::kNeedsFrameState);
+    node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->UndefinedConstant());
+    node->InsertInput(graph()->zone(), 3, jsgraph()->UndefinedConstant());
+    NodeProperties::ChangeOp(node, common()->Call(desc));
+    return Changed(node);
+  } else if (p.arity() == 1) {
+    // TODO(bmeurer): Optimize for the 0 length non-holey case?
+    ArraySingleArgumentConstructorStub stub(
+        isolate(), GetHoleyElementsKind(elements_kind), override_mode);
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
+        CallDescriptor::kNeedsFrameState);
+    node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(1));
+    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+    NodeProperties::ChangeOp(node, common()->Call(desc));
+    return Changed(node);
+  } else {
+    int const arity = static_cast<int>(p.arity());
+    ArrayNArgumentsConstructorStub stub(isolate(), elements_kind,
+                                        override_mode);
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
+        arity + 1, CallDescriptor::kNeedsFrameState);
+    node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->UndefinedConstant());
+    node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
+    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+    NodeProperties::ChangeOp(node, common()->Call(desc));
+    return Changed(node);
+  }
 }
 
 
@@ -2244,12 +2320,16 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
+    case IrOpcode::kJSLoadNativeContext:
+      return ReduceJSLoadNativeContext(node);
     case IrOpcode::kJSConvertReceiver:
       return ReduceJSConvertReceiver(node);
     case IrOpcode::kJSCreate:
       return ReduceJSCreate(node);
     case IrOpcode::kJSCreateArguments:
       return ReduceJSCreateArguments(node);
+    case IrOpcode::kJSCreateArray:
+      return ReduceJSCreateArray(node);
     case IrOpcode::kJSCreateClosure:
       return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateLiteralArray:

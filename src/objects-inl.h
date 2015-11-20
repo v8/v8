@@ -6258,6 +6258,9 @@ JSObject* JSFunction::global_proxy() {
 }
 
 
+Context* JSFunction::native_context() { return context()->native_context(); }
+
+
 void JSFunction::set_context(Object* value) {
   DCHECK(value->IsUndefined() || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);

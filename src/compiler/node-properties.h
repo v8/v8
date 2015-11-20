@@ -88,6 +88,9 @@ class NodeProperties final {
   static void RemoveNonValueInputs(Node* node);
   static void RemoveValueInputs(Node* node);
 
+  // Replaces all value inputs of {node} with the single input {value}.
+  static void ReplaceValueInputs(Node* node, Node* value);
+
   // Merge the control node {node} into the end of the graph, introducing a
   // merge node or expanding an existing merge node if necessary.
   static void MergeControlToEnd(Graph* graph, CommonOperatorBuilder* common,

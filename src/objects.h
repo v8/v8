@@ -7234,6 +7234,7 @@ class JSFunction: public JSObject {
   inline Context* context();
   inline void set_context(Object* context);
   inline JSObject* global_proxy();
+  inline Context* native_context();
 
   // [code]: The generated code object for this function.  Executed
   // when the function is invoked, e.g. foo() or new foo(). See

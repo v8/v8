@@ -63,6 +63,34 @@ std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
 }
 
 
+bool operator==(CallConstructParameters const& lhs,
+                CallConstructParameters const& rhs) {
+  return lhs.arity() == rhs.arity() && lhs.feedback() == rhs.feedback();
+}
+
+
+bool operator!=(CallConstructParameters const& lhs,
+                CallConstructParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(CallConstructParameters const& p) {
+  return base::hash_combine(p.arity(), p.feedback());
+}
+
+
+std::ostream& operator<<(std::ostream& os, CallConstructParameters const& p) {
+  return os << p.arity();
+}
+
+
+CallConstructParameters const& CallConstructParametersOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSCallConstruct, op->opcode());
+  return OpParameter<CallConstructParameters>(op);
+}
+
+
 std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
   os << p.arity() << ", " << p.language_mode() << ", " << p.convert_mode()
      << ", " << p.tail_call_mode();
@@ -322,6 +350,37 @@ const CreateArgumentsParameters& CreateArgumentsParametersOf(
 }
 
 
+bool operator==(CreateArrayParameters const& lhs,
+                CreateArrayParameters const& rhs) {
+  return lhs.arity() == rhs.arity() &&
+         lhs.site().location() == rhs.site().location();
+}
+
+
+bool operator!=(CreateArrayParameters const& lhs,
+                CreateArrayParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(CreateArrayParameters const& p) {
+  return base::hash_combine(p.arity(), p.site().location());
+}
+
+
+std::ostream& operator<<(std::ostream& os, CreateArrayParameters const& p) {
+  os << p.arity();
+  if (!p.site().is_null()) os << ", " << Brief(*p.site());
+  return os;
+}
+
+
+const CreateArrayParameters& CreateArrayParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateArray, op->opcode());
+  return OpParameter<CreateArrayParameters>(op);
+}
+
+
 bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
   return lhs.pretenure() == rhs.pretenure() &&
@@ -374,6 +433,7 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
   V(LoadMessage, Operator::kNoThrow, 0, 1)            \
   V(StoreMessage, Operator::kNoThrow, 1, 0)           \
   V(StackCheck, Operator::kNoProperties, 0, 0)        \
+  V(LoadNativeContext, Operator::kEliminatable, 1, 1) \
   V(CreateWithContext, Operator::kNoProperties, 2, 1) \
   V(CreateModuleContext, Operator::kNoProperties, 2, 1)
 
@@ -493,12 +553,14 @@ const Operator* JSOperatorBuilder::CallRuntime(Runtime::FunctionId id,
 }
 
 
-const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
-  return new (zone()) Operator1<int>(                       // --
+const Operator* JSOperatorBuilder::CallConstruct(
+    size_t arity, VectorSlotPair const& feedback) {
+  CallConstructParameters parameters(arity, feedback);
+  return new (zone()) Operator1<CallConstructParameters>(   // --
       IrOpcode::kJSCallConstruct, Operator::kNoProperties,  // opcode
       "JSCallConstruct",                                    // name
-      arguments, 1, 1, 1, 1, 2,                             // counts
-      arguments);                                           // parameter
+      parameters.arity(), 1, 1, 1, 1, 2,                    // counts
+      parameters);                                          // parameter
 }
 
 
@@ -634,6 +696,19 @@ const Operator* JSOperatorBuilder::CreateArguments(
       "JSCreateArguments",                                   // name
       1, 1, 1, 1, 1, 0,                                      // counts
       parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::CreateArray(size_t arity,
+                                               Handle<AllocationSite> site) {
+  // constructor, new_target, arg1, ..., argN
+  int const value_input_count = static_cast<int>(arity) + 2;
+  CreateArrayParameters parameters(arity, site);
+  return new (zone()) Operator1<CreateArrayParameters>(   // --
+      IrOpcode::kJSCreateArray, Operator::kNoProperties,  // opcode
+      "JSCreateArray",                                    // name
+      value_input_count, 1, 1, 1, 1, 2,                   // counts
+      parameters);                                        // parameter
 }
 
 

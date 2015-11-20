@@ -2512,7 +2512,8 @@ void AstGraphBuilder::VisitCallSuper(Call* expr) {
   VisitForValue(super->new_target_var());
 
   // Create node to perform the super call.
-  const Operator* call = javascript()->CallConstruct(args->length() + 2);
+  const Operator* call =
+      javascript()->CallConstruct(args->length() + 2, VectorSlotPair());
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -2530,7 +2531,9 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   environment()->Push(environment()->Peek(args->length()));
 
   // Create node to perform the construct call.
-  const Operator* call = javascript()->CallConstruct(args->length() + 2);
+  VectorSlotPair feedback = CreateVectorSlotPair(expr->CallNewFeedbackSlot());
+  const Operator* call =
+      javascript()->CallConstruct(args->length() + 2, feedback);
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -3652,8 +3655,7 @@ Node* AstGraphBuilder::BuildLoadGlobalObject() {
 
 Node* AstGraphBuilder::BuildLoadNativeContextField(int index) {
   Node* global = BuildLoadGlobalObject();
-  Node* native_context =
-      BuildLoadObjectField(global, JSGlobalObject::kNativeContextOffset);
+  Node* native_context = NewNode(javascript()->LoadNativeContext(), global);
   return NewNode(javascript()->LoadContext(0, index, true), native_context);
 }
 

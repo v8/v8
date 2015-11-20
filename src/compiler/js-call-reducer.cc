@@ -6,7 +6,6 @@
 
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
 #include "src/type-feedback-vector-inl.h"
 
@@ -40,12 +39,44 @@ VectorSlotPair CallCountFeedback(VectorSlotPair p) {
 
 Reduction JSCallReducer::Reduce(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kJSCallConstruct:
+      return ReduceJSCallConstruct(node);
     case IrOpcode::kJSCallFunction:
       return ReduceJSCallFunction(node);
     default:
       break;
   }
   return NoChange();
+}
+
+
+// ES6 section 22.1.1 The Array Constructor
+Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+
+  // Check if we have an allocation site from the CallIC.
+  Handle<AllocationSite> site;
+  if (p.feedback().IsValid()) {
+    CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+    Handle<Object> feedback(nexus.GetFeedback(), isolate());
+    if (feedback->IsAllocationSite()) {
+      site = Handle<AllocationSite>::cast(feedback);
+    }
+  }
+
+  // Turn the {node} into a {JSCreateArray} call.
+  DCHECK_LE(2u, p.arity());
+  size_t const arity = p.arity() - 2;
+  NodeProperties::ReplaceValueInput(node, target, 0);
+  NodeProperties::ReplaceValueInput(node, target, 1);
+  NodeProperties::RemoveFrameStateInput(node, 1);
+  // TODO(bmeurer): We might need to propagate the tail call mode to
+  // the JSCreateArray operator, because an Array call in tail call
+  // position must always properly consume the parent stack frame.
+  NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
+  return Changed(node);
 }
 
 
@@ -170,6 +201,7 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
   Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   Node* control = NodeProperties::GetControlInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -178,8 +210,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
     if (m.Value()->IsJSFunction()) {
-      Handle<SharedFunctionInfo> shared(
-          Handle<JSFunction>::cast(m.Value())->shared(), isolate());
+      Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
+      Handle<SharedFunctionInfo> shared(function->shared(), isolate());
 
       // Raise a TypeError if the {target} is a "classConstructor".
       if (IsClassConstructor(shared->kind())) {
@@ -202,7 +234,13 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
             break;
         }
       }
+
+      // Check for the ArrayConstructor.
+      if (*function == function->native_context()->array_function()) {
+        return ReduceArrayConstructor(node);
+      }
     }
+
     // Don't mess with other {node}s that have a constant {target}.
     // TODO(bmeurer): Also support optimizing bound functions and proxies here.
     return NoChange();
@@ -215,14 +253,52 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   if (!p.feedback().IsValid()) return NoChange();
   CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
   Handle<Object> feedback(nexus.GetFeedback(), isolate());
-  if (feedback->IsWeakCell()) {
+  if (feedback->IsAllocationSite()) {
+    // Retrieve the Array function from the {node}.
+    Node* array_function;
+    Handle<Context> native_context;
+    if (GetNativeContext(node).ToHandle(&native_context)) {
+      array_function = jsgraph()->HeapConstant(
+          handle(native_context->array_function(), isolate()));
+    } else {
+      Node* global_object = effect = graph()->NewNode(
+          javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true),
+          context, context, effect);
+      Node* native_context = effect = graph()->NewNode(
+          javascript()->LoadNativeContext(), global_object, context, effect);
+      array_function = effect = graph()->NewNode(
+          javascript()->LoadContext(0, Context::ARRAY_FUNCTION_INDEX, true),
+          native_context, native_context, effect);
+    }
+
+    // Check that the {target} is still the {array_function}.
+    Node* check = effect =
+        graph()->NewNode(javascript()->StrictEqual(), target, array_function,
+                         context, effect, control);
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* deoptimize =
+        graph()->NewNode(common()->Deoptimize(), frame_state, effect, if_false);
+    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+    NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+    control = graph()->NewNode(common()->IfTrue(), branch);
+
+    // Turn the {node} into a {JSCreateArray} call.
+    NodeProperties::ReplaceValueInput(node, array_function, 0);
+    NodeProperties::ReplaceEffectInput(node, effect);
+    NodeProperties::ReplaceControlInput(node, control);
+    return ReduceArrayConstructor(node);
+  } else if (feedback->IsWeakCell()) {
     Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
     if (cell->value()->IsJSFunction()) {
+      Node* target_function =
+          jsgraph()->Constant(handle(cell->value(), isolate()));
+
       // Check that the {target} is still the {target_function}.
-      Node* target_function = jsgraph()->HeapConstant(
-          handle(JSFunction::cast(cell->value()), isolate()));
-      Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                     target, target_function);
+      Node* check = effect =
+          graph()->NewNode(javascript()->StrictEqual(), target, target_function,
+                           context, effect, control);
       Node* branch =
           graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
       Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -234,6 +310,7 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
 
       // Specialize the JSCallFunction node to the {target_function}.
       NodeProperties::ReplaceValueInput(node, target_function, 0);
+      NodeProperties::ReplaceEffectInput(node, effect);
       NodeProperties::ReplaceControlInput(node, control);
 
       // Try to further reduce the JSCallFunction {node}.
@@ -242,6 +319,68 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
     }
   }
   return NoChange();
+}
+
+
+Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallConstruct, node->opcode());
+  CallConstructParameters const& p = CallConstructParametersOf(node->op());
+  DCHECK_LE(2u, p.arity());
+  int const arity = static_cast<int>(p.arity() - 2);
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+
+  // Try to specialize JSCallConstruct {node}s with constant {target}s.
+  HeapObjectMatcher m(target);
+  if (m.HasValue()) {
+    if (m.Value()->IsJSFunction()) {
+      Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
+
+      // Raise a TypeError if the {target} is not a constructor.
+      if (!function->IsConstructor()) {
+        NodeProperties::ReplaceValueInputs(node, target);
+        NodeProperties::ChangeOp(
+            node,
+            javascript()->CallRuntime(Runtime::kThrowCalledNonCallable, 1));
+        return Changed(node);
+      }
+
+      // Check for the ArrayConstructor.
+      if (*function == function->native_context()->array_function()) {
+        // Check if we have an allocation site.
+        Handle<AllocationSite> site;
+        if (p.feedback().IsValid()) {
+          Handle<Object> feedback(
+              p.feedback().vector()->Get(p.feedback().slot()), isolate());
+          if (feedback->IsAllocationSite()) {
+            site = Handle<AllocationSite>::cast(feedback);
+          }
+        }
+
+        // Turn the {node} into a {JSCreateArray} call.
+        for (int i = arity; i > 0; --i) {
+          NodeProperties::ReplaceValueInput(
+              node, NodeProperties::GetValueInput(node, i), i + 1);
+        }
+        NodeProperties::ReplaceValueInput(node, new_target, 1);
+        NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
+        return Changed(node);
+      }
+    }
+
+    // Don't mess with other {node}s that have a constant {target}.
+    // TODO(bmeurer): Also support optimizing bound functions and proxies here.
+    return NoChange();
+  }
+
+  return NoChange();
+}
+
+
+MaybeHandle<Context> JSCallReducer::GetNativeContext(Node* node) {
+  Node* const context = NodeProperties::GetContextInput(node);
+  return NodeProperties::GetSpecializationNativeContext(context,
+                                                        native_context());
 }
 
 
@@ -258,11 +397,6 @@ CommonOperatorBuilder* JSCallReducer::common() const {
 
 JSOperatorBuilder* JSCallReducer::javascript() const {
   return jsgraph()->javascript();
-}
-
-
-SimplifiedOperatorBuilder* JSCallReducer::simplified() const {
-  return jsgraph()->simplified();
 }
 
 }  // namespace compiler

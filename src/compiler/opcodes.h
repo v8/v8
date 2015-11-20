@@ -111,6 +111,7 @@
 #define JS_OBJECT_OP_LIST(V) \
   V(JSCreate)                \
   V(JSCreateArguments)       \
+  V(JSCreateArray)           \
   V(JSCreateClosure)         \
   V(JSCreateLiteralArray)    \
   V(JSCreateLiteralObject)   \
@@ -128,6 +129,7 @@
   V(JSLoadContext)            \
   V(JSStoreContext)           \
   V(JSLoadDynamic)            \
+  V(JSLoadNativeContext)      \
   V(JSCreateFunctionContext)  \
   V(JSCreateCatchContext)     \
   V(JSCreateWithContext)      \

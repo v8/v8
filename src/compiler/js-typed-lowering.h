@@ -57,6 +57,7 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
+  Reduction ReduceJSLoadNativeContext(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
   Reduction ReduceJSUnaryNot(Node* node);
@@ -69,6 +70,7 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSConvertReceiver(Node* node);
   Reduction ReduceJSCreate(Node* node);
   Reduction ReduceJSCreateArguments(Node* node);
+  Reduction ReduceJSCreateArray(Node* node);
   Reduction ReduceJSCreateClosure(Node* node);
   Reduction ReduceJSCreateLiteralArray(Node* node);
   Reduction ReduceJSCreateLiteralObject(Node* node);

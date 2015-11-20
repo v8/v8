@@ -429,6 +429,15 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSLoadNativeContext(Node* node) {
+  node->ReplaceInput(
+      1, jsgraph()->IntPtrConstant(JSGlobalObject::kNativeContextOffset -
+                                   kHeapObjectTag));
+  node->AppendInput(zone(), graph()->start());
+  NodeProperties::ChangeOp(node, machine()->Load(kMachAnyTagged));
+}
+
+
 void JSGenericLowering::LowerJSLoadDynamic(Node* node) {
   const DynamicAccess& access = DynamicAccessOf(node->op());
   Runtime::FunctionId function_id =
@@ -462,6 +471,26 @@ void JSGenericLowering::LowerJSCreateArguments(Node* node) {
       UNIMPLEMENTED();
       break;
   }
+}
+
+
+void JSGenericLowering::LowerJSCreateArray(Node* node) {
+  CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
+  int const arity = static_cast<int>(p.arity());
+  Node* new_target = node->InputAt(1);
+  // TODO(turbofan): We embed the AllocationSite from the Operator at this
+  // point, which we should not do once we want to both consume the feedback
+  // but at the same time shared the optimized code across native contexts,
+  // as the AllocationSite is associated with a single native context (it's
+  // stored in the type feedback vector after all). Once we go for cross
+  // context code generation, we should somehow find a way to get to the
+  // allocation site for the actual native context at runtime.
+  Node* type_info = p.site().is_null() ? jsgraph()->UndefinedConstant()
+                                       : jsgraph()->HeapConstant(p.site());
+  node->RemoveInput(1);
+  node->InsertInput(zone(), 1 + arity, new_target);
+  node->InsertInput(zone(), 2 + arity, type_info);
+  ReplaceWithRuntimeCall(node, Runtime::kNewArray, arity + 3);
 }
 
 
@@ -510,8 +539,9 @@ void JSGenericLowering::LowerJSCreateScriptContext(Node* node) {
 
 
 void JSGenericLowering::LowerJSCallConstruct(Node* node) {
+  CallConstructParameters const& p = CallConstructParametersOf(node->op());
+  int const arity = static_cast<int>(p.arity());
   // TODO(bmeurer): Use the Construct builtin here.
-  int arity = OpParameter<int>(node);
   CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
