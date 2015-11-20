@@ -1509,7 +1509,8 @@ void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
     Address high = to_space_.page_high();
     Address new_top = allocation_info_.top() + size_in_bytes;
     allocation_info_.set_limit(Min(new_top, high));
-  } else if (top_on_previous_step_ == 0) {
+  } else if (inline_allocation_observers_paused_ ||
+             top_on_previous_step_ == 0) {
     // Normal limit is the end of the current page.
     allocation_info_.set_limit(to_space_.page_high());
   } else {
@@ -1602,6 +1603,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 
 
 void NewSpace::StartNextInlineAllocationStep() {
+  DCHECK(!inline_allocation_observers_paused_);
   top_on_previous_step_ =
       inline_allocation_observers_.length() ? allocation_info_.top() : 0;
   UpdateInlineAllocationLimit(0);
@@ -1632,6 +1634,22 @@ void NewSpace::RemoveInlineAllocationObserver(
   // Only used in assertion. Suppress unused variable warning.
   static_cast<void>(removed);
   DCHECK(removed);
+  StartNextInlineAllocationStep();
+}
+
+
+void NewSpace::PauseInlineAllocationObservers() {
+  // Do a step to account for memory allocated so far.
+  InlineAllocationStep(top(), top());
+  inline_allocation_observers_paused_ = true;
+  top_on_previous_step_ = 0;
+  UpdateInlineAllocationLimit(0);
+}
+
+
+void NewSpace::ResumeInlineAllocationObservers() {
+  DCHECK(top_on_previous_step_ == 0);
+  inline_allocation_observers_paused_ = false;
   StartNextInlineAllocationStep();
 }
 

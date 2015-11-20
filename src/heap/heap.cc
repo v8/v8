@@ -1583,6 +1583,10 @@ void Heap::Scavenge() {
   // trigger one during scavenge: scavenges allocation should always succeed.
   AlwaysAllocateScope scope(isolate());
 
+  // Bump-pointer allocations done during scavenge are not real allocations.
+  // Pause the inline allocation steps.
+  new_space()->PauseInlineAllocationObservers();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
 #endif
@@ -1712,9 +1716,7 @@ void Heap::Scavenge() {
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
 
-  // We start a new step without accounting the objects copied into to space
-  // as those are not allocations.
-  new_space_.StartNextInlineAllocationStep();
+  new_space()->ResumeInlineAllocationObservers();
 
   array_buffer_tracker()->FreeDead(true);
 

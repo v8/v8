@@ -2559,7 +2559,8 @@ class NewSpace : public Space {
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
-        top_on_previous_step_(0) {}
+        top_on_previous_step_(0),
+        inline_allocation_observers_paused_(false) {}
 
   // Sets up the new space using the given chunk.
   bool SetUp(int reserved_semispace_size_, int max_semi_space_size);
@@ -2732,7 +2733,6 @@ class NewSpace : public Space {
   void ResetAllocationInfo();
 
   void UpdateInlineAllocationLimit(int size_in_bytes);
-  void StartNextInlineAllocationStep();
 
   // Allows observation of inline allocation. The observer->Step() method gets
   // called after every step_size bytes have been allocated (approximately).
@@ -2742,6 +2742,9 @@ class NewSpace : public Space {
 
   // Removes a previously installed observer.
   void RemoveInlineAllocationObserver(InlineAllocationObserver* observer);
+
+  void PauseInlineAllocationObservers();
+  void ResumeInlineAllocationObservers();
 
   void DisableInlineAllocationSteps() {
     top_on_previous_step_ = 0;
@@ -2846,8 +2849,8 @@ class NewSpace : public Space {
   // than the actual limit and and increasing it in steps to guarantee that the
   // observers are notified periodically.
   List<InlineAllocationObserver*> inline_allocation_observers_;
-
   Address top_on_previous_step_;
+  bool inline_allocation_observers_paused_;
 
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
@@ -2862,6 +2865,7 @@ class NewSpace : public Space {
   // different when we cross a page boundary or reset the space.
   void InlineAllocationStep(Address top, Address new_top);
   intptr_t GetNextInlineAllocationStepSize();
+  void StartNextInlineAllocationStep();
 
   friend class SemiSpaceIterator;
 };
