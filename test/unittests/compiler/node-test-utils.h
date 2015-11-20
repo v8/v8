@@ -390,9 +390,15 @@ Matcher<Node*> IsJSStoreProperty(const Matcher<Node*>& object_matcher,
                                  const Matcher<Node*>& feedback_vector_matcher,
                                  const Matcher<Node*>& effect_matcher,
                                  const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSCallConstruct(std::vector<Matcher<Node*>> value_matchers,
+                                 const Matcher<Node*>& effect_matcher,
+                                 const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsJSCallFunction(std::vector<Matcher<Node*>> value_matchers,
                                 const Matcher<Node*>& effect_matcher,
                                 const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsJSCallRuntime(std::vector<Matcher<Node*>> value_matchers,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsJSUnaryNot(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsJSTypeOf(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsJSDeleteProperty(const Matcher<Node*>& object_value_matcher,

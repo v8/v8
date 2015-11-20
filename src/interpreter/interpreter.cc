@@ -953,7 +953,7 @@ void Interpreter::DoCallJSRuntime(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// New <constructor> <arg_count>
+// New <constructor> <first_arg> <arg_count>
 //
 // Call operator new with |constructor| and the first argument in
 // register |first_arg| and |arg_count| arguments in subsequent

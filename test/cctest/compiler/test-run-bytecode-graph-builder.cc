@@ -64,6 +64,7 @@ class BytecodeGraphTester {
       : isolate_(isolate), zone_(zone), script_(script) {
     i::FLAG_ignition = true;
     i::FLAG_always_opt = false;
+    i::FLAG_allow_natives_syntax = true;
     // Set ignition filter flag via SetFlagsFromString to avoid double-free
     // (or potential leak with StrDup() based on ownership confusion).
     ScopedVector<char> ignition_filter(64);
@@ -527,6 +528,74 @@ TEST(BytecodeGraphBuilderPropertyCall) {
              snippets[i].code_snippet, kFunctionName);
 
     BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderCallNew) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<0> snippets[] = {
+      {"function counter() { this.count = 20; }\n"
+       "function f() {\n"
+       "  var c = new counter();\n"
+       "  return c.count;\n"
+       "}; f()",
+       {factory->NewNumberFromInt(20)}},
+      {"function counter(arg0) { this.count = 17; this.x = arg0; }\n"
+       "function f() {\n"
+       "  var c = new counter(6);\n"
+       "  return c.count + c.x;\n"
+       "}; f()",
+       {factory->NewNumberFromInt(23)}},
+      {"function counter(arg0, arg1) {\n"
+       "  this.count = 17; this.x = arg0; this.y = arg1;\n"
+       "}\n"
+       "function f() {\n"
+       "  var c = new counter(3, 5);\n"
+       "  return c.count + c.x + c.y;\n"
+       "}; f()",
+       {factory->NewNumberFromInt(25)}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderCallRuntime) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<1> snippets[] = {
+      {"function f(arg0) { return %MaxSmi(); }\nf()",
+       {factory->NewNumberFromInt(Smi::kMaxValue), factory->undefined_value()}},
+      {"function f(arg0) { return %IsArray(arg0) }\nf(undefined)",
+       {factory->true_value(), BytecodeGraphTester::NewObject("[1, 2, 3]")}},
+      {"function f(arg0) { return %Add(arg0, 2) }\nf(1)",
+       {factory->NewNumberFromInt(5), factory->NewNumberFromInt(3)}},
+      {"function f(arg0) { return %spread_arguments(arg0).length }\nf([])",
+       {factory->NewNumberFromInt(3),
+        BytecodeGraphTester::NewObject("[1, 2, 3]")}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
     auto callable = tester.GetCallable<Handle<Object>>();
     Handle<Object> return_value =
         callable(snippets[i].parameter(0)).ToHandleChecked();

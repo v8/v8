@@ -40,11 +40,18 @@ class BytecodeGraphBuilder {
   // Get or create the node that represents the outer function context.
   Node* GetFunctionContext();
 
-  // Builders for accessing an immutable object field.
+  // Builder for accessing a (potentially immutable) object field.
+  Node* BuildLoadObjectField(Node* object, int offset);
   Node* BuildLoadImmutableObjectField(Node* object, int offset);
 
   // Builder for accessing type feedback vector.
   Node* BuildLoadFeedbackVector();
+
+  // Builder for loading the global object.
+  Node* BuildLoadGlobalObject();
+
+  // Builder for loading the a native context field.
+  Node* BuildLoadNativeContextField(int index);
 
   // Helper function for creating a pair containing type feedback vector and
   // a feedback slot.
@@ -91,9 +98,14 @@ class BytecodeGraphBuilder {
 
   void UpdateControlDependencyToLeaveFunction(Node* exit);
 
-  Node* ProcessCallArguments(const Operator* call_op,
-                             interpreter::Register callee,
+  Node* ProcessCallArguments(const Operator* call_op, Node* callee,
                              interpreter::Register receiver, size_t arity);
+  Node* ProcessCallNewArguments(const Operator* call_new_op,
+                                interpreter::Register callee,
+                                interpreter::Register first_arg, size_t arity);
+  Node* ProcessCallRuntimeArguments(const Operator* call_runtime_op,
+                                    interpreter::Register first_arg,
+                                    size_t arity);
 
   void BuildLoadGlobal(const interpreter::BytecodeArrayIterator& iterator,
                        TypeofMode typeof_mode);

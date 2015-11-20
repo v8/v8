@@ -400,7 +400,6 @@ TEST(LogicalExpressions) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-
   ExpectedSnippet<int> snippets[] = {
       {"var x = 0; return x || 3;",
        1 * kPointerSize,

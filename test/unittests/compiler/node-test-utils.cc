@@ -1805,12 +1805,13 @@ class IsJSStorePropertyMatcher final : public NodeMatcher {
 };
 
 
-class IsJSCallFunctionMatcher final : public NodeMatcher {
+class IsJSCallMatcher final : public NodeMatcher {
  public:
-  IsJSCallFunctionMatcher(const std::vector<Matcher<Node*>>& value_matchers,
-                          const Matcher<Node*>& effect_matcher,
-                          const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kJSCallFunction),
+  IsJSCallMatcher(IrOpcode::Value op_code,
+                  const std::vector<Matcher<Node*>>& value_matchers,
+                  const Matcher<Node*>& effect_matcher,
+                  const Matcher<Node*>& control_matcher)
+      : NodeMatcher(op_code),
         value_matchers_(value_matchers),
         effect_matcher_(effect_matcher),
         control_matcher_(control_matcher) {}
@@ -2472,11 +2473,21 @@ Matcher<Node*> IsJSStoreGlobal(const Handle<Name> name,
 }
 
 
+Matcher<Node*> IsJSCallConstruct(std::vector<Matcher<Node*>> value_matchers,
+                                 const Matcher<Node*>& effect_matcher,
+                                 const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsJSCallMatcher(IrOpcode::kJSCallConstruct,
+                                         value_matchers, effect_matcher,
+                                         control_matcher));
+}
+
+
 Matcher<Node*> IsJSCallFunction(std::vector<Matcher<Node*>> value_matchers,
                                 const Matcher<Node*>& effect_matcher,
                                 const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsJSCallFunctionMatcher(value_matchers, effect_matcher,
-                                                 control_matcher));
+  return MakeMatcher(new IsJSCallMatcher(IrOpcode::kJSCallFunction,
+                                         value_matchers, effect_matcher,
+                                         control_matcher));
 }
 
 
@@ -2513,6 +2524,16 @@ Matcher<Node*> IsJSStoreProperty(const Matcher<Node*>& object_matcher,
       object_matcher, key_matcher, value_matcher, feedback_vector_matcher,
       effect_matcher, control_matcher));
 }
+
+
+Matcher<Node*> IsJSCallRuntime(std::vector<Matcher<Node*>> value_matchers,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsJSCallMatcher(IrOpcode::kJSCallRuntime,
+                                         value_matchers, effect_matcher,
+                                         control_matcher));
+}
+
 
 #define IS_BINOP_MATCHER(Name)                                            \
   Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,              \

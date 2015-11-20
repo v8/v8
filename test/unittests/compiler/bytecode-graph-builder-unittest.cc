@@ -721,6 +721,92 @@ TEST_F(BytecodeGraphBuilderTest, KeyedStore) {
   }
 }
 
+
+TEST_F(BytecodeGraphBuilderTest, CallRuntime) {
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(2);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(3);
+
+  array_builder.LoadAccumulatorWithRegister(array_builder.Parameter(1))
+      .StoreAccumulatorInRegister(interpreter::Register(0))
+      .LoadAccumulatorWithRegister(array_builder.Parameter(2))
+      .StoreAccumulatorInRegister(interpreter::Register(1))
+      .CallRuntime(Runtime::kAdd, interpreter::Register(0), 2)
+      .Return();
+
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
+  Node* start = graph->start();
+  Node* ret = graph->end()->InputAt(0);
+  std::vector<Matcher<Node*>> call_inputs;
+  call_inputs.push_back(IsParameter(1));
+  call_inputs.push_back(IsParameter(2));
+  Matcher<Node*> call_js_runtime = IsJSCallRuntime(call_inputs, start, start);
+
+  EXPECT_THAT(ret, IsReturn(call_js_runtime, call_js_runtime, IsIfSuccess(_)));
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, CallJSRuntime) {
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(1);
+  array_builder.set_context_count(1);
+  array_builder.set_parameter_count(2);
+
+  // function f(arg) { return %spread_arguments(arg0); }
+  interpreter::Register reg0 = interpreter::Register(0);
+  array_builder.LoadAccumulatorWithRegister(array_builder.Parameter(1))
+      .StoreAccumulatorInRegister(reg0)
+      .CallJSRuntime(Context::SPREAD_ARGUMENTS_INDEX, reg0, 1)
+      .Return();
+
+  Graph* graph = GetCompletedGraph(array_builder.ToBytecodeArray());
+  Node* ret = graph->end()->InputAt(0);
+  Matcher<Node*> load_context =
+      IsLoadContext(ContextAccess(0, Context::SPREAD_ARGUMENTS_INDEX, true), _);
+  std::vector<Matcher<Node*>> call_inputs;
+  call_inputs.push_back(load_context);
+  call_inputs.push_back(IsParameter(1));
+  Matcher<Node*> call_js_function =
+      IsJSCallFunction(call_inputs, load_context, graph->start());
+
+  EXPECT_THAT(ret,
+              IsReturn(call_js_function, call_js_function, IsIfSuccess(_)));
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, New) {
+  interpreter::BytecodeArrayBuilder array_builder(isolate(), zone());
+  array_builder.set_locals_count(4);
+  array_builder.set_context_count(0);
+  array_builder.set_parameter_count(5);
+
+  array_builder.LoadAccumulatorWithRegister(array_builder.Parameter(1))
+      .StoreAccumulatorInRegister(interpreter::Register(0))
+      .LoadAccumulatorWithRegister(array_builder.Parameter(2))
+      .StoreAccumulatorInRegister(interpreter::Register(1))
+      .LoadAccumulatorWithRegister(array_builder.Parameter(3))
+      .StoreAccumulatorInRegister(interpreter::Register(2))
+      .LoadAccumulatorWithRegister(array_builder.Parameter(4))
+      .StoreAccumulatorInRegister(interpreter::Register(3))
+      .New(interpreter::Register(0), interpreter::Register(1), 3)
+      .Return();
+  auto bytecode_array = array_builder.ToBytecodeArray();
+  Graph* graph = GetCompletedGraph(bytecode_array);
+
+  Node* start = graph->start();
+  Node* ret = graph->end()->InputAt(0);
+  std::vector<Matcher<Node*>> construct_inputs;
+  construct_inputs.push_back(IsParameter(1));
+  construct_inputs.push_back(IsParameter(2));
+  construct_inputs.push_back(IsParameter(3));
+  construct_inputs.push_back(IsParameter(4));
+  construct_inputs.push_back(IsParameter(1));
+  Matcher<Node*> call_construct =
+      IsJSCallConstruct(construct_inputs, start, start);
+  EXPECT_THAT(ret, IsReturn(call_construct, call_construct, IsIfSuccess(_)));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
