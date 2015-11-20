@@ -368,9 +368,6 @@
   # https://code.google.com/p/v8/issues/detail?id=4361
   'intl402/Collator/10.1.1_a': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4362
-  'built-ins/String/prototype/repeat/empty-string-returns-empty': [PASS, FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4447
   'built-ins/Function/prototype/Symbol.hasInstance/*': [SKIP],
   'built-ins/Symbol/hasInstance/prop-desc': [FAIL],

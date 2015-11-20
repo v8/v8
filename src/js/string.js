@@ -843,15 +843,21 @@ function StringSup() {
   return "<sup>" + TO_STRING(this) + "</sup>";
 }
 
-// ES6 draft 01-20-14, section 21.1.3.13
+// ES6, section 21.1.3.13
 function StringRepeat(count) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.repeat");
 
   var s = TO_STRING(this);
   var n = TO_INTEGER(count);
+
+  if (n < 0 || n === INFINITY) throw MakeRangeError(kInvalidCountValue);
+
+  // Early return to allow an arbitrarily-large repeat of the empty string.
+  if (s.length === 0) return "";
+
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
-  if (n < 0 || n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
+  if (n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
 
   var r = "";
   while (true) {
