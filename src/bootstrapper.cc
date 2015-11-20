@@ -597,7 +597,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
 void Genesis::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
                                                   FunctionMode function_mode) {
-  int size = IsFunctionModeWithPrototype(function_mode) ? 5 : 4;
+  int size = IsFunctionModeWithPrototype(function_mode) ? 3 : 2;
   Map::EnsureDescriptorSlack(map, size);
 
   PropertyAttributes rw_attribs =
