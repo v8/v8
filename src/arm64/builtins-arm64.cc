@@ -431,48 +431,28 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         Label rt_call_reload_new_target;
         Register obj_size = x3;
         Register new_obj = x4;
+        Register next_obj = x10;
         __ Ldrb(obj_size, FieldMemOperand(init_map, Map::kInstanceSizeOffset));
-        __ Allocate(obj_size, new_obj, x10, x11, &rt_call_reload_new_target,
-                    SIZE_IN_WORDS);
+        __ Allocate(obj_size, new_obj, next_obj, x11,
+                    &rt_call_reload_new_target, SIZE_IN_WORDS);
 
         // Allocated the JSObject, now initialize the fields. Map is set to
         // initial map and properties and elements are set to empty fixed array.
         // NB. the object pointer is not tagged, so MemOperand is used.
-        Register empty = x5;
+        Register write_address = x5;
+        Register empty = x7;
+        __ Mov(write_address, new_obj);
         __ LoadRoot(empty, Heap::kEmptyFixedArrayRootIndex);
-        __ Str(init_map, MemOperand(new_obj, JSObject::kMapOffset));
-        STATIC_ASSERT(JSObject::kElementsOffset ==
-                      (JSObject::kPropertiesOffset + kPointerSize));
-        __ Stp(empty, empty, MemOperand(new_obj, JSObject::kPropertiesOffset));
-
-        Register first_prop = x5;
-        __ Add(first_prop, new_obj, JSObject::kHeaderSize);
+        STATIC_ASSERT(0 * kPointerSize == JSObject::kMapOffset);
+        __ Str(init_map, MemOperand(write_address, kPointerSize, PostIndex));
+        STATIC_ASSERT(1 * kPointerSize == JSObject::kPropertiesOffset);
+        STATIC_ASSERT(2 * kPointerSize == JSObject::kElementsOffset);
+        __ Stp(empty, empty,
+               MemOperand(write_address, 2 * kPointerSize, PostIndex));
 
         // Fill all of the in-object properties with the appropriate filler.
         Register filler = x7;
         __ LoadRoot(filler, Heap::kUndefinedValueRootIndex);
-
-        // Obtain number of pre-allocated property fields and in-object
-        // properties.
-        Register unused_props = x10;
-        Register inobject_props = x11;
-        Register inst_sizes_or_attrs = x11;
-        Register prealloc_fields = x10;
-        __ Ldr(inst_sizes_or_attrs,
-               FieldMemOperand(init_map, Map::kInstanceAttributesOffset));
-        __ Ubfx(unused_props, inst_sizes_or_attrs,
-                Map::kUnusedPropertyFieldsByte * kBitsPerByte, kBitsPerByte);
-        __ Ldr(inst_sizes_or_attrs,
-               FieldMemOperand(init_map, Map::kInstanceSizesOffset));
-        __ Ubfx(inobject_props, inst_sizes_or_attrs,
-                Map::kInObjectPropertiesOrConstructorFunctionIndexByte *
-                    kBitsPerByte,
-                kBitsPerByte);
-        __ Sub(prealloc_fields, inobject_props, unused_props);
-
-        // Calculate number of property fields in the object.
-        Register prop_fields = x6;
-        __ Sub(prop_fields, obj_size, JSObject::kHeaderSize / kPointerSize);
 
         if (!is_api_function) {
           Label no_inobject_slack_tracking;
@@ -482,33 +462,35 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           __ B(lt, &no_inobject_slack_tracking);
           constructon_count = NoReg;
 
-          // Fill the pre-allocated fields with undef.
-          __ FillFields(first_prop, prealloc_fields, filler);
+          // Allocate object with a slack.
+          Register unused_props = x11;
+          __ Ldr(unused_props,
+                 FieldMemOperand(init_map, Map::kInstanceAttributesOffset));
+          __ Ubfx(unused_props, unused_props,
+                  Map::kUnusedPropertyFieldsByte * kBitsPerByte, kBitsPerByte);
 
-          // Update first_prop register to be the offset of the first field
-          // after
-          // pre-allocated fields.
-          __ Add(first_prop, first_prop,
-                 Operand(prealloc_fields, LSL, kPointerSizeLog2));
+          Register end_of_pre_allocated = x11;
+          __ Sub(end_of_pre_allocated, next_obj,
+                 Operand(unused_props, LSL, kPointerSizeLog2));
+          unused_props = NoReg;
 
           if (FLAG_debug_code) {
-            Register obj_end = x14;
-            __ Add(obj_end, new_obj, Operand(obj_size, LSL, kPointerSizeLog2));
-            __ Cmp(first_prop, obj_end);
+            __ Cmp(write_address, end_of_pre_allocated);
             __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields);
           }
 
+          // Fill the pre-allocated fields with undef.
+          __ InitializeFieldsWithFiller(write_address, end_of_pre_allocated,
+                                        filler);
+
           // Fill the remaining fields with one pointer filler map.
           __ LoadRoot(filler, Heap::kOnePointerFillerMapRootIndex);
-          __ Sub(prop_fields, prop_fields, prealloc_fields);
 
           __ bind(&no_inobject_slack_tracking);
         }
 
         // Fill all of the property fields with undef.
-        __ FillFields(first_prop, prop_fields, filler);
-        first_prop = NoReg;
-        prop_fields = NoReg;
+        __ InitializeFieldsWithFiller(write_address, next_obj, filler);
 
         // Add the object tag to make the JSObject real, so that we can continue
         // and jump into the continuation code at any time from now on.

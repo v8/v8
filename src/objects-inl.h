@@ -2288,7 +2288,6 @@ Object* JSObject::InObjectPropertyAtPut(int index,
 }
 
 
-
 void JSObject::InitializeBody(Map* map,
                               Object* pre_allocated_value,
                               Object* filler_value) {
@@ -2299,10 +2298,10 @@ void JSObject::InitializeBody(Map* map,
   int size = map->instance_size();
   int offset = kHeaderSize;
   if (filler_value != pre_allocated_value) {
-    int pre_allocated =
-        map->GetInObjectProperties() - map->unused_property_fields();
-    DCHECK(pre_allocated * kPointerSize + kHeaderSize <= size);
-    for (int i = 0; i < pre_allocated; i++) {
+    int end_of_pre_allocated_offset =
+        size - (map->unused_property_fields() * kPointerSize);
+    DCHECK_LE(kHeaderSize, end_of_pre_allocated_offset);
+    while (offset < end_of_pre_allocated_offset) {
       WRITE_FIELD(this, offset, pre_allocated_value);
       offset += kPointerSize;
     }

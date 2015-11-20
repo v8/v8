@@ -1039,11 +1039,11 @@ class MacroAssembler : public Assembler {
   // MacroAssembler::TmpList().
   void CopyFields(Register dst, Register src, CPURegList temps, unsigned count);
 
-  // Starting at address in dst, initialize field_count 64-bit fields with
-  // 64-bit value in register filler. Register dst is corrupted.
-  void FillFields(Register dst,
-                  Register field_count,
-                  Register filler);
+  // Initialize fields with filler values.  Fields starting at |current_address|
+  // not including |end_address| are overwritten with the value in |filler|.  At
+  // the end the loop, |current_address| takes the value of |end_address|.
+  void InitializeFieldsWithFiller(Register current_address,
+                                  Register end_address, Register filler);
 
   // Copies a number of bytes from src to dst. All passed registers are
   // clobbered. On exit src and dst will point to the place just after where the
@@ -1296,12 +1296,8 @@ class MacroAssembler : public Assembler {
   // If the new space is exhausted control continues at the gc_required label.
   // In this case, the result and scratch registers may still be clobbered.
   // If flags includes TAG_OBJECT, the result is tagged as as a heap object.
-  void Allocate(Register object_size,
-                Register result,
-                Register scratch1,
-                Register scratch2,
-                Label* gc_required,
-                AllocationFlags flags);
+  void Allocate(Register object_size, Register result, Register result_end,
+                Register scratch, Label* gc_required, AllocationFlags flags);
 
   void Allocate(int object_size,
                 Register result,

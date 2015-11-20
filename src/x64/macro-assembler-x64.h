@@ -1474,12 +1474,11 @@ class MacroAssembler: public Assembler {
                  int min_length = 0,
                  Register scratch = kScratchRegister);
 
-  // Initialize fields with filler values.  Fields starting at |start_offset|
-  // not including end_offset are overwritten with the value in |filler|.  At
-  // the end the loop, |start_offset| takes the value of |end_offset|.
-  void InitializeFieldsWithFiller(Register start_offset,
-                                  Register end_offset,
-                                  Register filler);
+  // Initialize fields with filler values.  Fields starting at |current_address|
+  // not including |end_address| are overwritten with the value in |filler|.  At
+  // the end the loop, |current_address| takes the value of |end_address|.
+  void InitializeFieldsWithFiller(Register current_address,
+                                  Register end_address, Register filler);
 
 
   // Emit code for a truncating division by a constant. The dividend register is

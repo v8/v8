@@ -241,18 +241,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           __ j(less, &no_inobject_slack_tracking);
 
           // Allocate object with a slack.
-          __ movzx_b(
-              esi,
-              FieldOperand(
-                  eax,
-                  Map::kInObjectPropertiesOrConstructorFunctionIndexOffset));
-          __ movzx_b(eax, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
-          __ sub(esi, eax);
-          __ lea(esi,
-                 Operand(ebx, esi, times_pointer_size, JSObject::kHeaderSize));
+          __ movzx_b(esi, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
+          __ neg(esi);
+          __ lea(esi, Operand(edi, esi, times_pointer_size, 0));
           // esi: offset of first field after pre-allocated fields
           if (FLAG_debug_code) {
-            __ cmp(esi, edi);
+            __ cmp(ecx, esi);
             __ Assert(less_equal,
                       kUnexpectedNumberOfPreAllocatedPropertyFields);
           }

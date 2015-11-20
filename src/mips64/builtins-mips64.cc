@@ -434,7 +434,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         Label rt_call_reload_new_target;
         __ lbu(a3, FieldMemOperand(a2, Map::kInstanceSizeOffset));
 
-        __ Allocate(a3, t0, t1, t2, &rt_call_reload_new_target, SIZE_IN_WORDS);
+        __ Allocate(a3, t0, a4, t2, &rt_call_reload_new_target, SIZE_IN_WORDS);
 
         // Allocated the JSObject, now initialize the fields. Map is set to
         // initial map and properties and elements are set to empty fixed array.
@@ -442,21 +442,23 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         // a2: initial map
         // a3: object size
         // t0: JSObject (not tagged)
+        // a4: start of next object
         __ LoadRoot(t2, Heap::kEmptyFixedArrayRootIndex);
         __ mov(t1, t0);
+        STATIC_ASSERT(0 * kPointerSize == JSObject::kMapOffset);
         __ sd(a2, MemOperand(t1, JSObject::kMapOffset));
+        STATIC_ASSERT(1 * kPointerSize == JSObject::kPropertiesOffset);
         __ sd(t2, MemOperand(t1, JSObject::kPropertiesOffset));
+        STATIC_ASSERT(2 * kPointerSize == JSObject::kElementsOffset);
         __ sd(t2, MemOperand(t1, JSObject::kElementsOffset));
         __ Daddu(t1, t1, Operand(3 * kPointerSize));
-        DCHECK_EQ(0 * kPointerSize, JSObject::kMapOffset);
-        DCHECK_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
-        DCHECK_EQ(2 * kPointerSize, JSObject::kElementsOffset);
 
         // Fill all the in-object properties with appropriate filler.
         // a1: constructor function
         // a2: initial map
         // a3: object size (in words)
         // t0: JSObject (not tagged)
+        // a4: start of next object
         // t1: First in-object property of JSObject (not tagged)
         // a6: slack tracking counter (non-API function case)
         DCHECK_EQ(3 * kPointerSize, JSObject::kHeaderSize);
@@ -473,20 +475,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
               Operand(static_cast<int64_t>(Map::kSlackTrackingCounterEnd)));
 
           // Allocate object with a slack.
-          __ lbu(a0,
-                 FieldMemOperand(
-                     a2,
-                     Map::kInObjectPropertiesOrConstructorFunctionIndexOffset));
-          __ lbu(a2, FieldMemOperand(a2, Map::kUnusedPropertyFieldsOffset));
-          __ dsubu(a0, a0, a2);
-          __ dsll(at, a0, kPointerSizeLog2);
-          __ daddu(a0, t1, at);
+          __ lbu(a0, FieldMemOperand(a2, Map::kUnusedPropertyFieldsOffset));
+          __ dsll(a0, a0, kPointerSizeLog2);
+          __ dsubu(a0, a4, a0);
           // a0: offset of first field after pre-allocated fields
           if (FLAG_debug_code) {
-            __ dsll(at, a3, kPointerSizeLog2);
-            __ Daddu(t2, t0, Operand(at));  // End of object.
-            __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields, a0,
-                      Operand(t2));
+            __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields, t1,
+                      Operand(a0));
           }
           __ InitializeFieldsWithFiller(t1, a0, t3);
           // To allow for truncation.
@@ -496,9 +491,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           __ bind(&no_inobject_slack_tracking);
         }
 
-        __ dsll(at, a3, kPointerSizeLog2);
-        __ Daddu(a0, t0, Operand(at));  // End of object.
-        __ InitializeFieldsWithFiller(t1, a0, t3);
+        __ InitializeFieldsWithFiller(t1, a4, t3);
 
         // Add the object tag to make the JSObject real, so that we can continue
         // and jump into the continuation code at any time from now on.

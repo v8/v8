@@ -3534,28 +3534,25 @@ void MacroAssembler::Allocate(int object_size,
 }
 
 
-void MacroAssembler::Allocate(Register object_size,
-                              Register result,
-                              Register scratch1,
-                              Register scratch2,
-                              Label* gc_required,
-                              AllocationFlags flags) {
+void MacroAssembler::Allocate(Register object_size, Register result,
+                              Register result_end, Register scratch,
+                              Label* gc_required, AllocationFlags flags) {
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       li(result, 0x7091);
-      li(scratch1, 0x7191);
-      li(scratch2, 0x7291);
+      li(scratch, 0x7191);
+      li(result_end, 0x7291);
     }
     jmp(gc_required);
     return;
   }
 
-  DCHECK(!result.is(scratch1));
-  DCHECK(!result.is(scratch2));
-  DCHECK(!scratch1.is(scratch2));
+  DCHECK(!result.is(scratch));
+  DCHECK(!result.is(result_end));
+  DCHECK(!scratch.is(result_end));
   DCHECK(!object_size.is(t9));
-  DCHECK(!scratch1.is(t9) && !scratch2.is(t9) && !result.is(t9));
+  DCHECK(!scratch.is(t9) && !result_end.is(t9) && !result.is(t9));
 
   // Check relative positions of allocation top and limit addresses.
   // ARM adds additional checks to make sure the ldm instruction can be
@@ -3571,7 +3568,7 @@ void MacroAssembler::Allocate(Register object_size,
   DCHECK((limit - top) == kPointerSize);
 
   // Set up allocation top address and object size registers.
-  Register topaddr = scratch1;
+  Register topaddr = scratch;
   li(topaddr, Operand(allocation_top));
 
   // This code stores a temporary value in t9.
@@ -3601,19 +3598,19 @@ void MacroAssembler::Allocate(Register object_size,
   // to calculate the new top. Object size may be in words so a shift is
   // required to get the number of bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
-    dsll(scratch2, object_size, kPointerSizeLog2);
-    Daddu(scratch2, result, scratch2);
+    dsll(result_end, object_size, kPointerSizeLog2);
+    Daddu(result_end, result, result_end);
   } else {
-    Daddu(scratch2, result, Operand(object_size));
+    Daddu(result_end, result, Operand(object_size));
   }
-  Branch(gc_required, Ugreater, scratch2, Operand(t9));
+  Branch(gc_required, Ugreater, result_end, Operand(t9));
 
   // Update allocation top. result temporarily holds the new top.
   if (emit_debug_code()) {
-    And(t9, scratch2, Operand(kObjectAlignmentMask));
+    And(t9, result_end, Operand(kObjectAlignmentMask));
     Check(eq, kUnalignedAllocationInNewSpace, t9, Operand(zero_reg));
   }
-  sd(scratch2, MemOperand(topaddr));
+  sd(result_end, MemOperand(topaddr));
 
   // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
@@ -3899,16 +3896,16 @@ void MacroAssembler::CopyBytes(Register src,
 }
 
 
-void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
-                                                Register end_offset,
+void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
+                                                Register end_address,
                                                 Register filler) {
   Label loop, entry;
   Branch(&entry);
   bind(&loop);
-  sd(filler, MemOperand(start_offset));
-  Daddu(start_offset, start_offset, kPointerSize);
+  sd(filler, MemOperand(current_address));
+  Daddu(current_address, current_address, kPointerSize);
   bind(&entry);
-  Branch(&loop, ult, start_offset, Operand(end_offset));
+  Branch(&loop, ult, current_address, Operand(end_address));
 }
 
 

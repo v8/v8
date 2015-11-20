@@ -1751,18 +1751,15 @@ void MacroAssembler::Allocate(int object_size,
 }
 
 
-void MacroAssembler::Allocate(Register object_size,
-                              Register result,
-                              Register scratch1,
-                              Register scratch2,
-                              Label* gc_required,
-                              AllocationFlags flags) {
+void MacroAssembler::Allocate(Register object_size, Register result,
+                              Register result_end, Register scratch,
+                              Label* gc_required, AllocationFlags flags) {
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       mov(result, Operand(0x7091));
-      mov(scratch1, Operand(0x7191));
-      mov(scratch2, Operand(0x7291));
+      mov(scratch, Operand(0x7191));
+      mov(result_end, Operand(0x7291));
     }
     jmp(gc_required);
     return;
@@ -1770,13 +1767,13 @@ void MacroAssembler::Allocate(Register object_size,
 
   // Assert that the register arguments are different and that none of
   // them are ip. ip is used explicitly in the code generated below.
-  DCHECK(!result.is(scratch1));
-  DCHECK(!result.is(scratch2));
-  DCHECK(!scratch1.is(scratch2));
+  DCHECK(!result.is(scratch));
+  DCHECK(!result.is(result_end));
+  DCHECK(!scratch.is(result_end));
   DCHECK(!object_size.is(ip));
   DCHECK(!result.is(ip));
-  DCHECK(!scratch1.is(ip));
-  DCHECK(!scratch2.is(ip));
+  DCHECK(!scratch.is(ip));
+  DCHECK(!result_end.is(ip));
 
   // Check relative positions of allocation top and limit addresses.
   // The values must be adjacent in memory to allow the use of LDM.
@@ -1794,7 +1791,7 @@ void MacroAssembler::Allocate(Register object_size,
   DCHECK(result.code() < ip.code());
 
   // Set up allocation top address.
-  Register topaddr = scratch1;
+  Register topaddr = scratch;
   mov(topaddr, Operand(allocation_top));
 
   // This code stores a temporary value in ip. This is OK, as the code below
@@ -1819,15 +1816,15 @@ void MacroAssembler::Allocate(Register object_size,
     // Align the next allocation. Storing the filler map without checking top is
     // safe in new-space because the limit of the heap is aligned there.
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
-    and_(scratch2, result, Operand(kDoubleAlignmentMask), SetCC);
+    and_(result_end, result, Operand(kDoubleAlignmentMask), SetCC);
     Label aligned;
     b(eq, &aligned);
     if ((flags & PRETENURE) != 0) {
       cmp(result, Operand(ip));
       b(hs, gc_required);
     }
-    mov(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
-    str(scratch2, MemOperand(result, kDoubleSize / 2, PostIndex));
+    mov(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
+    str(result_end, MemOperand(result, kDoubleSize / 2, PostIndex));
     bind(&aligned);
   }
 
@@ -1835,20 +1832,20 @@ void MacroAssembler::Allocate(Register object_size,
   // to calculate the new top. Object size may be in words so a shift is
   // required to get the number of bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
-    add(scratch2, result, Operand(object_size, LSL, kPointerSizeLog2), SetCC);
+    add(result_end, result, Operand(object_size, LSL, kPointerSizeLog2), SetCC);
   } else {
-    add(scratch2, result, Operand(object_size), SetCC);
+    add(result_end, result, Operand(object_size), SetCC);
   }
   b(cs, gc_required);
-  cmp(scratch2, Operand(ip));
+  cmp(result_end, Operand(ip));
   b(hi, gc_required);
 
   // Update allocation top. result temporarily holds the new top.
   if (emit_debug_code()) {
-    tst(scratch2, Operand(kObjectAlignmentMask));
+    tst(result_end, Operand(kObjectAlignmentMask));
     Check(eq, kUnalignedAllocationInNewSpace);
   }
-  str(scratch2, MemOperand(topaddr));
+  str(result_end, MemOperand(topaddr));
 
   // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
@@ -3013,15 +3010,15 @@ void MacroAssembler::CopyBytes(Register src,
 }
 
 
-void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
-                                                Register end_offset,
+void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
+                                                Register end_address,
                                                 Register filler) {
   Label loop, entry;
   b(&entry);
   bind(&loop);
-  str(filler, MemOperand(start_offset, kPointerSize, PostIndex));
+  str(filler, MemOperand(current_address, kPointerSize, PostIndex));
   bind(&entry);
-  cmp(start_offset, end_offset);
+  cmp(current_address, end_address);
   b(lo, &loop);
 }
 
