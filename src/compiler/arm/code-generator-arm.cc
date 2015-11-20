@@ -355,14 +355,27 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 
 
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int stack_slots = frame()->GetSpillSlotCount();
-  if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    __ LeaveFrame(StackFrame::MANUAL);
+  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
+  if (sp_slot_delta > 0) {
+    __ add(sp, sp, Operand(sp_slot_delta * kPointerSize));
   }
-  if (stack_param_delta < 0) {
-    int offset = -stack_param_delta * kPointerSize;
-    __ add(sp, sp, Operand(offset));
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int spill_slots = frame()->GetSpillSlotCount();
+  bool has_frame = descriptor->IsJSFunctionCall() || spill_slots > 0;
+  if (has_frame) {
+    if (FLAG_enable_embedded_constant_pool) {
+      __ ldm(ia_w, sp, pp.bit() | fp.bit() | lr.bit());
+    } else {
+      __ ldm(ia_w, sp, fp.bit() | lr.bit());
+    }
+  }
+}
+
+
+void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
+  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
+  if (sp_slot_delta < 0) {
+    __ sub(sp, sp, Operand(-sp_slot_delta * kPointerSize));
   }
 }
 
@@ -442,6 +455,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ PrepareCallCFunction(num_parameters, kScratchReg);
       break;
     }
+    case kArchPrepareTailCall:
+      AssemblePrepareTailCall(i.InputInt32(instr->InputCount() - 1));
+      break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       if (instr->InputAt(0)->IsImmediate()) {

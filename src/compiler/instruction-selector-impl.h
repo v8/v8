@@ -128,9 +128,15 @@ class OperandGenerator {
                                   reg.code(), GetVReg(node)));
   }
 
-  InstructionOperand UseExplicit(Register reg) {
+  InstructionOperand UseExplicit(LinkageLocation location) {
     MachineType machine_type = InstructionSequence::DefaultRepresentation();
-    return ExplicitOperand(LocationOperand::REGISTER, machine_type, reg.code());
+    if (location.IsRegister()) {
+      return ExplicitOperand(LocationOperand::REGISTER, machine_type,
+                             location.AsRegister());
+    } else {
+      return ExplicitOperand(LocationOperand::STACK_SLOT, machine_type,
+                             location.GetLocation());
+    }
   }
 
   InstructionOperand UseImmediate(Node* node) {
@@ -140,6 +146,18 @@ class OperandGenerator {
   InstructionOperand UseLocation(Node* node, LinkageLocation location,
                                  MachineType type) {
     return Use(node, ToUnallocatedOperand(location, type, GetVReg(node)));
+  }
+
+  // Used to force gap moves from the from_location to the to_location
+  // immediately before an instruction.
+  InstructionOperand UsePointerLocation(LinkageLocation to_location,
+                                        LinkageLocation from_location) {
+    MachineType type = static_cast<MachineType>(kTypeAny | kMachPtr);
+    UnallocatedOperand casted_from_operand =
+        UnallocatedOperand::cast(TempLocation(from_location, type));
+    selector_->Emit(kArchNop, casted_from_operand);
+    return ToUnallocatedOperand(to_location, type,
+                                casted_from_operand.virtual_register());
   }
 
   InstructionOperand TempRegister() {

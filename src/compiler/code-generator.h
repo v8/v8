@@ -96,6 +96,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Generates code to deconstruct a the caller's frame, including arguments.
   void AssembleDeconstructActivationRecord(int stack_param_delta);
 
+  // Generates code to manipulate the stack in preparation for a tail call.
+  void AssemblePrepareTailCall(int stack_param_delta);
+
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
   // ===========================================================================
@@ -139,6 +142,12 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AddNopForSmiCodeInlining();
   void EnsureSpaceForLazyDeopt();
   void MarkLazyDeoptSite();
+
+  // Converts the delta in the number of stack parameter passed from a tail
+  // caller to the callee into the distance (in pointers) the SP must be
+  // adjusted, taking frame elision and other relevant factors into
+  // consideration.
+  int TailCallFrameStackSlotDelta(int stack_param_delta);
 
   // ===========================================================================
 

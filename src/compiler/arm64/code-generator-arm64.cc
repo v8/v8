@@ -458,15 +458,24 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 
 
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
+  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
+  if (sp_slot_delta > 0) {
+    __ Add(jssp, jssp, Operand(sp_slot_delta * kPointerSize));
+  }
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int stack_slots = frame()->GetSpillSlotCount();
-  if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    __ Mov(jssp, fp);
+  int spill_slots = frame()->GetSpillSlotCount();
+  bool has_frame = descriptor->IsJSFunctionCall() || spill_slots > 0;
+  if (has_frame) {
     __ Pop(fp, lr);
   }
-  if (stack_param_delta < 0) {
-    int offset = -stack_param_delta * kPointerSize;
-    __ Add(jssp, jssp, Operand(offset));
+}
+
+
+void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
+  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
+  if (sp_slot_delta < 0) {
+    __ Sub(jssp, jssp, Operand(-sp_slot_delta * kPointerSize));
+    frame()->AllocateOutgoingParameterSlots(-sp_slot_delta);
   }
 }
 
@@ -548,6 +557,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       // selector already perform a Claim to reserve space on the stack and
       // guarantee correct alignment of stack pointer.
       UNREACHABLE();
+      break;
+    case kArchPrepareTailCall:
+      AssemblePrepareTailCall(i.InputInt32(instr->InputCount() - 1));
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());

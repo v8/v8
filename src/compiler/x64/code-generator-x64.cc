@@ -574,18 +574,23 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
 
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
+  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
+  if (sp_slot_delta > 0) {
+    __ addq(rsp, Immediate(sp_slot_delta * kPointerSize));
+  }
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int stack_slots = frame()->GetSpillSlotCount();
-  if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    __ movq(rsp, rbp);
+  int spill_slots = frame()->GetSpillSlotCount();
+  bool has_frame = descriptor->IsJSFunctionCall() || spill_slots > 0;
+  if (has_frame) {
     __ popq(rbp);
   }
-  if (stack_param_delta < 0) {
-    int offset = -(stack_param_delta + 1) * kPointerSize;
-    __ popq(Operand(rsp, offset));
-    if (offset != 0) {
-      __ addq(rsp, Immediate(offset));
-    }
+}
+
+
+void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
+  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
+  if (sp_slot_delta < 0) {
+    __ subq(rsp, Immediate(-sp_slot_delta * kPointerSize));
   }
 }
 
@@ -655,6 +660,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ PrepareCallCFunction(num_parameters);
       break;
     }
+    case kArchPrepareTailCall:
+      AssemblePrepareTailCall(i.InputInt32(instr->InputCount() - 1));
+      break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       if (HasImmediateInput(instr, 0)) {

@@ -669,6 +669,22 @@ void CodeGenerator::MarkLazyDeoptSite() {
 }
 
 
+int CodeGenerator::TailCallFrameStackSlotDelta(int stack_param_delta) {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int spill_slots = frame()->GetSpillSlotCount();
+  bool has_frame = descriptor->IsJSFunctionCall() || spill_slots > 0;
+  // Leave the PC and saved frame pointer on the stack.
+  int sp_slot_delta =
+      has_frame
+          ? (frame()->GetTotalFrameSlotCount() -
+             (StandardFrameConstants::kFixedFrameSizeFromFp / kPointerSize))
+          : 0;
+  // Discard only slots that won't be used by new parameters.
+  sp_slot_delta += stack_param_delta;
+  return sp_slot_delta;
+}
+
+
 OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
     : frame_(gen->frame()), masm_(gen->masm()), next_(gen->ools_) {
   gen->ools_ = this;

@@ -507,6 +507,40 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
   DCHECK_EQ(input_count, buffer->instruction_args.size() + pushed_count -
                              buffer->frame_state_value_count());
+  if (call_tail && stack_param_delta != 0) {
+    // For tail calls that change the size of their parameter list, move the
+    // saved caller return address, parent frame pointer and parent constant
+    // pool pointer to just above the parameters.
+
+    // Return address
+    LinkageLocation saved_return_location =
+        LinkageLocation::ForSavedCallerReturnAddress();
+    InstructionOperand return_address =
+        g.UsePointerLocation(LinkageLocation::ConvertToTailCallerLocation(
+                                 saved_return_location, stack_param_delta),
+                             saved_return_location);
+    buffer->instruction_args.push_back(return_address);
+
+    // Parent frame pointer
+    LinkageLocation saved_frame_location =
+        LinkageLocation::ForSavedCallerFramePtr();
+    InstructionOperand saved_frame =
+        g.UsePointerLocation(LinkageLocation::ConvertToTailCallerLocation(
+                                 saved_frame_location, stack_param_delta),
+                             saved_frame_location);
+    buffer->instruction_args.push_back(saved_frame);
+
+    if (V8_EMBEDDED_CONSTANT_POOL) {
+      // Constant pool pointer
+      LinkageLocation saved_cp_location =
+          LinkageLocation::ForSavedCallerConstantPool();
+      InstructionOperand saved_cp =
+          g.UsePointerLocation(LinkageLocation::ConvertToTailCallerLocation(
+                                   saved_cp_location, stack_param_delta),
+                               saved_cp_location);
+      buffer->instruction_args.push_back(saved_cp);
+    }
+  }
 }
 
 
@@ -1293,6 +1327,9 @@ void InstructionSelector::VisitTailCall(Node* node) {
     opcode |= MiscField::encode(descriptor->flags());
 
     buffer.instruction_args.push_back(g.TempImmediate(stack_param_delta));
+
+    Emit(kArchPrepareTailCall, g.NoOutput(),
+         g.TempImmediate(stack_param_delta));
 
     // Emit the tailcall instruction.
     Emit(opcode, 0, nullptr, buffer.instruction_args.size(),

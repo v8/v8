@@ -91,10 +91,7 @@ bool CallDescriptor::HasSameReturnLocationsAs(
 
 bool CallDescriptor::CanTailCall(const Node* node,
                                  int* stack_param_delta) const {
-  // TODO(danno): TF only current supports tail calls where the number of stack
-  // parameters of the callee is the same or fewer of the caller.
   CallDescriptor const* other = OpParameter<CallDescriptor const*>(node);
-  if (!HasSameReturnLocationsAs(other)) return false;
   size_t current_input = 0;
   size_t other_input = 0;
   *stack_param_delta = 0;
@@ -103,14 +100,14 @@ bool CallDescriptor::CanTailCall(const Node* node,
   while (more_other || more_this) {
     if (other_input < other->InputCount()) {
       if (!other->GetInputLocation(other_input).IsRegister()) {
-        (*stack_param_delta)++;
+        (*stack_param_delta)--;
       }
     } else {
       more_other = false;
     }
     if (current_input < InputCount()) {
       if (!GetInputLocation(current_input).IsRegister()) {
-        (*stack_param_delta)--;
+        (*stack_param_delta)++;
       }
     } else {
       more_this = false;
@@ -118,7 +115,7 @@ bool CallDescriptor::CanTailCall(const Node* node,
     ++current_input;
     ++other_input;
   }
-  return *stack_param_delta <= 0;
+  return HasSameReturnLocationsAs(OpParameter<CallDescriptor const*>(node));
 }
 
 

@@ -57,11 +57,30 @@ class LinkageLocation {
     return LinkageLocation(STACK_SLOT, slot);
   }
 
+  static LinkageLocation ForSavedCallerReturnAddress() {
+    return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
+                               StandardFrameConstants::kCallerPCOffset) /
+                              kPointerSize);
+  }
+
+  static LinkageLocation ForSavedCallerFramePtr() {
+    return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
+                               StandardFrameConstants::kCallerFPOffset) /
+                              kPointerSize);
+  }
+
+  static LinkageLocation ForSavedCallerConstantPool() {
+    DCHECK(V8_EMBEDDED_CONSTANT_POOL);
+    return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
+                               StandardFrameConstants::kConstantPoolOffset) /
+                              kPointerSize);
+  }
+
   static LinkageLocation ConvertToTailCallerLocation(
       LinkageLocation caller_location, int stack_param_delta) {
     if (!caller_location.IsRegister()) {
       return LinkageLocation(STACK_SLOT,
-                             caller_location.GetLocation() + stack_param_delta);
+                             caller_location.GetLocation() - stack_param_delta);
     }
     return caller_location;
   }
