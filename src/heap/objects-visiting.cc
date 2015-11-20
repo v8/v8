@@ -79,14 +79,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case WEAK_CELL_TYPE:
       return kVisitWeakCell;
 
-    case JS_SET_TYPE:
-      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSSet::kSize, has_unboxed_fields);
-
-    case JS_MAP_TYPE:
-      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSMap::kSize, has_unboxed_fields);
-
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
       return kVisitJSWeakCollection;
@@ -97,23 +89,15 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case SHARED_FUNCTION_INFO_TYPE:
       return kVisitSharedFunctionInfo;
 
+    case JS_SET_TYPE:
+    case JS_MAP_TYPE:
     case JS_PROXY_TYPE:
-      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSProxy::kSize, has_unboxed_fields);
-
     case JS_FUNCTION_PROXY_TYPE:
       return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSFunctionProxy::kSize, has_unboxed_fields);
-
-    case FOREIGN_TYPE:
-      return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
-                                 Foreign::kSize, has_unboxed_fields);
+                                 instance_size, has_unboxed_fields);
 
     case SYMBOL_TYPE:
       return kVisitSymbol;
-
-    case FILLER_TYPE:
-      return kVisitDataObjectGeneric;
 
     case JS_ARRAY_BUFFER_TYPE:
       return kVisitJSArrayBuffer;
@@ -144,6 +128,10 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_FUNCTION_TYPE:
       return kVisitJSFunction;
 
+    case FILLER_TYPE:
+      if (instance_size == kPointerSize) return kVisitDataObjectGeneric;
+    // Fall through.
+    case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case SIMD128_VALUE_TYPE:

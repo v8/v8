@@ -11944,6 +11944,76 @@ void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
 }
 
 
+namespace {
+
+bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
+  switch (instance_type) {
+    case JS_OBJECT_TYPE:
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case JS_GENERATOR_OBJECT_TYPE:
+    case JS_MODULE_TYPE:
+    case JS_VALUE_TYPE:
+    case JS_DATE_TYPE:
+    case JS_ARRAY_TYPE:
+    case JS_MESSAGE_OBJECT_TYPE:
+    case JS_SET_ITERATOR_TYPE:
+    case JS_MAP_ITERATOR_TYPE:
+    case JS_ITERATOR_RESULT_TYPE:
+    case JS_PROMISE_TYPE:
+      return true;
+
+    case JS_TYPED_ARRAY_TYPE:
+    case JS_DATA_VIEW_TYPE:
+    case JS_REGEXP_TYPE:
+    case JS_SET_TYPE:
+    case JS_MAP_TYPE:
+    case JS_PROXY_TYPE:
+    case JS_FUNCTION_PROXY_TYPE:
+    case JS_WEAK_MAP_TYPE:
+    case JS_WEAK_SET_TYPE:
+    case JS_ARRAY_BUFFER_TYPE:
+    case JS_FUNCTION_TYPE:
+      return false;
+
+    case JS_GLOBAL_PROXY_TYPE:
+    case JS_GLOBAL_OBJECT_TYPE:
+    case FIXED_ARRAY_TYPE:
+    case FIXED_DOUBLE_ARRAY_TYPE:
+    case ODDBALL_TYPE:
+    case FOREIGN_TYPE:
+    case MAP_TYPE:
+    case CODE_TYPE:
+    case CELL_TYPE:
+    case PROPERTY_CELL_TYPE:
+    case WEAK_CELL_TYPE:
+    case SYMBOL_TYPE:
+    case BYTECODE_ARRAY_TYPE:
+    case HEAP_NUMBER_TYPE:
+    case MUTABLE_HEAP_NUMBER_TYPE:
+    case SIMD128_VALUE_TYPE:
+    case FILLER_TYPE:
+    case BYTE_ARRAY_TYPE:
+    case FREE_SPACE_TYPE:
+    case SHARED_FUNCTION_INFO_TYPE:
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case FIXED_##TYPE##_ARRAY_TYPE:
+#undef TYPED_ARRAY_CASE
+
+#define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE:
+      STRUCT_LIST(MAKE_STRUCT_CASE)
+#undef MAKE_STRUCT_CASE
+      // We must not end up here for these instance types at all.
+      UNREACHABLE();
+    // Fall through.
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
+
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
@@ -12018,25 +12088,27 @@ Handle<Map> JSFunction::EnsureDerivedHasInitialMap(
   // Finally link initial map and constructor function if the original
   // constructor is actually a subclass constructor.
   if (IsSubclassConstructor(new_target->shared()->kind())) {
-// TODO(ishell): v8:4531, allow ES6 built-ins subclasses to have
-// in-object properties.
-#if 0
+    // TODO(ishell): v8:4531, allow ES6 built-ins subclasses to have
+    // in-object properties.
     InstanceType instance_type = constructor_initial_map->instance_type();
-    int internal_fields =
-        JSObject::GetInternalFieldCount(*constructor_initial_map);
-    int pre_allocated = constructor_initial_map->GetInObjectProperties() -
-                            constructor_initial_map->unused_property_fields();
-    int instance_size;
-    int in_object_properties;
-    new_target->CalculateInstanceSizeForDerivedClass(
-        instance_type, internal_fields, &instance_size, &in_object_properties);
+    Handle<Map> map;
+    if (CanSubclassHaveInobjectProperties(instance_type)) {
+      int internal_fields =
+          JSObject::GetInternalFieldCount(*constructor_initial_map);
+      int pre_allocated = constructor_initial_map->GetInObjectProperties() -
+                          constructor_initial_map->unused_property_fields();
+      int instance_size;
+      int in_object_properties;
+      new_target->CalculateInstanceSizeForDerivedClass(
+          instance_type, internal_fields, &instance_size,
+          &in_object_properties);
 
-    int unused_property_fields = in_object_properties - pre_allocated;
-    Handle<Map> map =
-        Map::CopyInitialMap(constructor_initial_map, instance_size,
-                            in_object_properties, unused_property_fields);
-#endif
-    Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
+      int unused_property_fields = in_object_properties - pre_allocated;
+      map = Map::CopyInitialMap(constructor_initial_map, instance_size,
+                                in_object_properties, unused_property_fields);
+    } else {
+      map = Map::CopyInitialMap(constructor_initial_map);
+    }
 
     JSFunction::SetInitialMap(new_target, map, prototype);
     map->SetConstructor(*constructor);
