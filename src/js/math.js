@@ -14,7 +14,7 @@ var GlobalMath = global.Math;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var NaN = %GetRootNaN();
-var rngstate;
+var rngstate = { a: 1, b: 2, c: 3, d: 4 };
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.InitializeRNG = function() {
