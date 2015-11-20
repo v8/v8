@@ -25,6 +25,7 @@ namespace compiler {
   V(MipsModU)                      \
   V(MipsAnd)                       \
   V(MipsOr)                        \
+  V(MipsNor)                       \
   V(MipsXor)                       \
   V(MipsClz)                       \
   V(MipsShl)                       \

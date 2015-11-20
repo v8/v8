@@ -640,6 +640,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMipsOr:
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
+    case kMipsNor:
+      __ Nor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
     case kMipsXor:
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;

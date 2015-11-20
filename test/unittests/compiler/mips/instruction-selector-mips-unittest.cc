@@ -362,6 +362,30 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorLogicalTest,
                         ::testing::ValuesIn(kLogicalInstructions));
 
 
+TEST_F(InstructionSelectorTest, Word32XorMinusOneWithWord32Or) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Word32Xor(m.Word32Or(m.Parameter(0), m.Parameter(0)),
+                         m.Int32Constant(-1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMipsNor, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Word32Xor(m.Int32Constant(-1),
+                         m.Word32Or(m.Parameter(0), m.Parameter(0))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMipsNor, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
 TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
   // The available shift operand range is `0 <= imm < 32`, but we also test
   // that immediates outside this range are handled properly (modulo-32).

@@ -294,6 +294,18 @@ void InstructionSelector::VisitWord32Or(Node* node) {
 
 
 void InstructionSelector::VisitWord32Xor(Node* node) {
+  Int32BinopMatcher m(node);
+  if (m.left().IsWord32Or() && CanCover(node, m.left().node()) &&
+      m.right().Is(-1)) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (!mleft.right().HasValue()) {
+      MipsOperandGenerator g(this);
+      Emit(kMipsNor, g.DefineAsRegister(node),
+           g.UseRegister(mleft.left().node()),
+           g.UseRegister(mleft.right().node()));
+      return;
+    }
+  }
   VisitBinop(this, node, kMipsXor);
 }
 
