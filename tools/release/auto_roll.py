@@ -13,31 +13,6 @@ from common_includes import *
 import chromium_roll
 
 
-class CheckActiveRoll(Step):
-  MESSAGE = "Check active roll."
-
-  @staticmethod
-  def ContainsChromiumRoll(changes):
-    for change in changes:
-      if change["subject"].startswith("Update V8 to"):
-        return True
-    return False
-
-  def RunStep(self):
-    params = {
-      "closed": 3,
-      "owner": self._options.author,
-      "limit": 30,
-      "format": "json",
-    }
-    params = urllib.urlencode(params)
-    search_url = "https://codereview.chromium.org/search"
-    result = self.ReadURL(search_url, params, wait_plan=[5, 20])
-    if self.ContainsChromiumRoll(json.loads(result)["results"]):
-      print "Stop due to existing Chromium roll."
-      return True
-
-
 class DetectLastRoll(Step):
   MESSAGE = "Detect commit ID of the last Chromium roll."
 
@@ -96,6 +71,8 @@ class RollChromium(Step):
         args.append("--dry-run")
       if self._options.work_dir:
         args.extend(["--work-dir", self._options.work_dir])
+      if self._options.chromium_roll_json_output:
+        args.extend(["--json-output", self._options.chromium_roll_json_output])
       self._side_effect_handler.Call(chromium_roll.ChromiumRoll().Run, args)
 
 
@@ -104,6 +81,8 @@ class AutoRoll(ScriptsBase):
     parser.add_argument("-c", "--chromium", required=True,
                         help=("The path to your Chromium src/ "
                               "directory to automate the V8 roll."))
+    parser.add_argument("--chromium-roll-json-output",
+                        help="File to write wrapped results summary to.")
     parser.add_argument("--max-age", default=3, type=int,
                         help="Maximum age in days of the latest release.")
     parser.add_argument("--roll", help="Call Chromium roll script.",
@@ -125,7 +104,6 @@ class AutoRoll(ScriptsBase):
 
   def _Steps(self):
     return [
-      CheckActiveRoll,
       DetectLastRoll,
       RollChromium,
     ]

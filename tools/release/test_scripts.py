@@ -1103,18 +1103,6 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
 
     self.assertEquals("abc123", state["candidate"])
 
-  def testAutoRollExistingRoll(self):
-    self.Expect([
-      URL("https://codereview.chromium.org/search",
-          "owner=author%40chromium.org&limit=30&closed=3&format=json",
-          ("{\"results\": [{\"subject\": \"different\"},"
-           "{\"subject\": \"Update V8 to Version...\"}]}")),
-    ])
-
-    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_PUSH_ARGS + ["-c", TEST_CONFIG["CHROMIUM"]])
-    self.assertEquals(0, result)
-
   # Snippet from the original DEPS file.
   FAKE_DEPS = """
 vars = {
@@ -1131,9 +1119,6 @@ deps = {
     TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
     TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
     self.Expect([
-      URL("https://codereview.chromium.org/search",
-          "owner=author%40chromium.org&limit=30&closed=3&format=json",
-          ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git rev-list --max-age=740800 --tags",
           "bad_tag\nhash_234\nhash_123"),
@@ -1154,9 +1139,6 @@ deps = {
     TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
 
     self.Expect([
-      URL("https://codereview.chromium.org/search",
-          "owner=author%40chromium.org&limit=30&closed=3&format=json",
-          ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git rev-list --max-age=740800 --tags",
           "bad_tag\nhash_234\nhash_123"),

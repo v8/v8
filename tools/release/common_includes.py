@@ -738,7 +738,7 @@ class Step(GitRecipesMixin):
 
 
 class BootstrapStep(Step):
-  MESSAGE = "Bootstapping v8 checkout."
+  MESSAGE = "Bootstrapping v8 checkout."
 
   def RunStep(self):
     if os.path.realpath(self.default_cwd) == os.path.realpath(V8_BASE):
@@ -838,6 +838,8 @@ class ScriptsBase(object):
                         help="The author email used for rietveld.")
     parser.add_argument("--dry-run", default=False, action="store_true",
                         help="Perform only read-only actions.")
+    parser.add_argument("--json-output",
+                        help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
     parser.add_argument("--sheriff", default=False, action="store_true",
@@ -896,9 +898,18 @@ class ScriptsBase(object):
     for (number, step_class) in enumerate([BootstrapStep] + step_classes):
       steps.append(MakeStep(step_class, number, self._state, self._config,
                             options, self._side_effect_handler))
-    for step in steps[options.step:]:
-      if step.Run():
-        return 0
+    step_summary = []
+    try:
+      for step in steps[options.step:]:
+        terminate = step.Run()
+        step_summary.append(step._text)
+        if terminate:
+          return 0
+    finally:
+      if options.json_output:
+        with open(options.json_output, "w") as f:
+          json.dump({"step_summary": step_summary}, f)
+
     return 0
 
   def Run(self, args=None):
