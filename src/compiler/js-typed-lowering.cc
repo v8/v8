@@ -1469,6 +1469,8 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
     bool has_aliased_arguments = false;
     Node* const elements = AllocateAliasedArguments(
         effect, control, args_state, context, shared, &has_aliased_arguments);
+    Node* allocate_effect =
+        elements->op()->EffectOutputCount() > 0 ? elements : effect;
     // Load the arguments object map from the current native context.
     Node* const load_global_object = graph()->NewNode(
         simplified()->LoadField(
@@ -1484,7 +1486,7 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
                                   : Context::SLOPPY_ARGUMENTS_MAP_INDEX)),
         load_native_context, effect, control);
     // Actually allocate and initialize the arguments object.
-    AllocationBuilder a(jsgraph(), effect, control);
+    AllocationBuilder a(jsgraph(), allocate_effect, control);
     Node* properties = jsgraph()->EmptyFixedArrayConstant();
     int length = args_state_info.parameter_count() - 1;  // Minus receiver.
     STATIC_ASSERT(Heap::kSloppyArgumentsObjectSize == 5 * kPointerSize);
@@ -1512,6 +1514,8 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
     FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
     // Prepare element backing store to be used by arguments object.
     Node* const elements = AllocateArguments(effect, control, args_state);
+    Node* allocate_effect =
+        elements->op()->EffectOutputCount() > 0 ? elements : effect;
     // Load the arguments object map from the current native context.
     Node* const load_global_object = graph()->NewNode(
         simplified()->LoadField(
@@ -1526,7 +1530,7 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
             AccessBuilder::ForContextSlot(Context::STRICT_ARGUMENTS_MAP_INDEX)),
         load_native_context, effect, control);
     // Actually allocate and initialize the arguments object.
-    AllocationBuilder a(jsgraph(), effect, control);
+    AllocationBuilder a(jsgraph(), allocate_effect, control);
     Node* properties = jsgraph()->EmptyFixedArrayConstant();
     int length = args_state_info.parameter_count() - 1;  // Minus receiver.
     STATIC_ASSERT(Heap::kStrictArgumentsObjectSize == 4 * kPointerSize);
@@ -2345,7 +2349,7 @@ Node* JSTypedLowering::AllocateAliasedArguments(
   Node* arguments = aa.Finish();
 
   // Actually allocate the backing store.
-  AllocationBuilder a(jsgraph(), effect, control);
+  AllocationBuilder a(jsgraph(), arguments, control);
   a.AllocateArray(mapped_count + 2, factory()->sloppy_arguments_elements_map());
   a.Store(AccessBuilder::ForFixedArraySlot(0), context);
   a.Store(AccessBuilder::ForFixedArraySlot(1), arguments);
