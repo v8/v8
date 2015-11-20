@@ -893,26 +893,32 @@ TEST(Type1) {
     COMPARE(maxa_s(f3, f4, f5), "460520df       maxa.s   f3, f4, f5");
   }
 
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+      IsFp64Mode()) {
+    COMPARE(trunc_l_d(f8, f6), "46203209       trunc.l.d f8, f6");
+    COMPARE(trunc_l_s(f8, f6), "46003209       trunc.l.s f8, f6");
+
+    COMPARE(round_l_s(f8, f6), "46003208       round.l.s f8, f6");
+    COMPARE(round_l_d(f8, f6), "46203208       round.l.d f8, f6");
+
+    COMPARE(floor_l_s(f8, f6), "4600320b       floor.l.s f8, f6");
+    COMPARE(floor_l_d(f8, f6), "4620320b       floor.l.d f8, f6");
+
+    COMPARE(ceil_l_s(f8, f6), "4600320a       ceil.l.s f8, f6");
+    COMPARE(ceil_l_d(f8, f6), "4620320a       ceil.l.d f8, f6");
+  }
+
   COMPARE(trunc_w_d(f8, f6), "4620320d       trunc.w.d f8, f6");
   COMPARE(trunc_w_s(f8, f6), "4600320d       trunc.w.s f8, f6");
 
   COMPARE(round_w_s(f8, f6), "4600320c       round.w.s f8, f6");
   COMPARE(round_w_d(f8, f6), "4620320c       round.w.d f8, f6");
 
-  COMPARE(round_l_s(f8, f6), "46003208       round.l.s f8, f6");
-  COMPARE(round_l_d(f8, f6), "46203208       round.l.d f8, f6");
-
   COMPARE(floor_w_s(f8, f6), "4600320f       floor.w.s f8, f6");
   COMPARE(floor_w_d(f8, f6), "4620320f       floor.w.d f8, f6");
 
-  COMPARE(floor_l_s(f8, f6), "4600320b       floor.l.s f8, f6");
-  COMPARE(floor_l_d(f8, f6), "4620320b       floor.l.d f8, f6");
-
   COMPARE(ceil_w_s(f8, f6), "4600320e       ceil.w.s f8, f6");
   COMPARE(ceil_w_d(f8, f6), "4620320e       ceil.w.d f8, f6");
-
-  COMPARE(ceil_l_s(f8, f6), "4600320a       ceil.l.s f8, f6");
-  COMPARE(ceil_l_d(f8, f6), "4620320a       ceil.l.d f8, f6");
 
   COMPARE(sub_s(f10, f8, f6), "46064281       sub.s   f10, f8, f6");
   COMPARE(sub_d(f10, f8, f6), "46264281       sub.d   f10, f8, f6");
@@ -938,9 +944,6 @@ TEST(Type1) {
   COMPARE(mov_d(f6, f4), "46202186       mov.d   f6, f4");
 
   if (IsMipsArchVariant(kMips32r2)) {
-    COMPARE(trunc_l_d(f8, f6), "46203209       trunc.l.d f8, f6");
-    COMPARE(trunc_l_s(f8, f6), "46003209       trunc.l.s f8, f6");
-
     COMPARE(movz_s(f6, f4, t0), "46082192       movz.s    f6, f4, t0");
     COMPARE(movz_d(f6, f4, t0), "46282192       movz.d    f6, f4, t0");
 
@@ -1048,23 +1051,18 @@ TEST(CVT_DISSASM) {
   SET_UP();
   COMPARE(cvt_d_s(f22, f24), "4600c5a1       cvt.d.s f22, f24");
   COMPARE(cvt_d_w(f22, f24), "4680c5a1       cvt.d.w f22, f24");
-  if (IsMipsArchVariant(kMips32r6) || IsMipsArchVariant(kMips32r2)) {
+
+  COMPARE(cvt_s_d(f22, f24), "4620c5a0       cvt.s.d f22, f24");
+  COMPARE(cvt_s_w(f22, f24), "4680c5a0       cvt.s.w f22, f24");
+
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+      IsFp64Mode()) {
     COMPARE(cvt_d_l(f22, f24), "46a0c5a1       cvt.d.l f22, f24");
-  }
-
-  if (IsMipsArchVariant(kMips32r6) || IsMipsArchVariant(kMips32r2)) {
-    COMPARE(cvt_l_s(f22, f24), "4600c5a5       cvt.l.s f22, f24");
     COMPARE(cvt_l_d(f22, f24), "4620c5a5       cvt.l.d f22, f24");
-  }
 
-  COMPARE(cvt_s_d(f22, f24), "4620c5a0       cvt.s.d f22, f24");
-  COMPARE(cvt_s_w(f22, f24), "4680c5a0       cvt.s.w f22, f24");
-  if (IsMipsArchVariant(kMips32r6) || IsMipsArchVariant(kMips32r2)) {
     COMPARE(cvt_s_l(f22, f24), "46a0c5a0       cvt.s.l f22, f24");
+    COMPARE(cvt_l_s(f22, f24), "4600c5a5       cvt.l.s f22, f24");
   }
-
-  COMPARE(cvt_s_d(f22, f24), "4620c5a0       cvt.s.d f22, f24");
-  COMPARE(cvt_s_w(f22, f24), "4680c5a0       cvt.s.w f22, f24");
 
   VERIFY_RUN();
 }
