@@ -22,12 +22,12 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeArrayBuilder builder(isolate(), zone());
 
-  builder.set_locals_count(1);
+  builder.set_locals_count(2);
   builder.set_context_count(1);
   builder.set_parameter_count(0);
-  CHECK_EQ(builder.locals_count(), 1);
+  CHECK_EQ(builder.locals_count(), 2);
   CHECK_EQ(builder.context_count(), 1);
-  CHECK_EQ(builder.fixed_register_count(), 2);
+  CHECK_EQ(builder.fixed_register_count(), 3);
 
   // Emit constant loads.
   builder.LoadLiteral(Smi::FromInt(0))
@@ -45,6 +45,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadAccumulatorWithRegister(reg)
       .LoadNull()
       .StoreAccumulatorInRegister(reg);
+
+  // Emit register-register transfer.
+  Register other(1);
+  builder.MoveRegister(reg, other);
 
   // Emit global load / store operations.
   builder.LoadGlobal(0, 1, LanguageMode::SLOPPY, TypeofMode::NOT_INSIDE_TYPEOF)

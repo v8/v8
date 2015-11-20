@@ -330,6 +330,13 @@ void BytecodeGraphBuilder::VisitStar(
 }
 
 
+void BytecodeGraphBuilder::VisitMov(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  Node* value = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  environment()->BindRegister(iterator.GetRegisterOperand(1), value);
+}
+
+
 void BytecodeGraphBuilder::BuildLoadGlobal(
     const interpreter::BytecodeArrayIterator& iterator,
     TypeofMode typeof_mode) {

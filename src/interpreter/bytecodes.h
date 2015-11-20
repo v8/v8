@@ -70,6 +70,9 @@ namespace interpreter {
   V(Ldar, OperandType::kReg8)                                                  \
   V(Star, OperandType::kReg8)                                                  \
                                                                                \
+  /* Register-register transfers */                                            \
+  V(Mov, OperandType::kReg8, OperandType::kReg8)                               \
+                                                                               \
   /* LoadIC operations */                                                      \
   V(LoadICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
   V(LoadICStrict, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \

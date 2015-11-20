@@ -2617,7 +2617,6 @@ TEST(InterpreterBasicLoops) {
 TEST(InterpreterForIn) {
   HandleAndZoneScope handles;
 
-  // TODO(oth): Add a test here for delete mid-loop when delete is ready.
   std::pair<const char*, int> for_in_samples[] = {
       {"function f() {\n"
        "  var r = -1;\n"
@@ -2949,6 +2948,148 @@ TEST(InterpreterNewTarget) {
       *CompileRun("(function() { return (new f()).a.name; })();"));
   CHECK(new_target_name->SameValue(*factory->NewStringFromStaticChars("f")));
 }
+
+
+TEST(InterpreterAssignmentInExpressions) {
+  HandleAndZoneScope handles;
+
+  std::pair<const char*, int> samples[] = {
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  var y = x + (x = 1) + (x = 2);\n"
+       "  return y;\n"
+       "}",
+       10},
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  var y = x + (x = 1) + (x = 2);\n"
+       "  return x;\n"
+       "}",
+       2},
+      {"function f() {\n"
+       "  var x = 55;\n"
+       "  x = x + (x = 100) + (x = 101);\n"
+       "  return x;\n"
+       "}",
+       256},
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  return ++x + x + x++;\n"
+       "}",
+       24},
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  var y = 1 + ++x + x + x++;\n"
+       "  return x;\n"
+       "}",
+       9},
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  var y = ++x + x + x++;\n"
+       "  return x;\n"
+       "}",
+       9},
+      {"function f() {\n"
+       "  var x = 7, y = 100, z = 1000;\n"
+       "  return x + (x += 3) + y + (y *= 10) + (z *= 7) + z;\n"
+       "}",
+       15117},
+      {"function f() {\n"
+       "  var inner = function (x) { return x + (x = 2) + (x = 4) + x; };\n"
+       "  return inner(1);\n"
+       "}",
+       11},
+      {"function f() {\n"
+       "  var x = 1, y = 2;\n"
+       "  x = x + (x = 3) + y + (y = 4), y = y + (y = 5) + y + x;\n"
+       "  return x + y;\n"
+       "}",
+       10 + 24},
+      {"function f() {\n"
+       "  var x = 0;\n"
+       "  var y = x | (x = 1) | (x = 2);\n"
+       "  return x;\n"
+       "}",
+       2},
+      {"function f() {\n"
+       "  var x = 0;\n"
+       "  var y = x || (x = 1);\n"
+       "  return x;\n"
+       "}",
+       1},
+      {"function f() {\n"
+       "  var x = 1;\n"
+       "  var y = x && (x = 2) && (x = 3);\n"
+       "  return x;\n"
+       "}",
+       3},
+      {"function f() {\n"
+       "  var x = 1;\n"
+       "  var y = x || (x = 2);\n"
+       "  return x;\n"
+       "}",
+       1},
+      {"function f() {\n"
+       "  var x = 1;\n"
+       "  x = (x << (x = 3)) | (x = 16);\n"
+       "  return x;\n"
+       "}",
+       24},
+      {"function f() {\n"
+       "  var r = 7;\n"
+       "  var s = 11;\n"
+       "  var t = 13;\n"
+       "  var u = r + s + t + (r = 10) + (s = 20) +"
+       "          (t = (r + s)) + r + s + t;\n"
+       "  return r + s + t + u;\n"
+       "}",
+       211},
+      {"function f() {\n"
+       "  var r = 7;\n"
+       "  var s = 11;\n"
+       "  var t = 13;\n"
+       "  return r > (3 * s * (s = 1)) ? (t + (t += 1)) : (r + (r = 4));\n"
+       "}",
+       11},
+      {"function f() {\n"
+       "  var r = 7;\n"
+       "  var s = 11;\n"
+       "  var t = 13;\n"
+       "  return r > (3 * s * (s = 0)) ? (t + (t += 1)) : (r + (r = 4));\n"
+       "}",
+       27},
+      {"function f() {\n"
+       "  var r = 7;\n"
+       "  var s = 11;\n"
+       "  var t = 13;\n"
+       "  return (r + (r = 5)) > s ? r : t;\n"
+       "}",
+       5},
+      {"function f(a) {\n"
+       "  return a + (arguments[0] = 10);\n"
+       "}",
+       50},
+      {"function f(a) {\n"
+       "  return a + (arguments[0] = 10) + a;\n"
+       "}",
+       60},
+      {"function f(a) {\n"
+       "  return a + (arguments[0] = 10) + arguments[0];\n"
+       "}",
+       60},
+  };
+
+  const int arg_value = 40;
+  for (size_t i = 0; i < arraysize(samples); i++) {
+    InterpreterTester tester(handles.main_isolate(), samples[i].first);
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_val =
+        callable(handle(Smi::FromInt(arg_value), handles.main_isolate()))
+            .ToHandleChecked();
+    CHECK_EQ(Handle<Smi>::cast(return_val)->value(), samples[i].second);
+  }
+}
+
 
 }  // namespace interpreter
 }  // namespace internal

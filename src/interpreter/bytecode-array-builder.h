@@ -97,6 +97,9 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadAccumulatorWithRegister(Register reg);
   BytecodeArrayBuilder& StoreAccumulatorInRegister(Register reg);
 
+  // Register-register transfer.
+  BytecodeArrayBuilder& MoveRegister(Register from, Register to);
+
   // Named load property.
   BytecodeArrayBuilder& LoadNamedProperty(Register object, size_t name_index,
                                           int feedback_slot,

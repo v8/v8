@@ -297,6 +297,120 @@ class BytecodeGenerator::RegisterResultScope final
 };
 
 
+BytecodeGenerator::AssignmentHazardHelper::AssignmentHazardHelper(
+    BytecodeGenerator* generator)
+    : generator_(generator),
+      alias_mappings_(generator->zone()),
+      aliased_locals_and_parameters_(generator->zone()),
+      execution_result_(nullptr),
+      scope_depth_(0) {}
+
+
+void BytecodeGenerator::AssignmentHazardHelper::EnterScope() {
+  DCHECK_GE(scope_depth_, 0);
+  if (scope_depth_++ == 0) {
+    execution_result_ = generator_->execution_result();
+  }
+}
+
+
+void BytecodeGenerator::AssignmentHazardHelper::LeaveScope() {
+  DCHECK_GT(scope_depth_, 0);
+  if (--scope_depth_ == 0) {
+    DCHECK_EQ(execution_result_, generator_->execution_result());
+    RestoreAliasedLocalsAndParameters();
+  }
+}
+
+
+// Returns a register that a load instruction should use when
+// loading from |reg|. This allows an alias for a modified version
+// of |reg| to be used within a hazard regions.
+MUST_USE_RESULT Register
+BytecodeGenerator::AssignmentHazardHelper::GetRegisterForLoad(Register reg) {
+  if (scope_depth_ == 0) {
+    return reg;
+  } else {
+    // A load from |reg| is to be issued. The register is placed in
+    // the mappings table initially mapping to itself. Future stores
+    // will update the mapping with temporaries thus preserving the
+    // original register's value.
+    //
+    // NB This insert only updates the table if no mapping exists
+    // already (std::map::insert semantics).
+    auto insert_result =
+        alias_mappings_.insert(std::make_pair(reg.index(), reg.index()));
+    auto mapping = insert_result.first;
+    // Return the current alias for reg.
+    return Register(mapping->second);
+  }
+}
+
+
+// Returns a register that a store instruction should use when
+// loading from |reg|. This allows an alias for a modified version
+// of |reg| to be used within hazard regions.
+MUST_USE_RESULT Register
+BytecodeGenerator::AssignmentHazardHelper::GetRegisterForStore(Register reg) {
+  if (scope_depth_ == 0 ||
+      alias_mappings_.find(reg.index()) == alias_mappings_.end()) {
+    // If not in a hazard region or a load for this register has not
+    // occurred no mapping is necessary.
+    return reg;
+  } else {
+    // Storing to a register with 1 or more loads issued. The
+    // register is mapped to a temporary alias so we don't overwrite
+    // the lhs value, e.g.  y = x + (x = 1); has a register for x on
+    // the lhs and needs a new register x' for the upcoming store on
+    // the rhs as the original x is an input to the add operation.
+    Register alias = execution_result_->NewRegister();
+    alias_mappings_[reg.index()] = alias.index();
+    if (generator_->builder()->RegisterIsParameterOrLocal(reg)) {
+      // Keep track of registers that need to be restored on exit
+      // from the assignment hazard region.
+      aliased_locals_and_parameters_.insert(reg.index());
+    }
+    return alias;
+  }
+}
+
+
+void BytecodeGenerator::AssignmentHazardHelper::
+    RestoreAliasedLocalsAndParameters() {
+  DCHECK(scope_depth_ == 0);
+  // Move temporary registers holding values for locals and
+  // parameters back into their local and parameter registers.
+  for (auto reg = aliased_locals_and_parameters_.begin();
+       reg != aliased_locals_and_parameters_.end(); reg++) {
+    auto mapping = alias_mappings_.find(*reg);
+    if (mapping != alias_mappings_.end()) {
+      generator_->builder()->MoveRegister(Register(mapping->second),
+                                          Register(*reg));
+    }
+  }
+  alias_mappings_.clear();
+  aliased_locals_and_parameters_.clear();
+}
+
+
+class BytecodeGenerator::AssignmentHazardScope final {
+ public:
+  explicit AssignmentHazardScope(BytecodeGenerator* generator)
+      : generator_(generator) {
+    generator_->assignment_hazard_helper()->EnterScope();
+  }
+
+  ~AssignmentHazardScope() {
+    generator_->assignment_hazard_helper()->LeaveScope();
+  }
+
+ private:
+  BytecodeGenerator* generator_;
+
+  DISALLOW_COPY_AND_ASSIGN(AssignmentHazardScope);
+};
+
+
 BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
     : isolate_(isolate),
       zone_(zone),
@@ -307,13 +421,9 @@ BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
-      binary_expression_depth_(0),
-      binary_expression_hazard_set_(zone) {
+      assignment_hazard_helper_(this) {
   InitializeAstVisitor(isolate);
 }
-
-
-BytecodeGenerator::~BytecodeGenerator() {}
 
 
 Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
@@ -506,8 +616,7 @@ void BytecodeGenerator::VisitDeclarations(
 
 
 void BytecodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
-  // TODO(rmcilroy): Replace this with a StatementResultScope when it exists.
-  EffectResultScope effect_scope(this);
+  EffectResultScope statement_result_scope(this);
   VisitForEffect(stmt->expression());
 }
 
@@ -559,7 +668,7 @@ void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 
 
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
-  EffectResultScope effect_scope(this);
+  EffectResultScope statement_result_scope(this);
   VisitForAccumulatorValue(stmt->expression());
   builder()->Return();
 }
@@ -628,7 +737,6 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder loop_builder(builder());
   ControlScopeForIteration execution_control(this, stmt, &loop_builder);
   BytecodeLabel body_label, condition_label, done_label;
-
   if (stmt->cond()->ToBooleanIsFalse()) {
     Visit(stmt->body());
     // Bind condition_label and done_label for processing continue and break.
@@ -764,11 +872,7 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr,
 
 
 void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
-  // TODO(oth): For now we need a parent scope for paths that end up
-  // in VisitLiteral which can allocate in the parent scope. A future
-  // CL in preparation will add a StatementResultScope that will
-  // remove the need for this EffectResultScope.
-  EffectResultScope result_scope(this);
+  EffectResultScope statement_result_scope(this);
 
   if (stmt->subject()->IsNullLiteral() ||
       stmt->subject()->IsUndefinedLiteral(isolate())) {
@@ -1198,6 +1302,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
       Register source(Register(variable->index()));
+      source = assignment_hazard_helper()->GetRegisterForLoad(source);
       execution_result()->SetResultInRegister(source);
       break;
     }
@@ -1205,6 +1310,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       // The parameter indices are shifted by 1 (receiver is variable
       // index -1 but is parameter index 0 in BytecodeArrayBuilder).
       Register source = builder()->Parameter(variable->index() + 1);
+      source = assignment_hazard_helper()->GetRegisterForLoad(source);
       execution_result()->SetResultInRegister(source);
       break;
     }
@@ -1269,16 +1375,19 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
     case VariableLocation::LOCAL: {
       // TODO(rmcilroy): support const mode initialization.
       Register destination(variable->index());
+      destination =
+          assignment_hazard_helper()->GetRegisterForStore(destination);
       builder()->StoreAccumulatorInRegister(destination);
-      RecordStoreToRegister(destination);
       break;
     }
     case VariableLocation::PARAMETER: {
       // The parameter indices are shifted by 1 (receiver is variable
       // index -1 but is parameter index 0 in BytecodeArrayBuilder).
       Register destination(builder()->Parameter(variable->index() + 1));
+      destination =
+          assignment_hazard_helper()->GetRegisterForStore(destination);
+
       builder()->StoreAccumulatorInRegister(destination);
-      RecordStoreToRegister(destination);
       break;
     }
     case VariableLocation::GLOBAL:
@@ -1826,37 +1935,33 @@ void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
 
 
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
-  // TODO(oth): Remove PrepareForBinaryExpression/CompleteBinaryExpression
-  // once we have StatementScope that tracks hazardous loads/stores.
-  PrepareForBinaryExpression();
+  // The evaluation of binary comparison expressions has an assignment
+  // hazard because the lhs may be a variable that evaluates to a
+  // local or parameter and the rhs may modify that, e.g. y = x + (x = 1)
+  // To get a correct result the generator treats the inner assigment
+  // as being made to a temporary x' that is spilled on exit of the
+  // assignment hazard.
+  AssignmentHazardScope assignment_hazard_scope(this);
+
   Register lhs = VisitForRegisterValue(expr->left());
-  if (builder()->RegisterIsParameterOrLocal(lhs)) {
-    // Result was returned in an existing local or parameter. See if
-    // it needs to be moved to a temporary.
-    // TODO(oth) LoadFromAliasedRegister call into VisitVariableLoad().
-    lhs = LoadFromAliasedRegister(lhs);
-  }
   VisitForAccumulatorValue(expr->right());
   builder()->CompareOperation(expr->op(), lhs, language_mode_strength());
-  CompleteBinaryExpression();
   execution_result()->SetResultInAccumulator();
 }
 
 
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
-  // TODO(oth): Remove PrepareForBinaryExpression/CompleteBinaryExpression
-  // once we have StatementScope that tracks hazardous loads/stores.
-  PrepareForBinaryExpression();
+  // The evaluation of binary arithmetic expressions has an assignment
+  // hazard because the lhs may be a variable that evaluates to a
+  // local or parameter and the rhs may modify that, e.g. y = x + (x = 1)
+  // To get a correct result the generator treats the inner assigment
+  // as being made to a temporary x' that is spilled on exit of the
+  // assignment hazard.
+  AssignmentHazardScope assignment_hazard_scope(this);
+
   Register lhs = VisitForRegisterValue(expr->left());
-  if (builder()->RegisterIsParameterOrLocal(lhs)) {
-    // Result was returned in an existing local or parameter. See if
-    // it needs to be moved to a temporary.
-    // TODO(oth) LoadFromAliasedRegister call into VisitVariableLoad().
-    lhs = LoadFromAliasedRegister(lhs);
-  }
   VisitForAccumulatorValue(expr->right());
   builder()->BinaryOperation(expr->op(), lhs, language_mode_strength());
-  CompleteBinaryExpression();
   execution_result()->SetResultInAccumulator();
 }
 
@@ -2074,13 +2179,6 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
 }
 
 
-void BytecodeGenerator::PrepareForBinaryExpression() {
-  if (binary_expression_depth_++ == 0) {
-    binary_expression_hazard_set_.clear();
-  }
-}
-
-
 // Visits the expression |expr| and places the result in the accumulator.
 void BytecodeGenerator::VisitForAccumulatorValue(Expression* expr) {
   AccumulatorResultScope accumulator_scope(this);
@@ -2101,35 +2199,6 @@ Register BytecodeGenerator::VisitForRegisterValue(Expression* expr) {
   RegisterResultScope register_scope(this);
   Visit(expr);
   return register_scope.ResultRegister();
-}
-
-
-Register BytecodeGenerator::LoadFromAliasedRegister(Register reg) {
-  // TODO(oth): Follow on CL to load from re-map here.
-  DCHECK(builder()->RegisterIsParameterOrLocal(reg));
-  if (binary_expression_depth_ > 0) {
-    binary_expression_hazard_set_.insert(reg.index());
-  }
-  return reg;
-}
-
-
-void BytecodeGenerator::RecordStoreToRegister(Register reg) {
-  DCHECK(builder()->RegisterIsParameterOrLocal(reg));
-  if (binary_expression_depth_ > 0) {
-    // TODO(oth): a store to a register that's be loaded needs to be
-    // remapped.
-    DCHECK(binary_expression_hazard_set_.find(reg.index()) ==
-           binary_expression_hazard_set_.end());
-  }
-}
-
-
-void BytecodeGenerator::CompleteBinaryExpression() {
-  DCHECK(binary_expression_depth_ > 0);
-  binary_expression_depth_ -= 1;
-  // TODO(oth): spill remapped registers into origins.
-  // TODO(oth): make statement/top-level.
 }
 
 

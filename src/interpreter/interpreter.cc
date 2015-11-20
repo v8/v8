@@ -200,6 +200,18 @@ void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// Mov <src> <dst>
+//
+// Stores the value of register <src> to register <dst>.
+void Interpreter::DoMov(compiler::InterpreterAssembler* assembler) {
+  Node* src_index = __ BytecodeOperandReg(0);
+  Node* src_value = __ LoadRegister(src_index);
+  Node* dst_index = __ BytecodeOperandReg(1);
+  __ StoreRegister(src_value, dst_index);
+  __ Dispatch();
+}
+
+
 void Interpreter::DoLoadGlobal(Callable ic,
                                compiler::InterpreterAssembler* assembler) {
   // Get the global object.
@@ -216,7 +228,6 @@ void Interpreter::DoLoadGlobal(Callable ic,
   Node* result = __ CallIC(ic.descriptor(), code_target, global, name, smi_slot,
                            type_feedback_vector);
   __ SetAccumulator(result);
-
   __ Dispatch();
 }
 

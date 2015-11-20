@@ -288,9 +288,24 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
     Register reg) {
+  // TODO(oth): Avoid storing the accumulator in the register if the
+  // previous bytecode loaded the accumulator with the same register.
+  //
+  // TODO(oth): If the previous bytecode is a MOV into this register,
+  // the previous instruction can be removed. The logic for determining
+  // these redundant MOVs appears complex.
+  Output(Bytecode::kStar, reg.ToOperand());
   if (!IsRegisterInAccumulator(reg)) {
     Output(Bytecode::kStar, reg.ToOperand());
   }
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
+                                                         Register to) {
+  DCHECK(from != to);
+  Output(Bytecode::kMov, from.ToOperand(), to.ToOperand());
   return *this;
 }
 

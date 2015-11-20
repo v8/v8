@@ -5264,6 +5264,225 @@ TEST(RemoveRedundantLdar) {
   }
 }
 
+
+TEST(AssignmentsInBinaryExpression) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"var x = 0, y = 1;\n"
+       "return (x = 2, y = 3, x = 4, y = 5)",
+       2 * kPointerSize,
+       1,
+       24,
+       {
+           B(LdaZero), B(Star), R(0),  //
+           B(LdaSmi8), U8(1),          //
+           B(Star), R(1),              //
+           B(LdaSmi8), U8(2),          //
+           B(Star), R(0),              //
+           B(LdaSmi8), U8(3),          //
+           B(Star), R(1),              //
+           B(LdaSmi8), U8(4),          //
+           B(Star), R(0),              //
+           B(LdaSmi8), U8(5),          //
+           B(Star), R(1),              //
+           B(Return),                  //
+       },
+       0},
+      {"var x = 55;\n"
+       "var y = (x = 100);\n"
+       "return y",
+       2 * kPointerSize,
+       1,
+       11,
+       {
+           B(LdaSmi8), U8(55),   //
+           B(Star), R(0),        //
+           B(LdaSmi8), U8(100),  //
+           B(Star), R(0),        //
+           B(Star), R(1),        //
+           B(Return),            //
+       },
+       0},
+      {"var x = 55;\n"
+       "x = x + (x = 100) + (x = 101);\n"
+       "return x;",
+       4 * kPointerSize,
+       1,
+       24,
+       {
+           B(LdaSmi8), U8(55),   //
+           B(Star), R(0),        //
+           B(LdaSmi8), U8(100),  //
+           B(Star), R(1),        //
+           B(Add), R(0),         //
+           B(Star), R(2),        //
+           B(LdaSmi8), U8(101),  //
+           B(Star), R(3),        //
+           B(Add), R(2),         //
+           B(Mov), R(3), R(0),   //
+           B(Star), R(0),        //
+           B(Return),            //
+       },
+       0},
+      {"var x = 55;\n"
+       "x = (x = 56) - x + (x = 57);\n"
+       "x++;\n"
+       "return x;",
+       3 * kPointerSize,
+       1,
+       34,
+       {
+           B(LdaSmi8), U8(55),  //
+           B(Star), R(0),       //
+           B(LdaSmi8), U8(56),  //
+           B(Star), R(0),       //
+           B(Star), R(1),       //
+           B(Ldar), R(0),       //
+           B(Sub), R(1),        //
+           B(Star), R(2),       //
+           B(LdaSmi8), U8(57),  //
+           B(Star), R(1),       //
+           B(Add), R(2),        //
+           B(Mov), R(1), R(0),  //
+           B(Star), R(0),       //
+           B(ToNumber),         //
+           B(Star), R(1),       //
+           B(Inc),              //
+           B(Star), R(0),       //
+           B(Return),           //
+       },
+       0},
+      {"var x = 55;\n"
+       "var y = x + (x = 1) + (x = 2) + (x = 3);\n"
+       "return y;",
+       6 * kPointerSize,
+       1,
+       32,
+       {
+           B(LdaSmi8), U8(55),  //
+           B(Star), R(0),       //
+           B(LdaSmi8), U8(1),   //
+           B(Star), R(2),       //
+           B(Add), R(0),        //
+           B(Star), R(3),       //
+           B(LdaSmi8), U8(2),   //
+           B(Star), R(4),       //
+           B(Add), R(3),        //
+           B(Star), R(5),       //
+           B(LdaSmi8), U8(3),   //
+           B(Star), R(3),       //
+           B(Add), R(5),        //
+           B(Mov), R(3), R(0),  //
+           B(Star), R(1),       //
+           B(Return),           //
+       },
+       0},
+      {"var x = 55;\n"
+       "var x = x + (x = 1) + (x = 2) + (x = 3);\n"
+       "return x;",
+       5 * kPointerSize,
+       1,
+       32,
+       {
+           B(LdaSmi8), U8(55),  //
+           B(Star), R(0),       //
+           B(LdaSmi8), U8(1),   //
+           B(Star), R(1),       //
+           B(Add), R(0),        //
+           B(Star), R(2),       //
+           B(LdaSmi8), U8(2),   //
+           B(Star), R(3),       //
+           B(Add), R(2),        //
+           B(Star), R(4),       //
+           B(LdaSmi8), U8(3),   //
+           B(Star), R(2),       //
+           B(Add), R(4),        //
+           B(Mov), R(2), R(0),  //
+           B(Star), R(0),       //
+           B(Return),           //
+       },
+       0},
+      {"var x = 10, y = 20;\n"
+       "return x + (x = 1) + (x + 1) * (y = 2) + (y = 3) + (x = 4) + (y = 5) + "
+       "y;\n",
+       6 * kPointerSize,
+       1,
+       64,
+       {
+           B(LdaSmi8), U8(10),  //
+           B(Star), R(0),       //
+           B(LdaSmi8), U8(20),  //
+           B(Star), R(1),       //
+           B(LdaSmi8), U8(1),   //
+           B(Star), R(2),       //
+           B(Add), R(0),        //
+           B(Star), R(3),       //
+           B(LdaSmi8), U8(1),   //
+           B(Add), R(2),        //
+           B(Star), R(4),       //
+           B(LdaSmi8), U8(2),   //
+           B(Star), R(1),       //
+           B(Mul), R(4),        //
+           B(Add), R(3),        //
+           B(Star), R(4),       //
+           B(LdaSmi8), U8(3),   //
+           B(Star), R(1),       //
+           B(Add), R(4),        //
+           B(Star), R(3),       //
+           B(LdaSmi8), U8(4),   //
+           B(Star), R(4),       //
+           B(Add), R(3),        //
+           B(Star), R(5),       //
+           B(LdaSmi8), U8(5),   //
+           B(Star), R(1),       //
+           B(Add), R(5),        //
+           B(Star), R(3),       //
+           B(Ldar), R(1),       //
+           B(Add), R(3),        //
+           B(Mov), R(4), R(0),  //
+           B(Return),           //
+       },
+       0},
+      {"var x = 17;\n"
+       "return 1 + x + (x++) + (++x);\n",
+       5 * kPointerSize,
+       1,
+       40,
+       {
+           B(LdaSmi8), U8(17),  //
+           B(Star), R(0),       //
+           B(LdaSmi8), U8(1),   //
+           B(Star), R(1),       //
+           B(Ldar), R(0),       //
+           B(Add), R(1),        //
+           B(Star), R(2),       //
+           B(Ldar), R(0),       //
+           B(ToNumber),         //
+           B(Star), R(1),       //
+           B(Inc),              //
+           B(Star), R(3),       //
+           B(Ldar), R(1),       //
+           B(Add), R(2),        //
+           B(Star), R(4),       //
+           B(Ldar), R(3),       //
+           B(ToNumber),         //
+           B(Inc),              //
+           B(Star), R(1),       //
+           B(Add), R(4),        //
+           B(Mov), R(1), R(0),  //
+           B(Return),           //
+       },
+       0}};
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
