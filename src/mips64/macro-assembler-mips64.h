@@ -838,6 +838,10 @@ class MacroAssembler: public Assembler {
   void Trunc_uw_d(FPURegister fd, FPURegister fs, FPURegister scratch);
   void Trunc_uw_d(FPURegister fd, Register rs, FPURegister scratch);
 
+  // Convert double to unsigned long.
+  void Trunc_ul_d(FPURegister fd, FPURegister fs, FPURegister scratch);
+  void Trunc_ul_d(FPURegister fd, Register rs, FPURegister scratch);
+
   void Trunc_w_d(FPURegister fd, FPURegister fs);
   void Round_w_d(FPURegister fd, FPURegister fs);
   void Floor_w_d(FPURegister fd, FPURegister fs);

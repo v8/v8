@@ -1623,6 +1623,12 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd,
   mtc1(t8, fd);
 }
 
+void MacroAssembler::Trunc_ul_d(FPURegister fd, FPURegister fs,
+                                FPURegister scratch) {
+  Trunc_ul_d(fs, t8, scratch);
+  dmtc1(t8, fd);
+}
+
 
 void MacroAssembler::Trunc_w_d(FPURegister fd, FPURegister fs) {
   trunc_w_d(fd, fs);
@@ -1672,6 +1678,37 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd,
   bind(&simple_convert);
   trunc_w_d(scratch, fd);
   mfc1(rs, scratch);
+
+  bind(&done);
+}
+
+
+void MacroAssembler::Trunc_ul_d(FPURegister fd, Register rs,
+                                FPURegister scratch) {
+  DCHECK(!fd.is(scratch));
+  DCHECK(!rs.is(at));
+
+  // Load 2^63 into scratch as its float representation.
+  li(at, 0x43e0000000000000);
+  dmtc1(at, scratch);
+
+  // Test if scratch > fd.
+  // If fd < 2^63 we can convert it normally.
+  Label simple_convert, done;
+  BranchF(&simple_convert, NULL, lt, fd, scratch);
+
+  // First we subtract 2^63 from fd, then trunc it to rs
+  // and add 2^63 to rs.
+  sub_d(scratch, fd, scratch);
+  trunc_l_d(scratch, scratch);
+  dmfc1(rs, scratch);
+  Or(rs, rs, Operand(1UL << 63));
+  Branch(&done);
+
+  // Simple conversion.
+  bind(&simple_convert);
+  trunc_l_d(scratch, fd);
+  dmfc1(rs, scratch);
 
   bind(&done);
 }

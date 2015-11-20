@@ -713,7 +713,7 @@ void InstructionSelector::VisitTruncateFloat64ToInt64(Node* node) {
 
 
 void InstructionSelector::VisitTruncateFloat64ToUint64(Node* node) {
-  UNIMPLEMENTED();
+  VisitRR(this, kMips64TruncUlD, node);
 }
 
 
