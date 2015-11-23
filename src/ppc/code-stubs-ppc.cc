@@ -5053,25 +5053,25 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
 
   __ bind(&subclassing);
-  __ push(r4);
-  __ push(r6);
-
-  // Adjust argc.
   switch (argument_count()) {
     case ANY:
     case MORE_THAN_ONE:
-      __ addi(r3, r3, Operand(2));
+      __ ShiftLeftImm(r0, r3, Operand(kPointerSizeLog2));
+      __ StorePX(r4, MemOperand(sp, r0));
+      __ addi(r3, r3, Operand(3));
       break;
     case NONE:
-      __ li(r3, Operand(2));
+      __ StoreP(r4, MemOperand(sp, 0 * kPointerSize));
+      __ li(r3, Operand(3));
       break;
     case ONE:
-      __ li(r3, Operand(3));
+      __ StoreP(r4, MemOperand(sp, 1 * kPointerSize));
+      __ li(r3, Operand(4));
       break;
   }
 
-  __ JumpToExternalReference(
-      ExternalReference(Runtime::kArrayConstructorWithSubclassing, isolate()));
+  __ Push(r6, r5);
+  __ JumpToExternalReference(ExternalReference(Runtime::kNewArray, isolate()));
 }
 
 
