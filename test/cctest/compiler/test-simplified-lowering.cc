@@ -1045,28 +1045,6 @@ static void CheckChangeOf(IrOpcode::Value change, Node* of, Node* node) {
 }
 
 
-TEST(LowerNumberToInt32_to_nop) {
-  // NumberToInt32(x: kRepTagged | kTypeInt32) used as kRepTagged
-  TestingGraph t(Type::Signed32());
-  Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), t.p0);
-  Node* use = t.Use(trunc, kRepTagged);
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(t.p0, use->InputAt(0));
-}
-
-
-TEST(LowerNumberToInt32_to_ChangeTaggedToFloat64) {
-  // NumberToInt32(x: kRepTagged | kTypeInt32) used as kRepFloat64
-  TestingGraph t(Type::Signed32());
-  Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), t.p0);
-  Node* use = t.Use(trunc, kRepFloat64);
-  t.Return(use);
-  t.Lower();
-  CheckChangeOf(IrOpcode::kChangeTaggedToFloat64, t.p0, use->InputAt(0));
-}
-
-
 TEST(LowerNumberToInt32_to_ChangeTaggedToInt32) {
   // NumberToInt32(x: kRepTagged | kTypeInt32) used as kRepWord32
   TestingGraph t(Type::Signed32());
@@ -1102,28 +1080,6 @@ TEST(LowerNumberToInt32_to_TruncateFloat64ToInt32_with_change) {
   Node* of = node->InputAt(0);
   CHECK_EQ(IrOpcode::kChangeTaggedToFloat64, of->opcode());
   CHECK_EQ(t.p0, of->InputAt(0));
-}
-
-
-TEST(LowerNumberToUint32_to_nop) {
-  // NumberToUint32(x: kRepTagged | kTypeUint32) used as kRepTagged
-  TestingGraph t(Type::Unsigned32());
-  Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), t.p0);
-  Node* use = t.Use(trunc, kRepTagged);
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(t.p0, use->InputAt(0));
-}
-
-
-TEST(LowerNumberToUint32_to_ChangeTaggedToFloat64) {
-  // NumberToUint32(x: kRepTagged | kTypeUint32) used as kRepWord32
-  TestingGraph t(Type::Unsigned32());
-  Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), t.p0);
-  Node* use = t.Use(trunc, kRepFloat64);
-  t.Return(use);
-  t.Lower();
-  CheckChangeOf(IrOpcode::kChangeTaggedToFloat64, t.p0, use->InputAt(0));
 }
 
 

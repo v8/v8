@@ -130,7 +130,8 @@ class UseInfo {
 };
 
 
-UseInfo UseInfoFromRepresentation(MachineTypeUnion rep) {
+UseInfo UseInfoFromMachineType(MachineType type) {
+  MachineTypeUnion rep = RepresentationOf(type);
   DCHECK((rep & kTypeMask) == 0);
   if (rep & kRepTagged) return UseInfo::AnyTagged();
   if (rep & kRepFloat64) {
@@ -150,11 +151,6 @@ UseInfo UseInfoFromRepresentation(MachineTypeUnion rep) {
   }
   DCHECK(rep & kRepBit);
   return UseInfo::Bool();
-}
-
-
-UseInfo UseInfoFromMachineType(MachineType type) {
-  return UseInfoFromRepresentation(RepresentationOf(type));
 }
 
 
@@ -827,35 +823,15 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberToInt32: {
-        MachineTypeUnion use_rep = use & kRepMask;
-        Node* input = node->InputAt(0);
-        Type* in_upper = NodeProperties::GetType(input);
-        if (in_upper->Is(Type::Signed32())) {
-          // If the input has type int32, pass through representation.
-          VisitUnop(node, UseInfoFromRepresentation(use_rep),
-                    kTypeInt32 | use_rep);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else {
-          // Just change representation if necessary.
-          VisitUnop(node, UseInfo::TruncatingWord32(), kMachInt32);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
-        }
+        // Just change representation if necessary.
+        VisitUnop(node, UseInfo::TruncatingWord32(), kMachInt32);
+        if (lower()) DeferReplacement(node, node->InputAt(0));
         break;
       }
       case IrOpcode::kNumberToUint32: {
-        MachineTypeUnion use_rep = use & kRepMask;
-        Node* input = node->InputAt(0);
-        Type* in_upper = NodeProperties::GetType(input);
-        if (in_upper->Is(Type::Unsigned32())) {
-          // If the input has type uint32, pass through representation.
-          VisitUnop(node, UseInfoFromRepresentation(use_rep),
-                    kTypeUint32 | use_rep);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else {
-          // Just change representation if necessary.
-          VisitUnop(node, UseInfo::TruncatingWord32(), kMachUint32);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
-        }
+        // Just change representation if necessary.
+        VisitUnop(node, UseInfo::TruncatingWord32(), kMachUint32);
+        if (lower()) DeferReplacement(node, node->InputAt(0));
         break;
       }
       case IrOpcode::kNumberIsHoleNaN: {
