@@ -275,25 +275,27 @@ enum OpcodeExt4 {
   FMADD = 29 << 1,  // Floating Multiply-Add
 
   // Bits 10-1
-  FCMPU = 0 << 1,     // Floating Compare Unordered
-  FRSP = 12 << 1,     // Floating-Point Rounding
-  FCTIW = 14 << 1,    // Floating Convert to Integer Word X-form
-  FCTIWZ = 15 << 1,   // Floating Convert to Integer Word with Round to Zero
-  FNEG = 40 << 1,     // Floating Negate
-  MCRFS = 64 << 1,    // Move to Condition Register from FPSCR
-  FMR = 72 << 1,      // Floating Move Register
-  MTFSFI = 134 << 1,  // Move to FPSCR Field Immediate
-  FABS = 264 << 1,    // Floating Absolute Value
-  FRIN = 392 << 1,    // Floating Round to Integer Nearest
-  FRIZ = 424 << 1,    // Floating Round to Integer Toward Zero
-  FRIP = 456 << 1,    // Floating Round to Integer Plus
-  FRIM = 488 << 1,    // Floating Round to Integer Minus
-  MFFS = 583 << 1,    // move from FPSCR x-form
-  MTFSF = 711 << 1,   // move to FPSCR fields XFL-form
-  FCFID = 846 << 1,   // Floating convert from integer doubleword
-  FCTID = 814 << 1,   // Floating convert from integer doubleword
-  FCTIDZ = 815 << 1,  // Floating convert from integer doubleword
-  FCFIDU = 974 << 1   // Floating convert from integer doubleword unsigned
+  FCMPU = 0 << 1,      // Floating Compare Unordered
+  FRSP = 12 << 1,      // Floating-Point Rounding
+  FCTIW = 14 << 1,     // Floating Convert to Integer Word X-form
+  FCTIWZ = 15 << 1,    // Floating Convert to Integer Word with Round to Zero
+  FNEG = 40 << 1,      // Floating Negate
+  MCRFS = 64 << 1,     // Move to Condition Register from FPSCR
+  FMR = 72 << 1,       // Floating Move Register
+  MTFSFI = 134 << 1,   // Move to FPSCR Field Immediate
+  FABS = 264 << 1,     // Floating Absolute Value
+  FRIN = 392 << 1,     // Floating Round to Integer Nearest
+  FRIZ = 424 << 1,     // Floating Round to Integer Toward Zero
+  FRIP = 456 << 1,     // Floating Round to Integer Plus
+  FRIM = 488 << 1,     // Floating Round to Integer Minus
+  MFFS = 583 << 1,     // move from FPSCR x-form
+  MTFSF = 711 << 1,    // move to FPSCR fields XFL-form
+  FCTID = 814 << 1,    // Floating convert to integer doubleword
+  FCTIDZ = 815 << 1,   // ^^^ with round toward zero
+  FCFID = 846 << 1,    // Floating convert from integer doubleword
+  FCTIDU = 942 << 1,   // Floating convert to integer doubleword unsigned
+  FCTIDUZ = 943 << 1,  // ^^^ with round toward zero
+  FCFIDU = 974 << 1    // Floating convert from integer doubleword unsigned
 };
 
 enum OpcodeExt5 {

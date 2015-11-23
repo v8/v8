@@ -2193,6 +2193,18 @@ void Assembler::fctidz(const DoubleRegister frt, const DoubleRegister frb,
 }
 
 
+void Assembler::fctidu(const DoubleRegister frt, const DoubleRegister frb,
+                       RCBit rc) {
+  emit(EXT4 | FCTIDU | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
+void Assembler::fctiduz(const DoubleRegister frt, const DoubleRegister frb,
+                        RCBit rc) {
+  emit(EXT4 | FCTIDUZ | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
 void Assembler::fsel(const DoubleRegister frt, const DoubleRegister fra,
                      const DoubleRegister frc, const DoubleRegister frb,
                      RCBit rc) {

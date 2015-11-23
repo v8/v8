@@ -1060,6 +1060,10 @@ class Assembler : public AssemblerBase {
              RCBit rc = LeaveRC);
   void fctidz(const DoubleRegister frt, const DoubleRegister frb,
               RCBit rc = LeaveRC);
+  void fctidu(const DoubleRegister frt, const DoubleRegister frb,
+              RCBit rc = LeaveRC);
+  void fctiduz(const DoubleRegister frt, const DoubleRegister frb,
+               RCBit rc = LeaveRC);
   void fsel(const DoubleRegister frt, const DoubleRegister fra,
             const DoubleRegister frc, const DoubleRegister frb,
             RCBit rc = LeaveRC);

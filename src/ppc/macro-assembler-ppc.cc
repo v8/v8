@@ -715,6 +715,22 @@ void MacroAssembler::ConvertDoubleToInt64(const DoubleRegister double_input,
       dst, double_dst);
 }
 
+#if V8_TARGET_ARCH_PPC64
+void MacroAssembler::ConvertDoubleToUnsignedInt64(
+    const DoubleRegister double_input, const Register dst,
+    const DoubleRegister double_dst, FPRoundingMode rounding_mode) {
+  if (rounding_mode == kRoundToZero) {
+    fctiduz(double_dst, double_input);
+  } else {
+    SetRoundingMode(rounding_mode);
+    fctidu(double_dst, double_input);
+    ResetRoundingMode();
+  }
+
+  MovDoubleToInt64(dst, double_dst);
+}
+#endif
+
 
 void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
     Register code_target_address) {

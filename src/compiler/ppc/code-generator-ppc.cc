@@ -1137,6 +1137,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                               i.OutputRegister(), kScratchDoubleReg);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+#if V8_TARGET_ARCH_PPC64
+    case kPPC_DoubleToUint64:
+      __ ConvertDoubleToUnsignedInt64(i.InputDoubleRegister(0),
+                                      i.OutputRegister(), kScratchDoubleReg);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+#endif
     case kPPC_DoubleToFloat32:
       ASSEMBLE_FLOAT_UNOP_RC(frsp);
       break;

@@ -403,6 +403,15 @@ class MacroAssembler : public Assembler {
                             const Register dst, const DoubleRegister double_dst,
                             FPRoundingMode rounding_mode = kRoundToZero);
 
+#if V8_TARGET_ARCH_PPC64
+  // Converts the double_input to an unsigned integer.  Note that, upon return,
+  // the contents of double_dst will also hold the fixed point representation.
+  void ConvertDoubleToUnsignedInt64(
+      const DoubleRegister double_input, const Register dst,
+      const DoubleRegister double_dst,
+      FPRoundingMode rounding_mode = kRoundToZero);
+#endif
+
   // Generates function and stub prologue code.
   void StubPrologue(int prologue_offset = 0);
   void Prologue(bool code_pre_aging, int prologue_offset = 0);

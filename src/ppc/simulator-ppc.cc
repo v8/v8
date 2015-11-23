@@ -2959,6 +2959,56 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       set_d_register(frt, frt_val);
       return;
     }
+    case FCTIDU: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double frb_val = get_double_from_d_register(frb);
+      uint64_t frt_val;
+      uint64_t kMinLongLong = 0;
+      uint64_t kMaxLongLong = kMinLongLong - 1;
+
+      if (frb_val > kMaxLongLong) {
+        frt_val = kMaxLongLong;
+      } else if (frb_val < kMinLongLong) {
+        frt_val = kMinLongLong;
+      } else {
+        switch (fp_condition_reg_ & kFPRoundingModeMask) {
+          case kRoundToZero:
+            frt_val = (uint64_t)frb_val;
+            break;
+          case kRoundToPlusInf:
+            frt_val = (uint64_t)std::ceil(frb_val);
+            break;
+          case kRoundToMinusInf:
+            frt_val = (uint64_t)std::floor(frb_val);
+            break;
+          default:
+            frt_val = (uint64_t)frb_val;
+            UNIMPLEMENTED();  // Not used by V8.
+            break;
+        }
+      }
+      set_d_register(frt, frt_val);
+      return;
+    }
+    case FCTIDUZ: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double frb_val = get_double_from_d_register(frb);
+      uint64_t frt_val;
+      uint64_t kMinLongLong = 0;
+      uint64_t kMaxLongLong = kMinLongLong - 1;
+
+      if (frb_val > kMaxLongLong) {
+        frt_val = kMaxLongLong;
+      } else if (frb_val < kMinLongLong) {
+        frt_val = kMinLongLong;
+      } else {
+        frt_val = (uint64_t)frb_val;
+      }
+      set_d_register(frt, frt_val);
+      return;
+    }
     case FCTIW:
     case FCTIWZ: {
       int frt = instr->RTValue();
