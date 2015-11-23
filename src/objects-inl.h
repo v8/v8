@@ -4873,14 +4873,38 @@ bool Map::CanOmitMapChecks() {
 }
 
 
-int DependentCode::number_of_entries(DependencyGroup group) {
-  if (length() == 0) return 0;
-  return Smi::cast(get(group))->value();
+DependentCode* DependentCode::next_link() {
+  return DependentCode::cast(get(kNextLinkIndex));
 }
 
 
-void DependentCode::set_number_of_entries(DependencyGroup group, int value) {
-  set(group, Smi::FromInt(value));
+void DependentCode::set_next_link(DependentCode* next) {
+  set(kNextLinkIndex, next);
+}
+
+
+int DependentCode::flags() { return Smi::cast(get(kFlagsIndex))->value(); }
+
+
+void DependentCode::set_flags(int flags) {
+  set(kFlagsIndex, Smi::FromInt(flags));
+}
+
+
+int DependentCode::count() { return CountField::decode(flags()); }
+
+void DependentCode::set_count(int value) {
+  set_flags(CountField::update(flags(), value));
+}
+
+
+DependentCode::DependencyGroup DependentCode::group() {
+  return static_cast<DependencyGroup>(GroupField::decode(flags()));
+}
+
+
+void DependentCode::set_group(DependentCode::DependencyGroup group) {
+  set_flags(GroupField::update(flags(), static_cast<int>(group)));
 }
 
 
@@ -4901,16 +4925,6 @@ void DependentCode::clear_at(int i) {
 
 void DependentCode::copy(int from, int to) {
   set(kCodesStartIndex + to, get(kCodesStartIndex + from));
-}
-
-
-void DependentCode::ExtendGroup(DependencyGroup group) {
-  GroupStartIndexes starts(this);
-  for (int g = kGroupCount - 1; g > group; g--) {
-    if (starts.at(g) < starts.at(g + 1)) {
-      copy(starts.at(g), starts.at(g + 1));
-    }
-  }
 }
 
 

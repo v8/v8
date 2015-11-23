@@ -4723,12 +4723,12 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
     CompileRun("%OptimizeFunctionOnNextCall(bar); bar();");
 
-    DependentCode::GroupStartIndexes starts(site->dependent_code());
-    CHECK_GE(starts.number_of_entries(), 1);
-    int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
-    CHECK(site->dependent_code()->object_at(index)->IsWeakCell());
+    CHECK_EQ(DependentCode::kAllocationSiteTransitionChangedGroup,
+             site->dependent_code()->group());
+    CHECK_EQ(1, site->dependent_code()->count());
+    CHECK(site->dependent_code()->object_at(0)->IsWeakCell());
     Code* function_bar = Code::cast(
-        WeakCell::cast(site->dependent_code()->object_at(index))->value());
+        WeakCell::cast(site->dependent_code()->object_at(0))->value());
     Handle<JSFunction> bar_handle = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             CcTest::global()
@@ -4745,10 +4745,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
   // The site still exists because of our global handle, but the code is no
   // longer referred to by dependent_code().
-  DependentCode::GroupStartIndexes starts(site->dependent_code());
-  int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
-  CHECK(site->dependent_code()->object_at(index)->IsWeakCell() &&
-        WeakCell::cast(site->dependent_code()->object_at(index))->cleared());
+  CHECK(site->dependent_code()->object_at(0)->IsWeakCell() &&
+        WeakCell::cast(site->dependent_code()->object_at(0))->cleared());
 }
 
 

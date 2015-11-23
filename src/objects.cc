@@ -13984,20 +13984,6 @@ void Map::AddDependentCode(Handle<Map> map,
 }
 
 
-DependentCode::GroupStartIndexes::GroupStartIndexes(DependentCode* entries) {
-  Recompute(entries);
-}
-
-
-void DependentCode::GroupStartIndexes::Recompute(DependentCode* entries) {
-  start_indexes_[0] = 0;
-  for (int g = 1; g <= kGroupCount; g++) {
-    int count = entries->number_of_entries(static_cast<DependencyGroup>(g - 1));
-    start_indexes_[g] = start_indexes_[g - 1] + count;
-  }
-}
-
-
 Handle<DependentCode> DependentCode::InsertCompilationDependencies(
     Handle<DependentCode> entries, DependencyGroup group,
     Handle<Foreign> info) {
@@ -14015,44 +14001,54 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
 Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
                                             DependencyGroup group,
                                             Handle<Object> object) {
-  GroupStartIndexes starts(*entries);
-  int start = starts.at(group);
-  int end = starts.at(group + 1);
-  int number_of_entries = starts.number_of_entries();
+  if (entries->length() == 0 || entries->group() > group) {
+    // There is no such group.
+    return DependentCode::New(group, object, entries);
+  }
+  if (entries->group() < group) {
+    // The group comes later in the list.
+    Handle<DependentCode> old_next(entries->next_link());
+    Handle<DependentCode> new_next = Insert(old_next, group, object);
+    if (!old_next.is_identical_to(new_next)) {
+      entries->set_next_link(*new_next);
+    }
+    return entries;
+  }
+  DCHECK_EQ(group, entries->group());
+  int count = entries->count();
   // Check for existing entry to avoid duplicates.
-  for (int i = start; i < end; i++) {
+  for (int i = 0; i < count; i++) {
     if (entries->object_at(i) == *object) return entries;
   }
-  if (entries->length() < kCodesStartIndex + number_of_entries + 1) {
+  if (entries->length() < kCodesStartIndex + count + 1) {
     entries = EnsureSpace(entries);
-    // The number of codes can change after Compact and GC.
-    starts.Recompute(*entries);
-    start = starts.at(group);
-    end = starts.at(group + 1);
+    // Count could have changed, reload it.
+    count = entries->count();
   }
-
-  entries->ExtendGroup(group);
-  entries->set_object_at(end, *object);
-  entries->set_number_of_entries(group, end + 1 - start);
+  entries->set_object_at(count, *object);
+  entries->set_count(count + 1);
   return entries;
+}
+
+
+Handle<DependentCode> DependentCode::New(DependencyGroup group,
+                                         Handle<Object> object,
+                                         Handle<DependentCode> next) {
+  Isolate* isolate = next->GetIsolate();
+  Handle<DependentCode> result = Handle<DependentCode>::cast(
+      isolate->factory()->NewFixedArray(kCodesStartIndex + 1, TENURED));
+  result->set_next_link(*next);
+  result->set_flags(GroupField::encode(group) | CountField::encode(1));
+  result->set_object_at(0, *object);
+  return result;
 }
 
 
 Handle<DependentCode> DependentCode::EnsureSpace(
     Handle<DependentCode> entries) {
-  Isolate* isolate = entries->GetIsolate();
-  if (entries->length() == 0) {
-    entries = Handle<DependentCode>::cast(
-        isolate->factory()->NewFixedArray(kCodesStartIndex + 1, TENURED));
-    for (int g = 0; g < kGroupCount; g++) {
-      entries->set_number_of_entries(static_cast<DependencyGroup>(g), 0);
-    }
-    return entries;
-  }
   if (entries->Compact()) return entries;
-  GroupStartIndexes starts(*entries);
-  int capacity =
-      kCodesStartIndex + DependentCode::Grow(starts.number_of_entries());
+  Isolate* isolate = entries->GetIsolate();
+  int capacity = kCodesStartIndex + DependentCode::Grow(entries->count());
   int grow_by = capacity - entries->length();
   return Handle<DependentCode>::cast(
       isolate->factory()->CopyFixedArrayAndGrow(entries, grow_by, TENURED));
@@ -14060,46 +14056,47 @@ Handle<DependentCode> DependentCode::EnsureSpace(
 
 
 bool DependentCode::Compact() {
-  GroupStartIndexes starts(this);
-  int n = 0;
-  for (int g = 0; g < kGroupCount; g++) {
-    int start = starts.at(g);
-    int end = starts.at(g + 1);
-    int count = 0;
-    DCHECK(start >= n);
-    for (int i = start; i < end; i++) {
-      Object* obj = object_at(i);
-      if (!obj->IsWeakCell() || !WeakCell::cast(obj)->cleared()) {
-        if (i != n + count) {
-          copy(i, n + count);
-        }
-        count++;
+  int old_count = count();
+  int new_count = 0;
+  for (int i = 0; i < old_count; i++) {
+    Object* obj = object_at(i);
+    if (!obj->IsWeakCell() || !WeakCell::cast(obj)->cleared()) {
+      if (i != new_count) {
+        copy(i, new_count);
       }
+      new_count++;
     }
-    if (count != end - start) {
-      set_number_of_entries(static_cast<DependencyGroup>(g), count);
-    }
-    n += count;
   }
-  return n < starts.number_of_entries();
+  set_count(new_count);
+  for (int i = new_count; i < old_count; i++) {
+    clear_at(i);
+  }
+  return new_count < old_count;
 }
 
 
 void DependentCode::UpdateToFinishedCode(DependencyGroup group, Foreign* info,
                                          WeakCell* code_cell) {
+  if (this->length() == 0 || this->group() > group) {
+    // There is no such group.
+    return;
+  }
+  if (this->group() < group) {
+    // The group comes later in the list.
+    next_link()->UpdateToFinishedCode(group, info, code_cell);
+    return;
+  }
+  DCHECK_EQ(group, this->group());
   DisallowHeapAllocation no_gc;
-  GroupStartIndexes starts(this);
-  int start = starts.at(group);
-  int end = starts.at(group + 1);
-  for (int i = start; i < end; i++) {
+  int count = this->count();
+  for (int i = 0; i < count; i++) {
     if (object_at(i) == info) {
       set_object_at(i, code_cell);
       break;
     }
   }
-
 #ifdef DEBUG
-  for (int i = start; i < end; i++) {
+  for (int i = 0; i < count; i++) {
     DCHECK(object_at(i) != info);
   }
 #endif
@@ -14108,34 +14105,36 @@ void DependentCode::UpdateToFinishedCode(DependencyGroup group, Foreign* info,
 
 void DependentCode::RemoveCompilationDependencies(
     DependentCode::DependencyGroup group, Foreign* info) {
+  if (this->length() == 0 || this->group() > group) {
+    // There is no such group.
+    return;
+  }
+  if (this->group() < group) {
+    // The group comes later in the list.
+    next_link()->RemoveCompilationDependencies(group, info);
+    return;
+  }
+  DCHECK_EQ(group, this->group());
   DisallowHeapAllocation no_allocation;
-  GroupStartIndexes starts(this);
-  int start = starts.at(group);
-  int end = starts.at(group + 1);
+  int old_count = count();
   // Find compilation info wrapper.
   int info_pos = -1;
-  for (int i = start; i < end; i++) {
+  for (int i = 0; i < old_count; i++) {
     if (object_at(i) == info) {
       info_pos = i;
       break;
     }
   }
   if (info_pos == -1) return;  // Not found.
-  int gap = info_pos;
-  // Use the last of each group to fill the gap in the previous group.
-  for (int i = group; i < kGroupCount; i++) {
-    int last_of_group = starts.at(i + 1) - 1;
-    DCHECK(last_of_group >= gap);
-    if (last_of_group == gap) continue;
-    copy(last_of_group, gap);
-    gap = last_of_group;
+  // Use the last code to fill the gap.
+  if (info_pos < old_count - 1) {
+    copy(old_count - 1, info_pos);
   }
-  DCHECK(gap == starts.number_of_entries() - 1);
-  clear_at(gap);  // Clear last gap.
-  set_number_of_entries(group, end - start - 1);
+  clear_at(old_count - 1);
+  set_count(old_count - 1);
 
 #ifdef DEBUG
-  for (int i = start; i < end - 1; i++) {
+  for (int i = 0; i < old_count - 1; i++) {
     DCHECK(object_at(i) != info);
   }
 #endif
@@ -14143,30 +14142,55 @@ void DependentCode::RemoveCompilationDependencies(
 
 
 bool DependentCode::Contains(DependencyGroup group, WeakCell* code_cell) {
-  GroupStartIndexes starts(this);
-  int start = starts.at(group);
-  int end = starts.at(group + 1);
-  for (int i = start; i < end; i++) {
+  if (this->length() == 0 || this->group() > group) {
+    // There is no such group.
+    return false;
+  }
+  if (this->group() < group) {
+    // The group comes later in the list.
+    return next_link()->Contains(group, code_cell);
+  }
+  DCHECK_EQ(group, this->group());
+  int count = this->count();
+  for (int i = 0; i < count; i++) {
     if (object_at(i) == code_cell) return true;
   }
   return false;
 }
 
 
+bool DependentCode::IsEmpty(DependencyGroup group) {
+  if (this->length() == 0 || this->group() > group) {
+    // There is no such group.
+    return true;
+  }
+  if (this->group() < group) {
+    // The group comes later in the list.
+    return next_link()->IsEmpty(group);
+  }
+  DCHECK_EQ(group, this->group());
+  return count() == 0;
+}
+
+
 bool DependentCode::MarkCodeForDeoptimization(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
+  if (this->length() == 0 || this->group() > group) {
+    // There is no such group.
+    return false;
+  }
+  if (this->group() < group) {
+    // The group comes later in the list.
+    return next_link()->MarkCodeForDeoptimization(isolate, group);
+  }
+  DCHECK_EQ(group, this->group());
   DisallowHeapAllocation no_allocation_scope;
-  DependentCode::GroupStartIndexes starts(this);
-  int start = starts.at(group);
-  int end = starts.at(group + 1);
-  int code_entries = starts.number_of_entries();
-  if (start == end) return false;
-
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
   bool invalidate_embedded_objects = group == kWeakCodeGroup;
-  for (int i = start; i < end; i++) {
+  int count = this->count();
+  for (int i = 0; i < count; i++) {
     Object* obj = object_at(i);
     if (obj->IsWeakCell()) {
       WeakCell* cell = WeakCell::cast(obj);
@@ -14187,16 +14211,10 @@ bool DependentCode::MarkCodeForDeoptimization(
       info->Abort();
     }
   }
-  // Compact the array by moving all subsequent groups to fill in the new holes.
-  for (int src = end, dst = start; src < code_entries; src++, dst++) {
-    copy(src, dst);
-  }
-  // Now the holes are at the end of the array, zap them for heap-verifier.
-  int removed = end - start;
-  for (int i = code_entries - removed; i < code_entries; i++) {
+  for (int i = 0; i < count; i++) {
     clear_at(i);
   }
-  set_number_of_entries(group, 0);
+  set_count(0);
   return marked;
 }
 
