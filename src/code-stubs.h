@@ -982,6 +982,7 @@ class CallICStub: public PlatformCodeStub {
 
  protected:
   int arg_count() const { return state().argc(); }
+  ConvertReceiverMode convert_mode() const { return state().convert_mode(); }
 
   CallICState state() const {
     return CallICState(static_cast<ExtraICState>(minor_key_));

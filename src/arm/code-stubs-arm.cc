@@ -2461,7 +2461,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
   const int generic_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
-  Label extra_checks_or_miss, call;
+  Label extra_checks_or_miss, call, call_function;
   int argc = arg_count();
   ParameterCount actual(argc);
 
@@ -2498,9 +2498,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ add(r3, r3, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
   __ str(r3, FieldMemOperand(r2, 0));
 
-  __ bind(&call);
+  __ bind(&call_function);
   __ mov(r0, Operand(argc));
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode()),
+          RelocInfo::CODE_TARGET);
 
   __ bind(&extra_checks_or_miss);
   Label uninitialized, miss, not_allocation_site;
@@ -2542,7 +2543,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ ldr(r4, FieldMemOperand(r2, generic_offset));
   __ add(r4, r4, Operand(Smi::FromInt(1)));
   __ str(r4, FieldMemOperand(r2, generic_offset));
-  __ jmp(&call);
+
+  __ bind(&call);
+  __ mov(r0, Operand(argc));
+  __ Jump(masm->isolate()->builtins()->Call(convert_mode()),
+          RelocInfo::CODE_TARGET);
 
   __ bind(&uninitialized);
 
@@ -2589,7 +2594,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ Pop(r1);
   }
 
-  __ jmp(&call);
+  __ jmp(&call_function);
 
   // We are here because tracing is on or we encountered a MISS case we can't
   // handle here.

@@ -2661,7 +2661,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
   const int generic_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
-  Label extra_checks_or_miss, call;
+  Label extra_checks_or_miss, call, call_function;
   int argc = arg_count();
   ParameterCount actual(argc);
 
@@ -2698,9 +2698,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Daddu(t0, t0, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
   __ sd(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
 
-  __ bind(&call);
-  __ li(a0, Operand(argc));
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  __ bind(&call_function);
+  __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode()),
+          RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg),
+          USE_DELAY_SLOT);
+  __ li(a0, Operand(argc));  // In delay slot.
 
   __ bind(&extra_checks_or_miss);
   Label uninitialized, miss, not_allocation_site;
@@ -2741,8 +2743,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ sd(a4, FieldMemOperand(a2, with_types_offset));
   __ ld(a4, FieldMemOperand(a2, generic_offset));
   __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
-  __ Branch(USE_DELAY_SLOT, &call);
-  __ sd(a4, FieldMemOperand(a2, generic_offset));  // In delay slot.
+  __ sd(a4, FieldMemOperand(a2, generic_offset));
+
+  __ bind(&call);
+  __ Jump(masm->isolate()->builtins()->Call(convert_mode()),
+          RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg),
+          USE_DELAY_SLOT);
+  __ li(a0, Operand(argc));  // In delay slot.
 
   __ bind(&uninitialized);
 
@@ -2788,7 +2795,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ Pop(a1);
   }
 
-  __ Branch(&call);
+  __ Branch(&call_function);
 
   // We are here because tracing is on or we encountered a MISS case we can't
   // handle here.
