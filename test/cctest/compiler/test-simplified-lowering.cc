@@ -1950,8 +1950,7 @@ TEST(PhiRepresentation) {
        kRepWord32 | kTypeNumber},
       {Type::Signed32(), Type::Signed32(), kMachInt32, kMachInt32},
       {Type::Unsigned32(), Type::Unsigned32(), kMachInt32, kMachUint32},
-      {Type::Number(), Type::Signed32(), kMachInt32, kMachFloat64},
-      {Type::Signed32(), Type::String(), kMachInt32, kMachAnyTagged}};
+      {Type::Number(), Type::Signed32(), kMachInt32, kRepWord32 | kTypeNumber}};
 
   for (auto const d : test_data) {
     TestingGraph t(d.arg1, d.arg2, Type::Boolean());

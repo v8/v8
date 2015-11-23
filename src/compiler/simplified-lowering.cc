@@ -443,26 +443,12 @@ class RepresentationSelector {
   static MachineType GetRepresentationForPhi(Node* node, MachineTypeUnion use) {
     // Phis adapt to the output representation their uses demand.
     Type* upper = NodeProperties::GetType(node);
-    if ((use & kRepMask) == kRepFloat32) {
-      // only float32 uses.
-      return kRepFloat32;
-    } else if ((use & kRepMask) == kRepFloat64) {
-      // only float64 uses.
-      return kRepFloat64;
-    } else if ((use & kRepMask) == kRepTagged) {
-      // only tagged uses.
-      return kRepTagged;
-    } else if (upper->Is(Type::Integral32())) {
-      // Integer within [-2^31, 2^32[ range.
-      if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
-        // multiple uses, but we are within 32 bits range => pick kRepWord32.
-        return kRepWord32;
-      } else if (!CanObserveNonWord32(use)) {
-        // We only use 32 bits.
-        return kRepWord32;
-      } else {
-        return kRepFloat64;
-      }
+    if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
+      // We are within 32 bits range => pick kRepWord32.
+      return kRepWord32;
+    } else if (!CanObserveNonWord32(use)) {
+      // We only use 32 bits.
+      return kRepWord32;
     } else if (upper->Is(Type::Boolean())) {
       // multiple uses => pick kRepBit.
       return kRepBit;
