@@ -65,8 +65,6 @@ class RollChromium(Step):
         "--use-commit-queue",
         self["roll"],
       ]
-      if self._options.sheriff:
-        args.append("--sheriff")
       if self._options.dry_run:
         args.append("--dry-run")
       if self._options.work_dir:

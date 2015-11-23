@@ -1015,7 +1015,7 @@ Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
 This only works with a Google account.
 
-TBR=g_name@chromium.org,reviewer@chromium.org"""
+TBR=reviewer@chromium.org"""
 
   def testChromiumRoll(self):
     # Setup fake directory structures.
@@ -1038,8 +1038,6 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
           "Version 3.22.4 (based on abc)\n"),
       Cmd("git describe --tags roll_hsh", "3.22.4"),
       Cmd("git describe --tags last_roll_hsh", "3.22.2.1"),
-      URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
-          "document.write('g_name')"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch", "", cwd=chrome_dir),
@@ -1060,7 +1058,6 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
     self.Expect(expectations)
 
     args = ["-a", "author@chromium.org", "-c", chrome_dir,
-            "--sheriff",
             "-r", "reviewer@chromium.org",
             "--last-roll", "last_roll_hsh",
             "roll_hsh"]

@@ -149,7 +149,6 @@ class ChromiumRoll(ScriptsBase):
     return [
       Preparation,
       PrepareRollCandidate,
-      DetermineV8Sheriff,
       SwitchChromium,
       UpdateChromiumCheckout,
       UploadCL,

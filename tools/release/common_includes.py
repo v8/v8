@@ -766,32 +766,6 @@ class UploadStep(Step):
                    cc=self._options.cc)
 
 
-class DetermineV8Sheriff(Step):
-  MESSAGE = "Determine the V8 sheriff for code review."
-
-  def RunStep(self):
-    self["sheriff"] = None
-    if not self._options.sheriff:  # pragma: no cover
-      return
-
-    # The sheriff determined by the rotation on the waterfall has a
-    # @google.com account.
-    url = "https://chromium-build.appspot.com/p/chromium/sheriff_v8.js"
-    match = re.match(r"document\.write\('(\w+)'\)", self.ReadURL(url))
-
-    # If "channel is sheriff", we can't match an account.
-    if match:
-      g_name = match.group(1)
-      # Optimistically assume that google and chromium account name are the
-      # same.
-      self["sheriff"] = g_name + "@chromium.org"
-      self._options.reviewer = ("%s,%s" %
-                                (self["sheriff"], self._options.reviewer))
-      print "Found active sheriff: %s" % self["sheriff"]
-    else:
-      print "No active sheriff found."
-
-
 def MakeStep(step_class=Step, number=0, state=None, config=None,
              options=None, side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
     # Allow to pass in empty dictionaries.
@@ -842,10 +816,6 @@ class ScriptsBase(object):
                         help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
-    parser.add_argument("--sheriff", default=False, action="store_true",
-                        help=("Determine current sheriff to review CLs. On "
-                              "success, this will overwrite the reviewer "
-                              "option."))
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
