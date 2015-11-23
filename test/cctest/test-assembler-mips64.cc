@@ -72,8 +72,8 @@ TEST(MIPS0) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
-  int64_t res =
-      reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, 0xab0, 0xc, 0, 0, 0));
+  int64_t res = reinterpret_cast<int64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0xab0, 0xc, 0, 0, 0));
   CHECK_EQ(0xabcL, res);
 }
 
@@ -108,8 +108,8 @@ TEST(MIPS1) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F1 f = FUNCTION_CAST<F1>(code->entry());
-  int64_t res =
-     reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, 50, 0, 0, 0, 0));
+  int64_t res = reinterpret_cast<int64_t>(
+      CALL_GENERATED_CODE(isolate, f, 50, 0, 0, 0, 0));
   CHECK_EQ(1275L, res);
 }
 
@@ -254,8 +254,8 @@ TEST(MIPS2) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
-  int64_t res =
-      reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, 0xab0, 0xc, 0, 0, 0));
+  int64_t res = reinterpret_cast<int64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0xab0, 0xc, 0, 0, 0));
 
   CHECK_EQ(0x31415926L, res);
 }
@@ -373,7 +373,7 @@ TEST(MIPS3) {
   t.fd = 0.0;
   t.fe = 0.0;
   t.ff = 0.0;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
   // Expected double results.
   CHECK_EQ(1.5e14, t.a);
@@ -455,7 +455,7 @@ TEST(MIPS4) {
   t.b = 2.75e11;
   t.c = 17.17;
   t.d = -2.75e11;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(2.75e11, t.a);
@@ -521,7 +521,7 @@ TEST(MIPS5) {
   t.b = 2.75e8;
   t.i = 12345678;
   t.j = -100000;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(12345678.0, t.a);
@@ -589,7 +589,7 @@ TEST(MIPS6) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   t.ui = 0x11223344;
   t.si = 0x99aabbcc;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(static_cast<int32_t>(0x11223344), t.r1);
@@ -682,7 +682,7 @@ TEST(MIPS7) {
   t.e = 0.0;
   t.f = 0.0;
   t.result = 0;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
   CHECK_EQ(1.5e14, t.a);
   CHECK_EQ(2.75e11, t.b);
@@ -773,7 +773,7 @@ TEST(MIPS8) {
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
     t.input = 0x12345678;
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0x0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0x0, 0, 0, 0);
     USE(dummy);
     CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotr_4);
     CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotr_8);
@@ -899,7 +899,7 @@ TEST(MIPS10) {
     t.a = 2.147483647e9;       // 0x7fffffff -> 0x41DFFFFFFFC00000 as double.
     t.b_long_hi = 0x000000ff;  // 0xFF00FF00FF -> 0x426FE01FE01FE000 as double.
     t.b_long_lo = 0x00ff00ff;
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
 
     CHECK_EQ(static_cast<int32_t>(0x41DFFFFF), t.dbl_exp);
@@ -1034,7 +1034,7 @@ TEST(MIPS11) {
     t.reg_init = 0xaabbccdd;
     t.mem_init = 0x11223344;
 
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
 
     if (kArchEndian == kLittle) {
@@ -1163,7 +1163,7 @@ TEST(MIPS12) {
   t.y3 = 0XBABA;
   t.y4 = 0xDEDA;
 
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(3, t.y1);
@@ -1214,7 +1214,7 @@ TEST(MIPS13) {
   t.cvt_big_in = 0xFFFFFFFF;
   t.cvt_small_in  = 333;
 
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(t.cvt_big_out, static_cast<double>(t.cvt_big_in));
@@ -1338,7 +1338,7 @@ TEST(MIPS14) {
   t.err3_in = static_cast<double>(1) + 0xFFFFFFFF;
   t.err4_in = NAN;
 
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
 #define GET_FPU_ERR(x) (static_cast<int>(x & kFCSRFlagMask))
@@ -1456,7 +1456,7 @@ TEST(MIPS16) {
   t.r4 = 0x4444444444444444;
   t.r5 = 0x5555555555555555;
   t.r6 = 0x6666666666666666;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   // Unsigned data, 32 & 64.
@@ -1528,7 +1528,7 @@ TEST(seleqz_selnez) {
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
 
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
     CHECK_EQ(test.a, 1);
     CHECK_EQ(test.b, 0);
@@ -1556,7 +1556,7 @@ TEST(seleqz_selnez) {
         test.f = tests_D[j];
         test.i = inputs_S[i];
         test.j = tests_S[j];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.g, outputs_D[i]);
         CHECK_EQ(test.h, 0);
         CHECK_EQ(test.k, outputs_S[i]);
@@ -1564,7 +1564,7 @@ TEST(seleqz_selnez) {
 
         test.f = tests_D[j+1];
         test.j = tests_S[j+1];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.g, 0);
         CHECK_EQ(test.h, outputs_D[i]);
         CHECK_EQ(test.k, 0);
@@ -1634,7 +1634,7 @@ TEST(min_max) {
       test.e = inputse[i];
       test.f = inputsf[i];
 
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
       if (i < kTableLength - 1) {
         CHECK_EQ(test.c, outputsdmin[i]);
@@ -1748,7 +1748,7 @@ TEST(rint_d)  {
       test.fcsr = fcsr_inputs[j];
       for (int i = 0; i < kTableLength; i++) {
         test.a = inputs[i];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.b, outputs[j][i]);
       }
     }
@@ -1814,13 +1814,13 @@ TEST(sel) {
         test.ft = inputs_ft[i];
         test.fd = tests_S[j];
         test.fs = inputs_fs[i];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.dd, inputs_ds[i]);
         CHECK_EQ(test.fd, inputs_fs[i]);
 
         test.dd = tests_D[j+1];
         test.fd = tests_S[j+1];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.dd, inputs_dt[i]);
         CHECK_EQ(test.fd, inputs_ft[i]);
       }
@@ -1927,7 +1927,7 @@ TEST(rint_s)  {
       test.fcsr = fcsr_inputs[j];
       for (int i = 0; i < kTableLength; i++) {
         test.a = inputs[i];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.b, outputs[j][i]);
       }
     }
@@ -2015,7 +2015,7 @@ TEST(mina_maxa) {
       test.b = inputsb[i];
       test.c = inputsc[i];
       test.d = inputsd[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
       if (i < kTableLength - 1) {
         CHECK_EQ(test.resd, resd[i]);
@@ -2086,7 +2086,7 @@ TEST(trunc_l) {
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.c, outputs[i]);
       CHECK_EQ(test.d, test.c);
     }
@@ -2163,14 +2163,14 @@ TEST(movz_movn) {
       test.c = inputs_S[i];
 
       test.rt = 1;
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.b, test.bold);
       CHECK_EQ(test.d, test.dold);
       CHECK_EQ(test.b1, outputs_D[i]);
       CHECK_EQ(test.d1, outputs_S[i]);
 
       test.rt = 0;
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.b, outputs_D[i]);
       CHECK_EQ(test.d, outputs_S[i]);
       CHECK_EQ(test.b1, test.bold1);
@@ -2259,13 +2259,13 @@ TEST(movt_movd) {
             desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
         F3 f = FUNCTION_CAST<F3>(code->entry());
 
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.dstf, outputs_S[i]);
         CHECK_EQ(test.dstd, outputs_D[i]);
         CHECK_EQ(test.dstf1, test.dstfold1);
         CHECK_EQ(test.dstd1, test.dstdold1);
         test.fcsr = 0;
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.dstf, test.dstfold);
         CHECK_EQ(test.dstd, test.dstdold);
         CHECK_EQ(test.dstf1, outputs_S[i]);
@@ -2348,7 +2348,7 @@ TEST(cvt_w_d) {
     test.fcsr = fcsr_inputs[j];
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.b, outputs[j][i]);
     }
   }
@@ -2405,7 +2405,7 @@ TEST(trunc_w) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.c, outputs[i]);
     CHECK_EQ(test.d, test.c);
   }
@@ -2462,7 +2462,7 @@ TEST(round_w) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.c, outputs[i]);
     CHECK_EQ(test.d, test.c);
   }
@@ -2520,7 +2520,7 @@ TEST(round_l) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
       std::cout<< i<< "\n";
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.c, outputs[i]);
       CHECK_EQ(test.d, test.c);
     }
@@ -2589,7 +2589,7 @@ TEST(sub) {
     test.b = inputft_S[i];
     test.c = inputfs_D[i];
     test.d = inputft_D[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.resultS, outputs_S[i]);
     CHECK_EQ(test.resultD, outputs_D[i]);
   }
@@ -2664,7 +2664,7 @@ TEST(sqrt_rsqrt_recip) {
     test.a = inputs_S[i];
     test.c = inputs_D[i];
 
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
     CHECK_EQ(test.resultS, outputs_S[i]);
     CHECK_EQ(test.resultD, outputs_D[i]);
@@ -2738,7 +2738,7 @@ TEST(neg) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_S[i];
     test.c = inputs_D[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.resultS, outputs_S[i]);
     CHECK_EQ(test.resultD, outputs_D[i]);
   }
@@ -2798,7 +2798,7 @@ TEST(mul) {
     test.b = inputft_S[i];
     test.c = inputfs_D[i];
     test.d = inputft_D[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.resultS, inputfs_S[i]*inputft_S[i]);
     CHECK_EQ(test.resultD, inputfs_D[i]*inputft_D[i]);
   }
@@ -2852,7 +2852,7 @@ TEST(mov) {
     test.a = inputs_D[i];
     test.c = inputs_S[i];
 
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.b, outputs_D[i]);
     CHECK_EQ(test.d, outputs_S[i]);
   }
@@ -2909,7 +2909,7 @@ TEST(floor_w) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.c, outputs[i]);
     CHECK_EQ(test.d, test.c);
   }
@@ -2966,7 +2966,7 @@ TEST(floor_l) {
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.c, outputs[i]);
       CHECK_EQ(test.d, test.c);
     }
@@ -3023,7 +3023,7 @@ TEST(ceil_w) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.c, outputs[i]);
     CHECK_EQ(test.d, test.c);
   }
@@ -3080,7 +3080,7 @@ TEST(ceil_l) {
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.c, outputs[i]);
       CHECK_EQ(test.d, test.c);
     }
@@ -3149,7 +3149,7 @@ TEST(jump_tables1) {
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
     int64_t res = reinterpret_cast<int64_t>(
-        CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+        CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
     ::printf("f(%d) = %" PRId64 "\n", i, res);
     CHECK_EQ(values[i], static_cast<int>(res));
   }
@@ -3222,7 +3222,7 @@ TEST(jump_tables2) {
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
     int64_t res = reinterpret_cast<int64_t>(
-        CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+        CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
     ::printf("f(%d) = %" PRId64 "\n", i, res);
     CHECK_EQ(values[i], res);
   }
@@ -3304,7 +3304,8 @@ TEST(jump_tables3) {
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
-    Handle<Object> result(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0), isolate);
+    Handle<Object> result(
+        CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0), isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
     result->Print(std::cout);
@@ -3378,7 +3379,7 @@ TEST(BITSWAP) {
     t.r4 = 0xFF8017FF8B71FCDE;
     t.r5 = 0x10C021098B71FCDE;
     t.r6 = 0xFB8017FF781A15C3;
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
 
     CHECK_EQ(static_cast<int64_t>(0x000000001E58A8C3L), t.r1);
@@ -3539,7 +3540,7 @@ TEST(class_fmt) {
     t.fPosSubnorm   = FLT_MIN / 20.0;
     t.fPosZero      = +0.0;
 
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
     // Expected double results.
     CHECK_EQ(bit_cast<int64_t>(t.dSignalingNan), 0x001);
@@ -3610,34 +3611,34 @@ TEST(ABS) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   test.a = -2.0;
   test.b = -2.0;
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, 2.0);
   CHECK_EQ(test.b, 2.0);
 
   test.a = 2.0;
   test.b = 2.0;
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, 2.0);
   CHECK_EQ(test.b, 2.0);
 
   // Testing biggest positive number
   test.a = std::numeric_limits<double>::max();
   test.b = std::numeric_limits<float>::max();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, std::numeric_limits<double>::max());
   CHECK_EQ(test.b, std::numeric_limits<float>::max());
 
   // Testing smallest negative number
   test.a = -std::numeric_limits<double>::max();  // lowest()
   test.b = -std::numeric_limits<float>::max();   // lowest()
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, std::numeric_limits<double>::max());
   CHECK_EQ(test.b, std::numeric_limits<float>::max());
 
   // Testing smallest positive number
   test.a = -std::numeric_limits<double>::min();
   test.b = -std::numeric_limits<float>::min();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, std::numeric_limits<double>::min());
   CHECK_EQ(test.b, std::numeric_limits<float>::min());
 
@@ -3646,7 +3647,7 @@ TEST(ABS) {
           / std::numeric_limits<double>::min();
   test.b = -std::numeric_limits<float>::max()
           / std::numeric_limits<float>::min();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, std::numeric_limits<double>::max()
                  / std::numeric_limits<double>::min());
   CHECK_EQ(test.b, std::numeric_limits<float>::max()
@@ -3654,13 +3655,13 @@ TEST(ABS) {
 
   test.a = std::numeric_limits<double>::quiet_NaN();
   test.b = std::numeric_limits<float>::quiet_NaN();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(std::isnan(test.a), true);
   CHECK_EQ(std::isnan(test.b), true);
 
   test.a = std::numeric_limits<double>::signaling_NaN();
   test.b = std::numeric_limits<float>::signaling_NaN();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(std::isnan(test.a), true);
   CHECK_EQ(std::isnan(test.b), true);
 }
@@ -3705,7 +3706,7 @@ TEST(ADD_FMT) {
   test.b = 3.0;
   test.fa = 2.0;
   test.fb = 3.0;
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.c, 5.0);
   CHECK_EQ(test.fc, 5.0);
 
@@ -3713,7 +3714,7 @@ TEST(ADD_FMT) {
   test.b = -std::numeric_limits<double>::max();  // lowest()
   test.fa = std::numeric_limits<float>::max();
   test.fb = -std::numeric_limits<float>::max();  // lowest()
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.c, 0.0);
   CHECK_EQ(test.fc, 0.0);
 
@@ -3721,7 +3722,7 @@ TEST(ADD_FMT) {
   test.b = std::numeric_limits<double>::max();
   test.fa = std::numeric_limits<float>::max();
   test.fb = std::numeric_limits<float>::max();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(std::isfinite(test.c), false);
   CHECK_EQ(std::isfinite(test.fc), false);
 
@@ -3729,7 +3730,7 @@ TEST(ADD_FMT) {
   test.b = std::numeric_limits<double>::signaling_NaN();
   test.fa = 5.0;
   test.fb = std::numeric_limits<float>::signaling_NaN();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(std::isnan(test.c), true);
   CHECK_EQ(std::isnan(test.fc), true);
 }
@@ -3859,7 +3860,7 @@ TEST(C_COND_FMT) {
     test.dOp2 = 3.0;
     test.fOp1 = 2.0;
     test.fOp2 = 3.0;
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dF, 0U);
     CHECK_EQ(test.dUn, 0U);
     CHECK_EQ(test.dEq, 0U);
@@ -3881,7 +3882,7 @@ TEST(C_COND_FMT) {
     test.dOp2 = std::numeric_limits<double>::min();
     test.fOp1 = std::numeric_limits<float>::min();
     test.fOp2 = -std::numeric_limits<float>::max();  // lowest()
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dF, 0U);
     CHECK_EQ(test.dUn, 0U);
     CHECK_EQ(test.dEq, 0U);
@@ -3903,7 +3904,7 @@ TEST(C_COND_FMT) {
     test.dOp2 = -std::numeric_limits<double>::max();  // lowest()
     test.fOp1 = std::numeric_limits<float>::max();
     test.fOp2 = std::numeric_limits<float>::max();
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dF, 0U);
     CHECK_EQ(test.dUn, 0U);
     CHECK_EQ(test.dEq, 1U);
@@ -3925,7 +3926,7 @@ TEST(C_COND_FMT) {
     test.dOp2 = 0.0;
     test.fOp1 = std::numeric_limits<float>::quiet_NaN();
     test.fOp2 = 0.0;
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dF, 0U);
     CHECK_EQ(test.dUn, 1U);
     CHECK_EQ(test.dEq, 0U);
@@ -4064,7 +4065,7 @@ TEST(CMP_COND_FMT) {
     test.dOp2 = 3.0;
     test.fOp1 = 2.0;
     test.fOp2 = 3.0;
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dEq), dFalse);
@@ -4089,7 +4090,7 @@ TEST(CMP_COND_FMT) {
     test.dOp2 = std::numeric_limits<double>::min();
     test.fOp1 = std::numeric_limits<float>::min();
     test.fOp2 = -std::numeric_limits<float>::max();  // lowest()
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dEq), dFalse);
@@ -4114,7 +4115,7 @@ TEST(CMP_COND_FMT) {
     test.dOp2 = -std::numeric_limits<double>::max();  // lowest()
     test.fOp1 = std::numeric_limits<float>::max();
     test.fOp2 = std::numeric_limits<float>::max();
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dEq), dTrue);
@@ -4139,7 +4140,7 @@ TEST(CMP_COND_FMT) {
     test.dOp2 = 0.0;
     test.fOp1 = std::numeric_limits<float>::quiet_NaN();
     test.fOp2 = 0.0;
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dUn), dTrue);
     CHECK_EQ(bit_cast<uint64_t>(test.dEq), dFalse);
@@ -4245,7 +4246,7 @@ TEST(CVT) {
   test.cvt_w_s_in = -0.51;
   test.cvt_w_d_in = -0.51;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
   CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
@@ -4269,7 +4270,7 @@ TEST(CVT) {
   test.cvt_w_s_in = 0.49;
   test.cvt_w_d_in = 0.49;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
   CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
@@ -4292,7 +4293,7 @@ TEST(CVT) {
   test.cvt_w_s_in = std::numeric_limits<float>::max();
   test.cvt_w_d_in = std::numeric_limits<double>::max();
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
   CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
@@ -4316,7 +4317,7 @@ TEST(CVT) {
   test.cvt_w_s_in = -std::numeric_limits<float>::max();   // lowest()
   test.cvt_w_d_in = -std::numeric_limits<double>::max();  // lowest()
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
   CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
@@ -4347,7 +4348,7 @@ TEST(CVT) {
   test.cvt_w_s_in = std::numeric_limits<float>::min();
   test.cvt_w_d_in = std::numeric_limits<double>::min();
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
   CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
@@ -4406,7 +4407,7 @@ TEST(DIV_FMT) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
   const int test_size = 3;
 
@@ -4447,7 +4448,7 @@ TEST(DIV_FMT) {
     test.fOp1 = fOp1[i];
     test.fOp2 = fOp2[i];
 
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dRes, dRes[i]);
     CHECK_EQ(test.fRes, fRes[i]);
   }
@@ -4457,7 +4458,7 @@ TEST(DIV_FMT) {
   test.fOp1 = FLT_MAX;
   test.fOp2 = -0.0;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(false, std::isfinite(test.dRes));
   CHECK_EQ(false, std::isfinite(test.fRes));
 
@@ -4466,7 +4467,7 @@ TEST(DIV_FMT) {
   test.fOp1 = 0.0;
   test.fOp2 = -0.0;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(true, std::isnan(test.dRes));
   CHECK_EQ(true, std::isnan(test.fRes));
 
@@ -4475,7 +4476,7 @@ TEST(DIV_FMT) {
   test.fOp1 = std::numeric_limits<float>::quiet_NaN();
   test.fOp2 = -5.0;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(true, std::isnan(test.dRes));
   CHECK_EQ(true, std::isnan(test.fRes));
 }
@@ -4498,10 +4499,8 @@ uint64_t run_align(uint64_t rs_value, uint64_t rt_value, uint8_t bp) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, rs_value,
-                                                        rt_value,
-                                                        0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, rs_value, rt_value, 0, 0, 0));
 
   return res;
 }
@@ -4552,10 +4551,8 @@ uint64_t run_dalign(uint64_t rs_value, uint64_t rt_value, uint8_t bp) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
   F4 f = FUNCTION_CAST<F4>(code->entry());
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, rs_value,
-                                                        rt_value,
-                                                        0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, rs_value, rt_value, 0, 0, 0));
 
   return res;
 }
@@ -4614,8 +4611,8 @@ uint64_t run_aluipc(int16_t offset) {
   F2 f = FUNCTION_CAST<F2>(code->entry());
   PC = (uint64_t) f;  // Set the program counter.
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4668,8 +4665,8 @@ uint64_t run_auipc(int16_t offset) {
   F2 f = FUNCTION_CAST<F2>(code->entry());
   PC = (uint64_t) f;  // Set the program counter.
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4743,8 +4740,8 @@ uint64_t run_lwpc(int offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4819,8 +4816,8 @@ uint64_t run_lwupc(int offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4903,8 +4900,8 @@ uint64_t run_jic(int16_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4975,8 +4972,8 @@ uint64_t run_beqzc(int32_t value, int32_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, value, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, value, 0, 0, 0, 0));
 
   return res;
 }
@@ -5069,8 +5066,8 @@ uint64_t run_jialc(int16_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -5122,8 +5119,8 @@ uint64_t run_addiupc(int32_t imm19) {
   F2 f = FUNCTION_CAST<F2>(code->entry());
   PC = (uint64_t) f;  // Set the program counter.
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -5197,8 +5194,8 @@ uint64_t run_ldpc(int offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint64_t res =
-      reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -5280,8 +5277,8 @@ int64_t run_bc(int32_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  int64_t res =
-      reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  int64_t res = reinterpret_cast<int64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -5362,8 +5359,8 @@ int64_t run_balc(int32_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  int64_t res =
-      reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  int64_t res = reinterpret_cast<int64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -5412,8 +5409,8 @@ uint64_t run_dsll(uint64_t rt_value, uint16_t sa_value) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint64_t res =
-    reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, rt_value, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, rt_value, 0, 0, 0, 0));
 
   return res;
 }
@@ -5468,8 +5465,8 @@ uint64_t run_bal(int16_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint64_t res =
-    reinterpret_cast<uint64_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -5520,8 +5517,8 @@ TEST(Trampoline) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  int64_t res =
-      reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, 42, 42, 0, 0, 0));
+  int64_t res = reinterpret_cast<int64_t>(
+      CALL_GENERATED_CODE(isolate, f, 42, 42, 0, 0, 0));
   CHECK_EQ(res, 0);
 }
 

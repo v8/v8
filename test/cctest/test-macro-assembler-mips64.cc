@@ -117,9 +117,8 @@ TEST(CopyBytes) {
       for (byte* dest = dest_buffer; dest < dest_buffer + fuzz; dest++) {
         memset(dest_buffer, 0, data_size);
         CHECK(dest + size < dest_buffer + data_size);
-        (void) CALL_GENERATED_CODE(f, reinterpret_cast<int64_t>(src),
-                                      reinterpret_cast<int64_t>(dest),
-                                      size, 0, 0);
+        (void)CALL_GENERATED_CODE(isolate, f, reinterpret_cast<int64_t>(src),
+                                  reinterpret_cast<int64_t>(dest), size, 0, 0);
         // a0 and a1 should point at the first byte after the copied data.
         CHECK_EQ(src + size, a0_);
         CHECK_EQ(dest + size, a1_);
@@ -172,8 +171,8 @@ TEST(LoadConstants) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
   ::F f = FUNCTION_CAST< ::F>(code->entry());
-     (void) CALL_GENERATED_CODE(f, reinterpret_cast<int64_t>(result),
-                                0, 0, 0, 0);
+  (void)CALL_GENERATED_CODE(isolate, f, reinterpret_cast<int64_t>(result), 0, 0,
+                            0, 0);
   // Check results.
   for (int i = 0; i < 64; i++) {
     CHECK(refConstants[i] == result[i]);
@@ -216,7 +215,7 @@ TEST(LoadAddress) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
   ::F f = FUNCTION_CAST< ::F>(code->entry());
-     (void) CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0);
+  (void)CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0);
   // Check results.
 }
 
@@ -299,8 +298,8 @@ TEST(jump_tables4) {
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
-    int64_t res =
-        reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+    int64_t res = reinterpret_cast<int64_t>(
+        CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
     ::printf("f(%d) = %" PRId64 "\n", i, res);
     CHECK_EQ(values[i], res);
   }

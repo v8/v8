@@ -2130,7 +2130,7 @@ v8::TryCatch::TryCatch()
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ =
       reinterpret_cast<void*>(v8::internal::SimulatorStack::RegisterCTryCatch(
-          v8::internal::GetCurrentStackPosition()));
+          isolate_, v8::internal::GetCurrentStackPosition()));
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -2147,7 +2147,7 @@ v8::TryCatch::TryCatch(v8::Isolate* isolate)
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ =
       reinterpret_cast<void*>(v8::internal::SimulatorStack::RegisterCTryCatch(
-          v8::internal::GetCurrentStackPosition()));
+          isolate_, v8::internal::GetCurrentStackPosition()));
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -2166,7 +2166,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->RestorePendingMessageFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    v8::internal::SimulatorStack::UnregisterCTryCatch();
+    v8::internal::SimulatorStack::UnregisterCTryCatch(isolate_);
     reinterpret_cast<Isolate*>(isolate_)->ThrowException(exc);
     DCHECK(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
@@ -2177,7 +2177,7 @@ v8::TryCatch::~TryCatch() {
       isolate_->CancelScheduledExceptionFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
-    v8::internal::SimulatorStack::UnregisterCTryCatch();
+    v8::internal::SimulatorStack::UnregisterCTryCatch(isolate_);
   }
 }
 

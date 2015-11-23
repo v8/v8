@@ -866,7 +866,8 @@ class ExternalReference BASE_EMBEDDED {
   static void InitializeMathExpData();
   static void TearDownMathExpData();
 
-  typedef void* ExternalReferenceRedirector(void* original, Type type);
+  typedef void* ExternalReferenceRedirector(Isolate* isolate, void* original,
+                                            Type type);
 
   ExternalReference() : address_(NULL) {}
 
@@ -1043,9 +1044,8 @@ class ExternalReference BASE_EMBEDDED {
         reinterpret_cast<ExternalReferenceRedirector*>(
             isolate->external_reference_redirector());
     void* address = reinterpret_cast<void*>(address_arg);
-    void* answer = (redirector == NULL) ?
-                   address :
-                   (*redirector)(address, type);
+    void* answer =
+        (redirector == NULL) ? address : (*redirector)(isolate, address, type);
     return answer;
   }
 

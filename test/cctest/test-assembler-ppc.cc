@@ -69,8 +69,8 @@ TEST(0) {
   code->Print();
 #endif
   F2 f = FUNCTION_CAST<F2>(code->entry());
-  intptr_t res =
-      reinterpret_cast<intptr_t>(CALL_GENERATED_CODE(f, 3, 4, 0, 0, 0));
+  intptr_t res = reinterpret_cast<intptr_t>(
+      CALL_GENERATED_CODE(isolate, f, 3, 4, 0, 0, 0));
   ::printf("f() = %" V8PRIdPTR "\n", res);
   CHECK_EQ(7, static_cast<int>(res));
 }
@@ -108,8 +108,8 @@ TEST(1) {
   code->Print();
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
-  intptr_t res =
-      reinterpret_cast<intptr_t>(CALL_GENERATED_CODE(f, 100, 0, 0, 0, 0));
+  intptr_t res = reinterpret_cast<intptr_t>(
+      CALL_GENERATED_CODE(isolate, f, 100, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIdPTR "\n", res);
   CHECK_EQ(5050, static_cast<int>(res));
 }
@@ -159,8 +159,8 @@ TEST(2) {
   code->Print();
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
-  intptr_t res =
-      reinterpret_cast<intptr_t>(CALL_GENERATED_CODE(f, 10, 0, 0, 0, 0));
+  intptr_t res = reinterpret_cast<intptr_t>(
+      CALL_GENERATED_CODE(isolate, f, 10, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIdPTR "\n", res);
   CHECK_EQ(3628800, static_cast<int>(res));
 }
@@ -235,8 +235,8 @@ TEST(3) {
   t.i = 100000;
   t.c = 10;
   t.s = 1000;
-  intptr_t res =
-      reinterpret_cast<intptr_t>(CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0));
+  intptr_t res = reinterpret_cast<intptr_t>(
+      CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIdPTR "\n", res);
   CHECK_EQ(101010, static_cast<int>(res));
   CHECK_EQ(100000 / 2, t.i);
@@ -361,7 +361,7 @@ TEST(4) {
     t.n = 123.456;
     t.x = 4.5;
     t.y = 9.0;
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
     CHECK_EQ(4.5, t.y);
     CHECK_EQ(9.0, t.x);
@@ -410,7 +410,7 @@ TEST(5) {
 #endif
     F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
     int res = reinterpret_cast<int>(
-                CALL_GENERATED_CODE(f, 0xAAAAAAAA, 0, 0, 0, 0));
+                CALL_GENERATED_CODE(isolate, f, 0xAAAAAAAA, 0, 0, 0, 0));
     ::printf("f() = %d\n", res);
     CHECK_EQ(-7, res);
   }
@@ -446,7 +446,7 @@ TEST(6) {
 #endif
     F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
     int res = reinterpret_cast<int>(
-                CALL_GENERATED_CODE(f, 0xFFFF, 0, 0, 0, 0));
+                CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
     ::printf("f() = %d\n", res);
     CHECK_EQ(382, res);
   }
@@ -522,7 +522,7 @@ static void TestRoundingMode(VCVTTypes types,
 #endif
     F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
     int res = reinterpret_cast<int>(
-                CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+                CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
     ::printf("res = %d\n", res);
     CHECK_EQ(expected, res);
   }
@@ -727,7 +727,7 @@ TEST(8) {
     f.g = 7.0;
     f.h = 8.0;
 
-    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, fn, &d, &f, 0, 0, 0);
     USE(dummy);
 
     CHECK_EQ(7.7, d.a);
@@ -843,7 +843,7 @@ TEST(9) {
     f.g = 7.0;
     f.h = 8.0;
 
-    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, fn, &d, &f, 0, 0, 0);
     USE(dummy);
 
     CHECK_EQ(7.7, d.a);
@@ -955,7 +955,7 @@ TEST(10) {
     f.g = 7.0;
     f.h = 8.0;
 
-    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, fn, &d, &f, 0, 0, 0);
     USE(dummy);
 
     CHECK_EQ(7.7, d.a);
@@ -1035,7 +1035,7 @@ TEST(11) {
   Code::cast(code)->Print();
 #endif
   F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
-  Object* dummy = CALL_GENERATED_CODE(f, &i, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &i, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(0xabcd0001, i.a);
