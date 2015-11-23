@@ -1428,6 +1428,7 @@ static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
   //  -- r3 : actual number of arguments
   //  -- r4 : function (passed through to callee)
   //  -- r5 : expected number of arguments
+  //  -- r6 : new target (passed through to callee)
   // -----------------------------------
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
@@ -1717,11 +1718,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- r3 : actual number of arguments
   //  -- r4 : function (passed through to callee)
   //  -- r5 : expected number of arguments
+  //  -- r6 : new target (passed through to callee)
   // -----------------------------------
 
-  Label stack_overflow;
-  ArgumentAdaptorStackCheck(masm, &stack_overflow);
-  Label invoke, dont_adapt_arguments;
+  Label invoke, dont_adapt_arguments, stack_overflow;
 
   Label enough, too_few;
   __ LoadP(ip, FieldMemOperand(r4, JSFunction::kCodeEntryOffset));
@@ -1733,31 +1733,34 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Enough parameters: actual >= expected
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentAdaptorStackCheck(masm, &stack_overflow);
 
-    // Calculate copy start address into r3 and copy end address into r6.
+    // Calculate copy start address into r3 and copy end address into r7.
     // r3: actual number of arguments as a smi
     // r4: function
     // r5: expected number of arguments
+    // r6: new target (passed through to callee)
     // ip: code entry to call
     __ SmiToPtrArrayOffset(r3, r3);
     __ add(r3, r3, fp);
     // adjust for return address and receiver
     __ addi(r3, r3, Operand(2 * kPointerSize));
-    __ ShiftLeftImm(r6, r5, Operand(kPointerSizeLog2));
-    __ sub(r6, r3, r6);
+    __ ShiftLeftImm(r7, r5, Operand(kPointerSizeLog2));
+    __ sub(r7, r3, r7);
 
     // Copy the arguments (including the receiver) to the new stack frame.
     // r3: copy start address
     // r4: function
     // r5: expected number of arguments
-    // r6: copy end address
+    // r6: new target (passed through to callee)
+    // r7: copy end address
     // ip: code entry to call
 
     Label copy;
     __ bind(&copy);
     __ LoadP(r0, MemOperand(r3, 0));
     __ push(r0);
-    __ cmp(r3, r6);  // Compare before moving to next argument.
+    __ cmp(r3, r7);  // Compare before moving to next argument.
     __ subi(r3, r3, Operand(kPointerSize));
     __ bne(&copy);
 
@@ -1793,11 +1796,13 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentAdaptorStackCheck(masm, &stack_overflow);
 
     // Calculate copy start address into r0 and copy end address is fp.
     // r3: actual number of arguments as a smi
     // r4: function
     // r5: expected number of arguments
+    // r6: new target (passed through to callee)
     // ip: code entry to call
     __ SmiToPtrArrayOffset(r3, r3);
     __ add(r3, r3, fp);
@@ -1806,6 +1811,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r3: copy start address
     // r4: function
     // r5: expected number of arguments
+    // r6: new target (passed through to callee)
     // ip: code entry to call
     Label copy;
     __ bind(&copy);
@@ -1819,18 +1825,19 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Fill the remaining expected arguments with undefined.
     // r4: function
     // r5: expected number of arguments
+    // r6: new target (passed through to callee)
     // ip: code entry to call
     __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-    __ ShiftLeftImm(r6, r5, Operand(kPointerSizeLog2));
-    __ sub(r6, fp, r6);
+    __ ShiftLeftImm(r7, r5, Operand(kPointerSizeLog2));
+    __ sub(r7, fp, r7);
     // Adjust for frame.
-    __ subi(r6, r6, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
+    __ subi(r7, r7, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
                             2 * kPointerSize));
 
     Label fill;
     __ bind(&fill);
     __ push(r0);
-    __ cmp(sp, r6);
+    __ cmp(sp, r7);
     __ bne(&fill);
   }
 
@@ -1839,6 +1846,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ mr(r3, r5);
   // r3 : expected number of arguments
   // r4 : function (passed through to callee)
+  // r6 : new target (passed through to callee)
   __ CallJSEntry(ip);
 
   // Store offset of return address for deoptimizer.
@@ -1858,7 +1866,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ bind(&stack_overflow);
   {
     FrameScope frame(masm, StackFrame::MANUAL);
-    EnterArgumentsAdaptorFrame(masm);
     __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ bkpt(0);
   }
