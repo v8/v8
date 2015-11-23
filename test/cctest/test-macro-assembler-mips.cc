@@ -65,7 +65,7 @@ static bool all_zeroes(const byte* beg, const byte* end) {
 
 TEST(CopyBytes) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
 
   const int data_size = 1 * KB;

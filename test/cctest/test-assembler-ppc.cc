@@ -51,7 +51,7 @@ typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 // Simple add parameter 1 to parameter 2 and return
 TEST(0) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(isolate, NULL, 0);
@@ -79,7 +79,7 @@ TEST(0) {
 // Loop 100 times, adding loop counter to result
 TEST(1) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(isolate, NULL, 0);
@@ -117,7 +117,7 @@ TEST(1) {
 
 TEST(2) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(isolate, NULL, 0);
@@ -168,7 +168,7 @@ TEST(2) {
 
 TEST(3) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   typedef struct {
@@ -178,7 +178,7 @@ TEST(3) {
   } T;
   T t;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Assembler assm(CcTest::i_isolate(), NULL, 0);
   Label L, C;
 
   __ function_descriptor();
@@ -248,7 +248,7 @@ TEST(3) {
 TEST(4) {
   // Test the VFP floating point instructions.
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   typedef struct {
@@ -270,7 +270,7 @@ TEST(4) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Assembler assm(CcTest::i_isolate(), NULL, 0);
   Label L, C;
 
   if (CpuFeatures::IsSupported(VFP3)) {
@@ -383,7 +383,7 @@ TEST(4) {
 TEST(5) {
   // Test the ARMv7 bitfield instructions.
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(isolate, NULL, 0);
@@ -420,7 +420,7 @@ TEST(5) {
 TEST(6) {
   // Test saturating instructions.
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(isolate, NULL, 0);
@@ -463,7 +463,7 @@ static void TestRoundingMode(VCVTTypes types,
                              int expected,
                              bool expected_exception = false) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(isolate, NULL, 0);
@@ -642,7 +642,7 @@ TEST(7) {
 TEST(8) {
   // Test VFP multi load/store with ia_w.
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   typedef struct {
@@ -754,7 +754,7 @@ TEST(8) {
 TEST(9) {
   // Test VFP multi load/store with ia.
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   typedef struct {
@@ -870,7 +870,7 @@ TEST(9) {
 TEST(10) {
   // Test VFP multi load/store with db_w.
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   typedef struct {
@@ -982,7 +982,7 @@ TEST(10) {
 TEST(11) {
   // Test instructions using the carry flag.
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   typedef struct {
@@ -1048,7 +1048,7 @@ TEST(11) {
 TEST(12) {
   // Test chaining of label usages within instructions (issue 1644).
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(isolate, NULL, 0);

@@ -50,7 +50,7 @@ using namespace v8::internal;
 #define INSTR_SIZE (1024)
 #define SET_UP_CLASS(ASMCLASS)                               \
   InitializeVM();                                            \
-  Isolate* isolate = Isolate::Current();                     \
+  Isolate* isolate = CcTest::i_isolate();                    \
   HandleScope scope(isolate);                                \
   byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));        \
   uint32_t encoding = 0;                                     \
