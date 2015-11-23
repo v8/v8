@@ -664,9 +664,20 @@ class ParserBase : public Traits {
   IdentifierT ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
                                          bool* ok);
   // Parses an identifier or a strict mode future reserved word, and indicate
-  // whether it is strict mode future reserved.
-  IdentifierT ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
+  // whether it is strict mode future reserved. Allows passing in is_generator
+  // for the case of parsing the identifier in a function expression, where the
+  // relevant "is_generator" bit is of the function being parsed, not the
+  // containing
+  // function.
+  IdentifierT ParseIdentifierOrStrictReservedWord(bool is_generator,
+                                                  bool* is_strict_reserved,
                                                   bool* ok);
+  IdentifierT ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
+                                                  bool* ok) {
+    return ParseIdentifierOrStrictReservedWord(this->is_generator(),
+                                               is_strict_reserved, ok);
+  }
+
   IdentifierT ParseIdentifierName(bool* ok);
   // Parses an identifier and determines whether or not it is 'get' or 'set'.
   IdentifierT ParseIdentifierNameOrGetOrSet(bool* is_get, bool* is_set,
@@ -2146,15 +2157,14 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
 
 
 template <class Traits>
-typename ParserBase<Traits>::IdentifierT ParserBase<
-    Traits>::ParseIdentifierOrStrictReservedWord(bool* is_strict_reserved,
-                                                 bool* ok) {
+typename ParserBase<Traits>::IdentifierT
+ParserBase<Traits>::ParseIdentifierOrStrictReservedWord(
+    bool is_generator, bool* is_strict_reserved, bool* ok) {
   Token::Value next = Next();
   if (next == Token::IDENTIFIER) {
     *is_strict_reserved = false;
   } else if (next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
-             next == Token::STATIC ||
-             (next == Token::YIELD && !this->is_generator())) {
+             next == Token::STATIC || (next == Token::YIELD && !is_generator)) {
     *is_strict_reserved = true;
   } else {
     ReportUnexpectedToken(next);
@@ -3496,8 +3506,8 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
     FunctionLiteral::FunctionType function_type =
         FunctionLiteral::ANONYMOUS_EXPRESSION;
     if (peek_any_identifier()) {
-      name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved_name,
-                                                 CHECK_OK);
+      name = ParseIdentifierOrStrictReservedWord(
+          is_generator, &is_strict_reserved_name, CHECK_OK);
       function_name_location = scanner()->location();
       function_type = FunctionLiteral::NAMED_EXPRESSION;
     }

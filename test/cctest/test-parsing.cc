@@ -2221,7 +2221,6 @@ TEST(NoErrorsYieldSloppyGeneratorsEnabled) {
     "function foo(yield) { }",
     "function foo(bar, yield) { }",
     "function * yield() { }",
-    "(function * yield() { })",
     "yield = 1;",
     "var foo = yield = 1;",
     "yield * 2;",
@@ -2282,6 +2281,23 @@ TEST(ErrorsYieldStrict) {
 }
 
 
+TEST(ErrorsYieldSloppy) {
+  const char* context_data[][2] = {
+    { "", "" },
+    { "function not_gen() {", "}" },
+    { "(function not_gen() {", "})" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "(function * yield() { })",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
 TEST(NoErrorsGenerator) {
   const char* context_data[][2] = {
     { "function * gen() {", "}" },
@@ -2305,6 +2321,7 @@ TEST(NoErrorsGenerator) {
     "yield 3; yield 4;",
     "yield * 3; yield * 4;",
     "(function (yield) { })",
+    "(function yield() { })",
     "yield { yield: 12 }",
     "yield /* comment */ { yield: 12 }",
     "yield * \n { yield: 12 }",
@@ -2354,9 +2371,8 @@ TEST(ErrorsYieldGenerator) {
     "var foo, yield;",
     "try { } catch (yield) { }",
     "function yield() { }",
-    // The name of the NFE is let-bound in the generator, which does not permit
+    // The name of the NFE is bound in the generator, which does not permit
     // yield to be an identifier.
-    "(function yield() { })",
     "(function * yield() { })",
     // Yield isn't valid as a formal parameter for generators.
     "function * foo(yield) { }",

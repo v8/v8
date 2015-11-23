@@ -179,13 +179,6 @@
   'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
   'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
 
-  #https://code.google.com/p/v8/issues/detail?id=3983
-  'language/expressions/generators/yield-as-function-expression-binding-identifier': [FAIL],
-  'language/expressions/generators/yield-as-generator-expression-binding-identifier': [FAIL],
-  'language/expressions/object/method-definition/generator-argSuperProperty': [FAIL],
-  'language/expressions/object/method-definition/yield-as-function-expression-binding-identifier': [FAIL],
-  'language/statements/generators/yield-as-function-expression-binding-identifier': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=3566
   'built-ins/GeneratorPrototype/return/from-state-completed': [FAIL],
   'built-ins/GeneratorPrototype/return/from-state-suspended-start': [FAIL],
