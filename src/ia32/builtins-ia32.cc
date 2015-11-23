@@ -1376,24 +1376,24 @@ static void ArgumentsAdaptorStackCheck(MacroAssembler* masm,
   // ----------- S t a t e -------------
   //  -- eax : actual number of arguments
   //  -- ebx : expected number of arguments
-  //  -- edi : function (passed through to callee)
+  //  -- edx : new target (passed through to callee)
   // -----------------------------------
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   ExternalReference real_stack_limit =
       ExternalReference::address_of_real_stack_limit(masm->isolate());
-  __ mov(edx, Operand::StaticVariable(real_stack_limit));
+  __ mov(edi, Operand::StaticVariable(real_stack_limit));
   // Make ecx the space we have left. The stack might already be overflowed
   // here which will cause ecx to become negative.
   __ mov(ecx, esp);
-  __ sub(ecx, edx);
-  // Make edx the space we need for the array when it is unrolled onto the
+  __ sub(ecx, edi);
+  // Make edi the space we need for the array when it is unrolled onto the
   // stack.
-  __ mov(edx, ebx);
-  __ shl(edx, kPointerSizeLog2);
+  __ mov(edi, ebx);
+  __ shl(edi, kPointerSizeLog2);
   // Check if the arguments will overflow the stack.
-  __ cmp(ecx, edx);
+  __ cmp(ecx, edi);
   __ j(less_equal, stack_overflow);  // Signed comparison.
 }
 
@@ -1673,17 +1673,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : actual number of arguments
   //  -- ebx : expected number of arguments
+  //  -- edx : new target (passed through to callee)
   //  -- edi : function (passed through to callee)
   // -----------------------------------
 
-  Label invoke, dont_adapt_arguments;
+  Label invoke, dont_adapt_arguments, stack_overflow;
   __ IncrementCounter(masm->isolate()->counters()->arguments_adaptors(), 1);
 
-  Label stack_overflow;
-  ArgumentsAdaptorStackCheck(masm, &stack_overflow);
-
   Label enough, too_few;
-  __ mov(edx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
   __ cmp(eax, ebx);
   __ j(less, &too_few);
   __ cmp(ebx, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
@@ -1692,6 +1689,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Enough parameters: Actual >= expected.
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentsAdaptorStackCheck(masm, &stack_overflow);
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
@@ -1733,6 +1731,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentsAdaptorStackCheck(masm, &stack_overflow);
 
     // Remember expected arguments in ecx.
     __ mov(ecx, ebx);
@@ -1771,8 +1770,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Restore function pointer.
   __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   // eax : expected number of arguments
+  // edx : new target (passed through to callee)
   // edi : function (passed through to callee)
-  __ call(edx);
+  __ mov(ecx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
+  __ call(ecx);
 
   // Store offset of return address for deoptimizer.
   masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
@@ -1785,12 +1786,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Dont adapt arguments.
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
-  __ jmp(edx);
+  __ mov(ecx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
+  __ jmp(ecx);
 
   __ bind(&stack_overflow);
   {
     FrameScope frame(masm, StackFrame::MANUAL);
-    EnterArgumentsAdaptorFrame(masm);
     __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ int3();
   }

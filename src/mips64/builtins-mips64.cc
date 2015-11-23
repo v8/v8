@@ -1429,6 +1429,7 @@ static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
   //  -- a0 : actual number of arguments
   //  -- a1 : function (passed through to callee)
   //  -- a2 : expected number of arguments
+  //  -- a3 : new target (passed through to callee)
   // -----------------------------------
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
@@ -1717,14 +1718,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- a0: actual arguments count
   //  -- a1: function (passed through to callee)
   //  -- a2: expected arguments count
+  //  -- a3: new target (passed through to callee)
   // -----------------------------------
 
-  Label stack_overflow;
-  ArgumentAdaptorStackCheck(masm, &stack_overflow);
-  Label invoke, dont_adapt_arguments;
+  Label invoke, dont_adapt_arguments, stack_overflow;
 
   Label enough, too_few;
-  __ ld(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
   __ Branch(&dont_adapt_arguments, eq,
       a2, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   // We use Uless as the number of argument should always be greater than 0.
@@ -1734,9 +1733,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // a0: actual number of arguments as a smi
     // a1: function
     // a2: expected number of arguments
-    // a3: code entry to call
+    // a3: new target (passed through to callee)
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentAdaptorStackCheck(masm, &stack_overflow);
 
     // Calculate copy start address into a0 and copy end address into a4.
     __ SmiScale(a0, a0, kPointerSizeLog2);
@@ -1751,7 +1751,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // a0: copy start address
     // a1: function
     // a2: expected number of arguments
-    // a3: code entry to call
+    // a3: new target (passed through to callee)
     // a4: copy end address
 
     Label copy;
@@ -1788,12 +1788,13 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentAdaptorStackCheck(masm, &stack_overflow);
 
     // Calculate copy start address into a0 and copy end address into a7.
     // a0: actual number of arguments as a smi
     // a1: function
     // a2: expected number of arguments
-    // a3: code entry to call
+    // a3: new target (passed through to callee)
     __ SmiScale(a0, a0, kPointerSizeLog2);
     __ Daddu(a0, fp, a0);
     // Adjust for return address and receiver.
@@ -1805,7 +1806,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // a0: copy start address
     // a1: function
     // a2: expected number of arguments
-    // a3: code entry to call
+    // a3: new target (passed through to callee)
     // a7: copy end address
     Label copy;
     __ bind(&copy);
@@ -1818,7 +1819,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Fill the remaining expected arguments with undefined.
     // a1: function
     // a2: expected number of arguments
-    // a3: code entry to call
+    // a3: new target (passed through to callee)
     __ LoadRoot(a5, Heap::kUndefinedValueRootIndex);
     __ dsll(a6, a2, kPointerSizeLog2);
     __ Dsubu(a4, fp, Operand(a6));
@@ -1838,7 +1839,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ mov(a0, a2);
   // a0 : expected number of arguments
   // a1 : function (passed through to callee)
-  __ Call(a3);
+  // a3: new target (passed through to callee)
+  __ ld(a4, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+  __ Call(a4);
 
   // Store offset of return address for deoptimizer.
   masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
@@ -1852,12 +1855,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Don't adapt arguments.
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
-  __ Jump(a3);
+  __ ld(a4, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+  __ Jump(a4);
 
   __ bind(&stack_overflow);
   {
     FrameScope frame(masm, StackFrame::MANUAL);
-    EnterArgumentsAdaptorFrame(masm);
     __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ break_(0xCC);
   }

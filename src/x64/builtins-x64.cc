@@ -1418,23 +1418,24 @@ static void ArgumentsAdaptorStackCheck(MacroAssembler* masm,
   // ----------- S t a t e -------------
   //  -- rax : actual number of arguments
   //  -- rbx : expected number of arguments
-  //  -- rdi: function (passed through to callee)
+  //  -- rdx : new target (passed through to callee)
+  //  -- rdi : function (passed through to callee)
   // -----------------------------------
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
-  __ LoadRoot(rdx, Heap::kRealStackLimitRootIndex);
+  __ LoadRoot(r8, Heap::kRealStackLimitRootIndex);
   __ movp(rcx, rsp);
   // Make rcx the space we have left. The stack might already be overflowed
   // here which will cause rcx to become negative.
-  __ subp(rcx, rdx);
-  // Make rdx the space we need for the array when it is unrolled onto the
+  __ subp(rcx, r8);
+  // Make r8 the space we need for the array when it is unrolled onto the
   // stack.
-  __ movp(rdx, rbx);
-  __ shlp(rdx, Immediate(kPointerSizeLog2));
+  __ movp(r8, rbx);
+  __ shlp(r8, Immediate(kPointerSizeLog2));
   // Check if the arguments will overflow the stack.
-  __ cmpp(rcx, rdx);
+  __ cmpp(rcx, r8);
   __ j(less_equal, stack_overflow);  // Signed comparison.
 }
 
@@ -1477,18 +1478,15 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : actual number of arguments
   //  -- rbx : expected number of arguments
-  //  -- rdi: function (passed through to callee)
+  //  -- rdx : new target (passed through to callee)
+  //  -- rdi : function (passed through to callee)
   // -----------------------------------
 
-  Label invoke, dont_adapt_arguments;
+  Label invoke, dont_adapt_arguments, stack_overflow;
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->arguments_adaptors(), 1);
 
-  Label stack_overflow;
-  ArgumentsAdaptorStackCheck(masm, &stack_overflow);
-
   Label enough, too_few;
-  __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpp(rax, rbx);
   __ j(less, &too_few);
   __ cmpp(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
@@ -1497,6 +1495,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Enough parameters: Actual >= expected.
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentsAdaptorStackCheck(masm, &stack_overflow);
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
@@ -1551,6 +1550,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentsAdaptorStackCheck(masm, &stack_overflow);
 
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
@@ -1582,8 +1582,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ bind(&invoke);
   __ movp(rax, rbx);
   // rax : expected number of arguments
-  // rdi: function (passed through to callee)
-  __ call(rdx);
+  // rdx : new target (passed through to callee)
+  // rdi : function (passed through to callee)
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+  __ call(rcx);
 
   // Store offset of return address for deoptimizer.
   masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
@@ -1596,12 +1598,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Dont adapt arguments.
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
-  __ jmp(rdx);
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+  __ jmp(rcx);
 
   __ bind(&stack_overflow);
   {
     FrameScope frame(masm, StackFrame::MANUAL);
-    EnterArgumentsAdaptorFrame(masm);
     __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ int3();
   }

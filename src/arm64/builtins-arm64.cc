@@ -1409,6 +1409,7 @@ static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
   //  -- x0 : actual number of arguments
   //  -- x1 : function (passed through to callee)
   //  -- x2 : expected number of arguments
+  //  -- x3 : new target (passed through to callee)
   // -----------------------------------
   // Check the stack for overflow.
   // We are not trying to catch interruptions (e.g. debug break and
@@ -1759,20 +1760,17 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- x0 : actual number of arguments
   //  -- x1 : function (passed through to callee)
   //  -- x2 : expected number of arguments
+  //  -- x3 : new target (passed through to callee)
   // -----------------------------------
-
-  Label stack_overflow;
-  ArgumentAdaptorStackCheck(masm, &stack_overflow);
 
   Register argc_actual = x0;  // Excluding the receiver.
   Register argc_expected = x2;  // Excluding the receiver.
   Register function = x1;
-  Register code_entry = x3;
+  Register code_entry = x10;
 
-  Label invoke, dont_adapt_arguments;
+  Label invoke, dont_adapt_arguments, stack_overflow;
 
   Label enough, too_few;
-  __ Ldr(code_entry, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
   __ Cmp(argc_actual, argc_expected);
   __ B(lt, &too_few);
   __ Cmp(argc_expected, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
@@ -1780,6 +1778,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   {  // Enough parameters: actual >= expected
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentAdaptorStackCheck(masm, &stack_overflow);
 
     Register copy_start = x10;
     Register copy_end = x11;
@@ -1850,6 +1849,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     __ Bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
+    ArgumentAdaptorStackCheck(masm, &stack_overflow);
 
     __ Lsl(scratch2, argc_expected, kPointerSizeLog2);
     __ Lsl(argc_actual, argc_actual, kPointerSizeLog2);
@@ -1899,6 +1899,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ Mov(argc_actual, argc_expected);
   // x0 : expected number of arguments
   // x1 : function (passed through to callee)
+  // x3 : new target (passed through to callee)
+  __ Ldr(code_entry, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
   __ Call(code_entry);
 
   // Store offset of return address for deoptimizer.
@@ -1910,12 +1912,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   // Call the entry point without adapting the arguments.
   __ Bind(&dont_adapt_arguments);
+  __ Ldr(code_entry, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
   __ Jump(code_entry);
 
   __ Bind(&stack_overflow);
   {
     FrameScope frame(masm, StackFrame::MANUAL);
-    EnterArgumentsAdaptorFrame(masm);
     __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ Unreachable();
   }
