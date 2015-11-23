@@ -2514,8 +2514,9 @@ void AstGraphBuilder::VisitCallSuper(Call* expr) {
   // Create node to perform the super call.
   const Operator* call =
       javascript()->CallConstruct(args->length() + 2, VectorSlotPair());
+  FrameStateBeforeAndAfter states(this, super->new_target_var()->id());
   Node* value = ProcessArguments(call, args->length() + 2);
-  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  states.AddToNode(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   ast_context()->ProduceValue(value);
 }
 
@@ -2527,6 +2528,11 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
+  // The baseline compiler doesn't push the new.target, so we need to record
+  // the frame state before the push.
+  FrameStateBeforeAndAfter states(
+      this, args->is_empty() ? expr->expression()->id() : args->last()->id());
+
   // The new target is the same as the callee.
   environment()->Push(environment()->Peek(args->length()));
 
@@ -2535,7 +2541,7 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   const Operator* call =
       javascript()->CallConstruct(args->length() + 2, feedback);
   Node* value = ProcessArguments(call, args->length() + 2);
-  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  states.AddToNode(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   ast_context()->ProduceValue(value);
 }
 

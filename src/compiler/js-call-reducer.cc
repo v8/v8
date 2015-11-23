@@ -329,6 +329,10 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   int const arity = static_cast<int>(p.arity() - 2);
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
 
   // Try to specialize JSCallConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
@@ -338,6 +342,11 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
 
       // Raise a TypeError if the {target} is not a constructor.
       if (!function->IsConstructor()) {
+        // Drop the lazy bailout location and use the eager bailout point for
+        // the runtime function (actually as lazy bailout point). It doesn't
+        // really matter which bailout location we use since we never really
+        // go back after throwing the exception.
+        NodeProperties::RemoveFrameStateInput(node, 0);
         NodeProperties::ReplaceValueInputs(node, target);
         NodeProperties::ChangeOp(
             node,
@@ -358,6 +367,7 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
         }
 
         // Turn the {node} into a {JSCreateArray} call.
+        NodeProperties::RemoveFrameStateInput(node, 1);
         for (int i = arity; i > 0; --i) {
           NodeProperties::ReplaceValueInput(
               node, NodeProperties::GetValueInput(node, i), i + 1);
@@ -371,6 +381,94 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
     // Don't mess with other {node}s that have a constant {target}.
     // TODO(bmeurer): Also support optimizing bound functions and proxies here.
     return NoChange();
+  }
+
+  // Not much we can do if deoptimization support is disabled.
+  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+
+  // TODO(mvstanton): Use ConstructICNexus here, once available.
+  Handle<Object> feedback;
+  if (!p.feedback().IsValid()) return NoChange();
+  feedback = handle(p.feedback().vector()->Get(p.feedback().slot()), isolate());
+  if (feedback->IsAllocationSite()) {
+    // The feedback is an AllocationSite, which means we have called the
+    // Array function and collected transition (and pretenuring) feedback
+    // for the resulting arrays.  This has to be kept in sync with the
+    // implementation of the CallConstructStub.
+    Handle<AllocationSite> site = Handle<AllocationSite>::cast(feedback);
+
+    // Retrieve the Array function from the {node}.
+    Node* array_function;
+    Handle<Context> native_context;
+    if (GetNativeContext(node).ToHandle(&native_context)) {
+      array_function = jsgraph()->HeapConstant(
+          handle(native_context->array_function(), isolate()));
+    } else {
+      Node* global_object = effect = graph()->NewNode(
+          javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true),
+          context, context, effect);
+      Node* native_context = effect = graph()->NewNode(
+          javascript()->LoadNativeContext(), global_object, context, effect);
+      array_function = effect = graph()->NewNode(
+          javascript()->LoadContext(0, Context::ARRAY_FUNCTION_INDEX, true),
+          native_context, native_context, effect);
+    }
+
+    // Check that the {target} is still the {array_function}.
+    Node* check = effect =
+        graph()->NewNode(javascript()->StrictEqual(), target, array_function,
+                         context, effect, control);
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* deoptimize =
+        graph()->NewNode(common()->Deoptimize(), frame_state, effect, if_false);
+    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+    NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+    control = graph()->NewNode(common()->IfTrue(), branch);
+
+    // Turn the {node} into a {JSCreateArray} call.
+    NodeProperties::ReplaceEffectInput(node, effect);
+    NodeProperties::ReplaceControlInput(node, control);
+    NodeProperties::RemoveFrameStateInput(node, 1);
+    for (int i = arity; i > 0; --i) {
+      NodeProperties::ReplaceValueInput(
+          node, NodeProperties::GetValueInput(node, i), i + 1);
+    }
+    NodeProperties::ReplaceValueInput(node, new_target, 1);
+    NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
+    return Changed(node);
+  } else if (feedback->IsWeakCell()) {
+    Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
+    if (cell->value()->IsJSFunction()) {
+      Node* target_function =
+          jsgraph()->Constant(handle(cell->value(), isolate()));
+
+      // Check that the {target} is still the {target_function}.
+      Node* check = effect =
+          graph()->NewNode(javascript()->StrictEqual(), target, target_function,
+                           context, effect, control);
+      Node* branch =
+          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
+                                          effect, if_false);
+      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+      control = graph()->NewNode(common()->IfTrue(), branch);
+
+      // Specialize the JSCallConstruct node to the {target_function}.
+      NodeProperties::ReplaceValueInput(node, target_function, 0);
+      NodeProperties::ReplaceEffectInput(node, effect);
+      NodeProperties::ReplaceControlInput(node, control);
+      if (target == new_target) {
+        NodeProperties::ReplaceValueInput(node, target_function, arity + 1);
+      }
+
+      // Try to further reduce the JSCallConstruct {node}.
+      Reduction const reduction = ReduceJSCallConstruct(node);
+      return reduction.Changed() ? reduction : Changed(node);
+    }
   }
 
   return NoChange();

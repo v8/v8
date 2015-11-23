@@ -55,7 +55,6 @@ class JSCallAccessor {
   }
 
   Node* frame_state_before() {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, call_->opcode());
     return NodeProperties::GetFrameStateInput(call_, 1);
   }
 
