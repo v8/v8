@@ -1382,11 +1382,11 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     // Use undefined feedback vector
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     __ ldr(r1, MemOperand(fp, kFunctionOffset));
-    __ ldr(r4, MemOperand(fp, kNewTargetOffset));
+    __ ldr(r3, MemOperand(fp, kNewTargetOffset));
 
     // Call the function.
-    CallConstructStub stub(masm->isolate(), SUPER_CONSTRUCTOR_CALL);
-    __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+    __ Call(masm->isolate()->builtins()->Construct(),
+            RelocInfo::CONSTRUCT_CALL);
 
     // Leave internal frame.
   }
@@ -1655,21 +1655,22 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
-  // Check if target has a [[Construct]] internal method.
+  // Check if target is a Smi.
   Label non_constructor;
   __ JumpIfSmi(r1, &non_constructor);
-  __ ldr(r4, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r2, FieldMemOperand(r4, Map::kBitFieldOffset));
-  __ tst(r2, Operand(1 << Map::kIsConstructor));
-  __ b(eq, &non_constructor);
 
   // Dispatch based on instance type.
-  __ CompareInstanceType(r4, r5, JS_FUNCTION_TYPE);
+  __ CompareObjectType(r1, r4, r5, JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->ConstructFunction(),
           RelocInfo::CODE_TARGET, eq);
   __ cmp(r5, Operand(JS_FUNCTION_PROXY_TYPE));
   __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
           eq);
+
+  // Check if target has a [[Construct]] internal method.
+  __ ldrb(r2, FieldMemOperand(r4, Map::kBitFieldOffset));
+  __ tst(r2, Operand(1 << Map::kIsConstructor));
+  __ b(eq, &non_constructor);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
   {

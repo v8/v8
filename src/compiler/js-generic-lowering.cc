@@ -540,22 +540,20 @@ void JSGenericLowering::LowerJSCreateScriptContext(Node* node) {
 
 void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   CallConstructParameters const& p = CallConstructParametersOf(node->op());
-  int const arity = static_cast<int>(p.arity());
-  // TODO(bmeurer): Use the Construct builtin here.
-  CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
-  CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
+  int const arg_count = static_cast<int>(p.arity() - 2);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  CallDescriptor* desc =
-      Linkage::GetStubCallDescriptor(isolate(), zone(), d, arity - 1, flags);
-  Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
-  Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* new_target = NodeProperties::GetValueInput(node, arity - 1);
-  node->RemoveInput(arity - 1);  // Drop new target.
+  Callable callable = CodeFactory::Construct(isolate());
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), arg_count + 1, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  Node* new_target = node->InputAt(arg_count + 1);
+  Node* receiver = jsgraph()->UndefinedConstant();
+  node->RemoveInput(arg_count + 1);  // Drop new target.
   node->InsertInput(zone(), 0, stub_code);
-  node->InsertInput(zone(), 1, jsgraph()->Int32Constant(arity - 2));
-  node->InsertInput(zone(), 2, target);
-  node->InsertInput(zone(), 3, new_target);
-  node->InsertInput(zone(), 4, jsgraph()->UndefinedConstant());
+  node->InsertInput(zone(), 2, new_target);
+  node->InsertInput(zone(), 3, stub_arity);
+  node->InsertInput(zone(), 4, receiver);
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 

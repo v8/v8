@@ -5186,21 +5186,6 @@ bool Code::back_edges_patched_for_osr() {
 uint16_t Code::to_boolean_state() { return extra_ic_state(); }
 
 
-bool Code::has_function_cache() {
-  DCHECK(kind() == STUB);
-  return HasFunctionCacheField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
-}
-
-
-void Code::set_has_function_cache(bool flag) {
-  DCHECK(kind() == STUB);
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
-  int updated = HasFunctionCacheField::update(previous, flag);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
-}
-
-
 bool Code::marked_for_deoptimization() {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   return MarkedForDeoptimizationField::decode(

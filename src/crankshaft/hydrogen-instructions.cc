@@ -776,7 +776,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBlockEntry:
     case HValue::kBoundsCheckBaseIndexInformation:
     case HValue::kCallFunction:
-    case HValue::kCallNew:
     case HValue::kCallNewArray:
     case HValue::kCallStub:
     case HValue::kCapturedObject:

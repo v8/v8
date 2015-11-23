@@ -3870,19 +3870,6 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 }
 
 
-void LCodeGen::DoCallNew(LCallNew* instr) {
-  DCHECK(ToRegister(instr->context()).is(rsi));
-  DCHECK(ToRegister(instr->constructor()).is(rdi));
-  DCHECK(ToRegister(instr->result()).is(rax));
-
-  __ Set(rax, instr->arity());
-  // No cell in ebx for construct type feedback in optimized code
-  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
-  CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
-  CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
-}
-
-
 void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(ToRegister(instr->context()).is(rsi));
   DCHECK(ToRegister(instr->constructor()).is(rdi));

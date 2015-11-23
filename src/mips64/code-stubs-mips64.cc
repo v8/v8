@@ -2423,19 +2423,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
-                                       bool is_super) {
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
   // a0 : number of arguments to the construct function
   // a2 : feedback vector
   // a3 : slot in feedback vector (Smi)
   // a1 : the function to call
-  // a4 : new target (for IsSuperConstructorCall)
   FrameScope scope(masm, StackFrame::INTERNAL);
-  const RegList kSavedRegs = 1 << 4 |                   // a0
-                             1 << 5 |                   // a1
-                             1 << 6 |                   // a2
-                             1 << 7 |                   // a3
-                             BoolToInt(is_super) << 8;  // a4
+  const RegList kSavedRegs = 1 << 4 |  // a0
+                             1 << 5 |  // a1
+                             1 << 6 |  // a2
+                             1 << 7;   // a3
 
 
   // Number-of-arguments register must be smi-tagged to call out.
@@ -2449,7 +2446,7 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
 }
 
 
-static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
+static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a feedback vector slot.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
@@ -2457,7 +2454,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   // a1 : the function to call
   // a2 : feedback vector
   // a3 : slot in feedback vector (Smi)
-  // a4 : new target (for IsSuperConstructorCall)
   Label initialize, done, miss, megamorphic, not_array_function;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
@@ -2527,13 +2523,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   // Create an AllocationSite if we don't already have it, store it in the
   // slot.
   CreateAllocationSiteStub create_stub(masm->isolate());
-  CallStubInRecordCallTarget(masm, &create_stub, is_super);
+  CallStubInRecordCallTarget(masm, &create_stub);
   __ Branch(&done);
 
   __ bind(&not_array_function);
 
   CreateWeakCellStub weak_cell_stub(masm->isolate());
-  CallStubInRecordCallTarget(masm, &weak_cell_stub, is_super);
+  CallStubInRecordCallTarget(masm, &weak_cell_stub);
   __ bind(&done);
 }
 
@@ -2543,7 +2539,6 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // a1 : the function to call
   // a2 : feedback vector
   // a3 : slot in feedback vector (Smi, for RecordCallTarget)
-  // a4 : new target (for IsSuperConstructorCall)
 
   Label non_function;
   // Check that the function is not a smi.
@@ -2552,29 +2547,23 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ GetObjectType(a1, a5, a5);
   __ Branch(&non_function, ne, a5, Operand(JS_FUNCTION_TYPE));
 
-  if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm, IsSuperConstructorCall());
+  GenerateRecordCallTarget(masm);
 
-    __ dsrl(at, a3, 32 - kPointerSizeLog2);
-    __ Daddu(a5, a2, at);
-    Label feedback_register_initialized;
-    // Put the AllocationSite from the feedback vector into a2, or undefined.
-    __ ld(a2, FieldMemOperand(a5, FixedArray::kHeaderSize));
-    __ ld(a5, FieldMemOperand(a2, AllocationSite::kMapOffset));
-    __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-    __ Branch(&feedback_register_initialized, eq, a5, Operand(at));
-    __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-    __ bind(&feedback_register_initialized);
+  __ dsrl(at, a3, 32 - kPointerSizeLog2);
+  __ Daddu(a5, a2, at);
+  Label feedback_register_initialized;
+  // Put the AllocationSite from the feedback vector into a2, or undefined.
+  __ ld(a2, FieldMemOperand(a5, FixedArray::kHeaderSize));
+  __ ld(a5, FieldMemOperand(a2, AllocationSite::kMapOffset));
+  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+  __ Branch(&feedback_register_initialized, eq, a5, Operand(at));
+  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
+  __ bind(&feedback_register_initialized);
 
-    __ AssertUndefinedOrAllocationSite(a2, a5);
-  }
+  __ AssertUndefinedOrAllocationSite(a2, a5);
 
   // Pass function as new target.
-  if (IsSuperConstructorCall()) {
-    __ mov(a3, a4);
-  } else {
-    __ mov(a3, a1);
-  }
+  __ mov(a3, a1);
 
   // Tail call to the function-specific construct stub (still in the caller
   // context at this point).

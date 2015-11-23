@@ -82,13 +82,6 @@ void LCallWithDescriptor::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallNew::PrintDataTo(StringStream* stream) {
-  stream->Add("= ");
-  constructor()->PrintTo(stream);
-  stream->Add(" #%d / ", arity());
-}
-
-
 void LCallNewArray::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   constructor()->PrintTo(stream);
@@ -1073,15 +1066,6 @@ LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LCallFunction* call =
       new (zone()) LCallFunction(context, function, slot, vector);
   return MarkAsCall(DefineFixed(call, x0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  // The call to CallConstructStub will expect the constructor to be in x1.
-  LOperand* constructor = UseFixed(instr->constructor(), x1);
-  LCallNew* result = new(zone()) LCallNew(context, constructor);
-  return MarkAsCall(DefineFixed(result, x0), instr);
 }
 
 

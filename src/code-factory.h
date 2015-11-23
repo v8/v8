@@ -103,6 +103,7 @@ class CodeFactory final {
                        ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable Construct(Isolate* isolate);
 
   static Callable InterpreterPushArgsAndCall(Isolate* isolate);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);

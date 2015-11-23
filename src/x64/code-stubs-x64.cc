@@ -1753,11 +1753,9 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
-                                       bool is_super) {
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
   // rax : number of arguments to the construct function
   // rbx : feedback vector
-  // rcx : new target (for IsSuperConstructorCall)
   // rdx : slot in feedback vector (Smi)
   // rdi : the function to call
   FrameScope scope(masm, StackFrame::INTERNAL);
@@ -1769,15 +1767,9 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
   __ Integer32ToSmi(rdx, rdx);
   __ Push(rdx);
   __ Push(rbx);
-  if (is_super) {
-    __ Push(rcx);
-  }
 
   __ CallStub(stub);
 
-  if (is_super) {
-    __ Pop(rcx);
-  }
   __ Pop(rbx);
   __ Pop(rdx);
   __ Pop(rdi);
@@ -1786,13 +1778,12 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
 }
 
 
-static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
+static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a feedback vector slot.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // rax : number of arguments to the construct function
   // rbx : feedback vector
-  // rcx : new target (for IsSuperConstructorCall)
   // rdx : slot in feedback vector (Smi)
   // rdi : the function to call
   Isolate* isolate = masm->isolate();
@@ -1860,12 +1851,12 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   __ j(not_equal, &not_array_function);
 
   CreateAllocationSiteStub create_stub(isolate);
-  CallStubInRecordCallTarget(masm, &create_stub, is_super);
+  CallStubInRecordCallTarget(masm, &create_stub);
   __ jmp(&done_no_smi_convert);
 
   __ bind(&not_array_function);
   CreateWeakCellStub weak_cell_stub(isolate);
-  CallStubInRecordCallTarget(masm, &weak_cell_stub, is_super);
+  CallStubInRecordCallTarget(masm, &weak_cell_stub);
   __ jmp(&done_no_smi_convert);
 
   __ bind(&done);
@@ -1878,8 +1869,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
 void CallConstructStub::Generate(MacroAssembler* masm) {
   // rax : number of arguments
   // rbx : feedback vector
-  // rcx : new target (for IsSuperConstructorCall)
-  // rdx : slot in feedback vector (Smi, for RecordCallTarget)
+  // rdx : slot in feedback vector (Smi)
   // rdi : constructor function
 
   Label non_function;
@@ -1889,28 +1879,22 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, r11);
   __ j(not_equal, &non_function);
 
-  if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm, IsSuperConstructorCall());
+  GenerateRecordCallTarget(masm);
 
-    __ SmiToInteger32(rdx, rdx);
-    Label feedback_register_initialized;
-    // Put the AllocationSite from the feedback vector into rbx, or undefined.
-    __ movp(rbx, FieldOperand(rbx, rdx, times_pointer_size,
-                              FixedArray::kHeaderSize));
-    __ CompareRoot(FieldOperand(rbx, 0), Heap::kAllocationSiteMapRootIndex);
-    __ j(equal, &feedback_register_initialized);
-    __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
-    __ bind(&feedback_register_initialized);
+  __ SmiToInteger32(rdx, rdx);
+  Label feedback_register_initialized;
+  // Put the AllocationSite from the feedback vector into rbx, or undefined.
+  __ movp(rbx,
+          FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize));
+  __ CompareRoot(FieldOperand(rbx, 0), Heap::kAllocationSiteMapRootIndex);
+  __ j(equal, &feedback_register_initialized, Label::kNear);
+  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
+  __ bind(&feedback_register_initialized);
 
-    __ AssertUndefinedOrAllocationSite(rbx);
-  }
+  __ AssertUndefinedOrAllocationSite(rbx);
 
   // Pass new target to construct stub.
-  if (IsSuperConstructorCall()) {
-    __ movp(rdx, rcx);
-  } else {
-    __ movp(rdx, rdi);
-  }
+  __ movp(rdx, rdi);
 
   // Tail call to the function-specific construct stub (still in the caller
   // context at this point).

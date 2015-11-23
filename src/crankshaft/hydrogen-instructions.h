@@ -62,7 +62,6 @@ class LChunkBuilder;
   V(CallWithDescriptor)                       \
   V(CallJSFunction)                           \
   V(CallFunction)                             \
-  V(CallNew)                                  \
   V(CallNewArray)                             \
   V(CallRuntime)                              \
   V(CallStub)                                 \
@@ -2426,21 +2425,6 @@ class HCallFunction final : public HBinaryCall {
   Handle<TypeFeedbackVector> feedback_vector_;
   FeedbackVectorSlot slot_;
   ConvertReceiverMode convert_mode_;
-};
-
-
-class HCallNew final : public HBinaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallNew, HValue*, int);
-
-  HValue* context() { return first(); }
-  HValue* constructor() { return second(); }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallNew)
-
- private:
-  HCallNew(HValue* context, HValue* constructor, int argument_count)
-      : HBinaryCall(context, constructor, argument_count) {}
 };
 
 

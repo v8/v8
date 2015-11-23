@@ -396,23 +396,6 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 }
 
 
-void LCodeGen::DoCallNew(LCallNew* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  DCHECK(instr->IsMarkedAsCall());
-  DCHECK(ToRegister(instr->constructor()).is(x1));
-
-  __ Mov(x0, instr->arity());
-  // No cell in x2 for construct type feedback in optimized code.
-  __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);
-
-  CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
-  CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
-  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
-
-  DCHECK(ToRegister(instr->result()).is(x0));
-}
-
-
 void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(instr->IsMarkedAsCall());
   DCHECK(ToRegister(instr->context()).is(cp));

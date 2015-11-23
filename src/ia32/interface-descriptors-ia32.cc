@@ -210,6 +210,16 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
 }
 
 
+void ConstructTrampolineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // eax : number of arguments
+  // edx : the new target
+  // edi : the target to call
+  Register registers[] = {edi, edx, eax};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
 void RegExpConstructResultDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ecx, ebx, eax};

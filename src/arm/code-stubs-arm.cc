@@ -2263,33 +2263,25 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub,
-                                       bool is_super) {
+static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
   // r0 : number of arguments to the construct function
   // r1 : the function to call
   // r2 : feedback vector
   // r3 : slot in feedback vector (Smi)
-  // r4 : new target (for IsSuperConstructorCall)
   FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
   // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(r0);
   __ Push(r3, r2, r1, r0);
-  if (is_super) {
-    __ Push(r4);
-  }
 
   __ CallStub(stub);
 
-  if (is_super) {
-    __ Pop(r4);
-  }
   __ Pop(r3, r2, r1, r0);
   __ SmiUntag(r0);
 }
 
 
-static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
+static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a feedback vector slot.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
@@ -2297,7 +2289,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   // r1 : the function to call
   // r2 : feedback vector
   // r3 : slot in feedback vector (Smi)
-  // r4 : new target (for IsSuperConstructorCall)
   Label initialize, done, miss, megamorphic, not_array_function;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
@@ -2369,12 +2360,12 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, bool is_super) {
   // Create an AllocationSite if we don't already have it, store it in the
   // slot.
   CreateAllocationSiteStub create_stub(masm->isolate());
-  CallStubInRecordCallTarget(masm, &create_stub, is_super);
+  CallStubInRecordCallTarget(masm, &create_stub);
   __ b(&done);
 
   __ bind(&not_array_function);
   CreateWeakCellStub weak_cell_stub(masm->isolate());
-  CallStubInRecordCallTarget(masm, &weak_cell_stub, is_super);
+  CallStubInRecordCallTarget(masm, &weak_cell_stub);
   __ bind(&done);
 }
 
@@ -2384,7 +2375,6 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // r1 : the function to call
   // r2 : feedback vector
   // r3 : slot in feedback vector (Smi, for RecordCallTarget)
-  // r4 : new target (for IsSuperConstructorCall)
 
   Label non_function;
   // Check that the function is not a smi.
@@ -2393,28 +2383,22 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ CompareObjectType(r1, r5, r5, JS_FUNCTION_TYPE);
   __ b(ne, &non_function);
 
-  if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm, IsSuperConstructorCall());
+  GenerateRecordCallTarget(masm);
 
-    __ add(r5, r2, Operand::PointerOffsetFromSmiKey(r3));
-    Label feedback_register_initialized;
-    // Put the AllocationSite from the feedback vector into r2, or undefined.
-    __ ldr(r2, FieldMemOperand(r5, FixedArray::kHeaderSize));
-    __ ldr(r5, FieldMemOperand(r2, AllocationSite::kMapOffset));
-    __ CompareRoot(r5, Heap::kAllocationSiteMapRootIndex);
-    __ b(eq, &feedback_register_initialized);
-    __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-    __ bind(&feedback_register_initialized);
+  __ add(r5, r2, Operand::PointerOffsetFromSmiKey(r3));
+  Label feedback_register_initialized;
+  // Put the AllocationSite from the feedback vector into r2, or undefined.
+  __ ldr(r2, FieldMemOperand(r5, FixedArray::kHeaderSize));
+  __ ldr(r5, FieldMemOperand(r2, AllocationSite::kMapOffset));
+  __ CompareRoot(r5, Heap::kAllocationSiteMapRootIndex);
+  __ b(eq, &feedback_register_initialized);
+  __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+  __ bind(&feedback_register_initialized);
 
-    __ AssertUndefinedOrAllocationSite(r2, r5);
-  }
+  __ AssertUndefinedOrAllocationSite(r2, r5);
 
   // Pass function as new target.
-  if (IsSuperConstructorCall()) {
-    __ mov(r3, r4);
-  } else {
-    __ mov(r3, r1);
-  }
+  __ mov(r3, r1);
 
   // Tail call to the function-specific construct stub (still in the caller
   // context at this point).

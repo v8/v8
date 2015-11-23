@@ -3071,7 +3071,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ EmitLoadTypeFeedbackVector(r2);
   __ mov(r3, Operand(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
-  CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
+  CallConstructStub stub(isolate());
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   // Restore context register.
@@ -3099,20 +3099,15 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   // constructor invocation.
   SetConstructCallPosition(expr, arg_count);
 
-  // Load new target into r4.
+  // Load new target into r3.
   VisitForAccumulatorValue(super_call_ref->new_target_var());
-  __ mov(r4, result_register());
+  __ mov(r3, result_register());
 
   // Load function and argument count into r1 and r0.
   __ mov(r0, Operand(arg_count));
   __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
 
-  // Record call targets in unoptimized code.
-  __ EmitLoadTypeFeedbackVector(r2);
-  __ mov(r3, Operand(SmiFromSlot(expr->CallFeedbackSlot())));
-
-  CallConstructStub stub(isolate(), SUPER_CALL_RECORD_TARGET);
-  __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+  __ Call(isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
 
   RecordJSReturnSite(expr);
 

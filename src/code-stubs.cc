@@ -886,12 +886,6 @@ void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
 }
 
 
-void CallConstructStub::PrintName(std::ostream& os) const {  // NOLINT
-  os << "CallConstructStub";
-  if (RecordCallTarget()) os << "_Recording";
-}
-
-
 void ArrayConstructorStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "ArrayConstructorStub";
   switch (argument_count()) {

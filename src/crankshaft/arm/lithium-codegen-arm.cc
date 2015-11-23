@@ -3843,19 +3843,6 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 }
 
 
-void LCodeGen::DoCallNew(LCallNew* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  DCHECK(ToRegister(instr->constructor()).is(r1));
-  DCHECK(ToRegister(instr->result()).is(r0));
-
-  __ mov(r0, Operand(instr->arity()));
-  // No cell in r2 for construct type feedback in optimized code
-  __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-  CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
-  CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
-}
-
-
 void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
   DCHECK(ToRegister(instr->constructor()).is(r1));

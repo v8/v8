@@ -305,13 +305,6 @@ void LInvokeFunction::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallNew::PrintDataTo(StringStream* stream) {
-  stream->Add("= ");
-  constructor()->PrintTo(stream);
-  stream->Add(" #%d / ", arity());
-}
-
-
 void LCallNewArray::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   constructor()->PrintTo(stream);
@@ -1218,14 +1211,6 @@ LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
   LOperand* temp = TempDoubleRegister();
   LMathRound* result = new(zone()) LMathRound(input, temp);
   return AssignEnvironment(DefineAsRegister(result));
-}
-
-
-LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* constructor = UseFixed(instr->constructor(), a1);
-  LCallNew* result = new(zone()) LCallNew(context, constructor);
-  return MarkAsCall(DefineFixed(result, v0), instr);
 }
 
 

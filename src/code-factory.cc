@@ -305,6 +305,13 @@ Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
 
 
 // static
+Callable CodeFactory::Construct(Isolate* isolate) {
+  return Callable(isolate->builtins()->Construct(),
+                  ConstructTrampolineDescriptor(isolate));
+}
+
+
+// static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate) {
   return Callable(isolate->builtins()->InterpreterPushArgsAndCall(),
                   InterpreterPushArgsAndCallDescriptor(isolate));

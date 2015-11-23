@@ -1951,31 +1951,10 @@ class RegExpConstructResultStub final : public HydrogenCodeStub {
 };
 
 
-class CallConstructStub: public PlatformCodeStub {
+// TODO(bmeurer/mvstanton): Turn CallConstructStub into ConstructICStub.
+class CallConstructStub final : public PlatformCodeStub {
  public:
-  CallConstructStub(Isolate* isolate, CallConstructorFlags flags)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = FlagBits::encode(flags);
-  }
-
-  void FinishCode(Handle<Code> code) override {
-    code->set_has_function_cache(RecordCallTarget());
-  }
-
- private:
-  CallConstructorFlags flags() const { return FlagBits::decode(minor_key_); }
-
-  bool RecordCallTarget() const {
-    return (flags() & RECORD_CONSTRUCTOR_TARGET) != 0;
-  }
-
-  bool IsSuperConstructorCall() const {
-    return (flags() & SUPER_CONSTRUCTOR_CALL) != 0;
-  }
-
-  void PrintName(std::ostream& os) const override;  // NOLINT
-
-  class FlagBits : public BitField<CallConstructorFlags, 0, 2> {};
+  explicit CallConstructStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallConstruct);
   DEFINE_PLATFORM_CODE_STUB(CallConstruct, PlatformCodeStub);

@@ -5018,12 +5018,6 @@ class Code: public HeapObject {
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline uint16_t to_boolean_state();
 
-  // [has_function_cache]: For kind STUB tells whether there is a function
-  // cache is passed to the stub.
-  inline bool has_function_cache();
-  inline void set_has_function_cache(bool flag);
-
-
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
   // the code is going to be deoptimized because of dead embedded maps.
   inline bool marked_for_deoptimization();
@@ -5269,9 +5263,8 @@ class Code: public HeapObject {
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
   static const int kStackSlotsBitCount = 24;
-  static const int kHasFunctionCacheBit =
+  static const int kMarkedForDeoptimizationBit =
       kStackSlotsFirstBit + kStackSlotsBitCount;
-  static const int kMarkedForDeoptimizationBit = kHasFunctionCacheBit + 1;
   static const int kIsTurbofannedBit = kMarkedForDeoptimizationBit + 1;
   static const int kCanHaveWeakObjects = kIsTurbofannedBit + 1;
 
@@ -5280,10 +5273,8 @@ class Code: public HeapObject {
 
   class StackSlotsField: public BitField<int,
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
-  class HasFunctionCacheField : public BitField<bool, kHasFunctionCacheBit, 1> {
-  };  // NOLINT
   class MarkedForDeoptimizationField
-      : public BitField<bool, kMarkedForDeoptimizationBit, 1> {};   // NOLINT
+      : public BitField<bool, kMarkedForDeoptimizationBit, 1> {};  // NOLINT
   class IsTurbofannedField : public BitField<bool, kIsTurbofannedBit, 1> {
   };  // NOLINT
   class CanHaveWeakObjectsField

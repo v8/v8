@@ -9993,18 +9993,21 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
       instr = prev_instr;
     } while (instr != check);
     environment()->SetExpressionStackAt(receiver_index, function);
-    HInstruction* call =
-      PreProcessCall(New<HCallNew>(function, argument_count));
-    return ast_context()->ReturnInstruction(call, expr->id());
   } else {
     // The constructor function is both an operand to the instruction and an
     // argument to the construct call.
     if (TryHandleArrayCallNew(expr, function)) return;
-
-    HInstruction* call =
-        PreProcessCall(New<HCallNew>(function, argument_count));
-    return ast_context()->ReturnInstruction(call, expr->id());
   }
+
+  HValue* arity = Add<HConstant>(argument_count - 1);
+  HValue* op_vals[] = {context(), function, function, arity};
+  Callable callable = CodeFactory::Construct(isolate());
+  HConstant* stub = Add<HConstant>(callable.code());
+  PushArgumentsFromEnvironment(argument_count);
+  HInstruction* construct =
+      New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
+                               Vector<HValue*>(op_vals, arraysize(op_vals)));
+  return ast_context()->ReturnInstruction(construct, expr->id());
 }
 
 

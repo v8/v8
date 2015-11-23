@@ -3781,19 +3781,6 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 }
 
 
-void LCodeGen::DoCallNew(LCallNew* instr) {
-  DCHECK(ToRegister(instr->context()).is(esi));
-  DCHECK(ToRegister(instr->constructor()).is(edi));
-  DCHECK(ToRegister(instr->result()).is(eax));
-
-  // No cell in ebx for construct type feedback in optimized code
-  __ mov(ebx, isolate()->factory()->undefined_value());
-  CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
-  __ Move(eax, Immediate(instr->arity()));
-  CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
-}
-
-
 void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(ToRegister(instr->context()).is(esi));
   DCHECK(ToRegister(instr->constructor()).is(edi));
