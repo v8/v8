@@ -653,8 +653,8 @@ class MacroAssembler : public Assembler {
   void Allocate(int object_size, Register result, Register scratch1,
                 Register scratch2, Label* gc_required, AllocationFlags flags);
 
-  void Allocate(Register object_size, Register result, Register scratch1,
-                Register scratch2, Label* gc_required, AllocationFlags flags);
+  void Allocate(Register object_size, Register result, Register result_end,
+                Register scratch, Label* gc_required, AllocationFlags flags);
 
   void AllocateTwoByteString(Register result, Register length,
                              Register scratch1, Register scratch2,
@@ -696,17 +696,17 @@ class MacroAssembler : public Assembler {
   void CopyBytes(Register src, Register dst, Register length, Register scratch);
 
   // Initialize fields with filler values.  |count| fields starting at
-  // |start_offset| are overwritten with the value in |filler|.  At the end the
-  // loop, |start_offset| points at the next uninitialized field.  |count| is
-  // assumed to be non-zero.
-  void InitializeNFieldsWithFiller(Register start_offset, Register count,
+  // |current_address| are overwritten with the value in |filler|.  At the end
+  // the loop, |current_address| points at the next uninitialized field.
+  // |count| is assumed to be non-zero.
+  void InitializeNFieldsWithFiller(Register current_address, Register count,
                                    Register filler);
 
-  // Initialize fields with filler values.  Fields starting at |start_offset|
-  // not including end_offset are overwritten with the value in |filler|.  At
-  // the end the loop, |start_offset| takes the value of |end_offset|.
-  void InitializeFieldsWithFiller(Register start_offset, Register end_offset,
-                                  Register filler);
+  // Initialize fields with filler values.  Fields starting at |current_address|
+  // not including |end_address| are overwritten with the value in |filler|.  At
+  // the end the loop, |current_address| takes the value of |end_address|.
+  void InitializeFieldsWithFiller(Register current_address,
+                                  Register end_address, Register filler);
 
   // ---------------------------------------------------------------------------
   // Support functions.

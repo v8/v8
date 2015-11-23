@@ -1526,14 +1526,14 @@ void MacroAssembler::Allocate(int object_size, Register result,
 
 
 void MacroAssembler::Allocate(Register object_size, Register result,
-                              Register scratch1, Register scratch2,
+                              Register result_end, Register scratch,
                               Label* gc_required, AllocationFlags flags) {
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       li(result, Operand(0x7091));
-      li(scratch1, Operand(0x7191));
-      li(scratch2, Operand(0x7291));
+      li(scratch, Operand(0x7191));
+      li(result_end, Operand(0x7291));
     }
     b(gc_required);
     return;
@@ -1541,13 +1541,13 @@ void MacroAssembler::Allocate(Register object_size, Register result,
 
   // Assert that the register arguments are different and that none of
   // them are ip. ip is used explicitly in the code generated below.
-  DCHECK(!result.is(scratch1));
-  DCHECK(!result.is(scratch2));
-  DCHECK(!scratch1.is(scratch2));
+  DCHECK(!result.is(scratch));
+  DCHECK(!result.is(result_end));
+  DCHECK(!scratch.is(result_end));
   DCHECK(!object_size.is(ip));
   DCHECK(!result.is(ip));
-  DCHECK(!scratch1.is(ip));
-  DCHECK(!scratch2.is(ip));
+  DCHECK(!scratch.is(ip));
+  DCHECK(!result_end.is(ip));
 
   // Check relative positions of allocation top and limit addresses.
   ExternalReference allocation_top =
@@ -1559,7 +1559,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   DCHECK((limit - top) == kPointerSize);
 
   // Set up allocation top address.
-  Register topaddr = scratch1;
+  Register topaddr = scratch;
   mov(topaddr, Operand(allocation_top));
 
   // This code stores a temporary value in ip. This is OK, as the code below
@@ -1588,15 +1588,15 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
 #else
     STATIC_ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
-    andi(scratch2, result, Operand(kDoubleAlignmentMask));
+    andi(result_end, result, Operand(kDoubleAlignmentMask));
     Label aligned;
     beq(&aligned, cr0);
     if ((flags & PRETENURE) != 0) {
       cmpl(result, ip);
       bge(gc_required);
     }
-    mov(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
-    stw(scratch2, MemOperand(result));
+    mov(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
+    stw(result_end, MemOperand(result));
     addi(result, result, Operand(kDoubleSize / 2));
     bind(&aligned);
 #endif
@@ -1607,22 +1607,22 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   // required to get the number of bytes.
   sub(r0, ip, result);
   if ((flags & SIZE_IN_WORDS) != 0) {
-    ShiftLeftImm(scratch2, object_size, Operand(kPointerSizeLog2));
-    cmp(r0, scratch2);
+    ShiftLeftImm(result_end, object_size, Operand(kPointerSizeLog2));
+    cmp(r0, result_end);
     blt(gc_required);
-    add(scratch2, result, scratch2);
+    add(result_end, result, result_end);
   } else {
     cmp(r0, object_size);
     blt(gc_required);
-    add(scratch2, result, object_size);
+    add(result_end, result, object_size);
   }
 
   // Update allocation top. result temporarily holds the new top.
   if (emit_debug_code()) {
-    andi(r0, scratch2, Operand(kObjectAlignmentMask));
+    andi(r0, result_end, Operand(kObjectAlignmentMask));
     Check(eq, kUnalignedAllocationInNewSpace, cr0);
   }
-  StoreP(scratch2, MemOperand(topaddr));
+  StoreP(result_end, MemOperand(topaddr));
 
   // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
@@ -2887,25 +2887,25 @@ void MacroAssembler::CopyBytes(Register src, Register dst, Register length,
 }
 
 
-void MacroAssembler::InitializeNFieldsWithFiller(Register start_offset,
+void MacroAssembler::InitializeNFieldsWithFiller(Register current_address,
                                                  Register count,
                                                  Register filler) {
   Label loop;
   mtctr(count);
   bind(&loop);
-  StoreP(filler, MemOperand(start_offset));
-  addi(start_offset, start_offset, Operand(kPointerSize));
+  StoreP(filler, MemOperand(current_address));
+  addi(current_address, current_address, Operand(kPointerSize));
   bdnz(&loop);
 }
 
-void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
-                                                Register end_offset,
+void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
+                                                Register end_address,
                                                 Register filler) {
   Label done;
-  sub(r0, end_offset, start_offset, LeaveOE, SetRC);
+  sub(r0, end_address, current_address, LeaveOE, SetRC);
   beq(&done, cr0);
   ShiftRightImm(r0, r0, Operand(kPointerSizeLog2));
-  InitializeNFieldsWithFiller(start_offset, r0, filler);
+  InitializeNFieldsWithFiller(current_address, r0, filler);
   bind(&done);
 }
 
