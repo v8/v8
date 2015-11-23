@@ -64,7 +64,8 @@ class Runner(object):
 
   def __init__(self, suites, progress_indicator, context):
     self.datapath = os.path.join("out", "testrunner_data")
-    self.perf_data_manager = perfdata.PerfDataManager(self.datapath)
+    self.perf_data_manager = perfdata.GetPerfDataManager(
+        context, self.datapath)
     self.perfdata = self.perf_data_manager.GetStore(context.arch, context.mode)
     self.perf_failures = False
     self.printed_allocations = False

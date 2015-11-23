@@ -380,7 +380,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         0,  # Don't rerun failing tests.
                         0,  # No use of a rerun-failing-tests maximum.
                         False,  # No predictable mode.
-                        False)  # No no_harness mode.
+                        False,  # No no_harness mode.
+                        False)   # Don't use perf data.
 
   # Find available test suites and read test cases from them.
   variables = {

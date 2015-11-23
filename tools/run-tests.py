@@ -313,6 +313,9 @@ def BuildOptions():
   result.add_option("--stress-only",
                     help="Only run tests with --always-opt --stress-opt",
                     default=False, action="store_true")
+  result.add_option("--swarming",
+                    help="Indicates running test driver on swarming.",
+                    default=False, action="store_true")
   result.add_option("--time", help="Print timing information after running",
                     default=False, action="store_true")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
@@ -670,7 +673,8 @@ def Execute(arch, mode, args, options, suites):
                         options.rerun_failures_count,
                         options.rerun_failures_max,
                         options.predictable,
-                        options.no_harness)
+                        options.no_harness,
+                        use_perf_data=not options.swarming)
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
