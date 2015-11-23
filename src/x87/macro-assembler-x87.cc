@@ -1700,16 +1700,16 @@ void MacroAssembler::CopyBytes(Register source,
 }
 
 
-void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
-                                                Register end_offset,
+void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
+                                                Register end_address,
                                                 Register filler) {
   Label loop, entry;
   jmp(&entry);
   bind(&loop);
-  mov(Operand(start_offset, 0), filler);
-  add(start_offset, Immediate(kPointerSize));
+  mov(Operand(current_address, 0), filler);
+  add(current_address, Immediate(kPointerSize));
   bind(&entry);
-  cmp(start_offset, end_offset);
+  cmp(current_address, end_address);
   j(below, &loop);
 }
 
