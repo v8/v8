@@ -366,11 +366,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Preserve the incoming parameters on the stack.
     __ AssertUndefinedOrAllocationSite(allocation_site, x10);
     __ SmiTag(argc);
-    if (create_implicit_receiver) {
-      __ Push(allocation_site, argc, constructor, new_target);
-    } else {
-      __ Push(allocation_site, argc);
-    }
+    __ Push(allocation_site, argc);
 
     if (create_implicit_receiver) {
       // sp[0]: new.target
@@ -423,23 +419,21 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           __ Cmp(constructon_count, Operand(Map::kSlackTrackingCounterEnd));
           __ B(ne, &allocate);
 
-          // Push the constructor and map to the stack, and the map again
-          // as argument to the runtime call.
-          __ Push(constructor, init_map, init_map);
+          // Push the constructor, new_target and map to the stack, and
+          // the map again as an argument to the runtime call.
+          __ Push(constructor, new_target, init_map, init_map);
           __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
-          __ Pop(init_map, constructor);
+          __ Pop(init_map, new_target, constructor);
           __ Mov(constructon_count, Operand(Map::kSlackTrackingCounterEnd - 1));
           __ Bind(&allocate);
         }
 
         // Now allocate the JSObject on the heap.
-        Label rt_call_reload_new_target;
-        Register obj_size = x3;
+        Register obj_size = x10;
         Register new_obj = x4;
-        Register next_obj = x10;
+        Register next_obj = obj_size;  // May overlap.
         __ Ldrb(obj_size, FieldMemOperand(init_map, Map::kInstanceSizeOffset));
-        __ Allocate(obj_size, new_obj, next_obj, x11,
-                    &rt_call_reload_new_target, SIZE_IN_WORDS);
+        __ Allocate(obj_size, new_obj, next_obj, x11, &rt_call, SIZE_IN_WORDS);
 
         // Allocated the JSObject, now initialize the fields. Map is set to
         // initial map and properties and elements are set to empty fixed array.
@@ -454,6 +448,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         STATIC_ASSERT(2 * kPointerSize == JSObject::kElementsOffset);
         __ Stp(empty, empty,
                MemOperand(write_address, 2 * kPointerSize, PostIndex));
+        STATIC_ASSERT(3 * kPointerSize == JSObject::kHeaderSize);
 
         // Fill all of the in-object properties with the appropriate filler.
         Register filler = x7;
@@ -503,27 +498,25 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
         // Continue with JSObject being successfully allocated.
         __ B(&allocated);
-
-        // Reload the new target and fall-through.
-        __ Bind(&rt_call_reload_new_target);
-        __ Peek(x3, 0 * kXRegSize);
       }
 
       // Allocate the new receiver object using the runtime call.
       // x1: constructor function
       // x3: new target
       __ Bind(&rt_call);
-      __ Push(constructor, new_target);  // arguments 1-2
+
+      // Push the constructor and new_target twice, second pair as arguments
+      // to the runtime call.
+      __ Push(constructor, new_target, constructor, new_target);
       __ CallRuntime(Runtime::kNewObject, 2);
       __ Mov(x4, x0);
+      __ Pop(new_target, constructor);
 
       // Receiver for constructor call allocated.
+      // x1: constructor function
+      // x3: new target
       // x4: JSObject
       __ Bind(&allocated);
-
-      // Restore the parameters.
-      __ Pop(new_target);
-      __ Pop(constructor);
 
       // Reload the number of arguments from the stack.
       // Set it up in x0 for the function call below.

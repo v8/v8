@@ -258,8 +258,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                       kUnexpectedNumberOfPreAllocatedPropertyFields);
           }
           __ InitializeFieldsWithFiller(ecx, esi, edx);
+
+          // To allow truncation fill the remaining fields with one pointer
+          // filler map.
           __ mov(edx, factory->one_pointer_filler_map());
-          // Fill the remaining fields with one pointer filler map.
 
           __ bind(&no_inobject_slack_tracking);
         }

@@ -376,11 +376,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Preserve the incoming parameters on the stack.
     __ AssertUndefinedOrAllocationSite(a2, t0);
     __ SmiTag(a0);
-    if (create_implicit_receiver) {
-      __ Push(a2, a0, a1, a3);
-    } else {
-      __ Push(a2, a0);
-    }
+    __ Push(a2, a0);
 
     if (create_implicit_receiver) {
       // Try to allocate the object without transitioning into C code. If any of
@@ -425,10 +421,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                     Operand(Map::kSlackTrackingCounterEnd));
           __ sw(t0, bit_field3);  // In delay slot.
 
-          __ Push(a1, a2, a2);  // a2 = Initial map.
+          // Push the constructor, new_target and map to the stack, and
+          // the map again as an argument to the runtime call.
+          __ Push(a1, a3, a2, a2);
           __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
-          __ Pop(a1, a2);
+          __ Pop(a1, a3, a2);
           __ li(t2, Operand(Map::kSlackTrackingCounterEnd - 1));
 
           __ bind(&allocate);
@@ -437,18 +435,20 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         // Now allocate the JSObject on the heap.
         // a1: constructor function
         // a2: initial map
-        Label rt_call_reload_new_target;
-        __ lbu(a3, FieldMemOperand(a2, Map::kInstanceSizeOffset));
+        // a3: new target
+        // t2: slack tracking counter (non-API function case)
+        __ lbu(t3, FieldMemOperand(a2, Map::kInstanceSizeOffset));
 
-        __ Allocate(a3, t4, t3, t6, &rt_call_reload_new_target, SIZE_IN_WORDS);
+        __ Allocate(t3, t4, t3, t6, &rt_call, SIZE_IN_WORDS);
 
         // Allocated the JSObject, now initialize the fields. Map is set to
         // initial map and properties and elements are set to empty fixed array.
         // a1: constructor function
         // a2: initial map
-        // a3: object size
+        // a3: new target
         // t4: JSObject (not tagged)
         // t3: start of next object
+        // t2: slack tracking counter (non-API function case)
         __ LoadRoot(t6, Heap::kEmptyFixedArrayRootIndex);
         __ mov(t5, t4);
         STATIC_ASSERT(0 * kPointerSize == JSObject::kMapOffset);
@@ -457,16 +457,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ sw(t6, MemOperand(t5, JSObject::kPropertiesOffset));
         STATIC_ASSERT(2 * kPointerSize == JSObject::kElementsOffset);
         __ sw(t6, MemOperand(t5, JSObject::kElementsOffset));
+        STATIC_ASSERT(3 * kPointerSize == JSObject::kHeaderSize);
         __ Addu(t5, t5, Operand(3 * kPointerSize));
 
         // Fill all the in-object properties with appropriate filler.
-        // a1: constructor function
-        // a2: initial map
-        // a3: object size (in words)
-        // t4: JSObject (not tagged)
         // t5: First in-object property of JSObject (not tagged)
-        // t2: slack tracking counter (non-API function case)
-        DCHECK_EQ(3 * kPointerSize, JSObject::kHeaderSize);
 
         // Use t7 to hold undefined, which is used in several places below.
         __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
@@ -488,9 +483,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                       Operand(a0));
           }
           __ InitializeFieldsWithFiller(t5, a0, t7);
-          // To allow for truncation.
+
+          // To allow truncation fill the remaining fields with one pointer
+          // filler map.
           __ LoadRoot(t7, Heap::kOnePointerFillerMapRootIndex);
-          // Fill the remaining fields with one pointer filler map.
 
           __ bind(&no_inobject_slack_tracking);
         }
@@ -502,12 +498,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ Addu(t4, t4, Operand(kHeapObjectTag));
 
         // Continue with JSObject being successfully allocated.
+        // a1: constructor function
+        // a3: new target
         // t4: JSObject
         __ jmp(&allocated);
-
-        // Reload the new target and fall-through.
-        __ bind(&rt_call_reload_new_target);
-        __ lw(a3, MemOperand(sp, 0 * kPointerSize));
       }
 
       // Allocate the new receiver object using the runtime call.
@@ -515,17 +509,18 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // a3: new target
       __ bind(&rt_call);
 
-      __ Push(a1, a3);  // constructor function, new target
+      // Push the constructor and new_target twice, second pair as arguments
+      // to the runtime call.
+      __ Push(a1, a3, a1, a3);  // constructor function, new target
       __ CallRuntime(Runtime::kNewObject, 2);
       __ mov(t4, v0);
+      __ Pop(a1, a3);
 
       // Receiver for constructor call allocated.
+      // a1: constructor function
+      // a3: new target
       // t4: JSObject
       __ bind(&allocated);
-
-      // Restore the parameters.
-      __ Pop(a3);  // new.target
-      __ Pop(a1);
 
       // Retrieve smi-tagged arguments count from the stack.
       __ lw(a0, MemOperand(sp));

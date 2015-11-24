@@ -146,9 +146,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Push(rcx);
 
     if (create_implicit_receiver) {
-      __ Push(rdi);
-      __ Push(rdx);
-
       // Try to allocate the object without transitioning into C code. If any of
       // the preconditions is not met, the code bails out to the runtime call.
       Label rt_call, allocated;
@@ -190,6 +187,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           __ cmpl(rsi, Immediate(Map::kSlackTrackingCounterEnd));
           __ j(not_equal, &allocate);
 
+          // Push the constructor, new_target and map to the stack, and
+          // the map again as an argument to the runtime call.
           __ Push(rax);
           __ Push(rdx);
           __ Push(rdi);
@@ -206,25 +205,28 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         }
 
         // Now allocate the JSObject on the heap.
-        __ movzxbp(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
-        __ shlp(rdi, Immediate(kPointerSizeLog2));
-        // rdi: size of new object
-        __ Allocate(rdi, rbx, rdi, no_reg, &rt_call, NO_ALLOCATION_FLAGS);
+        __ movzxbp(r9, FieldOperand(rax, Map::kInstanceSizeOffset));
+        __ shlp(r9, Immediate(kPointerSizeLog2));
+        // r9: size of new object
+        __ Allocate(r9, rbx, r9, no_reg, &rt_call, NO_ALLOCATION_FLAGS);
         // Allocated the JSObject, now initialize the fields.
+        // rdi: constructor
+        // rdx: new target
         // rax: initial map
         // rbx: JSObject (not HeapObject tagged - the actual address).
-        // rdi: start of next object
+        // r9: start of next object
         __ movp(Operand(rbx, JSObject::kMapOffset), rax);
         __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
         __ movp(Operand(rbx, JSObject::kPropertiesOffset), rcx);
         __ movp(Operand(rbx, JSObject::kElementsOffset), rcx);
         // Set extra fields in the newly allocated object.
         // rax: initial map
+        // rdx: new target
         // rbx: JSObject
-        // rdi: start of next object
+        // r9: start of next object
         // rsi: slack tracking counter (non-API function case)
         __ leap(rcx, Operand(rbx, JSObject::kHeaderSize));
-        __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+        __ LoadRoot(r11, Heap::kUndefinedValueRootIndex);
         if (!is_api_function) {
           Label no_inobject_slack_tracking;
 
@@ -235,21 +237,23 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           // Allocate object with a slack.
           __ movzxbp(rsi, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
           __ negp(rsi);
-          __ leap(rsi, Operand(rdi, rsi, times_pointer_size, 0));
+          __ leap(rsi, Operand(r9, rsi, times_pointer_size, 0));
           // rsi: offset of first field after pre-allocated fields
           if (FLAG_debug_code) {
             __ cmpp(rcx, rsi);
             __ Assert(less_equal,
                       kUnexpectedNumberOfPreAllocatedPropertyFields);
           }
-          __ InitializeFieldsWithFiller(rcx, rsi, rdx);
-          __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
-          // Fill the remaining fields with one pointer filler map.
+          __ InitializeFieldsWithFiller(rcx, rsi, r11);
+
+          // To allow truncation fill the remaining fields with one pointer
+          // filler map.
+          __ LoadRoot(r11, Heap::kOnePointerFillerMapRootIndex);
 
           __ bind(&no_inobject_slack_tracking);
         }
 
-        __ InitializeFieldsWithFiller(rcx, rdi, rdx);
+        __ InitializeFieldsWithFiller(rcx, r9, r11);
 
         // Add the object tag to make the JSObject real, so that we can continue
         // and jump into the continuation code at any time from now on.
@@ -257,31 +261,36 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ orp(rbx, Immediate(kHeapObjectTag));
 
         // Continue with JSObject being successfully allocated
+        // rdi: constructor
+        // rdx: new target
         // rbx: JSObject (tagged)
         __ jmp(&allocated);
       }
 
       // Allocate the new receiver object using the runtime call.
+      // rdi: constructor
       // rdx: new target
       __ bind(&rt_call);
-      int offset = kPointerSize;
 
-      // Must restore rsi (context) and rdi (constructor) before calling
-      // runtime.
+      // Must restore rsi (context) before calling runtime.
       __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-      __ movp(rdi, Operand(rsp, offset));
+
+      // Push the constructor and new_target twice, second pair as arguments
+      // to the runtime call.
+      __ Push(rdi);
+      __ Push(rdx);
       __ Push(rdi);  // constructor function
       __ Push(rdx);  // new target
       __ CallRuntime(Runtime::kNewObject, 2);
       __ movp(rbx, rax);  // store result in rbx
-
-      // New object allocated.
-      // rbx: newly allocated object
-      __ bind(&allocated);
-
-      // Restore the parameters.
       __ Pop(rdx);
       __ Pop(rdi);
+
+      // Receiver for constructor call allocated.
+      // rdi: constructor
+      // rdx: new target
+      // rbx: newly allocated object
+      __ bind(&allocated);
 
       // Retrieve smi-tagged arguments count from the stack.
       __ movp(rax, Operand(rsp, 0));
