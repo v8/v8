@@ -305,14 +305,19 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
 
 static void CallRuntimePassFunction(MacroAssembler* masm,
                                     Runtime::FunctionId function_id) {
+  // ----------- S t a t e -------------
+  //  -- r4 : target function (preserved for callee)
+  //  -- r6 : new target (preserved for callee)
+  // -----------------------------------
+
   FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-  // Push a copy of the function onto the stack.
+  // Push a copy of the target function and the new target.
   // Push function as parameter to the runtime call.
-  __ Push(r4, r4);
+  __ Push(r4, r6, r4);
 
   __ CallRuntime(function_id, 1);
-  // Restore reciever.
-  __ Pop(r4);
+  // Restore target function and new target.
+  __ Pop(r4, r6);
 }
 
 
@@ -539,6 +544,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r3: number of arguments
     // r4: constructor function
     // r5: address of last argument (caller sp)
+    // r6: new target
     // cr0: condition indicating whether r3 is zero
     // sp[0]: receiver
     // sp[1]: receiver
@@ -559,13 +565,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Call the function.
     // r3: number of arguments
     // r4: constructor function
+    // r6: new target
     if (is_api_function) {
       __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
       Handle<Code> code = masm->isolate()->builtins()->HandleApiCallConstruct();
       __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(r3);
-      __ InvokeFunction(r4, actual, CALL_FUNCTION, NullCallWrapper());
+      __ InvokeFunction(r4, r6, actual, CALL_FUNCTION, NullCallWrapper());
     }
 
     // Store offset of return address for deoptimizer.
@@ -984,15 +991,16 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // the runtime:
   //   r3 - contains return address (beginning of patch sequence)
   //   r4 - isolate
+  //   r6 - new target
   //   lr - return address
   FrameScope scope(masm, StackFrame::MANUAL);
   __ mflr(r0);
-  __ MultiPush(r0.bit() | r3.bit() | r4.bit() | fp.bit());
+  __ MultiPush(r0.bit() | r3.bit() | r4.bit() | r6.bit() | fp.bit());
   __ PrepareCallCFunction(2, 0, r5);
   __ mov(r4, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(
       ExternalReference::get_make_code_young_function(masm->isolate()), 2);
-  __ MultiPop(r0.bit() | r3.bit() | r4.bit() | fp.bit());
+  __ MultiPop(r0.bit() | r3.bit() | r4.bit() | r6.bit() | fp.bit());
   __ mtlr(r0);
   __ mr(ip, r3);
   __ Jump(ip);
@@ -1025,16 +1033,17 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   // the runtime:
   //   r3 - contains return address (beginning of patch sequence)
   //   r4 - isolate
+  //   r6 - new target
   //   lr - return address
   FrameScope scope(masm, StackFrame::MANUAL);
   __ mflr(r0);
-  __ MultiPush(r0.bit() | r3.bit() | r4.bit() | fp.bit());
+  __ MultiPush(r0.bit() | r3.bit() | r4.bit() | r6.bit() | fp.bit());
   __ PrepareCallCFunction(2, 0, r5);
   __ mov(r4, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(
       ExternalReference::get_mark_code_as_executed_function(masm->isolate()),
       2);
-  __ MultiPop(r0.bit() | r3.bit() | r4.bit() | fp.bit());
+  __ MultiPop(r0.bit() | r3.bit() | r4.bit() | r6.bit() | fp.bit());
   __ mtlr(r0);
   __ mr(ip, r3);
 
@@ -1690,10 +1699,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 #if !V8_TARGET_ARCH_PPC64
   __ SmiUntag(r5);
 #endif
-  __ LoadP(r6, FieldMemOperand(r4, JSFunction::kCodeEntryOffset));
+  __ LoadP(r7, FieldMemOperand(r4, JSFunction::kCodeEntryOffset));
   ParameterCount actual(r3);
   ParameterCount expected(r5);
-  __ InvokeCode(r6, expected, actual, JUMP_FUNCTION, NullCallWrapper());
+  __ InvokeCode(r7, no_reg, expected, actual, JUMP_FUNCTION, NullCallWrapper());
 
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);
