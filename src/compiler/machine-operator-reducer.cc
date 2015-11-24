@@ -648,7 +648,18 @@ Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
   Float64Matcher m(node->InputAt(0));
   if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
   if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
-  if (m.IsRoundInt64ToFloat64()) return Replace(m.node()->InputAt(0));
+  if (m.IsRoundInt64ToFloat64()) {
+    Node* value = m.node()->InputAt(0);
+    Type* type = NodeProperties::GetType(value);
+    Type::RangeType* range = type->GetRange();
+
+    // Rounding int64 to float64 should not lose precision
+    if (range != nullptr && range->Min() >= 0 &&
+        range->Max() <= 0xFFFFFFFFFFFFFULL) {
+      return Replace(
+          graph()->NewNode(machine()->TruncateInt64ToInt32(), value));
+    }
+  }
   if (m.IsPhi()) {
     Node* const phi = m.node();
     DCHECK_EQ(kRepFloat64, RepresentationOf(OpParameter<MachineType>(phi)));
