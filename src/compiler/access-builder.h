@@ -108,6 +108,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
 
+  // Provides access to FixedDoubleArray elements.
+  static ElementAccess ForFixedDoubleArrayElement();
+
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);

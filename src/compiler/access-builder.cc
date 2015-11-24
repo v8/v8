@@ -275,8 +275,16 @@ FieldAccess AccessBuilder::ForSharedFunctionInfoTypeFeedbackVector() {
 
 // static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
-  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
+  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Tagged(),
                           kMachAnyTagged};
+  return access;
+}
+
+
+// static
+ElementAccess AccessBuilder::ForFixedDoubleArrayElement() {
+  ElementAccess access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
+                          TypeCache::Get().kFloat64, kMachFloat64};
   return access;
 }
 
