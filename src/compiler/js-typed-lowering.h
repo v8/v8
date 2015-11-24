@@ -118,6 +118,7 @@ class JSTypedLowering final : public AdvancedReducer {
   Flags flags_;
   JSGraph* jsgraph_;
   Type* shifted_int32_ranges_[4];
+  Type* const the_hole_type_;
   TypeCache const& type_cache_;
 };
 

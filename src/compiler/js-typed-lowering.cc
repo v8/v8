@@ -427,6 +427,8 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
+      the_hole_type_(
+          Type::Constant(factory()->the_hole_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -656,6 +658,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
       ReplaceWithValue(node, replacement);
       return Replace(replacement);
     }
+  }
+  if (r.OneInputIs(the_hole_type_)) {
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(the_hole_type_),
+                                  invert);
   }
   if (r.OneInputIs(Type::Undefined())) {
     return r.ChangeToPureOperator(
