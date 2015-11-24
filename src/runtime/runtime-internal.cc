@@ -153,6 +153,14 @@ RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowIllegalInvocation) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kIllegalInvocation));
+}
+
+
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

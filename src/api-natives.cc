@@ -438,7 +438,13 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
 Handle<JSFunction> ApiNatives::CreateApiFunction(
     Isolate* isolate, Handle<FunctionTemplateInfo> obj,
     Handle<Object> prototype, ApiInstanceType instance_type) {
-  Handle<Code> code = isolate->builtins()->HandleApiCall();
+  Handle<Code> code;
+  if (obj->call_code()->IsCallHandlerInfo() &&
+      CallHandlerInfo::cast(obj->call_code())->fast_handler()->IsCode()) {
+    code = isolate->builtins()->HandleFastApiCall();
+  } else {
+    code = isolate->builtins()->HandleApiCall();
+  }
   Handle<Code> construct_stub = isolate->builtins()->JSConstructStubApi();
 
   obj->set_instantiated(true);

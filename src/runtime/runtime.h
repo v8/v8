@@ -325,6 +325,7 @@ namespace internal {
   F(NewTypeError, 2, 1)                       \
   F(NewSyntaxError, 2, 1)                     \
   F(NewReferenceError, 2, 1)                  \
+  F(ThrowIllegalInvocation, 0, 1)             \
   F(ThrowIteratorResultNotAnObject, 1, 1)     \
   F(ThrowStackOverflow, 0, 1)                 \
   F(ThrowStrongModeImplicitConversion, 0, 1)  \

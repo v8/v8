@@ -1113,6 +1113,126 @@ void Builtins::Generate_NotifySoftDeoptimized(MacroAssembler* masm) {
 }
 
 
+static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
+                                    Register function_template_info,
+                                    Register scratch0, Register scratch1,
+                                    Register scratch2,
+                                    Label* receiver_check_failed) {
+  Register signature = scratch0;
+  Register map = scratch1;
+  Register constructor = scratch2;
+
+  // If the receiver is not an object, jump to receiver_check_failed.
+  __ CompareObjectType(receiver, map, x16, FIRST_JS_OBJECT_TYPE);
+  __ B(lo, receiver_check_failed);
+
+  // If there is no signature, return the holder.
+  __ Ldr(signature, FieldMemOperand(function_template_info,
+                                    FunctionTemplateInfo::kSignatureOffset));
+  __ CompareRoot(signature, Heap::kUndefinedValueRootIndex);
+  Label receiver_check_passed;
+  __ B(eq, &receiver_check_passed);
+
+  // Walk the prototype chain.
+  Label prototype_loop_start;
+  __ Bind(&prototype_loop_start);
+
+  // End if the receiver is null or if it's a hidden type.
+  __ CompareRoot(receiver, Heap::kNullValueRootIndex);
+  __ B(eq, receiver_check_failed);
+  __ Ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ Ldr(x16, FieldMemOperand(map, Map::kBitField3Offset));
+  __ Tst(x16, Operand(Map::IsHiddenPrototype::kMask));
+  __ B(ne, receiver_check_failed);
+
+  // Get the constructor, if any
+  __ GetMapConstructor(constructor, map, x16, x16);
+  __ cmp(x16, Operand(JS_FUNCTION_TYPE));
+  Label next_prototype;
+  __ B(ne, &next_prototype);
+  Register type = constructor;
+  __ Ldr(type,
+         FieldMemOperand(constructor, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(type, FieldMemOperand(type, SharedFunctionInfo::kFunctionDataOffset));
+
+  // Loop through the chain of inheriting function templates.
+  Label function_template_loop;
+  __ Bind(&function_template_loop);
+
+  // If the signatures match, we have a compatible receiver.
+  __ Cmp(signature, type);
+  __ B(eq, &receiver_check_passed);
+
+  // If the current type is not a FunctionTemplateInfo, load the next prototype
+  // in the chain.
+  __ JumpIfSmi(type, &next_prototype);
+  __ CompareObjectType(type, x16, x17, FUNCTION_TEMPLATE_INFO_TYPE);
+  __ B(ne, &next_prototype);
+
+  // Otherwise load the parent function template and iterate.
+  __ Ldr(type,
+         FieldMemOperand(type, FunctionTemplateInfo::kParentTemplateOffset));
+  __ B(&function_template_loop);
+
+  // Load the next prototype and iterate.
+  __ Bind(&next_prototype);
+  __ Ldr(receiver, FieldMemOperand(map, Map::kPrototypeOffset));
+  __ B(&prototype_loop_start);
+
+  __ Bind(&receiver_check_passed);
+}
+
+
+void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x0                 : number of arguments excluding receiver
+  //  -- x1                 : callee
+  //  -- lr                 : return address
+  //  -- sp[0]              : last argument
+  //  -- ...
+  //  -- sp[8 * (argc - 1)] : first argument
+  //  -- sp[8 * argc]       : receiver
+  // -----------------------------------
+
+  // Load the receiver.
+  __ Ldr(x2, MemOperand(jssp, x0, LSL, kPointerSizeLog2));
+
+  // Update the receiver if this is a contextual call.
+  Label set_global_proxy, valid_receiver;
+  __ CompareRoot(x2, Heap::kUndefinedValueRootIndex);
+  __ B(eq, &set_global_proxy);
+  __ Bind(&valid_receiver);
+
+  // Load the FunctionTemplateInfo.
+  __ Ldr(x3, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(x3, FieldMemOperand(x3, SharedFunctionInfo::kFunctionDataOffset));
+
+  // Do the compatible receiver check.
+  Label receiver_check_failed;
+  CompatibleReceiverCheck(masm, x2, x3, x4, x5, x6, &receiver_check_failed);
+
+  // Get the callback offset from the FunctionTemplateInfo, and jump to the
+  // beginning of the code.
+  __ Ldr(x4, FieldMemOperand(x3, FunctionTemplateInfo::kCallCodeOffset));
+  __ Ldr(x4, FieldMemOperand(x4, CallHandlerInfo::kFastHandlerOffset));
+  __ Add(x4, x4, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Jump(x4);
+
+  __ Bind(&set_global_proxy);
+  __ Ldr(x2, GlobalObjectMemOperand());
+  __ Ldr(x2, FieldMemOperand(x2, JSGlobalObject::kGlobalProxyOffset));
+  __ Str(x2, MemOperand(jssp, x0, LSL, kPointerSizeLog2));
+  __ B(&valid_receiver);
+
+  // Compatible receiver check failed: throw an Illegal Invocation exception.
+  __ Bind(&receiver_check_failed);
+  // Drop the arguments (including the receiver)
+  __ add(x0, x0, Operand(1));
+  __ Drop(x0);
+  __ TailCallRuntime(Runtime::kThrowIllegalInvocation, 0, 1);
+}
+
+
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // Lookup the function in the JavaScript frame.
   __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));

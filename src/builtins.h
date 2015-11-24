@@ -100,6 +100,8 @@ enum BuiltinExtraArguments {
   V(ConstructProxy, BUILTIN, UNINITIALIZED, kNoExtraICState)                  \
   V(Construct, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
                                                                               \
+  V(HandleFastApiCall, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
+                                                                              \
   V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)             \
   V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
   V(JSBuiltinsConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
@@ -329,6 +331,8 @@ class Builtins {
   static void Generate_ConstructProxy(MacroAssembler* masm);
   // ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget])
   static void Generate_Construct(MacroAssembler* masm);
+
+  static void Generate_HandleFastApiCall(MacroAssembler* masm);
 
   static void Generate_FunctionCall(MacroAssembler* masm);
   static void Generate_FunctionApply(MacroAssembler* masm);

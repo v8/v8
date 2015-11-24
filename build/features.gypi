@@ -114,9 +114,6 @@
       ['v8_wasm!=0', {
         'defines': ['V8_WASM',],
       }],
-      ['v8_js_accessors!=0', {
-        'defines': ['V8_JS_ACCESSORS'],
-      }],
     ],  # conditions
     'configurations': {
       'DebugBaseCommon': {
