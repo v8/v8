@@ -196,7 +196,6 @@ class InterpreterAssembler {
 
   // Private helpers which delegate to RawMachineAssembler.
   Isolate* isolate();
-  Schedule* schedule();
   Zone* zone();
 
   interpreter::Bytecode bytecode_;

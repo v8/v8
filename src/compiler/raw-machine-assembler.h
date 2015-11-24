@@ -56,15 +56,10 @@ class RawMachineAssembler {
 
   Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }
-  Schedule* schedule() { return schedule_; }
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
-  size_t parameter_count() const { return machine_sig()->parameter_count(); }
-  const MachineSignature* machine_sig() const {
-    return call_descriptor_->GetMachineSignature();
-  }
 
   // Finalizes the schedule and exports it to be used for code generation. Note
   // that this RawMachineAssembler becomes invalid after export.
@@ -617,6 +612,12 @@ class RawMachineAssembler {
   BasicBlock* Use(Label* label);
   BasicBlock* EnsureBlock(Label* label);
   BasicBlock* CurrentBlock();
+
+  Schedule* schedule() { return schedule_; }
+  size_t parameter_count() const { return machine_sig()->parameter_count(); }
+  const MachineSignature* machine_sig() const {
+    return call_descriptor_->GetMachineSignature();
+  }
 
   Isolate* isolate_;
   Graph* graph_;

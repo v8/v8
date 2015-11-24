@@ -653,11 +653,6 @@ CallDescriptor* InterpreterAssembler::call_descriptor() const {
 }
 
 
-Schedule* InterpreterAssembler::schedule() {
-  return raw_assembler_->schedule();
-}
-
-
 Zone* InterpreterAssembler::zone() { return raw_assembler_->zone(); }
 
 
