@@ -183,18 +183,24 @@ class CallSite {
     "Class extends value does not have valid prototype property %")            \
   T(ProxyHandlerDeleteFailed,                                                  \
     "Proxy handler % did not return a boolean value from 'delete' trap")       \
-  T(ProxyHandlerNonObject, "Proxy.create called with non-object as handler")   \
+  T(ProxyHandlerNonObject, "Cannot create proxy with non-object as handler")   \
   T(ProxyHandlerReturned, "Proxy handler % returned % from '%' trap")          \
   T(ProxyHandlerTrapMissing, "Proxy handler % has no '%' trap")                \
   T(ProxyHandlerTrapMustBeCallable,                                            \
     "Proxy handler %0 has non-callable '%' trap")                              \
+  T(ProxyIsExtensibleViolatesInvariant,                                        \
+    "Result of trap 'isExtensible' is inconsistent with proxy's target")       \
   T(ProxyNonObjectPropNames, "Trap '%' returned non-object %")                 \
+  T(ProxyPreventExtensionsViolatesInvariant,                                   \
+    "Trap 'preventExtensions' returned true but the proxy's target is "        \
+    "extensible")                                                              \
   T(ProxyPropNotConfigurable,                                                  \
     "Proxy handler % returned non-configurable descriptor for property '%' "   \
     "from '%' trap")                                                           \
   T(ProxyRepeatedPropName, "Trap '%' returned repeated property name '%'")     \
+  T(ProxyRevoked, "Cannot perform '%' on a proxy that has been revoked")       \
   T(ProxyTargetNotExtensible, "Proxy target is not extensible")                \
-  T(ProxyTargetNonObject, "Proxy.% called with non-object as target")          \
+  T(ProxyTargetNonObject, "Proxy target is non-object")                        \
   T(ProxyTargetPropNotConfigurable,                                            \
     "Proxy target property '%' is not configurable")                           \
   T(ProxyTrapFunctionExpected,                                                 \

@@ -1621,20 +1621,10 @@ BUILTIN(ReflectIsExtensible) {
                                   "Reflect.isExtensible")));
   }
 
-  // TODO(neis): For now, we ignore proxies.  Once proxies are fully
-  // implemented, do something like the following:
-  /*
-  Maybe<bool> maybe = JSReceiver::IsExtensible(
-      Handle<JSReceiver>::cast(target));
-  if (!maybe.IsJust()) return isolate->heap()->exception();
-  return *isolate->factory()->ToBoolean(maybe.FromJust());
-  */
-
-  if (target->IsJSObject()) {
-    return *isolate->factory()->ToBoolean(
-        JSObject::IsExtensible(Handle<JSObject>::cast(target)));
-  }
-  return *isolate->factory()->false_value();
+  Maybe<bool> result =
+      JSReceiver::IsExtensible(Handle<JSReceiver>::cast(target));
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
 
@@ -1676,8 +1666,8 @@ BUILTIN(ReflectPreventExtensions) {
 
   Maybe<bool> result = JSReceiver::PreventExtensions(
       Handle<JSReceiver>::cast(target), Object::DONT_THROW);
-  return result.IsJust() ? *isolate->factory()->ToBoolean(result.FromJust())
-                         : isolate->heap()->exception();
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
 

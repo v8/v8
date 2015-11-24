@@ -1175,9 +1175,6 @@ function ObjectIsFrozen(obj) {
 // ES5 section 15.2.3.13
 function ObjectIsExtensible(obj) {
   if (!IS_SPEC_OBJECT(obj)) return false;
-  if (%_IsJSProxy(obj)) {
-    return true;
-  }
   return %IsExtensible(obj);
 }
 

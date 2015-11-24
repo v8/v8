@@ -9531,8 +9531,17 @@ class JSProxy: public JSReceiver {
 
   DECLARE_CAST(JSProxy)
 
+  static bool IsRevoked(Handle<JSProxy> proxy);
+
   // ES6 9.5.1
   static MaybeHandle<Object> GetPrototype(Handle<JSProxy> receiver);
+
+  // ES6 9.5.3
+  MUST_USE_RESULT static Maybe<bool> IsExtensible(Handle<JSProxy> proxy);
+
+  // ES6 9.5.4 (when passed DONT_THROW)
+  MUST_USE_RESULT static Maybe<bool> PreventExtensions(
+      Handle<JSProxy> proxy, ShouldThrow should_throw);
 
   // ES6 9.5.5
   static bool GetOwnPropertyDescriptor(LookupIterator* it,
@@ -9585,6 +9594,9 @@ class JSProxy: public JSReceiver {
 
  private:
   friend class JSReceiver;
+
+  MUST_USE_RESULT static MaybeHandle<Object> GetTrap(Handle<JSProxy> proxy,
+                                                     Handle<String> trap);
 
   // Invoke a trap by name. If the trap does not exist on this's handler,
   // but derived_trap is non-NULL, invoke that instead.  May cause GC.

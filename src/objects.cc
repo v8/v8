@@ -906,6 +906,15 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
 }
 
 
+bool JSProxy::IsRevoked(Handle<JSProxy> proxy) {
+  // TODO(neis): Decide on how to represent revocation.  For now, revocation is
+  // unsupported.
+  DCHECK(proxy->target()->IsJSReceiver());
+  DCHECK(proxy->handler()->IsJSReceiver());
+  return false;
+}
+
+
 MaybeHandle<Object> JSProxy::GetPropertyWithHandler(Handle<JSProxy> proxy,
                                                     Handle<Object> receiver,
                                                     Handle<Name> name) {
@@ -4675,6 +4684,15 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
 }
 
 
+MaybeHandle<Object> JSProxy::GetTrap(Handle<JSProxy> proxy,
+                                     Handle<String> trap) {
+  DCHECK(!IsRevoked(proxy));
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
+  return Object::GetMethod(handler, trap);
+}
+
+
 MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
                                       const char* name,
                                       Handle<Object> derived,
@@ -4682,13 +4700,9 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
                                       Handle<Object> argv[]) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<Object> handler(proxy->handler(), isolate);
-
   Handle<String> trap_name = isolate->factory()->InternalizeUtf8String(name);
   Handle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, trap,
-      Object::GetPropertyOrElement(handler, trap_name),
-      Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap, GetTrap(proxy, trap_name), Object);
 
   if (trap->IsUndefined()) {
     if (derived.is_null()) {
@@ -7083,10 +7097,59 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 Maybe<bool> JSReceiver::PreventExtensions(Handle<JSReceiver> object,
                                           ShouldThrow should_throw) {
-  if (!object->IsJSObject()) return Just(false);
-  // TODO(neis): Deal with proxies.
+  if (object->IsJSProxy()) {
+    return JSProxy::PreventExtensions(Handle<JSProxy>::cast(object),
+                                      should_throw);
+  }
+  DCHECK(object->IsJSObject());
   return JSObject::PreventExtensions(Handle<JSObject>::cast(object),
                                      should_throw);
+}
+
+
+Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
+                                       ShouldThrow should_throw) {
+  Isolate* isolate = proxy->GetIsolate();
+  Factory* factory = isolate->factory();
+  Handle<String> trap_name = factory->preventExtensions_string();
+
+  if (IsRevoked(proxy)) {
+    isolate->Throw(
+        *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
+    return Nothing<bool>();
+  }
+
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
+
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, trap, GetTrap(proxy, trap_name),
+                                   Nothing<bool>());
+  if (trap->IsUndefined()) {
+    return JSReceiver::PreventExtensions(target, should_throw);
+  }
+
+  Handle<Object> trap_result;
+  Handle<Object> args[] = {target};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result,
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
+      Nothing<bool>());
+  if (!trap_result->BooleanValue()) {
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kProxyHandlerReturned, handler,
+                                factory->false_string(), trap_name));
+  }
+
+  // Enforce the invariant.
+  Maybe<bool> target_result = JSReceiver::IsExtensible(target);
+  MAYBE_RETURN(target_result, Nothing<bool>());
+  if (target_result.FromJust()) {
+    isolate->Throw(*factory->NewTypeError(
+        MessageTemplate::kProxyPreventExtensionsViolatesInvariant));
+    return Nothing<bool>();
+  }
+  return Just(true);
 }
 
 
@@ -7147,13 +7210,51 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
 }
 
 
-// static
 Maybe<bool> JSReceiver::IsExtensible(Handle<JSReceiver> object) {
   if (object->IsJSProxy()) {
-    // TODO(neis,cbruni): Redirect to the trap on JSProxy.
-    return Just(true);
+    return JSProxy::IsExtensible(Handle<JSProxy>::cast(object));
   }
   return Just(JSObject::IsExtensible(Handle<JSObject>::cast(object)));
+}
+
+
+Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
+  Isolate* isolate = proxy->GetIsolate();
+  Factory* factory = isolate->factory();
+  Handle<String> trap_name = factory->isExtensible_string();
+
+  if (IsRevoked(proxy)) {
+    isolate->Throw(
+        *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
+    return Nothing<bool>();
+  }
+
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
+
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, trap, GetTrap(proxy, trap_name),
+                                   Nothing<bool>());
+  if (trap->IsUndefined()) {
+    return JSReceiver::IsExtensible(target);
+  }
+
+  Handle<Object> trap_result;
+  Handle<Object> args[] = {target};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result,
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
+      Nothing<bool>());
+
+  // Enforce the invariant.
+  Maybe<bool> target_result = JSReceiver::IsExtensible(target);
+  MAYBE_RETURN(target_result, Nothing<bool>());
+  if (target_result.FromJust() != trap_result->BooleanValue()) {
+    isolate->Throw(*factory->NewTypeError(
+        MessageTemplate::kProxyIsExtensibleViolatesInvariant));
+    return Nothing<bool>();
+  }
+  return target_result;
 }
 
 

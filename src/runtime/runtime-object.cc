@@ -296,8 +296,8 @@ RUNTIME_FUNCTION(Runtime_PreventExtensions) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
-  if (JSReceiver::PreventExtensions(obj, Object::THROW_ON_ERROR).IsNothing())
-    return isolate->heap()->exception();
+  MAYBE_RETURN(JSReceiver::PreventExtensions(obj, Object::THROW_ON_ERROR),
+               isolate->heap()->exception());
   return *obj;
 }
 
@@ -305,8 +305,10 @@ RUNTIME_FUNCTION(Runtime_PreventExtensions) {
 RUNTIME_FUNCTION(Runtime_IsExtensible) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  return isolate->heap()->ToBoolean(JSObject::IsExtensible(obj));
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
+  Maybe<bool> result = JSReceiver::IsExtensible(obj);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
 }
 
 

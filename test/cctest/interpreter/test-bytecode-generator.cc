@@ -4495,21 +4495,25 @@ TEST(IllegalRedeclaration) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<const char*> snippets[] = {
+  CHECK_GE(MessageTemplate::kVarRedeclaration, 128);
+  // Must adapt bytecode if this changes.
+
+  ExpectedSnippet<Handle<Object>, 2> snippets[] = {
       {"const a = 1; { var a = 2; }",
        3 * kPointerSize,
        1,
        14,
        {
-           B(LdaSmi8), U8(MessageTemplate::kVarRedeclaration),          //
-           B(Star), R(1),                                               //
            B(LdaConstant), U8(0),                                       //
+           B(Star), R(1),                                               //
+           B(LdaConstant), U8(1),                                       //
            B(Star), R(2),                                               //
            B(CallRuntime), U16(Runtime::kNewSyntaxError), R(1), U8(2),  //
            B(Throw),                                                    //
        },
-       1,
-       {"a"}},
+       2,
+       {helper.factory()->NewNumberFromInt(MessageTemplate::kVarRedeclaration),
+        helper.factory()->NewStringFromAsciiChecked("a")}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
