@@ -16,6 +16,7 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
+class FrameAccessState;
 class Linkage;
 class OutOfLineCode;
 
@@ -37,7 +38,8 @@ class CodeGenerator final : public GapResolver::Assembler {
   Handle<Code> GenerateCode();
 
   InstructionSequence* code() const { return code_; }
-  Frame* frame() const { return frame_; }
+  FrameAccessState* frame_access_state() const { return frame_access_state_; }
+  Frame* const frame() const { return frame_access_state_->frame(); }
   Isolate* isolate() const { return info_->isolate(); }
   Linkage* linkage() const { return linkage_; }
 
@@ -128,14 +130,14 @@ class CodeGenerator final : public GapResolver::Assembler {
   void RecordCallPosition(Instruction* instr);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
-  FrameStateDescriptor* GetFrameStateDescriptor(Instruction* instr,
-                                                size_t frame_state_offset);
+  FrameStateDescriptor* GetFrameStateDescriptor(
+      Instruction* instr, size_t frame_access_state_offset);
   int BuildTranslation(Instruction* instr, int pc_offset,
-                       size_t frame_state_offset,
+                       size_t frame_access_state_offset,
                        OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, Instruction* instr,
-      Translation* translation, size_t frame_state_offset,
+      Translation* translation, size_t frame_access_state_offset,
       OutputFrameStateCombine state_combine);
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op, MachineType type);
@@ -176,7 +178,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   friend class OutOfLineCode;
 
-  Frame* const frame_;
+  FrameAccessState* frame_access_state_;
   Linkage* const linkage_;
   InstructionSequence* const code_;
   CompilationInfo* const info_;
@@ -196,7 +198,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
   int osr_pc_offset_;
-  bool needs_frame_;
 };
 
 }  // namespace compiler

@@ -147,24 +147,6 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
 }
 
 
-FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame) const {
-  bool has_frame = frame->GetSpillSlotCount() > 0 ||
-                   incoming_->IsJSFunctionCall() ||
-                   incoming_->kind() == CallDescriptor::kCallAddress;
-  const int offset =
-      (StandardFrameConstants::kFixedSlotCountAboveFp - spill_slot - 1) *
-      kPointerSize;
-  if (has_frame) {
-    return FrameOffset::FromFramePointer(offset);
-  } else {
-    // No frame. Retrieve all parameters relative to stack pointer.
-    DCHECK(spill_slot < 0);  // Must be a parameter.
-    int sp_offset = offset + (frame->GetSpToFpSlotCount() * kPointerSize);
-    return FrameOffset::FromStackPointer(sp_offset);
-  }
-}
-
-
 // static
 int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
   // Most runtime functions need a FrameState. A few chosen ones that we know

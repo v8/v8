@@ -413,6 +413,8 @@ DEFINE_IMPLICATION(turbo, turbo_asm_deoptimization)
 DEFINE_IMPLICATION(turbo, turbo_inlining)
 DEFINE_BOOL(turbo_shipping, true, "enable TurboFan compiler on subset")
 DEFINE_BOOL(turbo_greedy_regalloc, false, "use the greedy register allocator")
+DEFINE_BOOL(turbo_sp_frame_access, false,
+            "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(turbo_preprocess_ranges, true,
             "run pre-register allocation heuristics")
 DEFINE_BOOL(turbo_loop_stackcheck, true, "enable stack checks in loops")

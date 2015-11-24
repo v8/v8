@@ -188,6 +188,10 @@ class CallDescriptor final : public ZoneObject {
   // Returns {true} if this descriptor is a call to a JSFunction.
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
+  bool RequiresFrameAsIncoming() const {
+    return IsCFunctionCall() || IsJSFunctionCall();
+  }
+
   // The number of return values from this call.
   size_t ReturnCount() const { return machine_sig_->return_count(); }
 
@@ -347,12 +351,6 @@ class Linkage : public ZoneObject {
 
   bool ParameterHasSecondaryLocation(int index) const;
   LinkageLocation GetParameterSecondaryLocation(int index) const;
-
-  // Get the frame offset for a given spill slot. The location depends on the
-  // calling convention and the specific frame layout, and may thus be
-  // architecture-specific. Negative spill slots indicate arguments on the
-  // caller's frame.
-  FrameOffset GetFrameOffset(int spill_slot, Frame* frame) const;
 
   static int FrameStateInputCount(Runtime::FunctionId function);
 

@@ -12,11 +12,17 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class CallDescriptor;
+
 // Collects the spill slot and other frame slot requirements for a compiled
 // function. Frames are usually populated by the register allocator and are used
-// by Linkage to generate code for the prologue and epilogue to compiled code.
+// by Linkage to generate code for the prologue and epilogue to compiled
+// code. Frame objects must be considered immutable once they've been
+// instantiated and the basic information about the frame has been collected
+// into them. Mutable state associated with the frame is stored separately in
+// FrameAccessState.
 //
-// Frames are divided up into four regions.
+// Frames are divided up into three regions.
 // - The first is the fixed header, which always has a constant size and can be
 //   predicted before code generation begins depending on the type of code being
 //   generated.
@@ -27,8 +33,6 @@ namespace compiler {
 //   reserved after register allocation, since its size can only be precisely
 //   determined after register allocation once the number of used callee-saved
 //   register is certain.
-// - The fourth region is used to pass arguments to other functions. It should
-//   be empty except when a call is being prepared.
 //
 // Every pointer in a frame has a slot id. On 32-bit platforms, doubles consume
 // two slots.
@@ -78,27 +82,32 @@ namespace compiler {
 //       |- - - - - - - - -|   |                        |
 //       |      ...        | Callee-saved               |
 //       |- - - - - - - - -|   |                        |
-// m+r+4 |  callee-saved r |   v                        |
-//       +-----------------+----                        |
-//       |   parameter 0   |   ^                        |
-//       |- - - - - - - - -|   |                        |
-//       |      ...        | Outgoing parameters        |
-//       |- - - - - - - - -|   |  (for function calls)  |
-//       |   parameter p   |   v                        v
+// m+r+4 |  callee-saved r |   v                        v
 //  -----+-----------------+----- <-- stack ptr -------------
 //
 class Frame : public ZoneObject {
  public:
-  explicit Frame(int fixed_frame_size_in_slots);
+  explicit Frame(int fixed_frame_size_in_slots,
+                 const CallDescriptor* descriptor);
+
+  static int FPOffsetToSlot(int frame_offset) {
+    return StandardFrameConstants::kFixedSlotCountAboveFp - 1 -
+           frame_offset / kPointerSize;
+  }
+
+  static int SlotToFPOffset(int slot) {
+    return (StandardFrameConstants::kFixedSlotCountAboveFp - 1 - slot) *
+           kPointerSize;
+  }
+
+  inline bool needs_frame() const { return needs_frame_; }
+  inline void MarkNeedsFrame() { needs_frame_ = true; }
 
   inline int GetTotalFrameSlotCount() const { return frame_slot_count_; }
 
   inline int GetSpToFpSlotCount() const {
     return GetTotalFrameSlotCount() -
            StandardFrameConstants::kFixedSlotCountAboveFp;
-  }
-  inline int GetOutgoingParameterSlotCount() const {
-    return outgoing_parameter_slot_count_;
   }
   inline int GetSavedCalleeRegisterSlotCount() const {
     return callee_saved_slot_count_;
@@ -125,32 +134,23 @@ class Frame : public ZoneObject {
     return !allocated_double_registers_->IsEmpty();
   }
 
-  void AllocateOutgoingParameterSlots(int count) {
-    outgoing_parameter_slot_count_ += count;
-    frame_slot_count_ += count;
-  }
-
-  void ClearOutgoingParameterSlots() {
-    frame_slot_count_ -= outgoing_parameter_slot_count_;
-    outgoing_parameter_slot_count_ = 0;
-  }
-
   int AlignSavedCalleeRegisterSlots() {
     DCHECK_EQ(0, callee_saved_slot_count_);
+    needs_frame_ = true;
     int delta = frame_slot_count_ & 1;
     frame_slot_count_ += delta;
     return delta;
   }
 
   void AllocateSavedCalleeRegisterSlots(int count) {
-    DCHECK_EQ(0, outgoing_parameter_slot_count_);
+    needs_frame_ = true;
     frame_slot_count_ += count;
     callee_saved_slot_count_ += count;
   }
 
   int AllocateSpillSlot(int width) {
-    DCHECK_EQ(0, outgoing_parameter_slot_count_);
     DCHECK_EQ(0, callee_saved_slot_count_);
+    needs_frame_ = true;
     int frame_slot_count_before = frame_slot_count_;
     int slot = AllocateAlignedFrameSlot(width);
     spill_slot_count_ += (frame_slot_count_ - frame_slot_count_before);
@@ -158,9 +158,9 @@ class Frame : public ZoneObject {
   }
 
   int ReserveSpillSlots(size_t slot_count) {
-    DCHECK_EQ(0, outgoing_parameter_slot_count_);
     DCHECK_EQ(0, callee_saved_slot_count_);
     DCHECK_EQ(0, spill_slot_count_);
+    needs_frame_ = true;
     spill_slot_count_ += static_cast<int>(slot_count);
     frame_slot_count_ += static_cast<int>(slot_count);
     return frame_slot_count_ - 1;
@@ -182,8 +182,8 @@ class Frame : public ZoneObject {
   }
 
  private:
+  bool needs_frame_;
   int frame_slot_count_;
-  int outgoing_parameter_slot_count_;
   int callee_saved_slot_count_;
   int spill_slot_count_;
   BitVector* allocated_registers_;
@@ -217,6 +217,38 @@ class FrameOffset {
 
   static const int kFromSp = 1;
   static const int kFromFp = 0;
+};
+
+// Encapsulates the mutable state maintained during code generation about the
+// current function's frame.
+class FrameAccessState : public ZoneObject {
+ public:
+  explicit FrameAccessState(Frame* const frame)
+      : frame_(frame), access_frame_with_fp_(false), sp_delta_(0) {
+    SetFrameAccessToDefault();
+  }
+
+  Frame* const frame() const { return frame_; }
+
+  int sp_delta() const { return sp_delta_; }
+  void ClearSPDelta() { sp_delta_ = 0; }
+  void IncreaseSPDelta(int amount) { sp_delta_ += amount; }
+
+  bool access_frame_with_fp() const { return access_frame_with_fp_; }
+  void SetFrameAccessToDefault();
+  void SetFrameAccessToFP() { access_frame_with_fp_ = true; }
+  void SetFrameAccessToSP() { access_frame_with_fp_ = false; }
+
+  // Get the frame offset for a given spill slot. The location depends on the
+  // calling convention and the specific frame layout, and may thus be
+  // architecture-specific. Negative spill slots indicate arguments on the
+  // caller's frame.
+  FrameOffset GetFrameOffset(int spill_slot) const;
+
+ private:
+  Frame* const frame_;
+  bool access_frame_with_fp_;
+  int sp_delta_;
 };
 }  // namespace compiler
 }  // namespace internal

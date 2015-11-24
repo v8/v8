@@ -274,12 +274,12 @@ class PipelineData {
     DCHECK(register_allocation_data_ == nullptr);
     int fixed_frame_size = 0;
     if (descriptor != nullptr) {
-      fixed_frame_size = (descriptor->kind() == CallDescriptor::kCallAddress)
+      fixed_frame_size = (descriptor->IsCFunctionCall())
                              ? StandardFrameConstants::kFixedSlotCountAboveFp +
                                    StandardFrameConstants::kCPSlotCount
                              : StandardFrameConstants::kFixedSlotCount;
     }
-    frame_ = new (instruction_zone()) Frame(fixed_frame_size);
+    frame_ = new (instruction_zone()) Frame(fixed_frame_size, descriptor);
     register_allocation_data_ = new (register_allocation_zone())
         RegisterAllocationData(config, register_allocation_zone(), frame(),
                                sequence(), debug_name);

@@ -120,8 +120,8 @@ class MipsOperandConverter final : public InstructionOperandConverter {
   MemOperand ToMemOperand(InstructionOperand* op) const {
     DCHECK(op != NULL);
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
-    FrameOffset offset =
-        linkage()->GetFrameOffset(AllocatedOperand::cast(op)->index(), frame());
+    FrameOffset offset = frame_access_state()->GetFrameOffset(
+        AllocatedOperand::cast(op)->index());
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
 };
@@ -458,12 +458,10 @@ void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   if (sp_slot_delta > 0) {
     __ addiu(sp, sp, sp_slot_delta * kPointerSize);
   }
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int spill_slots = frame()->GetSpillSlotCount();
-  bool has_frame = descriptor->IsJSFunctionCall() || spill_slots > 0;
-  if (has_frame) {
+  if (frame()->needs_frame()) {
     __ Pop(ra, fp);
   }
+  frame_access_state()->SetFrameAccessToDefault();
 }
 
 
@@ -471,7 +469,9 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
   if (sp_slot_delta < 0) {
     __ Subu(sp, sp, Operand(-sp_slot_delta * kPointerSize));
+    frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
   }
+  frame_access_state()->SetFrameAccessToSP();
 }
 
 
@@ -491,6 +491,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Call(at);
       }
       RecordCallPosition(instr);
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchTailCallCodeObject: {
@@ -503,6 +504,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ addiu(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
         __ Jump(at);
       }
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchCallJSFunction: {
@@ -517,6 +519,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ lw(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(at);
       RecordCallPosition(instr);
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchTailCallJSFunction: {
@@ -531,6 +534,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AssembleDeconstructActivationRecord(stack_param_delta);
       __ lw(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Jump(at);
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchLazyBailout: {
@@ -541,6 +545,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters, kScratchReg);
+      // Frame alignment requires using FP-relative frame addressing.
+      frame_access_state()->SetFrameAccessToFP();
       break;
     }
     case kArchPrepareTailCall:
@@ -555,6 +561,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
+      frame_access_state()->SetFrameAccessToDefault();
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchJmp:
@@ -963,12 +971,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ sdc1(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
         __ Subu(sp, sp, Operand(kDoubleSize));
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
       } else {
         __ Push(i.InputRegister(0));
+        frame_access_state()->IncreaseSPDelta(1);
       }
       break;
     case kMipsStackClaim: {
       __ Subu(sp, sp, Operand(i.InputInt32(0)));
+      frame_access_state()->IncreaseSPDelta(i.InputInt32(0) / kPointerSize);
       break;
     }
     case kMipsStoreToStackSlot: {
@@ -1299,17 +1310,18 @@ void CodeGenerator::AssembleDeoptimizerCall(
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int stack_shrink_slots = frame()->GetSpillSlotCount();
-  if (descriptor->kind() == CallDescriptor::kCallAddress) {
+  if (descriptor->IsCFunctionCall()) {
     __ Push(ra, fp);
     __ mov(fp, sp);
   } else if (descriptor->IsJSFunctionCall()) {
     CompilationInfo* info = this->info();
     __ Prologue(info->IsCodePreAgingActive());
-  } else if (needs_frame_) {
+  } else if (frame()->needs_frame()) {
     __ StubPrologue();
   } else {
     frame()->SetElidedFrameSizeInSlots(0);
   }
+  frame_access_state()->SetFrameAccessToDefault();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -1372,10 +1384,10 @@ void CodeGenerator::AssembleReturn() {
     __ MultiPopFPU(saves_fpu);
   }
 
-  if (descriptor->kind() == CallDescriptor::kCallAddress) {
+  if (descriptor->IsCFunctionCall()) {
     __ mov(sp, fp);
     __ Pop(ra, fp);
-  } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
+  } else if (frame()->needs_frame()) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
       __ Branch(&return_label_);
