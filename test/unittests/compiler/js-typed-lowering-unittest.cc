@@ -1094,7 +1094,7 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralArray) {
   Handle<FixedArray> const constant_elements = factory()->NewFixedArray(12);
   int const literal_flags = ArrayLiteral::kShallowElements;
   int const literal_index = 1;
-  Node* const input = Parameter(0);
+  Node* const closure = Parameter(0);
   Node* const context = Parameter(1);
   Node* const frame_state = EmptyFrameState();
   Node* const effect = graph()->start();
@@ -1102,13 +1102,13 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralArray) {
   Reduction const r = Reduce(
       graph()->NewNode(javascript()->CreateLiteralArray(
                            constant_elements, literal_flags, literal_index),
-                       input, context, frame_state, effect, control));
+                       closure, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
       IsCall(_, IsHeapConstant(
                     CodeFactory::FastCloneShallowArray(isolate()).code()),
-             input, IsNumberConstant(literal_index),
+             closure, IsNumberConstant(literal_index),
              IsHeapConstant(constant_elements), context, frame_state, effect,
              control));
 }
@@ -1123,7 +1123,7 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
       factory()->NewFixedArray(6 * 2);
   int const literal_flags = ObjectLiteral::kShallowProperties;
   int const literal_index = 1;
-  Node* const input = Parameter(0);
+  Node* const closure = Parameter(0);
   Node* const context = Parameter(1);
   Node* const frame_state = EmptyFrameState();
   Node* const effect = graph()->start();
@@ -1131,13 +1131,13 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
   Reduction const r = Reduce(
       graph()->NewNode(javascript()->CreateLiteralObject(
                            constant_properties, literal_flags, literal_index),
-                       input, context, frame_state, effect, control));
+                       closure, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
       IsCall(_, IsHeapConstant(
                     CodeFactory::FastCloneShallowObject(isolate(), 6).code()),
-             input, IsNumberConstant(literal_index),
+             closure, IsNumberConstant(literal_index),
              IsHeapConstant(constant_properties), _, context, frame_state,
              effect, control));
 }

@@ -2830,6 +2830,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   HValue* BuildContextChainWalk(Variable* var);
 
+  HValue* AddThisFunction();
   HInstruction* BuildThisFunction();
 
   HInstruction* BuildFastLiteral(Handle<JSObject> boilerplate_object,

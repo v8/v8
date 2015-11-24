@@ -1713,12 +1713,10 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   Node* closure = GetFunctionClosure();
 
   // Create node to deep-copy the literal boilerplate.
-  Node* literals_array =
-      BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
   const Operator* op = javascript()->CreateLiteralObject(
       expr->constant_properties(), expr->ComputeFlags(true),
       expr->literal_index());
-  Node* literal = NewNode(op, literals_array);
+  Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 
@@ -1918,12 +1916,10 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Node* closure = GetFunctionClosure();
 
   // Create node to deep-copy the literal boilerplate.
-  Node* literals_array =
-      BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
   const Operator* op = javascript()->CreateLiteralArray(
       expr->constant_elements(), expr->ComputeFlags(true),
       expr->literal_index());
-  Node* literal = NewNode(op, literals_array);
+  Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 

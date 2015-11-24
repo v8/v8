@@ -5890,13 +5890,11 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     site_context.ExitScope(site, boilerplate);
   } else {
     NoObservableSideEffectsScope no_effects(this);
-    Handle<LiteralsArray> closure_literals(closure->literals(), isolate());
     Handle<FixedArray> constant_properties = expr->constant_properties();
     int literal_index = expr->literal_index();
     int flags = expr->ComputeFlags(true);
 
-    Add<HPushArguments>(Add<HConstant>(closure_literals),
-                        Add<HConstant>(literal_index),
+    Add<HPushArguments>(AddThisFunction(), Add<HConstant>(literal_index),
                         Add<HConstant>(constant_properties),
                         Add<HConstant>(flags));
 
@@ -6059,10 +6057,8 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     int literal_index = expr->literal_index();
     int flags = expr->ComputeFlags(true);
 
-    Add<HPushArguments>(Add<HConstant>(literals),
-                        Add<HConstant>(literal_index),
-                        Add<HConstant>(constants),
-                        Add<HConstant>(flags));
+    Add<HPushArguments>(AddThisFunction(), Add<HConstant>(literal_index),
+                        Add<HConstant>(constants), Add<HConstant>(flags));
 
     Runtime::FunctionId function_id = Runtime::kCreateArrayLiteral;
     literal = Add<HCallRuntime>(Runtime::FunctionForId(function_id), 4);
@@ -11717,6 +11713,11 @@ void HOptimizedGraphBuilder::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
 void HOptimizedGraphBuilder::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
+}
+
+
+HValue* HOptimizedGraphBuilder::AddThisFunction() {
+  return AddInstruction(BuildThisFunction());
 }
 
 

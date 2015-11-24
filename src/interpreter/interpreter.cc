@@ -1340,9 +1340,7 @@ void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
   Node* flags_raw = __ BytecodeOperandImm(1);
   Node* flags = __ SmiTag(flags_raw);
   Node* closure = __ LoadRegister(Register::function_closure());
-  Node* literals_array =
-      __ LoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* result = __ CallRuntime(function_id, literals_array, literal_index,
+  Node* result = __ CallRuntime(function_id, closure, literal_index,
                                 constant_elements, flags);
   __ SetAccumulator(result);
   __ Dispatch();

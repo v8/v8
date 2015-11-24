@@ -238,11 +238,12 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
 
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, constant_properties, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<LiteralsArray> literals(closure->literals(), isolate);
   bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
   bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
   bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
@@ -351,13 +352,14 @@ static MaybeHandle<JSObject> CreateArrayLiteralImpl(
 
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 
   Handle<JSObject> result;
+  Handle<LiteralsArray> literals(closure->literals(), isolate);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, CreateArrayLiteralImpl(isolate, literals, literals_index,
                                               elements, flags));
@@ -367,12 +369,13 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
 
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
   Handle<JSObject> result;
+  Handle<LiteralsArray> literals(closure->literals(), isolate);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
